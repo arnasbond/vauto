@@ -1,12 +1,16 @@
 import type { ChatThread, Listing, UserProfile } from "@/lib/types";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 
+export type ApiResult<T> =
+  | { ok: true; data: T }
+  | { ok: false; error: string; status?: number };
+
 async function dataFetch<T>(
   path: string,
   opts?: RequestInit & { userId?: string }
-): Promise<T | null> {
+): Promise<ApiResult<T>> {
   const base = getDataApiBaseUrl();
-  if (!base) return null;
+  if (!base) return { ok: false, error: "API not configured" };
 
   try {
     const headers: Record<string, string> = {
@@ -17,11 +21,18 @@ async function dataFetch<T>(
       ...opts,
       headers: { ...headers, ...(opts?.headers as Record<string, string>) },
     });
-    if (!res.ok) return null;
-    if (res.status === 204) return null as T;
-    return (await res.json()) as T;
-  } catch {
-    return null;
+    if (!res.ok) {
+      const text = await res.text().catch(() => "");
+      return {
+        ok: false,
+        error: text || res.statusText || `HTTP ${res.status}`,
+        status: res.status,
+      };
+    }
+    if (res.status === 204) return { ok: true, data: null as T };
+    return { ok: true, data: (await res.json()) as T };
+  } catch (e) {
+    return { ok: false, error: String(e) };
   }
 }
 
@@ -48,8 +59,8 @@ async function aiFetch<T>(
 }
 
 export async function apiHealthCheck(): Promise<boolean> {
-  const data = await dataFetch<{ ok: boolean }>("/api/health");
-  return data?.ok === true;
+  const r = await dataFetch<{ ok: boolean }>("/api/health");
+  return r.ok && r.data.ok === true;
 }
 
 export async function apiAiHealthCheck(): Promise<{
@@ -60,15 +71,15 @@ export async function apiAiHealthCheck(): Promise<{
   return aiFetch("/api/ai/health");
 }
 
-export async function apiFetchListings(): Promise<Listing[] | null> {
+export async function apiFetchListings(): Promise<ApiResult<Listing[]>> {
   return dataFetch<Listing[]>("/api/listings");
 }
 
 export async function apiCreateListing(
   listing: Listing,
   userId: string
-): Promise<void> {
-  await dataFetch("/api/listings", {
+): Promise<ApiResult<null>> {
+  return dataFetch<null>("/api/listings", {
     method: "POST",
     body: JSON.stringify(listing),
     userId,
@@ -78,46 +89,64 @@ export async function apiCreateListing(
 export async function apiDeleteListing(
   id: string,
   userId: string
-): Promise<void> {
-  await dataFetch(`/api/listings/${id}`, { method: "DELETE", userId });
+): Promise<ApiResult<null>> {
+  return dataFetch<null>(`/api/listings/${id}`, { method: "DELETE", userId });
 }
 
-export async function apiFetchUser(id: string): Promise<UserProfile | null> {
+export async function apiRenewListing(
+  id: string,
+  userId: string
+): Promise<ApiResult<Listing>> {
+  return dataFetch<Listing>(`/api/listings/${id}/renew`, {
+    method: "POST",
+    userId,
+  });
+}
+
+export async function apiFetchUser(
+  id: string
+): Promise<ApiResult<UserProfile>> {
   return dataFetch<UserProfile>(`/api/users/${id}`);
 }
 
-export async function apiUpdateUser(user: UserProfile): Promise<void> {
-  await dataFetch(`/api/users/${user.id}`, {
+export async function apiUpdateUser(
+  user: UserProfile
+): Promise<ApiResult<null>> {
+  return dataFetch<null>(`/api/users/${user.id}`, {
     method: "PUT",
     body: JSON.stringify(user),
     userId: user.id,
   });
 }
 
-export async function apiFetchSaved(userId: string): Promise<string[] | null> {
+export async function apiFetchSaved(
+  userId: string
+): Promise<ApiResult<string[]>> {
   return dataFetch<string[]>(`/api/saved/${userId}`);
 }
 
 export async function apiUpdateSaved(
   userId: string,
   ids: string[]
-): Promise<void> {
-  await dataFetch(`/api/saved/${userId}`, {
+): Promise<ApiResult<null>> {
+  return dataFetch<null>(`/api/saved/${userId}`, {
     method: "PUT",
     body: JSON.stringify({ ids }),
     userId,
   });
 }
 
-export async function apiFetchChats(userId: string): Promise<ChatThread[] | null> {
+export async function apiFetchChats(
+  userId: string
+): Promise<ApiResult<ChatThread[]>> {
   return dataFetch<ChatThread[]>(`/api/chats/${userId}`);
 }
 
 export async function apiUpsertChat(
   thread: ChatThread,
   userId: string
-): Promise<void> {
-  await dataFetch("/api/chats", {
+): Promise<ApiResult<null>> {
+  return dataFetch<null>("/api/chats", {
     method: "PUT",
     body: JSON.stringify(thread),
     userId,
@@ -126,8 +155,8 @@ export async function apiUpsertChat(
 
 export async function apiUpsertEscrow(
   escrow: import("@/lib/types").EscrowTransaction
-): Promise<void> {
-  await dataFetch("/api/escrow", {
+): Promise<ApiResult<null>> {
+  return dataFetch<null>("/api/escrow", {
     method: "PUT",
     body: JSON.stringify(escrow),
     userId: escrow.buyerId,

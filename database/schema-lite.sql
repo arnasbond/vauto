@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS listings (
   tags          JSONB NOT NULL DEFAULT '[]',
   contact       TEXT,
   has_video     BOOLEAN NOT NULL DEFAULT false,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  expires_at    TIMESTAMPTZ
 );
 
 CREATE TABLE IF NOT EXISTS saved_listings (

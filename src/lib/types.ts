@@ -14,6 +14,8 @@ export interface Listing {
   createdAt: string;
   contact?: string;
   hasVideo?: boolean;
+  /** ISO date when listing stops appearing in feed */
+  expiresAt?: string;
 }
 
 export type ListingCategory =

@@ -20,6 +20,7 @@ export interface ApiListing {
   createdAt: string;
   contact?: string;
   hasVideo?: boolean;
+  expiresAt?: string;
 }
 
 export interface ApiChatMessage {

@@ -60,9 +60,10 @@ export async function getListings(): Promise<ApiListing[]> {
     contact: string | null;
     has_video: boolean;
     created_at: Date;
+    expires_at: Date | null;
   }>(
     `SELECT id, seller_id, title, price, price_label, location, distance_km,
-            image, category, tags, contact, has_video, created_at
+            image, category, tags, contact, has_video, created_at, expires_at
      FROM listings ORDER BY created_at DESC`
   );
 
@@ -80,6 +81,7 @@ export async function getListings(): Promise<ApiListing[]> {
     contact: r.contact ?? undefined,
     hasVideo: r.has_video,
     createdAt: r.created_at.toISOString(),
+    expiresAt: r.expires_at?.toISOString(),
   }));
 }
 
@@ -88,14 +90,15 @@ export async function insertListing(listing: ApiListing): Promise<void> {
   await query(
     `INSERT INTO listings (
       id, seller_id, title, price, price_label, location, distance_km,
-      image, category, tags, contact, has_video, created_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13)
+      image, category, tags, contact, has_video, created_at, expires_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10::jsonb,$11,$12,$13,$14)
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       price = EXCLUDED.price,
       location = EXCLUDED.location,
       distance_km = EXCLUDED.distance_km,
-      image = EXCLUDED.image`,
+      image = EXCLUDED.image,
+      expires_at = EXCLUDED.expires_at`,
     [
       listing.id,
       listing.sellerId,
@@ -110,8 +113,31 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.contact ?? null,
       listing.hasVideo ?? false,
       listing.createdAt,
+      listing.expiresAt ?? null,
     ]
   );
+}
+
+export async function renewListing(
+  id: string,
+  sellerId: string
+): Promise<ApiListing | null> {
+  const rows = await query<{ created_at: Date }>(
+    "SELECT created_at FROM listings WHERE id = $1 AND seller_id = $2",
+    [id, sellerId]
+  );
+  if (!rows[0]) return null;
+
+  const expiresAt = new Date();
+  expiresAt.setDate(expiresAt.getDate() + 90);
+
+  await query(
+    `UPDATE listings SET expires_at = $1, created_at = now() WHERE id = $2 AND seller_id = $3`,
+    [expiresAt.toISOString(), id, sellerId]
+  );
+
+  const all = await getListings();
+  return all.find((l) => l.id === id) ?? null;
 }
 
 export async function deleteListing(id: string, sellerId: string): Promise<boolean> {

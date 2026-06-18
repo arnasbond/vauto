@@ -1,13 +1,7 @@
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
+import { isListingActive } from "@/lib/listing-expiry";
 
-const LISTING_MAX_AGE_DAYS = 90;
-
-/** Hide very old listings from feed (garbage collection lite) */
-export function isListingActive(listing: Listing): boolean {
-  const days =
-    (Date.now() - new Date(listing.createdAt).getTime()) / 86_400_000;
-  return days <= LISTING_MAX_AGE_DAYS;
-}
+export { isListingActive } from "@/lib/listing-expiry";
 
 export function computeSemanticRelevance(
   query: string,

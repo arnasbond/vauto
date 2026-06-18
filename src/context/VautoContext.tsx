@@ -48,12 +48,14 @@ import {
   apiFetchSaved,
   apiFetchUser,
   apiHealthCheck,
+  apiRenewListing,
   apiUpdateSaved,
   apiUpdateUser,
   apiUpsertChat,
   apiUpsertEscrow,
 } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
+import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { parseVideoUrl } from "@/lib/video-url";
 import type {
   AiExtractedListing,
@@ -79,6 +81,10 @@ interface VautoContextValue {
   dynamicFilters: ReturnType<typeof generateDynamicFilters>;
   toggleSave: (id: string) => void;
   deleteListing: (id: string) => void;
+  renewListing: (id: string) => Promise<void>;
+
+  syncError: string | null;
+  clearSyncError: () => void;
 
   sellerStep: SellerFlowStep;
   sellerInputMode: SellerInputMode;
@@ -120,6 +126,7 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
 export function VautoProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
+  const [syncError, setSyncError] = useState<string | null>(null);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(["l-bike"]));
@@ -135,17 +142,25 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setApiActive(true);
         const storedUser = loadUser();
         const uid = storedUser?.id ?? MOCK_USER.id;
-        const [apiListings, apiChats, apiSaved, apiUser] = await Promise.all([
+        const [listingsRes, chatsRes, savedRes, userRes] = await Promise.all([
           apiFetchListings(),
           apiFetchChats(uid),
           apiFetchSaved(uid),
           apiFetchUser(uid),
         ]);
-        if (apiUser) setUser(apiUser);
+
+        const errors: string[] = [];
+        if (listingsRes.ok) {
+          setListings(listingsRes.data.map(withDefaultExpiry));
+        } else errors.push(listingsRes.error);
+        if (chatsRes.ok) setChats(chatsRes.data);
+        else errors.push(chatsRes.error);
+        if (savedRes.ok) setSavedIds(new Set(savedRes.data));
+        else errors.push(savedRes.error);
+        if (userRes.ok) setUser(userRes.data);
         else if (storedUser) setUser(storedUser);
-        if (apiListings?.length) setListings(apiListings);
-        if (apiChats?.length) setChats(apiChats);
-        if (apiSaved) setSavedIds(new Set(apiSaved));
+
+        if (errors.length) setSyncError(errors[0]);
         setHydrated(true);
         return;
       }
@@ -205,10 +220,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const clearSyncError = useCallback(() => setSyncError(null), []);
+
   const updateUser = useCallback((patch: Partial<UserProfile>) => {
     setUser((prev) => {
       const next = { ...prev, ...patch };
-      if (isDataApiEnabled()) void apiUpdateUser(next);
+      if (isDataApiEnabled()) {
+        void apiUpdateUser(next).then((r) => {
+          if (!r.ok) setSyncError(`Profilis neišsaugotas: ${r.error}`);
+        });
+      }
       return next;
     });
   }, []);
@@ -257,7 +278,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      if (isDataApiEnabled()) void apiUpdateSaved(user.id, Array.from(next));
+      if (isDataApiEnabled()) {
+        void apiUpdateSaved(user.id, Array.from(next)).then((r) => {
+          if (!r.ok) setSyncError(`Išsaugota nepavyko: ${r.error}`);
+        });
+      }
       return next;
     });
   }, [user.id]);
@@ -272,9 +297,44 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         next.delete(id);
         return next;
       });
-      if (isDataApiEnabled()) void apiDeleteListing(id, user.id);
+      if (isDataApiEnabled()) {
+        void apiDeleteListing(id, user.id).then((r) => {
+          if (!r.ok) setSyncError(`Nepavyko ištrinti: ${r.error}`);
+        });
+      }
     },
     [user.id]
+  );
+
+  const renewListing = useCallback(
+    async (id: string) => {
+      const listing = listings.find((l) => l.id === id && l.sellerId === user.id);
+      if (!listing) return;
+
+      const now = new Date().toISOString();
+      const renewed = withDefaultExpiry({
+        ...listing,
+        createdAt: now,
+        expiresAt: defaultExpiresAt(now),
+      });
+
+      if (isDataApiEnabled()) {
+        const r = await apiRenewListing(id, user.id);
+        if (!r.ok) {
+          setSyncError(`Nepavyko pratęsti: ${r.error}`);
+          return;
+        }
+        setListings((prev) =>
+          prev.map((l) => (l.id === id ? withDefaultExpiry(r.data) : l))
+        );
+        return;
+      }
+
+      setListings((prev) =>
+        prev.map((l) => (l.id === id ? renewed : l))
+      );
+    },
+    [listings, user.id]
   );
 
   const resetSellerFlow = useCallback(() => {
@@ -439,6 +499,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (d !== null) distKm = Math.round(d * 10) / 10;
     }
 
+    const createdAt = new Date().toISOString();
     const newListing: Listing = {
       id: `l-${Date.now()}`,
       title: aiDraft.title,
@@ -452,16 +513,26 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       category: aiDraft.category,
       tags: [],
       sellerId: user.id,
-      createdAt: new Date().toISOString(),
+      createdAt,
+      expiresAt: defaultExpiresAt(createdAt),
       contact: aiDraft.contact,
       hasVideo: sellerHasVideo,
     };
 
-    setListings((prev) => [newListing, ...prev]);
     if (isDataApiEnabled()) {
-      await apiUpdateUser(user);
-      await apiCreateListing(newListing, user.id);
+      const userRes = await apiUpdateUser(user);
+      if (!userRes.ok) {
+        setSyncError(`Profilis neišsaugotas: ${userRes.error}`);
+        return;
+      }
+      const createRes = await apiCreateListing(newListing, user.id);
+      if (!createRes.ok) {
+        setSyncError(`Nepavyko publikuoti: ${createRes.error}`);
+        return;
+      }
     }
+
+    setListings((prev) => [newListing, ...prev]);
     setSellerStep("published");
 
     setTimeout(resetSellerFlow, 2000);
@@ -500,7 +571,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             updated.escrowOffered = true;
           }
 
-          if (isDataApiEnabled()) void apiUpsertChat(updated, user.id);
+          if (isDataApiEnabled()) {
+            void apiUpsertChat(updated, user.id).then((r) => {
+              if (!r.ok) setSyncError(`Žinutė neišsaugota: ${r.error}`);
+            });
+          }
           return updated;
         })
       );
@@ -537,7 +612,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       };
 
       setChats((prev) => [newChat, ...prev]);
-      if (isDataApiEnabled()) void apiUpsertChat(newChat, user.id);
+      if (isDataApiEnabled()) {
+        void apiUpsertChat(newChat, user.id).then((r) => {
+          if (!r.ok) setSyncError(`Pokalbis neišsaugotas: ${r.error}`);
+        });
+      }
       return chatId;
     },
     [listings, chats, user.id]
@@ -550,7 +629,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           chat.id === chatId ? { ...chat, escrow } : chat
         )
       );
-      if (isDataApiEnabled()) void apiUpsertEscrow(escrow);
+      if (isDataApiEnabled()) {
+        void apiUpsertEscrow(escrow).then((r) => {
+          if (!r.ok) setSyncError(`Escrow neišsaugotas: ${r.error}`);
+        });
+      }
     },
     []
   );
@@ -568,6 +651,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     dynamicFilters,
     toggleSave,
     deleteListing,
+    renewListing,
+    syncError,
+    clearSyncError,
     sellerStep,
     sellerInputMode,
     aiDraft,

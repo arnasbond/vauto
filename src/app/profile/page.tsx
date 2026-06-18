@@ -7,15 +7,105 @@ import { AppShell } from "@/components/AppShell";
 import { useVauto } from "@/context/VautoContext";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { formatDistance, formatPrice } from "@/data/mockListings";
-import { MapPin, Pencil, Phone, Smartphone, X } from "lucide-react";
+import {
+  formatExpiryLabel,
+  isListingActive,
+} from "@/lib/listing-expiry";
+import type { Listing } from "@/lib/types";
+import { MapPin, Pencil, Phone, RefreshCw, Smartphone, Trash2, X } from "lucide-react";
 
 type ProfileTab = "mine" | "saved";
 
+function ProfileListingRow({
+  listing,
+  isMine,
+  onDelete,
+  onRenew,
+}: {
+  listing: Listing;
+  isMine: boolean;
+  onDelete?: () => void;
+  onRenew?: () => void;
+}) {
+  const expired = !isListingActive(listing);
+  const expiryLabel = formatExpiryLabel(listing);
+
+  return (
+    <div className="card-shadow flex gap-3 rounded-2xl bg-white p-3">
+      <Link
+        href={`/listing/?id=${listing.id}`}
+        className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl"
+      >
+        <Image
+          src={listing.image}
+          alt={listing.title}
+          fill
+          sizes="64px"
+          className={`object-cover ${expired ? "opacity-60" : ""}`}
+        />
+      </Link>
+      <div className="min-w-0 flex-1">
+        <Link href={`/listing/?id=${listing.id}`}>
+          <p className="truncate font-semibold text-sm text-[var(--vauto-text)]">
+            {listing.title}
+          </p>
+          <p className="text-sm font-bold text-[var(--vauto-orange)]">
+            {formatPrice(listing.price, listing.priceLabel)}
+          </p>
+          <p className="text-xs text-[var(--vauto-text-muted)]">
+            {listing.location} · {formatDistance(listing.distanceKm)}
+          </p>
+        </Link>
+        {expiryLabel && (
+          <span
+            className={`mt-1 inline-block rounded-full px-2 py-0.5 text-[10px] font-medium ${
+              expired
+                ? "bg-red-100 text-red-700"
+                : "bg-amber-100 text-amber-800"
+            }`}
+          >
+            {expiryLabel}
+          </span>
+        )}
+        {isMine && (
+          <div className="mt-2 flex gap-2">
+            {expired && onRenew && (
+              <button
+                type="button"
+                onClick={onRenew}
+                className="flex items-center gap-1 rounded-lg bg-[var(--vauto-blue)]/10 px-2.5 py-1 text-xs font-medium text-[var(--vauto-blue)]"
+              >
+                <RefreshCw className="h-3 w-3" />
+                Pratęsti
+              </button>
+            )}
+            {onDelete && (
+              <button
+                type="button"
+                onClick={onDelete}
+                className="flex items-center gap-1 rounded-lg bg-red-50 px-2.5 py-1 text-xs font-medium text-red-600"
+              >
+                <Trash2 className="h-3 w-3" />
+                Ištrinti
+              </button>
+            )}
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function ProfilePage() {
-  const { user, updateUser, listings, savedIds } = useVauto();
+  const { user, updateUser, listings, savedIds, deleteListing, renewListing } =
+    useVauto();
   const [tab, setTab] = useState<ProfileTab>("mine");
   const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState({ name: user.name, city: user.city, phone: user.phone });
+  const [draft, setDraft] = useState({
+    name: user.name,
+    city: user.city,
+    phone: user.phone,
+  });
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
   const savedListings = listings.filter((l) => savedIds.has(l.id));
@@ -82,7 +172,11 @@ export default function ProfilePage() {
               <button
                 type="button"
                 onClick={() => {
-                  setDraft({ name: user.name, city: user.city, phone: user.phone });
+                  setDraft({
+                    name: user.name,
+                    city: user.city,
+                    phone: user.phone,
+                  });
                   setEditing(true);
                 }}
                 className="rounded-full p-1.5 text-[var(--vauto-text-muted)] hover:bg-gray-100"
@@ -133,36 +227,27 @@ export default function ProfilePage() {
       <div className="space-y-2">
         {shown.length === 0 && (
           <p className="py-6 text-center text-sm text-[var(--vauto-text-muted)]">
-            {tab === "mine" ? "Dar neturite skelbimų." : "Nėra išsaugotų skelbimų."}
+            {tab === "mine"
+              ? "Dar neturite skelbimų."
+              : "Nėra išsaugotų skelbimų."}
           </p>
         )}
         {shown.map((listing) => (
-          <Link
+          <ProfileListingRow
             key={listing.id}
-            href={`/listing/?id=${listing.id}`}
-            className="card-shadow flex gap-3 rounded-2xl bg-white p-3"
-          >
-            <div className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl">
-              <Image
-                src={listing.image}
-                alt={listing.title}
-                fill
-                sizes="64px"
-                className="object-cover"
-              />
-            </div>
-            <div className="min-w-0 flex-1">
-              <p className="truncate font-semibold text-sm text-[var(--vauto-text)]">
-                {listing.title}
-              </p>
-              <p className="text-sm font-bold text-[var(--vauto-orange)]">
-                {formatPrice(listing.price, listing.priceLabel)}
-              </p>
-              <p className="text-xs text-[var(--vauto-text-muted)]">
-                {listing.location} · {formatDistance(listing.distanceKm)}
-              </p>
-            </div>
-          </Link>
+            listing={listing}
+            isMine={tab === "mine"}
+            onDelete={
+              tab === "mine"
+                ? () => {
+                    if (confirm("Ištrinti šį skelbimą?")) deleteListing(listing.id);
+                  }
+                : undefined
+            }
+            onRenew={
+              tab === "mine" ? () => void renewListing(listing.id) : undefined
+            }
+          />
         ))}
       </div>
 
@@ -186,7 +271,7 @@ export default function ProfilePage() {
       </Link>
 
       <p className="mt-6 text-center text-xs text-[var(--vauto-text-muted)]">
-        Kontaktinė informacija automatiškai užpildoma AI skelbimo kūrime.
+        Skelbimai galioja 90 dienų. Pasibaigus — pratęskite profilyje.
       </p>
     </AppShell>
   );
