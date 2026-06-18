@@ -182,6 +182,7 @@ interface VautoContextValue {
   requestMediaConsent: (onGranted: () => void) => void;
   acceptGdprConsent: () => void;
   declineGdprConsent: () => void;
+  revokeGdprConsent: () => void;
   setActiveChatId: (chatId: string | null) => void;
   markChatRead: (chatId: string) => void;
   findListing: (idOrSlug: string) => Listing | undefined;
@@ -274,6 +275,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (auth?.isAuthenticated) setIsAuthenticated(true);
 
         if (errors.length) setSyncError(errors[0]);
+        setGdprConsent(loadGdprConsent());
         setHydrated(true);
         return;
       }
@@ -745,6 +747,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     gdprPendingAction.current = null;
   }, []);
 
+  const revokeGdprConsent = useCallback(() => {
+    setGdprConsent(false);
+    saveGdprConsent(false);
+  }, []);
+
   const scheduleIncomingSms = useCallback(
     (
       chatId: string,
@@ -784,8 +791,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     const now = new Date().toISOString();
     smsCancelRef.current.get(chatId)?.();
     smsCancelRef.current.delete(chatId);
-    setChats((prev) =>
-      prev.map((c) =>
+    setChats((prev) => {
+      const next = prev.map((c) =>
         c.id === chatId
           ? {
               ...c,
@@ -795,9 +802,18 @@ export function VautoProvider({ children }: { children: ReactNode }) {
               ),
             }
           : c
-      )
-    );
-  }, []);
+      );
+      if (isDataApiEnabled()) {
+        const updated = next.find((c) => c.id === chatId);
+        if (updated) {
+          void apiUpsertChat(updated, user.id).then((r) => {
+            if (!r.ok) setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
+          });
+        }
+      }
+      return next;
+    });
+  }, [user.id]);
 
   const setActiveChatId = useCallback(
     (chatId: string | null) => {
@@ -1121,10 +1137,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     (reportId: string) => {
       const report = reports.find((r) => r.id === reportId);
       if (!report) return;
+      if (report.reportedUserId) {
+        if (report.reportedUserId === user.id) {
+          setUser((prev) => ({ ...prev, warned: true }));
+          if (!apiActive) saveUser({ ...user, warned: true });
+        }
+      }
       resolveReport(reportId, "resolved", false);
       showToast("Vartotojas įspėtas", "success");
     },
-    [reports, resolveReport, showToast]
+    [reports, resolveReport, showToast, user, apiActive]
   );
 
   const banFromReport = useCallback(
@@ -1217,6 +1239,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     requestMediaConsent,
     acceptGdprConsent,
     declineGdprConsent,
+    revokeGdprConsent,
     setActiveChatId,
     markChatRead,
     findListing,

@@ -1,4 +1,4 @@
-import type { Listing, ListingCategory } from "@/lib/types";
+import type { ChatThread, Listing, ListingCategory } from "@/lib/types";
 
 const QUESTIONS: Record<ListingCategory | "default", string[]> = {
   electronics: [
@@ -46,4 +46,31 @@ const QUESTIONS: Record<ListingCategory | "default", string[]> = {
 export function getQuickQuestions(listing: Listing | undefined): string[] {
   if (!listing) return QUESTIONS.default;
   return QUESTIONS[listing.category] ?? QUESTIONS.default;
+}
+
+/** Unread messages addressed to this user in a thread */
+export function countUnreadInThread(
+  thread: ChatThread,
+  userId: string
+): number {
+  return thread.messages.filter(
+    (m) => m.senderId !== userId && !m.readAt
+  ).length;
+}
+
+export function countUnreadChats(
+  chats: ChatThread[],
+  userId: string
+): number {
+  return chats.reduce(
+    (sum, thread) => sum + countUnreadInThread(thread, userId),
+    0
+  );
+}
+
+export function hasUnreadInThread(
+  thread: ChatThread,
+  userId: string
+): boolean {
+  return countUnreadInThread(thread, userId) > 0;
 }

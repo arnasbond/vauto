@@ -5,6 +5,7 @@ import Link from "next/link";
 import { CheckCircle, Pencil, Trash2 } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { isListingActive } from "@/lib/listing-expiry";
+import { listingPath } from "@/lib/seo";
 import type { Listing, ListingStatus } from "@/lib/types";
 
 interface PrivateListingCardProps {
@@ -34,7 +35,7 @@ export function PrivateListingCard({
     <div className="vauto-dashboard-card rounded-2xl p-3">
       <div className="flex gap-3">
         <Link
-          href={`/listing/?id=${listing.id}`}
+          href={listingPath(listing)}
           className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl"
         >
           <Image

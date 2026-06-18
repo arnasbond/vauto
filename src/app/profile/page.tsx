@@ -5,6 +5,8 @@ import { useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
 import { AuthModal } from "@/components/auth/AuthModal";
+import { PrivacySettingsCard } from "@/components/privacy/PrivacySettingsCard";
+import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
@@ -84,6 +86,8 @@ export default function ProfilePage() {
     <DashboardShell>
       <DashboardHeader user={user} onLogout={logout} />
 
+      <SellerTrustCard user={user} listings={listings} />
+
       {user.role === "pro" ? (
         <ProBusinessDashboard
           user={user}
@@ -106,7 +110,8 @@ export default function ProfilePage() {
         />
       )}
 
-      <div className="mt-8">
+      <div className="mt-8 space-y-4">
+        <PrivacySettingsCard />
         <AiSettingsCard />
       </div>
 
