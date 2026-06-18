@@ -1,0 +1,70 @@
+name: Build Android APK
+
+on:
+  push:
+    branches: [master]
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build web app
+        run: npm run build
+
+      - name: Sync Capacitor Android
+        run: npx cap sync android
+
+      - name: Build debug APK
+        working-directory: android
+        run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
+
+      - name: Prepare release asset
+        run: cp android/app/build/outputs/apk/debug/app-debug.apk vauto.apk
+
+      - name: Delete previous android-latest release
+        continue-on-error: true
+        run: gh release delete android-latest --yes
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Publish APK to GitHub Releases
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: android-latest
+          name: Vauto Android APK
+          body: |
+            Atsisiųskite **vauto.apk** ir įdiekite Android telefone.
+
+            1. Atsisiųskite failą žemiau
+            2. Atidarykite atsisiųstą APK
+            3. Jei prašo — leiskite diegimą iš nežinomų šaltinių
+            4. Paleiskite programėlę „Vauto“
+          files: vauto.apk
+          make_latest: true
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: vauto-apk
+          path: vauto.apk
+          retention-days: 30

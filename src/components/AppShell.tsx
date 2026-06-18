@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 import { BottomNav } from "@/components/BottomNav";
+import { InstallAppBanner } from "@/components/InstallAppBanner";
 
 interface AppShellProps {
   children: ReactNode;
@@ -20,6 +21,7 @@ export function AppShell({
           {children}
         </div>
         {!hideNav && <BottomNav />}
+        {!hideNav && <InstallAppBanner />}
       </div>
     );
   }
@@ -30,6 +32,7 @@ export function AppShell({
         {children}
       </div>
       {!hideNav && <BottomNav />}
+      {!hideNav && <InstallAppBanner />}
     </div>
   );
 }

@@ -7,7 +7,7 @@ import { AppShell } from "@/components/AppShell";
 import { useVauto } from "@/context/VautoContext";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { formatDistance, formatPrice } from "@/data/mockListings";
-import { MapPin, Pencil, Phone, X } from "lucide-react";
+import { MapPin, Pencil, Phone, Smartphone, X } from "lucide-react";
 
 type ProfileTab = "mine" | "saved";
 
@@ -167,6 +167,23 @@ export default function ProfilePage() {
       </div>
 
       <AiSettingsCard />
+
+      <Link
+        href="/install/"
+        className="card-shadow mt-4 flex items-center gap-3 rounded-2xl bg-white p-4 transition active:scale-[0.99]"
+      >
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--vauto-blue)]/10 text-[var(--vauto-blue)]">
+          <Smartphone className="h-5 w-5" />
+        </div>
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold text-sm text-[var(--vauto-text)]">
+            Įdiekite programėlę
+          </p>
+          <p className="text-xs text-[var(--vauto-text-muted)]">
+            Atsisiųskite Android APK į telefoną
+          </p>
+        </div>
+      </Link>
 
       <p className="mt-6 text-center text-xs text-[var(--vauto-text-muted)]">
         Kontaktinė informacija automatiškai užpildoma AI skelbimo kūrime.
