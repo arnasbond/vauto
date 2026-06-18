@@ -1,4 +1,4 @@
-import type { ChatThread, Listing, UserProfile } from "@/lib/types";
+import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 
 export type ApiResult<T> =
@@ -98,6 +98,62 @@ export async function apiRenewListing(
   userId: string
 ): Promise<ApiResult<Listing>> {
   return dataFetch<Listing>(`/api/listings/${id}/renew`, {
+    method: "POST",
+    userId,
+  });
+}
+
+export async function apiUpdateListing(
+  id: string,
+  userId: string,
+  patch: Partial<Pick<Listing, "title" | "price" | "status" | "banned">>
+): Promise<ApiResult<Listing>> {
+  return dataFetch<Listing>(`/api/listings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+    userId,
+  });
+}
+
+export async function apiFetchReports(): Promise<ApiResult<SupportReport[]>> {
+  return dataFetch<SupportReport[]>("/api/reports");
+}
+
+export async function apiSubmitReport(
+  report: SupportReport
+): Promise<ApiResult<null>> {
+  return dataFetch<null>("/api/reports", {
+    method: "POST",
+    body: JSON.stringify(report),
+    userId: report.reporterId,
+  });
+}
+
+export async function apiUpdateReportStatus(
+  id: string,
+  status: SupportReport["status"]
+): Promise<ApiResult<null>> {
+  return dataFetch<null>(`/api/reports/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify({ status }),
+  });
+}
+
+export async function apiFetchBannedUsers(): Promise<ApiResult<string[]>> {
+  return dataFetch<string[]>("/api/banned-users");
+}
+
+export async function apiSetBannedUsers(
+  ids: string[]
+): Promise<ApiResult<null>> {
+  return dataFetch<null>("/api/banned-users", {
+    method: "PUT",
+    body: JSON.stringify({ ids }),
+  });
+}
+
+export async function apiWarnUser(userId: string): Promise<ApiResult<null>> {
+  return dataFetch<null>(`/api/users/${userId}/warn`, {
     method: "POST",
     userId,
   });

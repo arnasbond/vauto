@@ -2,6 +2,7 @@ import "dotenv/config";
 import cors from "cors";
 import express from "express";
 import { pool } from "./db.js";
+import { runMigrations } from "./migrate.js";
 import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
 
@@ -17,6 +18,7 @@ app.use("/api/ai", aiRouter);
 app.listen(port, async () => {
   try {
     await pool.query("SELECT 1");
+    await runMigrations();
     console.log(`Vauto API http://localhost:${port} (PostgreSQL OK)`);
   } catch {
     console.warn(

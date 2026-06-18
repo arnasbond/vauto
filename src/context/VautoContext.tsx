@@ -55,6 +55,7 @@ import {
   enrichListingCoords,
   geocodeLocation,
 } from "@/lib/geocoding";
+import { normalizeListings } from "@/lib/listing-normalize";
 import { generateListingSlug } from "@/lib/seo";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import {
@@ -70,6 +71,13 @@ import {
   apiFetchUser,
   apiHealthCheck,
   apiRenewListing,
+  apiUpdateListing,
+  apiFetchReports,
+  apiSubmitReport,
+  apiUpdateReportStatus,
+  apiFetchBannedUsers,
+  apiSetBannedUsers,
+  apiWarnUser,
   apiUpdateSaved,
   apiUpdateUser,
   apiUpsertChat,
@@ -254,16 +262,21 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setApiActive(true);
         const storedUser = loadUser();
         const uid = storedUser?.id ?? MOCK_USER.id;
-        const [listingsRes, chatsRes, savedRes, userRes] = await Promise.all([
+        const [listingsRes, chatsRes, savedRes, userRes, reportsRes, bannedRes] =
+          await Promise.all([
           apiFetchListings(),
           apiFetchChats(uid),
           apiFetchSaved(uid),
           apiFetchUser(uid),
+          apiFetchReports(),
+          apiFetchBannedUsers(),
         ]);
 
         const errors: string[] = [];
         if (listingsRes.ok) {
-          setListings(listingsRes.data.map(withDefaultExpiry));
+          setListings(
+            normalizeListings(listingsRes.data.map(withDefaultExpiry))
+          );
         } else errors.push(listingsRes.error);
         if (chatsRes.ok) setChats(chatsRes.data);
         else errors.push(chatsRes.error);
@@ -271,6 +284,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         else errors.push(savedRes.error);
         if (userRes.ok) setUser(userRes.data);
         else if (storedUser) setUser(storedUser);
+        if (reportsRes.ok && reportsRes.data.length) setReports(reportsRes.data);
+        else if (reportsRes.ok) setReports(DEMO_REPORTS);
+        if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
         const auth = loadAuthSession();
         if (auth?.isAuthenticated) setIsAuthenticated(true);
 
@@ -291,14 +307,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (auth?.isAuthenticated) setIsAuthenticated(true);
       if (storedUser) setUser({ role: "private", walletBalance: 0, ...storedUser });
       if (storedListings?.length) {
-        setListings(
-          storedListings.map((l) =>
-            enrichListingCoords({
-              ...l,
-              slug: l.slug ?? generateListingSlug(l.title, l.location),
-            })
-          )
-        );
+        setListings(normalizeListings(storedListings));
       }
       if (storedChats?.length) setChats(storedChats);
       if (storedSaved) setSavedIds(new Set(storedSaved));
@@ -1052,6 +1061,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setListings((prev) =>
         prev.map((l) => (l.id === id && l.sellerId === user.id ? { ...l, ...patch } : l))
       );
+      if (isDataApiEnabled()) {
+        void apiUpdateListing(id, user.id, patch).then((r) => {
+          if (!r.ok) setSyncError(`Nepavyko atnaujinti: ${r.error}`);
+        });
+      }
     },
     [user.id]
   );
@@ -1114,6 +1128,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       };
       setReports((prev) => [report, ...prev]);
+      if (isDataApiEnabled()) {
+        void apiSubmitReport(report).then((r) => {
+          if (!r.ok) setSyncError(`Pranešimas neišsaugotas: ${r.error}`);
+        });
+      }
     },
     [user.id, user.name]
   );
@@ -1123,6 +1142,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setReports((prev) =>
         prev.map((r) => (r.id === reportId ? { ...r, status } : r))
       );
+      if (isDataApiEnabled()) {
+        void apiUpdateReportStatus(reportId, status);
+      }
       if (notify) {
         showToast(
           status === "resolved" ? "Pranešimas uždarytas" : "Pranešimas atmestas",
@@ -1141,6 +1163,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (report.reportedUserId === user.id) {
           setUser((prev) => ({ ...prev, warned: true }));
           if (!apiActive) saveUser({ ...user, warned: true });
+        }
+        if (isDataApiEnabled()) {
+          void apiWarnUser(report.reportedUserId);
         }
       }
       resolveReport(reportId, "resolved", false);
@@ -1168,7 +1193,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
 
       if (report.reportedUserId) {
-        setBannedUserIds((prev) => new Set(prev).add(report.reportedUserId!));
+        setBannedUserIds((prev) => {
+          const next = new Set(prev).add(report.reportedUserId!);
+          if (isDataApiEnabled()) {
+            void apiSetBannedUsers(Array.from(next));
+          }
+          return next;
+        });
         setListings((prev) =>
           prev.map((l) =>
             l.sellerId === report.reportedUserId
@@ -1178,10 +1209,17 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         );
       }
 
+      if (report.listingId && isDataApiEnabled()) {
+        const listing = listings.find((l) => l.id === report.listingId);
+        if (listing) {
+          void apiUpdateListing(listing.id, listing.sellerId, { banned: true });
+        }
+      }
+
       resolveReport(reportId, "resolved", false);
       showToast("Skelbimas/vartotojas užblokuotas", "success");
     },
-    [reports, resolveReport, showToast]
+    [reports, resolveReport, showToast, listings]
   );
 
   const value: VautoContextValue = {

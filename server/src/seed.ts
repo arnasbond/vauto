@@ -1,5 +1,6 @@
 import "dotenv/config";
 import { pool } from "./db.js";
+import { runMigrations } from "./migrate.js";
 
 const MOCK_USER = {
   id: "user-1",
@@ -40,6 +41,8 @@ const LISTINGS = [
 ];
 
 async function seed() {
+  await runMigrations();
+
   await pool.query(
     `INSERT INTO users (id, name, phone, city, avatar_url)
      VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,

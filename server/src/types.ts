@@ -4,6 +4,8 @@ export interface ApiUser {
   phone: string;
   city: string;
   avatar: string;
+  email?: string;
+  warned?: boolean;
 }
 
 export interface ApiListing {
@@ -13,6 +15,9 @@ export interface ApiListing {
   priceLabel?: string;
   location: string;
   distanceKm: number;
+  latitude?: number;
+  longitude?: number;
+  slug?: string;
   image: string;
   category: string;
   tags: string[];
@@ -21,6 +26,13 @@ export interface ApiListing {
   contact?: string;
   hasVideo?: boolean;
   expiresAt?: string;
+  description?: string;
+  attributes?: Record<string, string | string[] | undefined>;
+  status?: string;
+  banned?: boolean;
+  vinVerified?: boolean;
+  providerVerified?: boolean;
+  promoted?: boolean;
 }
 
 export interface ApiChatMessage {
@@ -28,6 +40,7 @@ export interface ApiChatMessage {
   senderId: string;
   text: string;
   timestamp: string;
+  readAt?: string;
 }
 
 export interface ApiChatThread {
@@ -39,6 +52,24 @@ export interface ApiChatThread {
   messages: ApiChatMessage[];
   escrowOffered: boolean;
   escrow?: ApiEscrowTransaction | null;
+  lastReadAt?: string;
+  smsFallbackSentFor?: string;
+}
+
+export interface ApiSupportReport {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  category: string;
+  urgency: string;
+  status: string;
+  comment: string;
+  listingId?: string;
+  listingTitle?: string;
+  chatId?: string;
+  reportedUserId?: string;
+  chatPreview?: string;
+  createdAt: string;
 }
 
 export type ApiEscrowStatus =
