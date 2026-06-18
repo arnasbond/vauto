@@ -10,9 +10,9 @@ export default function HomePage() {
     <AppShell>
       <HeroSection>
         <Header />
-        <h2 className="mt-5 text-center text-xl font-bold leading-snug text-white sm:text-2xl">
+        <h1 className="mt-5 text-center text-xl font-bold leading-snug text-white sm:text-2xl">
           Ieškok skelbimų — registracija nereikalinga
-        </h2>
+        </h1>
         <p className="mt-2 text-center text-sm text-white/75">
           Norint įdėti skelbimą reikės prisijungti
         </p>

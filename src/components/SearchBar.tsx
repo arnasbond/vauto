@@ -1,7 +1,7 @@
 "use client";
 
 import { Mic, Search } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { createVoiceSession, recordWithSession } from "@/lib/native-media";
 import { useVauto } from "@/context/VautoContext";
 import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
@@ -11,6 +11,19 @@ export function SearchBar() {
   const { searchQuery, setSearchQuery, requestMediaConsent } = useVauto();
   const [isListening, setIsListening] = useState(false);
   const [session, setSession] = useState<VoiceSession | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const scrollToResults = () => {
+    document
+      .getElementById("listing-results")
+      ?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    scrollToResults();
+    inputRef.current?.blur();
+  };
 
   const levelSource = useCallback(
     () => session?.getLevels() ?? Array(9).fill(0.35),
@@ -38,13 +51,21 @@ export function SearchBar() {
 
   return (
     <>
-      <div className="relative flex items-center gap-0">
+      <form
+        className="relative flex items-center gap-0"
+        onSubmit={handleSearchSubmit}
+        role="search"
+        aria-label="Skelbimų paieška"
+      >
         <div className="relative flex-1">
           <input
+            ref={inputRef}
             type="search"
+            name="q"
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder=""
+            placeholder="Ieškok natūralia kalba…"
+            enterKeyHint="search"
             className="w-full rounded-2xl bg-white py-3.5 pl-4 pr-20 text-sm text-[var(--vauto-text)] shadow-lg outline-none placeholder:text-gray-400"
           />
           <button
@@ -64,13 +85,13 @@ export function SearchBar() {
           </button>
         </div>
         <button
-          type="button"
+          type="submit"
           className="ml-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-orange)] text-white shadow-md transition hover:bg-[var(--vauto-orange-light)]"
           aria-label="Ieškoti"
         >
           <Search className="h-5 w-5" strokeWidth={2.5} />
         </button>
-      </div>
+      </form>
 
       {isListening && (
         <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm">
