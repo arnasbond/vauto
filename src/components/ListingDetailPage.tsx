@@ -12,15 +12,23 @@ import {
   Trash2,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { formatDistance, formatPrice } from "@/data/mockListings";
+import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
+import { ReportButton } from "@/components/support/ReportButton";
+import { TrustBadges } from "@/components/trust/TrustBadges";
+import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 
-export function ListingDetailPage() {
+interface ListingDetailPageProps {
+  slug?: string;
+}
+
+export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {}) {
   const searchParams = useSearchParams();
   const id = searchParams.get("id");
+  const slug = slugProp ?? searchParams.get("slug") ?? undefined;
   const router = useRouter();
   const {
-    listings,
+    findListing,
     user,
     savedIds,
     toggleSave,
@@ -28,9 +36,13 @@ export function ListingDetailPage() {
     deleteListing,
   } = useVauto();
 
-  const listing = listings.find((l) => l.id === id);
+  const listing = slug
+    ? findListing(slug)
+    : id
+      ? findListing(id)
+      : undefined;
 
-  if (!id || !listing) {
+  if (!listing || listing.banned) {
     return (
       <AppShell variant="plain">
         <p className="py-12 text-center text-[var(--vauto-text-muted)]">
@@ -64,6 +76,7 @@ export function ListingDetailPage() {
 
   return (
     <AppShell variant="plain" hideNav>
+      <ListingSeoHead listing={listing} />
       <div className="flex flex-col">
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-gray-100">
           <Image
@@ -103,9 +116,12 @@ export function ListingDetailPage() {
           <p className="mt-1 text-2xl font-bold text-[var(--vauto-orange)]">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
+          <div className="mt-2">
+            <TrustBadges listing={listing} size="md" />
+          </div>
           <div className="mt-2 flex items-center gap-1 text-sm text-[var(--vauto-text-muted)]">
             <MapPin className="h-4 w-4 shrink-0" />
-            {listing.location} · {formatDistance(listing.distanceKm)}
+            {listing.location} · {formatDistanceBadge(listing.distanceKm)}
           </div>
         </div>
 
@@ -140,6 +156,13 @@ export function ListingDetailPage() {
               <Trash2 className="h-4 w-4" />
               Ištrinti skelbimą
             </button>
+          )}
+          {!isOwn && (
+            <ReportButton
+              listingId={listing.id}
+              listingTitle={listing.title}
+              reportedUserId={listing.sellerId}
+            />
           )}
         </div>
       </div>

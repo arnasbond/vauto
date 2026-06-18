@@ -8,7 +8,7 @@ import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
 import type { VoiceSession } from "@/lib/audio-session";
 
 export function SearchBar() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery, setSearchQuery, requestMediaConsent } = useVauto();
   const [isListening, setIsListening] = useState(false);
   const [session, setSession] = useState<VoiceSession | null>(null);
 
@@ -20,18 +20,20 @@ export function SearchBar() {
   const handleVoiceSearch = async () => {
     if (isListening) return;
 
-    const voiceSession = await createVoiceSession();
-    setSession(voiceSession);
-    setIsListening(true);
+    requestMediaConsent(async () => {
+      const voiceSession = await createVoiceSession();
+      setSession(voiceSession);
+      setIsListening(true);
 
-    try {
-      const text = voiceSession ? await recordWithSession(voiceSession) : null;
-      if (text) setSearchQuery(text);
-    } finally {
-      voiceSession?.release();
-      setSession(null);
-      setIsListening(false);
-    }
+      try {
+        const text = voiceSession ? await recordWithSession(voiceSession) : null;
+        if (text) setSearchQuery(text);
+      } finally {
+        voiceSession?.release();
+        setSession(null);
+        setIsListening(false);
+      }
+    });
   };
 
   return (

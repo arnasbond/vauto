@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
+import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -25,6 +26,7 @@ export default function ProfilePage() {
     markListingSold,
     topUpWallet,
     promoteListing,
+    isAdmin,
   } = useVauto();
 
   const [authOpen, setAuthOpen] = useState(false);
@@ -72,6 +74,10 @@ export default function ProfilePage() {
         />
       </>
     );
+  }
+
+  if (isAdmin) {
+    return <AdminControlCenter />;
   }
 
   return (

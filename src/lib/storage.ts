@@ -1,4 +1,4 @@
-import type { AuthSession, ChatThread, Listing, UserProfile } from "@/lib/types";
+import type { AuthSession, ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 
 const KEYS = {
   listings: "vauto_listings_v1",
@@ -6,6 +6,9 @@ const KEYS = {
   saved: "vauto_saved_v1",
   user: "vauto_user_v1",
   auth: "vauto_auth_v1",
+  reports: "vauto_reports_v1",
+  bannedUsers: "vauto_banned_users_v1",
+  gdprConsent: "vauto_gdpr_consent_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -70,6 +73,30 @@ export function saveAuthSession(session: AuthSession): void {
 export function clearAuthSession(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(KEYS.auth);
+}
+
+export function loadReports(): SupportReport[] | null {
+  return read<SupportReport[]>(KEYS.reports);
+}
+
+export function saveReports(reports: SupportReport[]): void {
+  write(KEYS.reports, reports);
+}
+
+export function loadBannedUserIds(): string[] | null {
+  return read<string[]>(KEYS.bannedUsers);
+}
+
+export function saveBannedUserIds(ids: string[]): void {
+  write(KEYS.bannedUsers, ids);
+}
+
+export function loadGdprConsent(): boolean {
+  return read<boolean>(KEYS.gdprConsent) === true;
+}
+
+export function saveGdprConsent(accepted: boolean): void {
+  write(KEYS.gdprConsent, accepted);
 }
 
 export function clearAllData(): void {

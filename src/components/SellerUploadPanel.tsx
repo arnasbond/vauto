@@ -5,7 +5,8 @@ import { useCallback, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 
 export function SellerUploadPanel() {
-  const { submitSellerContent, startVoiceFlow, sellerStep } = useVauto();
+  const { submitSellerContent, startVoiceFlow, sellerStep, requestMediaConsent } =
+    useVauto();
   const [text, setText] = useState("");
   const [preview, setPreview] = useState<string | null>(null);
   const [videoUrl, setVideoUrl] = useState("");
@@ -74,10 +75,19 @@ export function SellerUploadPanel() {
             </p>
           </>
         )}
-        <label className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[var(--vauto-blue)] shadow-sm">
+        <label
+          className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[var(--vauto-blue)] shadow-sm"
+          onClick={(e) => {
+            e.preventDefault();
+            requestMediaConsent(() => {
+              document.getElementById("seller-media-input")?.click();
+            });
+          }}
+        >
           <Camera className="h-4 w-4" />
           Kamera / galerija
           <input
+            id="seller-media-input"
             type="file"
             accept="image/*,video/*"
             className="hidden"
@@ -133,5 +143,3 @@ export function SellerUploadPanel() {
     </div>
   );
 }
-
-import { parseVideoUrl } from "@/lib/video-url";

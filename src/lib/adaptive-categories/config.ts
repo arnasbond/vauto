@@ -24,6 +24,13 @@ export const ADAPTIVE_CATEGORIES: Record<
       },
       { key: "taExpiry", label: "TA galioja iki", placeholder: "2027-03", critical: true, gridSpan: 1 },
       { key: "defects", label: "Defektai", placeholder: "Nėra / smulkūs įbrėžimai", gridSpan: 2 },
+      {
+        key: "vin",
+        label: "VIN kėbulo numeris",
+        placeholder: "WVWZZZ1KZAW123456",
+        critical: false,
+        gridSpan: 2,
+      },
     ],
   },
   clothing: {

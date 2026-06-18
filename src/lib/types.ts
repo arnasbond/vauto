@@ -9,6 +9,11 @@ export interface Listing {
   priceLabel?: string;
   location: string;
   distanceKm: number;
+  /** Geocoded from location text at publish time */
+  latitude?: number;
+  longitude?: number;
+  /** SEO-friendly URL segment */
+  slug?: string;
   image: string;
   category: ListingCategory;
   tags: string[];
@@ -26,6 +31,11 @@ export interface Listing {
   views?: number;
   clicks?: number;
   interestScore?: number;
+  banned?: boolean;
+  /** Vehicles: mock VIN registry verification */
+  vinVerified?: boolean;
+  /** Services: verified provider badge */
+  providerVerified?: boolean;
 }
 
 export type ListingCategory =
@@ -69,7 +79,7 @@ export interface DynamicFilter {
   apply: (listing: Listing) => boolean;
 }
 
-export type UserRole = "private" | "pro";
+export type UserRole = "private" | "pro" | "admin";
 export type AuthProvider = "google" | "apple" | "phone";
 export type ProBusinessType = "dealer" | "services" | "general";
 
@@ -83,6 +93,34 @@ export interface UserProfile {
   authProvider?: AuthProvider;
   businessType?: ProBusinessType;
   walletBalance?: number;
+  email?: string;
+  warned?: boolean;
+}
+
+export type ReportCategory =
+  | "fraud"
+  | "bad_info"
+  | "chat_abuse"
+  | "general_feedback";
+
+export type ReportUrgency = "critical" | "feedback" | "general";
+
+export type ReportStatus = "open" | "resolved" | "dismissed";
+
+export interface SupportReport {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  category: ReportCategory;
+  urgency: ReportUrgency;
+  status: ReportStatus;
+  comment: string;
+  listingId?: string;
+  listingTitle?: string;
+  chatId?: string;
+  reportedUserId?: string;
+  chatPreview?: string;
+  createdAt: string;
 }
 
 export interface AuthSession {
@@ -111,6 +149,7 @@ export interface ChatMessage {
   senderId: string;
   text: string;
   timestamp: string;
+  readAt?: string;
 }
 
 export interface ChatThread {
@@ -122,6 +161,9 @@ export interface ChatThread {
   messages: ChatMessage[];
   escrowOffered: boolean;
   escrow?: EscrowTransaction | null;
+  /** Last time current user viewed this thread */
+  lastReadAt?: string;
+  smsFallbackSentFor?: string;
 }
 
 export type EscrowStatus =

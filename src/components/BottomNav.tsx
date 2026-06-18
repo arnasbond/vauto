@@ -2,18 +2,30 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { MessageCircle, Plus, Search, User } from "lucide-react";
+import { MessageCircle, Plus, Search, Shield, User } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { chats } = useVauto();
+  const { chats, isAdmin, reports } = useVauto();
   const chatBadge = chats.length > 0 ? chats.length : undefined;
+  const adminBadge = isAdmin
+    ? reports.filter((r) => r.status === "open" && r.urgency === "critical").length ||
+      undefined
+    : undefined;
+
+  const profileLabel = isAdmin ? "VAUTO CC" : "Dashboard";
+  const ProfileIcon = isAdmin ? Shield : User;
 
   const sideTabs = [
     { href: "/", label: "Paieška", icon: Search },
     { href: "/chats", label: "Pokalbiai", icon: MessageCircle, badge: chatBadge },
-    { href: "/profile", label: "Dashboard", icon: User },
+    {
+      href: "/profile",
+      label: profileLabel,
+      icon: ProfileIcon,
+      badge: adminBadge,
+    },
   ];
 
   return (

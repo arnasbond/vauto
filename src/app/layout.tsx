@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { VautoProvider } from "@/context/VautoContext";
 import { NativeShell } from "@/components/NativeShell";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
+import { ToastHost } from "@/components/ui/ToastHost";
 import { SellerFlowProvider } from "@/components/SellerFlowProvider";
 import "./globals.css";
 
@@ -56,6 +57,7 @@ export default function RootLayout({
         <VautoProvider>
           <NativeShell>
             <BackButtonHandler />
+            <ToastHost />
             <SellerFlowProvider>{children}</SellerFlowProvider>
           </NativeShell>
         </VautoProvider>

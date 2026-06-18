@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -30,19 +31,36 @@ import { isDuplicateListing } from "@/lib/dedup";
 import { moderateListing } from "@/lib/moderation";
 import {
   loadAuthSession,
+  loadBannedUserIds,
   loadChats,
+  loadGdprConsent,
   loadListings,
+  loadReports,
   loadSavedIds,
   loadUser,
   saveAuthSession,
+  saveBannedUserIds,
   saveChats,
+  saveGdprConsent,
   saveListings,
+  saveReports,
   saveSavedIds,
   saveUser,
   clearAuthSession,
 } from "@/lib/storage";
 import { capturePhoto } from "@/lib/native-media";
-import { distanceToCity, getUserCoords } from "@/lib/geolocation";
+import { distanceToCity, getUserCoords, type UserCoords } from "@/lib/geolocation";
+import {
+  distanceToListing,
+  enrichListingCoords,
+  geocodeLocation,
+} from "@/lib/geocoding";
+import { generateListingSlug } from "@/lib/seo";
+import { scheduleSmsFallback } from "@/lib/sms-fallback";
+import {
+  isVerifiedServiceSeller,
+  verifyVin,
+} from "@/lib/trust";
 import {
   apiCreateListing,
   apiDeleteListing,
@@ -69,12 +87,18 @@ import type {
   EscrowTransaction,
   Listing,
   ProBusinessType,
+  ReportCategory,
+  ReportStatus,
   SellerFlowStep,
   SellerInputMode,
+  SupportReport,
   UserProfile,
   UserRole,
 } from "@/lib/types";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
+import { ADMIN_EMAIL, categoryToUrgency } from "@/lib/reports";
+import { DEMO_REPORTS } from "@/data/mockReports";
+import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 
 interface VautoContextValue {
   user: UserProfile;
@@ -122,6 +146,7 @@ interface VautoContextValue {
     phone?: string;
     role: UserRole;
     businessType?: ProBusinessType;
+    email?: string;
   }) => void;
   logout: () => void;
   topUpWallet: (amount: number) => void;
@@ -131,6 +156,35 @@ interface VautoContextValue {
     patch: Partial<Pick<Listing, "title" | "price" | "status">>
   ) => void;
   markListingSold: (id: string) => void;
+
+  isAdmin: boolean;
+  reports: SupportReport[];
+  bannedUserIds: Set<string>;
+  submitReport: (data: {
+    category: ReportCategory;
+    comment: string;
+    listingId?: string;
+    listingTitle?: string;
+    chatId?: string;
+    reportedUserId?: string;
+    chatPreview?: string;
+  }) => void;
+  warnFromReport: (reportId: string) => void;
+  banFromReport: (reportId: string) => void;
+  resolveReport: (reportId: string, status: ReportStatus) => void;
+  toast: { message: string; type: "success" | "error" | "info" } | null;
+  showToast: (message: string, type?: "success" | "error" | "info") => void;
+  clearToast: () => void;
+
+  buyerCoords: UserCoords | null;
+  gdprConsent: boolean;
+  gdprModalOpen: boolean;
+  requestMediaConsent: (onGranted: () => void) => void;
+  acceptGdprConsent: () => void;
+  declineGdprConsent: () => void;
+  setActiveChatId: (chatId: string | null) => void;
+  markChatRead: (chatId: string) => void;
+  findListing: (idOrSlug: string) => Listing | undefined;
 }
 
 const VautoContext = createContext<VautoContextValue | null>(null);
@@ -151,6 +205,19 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
 };
 
+function applyBuyerDistances(
+  items: Listing[],
+  buyer: UserCoords | null
+): Listing[] {
+  if (!buyer) return items;
+  return items.map((l) => {
+    const exact = distanceToListing(buyer, l);
+    const fallback = distanceToCity(buyer, l.location);
+    const km = exact ?? fallback;
+    return km !== null ? { ...l, distanceKm: km } : l;
+  });
+}
+
 export function VautoProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
@@ -164,6 +231,21 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     new Set()
   );
   const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
+  const [reports, setReports] = useState<SupportReport[]>(DEMO_REPORTS);
+  const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
+  const [toast, setToast] = useState<{
+    message: string;
+    type: "success" | "error" | "info";
+  } | null>(null);
+  const [buyerCoords, setBuyerCoords] = useState<UserCoords | null>(null);
+  const [gdprConsent, setGdprConsent] = useState(false);
+  const [gdprModalOpen, setGdprModalOpen] = useState(false);
+
+  const activeChatIdRef = useRef<string | null>(null);
+  const smsCancelRef = useRef<Map<string, () => void>>(new Map());
+  const gdprPendingAction = useRef<(() => void) | null>(null);
+  const chatsRef = useRef(chats);
+  chatsRef.current = chats;
 
   useEffect(() => {
     async function load() {
@@ -202,11 +284,26 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const storedListings = loadListings();
       const storedChats = loadChats();
       const storedSaved = loadSavedIds();
+      const storedReports = loadReports();
+      const storedBanned = loadBannedUserIds();
       if (auth?.isAuthenticated) setIsAuthenticated(true);
       if (storedUser) setUser({ role: "private", walletBalance: 0, ...storedUser });
-      if (storedListings?.length) setListings(storedListings);
+      if (storedListings?.length) {
+        setListings(
+          storedListings.map((l) =>
+            enrichListingCoords({
+              ...l,
+              slug: l.slug ?? generateListingSlug(l.title, l.location),
+            })
+          )
+        );
+      }
       if (storedChats?.length) setChats(storedChats);
       if (storedSaved) setSavedIds(new Set(storedSaved));
+      if (storedReports?.length) setReports(storedReports);
+      else saveReports(DEMO_REPORTS);
+      if (storedBanned?.length) setBannedUserIds(new Set(storedBanned));
+      setGdprConsent(loadGdprConsent());
       setHydrated(true);
     }
     void load();
@@ -232,6 +329,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     saveSavedIds(savedIds);
   }, [savedIds, hydrated, apiActive]);
 
+  useEffect(() => {
+    if (!hydrated || apiActive) return;
+    saveReports(reports);
+  }, [reports, hydrated, apiActive]);
+
+  useEffect(() => {
+    if (!hydrated || apiActive) return;
+    saveBannedUserIds(Array.from(bannedUserIds));
+  }, [bannedUserIds, hydrated, apiActive]);
+
   const [sellerStep, setSellerStep] = useState<SellerFlowStep>("idle");
   const [sellerInputMode, setSellerInputMode] =
     useState<SellerInputMode>(null);
@@ -244,12 +351,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     getUserCoords().then((coords) => {
       if (!coords) return;
-      setListings((prev) =>
-        prev.map((l) => {
-          const d = distanceToCity(coords, l.location);
-          return d !== null ? { ...l, distanceKm: Math.round(d * 10) / 10 } : l;
-        })
-      );
+      setBuyerCoords(coords);
+      setListings((prev) => applyBuyerDistances(prev, coords));
     });
   }, []);
 
@@ -272,9 +375,19 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [searchQuery]
   );
 
+  const isAdmin = user.role === "admin" || user.email === ADMIN_EMAIL;
+
+  const visibleListings = useMemo(
+    () =>
+      listings.filter(
+        (l) => !l.banned && !bannedUserIds.has(l.sellerId)
+      ),
+    [listings, bannedUserIds]
+  );
+
   const rankedListings = useMemo(() => {
     let results = rankListings(
-      listings,
+      visibleListings,
       searchQuery,
       resolveSortMode(activeFilterIds)
     );
@@ -295,7 +408,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
 
     return results;
-  }, [listings, searchQuery, activeFilterIds, dynamicFilters]);
+  }, [visibleListings, searchQuery, activeFilterIds, dynamicFilters]);
 
   const toggleFilter = useCallback((id: string) => {
     setActiveFilterIds((prev) => {
@@ -419,6 +532,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           extracted = { ...extracted, location: locationHint };
         }
 
+        const geo = geocodeLocation(extracted.location);
+        extracted = {
+          ...extracted,
+          attributes: {
+            ...(extracted.attributes ?? {}),
+            _geoLat: String(geo.lat),
+            _geoLng: String(geo.lng),
+          },
+        };
+
         if (opts?.videoUrl) {
           const vid = parseVideoUrl(opts.videoUrl);
           if (vid.thumbnail && !opts.previewImage) {
@@ -471,20 +594,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [runAiProcessing]
   );
 
-  const startUploadFlow = useCallback(async () => {
-    const photo = await capturePhoto();
-    if (!photo) return;
-
-    setSellerPreviewImage(photo);
-    setSellerInputMode("upload");
-    await runAiProcessing("upload", { previewImage: photo });
-  }, [runAiProcessing]);
-
-  const startVoiceFlow = useCallback(() => {
-    setSellerInputMode("voice");
-    setSellerStep("recording");
-  }, []);
-
   const completeVoiceRecording = useCallback(
     (transcript: string | null) => {
       if (!transcript) {
@@ -533,19 +642,31 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
 
     let distKm = 0.5;
-    const coords = await getUserCoords();
+    const coords = buyerCoords ?? (await getUserCoords());
+    const listingCoords = geocodeLocation(aiDraft.location);
     if (coords) {
-      const d = distanceToCity(coords, aiDraft.location);
-      if (d !== null) distKm = Math.round(d * 10) / 10;
+      const exact = distanceToListing(coords, {
+        latitude: listingCoords.lat,
+        longitude: listingCoords.lng,
+        location: aiDraft.location,
+      });
+      if (exact !== null) distKm = exact;
     }
 
+    const vin =
+      typeof aiDraft.attributes?.vin === "string"
+        ? aiDraft.attributes.vin
+        : undefined;
+    const vinOk = vin ? verifyVin(vin) : false;
+
     const createdAt = new Date().toISOString();
-    const newListing: Listing = {
+    const newListing: Listing = enrichListingCoords({
       id: `l-${Date.now()}`,
       title: aiDraft.title,
       price: aiDraft.price,
       location: aiDraft.location,
       distanceKm: distKm,
+      slug: generateListingSlug(aiDraft.title, aiDraft.location),
       image:
         sellerPreviewImage ??
         PLACEHOLDER_IMAGES[aiDraft.category] ??
@@ -560,7 +681,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       expiresAt: defaultExpiresAt(createdAt),
       contact: aiDraft.contact,
       hasVideo: sellerHasVideo,
-    };
+      vinVerified: vinOk,
+      providerVerified:
+        aiDraft.category === "services" && isVerifiedServiceSeller(user.id),
+    });
 
     if (isDataApiEnabled()) {
       const userRes = await apiUpdateUser(user);
@@ -586,7 +710,126 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     resetSellerFlow,
     user.id,
     listings,
+    buyerCoords,
   ]);
+
+  const showToast = useCallback(
+    (message: string, type: "success" | "error" | "info" = "success") => {
+      setToast({ message, type });
+    },
+    []
+  );
+
+  const clearToast = useCallback(() => setToast(null), []);
+
+  const requestMediaConsent = useCallback((onGranted: () => void) => {
+    if (gdprConsent) {
+      onGranted();
+      return;
+    }
+    gdprPendingAction.current = onGranted;
+    setGdprModalOpen(true);
+  }, [gdprConsent]);
+
+  const acceptGdprConsent = useCallback(() => {
+    setGdprConsent(true);
+    saveGdprConsent(true);
+    setGdprModalOpen(false);
+    const action = gdprPendingAction.current;
+    gdprPendingAction.current = null;
+    action?.();
+  }, []);
+
+  const declineGdprConsent = useCallback(() => {
+    setGdprModalOpen(false);
+    gdprPendingAction.current = null;
+  }, []);
+
+  const scheduleIncomingSms = useCallback(
+    (
+      chatId: string,
+      messageId: string,
+      recipientId: string,
+      listingTitle: string
+    ) => {
+      smsCancelRef.current.get(chatId)?.();
+
+      const cancel = scheduleSmsFallback(
+        { chatId, messageId, recipientId, listingTitle },
+        () => {
+          const chat = chatsRef.current.find((c) => c.id === chatId);
+          if (!chat) return false;
+          if (activeChatIdRef.current === chatId) return false;
+          if (chat.smsFallbackSentFor === messageId) return false;
+          const msg = chat.messages.find((m) => m.id === messageId);
+          if (!msg || msg.readAt) return false;
+          return msg.senderId !== recipientId;
+        },
+        (text) => {
+          setChats((prev) =>
+            prev.map((c) =>
+              c.id === chatId ? { ...c, smsFallbackSentFor: messageId } : c
+            )
+          );
+          showToast(`📱 SMS: ${text}`, "info");
+        }
+      );
+
+      smsCancelRef.current.set(chatId, cancel);
+    },
+    [showToast]
+  );
+
+  const markChatRead = useCallback((chatId: string) => {
+    const now = new Date().toISOString();
+    smsCancelRef.current.get(chatId)?.();
+    smsCancelRef.current.delete(chatId);
+    setChats((prev) =>
+      prev.map((c) =>
+        c.id === chatId
+          ? {
+              ...c,
+              lastReadAt: now,
+              messages: c.messages.map((m) =>
+                m.readAt ? m : { ...m, readAt: now }
+              ),
+            }
+          : c
+      )
+    );
+  }, []);
+
+  const setActiveChatId = useCallback(
+    (chatId: string | null) => {
+      activeChatIdRef.current = chatId;
+      if (chatId) markChatRead(chatId);
+    },
+    [markChatRead]
+  );
+
+  const findListing = useCallback(
+    (idOrSlug: string) =>
+      listings.find((l) => l.id === idOrSlug || l.slug === idOrSlug),
+    [listings]
+  );
+
+  const startUploadFlow = useCallback(async () => {
+    requestMediaConsent(async () => {
+      const photo = await capturePhoto();
+      if (!photo) return;
+
+      setSellerPreviewImage(photo);
+      setSellerInputMode("upload");
+      await runAiProcessing("upload", { previewImage: photo });
+    });
+  }, [runAiProcessing, requestMediaConsent]);
+
+  const startVoiceFlow = useCallback(() => {
+    requestMediaConsent(() => {
+      setSellerInputMode("voice");
+      setSellerStep("recording");
+    });
+  }, [requestMediaConsent]);
 
   const cancelSellerFlow = useCallback(() => {
     resetSellerFlow();
@@ -601,9 +844,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       };
 
+      let sellerId = "";
+      let listingTitle = "";
+
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== chatId) return chat;
+
+          sellerId = chat.sellerId;
+          listingTitle = chat.listingTitle;
 
           const updated: ChatThread = {
             ...chat,
@@ -622,8 +871,28 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           return updated;
         })
       );
+
+      window.setTimeout(() => {
+        const replyId = `m-${Date.now()}`;
+        const reply: ChatMessage = {
+          id: replyId,
+          senderId: sellerId,
+          text: "Ačiū už žinutę! Pardavėjas atsakys netrukus.",
+          timestamp: new Date().toISOString(),
+        };
+
+        setChats((prev) =>
+          prev.map((c) =>
+            c.id === chatId
+              ? { ...c, messages: [...c.messages, reply] }
+              : c
+          )
+        );
+
+        scheduleIncomingSms(chatId, replyId, user.id, listingTitle);
+      }, 3000);
     },
-    [user.id]
+    [user.id, scheduleIncomingSms]
   );
 
   const startChat = useCallback(
@@ -687,7 +956,32 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       phone?: string;
       role: UserRole;
       businessType?: ProBusinessType;
+      email?: string;
     }) => {
+      if (data.email === ADMIN_EMAIL || data.role === "admin") {
+        const adminUser: UserProfile = {
+          id: "admin-1",
+          name: "Vauto Admin",
+          email: ADMIN_EMAIL,
+          avatar:
+            "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
+          phone: "+370 600 00001",
+          city: "Vilnius",
+          authProvider: data.provider,
+          role: "admin",
+          walletBalance: 0,
+        };
+        setUser(adminUser);
+        setIsAuthenticated(true);
+        saveUser(adminUser);
+        saveAuthSession({
+          isAuthenticated: true,
+          provider: data.provider,
+          loggedInAt: new Date().toISOString(),
+        });
+        return;
+      }
+
       const names: Record<AuthProvider, string> = {
         google: "Google vartotojas",
         apple: "Apple vartotojas",
@@ -778,6 +1072,96 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [user.walletBalance, apiActive]
   );
 
+  const submitReport = useCallback(
+    (data: {
+      category: ReportCategory;
+      comment: string;
+      listingId?: string;
+      listingTitle?: string;
+      chatId?: string;
+      reportedUserId?: string;
+      chatPreview?: string;
+    }) => {
+      const report: SupportReport = {
+        id: `rep-${Date.now()}`,
+        reporterId: user.id,
+        reporterName: user.name,
+        category: data.category,
+        urgency: categoryToUrgency(data.category),
+        status: "open",
+        comment: data.comment,
+        listingId: data.listingId,
+        listingTitle: data.listingTitle,
+        chatId: data.chatId,
+        reportedUserId: data.reportedUserId,
+        chatPreview: data.chatPreview,
+        createdAt: new Date().toISOString(),
+      };
+      setReports((prev) => [report, ...prev]);
+    },
+    [user.id, user.name]
+  );
+
+  const resolveReport = useCallback(
+    (reportId: string, status: ReportStatus, notify = true) => {
+      setReports((prev) =>
+        prev.map((r) => (r.id === reportId ? { ...r, status } : r))
+      );
+      if (notify) {
+        showToast(
+          status === "resolved" ? "Pranešimas uždarytas" : "Pranešimas atmestas",
+          "success"
+        );
+      }
+    },
+    [showToast]
+  );
+
+  const warnFromReport = useCallback(
+    (reportId: string) => {
+      const report = reports.find((r) => r.id === reportId);
+      if (!report) return;
+      resolveReport(reportId, "resolved", false);
+      showToast("Vartotojas įspėtas", "success");
+    },
+    [reports, resolveReport, showToast]
+  );
+
+  const banFromReport = useCallback(
+    (reportId: string) => {
+      const report = reports.find((r) => r.id === reportId);
+      if (!report) return;
+
+      if (report.listingId) {
+        setListings((prev) =>
+          prev.map((l) =>
+            l.id === report.listingId ? { ...l, banned: true } : l
+          )
+        );
+        setSavedIds((prev) => {
+          const next = new Set(prev);
+          next.delete(report.listingId!);
+          return next;
+        });
+      }
+
+      if (report.reportedUserId) {
+        setBannedUserIds((prev) => new Set(prev).add(report.reportedUserId!));
+        setListings((prev) =>
+          prev.map((l) =>
+            l.sellerId === report.reportedUserId
+              ? { ...l, banned: true }
+              : l
+          )
+        );
+      }
+
+      resolveReport(reportId, "resolved", false);
+      showToast("Skelbimas/vartotojas užblokuotas", "success");
+    },
+    [reports, resolveReport, showToast]
+  );
+
   const value: VautoContextValue = {
     user,
     updateUser,
@@ -817,10 +1201,36 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     promoteListing,
     updateListing,
     markListingSold,
+    isAdmin,
+    reports,
+    bannedUserIds,
+    submitReport,
+    warnFromReport,
+    banFromReport,
+    resolveReport,
+    toast,
+    showToast,
+    clearToast,
+    buyerCoords,
+    gdprConsent,
+    gdprModalOpen,
+    requestMediaConsent,
+    acceptGdprConsent,
+    declineGdprConsent,
+    setActiveChatId,
+    markChatRead,
+    findListing,
   };
 
   return (
-    <VautoContext.Provider value={value}>{children}</VautoContext.Provider>
+    <VautoContext.Provider value={value}>
+      {children}
+      <GdprConsentModal
+        open={gdprModalOpen}
+        onAccept={acceptGdprConsent}
+        onDecline={declineGdprConsent}
+      />
+    </VautoContext.Provider>
   );
 }
 

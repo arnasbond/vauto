@@ -7,6 +7,7 @@ import {
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
 import type { AiExtractedListing } from "@/lib/types";
+import { verifyVin } from "@/lib/trust";
 import { AiAssistantPrompt } from "./AiAssistantPrompt";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
@@ -81,6 +82,18 @@ export function AdaptiveConfirmation({
         layout={layoutMap[config.layout]}
         missingKeys={missingKeys}
       />
+      {adaptiveKey === "vehicles" &&
+        typeof attributes.vin === "string" &&
+        verifyVin(attributes.vin) && (
+          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
+            ✅ VIN Patikrintas
+          </p>
+        )}
+      {adaptiveKey === "services" && draft.category === "services" && (
+        <p className="mt-2 text-[10px] text-slate-500">
+          Verifikuoti meistrai gauna 🛡️ ženklą profilyje po moderacijos.
+        </p>
+      )}
     </div>
   );
 

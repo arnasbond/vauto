@@ -4,16 +4,26 @@ import { ArrowLeft, Send } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useState } from "react";
+import { useEffect } from "react";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
+import { ReportButton } from "@/components/support/ReportButton";
 import { useVauto } from "@/context/VautoContext";
 import { getQuickQuestions } from "@/lib/chat-helpers";
 
 function ChatThreadContent({ chatId }: { chatId: string }) {
-  const { chats, sendMessage, user, listings } = useVauto();
+  const { chats, sendMessage, user, listings, setActiveChatId } = useVauto();
   const [draft, setDraft] = useState("");
   const chat = chats.find((c) => c.id === chatId);
   const listing = listings.find((l) => l.id === chat?.listingId);
   const quickQuestions = getQuickQuestions(listing);
+  const chatPreview = chat?.messages[chat.messages.length - 1]?.text;
+  const reportedUserId =
+    chat && chat.buyerId === user.id ? chat.sellerId : chat?.buyerId;
+
+  useEffect(() => {
+    setActiveChatId(chatId);
+    return () => setActiveChatId(null);
+  }, [chatId, setActiveChatId]);
 
   if (!chatId || !chat) {
     return (
@@ -38,12 +48,20 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div>
+        <div className="flex-1">
           <h1 className="font-semibold text-[var(--vauto-text)]">
             {chat.listingTitle}
           </h1>
           <p className="text-xs text-[var(--vauto-text-muted)]">Pardavėjas</p>
         </div>
+        <ReportButton
+          variant="icon"
+          listingId={chat.listingId}
+          listingTitle={chat.listingTitle}
+          chatId={chat.id}
+          reportedUserId={reportedUserId}
+          chatPreview={chatPreview}
+        />
       </div>
 
       <div className="flex-1 space-y-3 overflow-y-auto pb-4">

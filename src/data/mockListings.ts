@@ -1,4 +1,7 @@
 import type { Listing, UserProfile, ChatThread } from "@/lib/types";
+import { enrichListingCoords } from "@/lib/geocoding";
+import { generateListingSlug } from "@/lib/seo";
+import { isVerifiedServiceSeller, verifyVin } from "@/lib/trust";
 
 export const MOCK_USER: UserProfile = {
   id: "user-1",
@@ -12,7 +15,7 @@ export const MOCK_USER: UserProfile = {
 };
 
 /** Mock listings aligned with design mockup */
-export const INITIAL_LISTINGS: Listing[] = [
+const RAW_INITIAL_LISTINGS: Listing[] = [
   {
     id: "l-bike",
     title: "Dviratis 'Trek'",
@@ -55,6 +58,7 @@ export const INITIAL_LISTINGS: Listing[] = [
     sellerId: "seller-handyman",
     createdAt: "2026-06-18T08:00:00Z",
     hasVideo: true,
+    providerVerified: true,
   },
   {
     id: "l1",
@@ -81,6 +85,7 @@ export const INITIAL_LISTINGS: Listing[] = [
     tags: ["žolė", "pjovimas", "sodas", "paslauga"],
     sellerId: "seller-3",
     createdAt: "2026-06-18T08:00:00Z",
+    providerVerified: true,
   },
   {
     id: "l4",
@@ -92,10 +97,28 @@ export const INITIAL_LISTINGS: Listing[] = [
       "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&h=300&fit=crop",
     category: "vehicles",
     tags: ["automobilis", "golf", "mechaninė", "pigus"],
+    attributes: { vin: "WVWZZZ1KZAW123456", mileage: "185 000 km", fuelType: "Dyzelinas" },
+    vinVerified: true,
     sellerId: "seller-4",
     createdAt: "2026-06-15T09:00:00Z",
   },
 ];
+
+function prepareListing(listing: Listing): Listing {
+  const withCoords = enrichListingCoords(listing);
+  const slug = generateListingSlug(listing.title, listing.location);
+  const vin =
+    typeof listing.attributes?.vin === "string" ? listing.attributes.vin : undefined;
+  return {
+    ...withCoords,
+    slug,
+    vinVerified: listing.vinVerified ?? (vin ? verifyVin(vin) : false),
+    providerVerified:
+      listing.providerVerified ?? isVerifiedServiceSeller(listing.sellerId),
+  };
+}
+
+export const INITIAL_LISTINGS: Listing[] = RAW_INITIAL_LISTINGS.map(prepareListing);
 
 export const INITIAL_CHATS: ChatThread[] = [
   {
@@ -139,5 +162,10 @@ export function formatPrice(price: number, label?: string): string {
 
 export function formatDistance(km: number): string {
   if (km < 1) return `${Math.round(km * 1000)} m`;
-  return `${km.toFixed(km < 10 ? 0 : 1)} km`;
+  return `${km.toFixed(km < 10 ? 1 : 0)} km`;
+}
+
+export function formatDistanceBadge(km: number): string {
+  if (km < 1) return `${Math.round(km * 1000)} m away`;
+  return `${km.toFixed(km < 10 ? 1 : 0)} km away`;
 }

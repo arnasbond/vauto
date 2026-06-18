@@ -1,10 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Apple, Phone, X } from "lucide-react";
+import { Apple, Phone, Shield, X } from "lucide-react";
 import type { AuthProvider, ProBusinessType, UserRole } from "@/lib/types";
+import { ADMIN_EMAIL } from "@/lib/reports";
 
-type AuthStep = "methods" | "phone" | "otp" | "role";
+type AuthStep = "methods" | "phone" | "otp" | "role" | "admin";
 
 interface AuthModalProps {
   open: boolean;
@@ -14,6 +15,7 @@ interface AuthModalProps {
     phone?: string;
     role: UserRole;
     businessType?: ProBusinessType;
+    email?: string;
   }) => void;
 }
 
@@ -47,6 +49,7 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
   const [role, setRole] = useState<UserRole>("private");
   const [businessType, setBusinessType] = useState<ProBusinessType>("general");
   const [pendingProvider, setPendingProvider] = useState<AuthProvider>("google");
+  const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
 
   if (!open) return null;
 
@@ -86,6 +89,7 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
               {step === "phone" && "Įveskite telefono numerį"}
               {step === "otp" && "Patvirtinkite SMS kodą"}
               {step === "role" && "Privatus pardavėjas arba verslas"}
+              {step === "admin" && "Vauto moderatorių prieiga"}
             </p>
           </div>
           <button
@@ -126,6 +130,50 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
             <p className="pt-2 text-center text-xs text-slate-500">
               Demo: SMS kodas <span className="font-mono text-teal-400">123456</span>
             </p>
+            <button
+              type="button"
+              onClick={() => setStep("admin")}
+              className="flex w-full items-center justify-center gap-2 pt-1 text-xs text-slate-500 hover:text-red-400"
+            >
+              <Shield className="h-3.5 w-3.5" />
+              Vauto Control Center (admin)
+            </button>
+          </div>
+        )}
+
+        {step === "admin" && (
+          <div className="space-y-4">
+            <input
+              type="email"
+              value={adminEmail}
+              onChange={(e) => setAdminEmail(e.target.value)}
+              className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-red-400"
+              placeholder="admin@vauto.com"
+            />
+            <button
+              type="button"
+              onClick={() => {
+                if (adminEmail.trim().toLowerCase() === ADMIN_EMAIL) {
+                  onComplete({
+                    provider: "google",
+                    role: "admin",
+                    email: ADMIN_EMAIL,
+                  });
+                  setStep("methods");
+                }
+              }}
+              disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL}
+              className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
+            >
+              Prisijungti kaip admin
+            </button>
+            <button
+              type="button"
+              onClick={() => setStep("methods")}
+              className="w-full text-center text-xs text-slate-500"
+            >
+              Grįžti
+            </button>
           </div>
         )}
 

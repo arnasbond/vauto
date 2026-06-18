@@ -2,9 +2,11 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Heart, Play, Ruler } from "lucide-react";
-import { formatDistance, formatPrice } from "@/data/mockListings";
+import { Heart, MapPin, Play, Ruler } from "lucide-react";
+import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
+import { listingPath } from "@/lib/seo";
+import { TrustBadges } from "@/components/trust/TrustBadges";
 import type { ScoredListing } from "@/lib/types";
 
 function ListingCard({ listing }: { listing: ScoredListing }) {
@@ -13,7 +15,7 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
 
   return (
     <Link
-      href={`/listing/?id=${listing.id}`}
+      href={listingPath(listing)}
       className="card-shadow block w-[148px] shrink-0 overflow-hidden rounded-2xl bg-white sm:w-[160px]"
     >
       <article>
@@ -30,6 +32,10 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
               <Play className="h-3.5 w-3.5 fill-white" />
             </span>
           )}
+          <span className="absolute bottom-2 left-2 flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-medium text-white backdrop-blur-sm">
+            <MapPin className="h-2.5 w-2.5" />
+            {formatDistanceBadge(listing.distanceKm)}
+          </span>
           <button
             type="button"
             onClick={(e) => {
@@ -56,13 +62,11 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
           <p className="mt-0.5 text-sm font-bold text-[var(--vauto-orange)]">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
+          <div className="mt-1.5">
+            <TrustBadges listing={listing} />
+          </div>
           <div className="mt-1 flex items-center justify-between text-[10px] text-[var(--vauto-text-muted)]">
-            <span className="truncate">
-              {listing.contact ?? listing.location}
-            </span>
-            <span className="ml-1 shrink-0 font-medium">
-              {formatDistance(listing.distanceKm)}
-            </span>
+            <span className="truncate">{listing.location}</span>
           </div>
           <div className="mt-1.5 flex items-center gap-2 text-[var(--vauto-text-muted)]">
             <Ruler className="h-3 w-3" />
@@ -127,7 +131,7 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
 
   return (
     <Link
-      href={`/listing/?id=${listing.id}`}
+      href={listingPath(listing)}
       className="card-shadow block overflow-hidden rounded-2xl bg-white"
     >
       <article>
@@ -139,6 +143,10 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
             sizes="(max-width: 512px) 50vw"
             className="object-cover"
           />
+          <span className="absolute bottom-2 left-2 flex items-center gap-0.5 rounded-full bg-black/55 px-2 py-0.5 text-[9px] font-medium text-white">
+            <MapPin className="h-2.5 w-2.5" />
+            {formatDistanceBadge(listing.distanceKm)}
+          </span>
           <button
             type="button"
             onClick={(e) => {
@@ -161,8 +169,11 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
           <p className="text-sm font-bold text-[var(--vauto-orange)]">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
+          <div className="mt-1">
+            <TrustBadges listing={listing} />
+          </div>
           <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
-            {listing.location} · {formatDistance(listing.distanceKm)}
+            {listing.location}
           </p>
         </div>
       </article>
