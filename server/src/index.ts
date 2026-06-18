@@ -3,6 +3,7 @@ import cors from "cors";
 import express from "express";
 import { pool } from "./db.js";
 import { runMigrations } from "./migrate.js";
+import { seedIfEmpty } from "./seed-runtime.js";
 import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
 
@@ -19,6 +20,7 @@ app.listen(port, async () => {
   try {
     await pool.query("SELECT 1");
     await runMigrations();
+    await seedIfEmpty();
     console.log(`Vauto API http://localhost:${port} (PostgreSQL OK)`);
   } catch {
     console.warn(
