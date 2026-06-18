@@ -15,8 +15,6 @@ services:
         fromDatabase:
           name: vauto-db
           property: connectionString
-      - key: OPENAI_API_KEY
-        sync: false
       - key: PORT
         value: "4000"
 
