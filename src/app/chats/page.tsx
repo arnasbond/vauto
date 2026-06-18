@@ -20,7 +20,7 @@ export default function ChatsPage() {
         {chats.length === 0 && (
           <p className="py-8 text-center text-sm text-[var(--vauto-text-muted)]">
             Dar neturite pokalbių. Atidarykite skelbimą ir spauskite „Rašyti
-            pardavėjui".
+            pardavėjui“.
           </p>
         )}
         {chats.map((chat) => {

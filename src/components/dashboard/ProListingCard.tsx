@@ -2,11 +2,14 @@
 
 import { useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { Sparkles, TrendingUp } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
 import { getPromoteSuggestion } from "@/lib/smart-promote";
+import { listingPath } from "@/lib/seo";
 import type { Listing } from "@/lib/types";
+import { TrustBadges } from "@/components/trust/TrustBadges";
 import { SmartPromoteModal } from "./SmartPromoteModal";
 
 interface ProListingCardProps {
@@ -33,7 +36,10 @@ export function ProListingCard({
     <>
       <div className="vauto-dashboard-card rounded-2xl p-4">
         <div className="flex gap-3">
-          <div className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl">
+          <Link
+            href={listingPath(listing)}
+            className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl"
+          >
             <Image
               src={listing.image}
               alt={listing.title}
@@ -46,12 +52,15 @@ export function ProListingCard({
                 BOOST
               </span>
             )}
-          </div>
+          </Link>
           <div className="min-w-0 flex-1">
-            <p className="truncate font-semibold text-white">{listing.title}</p>
+            <Link href={listingPath(listing)} className="block">
+              <p className="truncate font-semibold text-white">{listing.title}</p>
+            </Link>
             <p className="text-lg font-bold text-[var(--vauto-orange)]">
               {formatPrice(listing.price, listing.priceLabel)}
             </p>
+            <TrustBadges listing={listing} size="sm" />
             <div className="mt-1 flex gap-3 text-[10px] text-slate-400">
               <span>{metrics.views} perž.</span>
               <span>{metrics.clicks} pas.</span>

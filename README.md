@@ -102,3 +102,41 @@ vauto/
 3. **Demo** — mock duomenys, jei AI nepasiekiamas
 
 Patikrinti: Profilis → „Testuoti AI“.
+
+## Admin ir moderacija
+
+- Prisijunkite kaip **admin@vauto.com** (bet koks slaptažodis demo režime)
+- Profilyje atsiras **Vauto Control Center** (arba apačioje **VAUTO CC**)
+- Peržiūrėkite pranešimus, įspėkite, užblokuokite arba uždarykite ticketus
+- Skelbimuose ir pokalbiuose — **Pranešti apie pažeidimą**
+
+## Pasitikėjimas ir saugumas
+
+- **VIN patikra** — transporto skelbimams su 17 simbolių VIN
+- **Verifikuotas meistras** — paslaugų kategorijoms
+- **Atstumas** — leiskite GPS, feed rodo „X km“ (Haversine + mock geokodavimas)
+- **GDPR** — pirmą kartą naudojant mikrofoną/kamerą rodomas sutikimo modalas; atšaukti galima Profilis → Privatumas
+
+## SEO ir slug URL
+
+- Statinių skelbimų puslapiai: `/listing/[slug]/` (SSG)
+- Nauji vartotojo skelbimai naudoja `vercel.json` rewrite → `/listing/?slug=...`
+- OG/meta generuojami per `generateListingMetadata()`
+
+## API endpointai (Express)
+
+Kai `NEXT_PUBLIC_API_URL` nustatytas, frontend sinchronizuoja:
+
+| Metodas | Kelias | Paskirtis |
+|---------|--------|-----------|
+| GET/PATCH | `/api/listings/:id` | Skelbimo atnaujinimas |
+| GET/POST | `/api/reports` | Moderacijos pranešimai |
+| PATCH | `/api/reports/:id` | Uždaryti / atnaujinti ticket |
+| GET/PUT | `/api/banned-users` | Užblokuoti vartotojai |
+| POST | `/api/users/:id/warn` | Įspėjimas vartotojui |
+
+Migracijos paleidžiamos automatiškai API starto metu (`server/migrations/`).
+
+## SMS pranešimai (demo)
+
+Jei pokalbyje gaunate atsakymą ir 15 s neatsidarote — rodomas mock SMS toast (tik demonstracija, be tikro operatoriaus).
