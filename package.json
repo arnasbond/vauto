@@ -18,7 +18,8 @@
     "db:up": "docker compose up -d",
     "db:seed": "npm run seed --prefix server",
     "pitch:pdf": "node scripts/generate-pitch-pdf.mjs",
-    "provision:render": "node scripts/provision-render.mjs"
+    "provision:render": "node scripts/provision-render.mjs",
+    "redeploy:render": "node scripts/redeploy-render.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

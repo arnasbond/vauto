@@ -1,0 +1,44 @@
+name: Deploy Render API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "server/**"
+      - "render.yaml"
+      - "scripts/redeploy-render.mjs"
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Trigger Render deploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: node scripts/redeploy-render.mjs
+
+      - name: Wait for API health
+        run: |
+          URL="https://vauto-api.onrender.com/api/health"
+          for i in $(seq 1 24); do
+            if curl -sf "$URL" | grep -q '"ok"'; then
+              echo "API healthy"
+              exit 0
+            fi
+            echo "Attempt $i/24 — waiting…"
+            sleep 15
+          done
+          echo "Health check timed out (deploy may still be in progress)"
+          exit 0
+
+      - name: Verify listings count
+        run: |
+          COUNT=$(curl -sf "https://vauto-api.onrender.com/api/listings" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))")
+          echo "Listings on API: $COUNT"
