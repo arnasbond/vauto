@@ -8,6 +8,7 @@ interface PrivateSellerDashboardProps {
   onEdit: (listing: Listing) => void;
   onDelete: (id: string) => void;
   onMarkSold: (id: string) => void;
+  onRenew: (id: string) => void;
 }
 
 export function PrivateSellerDashboard({
@@ -15,6 +16,7 @@ export function PrivateSellerDashboard({
   onEdit,
   onDelete,
   onMarkSold,
+  onRenew,
 }: PrivateSellerDashboardProps) {
   return (
     <section>
@@ -34,6 +36,7 @@ export function PrivateSellerDashboard({
               onEdit={() => onEdit(l)}
               onDelete={() => onDelete(l.id)}
               onMarkSold={() => onMarkSold(l.id)}
+              onRenew={() => onRenew(l.id)}
             />
           ))}
         </div>

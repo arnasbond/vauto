@@ -28,6 +28,8 @@ export default function ProfilePage() {
     markListingSold,
     topUpWallet,
     promoteListing,
+    renewListing,
+    showToast,
     isAdmin,
   } = useVauto();
 
@@ -35,6 +37,11 @@ export default function ProfilePage() {
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
+
+  const handleRenew = async (id: string) => {
+    await renewListing(id);
+    showToast("Skelbimas pratęstas 90 dienų", "success");
+  };
 
   if (!isAuthenticated) {
     return (
@@ -98,6 +105,7 @@ export default function ProfilePage() {
           }}
           onTopUp={topUpWallet}
           onPromote={promoteListing}
+          onRenew={handleRenew}
         />
       ) : (
         <PrivateSellerDashboard
@@ -107,6 +115,7 @@ export default function ProfilePage() {
             if (confirm("Ištrinti skelbimą?")) deleteListing(id);
           }}
           onMarkSold={markListingSold}
+          onRenew={handleRenew}
         />
       )}
 

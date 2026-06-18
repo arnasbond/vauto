@@ -14,6 +14,7 @@ interface ProBusinessDashboardProps {
   onDelete: (id: string) => void;
   onTopUp: (amount: number) => void;
   onPromote: (listingId: string, cost: number) => boolean;
+  onRenew: (id: string) => void;
 }
 
 export function ProBusinessDashboard({
@@ -23,6 +24,7 @@ export function ProBusinessDashboard({
   onDelete,
   onTopUp,
   onPromote,
+  onRenew,
 }: ProBusinessDashboardProps) {
   const analytics = mockAggregateAnalytics(listings);
   const showCalendar =
@@ -60,6 +62,7 @@ export function ProBusinessDashboard({
                 onEdit={() => onEdit(l)}
                 onDelete={() => onDelete(l.id)}
                 onPromote={onPromote}
+                onRenew={() => onRenew(l.id)}
               />
             ))
           )}

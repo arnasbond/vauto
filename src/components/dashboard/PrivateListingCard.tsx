@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle, Pencil, Trash2 } from "lucide-react";
+import { CheckCircle, Pencil, RefreshCw, Trash2 } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
-import { isListingActive } from "@/lib/listing-expiry";
+import { formatExpiryLabel, isListingActive } from "@/lib/listing-expiry";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ListingStatus } from "@/lib/types";
 
@@ -13,6 +13,7 @@ interface PrivateListingCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onMarkSold: () => void;
+  onRenew: () => void;
 }
 
 function statusLabel(listing: Listing): { text: string; className: string } {
@@ -28,8 +29,11 @@ export function PrivateListingCard({
   onEdit,
   onDelete,
   onMarkSold,
+  onRenew,
 }: PrivateListingCardProps) {
   const status = statusLabel(listing);
+  const expiryLabel = formatExpiryLabel(listing);
+  const expired = listing.status !== "sold" && !isListingActive(listing);
 
   return (
     <div className="vauto-dashboard-card rounded-2xl p-3">
@@ -61,9 +65,28 @@ export function PrivateListingCard({
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
           <p className="text-xs text-slate-500">{listing.location}</p>
+          {expiryLabel && listing.status !== "sold" && (
+            <p
+              className={`mt-0.5 text-[10px] font-medium ${
+                expired ? "text-red-300" : "text-amber-300"
+              }`}
+            >
+              {expiryLabel}
+            </p>
+          )}
         </div>
       </div>
-      <div className="mt-3 flex gap-2">
+      <div className="mt-3 flex flex-wrap gap-2">
+        {expired && (
+          <button
+            type="button"
+            onClick={onRenew}
+            className="flex w-full items-center justify-center gap-1 rounded-xl bg-[var(--vauto-teal)] py-2 text-xs font-semibold text-white"
+          >
+            <RefreshCw className="h-3 w-3" />
+            Pratęsti 90 d.
+          </button>
+        )}
         <button
           type="button"
           onClick={onEdit}

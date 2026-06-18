@@ -1,0 +1,355 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>VAUTO - Investicinis Pristatymas</title>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap');
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            background-color: #0f172a;
+            color: #f8fafc;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+
+        .slide {
+            width: 100vw;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+            padding: 60px;
+            background: radial-gradient(circle at 80% 20%, #0d9488 0%, #1e3a8a 50%, #0f172a 100%);
+            position: relative;
+            overflow: hidden;
+            page-break-after: always;
+        }
+
+        .slide::before {
+            content: '';
+            position: absolute;
+            top: -10%;
+            right: -10%;
+            width: 600px;
+            height: 600px;
+            background: rgba(13, 148, 136, 0.15);
+            filter: blur(120px);
+            border-radius: 50%;
+            z-index: 1;
+        }
+
+        .slide-content {
+            position: relative;
+            z-index: 2;
+            max-width: 1100px;
+            margin: auto 0;
+        }
+
+        .logo-area {
+            font-size: 28px;
+            font-weight: 800;
+            letter-spacing: -1px;
+            color: #2dd4bf;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            z-index: 10;
+        }
+
+        .logo-dot {
+            width: 8px;
+            height: 8px;
+            background-color: #f97316;
+            border-radius: 50%;
+        }
+
+        h1 {
+            font-size: 56px;
+            font-weight: 800;
+            line-height: 1.1;
+            letter-spacing: -2px;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #ffffff, #94a3b8);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        h2 {
+            font-size: 40px;
+            font-weight: 700;
+            letter-spacing: -1px;
+            margin-bottom: 30px;
+            color: #ffffff;
+            border-left: 5px solid #2dd4bf;
+            padding-left: 20px;
+        }
+
+        p.subtitle {
+            font-size: 22px;
+            color: #cbd5e1;
+            font-weight: 400;
+            max-width: 700px;
+            line-height: 1.5;
+        }
+
+        .mockup-container {
+            display: flex;
+            gap: 40px;
+            margin-top: 20px;
+            align-items: center;
+        }
+
+        .app-mockup {
+            background: #1e293b;
+            border: 4px solid #334155;
+            border-radius: 32px;
+            width: 320px;
+            height: 480px;
+            padding: 20px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .mock-search {
+            background: #0f172a;
+            border: 1px solid #475569;
+            border-radius: 12px;
+            padding: 12px;
+            font-size: 12px;
+            color: #94a3b8;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .mock-mic {
+            color: #f97316;
+            font-weight: bold;
+        }
+
+        .mock-btn-group {
+            display: flex;
+            gap: 10px;
+        }
+
+        .mock-btn {
+            flex: 1;
+            background: rgba(45, 212, 191, 0.1);
+            border: 1px solid rgba(45, 212, 191, 0.3);
+            border-radius: 8px;
+            padding: 10px;
+            font-size: 11px;
+            text-align: center;
+            color: #2dd4bf;
+        }
+
+        .mock-feed {
+            flex: 1;
+            background: #0f172a;
+            border-radius: 16px;
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .mock-card {
+            background: #1e293b;
+            border-radius: 8px;
+            padding: 8px;
+            font-size: 11px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .grid-points {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 30px;
+            margin-top: 10px;
+        }
+
+        .point-card {
+            background: rgba(30, 41, 59, 0.6);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            padding: 24px;
+            border-radius: 16px;
+            backdrop-filter: blur(10px);
+        }
+
+        .point-card h3 {
+            font-size: 20px;
+            color: #2dd4bf;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .point-card p {
+            font-size: 16px;
+            color: #94a3b8;
+            line-height: 1.5;
+        }
+
+        .footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 14px;
+            color: #64748b;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            padding-top: 20px;
+            z-index: 10;
+        }
+
+        @media print {
+            body {
+                background-color: #0f172a;
+            }
+            .slide {
+                width: 100vw;
+                height: 100vh;
+                page-break-after: always;
+                overflow: hidden;
+            }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="slide">
+        <div class="logo-area">VAUTO<div class="logo-dot"></div></div>
+        <div class="slide-content">
+            <h1>Naujos Kartos AI<br>Skelbimų Platforma</h1>
+            <p class="subtitle">Nulis trinties pardavėjui. Išmanioji semantinė paieška pirkėjui. Klasifikuotų skelbimų rinkos revoliucija.</p>
+        </div>
+        <div class="footer">
+            <span>Investicinis Pristatymas 2026</span>
+            <span>vauto.com</span>
+        </div>
+    </div>
+
+    <div class="slide">
+        <div class="logo-area">VAUTO<div class="logo-dot"></div></div>
+        <div class="slide-content">
+            <h2>Dabartinė Rinkos Problema</h2>
+            <div class="grid-points">
+                <div class="point-card">
+                    <h3>❌ Komplikuotas įvedimas</h3>
+                    <p>Tradiciniai portalai reikalauja užpildyti iki 12 skirtingų laukų, pasirinkti kategorijas ir subkategorijas. Tai atbaido vyresnio amžiaus žmones ir gaišina jaunimo laiką.</p>
+                </div>
+                <div class="point-card">
+                    <h3>❌ Akla paieška</h3>
+                    <p>Dabartinės paieškos sistemos ieško tik tikslių žodžių sutapimų. Pirkėjas neranda tinkamų paslaugų ar prekių, jei skelbimo autorius panaudojo kitus sinonimus.</p>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Strateginė analizė</span>
+            <span>Puslapis 2</span>
+        </div>
+    </div>
+
+    <div class="slide">
+        <div class="logo-area">VAUTO<div class="logo-dot"></div></div>
+        <div class="slide-content">
+            <div class="mockup-container">
+                <div style="flex: 1;">
+                    <h2>Sprendimas: VAUTO Ekosistema</h2>
+                    <p class="subtitle" style="font-size: 18px; margin-bottom: 20px;">Visiškai eliminuojame formas. Vartotojas sąveikauja su platforma natūraliai – balsu, vaizdu arba laisvu tekstu.</p>
+                    <div class="point-card" style="margin-bottom: 15px;">
+                        <span style="color: #2dd4bf; font-weight: bold;">Pardavėjui:</span> Įmesk foto/video arba įrašyk audio. AI akimirksniu sugeneruos struktūrizuotą skelbimą.
+                    </div>
+                    <div class="point-card">
+                        <span style="color: #2dd4bf; font-weight: bold;">Pirkėjui:</span> Paieška natūralia kalba (pvz., "pigus telefonas paaugliui"). Vektorinis variklis supranta ieškomo daikto prasmę ir lokaciją.
+                    </div>
+                </div>
+                <div class="app-mockup">
+                    <div style="text-align: center; font-size: 14px; font-weight: 800; color: #2dd4bf;">VAUTO UI</div>
+                    <div class="mock-search">
+                        <span>Ieškok natūralia kalba...</span>
+                        <span class="mock-mic">🎙️</span>
+                    </div>
+                    <div class="mock-btn-group">
+                        <div class="mock-btn">📸 Foto / Video</div>
+                        <div class="mock-btn">🎙️ Balso skelbimas</div>
+                    </div>
+                    <div class="mock-feed">
+                        <div class="mock-card">
+                            <span>🚲 Kalnų dviratis</span>
+                            <span style="color: #2dd4bf;">150€</span>
+                        </div>
+                        <div class="mock-card">
+                            <span>🛠️ Elektriko paslaugos</span>
+                            <span style="color: #2dd4bf;">30€/h</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Produkto architektūra</span>
+            <span>Puslapis 3</span>
+        </div>
+    </div>
+
+    <div class="slide">
+        <div class="logo-area">VAUTO<div class="logo-dot"></div></div>
+        <div class="slide-content">
+            <h2>Kaip Mes Uždirbame?</h2>
+            <div class="grid-points">
+                <div class="point-card">
+                    <h3>💎 Premium Paslaugų Tiekėjai</h3>
+                    <p>Meistrai, specialistai ir smulkusis verslas moka kasmėnesinį prenumeratos mokestį už aukštesnį reitingą vietos paieškos rezultatuose.</p>
+                </div>
+                <div class="point-card">
+                    <h3>🤝 Saugūs Sandoriai (Escrow)</h3>
+                    <p>Komisiniai mokesčiai nuo kiekvieno sėkmingo prekių pardavimo, integruojant automatizuotą atsiskaitymą ir siuntų tarnybų logistiką programėlėje.</p>
+                </div>
+                <div class="point-card">
+                    <h3>🎯 Kontekstinė AI Reklama</h3>
+                    <p>Tikslinis prekių siūlymas (Smart Bump) pirkėjams, remiantis jų semantinių paieškų istorija ir realaus laiko poreikiais.</p>
+                </div>
+                <div class="point-card">
+                    <h3>🌍 Globali Plėtra</h3>
+                    <p>Sukurta architektūra yra universali. Kadangi AI modeliai dirba su visomis kalbomis, MVP validavus Lietuvoje, platforma lengvai adaptuojama užsienio rinkose.</p>
+                </div>
+            </div>
+        </div>
+        <div class="footer">
+            <span>Finansinis modelis</span>
+            <span>Puslapis 4</span>
+        </div>
+    </div>
+
+    <div class="slide">
+        <div class="logo-area">VAUTO<div class="logo-dot"></div></div>
+        <div class="slide-content" style="text-align: center; margin: auto;">
+            <h2 style="border: none; padding: 0; inline-size: max-content; margin: 0 auto 30px auto;">Prisijunkite prie Ateities</h2>
+            <p class="subtitle" style="margin: 0 auto 40px auto;">Mes keičiame dešimtmečius nesikeitusių skelbimų portalų įpročius. Sukurti MVP reikia tikslinių investicijų į AI modelių aprašymą ir infrastruktūrą.</p>
+            <div style="display: inline-block; background: #f97316; color: white; padding: 20px 40px; border-radius: 50px; font-weight: 700; font-size: 24px; box-shadow: 0 10px 25px rgba(249, 115, 22, 0.4);">
+                SEED INVESTICIJŲ ETAPAS
+            </div>
+        </div>
+        <div class="footer">
+            <span>Kontaktai: info@vauto.com</span>
+            <span>2026 VAUTO</span>
+        </div>
+    </div>
+
+</body>
+</html>

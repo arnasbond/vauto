@@ -3,13 +3,14 @@
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { Sparkles, TrendingUp } from "lucide-react";
+import { Sparkles, TrendingUp, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
 import { getPromoteSuggestion } from "@/lib/smart-promote";
 import { listingPath } from "@/lib/seo";
 import type { Listing } from "@/lib/types";
 import { TrustBadges } from "@/components/trust/TrustBadges";
+import { formatExpiryLabel, isListingActive } from "@/lib/listing-expiry";
 import { SmartPromoteModal } from "./SmartPromoteModal";
 
 interface ProListingCardProps {
@@ -18,6 +19,7 @@ interface ProListingCardProps {
   onEdit: () => void;
   onDelete: () => void;
   onPromote: (listingId: string, cost: number) => boolean;
+  onRenew: () => void;
 }
 
 export function ProListingCard({
@@ -26,11 +28,14 @@ export function ProListingCard({
   onEdit,
   onDelete,
   onPromote,
+  onRenew,
 }: ProListingCardProps) {
   const [promoteOpen, setPromoteOpen] = useState(false);
   const metrics = mockListingMetrics(listing);
   const suggestion = getPromoteSuggestion(listing);
   const isSold = listing.status === "sold";
+  const expiryLabel = formatExpiryLabel(listing);
+  const expired = !isSold && !isListingActive(listing);
 
   return (
     <>
@@ -61,6 +66,15 @@ export function ProListingCard({
               {formatPrice(listing.price, listing.priceLabel)}
             </p>
             <TrustBadges listing={listing} size="sm" />
+            {expiryLabel && (
+              <p
+                className={`mt-0.5 text-[10px] font-medium ${
+                  expired ? "text-red-300" : "text-amber-300"
+                }`}
+              >
+                {expiryLabel}
+              </p>
+            )}
             <div className="mt-1 flex gap-3 text-[10px] text-slate-400">
               <span>{metrics.views} perž.</span>
               <span>{metrics.clicks} pas.</span>
@@ -90,7 +104,17 @@ export function ProListingCard({
           </button>
         )}
 
-        <div className="mt-2 flex gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
+          {expired && (
+            <button
+              type="button"
+              onClick={onRenew}
+              className="flex w-full items-center justify-center gap-1 rounded-xl bg-[var(--vauto-teal)] py-2 text-xs font-semibold text-white"
+            >
+              <RefreshCw className="h-3 w-3" />
+              Pratęsti 90 d.
+            </button>
+          )}
           <button
             type="button"
             onClick={onEdit}

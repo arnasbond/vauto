@@ -5,6 +5,7 @@ services:
   - type: web
     name: vauto-api
     runtime: docker
+    plan: free
     dockerfilePath: ./server/Dockerfile
     dockerContext: ./server
     healthCheckPath: /api/health
