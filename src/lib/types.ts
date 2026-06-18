@@ -74,6 +74,28 @@ export interface ChatThread {
   sellerId: string;
   messages: ChatMessage[];
   escrowOffered: boolean;
+  escrow?: EscrowTransaction | null;
+}
+
+export type EscrowStatus =
+  | "offered"
+  | "paying"
+  | "paid"
+  | "label_sent"
+  | "completed"
+  | "cancelled";
+
+export interface EscrowTransaction {
+  id: string;
+  threadId: string;
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+  amount: number;
+  status: EscrowStatus;
+  trackingCode?: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 /** Ranked listing with computed score for buyer feed */

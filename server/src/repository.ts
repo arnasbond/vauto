@@ -1,5 +1,5 @@
 import { pool, query } from "./db.js";
-import type { ApiChatThread, ApiListing, ApiUser } from "./types.js";
+import type { ApiChatThread, ApiEscrowTransaction, ApiListing, ApiUser } from "./types.js";
 
 export async function getUser(id: string): Promise<ApiUser | null> {
   const rows = await query<{
@@ -142,6 +142,69 @@ export async function setSavedIds(userId: string, ids: string[]): Promise<void> 
   }
 }
 
+export async function getEscrowForThread(
+  threadId: string
+): Promise<ApiEscrowTransaction | null> {
+  const rows = await query<{
+    id: string;
+    thread_id: string;
+    listing_id: string;
+    buyer_id: string;
+    seller_id: string;
+    amount: string;
+    status: string;
+    tracking_code: string | null;
+    created_at: Date;
+    updated_at: Date;
+  }>(
+    `SELECT id, thread_id, listing_id, buyer_id, seller_id, amount, status,
+            tracking_code, created_at, updated_at
+     FROM escrow_transactions WHERE thread_id = $1`,
+    [threadId]
+  );
+  const r = rows[0];
+  if (!r) return null;
+  return {
+    id: r.id,
+    threadId: r.thread_id,
+    listingId: r.listing_id,
+    buyerId: r.buyer_id,
+    sellerId: r.seller_id,
+    amount: Number(r.amount),
+    status: r.status as ApiEscrowTransaction["status"],
+    trackingCode: r.tracking_code ?? undefined,
+    createdAt: r.created_at.toISOString(),
+    updatedAt: r.updated_at.toISOString(),
+  };
+}
+
+export async function upsertEscrow(escrow: ApiEscrowTransaction): Promise<void> {
+  await ensureUser(escrow.buyerId);
+  await ensureUser(escrow.sellerId);
+  await query(
+    `INSERT INTO escrow_transactions (
+      id, thread_id, listing_id, buyer_id, seller_id, amount, status,
+      tracking_code, created_at, updated_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+    ON CONFLICT (id) DO UPDATE SET
+      status = EXCLUDED.status,
+      tracking_code = EXCLUDED.tracking_code,
+      updated_at = EXCLUDED.updated_at`,
+    [
+      escrow.id,
+      escrow.threadId,
+      escrow.listingId,
+      escrow.buyerId,
+      escrow.sellerId,
+      escrow.amount,
+      escrow.status,
+      escrow.trackingCode ?? null,
+      escrow.createdAt,
+      escrow.updatedAt,
+    ]
+  );
+}
+
 export async function getChats(userId: string): Promise<ApiChatThread[]> {
   const threads = await query<{
     id: string;
@@ -177,6 +240,7 @@ export async function getChats(userId: string): Promise<ApiChatThread[]> {
       buyerId: t.buyer_id,
       sellerId: t.seller_id,
       escrowOffered: t.escrow_offered,
+      escrow: await getEscrowForThread(t.id),
       messages: messages.map((m) => ({
         id: m.id,
         senderId: m.sender_id,

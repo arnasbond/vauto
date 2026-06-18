@@ -51,6 +51,7 @@ import {
   apiUpdateSaved,
   apiUpdateUser,
   apiUpsertChat,
+  apiUpsertEscrow,
 } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { parseVideoUrl } from "@/lib/video-url";
@@ -58,6 +59,7 @@ import type {
   AiExtractedListing,
   ChatMessage,
   ChatThread,
+  EscrowTransaction,
   Listing,
   SellerFlowStep,
   SellerInputMode,
@@ -98,6 +100,7 @@ interface VautoContextValue {
   chats: ChatThread[];
   sendMessage: (chatId: string, text: string) => void;
   startChat: (listingId: string) => string | null;
+  updateEscrow: (chatId: string, escrow: EscrowTransaction) => void;
 }
 
 const VautoContext = createContext<VautoContextValue | null>(null);
@@ -540,6 +543,18 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [listings, chats, user.id]
   );
 
+  const updateEscrow = useCallback(
+    (chatId: string, escrow: EscrowTransaction) => {
+      setChats((prev) =>
+        prev.map((chat) =>
+          chat.id === chatId ? { ...chat, escrow } : chat
+        )
+      );
+      if (isDataApiEnabled()) void apiUpsertEscrow(escrow);
+    },
+    []
+  );
+
   const value: VautoContextValue = {
     user,
     updateUser,
@@ -568,6 +583,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     chats,
     sendMessage,
     startChat,
+    updateEscrow,
   };
 
   return (

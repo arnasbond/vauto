@@ -124,6 +124,16 @@ export async function apiUpsertChat(
   });
 }
 
+export async function apiUpsertEscrow(
+  escrow: import("@/lib/types").EscrowTransaction
+): Promise<void> {
+  await dataFetch("/api/escrow", {
+    method: "PUT",
+    body: JSON.stringify(escrow),
+    userId: escrow.buyerId,
+  });
+}
+
 export async function apiExtractImage(body: {
   imageDataUrl: string;
   userCity: string;

@@ -2,15 +2,17 @@ import { Router } from "express";
 import {
   deleteListing,
   getChats,
+  getEscrowForThread,
   getListings,
   getSavedIds,
   getUser,
   insertListing,
   setSavedIds,
   upsertChat,
+  upsertEscrow,
   upsertUser,
 } from "../repository.js";
-import type { ApiChatThread, ApiListing, ApiUser } from "../types.js";
+import type { ApiChatThread, ApiEscrowTransaction, ApiListing, ApiUser } from "../types.js";
 
 export const apiRouter = Router();
 
@@ -97,6 +99,26 @@ apiRouter.put("/chats", async (req, res) => {
     const thread = req.body as ApiChatThread;
     await upsertChat(thread);
     res.json(thread);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.get("/escrow/thread/:threadId", async (req, res) => {
+  try {
+    const escrow = await getEscrowForThread(req.params.threadId);
+    if (!escrow) return res.status(404).json({ error: "Not found" });
+    res.json(escrow);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.put("/escrow", async (req, res) => {
+  try {
+    const escrow = req.body as ApiEscrowTransaction;
+    await upsertEscrow(escrow);
+    res.json(escrow);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

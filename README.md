@@ -77,6 +77,12 @@ docker run -p 4000:4000 \
 
 Arba `docker compose up -d` (db + api kartu).
 
+**Render (1-click):** prijunkite repo → New Blueprint → `render.yaml` → įveskite `OPENAI_API_KEY` → po deploy nustatykite Vercel `NEXT_PUBLIC_API_URL` į Render API URL.
+
+### Escrow (saugus mokėjimas)
+
+Pokalbyje parašykite „perku" arba „tinka" — atsiras escrow blokas. Būsena saugoma `localStorage` arba PostgreSQL (`escrow_transactions`).
+
 ## Struktūra
 
 ```

@@ -68,7 +68,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
         })}
 
         {chat.escrowOffered && (
-          <EscrowActionBlock amount={listing?.price ?? 150} />
+          <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />
         )}
       </div>
 

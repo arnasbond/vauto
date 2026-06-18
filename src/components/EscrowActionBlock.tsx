@@ -1,11 +1,43 @@
 "use client";
 
-import { ShieldCheck } from "lucide-react";
+import { CheckCircle2, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { EscrowModal } from "@/components/EscrowModal";
+import { useVauto } from "@/context/VautoContext";
+import type { ChatThread } from "@/lib/types";
 
-export function EscrowActionBlock({ amount }: { amount: number }) {
+export function EscrowActionBlock({
+  chat,
+  amount,
+}: {
+  chat: ChatThread;
+  amount: number;
+}) {
+  const { updateEscrow } = useVauto();
   const [open, setOpen] = useState(false);
+  const escrow = chat.escrow;
+
+  if (escrow?.status === "completed") {
+    return (
+      <div className="mx-2 my-3 flex items-center gap-2 rounded-2xl border border-green-200 bg-green-50 p-4">
+        <CheckCircle2 className="h-5 w-5 shrink-0 text-green-600" />
+        <div>
+          <p className="text-sm font-medium text-green-800">
+            Escrow sandoris užbaigtas
+          </p>
+          {escrow.trackingCode && (
+            <p className="font-mono text-xs text-green-700">
+              {escrow.trackingCode}
+            </p>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  const inProgress =
+    escrow &&
+    ["paying", "paid", "label_sent"].includes(escrow.status);
 
   return (
     <>
@@ -19,20 +51,43 @@ export function EscrowActionBlock({ amount }: { amount: number }) {
               AI Asistentas
             </p>
             <p className="mt-1 text-sm text-[var(--vauto-text)]">
-              Atrodo, kad susitarėte dėl sandorio.{" "}
-              <button
-                type="button"
-                className="font-semibold text-[var(--vauto-orange)] underline underline-offset-2"
-                onClick={() => setOpen(true)}
-              >
-                Spauskite čia, kad sumokėtumėte saugiai ir gautumėte siuntos
-                lipduką
-              </button>
+              {inProgress ? (
+                <>
+                  Escrow procesas vyksta.{" "}
+                  <button
+                    type="button"
+                    className="font-semibold text-[var(--vauto-orange)] underline underline-offset-2"
+                    onClick={() => setOpen(true)}
+                  >
+                    Tęsti mokėjimą
+                  </button>
+                </>
+              ) : (
+                <>
+                  Atrodo, kad susitarėte dėl sandorio.{" "}
+                  <button
+                    type="button"
+                    className="font-semibold text-[var(--vauto-orange)] underline underline-offset-2"
+                    onClick={() => setOpen(true)}
+                  >
+                    Spauskite čia, kad sumokėtumėte saugiai ir gautumėte siuntos
+                    lipduką
+                  </button>
+                </>
+              )}
             </p>
           </div>
         </div>
       </div>
-      {open && <EscrowModal amount={amount} onClose={() => setOpen(false)} />}
+      {open && (
+        <EscrowModal
+          chat={chat}
+          amount={amount}
+          escrow={escrow}
+          onClose={() => setOpen(false)}
+          onUpdate={(e) => updateEscrow(chat.id, e)}
+        />
+      )}
     </>
   );
 }

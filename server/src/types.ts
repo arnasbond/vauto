@@ -37,4 +37,26 @@ export interface ApiChatThread {
   sellerId: string;
   messages: ApiChatMessage[];
   escrowOffered: boolean;
+  escrow?: ApiEscrowTransaction | null;
+}
+
+export type ApiEscrowStatus =
+  | "offered"
+  | "paying"
+  | "paid"
+  | "label_sent"
+  | "completed"
+  | "cancelled";
+
+export interface ApiEscrowTransaction {
+  id: string;
+  threadId: string;
+  listingId: string;
+  buyerId: string;
+  sellerId: string;
+  amount: number;
+  status: ApiEscrowStatus;
+  trackingCode?: string;
+  createdAt: string;
+  updatedAt: string;
 }

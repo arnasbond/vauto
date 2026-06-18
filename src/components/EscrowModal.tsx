@@ -1,25 +1,79 @@
 "use client";
 
 import { Check, Package, ShieldCheck, X } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import {
+  createEscrow,
+  generateTrackingCode,
+  patchEscrow,
+} from "@/lib/escrow";
+import type { ChatThread, EscrowStatus, EscrowTransaction } from "@/lib/types";
 
 type EscrowStep = "offer" | "paying" | "label" | "done";
 
 interface EscrowModalProps {
+  chat: ChatThread;
   amount: number;
+  escrow?: EscrowTransaction | null;
   onClose: () => void;
+  onUpdate: (escrow: EscrowTransaction) => void;
 }
 
-export function EscrowModal({ amount, onClose }: EscrowModalProps) {
-  const [step, setStep] = useState<EscrowStep>("offer");
+function stepFromEscrow(escrow?: EscrowTransaction | null): EscrowStep {
+  if (!escrow) return "offer";
+  switch (escrow.status) {
+    case "paying":
+      return "paying";
+    case "paid":
+    case "label_sent":
+      return "label";
+    case "completed":
+      return "done";
+    default:
+      return "offer";
+  }
+}
+
+export function EscrowModal({
+  chat,
+  amount,
+  escrow,
+  onClose,
+  onUpdate,
+}: EscrowModalProps) {
+  const [step, setStep] = useState<EscrowStep>(() => stepFromEscrow(escrow));
+  const [trackingCode, setTrackingCode] = useState(
+    escrow?.trackingCode ?? generateTrackingCode()
+  );
+
+  useEffect(() => {
+    setStep(stepFromEscrow(escrow));
+    if (escrow?.trackingCode) setTrackingCode(escrow.trackingCode);
+  }, [escrow]);
+
+  const persist = (status: EscrowStatus, code?: string) => {
+    const base = escrow ?? createEscrow(chat, amount);
+    const next = patchEscrow(base, {
+      status,
+      ...(code ? { trackingCode: code } : {}),
+    });
+    onUpdate(next);
+    return next;
+  };
 
   const handlePay = () => {
     setStep("paying");
-    setTimeout(() => setStep("label"), 1500);
+    persist("paying");
+    setTimeout(() => {
+      persist("paid");
+      setStep("label");
+    }, 1500);
   };
 
   const handleConfirmLabel = () => {
+    persist("label_sent", trackingCode);
     setStep("done");
+    persist("completed", trackingCode);
     setTimeout(onClose, 2000);
   };
 
@@ -80,10 +134,10 @@ export function EscrowModal({ amount, onClose }: EscrowModalProps) {
               <div>
                 <p className="text-sm font-semibold">Siuntos lipdukas paruoštas</p>
                 <p className="text-xs text-[var(--vauto-text-muted)]">
-                  LP Express · Vilnius → Panevėžys
+                  LP Express · {chat.listingTitle}
                 </p>
                 <p className="mt-1 font-mono text-xs text-[var(--vauto-text-muted)]">
-                  #VAUTO-2026-8842
+                  {trackingCode}
                 </p>
               </div>
             </div>
