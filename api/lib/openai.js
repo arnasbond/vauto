@@ -6,16 +6,12 @@ const EXTRACTION_SCHEMA = `{
   "confidence": "number 0-1"
 }`;
 
-export function getServerOpenAiKey(): string | null {
+function getServerOpenAiKey() {
   const key = process.env.OPENAI_API_KEY?.trim();
   return key && key.startsWith("sk-") ? key : null;
 }
 
-export async function chatJson(
-  key: string,
-  messages: object[],
-  model = "gpt-4o-mini"
-): Promise<Record<string, unknown>> {
+async function chatJson(key, messages, model = "gpt-4o-mini") {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -37,11 +33,7 @@ export async function chatJson(
   return JSON.parse(content);
 }
 
-export function toListing(
-  raw: Record<string, unknown>,
-  userCity: string,
-  contact: string
-) {
+function toListing(raw, userCity, contact) {
   return {
     title: String(raw.title ?? "Skelbimas"),
     price: Number(raw.price) || 0,
@@ -52,4 +44,4 @@ export function toListing(
   };
 }
 
-export { EXTRACTION_SCHEMA };
+module.exports = { EXTRACTION_SCHEMA, getServerOpenAiKey, chatJson, toListing };

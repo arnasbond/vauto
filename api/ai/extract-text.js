@@ -1,12 +1,11 @@
-import type { VercelRequest, VercelResponse } from "@vercel/node";
-import {
-  chatJson,
+const {
   EXTRACTION_SCHEMA,
   getServerOpenAiKey,
+  chatJson,
   toListing,
-} from "../_lib/openai";
+} = require("../lib/openai");
 
-export default async function handler(req: VercelRequest, res: VercelResponse) {
+module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
@@ -16,12 +15,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(503).json({ error: "OPENAI_API_KEY not configured on server" });
   }
 
-  const { text, userCity, contact } = req.body as {
-    text: string;
-    userCity: string;
-    contact: string;
-  };
-
+  const { text, userCity, contact } = req.body || {};
   if (!text?.trim()) {
     return res.status(400).json({ error: "text is required" });
   }
@@ -38,10 +32,10 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${userCity ?? "Panevėžys"}`,
       },
     ]);
-    return res.status(200).json(
-      toListing(raw, userCity ?? "Panevėžys", contact ?? "+370 612 34567")
-    );
+    return res
+      .status(200)
+      .json(toListing(raw, userCity ?? "Panevėžys", contact ?? "+370 612 34567"));
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }
-}
+};
