@@ -43,6 +43,7 @@ const RAW_INITIAL_LISTINGS: Listing[] = [
     tags: ["telefonas", "mobilus", "pigus", "paaugliui"],
     sellerId: "seller-phone",
     createdAt: "2026-06-18T09:00:00Z",
+    description: "Puikus ekranas, komplektas su įkrovikliu. Galima išbandyti vietoje.",
   },
   {
     id: "l-handyman",
@@ -59,6 +60,7 @@ const RAW_INITIAL_LISTINGS: Listing[] = [
     createdAt: "2026-06-18T08:00:00Z",
     hasVideo: true,
     providerVerified: true,
+    description: "Remonto ir montavimo paslaugos Panevėžyje ir apylinkėse. Išrašome sąskaitas.",
   },
   {
     id: "l1",
@@ -157,6 +159,10 @@ function prepareListing(listing: Listing): Listing {
   return {
     ...withCoords,
     slug,
+    contact: listing.contact ?? "+370 612 34567",
+    description:
+      listing.description ??
+      `${listing.title} — ${listing.location}. Susisiekite dėl detalių.`,
     vinVerified: listing.vinVerified ?? (vin ? verifyVin(vin) : false),
     providerVerified:
       listing.providerVerified ?? isVerifiedServiceSeller(listing.sellerId),
