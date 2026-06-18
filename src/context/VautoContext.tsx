@@ -133,6 +133,11 @@ interface VautoContextValue {
   sellerInputMode: SellerInputMode;
   aiDraft: AiExtractedListing | null;
   sellerPreviewImage: string | null;
+  sellerVideoUrl: string;
+  updateSellerMedia: (patch: {
+    imageDataUrl?: string | null;
+    videoUrl?: string;
+  }) => void;
   startUploadFlow: () => Promise<void>;
   startVoiceFlow: () => void;
   completeVoiceRecording: (transcript: string | null) => void;
@@ -371,6 +376,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [sellerPreviewImage, setSellerPreviewImage] = useState<string | null>(
     null
   );
+  const [sellerVideoUrl, setSellerVideoUrl] = useState("");
   const [sellerHasVideo, setSellerHasVideo] = useState(false);
 
   useEffect(() => {
@@ -535,6 +541,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setSellerInputMode(null);
     setAiDraft(null);
     setSellerPreviewImage(null);
+    setSellerVideoUrl("");
     setSellerHasVideo(false);
   }, []);
 
@@ -590,6 +597,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         };
 
         if (opts?.videoUrl) {
+          setSellerVideoUrl(opts.videoUrl);
           const vid = parseVideoUrl(opts.videoUrl);
           if (vid.thumbnail && !opts.previewImage) {
             setSellerPreviewImage(vid.thumbnail);
@@ -619,6 +627,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
       if (payload.imageDataUrl) setSellerPreviewImage(payload.imageDataUrl);
       if (payload.videoUrl) {
+        setSellerVideoUrl(payload.videoUrl);
         const vid = parseVideoUrl(payload.videoUrl);
         setSellerHasVideo(vid.hasVideo);
         if (vid.thumbnail && !payload.imageDataUrl) {
@@ -778,6 +787,26 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const clearToast = useCallback(() => setToast(null), []);
+
+  const updateSellerMedia = useCallback(
+    (patch: { imageDataUrl?: string | null; videoUrl?: string }) => {
+      if (patch.imageDataUrl !== undefined) {
+        setSellerPreviewImage(patch.imageDataUrl);
+      }
+      if (patch.videoUrl !== undefined) {
+        setSellerVideoUrl(patch.videoUrl);
+        const vid = parseVideoUrl(patch.videoUrl);
+        setSellerHasVideo(vid.hasVideo);
+        if (patch.imageDataUrl === undefined) {
+          setSellerPreviewImage((prev) => {
+            if (prev?.startsWith("data:")) return prev;
+            return vid.thumbnail ?? null;
+          });
+        }
+      }
+    },
+    []
+  );
 
   const requestMediaConsent = useCallback((onGranted: () => void) => {
     if (gdprConsent) {
@@ -1303,6 +1332,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     sellerInputMode,
     aiDraft,
     sellerPreviewImage,
+    sellerVideoUrl,
+    updateSellerMedia,
     startUploadFlow,
     startVoiceFlow,
     completeVoiceRecording,

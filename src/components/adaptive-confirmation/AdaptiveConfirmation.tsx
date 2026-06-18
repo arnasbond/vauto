@@ -12,12 +12,16 @@ import { AiAssistantPrompt } from "./AiAssistantPrompt";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
 import { ConfirmationShell } from "./ConfirmationShell";
+import { DraftMediaEditor } from "./DraftMediaEditor";
 
 interface AdaptiveConfirmationProps {
   draft: AiExtractedListing;
   previewImage: string | null;
+  videoUrl: string;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
+  onMediaChange: (patch: { imageDataUrl?: string | null; videoUrl?: string }) => void;
+  requestMediaConsent: (onGranted: () => void) => void;
   onCancel: () => void;
   onPublish: () => void;
 }
@@ -28,8 +32,11 @@ const categoryPanelClass =
 export function AdaptiveConfirmation({
   draft,
   previewImage,
+  videoUrl,
   onUpdate,
   onAttributeChange,
+  onMediaChange,
+  requestMediaConsent,
   onCancel,
   onPublish,
 }: AdaptiveConfirmationProps) {
@@ -105,34 +112,10 @@ export function AdaptiveConfirmation({
     </div>
   );
 
-  const baseFields = config.baseFields.filter(
-    (f) => f !== "description" || adaptiveKey === "universal"
-  );
-
-  const baseEditor =
-    adaptiveKey === "universal" ? (
-      <BaseFieldsEditor
-        draft={draft}
-        fields={config.baseFields}
-        needsPrice={needsPrice}
-        onUpdate={onUpdate}
-        variant="inline"
-      />
-    ) : (
-      <BaseFieldsEditor
-        draft={draft}
-        fields={baseFields as ("title" | "price" | "location" | "contact")[]}
-        needsPrice={needsPrice}
-        onUpdate={onUpdate}
-        variant="inline"
-      />
-    );
-
   return (
     <ConfirmationShell
       config={config}
       draft={draft}
-      previewImage={previewImage}
       needsPrice={needsPrice}
       canPublish={canPublish && !needsPrice}
       publishLabel={publishLabel}
@@ -144,7 +127,20 @@ export function AdaptiveConfirmation({
         ) : null
       }
     >
-      {baseEditor}
+      <DraftMediaEditor
+        previewImage={previewImage}
+        videoUrl={videoUrl}
+        onImageChange={(imageDataUrl) => onMediaChange({ imageDataUrl })}
+        onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
+        requestMediaConsent={requestMediaConsent}
+      />
+      <BaseFieldsEditor
+        draft={draft}
+        fields={config.baseFields}
+        needsPrice={needsPrice}
+        onUpdate={onUpdate}
+        variant="inline"
+      />
       {categorySection}
     </ConfirmationShell>
   );

@@ -9,7 +9,7 @@ export const ADAPTIVE_CATEGORIES: Record<
     label: "AUTOMOBILIŲ",
     portalStyle: "Autoplius",
     layout: "technical-grid",
-    baseFields: ["title", "price", "location", "contact"],
+    baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
       { key: "mileage", label: "Rida", placeholder: "185 000 km", critical: true, gridSpan: 1 },
       { key: "engine", label: "Variklis", placeholder: "1.6 TDI 77 kW", critical: true, gridSpan: 1 },
@@ -38,7 +38,7 @@ export const ADAPTIVE_CATEGORIES: Record<
     label: "APRANGOS",
     portalStyle: "Vinted",
     layout: "tag-social",
-    baseFields: ["title", "price", "location", "contact"],
+    baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
       { key: "size", label: "Dydis", placeholder: "M / 38 / 42", critical: true },
       { key: "brand", label: "Prekės ženklas", placeholder: "Zara, Nike…", critical: true },

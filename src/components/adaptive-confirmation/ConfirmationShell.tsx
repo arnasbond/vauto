@@ -8,7 +8,6 @@ import type { AiExtractedListing } from "@/lib/types";
 interface ConfirmationShellProps {
   config: AdaptiveCategoryConfig;
   draft: AiExtractedListing;
-  previewImage: string | null;
   needsPrice: boolean;
   canPublish: boolean;
   publishLabel: string;
@@ -21,7 +20,6 @@ interface ConfirmationShellProps {
 export function ConfirmationShell({
   config,
   draft,
-  previewImage,
   canPublish,
   publishLabel,
   onCancel,
@@ -53,17 +51,6 @@ export function ConfirmationShell({
         </p>
 
         {assistantPrompt}
-
-        {previewImage && (
-          <div className="mb-4 overflow-hidden rounded-xl border border-white/5">
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={previewImage}
-              alt="Jūsų nuotrauka"
-              className="h-40 w-full object-cover"
-            />
-          </div>
-        )}
 
         <div className="flex flex-col gap-4">{children}</div>
 

@@ -14,9 +14,12 @@ export function AiConfirmationScreen() {
     sellerStep,
     aiDraft,
     sellerPreviewImage,
+    sellerVideoUrl,
+    updateSellerMedia,
     updateAiDraft,
     publishListing,
     cancelSellerFlow,
+    requestMediaConsent,
   } = useVauto();
 
   useEffect(() => {
@@ -38,8 +41,11 @@ export function AiConfirmationScreen() {
     <AdaptiveConfirmation
       draft={aiDraft}
       previewImage={sellerPreviewImage}
+      videoUrl={sellerVideoUrl}
       onUpdate={updateAiDraft}
       onAttributeChange={handleAttributeChange}
+      onMediaChange={updateSellerMedia}
+      requestMediaConsent={requestMediaConsent}
       onCancel={cancelSellerFlow}
       onPublish={publishListing}
     />

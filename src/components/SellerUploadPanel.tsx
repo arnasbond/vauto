@@ -1,145 +1,206 @@
 "use client";
 
-import { Camera, Link2, Mic, Upload } from "lucide-react";
-import { useCallback, useState } from "react";
+import { Camera, Mic, Sparkles } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
+import { createVoiceSession, recordWithSession } from "@/lib/native-media";
 import { useVauto } from "@/context/VautoContext";
+import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
+import type { VoiceSession } from "@/lib/audio-session";
 
 export function SellerUploadPanel() {
-  const { submitSellerContent, startVoiceFlow, sellerStep, requestMediaConsent } =
-    useVauto();
-  const [text, setText] = useState("");
-  const [preview, setPreview] = useState<string | null>(null);
-  const [videoUrl, setVideoUrl] = useState("");
-  const [dragOver, setDragOver] = useState(false);
+  const { submitSellerContent, sellerStep, requestMediaConsent } = useVauto();
+  const [query, setQuery] = useState("");
+  const [isListening, setIsListening] = useState(false);
+  const [session, setSession] = useState<VoiceSession | null>(null);
+  const [pendingImage, setPendingImage] = useState<string | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const busy =
     sellerStep !== "idle" && sellerStep !== "published";
 
-  const handleFile = useCallback((file: File) => {
-    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) return;
-    const reader = new FileReader();
-    reader.onload = () => setPreview(reader.result as string);
-    reader.readAsDataURL(file);
-  }, []);
-
-  const onDrop = useCallback(
-    (e: React.DragEvent) => {
-      e.preventDefault();
-      setDragOver(false);
-      const file = e.dataTransfer.files[0];
-      if (file) handleFile(file);
+  const runAi = useCallback(
+    (text?: string) => {
+      const trimmed = text?.trim() ?? query.trim();
+      if (!trimmed && !pendingImage) return;
+      submitSellerContent({
+        text: trimmed || undefined,
+        imageDataUrl: pendingImage,
+      });
+      setQuery("");
+      setPendingImage(null);
     },
-    [handleFile]
+    [query, pendingImage, submitSellerContent]
   );
 
-  const handleSubmit = () => {
-    if (!text.trim() && !preview && !videoUrl.trim()) return;
-    submitSellerContent({
-      text: text.trim() || undefined,
-      imageDataUrl: preview,
-      videoUrl: videoUrl.trim() || undefined,
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    runAi();
+  };
+
+  const levelSource = useCallback(
+    () => session?.getLevels() ?? Array(9).fill(0.35),
+    [session]
+  );
+
+  const handleVoice = async () => {
+    if (isListening || busy) return;
+
+    requestMediaConsent(async () => {
+      const voiceSession = await createVoiceSession();
+      setSession(voiceSession);
+      setIsListening(true);
+
+      try {
+        const transcript = voiceSession
+          ? await recordWithSession(voiceSession)
+          : null;
+        if (transcript?.trim()) {
+          setQuery(transcript);
+          submitSellerContent({
+            text: transcript.trim(),
+            imageDataUrl: pendingImage,
+          });
+          setQuery("");
+          setPendingImage(null);
+        }
+      } finally {
+        voiceSession?.release();
+        setSession(null);
+        setIsListening(false);
+      }
     });
   };
 
+  const openFilePicker = () => {
+    if (busy) return;
+    requestMediaConsent(() => fileInputRef.current?.click());
+  };
+
+  const handleFile = (file: File) => {
+    if (!file.type.startsWith("image/")) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result as string;
+      if (query.trim()) {
+        submitSellerContent({ text: query.trim(), imageDataUrl: dataUrl });
+        setQuery("");
+        setPendingImage(null);
+      } else {
+        setPendingImage(dataUrl);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
+
+  if (busy) return null;
+
   return (
-    <div className="space-y-4">
-      <p className="text-center text-base font-medium text-[var(--vauto-text)]">
+    <>
+      <p className="mb-4 text-center text-sm text-[var(--vauto-text-muted)]">
         Kas tai per daiktas ar paslauga?
       </p>
 
-      <div
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onDrop}
-        className={`relative rounded-2xl border-2 border-dashed p-6 text-center transition ${
-          dragOver
-            ? "border-[var(--vauto-blue)] bg-[var(--vauto-blue)]/5"
-            : "border-gray-200 bg-gray-50"
-        }`}
+      <form
+        className="vauto-flux-glass flex items-center gap-2.5 rounded-[20px] py-1.5 pl-4 pr-1.5"
+        onSubmit={handleSubmit}
+        aria-label="Skelbimo aprašymas"
       >
-        {preview ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={preview}
-            alt="Peržiūra"
-            className="mx-auto max-h-40 rounded-xl object-cover"
-          />
-        ) : (
-          <>
-            <Upload className="mx-auto h-10 w-10 text-[var(--vauto-blue)]" />
-            <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
-              Vilkite nuotrauką ar video čia
-            </p>
-          </>
-        )}
-        <label
-          className="mt-3 inline-flex cursor-pointer items-center gap-2 rounded-xl bg-white px-4 py-2 text-sm font-medium text-[var(--vauto-blue)] shadow-sm"
-          onClick={(e) => {
-            e.preventDefault();
-            requestMediaConsent(() => {
-              document.getElementById("seller-media-input")?.click();
-            });
-          }}
+        <Sparkles className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
+        <input
+          ref={inputRef}
+          type="text"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder='Pvz. „Parduodu BMW 5500€ Panevėžyje“'
+          enterKeyHint="go"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-[var(--vauto-text-muted)]/80"
+        />
+        <button
+          type="button"
+          onClick={handleVoice}
+          disabled={isListening}
+          className={`vauto-flux-gradient-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition hover:opacity-90 disabled:opacity-60 ${
+            isListening ? "animate-pulse" : ""
+          }`}
+          aria-label="Pasakyti balsu"
         >
-          <Camera className="h-4 w-4" />
-          Kamera / galerija
-          <input
-            id="seller-media-input"
-            type="file"
-            accept="image/*,video/*"
-            className="hidden"
-            disabled={busy}
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFile(file);
-            }}
-          />
-        </label>
+          <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
+        </button>
+      </form>
+
+      <p className="mt-2 text-center text-xs text-white/35">
+        Enter arba 🎙 — AI atpažins kategoriją ir atidarys skelbimo formą
+      </p>
+
+      <div className="mt-4 flex items-center justify-center gap-3">
+        <button
+          type="button"
+          onClick={openFilePicker}
+          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-[var(--vauto-text-muted)] hover:bg-white/[0.08]"
+        >
+          <Camera className="h-3.5 w-3.5 text-[var(--flux-teal)]" />
+          {pendingImage ? "Nuotrauka paruošta ✓" : "Pridėti nuotrauką"}
+        </button>
+        {pendingImage && (
+          <button
+            type="button"
+            onClick={() => runAi()}
+            className="rounded-full bg-[var(--flux-teal)] px-3.5 py-2 text-xs font-semibold text-[var(--flux-bg)]"
+          >
+            Tęsti su nuotrauka
+          </button>
+        )}
       </div>
 
-      <textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        disabled={busy}
-        placeholder="Laisvas aprašymas: „Parduodu dviratį Panevėžyje, 150€, tel. +3706...“"
-        rows={4}
-        className="w-full resize-none rounded-2xl border border-gray-200 bg-white px-4 py-3 text-base text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-blue)] focus:ring-2 focus:ring-[var(--vauto-blue)]/20"
+      {pendingImage && (
+        <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={pendingImage}
+            alt="Paruošta nuotrauka"
+            className="mx-auto max-h-32 object-cover"
+          />
+        </div>
+      )}
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/*"
+        className="hidden"
+        onChange={(e) => {
+          const file = e.target.files?.[0];
+          if (file) handleFile(file);
+          e.target.value = "";
+        }}
       />
 
-      <div className="flex items-center gap-2 rounded-2xl border border-gray-200 bg-white px-4 py-3">
-        <Link2 className="h-5 w-5 shrink-0 text-[var(--vauto-text-muted)]" />
-        <input
-          type="url"
-          value={videoUrl}
-          onChange={(e) => setVideoUrl(e.target.value)}
-          disabled={busy}
-          placeholder="YouTube / TikTok nuoroda (neprivaloma)"
-          className="min-w-0 flex-1 bg-transparent text-sm outline-none"
-        />
-      </div>
-
-      <div className="flex gap-3">
-        <button
-          type="button"
-          disabled={busy}
-          onClick={startVoiceFlow}
-          className="flex flex-1 items-center justify-center gap-2 rounded-2xl border border-gray-200 bg-white py-3.5 text-sm font-medium text-[var(--vauto-text)] disabled:opacity-50"
-        >
-          <Mic className="h-5 w-5 text-[var(--vauto-red)]" />
-          Balsu
-        </button>
-        <button
-          type="button"
-          disabled={busy || (!text.trim() && !preview && !videoUrl.trim())}
-          onClick={handleSubmit}
-          className="flex-[2] rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white shadow-lg disabled:opacity-50"
-        >
-          Sukurti skelbimą
-        </button>
-      </div>
-    </div>
+      {isListening && (
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--flux-bg)]/90 backdrop-blur-lg">
+          <div className="vauto-flux-glass mx-6 w-full max-w-xs rounded-3xl px-6 py-8 text-center">
+            <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
+              <span className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--flux-teal)]/25" />
+              <span
+                className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--flux-indigo)]/15"
+                style={{ animationDelay: "0.6s" }}
+              />
+              <span className="vauto-flux-gradient-btn relative flex h-14 w-14 items-center justify-center rounded-2xl">
+                <Mic className="h-7 w-7 text-white" fill="white" strokeWidth={0} />
+              </span>
+            </div>
+            <AudioWaveAnimation
+              variant="large"
+              levelSource={session ? levelSource : undefined}
+              className="mb-4"
+            />
+            <p className="text-sm font-semibold text-white">Klausomasi...</p>
+            <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
+              Papasakokite ką parduodate ar siūlote
+            </p>
+          </div>
+        </div>
+      )}
+    </>
   );
 }

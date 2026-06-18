@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
-import { HeroSection, ContentSection } from "@/components/HeroSection";
+import { HeroSection } from "@/components/HeroSection";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
 import { useVauto } from "@/context/VautoContext";
 
@@ -45,17 +45,16 @@ export default function AddPage() {
     <AppShell>
       <HeroSection>
         <Header />
-        <h2 className="mt-6 text-center text-xl font-bold text-white">
+        <h2 className="font-display mt-6 text-center text-xl font-bold text-white">
           Naujas skelbimas
         </h2>
-        <p className="mt-2 text-center text-sm text-white/80">
-          Viena zona — foto, video, tekstas arba balsas
+        <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)]">
+          Pasakyk arba įvesk — AI sudėlioja laukus už tave
         </p>
+        <div className="mt-5">
+          <SellerUploadPanel />
+        </div>
       </HeroSection>
-
-      <ContentSection>
-        <SellerUploadPanel />
-      </ContentSection>
     </AppShell>
   );
 }
