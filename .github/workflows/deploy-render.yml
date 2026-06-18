@@ -11,7 +11,6 @@ on:
 
 jobs:
   deploy:
-    if: ${{ secrets.RENDER_API_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -23,7 +22,12 @@ jobs:
       - name: Trigger Render deploy
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: node scripts/redeploy-render.mjs
+        run: |
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "RENDER_API_KEY not set — skipping Render deploy"
+            exit 0
+          fi
+          node scripts/redeploy-render.mjs
 
       - name: Wait for API health
         run: |
