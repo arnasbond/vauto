@@ -79,6 +79,20 @@ Arba `docker compose up -d` (db + api kartu).
 
 **Render (1-click):** prijunkite repo → New Blueprint → `render.yaml` → įveskite `OPENAI_API_KEY` → po deploy nustatykite Vercel `NEXT_PUBLIC_API_URL` į Render API URL.
 
+**Automatinis Render (API raktas):**
+
+```bash
+# 1. Render Dashboard → Account Settings → API Keys
+gh secret set RENDER_API_KEY -R arnasbond/vauto
+gh secret set OPENAI_API_KEY -R arnasbond/vauto  # jei dar nėra
+
+# 2. GitHub Actions → Provision Render API → Run workflow
+# arba lokaliai:
+RENDER_API_KEY=rnd_xxx npm run provision:render
+```
+
+`vercel.json` ir `public/runtime-config.json` jau nurodo `https://vauto-api.onrender.com` — Vercel perbuildina automatiškai push metu.
+
 ### Escrow (saugus mokėjimas)
 
 Pokalbyje parašykite „perku" arba „tinka" — atsiras escrow blokas. Būsena saugoma `localStorage` arba PostgreSQL (`escrow_transactions`).

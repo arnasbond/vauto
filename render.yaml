@@ -9,6 +9,7 @@ services:
     dockerfilePath: ./server/Dockerfile
     dockerContext: ./server
     healthCheckPath: /api/health
+    region: frankfurt
     envVars:
       - key: DATABASE_URL
         fromDatabase:
@@ -22,5 +23,6 @@ services:
 databases:
   - name: vauto-db
     plan: free
+    region: frankfurt
     databaseName: vauto
     user: vauto

@@ -1,20 +1,18 @@
 name: Deploy to Vercel
 
+# Vercel deploys automatically via GitHub integration (vauto-chi.vercel.app).
+# This workflow validates production build with API URL baked in.
+
 on:
   push:
     branches: [master]
   workflow_dispatch:
 
-concurrency:
-  group: deploy-vercel
-  cancel-in-progress: true
-
 env:
-  VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-  VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+  NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
 
 jobs:
-  deploy:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -27,14 +25,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Install Vercel CLI
-        run: npm install -g vercel@54
+      - name: Lint
+        run: npm run lint
 
-      - name: Pull Vercel settings
-        run: vercel pull --yes --environment=production --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Production build (with API URL)
+        run: npm run build
 
-      - name: Build
-        run: vercel build --prod --token=${{ secrets.VERCEL_TOKEN }}
-
-      - name: Deploy to production
-        run: vercel deploy --prebuilt --prod --token=${{ secrets.VERCEL_TOKEN }}
+      - name: Verify runtime config
+        run: |
+          test -f public/runtime-config.json
+          grep -q vauto-api.onrender.com public/runtime-config.json
+          echo "NEXT_PUBLIC_API_URL and runtime-config.json OK"

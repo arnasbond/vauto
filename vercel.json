@@ -3,6 +3,14 @@
   "framework": null,
   "buildCommand": "npm run build",
   "outputDirectory": "out",
+  "env": {
+    "NEXT_PUBLIC_API_URL": "https://vauto-api.onrender.com"
+  },
+  "build": {
+    "env": {
+      "NEXT_PUBLIC_API_URL": "https://vauto-api.onrender.com"
+    }
+  },
   "rewrites": [
     {
       "source": "/listing/:slug/",

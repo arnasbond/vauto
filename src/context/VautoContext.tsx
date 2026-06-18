@@ -83,7 +83,7 @@ import {
   apiUpsertChat,
   apiUpsertEscrow,
 } from "@/lib/api/client";
-import { isDataApiEnabled } from "@/lib/api/config";
+import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { attributesToTags } from "@/lib/listing-attributes";
 import { parseVideoUrl } from "@/lib/video-url";
@@ -258,6 +258,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function load() {
+      await initDataApiConfig();
       if (isDataApiEnabled() && (await apiHealthCheck())) {
         setApiActive(true);
         const storedUser = loadUser();

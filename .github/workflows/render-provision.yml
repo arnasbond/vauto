@@ -1,0 +1,52 @@
+name: Provision Render API
+
+on:
+  workflow_dispatch:
+
+jobs:
+  provision:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Validate render.yaml
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          curl -sf -X POST "https://api.render.com/v1/blueprints/validate" \
+            -H "Authorization: Bearer $RENDER_API_KEY" \
+            -F "file=@render.yaml" \
+            | tee /tmp/validate.json
+          node -e "
+            const r = require('/tmp/validate.json');
+            if (!r.valid) { console.error(r); process.exit(1); }
+            console.log('Blueprint valid');
+          "
+
+      - name: Provision services (idempotent)
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_REPO: ${{ github.repository }}
+        run: node scripts/provision-render.mjs
+
+  health-check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wait for Render API health
+        run: |
+          URL="https://vauto-api.onrender.com/api/health"
+          for i in $(seq 1 30); do
+            if curl -sf "$URL" | grep -q '"ok"'; then
+              echo "API healthy: $URL"
+              exit 0
+            fi
+            echo "Attempt $i/30 — API not ready yet"
+            sleep 20
+          done
+          echo "API not deployed yet. Add RENDER_API_KEY secret and run Provision Render API workflow."
+          exit 0

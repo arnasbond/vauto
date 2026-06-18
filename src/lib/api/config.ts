@@ -1,7 +1,46 @@
 /** Express + PostgreSQL backend (optional). */
+let resolvedApiUrl: string | null = null;
+let resolvePromise: Promise<string | null> | null = null;
+
+function envApiUrl(): string | null {
+  return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || null;
+}
+
+/** Load API URL from build env or /runtime-config.json (no rebuild needed). */
+export async function initDataApiConfig(): Promise<string | null> {
+  if (resolvedApiUrl) return resolvedApiUrl;
+  if (resolvePromise) return resolvePromise;
+
+  resolvePromise = (async () => {
+    const fromEnv = envApiUrl();
+    if (fromEnv) {
+      resolvedApiUrl = fromEnv;
+      return fromEnv;
+    }
+
+    if (typeof window === "undefined") return null;
+
+    try {
+      const res = await fetch("/runtime-config.json", { cache: "no-store" });
+      if (res.ok) {
+        const json = (await res.json()) as { apiUrl?: string };
+        const url = json.apiUrl?.replace(/\/$/, "");
+        if (url) {
+          resolvedApiUrl = url;
+          return url;
+        }
+      }
+    } catch {
+      /* offline or missing file */
+    }
+    return null;
+  })();
+
+  return resolvePromise;
+}
+
 export function getDataApiBaseUrl(): string | null {
-  const url = process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "");
-  return url || null;
+  return resolvedApiUrl || envApiUrl();
 }
 
 export function isDataApiEnabled(): boolean {
