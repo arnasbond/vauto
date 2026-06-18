@@ -22,6 +22,7 @@ jobs:
       - name: Trigger Render deploy
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
             echo "RENDER_API_KEY not set — skipping Render deploy"
