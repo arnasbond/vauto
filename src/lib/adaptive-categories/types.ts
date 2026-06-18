@@ -3,6 +3,7 @@ export type AdaptiveCategoryKey =
   | "vehicles"
   | "clothing"
   | "services"
+  | "jobs"
   | "real_estate"
   | "universal";
 
@@ -37,6 +38,8 @@ export function listingToAdaptiveKey(
       return "clothing";
     case "services":
       return "services";
+    case "jobs":
+      return "jobs";
     case "real_estate":
       return "real_estate";
     default:

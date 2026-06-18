@@ -38,6 +38,11 @@ export function computeSemanticRelevance(
     score = Math.min(1, score + 0.2);
   if (/meistr|elektr|remont/i.test(query) && listing.category === "services")
     score = Math.min(1, score + 0.35);
+  if (
+    /darbas|darbu|atlygin|alg|ieškau darbo|siūlau darbą/i.test(query) &&
+    listing.category === "jobs"
+  )
+    score = Math.min(1, score + 0.4);
 
   return Math.min(1, Math.max(0, score));
 }
@@ -194,6 +199,32 @@ export function generateDynamicFilters(query: string): DynamicFilter[] {
         id: "cheap-service",
         label: "Pigiausi",
         apply: (l) => l.category === "services" && l.price <= 40,
+      }
+    );
+  }
+
+  if (/darbas|darbu|atlygin|alg|ieškau|siūlau darbą/i.test(q)) {
+    filters.push(
+      {
+        id: "job-offers",
+        label: "Siūlomi darbai",
+        apply: (l) =>
+          l.category === "jobs" &&
+          l.attributes?.jobType === "Siūlau darbą",
+      },
+      {
+        id: "job-seekers",
+        label: "Ieškantys darbo",
+        apply: (l) =>
+          l.category === "jobs" &&
+          l.attributes?.jobType === "Ieškau darbo",
+      },
+      {
+        id: "remote-job",
+        label: "Nuotolinis",
+        apply: (l) =>
+          l.category === "jobs" &&
+          l.attributes?.employmentType === "Nuotolinis",
       }
     );
   }

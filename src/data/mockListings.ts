@@ -102,6 +102,51 @@ const RAW_INITIAL_LISTINGS: Listing[] = [
     sellerId: "seller-4",
     createdAt: "2026-06-15T09:00:00Z",
   },
+  {
+    id: "l-job-offer",
+    title: "Sandėlininkas — pilnas etatas",
+    price: 1200,
+    priceLabel: "1200€/mėn",
+    location: "Panevėžys",
+    distanceKm: 1.5,
+    contact: "Tel. +3706...",
+    image:
+      "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=400&h=300&fit=crop",
+    category: "jobs",
+    tags: ["darbas", "sandėlis", "pilnas etatas"],
+    attributes: {
+      jobType: "Siūlau darbą",
+      employmentType: "Pilnas etatas",
+      salaryType: "Mėnesinis",
+      schedule: "Pn–Pt 8–17",
+      requirements: "B kategorijos vairuotojo pažymėjimas",
+    },
+    description: "Ieškome atsakingo sandėlininko logistikos centre.",
+    sellerId: "seller-job-1",
+    createdAt: "2026-06-18T07:00:00Z",
+  },
+  {
+    id: "l-job-seek",
+    title: "Ieškau darbo — vairuotojas / kurjeris",
+    price: 900,
+    priceLabel: "nuo 900€/mėn",
+    location: "Vilnius",
+    distanceKm: 4.2,
+    contact: "Tel. +3706...",
+    image:
+      "https://images.unsplash.com/photo-1507679799987-c73779587ccf?w=400&h=300&fit=crop",
+    category: "jobs",
+    tags: ["ieškau darbo", "vairuotojas", "kurjeris"],
+    attributes: {
+      jobType: "Ieškau darbo",
+      employmentType: "Pilnas etatas",
+      salaryType: "Mėnesinis",
+      requirements: "B kategorija, 3 m. patirtis",
+    },
+    description: "Patyręs vairuotojas, ieškau stabilaus darbo.",
+    sellerId: "seller-job-2",
+    createdAt: "2026-06-18T06:30:00Z",
+  },
 ];
 
 function prepareListing(listing: Listing): Listing {

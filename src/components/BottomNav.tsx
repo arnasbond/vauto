@@ -1,14 +1,15 @@
 "use client";
 
 import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { MessageCircle, Plus, Search, Shield, User } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
 
 export function BottomNav() {
   const pathname = usePathname();
-  const { chats, isAdmin, reports, user } = useVauto();
+  const router = useRouter();
+  const { chats, isAdmin, reports, user, requireAuthForListing } = useVauto();
   const unreadChats = countUnreadChats(chats, user.id);
   const chatBadge = unreadChats > 0 ? unreadChats : undefined;
   const adminBadge = isAdmin
@@ -29,6 +30,12 @@ export function BottomNav() {
       badge: adminBadge,
     },
   ];
+
+  const handleAddClick = () => {
+    if (requireAuthForListing("/add")) {
+      router.push("/add");
+    }
+  };
 
   return (
     <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
@@ -52,8 +59,9 @@ export function BottomNav() {
           );
         })()}
 
-        <Link
-          href="/add"
+        <button
+          type="button"
+          onClick={handleAddClick}
           className="fab-glow relative -mt-6 flex flex-col items-center"
         >
           <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg">
@@ -64,7 +72,7 @@ export function BottomNav() {
           <span className="mt-0.5 text-[10px] font-medium text-[var(--vauto-text-muted)]">
             Įdėti
           </span>
-        </Link>
+        </button>
 
         {sideTabs.slice(1).map((tab) => {
           const isActive = pathname.startsWith(tab.href);

@@ -1,4 +1,5 @@
 import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
+import type { ListingEditPatch } from "@/lib/listing-edit";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 
 export type ApiResult<T> =
@@ -106,7 +107,7 @@ export async function apiRenewListing(
 export async function apiUpdateListing(
   id: string,
   userId: string,
-  patch: Partial<Pick<Listing, "title" | "price" | "status" | "banned">>
+  patch: ListingEditPatch & Partial<Pick<Listing, "banned">>
 ): Promise<ApiResult<Listing>> {
   return dataFetch<Listing>(`/api/listings/${id}`, {
     method: "PATCH",

@@ -42,6 +42,7 @@ export type ListingCategory =
   | "electronics"
   | "vehicles"
   | "services"
+  | "jobs"
   | "home"
   | "clothing"
   | "real_estate"

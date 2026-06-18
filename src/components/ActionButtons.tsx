@@ -1,13 +1,21 @@
 "use client";
 
-import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { Camera, Mic, Plus } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 
 export function ActionButtons() {
-  const { startUploadFlow, startVoiceFlow, sellerStep } = useVauto();
+  const router = useRouter();
+  const { startUploadFlow, startVoiceFlow, sellerStep, requireAuthForListing } =
+    useVauto();
   const disabled =
     sellerStep !== "idle" && sellerStep !== "published";
+
+  const goToAdd = () => {
+    if (requireAuthForListing("/add")) {
+      router.push("/add");
+    }
+  };
 
   return (
     <div className="relative mt-2">
@@ -28,15 +36,16 @@ export function ActionButtons() {
         </button>
 
         {/* Center FAB — overlaps into white section */}
-        <Link
-          href="/add"
+        <button
+          type="button"
+          onClick={goToAdd}
           className="fab-glow relative z-10 mx-1 flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-white shadow-xl"
           aria-label="Įdėti naują"
         >
           <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--vauto-orange)]">
             <Plus className="h-6 w-6 text-white" strokeWidth={2.5} />
           </span>
-        </Link>
+        </button>
 
         {/* Right — Voice */}
         <button

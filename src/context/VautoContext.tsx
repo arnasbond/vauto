@@ -107,6 +107,8 @@ import { mockListingMetrics } from "@/lib/dashboard-mock";
 import { ADMIN_EMAIL, categoryToUrgency } from "@/lib/reports";
 import { DEMO_REPORTS } from "@/data/mockReports";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
+import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
+import type { ListingEditPatch } from "@/lib/listing-edit";
 
 interface VautoContextValue {
   user: UserProfile;
@@ -149,6 +151,12 @@ interface VautoContextValue {
   updateEscrow: (chatId: string, escrow: EscrowTransaction) => void;
 
   isAuthenticated: boolean;
+  authModalOpen: boolean;
+  authRedirectPath: string | null;
+  openAuthModal: (redirectPath?: string) => void;
+  closeAuthModal: () => void;
+  clearAuthRedirect: () => void;
+  requireAuthForListing: (redirectPath?: string) => boolean;
   login: (data: {
     provider: AuthProvider;
     phone?: string;
@@ -159,10 +167,7 @@ interface VautoContextValue {
   logout: () => void;
   topUpWallet: (amount: number) => void;
   promoteListing: (listingId: string, cost: number) => boolean;
-  updateListing: (
-    id: string,
-    patch: Partial<Pick<Listing, "title" | "price" | "status">>
-  ) => void;
+  updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
 
   isAdmin: boolean;
@@ -210,6 +215,8 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
     "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600&h=400&fit=crop",
   real_estate:
     "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop",
+  jobs:
+    "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&h=400&fit=crop",
   other:
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
 };
@@ -249,6 +256,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [buyerCoords, setBuyerCoords] = useState<UserCoords | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
   const [gdprModalOpen, setGdprModalOpen] = useState(false);
+  const [authModalOpen, setAuthModalOpen] = useState(false);
+  const [authRedirectPath, setAuthRedirectPath] = useState<string | null>(null);
 
   const activeChatIdRef = useRef<string | null>(null);
   const smsCancelRef = useRef<Map<string, () => void>>(new Map());
@@ -369,6 +378,28 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const clearSyncError = useCallback(() => setSyncError(null), []);
+
+  const openAuthModal = useCallback((redirectPath = "/add") => {
+    setAuthRedirectPath(redirectPath);
+    setAuthModalOpen(true);
+  }, []);
+
+  const closeAuthModal = useCallback(() => {
+    setAuthModalOpen(false);
+  }, []);
+
+  const clearAuthRedirect = useCallback(() => {
+    setAuthRedirectPath(null);
+  }, []);
+
+  const requireAuthForListing = useCallback(
+    (redirectPath = "/add") => {
+      if (isAuthenticated) return true;
+      openAuthModal(redirectPath);
+      return false;
+    },
+    [isAuthenticated, openAuthModal]
+  );
 
   const updateUser = useCallback((patch: Partial<UserProfile>) => {
     setUser((prev) => {
@@ -580,6 +611,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       imageDataUrl?: string | null;
       videoUrl?: string;
     }) => {
+      if (!requireAuthForListing("/add")) return;
+
       if (payload.imageDataUrl) setSellerPreviewImage(payload.imageDataUrl);
       if (payload.videoUrl) {
         const vid = parseVideoUrl(payload.videoUrl);
@@ -603,7 +636,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         videoUrl: payload.videoUrl,
       });
     },
-    [runAiProcessing]
+    [runAiProcessing, requireAuthForListing]
   );
 
   const completeVoiceRecording = useCallback(
@@ -634,6 +667,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const publishListing = useCallback(async () => {
     if (!aiDraft) return;
+
+    if (!isAuthenticated) {
+      openAuthModal("/add");
+      return;
+    }
 
     if (aiDraft.price <= 0) {
       alert("Įveskite kainą prieš publikuojant.");
@@ -720,9 +758,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     sellerPreviewImage,
     sellerHasVideo,
     resetSellerFlow,
-    user.id,
+    user,
     listings,
     buyerCoords,
+    isAuthenticated,
+    openAuthModal,
   ]);
 
   const showToast = useCallback(
@@ -840,6 +880,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const startUploadFlow = useCallback(async () => {
+    if (!requireAuthForListing("/add")) return;
     requestMediaConsent(async () => {
       const photo = await capturePhoto();
       if (!photo) return;
@@ -848,14 +889,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setSellerInputMode("upload");
       await runAiProcessing("upload", { previewImage: photo });
     });
-  }, [runAiProcessing, requestMediaConsent]);
+  }, [requireAuthForListing, runAiProcessing, requestMediaConsent]);
 
   const startVoiceFlow = useCallback(() => {
+    if (!requireAuthForListing("/add")) return;
     requestMediaConsent(() => {
       setSellerInputMode("voice");
       setSellerStep("recording");
     });
-  }, [requestMediaConsent]);
+  }, [requireAuthForListing, requestMediaConsent]);
 
   const cancelSellerFlow = useCallback(() => {
     resetSellerFlow();
@@ -1058,9 +1100,22 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, [apiActive]);
 
   const updateListing = useCallback(
-    (id: string, patch: Partial<Pick<Listing, "title" | "price" | "status">>) => {
+    (id: string, patch: ListingEditPatch) => {
       setListings((prev) =>
-        prev.map((l) => (l.id === id && l.sellerId === user.id ? { ...l, ...patch } : l))
+        prev.map((l) => {
+          if (l.id !== id || l.sellerId !== user.id) return l;
+          const next = { ...l, ...patch };
+          if (patch.location !== undefined || patch.title !== undefined) {
+            return enrichListingCoords({
+              ...next,
+              slug: generateListingSlug(
+                patch.title ?? l.title,
+                patch.location ?? l.location
+              ),
+            });
+          }
+          return next;
+        })
       );
       if (isDataApiEnabled()) {
         void apiUpdateListing(id, user.id, patch).then((r) => {
@@ -1256,6 +1311,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     startChat,
     updateEscrow,
     isAuthenticated,
+    authModalOpen,
+    authRedirectPath,
+    openAuthModal,
+    closeAuthModal,
+    clearAuthRedirect,
+    requireAuthForListing,
     login,
     logout,
     topUpWallet,
@@ -1292,6 +1353,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         onAccept={acceptGdprConsent}
         onDecline={declineGdprConsent}
       />
+      <GlobalAuthModal />
     </VautoContext.Provider>
   );
 }

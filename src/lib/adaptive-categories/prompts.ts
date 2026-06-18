@@ -20,6 +20,8 @@ const FIELD_PROMPTS: Record<string, string> = {
   rooms: "kiek kambarių?",
   floor: "kuris aukštas?",
   heating: "koks šildymas?",
+  jobType: "ar siūlote darbą, ar ieškote?",
+  employmentType: "koks darbo tipas (etatas, sezoninis…)?",
   description: "trumpas aprašymas?",
   price: "kokia kaina?",
 };
@@ -76,6 +78,8 @@ export function buildAssistantPrompt(
       "Matome, kad tai drabužis — parašykite arba pasakykite jo dydį ir prekės ženklą:",
     services:
       "Atrodo, kad siūlote paslaugą — papasakokite apie patirtį ir darbų sąrašą:",
+    jobs:
+      "Darbo skelbimas — nurodykite ar siūlote darbą, ar ieškote, ir darbo tipą:",
     real_estate:
       "Atpažinome nekilnojamąjį turtą — nurodykite kvadratūrą ir kambarių skaičių:",
     universal:

@@ -9,6 +9,7 @@ import {
   Shield,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { useVauto } from "@/context/VautoContext";
 import { REPORT_CATEGORIES, URGENCY_META } from "@/lib/reports";
 import type { ReportUrgency, SupportReport } from "@/lib/types";
@@ -211,6 +212,10 @@ export function AdminControlCenter() {
           </div>
         </details>
       )}
+
+      <div className="mt-8">
+        <AiSettingsCard />
+      </div>
     </DashboardShell>
   );
 }

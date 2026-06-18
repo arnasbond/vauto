@@ -16,6 +16,11 @@ const QUESTIONS: Record<ListingCategory | "default", string[]> = {
     "Ar išrašote sąskaitą faktūrą?",
     "Kiek kainuoja atvykimas?",
   ],
+  jobs: [
+    "Kada galima pradėti darbą?",
+    "Ar atlyginimas bruto ar neto?",
+    "Ar reikia patirties?",
+  ],
   home: [
     "Ar galima atsiimti šiandien?",
     "Ar kaina galutinė?",

@@ -213,6 +213,15 @@ export async function updateListing(
 
   if (patch.title !== undefined) set("title", patch.title);
   if (patch.price !== undefined) set("price", patch.price);
+  if (patch.priceLabel !== undefined) set("price_label", patch.priceLabel);
+  if (patch.location !== undefined) set("location", patch.location);
+  if (patch.contact !== undefined) set("contact", patch.contact);
+  if (patch.description !== undefined) set("description", patch.description);
+  if (patch.category !== undefined) set("category", patch.category);
+  if (patch.tags !== undefined) set("tags", JSON.stringify(patch.tags));
+  if (patch.attributes !== undefined)
+    set("attributes", JSON.stringify(patch.attributes));
+  if (patch.image !== undefined) set("image", patch.image);
   if (patch.status !== undefined) set("status", patch.status);
   if (patch.banned !== undefined) set("banned", patch.banned);
 
