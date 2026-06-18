@@ -1,14 +1,14 @@
 @import "tailwindcss";
 
 :root {
-  --vauto-teal: #00bfa5;
+  --vauto-teal: #2dd4bf;
   --vauto-blue: #2979ff;
-  --vauto-orange: #ff5722;
-  --vauto-orange-light: #ff7043;
-  --vauto-text: #333333;
-  --vauto-text-muted: #757575;
-  --vauto-surface: #ffffff;
-  --vauto-red: #e53935;
+  --vauto-orange: #f97316;
+  --vauto-orange-light: #fb923c;
+  --vauto-text: #f8fafc;
+  --vauto-text-muted: #94a3b8;
+  --vauto-surface: #0f172a;
+  --vauto-red: #ef4444;
 }
 
 @theme inline {
@@ -22,15 +22,14 @@ body {
   background: var(--vauto-surface);
 }
 
-/* Hero gradient — teal → blue, matching mockup */
 .vauto-hero {
-  background: linear-gradient(
-    180deg,
-    #00bfa5 0%,
-    #00acc1 25%,
-    #1e88e5 65%,
-    #2979ff 100%
-  );
+  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 100%);
+}
+
+.vauto-glass-card {
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  background: rgba(255, 255, 255, 0.05);
+  backdrop-filter: blur(12px);
 }
 
 .scrollbar-hide {

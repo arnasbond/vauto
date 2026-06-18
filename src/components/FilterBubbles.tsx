@@ -23,7 +23,7 @@ export function FilterBubbles() {
               className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
                 isActive
                   ? "bg-[var(--vauto-blue)] text-white shadow-md"
-                  : "bg-gray-100 text-[var(--vauto-text-muted)] hover:bg-gray-200"
+                  : "border border-white/10 bg-white/5 text-[var(--vauto-text-muted)] hover:bg-white/10"
               }`}
             >
               {filter.label}

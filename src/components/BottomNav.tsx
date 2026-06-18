@@ -17,7 +17,7 @@ export function BottomNav() {
       undefined
     : undefined;
 
-  const profileLabel = isAdmin ? "VAUTO CC" : "Dashboard";
+  const profileLabel = isAdmin ? "VAUTO CC" : "Profilis";
   const ProfileIcon = isAdmin ? Shield : User;
 
   const sideTabs = [
@@ -37,24 +37,23 @@ export function BottomNav() {
     }
   };
 
+  const linkClass = (path: string) =>
+    `flex flex-1 flex-col items-center gap-1 text-xs transition-colors ${
+      pathname === path || (path !== "/" && pathname.startsWith(path))
+        ? "font-bold text-[var(--vauto-teal)]"
+        : "text-white/60 hover:text-white"
+    }`;
+
   return (
-    <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-gray-100 bg-white shadow-[0_-4px_20px_rgba(0,0,0,0.06)]">
-      <div className="relative mx-auto flex max-w-lg items-end justify-around px-2 pb-2 pt-1">
+    <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-[#0f172a]/80 py-3 pb-5 backdrop-blur-lg">
+      <div className="relative mx-auto flex max-w-lg items-end justify-around px-2">
         {(() => {
           const tab = sideTabs[0];
-          const isActive = pathname === "/";
           const Icon = tab.icon;
           return (
-            <Link
-              href={tab.href}
-              className={`flex flex-1 flex-col items-center gap-0.5 py-1 ${
-                isActive
-                  ? "text-[var(--vauto-blue)]"
-                  : "text-[var(--vauto-text-muted)]"
-              }`}
-            >
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.5 : 1.75} />
-              <span className="text-[10px] font-medium">{tab.label}</span>
+            <Link href={tab.href} className={linkClass("/")}>
+              <Icon size={20} />
+              <span>{tab.label}</span>
             </Link>
           );
         })()}
@@ -62,43 +61,26 @@ export function BottomNav() {
         <button
           type="button"
           onClick={handleAddClick}
-          className="fab-glow relative -mt-6 flex flex-col items-center"
+          className="relative -mt-4 flex flex-col items-center gap-1 text-xs font-bold text-[var(--vauto-orange)] hover:opacity-80"
         >
-          <span className="flex h-14 w-14 items-center justify-center rounded-full bg-white shadow-lg">
-            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-[var(--vauto-orange)]">
-              <Plus className="h-6 w-6 text-white" strokeWidth={2.5} />
-            </span>
-          </span>
-          <span className="mt-0.5 text-[10px] font-medium text-[var(--vauto-text-muted)]">
-            Įdėti
+          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--vauto-orange)] text-white shadow-lg shadow-[var(--vauto-orange)]/30">
+            <Plus size={24} />
           </span>
         </button>
 
         {sideTabs.slice(1).map((tab) => {
-          const isActive = pathname.startsWith(tab.href);
           const Icon = tab.icon;
           return (
-            <Link
-              key={tab.href}
-              href={tab.href}
-              className={`relative flex flex-1 flex-col items-center gap-0.5 py-1 ${
-                isActive
-                  ? "text-[var(--vauto-blue)]"
-                  : "text-[var(--vauto-text-muted)]"
-              }`}
-            >
+            <Link key={tab.href} href={tab.href} className={`relative ${linkClass(tab.href)}`}>
               <div className="relative">
-                <Icon
-                  className="h-5 w-5"
-                  strokeWidth={isActive ? 2.5 : 1.75}
-                />
+                <Icon size={20} />
                 {tab.badge !== undefined && (
                   <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--vauto-red)] px-1 text-[9px] font-bold text-white">
                     {tab.badge}
                   </span>
                 )}
               </div>
-              <span className="text-[10px] font-medium">{tab.label}</span>
+              <span>{tab.label}</span>
             </Link>
           );
         })}

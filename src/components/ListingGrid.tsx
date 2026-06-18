@@ -29,11 +29,12 @@ function SaveButton({
       aria-pressed={isSaved}
     >
       <Heart
-        className={`h-5 w-5 ${
+        size={14}
+        className={
           isSaved
             ? "fill-[var(--vauto-red)] text-[var(--vauto-red)]"
-            : "text-white drop-shadow-md"
-        }`}
+            : "text-white"
+        }
       />
     </button>
   );
@@ -45,8 +46,8 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="card-shadow w-[148px] shrink-0 overflow-hidden rounded-2xl bg-white sm:w-[160px]">
-      <div className="relative aspect-[4/3] overflow-hidden bg-gray-100">
+    <article className="vauto-glass-card w-[156px] shrink-0 overflow-hidden rounded-2xl p-2.5 transition-all hover:border-white/10 sm:w-[160px]">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black/20">
         <Link href={href} className="block h-full w-full">
           <Image
             src={listing.image}
@@ -68,18 +69,18 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
         <SaveButton
           listingId={listing.id}
           isSaved={isSaved}
-          className="absolute bottom-2 right-2 z-10"
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
         />
       </div>
 
-      <Link href={href} className="block p-2.5">
-        <h3 className="line-clamp-1 text-sm font-semibold text-[var(--vauto-text)]">
+      <Link href={href} className="mt-2 block">
+        <h3 className="truncate text-sm font-semibold text-white">
           {listing.title}
         </h3>
-        <p className="mt-0.5 text-sm font-bold text-[var(--vauto-orange)]">
+        <p className="text-base font-bold text-[var(--vauto-teal)]">
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
-        <div className="mt-1.5">
+        <div className="mt-1">
           <TrustBadges listing={listing} />
         </div>
         <p className="mt-1 truncate text-[10px] text-[var(--vauto-text-muted)]">
@@ -96,8 +97,8 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="card-shadow overflow-hidden rounded-2xl bg-white">
-      <div className="relative aspect-[16/10]">
+    <article className="vauto-glass-card overflow-hidden rounded-2xl p-2.5 transition-all hover:border-white/10">
+      <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-black/20">
         <Link href={href} className="block h-full w-full">
           <Image
             src={listing.image}
@@ -114,12 +115,14 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
         <SaveButton
           listingId={listing.id}
           isSaved={isSaved}
-          className="absolute right-2 top-2 z-10"
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
         />
       </div>
-      <Link href={href} className="block p-3">
-        <h3 className="line-clamp-1 text-sm font-semibold">{listing.title}</h3>
-        <p className="text-sm font-bold text-[var(--vauto-orange)]">
+      <Link href={href} className="mt-2 block">
+        <h3 className="line-clamp-1 text-sm font-semibold text-white">
+          {listing.title}
+        </h3>
+        <p className="text-sm font-bold text-[var(--vauto-teal)]">
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
         <div className="mt-1">
@@ -135,30 +138,19 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
 
 export function ListingGrid() {
   const { rankedListings, searchQuery, user } = useVauto();
-  const featured = rankedListings.slice(0, 3);
-  const more = rankedListings.slice(3);
+  const carouselListings = rankedListings.slice(0, 3);
+  const gridListings = rankedListings.slice(3);
 
   return (
-    <section id="listing-results" aria-labelledby="listing-results-heading">
+    <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
       <h2
         id="listing-results-heading"
-        className="mb-3 text-sm text-[var(--vauto-text-muted)]"
+        className="mb-4 text-xl font-bold text-white"
       >
         {searchQuery ? (
-          <>
-            Rasta{" "}
-            <span className="font-semibold text-[var(--vauto-text)]">
-              {rankedListings.length}
-            </span>{" "}
-            atitikmenų
-          </>
+          <>Rasta skelbimų: {rankedListings.length}</>
         ) : (
-          <>
-            Skelbimai šalia —{" "}
-            <span className="font-semibold text-[var(--vauto-text)]">
-              {user.city}
-            </span>
-          </>
+          <>Skelbimai šalia tavęs — {user?.city ?? "Panevėžys"}</>
         )}
       </h2>
 
@@ -168,17 +160,22 @@ export function ListingGrid() {
         </p>
       ) : (
         <>
-          <div className="scrollbar-hide -mx-4 flex gap-3 overflow-x-auto px-4 pb-2">
-            {featured.map((listing) => (
+          <div className="scrollbar-hide -mx-4 flex gap-3 overflow-x-auto px-4 pb-4">
+            {carouselListings.map((listing) => (
               <ListingCard key={listing.id} listing={listing} />
             ))}
           </div>
 
-          {more.length > 0 && (
-            <div className="mt-4 grid grid-cols-2 gap-3">
-              {more.map((listing) => (
-                <WideListingCard key={listing.id} listing={listing} />
-              ))}
+          {gridListings.length > 0 && (
+            <div className="mt-2">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">
+                Kiti pasiūlymai
+              </h3>
+              <div className="grid grid-cols-2 gap-3">
+                {gridListings.map((listing) => (
+                  <WideListingCard key={listing.id} listing={listing} />
+                ))}
+              </div>
             </div>
           )}
         </>
