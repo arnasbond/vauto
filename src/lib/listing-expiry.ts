@@ -13,6 +13,7 @@ export function getExpiresAt(listing: Listing): Date {
 }
 
 export function isListingActive(listing: Listing): boolean {
+  if (listing.status === "sold") return false;
   return getExpiresAt(listing).getTime() > Date.now();
 }
 

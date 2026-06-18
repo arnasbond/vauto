@@ -13,7 +13,7 @@ export function BottomNav() {
   const sideTabs = [
     { href: "/", label: "Paieška", icon: Search },
     { href: "/chats", label: "Pokalbiai", icon: MessageCircle, badge: chatBadge },
-    { href: "/profile", label: "Profilis", icon: User },
+    { href: "/profile", label: "Dashboard", icon: User },
   ];
 
   return (

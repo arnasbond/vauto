@@ -29,14 +29,17 @@ import {
 import { isDuplicateListing } from "@/lib/dedup";
 import { moderateListing } from "@/lib/moderation";
 import {
+  loadAuthSession,
   loadChats,
   loadListings,
   loadSavedIds,
   loadUser,
+  saveAuthSession,
   saveChats,
   saveListings,
   saveSavedIds,
   saveUser,
+  clearAuthSession,
 } from "@/lib/storage";
 import { capturePhoto } from "@/lib/native-media";
 import { distanceToCity, getUserCoords } from "@/lib/geolocation";
@@ -60,14 +63,18 @@ import { attributesToTags } from "@/lib/listing-attributes";
 import { parseVideoUrl } from "@/lib/video-url";
 import type {
   AiExtractedListing,
+  AuthProvider,
   ChatMessage,
   ChatThread,
   EscrowTransaction,
   Listing,
+  ProBusinessType,
   SellerFlowStep,
   SellerInputMode,
   UserProfile,
+  UserRole,
 } from "@/lib/types";
+import { mockListingMetrics } from "@/lib/dashboard-mock";
 
 interface VautoContextValue {
   user: UserProfile;
@@ -108,6 +115,22 @@ interface VautoContextValue {
   sendMessage: (chatId: string, text: string) => void;
   startChat: (listingId: string) => string | null;
   updateEscrow: (chatId: string, escrow: EscrowTransaction) => void;
+
+  isAuthenticated: boolean;
+  login: (data: {
+    provider: AuthProvider;
+    phone?: string;
+    role: UserRole;
+    businessType?: ProBusinessType;
+  }) => void;
+  logout: () => void;
+  topUpWallet: (amount: number) => void;
+  promoteListing: (listingId: string, cost: number) => boolean;
+  updateListing: (
+    id: string,
+    patch: Partial<Pick<Listing, "title" | "price" | "status">>
+  ) => void;
+  markListingSold: (id: string) => void;
 }
 
 const VautoContext = createContext<VautoContextValue | null>(null);
@@ -132,6 +155,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(["l-bike"]));
@@ -164,6 +188,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         else errors.push(savedRes.error);
         if (userRes.ok) setUser(userRes.data);
         else if (storedUser) setUser(storedUser);
+        const auth = loadAuthSession();
+        if (auth?.isAuthenticated) setIsAuthenticated(true);
 
         if (errors.length) setSyncError(errors[0]);
         setHydrated(true);
@@ -172,10 +198,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
       setApiActive(false);
       const storedUser = loadUser();
+      const auth = loadAuthSession();
       const storedListings = loadListings();
       const storedChats = loadChats();
       const storedSaved = loadSavedIds();
-      if (storedUser) setUser(storedUser);
+      if (auth?.isAuthenticated) setIsAuthenticated(true);
+      if (storedUser) setUser({ role: "private", walletBalance: 0, ...storedUser });
       if (storedListings?.length) setListings(storedListings);
       if (storedChats?.length) setChats(storedChats);
       if (storedSaved) setSavedIds(new Set(storedSaved));
@@ -526,6 +554,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       tags: attributesToTags(aiDraft),
       description: aiDraft.description,
       attributes: aiDraft.attributes,
+      status: "active",
       sellerId: user.id,
       createdAt,
       expiresAt: defaultExpiresAt(createdAt),
@@ -652,6 +681,103 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     []
   );
 
+  const login = useCallback(
+    (data: {
+      provider: AuthProvider;
+      phone?: string;
+      role: UserRole;
+      businessType?: ProBusinessType;
+    }) => {
+      const names: Record<AuthProvider, string> = {
+        google: "Google vartotojas",
+        apple: "Apple vartotojas",
+        phone: "Mobilus vartotojas",
+      };
+      const nextUser: UserProfile = {
+        ...user,
+        id: user.id.startsWith("user-") ? user.id : `user-${Date.now()}`,
+        name: names[data.provider],
+        phone: data.phone ?? user.phone,
+        authProvider: data.provider,
+        role: data.role,
+        businessType: data.businessType,
+        walletBalance: data.role === "pro" ? 25 : 0,
+        avatar:
+          data.provider === "apple"
+            ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
+            : user.avatar,
+      };
+      setUser(nextUser);
+      setIsAuthenticated(true);
+      saveUser(nextUser);
+      saveAuthSession({
+        isAuthenticated: true,
+        provider: data.provider,
+        loggedInAt: new Date().toISOString(),
+      });
+    },
+    [user]
+  );
+
+  const logout = useCallback(() => {
+    setIsAuthenticated(false);
+    clearAuthSession();
+    setUser({ ...MOCK_USER, role: "private", walletBalance: 0 });
+    saveUser({ ...MOCK_USER, role: "private", walletBalance: 0 });
+  }, []);
+
+  const topUpWallet = useCallback((amount: number) => {
+    setUser((prev) => {
+      const next = {
+        ...prev,
+        walletBalance: (prev.walletBalance ?? 0) + amount,
+      };
+      if (!apiActive) saveUser(next);
+      return next;
+    });
+  }, [apiActive]);
+
+  const updateListing = useCallback(
+    (id: string, patch: Partial<Pick<Listing, "title" | "price" | "status">>) => {
+      setListings((prev) =>
+        prev.map((l) => (l.id === id && l.sellerId === user.id ? { ...l, ...patch } : l))
+      );
+    },
+    [user.id]
+  );
+
+  const markListingSold = useCallback(
+    (id: string) => updateListing(id, { status: "sold" }),
+    [updateListing]
+  );
+
+  const promoteListing = useCallback(
+    (listingId: string, cost: number): boolean => {
+      const balance = user.walletBalance ?? 0;
+      if (balance < cost) return false;
+      setUser((prev) => {
+        const next = { ...prev, walletBalance: balance - cost };
+        if (!apiActive) saveUser(next);
+        return next;
+      });
+      setListings((prev) =>
+        prev.map((l) => {
+          if (l.id !== listingId) return l;
+          const m = mockListingMetrics(l);
+          return {
+            ...l,
+            promoted: true,
+            views: m.views + 150,
+            clicks: m.clicks + 20,
+            interestScore: Math.min(99, m.interestScore + 12),
+          };
+        })
+      );
+      return true;
+    },
+    [user.walletBalance, apiActive]
+  );
+
   const value: VautoContextValue = {
     user,
     updateUser,
@@ -684,6 +810,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     sendMessage,
     startChat,
     updateEscrow,
+    isAuthenticated,
+    login,
+    logout,
+    topUpWallet,
+    promoteListing,
+    updateListing,
+    markListingSold,
   };
 
   return (

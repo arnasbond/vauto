@@ -126,3 +126,29 @@ body {
 .mic-ring-pulse {
   animation: mic-ring-pulse 1.8s ease-out infinite;
 }
+
+.vauto-dashboard {
+  background: linear-gradient(
+    165deg,
+    #0f172a 0%,
+    #134e4a 35%,
+    #0f172a 70%,
+    #1e293b 100%
+  );
+  min-height: 100dvh;
+}
+
+.vauto-dashboard-card {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(0, 191, 165, 0.15);
+  backdrop-filter: blur(12px);
+}
+
+.vauto-auth-modal {
+  background: linear-gradient(
+    160deg,
+    #0f172a 0%,
+    #115e59 40%,
+    #1e293b 100%
+  );
+}

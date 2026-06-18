@@ -1,3 +1,5 @@
+export type ListingStatus = "active" | "sold";
+
 /** Core listing entity — extend when connecting to a real database */
 export interface Listing {
   id: string;
@@ -18,6 +20,12 @@ export interface Listing {
   expiresAt?: string;
   description?: string;
   attributes?: CategoryAttributes;
+  status?: ListingStatus;
+  promoted?: boolean;
+  /** Pro dashboard metrics */
+  views?: number;
+  clicks?: number;
+  interestScore?: number;
 }
 
 export type ListingCategory =
@@ -61,12 +69,41 @@ export interface DynamicFilter {
   apply: (listing: Listing) => boolean;
 }
 
+export type UserRole = "private" | "pro";
+export type AuthProvider = "google" | "apple" | "phone";
+export type ProBusinessType = "dealer" | "services" | "general";
+
 export interface UserProfile {
   id: string;
   name: string;
   avatar: string;
   phone: string;
   city: string;
+  role?: UserRole;
+  authProvider?: AuthProvider;
+  businessType?: ProBusinessType;
+  walletBalance?: number;
+}
+
+export interface AuthSession {
+  isAuthenticated: boolean;
+  provider?: AuthProvider;
+  loggedInAt?: string;
+}
+
+export interface ServiceBooking {
+  id: string;
+  clientName: string;
+  service: string;
+  date: string;
+  time: string;
+}
+
+export interface PromoteOffer {
+  listingId: string;
+  message: string;
+  cost: number;
+  durationDays: number;
 }
 
 export interface ChatMessage {

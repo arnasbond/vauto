@@ -1,10 +1,11 @@
-import type { ChatThread, Listing, UserProfile } from "@/lib/types";
+import type { AuthSession, ChatThread, Listing, UserProfile } from "@/lib/types";
 
 const KEYS = {
   listings: "vauto_listings_v1",
   chats: "vauto_chats_v1",
   saved: "vauto_saved_v1",
   user: "vauto_user_v1",
+  auth: "vauto_auth_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -56,6 +57,19 @@ export function loadUser(): UserProfile | null {
 
 export function saveUser(user: UserProfile): void {
   write(KEYS.user, user);
+}
+
+export function loadAuthSession(): AuthSession | null {
+  return read<AuthSession>(KEYS.auth);
+}
+
+export function saveAuthSession(session: AuthSession): void {
+  write(KEYS.auth, session);
+}
+
+export function clearAuthSession(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(KEYS.auth);
 }
 
 export function clearAllData(): void {

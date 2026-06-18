@@ -7,6 +7,8 @@ export const MOCK_USER: UserProfile = {
     "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
   phone: "+370 612 34567",
   city: "Panevėžys",
+  role: "private",
+  walletBalance: 0,
 };
 
 /** Mock listings aligned with design mockup */
