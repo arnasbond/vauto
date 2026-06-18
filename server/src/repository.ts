@@ -22,6 +22,15 @@ export async function getUser(id: string): Promise<ApiUser | null> {
   };
 }
 
+export async function ensureUser(id: string): Promise<void> {
+  await query(
+    `INSERT INTO users (id, name, phone, city)
+     VALUES ($1, 'Vartotojas', '+370', 'Lietuva')
+     ON CONFLICT (id) DO NOTHING`,
+    [id]
+  );
+}
+
 export async function upsertUser(user: ApiUser): Promise<void> {
   await query(
     `INSERT INTO users (id, name, phone, city, avatar_url)
@@ -75,6 +84,7 @@ export async function getListings(): Promise<ApiListing[]> {
 }
 
 export async function insertListing(listing: ApiListing): Promise<void> {
+  await ensureUser(listing.sellerId);
   await query(
     `INSERT INTO listings (
       id, seller_id, title, price, price_label, location, distance_km,
@@ -121,6 +131,7 @@ export async function getSavedIds(userId: string): Promise<string[]> {
 }
 
 export async function setSavedIds(userId: string, ids: string[]): Promise<void> {
+  await ensureUser(userId);
   await pool.query("DELETE FROM saved_listings WHERE user_id = $1", [userId]);
   for (const listingId of ids) {
     await pool.query(
@@ -178,6 +189,8 @@ export async function getChats(userId: string): Promise<ApiChatThread[]> {
 }
 
 export async function upsertChat(thread: ApiChatThread): Promise<void> {
+  await ensureUser(thread.buyerId);
+  await ensureUser(thread.sellerId);
   await query(
     `INSERT INTO chat_threads (id, listing_id, listing_title, buyer_id, seller_id, escrow_offered, updated_at)
      VALUES ($1,$2,$3,$4,$5,$6,now())

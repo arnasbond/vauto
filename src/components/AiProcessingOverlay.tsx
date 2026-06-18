@@ -1,11 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
+import { resolveAiModeLabel } from "@/lib/ai-mode";
 
-/** Full-screen overlay shown during the 1.5s AI processing simulation */
 export function AiProcessingOverlay() {
   const { sellerStep, sellerInputMode } = useVauto();
+  const [aiLabel, setAiLabel] = useState("AI analizuoja...");
+
+  useEffect(() => {
+    if (sellerStep !== "processing") return;
+    void resolveAiModeLabel().then(setAiLabel);
+  }, [sellerStep]);
 
   if (sellerStep !== "processing") return null;
 
@@ -26,7 +33,7 @@ export function AiProcessingOverlay() {
         </div>
         <p className="mt-4 flex items-center justify-center gap-1 text-xs text-slate-500">
           <Sparkles className="h-3 w-3" />
-          GPT-4o mock · Whisper mock
+          {aiLabel}
         </p>
       </div>
     </div>

@@ -12,5 +12,17 @@ services:
       - vauto_pg:/var/lib/postgresql/data
       - ./database/schema-lite.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
 
+  api:
+    build: ./server
+    restart: unless-stopped
+    ports:
+      - "4000:4000"
+    environment:
+      DATABASE_URL: postgresql://vauto:vauto@db:5432/vauto
+      PORT: 4000
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+    depends_on:
+      - db
+
 volumes:
   vauto_pg:

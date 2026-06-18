@@ -13,6 +13,8 @@
     "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "server:install": "npm install --prefix server",
     "server:dev": "npm run dev --prefix server",
+    "server:build": "npm run build --prefix server",
+    "server:start": "npm run start --prefix server",
     "db:up": "docker compose up -d",
     "db:seed": "npm run seed --prefix server"
   },

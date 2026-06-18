@@ -116,6 +116,7 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
 
 export function VautoProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
+  const [apiActive, setApiActive] = useState(false);
   const [user, setUser] = useState<UserProfile>(MOCK_USER);
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set(["l-bike"]));
@@ -128,7 +129,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function load() {
       if (isDataApiEnabled() && (await apiHealthCheck())) {
-        const uid = MOCK_USER.id;
+        setApiActive(true);
+        const storedUser = loadUser();
+        const uid = storedUser?.id ?? MOCK_USER.id;
         const [apiListings, apiChats, apiSaved, apiUser] = await Promise.all([
           apiFetchListings(),
           apiFetchChats(uid),
@@ -136,6 +139,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           apiFetchUser(uid),
         ]);
         if (apiUser) setUser(apiUser);
+        else if (storedUser) setUser(storedUser);
         if (apiListings?.length) setListings(apiListings);
         if (apiChats?.length) setChats(apiChats);
         if (apiSaved) setSavedIds(new Set(apiSaved));
@@ -143,6 +147,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         return;
       }
 
+      setApiActive(false);
       const storedUser = loadUser();
       const storedListings = loadListings();
       const storedChats = loadChats();
@@ -157,24 +162,24 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || apiActive) return;
     saveUser(user);
-  }, [user, hydrated]);
+  }, [user, hydrated, apiActive]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || apiActive) return;
     saveListings(listings);
-  }, [listings, hydrated]);
+  }, [listings, hydrated, apiActive]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || apiActive) return;
     saveChats(chats);
-  }, [chats, hydrated]);
+  }, [chats, hydrated, apiActive]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || apiActive) return;
     saveSavedIds(savedIds);
-  }, [savedIds, hydrated]);
+  }, [savedIds, hydrated, apiActive]);
 
   const [sellerStep, setSellerStep] = useState<SellerFlowStep>("idle");
   const [sellerInputMode, setSellerInputMode] =
@@ -287,7 +292,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
     ) => {
       setSellerStep("processing");
-      await new Promise((r) => setTimeout(r, 1500));
 
       try {
         const coords = await getUserCoords();
@@ -330,6 +334,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setAiDraft(extracted);
         setSellerStep("confirmation");
       } catch {
+        alert(
+          "AI analizė nepavyko. Bandykite dar kartą arba patikrinkite AI nustatymus profilyje."
+        );
         resetSellerFlow();
       }
     },
@@ -448,7 +455,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     };
 
     setListings((prev) => [newListing, ...prev]);
-    if (isDataApiEnabled()) void apiCreateListing(newListing, user.id);
+    if (isDataApiEnabled()) {
+      await apiUpdateUser(user);
+      await apiCreateListing(newListing, user.id);
+    }
     setSellerStep("published");
 
     setTimeout(resetSellerFlow, 2000);

@@ -2,6 +2,15 @@ import { Router } from "express";
 
 export const aiRouter = Router();
 
+aiRouter.get("/health", (_req, res) => {
+  const hasKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+  res.json({
+    ok: true,
+    openai: hasKey,
+    mode: hasKey ? "server" : "demo",
+  });
+});
+
 const EXTRACTION_SCHEMA = `{
   "title": "string",
   "price": "number",
