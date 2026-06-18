@@ -4,7 +4,7 @@ import {
   mockExtractFromVoice,
 } from "@/lib/ai-mocks";
 import { apiExtractImage, apiExtractText } from "@/lib/api/client";
-import { isApiEnabled } from "@/lib/api/config";
+import { isAiProxyAvailable } from "@/lib/api/config";
 import { hasOpenAiKey } from "@/lib/openai-settings";
 import {
   extractFromImageOpenAI,
@@ -26,7 +26,7 @@ export async function extractFromImage(
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Panevėžys";
 
-  if (isApiEnabled() && ctx.imageDataUrl) {
+  if (isAiProxyAvailable() && ctx.imageDataUrl) {
     const remote = await apiExtractImage({
       imageDataUrl: ctx.imageDataUrl,
       userCity: city,
@@ -54,7 +54,7 @@ export async function extractFromVoice(
   const transcript =
     ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Panevėžyje";
 
-  if (isApiEnabled() && transcript.trim()) {
+  if (isAiProxyAvailable() && transcript.trim()) {
     const remote = await apiExtractText({ text: transcript, userCity: city, contact });
     if (remote) return remote;
   }
@@ -77,7 +77,7 @@ export async function extractFromText(
   const city = ctx.userCity ?? "Panevėžys";
   const text = ctx.transcript ?? "";
 
-  if (isApiEnabled() && text.trim()) {
+  if (isAiProxyAvailable() && text.trim()) {
     const remote = await apiExtractText({ text, userCity: city, contact });
     if (remote) return remote;
   }

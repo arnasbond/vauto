@@ -52,7 +52,7 @@ import {
   apiUpdateUser,
   apiUpsertChat,
 } from "@/lib/api/client";
-import { isApiEnabled } from "@/lib/api/config";
+import { isDataApiEnabled } from "@/lib/api/config";
 import { parseVideoUrl } from "@/lib/video-url";
 import type {
   AiExtractedListing,
@@ -127,7 +127,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      if (isApiEnabled() && (await apiHealthCheck())) {
+      if (isDataApiEnabled() && (await apiHealthCheck())) {
         const uid = MOCK_USER.id;
         const [apiListings, apiChats, apiSaved, apiUser] = await Promise.all([
           apiFetchListings(),
@@ -200,7 +200,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const updateUser = useCallback((patch: Partial<UserProfile>) => {
     setUser((prev) => {
       const next = { ...prev, ...patch };
-      if (isApiEnabled()) void apiUpdateUser(next);
+      if (isDataApiEnabled()) void apiUpdateUser(next);
       return next;
     });
   }, []);
@@ -249,7 +249,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
       else next.add(id);
-      if (isApiEnabled()) void apiUpdateSaved(user.id, Array.from(next));
+      if (isDataApiEnabled()) void apiUpdateSaved(user.id, Array.from(next));
       return next;
     });
   }, [user.id]);
@@ -264,7 +264,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         next.delete(id);
         return next;
       });
-      if (isApiEnabled()) void apiDeleteListing(id, user.id);
+      if (isDataApiEnabled()) void apiDeleteListing(id, user.id);
     },
     [user.id]
   );
@@ -448,7 +448,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     };
 
     setListings((prev) => [newListing, ...prev]);
-    if (isApiEnabled()) void apiCreateListing(newListing, user.id);
+    if (isDataApiEnabled()) void apiCreateListing(newListing, user.id);
     setSellerStep("published");
 
     setTimeout(resetSellerFlow, 2000);
@@ -487,7 +487,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             updated.escrowOffered = true;
           }
 
-          if (isApiEnabled()) void apiUpsertChat(updated, user.id);
+          if (isDataApiEnabled()) void apiUpsertChat(updated, user.id);
           return updated;
         })
       );
@@ -524,7 +524,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       };
 
       setChats((prev) => [newChat, ...prev]);
-      if (isApiEnabled()) void apiUpsertChat(newChat, user.id);
+      if (isDataApiEnabled()) void apiUpsertChat(newChat, user.id);
       return chatId;
     },
     [listings, chats, user.id]
