@@ -20,14 +20,14 @@ export function Header() {
       <div className="flex items-center gap-3">
         <Link
           href="/chats"
-          className="relative text-white/90 transition hover:text-white"
+          className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.06] text-white/90 backdrop-blur-md transition hover:bg-white/10"
           aria-label={
             unreadChats > 0
               ? `Pokalbiai, ${unreadChats} neperskaityti`
               : "Pokalbiai"
           }
         >
-          <Bell className="h-6 w-6" strokeWidth={1.75} />
+          <Bell className="h-[17px] w-[17px]" strokeWidth={1.75} />
           {unreadChats > 0 && (
             <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--vauto-red)] px-1 text-[9px] font-bold text-white">
               {unreadChats > 9 ? "9+" : unreadChats}

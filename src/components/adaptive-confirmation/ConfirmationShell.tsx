@@ -30,7 +30,7 @@ export function ConfirmationShell({
   children,
 }: ConfirmationShellProps) {
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#0f172a] p-6">
+    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[var(--flux-bg)] p-6">
       <div className="mx-auto max-w-md rounded-3xl border border-white/10 bg-white/5 p-6 backdrop-blur-xl">
         <div className="mb-4 flex items-start justify-between gap-3">
           <span className="rounded-full bg-[var(--vauto-teal)]/10 px-3 py-1 text-xs font-bold uppercase tracking-wider text-[var(--vauto-teal)]">
@@ -71,7 +71,7 @@ export function ConfirmationShell({
           type="button"
           onClick={onPublish}
           disabled={!canPublish}
-          className="mt-6 w-full rounded-xl bg-[var(--vauto-teal)] p-3 font-bold text-[#0f172a] shadow-lg shadow-[var(--vauto-teal)]/20 transition hover:opacity-90 disabled:opacity-40"
+          className="mt-6 w-full rounded-xl bg-[var(--flux-teal)] p-3 font-bold text-[var(--flux-bg)] shadow-lg shadow-[var(--flux-teal)]/20 transition hover:opacity-90 disabled:opacity-40"
         >
           {canPublish ? "Viskas gerai, publikuoti skelbimą" : publishLabel}
         </button>
@@ -82,7 +82,7 @@ export function ConfirmationShell({
 
 export function PublishedOverlay() {
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[#0f172a]/95 backdrop-blur-lg">
+    <div className="fixed inset-0 z-[100] flex items-center justify-center bg-[var(--flux-bg)]/95 backdrop-blur-lg">
       <div className="mx-6 max-w-sm rounded-3xl border border-white/10 bg-white/5 p-8 text-center backdrop-blur-xl">
         <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-[var(--vauto-teal)]/20">
           <Check className="h-8 w-8 text-[var(--vauto-teal)]" />

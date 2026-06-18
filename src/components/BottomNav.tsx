@@ -37,16 +37,18 @@ export function BottomNav() {
     }
   };
 
-  const linkClass = (path: string) =>
-    `flex flex-1 flex-col items-center gap-1 text-xs transition-colors ${
-      pathname === path || (path !== "/" && pathname.startsWith(path))
-        ? "font-bold text-[var(--vauto-teal)]"
-        : "text-white/60 hover:text-white"
+  const linkClass = (path: string) => {
+    const isActive =
+      pathname === path || (path !== "/" && pathname.startsWith(path));
+    return `flex flex-1 flex-col items-center gap-1 text-[10px] font-semibold transition-colors ${
+      isActive ? "text-[#f8fafc]" : "text-[#64748b] hover:text-white/80"
     }`;
+  };
 
   return (
-    <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-white/5 bg-[#0f172a]/80 py-3 pb-5 backdrop-blur-lg">
-      <div className="relative mx-auto flex max-w-lg items-end justify-around px-2">
+    <nav className="vauto-flux-nav safe-bottom fixed bottom-0 left-0 right-0 z-50 py-3 pb-7">
+      <span className="vauto-flux-glow-bar" aria-hidden />
+      <div className="relative mx-auto flex max-w-lg items-end justify-around px-5">
         {(() => {
           const tab = sideTabs[0];
           const Icon = tab.icon;
@@ -61,10 +63,11 @@ export function BottomNav() {
         <button
           type="button"
           onClick={handleAddClick}
-          className="relative -mt-4 flex flex-col items-center gap-1 text-xs font-bold text-[var(--vauto-orange)] hover:opacity-80"
+          className="fab-glow relative -mt-[18px] flex flex-col items-center"
+          aria-label="Įdėti skelbimą"
         >
-          <span className="flex h-10 w-10 items-center justify-center rounded-full bg-[var(--vauto-orange)] text-white shadow-lg shadow-[var(--vauto-orange)]/30">
-            <Plus size={24} />
+          <span className="vauto-flux-fab flex h-14 w-14 items-center justify-center rounded-[20px] text-white">
+            <Plus size={26} strokeWidth={2} />
           </span>
         </button>
 

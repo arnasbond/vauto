@@ -1,35 +1,118 @@
 @import "tailwindcss";
 
+/* ── Vauto Flux 2026 design tokens ── */
 :root {
-  --vauto-teal: #2dd4bf;
-  --vauto-blue: #2979ff;
-  --vauto-orange: #f97316;
-  --vauto-orange-light: #fb923c;
+  --flux-bg: #0b0f17;
+  --flux-teal: #00d4aa;
+  --flux-cyan: #22d3ee;
+  --flux-indigo: #6366f1;
+  --flux-coral: #ff6b4a;
+  --flux-coral-light: #ff8f65;
+  --flux-price-start: #ff8a65;
+  --flux-price-end: #ffb74d;
+
+  --vauto-teal: var(--flux-teal);
+  --vauto-blue: var(--flux-indigo);
+  --vauto-orange: var(--flux-coral);
+  --vauto-orange-light: var(--flux-coral-light);
   --vauto-text: #f8fafc;
   --vauto-text-muted: #94a3b8;
-  --vauto-surface: #0f172a;
+  --vauto-surface: var(--flux-bg);
   --vauto-red: #ef4444;
 }
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
+  --font-display: var(--font-outfit);
 }
 
 body {
   font-family: var(--font-sans), system-ui, sans-serif;
   color: var(--vauto-text);
-  background: var(--vauto-surface);
+  background: var(--flux-bg);
+}
+
+/* Ambient mesh — Flux signature background */
+.vauto-flux-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 170, 0.22), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(99, 102, 241, 0.2), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 107, 74, 0.12), transparent 55%),
+    var(--flux-bg);
 }
 
 .vauto-hero {
-  background: radial-gradient(circle at 50% 0%, #1e1b4b 0%, #0f172a 100%);
+  background: transparent;
+}
+
+.font-display {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
 }
 
 .vauto-glass-card {
-  border: 1px solid rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.08);
   background: rgba(255, 255, 255, 0.05);
-  backdrop-filter: blur(12px);
+  backdrop-filter: blur(8px);
+}
+
+.vauto-flux-glass {
+  background: rgba(255, 255, 255, 0.07);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  backdrop-filter: blur(20px);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.vauto-flux-price {
+  font-family: var(--font-display), var(--font-sans), system-ui, sans-serif;
+  font-weight: 800;
+  background: linear-gradient(90deg, var(--flux-price-start), var(--flux-price-end));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.vauto-flux-gradient-text {
+  background: linear-gradient(135deg, var(--flux-teal), var(--flux-indigo));
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.vauto-flux-gradient-btn {
+  background: linear-gradient(135deg, var(--flux-teal) 0%, var(--flux-cyan) 50%, var(--flux-indigo) 100%);
+  box-shadow: 0 8px 24px -6px rgba(0, 212, 170, 0.55);
+}
+
+.vauto-flux-chip-on {
+  background: linear-gradient(135deg, rgba(0, 212, 170, 0.25), rgba(99, 102, 241, 0.25));
+  border-color: rgba(0, 212, 170, 0.45);
+  color: #f8fafc;
+}
+
+.vauto-flux-fab {
+  background: linear-gradient(135deg, var(--flux-coral), var(--flux-coral-light));
+  box-shadow: 0 12px 32px -8px rgba(255, 107, 74, 0.65);
+  border: 3px solid var(--flux-bg);
+}
+
+.vauto-flux-nav {
+  background: rgba(11, 15, 23, 0.85);
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  backdrop-filter: blur(24px);
+}
+
+.vauto-flux-glow-bar {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 120px;
+  height: 3px;
+  border-radius: 999px;
+  background: linear-gradient(90deg, transparent, var(--flux-teal), var(--flux-indigo), transparent);
+  opacity: 0.7;
+  pointer-events: none;
 }
 
 .scrollbar-hide {
@@ -58,10 +141,10 @@ body {
 @keyframes fab-glow {
   0%,
   100% {
-    box-shadow: 0 4px 20px rgba(255, 87, 34, 0.45);
+    box-shadow: 0 12px 32px -8px rgba(255, 107, 74, 0.55);
   }
   50% {
-    box-shadow: 0 6px 28px rgba(255, 87, 34, 0.65);
+    box-shadow: 0 14px 36px -6px rgba(255, 107, 74, 0.75);
   }
 }
 
@@ -85,7 +168,6 @@ body {
   box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
 }
 
-/* Audio wave bars — fallback when Web Audio analyser unavailable */
 @keyframes wave-bar {
   0%,
   100% {
@@ -127,27 +209,21 @@ body {
 }
 
 .vauto-dashboard {
-  background: linear-gradient(
-    165deg,
-    #0f172a 0%,
-    #134e4a 35%,
-    #0f172a 70%,
-    #1e293b 100%
-  );
+  background:
+    radial-gradient(ellipse 70% 50% at 30% 0%, rgba(0, 212, 170, 0.15), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 80% 20%, rgba(99, 102, 241, 0.12), transparent 50%),
+    var(--flux-bg);
   min-height: 100dvh;
 }
 
 .vauto-dashboard-card {
   background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(0, 191, 165, 0.15);
+  border: 1px solid rgba(0, 212, 170, 0.15);
   backdrop-filter: blur(12px);
 }
 
 .vauto-auth-modal {
-  background: linear-gradient(
-    160deg,
-    #0f172a 0%,
-    #115e59 40%,
-    #1e293b 100%
-  );
+  background:
+    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 212, 170, 0.18), transparent 55%),
+    linear-gradient(160deg, var(--flux-bg) 0%, #111827 50%, var(--flux-bg) 100%);
 }

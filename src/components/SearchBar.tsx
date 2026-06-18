@@ -1,6 +1,6 @@
 "use client";
 
-import { Mic, Search } from "lucide-react";
+import { Mic, Sparkles } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { createVoiceSession, recordWithSession } from "@/lib/native-media";
 import { useVauto } from "@/context/VautoContext";
@@ -52,57 +52,45 @@ export function SearchBar() {
   return (
     <>
       <form
-        className="relative flex items-center gap-0"
+        className="vauto-flux-glass flex items-center gap-2.5 rounded-[20px] py-1.5 pl-4 pr-1.5"
         onSubmit={handleSearchSubmit}
         role="search"
         aria-label="Skelbimų paieška"
       >
-        <div className="relative flex-1">
-          <input
-            ref={inputRef}
-            type="search"
-            name="q"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Ieškok natūralia kalba…"
-            enterKeyHint="search"
-            className="w-full rounded-2xl bg-white py-3.5 pl-4 pr-20 text-sm text-[var(--vauto-text)] shadow-lg outline-none placeholder:text-gray-400"
-          />
-          <button
-            type="button"
-            onClick={handleVoiceSearch}
-            disabled={isListening}
-            className={`absolute right-14 top-1/2 -translate-y-1/2 rounded-full p-1 text-[var(--vauto-red)] transition hover:bg-red-50 ${
-              isListening ? "bg-red-50" : ""
-            }`}
-            aria-label="Balso paieška"
-          >
-            <Mic
-              className={`h-5 w-5 ${isListening ? "animate-pulse" : ""}`}
-              fill="currentColor"
-              strokeWidth={0}
-            />
-          </button>
-        </div>
+        <Sparkles className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
+        <input
+          ref={inputRef}
+          type="search"
+          name="q"
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          placeholder="Pvz. darbas Panevėžyje iki 1200€"
+          enterKeyHint="search"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-muted)] outline-none placeholder:text-[var(--vauto-text-muted)]/80"
+        />
         <button
-          type="submit"
-          className="ml-2 flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-orange)] text-white shadow-md transition hover:bg-[var(--vauto-orange-light)]"
-          aria-label="Ieškoti"
+          type="button"
+          onClick={handleVoiceSearch}
+          disabled={isListening}
+          className={`vauto-flux-gradient-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition hover:opacity-90 disabled:opacity-60 ${
+            isListening ? "animate-pulse" : ""
+          }`}
+          aria-label="Balso paieška"
         >
-          <Search className="h-5 w-5" strokeWidth={2.5} />
+          <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
         </button>
       </form>
 
       {isListening && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/50 backdrop-blur-sm">
-          <div className="mx-6 w-full max-w-xs rounded-3xl bg-white px-6 py-8 text-center shadow-2xl">
+        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--flux-bg)]/90 backdrop-blur-lg">
+          <div className="vauto-flux-glass mx-6 w-full max-w-xs rounded-3xl px-6 py-8 text-center">
             <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
-              <span className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--vauto-red)]/25" />
+              <span className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--flux-teal)]/25" />
               <span
-                className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--vauto-red)]/15"
+                className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--flux-indigo)]/15"
                 style={{ animationDelay: "0.6s" }}
               />
-              <span className="relative flex h-14 w-14 items-center justify-center rounded-full bg-gradient-to-br from-[var(--vauto-red)] to-[var(--vauto-orange)] shadow-lg">
+              <span className="vauto-flux-gradient-btn relative flex h-14 w-14 items-center justify-center rounded-2xl">
                 <Mic className="h-7 w-7 text-white" fill="white" strokeWidth={0} />
               </span>
             </div>
@@ -111,9 +99,7 @@ export function SearchBar() {
               levelSource={session ? levelSource : undefined}
               className="mb-4"
             />
-            <p className="text-sm font-semibold text-[var(--vauto-text)]">
-              Klausomasi...
-            </p>
+            <p className="text-sm font-semibold text-white">Klausomasi...</p>
             <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
               Pasakykite ką ieškote
             </p>

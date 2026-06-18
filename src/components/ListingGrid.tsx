@@ -46,7 +46,7 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="vauto-glass-card w-[156px] shrink-0 overflow-hidden rounded-2xl p-2.5 transition-all hover:border-white/10 sm:w-[160px]">
+    <article className="vauto-glass-card w-[156px] shrink-0 overflow-hidden rounded-[22px] p-2.5 transition-all hover:border-white/12 sm:w-[160px]">
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black/20">
         <Link href={href} className="block h-full w-full">
           <Image
@@ -77,7 +77,7 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
         <h3 className="truncate text-sm font-semibold text-white">
           {listing.title}
         </h3>
-        <p className="text-base font-bold text-[var(--vauto-teal)]">
+        <p className="vauto-flux-price text-base">
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
         <div className="mt-1">
@@ -97,7 +97,7 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="vauto-glass-card overflow-hidden rounded-2xl p-2.5 transition-all hover:border-white/10">
+    <article className="vauto-glass-card overflow-hidden rounded-[22px] p-2.5 transition-all hover:border-white/12">
       <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-black/20">
         <Link href={href} className="block h-full w-full">
           <Image
@@ -122,7 +122,7 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
         <h3 className="line-clamp-1 text-sm font-semibold text-white">
           {listing.title}
         </h3>
-        <p className="text-sm font-bold text-[var(--vauto-teal)]">
+        <p className="vauto-flux-price text-sm">
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
         <div className="mt-1">
@@ -137,7 +137,7 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
 }
 
 export function ListingGrid() {
-  const { rankedListings, searchQuery, user } = useVauto();
+  const { rankedListings, searchQuery } = useVauto();
   const carouselListings = rankedListings.slice(0, 3);
   const gridListings = rankedListings.slice(3);
 
@@ -145,12 +145,12 @@ export function ListingGrid() {
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
       <h2
         id="listing-results-heading"
-        className="mb-4 text-xl font-bold text-white"
+        className="font-display mb-4 text-base font-bold tracking-tight text-white"
       >
         {searchQuery ? (
           <>Rasta skelbimų: {rankedListings.length}</>
         ) : (
-          <>Skelbimai šalia tavęs — {user?.city ?? "Panevėžys"}</>
+          <>Šalia tavęs</>
         )}
       </h2>
 

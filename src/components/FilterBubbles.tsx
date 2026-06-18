@@ -20,10 +20,10 @@ export function FilterBubbles() {
               key={filter.id}
               type="button"
               onClick={() => toggleFilter(filter.id)}
-              className={`shrink-0 rounded-full px-3.5 py-1.5 text-xs font-medium transition ${
+              className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
                 isActive
-                  ? "bg-[var(--vauto-blue)] text-white shadow-md"
-                  : "border border-white/10 bg-white/5 text-[var(--vauto-text-muted)] hover:bg-white/10"
+                  ? "vauto-flux-chip-on"
+                  : "border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
               }`}
             >
               {filter.label}
