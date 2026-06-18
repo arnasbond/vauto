@@ -1,4 +1,4 @@
-import type { Listing } from "@/lib/types";
+import type { Listing, UserProfile } from "@/lib/types";
 
 /** ISO 3779 VIN format — excludes I, O, Q */
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
@@ -39,4 +39,13 @@ export const VERIFIED_SERVICE_SELLERS = new Set([
 
 export function isVerifiedServiceSeller(sellerId: string): boolean {
   return VERIFIED_SERVICE_SELLERS.has(sellerId);
+}
+
+export function isVerifiedServiceProvider(
+  user: Pick<UserProfile, "id" | "role" | "businessType">
+): boolean {
+  return (
+    isVerifiedServiceSeller(user.id) ||
+    (user.role === "pro" && user.businessType === "services")
+  );
 }

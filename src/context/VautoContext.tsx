@@ -11,9 +11,9 @@ import {
   type ReactNode,
 } from "react";
 import {
+  ANONYMOUS_USER,
   INITIAL_CHATS,
   INITIAL_LISTINGS,
-  MOCK_USER,
 } from "@/data/mockListings";
 import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
@@ -58,10 +58,10 @@ import {
   geocodeLocation,
 } from "@/lib/geocoding";
 import { normalizeListings } from "@/lib/listing-normalize";
-import { generateListingSlug } from "@/lib/seo";
+import { generateListingSlug, listingPath } from "@/lib/seo";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import {
-  isVerifiedServiceSeller,
+  isVerifiedServiceProvider,
   verifyVin,
 } from "@/lib/trust";
 import {
@@ -250,9 +250,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [apiActive, setApiActive] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<UserProfile>(MOCK_USER);
+  const [user, setUser] = useState<UserProfile>(ANONYMOUS_USER);
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
-  const [savedIds, setSavedIds] = useState<Set<string>>(new Set(["l-bike"]));
+  const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set()
@@ -282,7 +282,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (isDataApiEnabled() && (await apiHealthCheck())) {
         setApiActive(true);
         const storedUser = loadUser();
-        const uid = storedUser?.id ?? MOCK_USER.id;
+        const auth = loadAuthSession();
+        const uid = storedUser?.id && auth?.isAuthenticated ? storedUser.id : ANONYMOUS_USER.id;
         const [listingsRes, chatsRes, savedRes, userRes, reportsRes, bannedRes] =
           await Promise.all([
           apiFetchListings(),
@@ -306,12 +307,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         else errors.push(chatsRes.error);
         if (savedRes.ok) setSavedIds(new Set(savedRes.data));
         else errors.push(savedRes.error);
-        if (userRes.ok) setUser(userRes.data);
-        else if (storedUser) setUser(storedUser);
+        if (userRes.ok && auth?.isAuthenticated) setUser(userRes.data);
+        else if (storedUser && auth?.isAuthenticated) setUser(storedUser);
+        else setUser(ANONYMOUS_USER);
         if (reportsRes.ok && reportsRes.data.length) setReports(reportsRes.data);
         else if (reportsRes.ok) setReports(DEMO_REPORTS);
         if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
-        const auth = loadAuthSession();
         if (auth?.isAuthenticated) setIsAuthenticated(true);
 
         if (errors.length) setSyncError(errors[0]);
@@ -328,8 +329,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const storedSaved = loadSavedIds();
       const storedReports = loadReports();
       const storedBanned = loadBannedUserIds();
-      if (auth?.isAuthenticated) setIsAuthenticated(true);
-      if (storedUser) setUser({ role: "private", walletBalance: 0, ...storedUser });
+      if (auth?.isAuthenticated) {
+        setIsAuthenticated(true);
+        if (storedUser) setUser({ role: "private", walletBalance: 0, ...storedUser });
+      } else {
+        setUser(ANONYMOUS_USER);
+      }
       if (storedListings?.length) {
         setListings(normalizeListings(storedListings));
       }
@@ -345,9 +350,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   useEffect(() => {
-    if (!hydrated || apiActive) return;
+    if (!hydrated || apiActive || !isAuthenticated) return;
     saveUser(user);
-  }, [user, hydrated, apiActive]);
+  }, [user, hydrated, apiActive, isAuthenticated]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -481,6 +486,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const toggleSave = useCallback((id: string) => {
+    if (!isAuthenticated) {
+      const listing = listings.find((l) => l.id === id);
+      openAuthModal(listing ? listingPath(listing) : "/");
+      return;
+    }
     setSavedIds((prev) => {
       const next = new Set(prev);
       if (next.has(id)) next.delete(id);
@@ -492,7 +502,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, [user.id]);
+  }, [user.id, isAuthenticated, listings, openAuthModal]);
 
   const deleteListing = useCallback(
     (id: string) => {
@@ -777,8 +787,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       hasVideo: sellerHasVideo,
       vinVerified: vinOk,
       providerVerified:
-        aiDraft.category === "services" && isVerifiedServiceSeller(user.id),
+        aiDraft.category === "services" && isVerifiedServiceProvider(user),
     });
+
+    let published = newListing;
 
     if (isDataApiEnabled()) {
       const userRes = await apiUpdateUser(user);
@@ -791,9 +803,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setSyncError(`Nepavyko publikuoti: ${createRes.error}`);
         return;
       }
+      published = withDefaultExpiry(createRes.data ?? newListing);
     }
 
-    setListings((prev) => [newListing, ...prev]);
+    setListings((prev) => [published, ...prev]);
     setSellerStep("published");
 
     setTimeout(resetSellerFlow, 2000);
@@ -977,6 +990,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       };
 
       let sellerId = "";
+      let buyerId = "";
       let listingTitle = "";
 
       setChats((prev) =>
@@ -984,6 +998,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           if (chat.id !== chatId) return chat;
 
           sellerId = chat.sellerId;
+          buyerId = chat.buyerId;
           listingTitle = chat.listingTitle;
 
           const updated: ChatThread = {
@@ -1005,6 +1020,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       );
 
       window.setTimeout(() => {
+        if (user.id !== buyerId) return;
+
         const replyId = `m-${Date.now()}`;
         const reply: ChatMessage = {
           id: replyId,
@@ -1030,7 +1047,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const startChat = useCallback(
     (listingId: string): string | null => {
       const listing = listings.find((l) => l.id === listingId);
-      if (!listing || listing.sellerId === user.id) return null;
+      if (!listing) return null;
+      if (listing.sellerId === user.id) return null;
+
+      if (!isAuthenticated) {
+        openAuthModal(listingPath(listing));
+        return null;
+      }
 
       const existing = chats.find(
         (c) => c.listingId === listingId && c.buyerId === user.id
@@ -1063,7 +1086,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       return chatId;
     },
-    [listings, chats, user.id]
+    [listings, chats, user.id, isAuthenticated, openAuthModal]
   );
 
   const updateEscrow = useCallback(
@@ -1120,10 +1143,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         phone: "Mobilus vartotojas",
       };
       const nextUser: UserProfile = {
-        ...user,
-        id: user.id.startsWith("user-") ? user.id : `user-${Date.now()}`,
+        id: `user-${Date.now()}`,
         name: names[data.provider],
-        phone: data.phone ?? user.phone,
+        phone: data.phone ?? "",
+        city: user.city || "Panevėžys",
         authProvider: data.provider,
         role: data.role,
         businessType: data.businessType,
@@ -1131,7 +1154,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         avatar:
           data.provider === "apple"
             ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
-            : user.avatar,
+            : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
       };
       setUser(nextUser);
       setIsAuthenticated(true);
@@ -1142,14 +1165,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         loggedInAt: new Date().toISOString(),
       });
     },
-    [user]
+    []
   );
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
     clearAuthSession();
-    setUser({ ...MOCK_USER, role: "private", walletBalance: 0 });
-    saveUser({ ...MOCK_USER, role: "private", walletBalance: 0 });
+    setUser(ANONYMOUS_USER);
   }, []);
 
   const topUpWallet = useCallback((amount: number) => {

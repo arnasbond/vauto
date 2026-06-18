@@ -14,6 +14,18 @@ export const MOCK_USER: UserProfile = {
   walletBalance: 0,
 };
 
+/** Unauthenticated session — never used as buyer/seller identity */
+export const ANONYMOUS_USER: UserProfile = {
+  id: "guest",
+  name: "Svečias",
+  avatar:
+    "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
+  phone: "",
+  city: "",
+  role: "private",
+  walletBalance: 0,
+};
+
 /** Mock listings aligned with design mockup */
 const RAW_INITIAL_LISTINGS: Listing[] = [
   {

@@ -6,10 +6,22 @@ export function mergeApiWithDemoCatalog(
   demos: Listing[]
 ): Listing[] {
   const byId = new Map(demos.map((d) => [d.id, d]));
+  const seenSlugs = new Set(
+    demos.map((d) => d.slug).filter((s): s is string => Boolean(s))
+  );
 
   for (const item of fromApi) {
+    if (
+      item.slug &&
+      seenSlugs.has(item.slug) &&
+      !byId.has(item.id)
+    ) {
+      continue;
+    }
+
     const existing = byId.get(item.id);
     byId.set(item.id, existing ? { ...existing, ...item } : item);
+    if (item.slug) seenSlugs.add(item.slug);
   }
 
   return Array.from(byId.values()).sort(

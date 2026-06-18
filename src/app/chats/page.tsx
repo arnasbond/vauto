@@ -1,44 +1,86 @@
 "use client";
 
 import Link from "next/link";
+import { LogIn, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { AuthModal } from "@/components/auth/AuthModal";
 import { useVauto } from "@/context/VautoContext";
 import {
   countUnreadInThread,
   hasUnreadInThread,
 } from "@/lib/chat-helpers";
+import { useState } from "react";
 
 export default function ChatsPage() {
-  const { chats, user } = useVauto();
+  const { chats, user, isAuthenticated, login } = useVauto();
+  const [authOpen, setAuthOpen] = useState(false);
+
+  const myChats = chats.filter(
+    (c) => c.buyerId === user.id || c.sellerId === user.id
+  );
+
+  if (!isAuthenticated) {
+    return (
+      <>
+        <AppShell>
+          <div className="flex min-h-[50dvh] flex-col items-center justify-center px-6 text-center">
+            <MessageCircle className="mb-4 h-12 w-12 text-[var(--flux-teal)]" />
+            <h1 className="text-xl font-bold text-white">Pokalbiai</h1>
+            <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
+              Prisijunkite, kad galėtumėte rašyti pardavėjams ir sekti pokalbius.
+            </p>
+            <button
+              type="button"
+              onClick={() => setAuthOpen(true)}
+              className="mt-6 flex items-center gap-2 rounded-2xl bg-[var(--flux-teal)] px-6 py-3 text-sm font-semibold text-[var(--flux-bg)]"
+            >
+              <LogIn className="h-4 w-4" />
+              Prisijungti
+            </button>
+          </div>
+        </AppShell>
+        <AuthModal
+          open={authOpen}
+          onClose={() => setAuthOpen(false)}
+          onComplete={(data) => {
+            login(data);
+            setAuthOpen(false);
+          }}
+        />
+      </>
+    );
+  }
 
   return (
-    <AppShell variant="plain">
-      <h1 className="mb-4 text-xl font-bold text-[var(--vauto-text)]">
+    <AppShell>
+      <h1 className="mb-4 font-display text-xl font-bold text-white">
         Pokalbiai
       </h1>
       <div className="space-y-2">
-        {chats.length === 0 && (
+        {myChats.length === 0 && (
           <p className="py-8 text-center text-sm text-[var(--vauto-text-muted)]">
-            Dar neturite pokalbių. Atidarykite skelbimą ir spauskite „Rašyti
-            pardavėjui“.
+            Dar neturite pokalbių. Atidarykite skelbimą ir spauskite „Rašyti“.
           </p>
         )}
-        {chats.map((chat) => {
+        {myChats.map((chat) => {
           const last = chat.messages[chat.messages.length - 1];
           const unread = hasUnreadInThread(chat, user.id);
           const unreadCount = countUnreadInThread(chat, user.id);
+          const roleLabel =
+            chat.buyerId === user.id ? "Pardavėjas" : "Pirkėjas";
           return (
             <Link
               key={chat.id}
               href={`/chats/thread/?id=${chat.id}`}
-              className={`card-shadow block rounded-2xl bg-white p-4 transition hover:bg-gray-50 ${
-                unread ? "ring-2 ring-[var(--vauto-blue)]/30" : ""
+              className={`vauto-glass-card block rounded-2xl p-4 transition hover:border-white/15 ${
+                unread ? "ring-2 ring-[var(--flux-teal)]/30" : ""
               }`}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="font-semibold text-[var(--vauto-text)]">
-                  {chat.listingTitle}
-                </p>
+                <div>
+                  <p className="font-semibold text-white">{chat.listingTitle}</p>
+                  <p className="text-[10px] text-white/40">{roleLabel}</p>
+                </div>
                 {unread && (
                   <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--vauto-red)] px-1.5 text-[10px] font-bold text-white">
                     {unreadCount}
@@ -49,7 +91,7 @@ export default function ChatsPage() {
                 {last?.text}
               </p>
               {chat.escrowOffered && (
-                <span className="mt-2 inline-block rounded-full bg-[var(--vauto-blue)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--vauto-blue)]">
+                <span className="mt-2 inline-block rounded-full bg-[var(--flux-teal)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--flux-teal)]">
                   Escrow aktyvus
                 </span>
               )}
@@ -57,7 +99,7 @@ export default function ChatsPage() {
           );
         })}
       </div>
-      <p className="mt-6 text-center text-xs text-[var(--vauto-text-muted)]">
+      <p className="mt-6 text-center text-xs text-white/30">
         Parašykite „perku“ arba „tinka“ — AI pasiūlys saugų mokėjimą.
       </p>
     </AppShell>

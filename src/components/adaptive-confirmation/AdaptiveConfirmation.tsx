@@ -97,7 +97,7 @@ export function AdaptiveConfirmation({
 
       {adaptiveKey === "services" && (
         <p className="mb-3 text-xs text-[var(--vauto-teal)]">
-          🛡️ Suteikiamas Verifikuoto Meistro ženkliukas po moderacijos
+          🛡️ Pro paslaugų teikėjai gauna Verifikuoto meistro ženkliuką
         </p>
       )}
 

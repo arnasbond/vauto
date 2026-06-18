@@ -12,6 +12,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { EditListingModal } from "@/components/dashboard/EditListingModal";
 import { PrivateSellerDashboard } from "@/components/dashboard/PrivateSellerDashboard";
 import { ProBusinessDashboard } from "@/components/dashboard/ProBusinessDashboard";
+import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 
@@ -93,6 +94,8 @@ export default function ProfilePage() {
       <DashboardHeader user={user} onLogout={logout} />
 
       <SellerTrustCard user={user} listings={listings} />
+
+      <SavedListingsSection />
 
       {user.role === "pro" ? (
         <ProBusinessDashboard

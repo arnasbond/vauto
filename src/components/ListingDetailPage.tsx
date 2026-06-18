@@ -54,6 +54,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     toggleSave,
     startChat,
     deleteListing,
+    showToast,
   } = useVauto();
 
   const listing = slug
@@ -83,6 +84,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const categoryLabel = getCategoryLabel(listing);
 
   const handleChat = () => {
+    if (isOwn) {
+      showToast("Tai jūsų skelbimas — negalite rašyti sau.", "info");
+      return;
+    }
     const chatId = startChat(listing.id);
     if (chatId) router.push(`/chats/thread/?id=${chatId}`);
   };

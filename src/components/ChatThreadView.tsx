@@ -17,8 +17,9 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   const listing = listings.find((l) => l.id === chat?.listingId);
   const quickQuestions = getQuickQuestions(listing);
   const chatPreview = chat?.messages[chat.messages.length - 1]?.text;
-  const reportedUserId =
-    chat && chat.buyerId === user.id ? chat.sellerId : chat?.buyerId;
+  const isBuyer = chat?.buyerId === user.id;
+  const isSeller = chat?.sellerId === user.id;
+  const reportedUserId = isBuyer ? chat?.sellerId : chat?.buyerId;
 
   useEffect(() => {
     setActiveChatId(chatId);
@@ -40,19 +41,19 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-2rem)] flex-col bg-white">
-      <div className="mb-4 flex items-center gap-3 border-b border-gray-100 pb-3">
+    <div className="flex h-[calc(100dvh-2rem)] flex-col px-4">
+      <div className="mb-4 flex items-center gap-3 border-b border-white/10 pb-3">
         <Link
           href="/chats"
-          className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-gray-100"
+          className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-white/5"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="font-semibold text-[var(--vauto-text)]">
-            {chat.listingTitle}
-          </h1>
-          <p className="text-xs text-[var(--vauto-text-muted)]">Pardavėjas</p>
+          <h1 className="font-semibold text-white">{chat.listingTitle}</h1>
+          <p className="text-xs text-[var(--vauto-text-muted)]">
+            {isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis"}
+          </p>
         </div>
         <ReportButton
           variant="icon"
@@ -75,8 +76,8 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                   isMe
-                    ? "rounded-br-md bg-[var(--vauto-blue)] text-white"
-                    : "rounded-bl-md bg-gray-100 text-[var(--vauto-text)]"
+                    ? "rounded-br-md bg-[var(--flux-teal)] text-[var(--flux-bg)]"
+                    : "rounded-bl-md bg-white/10 text-white"
                 }`}
               >
                 {msg.text}
@@ -90,14 +91,14 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
         )}
       </div>
 
-      {chat.messages.length <= 2 && (
+      {isBuyer && chat.messages.length <= 2 && (
         <div className="mb-2 flex flex-wrap gap-2">
           {quickQuestions.map((q) => (
             <button
               key={q}
               type="button"
               onClick={() => sendMessage(chatId, q)}
-              className="rounded-full bg-[var(--vauto-blue)]/10 px-3 py-1.5 text-xs font-medium text-[var(--vauto-blue)]"
+              className="rounded-full border border-[var(--flux-teal)]/30 bg-[var(--flux-teal)]/10 px-3 py-1.5 text-xs font-medium text-[var(--flux-teal)]"
             >
               {q}
             </button>
@@ -105,18 +106,18 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
         </div>
       )}
 
-      <div className="flex gap-2 border-t border-gray-100 pt-3">
+      <div className="flex gap-2 border-t border-white/10 pt-3">
         <input
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder='Parašykite... (bandykite "perku" arba "tinka")'
-          className="flex-1 rounded-xl bg-gray-100 px-4 py-3 text-sm text-[var(--vauto-text)] outline-none focus:ring-2 focus:ring-[var(--vauto-blue)]/30"
+          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-[var(--flux-teal)]/30"
         />
         <button
           type="button"
           onClick={handleSend}
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--vauto-orange)] text-white transition hover:bg-[var(--vauto-orange-light)]"
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--flux-coral)] text-white transition hover:opacity-90"
           aria-label="Siųsti"
         >
           <Send className="h-5 w-5" />

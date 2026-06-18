@@ -2,7 +2,7 @@
 
 import type { Listing, UserProfile } from "@/lib/types";
 import {
-  isVerifiedServiceSeller,
+  isVerifiedServiceProvider,
   listingHasVerifiedProvider,
   listingHasVerifiedVin,
 } from "@/lib/trust";
@@ -16,7 +16,7 @@ export function SellerTrustCard({ user, listings }: SellerTrustCardProps) {
   const myListings = listings.filter((l) => l.sellerId === user.id);
   const hasVin = myListings.some((l) => listingHasVerifiedVin(l));
   const hasProvider =
-    isVerifiedServiceSeller(user.id) ||
+    isVerifiedServiceProvider(user) ||
     myListings.some((l) => listingHasVerifiedProvider(l));
   const warned = user.warned === true;
 

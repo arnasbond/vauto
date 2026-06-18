@@ -18,7 +18,7 @@ function ChatThreadLoader() {
 
 export default function ChatThreadPage() {
   return (
-    <AppShell variant="plain" hideNav>
+    <AppShell hideNav>
       <ChatThreadLoader />
     </AppShell>
   );
