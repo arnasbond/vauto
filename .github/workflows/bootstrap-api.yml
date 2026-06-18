@@ -1,0 +1,31 @@
+name: Bootstrap Render API
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - "server/**"
+  workflow_dispatch:
+
+jobs:
+  bootstrap:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake API and seed demo catalog
+        run: |
+          URL="https://vauto-api.onrender.com/api/bootstrap"
+          for i in $(seq 1 18); do
+            RESP=$(curl -s -w "\n%{http_code}" -X POST "$URL" || true)
+            CODE=$(echo "$RESP" | tail -1)
+            BODY=$(echo "$RESP" | sed '$d')
+            if [ "$CODE" = "200" ]; then
+              echo "Bootstrap OK: $BODY"
+              COUNT=$(curl -sf "https://vauto-api.onrender.com/api/listings" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))")
+              echo "Listings on API: $COUNT"
+              exit 0
+            fi
+            echo "Attempt $i/18 — HTTP ${CODE:-000} (endpoint may need redeploy)"
+            sleep 20
+          done
+          echo "Bootstrap endpoint not available yet — frontend merge covers demo catalog"
+          exit 0

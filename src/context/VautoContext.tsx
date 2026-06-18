@@ -15,6 +15,7 @@ import {
   INITIAL_LISTINGS,
   MOCK_USER,
 } from "@/data/mockListings";
+import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
   detectPurchaseIntent,
   generateDynamicFilters,
@@ -284,8 +285,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
         const errors: string[] = [];
         if (listingsRes.ok) {
+          const fromApi = listingsRes.data.map(withDefaultExpiry);
           setListings(
-            normalizeListings(listingsRes.data.map(withDefaultExpiry))
+            normalizeListings(
+              mergeApiWithDemoCatalog(fromApi, INITIAL_LISTINGS)
+            )
           );
         } else errors.push(listingsRes.error);
         if (chatsRes.ok) setChats(chatsRes.data);

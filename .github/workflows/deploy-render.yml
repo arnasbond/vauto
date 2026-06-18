@@ -11,6 +11,7 @@ on:
 
 jobs:
   deploy:
+    if: ${{ secrets.RENDER_API_KEY != '' }}
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4

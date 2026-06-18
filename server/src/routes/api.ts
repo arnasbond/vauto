@@ -20,6 +20,7 @@ import {
   upsertUser,
   warnUser,
 } from "../repository.js";
+import { seedIfEmpty } from "../seed-runtime.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -32,6 +33,17 @@ export const apiRouter = Router();
 
 apiRouter.get("/health", (_req, res) => {
   res.json({ ok: true, service: "vauto-api" });
+});
+
+/** Idempotent demo catalog upsert — safe to call after deploy without Render API key. */
+apiRouter.post("/bootstrap", async (_req, res) => {
+  try {
+    await seedIfEmpty();
+    const listings = await getListings();
+    res.json({ ok: true, listings: listings.length });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
 });
 
 apiRouter.get("/listings", async (_req, res) => {
