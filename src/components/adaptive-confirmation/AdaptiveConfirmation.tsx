@@ -22,6 +22,9 @@ interface AdaptiveConfirmationProps {
   onPublish: () => void;
 }
 
+const categoryPanelClass =
+  "rounded-2xl border border-white/5 bg-black/20 p-4";
+
 export function AdaptiveConfirmation({
   draft,
   previewImage,
@@ -46,7 +49,7 @@ export function AdaptiveConfirmation({
     ? "Užpildykite privalomus laukus"
     : needsPrice
       ? "Įveskite kainą"
-      : "Taip, viskas gerai — Publikuoti";
+      : "Viskas gerai, publikuoti skelbimą";
 
   const layoutMap = {
     "technical-grid": "grid" as const,
@@ -56,50 +59,74 @@ export function AdaptiveConfirmation({
     universal: "stack" as const,
   };
 
-  const categorySection = config.fields.length > 0 && (
-    <div className="mb-4">
-      {config.layout === "technical-grid" && (
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          Techninė specifikacija
-        </p>
-      )}
-      {config.layout === "estate-sheet" && (
-        <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-          NT parametrai
-        </p>
-      )}
-      {config.layout === "service-profile" && (
-        <div className="mb-3 rounded-xl border border-[var(--vauto-blue)]/30 bg-[var(--vauto-blue)]/10 p-3">
-          <p className="text-xs font-medium text-[var(--vauto-blue)]">
-            Paslaugų teikėjo profilis
-          </p>
+  const vinValue =
+    typeof attributes.vin === "string" ? attributes.vin : undefined;
+  const vinOk = vinValue ? verifyVin(vinValue) : false;
+
+  const categoryFields = config.fields.filter(
+    (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+  );
+
+  const categorySection = categoryFields.length > 0 && (
+    <div className={categoryPanelClass}>
+      {adaptiveKey === "vehicles" && vinValue && (
+        <div className="mb-3 flex flex-col gap-2 border-b border-white/5 pb-3">
+          <div className="flex items-center justify-between">
+            <span className="text-xs text-white/40">Kėbulo numeris (VIN)</span>
+            {vinOk && (
+              <span className="text-xs font-bold text-[var(--vauto-teal)]">
+                ✅ Patikrintas fone
+              </span>
+            )}
+          </div>
+          <input
+            type="text"
+            value={vinValue}
+            readOnly
+            className="w-full rounded-lg bg-white/5 p-2 text-xs text-white/60"
+          />
         </div>
       )}
+
+      {adaptiveKey === "services" && (
+        <p className="mb-3 text-xs text-[var(--vauto-teal)]">
+          🛡️ Suteikiamas Verifikuoto Meistro ženkliukas po moderacijos
+        </p>
+      )}
+
       <CategoryFieldsEditor
-        fields={config.fields}
+        fields={categoryFields}
         attributes={attributes}
         onChange={onAttributeChange}
         layout={layoutMap[config.layout]}
         missingKeys={missingKeys}
+        variant="inline"
       />
-      {adaptiveKey === "vehicles" &&
-        typeof attributes.vin === "string" &&
-        verifyVin(attributes.vin) && (
-          <p className="mt-2 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-3 py-1 text-xs font-medium text-emerald-300">
-            ✅ VIN Patikrintas
-          </p>
-        )}
-      {adaptiveKey === "services" && draft.category === "services" && (
-        <p className="mt-2 text-[10px] text-slate-500">
-          Verifikuoti meistrai gauna 🛡️ ženklą profilyje po moderacijos.
-        </p>
-      )}
     </div>
   );
 
   const baseFields = config.baseFields.filter(
     (f) => f !== "description" || adaptiveKey === "universal"
   );
+
+  const baseEditor =
+    adaptiveKey === "universal" ? (
+      <BaseFieldsEditor
+        draft={draft}
+        fields={config.baseFields}
+        needsPrice={needsPrice}
+        onUpdate={onUpdate}
+        variant="inline"
+      />
+    ) : (
+      <BaseFieldsEditor
+        draft={draft}
+        fields={baseFields as ("title" | "price" | "location" | "contact")[]}
+        needsPrice={needsPrice}
+        onUpdate={onUpdate}
+        variant="inline"
+      />
+    );
 
   return (
     <ConfirmationShell
@@ -117,24 +144,8 @@ export function AdaptiveConfirmation({
         ) : null
       }
     >
+      {baseEditor}
       {categorySection}
-      {adaptiveKey === "universal" && (
-        <BaseFieldsEditor
-          draft={draft}
-          fields={config.baseFields}
-          needsPrice={needsPrice}
-          onUpdate={onUpdate}
-        />
-      )}
-      {adaptiveKey !== "universal" && (
-        <BaseFieldsEditor
-          draft={draft}
-          fields={baseFields as ("title" | "price" | "location" | "contact")[]}
-          needsPrice={needsPrice}
-          onUpdate={onUpdate}
-          variant="compact"
-        />
-      )}
     </ConfirmationShell>
   );
 }

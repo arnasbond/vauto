@@ -22,6 +22,7 @@ export function listingToDraft(listing: Listing): AiExtractedListing {
   return {
     title: listing.title,
     price: listing.price,
+    priceLabel: listing.priceLabel,
     location: listing.location,
     contact: listing.contact ?? "",
     category: listing.category,
@@ -35,6 +36,7 @@ export function draftToListingPatch(draft: AiExtractedListing): ListingEditPatch
   return {
     title: draft.title,
     price: draft.price,
+    priceLabel: draft.priceLabel,
     location: draft.location,
     contact: draft.contact,
     description: draft.description,

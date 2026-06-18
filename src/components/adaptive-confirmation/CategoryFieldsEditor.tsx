@@ -10,6 +10,7 @@ interface CategoryFieldsEditorProps {
   onChange: (key: string, value: string | string[]) => void;
   layout: "grid" | "tags" | "sheet" | "stack";
   missingKeys?: string[];
+  variant?: "default" | "inline";
 }
 
 export function CategoryFieldsEditor({
@@ -18,6 +19,7 @@ export function CategoryFieldsEditor({
   onChange,
   layout,
   missingKeys = [],
+  variant = "default",
 }: CategoryFieldsEditorProps) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -44,12 +46,21 @@ export function CategoryFieldsEditor({
 
   const wrapperClass =
     layout === "grid"
-      ? "grid grid-cols-2 gap-2"
+      ? variant === "inline"
+        ? "grid grid-cols-2 gap-2"
+        : "grid grid-cols-2 gap-2"
       : layout === "tags"
-        ? "flex flex-wrap gap-2"
+        ? variant === "inline"
+          ? "grid grid-cols-3 gap-2"
+          : "flex flex-wrap gap-2"
         : layout === "sheet"
-          ? "divide-y divide-white/10 rounded-xl border border-white/10"
-          : "space-y-2";
+          ? variant === "inline"
+            ? "grid grid-cols-2 gap-2"
+            : "divide-y divide-white/10 rounded-xl border border-white/10"
+          : "flex flex-col gap-2";
+
+  const inlineInputClass =
+    "mt-1 w-full rounded-lg border border-white/5 bg-white/5 p-2 text-xs text-white outline-none focus:border-[var(--vauto-teal)]";
 
   return (
     <div className={wrapperClass}>
@@ -59,6 +70,55 @@ export function CategoryFieldsEditor({
         const display = Array.isArray(value)
           ? value.join(", ")
           : String(value ?? "");
+
+        if (variant === "inline" && field.inputType !== "checklist") {
+          if (field.inputType === "select" && field.options) {
+            return (
+              <div
+                key={field.key}
+                className={field.gridSpan === 2 ? "col-span-2" : ""}
+              >
+                <label className="text-xs text-white/40">
+                  {field.label}
+                  {missing && <span className="ml-1 text-amber-400">●</span>}
+                </label>
+                <select
+                  value={display}
+                  onChange={(e) => onChange(field.key, e.target.value)}
+                  className={inlineInputClass}
+                >
+                  <option value="" className="bg-slate-800">
+                    Pasirinkite…
+                  </option>
+                  {field.options.map((o) => (
+                    <option key={o} value={o} className="bg-slate-800">
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          }
+
+          return (
+            <div
+              key={field.key}
+              className={field.gridSpan === 2 ? "col-span-2" : ""}
+            >
+              <label className="text-xs text-white/40">
+                {field.label}
+                {field.critical && <span className="text-amber-400"> *</span>}
+              </label>
+              <input
+                type="text"
+                value={display}
+                onChange={(e) => onChange(field.key, e.target.value)}
+                placeholder={field.placeholder}
+                className={`${inlineInputClass} ${missing ? "border-amber-400/40" : ""}`}
+              />
+            </div>
+          );
+        }
 
         if (field.inputType === "checklist" && field.options) {
           return (

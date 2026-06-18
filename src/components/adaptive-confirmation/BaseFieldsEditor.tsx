@@ -12,7 +12,7 @@ interface BaseFieldsEditorProps {
   fields: BaseKey[];
   needsPrice: boolean;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
-  variant?: "default" | "compact";
+  variant?: "default" | "compact" | "inline";
 }
 
 export function BaseFieldsEditor({
@@ -53,6 +53,62 @@ export function BaseFieldsEditor({
     else onUpdate({ [editing]: editValue });
     setEditing(null);
   };
+
+  const inputClass =
+    "mt-1 w-full rounded-xl border border-white/5 bg-white/5 p-3 text-sm text-white outline-none focus:border-[var(--vauto-teal)]";
+
+  if (variant === "inline") {
+    return (
+      <div className="flex flex-col gap-4">
+        {fields.map((key) => {
+          if (key === "description") {
+            return (
+              <div key={key}>
+                <label className="text-xs text-white/60">{labels[key]}</label>
+                <textarea
+                  value={draft.description ?? ""}
+                  onChange={(e) => onUpdate({ description: e.target.value })}
+                  rows={3}
+                  className={inputClass}
+                />
+              </div>
+            );
+          }
+
+          if (key === "price") {
+            return (
+              <div key={key}>
+                <label className="text-xs text-white/60">
+                  Kaina (€){draft.priceLabel ? ` · ${draft.priceLabel}` : ""}
+                </label>
+                <input
+                  type="number"
+                  value={draft.price > 0 ? draft.price : ""}
+                  onChange={(e) =>
+                    onUpdate({ price: parseInt(e.target.value, 10) || 0 })
+                  }
+                  placeholder={needsPrice ? "Įveskite kainą" : undefined}
+                  className={`${inputClass} ${needsPrice ? "border-amber-400/40" : ""}`}
+                />
+              </div>
+            );
+          }
+
+          return (
+            <div key={key}>
+              <label className="text-xs text-white/60">{labels[key]}</label>
+              <input
+                type="text"
+                value={String(draft[key] ?? "")}
+                onChange={(e) => onUpdate({ [key]: e.target.value })}
+                className={inputClass}
+              />
+            </div>
+          );
+        })}
+      </div>
+    );
+  }
 
   return (
     <div className={variant === "compact" ? "space-y-2" : "space-y-3"}>

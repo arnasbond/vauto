@@ -54,6 +54,8 @@ export type CategoryAttributes = Record<string, string | string[] | undefined>;
 export interface AiExtractedListing {
   title: string;
   price: number;
+  /** Display override e.g. "30€/val" — common for services */
+  priceLabel?: string;
   location: string;
   contact: string;
   category: ListingCategory;

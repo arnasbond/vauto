@@ -718,6 +718,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       id: `l-${Date.now()}`,
       title: aiDraft.title,
       price: aiDraft.price,
+      priceLabel: aiDraft.priceLabel,
       location: aiDraft.location,
       distanceKm: distKm,
       slug: generateListingSlug(aiDraft.title, aiDraft.location),

@@ -6,8 +6,8 @@ import { AdaptiveConfirmation } from "@/components/adaptive-confirmation/Adaptiv
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 
 /**
- * AI Confirmation — adaptive layout per detected category
- * (Autoplius / Vinted / Paslaugos.lt / Aruodas / Skelbiu styles).
+ * AI patvirtinimo ekranas — naudoja `sellerStep` + `aiDraft` iš VautoContext
+ * (atitinka Gemini `detectedCategory` / `aiExtractedData` / `publishGeneratedListing`).
  */
 export function AiConfirmationScreen() {
   const {
