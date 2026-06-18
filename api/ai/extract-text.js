@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
       {
         role: "system",
         content:
-          "Ištrauk skelbimo duomenis iš lietuviško teksto. Jei kainos nėra — price: 0.",
+          "Ištrauk skelbimo duomenis iš lietuviško teksto. Nustatyk kategoriją (vehicles, clothing, services, real_estate, other) ir užpildyk attributes. Jei kainos nėra — price: 0.",
       },
       {
         role: "user",

@@ -21,6 +21,16 @@ const QUESTIONS: Record<ListingCategory | "default", string[]> = {
     "Ar kaina galutinė?",
     "Ar siunčiate?",
   ],
+  clothing: [
+    "Koks tikslus dydis?",
+    "Ar siunčiate?",
+    "Ar galima pasimatuoti?",
+  ],
+  real_estate: [
+    "Kada galima apžiūrėti?",
+    "Ar galima derėtis dėl kainos?",
+    "Ar yra hipoteka?",
+  ],
   other: [
     "Ar dar aktualu?",
     "Ar kaina galutinė?",

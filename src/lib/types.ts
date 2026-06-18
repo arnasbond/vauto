@@ -16,6 +16,8 @@ export interface Listing {
   hasVideo?: boolean;
   /** ISO date when listing stops appearing in feed */
   expiresAt?: string;
+  description?: string;
+  attributes?: CategoryAttributes;
 }
 
 export type ListingCategory =
@@ -23,9 +25,13 @@ export type ListingCategory =
   | "vehicles"
   | "services"
   | "home"
+  | "clothing"
+  | "real_estate"
   | "other";
 
-/** Fields extracted by the multimodal AI (GPT-4o mock) */
+export type CategoryAttributes = Record<string, string | string[] | undefined>;
+
+/** Fields extracted by the multimodal AI */
 export interface AiExtractedListing {
   title: string;
   price: number;
@@ -33,6 +39,8 @@ export interface AiExtractedListing {
   contact: string;
   category: ListingCategory;
   confidence: number;
+  description?: string;
+  attributes?: CategoryAttributes;
 }
 
 /** Seller flow states */

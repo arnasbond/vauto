@@ -15,9 +15,35 @@ const EXTRACTION_SCHEMA = `{
   "title": "string",
   "price": "number",
   "location": "string",
-  "category": "electronics | vehicles | services | home | other",
-  "confidence": "number 0-1"
+  "description": "string",
+  "category": "vehicles | clothing | services | real_estate | electronics | home | other",
+  "confidence": "number 0-1",
+  "attributes": "object with category-specific fields"
 }`;
+
+function parseAttributes(raw: unknown): Record<string, string | string[]> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string | string[]> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v == null || v === "") continue;
+    if (Array.isArray(v)) out[k] = v.map(String);
+    else out[k] = String(v);
+  }
+  return out;
+}
+
+function toListing(raw: Record<string, unknown>, userCity: string, contact: string) {
+  return {
+    title: String(raw.title ?? "Skelbimas"),
+    price: Number(raw.price) || 0,
+    location: String(raw.location ?? userCity),
+    contact,
+    category: String(raw.category ?? "other"),
+    description: raw.description ? String(raw.description) : undefined,
+    confidence: Number(raw.confidence) || 0.8,
+    attributes: parseAttributes(raw.attributes),
+  };
+}
 
 async function chatJson(
   key: string,
@@ -68,14 +94,7 @@ aiRouter.post("/extract-image", async (req, res) => {
         ],
       },
     ]);
-    res.json({
-      title: String(raw.title ?? "Skelbimas"),
-      price: Number(raw.price) || 0,
-      location: String(raw.location ?? userCity),
-      contact,
-      category: String(raw.category ?? "other"),
-      confidence: Number(raw.confidence) || 0.8,
-    });
+    res.json(toListing(raw, userCity, contact));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -95,21 +114,15 @@ aiRouter.post("/extract-text", async (req, res) => {
     const raw = await chatJson(key, [
       {
         role: "system",
-        content: "Ištrauk skelbimo duomenis iš lietuviško teksto. Jei kainos nėra — price: 0.",
+        content:
+          "Ištrauk skelbimo duomenis iš lietuviško teksto. Nustatyk kategoriją ir attributes laukus. Jei kainos nėra — price: 0.",
       },
       {
         role: "user",
         content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${userCity}`,
       },
     ]);
-    res.json({
-      title: String(raw.title ?? "Skelbimas"),
-      price: Number(raw.price) || 0,
-      location: String(raw.location ?? userCity),
-      contact,
-      category: String(raw.category ?? "other"),
-      confidence: Number(raw.confidence) || 0.8,
-    });
+    res.json(toListing(raw, userCity, contact));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

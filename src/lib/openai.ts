@@ -5,8 +5,10 @@ const EXTRACTION_SCHEMA = `{
   "title": "string — lietuviškas skelbimo pavadinimas",
   "price": "number — kaina eurais",
   "location": "string — Lietuvos miestas",
-  "category": "electronics | vehicles | services | home | other",
-  "confidence": "number 0-1"
+  "category": "electronics | vehicles | services | home | clothing | real_estate | other",
+  "confidence": "number 0-1",
+  "description": "string (optional)",
+  "attributes": "category-specific object"
 }`;
 
 async function chatJson(
@@ -41,6 +43,19 @@ async function chatJson(
   return JSON.parse(content);
 }
 
+function parseAttributes(
+  raw: unknown
+): Record<string, string | string[]> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string | string[]> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v === null || v === undefined || v === "") continue;
+    if (Array.isArray(v)) out[k] = v.map(String);
+    else out[k] = String(v);
+  }
+  return out;
+}
+
 function parseListing(
   raw: Record<string, unknown>,
   contact: string
@@ -51,6 +66,8 @@ function parseListing(
     "vehicles",
     "services",
     "home",
+    "clothing",
+    "real_estate",
     "other",
   ];
 
@@ -60,7 +77,9 @@ function parseListing(
     location: String(raw.location ?? "Panevėžys"),
     contact,
     category: valid.includes(category) ? category : "other",
+    description: raw.description ? String(raw.description) : undefined,
     confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.8)),
+    attributes: parseAttributes(raw.attributes),
   };
 }
 

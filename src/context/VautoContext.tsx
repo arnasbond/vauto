@@ -56,6 +56,7 @@ import {
 } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
+import { attributesToTags } from "@/lib/listing-attributes";
 import { parseVideoUrl } from "@/lib/video-url";
 import type {
   AiExtractedListing,
@@ -119,6 +120,10 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
   vehicles:
     "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=600&h=400&fit=crop",
   home: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&h=400&fit=crop",
+  clothing:
+    "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600&h=400&fit=crop",
+  real_estate:
+    "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop",
   other:
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
 };
@@ -468,7 +473,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, [resetSellerFlow]);
 
   const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
-    setAiDraft((prev) => (prev ? { ...prev, ...patch } : prev));
+    setAiDraft((prev) => {
+      if (!prev) return prev;
+      const next = { ...prev, ...patch };
+      if (patch.attributes) {
+        next.attributes = { ...(prev.attributes ?? {}), ...patch.attributes };
+      }
+      return next;
+    });
   }, []);
 
   const publishListing = useCallback(async () => {
@@ -511,7 +523,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         PLACEHOLDER_IMAGES[aiDraft.category] ??
         PLACEHOLDER_IMAGES.other,
       category: aiDraft.category,
-      tags: [],
+      tags: attributesToTags(aiDraft),
+      description: aiDraft.description,
+      attributes: aiDraft.attributes,
       sellerId: user.id,
       createdAt,
       expiresAt: defaultExpiresAt(createdAt),
