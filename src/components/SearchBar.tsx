@@ -8,7 +8,12 @@ import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
 import type { VoiceSession } from "@/lib/audio-session";
 
 export function SearchBar() {
-  const { searchQuery, setSearchQuery, requestMediaConsent } = useVauto();
+  const {
+    searchQuery,
+    setSearchQuery,
+    requestMediaConsent,
+    startListingFromQuery,
+  } = useVauto();
   const [isListening, setIsListening] = useState(false);
   const [session, setSession] = useState<VoiceSession | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -21,6 +26,11 @@ export function SearchBar() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (startListingFromQuery(searchQuery)) {
+      setSearchQuery("");
+      inputRef.current?.blur();
+      return;
+    }
     scrollToResults();
     inputRef.current?.blur();
   };
@@ -40,7 +50,14 @@ export function SearchBar() {
 
       try {
         const text = voiceSession ? await recordWithSession(voiceSession) : null;
-        if (text) setSearchQuery(text);
+        if (text) {
+          if (startListingFromQuery(text)) {
+            setSearchQuery("");
+          } else {
+            setSearchQuery(text);
+            scrollToResults();
+          }
+        }
       } finally {
         voiceSession?.release();
         setSession(null);
@@ -101,7 +118,7 @@ export function SearchBar() {
             />
             <p className="text-sm font-semibold text-white">Klausomasi...</p>
             <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
-              Pasakykite ką ieškote
+              Pasakykite ką ieškote arba ką norite parduoti
             </p>
           </div>
         </div>

@@ -10,13 +10,30 @@ import { useVauto } from "@/context/VautoContext";
 
 export default function AddPage() {
   const router = useRouter();
-  const { isAuthenticated, requireAuthForListing } = useVauto();
+  const {
+    isAuthenticated,
+    requireAuthForListing,
+    consumePendingSellerQuery,
+    submitSellerContent,
+    sellerStep,
+  } = useVauto();
 
   useEffect(() => {
     if (!isAuthenticated) {
       requireAuthForListing("/add");
+      return;
     }
-  }, [isAuthenticated, requireAuthForListing]);
+    const pending = consumePendingSellerQuery();
+    if (pending && sellerStep === "idle") {
+      void submitSellerContent({ text: pending });
+    }
+  }, [
+    isAuthenticated,
+    requireAuthForListing,
+    consumePendingSellerQuery,
+    submitSellerContent,
+    sellerStep,
+  ]);
 
   if (!isAuthenticated) {
     return (

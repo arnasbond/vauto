@@ -269,6 +269,36 @@ export function detectPurchaseIntent(text: string): boolean {
   return keywords.some((kw) => lower.includes(kw));
 }
 
+/** User wants to post a listing (sell, offer job, offer services) — not browse */
+export function detectSellerListingIntent(text: string): boolean {
+  const q = text.toLowerCase().trim();
+  if (!q) return false;
+
+  const sellerPatterns = [
+    /\bparduod\w*\b/,
+    /\bparduot\w*\b/,
+    /\bnoriu\s+parduot/i,
+    /\bįdėti\s+skelb/i,
+    /\bideti\s+skelb/i,
+    /\bnaujas\s+skelb/i,
+    /\bsiūlau\s+darb/i,
+    /\bsiulau\s+darb/i,
+    /\bieškau\s+darbo\b/i,
+    /\bieskau\s+darbo\b/i,
+    /\bsiūlau\s+paslaug/i,
+    /\bsiulau\s+paslaug/i,
+    /\bteikiu\s+paslaug/i,
+    /\bnuomoju\b/,
+    /\bišnuomoju\b/,
+    /\bisnuomoju\b/,
+    /\bnoriu\s+įdėti\b/i,
+    /\bnoriu\s+ideti\b/i,
+    /\bnoriu\s+parduoti\b/i,
+  ];
+
+  return sellerPatterns.some((re) => re.test(q));
+}
+
 export function resolveSortMode(
   activeFilterIds: Set<string>
 ): "default" | "newest" | "cheapest" | "closest" {

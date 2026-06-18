@@ -18,6 +18,7 @@ import {
 import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
   detectPurchaseIntent,
+  detectSellerListingIntent,
   generateDynamicFilters,
   rankListings,
   resolveSortMode,
@@ -150,6 +151,10 @@ interface VautoContextValue {
     imageDataUrl?: string | null;
     videoUrl?: string;
   }) => Promise<void>;
+  /** Voice/text on home search that expresses sell/post intent → listing flow */
+  startListingFromQuery: (text: string) => boolean;
+  pendingSellerQuery: string | null;
+  consumePendingSellerQuery: () => string | null;
 
   chats: ChatThread[];
   sendMessage: (chatId: string, text: string) => void;
@@ -377,6 +382,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     null
   );
   const [sellerVideoUrl, setSellerVideoUrl] = useState("");
+  const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(
+    null
+  );
   const [sellerHasVideo, setSellerHasVideo] = useState(false);
 
   useEffect(() => {
@@ -651,6 +659,28 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     },
     [runAiProcessing, requireAuthForListing]
   );
+
+  const startListingFromQuery = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed || !detectSellerListingIntent(trimmed)) return false;
+
+      if (!requireAuthForListing("/add")) {
+        setPendingSellerQuery(trimmed);
+        return true;
+      }
+
+      void submitSellerContent({ text: trimmed });
+      return true;
+    },
+    [requireAuthForListing, submitSellerContent]
+  );
+
+  const consumePendingSellerQuery = useCallback(() => {
+    const q = pendingSellerQuery;
+    if (q) setPendingSellerQuery(null);
+    return q;
+  }, [pendingSellerQuery]);
 
   const completeVoiceRecording = useCallback(
     (transcript: string | null) => {
@@ -1342,6 +1372,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     publishListing,
     cancelSellerFlow,
     submitSellerContent,
+    startListingFromQuery,
+    pendingSellerQuery,
+    consumePendingSellerQuery,
     chats,
     sendMessage,
     startChat,

@@ -68,6 +68,8 @@ function parseTranscript(text: string): AiExtractedListing {
     result.priceLabel = "€/val";
   } else if (category === "real_estate" && /nuom/i.test(text)) {
     result.priceLabel = "€/mėn";
+  } else if (category === "jobs" && /mėn|men/i.test(text)) {
+    result.priceLabel = "€/mėn";
   }
 
   return result;
@@ -92,6 +94,8 @@ function extractPrice(text: string, category: ListingCategory): number {
       return 25;
     case "real_estate":
       return 72000;
+    case "jobs":
+      return 900;
     case "services":
       return 20;
     default:
@@ -110,8 +114,11 @@ function detectCategory(text: string): ListingCategory {
   if (/suknel|batai|zara|rubas|drabuž|marškin|striuk|nike|dydis|būklė/i.test(t)) {
     return "clothing";
   }
-  if (/butas|namas|sklypas|nuoma|kambar|kv\.?m|aukštas|nt\b|nekilnojam/i.test(t)) {
+  if (/butas|namas|sklypas|nuomoju|kambar|kv\.?m|aukštas|nt\b|nekilnojam/i.test(t)) {
     return "real_estate";
+  }
+  if (/darbas|darbo|atlygin|etat|ieškau darbo|siūlau darb/i.test(t)) {
+    return "jobs";
   }
   if (
     /pjaut|žol|elektrik|meistr|paslaug|remont|valym|sąskait/i.test(t)
@@ -185,6 +192,16 @@ function mockAttributesForCategory(
             ? "Autonominis"
             : "Autonominis",
       };
+    case "jobs":
+      return {
+        jobType: /siūlau darb|siulau darb/i.test(text)
+          ? "Siūlau darbą"
+          : "Ieškau darbo",
+        employmentType: /pilnas etat/i.test(text) ? "Pilnas etatas" : "Derinamas",
+        salaryType: /mėn|men/i.test(text) ? "Mėnesinis" : "Derinamas",
+        schedule: "",
+        requirements: "",
+      };
     default:
       return {};
   }
@@ -204,6 +221,10 @@ function extractTitle(text: string, category: ListingCategory): string {
         : /elektrik/i.test(text)
           ? "Elektros paslaugos"
           : "Profesionali paslauga";
+    case "jobs":
+      return /siūlau darb|siulau darb/i.test(text)
+        ? "Siūlomas darbas"
+        : "Ieškau darbo";
     case "electronics":
       return "Mobilus telefonas";
     case "home":
