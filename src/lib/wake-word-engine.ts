@@ -1,4 +1,6 @@
 import { logBuddyState } from "@/lib/buddy-voice";
+import { isMobileDevice, isNativeApp } from "@/lib/mobile-install";
+import { isAppForeground } from "@/lib/app-visibility";
 import type {
   BrowserSpeechRecognition,
   SpeechRecognitionErrorEvent,
@@ -24,6 +26,17 @@ export function isSpeechRecognitionSupported(): boolean {
   if (typeof window === "undefined") return false;
   return Boolean(window.SpeechRecognition ?? window.webkitSpeechRecognition);
 }
+
+/** Continuous background mic is unreliable on phones — desktop Chrome/Edge only. */
+export function isWakeWordBackgroundSupported(): boolean {
+  if (!isSpeechRecognitionSupported()) return false;
+  if (isNativeApp() || isMobileDevice()) return false;
+  return true;
+}
+
+const RESTART_DEBOUNCE_MS = 600;
+const MAX_RAPID_RESTARTS = 6;
+const RESTART_COOLDOWN_MS = 8_000;
 
 /** Neon-pulsing wake ping via Web Audio API */
 export function playWakePing(): void {
@@ -78,6 +91,8 @@ export interface WakeWordSessionCallbacks {
 export interface WakeWordSession {
   start: () => void;
   stop: () => void;
+  pause: () => void;
+  resume: () => void;
   isRunning: () => boolean;
 }
 
@@ -87,14 +102,23 @@ export function createWakeWordSession(
   const Ctor = getRecognitionCtor();
   let recognition: BrowserSpeechRecognition | null = null;
   let running = false;
+  let paused = false;
   let phase: WakeWordPhase = "off";
   let activeTimer: ReturnType<typeof setTimeout> | null = null;
+  let restartTimer: ReturnType<typeof setTimeout> | null = null;
   let shouldRestart = false;
+  let rapidRestartCount = 0;
+  let lastRestartAt = 0;
 
   const setPhase = (next: WakeWordPhase) => {
     phase = next;
     callbacks.onPhaseChange(next);
     logWakeEvent("phase_change", { phase: next });
+  };
+
+  const clearRestartTimer = () => {
+    if (restartTimer) clearTimeout(restartTimer);
+    restartTimer = null;
   };
 
   const clearActiveTimer = () => {
@@ -162,14 +186,45 @@ export function createWakeWordSession(
       callbacks.onError(ev.error);
     };
     rec.onend = () => {
-      if (shouldRestart && running && phase !== "off") {
+      if (!shouldRestart || !running || paused || phase === "off") return;
+
+      const now = Date.now();
+      if (now - lastRestartAt < RESTART_DEBOUNCE_MS) {
+        rapidRestartCount += 1;
+      } else {
+        rapidRestartCount = 0;
+      }
+      lastRestartAt = now;
+
+      if (rapidRestartCount >= MAX_RAPID_RESTARTS) {
+        logWakeEvent("recognition_restart_throttled", {
+          cooldownMs: RESTART_COOLDOWN_MS,
+        });
+        clearRestartTimer();
+        restartTimer = setTimeout(() => {
+          rapidRestartCount = 0;
+          if (shouldRestart && running && !paused) {
+            try {
+              rec.start();
+              logWakeEvent("recognition_restarted_after_cooldown");
+            } catch {
+              /* already started */
+            }
+          }
+        }, RESTART_COOLDOWN_MS);
+        return;
+      }
+
+      clearRestartTimer();
+      restartTimer = setTimeout(() => {
+        if (!shouldRestart || !running || paused) return;
         try {
           rec.start();
           logWakeEvent("recognition_restarted");
         } catch {
           /* already started */
         }
-      }
+      }, RESTART_DEBOUNCE_MS);
     };
     rec.onstart = () => logWakeEvent("recognition_started", { phase });
 
@@ -184,8 +239,10 @@ export function createWakeWordSession(
         callbacks.onError("SpeechRecognition unsupported");
         return;
       }
+      paused = false;
       shouldRestart = true;
       running = true;
+      rapidRestartCount = 0;
       setPhase("passive");
       logBuddyState("listening", { context: "wake_word_passive" });
       try {
@@ -196,8 +253,10 @@ export function createWakeWordSession(
     },
     stop() {
       shouldRestart = false;
+      paused = false;
       running = false;
       clearActiveTimer();
+      clearRestartTimer();
       setPhase("off");
       logBuddyState("idle", { context: "wake_word_stopped" });
       try {
@@ -206,6 +265,41 @@ export function createWakeWordSession(
         /* ignore */
       }
       recognition = null;
+    },
+    pause() {
+      if (!running || paused) return;
+      paused = true;
+      shouldRestart = false;
+      clearActiveTimer();
+      clearRestartTimer();
+      setPhase("suspended");
+      logBuddyState("idle", { context: "wake_word_suspended" });
+      try {
+        recognition?.abort();
+      } catch {
+        /* ignore */
+      }
+    },
+    resume() {
+      if (!running || !paused) return;
+      paused = false;
+      shouldRestart = true;
+      rapidRestartCount = 0;
+      if (!recognition) recognition = bindRecognition();
+      if (!recognition) return;
+      setPhase("passive");
+      logBuddyState("listening", { context: "wake_word_passive" });
+      try {
+        recognition.start();
+      } catch (e) {
+        logWakeEvent("resume_error", { error: String(e) });
+        recognition = bindRecognition();
+        try {
+          recognition?.start();
+        } catch {
+          /* ignore */
+        }
+      }
     },
     isRunning: () => running,
   };
@@ -216,6 +310,11 @@ export function resumePassivePhase(
   session: WakeWordSession,
   onPhase: (p: WakeWordPhase) => void
 ) {
+  if (!isAppForeground()) {
+    onPhase("suspended");
+    return;
+  }
   onPhase("passive");
   if (!session.isRunning()) session.start();
+  else session.resume();
 }

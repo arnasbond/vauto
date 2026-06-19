@@ -42,7 +42,12 @@ export interface BrowserSpeechRecognition extends EventTarget {
   onstart: ((ev: Event) => void) | null;
 }
 
-export type WakeWordPhase = "off" | "passive" | "active" | "processing";
+export type WakeWordPhase =
+  | "off"
+  | "passive"
+  | "active"
+  | "processing"
+  | "suspended";
 
 declare global {
   interface Window {

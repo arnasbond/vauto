@@ -20,10 +20,12 @@ import { logAnalytics } from "@/lib/analytics";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
   createWakeWordSession,
+  isWakeWordBackgroundSupported,
   logWakeEvent,
   resumePassivePhase,
   type WakeWordSession,
 } from "@/lib/wake-word-engine";
+import { subscribeAppVisibility, isAppForeground } from "@/lib/app-visibility";
 import type { WakeWordPhase } from "@/lib/wake-word-types";
 import {
   executeVoiceIntent,
@@ -82,6 +84,13 @@ export function WakeWordProvider({
 
   useEffect(() => {
     if (!deps.hydrated) return;
+    if (!isWakeWordBackgroundSupported()) {
+      if (loadWakeWordEnabled()) {
+        saveWakeWordEnabled(false);
+        logWakeEvent("disabled_unsupported_device");
+      }
+      return;
+    }
     if (deps.gdprConsent && loadWakeWordEnabled()) {
       setWakeWordEnabledState(true);
     }
@@ -107,6 +116,13 @@ export function WakeWordProvider({
     (enabled: boolean) => {
       if (!enabled) {
         disableWakeWordInstantly();
+        return;
+      }
+      if (!isWakeWordBackgroundSupported()) {
+        depsRef.current.showToast(
+          "Budintis režimas fone telefone nepalaikomas — naudokite balso mygtuką paieškoje arba pranešimus",
+          "info"
+        );
         return;
       }
       setWakeWordEnabledState(true);
@@ -151,8 +167,13 @@ export function WakeWordProvider({
         setWakeWordTranscript(undefined);
         setWakeWordStatusText(undefined);
         const session = wakeWordSessionRef.current;
-        if (session) resumePassivePhase(session, setWakeWordPhase);
-        else setWakeWordPhase("passive");
+        if (session?.isRunning() && isAppForeground()) {
+          resumePassivePhase(session, setWakeWordPhase);
+        } else if (session?.isRunning()) {
+          setWakeWordPhase("suspended");
+        } else {
+          setWakeWordPhase("passive");
+        }
       },
     });
 
@@ -164,6 +185,7 @@ export function WakeWordProvider({
   useEffect(() => {
     actionsRef.current = {
       enableAfterGdprConsent: () => {
+        if (!isWakeWordBackgroundSupported()) return;
         setWakeWordEnabledState(true);
         saveWakeWordEnabled(true);
         void requestNotificationPermission();
@@ -185,7 +207,12 @@ export function WakeWordProvider({
   }, [actionsRef]);
 
   useEffect(() => {
-    if (!deps.hydrated || !wakeWordEnabled || !deps.gdprConsent) {
+    if (
+      !deps.hydrated ||
+      !wakeWordEnabled ||
+      !deps.gdprConsent ||
+      !isWakeWordBackgroundSupported()
+    ) {
       wakeWordSessionRef.current?.stop();
       wakeWordSessionRef.current = null;
       if (!wakeWordEnabled) setWakeWordPhase("off");
@@ -210,9 +237,27 @@ export function WakeWordProvider({
 
     wakeWordSessionRef.current = session;
     session.start();
-    logWakeEvent("session_started");
+    if (!isAppForeground()) {
+      session.pause();
+      logWakeEvent("session_started_suspended");
+    } else {
+      logWakeEvent("session_started");
+    }
+
+    const unsubVisibility = subscribeAppVisibility((foreground) => {
+      const s = wakeWordSessionRef.current;
+      if (!s?.isRunning()) return;
+      if (foreground) {
+        s.resume();
+        logWakeEvent("session_resumed_foreground");
+      } else {
+        s.pause();
+        logWakeEvent("session_paused_background");
+      }
+    });
 
     return () => {
+      unsubVisibility();
       session.stop();
       wakeWordSessionRef.current = null;
     };

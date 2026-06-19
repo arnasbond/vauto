@@ -2,7 +2,11 @@
 
 import { Mic, MicOff, Radio } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
-import { isSpeechRecognitionSupported } from "@/lib/wake-word-engine";
+import {
+  isSpeechRecognitionSupported,
+  isWakeWordBackgroundSupported,
+} from "@/lib/wake-word-engine";
+import { isMobileDevice, isNativeApp } from "@/lib/mobile-install";
 
 export function WakeWordSettingsCard() {
   const {
@@ -13,7 +17,8 @@ export function WakeWordSettingsCard() {
     disableWakeWordInstantly,
   } = useVauto();
 
-  const supported = isSpeechRecognitionSupported();
+  const supported = isWakeWordBackgroundSupported();
+  const onPhone = isMobileDevice() || isNativeApp();
 
   const handleToggle = () => {
     if (wakeWordEnabled) {
@@ -31,13 +36,21 @@ export function WakeWordSettingsCard() {
       </div>
 
       <p className="text-xs leading-relaxed text-slate-400">
-        Budintis režimas fone (Pasakykite &ldquo;Vauto&rdquo;). Mikrofonas fone analizuoja tik
-        raktažodį — pokalbiai neįrašinėjami.
+        Budintis režimas — pasakykite &ldquo;Vauto&rdquo; kompiuterio naršyklėje.
+        Telefone naudokite balso mygtuką paieškoje arba push pranešimus.
       </p>
 
-      {!supported && (
+      {onPhone && (
         <p className="mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
-          Ši naršyklė nepalaiko balso atpažinimo fone. Naudokite Chrome arba Edge.
+          Telefone nuolatinis mikrofonas fone nestabilus (mirksi indikatorius, lagina).
+          Budintis režimas čia išjungtas — balso paieškai spauskite mikrofono ikoną pagrindiniame
+          ekrane.
+        </p>
+      )}
+
+      {!onPhone && !isSpeechRecognitionSupported() && (
+        <p className="mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+          Ši naršyklė nepalaiko balso atpažinimo fone. Naudokite Chrome arba Edge kompiuteryje.
         </p>
       )}
 
@@ -49,7 +62,7 @@ export function WakeWordSettingsCard() {
             <MicOff className="h-4 w-4 text-slate-500" />
           )}
           <span className="text-xs text-slate-300">
-            Budintis režimas fone (Pasakykite &ldquo;Vauto&rdquo;)
+            Budintis režimas (tik desktop)
           </span>
         </div>
         <button
@@ -87,7 +100,9 @@ export function WakeWordSettingsCard() {
         Būsena:{" "}
         {wakeWordEnabled
           ? wakeWordPhase === "passive"
-            ? 'Klausoma fone — pasakykite "Vauto"'
+            ? 'Klausoma — pasakykite "Vauto"'
+            : wakeWordPhase === "suspended"
+              ? "Pristabdyta (programėlė fone — mikrofonas išjungtas)"
             : wakeWordPhase === "active"
               ? "Aktyvus klausymas"
               : wakeWordPhase === "processing"
