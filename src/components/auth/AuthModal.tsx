@@ -4,11 +4,15 @@ import { useState } from "react";
 import { Apple, Phone, Shield, X } from "lucide-react";
 import type { AuthProvider, ProBusinessType, UserRole } from "@/lib/types";
 import { ADMIN_EMAIL } from "@/lib/reports";
+import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 
 type AuthStep = "methods" | "phone" | "otp" | "role" | "admin";
 
 interface AuthModalProps {
   open: boolean;
+  loading?: boolean;
+  error?: string | null;
+  onClearError?: () => void;
   onClose: () => void;
   onComplete: (data: {
     provider: AuthProvider;
@@ -16,6 +20,7 @@ interface AuthModalProps {
     role: UserRole;
     businessType?: ProBusinessType;
     email?: string;
+    otp?: string;
   }) => void;
 }
 
@@ -42,7 +47,14 @@ function GoogleIcon() {
   );
 }
 
-export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
+export function AuthModal({
+  open,
+  loading = false,
+  error,
+  onClearError,
+  onClose,
+  onComplete,
+}: AuthModalProps) {
   const [step, setStep] = useState<AuthStep>("methods");
   const [phone, setPhone] = useState("+370 ");
   const [otp, setOtp] = useState("");
@@ -50,6 +62,8 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
   const [businessType, setBusinessType] = useState<ProBusinessType>("general");
   const [pendingProvider, setPendingProvider] = useState<AuthProvider>("google");
   const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
+  const [otpSending, setOtpSending] = useState(false);
+  const [otpError, setOtpError] = useState<string | null>(null);
 
   if (!open) return null;
 
@@ -57,6 +71,7 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
     onComplete({
       provider,
       phone: provider === "phone" ? phone : undefined,
+      otp: provider === "phone" ? otp : undefined,
       role,
       businessType: role === "pro" ? businessType : undefined,
     });
@@ -65,16 +80,40 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
   };
 
   const handleSocial = (provider: "google" | "apple") => {
+    onClearError?.();
     setPendingProvider(provider);
     setStep("role");
   };
 
-  const verifyOtp = () => {
-    if (otp.trim() === "123456" || otp.length >= 4) {
-      setPendingProvider("phone");
-      setStep("role");
+  const sendOtp = async () => {
+    setOtpError(null);
+    onClearError?.();
+    setOtpSending(true);
+    try {
+      if (isAuthApiAvailable()) {
+        const res = await apiSendOtp(phone);
+        if (!res.ok) {
+          setOtpError(res.error);
+          return;
+        }
+      }
+      setStep("otp");
+    } finally {
+      setOtpSending(false);
     }
   };
+
+  const verifyOtp = () => {
+    onClearError?.();
+    if (!otp.trim() || otp.length < 4) {
+      setOtpError("Įveskite 6 skaitmenų kodą");
+      return;
+    }
+    setPendingProvider("phone");
+    setStep("role");
+  };
+
+  const displayError = error ?? otpError;
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
@@ -96,17 +135,25 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
             type="button"
             onClick={onClose}
             className="rounded-full p-2 text-slate-400 hover:bg-white/10"
+            aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
+
+        {displayError && (
+          <p className="mb-4 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-200">
+            {displayError}
+          </p>
+        )}
 
         {step === "methods" && (
           <div className="space-y-3">
             <button
               type="button"
               onClick={() => handleSocial("google")}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-100"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
             >
               <GoogleIcon />
               Prisijungti su Google
@@ -114,7 +161,8 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
             <button
               type="button"
               onClick={() => handleSocial("apple")}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"
             >
               <Apple className="h-5 w-5" />
               Prisijungti su Apple
@@ -122,14 +170,21 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
             <button
               type="button"
               onClick={() => setStep("phone")}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--vauto-teal)]/20 py-3.5 text-sm font-semibold text-[var(--vauto-teal)] ring-1 ring-[var(--vauto-teal)]/40 transition hover:bg-[var(--vauto-teal)]/30"
+              disabled={loading}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--vauto-teal)]/20 py-3.5 text-sm font-semibold text-[var(--vauto-teal)] ring-1 ring-[var(--vauto-teal)]/40 transition hover:bg-[var(--vauto-teal)]/30 disabled:opacity-60"
             >
               <Phone className="h-5 w-5" />
               Prisijungti su telefonu
             </button>
-            <p className="pt-2 text-center text-xs text-slate-500">
-              Demo: SMS kodas <span className="font-mono text-teal-400">123456</span>
-            </p>
+            {isAuthApiAvailable() ? (
+              <p className="pt-2 text-center text-xs text-slate-500">
+                OTP kodas siunčiamas per Vauto serverį
+              </p>
+            ) : (
+              <p className="pt-2 text-center text-xs text-slate-500">
+                Demo režimas: kodas <span className="font-mono text-teal-400">123456</span>
+              </p>
+            )}
             <button
               type="button"
               onClick={() => setStep("admin")}
@@ -162,7 +217,7 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
                   setStep("methods");
                 }
               }}
-              disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL}
+              disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
               className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
             >
               Prisijungti kaip admin
@@ -188,10 +243,11 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
             />
             <button
               type="button"
-              onClick={() => setStep("otp")}
-              className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white"
+              onClick={() => void sendOtp()}
+              disabled={otpSending}
+              className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
             >
-              Siųsti kodą
+              {otpSending ? "Siunčiama…" : "Siųsti kodą"}
             </button>
           </div>
         )}
@@ -275,9 +331,10 @@ export function AuthModal({ open, onClose, onComplete }: AuthModalProps) {
             <button
               type="button"
               onClick={() => finish(pendingProvider)}
-              className="w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white"
+              disabled={loading}
+              className="w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
             >
-              Pradėti naudoti Vauto
+              {loading ? "Jungiamasi…" : "Pradėti naudoti Vauto"}
             </button>
           </div>
         )}

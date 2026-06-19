@@ -1,4 +1,5 @@
 import { Router } from "express";
+import type { AuthedRequest } from "../middleware/auth.js";
 import {
   deleteListing,
   getBannedUserIds,
@@ -30,6 +31,10 @@ import type {
 } from "../types.js";
 
 export const apiRouter = Router();
+
+function actorId(req: AuthedRequest): string {
+  return req.authUserId ?? String(req.headers["x-user-id"] ?? "");
+}
 
 apiRouter.get("/health", (_req, res) => {
   res.json({ ok: true, service: "vauto-api" });
@@ -66,7 +71,7 @@ apiRouter.post("/listings", async (req, res) => {
 
 apiRouter.delete("/listings/:id", async (req, res) => {
   try {
-    const sellerId = String(req.headers["x-user-id"] ?? "");
+    const sellerId = actorId(req as AuthedRequest);
     const ok = await deleteListing(req.params.id, sellerId);
     res.status(ok ? 204 : 404).end();
   } catch (e) {
@@ -76,7 +81,7 @@ apiRouter.delete("/listings/:id", async (req, res) => {
 
 apiRouter.post("/listings/:id/renew", async (req, res) => {
   try {
-    const sellerId = String(req.headers["x-user-id"] ?? "");
+    const sellerId = actorId(req as AuthedRequest);
     const listing = await renewListing(req.params.id, sellerId);
     if (!listing) return res.status(404).json({ error: "Not found" });
     res.json(listing);
@@ -87,7 +92,7 @@ apiRouter.post("/listings/:id/renew", async (req, res) => {
 
 apiRouter.patch("/listings/:id", async (req, res) => {
   try {
-    const sellerId = String(req.headers["x-user-id"] ?? "");
+    const sellerId = actorId(req as AuthedRequest);
     const listing = await updateListing(
       req.params.id,
       sellerId,
@@ -168,6 +173,11 @@ apiRouter.get("/users/:id", async (req, res) => {
 
 apiRouter.put("/users/:id", async (req, res) => {
   try {
+    const authed = req as AuthedRequest;
+    if (authed.authUserId && authed.authUserId !== req.params.id) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
     const user = req.body as ApiUser;
     await upsertUser({ ...user, id: req.params.id });
     res.json(user);

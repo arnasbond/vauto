@@ -6,13 +6,17 @@ import { runMigrations } from "./migrate.js";
 import { seedIfEmpty } from "./seed-runtime.js";
 import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
+import { authRouter } from "./routes/auth.js";
+import { optionalAuth } from "./middleware/auth.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
 app.use(cors({ origin: true }));
 app.use(express.json({ limit: "15mb" }));
+app.use(optionalAuth);
 
+app.use("/api/auth", authRouter);
 app.use("/api", apiRouter);
 app.use("/api/ai", aiRouter);
 

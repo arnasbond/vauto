@@ -147,6 +147,8 @@ export interface AuthSession {
   isAuthenticated: boolean;
   provider?: AuthProvider;
   loggedInAt?: string;
+  accessToken?: string;
+  expiresAt?: string;
 }
 
 export interface ServiceBooking {

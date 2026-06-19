@@ -48,7 +48,6 @@ import {
   loadPushAlertsEnabled,
   savePushAlertsEnabled,
   loadUser,
-  saveAuthSession,
   saveBannedUserIds,
   saveChats,
   saveGdprConsent,
@@ -61,8 +60,6 @@ import {
   saveWakeWordEnabled,
   saveAlertQueries,
   savePushAlertsSeen,
-  saveUser,
-  clearAuthSession,
 } from "@/lib/storage";
 import { capturePhoto } from "@/lib/native-media";
 import { distanceToCity, getUserCoords, type UserCoords } from "@/lib/geolocation";
@@ -115,12 +112,10 @@ import {
 } from "@/lib/ai-safeguards";
 import type {
   AiExtractedListing,
-  AuthProvider,
   ChatMessage,
   ChatThread,
   EscrowTransaction,
   Listing,
-  ProBusinessType,
   ReportCategory,
   ReportStatus,
   SellerFlowStep,
@@ -128,7 +123,6 @@ import type {
   SupportReport,
   SellerReview,
   UserProfile,
-  UserRole,
 } from "@/lib/types";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
 import { bumpListingMetric, aggregateSellerMetrics } from "@/lib/listing-analytics";
@@ -138,11 +132,11 @@ import {
   recordSearchIntent,
   type SearchIntentEvent,
 } from "@/lib/search-intent";
-import { ADMIN_EMAIL, categoryToUrgency } from "@/lib/reports";
+import { categoryToUrgency } from "@/lib/reports";
 import { DEMO_REPORTS } from "@/data/mockReports";
 import { DEMO_REVIEWS } from "@/data/mockReviews";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
-import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
+import { useAuth, type LoginPayload } from "@/context/AuthContext";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { logAnalytics } from "@/lib/analytics";
 import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
@@ -155,7 +149,6 @@ import {
   type ChameleonThemeId,
 } from "@/lib/chameleon-themes";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
-import { resolveStableUserId } from "@/lib/user-id";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { WakeWordHost } from "@/components/voice/WakeWordHost";
@@ -254,13 +247,7 @@ interface VautoContextValue {
   closeAuthModal: () => void;
   clearAuthRedirect: () => void;
   requireAuthForListing: (redirectPath?: string) => boolean;
-  login: (data: {
-    provider: AuthProvider;
-    phone?: string;
-    role: UserRole;
-    businessType?: ProBusinessType;
-    email?: string;
-  }) => void;
+  login: (data: LoginPayload) => Promise<void>;
   logout: () => void;
   topUpWallet: (amount: number) => void;
   promoteListing: (listingId: string, cost: number) => boolean;
@@ -390,11 +377,24 @@ function applyBuyerDistances(
 }
 
 export function VautoProvider({ children }: { children: ReactNode }) {
+  const {
+    user,
+    isAuthenticated,
+    isAdmin,
+    updateUser: patchAuthUser,
+    openAuthModal,
+    closeAuthModal,
+    clearAuthRedirect,
+    requireAuthForListing,
+    login,
+    logout,
+    authModalOpen,
+    authRedirectPath,
+  } = useAuth();
+
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [user, setUser] = useState<UserProfile>(ANONYMOUS_USER);
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
@@ -411,8 +411,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [buyerCoords, setBuyerCoords] = useState<UserCoords | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
   const [gdprModalOpen, setGdprModalOpen] = useState(false);
-  const [authModalOpen, setAuthModalOpen] = useState(false);
-  const [authRedirectPath, setAuthRedirectPath] = useState<string | null>(null);
   const [reviews, setReviews] = useState<SellerReview[]>(DEMO_REVIEWS);
   const [searchIntentEvents, setSearchIntentEvents] = useState<SearchIntentEvent[]>([]);
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
@@ -481,13 +479,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         else errors.push(chatsRes.error);
         if (savedRes.ok) setSavedIds(new Set(savedRes.data));
         else errors.push(savedRes.error);
-        if (userRes.ok && auth?.isAuthenticated) setUser(userRes.data);
-        else if (storedUser && auth?.isAuthenticated) setUser(storedUser);
-        else setUser(ANONYMOUS_USER);
+        if (userRes.ok && auth?.isAuthenticated) {
+          patchAuthUser(userRes.data);
+        } else if (storedUser && auth?.isAuthenticated) {
+          patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
+        }
         if (reportsRes.ok && reportsRes.data.length) setReports(reportsRes.data);
         else if (reportsRes.ok) setReports(DEMO_REPORTS);
+        else errors.push(reportsRes.error);
         if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
-        if (auth?.isAuthenticated) setIsAuthenticated(true);
+        else errors.push(bannedRes.error);
 
         const storedReviews = loadReviews();
         if (storedReviews?.length) setReviews(storedReviews);
@@ -517,11 +518,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const storedSaved = loadSavedIds();
       const storedReports = loadReports();
       const storedBanned = loadBannedUserIds();
-      if (auth?.isAuthenticated) {
-        setIsAuthenticated(true);
-        if (storedUser) setUser({ role: "private", walletBalance: 0, ...storedUser });
-      } else {
-        setUser(ANONYMOUS_USER);
+      if (auth?.isAuthenticated && storedUser) {
+        patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
       }
       if (storedListings?.length) {
         setListings(normalizeListings(storedListings));
@@ -549,11 +547,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
     void load();
   }, []);
-
-  useEffect(() => {
-    if (!hydrated || apiActive || !isAuthenticated) return;
-    saveUser(user);
-  }, [user, hydrated, apiActive, isAuthenticated]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -619,46 +612,22 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const clearSyncError = useCallback(() => setSyncError(null), []);
 
-  const openAuthModal = useCallback((redirectPath = "/add") => {
-    setAuthRedirectPath(redirectPath);
-    setAuthModalOpen(true);
-  }, []);
-
-  const closeAuthModal = useCallback(() => {
-    setAuthModalOpen(false);
-  }, []);
-
-  const clearAuthRedirect = useCallback(() => {
-    setAuthRedirectPath(null);
-  }, []);
-
-  const requireAuthForListing = useCallback(
-    (redirectPath = "/add") => {
-      if (isAuthenticated) return true;
-      openAuthModal(redirectPath);
-      return false;
-    },
-    [isAuthenticated, openAuthModal]
-  );
-
-  const updateUser = useCallback((patch: Partial<UserProfile>) => {
-    setUser((prev) => {
-      const next = { ...prev, ...patch };
+  const updateUser = useCallback(
+    (patch: Partial<UserProfile>) => {
+      patchAuthUser(patch);
       if (isDataApiEnabled()) {
-        void apiUpdateUser(next).then((r) => {
+        void apiUpdateUser({ ...user, ...patch }).then((r) => {
           if (!r.ok) setSyncError(`Profilis neišsaugotas: ${r.error}`);
         });
       }
-      return next;
-    });
-  }, []);
+    },
+    [patchAuthUser, user]
+  );
 
   const dynamicFilters = useMemo(
     () => generateDynamicFilters(searchQuery),
     [searchQuery]
   );
-
-  const isAdmin = user.role === "admin" || user.email === ADMIN_EMAIL;
 
   const visibleListings = useMemo(
     () =>
@@ -1790,91 +1759,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const login = useCallback(
-    (data: {
-      provider: AuthProvider;
-      phone?: string;
-      role: UserRole;
-      businessType?: ProBusinessType;
-      email?: string;
-    }) => {
-      if (data.email === ADMIN_EMAIL || data.role === "admin") {
-        const adminUser: UserProfile = {
-          id: "admin-1",
-          name: "Vauto Admin",
-          email: ADMIN_EMAIL,
-          avatar:
-            "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
-          phone: "+370 600 00001",
-          city: "Vilnius",
-          authProvider: data.provider,
-          role: "admin",
-          walletBalance: 0,
-        };
-        setUser(adminUser);
-        setIsAuthenticated(true);
-        saveUser(adminUser);
-        saveAuthSession({
-          isAuthenticated: true,
-          provider: data.provider,
-          loggedInAt: new Date().toISOString(),
+  const topUpWallet = useCallback(
+    (amount: number) => {
+      patchAuthUser({ walletBalance: (user.walletBalance ?? 0) + amount });
+      if (apiActive) {
+        void apiUpdateUser({
+          ...user,
+          walletBalance: (user.walletBalance ?? 0) + amount,
+        }).then((r) => {
+          if (!r.ok) setSyncError(`Piniginė neišsaugota: ${r.error}`);
         });
-        return;
       }
-
-      const names: Record<AuthProvider, string> = {
-        google: "Google vartotojas",
-        apple: "Apple vartotojas",
-        phone: "Mobilus vartotojas",
-      };
-      const nextUser: UserProfile = {
-        id: resolveStableUserId({
-          provider: data.provider,
-          phone: data.phone,
-          email: data.email,
-        }),
-        name: names[data.provider],
-        phone: data.phone ?? "",
-        city: user.city || "Panevėžys",
-        authProvider: data.provider,
-        role: data.role,
-        businessType: data.businessType,
-        walletBalance: data.role === "pro" ? 25 : 0,
-        memberSince: new Date().toISOString(),
-        soldCount: 0,
-        avatar:
-          data.provider === "apple"
-            ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
-            : "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-      };
-      setUser(nextUser);
-      setIsAuthenticated(true);
-      saveUser(nextUser);
-      saveAuthSession({
-        isAuthenticated: true,
-        provider: data.provider,
-        loggedInAt: new Date().toISOString(),
-      });
     },
-    []
+    [patchAuthUser, user, apiActive]
   );
-
-  const logout = useCallback(() => {
-    setIsAuthenticated(false);
-    clearAuthSession();
-    setUser(ANONYMOUS_USER);
-  }, []);
-
-  const topUpWallet = useCallback((amount: number) => {
-    setUser((prev) => {
-      const next = {
-        ...prev,
-        walletBalance: (prev.walletBalance ?? 0) + amount,
-      };
-      if (!apiActive) saveUser(next);
-      return next;
-    });
-  }, [apiActive]);
 
   const updateListing = useCallback(
     (id: string, patch: ListingEditPatch) => {
@@ -1907,10 +1805,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     (id: string) => {
       const listing = listings.find((l) => l.id === id);
       updateListing(id, { status: "sold" });
-      setUser((prev) => ({
-        ...prev,
-        soldCount: (prev.soldCount ?? 0) + 1,
-      }));
+      patchAuthUser({ soldCount: (user.soldCount ?? 0) + 1 });
       setSoldPromptDismissed((prev) => new Set([...prev, id]));
       logAnalytics("listing_marked_sold", {
         listingId: id,
@@ -1918,7 +1813,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         sellerId: user.id,
       });
     },
-    [updateListing, listings, user.id]
+    [updateListing, listings, user.id, user.soldCount, patchAuthUser]
   );
 
   const submitReview = useCallback(
@@ -1960,11 +1855,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     (listingId: string, cost: number): boolean => {
       const balance = user.walletBalance ?? 0;
       if (balance < cost) return false;
-      setUser((prev) => {
-        const next = { ...prev, walletBalance: balance - cost };
-        if (!apiActive) saveUser(next);
-        return next;
-      });
+      patchAuthUser({ walletBalance: balance - cost });
       setListings((prev) =>
         prev.map((l) => {
           if (l.id !== listingId) return l;
@@ -2042,8 +1933,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (!report) return;
       if (report.reportedUserId) {
         if (report.reportedUserId === user.id) {
-          setUser((prev) => ({ ...prev, warned: true }));
-          if (!apiActive) saveUser({ ...user, warned: true });
+          patchAuthUser({ warned: true });
         }
         if (isDataApiEnabled()) {
           void apiWarnUser(report.reportedUserId);
@@ -2217,7 +2107,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         onAccept={acceptGdprConsent}
         onDecline={declineGdprConsent}
       />
-      <GlobalAuthModal />
       <ConfirmDialog />
     </VautoContext.Provider>
   );

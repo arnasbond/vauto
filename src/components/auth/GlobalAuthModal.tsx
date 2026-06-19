@@ -3,7 +3,7 @@
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { useVauto } from "@/context/VautoContext";
+import { useAuth } from "@/context/AuthContext";
 
 /** App-wide login modal — opened when guest tries to publish a listing */
 export function GlobalAuthModal() {
@@ -15,7 +15,10 @@ export function GlobalAuthModal() {
     authRedirectPath,
     clearAuthRedirect,
     isAuthenticated,
-  } = useVauto();
+    authLoading,
+    authError,
+    clearAuthError,
+  } = useAuth();
   const wasOpen = useRef(false);
 
   useEffect(() => {
@@ -42,8 +45,11 @@ export function GlobalAuthModal() {
   return (
     <AuthModal
       open={authModalOpen}
+      loading={authLoading}
+      error={authError}
+      onClearError={clearAuthError}
       onClose={closeAuthModal}
-      onComplete={(data) => login(data)}
+      onComplete={(data) => void login(data)}
     />
   );
 }

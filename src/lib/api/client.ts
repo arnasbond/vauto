@@ -1,6 +1,7 @@
 import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
+import { getAuthHeaders, loadAccessToken } from "@/lib/auth/session";
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -16,6 +17,7 @@ async function dataFetch<T>(
   try {
     const headers: Record<string, string> = {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
       ...(opts?.userId ? { "X-User-Id": opts.userId } : {}),
     };
     const res = await fetch(`${base}${path}`, {

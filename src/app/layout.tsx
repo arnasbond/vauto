@@ -1,6 +1,6 @@
 import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono, Outfit } from "next/font/google";
-import { VautoProvider } from "@/context/VautoContext";
+import { AppProviders } from "@/context/AppProviders";
 import { NativeShell } from "@/components/NativeShell";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { ToastHost } from "@/components/ui/ToastHost";
@@ -60,13 +60,13 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}
       >
-        <VautoProvider>
+        <AppProviders>
           <NativeShell>
             <BackButtonHandler />
             <ToastHost />
             <SellerFlowProvider>{children}</SellerFlowProvider>
           </NativeShell>
-        </VautoProvider>
+        </AppProviders>
       </body>
     </html>
   );

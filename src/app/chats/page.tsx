@@ -3,17 +3,16 @@
 import Link from "next/link";
 import { LogIn, MessageCircle } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { AuthModal } from "@/components/auth/AuthModal";
+import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import {
   countUnreadInThread,
   hasUnreadInThread,
 } from "@/lib/chat-helpers";
-import { useState } from "react";
 
 export default function ChatsPage() {
-  const { chats, user, isAuthenticated, login } = useVauto();
-  const [authOpen, setAuthOpen] = useState(false);
+  const { openAuthModal } = useAuth();
+  const { chats, user, isAuthenticated } = useVauto();
 
   const myChats = chats.filter(
     (c) => c.buyerId === user.id || c.sellerId === user.id
@@ -21,33 +20,23 @@ export default function ChatsPage() {
 
   if (!isAuthenticated) {
     return (
-      <>
-        <AppShell>
-          <div className="flex min-h-[50dvh] flex-col items-center justify-center px-6 text-center">
-            <MessageCircle className="mb-4 h-12 w-12 text-[var(--flux-teal)]" />
-            <h1 className="text-xl font-bold text-white">Pokalbiai</h1>
-            <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
-              Prisijunkite, kad galėtumėte rašyti pardavėjams ir sekti pokalbius.
-            </p>
-            <button
-              type="button"
-              onClick={() => setAuthOpen(true)}
-              className="mt-6 flex items-center gap-2 rounded-2xl bg-[var(--flux-teal)] px-6 py-3 text-sm font-semibold text-[var(--flux-bg)]"
-            >
-              <LogIn className="h-4 w-4" />
-              Prisijungti
-            </button>
-          </div>
-        </AppShell>
-        <AuthModal
-          open={authOpen}
-          onClose={() => setAuthOpen(false)}
-          onComplete={(data) => {
-            login(data);
-            setAuthOpen(false);
-          }}
-        />
-      </>
+      <AppShell>
+        <div className="flex min-h-[50dvh] flex-col items-center justify-center px-6 text-center">
+          <MessageCircle className="mb-4 h-12 w-12 text-[var(--flux-teal)]" />
+          <h1 className="text-xl font-bold text-white">Pokalbiai</h1>
+          <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
+            Prisijunkite, kad galėtumėte rašyti pardavėjams ir sekti pokalbius.
+          </p>
+          <button
+            type="button"
+            onClick={() => openAuthModal("/chats")}
+            className="mt-6 flex items-center gap-2 rounded-2xl bg-[var(--flux-teal)] px-6 py-3 text-sm font-semibold text-[var(--flux-bg)]"
+          >
+            <LogIn className="h-4 w-4" />
+            Prisijungti
+          </button>
+        </div>
+      </AppShell>
     );
   }
 
