@@ -61,9 +61,26 @@ async function aiFetch<T>(
   }
 }
 
+export interface ApiHealthDetails {
+  ok: boolean;
+  service: string;
+  db?: string;
+  features?: {
+    sms: boolean;
+    googleOAuth: boolean;
+    webPush: boolean;
+    fcm: boolean;
+    jwt: boolean;
+  };
+}
+
 export async function apiHealthCheck(): Promise<boolean> {
-  const r = await dataFetch<{ ok: boolean }>("/api/health");
+  const r = await apiFetchHealthDetails();
   return r.ok && r.data.ok === true;
+}
+
+export async function apiFetchHealthDetails(): Promise<ApiResult<ApiHealthDetails>> {
+  return dataFetch<ApiHealthDetails>("/api/health");
 }
 
 export async function apiAiHealthCheck(): Promise<{

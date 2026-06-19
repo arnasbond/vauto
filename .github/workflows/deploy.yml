@@ -36,3 +36,7 @@ jobs:
           test -f public/runtime-config.json
           grep -q vauto-api.onrender.com public/runtime-config.json
           echo "NEXT_PUBLIC_API_URL and runtime-config.json OK"
+
+      - name: Verify Render API health
+        run: npm run verify:health
+        continue-on-error: true

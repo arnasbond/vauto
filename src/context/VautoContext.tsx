@@ -144,6 +144,7 @@ interface VautoContextValue {
 
   syncError: string | null;
   clearSyncError: () => void;
+  apiActive: boolean;
 
   sellerStep: SellerFlowStep;
   sellerInputMode: SellerInputMode;
@@ -1023,6 +1024,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       renewListing,
       syncError,
       clearSyncError,
+      apiActive,
       searchVoiceMode,
       setSearchVoiceMode,
       isAuthenticated,
@@ -1082,6 +1084,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       renewListing,
       syncError,
       clearSyncError,
+      apiActive,
       searchVoiceMode,
       isAuthenticated,
       authModalOpen,

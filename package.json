@@ -21,7 +21,8 @@
     "db:seed": "npm run seed --prefix server",
     "pitch:pdf": "node scripts/generate-pitch-pdf.mjs",
     "provision:render": "node scripts/provision-render.mjs",
-    "redeploy:render": "node scripts/redeploy-render.mjs"
+    "redeploy:render": "node scripts/redeploy-render.mjs",
+    "verify:health": "node scripts/verify-health.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

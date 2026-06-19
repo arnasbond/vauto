@@ -9,6 +9,9 @@ import { aiRouter } from "./routes/ai.js";
 import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
 import { optionalAuth } from "./middleware/auth.js";
+import { assertProductionEnv } from "./env-check.js";
+
+assertProductionEnv();
 
 const app = express();
 const port = Number(process.env.PORT ?? 4000);

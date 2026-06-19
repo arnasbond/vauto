@@ -44,4 +44,17 @@ test.describe("Vauto smoke", () => {
     await page.goto("/");
     await expect(page.getByRole("navigation")).toBeVisible();
   });
+
+  test("profile shows connection status card", async ({ page }) => {
+    await page.goto("/profile/");
+    await expect(page.getByTestId("connection-status")).toBeVisible();
+    await expect(page.getByText(/Demo režimas|Live API/i)).toBeVisible();
+  });
+
+  test("runtime config is served", async ({ request }) => {
+    const res = await request.get("/runtime-config.json");
+    expect(res.ok()).toBeTruthy();
+    const json = await res.json();
+    expect(json.apiUrl).toBeTruthy();
+  });
 });

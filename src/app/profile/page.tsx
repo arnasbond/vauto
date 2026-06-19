@@ -5,6 +5,7 @@ import { useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
 import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
+import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -70,6 +71,9 @@ export default function ProfilePage() {
             <Smartphone className="h-3.5 w-3.5" />
             Įdiegti programėlę
           </Link>
+          <div className="mt-6 text-left">
+            <ConnectionStatusCard />
+          </div>
         </div>
       </div>
     );
@@ -113,6 +117,7 @@ export default function ProfilePage() {
       )}
 
       <div className="mt-8 space-y-4">
+        <ConnectionStatusCard />
         <WakeWordSettingsCard />
         <PrivacySettingsCard />
         <PushAlertsSettingsCard />
