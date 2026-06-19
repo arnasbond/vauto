@@ -27,4 +27,21 @@ test.describe("Vauto smoke", () => {
     await page.goto("/install/");
     await expect(page.getByText(/įdiegti|Įdiegti/i).first()).toBeVisible();
   });
+
+  test("add listing page loads upload UI", async ({ page }) => {
+    await page.goto("/add/");
+    await expect(page.getByText(/įkelti|nuotrauk|skelbim/i).first()).toBeVisible();
+  });
+
+  test("home search accepts input", async ({ page }) => {
+    await page.goto("/");
+    const search = page.getByRole("searchbox").or(page.getByPlaceholder(/ieškoti|paieška/i));
+    await search.first().fill("dviratis");
+    await expect(search.first()).toHaveValue("dviratis");
+  });
+
+  test("bottom navigation visible on home", async ({ page }) => {
+    await page.goto("/");
+    await expect(page.getByRole("navigation")).toBeVisible();
+  });
 });

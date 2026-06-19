@@ -102,7 +102,7 @@ import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
-import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
+import { apiTopUpWallet, apiPromoteListing, apiSyncAlertQueries } from "@/lib/api/wallet-reviews";
 import { registerWebPush } from "@/lib/web-push";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { logAnalytics } from "@/lib/analytics";
@@ -855,11 +855,26 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const setPushAlertsEnabled = useCallback((enabled: boolean) => {
     setPushAlertsEnabledState(enabled);
     savePushAlertsEnabled(enabled);
-    if (enabled) {
-      void requestNotificationPermission().then(() => {
-        void registerWebPush(alertQueriesRef.current);
-      });
-    }
+    if (!enabled) return;
+    void requestNotificationPermission().then(() => {
+      void registerWebPush(alertQueriesRef.current);
+    });
+  }, []);
+
+  const buildAlertQueries = useCallback(() => {
+    const fromIntent = searchIntentRef.current.slice(0, 8).map((e) => e.query);
+    const q = searchQueryRef.current.trim();
+    const merged = [
+      ...alertQueriesRef.current,
+      ...fromIntent,
+      ...(q.length >= 3 ? [q] : []),
+    ];
+    const unique = [...new Set(merged.map((s) => s.trim().toLowerCase()))].filter(
+      (s) => s.length >= 3
+    );
+    alertQueriesRef.current = unique;
+    saveAlertQueries(unique);
+    return unique;
   }, []);
 
   const requestMediaConsent = useCallback((onGranted: () => void) => {
@@ -1021,27 +1036,17 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     if (!hydrated || !pushAlertsEnabled) return;
 
-    const buildQueries = () => {
-      const fromIntent = searchIntentRef.current
-        .slice(0, 8)
-        .map((e) => e.query);
-      const q = searchQueryRef.current.trim();
-      const merged = [
-        ...alertQueriesRef.current,
-        ...fromIntent,
-        ...(q.length >= 3 ? [q] : []),
-      ];
-      const unique = [...new Set(merged.map((s) => s.trim().toLowerCase()))].filter(
-        (s) => s.length >= 3
-      );
-      alertQueriesRef.current = unique;
-      saveAlertQueries(unique);
-      return unique;
-    };
+    if (apiActive) {
+      const queries = buildAlertQueries();
+      void requestNotificationPermission().then(() => {
+        void registerWebPush(queries);
+      });
+      return;
+    }
 
     const stopPoll = startPushAlertPolling(
       () => listingsRef.current,
-      buildQueries,
+      buildAlertQueries,
       (payload: PushAlertPayload) => {
         pushAlertsSeenRef.current.add(payload.listingId);
         savePushAlertsSeen(Array.from(pushAlertsSeenRef.current));
@@ -1055,7 +1060,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     );
 
     return stopPoll;
-  }, [hydrated, pushAlertsEnabled]);
+  }, [hydrated, pushAlertsEnabled, apiActive, buildAlertQueries]);
+
+  useEffect(() => {
+    if (!hydrated || !apiActive || !pushAlertsEnabled) return;
+    const queries = buildAlertQueries();
+    void apiSyncAlertQueries(queries);
+  }, [searchQuery, searchIntentEvents, hydrated, apiActive, pushAlertsEnabled, buildAlertQueries]);
 
   useEffect(() => {
     if (!hydrated) return;
