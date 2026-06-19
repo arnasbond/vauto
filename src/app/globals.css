@@ -208,6 +208,35 @@ body {
   animation: mic-ring-pulse 1.8s ease-out infinite;
 }
 
+/* Audio-first / wake-word high-contrast mode */
+body.vauto-audio-first {
+  font-size: 106%;
+}
+
+body.vauto-audio-first .vauto-flux-glass,
+body.vauto-audio-first .vauto-dashboard-card {
+  border-color: rgba(0, 212, 170, 0.35);
+}
+
+.wake-neon-pulse {
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0, 212, 170, 0.35), transparent 55%),
+    radial-gradient(circle at 30% 70%, rgba(255, 107, 74, 0.2), transparent 50%);
+  animation: wake-neon-pulse 2s ease-in-out infinite;
+}
+
+@keyframes wake-neon-pulse {
+  0%,
+  100% {
+    opacity: 0.35;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.65;
+    transform: scale(1.03);
+  }
+}
+
 .vauto-dashboard {
   background:
     radial-gradient(ellipse 70% 50% at 30% 0%, rgba(0, 212, 170, 0.15), transparent 50%),

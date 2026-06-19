@@ -20,6 +20,9 @@ const KEYS = {
   reviews: "vauto_reviews_v1",
   searchIntent: "vauto_search_intent_v1",
   soldPromptDismissed: "vauto_sold_prompt_dismissed_v1",
+  wakeWordEnabled: "vauto_wake_word_v1",
+  alertQueries: "vauto_alert_queries_v1",
+  pushAlertsSeen: "vauto_push_alerts_seen_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -132,6 +135,30 @@ export function loadSoldPromptDismissed(): string[] | null {
 
 export function saveSoldPromptDismissed(ids: string[]): void {
   write(KEYS.soldPromptDismissed, ids);
+}
+
+export function loadWakeWordEnabled(): boolean {
+  return read<boolean>(KEYS.wakeWordEnabled) === true;
+}
+
+export function saveWakeWordEnabled(enabled: boolean): void {
+  write(KEYS.wakeWordEnabled, enabled);
+}
+
+export function loadAlertQueries(): string[] | null {
+  return read<string[]>(KEYS.alertQueries);
+}
+
+export function saveAlertQueries(queries: string[]): void {
+  write(KEYS.alertQueries, queries);
+}
+
+export function loadPushAlertsSeen(): string[] | null {
+  return read<string[]>(KEYS.pushAlertsSeen);
+}
+
+export function savePushAlertsSeen(ids: string[]): void {
+  write(KEYS.pushAlertsSeen, ids);
 }
 
 export function clearAllData(): void {

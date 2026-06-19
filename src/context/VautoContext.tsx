@@ -42,6 +42,9 @@ import {
   loadSavedIds,
   loadSearchIntent,
   loadSoldPromptDismissed,
+  loadWakeWordEnabled,
+  loadAlertQueries,
+  loadPushAlertsSeen,
   loadUser,
   saveAuthSession,
   saveBannedUserIds,
@@ -53,6 +56,9 @@ import {
   saveSavedIds,
   saveSearchIntent,
   saveSoldPromptDismissed,
+  saveWakeWordEnabled,
+  saveAlertQueries,
+  savePushAlertsSeen,
   saveUser,
   clearAuthSession,
 } from "@/lib/storage";
@@ -132,7 +138,25 @@ import {
   buildBuddySoldFollowUp,
   buildBuddyViewNotification,
 } from "@/lib/buddy-messages";
-import { logBuddyState } from "@/lib/buddy-voice";
+import { logBuddyState, speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
+import { WakeWordHost } from "@/components/voice/WakeWordHost";
+import {
+  createWakeWordSession,
+  logWakeEvent,
+  resumePassivePhase,
+  type WakeWordSession,
+} from "@/lib/wake-word-engine";
+import type { WakeWordPhase } from "@/lib/wake-word-types";
+import {
+  executeVoiceIntent,
+  parseVoiceIntent,
+} from "@/lib/voice-intent-engine";
+import {
+  requestNotificationPermission,
+  showLocalPushNotification,
+  startPushAlertPolling,
+  type PushAlertPayload,
+} from "@/lib/push-alerts";
 
 export interface PendingReviewPrompt {
   listingId: string;
@@ -261,6 +285,14 @@ interface VautoContextValue {
   pendingReview: PendingReviewPrompt | null;
   queueReviewPrompt: (data: PendingReviewPrompt & { delayMs?: number }) => void;
   clearReviewPrompt: () => void;
+
+  wakeWordEnabled: boolean;
+  wakeWordPhase: WakeWordPhase;
+  wakeWordStatusText: string | undefined;
+  wakeWordTranscript: string | undefined;
+  setWakeWordEnabled: (enabled: boolean) => void;
+  requestWakeWordConsent: () => void;
+  disableWakeWordInstantly: () => void;
 }
 
 const DEMO_SOLD_STORIES = [
@@ -346,6 +378,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
   const [sellerUserPrompt, setSellerUserPrompt] = useState<string | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
+  const [wakeWordEnabled, setWakeWordEnabledState] = useState(false);
+  const [wakeWordPhase, setWakeWordPhase] = useState<WakeWordPhase>("off");
+  const [wakeWordStatusText, setWakeWordStatusText] = useState<string>();
+  const [wakeWordTranscript, setWakeWordTranscript] = useState<string>();
   const reviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const engagementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buddyFollowUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -354,6 +390,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const viewedListingsRef = useRef<Set<string>>(new Set());
   const smsCancelRef = useRef<Map<string, () => void>>(new Map());
   const gdprPendingAction = useRef<(() => void) | null>(null);
+  const gdprWakeWordPending = useRef(false);
+  const wakeWordSessionRef = useRef<WakeWordSession | null>(null);
+  const pushAlertsSeenRef = useRef<Set<string>>(new Set());
+  const listingsRef = useRef(listings);
+  listingsRef.current = listings;
+  const searchQueryRef = useRef(searchQuery);
+  searchQueryRef.current = searchQuery;
+  const searchIntentRef = useRef(searchIntentEvents);
+  searchIntentRef.current = searchIntentEvents;
+  const alertQueriesRef = useRef<string[]>([]);
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
 
@@ -403,6 +449,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const storedDismissed = loadSoldPromptDismissed();
         if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
 
+        if (loadGdprConsent() && loadWakeWordEnabled()) setWakeWordEnabledState(true);
+        const seenPush = loadPushAlertsSeen();
+        if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
+        const storedAlerts = loadAlertQueries();
+        if (storedAlerts) alertQueriesRef.current = storedAlerts;
+
         if (errors.length) setSyncError(errors[0]);
         setGdprConsent(loadGdprConsent());
         setHydrated(true);
@@ -438,6 +490,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (storedIntent) setSearchIntentEvents(storedIntent);
       const storedDismissed = loadSoldPromptDismissed();
       if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
+      if (loadGdprConsent() && loadWakeWordEnabled()) setWakeWordEnabledState(true);
+      const seenPush = loadPushAlertsSeen();
+      if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
+      const storedAlerts = loadAlertQueries();
+      if (storedAlerts) alertQueriesRef.current = storedAlerts;
       setGdprConsent(loadGdprConsent());
       setHydrated(true);
     }
@@ -1140,18 +1197,195 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setGdprModalOpen(false);
     const action = gdprPendingAction.current;
     gdprPendingAction.current = null;
+    const wakePending = gdprWakeWordPending.current;
+    gdprWakeWordPending.current = false;
     action?.();
+    if (wakePending) {
+      setWakeWordEnabledState(true);
+      saveWakeWordEnabled(true);
+      void requestNotificationPermission();
+      logWakeEvent("enabled_after_consent");
+    }
   }, []);
 
   const declineGdprConsent = useCallback(() => {
     setGdprModalOpen(false);
     gdprPendingAction.current = null;
+    gdprWakeWordPending.current = false;
   }, []);
 
   const revokeGdprConsent = useCallback(() => {
     setGdprConsent(false);
     saveGdprConsent(false);
+    wakeWordSessionRef.current?.stop();
+    wakeWordSessionRef.current = null;
+    setWakeWordEnabledState(false);
+    saveWakeWordEnabled(false);
+    setWakeWordPhase("off");
+    stopBuddySpeech();
+    logWakeEvent("disabled_via_gdpr_revoke");
   }, []);
+
+  const disableWakeWordInstantly = useCallback(() => {
+    wakeWordSessionRef.current?.stop();
+    wakeWordSessionRef.current = null;
+    setWakeWordEnabledState(false);
+    saveWakeWordEnabled(false);
+    setWakeWordPhase("off");
+    setWakeWordTranscript(undefined);
+    setWakeWordStatusText(undefined);
+    stopBuddySpeech();
+    logWakeEvent("disabled_instant");
+    showToast("Budintis režimas išjungtas — mikrofonas neaktyvus", "info");
+  }, [showToast]);
+
+  const setWakeWordEnabled = useCallback((enabled: boolean) => {
+    if (!enabled) {
+      disableWakeWordInstantly();
+      return;
+    }
+    setWakeWordEnabledState(true);
+    saveWakeWordEnabled(true);
+    void requestNotificationPermission();
+    logWakeEvent("enabled");
+  }, [disableWakeWordInstantly]);
+
+  const requestWakeWordConsent = useCallback(() => {
+    if (gdprConsent) {
+      setWakeWordEnabled(true);
+      return;
+    }
+    gdprWakeWordPending.current = true;
+    setGdprModalOpen(true);
+  }, [gdprConsent, setWakeWordEnabled]);
+
+  const processWakeCommand = useCallback(
+    (transcript: string) => {
+      setWakeWordPhase("processing");
+      setWakeWordTranscript(transcript);
+      setWakeWordStatusText("Suprantu…");
+      logWakeEvent("command_received", { transcript: transcript.slice(0, 120) });
+
+      const intent = parseVoiceIntent(transcript, user.city || "Panevėžys");
+      const result = executeVoiceIntent(intent, listingsRef.current);
+
+      setWakeWordStatusText(result.response);
+      logAnalytics("wake_word_detected", {
+        intent: intent.type,
+        matches: result.matchCount,
+      });
+
+      if (result.topListing && intent.type === "check_new_ads") {
+        setSearchQuery(intent.topic);
+      }
+
+      speakBuddyMessage(result.response, {
+        enabled: true,
+        onEnd: () => {
+          setWakeWordTranscript(undefined);
+          setWakeWordStatusText(undefined);
+          const session = wakeWordSessionRef.current;
+          if (session) resumePassivePhase(session, setWakeWordPhase);
+          else setWakeWordPhase("passive");
+        },
+      });
+
+      if (result.topListing) {
+        showToast(result.response, "buddy");
+      }
+    },
+    [user.city, showToast]
+  );
+
+  useEffect(() => {
+    if (!hydrated || !wakeWordEnabled || !gdprConsent) {
+      wakeWordSessionRef.current?.stop();
+      wakeWordSessionRef.current = null;
+      if (!wakeWordEnabled) setWakeWordPhase("off");
+      return;
+    }
+
+    const session = createWakeWordSession({
+      onPhaseChange: setWakeWordPhase,
+      onWake: () => {
+        setWakeWordTranscript(undefined);
+        setWakeWordStatusText(undefined);
+      },
+      onCommand: (transcript) => processWakeCommand(transcript),
+      onError: (message) => {
+        logWakeEvent("session_error", { message });
+        if (message === "not-allowed") {
+          disableWakeWordInstantly();
+          showToast("Mikrofono prieiga atmesta", "error");
+        }
+      },
+    });
+
+    wakeWordSessionRef.current = session;
+    session.start();
+    logWakeEvent("session_started");
+
+    return () => {
+      session.stop();
+      wakeWordSessionRef.current = null;
+    };
+  }, [
+    hydrated,
+    wakeWordEnabled,
+    gdprConsent,
+    processWakeCommand,
+    disableWakeWordInstantly,
+    showToast,
+  ]);
+
+  useEffect(() => {
+    if (!hydrated || !wakeWordEnabled) return;
+
+    const buildQueries = () => {
+      const fromIntent = searchIntentRef.current
+        .slice(0, 8)
+        .map((e) => e.query);
+      const q = searchQueryRef.current.trim();
+      const merged = [
+        ...alertQueriesRef.current,
+        ...fromIntent,
+        ...(q.length >= 3 ? [q] : []),
+        "traktorius Panevėžyje",
+      ];
+      const unique = [...new Set(merged.map((s) => s.trim().toLowerCase()))].filter(
+        (s) => s.length >= 3
+      );
+      alertQueriesRef.current = unique;
+      saveAlertQueries(unique);
+      return unique;
+    };
+
+    const stopPoll = startPushAlertPolling(
+      () => listingsRef.current,
+      buildQueries,
+      (payload: PushAlertPayload) => {
+        pushAlertsSeenRef.current.add(payload.listingId);
+        savePushAlertsSeen(Array.from(pushAlertsSeenRef.current));
+        void showLocalPushNotification(payload);
+        if (payload.voiceText) {
+          speakBuddyMessage(payload.voiceText, { enabled: true });
+        }
+        showToast(payload.body, "buddy");
+      },
+      pushAlertsSeenRef.current
+    );
+
+    return stopPoll;
+  }, [hydrated, wakeWordEnabled, showToast]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    const q = searchQuery.trim();
+    if (q.length < 3) return;
+    const next = [...new Set([...alertQueriesRef.current, q.toLowerCase()])];
+    alertQueriesRef.current = next;
+    saveAlertQueries(next);
+  }, [searchQuery, hydrated]);
 
   const scheduleIncomingSms = useCallback(
     (
@@ -1786,12 +2020,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     pendingReview,
     queueReviewPrompt,
     clearReviewPrompt,
+    wakeWordEnabled,
+    wakeWordPhase,
+    wakeWordStatusText,
+    wakeWordTranscript,
+    setWakeWordEnabled,
+    requestWakeWordConsent,
+    disableWakeWordInstantly,
   };
 
   return (
     <VautoContext.Provider value={value}>
       {children}
       <ReviewPromptHost />
+      <WakeWordHost />
       <GdprConsentModal
         open={gdprModalOpen}
         onAccept={acceptGdprConsent}

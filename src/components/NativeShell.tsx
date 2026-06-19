@@ -2,8 +2,10 @@
 
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { logWakeEvent } from "@/lib/wake-word-engine";
 
-/** Configures status bar, splash, and PWA service worker */
+/** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
@@ -11,6 +13,25 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
         /* offline shell optional */
       });
     }
+  }, []);
+
+  useEffect(() => {
+    if (!("serviceWorker" in navigator)) return;
+
+    const onMessage = (event: MessageEvent) => {
+      const data = event.data as {
+        type?: string;
+        voiceText?: string;
+        url?: string;
+      };
+      if (data?.type === "VAUTO_PLAY_VOICE" && data.voiceText) {
+        logWakeEvent("notification_voice_playback", { url: data.url });
+        speakBuddyMessage(data.voiceText, { enabled: true });
+      }
+    };
+
+    navigator.serviceWorker.addEventListener("message", onMessage);
+    return () => navigator.serviceWorker.removeEventListener("message", onMessage);
   }, []);
 
   useEffect(() => {

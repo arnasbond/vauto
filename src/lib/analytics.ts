@@ -7,7 +7,8 @@ export type AnalyticsEvent =
   | "listing_marked_sold"
   | "seller_engagement_push"
   | "buddy_speech"
-  | "buddy_follow_up";
+  | "buddy_follow_up"
+  | "wake_word_detected";
 
 export function logAnalytics(
   event: AnalyticsEvent,
