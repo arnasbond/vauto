@@ -7,7 +7,7 @@ import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions
 import {
   buildSearchBuddyMessage,
   buildSearchQuickActions,
-  isServiceSearchQuery,
+  isBuddySearchQuery,
   type BuddyActionId,
 } from "@/lib/buddy-messages";
 import {
@@ -16,6 +16,7 @@ import {
   stopBuddySpeech,
   type BuddyState,
 } from "@/lib/buddy-voice";
+import { resolveListingPhone } from "@/lib/listing-display";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 
@@ -28,8 +29,6 @@ export function BuddySearchAssistant() {
     searchVoiceMode,
     startChat,
     trackListingCall,
-    queueReviewPrompt,
-    promoteListing,
     listings,
   } = useVauto();
 
@@ -40,7 +39,7 @@ export function BuddySearchAssistant() {
   const spokenRef = useRef("");
 
   const query = searchQuery.trim();
-  const active = query.length >= 3 && isServiceSearchQuery(query);
+  const active = isBuddySearchQuery(query);
 
   useEffect(() => {
     if (!active) {
@@ -60,6 +59,11 @@ export function BuddySearchAssistant() {
     setShowMessage(false);
     logBuddyState("typing", { context: "search_assistant", query });
 
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const delay = reducedMotion ? 0 : 600;
+
     const timer = setTimeout(() => {
       setShowMessage(true);
       setBuddyState("speaking");
@@ -73,7 +77,7 @@ export function BuddySearchAssistant() {
           setTimeout(() => setBuddyState("idle"), 400);
         }
       }
-    }, 1200);
+    }, delay);
 
     return () => {
       clearTimeout(timer);
@@ -100,31 +104,22 @@ export function BuddySearchAssistant() {
       return;
     }
 
-    if (id === "call_provider" && listing.contact) {
+    if (id === "call_provider") {
       trackListingCall(listing.id);
-      queueReviewPrompt({
-        listingId: listing.id,
-        listingTitle: listing.title,
-        sellerId: listing.sellerId,
-        delayMs: 8000,
-      });
-      window.location.href = `tel:${listing.contact.replace(/\s/g, "")}`;
+      const phone = resolveListingPhone(listing);
+      window.location.href = `tel:${phone.replace(/\s/g, "")}`;
       return;
     }
 
     if (id === "chat_provider") {
       const chatId = startChat(listing.id);
-      if (chatId) router.push(`/chat/${chatId}`);
+      if (chatId) router.push(`/chats/thread/?id=${chatId}`);
       return;
     }
 
     if (id === "see_listings") {
       router.push(listingPath(listing));
       return;
-    }
-
-    if (id === "promote_free") {
-      promoteListing(listing.id, 0);
     }
   };
 
@@ -133,16 +128,12 @@ export function BuddySearchAssistant() {
       <div className="flex gap-3">
         <BuddyAvatar state={buddyState} />
         <div className="min-w-0 flex-1">
-          <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-teal)]">
-            {buddyState === "typing" ? "ieško…" : buddyState === "speaking" ? "kalba…" : "VAUTO draugas"}
+          <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--vauto-teal)]">
+            {buddyState === "typing" ? "Ieškoma" : buddyState === "speaking" ? "Rezultatas" : "Paieškos asistentas"}
           </p>
           <div className="rounded-2xl rounded-tl-md bg-black/30 px-4 py-3 ring-1 ring-white/10">
             {!showMessage ? (
-              <div className="flex gap-1 py-2">
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)]" />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:150ms]" />
-                <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:300ms]" />
-              </div>
+              <p className="text-sm text-slate-300">Analizuojama užklausa…</p>
             ) : (
               <p className="text-base leading-relaxed text-slate-100">{message}</p>
             )}

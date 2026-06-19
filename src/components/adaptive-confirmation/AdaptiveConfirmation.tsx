@@ -66,10 +66,12 @@ export function AdaptiveConfirmation({
     price: draft.price,
     description: draft.description,
   });
+  const needsPhotoForPublish = adaptiveKey === "vehicles" && !hasPhoto;
   const canPublish =
     missingKeys.length === 0 &&
     !needsPrice &&
-    draft.title.trim().length >= 2;
+    draft.title.trim().length >= 2 &&
+    !needsPhotoForPublish;
 
   const buddyMessage = buildSellerBuddyMessage({
     draft,

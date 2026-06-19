@@ -23,6 +23,7 @@ const KEYS = {
   wakeWordEnabled: "vauto_wake_word_v1",
   alertQueries: "vauto_alert_queries_v1",
   pushAlertsSeen: "vauto_push_alerts_seen_v1",
+  pushAlertsEnabled: "vauto_push_alerts_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -159,6 +160,15 @@ export function loadPushAlertsSeen(): string[] | null {
 
 export function savePushAlertsSeen(ids: string[]): void {
   write(KEYS.pushAlertsSeen, ids);
+}
+
+export function loadPushAlertsEnabled(): boolean {
+  const v = read<boolean>(KEYS.pushAlertsEnabled);
+  return v !== false;
+}
+
+export function savePushAlertsEnabled(enabled: boolean): void {
+  write(KEYS.pushAlertsEnabled, enabled);
 }
 
 export function clearAllData(): void {

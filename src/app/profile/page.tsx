@@ -5,7 +5,7 @@ import { useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
 import { AuthModal } from "@/components/auth/AuthModal";
-import { PrivacySettingsCard } from "@/components/privacy/PrivacySettingsCard";
+import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -126,6 +126,7 @@ export default function ProfilePage() {
       <div className="mt-8 space-y-4">
         <WakeWordSettingsCard />
         <PrivacySettingsCard />
+        <PushAlertsSettingsCard />
       </div>
 
       <EditListingModal

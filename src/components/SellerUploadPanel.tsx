@@ -8,7 +8,7 @@ import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
 import type { VoiceSession } from "@/lib/audio-session";
 
 export function SellerUploadPanel() {
-  const { submitSellerContent, sellerStep, requestMediaConsent } = useVauto();
+  const { submitSellerContent, sellerStep, requestMediaConsent, showToast } = useVauto();
   const [query, setQuery] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [session, setSession] = useState<VoiceSession | null>(null);
@@ -60,9 +60,15 @@ export function SellerUploadPanel() {
           submitSellerContent({
             text: transcript.trim(),
             imageDataUrl: pendingImage,
+            voiceCapture: true,
           });
           setQuery("");
           setPendingImage(null);
+        } else {
+          showToast(
+            "Nepavyko atpažinti balso. Bandykite dar kartą arba įveskite tekstu.",
+            "info"
+          );
         }
       } finally {
         voiceSession?.release();
@@ -130,7 +136,7 @@ export function SellerUploadPanel() {
       </form>
 
       <p className="mt-2 text-center text-xs text-white/35">
-        Enter arba 🎙 — AI atpažins kategoriją ir atidarys skelbimo formą
+        Enter arba mikrofonas — AI atpažins kategoriją ir atidarys skelbimo formą
       </p>
 
       <div className="mt-4 flex items-center justify-center gap-3">
@@ -140,7 +146,7 @@ export function SellerUploadPanel() {
           className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-[var(--vauto-text-muted)] hover:bg-white/[0.08]"
         >
           <Camera className="h-3.5 w-3.5 text-[var(--flux-teal)]" />
-          {pendingImage ? "Nuotrauka paruošta ✓" : "Pridėti nuotrauką"}
+          {pendingImage ? "Nuotrauka paruošta" : "Pridėti nuotrauką"}
         </button>
         {pendingImage && (
           <button

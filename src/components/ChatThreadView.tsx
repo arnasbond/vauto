@@ -74,7 +74,8 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
 
       <div className="flex-1 space-y-3 overflow-y-auto pb-4">
         {chat.messages.map((msg) => {
-          const isMe = msg.senderId === user.id;
+          const isSystem = msg.senderId === "vauto-system";
+          const isMe = !isSystem && msg.senderId === user.id;
           return (
             <div
               key={msg.id}
@@ -82,9 +83,11 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
             >
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
-                  isMe
-                    ? "rounded-br-md bg-[var(--flux-teal)] text-[var(--flux-bg)]"
-                    : "rounded-bl-md bg-white/10 text-white"
+                  isSystem
+                    ? "rounded-md border border-white/10 bg-white/5 text-xs italic text-slate-400"
+                    : isMe
+                      ? "rounded-br-md bg-[var(--flux-teal)] text-[var(--flux-bg)]"
+                      : "rounded-bl-md bg-white/10 text-white"
                 }`}
               >
                 {msg.text}
@@ -135,7 +138,11 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
       )}
 
       <div className="flex gap-2 border-t border-white/10 pt-3">
+        <label htmlFor="chat-message-input" className="sr-only">
+          Žinutė pardavėjui
+        </label>
         <input
+          id="chat-message-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}

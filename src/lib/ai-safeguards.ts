@@ -2,7 +2,10 @@ import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import type { SellerInputMode } from "@/lib/types";
 
 /** Global ceiling for AI extraction — prevents UI freeze on slow/hung responses */
-export const AI_PROCESSING_TIMEOUT_MS = 3000;
+export const AI_PROCESSING_TIMEOUT_MS = 12000;
+
+/** Shorter budget for local mock extraction only */
+export const AI_MOCK_TIMEOUT_MS = 5000;
 
 export const MANUAL_FALLBACK_TOAST =
   "Atsiprašau, nepavyko automatiškai suprasti įrašo. Užpildykime trumpą formą rankiniu būdu.";

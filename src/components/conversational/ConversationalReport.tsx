@@ -71,6 +71,12 @@ export function ConversationalReport({
     spokenRef.current = false;
     logBuddyState("typing", { context: "seller_confirmation", theme: chameleonTheme });
 
+    const reducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    const typingDelay =
+      manualFallback || reducedMotion ? 0 : TYPING_DELAY_MS;
+
     const typingTimer = setTimeout(() => {
       setShowMessage(true);
       setBuddyState("speaking");
@@ -90,7 +96,7 @@ export function ConversationalReport({
           setTimeout(() => setBuddyState("idle"), 400);
         }
       }
-    }, TYPING_DELAY_MS);
+    }, typingDelay);
 
     return () => {
       clearTimeout(typingTimer);

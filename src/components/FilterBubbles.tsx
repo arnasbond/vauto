@@ -20,6 +20,7 @@ export function FilterBubbles() {
               key={filter.id}
               type="button"
               onClick={() => toggleFilter(filter.id)}
+              aria-pressed={isActive}
               className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
                 isActive
                   ? "vauto-flux-chip-on"

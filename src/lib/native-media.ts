@@ -127,6 +127,9 @@ async function speechRecognitionTranscript(): Promise<string | null> {
 
 const DEMO_TRANSCRIPT = "Parduodu maišą obuolių, dešimt eurų, Panevėžyje";
 
+/** @deprecated Demo transcript no longer injected silently — kept for tests only */
+export const VAUTO_DEMO_VOICE_TRANSCRIPT = DEMO_TRANSCRIPT;
+
 /**
  * Record voice → transcript using a shared session (for reactive UI).
  * Caller must session.release() when done.
@@ -147,8 +150,7 @@ export async function recordWithSession(
   const speech = await speechRecognitionTranscript();
   if (speech) return speech;
 
-  await new Promise((r) => setTimeout(r, 1500));
-  return DEMO_TRANSCRIPT;
+  return null;
 }
 
 /**
@@ -158,9 +160,7 @@ export async function recordVoiceTranscript(): Promise<string | null> {
   const session = await createVoiceSession();
   if (!session) {
     const speech = await speechRecognitionTranscript();
-    if (speech) return speech;
-    await new Promise((r) => setTimeout(r, 1500));
-    return DEMO_TRANSCRIPT;
+    return speech;
   }
 
   try {

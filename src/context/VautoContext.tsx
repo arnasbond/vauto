@@ -45,6 +45,8 @@ import {
   loadWakeWordEnabled,
   loadAlertQueries,
   loadPushAlertsSeen,
+  loadPushAlertsEnabled,
+  savePushAlertsEnabled,
   loadUser,
   saveAuthSession,
   saveBannedUserIds,
@@ -146,14 +148,15 @@ import { logAnalytics } from "@/lib/analytics";
 import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
 import {
   buildBuddySoldFollowUp,
-  buildBuddyViewNotification,
 } from "@/lib/buddy-messages";
-import { logBuddyState, speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
+import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
   adaptiveKeyToTheme,
   type ChameleonThemeId,
 } from "@/lib/chameleon-themes";
-import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
+import { resolveStableUserId } from "@/lib/user-id";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { WakeWordHost } from "@/components/voice/WakeWordHost";
 import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
@@ -179,6 +182,13 @@ export interface PendingReviewPrompt {
   listingId: string;
   listingTitle: string;
   sellerId: string;
+}
+
+export interface ConfirmDialogState {
+  title: string;
+  message: string;
+  confirmLabel?: string;
+  cancelLabel?: string;
 }
 
 interface VautoContextValue {
@@ -224,6 +234,8 @@ interface VautoContextValue {
     text?: string;
     imageDataUrl?: string | null;
     videoUrl?: string;
+    /** Set when input came from microphone — preserves voice mode + TTS */
+    voiceCapture?: boolean;
   }) => Promise<void>;
   /** Voice/text on home search that expresses sell/post intent → listing flow */
   startListingFromQuery: (text: string) => boolean;
@@ -313,6 +325,13 @@ interface VautoContextValue {
   requestWakeWordConsent: () => void;
   disableWakeWordInstantly: () => void;
 
+  pushAlertsEnabled: boolean;
+  setPushAlertsEnabled: (enabled: boolean) => void;
+
+  confirmDialog: ConfirmDialogState | null;
+  showConfirm: (opts: ConfirmDialogState) => Promise<boolean>;
+  dismissConfirm: (confirmed: boolean) => void;
+
   chameleonTheme: ChameleonThemeId;
   detectedAdaptiveKey: AdaptiveCategoryKey | null;
 }
@@ -401,6 +420,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [sellerUserPrompt, setSellerUserPrompt] = useState<string | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
   const [wakeWordEnabled, setWakeWordEnabledState] = useState(false);
+  const [pushAlertsEnabled, setPushAlertsEnabledState] = useState(true);
+  const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
+  const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [wakeWordPhase, setWakeWordPhase] = useState<WakeWordPhase>("off");
   const [wakeWordStatusText, setWakeWordStatusText] = useState<string>();
   const [wakeWordTranscript, setWakeWordTranscript] = useState<string>();
@@ -479,6 +501,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
         const storedAlerts = loadAlertQueries();
         if (storedAlerts) alertQueriesRef.current = storedAlerts;
+        setPushAlertsEnabledState(loadPushAlertsEnabled());
 
         if (errors.length) setSyncError(errors[0]);
         setGdprConsent(loadGdprConsent());
@@ -520,6 +543,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
       const storedAlerts = loadAlertQueries();
       if (storedAlerts) alertQueriesRef.current = storedAlerts;
+      setPushAlertsEnabledState(loadPushAlertsEnabled());
       setGdprConsent(loadGdprConsent());
       setHydrated(true);
     }
@@ -783,43 +807,22 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (buddyFollowUpTimerRef.current) clearTimeout(buddyFollowUpTimerRef.current);
 
       engagementTimerRef.current = setTimeout(() => {
-        bumpListingById(listingId, "views");
-        bumpListingById(listingId, "views");
-        bumpListingById(listingId, "views");
-        bumpListingById(listingId, "views");
-        bumpListingById(listingId, "views");
-        const buddyMsg = buildBuddyViewNotification(location, 5);
-        logAnalytics("seller_engagement_push", {
-          listingId,
-          location,
-          simulatedViewers: 5,
-          buddy: true,
-        });
-        logBuddyState("follow_up", {
-          trigger: "post_publish_views",
-          listingId,
-          message: buddyMsg.slice(0, 60),
-        });
-        setToast({ message: buddyMsg, type: "buddy" });
-      }, 10000);
+        const city = location.split(",")[0]?.trim() || "jūsų regione";
+        const msg = `Skelbimas „${listingTitle}" publikuotas ${city}. Stebėkite peržiūras profilyje.`;
+        logAnalytics("seller_engagement_push", { listingId, location, type: "publish_confirm" });
+        setToast({ message: msg, type: "success" });
+      }, 8000);
 
-      /** Simulated 3-day check-in — accelerated for demo (90s) */
       buddyFollowUpTimerRef.current = setTimeout(() => {
         const followUp = buildBuddySoldFollowUp(user.name, listingTitle);
-        logBuddyState("follow_up", {
-          trigger: "simulated_3_day_checkin",
-          listingId,
-          simulatedDays: 3,
-        });
         logAnalytics("seller_engagement_push", {
           listingId,
           type: "sold_follow_up",
-          simulatedDays: 3,
         });
-        setToast({ message: followUp, type: "buddy" });
-      }, 90_000);
+        setToast({ message: followUp, type: "info" });
+      }, 120_000);
     },
-    [bumpListingById, user.name]
+    [user.name]
   );
 
   const toggleFilter = useCallback((id: string) => {
@@ -1043,6 +1046,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       text?: string;
       imageDataUrl?: string | null;
       videoUrl?: string;
+      voiceCapture?: boolean;
     }) => {
       if (!requireAuthForListing("/add")) return;
 
@@ -1056,8 +1060,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const mode: SellerInputMode =
-        payload.imageDataUrl && payload.text
+      const mode: SellerInputMode = payload.voiceCapture
+        ? payload.imageDataUrl && payload.text
+          ? "combined"
+          : payload.imageDataUrl
+            ? "upload"
+            : "voice"
+        : payload.imageDataUrl && payload.text
           ? "combined"
           : payload.imageDataUrl
             ? "upload"
@@ -1131,12 +1140,25 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
 
     if (!aiDraft.title.trim()) {
-      alert("Įveskite pavadinimą prieš publikuojant.");
+      setToast({ message: "Įveskite pavadinimą prieš publikuojant.", type: "error" });
       return;
     }
 
     if (aiDraft.price <= 0) {
-      alert("Įveskite kainą prieš publikuojant.");
+      setToast({ message: "Įveskite kainą prieš publikuojant.", type: "error" });
+      return;
+    }
+
+    const adaptiveKey = listingToAdaptiveKey(aiDraft.category);
+    const missing = getMissingCriticalFields(adaptiveKey, aiDraft.attributes ?? {}, {
+      price: aiDraft.price,
+      description: aiDraft.description,
+    });
+    if (missing.length > 0) {
+      setToast({
+        message: `Užpildykite privalomus laukus: ${missing.slice(0, 3).join(", ")}`,
+        type: "error",
+      });
       return;
     }
 
@@ -1148,9 +1170,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         price: aiDraft.price,
         reason: priceSanity.reason,
       });
-      const confirmed = window.confirm(
-        `AI pastebėjo, kad kaina gali būti klaidinga. Ar tikrai norite skelbti su kaina: ${priceDisplay}?`
-      );
+      const confirmed = await new Promise<boolean>((resolve) => {
+        confirmResolverRef.current = resolve;
+        setConfirmDialog({
+          title: "Patikrinkite kainą",
+          message: `AI pastebėjo, kad kaina gali būti klaidinga. Ar tikrai norite skelbti su kaina: ${priceDisplay}?`,
+          confirmLabel: "Taip, skelbti",
+          cancelLabel: "Grįžti",
+        });
+      });
       if (!confirmed) {
         logAiSafeguard("price_sanity_cancelled", {
           category: aiDraft.category,
@@ -1166,14 +1194,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
     const mod = moderateListing(aiDraft);
     if (!mod.allowed) {
-      alert(mod.reason);
+      setToast({ message: mod.reason ?? "Skelbimas atmestas moderacijos.", type: "error" });
       return;
     }
 
     if (isDuplicateListing(aiDraft.title, user.id, listings)) {
-      alert(
-        "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą."
-      );
+      setToast({
+        message: "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.",
+        type: "error",
+      });
       return;
     }
 
@@ -1243,7 +1272,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setSellerStep("published");
     scheduleSellerEngagementPush(published.id, published.location, published.title);
 
-    setTimeout(resetSellerFlow, 2000);
+    setTimeout(resetSellerFlow, 4000);
   }, [
     aiDraft,
     sellerPreviewImage,
@@ -1265,6 +1294,25 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const clearToast = useCallback(() => setToast(null), []);
+
+  const dismissConfirm = useCallback((confirmed: boolean) => {
+    setConfirmDialog(null);
+    confirmResolverRef.current?.(confirmed);
+    confirmResolverRef.current = null;
+  }, []);
+
+  const showConfirm = useCallback((opts: ConfirmDialogState) => {
+    return new Promise<boolean>((resolve) => {
+      confirmResolverRef.current = resolve;
+      setConfirmDialog(opts);
+    });
+  }, []);
+
+  const setPushAlertsEnabled = useCallback((enabled: boolean) => {
+    setPushAlertsEnabledState(enabled);
+    savePushAlertsEnabled(enabled);
+    if (enabled) void requestNotificationPermission();
+  }, []);
 
   const updateSellerMedia = useCallback(
     (patch: { imageDataUrl?: string | null; videoUrl?: string }) => {
@@ -1443,7 +1491,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   ]);
 
   useEffect(() => {
-    if (!hydrated || !wakeWordEnabled) return;
+    if (!hydrated || !pushAlertsEnabled) return;
 
     const buildQueries = () => {
       const fromIntent = searchIntentRef.current
@@ -1454,7 +1502,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         ...alertQueriesRef.current,
         ...fromIntent,
         ...(q.length >= 3 ? [q] : []),
-        "traktorius Panevėžyje",
       ];
       const unique = [...new Set(merged.map((s) => s.trim().toLowerCase()))].filter(
         (s) => s.length >= 3
@@ -1474,13 +1521,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (payload.voiceText) {
           speakBuddyMessage(payload.voiceText, { enabled: true });
         }
-        showToast(payload.body, "buddy");
+        setToast({ message: payload.body, type: "info" });
       },
       pushAlertsSeenRef.current
     );
 
     return stopPoll;
-  }, [hydrated, wakeWordEnabled, showToast]);
+  }, [hydrated, pushAlertsEnabled]);
 
   useEffect(() => {
     if (!hydrated) return;
@@ -1619,16 +1666,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         timestamp: new Date().toISOString(),
       };
 
-      let sellerId = "";
       let buyerId = "";
+      let sellerId = "";
       let listingTitle = "";
 
       setChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== chatId) return chat;
 
-          sellerId = chat.sellerId;
           buyerId = chat.buyerId;
+          sellerId = chat.sellerId;
           listingTitle = chat.listingTitle;
 
           const updated: ChatThread = {
@@ -1655,8 +1702,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const replyId = `m-${Date.now()}`;
         const reply: ChatMessage = {
           id: replyId,
-          senderId: sellerId,
-          text: "Ačiū už žinutę! Pardavėjas atsakys netrukus.",
+          senderId: "vauto-system",
+          text: "Žinutė išsiųsta pardavėjui. Atsakymą matysite šiame pokalbyje.",
           timestamp: new Date().toISOString(),
         };
 
@@ -1668,8 +1715,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           )
         );
 
-        scheduleIncomingSms(chatId, replyId, user.id, listingTitle);
-      }, 3000);
+        if (sellerId) {
+          scheduleIncomingSms(chatId, replyId, sellerId, listingTitle);
+        }
+      }, 1500);
     },
     [user.id, scheduleIncomingSms]
   );
@@ -1715,12 +1764,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         title: listing.title,
         sellerId: listing.sellerId,
       });
-      queueReviewPrompt({
-        listingId,
-        listingTitle: listing.title,
-        sellerId: listing.sellerId,
-        delayMs: 12000,
-      });
       if (isDataApiEnabled()) {
         void apiUpsertChat(newChat, user.id).then((r) => {
           if (!r.ok) setSyncError(`Pokalbis neišsaugotas: ${r.error}`);
@@ -1728,7 +1771,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       return chatId;
     },
-    [listings, chats, user.id, isAuthenticated, openAuthModal, bumpListingById, queueReviewPrompt]
+    [listings, chats, user.id, isAuthenticated, openAuthModal, bumpListingById]
   );
 
   const updateEscrow = useCallback(
@@ -1785,7 +1828,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         phone: "Mobilus vartotojas",
       };
       const nextUser: UserProfile = {
-        id: `user-${Date.now()}`,
+        id: resolveStableUserId({
+          provider: data.provider,
+          phone: data.phone,
+          email: data.email,
+        }),
         name: names[data.provider],
         phone: data.phone ?? "",
         city: user.city || "Panevėžys",
@@ -2150,6 +2197,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setWakeWordEnabled,
     requestWakeWordConsent,
     disableWakeWordInstantly,
+    pushAlertsEnabled,
+    setPushAlertsEnabled,
+    confirmDialog,
+    showConfirm,
+    dismissConfirm,
     chameleonTheme,
     detectedAdaptiveKey,
   };
@@ -2166,6 +2218,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         onDecline={declineGdprConsent}
       />
       <GlobalAuthModal />
+      <ConfirmDialog />
     </VautoContext.Provider>
   );
 }

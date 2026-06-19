@@ -1,5 +1,5 @@
 import type { Listing, ServiceBooking } from "@/lib/types";
-import { aggregateSellerMetrics, getListingMetrics } from "@/lib/listing-analytics";
+import { getListingMetrics } from "@/lib/listing-analytics";
 
 /** Real metrics from listing fields, with light seed fallback */
 export function mockListingMetrics(listing: Listing) {
@@ -16,7 +16,19 @@ export function mockListingMetrics(listing: Listing) {
 }
 
 export function mockAggregateAnalytics(listings: Listing[]) {
-  return aggregateSellerMetrics(listings);
+  return listings.reduce(
+    (acc, listing) => {
+      const m = mockListingMetrics(listing);
+      return {
+        views: acc.views + m.views,
+        callClicks: acc.callClicks + m.callClicks,
+        chatStarts: acc.chatStarts + m.chatStarts,
+        saves: acc.saves + m.saves,
+        interestScore: Math.max(acc.interestScore, m.interestScore),
+      };
+    },
+    { views: 0, callClicks: 0, chatStarts: 0, saves: 0, interestScore: 0 }
+  );
 }
 
 export function mockServiceBookings(): ServiceBooking[] {

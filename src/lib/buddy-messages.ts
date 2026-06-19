@@ -26,6 +26,11 @@ export function isServiceSearchQuery(query: string): boolean {
   return SERVICE_QUERY_RE.test(query);
 }
 
+/** Buddy activates for any meaningful search (3+ chars). */
+export function isBuddySearchQuery(query: string): boolean {
+  return query.trim().length >= 3;
+}
+
 export function buildManualFallbackMessage(): string {
   return "Automatinis atpažinimas nepavyko. Užpildykite privalomus laukus žemiau ir patvirtinkite publikavimą.";
 }
@@ -48,7 +53,7 @@ export function buildSellerBuddyMessage(params: {
   const title = draft.title || "skelbimas";
 
   if (!hasPhoto && key === "vehicles") {
-    return `Automobilio skelbimas paruoštas. VIN patikra atlikta. Publikuoti galima po nuotraukos įkėlimo.`;
+    return `Automobilio skelbimas paruoštas. Publikuoti galima po nuotraukos įkėlimo ir VIN patikros.`;
   }
 
   if (!hasPhoto) {
@@ -138,26 +143,32 @@ export function buildSearchBuddyMessage(
   listings: Listing[],
   city = "Panevėžyje"
 ): { message: string; listing: Listing | null } {
-  const services = listings.filter((l) => l.category === "services" && l.status !== "sold");
-  const top = services[0] ?? listings[0] ?? null;
+  const top = listings[0] ?? null;
 
   if (!top) {
     return {
-      message: `Pagal užklausą „${query}" (${city}) rezultatų nerasta. Pabandykite kitą formuluotę arba peržiūrėkite populiarius skelbimus.`,
+      message: `Pagal užklausą „${query}" (${city}) rezultatų nerasta. Pabandykite kitą formuluotę.`,
       listing: null,
     };
   }
 
-  const providerName = extractProviderName(top.title);
-  const dist =
-    top.distanceKm < 2
-      ? "arti jūsų"
-      : top.distanceKm < 5
-        ? "netoli"
-        : `${top.distanceKm.toFixed(1)} km`;
+  if (top.category === "services") {
+    const providerName = extractProviderName(top.title);
+    const dist =
+      top.distanceKm < 2
+        ? "arti jūsų"
+        : top.distanceKm < 5
+          ? "netoli"
+          : `${top.distanceKm.toFixed(1)} km`;
+
+    return {
+      message: `Rastas teikėjas ${providerName} (${dist}). Galite susisiekti tiesiogiai.`,
+      listing: top,
+    };
+  }
 
   return {
-    message: `Rastas teikėjas ${providerName} (${dist}). Galite susisiekti tiesiogiai.`,
+    message: `Geriausias atitikmuo: „${top.title}" — ${top.price}€ (${city}). Peržiūrėkite detales.`,
     listing: top,
   };
 }

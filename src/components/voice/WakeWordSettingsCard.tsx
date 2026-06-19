@@ -79,7 +79,7 @@ export function WakeWordSettingsCard() {
           onClick={disableWakeWordInstantly}
           className="mt-3 w-full rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 text-xs font-semibold text-red-300"
         >
-          ⚠️ Nedelsiant išjungti mikrofoną
+          Nedelsiant išjungti mikrofoną
         </button>
       )}
 

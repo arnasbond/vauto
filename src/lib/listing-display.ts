@@ -19,6 +19,13 @@ export function resolveListingPhone(listing: Listing): string {
   return `+${digits}`;
 }
 
+export function isDemoListingPhone(listing: Listing): boolean {
+  const raw = listing.contact?.trim();
+  if (!raw) return true;
+  const digits = raw.replace(/[^\d+]/g, "");
+  return digits.length < 8;
+}
+
 export function formatListingPhoneDisplay(phone: string): string {
   const d = phone.replace(/\D/g, "");
   if (d.length === 11 && d.startsWith("370")) {

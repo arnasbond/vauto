@@ -26,6 +26,7 @@ import {
   formatListingPhoneDisplay,
   getCategoryLabel,
   getListingDetailRows,
+  isDemoListingPhone,
   resolveListingPhone,
 } from "@/lib/listing-display";
 
@@ -60,7 +61,6 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     showToast,
     trackListingView,
     trackListingCall,
-    queueReviewPrompt,
     reviews,
   } = useVauto();
 
@@ -91,6 +91,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const isOwn = listing.sellerId === user.id;
   const phone = resolveListingPhone(listing);
   const phoneDisplay = formatListingPhoneDisplay(phone);
+  const demoPhone = isDemoListingPhone(listing);
   const detailRows = getListingDetailRows(listing);
   const categoryLabel = getCategoryLabel(listing);
 
@@ -105,12 +106,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
 
   const handleCall = () => {
     trackListingCall(listing.id);
-    queueReviewPrompt({
-      listingId: listing.id,
-      listingTitle: listing.title,
-      sellerId: listing.sellerId,
-      delayMs: 6000,
-    });
+    if (demoPhone) {
+      showToast("Demo režimas: kontaktas nerodomas. Prisijunkite arba naudokite chat.", "info");
+      return;
+    }
     window.location.href = `tel:${phone}`;
   };
 
@@ -137,6 +136,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           <Link
             href="/"
             className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm"
+            aria-label="Grįžti į paiešką"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
