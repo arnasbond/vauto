@@ -101,6 +101,16 @@ import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { attributesToTags } from "@/lib/listing-attributes";
 import { parseVideoUrl } from "@/lib/video-url";
+import {
+  AiSafeguardError,
+  createManualFallbackDraft,
+  evaluatePriceSanity,
+  formatPriceForConfirm,
+  isValidAiExtracted,
+  logAiSafeguard,
+  MANUAL_FALLBACK_TOAST,
+  withAiTimeout,
+} from "@/lib/ai-safeguards";
 import type {
   AiExtractedListing,
   AuthProvider,
@@ -195,6 +205,8 @@ interface VautoContextValue {
   searchVoiceMode: boolean;
   setSearchVoiceMode: (voice: boolean) => void;
   aiDraft: AiExtractedListing | null;
+  /** True when AI extraction failed — show structural manual form */
+  aiManualFallback: boolean;
   sellerPreviewImage: string | null;
   sellerVideoUrl: string;
   updateSellerMedia: (patch: {
@@ -563,6 +575,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [sellerInputMode, setSellerInputMode] =
     useState<SellerInputMode>(null);
   const [aiDraft, setAiDraft] = useState<AiExtractedListing | null>(null);
+  const [aiManualFallback, setAiManualFallback] = useState(false);
   const [sellerPreviewImage, setSellerPreviewImage] = useState<string | null>(
     null
   );
@@ -894,6 +907,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setSellerInputMode(null);
     setSellerUserPrompt(null);
     setAiDraft(null);
+    setAiManualFallback(false);
     setSellerPreviewImage(null);
     setSellerVideoUrl("");
     setSellerHasVideo(false);
@@ -908,12 +922,36 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         videoUrl?: string;
       }
     ) => {
+      const started = performance.now();
       setSellerStep("processing");
+      setAiManualFallback(false);
 
       const promptText =
         opts?.transcript?.trim() ||
         (mode === "upload" ? "Įkelta nuotrauka — analizuoju…" : null);
       if (promptText) setSellerUserPrompt(promptText);
+
+      logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
+
+      const enterManualFallback = (reason: string, error?: unknown) => {
+        const elapsedMs = Math.round(performance.now() - started);
+        logAiSafeguard("fallback_triggered", {
+          mode,
+          reason,
+          elapsedMs,
+          error: error instanceof Error ? error.message : String(error ?? ""),
+        });
+
+        setToast({ message: MANUAL_FALLBACK_TOAST, type: "info" });
+        setAiManualFallback(true);
+        setAiDraft(
+          createManualFallbackDraft({
+            location: user.city,
+            contact: user.phone,
+          })
+        );
+        setSellerStep("confirmation");
+      };
 
       try {
         const coords = await getUserCoords();
@@ -931,14 +969,30 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         };
 
         let extracted: AiExtractedListing;
-        if (mode === "combined") {
-          extracted = await extractCombined(ctx);
-        } else if (mode === "upload") {
-          extracted = await extractFromImage(ctx);
-        } else if (mode === "text") {
-          extracted = await extractFromText(ctx);
-        } else {
-          extracted = await extractFromVoice(ctx);
+        const extractPromise = (async () => {
+          if (mode === "combined") {
+            return extractCombined(ctx);
+          }
+          if (mode === "upload") {
+            return extractFromImage(ctx);
+          }
+          if (mode === "text") {
+            return extractFromText(ctx);
+          }
+          return extractFromVoice(ctx);
+        })();
+
+        extracted = await withAiTimeout(extractPromise, undefined, `extract_${mode ?? "unknown"}`);
+
+        if (!isValidAiExtracted(extracted)) {
+          logAiSafeguard("processing_invalid", {
+            mode,
+            elapsedMs: Math.round(performance.now() - started),
+            title: extracted?.title ?? null,
+            category: extracted?.category ?? null,
+          });
+          enterManualFallback("invalid_extraction");
+          return;
         }
 
         if (!extracted.location && locationHint) {
@@ -964,16 +1018,24 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           setSellerHasVideo(vid.hasVideo);
         }
 
+        logAiSafeguard("processing_success", {
+          mode,
+          elapsedMs: Math.round(performance.now() - started),
+          category: extracted.category,
+          confidence: extracted.confidence,
+        });
+
         setAiDraft(extracted);
         setSellerStep("confirmation");
-      } catch {
-        alert(
-          "AI analizė nepavyko. Bandykite dar kartą arba patikrinkite AI nustatymus profilyje."
-        );
-        resetSellerFlow();
+      } catch (error) {
+        if (error instanceof AiSafeguardError) {
+          enterManualFallback(error.code, error);
+          return;
+        }
+        enterManualFallback("unexpected_error", error);
       }
     },
-    [resetSellerFlow, user.city, user.phone]
+    [user.city, user.phone]
   );
 
   const submitSellerContent = useCallback(
@@ -1068,9 +1130,38 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       return;
     }
 
+    if (!aiDraft.title.trim()) {
+      alert("Įveskite pavadinimą prieš publikuojant.");
+      return;
+    }
+
     if (aiDraft.price <= 0) {
       alert("Įveskite kainą prieš publikuojant.");
       return;
+    }
+
+    const priceSanity = evaluatePriceSanity(aiDraft.category, aiDraft.price);
+    if (priceSanity.suspicious) {
+      const priceDisplay = formatPriceForConfirm(aiDraft.price, aiDraft.priceLabel);
+      logAiSafeguard("price_sanity_warning", {
+        category: aiDraft.category,
+        price: aiDraft.price,
+        reason: priceSanity.reason,
+      });
+      const confirmed = window.confirm(
+        `AI pastebėjo, kad kaina gali būti klaidinga. Ar tikrai norite skelbti su kaina: ${priceDisplay}?`
+      );
+      if (!confirmed) {
+        logAiSafeguard("price_sanity_cancelled", {
+          category: aiDraft.category,
+          price: aiDraft.price,
+        });
+        return;
+      }
+      logAiSafeguard("price_sanity_confirmed", {
+        category: aiDraft.category,
+        price: aiDraft.price,
+      });
     }
 
     const mod = moderateListing(aiDraft);
@@ -1987,6 +2078,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     searchVoiceMode,
     setSearchVoiceMode,
     aiDraft,
+    aiManualFallback,
     sellerPreviewImage,
     sellerVideoUrl,
     updateSellerMedia,

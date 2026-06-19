@@ -72,18 +72,12 @@ export function buildAssistantPrompt(
     .join(", ");
 
   const intros: Record<AdaptiveCategoryKey, string> = {
-    vehicles:
-      "Matome, kad tai automobilis — papildykite techninę informaciją:",
-    clothing:
-      "Matome, kad tai drabužis — parašykite arba pasakykite jo dydį ir prekės ženklą:",
-    services:
-      "Atrodo, kad siūlote paslaugą — papasakokite apie patirtį ir darbų sąrašą:",
-    jobs:
-      "Darbo skelbimas — nurodykite ar siūlote darbą, ar ieškote, ir darbo tipą:",
-    real_estate:
-      "Atpažinome nekilnojamąjį turtą — nurodykite kvadratūrą ir kambarių skaičių:",
-    universal:
-      "Beveik viskas — trūksta kelių detalių:",
+    vehicles: "Automobilis — papildykite techninę informaciją:",
+    clothing: "Drabužis — nurodykite dydį ir prekės ženklą:",
+    services: "Paslauga — nurodykite patirtį ir darbų sąrašą:",
+    jobs: "Darbo skelbimas — nurodykite tipą ir sąlygas:",
+    real_estate: "Nekilnojamasis turtas — nurodykite kvadratūrą ir kambarių skaičių:",
+    universal: "Užpildykite trūkstamus laukus:",
   };
 
   return `${intros[adaptiveKey]} ${hints}`;

@@ -59,9 +59,11 @@ export function BuddyQuickActions({
             variantClass(action.variant, classic, themeId)
           )}
         >
-          <span className="text-xl" aria-hidden>
-            {action.emoji}
-          </span>
+          {action.emoji ? (
+            <span className="text-xl" aria-hidden>
+              {action.emoji}
+            </span>
+          ) : null}
           {action.label}
         </button>
       ))}

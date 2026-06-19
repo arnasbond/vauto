@@ -30,6 +30,7 @@ interface AdaptiveConfirmationProps {
   videoUrl: string;
   userPrompt: string | null;
   speakEnabled: boolean;
+  manualFallback?: boolean;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null; videoUrl?: string }) => void;
@@ -44,6 +45,7 @@ export function AdaptiveConfirmation({
   videoUrl,
   userPrompt,
   speakEnabled,
+  manualFallback = false,
   onUpdate,
   onAttributeChange,
   onMediaChange,
@@ -64,13 +66,17 @@ export function AdaptiveConfirmation({
     price: draft.price,
     description: draft.description,
   });
-  const canPublish = missingKeys.length === 0 && !needsPrice;
+  const canPublish =
+    missingKeys.length === 0 &&
+    !needsPrice &&
+    draft.title.trim().length >= 2;
 
   const buddyMessage = buildSellerBuddyMessage({
     draft,
     missingKeys,
     hasPhoto,
     userPrompt,
+    manualFallback,
   });
 
   const quickActions = buildSellerQuickActions({
@@ -91,11 +97,15 @@ export function AdaptiveConfirmation({
     listings
   );
 
-  const publishLabel = !canPublish
-    ? "Užpildykite privalomus laukus"
-    : needsPrice
-      ? "Įveskite kainą"
-      : "Viskas gerai, publikuoti skelbimą";
+  const publishLabel = manualFallback
+    ? !canPublish
+      ? "Užpildykite privalomus laukus"
+      : "Publikuoti skelbimą"
+    : !canPublish
+      ? "Užpildykite privalomus laukus"
+      : needsPrice
+        ? "Įveskite kainą"
+        : "Viskas gerai, publikuoti skelbimą";
 
   const layoutMap = {
     "technical-grid": "grid" as const,
@@ -243,7 +253,8 @@ export function AdaptiveConfirmation({
       userPrompt={userPrompt}
       buddyMessage={buddyMessage}
       quickActions={quickActions}
-      speakEnabled={speakEnabled}
+      speakEnabled={speakEnabled && !manualFallback}
+      manualFallback={manualFallback}
       canPublish={canPublish}
       publishLabel={publishLabel}
       portalStyleLabel={`${config.label} · ${config.portalStyle} layout`}

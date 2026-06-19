@@ -23,6 +23,7 @@ interface ConversationalReportProps {
   canPublish: boolean;
   publishLabel: string;
   portalStyleLabel?: string;
+  manualFallback?: boolean;
   onQuickAction: (id: BuddyActionId) => void;
   onCancel: () => void;
   onPublish: () => void;
@@ -39,6 +40,7 @@ export function ConversationalReport({
   canPublish,
   publishLabel,
   portalStyleLabel,
+  manualFallback = false,
   onQuickAction,
   onCancel,
   onPublish,
@@ -49,12 +51,21 @@ export function ConversationalReport({
   const t = theme.confirmation;
   const classic = theme.classicLayout;
 
-  const [buddyState, setBuddyState] = useState<BuddyState>("typing");
-  const [showMessage, setShowMessage] = useState(false);
-  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [buddyState, setBuddyState] = useState<BuddyState>(manualFallback ? "idle" : "typing");
+  const [showMessage, setShowMessage] = useState(manualFallback);
+  const [detailsOpen, setDetailsOpen] = useState(manualFallback);
   const spokenRef = useRef(false);
 
   useEffect(() => {
+    if (manualFallback) {
+      setBuddyState("idle");
+      setShowMessage(true);
+      setDetailsOpen(true);
+      spokenRef.current = true;
+      logBuddyState("idle", { context: "seller_manual_fallback", theme: chameleonTheme });
+      return;
+    }
+
     setBuddyState("typing");
     setShowMessage(false);
     spokenRef.current = false;
@@ -85,7 +96,7 @@ export function ConversationalReport({
       clearTimeout(typingTimer);
       stopBuddySpeech();
     };
-  }, [buddyMessage, speakEnabled, chameleonTheme]);
+  }, [buddyMessage, speakEnabled, chameleonTheme, manualFallback]);
 
   const handleAction = (id: BuddyQuickAction["id"]) => {
     if (id === "photo" || id === "change_price" || id === "edit_details") {
@@ -107,9 +118,11 @@ export function ConversationalReport({
         : "VAUTO draugas";
 
   const headerTitle = classic ? theme.portalLabel : "VAUTO draugas";
-  const headerSubtitle = classic
-    ? portalStyleLabel ?? "Patikrinkite skelbimo duomenis"
-    : "Padedu paruošti skelbimą";
+  const headerSubtitle = manualFallback
+    ? "Rankinis skelbimo formos užpildymas"
+    : classic
+      ? portalStyleLabel ?? "Patikrinkite skelbimo duomenis"
+      : "Padedu paruošti skelbimą";
 
   return (
     <div

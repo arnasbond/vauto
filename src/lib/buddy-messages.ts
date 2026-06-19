@@ -26,27 +26,37 @@ export function isServiceSearchQuery(query: string): boolean {
   return SERVICE_QUERY_RE.test(query);
 }
 
+export function buildManualFallbackMessage(): string {
+  return "Automatinis atpažinimas nepavyko. Užpildykite privalomus laukus žemiau ir patvirtinkite publikavimą.";
+}
+
 export function buildSellerBuddyMessage(params: {
   draft: AiExtractedListing;
   missingKeys: string[];
   hasPhoto: boolean;
   userPrompt?: string | null;
+  manualFallback?: boolean;
 }): string {
-  const { draft, missingKeys, hasPhoto, userPrompt } = params;
+  const { draft, missingKeys, hasPhoto, userPrompt, manualFallback } = params;
+
+  if (manualFallback) {
+    return buildManualFallbackMessage();
+  }
+
   const key = listingToAdaptiveKey(draft.category);
   const city = draft.location?.split(",")[0]?.trim() || "Panevėžyje";
-  const title = draft.title || "skelbimą";
+  const title = draft.title || "skelbimas";
 
   if (!hasPhoto && key === "vehicles") {
-    return `Sveiki! Labai gražus automobilis, kaina tikrai teisinga. Jau fone viską paruošiau ir patikrinau VIN. Kad galėtume publikuoti, man trūksta tik nuotraukos. Padarykime ją kartu?`;
+    return `Automobilio skelbimas paruoštas. VIN patikra atlikta. Publikuoti galima po nuotraukos įkėlimo.`;
   }
 
   if (!hasPhoto) {
-    return `Labas! Viską supratau — „${title}" skamba puikiai. Jau paruošiau skelbimą ${city}, bet be nuotraukos žmonės mažiau spustelės. Pridėkime vieną kartu?`;
+    return `Skelbimas „${title}" (${city}) paruoštas. Publikuoti rekomenduojama su nuotrauka.`;
   }
 
   if (missingKeys.includes("price") || draft.price <= 0) {
-    return `Puiku, nuotrauka jau yra! Dabar reikia tik kainos — parašykite arba pasakykite, kiek norite gauti, ir iškart publikuosime.`;
+    return `Nuotrauka įkelta. Nurodykite kainą — po to galėsite publikuoti.`;
   }
 
   if (missingKeys.length > 0) {
@@ -55,15 +65,15 @@ export function buildSellerBuddyMessage(params: {
         ? "patirtį ir paslaugų sąrašą"
         : key === "vehicles"
           ? "ridą arba techninę informaciją"
-          : "kelias smulkmenas";
-    return `Beveik viskas! Skelbimas „${title}" jau beveik paruoštas. Trūksta tik ${hints} — padėsiu užpildyti žemiau.`;
+          : "papildomus laukus";
+    return `Skelbimas „${title}" beveik paruoštas. Užpildykite: ${hints}.`;
   }
 
   if (userPrompt?.trim()) {
-    return `Ačiū, kad pasakėte! Viską užrašiau ir patikrinau. Skelbimas „${title}" ${city} atrodo puikiai — galime publikuoti, kai būsite pasiruošę.`;
+    return `Duomenys patikrinti. Skelbimas „${title}" (${city}) paruoštas publikavimui.`;
   }
 
-  return `Viskas paruošta! Skelbimas „${title}" ${city} atrodo puikiai — jei viskas tinka, spauskite publikuoti. Aš būsiu šalia, jei prireiks pagalbos.`;
+  return `Skelbimas „${title}" (${city}) paruoštas. Patikrinkite laukus ir patvirtinkite publikavimą.`;
 }
 
 export function buildSellerQuickActions(params: {
@@ -78,8 +88,8 @@ export function buildSellerQuickActions(params: {
   if (!hasPhoto) {
     actions.push({
       id: "photo",
-      label: "Nufotografuoti dabar",
-      emoji: "📸",
+      label: "Pridėti nuotrauką",
+      emoji: "",
       variant: "primary",
     });
   }
@@ -88,7 +98,7 @@ export function buildSellerQuickActions(params: {
     actions.push({
       id: "change_price",
       label: "Įvesti kainą",
-      emoji: "💰",
+      emoji: "",
       variant: "primary",
     });
   }
@@ -96,8 +106,8 @@ export function buildSellerQuickActions(params: {
   if (canPublish) {
     actions.push({
       id: "publish",
-      label: "Taip, publikuojam!",
-      emoji: "✅",
+      label: "Publikuoti",
+      emoji: "",
       variant: "primary",
     });
   }
@@ -105,8 +115,8 @@ export function buildSellerQuickActions(params: {
   if (missingKeys.length > 0 && !needsPrice) {
     actions.push({
       id: "edit_details",
-      label: "Papildyti detales",
-      emoji: "✏️",
+      label: "Redaguoti laukus",
+      emoji: "",
       variant: "secondary",
     });
   }
@@ -114,8 +124,8 @@ export function buildSellerQuickActions(params: {
   if (!canPublish && hasPhoto && !needsPrice) {
     actions.push({
       id: "change_price",
-      label: "Pakeisti kainą",
-      emoji: "❌",
+      label: "Keisti kainą",
+      emoji: "",
       variant: "danger",
     });
   }
@@ -133,7 +143,7 @@ export function buildSearchBuddyMessage(
 
   if (!top) {
     return {
-      message: `Nesijaudinkite, jau ieškau „${query}" ${city}. Kol kas nieko tikslaus neradau — pabandykite kitą žodį arba pažiūrėkite populiarius skelbimus žemiau.`,
+      message: `Pagal užklausą „${query}" (${city}) rezultatų nerasta. Pabandykite kitą formuluotę arba peržiūrėkite populiarius skelbimus.`,
       listing: null,
     };
   }
@@ -141,13 +151,13 @@ export function buildSearchBuddyMessage(
   const providerName = extractProviderName(top.title);
   const dist =
     top.distanceKm < 2
-      ? "labai arti"
+      ? "arti jūsų"
       : top.distanceKm < 5
-        ? "netoli jūsų"
-        : `${top.distanceKm.toFixed(1)} km atstumu`;
+        ? "netoli"
+        : `${top.distanceKm.toFixed(1)} km`;
 
   return {
-    message: `Nesijaudinkite, aš jau ieškau patikimo meistro šalia jūsų ${city}. Radau ${providerName}, jis laisvas ir yra ${dist}. Norite, kad padėčiau susisiekti?`,
+    message: `Rastas teikėjas ${providerName} (${dist}). Galite susisiekti tiesiogiai.`,
     listing: top,
   };
 }
@@ -157,26 +167,26 @@ export function buildSearchQuickActions(
 ): BuddyQuickAction[] {
   if (!listing) {
     return [
-      { id: "see_listings", label: "Rodyti visus skelbimus", emoji: "🔍", variant: "primary" },
+      { id: "see_listings", label: "Rodyti skelbimus", emoji: "", variant: "primary" },
     ];
   }
   return [
     {
       id: "call_provider",
-      label: "Taip, skambinam meistrui",
-      emoji: "📞",
+      label: "Skambinti",
+      emoji: "",
       variant: "primary",
     },
     {
       id: "chat_provider",
-      label: "Parašyti žinutę",
-      emoji: "💬",
+      label: "Rašyti žinutę",
+      emoji: "",
       variant: "secondary",
     },
     {
       id: "see_listings",
-      label: "Žiūrėti kitus",
-      emoji: "👀",
+      label: "Kiti skelbimai",
+      emoji: "",
       variant: "secondary",
     },
   ];
@@ -187,7 +197,7 @@ export function buildBuddyViewNotification(
   viewerCount = 5
 ): string {
   const city = location.split(",")[0]?.trim() || "Panevėžyje";
-  return `Labas! Tavo skelbimą ${city} ką tik peržiūrėjo dar ${viewerCount} žmonės. Atrodo, reikalai juda į priekį!`;
+  return `Jūsų skelbimą ${city} peržiūrėjo ${viewerCount} naudotojai.`;
 }
 
 export function buildBuddySoldFollowUp(
@@ -196,7 +206,7 @@ export function buildBuddySoldFollowUp(
 ): string {
   const name = getFirstName(userName);
   const shortTitle = listingTitle.length > 40 ? `${listingTitle.slice(0, 37)}…` : listingTitle;
-  return `Sveikas, ${name}, užsukau paklausti — ar pavyko parduoti „${shortTitle}"? Jei dar ne, galiu nemokamai iškelti jį viršun, kad pamatytų kaimynai.`;
+  return `${name}, ar pavyko parduoti „${shortTitle}"? Jei ne, galite nemokamai iškelti skelbimą.`;
 }
 
 function extractProviderName(title: string): string {
@@ -204,5 +214,5 @@ function extractProviderName(title: string): string {
   if (beforeDash && beforeDash.length <= 20 && !/meistr|paslaug|remont/i.test(beforeDash)) {
     return beforeDash;
   }
-  return "Joną";
+  return "teikėjas";
 }

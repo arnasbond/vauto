@@ -13,6 +13,7 @@ export function AiConfirmationScreen() {
   const {
     sellerStep,
     aiDraft,
+    aiManualFallback,
     sellerPreviewImage,
     sellerVideoUrl,
     sellerUserPrompt,
@@ -46,6 +47,7 @@ export function AiConfirmationScreen() {
       videoUrl={sellerVideoUrl}
       userPrompt={sellerUserPrompt}
       speakEnabled={sellerInputMode === "voice" || sellerInputMode === "combined"}
+      manualFallback={aiManualFallback}
       onUpdate={updateAiDraft}
       onAttributeChange={handleAttributeChange}
       onMediaChange={updateSellerMedia}

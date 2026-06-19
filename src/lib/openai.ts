@@ -1,4 +1,5 @@
 import { getOpenAiKey } from "@/lib/openai-settings";
+import { ENTERPRISE_TONE_RULES } from "@/lib/ai-safeguards";
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 
 const EXTRACTION_SCHEMA = `{
@@ -95,7 +96,7 @@ export async function extractFromImageOpenAI(
       content: [
         {
           type: "text",
-          text: `Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. Iš nuotraukos ištrauk skelbimo duomenis. Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
+          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. Iš nuotraukos ištrauk skelbimo duomenis. Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
         },
         { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
       ],
@@ -115,7 +116,7 @@ export async function extractFromVoiceOpenAI(
     {
       role: "system",
       content:
-        "Esi Vauto AI asistentas. Iš lietuviško balso aprašymo ištrauk skelbimo duomenis. Kainą interpretuok iš žodžių (pvz. 'dešimt eurų' = 10).",
+        `${ENTERPRISE_TONE_RULES} Esi Vauto AI asistentas. Iš lietuviško balso aprašymo ištrauk skelbimo duomenis. Kainą interpretuok iš žodžių (pvz. 'dešimt eurų' = 10).`,
     },
     {
       role: "user",
@@ -136,7 +137,7 @@ export async function extractFromTextOpenAI(
     {
       role: "system",
       content:
-        "Esi Vauto AI. Iš laisvos formos lietuviško teksto ištrauk skelbimo duomenis. Pašalink parazitinius žodžius. Jei kainos nėra — price: 0.",
+        `${ENTERPRISE_TONE_RULES} Esi Vauto AI. Iš laisvos formos lietuviško teksto ištrauk skelbimo duomenis. Pašalink parazitinius žodžius. Jei kainos nėra — price: 0.`,
     },
     {
       role: "user",
