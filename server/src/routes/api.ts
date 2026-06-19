@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
   deleteListing,
@@ -43,8 +44,38 @@ function actorId(req: AuthedRequest): string {
   return req.authUserId ?? String(req.headers["x-user-id"] ?? "");
 }
 
-apiRouter.get("/health", (_req, res) => {
-  res.json({ ok: true, service: "vauto-api" });
+apiRouter.get("/health", async (_req, res) => {
+  const features = {
+    sms: Boolean(
+      process.env.TWILIO_ACCOUNT_SID &&
+        process.env.TWILIO_AUTH_TOKEN &&
+        process.env.TWILIO_FROM_NUMBER
+    ),
+    googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID),
+    webPush: Boolean(
+      process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
+    ),
+    fcm: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
+    jwt: Boolean(process.env.JWT_SECRET),
+  };
+
+  try {
+    await pool.query("SELECT 1");
+    res.json({
+      ok: true,
+      service: "vauto-api",
+      db: "connected",
+      features,
+    });
+  } catch (e) {
+    res.status(503).json({
+      ok: false,
+      service: "vauto-api",
+      db: "unavailable",
+      features,
+      error: String(e),
+    });
+  }
 });
 
 /** Idempotent demo catalog upsert — safe to call after deploy without Render API key. */

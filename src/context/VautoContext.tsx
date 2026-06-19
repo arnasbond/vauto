@@ -29,7 +29,6 @@ import {
   loadSavedIds,
   loadSearchIntent,
   loadSoldPromptDismissed,
-  loadWakeWordEnabled,
   loadAlertQueries,
   loadPushAlertsSeen,
   loadPushAlertsEnabled,
@@ -42,7 +41,6 @@ import {
   saveSavedIds,
   saveSearchIntent,
   saveSoldPromptDismissed,
-  saveWakeWordEnabled,
   saveAlertQueries,
   savePushAlertsSeen,
 } from "@/lib/storage";
@@ -110,7 +108,7 @@ import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
 import {
   buildBuddySoldFollowUp,
 } from "@/lib/buddy-messages";
-import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
 import {
   type ChameleonThemeId,
 } from "@/lib/chameleon-themes";
@@ -118,17 +116,13 @@ import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { WakeWordHost } from "@/components/voice/WakeWordHost";
 import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
-import {
-  createWakeWordSession,
-  logWakeEvent,
-  resumePassivePhase,
-  type WakeWordSession,
-} from "@/lib/wake-word-engine";
 import type { WakeWordPhase } from "@/lib/wake-word-types";
 import {
-  executeVoiceIntent,
-  parseVoiceIntent,
-} from "@/lib/voice-intent-engine";
+  WakeWordProvider,
+  useWakeWord,
+  type WakeWordActions,
+  type WakeWordDeps,
+} from "@/context/WakeWordContext";
 import {
   requestNotificationPermission,
   showLocalPushNotification,
@@ -298,6 +292,13 @@ type VautoCatalogSlice = Omit<
   | "setActiveChatId"
   | "markChatRead"
   | "findListing"
+  | "wakeWordEnabled"
+  | "wakeWordPhase"
+  | "wakeWordStatusText"
+  | "wakeWordTranscript"
+  | "setWakeWordEnabled"
+  | "requestWakeWordConsent"
+  | "disableWakeWordInstantly"
 >;
 
 const DEMO_SOLD_STORIES = [
@@ -350,9 +351,10 @@ function VautoFacade({
 }) {
   const chat = useChat();
   const seller = useSellerFlow();
+  const wakeWord = useWakeWord();
   const value = useMemo<VautoContextValue>(
-    () => ({ ...catalog, ...chat, ...seller }),
-    [catalog, chat, seller]
+    () => ({ ...catalog, ...chat, ...seller, ...wakeWord }),
+    [catalog, chat, seller, wakeWord]
   );
 
   return (
@@ -411,13 +413,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
-  const [wakeWordEnabled, setWakeWordEnabledState] = useState(false);
   const [pushAlertsEnabled, setPushAlertsEnabledState] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
-  const [wakeWordPhase, setWakeWordPhase] = useState<WakeWordPhase>("off");
-  const [wakeWordStatusText, setWakeWordStatusText] = useState<string>();
-  const [wakeWordTranscript, setWakeWordTranscript] = useState<string>();
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
   const [detectedAdaptiveKey, setDetectedAdaptiveKey] =
     useState<AdaptiveCategoryKey | null>(null);
@@ -428,7 +426,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const viewedListingsRef = useRef<Set<string>>(new Set());
   const gdprPendingAction = useRef<(() => void) | null>(null);
   const gdprWakeWordPending = useRef(false);
-  const wakeWordSessionRef = useRef<WakeWordSession | null>(null);
+  const wakeWordActionsRef = useRef<WakeWordActions | null>(null);
   const pushAlertsSeenRef = useRef<Set<string>>(new Set());
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
@@ -482,7 +480,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const storedDismissed = loadSoldPromptDismissed();
         if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
 
-        if (loadGdprConsent() && loadWakeWordEnabled()) setWakeWordEnabledState(true);
         const seenPush = loadPushAlertsSeen();
         if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
         const storedAlerts = loadAlertQueries();
@@ -516,7 +513,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (storedIntent) setSearchIntentEvents(storedIntent);
       const storedDismissed = loadSoldPromptDismissed();
       if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
-      if (loadGdprConsent() && loadWakeWordEnabled()) setWakeWordEnabledState(true);
       const seenPush = loadPushAlertsSeen();
       if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
       const storedAlerts = loadAlertQueries();
@@ -896,10 +892,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     gdprWakeWordPending.current = false;
     action?.();
     if (wakePending) {
-      setWakeWordEnabledState(true);
-      saveWakeWordEnabled(true);
-      void requestNotificationPermission();
-      logWakeEvent("enabled_after_consent");
+      wakeWordActionsRef.current?.enableAfterGdprConsent();
     }
   }, []);
 
@@ -912,127 +905,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const revokeGdprConsent = useCallback(() => {
     setGdprConsent(false);
     saveGdprConsent(false);
-    wakeWordSessionRef.current?.stop();
-    wakeWordSessionRef.current = null;
-    setWakeWordEnabledState(false);
-    saveWakeWordEnabled(false);
-    setWakeWordPhase("off");
-    stopBuddySpeech();
-    logWakeEvent("disabled_via_gdpr_revoke");
+    wakeWordActionsRef.current?.disableOnGdprRevoke();
   }, []);
 
-  const disableWakeWordInstantly = useCallback(() => {
-    wakeWordSessionRef.current?.stop();
-    wakeWordSessionRef.current = null;
-    setWakeWordEnabledState(false);
-    saveWakeWordEnabled(false);
-    setWakeWordPhase("off");
-    setWakeWordTranscript(undefined);
-    setWakeWordStatusText(undefined);
-    stopBuddySpeech();
-    logWakeEvent("disabled_instant");
-    showToast("Budintis režimas išjungtas — mikrofonas neaktyvus", "info");
-  }, [showToast]);
-
-  const setWakeWordEnabled = useCallback((enabled: boolean) => {
-    if (!enabled) {
-      disableWakeWordInstantly();
-      return;
-    }
-    setWakeWordEnabledState(true);
-    saveWakeWordEnabled(true);
-    void requestNotificationPermission();
-    logWakeEvent("enabled");
-  }, [disableWakeWordInstantly]);
-
-  const requestWakeWordConsent = useCallback(() => {
-    if (gdprConsent) {
-      setWakeWordEnabled(true);
-      return;
-    }
+  const requestGdprModalForWake = useCallback(() => {
     gdprWakeWordPending.current = true;
     setGdprModalOpen(true);
-  }, [gdprConsent, setWakeWordEnabled]);
-
-  const processWakeCommand = useCallback(
-    (transcript: string) => {
-      setWakeWordPhase("processing");
-      setWakeWordTranscript(transcript);
-      setWakeWordStatusText("Suprantu…");
-      logWakeEvent("command_received", { transcript: transcript.slice(0, 120) });
-
-      const intent = parseVoiceIntent(transcript, user.city || "Panevėžys");
-      const result = executeVoiceIntent(intent, listingsRef.current);
-
-      setWakeWordStatusText(result.response);
-      logAnalytics("wake_word_detected", {
-        intent: intent.type,
-        matches: result.matchCount,
-      });
-
-      if (result.topListing && intent.type === "check_new_ads") {
-        setSearchQuery(intent.topic);
-      }
-
-      speakBuddyMessage(result.response, {
-        enabled: true,
-        onEnd: () => {
-          setWakeWordTranscript(undefined);
-          setWakeWordStatusText(undefined);
-          const session = wakeWordSessionRef.current;
-          if (session) resumePassivePhase(session, setWakeWordPhase);
-          else setWakeWordPhase("passive");
-        },
-      });
-
-      if (result.topListing) {
-        showToast(result.response, "buddy");
-      }
-    },
-    [user.city, showToast]
-  );
-
-  useEffect(() => {
-    if (!hydrated || !wakeWordEnabled || !gdprConsent) {
-      wakeWordSessionRef.current?.stop();
-      wakeWordSessionRef.current = null;
-      if (!wakeWordEnabled) setWakeWordPhase("off");
-      return;
-    }
-
-    const session = createWakeWordSession({
-      onPhaseChange: setWakeWordPhase,
-      onWake: () => {
-        setWakeWordTranscript(undefined);
-        setWakeWordStatusText(undefined);
-      },
-      onCommand: (transcript) => processWakeCommand(transcript),
-      onError: (message) => {
-        logWakeEvent("session_error", { message });
-        if (message === "not-allowed") {
-          disableWakeWordInstantly();
-          showToast("Mikrofono prieiga atmesta", "error");
-        }
-      },
-    });
-
-    wakeWordSessionRef.current = session;
-    session.start();
-    logWakeEvent("session_started");
-
-    return () => {
-      session.stop();
-      wakeWordSessionRef.current = null;
-    };
-  }, [
-    hydrated,
-    wakeWordEnabled,
-    gdprConsent,
-    processWakeCommand,
-    disableWakeWordInstantly,
-    showToast,
-  ]);
-
+  }, []);
   useEffect(() => {
     if (!hydrated || !pushAlertsEnabled) return;
 
@@ -1374,13 +1253,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       pendingReview,
       queueReviewPrompt,
       clearReviewPrompt,
-      wakeWordEnabled,
-      wakeWordPhase,
-      wakeWordStatusText,
-      wakeWordTranscript,
-      setWakeWordEnabled,
-      requestWakeWordConsent,
-      disableWakeWordInstantly,
       pushAlertsEnabled,
       setPushAlertsEnabled,
       confirmDialog,
@@ -1449,13 +1321,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       pendingReview,
       queueReviewPrompt,
       clearReviewPrompt,
-      wakeWordEnabled,
-      wakeWordPhase,
-      wakeWordStatusText,
-      wakeWordTranscript,
-      setWakeWordEnabled,
-      requestWakeWordConsent,
-      disableWakeWordInstantly,
       pushAlertsEnabled,
       setPushAlertsEnabled,
       confirmDialog,
@@ -1499,8 +1364,29 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const wakeWordDeps = useMemo<WakeWordDeps>(
+    () => ({
+      hydrated,
+      gdprConsent,
+      userCity: user.city,
+      listingsRef,
+      setSearchQuery: handleSearchQuery,
+      showToast,
+      requestGdprModalForWake,
+    }),
+    [
+      hydrated,
+      gdprConsent,
+      user.city,
+      handleSearchQuery,
+      showToast,
+      requestGdprModalForWake,
+    ]
+  );
+
   return (
-    <VautoBridgeProvider value={bridgeValue}>
+    <WakeWordProvider deps={wakeWordDeps} actionsRef={wakeWordActionsRef}>
+      <VautoBridgeProvider value={bridgeValue}>
       <ChatProvider>
         <SellerFlowContextProvider>
           <VautoFacade
@@ -1514,6 +1400,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         </SellerFlowContextProvider>
       </ChatProvider>
     </VautoBridgeProvider>
+    </WakeWordProvider>
   );
 }
 
