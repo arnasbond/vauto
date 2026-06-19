@@ -126,6 +126,19 @@ import { DEMO_REVIEWS } from "@/data/mockReviews";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
 import type { ListingEditPatch } from "@/lib/listing-edit";
+import { logAnalytics } from "@/lib/analytics";
+import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
+import {
+  buildBuddySoldFollowUp,
+  buildBuddyViewNotification,
+} from "@/lib/buddy-messages";
+import { logBuddyState } from "@/lib/buddy-voice";
+
+export interface PendingReviewPrompt {
+  listingId: string;
+  listingTitle: string;
+  sellerId: string;
+}
 
 interface VautoContextValue {
   user: UserProfile;
@@ -147,6 +160,9 @@ interface VautoContextValue {
 
   sellerStep: SellerFlowStep;
   sellerInputMode: SellerInputMode;
+  sellerUserPrompt: string | null;
+  searchVoiceMode: boolean;
+  setSearchVoiceMode: (voice: boolean) => void;
   aiDraft: AiExtractedListing | null;
   sellerPreviewImage: string | null;
   sellerVideoUrl: string;
@@ -211,7 +227,7 @@ interface VautoContextValue {
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
-  toast: { message: string; type: "success" | "error" | "info" } | null;
+  toast: { message: string; type: "success" | "error" | "info" | "buddy" } | null;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   clearToast: () => void;
 
@@ -242,6 +258,9 @@ interface VautoContextValue {
   soldPromptDismissed: Set<string>;
   dismissSoldPrompt: (listingId: string) => void;
   sellerAnalytics: ReturnType<typeof aggregateSellerMetrics>;
+  pendingReview: PendingReviewPrompt | null;
+  queueReviewPrompt: (data: PendingReviewPrompt & { delayMs?: number }) => void;
+  clearReviewPrompt: () => void;
 }
 
 const DEMO_SOLD_STORIES = [
@@ -314,7 +333,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
     message: string;
-    type: "success" | "error" | "info";
+    type: "success" | "error" | "info" | "buddy";
   } | null>(null);
   const [buyerCoords, setBuyerCoords] = useState<UserCoords | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
@@ -324,6 +343,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [reviews, setReviews] = useState<SellerReview[]>(DEMO_REVIEWS);
   const [searchIntentEvents, setSearchIntentEvents] = useState<SearchIntentEvent[]>([]);
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
+  const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
+  const [sellerUserPrompt, setSellerUserPrompt] = useState<string | null>(null);
+  const [searchVoiceMode, setSearchVoiceMode] = useState(false);
+  const reviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const engagementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const buddyFollowUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const activeChatIdRef = useRef<string | null>(null);
   const viewedListingsRef = useRef<Set<string>>(new Set());
@@ -625,15 +650,93 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (viewedListingsRef.current.has(listingId)) return;
       viewedListingsRef.current.add(listingId);
       bumpListingById(listingId, "views");
+      const listing = listings.find((l) => l.id === listingId);
+      logAnalytics("listing_view", {
+        listingId,
+        title: listing?.title,
+        location: listing?.location,
+      });
     },
-    [bumpListingById]
+    [bumpListingById, listings]
   );
 
   const trackListingCall = useCallback(
     (listingId: string) => {
       bumpListingById(listingId, "callClicks");
+      const listing = listings.find((l) => l.id === listingId);
+      logAnalytics("listing_call_click", {
+        listingId,
+        title: listing?.title,
+        sellerId: listing?.sellerId,
+        phone: listing?.contact ? "present" : "fallback",
+      });
     },
-    [bumpListingById]
+    [bumpListingById, listings]
+  );
+
+  const queueReviewPrompt = useCallback(
+    (data: PendingReviewPrompt & { delayMs?: number }) => {
+      if (!isAuthenticated || user.id === "guest") return;
+      if (user.id === data.sellerId) return;
+      if (reviewTimerRef.current) clearTimeout(reviewTimerRef.current);
+      const show = () => setPendingReview(data);
+      if (data.delayMs && data.delayMs > 0) {
+        reviewTimerRef.current = setTimeout(show, data.delayMs);
+      } else {
+        show();
+      }
+    },
+    [isAuthenticated, user.id]
+  );
+
+  const clearReviewPrompt = useCallback(() => {
+    setPendingReview(null);
+    if (reviewTimerRef.current) clearTimeout(reviewTimerRef.current);
+  }, []);
+
+  const scheduleSellerEngagementPush = useCallback(
+    (listingId: string, location: string, listingTitle: string) => {
+      if (engagementTimerRef.current) clearTimeout(engagementTimerRef.current);
+      if (buddyFollowUpTimerRef.current) clearTimeout(buddyFollowUpTimerRef.current);
+
+      engagementTimerRef.current = setTimeout(() => {
+        bumpListingById(listingId, "views");
+        bumpListingById(listingId, "views");
+        bumpListingById(listingId, "views");
+        bumpListingById(listingId, "views");
+        bumpListingById(listingId, "views");
+        const buddyMsg = buildBuddyViewNotification(location, 5);
+        logAnalytics("seller_engagement_push", {
+          listingId,
+          location,
+          simulatedViewers: 5,
+          buddy: true,
+        });
+        logBuddyState("follow_up", {
+          trigger: "post_publish_views",
+          listingId,
+          message: buddyMsg.slice(0, 60),
+        });
+        setToast({ message: buddyMsg, type: "buddy" });
+      }, 10000);
+
+      /** Simulated 3-day check-in — accelerated for demo (90s) */
+      buddyFollowUpTimerRef.current = setTimeout(() => {
+        const followUp = buildBuddySoldFollowUp(user.name, listingTitle);
+        logBuddyState("follow_up", {
+          trigger: "simulated_3_day_checkin",
+          listingId,
+          simulatedDays: 3,
+        });
+        logAnalytics("seller_engagement_push", {
+          listingId,
+          type: "sold_follow_up",
+          simulatedDays: 3,
+        });
+        setToast({ message: followUp, type: "buddy" });
+      }, 90_000);
+    },
+    [bumpListingById, user.name]
   );
 
   const toggleFilter = useCallback((id: string) => {
@@ -719,6 +822,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const resetSellerFlow = useCallback(() => {
     setSellerStep("idle");
     setSellerInputMode(null);
+    setSellerUserPrompt(null);
     setAiDraft(null);
     setSellerPreviewImage(null);
     setSellerVideoUrl("");
@@ -735,6 +839,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
     ) => {
       setSellerStep("processing");
+
+      const promptText =
+        opts?.transcript?.trim() ||
+        (mode === "upload" ? "Įkelta nuotrauka — analizuoju…" : null);
+      if (promptText) setSellerUserPrompt(promptText);
 
       try {
         const coords = await getUserCoords();
@@ -823,6 +932,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             : "text";
 
       setSellerInputMode(mode);
+      if (payload.text?.trim()) setSellerUserPrompt(payload.text.trim());
       await runAiProcessing(mode, {
         transcript: payload.text,
         previewImage: payload.imageDataUrl ?? parseVideoUrl(payload.videoUrl ?? "").thumbnail,
@@ -970,6 +1080,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
     setListings((prev) => [published, ...prev]);
     setSellerStep("published");
+    scheduleSellerEngagementPush(published.id, published.location, published.title);
 
     setTimeout(resetSellerFlow, 2000);
   }, [
@@ -982,10 +1093,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     buyerCoords,
     isAuthenticated,
     openAuthModal,
+    scheduleSellerEngagementPush,
   ]);
 
   const showToast = useCallback(
-    (message: string, type: "success" | "error" | "info" = "success") => {
+    (message: string, type: "success" | "error" | "info" | "buddy" = "success") => {
       setToast({ message, type });
     },
     []
@@ -1242,6 +1354,17 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
       setChats((prev) => [newChat, ...prev]);
       bumpListingById(listingId, "chatStarts");
+      logAnalytics("listing_chat_start", {
+        listingId,
+        title: listing.title,
+        sellerId: listing.sellerId,
+      });
+      queueReviewPrompt({
+        listingId,
+        listingTitle: listing.title,
+        sellerId: listing.sellerId,
+        delayMs: 12000,
+      });
       if (isDataApiEnabled()) {
         void apiUpsertChat(newChat, user.id).then((r) => {
           if (!r.ok) setSyncError(`Pokalbis neišsaugotas: ${r.error}`);
@@ -1249,7 +1372,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       return chatId;
     },
-    [listings, chats, user.id, isAuthenticated, openAuthModal, bumpListingById]
+    [listings, chats, user.id, isAuthenticated, openAuthModal, bumpListingById, queueReviewPrompt]
   );
 
   const updateEscrow = useCallback(
@@ -1379,14 +1502,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const markListingSold = useCallback(
     (id: string) => {
+      const listing = listings.find((l) => l.id === id);
       updateListing(id, { status: "sold" });
       setUser((prev) => ({
         ...prev,
         soldCount: (prev.soldCount ?? 0) + 1,
       }));
       setSoldPromptDismissed((prev) => new Set([...prev, id]));
+      logAnalytics("listing_marked_sold", {
+        listingId: id,
+        title: listing?.title,
+        sellerId: user.id,
+      });
     },
-    [updateListing]
+    [updateListing, listings, user.id]
   );
 
   const submitReview = useCallback(
@@ -1410,6 +1539,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
       };
       setReviews((prev) => [review, ...prev]);
+      logAnalytics("review_submitted", {
+        listingId: data.listingId,
+        sellerId: data.sellerId,
+        rating: data.rating,
+      });
+      setPendingReview(null);
     },
     [isAuthenticated, user.id, user.name]
   );
@@ -1583,6 +1718,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     clearSyncError,
     sellerStep,
     sellerInputMode,
+    sellerUserPrompt,
+    searchVoiceMode,
+    setSearchVoiceMode,
     aiDraft,
     sellerPreviewImage,
     sellerVideoUrl,
@@ -1645,11 +1783,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     soldPromptDismissed,
     dismissSoldPrompt,
     sellerAnalytics,
+    pendingReview,
+    queueReviewPrompt,
+    clearReviewPrompt,
   };
 
   return (
     <VautoContext.Provider value={value}>
       {children}
+      <ReviewPromptHost />
       <GdprConsentModal
         open={gdprModalOpen}
         onAccept={acceptGdprConsent}

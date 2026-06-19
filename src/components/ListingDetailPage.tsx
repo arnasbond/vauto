@@ -60,6 +60,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     showToast,
     trackListingView,
     trackListingCall,
+    queueReviewPrompt,
     reviews,
   } = useVauto();
 
@@ -100,6 +101,17 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     }
     const chatId = startChat(listing.id);
     if (chatId) router.push(`/chats/thread/?id=${chatId}`);
+  };
+
+  const handleCall = () => {
+    trackListingCall(listing.id);
+    queueReviewPrompt({
+      listingId: listing.id,
+      listingTitle: listing.title,
+      sellerId: listing.sellerId,
+      delayMs: 6000,
+    });
+    window.location.href = `tel:${phone}`;
   };
 
   const handleDelete = () => {
@@ -176,22 +188,22 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         </div>
 
         {!isOwn && (
-          <div className="mt-5 grid grid-cols-2 gap-3">
-            <a
-              href={`tel:${phone}`}
-              onClick={() => trackListingCall(listing.id)}
-              className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--flux-teal)] py-3.5 text-sm font-bold text-[var(--flux-bg)] shadow-lg shadow-[var(--flux-teal)]/20"
+          <div className="mt-5 flex flex-col gap-3">
+            <button
+              type="button"
+              onClick={handleCall}
+              className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
             >
-              <Phone className="h-5 w-5" />
+              <Phone className="h-6 w-6" />
               Skambinti
-            </a>
+            </button>
             <button
               type="button"
               onClick={handleChat}
-              className="flex items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-3.5 text-sm font-semibold text-white"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white"
             >
               <MessageCircle className="h-5 w-5" />
-              Rašyti
+              Rašyti pardavėjui
             </button>
           </div>
         )}

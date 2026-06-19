@@ -1,7 +1,7 @@
 "use client";
 
+import { useCallback, useRef } from "react";
 import {
-  buildAssistantPrompt,
   getAdaptiveConfig,
   getMissingCriticalFields,
   listingToAdaptiveKey,
@@ -11,16 +11,24 @@ import { useVauto } from "@/context/VautoContext";
 import { getPriceAdvice } from "@/lib/price-advisor";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
 import { verifyVin } from "@/lib/trust";
-import { AiAssistantPrompt } from "./AiAssistantPrompt";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
-import { ConfirmationShell } from "./ConfirmationShell";
 import { DraftMediaEditor } from "./DraftMediaEditor";
+import { ConversationalReport } from "@/components/conversational/ConversationalReport";
+import {
+  buildSellerBuddyMessage,
+  buildSellerQuickActions,
+  type BuddyActionId,
+} from "@/lib/buddy-messages";
+import { capturePhoto } from "@/lib/native-media";
+import { logBuddyState } from "@/lib/buddy-voice";
 
 interface AdaptiveConfirmationProps {
   draft: AiExtractedListing;
   previewImage: string | null;
   videoUrl: string;
+  userPrompt: string | null;
+  speakEnabled: boolean;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null; videoUrl?: string }) => void;
@@ -36,6 +44,8 @@ export function AdaptiveConfirmation({
   draft,
   previewImage,
   videoUrl,
+  userPrompt,
+  speakEnabled,
   onUpdate,
   onAttributeChange,
   onMediaChange,
@@ -44,17 +54,32 @@ export function AdaptiveConfirmation({
   onPublish,
 }: AdaptiveConfirmationProps) {
   const { listings } = useVauto();
+  const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const config = getAdaptiveConfig(adaptiveKey);
   const attributes = draft.attributes ?? {};
   const needsPrice = draft.price <= 0;
+  const hasPhoto = Boolean(previewImage);
 
   const missingKeys = getMissingCriticalFields(adaptiveKey, attributes, {
     price: draft.price,
     description: draft.description,
   });
-  const assistantMessage = buildAssistantPrompt(adaptiveKey, missingKeys);
-  const canPublish = missingKeys.length === 0;
+  const canPublish = missingKeys.length === 0 && !needsPrice;
+
+  const buddyMessage = buildSellerBuddyMessage({
+    draft,
+    missingKeys,
+    hasPhoto,
+    userPrompt,
+  });
+
+  const quickActions = buildSellerQuickActions({
+    missingKeys,
+    hasPhoto,
+    canPublish,
+    needsPrice,
+  });
 
   const priceAdvice = getPriceAdvice(
     {
@@ -87,6 +112,38 @@ export function AdaptiveConfirmation({
 
   const categoryFields = config.fields.filter(
     (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+  );
+
+  const scrollToDetails = () => {
+    detailsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const handlePhotoCapture = useCallback(() => {
+    requestMediaConsent(async () => {
+      const photo = await capturePhoto();
+      if (photo) onMediaChange({ imageDataUrl: photo });
+    });
+  }, [requestMediaConsent, onMediaChange]);
+
+  const handleQuickAction = useCallback(
+    (id: BuddyActionId) => {
+      logBuddyState("idle", { context: "seller_quick_action", action: id });
+
+      if (id === "photo") {
+        handlePhotoCapture();
+        scrollToDetails();
+        return;
+      }
+      if (id === "publish") {
+        onPublish();
+        return;
+      }
+      if (id === "change_price" || id === "edit_details") {
+        scrollToDetails();
+        return;
+      }
+    },
+    [handlePhotoCapture, onPublish]
   );
 
   const categorySection = categoryFields.length > 0 && (
@@ -128,36 +185,35 @@ export function AdaptiveConfirmation({
   );
 
   return (
-    <ConfirmationShell
-      config={config}
-      draft={draft}
-      needsPrice={needsPrice}
-      canPublish={canPublish && !needsPrice}
+    <ConversationalReport
+      userPrompt={userPrompt}
+      buddyMessage={buddyMessage}
+      quickActions={quickActions}
+      speakEnabled={speakEnabled}
+      canPublish={canPublish}
       publishLabel={publishLabel}
+      onQuickAction={handleQuickAction}
       onCancel={onCancel}
       onPublish={onPublish}
-      assistantPrompt={
-        assistantMessage ? (
-          <AiAssistantPrompt message={assistantMessage} />
-        ) : null
-      }
     >
-      <DraftMediaEditor
-        previewImage={previewImage}
-        videoUrl={videoUrl}
-        onImageChange={(imageDataUrl) => onMediaChange({ imageDataUrl })}
-        onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
-        requestMediaConsent={requestMediaConsent}
-      />
-      <BaseFieldsEditor
-        draft={draft}
-        fields={config.baseFields}
-        needsPrice={needsPrice}
-        onUpdate={onUpdate}
-        variant="inline"
-      />
-      <PriceAdviceCard advice={priceAdvice} />
-      {categorySection}
-    </ConfirmationShell>
+      <div ref={detailsAnchorRef}>
+        <DraftMediaEditor
+          previewImage={previewImage}
+          videoUrl={videoUrl}
+          onImageChange={(imageDataUrl) => onMediaChange({ imageDataUrl })}
+          onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
+          requestMediaConsent={requestMediaConsent}
+        />
+        <BaseFieldsEditor
+          draft={draft}
+          fields={config.baseFields}
+          needsPrice={needsPrice}
+          onUpdate={onUpdate}
+          variant="inline"
+        />
+        <PriceAdviceCard advice={priceAdvice} />
+        {categorySection}
+      </div>
+    </ConversationalReport>
   );
 }

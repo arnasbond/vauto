@@ -1,6 +1,6 @@
 "use client";
 
-import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
+import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { PrivateListingCard } from "@/components/dashboard/PrivateListingCard";
@@ -32,12 +32,11 @@ export function PrivateSellerDashboard({
   return (
     <div>
       {listings.length > 0 && (
-        <MicroAnalytics
+        <CallAndSellWidget
           views={sellerAnalytics.views}
           callClicks={sellerAnalytics.callClicks}
-          chatStarts={sellerAnalytics.chatStarts}
           saves={sellerAnalytics.saves}
-          interestScore={sellerAnalytics.interestScore}
+          chatStarts={sellerAnalytics.chatStarts}
         />
       )}
 
@@ -47,6 +46,7 @@ export function PrivateSellerDashboard({
         listings={listings}
         dismissedIds={soldPromptDismissed}
         onMarkSold={onMarkSold}
+        onRenew={onRenew}
         onDismiss={dismissSoldPrompt}
       />
 

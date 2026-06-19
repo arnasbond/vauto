@@ -19,7 +19,7 @@ export function ReviewModal({
   listingTitle,
   sellerId,
 }: ReviewModalProps) {
-  const { submitReview, showToast } = useVauto();
+  const { submitReview, showToast, clearReviewPrompt } = useVauto();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
 
@@ -29,6 +29,7 @@ export function ReviewModal({
     submitReview({ listingId, listingTitle, sellerId, rating, comment });
     showToast("Ačiū už atsiliepimą!", "success");
     onClose();
+    clearReviewPrompt();
     setRating(5);
     setComment("");
   };
@@ -38,7 +39,9 @@ export function ReviewModal({
       <div className="vauto-glass-card w-full max-w-md rounded-3xl p-6">
         <div className="mb-4 flex items-start justify-between">
           <div>
-            <h2 className="text-lg font-bold text-white">Įvertinkite sandorį</h2>
+            <h2 className="text-lg font-bold text-white">
+              Ar pavyko susitarti dėl šio skelbimo?
+            </h2>
             <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
               {listingTitle}
             </p>

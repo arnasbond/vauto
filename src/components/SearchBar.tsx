@@ -13,6 +13,7 @@ export function SearchBar() {
     setSearchQuery,
     requestMediaConsent,
     startListingFromQuery,
+    setSearchVoiceMode,
   } = useVauto();
   const [isListening, setIsListening] = useState(false);
   const [session, setSession] = useState<VoiceSession | null>(null);
@@ -51,12 +52,15 @@ export function SearchBar() {
       try {
         const text = voiceSession ? await recordWithSession(voiceSession) : null;
         if (text) {
+          setSearchVoiceMode(true);
           if (startListingFromQuery(text)) {
             setSearchQuery("");
           } else {
             setSearchQuery(text);
             scrollToResults();
           }
+        } else {
+          setSearchVoiceMode(false);
         }
       } finally {
         voiceSession?.release();
@@ -80,7 +84,10 @@ export function SearchBar() {
           type="search"
           name="q"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
+          onChange={(e) => {
+            setSearchVoiceMode(false);
+            setSearchQuery(e.target.value);
+          }}
           placeholder="Pvz. darbas Panevėžyje iki 1200€"
           enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-muted)] outline-none placeholder:text-[var(--vauto-text-muted)]/80"

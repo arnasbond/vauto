@@ -1,4 +1,5 @@
 import type { Listing } from "@/lib/types";
+import { regionalizeTitle } from "@/lib/local-seo";
 
 const LT_CHAR_MAP: Record<string, string> = {
   ą: "a",
@@ -57,17 +58,19 @@ const SITE_URL = "https://vauto-chi.vercel.app";
 export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
   const priceText = listing.priceLabel ?? `${listing.price}€`;
-  const title = `${listing.title} — ${priceText} | Vauto`;
+  const regionalTitle = regionalizeTitle(listing.title, listing.location);
+  const title = `${regionalTitle} — ${priceText} | VAUTO`;
+  const city = listing.location.split(",")[0]?.trim() || "Panevėžys";
   const description =
-    listing.description?.slice(0, 155) ??
-    `${listing.title} parduodamas ${listing.location}. Kaina: ${priceText}. Peržiūrėkite Vauto skelbimų portale.`;
+    listing.description?.slice(0, 140) ??
+    `${regionalTitle} — skelbimas ${city}. Kaina ${priceText}. Peržiūrėkite ir skambinkite per Vauto.`;
 
   return {
     title,
     description,
     og: {
-      title: `${listing.title} — ${priceText}`,
-      description,
+      title: `${regionalTitle} — ${priceText}`,
+      description: `${description} ${city} regionas.`,
       image: listing.image,
       url: `${SITE_URL}/listing/${slug}/`,
       type: "product",

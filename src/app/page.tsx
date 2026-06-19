@@ -7,6 +7,8 @@ import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { PopularTodaySection, SocialProofStrip } from "@/components/home/HomeInsights";
+import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
+import { BuddySearchAssistant } from "@/components/conversational/BuddySearchAssistant";
 
 export default function HomePage() {
   return (
@@ -28,6 +30,8 @@ export default function HomePage() {
       </HeroSection>
 
       <ContentSection>
+        <HotKeywordsGrid />
+        <BuddySearchAssistant />
         <SocialProofStrip />
         <PopularTodaySection />
         <FilterBubbles />

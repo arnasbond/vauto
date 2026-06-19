@@ -7,15 +7,13 @@ import { useState } from "react";
 import { useEffect } from "react";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
 import { ReportButton } from "@/components/support/ReportButton";
-import { ReviewModal } from "@/components/reviews/ReviewModal";
 import { useVauto } from "@/context/VautoContext";
 import { getQuickQuestions } from "@/lib/chat-helpers";
 import { canReviewListing } from "@/lib/reviews";
 
 function ChatThreadContent({ chatId }: { chatId: string }) {
-  const { chats, sendMessage, user, listings, setActiveChatId, reviews } = useVauto();
+  const { chats, sendMessage, user, listings, setActiveChatId, reviews, queueReviewPrompt } = useVauto();
   const [draft, setDraft] = useState("");
-  const [reviewOpen, setReviewOpen] = useState(false);
   const chat = chats.find((c) => c.id === chatId);
   const listing = listings.find((l) => l.id === chat?.listingId);
   const quickQuestions = getQuickQuestions(listing);
@@ -51,15 +49,6 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
 
   return (
     <div className="flex h-[calc(100dvh-2rem)] flex-col px-4">
-      {listing && chat && (
-        <ReviewModal
-          open={reviewOpen}
-          onClose={() => setReviewOpen(false)}
-          listingId={chat.listingId}
-          listingTitle={chat.listingTitle}
-          sellerId={chat.sellerId}
-        />
-      )}
       <div className="mb-4 flex items-center gap-3 border-b border-white/10 pb-3">
         <Link
           href="/chats"
@@ -126,13 +115,21 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
 
       {showReviewPrompt && (
         <div className="mb-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-          <p className="text-xs text-amber-200">Ar pavyko susitarti?</p>
+          <p className="text-xs text-amber-200">
+            Ar pavyko susitarti dėl {chat.listingTitle}?
+          </p>
           <button
             type="button"
-            onClick={() => setReviewOpen(true)}
+            onClick={() =>
+              queueReviewPrompt({
+                listingId: chat.listingId,
+                listingTitle: chat.listingTitle,
+                sellerId: chat.sellerId,
+              })
+            }
             className="mt-2 text-xs font-semibold text-amber-300 underline"
           >
-            Palikti atsiliepimą pardavėjui
+            Palikti atsiliepimą
           </button>
         </div>
       )}

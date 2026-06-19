@@ -15,6 +15,8 @@ export function AiConfirmationScreen() {
     aiDraft,
     sellerPreviewImage,
     sellerVideoUrl,
+    sellerUserPrompt,
+    sellerInputMode,
     updateSellerMedia,
     updateAiDraft,
     publishListing,
@@ -42,6 +44,8 @@ export function AiConfirmationScreen() {
       draft={aiDraft}
       previewImage={sellerPreviewImage}
       videoUrl={sellerVideoUrl}
+      userPrompt={sellerUserPrompt}
+      speakEnabled={sellerInputMode === "voice" || sellerInputMode === "combined"}
       onUpdate={updateAiDraft}
       onAttributeChange={handleAttributeChange}
       onMediaChange={updateSellerMedia}

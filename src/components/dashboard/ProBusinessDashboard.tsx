@@ -1,6 +1,6 @@
 "use client";
 
-import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
+import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
@@ -39,18 +39,18 @@ export function ProBusinessDashboard({
 
   return (
     <div>
-      <MicroAnalytics
+      <CallAndSellWidget
         views={analytics.views}
         callClicks={analytics.callClicks}
-        chatStarts={analytics.chatStarts}
         saves={analytics.saves}
-        interestScore={analytics.interestScore}
+        chatStarts={analytics.chatStarts}
       />
       <BuyerIntentBanner intentCount={buyerIntentCount} />
       <SoldPromptBanner
         listings={listings}
         dismissedIds={soldPromptDismissed}
         onMarkSold={onMarkSold}
+        onRenew={onRenew}
         onDismiss={dismissSoldPrompt}
       />
       <VautoWallet

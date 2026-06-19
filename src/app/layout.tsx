@@ -24,9 +24,9 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Vauto — Paprastiausi skelbimai",
+  title: "Vauto — Skelbimai ir paslaugos Panevėžyje",
   description:
-    "Revoliucinis skelbimų portalas: nulis formų pardavėjams, semantinė paieška pirkėjams.",
+    "Parduok ir rask prekes bei paslaugas Panevėžyje per sekundes. AI skelbimai, skambink tiesiai pardavėjui — VAUTO.",
   manifest: "/manifest.json",
   icons: {
     icon: [
