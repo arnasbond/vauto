@@ -4,6 +4,7 @@ import {
   getUsersMatchingListing,
 } from "../repository.js";
 import type { ApiListing } from "../types.js";
+import { notifyListingMatchFcm } from "./fcm.js";
 
 let configured = false;
 
@@ -20,6 +21,13 @@ function ensureVapid(): boolean {
 }
 
 export async function notifyListingMatch(listing: ApiListing): Promise<void> {
+  await Promise.allSettled([
+    notifyListingMatchWeb(listing),
+    notifyListingMatchFcm(listing),
+  ]);
+}
+
+async function notifyListingMatchWeb(listing: ApiListing): Promise<void> {
   if (!ensureVapid()) return;
 
   const matches = await getUsersMatchingListing(listing);

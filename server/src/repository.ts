@@ -736,6 +736,41 @@ export async function getPushSubscriptionsForUsers(
   }));
 }
 
+export async function upsertFcmToken(
+  userId: string,
+  token: string,
+  platform = "android"
+): Promise<void> {
+  const id = `fcm-${Buffer.from(token).toString("base64url").slice(0, 40)}`;
+  await ensureUser(userId);
+  await query(
+    `INSERT INTO fcm_tokens (id, user_id, token, platform, updated_at)
+     VALUES ($1, $2, $3, $4, now())
+     ON CONFLICT (user_id, token) DO UPDATE SET
+       platform = EXCLUDED.platform,
+       updated_at = now()`,
+    [id, userId, token, platform]
+  );
+}
+
+export async function deleteFcmToken(userId: string, token: string): Promise<void> {
+  await query(`DELETE FROM fcm_tokens WHERE user_id = $1 AND token = $2`, [
+    userId,
+    token,
+  ]);
+}
+
+export async function getFcmTokensForUsers(
+  userIds: string[]
+): Promise<{ userId: string; token: string }[]> {
+  if (!userIds.length) return [];
+  const rows = await query<{ user_id: string; token: string }>(
+    `SELECT user_id, token FROM fcm_tokens WHERE user_id = ANY($1::text[])`,
+    [userIds]
+  );
+  return rows.map((r) => ({ userId: r.user_id, token: r.token }));
+}
+
 export async function setUserAlertQueries(
   userId: string,
   queries: string[]

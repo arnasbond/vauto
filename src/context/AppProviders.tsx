@@ -6,8 +6,9 @@ import { VautoProvider } from "@/context/VautoContext";
 import type { ReactNode } from "react";
 
 /**
- * Application provider tree (Phase 3–4 architecture):
+ * Application provider tree (Phase 5):
  * AuthProvider → ReviewsProvider → VautoProvider
+ *   └─ VautoBridge → ChatProvider → SellerFlowContext → VautoFacade (useVauto)
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (

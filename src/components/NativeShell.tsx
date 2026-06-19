@@ -2,11 +2,20 @@
 
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
+import { useAuth } from "@/context/AuthContext";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { logWakeEvent } from "@/lib/wake-word-engine";
+import { registerNativePush } from "@/lib/native-push";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
+  const { isAuthenticated } = useAuth();
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform() || !isAuthenticated) return;
+    void registerNativePush();
+  }, [isAuthenticated]);
+
   useEffect(() => {
     if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {

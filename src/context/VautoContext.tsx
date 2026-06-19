@@ -12,29 +12,17 @@ import {
 } from "react";
 import {
   ANONYMOUS_USER,
-  INITIAL_CHATS,
   INITIAL_LISTINGS,
 } from "@/data/mockListings";
 import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
-  detectPurchaseIntent,
-  detectSellerListingIntent,
   generateDynamicFilters,
   rankListings,
   resolveSortMode,
 } from "@/lib/scoring";
 import {
-  extractCombined,
-  extractFromImage,
-  extractFromText,
-  extractFromVoice,
-} from "@/lib/client-api";
-import { isDuplicateListing } from "@/lib/dedup";
-import { moderateListing } from "@/lib/moderation";
-import {
   loadAuthSession,
   loadBannedUserIds,
-  loadChats,
   loadGdprConsent,
   loadListings,
   loadReports,
@@ -48,7 +36,6 @@ import {
   savePushAlertsEnabled,
   loadUser,
   saveBannedUserIds,
-  saveChats,
   saveGdprConsent,
   saveListings,
   saveReports,
@@ -59,24 +46,15 @@ import {
   saveAlertQueries,
   savePushAlertsSeen,
 } from "@/lib/storage";
-import { capturePhoto } from "@/lib/native-media";
 import { distanceToCity, getUserCoords, type UserCoords } from "@/lib/geolocation";
 import {
   distanceToListing,
   enrichListingCoords,
-  geocodeLocation,
 } from "@/lib/geocoding";
 import { normalizeListings } from "@/lib/listing-normalize";
 import { generateListingSlug, listingPath } from "@/lib/seo";
-import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import {
-  isVerifiedServiceProvider,
-  verifyVin,
-} from "@/lib/trust";
-import {
-  apiCreateListing,
   apiDeleteListing,
-  apiFetchChats,
   apiFetchListings,
   apiFetchSaved,
   apiFetchUser,
@@ -91,26 +69,11 @@ import {
   apiWarnUser,
   apiUpdateSaved,
   apiUpdateUser,
-  apiUpsertChat,
-  apiUpsertEscrow,
 } from "@/lib/api/client";
 import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
-import { attributesToTags } from "@/lib/listing-attributes";
-import { parseVideoUrl } from "@/lib/video-url";
-import {
-  AiSafeguardError,
-  createManualFallbackDraft,
-  evaluatePriceSanity,
-  formatPriceForConfirm,
-  isValidAiExtracted,
-  logAiSafeguard,
-  MANUAL_FALLBACK_TOAST,
-  withAiTimeout,
-} from "@/lib/ai-safeguards";
 import type {
   AiExtractedListing,
-  ChatMessage,
   ChatThread,
   EscrowTransaction,
   Listing,
@@ -135,6 +98,10 @@ import { DEMO_REPORTS } from "@/data/mockReports";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { useAuth, type LoginPayload } from "@/context/AuthContext";
 import { useReviews } from "@/context/ReviewsContext";
+import { ChatProvider, useChat } from "@/context/ChatContext";
+import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
+import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
+import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
 import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
 import { registerWebPush } from "@/lib/web-push";
 import type { ListingEditPatch } from "@/lib/listing-edit";
@@ -145,12 +112,10 @@ import {
 } from "@/lib/buddy-messages";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
-  adaptiveKeyToTheme,
   type ChameleonThemeId,
 } from "@/lib/chameleon-themes";
-import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
-import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
+import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { WakeWordHost } from "@/components/voice/WakeWordHost";
 import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
 import {
@@ -323,6 +288,18 @@ interface VautoContextValue {
   detectedAdaptiveKey: AdaptiveCategoryKey | null;
 }
 
+type VautoCatalogSlice = Omit<
+  VautoContextValue,
+  | keyof SellerFlowContextValue
+  | "chats"
+  | "sendMessage"
+  | "startChat"
+  | "updateEscrow"
+  | "setActiveChatId"
+  | "markChatRead"
+  | "findListing"
+>;
+
 const DEMO_SOLD_STORIES = [
   { id: "story-1", title: "Dviratis", location: "Panevėžys", timeAgo: "prieš 2 d." },
   { id: "story-2", title: "iPhone 13", location: "Vilnius", timeAgo: "prieš 3 d." },
@@ -345,24 +322,6 @@ function anonymizeTitle(title: string): string {
 
 const VautoContext = createContext<VautoContextValue | null>(null);
 
-const PLACEHOLDER_IMAGES: Record<string, string> = {
-  electronics:
-    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&h=400&fit=crop",
-  services:
-    "https://images.unsplash.com/photo-1558904541-efa843a96f01?w=600&h=400&fit=crop",
-  vehicles:
-    "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=600&h=400&fit=crop",
-  home: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&h=400&fit=crop",
-  clothing:
-    "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600&h=400&fit=crop",
-  real_estate:
-    "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop",
-  jobs:
-    "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&h=400&fit=crop",
-  other:
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
-};
-
 function applyBuyerDistances(
   items: Listing[],
   buyer: UserCoords | null
@@ -374,6 +333,43 @@ function applyBuyerDistances(
     const km = exact ?? fallback;
     return km !== null ? { ...l, distanceKm: km } : l;
   });
+}
+
+function VautoFacade({
+  catalog,
+  children,
+  gdprModalOpen,
+  acceptGdprConsent,
+  declineGdprConsent,
+}: {
+  catalog: VautoCatalogSlice;
+  children: ReactNode;
+  gdprModalOpen: boolean;
+  acceptGdprConsent: () => void;
+  declineGdprConsent: () => void;
+}) {
+  const chat = useChat();
+  const seller = useSellerFlow();
+  const value = useMemo<VautoContextValue>(
+    () => ({ ...catalog, ...chat, ...seller }),
+    [catalog, chat, seller]
+  );
+
+  return (
+    <VautoContext.Provider value={value}>
+      {children}
+      <SellerFlowOverlays />
+      <ChameleonThemeHost />
+      <ReviewPromptHost />
+      <WakeWordHost />
+      <GdprConsentModal
+        open={gdprModalOpen}
+        onAccept={acceptGdprConsent}
+        onDecline={declineGdprConsent}
+      />
+      <ConfirmDialog />
+    </VautoContext.Provider>
+  );
 }
 
 export function VautoProvider({ children }: { children: ReactNode }) {
@@ -402,7 +398,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set()
   );
-  const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
   const [reports, setReports] = useState<SupportReport[]>(DEMO_REPORTS);
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
@@ -415,7 +410,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [searchIntentEvents, setSearchIntentEvents] = useState<SearchIntentEvent[]>([]);
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
-  const [sellerUserPrompt, setSellerUserPrompt] = useState<string | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
   const [wakeWordEnabled, setWakeWordEnabledState] = useState(false);
   const [pushAlertsEnabled, setPushAlertsEnabledState] = useState(true);
@@ -431,9 +425,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const engagementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buddyFollowUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const activeChatIdRef = useRef<string | null>(null);
   const viewedListingsRef = useRef<Set<string>>(new Set());
-  const smsCancelRef = useRef<Map<string, () => void>>(new Map());
   const gdprPendingAction = useRef<(() => void) | null>(null);
   const gdprWakeWordPending = useRef(false);
   const wakeWordSessionRef = useRef<WakeWordSession | null>(null);
@@ -445,8 +437,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const searchIntentRef = useRef(searchIntentEvents);
   searchIntentRef.current = searchIntentEvents;
   const alertQueriesRef = useRef<string[]>([]);
-  const chatsRef = useRef(chats);
-  chatsRef.current = chats;
 
   useEffect(() => {
     async function load() {
@@ -456,10 +446,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const storedUser = loadUser();
         const auth = loadAuthSession();
         const uid = storedUser?.id && auth?.isAuthenticated ? storedUser.id : ANONYMOUS_USER.id;
-        const [listingsRes, chatsRes, savedRes, userRes, reportsRes, bannedRes] =
+        const [listingsRes, savedRes, userRes, reportsRes, bannedRes] =
           await Promise.all([
           apiFetchListings(),
-          apiFetchChats(uid),
           apiFetchSaved(uid),
           apiFetchUser(uid),
           apiFetchReports(),
@@ -475,8 +464,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             )
           );
         } else errors.push(listingsRes.error);
-        if (chatsRes.ok) setChats(chatsRes.data);
-        else errors.push(chatsRes.error);
         if (savedRes.ok) setSavedIds(new Set(savedRes.data));
         else errors.push(savedRes.error);
         if (userRes.ok && auth?.isAuthenticated) {
@@ -512,7 +499,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const storedUser = loadUser();
       const auth = loadAuthSession();
       const storedListings = loadListings();
-      const storedChats = loadChats();
       const storedSaved = loadSavedIds();
       const storedReports = loadReports();
       const storedBanned = loadBannedUserIds();
@@ -522,7 +508,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (storedListings?.length) {
         setListings(normalizeListings(storedListings));
       }
-      if (storedChats?.length) setChats(storedChats);
       if (storedSaved) setSavedIds(new Set(storedSaved));
       if (storedReports?.length) setReports(storedReports);
       else saveReports(DEMO_REPORTS);
@@ -550,11 +535,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
-    saveChats(chats);
-  }, [chats, hydrated, apiActive]);
-
-  useEffect(() => {
-    if (!hydrated || apiActive) return;
     saveSavedIds(savedIds);
   }, [savedIds, hydrated, apiActive]);
 
@@ -577,20 +557,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     if (!hydrated || apiActive) return;
     saveSoldPromptDismissed(Array.from(soldPromptDismissed));
   }, [soldPromptDismissed, hydrated, apiActive]);
-
-  const [sellerStep, setSellerStep] = useState<SellerFlowStep>("idle");
-  const [sellerInputMode, setSellerInputMode] =
-    useState<SellerInputMode>(null);
-  const [aiDraft, setAiDraft] = useState<AiExtractedListing | null>(null);
-  const [aiManualFallback, setAiManualFallback] = useState(false);
-  const [sellerPreviewImage, setSellerPreviewImage] = useState<string | null>(
-    null
-  );
-  const [sellerVideoUrl, setSellerVideoUrl] = useState("");
-  const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(
-    null
-  );
-  const [sellerHasVideo, setSellerHasVideo] = useState(false);
 
   useEffect(() => {
     getUserCoords().then((coords) => {
@@ -864,387 +830,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [listings, user.id]
   );
 
-  const resetSellerFlow = useCallback(() => {
-    setSellerStep("idle");
-    setSellerInputMode(null);
-    setSellerUserPrompt(null);
-    setAiDraft(null);
-    setAiManualFallback(false);
-    setSellerPreviewImage(null);
-    setSellerVideoUrl("");
-    setSellerHasVideo(false);
-  }, []);
-
-  const runAiProcessing = useCallback(
-    async (
-      mode: SellerInputMode,
-      opts?: {
-        transcript?: string;
-        previewImage?: string | null;
-        videoUrl?: string;
-      }
-    ) => {
-      const started = performance.now();
-      setSellerStep("processing");
-      setAiManualFallback(false);
-
-      const promptText =
-        opts?.transcript?.trim() ||
-        (mode === "upload" ? "Įkelta nuotrauka — analizuoju…" : null);
-      if (promptText) setSellerUserPrompt(promptText);
-
-      logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
-
-      const enterManualFallback = (reason: string, error?: unknown) => {
-        const elapsedMs = Math.round(performance.now() - started);
-        logAiSafeguard("fallback_triggered", {
-          mode,
-          reason,
-          elapsedMs,
-          error: error instanceof Error ? error.message : String(error ?? ""),
-        });
-
-        setToast({ message: MANUAL_FALLBACK_TOAST, type: "info" });
-        setAiManualFallback(true);
-        setAiDraft(
-          createManualFallbackDraft({
-            location: user.city,
-            contact: user.phone,
-          })
-        );
-        setSellerStep("confirmation");
-      };
-
-      try {
-        const coords = await getUserCoords();
-        let locationHint = user.city;
-        if (coords) {
-          const d = distanceToCity(coords, user.city);
-          if (d !== null && d < 50) locationHint = user.city;
-        }
-
-        const ctx = {
-          imageDataUrl: opts?.previewImage,
-          transcript: opts?.transcript,
-          userCity: locationHint,
-          contact: user.phone,
-        };
-
-        let extracted: AiExtractedListing;
-        const extractPromise = (async () => {
-          if (mode === "combined") {
-            return extractCombined(ctx);
-          }
-          if (mode === "upload") {
-            return extractFromImage(ctx);
-          }
-          if (mode === "text") {
-            return extractFromText(ctx);
-          }
-          return extractFromVoice(ctx);
-        })();
-
-        extracted = await withAiTimeout(extractPromise, undefined, `extract_${mode ?? "unknown"}`);
-
-        if (!isValidAiExtracted(extracted)) {
-          logAiSafeguard("processing_invalid", {
-            mode,
-            elapsedMs: Math.round(performance.now() - started),
-            title: extracted?.title ?? null,
-            category: extracted?.category ?? null,
-          });
-          enterManualFallback("invalid_extraction");
-          return;
-        }
-
-        if (!extracted.location && locationHint) {
-          extracted = { ...extracted, location: locationHint };
-        }
-
-        const geo = geocodeLocation(extracted.location);
-        extracted = {
-          ...extracted,
-          attributes: {
-            ...(extracted.attributes ?? {}),
-            _geoLat: String(geo.lat),
-            _geoLng: String(geo.lng),
-          },
-        };
-
-        if (opts?.videoUrl) {
-          setSellerVideoUrl(opts.videoUrl);
-          const vid = parseVideoUrl(opts.videoUrl);
-          if (vid.thumbnail && !opts.previewImage) {
-            setSellerPreviewImage(vid.thumbnail);
-          }
-          setSellerHasVideo(vid.hasVideo);
-        }
-
-        logAiSafeguard("processing_success", {
-          mode,
-          elapsedMs: Math.round(performance.now() - started),
-          category: extracted.category,
-          confidence: extracted.confidence,
-        });
-
-        setAiDraft(extracted);
-        setSellerStep("confirmation");
-      } catch (error) {
-        if (error instanceof AiSafeguardError) {
-          enterManualFallback(error.code, error);
-          return;
-        }
-        enterManualFallback("unexpected_error", error);
-      }
-    },
-    [user.city, user.phone]
-  );
-
-  const submitSellerContent = useCallback(
-    async (payload: {
-      text?: string;
-      imageDataUrl?: string | null;
-      videoUrl?: string;
-      voiceCapture?: boolean;
-    }) => {
-      if (!requireAuthForListing("/add")) return;
-
-      if (payload.imageDataUrl) setSellerPreviewImage(payload.imageDataUrl);
-      if (payload.videoUrl) {
-        setSellerVideoUrl(payload.videoUrl);
-        const vid = parseVideoUrl(payload.videoUrl);
-        setSellerHasVideo(vid.hasVideo);
-        if (vid.thumbnail && !payload.imageDataUrl) {
-          setSellerPreviewImage(vid.thumbnail);
-        }
-      }
-
-      const mode: SellerInputMode = payload.voiceCapture
-        ? payload.imageDataUrl && payload.text
-          ? "combined"
-          : payload.imageDataUrl
-            ? "upload"
-            : "voice"
-        : payload.imageDataUrl && payload.text
-          ? "combined"
-          : payload.imageDataUrl
-            ? "upload"
-            : "text";
-
-      setSellerInputMode(mode);
-      if (payload.text?.trim()) setSellerUserPrompt(payload.text.trim());
-      await runAiProcessing(mode, {
-        transcript: payload.text,
-        previewImage: payload.imageDataUrl ?? parseVideoUrl(payload.videoUrl ?? "").thumbnail,
-        videoUrl: payload.videoUrl,
-      });
-    },
-    [runAiProcessing, requireAuthForListing]
-  );
-
-  const startListingFromQuery = useCallback(
-    (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || !detectSellerListingIntent(trimmed)) return false;
-
-      if (!requireAuthForListing("/add")) {
-        setPendingSellerQuery(trimmed);
-        return true;
-      }
-
-      void submitSellerContent({ text: trimmed });
-      return true;
-    },
-    [requireAuthForListing, submitSellerContent]
-  );
-
-  const consumePendingSellerQuery = useCallback(() => {
-    const q = pendingSellerQuery;
-    if (q) setPendingSellerQuery(null);
-    return q;
-  }, [pendingSellerQuery]);
-
-  const completeVoiceRecording = useCallback(
-    (transcript: string | null) => {
-      if (!transcript) {
-        resetSellerFlow();
-        return;
-      }
-      runAiProcessing("voice", { transcript });
-    },
-    [runAiProcessing, resetSellerFlow]
-  );
-
-  const cancelVoiceRecording = useCallback(() => {
-    resetSellerFlow();
-  }, [resetSellerFlow]);
-
-  const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
-    setAiDraft((prev) => {
-      if (!prev) return prev;
-      const next = { ...prev, ...patch };
-      if (patch.attributes) {
-        next.attributes = { ...(prev.attributes ?? {}), ...patch.attributes };
-      }
-      return next;
-    });
-  }, []);
-
-  const publishListing = useCallback(async () => {
-    if (!aiDraft) return;
-
-    if (!isAuthenticated) {
-      openAuthModal("/add");
-      return;
-    }
-
-    if (!aiDraft.title.trim()) {
-      setToast({ message: "Įveskite pavadinimą prieš publikuojant.", type: "error" });
-      return;
-    }
-
-    if (aiDraft.price <= 0) {
-      setToast({ message: "Įveskite kainą prieš publikuojant.", type: "error" });
-      return;
-    }
-
-    const adaptiveKey = listingToAdaptiveKey(aiDraft.category);
-    const missing = getMissingCriticalFields(adaptiveKey, aiDraft.attributes ?? {}, {
-      price: aiDraft.price,
-      description: aiDraft.description,
-    });
-    if (missing.length > 0) {
-      setToast({
-        message: `Užpildykite privalomus laukus: ${missing.slice(0, 3).join(", ")}`,
-        type: "error",
-      });
-      return;
-    }
-
-    const priceSanity = evaluatePriceSanity(aiDraft.category, aiDraft.price);
-    if (priceSanity.suspicious) {
-      const priceDisplay = formatPriceForConfirm(aiDraft.price, aiDraft.priceLabel);
-      logAiSafeguard("price_sanity_warning", {
-        category: aiDraft.category,
-        price: aiDraft.price,
-        reason: priceSanity.reason,
-      });
-      const confirmed = await new Promise<boolean>((resolve) => {
-        confirmResolverRef.current = resolve;
-        setConfirmDialog({
-          title: "Patikrinkite kainą",
-          message: `AI pastebėjo, kad kaina gali būti klaidinga. Ar tikrai norite skelbti su kaina: ${priceDisplay}?`,
-          confirmLabel: "Taip, skelbti",
-          cancelLabel: "Grįžti",
-        });
-      });
-      if (!confirmed) {
-        logAiSafeguard("price_sanity_cancelled", {
-          category: aiDraft.category,
-          price: aiDraft.price,
-        });
-        return;
-      }
-      logAiSafeguard("price_sanity_confirmed", {
-        category: aiDraft.category,
-        price: aiDraft.price,
-      });
-    }
-
-    const mod = moderateListing(aiDraft);
-    if (!mod.allowed) {
-      setToast({ message: mod.reason ?? "Skelbimas atmestas moderacijos.", type: "error" });
-      return;
-    }
-
-    if (isDuplicateListing(aiDraft.title, user.id, listings)) {
-      setToast({
-        message: "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.",
-        type: "error",
-      });
-      return;
-    }
-
-    let distKm = 0.5;
-    const coords = buyerCoords ?? (await getUserCoords());
-    const listingCoords = geocodeLocation(aiDraft.location);
-    if (coords) {
-      const exact = distanceToListing(coords, {
-        latitude: listingCoords.lat,
-        longitude: listingCoords.lng,
-        location: aiDraft.location,
-      });
-      if (exact !== null) distKm = exact;
-    }
-
-    const vin =
-      typeof aiDraft.attributes?.vin === "string"
-        ? aiDraft.attributes.vin
-        : undefined;
-    const vinOk = vin ? verifyVin(vin) : false;
-
-    const createdAt = new Date().toISOString();
-    const newListing: Listing = enrichListingCoords({
-      id: `l-${Date.now()}`,
-      title: aiDraft.title,
-      price: aiDraft.price,
-      priceLabel: aiDraft.priceLabel,
-      location: aiDraft.location,
-      distanceKm: distKm,
-      slug: generateListingSlug(aiDraft.title, aiDraft.location),
-      image:
-        sellerPreviewImage ??
-        PLACEHOLDER_IMAGES[aiDraft.category] ??
-        PLACEHOLDER_IMAGES.other,
-      category: aiDraft.category,
-      tags: attributesToTags(aiDraft),
-      description: aiDraft.description,
-      attributes: aiDraft.attributes,
-      status: "active",
-      sellerId: user.id,
-      createdAt,
-      expiresAt: defaultExpiresAt(createdAt),
-      contact: aiDraft.contact,
-      hasVideo: sellerHasVideo,
-      vinVerified: vinOk,
-      providerVerified:
-        aiDraft.category === "services" && isVerifiedServiceProvider(user),
-    });
-
-    let published = newListing;
-
-    if (isDataApiEnabled()) {
-      const userRes = await apiUpdateUser(user);
-      if (!userRes.ok) {
-        setSyncError(`Profilis neišsaugotas: ${userRes.error}`);
-        return;
-      }
-      const createRes = await apiCreateListing(newListing, user.id);
-      if (!createRes.ok) {
-        setSyncError(`Nepavyko publikuoti: ${createRes.error}`);
-        return;
-      }
-      published = withDefaultExpiry(createRes.data ?? newListing);
-    }
-
-    setListings((prev) => [published, ...prev]);
-    setSellerStep("published");
-    scheduleSellerEngagementPush(published.id, published.location, published.title);
-
-    setTimeout(resetSellerFlow, 4000);
-  }, [
-    aiDraft,
-    sellerPreviewImage,
-    sellerHasVideo,
-    resetSellerFlow,
-    user,
-    listings,
-    buyerCoords,
-    isAuthenticated,
-    openAuthModal,
-    scheduleSellerEngagementPush,
-  ]);
-
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info" | "buddy" = "success") => {
       setToast({ message, type });
@@ -1276,26 +861,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       });
     }
   }, []);
-
-  const updateSellerMedia = useCallback(
-    (patch: { imageDataUrl?: string | null; videoUrl?: string }) => {
-      if (patch.imageDataUrl !== undefined) {
-        setSellerPreviewImage(patch.imageDataUrl);
-      }
-      if (patch.videoUrl !== undefined) {
-        setSellerVideoUrl(patch.videoUrl);
-        const vid = parseVideoUrl(patch.videoUrl);
-        setSellerHasVideo(vid.hasVideo);
-        if (patch.imageDataUrl === undefined) {
-          setSellerPreviewImage((prev) => {
-            if (prev?.startsWith("data:")) return prev;
-            return vid.thumbnail ?? null;
-          });
-        }
-      }
-    },
-    []
-  );
 
   const requestMediaConsent = useCallback((onGranted: () => void) => {
     if (gdprConsent) {
@@ -1500,258 +1065,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     alertQueriesRef.current = next;
     saveAlertQueries(next);
   }, [searchQuery, hydrated]);
-
-  useEffect(() => {
-    if (
-      aiDraft &&
-      (sellerStep === "confirmation" ||
-        sellerStep === "processing" ||
-        sellerStep === "published")
-    ) {
-      const key = listingToAdaptiveKey(aiDraft.category);
-      setDetectedAdaptiveKey(key);
-      setChameleonTheme(adaptiveKeyToTheme(key));
-      return;
-    }
-    if (sellerStep === "idle") {
-      setDetectedAdaptiveKey(null);
-      setChameleonTheme("flux");
-    }
-  }, [aiDraft, sellerStep]);
-
-  const scheduleIncomingSms = useCallback(
-    (
-      chatId: string,
-      messageId: string,
-      recipientId: string,
-      listingTitle: string
-    ) => {
-      smsCancelRef.current.get(chatId)?.();
-
-      const cancel = scheduleSmsFallback(
-        { chatId, messageId, recipientId, listingTitle },
-        () => {
-          const chat = chatsRef.current.find((c) => c.id === chatId);
-          if (!chat) return false;
-          if (activeChatIdRef.current === chatId) return false;
-          if (chat.smsFallbackSentFor === messageId) return false;
-          const msg = chat.messages.find((m) => m.id === messageId);
-          if (!msg || msg.readAt) return false;
-          return msg.senderId !== recipientId;
-        },
-        (text) => {
-          setChats((prev) =>
-            prev.map((c) =>
-              c.id === chatId ? { ...c, smsFallbackSentFor: messageId } : c
-            )
-          );
-          showToast(`📱 SMS: ${text}`, "info");
-        }
-      );
-
-      smsCancelRef.current.set(chatId, cancel);
-    },
-    [showToast]
-  );
-
-  const markChatRead = useCallback((chatId: string) => {
-    const now = new Date().toISOString();
-    smsCancelRef.current.get(chatId)?.();
-    smsCancelRef.current.delete(chatId);
-    setChats((prev) => {
-      const next = prev.map((c) =>
-        c.id === chatId
-          ? {
-              ...c,
-              lastReadAt: now,
-              messages: c.messages.map((m) =>
-                m.readAt ? m : { ...m, readAt: now }
-              ),
-            }
-          : c
-      );
-      if (isDataApiEnabled()) {
-        const updated = next.find((c) => c.id === chatId);
-        if (updated) {
-          void apiUpsertChat(updated, user.id).then((r) => {
-            if (!r.ok) setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
-          });
-        }
-      }
-      return next;
-    });
-  }, [user.id]);
-
-  const setActiveChatId = useCallback(
-    (chatId: string | null) => {
-      activeChatIdRef.current = chatId;
-      if (chatId) markChatRead(chatId);
-    },
-    [markChatRead]
-  );
-
-  const findListing = useCallback(
-    (idOrSlug: string) =>
-      listings.find((l) => l.id === idOrSlug || l.slug === idOrSlug),
-    [listings]
-  );
-
-  const startUploadFlow = useCallback(async () => {
-    if (!requireAuthForListing("/add")) return;
-    requestMediaConsent(async () => {
-      const photo = await capturePhoto();
-      if (!photo) return;
-
-      setSellerPreviewImage(photo);
-      setSellerInputMode("upload");
-      await runAiProcessing("upload", { previewImage: photo });
-    });
-  }, [requireAuthForListing, runAiProcessing, requestMediaConsent]);
-
-  const startVoiceFlow = useCallback(() => {
-    if (!requireAuthForListing("/add")) return;
-    requestMediaConsent(() => {
-      setSellerInputMode("voice");
-      setSellerStep("recording");
-    });
-  }, [requireAuthForListing, requestMediaConsent]);
-
-  const cancelSellerFlow = useCallback(() => {
-    resetSellerFlow();
-  }, [resetSellerFlow]);
-
-  const sendMessage = useCallback(
-    (chatId: string, text: string) => {
-      const msg: ChatMessage = {
-        id: `m-${Date.now()}`,
-        senderId: user.id,
-        text,
-        timestamp: new Date().toISOString(),
-      };
-
-      let buyerId = "";
-      let sellerId = "";
-      let listingTitle = "";
-
-      setChats((prev) =>
-        prev.map((chat) => {
-          if (chat.id !== chatId) return chat;
-
-          buyerId = chat.buyerId;
-          sellerId = chat.sellerId;
-          listingTitle = chat.listingTitle;
-
-          const updated: ChatThread = {
-            ...chat,
-            messages: [...chat.messages, msg],
-          };
-
-          if (!chat.escrowOffered && detectPurchaseIntent(text)) {
-            updated.escrowOffered = true;
-          }
-
-          if (isDataApiEnabled()) {
-            void apiUpsertChat(updated, user.id).then((r) => {
-              if (!r.ok) setSyncError(`Žinutė neišsaugota: ${r.error}`);
-            });
-          }
-          return updated;
-        })
-      );
-
-      window.setTimeout(() => {
-        if (user.id !== buyerId) return;
-
-        const replyId = `m-${Date.now()}`;
-        const reply: ChatMessage = {
-          id: replyId,
-          senderId: "vauto-system",
-          text: "Žinutė išsiųsta pardavėjui. Atsakymą matysite šiame pokalbyje.",
-          timestamp: new Date().toISOString(),
-        };
-
-        setChats((prev) =>
-          prev.map((c) =>
-            c.id === chatId
-              ? { ...c, messages: [...c.messages, reply] }
-              : c
-          )
-        );
-
-        if (sellerId) {
-          scheduleIncomingSms(chatId, replyId, sellerId, listingTitle);
-        }
-      }, 1500);
-    },
-    [user.id, scheduleIncomingSms]
-  );
-
-  const startChat = useCallback(
-    (listingId: string): string | null => {
-      const listing = listings.find((l) => l.id === listingId);
-      if (!listing) return null;
-      if (listing.sellerId === user.id) return null;
-
-      if (!isAuthenticated) {
-        openAuthModal(listingPath(listing));
-        return null;
-      }
-
-      const existing = chats.find(
-        (c) => c.listingId === listingId && c.buyerId === user.id
-      );
-      if (existing) return existing.id;
-
-      const chatId = `chat-${Date.now()}`;
-      const newChat: ChatThread = {
-        id: chatId,
-        listingId,
-        listingTitle: listing.title,
-        buyerId: user.id,
-        sellerId: listing.sellerId,
-        messages: [
-          {
-            id: `m-${Date.now()}`,
-            senderId: user.id,
-            text: `Labas! Dominu „${listing.title}".`,
-            timestamp: new Date().toISOString(),
-          },
-        ],
-        escrowOffered: false,
-      };
-
-      setChats((prev) => [newChat, ...prev]);
-      bumpListingById(listingId, "chatStarts");
-      logAnalytics("listing_chat_start", {
-        listingId,
-        title: listing.title,
-        sellerId: listing.sellerId,
-      });
-      if (isDataApiEnabled()) {
-        void apiUpsertChat(newChat, user.id).then((r) => {
-          if (!r.ok) setSyncError(`Pokalbis neišsaugotas: ${r.error}`);
-        });
-      }
-      return chatId;
-    },
-    [listings, chats, user.id, isAuthenticated, openAuthModal, bumpListingById]
-  );
-
-  const updateEscrow = useCallback(
-    (chatId: string, escrow: EscrowTransaction) => {
-      setChats((prev) =>
-        prev.map((chat) =>
-          chat.id === chatId ? { ...chat, escrow } : chat
-        )
-      );
-      if (isDataApiEnabled()) {
-        void apiUpsertEscrow(escrow).then((r) => {
-          if (!r.ok) setSyncError(`Escrow neišsaugotas: ${r.error}`);
-        });
-      }
-    },
-    []
-  );
 
   const topUpWallet = useCallback(
     (amount: number) => {
@@ -1988,122 +1301,208 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [reports, resolveReport, showToast, listings]
   );
 
-  const value: VautoContextValue = {
-    user,
-    updateUser,
-    listings,
-    savedIds,
-    searchQuery,
-    setSearchQuery: handleSearchQuery,
-    activeFilterIds,
-    toggleFilter,
-    rankedListings,
-    dynamicFilters,
-    toggleSave,
-    deleteListing,
-    renewListing,
-    syncError,
-    clearSyncError,
-    sellerStep,
-    sellerInputMode,
-    sellerUserPrompt,
-    searchVoiceMode,
-    setSearchVoiceMode,
-    aiDraft,
-    aiManualFallback,
-    sellerPreviewImage,
-    sellerVideoUrl,
-    updateSellerMedia,
-    startUploadFlow,
-    startVoiceFlow,
-    completeVoiceRecording,
-    cancelVoiceRecording,
-    updateAiDraft,
-    publishListing,
-    cancelSellerFlow,
-    submitSellerContent,
-    startListingFromQuery,
-    pendingSellerQuery,
-    consumePendingSellerQuery,
-    chats,
-    sendMessage,
-    startChat,
-    updateEscrow,
-    isAuthenticated,
-    authModalOpen,
-    authRedirectPath,
-    openAuthModal,
-    closeAuthModal,
-    clearAuthRedirect,
-    requireAuthForListing,
-    login,
-    logout,
-    topUpWallet,
-    promoteListing,
-    updateListing,
-    markListingSold,
-    isAdmin,
-    reports,
-    bannedUserIds,
-    submitReport,
-    warnFromReport,
-    banFromReport,
-    resolveReport,
-    toast,
-    showToast,
-    clearToast,
-    buyerCoords,
-    gdprConsent,
-    gdprModalOpen,
-    requestMediaConsent,
-    acceptGdprConsent,
-    declineGdprConsent,
-    revokeGdprConsent,
-    setActiveChatId,
-    markChatRead,
-    findListing,
-    reviews,
-    submitReview: handleSubmitReview,
-    trackListingView,
-    trackListingCall,
-    popularListingIds,
-    recentSoldStories,
-    buyerIntentCount,
-    soldPromptDismissed,
-    dismissSoldPrompt,
-    sellerAnalytics,
-    pendingReview,
-    queueReviewPrompt,
-    clearReviewPrompt,
-    wakeWordEnabled,
-    wakeWordPhase,
-    wakeWordStatusText,
-    wakeWordTranscript,
-    setWakeWordEnabled,
-    requestWakeWordConsent,
-    disableWakeWordInstantly,
-    pushAlertsEnabled,
-    setPushAlertsEnabled,
-    confirmDialog,
-    showConfirm,
-    dismissConfirm,
-    chameleonTheme,
-    detectedAdaptiveKey,
-  };
+  const catalogValue = useMemo(
+    (): VautoCatalogSlice => ({
+      user,
+      updateUser,
+      listings,
+      savedIds,
+      searchQuery,
+      setSearchQuery: handleSearchQuery,
+      activeFilterIds,
+      toggleFilter,
+      rankedListings,
+      dynamicFilters,
+      toggleSave,
+      deleteListing,
+      renewListing,
+      syncError,
+      clearSyncError,
+      searchVoiceMode,
+      setSearchVoiceMode,
+      isAuthenticated,
+      authModalOpen,
+      authRedirectPath,
+      openAuthModal,
+      closeAuthModal,
+      clearAuthRedirect,
+      requireAuthForListing,
+      login,
+      logout,
+      topUpWallet,
+      promoteListing,
+      updateListing,
+      markListingSold,
+      isAdmin,
+      reports,
+      bannedUserIds,
+      submitReport,
+      warnFromReport,
+      banFromReport,
+      resolveReport,
+      toast,
+      showToast,
+      clearToast,
+      buyerCoords,
+      gdprConsent,
+      gdprModalOpen,
+      requestMediaConsent,
+      acceptGdprConsent,
+      declineGdprConsent,
+      revokeGdprConsent,
+      reviews,
+      submitReview: handleSubmitReview,
+      trackListingView,
+      trackListingCall,
+      popularListingIds,
+      recentSoldStories,
+      buyerIntentCount,
+      soldPromptDismissed,
+      dismissSoldPrompt,
+      sellerAnalytics,
+      pendingReview,
+      queueReviewPrompt,
+      clearReviewPrompt,
+      wakeWordEnabled,
+      wakeWordPhase,
+      wakeWordStatusText,
+      wakeWordTranscript,
+      setWakeWordEnabled,
+      requestWakeWordConsent,
+      disableWakeWordInstantly,
+      pushAlertsEnabled,
+      setPushAlertsEnabled,
+      confirmDialog,
+      showConfirm,
+      dismissConfirm,
+      chameleonTheme,
+      detectedAdaptiveKey,
+    }),
+    [
+      user,
+      updateUser,
+      listings,
+      savedIds,
+      searchQuery,
+      handleSearchQuery,
+      activeFilterIds,
+      toggleFilter,
+      rankedListings,
+      dynamicFilters,
+      toggleSave,
+      deleteListing,
+      renewListing,
+      syncError,
+      clearSyncError,
+      searchVoiceMode,
+      isAuthenticated,
+      authModalOpen,
+      authRedirectPath,
+      openAuthModal,
+      closeAuthModal,
+      clearAuthRedirect,
+      requireAuthForListing,
+      login,
+      logout,
+      topUpWallet,
+      promoteListing,
+      updateListing,
+      markListingSold,
+      isAdmin,
+      reports,
+      bannedUserIds,
+      submitReport,
+      warnFromReport,
+      banFromReport,
+      resolveReport,
+      toast,
+      showToast,
+      clearToast,
+      buyerCoords,
+      gdprConsent,
+      gdprModalOpen,
+      requestMediaConsent,
+      acceptGdprConsent,
+      declineGdprConsent,
+      revokeGdprConsent,
+      reviews,
+      handleSubmitReview,
+      trackListingView,
+      trackListingCall,
+      popularListingIds,
+      recentSoldStories,
+      buyerIntentCount,
+      soldPromptDismissed,
+      dismissSoldPrompt,
+      sellerAnalytics,
+      pendingReview,
+      queueReviewPrompt,
+      clearReviewPrompt,
+      wakeWordEnabled,
+      wakeWordPhase,
+      wakeWordStatusText,
+      wakeWordTranscript,
+      setWakeWordEnabled,
+      requestWakeWordConsent,
+      disableWakeWordInstantly,
+      pushAlertsEnabled,
+      setPushAlertsEnabled,
+      confirmDialog,
+      showConfirm,
+      dismissConfirm,
+      chameleonTheme,
+      detectedAdaptiveKey,
+    ]
+  );
+
+  const bridgeValue = useMemo<VautoBridgeValue>(
+    () => ({
+      listings,
+      setListings,
+      bumpListingById,
+      buyerCoords,
+      apiActive,
+      hydrated,
+      setSyncError,
+      showToast,
+      showConfirm,
+      requestMediaConsent,
+      requireAuthForListing,
+      openAuthModal,
+      scheduleSellerEngagementPush,
+      setDetectedAdaptiveKey,
+      setChameleonTheme,
+    }),
+    [
+      listings,
+      bumpListingById,
+      buyerCoords,
+      apiActive,
+      hydrated,
+      showToast,
+      showConfirm,
+      requestMediaConsent,
+      requireAuthForListing,
+      openAuthModal,
+      scheduleSellerEngagementPush,
+    ]
+  );
 
   return (
-    <VautoContext.Provider value={value}>
-      {children}
-      <ChameleonThemeHost />
-      <ReviewPromptHost />
-      <WakeWordHost />
-      <GdprConsentModal
-        open={gdprModalOpen}
-        onAccept={acceptGdprConsent}
-        onDecline={declineGdprConsent}
-      />
-      <ConfirmDialog />
-    </VautoContext.Provider>
+    <VautoBridgeProvider value={bridgeValue}>
+      <ChatProvider>
+        <SellerFlowContextProvider>
+          <VautoFacade
+            catalog={catalogValue}
+            gdprModalOpen={gdprModalOpen}
+            acceptGdprConsent={acceptGdprConsent}
+            declineGdprConsent={declineGdprConsent}
+          >
+            {children}
+          </VautoFacade>
+        </SellerFlowContextProvider>
+      </ChatProvider>
+    </VautoBridgeProvider>
   );
 }
 

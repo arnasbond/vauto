@@ -4,7 +4,6 @@ import { AppProviders } from "@/context/AppProviders";
 import { NativeShell } from "@/components/NativeShell";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { ToastHost } from "@/components/ui/ToastHost";
-import { SellerFlowProvider } from "@/components/SellerFlowProvider";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -64,7 +63,7 @@ export default function RootLayout({
           <NativeShell>
             <BackButtonHandler />
             <ToastHost />
-            <SellerFlowProvider>{children}</SellerFlowProvider>
+            {children}
           </NativeShell>
         </AppProviders>
       </body>

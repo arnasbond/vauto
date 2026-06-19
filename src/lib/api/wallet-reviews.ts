@@ -87,6 +87,16 @@ export async function apiSyncAlertQueries(
   });
 }
 
+export async function apiRegisterFcmToken(
+  token: string,
+  platform: string
+): Promise<ApiResult<{ ok: boolean }>> {
+  return authedFetch("/api/push/fcm-token", {
+    method: "POST",
+    body: JSON.stringify({ token, platform }),
+  });
+}
+
 export function isWalletApiAvailable(): boolean {
   return isDataApiEnabled();
 }

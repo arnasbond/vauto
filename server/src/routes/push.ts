@@ -2,6 +2,7 @@ import { Router } from "express";
 import {
   deletePushSubscription,
   setUserAlertQueries,
+  upsertFcmToken,
   upsertPushSubscription,
 } from "../repository.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
@@ -59,6 +60,21 @@ pushRouter.put("/alert-queries", requireAuth, async (req: AuthedRequest, res) =>
       ? (req.body.queries as string[])
       : [];
     await setUserAlertQueries(req.authUserId!, queries);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+pushRouter.post("/fcm-token", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const token = String(req.body?.token ?? "").trim();
+    const platform = String(req.body?.platform ?? "android");
+    if (!token) {
+      res.status(400).json({ error: "token required" });
+      return;
+    }
+    await upsertFcmToken(req.authUserId!, token, platform);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e) });

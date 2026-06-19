@@ -3,14 +3,14 @@
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { AiProcessingOverlay } from "@/components/AiProcessingOverlay";
 import { VoiceRecorderOverlay } from "@/components/VoiceRecorderOverlay";
-import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 
 export function SellerFlowOverlays() {
   const {
     sellerStep,
     completeVoiceRecording,
     cancelVoiceRecording,
-  } = useVauto();
+  } = useSellerFlow();
 
   return (
     <>
