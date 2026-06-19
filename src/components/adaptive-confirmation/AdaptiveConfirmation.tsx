@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useRef } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getAdaptiveConfig,
   getMissingCriticalFields,
@@ -72,6 +72,41 @@ export function AdaptiveConfirmation({
     !needsPrice &&
     draft.title.trim().length >= 2 &&
     !needsPhotoForPublish;
+
+  const { aiFilledBase, aiFilledAttrs, showAiBadges } = useMemo(() => {
+    if (manualFallback) {
+      return {
+        aiFilledBase: new Set<string>(),
+        aiFilledAttrs: new Set<string>(),
+        showAiBadges: false,
+      };
+    }
+    const base = new Set<string>();
+    if (draft.title.trim()) base.add("title");
+    if (draft.price > 0) base.add("price");
+    if (draft.location.trim()) base.add("location");
+    if (draft.contact?.trim()) base.add("contact");
+    if (draft.description?.trim()) base.add("description");
+
+    const attrsFilled = new Set<string>();
+    for (const [key, val] of Object.entries(attributes)) {
+      if (Array.isArray(val) ? val.length > 0 : Boolean(String(val ?? "").trim())) {
+        attrsFilled.add(key);
+      }
+    }
+    return { aiFilledBase: base, aiFilledAttrs: attrsFilled, showAiBadges: true };
+  }, [manualFallback, draft.title, draft.price, draft.location, draft.contact, draft.description, attributes]);
+
+  const [showAiFilledBadges, setShowAiFilledBadges] = useState(showAiBadges);
+  useEffect(() => {
+    if (!showAiBadges) {
+      setShowAiFilledBadges(false);
+      return;
+    }
+    setShowAiFilledBadges(true);
+    const t = window.setTimeout(() => setShowAiFilledBadges(false), 3000);
+    return () => window.clearTimeout(t);
+  }, [showAiBadges]);
 
   const buddyMessage = buildSellerBuddyMessage({
     draft,
@@ -194,6 +229,8 @@ export function AdaptiveConfirmation({
         layout={layoutMap[config.layout]}
         missingKeys={missingKeys}
         variant="inline"
+        showAiFilled={showAiFilledBadges}
+        aiFilledKeys={aiFilledAttrs}
       />
     </div>
   );
@@ -221,6 +258,8 @@ export function AdaptiveConfirmation({
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
+            showAiFilled={showAiFilledBadges}
+            aiFilledKeys={aiFilledBase}
           />
         </>
       ) : adaptiveKey === "real_estate" && chameleonTheme === "aruodas" ? (
@@ -232,6 +271,8 @@ export function AdaptiveConfirmation({
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
+            showAiFilled={showAiFilledBadges}
+            aiFilledKeys={aiFilledBase}
           />
         </>
       ) : (
@@ -242,6 +283,8 @@ export function AdaptiveConfirmation({
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
+            showAiFilled={showAiFilledBadges}
+            aiFilledKeys={aiFilledBase}
           />
           {categorySection}
         </>

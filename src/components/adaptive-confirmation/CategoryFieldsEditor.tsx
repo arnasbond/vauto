@@ -2,6 +2,7 @@
 
 import { Pencil } from "lucide-react";
 import { useState } from "react";
+import { AiFilledBadge } from "@/components/buddy/AiFilledBadge";
 import type { CategoryFieldDef } from "@/lib/adaptive-categories";
 
 interface CategoryFieldsEditorProps {
@@ -11,6 +12,8 @@ interface CategoryFieldsEditorProps {
   layout: "grid" | "tags" | "sheet" | "stack";
   missingKeys?: string[];
   variant?: "default" | "inline";
+  showAiFilled?: boolean;
+  aiFilledKeys?: ReadonlySet<string>;
 }
 
 export function CategoryFieldsEditor({
@@ -20,6 +23,8 @@ export function CategoryFieldsEditor({
   layout,
   missingKeys = [],
   variant = "default",
+  showAiFilled = false,
+  aiFilledKeys,
 }: CategoryFieldsEditorProps) {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState("");
@@ -81,6 +86,9 @@ export function CategoryFieldsEditor({
                 <label className="text-xs text-white/40">
                   {field.label}
                   {missing && <span className="ml-1 text-amber-400">●</span>}
+                  {showAiFilled && aiFilledKeys?.has(field.key) && (
+                    <AiFilledBadge visible />
+                  )}
                 </label>
                 <select
                   value={display}

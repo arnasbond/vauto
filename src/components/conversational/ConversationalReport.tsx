@@ -4,6 +4,7 @@ import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, MessageCircle, X } from "lucide-react";
 import { BuddyAvatar } from "@/components/conversational/BuddyAvatar";
 import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions";
+import { BuddyFab } from "@/components/buddy/BuddyFab";
 import type { BuddyQuickAction, BuddyActionId } from "@/lib/buddy-messages";
 import {
   logBuddyState,
@@ -55,6 +56,12 @@ export function ConversationalReport({
   const [showMessage, setShowMessage] = useState(manualFallback);
   const [detailsOpen, setDetailsOpen] = useState(manualFallback);
   const spokenRef = useRef(false);
+
+  useEffect(() => {
+    if (manualFallback) return;
+    const t = window.setTimeout(() => setDetailsOpen(true), 550);
+    return () => window.clearTimeout(t);
+  }, [manualFallback]);
 
   useEffect(() => {
     if (manualFallback) {
@@ -133,10 +140,13 @@ export function ConversationalReport({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col transition-colors duration-300",
+        "fixed inset-0 z-[100] flex flex-col transition-colors duration-500 ease-in-out",
         t.shell
       )}
     >
+      {!manualFallback && (
+        <BuddyFab mode={buddyState === "speaking" ? "speaking" : "listening"} />
+      )}
       <div
         className={cn(
           "flex items-center justify-between border-b px-4 py-3 transition-colors duration-300",
@@ -159,7 +169,7 @@ export function ConversationalReport({
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-5">
+      <div className="chameleon-panel-enter flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-md space-y-4">
           {userPrompt && (
             <div className="flex justify-end">
@@ -247,7 +257,7 @@ export function ConversationalReport({
           {detailsOpen && (
             <div
               className={cn(
-                "chameleon-details-panel space-y-4 rounded-2xl p-4 transition-colors duration-300",
+                "chameleon-panel-enter chameleon-details-panel space-y-4 rounded-2xl p-4 transition-colors duration-500 ease-in-out",
                 t.detailsPanel
               )}
             >

@@ -208,6 +208,160 @@ body {
   animation: mic-ring-pulse 1.8s ease-out infinite;
 }
 
+/* ── Buddy / Siri multimodal pulse ── */
+.buddy-glow-teal {
+  background: radial-gradient(
+    circle,
+    rgba(0, 212, 170, 0.45) 0%,
+    rgba(0, 212, 170, 0.12) 45%,
+    transparent 70%
+  );
+}
+
+.buddy-glow-orange {
+  background: radial-gradient(
+    circle,
+    rgba(255, 107, 74, 0.5) 0%,
+    rgba(255, 107, 74, 0.14) 45%,
+    transparent 70%
+  );
+}
+
+.buddy-orb-teal {
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(0, 212, 170, 0.55),
+    rgba(99, 102, 241, 0.35) 55%,
+    rgba(11, 15, 23, 0.9) 100%
+  );
+  box-shadow:
+    0 0 40px rgba(0, 212, 170, 0.45),
+    0 0 80px rgba(0, 212, 170, 0.2);
+}
+
+.buddy-orb-orange {
+  background: radial-gradient(
+    circle at 35% 30%,
+    rgba(255, 107, 74, 0.6),
+    rgba(255, 143, 101, 0.35) 50%,
+    rgba(11, 15, 23, 0.9) 100%
+  );
+  box-shadow:
+    0 0 40px rgba(255, 107, 74, 0.5),
+    0 0 80px rgba(255, 107, 74, 0.22);
+}
+
+.buddy-ambient-glow {
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(0, 212, 170, 0.22), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 55% 55%, rgba(255, 107, 74, 0.14), transparent 55%);
+  animation: buddy-ambient-shift 4s ease-in-out infinite;
+}
+
+@keyframes buddy-ambient-shift {
+  0%,
+  100% {
+    opacity: 0.45;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.75;
+    transform: scale(1.04);
+  }
+}
+
+@keyframes buddy-ring-pulse {
+  0% {
+    transform: scale(0.85);
+    opacity: 0.7;
+  }
+  70% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+  100% {
+    transform: scale(1.35);
+    opacity: 0;
+  }
+}
+
+.buddy-ring-pulse {
+  animation: buddy-ring-pulse 2.2s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+@keyframes buddy-wave-ring {
+  0% {
+    stroke-dashoffset: 0;
+    transform: rotate(0deg);
+  }
+  100% {
+    stroke-dashoffset: -120;
+    transform: rotate(360deg);
+  }
+}
+
+.buddy-wave-ring {
+  stroke-dasharray: 24 12;
+  transform-origin: center;
+  animation: buddy-wave-ring 8s linear infinite;
+  will-change: transform;
+}
+
+.buddy-wave-ring-reverse {
+  stroke-dasharray: 18 10;
+  transform-origin: center;
+  animation: buddy-wave-ring 6s linear infinite reverse;
+  will-change: transform;
+}
+
+@keyframes buddy-fab-enter {
+  0% {
+    transform: scale(2.8) translate(-28%, -28%);
+    opacity: 0.85;
+  }
+  100% {
+    transform: scale(1) translate(0, 0);
+    opacity: 1;
+  }
+}
+
+.buddy-fab-enter {
+  animation: buddy-fab-enter 500ms ease-in-out forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes chameleon-slide-in {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 28px, 0);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+.chameleon-panel-enter {
+  animation: chameleon-slide-in 500ms ease-in-out forwards;
+  will-change: transform, opacity;
+}
+
+@keyframes ai-filled-flash {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.45;
+  }
+}
+
+.ai-filled-badge {
+  animation: ai-filled-flash 1.2s ease-in-out 2;
+  will-change: opacity;
+}
+
 /* Audio-first / wake-word high-contrast mode */
 body.vauto-audio-first {
   font-size: 106%;

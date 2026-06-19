@@ -2,6 +2,7 @@
 
 import { Pencil } from "lucide-react";
 import { useState } from "react";
+import { AiFilledBadge } from "@/components/buddy/AiFilledBadge";
 import { formatPrice } from "@/data/mockListings";
 import type { AiExtractedListing } from "@/lib/types";
 
@@ -13,6 +14,8 @@ interface BaseFieldsEditorProps {
   needsPrice: boolean;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   variant?: "default" | "compact" | "inline";
+  showAiFilled?: boolean;
+  aiFilledKeys?: ReadonlySet<string>;
 }
 
 export function BaseFieldsEditor({
@@ -21,6 +24,8 @@ export function BaseFieldsEditor({
   needsPrice,
   onUpdate,
   variant = "default",
+  showAiFilled = false,
+  aiFilledKeys,
 }: BaseFieldsEditorProps) {
   const [editing, setEditing] = useState<BaseKey | null>(null);
   const [editValue, setEditValue] = useState("");
@@ -64,7 +69,12 @@ export function BaseFieldsEditor({
           if (key === "description") {
             return (
               <div key={key}>
-                <label className="text-xs text-white/60">{labels[key]}</label>
+                <label className="text-xs text-white/60">
+                  {labels[key]}
+                  {showAiFilled && aiFilledKeys?.has(key) && (
+                    <AiFilledBadge visible />
+                  )}
+                </label>
                 <textarea
                   value={draft.description ?? ""}
                   onChange={(e) => onUpdate({ description: e.target.value })}
@@ -80,6 +90,9 @@ export function BaseFieldsEditor({
               <div key={key}>
                 <label className="text-xs text-white/60">
                   Kaina (€){draft.priceLabel ? ` · ${draft.priceLabel}` : ""}
+                  {showAiFilled && aiFilledKeys?.has("price") && (
+                    <AiFilledBadge visible />
+                  )}
                 </label>
                 <input
                   type="number"
@@ -96,7 +109,12 @@ export function BaseFieldsEditor({
 
           return (
             <div key={key}>
-              <label className="text-xs text-white/60">{labels[key]}</label>
+              <label className="text-xs text-white/60">
+                {labels[key]}
+                {showAiFilled && aiFilledKeys?.has(key) && (
+                  <AiFilledBadge visible />
+                )}
+              </label>
               <input
                 type="text"
                 value={String(draft[key] ?? "")}
