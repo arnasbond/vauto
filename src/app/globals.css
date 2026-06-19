@@ -256,3 +256,74 @@ body.vauto-audio-first .vauto-dashboard-card {
     radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 212, 170, 0.18), transparent 55%),
     linear-gradient(160deg, var(--flux-bg) 0%, #111827 50%, var(--flux-bg) 100%);
 }
+
+/* ── Chameleon theme continuity (seller flow) ── */
+body.chameleon-flux {
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+body.chameleon-autoplius {
+  --chameleon-accent: #1a56db;
+  --chameleon-cta: #ea580c;
+}
+
+body.chameleon-vinted {
+  --chameleon-accent: #09b1a8;
+}
+
+body.chameleon-skelbiu {
+  --chameleon-accent: #1565c0;
+}
+
+body.chameleon-aruodas {
+  --chameleon-accent: #c62828;
+}
+
+.chameleon-aruodas-media img {
+  min-height: 200px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid #e0e0e0;
+}
+
+body.chameleon-aruodas .chameleon-details-panel input,
+body.chameleon-aruodas .chameleon-details-panel textarea {
+  border: 1px solid #e0e0e0;
+  background: #fafafa;
+  color: #212121;
+  border-radius: 4px;
+}
+
+.chameleon-vinted-media img {
+  min-height: 220px;
+  object-fit: cover;
+}
+
+.chameleon-details-panel input,
+.chameleon-details-panel textarea,
+.chameleon-details-panel select {
+  transition: border-color 0.2s ease, background-color 0.2s ease;
+}
+
+body.chameleon-autoplius .chameleon-details-panel input,
+body.chameleon-autoplius .chameleon-details-panel textarea {
+  border: 1px solid #d0d7de;
+  background: #f9fafb;
+  color: #1f2937;
+}
+
+body.chameleon-skelbiu .chameleon-details-panel input,
+body.chameleon-skelbiu .chameleon-details-panel textarea {
+  border: 2px solid #b0bec5;
+  background: #fff;
+  color: #263238;
+  font-size: 1rem;
+}
+
+body.chameleon-vinted .chameleon-details-panel input,
+body.chameleon-vinted .chameleon-details-panel textarea {
+  border: 1px solid #e8e4df;
+  background: #fffdf9;
+  color: #374151;
+  font-weight: 300;
+}

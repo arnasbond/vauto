@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
-import { ChevronDown, ChevronUp, X } from "lucide-react";
+import { ChevronDown, ChevronUp, MessageCircle, X } from "lucide-react";
 import { BuddyAvatar } from "@/components/conversational/BuddyAvatar";
 import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions";
 import type { BuddyQuickAction, BuddyActionId } from "@/lib/buddy-messages";
@@ -11,6 +11,9 @@ import {
   stopBuddySpeech,
   type BuddyState,
 } from "@/lib/buddy-voice";
+import { useVauto } from "@/context/VautoContext";
+import { getChameleonTheme } from "@/lib/chameleon-themes";
+import { cn } from "@/lib/cn";
 
 interface ConversationalReportProps {
   userPrompt: string | null;
@@ -19,6 +22,7 @@ interface ConversationalReportProps {
   speakEnabled: boolean;
   canPublish: boolean;
   publishLabel: string;
+  portalStyleLabel?: string;
   onQuickAction: (id: BuddyActionId) => void;
   onCancel: () => void;
   onPublish: () => void;
@@ -34,11 +38,17 @@ export function ConversationalReport({
   speakEnabled,
   canPublish,
   publishLabel,
+  portalStyleLabel,
   onQuickAction,
   onCancel,
   onPublish,
   children,
 }: ConversationalReportProps) {
+  const { chameleonTheme } = useVauto();
+  const theme = getChameleonTheme(chameleonTheme);
+  const t = theme.confirmation;
+  const classic = theme.classicLayout;
+
   const [buddyState, setBuddyState] = useState<BuddyState>("typing");
   const [showMessage, setShowMessage] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -48,13 +58,14 @@ export function ConversationalReport({
     setBuddyState("typing");
     setShowMessage(false);
     spokenRef.current = false;
-    logBuddyState("typing", { context: "seller_confirmation" });
+    logBuddyState("typing", { context: "seller_confirmation", theme: chameleonTheme });
 
     const typingTimer = setTimeout(() => {
       setShowMessage(true);
       setBuddyState("speaking");
       logBuddyState("speaking", {
         context: "seller_confirmation",
+        theme: chameleonTheme,
         preview: buddyMessage.slice(0, 60),
       });
 
@@ -74,7 +85,7 @@ export function ConversationalReport({
       clearTimeout(typingTimer);
       stopBuddySpeech();
     };
-  }, [buddyMessage, speakEnabled]);
+  }, [buddyMessage, speakEnabled, chameleonTheme]);
 
   const handleAction = (id: BuddyQuickAction["id"]) => {
     if (id === "photo" || id === "change_price" || id === "edit_details") {
@@ -83,26 +94,46 @@ export function ConversationalReport({
     onQuickAction(id);
   };
 
-  const statusLabel =
-    buddyState === "typing"
+  const statusLabel = classic
+    ? buddyState === "typing"
+      ? "Ruošiama…"
+      : buddyState === "speaking"
+        ? "Atsakymas"
+        : theme.portalLabel
+    : buddyState === "typing"
       ? "rašo…"
       : buddyState === "speaking"
         ? "kalba…"
         : "VAUTO draugas";
 
+  const headerTitle = classic ? theme.portalLabel : "VAUTO draugas";
+  const headerSubtitle = classic
+    ? portalStyleLabel ?? "Patikrinkite skelbimo duomenis"
+    : "Padedu paruošti skelbimą";
+
   return (
-    <div className="fixed inset-0 z-[100] flex flex-col bg-[var(--flux-bg)]">
-      <div className="flex items-center justify-between border-b border-white/10 px-4 py-3">
+    <div
+      className={cn(
+        "fixed inset-0 z-[100] flex flex-col transition-colors duration-300",
+        t.shell
+      )}
+    >
+      <div
+        className={cn(
+          "flex items-center justify-between border-b px-4 py-3 transition-colors duration-300",
+          t.headerBar
+        )}
+      >
         <div>
-          <p className="text-xs font-semibold uppercase tracking-wider text-[var(--vauto-teal)]">
-            VAUTO draugas
+          <p className={cn("text-xs font-semibold uppercase tracking-wider", t.title)}>
+            {headerTitle}
           </p>
-          <p className="text-sm text-slate-400">Padedu paruošti skelbimą</p>
+          <p className={cn("text-sm", t.subtitle)}>{headerSubtitle}</p>
         </div>
         <button
           type="button"
           onClick={onCancel}
-          className="rounded-full p-2 text-white/50 hover:bg-white/10 hover:text-white"
+          className={cn("rounded-full p-2", t.cancelBtn)}
           aria-label="Uždaryti"
         >
           <X className="h-5 w-5" />
@@ -113,8 +144,14 @@ export function ConversationalReport({
         <div className="mx-auto max-w-md space-y-4">
           {userPrompt && (
             <div className="flex justify-end">
-              <div className="max-w-[85%] rounded-2xl rounded-tr-md bg-[var(--flux-indigo)]/40 px-4 py-3 text-base leading-relaxed text-white">
-                <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-indigo-200/70">
+              <div
+                className={cn(
+                  "max-w-[85%] rounded-2xl rounded-tr-md px-4 py-3 text-base leading-relaxed transition-colors duration-300",
+                  t.userBubble,
+                  classic && "rounded-lg"
+                )}
+              >
+                <p className={cn("mb-1 text-[10px] font-semibold uppercase tracking-wide opacity-70")}>
                   Jūs
                 </p>
                 {userPrompt}
@@ -123,25 +160,55 @@ export function ConversationalReport({
           )}
 
           <div className="flex gap-3">
-            <BuddyAvatar state={buddyState} />
+            {classic ? (
+              <div
+                className={cn(
+                  "flex h-11 w-11 shrink-0 items-center justify-center rounded-full border-2",
+                  chameleonTheme === "autoplius" && "border-[#1a56db] bg-[#e8f0fe] text-[#1a56db]",
+                  chameleonTheme === "skelbiu" && "border-[#1565c0] bg-[#e3f2fd] text-[#1565c0]",
+                  chameleonTheme === "aruodas" && "border-[#c62828] bg-[#ffebee] text-[#c62828]"
+                )}
+              >
+                <MessageCircle className="h-5 w-5" />
+              </div>
+            ) : (
+              <BuddyAvatar state={buddyState} />
+            )}
             <div className="min-w-0 flex-1">
-              <p className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-teal)]">
+              <p className={cn("mb-1 text-[10px] font-semibold uppercase tracking-wide", t.assistantLabel)}>
                 {statusLabel}
               </p>
-              <div className="rounded-2xl rounded-tl-md bg-[var(--vauto-teal)]/12 px-4 py-3 ring-1 ring-[var(--vauto-teal)]/20">
+              <div
+                className={cn(
+                  "rounded-2xl px-4 py-3 transition-colors duration-300",
+                  classic ? "rounded-lg" : "rounded-tl-md",
+                  t.aiBubble
+                )}
+              >
                 {!showMessage ? (
-                  <div className="flex gap-1 py-2">
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:0ms]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:150ms]" />
-                    <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:300ms]" />
-                  </div>
+                  classic ? (
+                    <p className="text-sm opacity-70">Ruošiame atsakymą…</p>
+                  ) : (
+                    <div className="flex gap-1 py-2">
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:0ms]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:150ms]" />
+                      <span className="h-2 w-2 animate-bounce rounded-full bg-[var(--vauto-teal)] [animation-delay:300ms]" />
+                    </div>
+                  )
                 ) : (
-                  <p className="text-base leading-relaxed text-teal-50">{buddyMessage}</p>
+                  <p className={cn("text-base leading-relaxed", classic && "text-[15px]")}>
+                    {buddyMessage}
+                  </p>
                 )}
               </div>
 
               {showMessage && (
-                <BuddyQuickActions actions={quickActions} onAction={handleAction} />
+                <BuddyQuickActions
+                  actions={quickActions}
+                  onAction={handleAction}
+                  classic={classic}
+                  themeId={chameleonTheme}
+                />
               )}
             </div>
           </div>
@@ -149,30 +216,45 @@ export function ConversationalReport({
           <button
             type="button"
             onClick={() => setDetailsOpen((o) => !o)}
-            className="flex w-full items-center justify-between rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm font-medium text-slate-300"
+            className={cn(
+              "flex w-full min-h-[48px] items-center justify-between rounded-xl px-4 py-3 text-sm font-medium transition-colors duration-300",
+              t.detailsToggle
+            )}
           >
             {detailsOpen ? "Slėpti skelbimo detales" : "Rodyti skelbimo detales"}
-            {detailsOpen ? (
-              <ChevronUp className="h-4 w-4" />
-            ) : (
-              <ChevronDown className="h-4 w-4" />
-            )}
+            {detailsOpen ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
           </button>
 
           {detailsOpen && (
-            <div className="space-y-4 rounded-2xl border border-white/10 bg-black/20 p-4">
+            <div
+              className={cn(
+                "chameleon-details-panel space-y-4 rounded-2xl p-4 transition-colors duration-300",
+                t.detailsPanel
+              )}
+            >
               {children}
             </div>
           )}
         </div>
       </div>
 
-      <div className="safe-bottom border-t border-white/10 bg-[var(--flux-bg)]/95 px-4 py-4 backdrop-blur-lg">
+      <div
+        className={cn(
+          "safe-bottom border-t px-4 py-4 backdrop-blur-lg transition-colors duration-300",
+          t.headerBar
+        )}
+      >
         <button
           type="button"
           onClick={onPublish}
           disabled={!canPublish}
-          className="w-full min-h-[56px] rounded-2xl bg-[var(--flux-teal)] text-lg font-bold text-[var(--flux-bg)] shadow-lg shadow-[var(--flux-teal)]/25 transition hover:opacity-90 disabled:opacity-40"
+          className={cn(
+            "w-full min-h-[56px] rounded-2xl text-lg font-bold transition duration-300",
+            classic && chameleonTheme === "skelbiu" && "min-h-[60px] rounded-lg",
+            classic && chameleonTheme === "aruodas" && "min-h-[56px] rounded-md",
+            t.publishBtn,
+            t.publishBtnDisabled
+          )}
         >
           {canPublish ? "Viskas gerai, publikuoti skelbimą" : publishLabel}
         </button>

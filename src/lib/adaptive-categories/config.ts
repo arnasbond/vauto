@@ -141,7 +141,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   },
   real_estate: {
     key: "real_estate",
-    label: "NT",
+    label: "NEKILNOJAMOJO TURTO",
     portalStyle: "Aruodas.lt",
     layout: "estate-sheet",
     baseFields: ["title", "price", "location", "contact", "description"],

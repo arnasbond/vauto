@@ -11,6 +11,7 @@ import { useVauto } from "@/context/VautoContext";
 import { getPriceAdvice } from "@/lib/price-advisor";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
 import { verifyVin } from "@/lib/trust";
+import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
 import { DraftMediaEditor } from "./DraftMediaEditor";
@@ -37,9 +38,6 @@ interface AdaptiveConfirmationProps {
   onPublish: () => void;
 }
 
-const categoryPanelClass =
-  "rounded-2xl border border-white/5 bg-black/20 p-4";
-
 export function AdaptiveConfirmation({
   draft,
   previewImage,
@@ -53,7 +51,8 @@ export function AdaptiveConfirmation({
   onCancel,
   onPublish,
 }: AdaptiveConfirmationProps) {
-  const { listings } = useVauto();
+  const { listings, chameleonTheme } = useVauto();
+  const theme = getChameleonTheme(chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const config = getAdaptiveConfig(adaptiveKey);
@@ -114,6 +113,11 @@ export function AdaptiveConfirmation({
     (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
   );
 
+  const baseFields =
+    chameleonTheme === "skelbiu" || chameleonTheme === "aruodas"
+      ? (["price", "title", "location", "contact", "description"] as const)
+      : config.baseFields;
+
   const scrollToDetails = () => {
     detailsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
@@ -147,29 +151,27 @@ export function AdaptiveConfirmation({
   );
 
   const categorySection = categoryFields.length > 0 && (
-    <div className={categoryPanelClass}>
+    <div className={theme.panel}>
       {adaptiveKey === "vehicles" && vinValue && (
-        <div className="mb-3 flex flex-col gap-2 border-b border-white/5 pb-3">
+        <div className="mb-3 flex flex-col gap-2 border-b border-[#d0d7de] pb-3 dark:border-white/5">
           <div className="flex items-center justify-between">
-            <span className="text-xs text-white/40">Kėbulo numeris (VIN)</span>
+            <span className="text-xs text-[#6b7280]">Kėbulo numeris (VIN)</span>
             {vinOk && (
-              <span className="text-xs font-bold text-[var(--vauto-teal)]">
-                ✅ Patikrintas fone
-              </span>
+              <span className="text-xs font-bold text-[#1a56db]">✅ Patikrintas fone</span>
             )}
           </div>
           <input
             type="text"
             value={vinValue}
             readOnly
-            className="w-full rounded-lg bg-white/5 p-2 text-xs text-white/60"
+            className="w-full rounded-lg border border-[#d0d7de] bg-[#f9fafb] p-2 text-xs text-[#374151]"
           />
         </div>
       )}
 
       {adaptiveKey === "services" && (
-        <p className="mb-3 text-xs text-[var(--vauto-teal)]">
-          🛡️ Pro paslaugų teikėjai gauna Verifikuoto meistro ženkliuką
+        <p className="mb-3 text-xs text-[#1565c0]">
+          Pro paslaugų teikėjai gauna Verifikuoto meistro ženkliuką
         </p>
       )}
 
@@ -184,6 +186,58 @@ export function AdaptiveConfirmation({
     </div>
   );
 
+  const mediaBlock = (
+    <div className={chameleonTheme === "vinted" ? "chameleon-vinted-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
+      <DraftMediaEditor
+        previewImage={previewImage}
+        videoUrl={videoUrl}
+        onImageChange={(imageDataUrl) => onMediaChange({ imageDataUrl })}
+        onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
+        requestMediaConsent={requestMediaConsent}
+      />
+    </div>
+  );
+
+  const fieldsBlock = (
+    <>
+      {adaptiveKey === "vehicles" && chameleonTheme === "autoplius" ? (
+        <>
+          {categorySection}
+          <BaseFieldsEditor
+            draft={draft}
+            fields={[...baseFields]}
+            needsPrice={needsPrice}
+            onUpdate={onUpdate}
+            variant="inline"
+          />
+        </>
+      ) : adaptiveKey === "real_estate" && chameleonTheme === "aruodas" ? (
+        <>
+          {categorySection}
+          <BaseFieldsEditor
+            draft={draft}
+            fields={[...baseFields]}
+            needsPrice={needsPrice}
+            onUpdate={onUpdate}
+            variant="inline"
+          />
+        </>
+      ) : (
+        <>
+          <BaseFieldsEditor
+            draft={draft}
+            fields={[...baseFields]}
+            needsPrice={needsPrice}
+            onUpdate={onUpdate}
+            variant="inline"
+          />
+          {categorySection}
+        </>
+      )}
+      <PriceAdviceCard advice={priceAdvice} />
+    </>
+  );
+
   return (
     <ConversationalReport
       userPrompt={userPrompt}
@@ -192,27 +246,14 @@ export function AdaptiveConfirmation({
       speakEnabled={speakEnabled}
       canPublish={canPublish}
       publishLabel={publishLabel}
+      portalStyleLabel={`${config.label} · ${config.portalStyle} layout`}
       onQuickAction={handleQuickAction}
       onCancel={onCancel}
       onPublish={onPublish}
     >
       <div ref={detailsAnchorRef}>
-        <DraftMediaEditor
-          previewImage={previewImage}
-          videoUrl={videoUrl}
-          onImageChange={(imageDataUrl) => onMediaChange({ imageDataUrl })}
-          onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
-          requestMediaConsent={requestMediaConsent}
-        />
-        <BaseFieldsEditor
-          draft={draft}
-          fields={config.baseFields}
-          needsPrice={needsPrice}
-          onUpdate={onUpdate}
-          variant="inline"
-        />
-        <PriceAdviceCard advice={priceAdvice} />
-        {categorySection}
+        {mediaBlock}
+        {fieldsBlock}
       </div>
     </ConversationalReport>
   );

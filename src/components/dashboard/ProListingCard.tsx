@@ -7,6 +7,8 @@ import { Sparkles, TrendingUp, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
 import { getPromoteSuggestion } from "@/lib/smart-promote";
+import { categoryToTheme } from "@/lib/chameleon-themes";
+import { cn } from "@/lib/cn";
 import { listingPath } from "@/lib/seo";
 import type { Listing } from "@/lib/types";
 import { TrustBadges } from "@/components/trust/TrustBadges";
@@ -33,6 +35,8 @@ export function ProListingCard({
   const [promoteOpen, setPromoteOpen] = useState(false);
   const metrics = mockListingMetrics(listing);
   const suggestion = getPromoteSuggestion(listing);
+  const promoteTheme = categoryToTheme(listing.category);
+  const promoteLabels = suggestion.labels;
   const isSold = listing.status === "sold";
   const expiryLabel = formatExpiryLabel(listing);
   const expired = !isSold && !isListingActive(listing);
@@ -53,8 +57,17 @@ export function ProListingCard({
               className="object-cover"
             />
             {listing.promoted && (
-              <span className="absolute left-1 top-1 rounded-md bg-[var(--vauto-orange)] px-1.5 py-0.5 text-[8px] font-bold text-white">
-                BOOST
+              <span
+                className={cn(
+                  "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-white",
+                  promoteTheme === "autoplius" && "bg-[#1a56db]",
+                  promoteTheme === "vinted" && "bg-[#09b1a8]",
+                  promoteTheme === "skelbiu" && "bg-[#1565c0]",
+                  promoteTheme === "aruodas" && "bg-[#c62828]",
+                  promoteTheme === "flux" && "bg-[var(--vauto-orange)]"
+                )}
+              >
+                {promoteTheme === "vinted" ? "BUMP" : promoteTheme === "aruodas" ? "VIP" : promoteTheme === "skelbiu" ? "TOP" : "★"}
               </span>
             )}
           </Link>
@@ -91,12 +104,41 @@ export function ProListingCard({
           <button
             type="button"
             onClick={() => setPromoteOpen(true)}
-            className="mt-3 flex w-full items-start gap-2 rounded-xl border border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10 p-3 text-left transition hover:bg-[var(--vauto-teal)]/15"
+            className={cn(
+              "mt-3 flex w-full items-start gap-2 rounded-xl p-3 text-left transition",
+              promoteTheme === "autoplius" &&
+                "border border-[#1a56db]/40 bg-[#e8f0fe] hover:bg-[#dbeafe]",
+              promoteTheme === "vinted" &&
+                "border border-[#09b1a8]/30 bg-[#e6f7f6] hover:bg-[#d4f1ef]",
+              promoteTheme === "skelbiu" &&
+                "border-2 border-[#1565c0]/40 bg-[#e3f2fd] hover:bg-[#bbdefb]",
+              promoteTheme === "aruodas" &&
+                "border border-[#c62828]/35 bg-[#ffebee] hover:bg-[#ffcdd2]",
+              promoteTheme === "flux" &&
+                "border border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10 hover:bg-[var(--vauto-teal)]/15"
+            )}
           >
-            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vauto-teal)]" />
+            <Sparkles
+              className={cn(
+                "mt-0.5 h-4 w-4 shrink-0",
+                promoteTheme === "autoplius" && "text-[#1a56db]",
+                promoteTheme === "vinted" && "text-[#09b1a8]",
+                promoteTheme === "skelbiu" && "text-[#1565c0]",
+                promoteTheme === "aruodas" && "text-[#c62828]",
+                promoteTheme === "flux" && "text-[var(--vauto-teal)]"
+              )}
+            />
             <div>
-              <p className="text-xs font-semibold text-[var(--vauto-teal)]">
-                Smart Promote
+              <p
+                className={cn(
+                  "text-xs font-semibold",
+                  promoteTheme === "autoplius" && "text-[#1a56db]",
+                  promoteTheme === "vinted" && "text-[#09b1a8] font-light",
+                  promoteTheme === "skelbiu" && "text-[#1565c0] font-bold",
+                  promoteTheme === "flux" && "text-[var(--vauto-teal)]"
+                )}
+              >
+                {promoteLabels.cardCta}
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-slate-300">
                 {suggestion.message} · {suggestion.cost.toFixed(2)}€

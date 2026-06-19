@@ -139,7 +139,14 @@ import {
   buildBuddyViewNotification,
 } from "@/lib/buddy-messages";
 import { logBuddyState, speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
+import {
+  adaptiveKeyToTheme,
+  type ChameleonThemeId,
+} from "@/lib/chameleon-themes";
+import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { WakeWordHost } from "@/components/voice/WakeWordHost";
+import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
 import {
   createWakeWordSession,
   logWakeEvent,
@@ -293,6 +300,9 @@ interface VautoContextValue {
   setWakeWordEnabled: (enabled: boolean) => void;
   requestWakeWordConsent: () => void;
   disableWakeWordInstantly: () => void;
+
+  chameleonTheme: ChameleonThemeId;
+  detectedAdaptiveKey: AdaptiveCategoryKey | null;
 }
 
 const DEMO_SOLD_STORIES = [
@@ -382,6 +392,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [wakeWordPhase, setWakeWordPhase] = useState<WakeWordPhase>("off");
   const [wakeWordStatusText, setWakeWordStatusText] = useState<string>();
   const [wakeWordTranscript, setWakeWordTranscript] = useState<string>();
+  const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
+  const [detectedAdaptiveKey, setDetectedAdaptiveKey] =
+    useState<AdaptiveCategoryKey | null>(null);
   const reviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const engagementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buddyFollowUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1387,6 +1400,24 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     saveAlertQueries(next);
   }, [searchQuery, hydrated]);
 
+  useEffect(() => {
+    if (
+      aiDraft &&
+      (sellerStep === "confirmation" ||
+        sellerStep === "processing" ||
+        sellerStep === "published")
+    ) {
+      const key = listingToAdaptiveKey(aiDraft.category);
+      setDetectedAdaptiveKey(key);
+      setChameleonTheme(adaptiveKeyToTheme(key));
+      return;
+    }
+    if (sellerStep === "idle") {
+      setDetectedAdaptiveKey(null);
+      setChameleonTheme("flux");
+    }
+  }, [aiDraft, sellerStep]);
+
   const scheduleIncomingSms = useCallback(
     (
       chatId: string,
@@ -2027,11 +2058,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setWakeWordEnabled,
     requestWakeWordConsent,
     disableWakeWordInstantly,
+    chameleonTheme,
+    detectedAdaptiveKey,
   };
 
   return (
     <VautoContext.Provider value={value}>
       {children}
+      <ChameleonThemeHost />
       <ReviewPromptHost />
       <WakeWordHost />
       <GdprConsentModal
