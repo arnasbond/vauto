@@ -14,6 +14,7 @@ interface BuddyVoicePulseProps {
   hint?: string;
   levelSource?: () => number[];
   onCancel?: () => void;
+  cancelLabel?: string;
   className?: string;
 }
 
@@ -34,6 +35,7 @@ export function BuddyVoicePulse({
   hint,
   levelSource,
   onCancel,
+  cancelLabel = "Atšaukti",
   className,
 }: BuddyVoicePulseProps) {
   const copy = MODE_COPY[mode];
@@ -188,7 +190,7 @@ export function BuddyVoicePulse({
           className="mt-8 flex items-center justify-center gap-2 rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-medium text-white/70 transition duration-500 ease-in-out hover:bg-white/10 hover:text-white"
         >
           <Square className="h-4 w-4" />
-          Atšaukti
+          {cancelLabel}
         </button>
       )}
     </div>

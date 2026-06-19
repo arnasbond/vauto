@@ -1,12 +1,11 @@
 "use client";
 
 import { Mic, Sparkles } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
-import { createVoiceSession, recordWithSession } from "@/lib/native-media";
-import { startLiveTranscript } from "@/lib/live-transcript";
+import { useRef, useState } from "react";
+import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
 import { BuddyVoicePulse } from "@/components/buddy/BuddyVoicePulse";
-import type { VoiceSession } from "@/lib/audio-session";
+import type { VoiceSearchSession } from "@/lib/voice-search";
 
 export function SearchBar() {
   const {
@@ -15,11 +14,13 @@ export function SearchBar() {
     requestMediaConsent,
     startListingFromQuery,
     setSearchVoiceMode,
+    showToast,
   } = useVauto();
   const [isListening, setIsListening] = useState(false);
   const [liveSubtitle, setLiveSubtitle] = useState("");
-  const [session, setSession] = useState<VoiceSession | null>(null);
+  const [micReady, setMicReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const voiceRef = useRef<VoiceSearchSession | null>(null);
 
   const scrollToResults = () => {
     document
@@ -38,43 +39,53 @@ export function SearchBar() {
     inputRef.current?.blur();
   };
 
-  const levelSource = useCallback(
-    () => session?.getLevels() ?? Array(9).fill(0.35),
-    [session]
-  );
-
-  const handleVoiceSearch = async () => {
+  const handleVoiceSearch = () => {
     if (isListening) return;
 
-    requestMediaConsent(async () => {
+    if (!isVoiceSearchSupported()) {
+      showToast("Ši naršyklė nepalaiko balso paieškos", "error");
+      return;
+    }
+
+    requestMediaConsent(() => {
       setIsListening(true);
+      setMicReady(false);
       setLiveSubtitle("");
-      const stopTranscript = startLiveTranscript(setLiveSubtitle);
 
-      const voiceSession = await createVoiceSession();
-      setSession(voiceSession);
+      const session = startVoiceSearch({
+        onStart: () => setMicReady(true),
+        onInterim: setLiveSubtitle,
+        silenceMs: 2_800,
+        maxMs: 25_000,
+      });
+      voiceRef.current = session;
 
-      try {
-        const text = voiceSession ? await recordWithSession(voiceSession) : null;
-        if (text) {
-          setSearchVoiceMode(true);
-          if (startListingFromQuery(text)) {
-            setSearchQuery("");
+      void session.promise
+        .then((text) => {
+          if (text) {
+            setSearchVoiceMode(true);
+            if (startListingFromQuery(text)) {
+              setSearchQuery("");
+            } else {
+              setSearchQuery(text);
+              scrollToResults();
+            }
           } else {
-            setSearchQuery(text);
-            scrollToResults();
+            setSearchVoiceMode(false);
+            showToast("Nepavyko atpažinti balso — bandykite dar kartą", "info");
           }
-        } else {
-          setSearchVoiceMode(false);
-        }
-      } finally {
-        stopTranscript();
-        voiceSession?.release();
-        setSession(null);
-        setIsListening(false);
-        setLiveSubtitle("");
-      }
+        })
+        .finally(() => {
+          voiceRef.current = null;
+          setIsListening(false);
+          setMicReady(false);
+          setLiveSubtitle("");
+        });
     });
+  };
+
+  const handleFinishVoice = () => {
+    voiceRef.current?.stop();
   };
 
   return (
@@ -117,9 +128,16 @@ export function SearchBar() {
           mode="listening"
           variant="fullscreen"
           subtitle={liveSubtitle}
-          statusText="Klausausi paieškos…"
-          hint="Pasakykite ką ieškote arba ką norite parduoti"
-          levelSource={session ? levelSource : undefined}
+          statusText={
+            micReady ? "Klausausi paieškos…" : "Jungiamas mikrofonas…"
+          }
+          hint={
+            micReady
+              ? "Pasakykite ką ieškote — sustos po pauzės arba spauskite „Baigti“"
+              : "Leiskite mikrofono prieigą, jei paprašys"
+          }
+          onCancel={handleFinishVoice}
+          cancelLabel="Baigti"
         />
       )}
     </>

@@ -39,6 +39,9 @@ export async function createVoiceSession(): Promise<VoiceSession | null> {
 
   try {
     audioCtx = new AudioContext();
+    if (audioCtx.state === "suspended") {
+      await audioCtx.resume();
+    }
     analyser = audioCtx.createAnalyser();
     analyser.fftSize = 64;
     analyser.smoothingTimeConstant = 0.72;
@@ -59,7 +62,7 @@ export async function createVoiceSession(): Promise<VoiceSession | null> {
 
   return {
     getLevels: () => (analyser ? sampleLevels(analyser) : Array(BAR_COUNT).fill(0.35)),
-    record: (maxMs = 10000) =>
+    record: (maxMs = 18_000) =>
       new Promise((resolve) => {
         const chunks: BlobPart[] = [];
         const recorder = new MediaRecorder(stream);

@@ -5,6 +5,7 @@ import { hasOpenAiKey } from "@/lib/openai-settings";
 import { BuddyVoicePulse } from "@/components/buddy/BuddyVoicePulse";
 import { createVoiceSession, recordWithSession } from "@/lib/native-media";
 import { startLiveTranscript } from "@/lib/live-transcript";
+import { isMobileDevice } from "@/lib/mobile-install";
 import type { VoiceSession } from "@/lib/audio-session";
 
 interface VoiceRecorderOverlayProps {
@@ -29,9 +30,8 @@ export function VoiceRecorderOverlay({
   useEffect(() => {
     let cancelled = false;
     let activeSession: VoiceSession | null = null;
-    const stopTranscript = startLiveTranscript((text) => {
-      if (!cancelled) setLiveSubtitle(text);
-    });
+    let stopTranscript = () => {};
+    const useLiveSubtitle = !isMobileDevice();
 
     async function run() {
       activeSession = await createVoiceSession();
@@ -40,6 +40,12 @@ export function VoiceRecorderOverlay({
         return;
       }
       setSession(activeSession);
+
+      if (useLiveSubtitle) {
+        stopTranscript = startLiveTranscript((text) => {
+          if (!cancelled) setLiveSubtitle(text);
+        });
+      }
 
       const transcript = activeSession
         ? await recordWithSession(activeSession)

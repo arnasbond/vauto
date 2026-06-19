@@ -60,10 +60,14 @@ type SpeechRecognitionCtor = new () => {
   interimResults: boolean;
   onresult:
     | ((e: {
-        results: { [i: number]: { [j: number]: { transcript: string } } };
+        resultIndex: number;
+        results: {
+          length: number;
+          [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
+        };
       }) => void)
     | null;
-  onerror: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
@@ -85,36 +89,51 @@ async function speechRecognitionTranscript(): Promise<string | null> {
   return new Promise((resolve) => {
     const rec = new SpeechRecognition();
     rec.lang = "lt-LT";
-    rec.continuous = false;
-    rec.interimResults = false;
+    rec.continuous = true;
+    rec.interimResults = true;
 
     let resolved = false;
+    let committed = "";
+    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+
     const finish = (text: string | null) => {
       if (resolved) return;
       resolved = true;
-      resolve(text);
-    };
-
-    const timeout = setTimeout(() => {
+      if (silenceTimer) clearTimeout(silenceTimer);
+      clearTimeout(maxTimeout);
       try {
         rec.stop();
       } catch {
         /* ignore */
       }
-      finish(null);
-    }, 12000);
+      resolve(text);
+    };
+
+    const scheduleSilence = () => {
+      if (!committed.trim()) return;
+      if (silenceTimer) clearTimeout(silenceTimer);
+      silenceTimer = setTimeout(() => finish(committed.trim() || null), 2_500);
+    };
+
+    const maxTimeout = setTimeout(() => {
+      finish(committed.trim() || null);
+    }, 20_000);
 
     rec.onresult = (event) => {
-      clearTimeout(timeout);
-      finish(event.results[0]?.[0]?.transcript?.trim() || null);
+      let interim = "";
+      for (let i = event.resultIndex; i < event.results.length; i++) {
+        const part = event.results[i]?.[0]?.transcript ?? "";
+        if (event.results[i]?.isFinal) committed += part;
+        else interim += part;
+      }
+      if (`${committed}${interim}`.trim()) scheduleSilence();
     };
-    rec.onerror = () => {
-      clearTimeout(timeout);
-      finish(null);
+    rec.onerror = (ev: { error: string }) => {
+      if (ev.error === "no-speech" || ev.error === "aborted") return;
+      if (ev.error === "not-allowed") finish(null);
     };
     rec.onend = () => {
-      clearTimeout(timeout);
-      if (!resolved) finish(null);
+      if (!resolved && committed.trim()) finish(committed.trim());
     };
 
     try {
