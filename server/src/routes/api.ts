@@ -7,13 +7,17 @@ import {
   getEscrowForThread,
   getListings,
   getReports,
+  getReviews,
   getSavedIds,
   getUser,
   insertListing,
   insertReport,
+  insertReview,
+  promoteListingWallet,
   renewListing,
   setBannedUserIds,
   setSavedIds,
+  topUpWallet,
   updateListing,
   updateReportStatus,
   upsertChat,
@@ -22,10 +26,13 @@ import {
   warnUser,
 } from "../repository.js";
 import { seedIfEmpty } from "../seed-runtime.js";
+import { notifyListingMatch } from "../push/web-push.js";
+import { requireAuth } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
   ApiListing,
+  ApiReview,
   ApiSupportReport,
   ApiUser,
 } from "../types.js";
@@ -63,6 +70,7 @@ apiRouter.post("/listings", async (req, res) => {
   try {
     const listing = req.body as ApiListing;
     await insertListing(listing);
+    void notifyListingMatch(listing).catch(() => {});
     res.status(201).json(listing);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -241,3 +249,61 @@ apiRouter.put("/escrow", async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+apiRouter.get("/reviews", async (_req, res) => {
+  try {
+    res.json(await getReviews());
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/reviews", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const review = req.body as ApiReview;
+    if (review.reviewerId !== req.authUserId) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    await insertReview(review);
+    res.status(201).json(review);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/wallet/top-up", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const amount = Number(req.body?.amount ?? 0);
+    const result = await topUpWallet(req.authUserId!, amount);
+    if (!result) {
+      res.status(400).json({ error: "Invalid amount" });
+      return;
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post(
+  "/listings/:id/promote",
+  requireAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const cost = Number(req.body?.cost ?? 5);
+      const result = await promoteListingWallet(
+        req.authUserId!,
+        req.params.id,
+        cost
+      );
+      if (!result) {
+        res.status(400).json({ error: "Insufficient balance or listing not found" });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  }
+);

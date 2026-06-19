@@ -3,6 +3,7 @@ import type {
   ApiChatThread,
   ApiEscrowTransaction,
   ApiListing,
+  ApiReview,
   ApiSupportReport,
   ApiUser,
 } from "./types.js";
@@ -77,8 +78,15 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     avatar_url: string | null;
     email: string | null;
     warned: boolean;
+    wallet_balance: string;
+    role: string;
+    business_type: string | null;
+    sold_count: number;
+    auth_provider: string | null;
   }>(
-    "SELECT id, name, phone, city, avatar_url, email, warned FROM users WHERE id = $1",
+    `SELECT id, name, phone, city, avatar_url, email, warned,
+            wallet_balance, role, business_type, sold_count, auth_provider
+     FROM users WHERE id = $1`,
     [id]
   );
   const r = rows[0];
@@ -90,6 +98,11 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     city: r.city,
     email: r.email ?? undefined,
     warned: r.warned,
+    walletBalance: Number(r.wallet_balance),
+    role: r.role,
+    businessType: r.business_type ?? undefined,
+    soldCount: r.sold_count,
+    authProvider: r.auth_provider ?? undefined,
     avatar:
       r.avatar_url ??
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
@@ -107,8 +120,9 @@ export async function ensureUser(id: string): Promise<void> {
 
 export async function upsertUser(user: ApiUser): Promise<void> {
   await query(
-    `INSERT INTO users (id, name, phone, city, avatar_url, email, warned)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
+    `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
+                        wallet_balance, role, business_type, sold_count, auth_provider)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        phone = EXCLUDED.phone,
@@ -116,6 +130,11 @@ export async function upsertUser(user: ApiUser): Promise<void> {
        avatar_url = EXCLUDED.avatar_url,
        email = EXCLUDED.email,
        warned = EXCLUDED.warned,
+       wallet_balance = COALESCE(EXCLUDED.wallet_balance, users.wallet_balance),
+       role = COALESCE(EXCLUDED.role, users.role),
+       business_type = COALESCE(EXCLUDED.business_type, users.business_type),
+       sold_count = COALESCE(EXCLUDED.sold_count, users.sold_count),
+       auth_provider = COALESCE(EXCLUDED.auth_provider, users.auth_provider),
        updated_at = now()`,
     [
       user.id,
@@ -125,6 +144,11 @@ export async function upsertUser(user: ApiUser): Promise<void> {
       user.avatar,
       user.email ?? null,
       user.warned ?? false,
+      user.walletBalance ?? 0,
+      user.role ?? "private",
+      user.businessType ?? null,
+      user.soldCount ?? 0,
+      user.authProvider ?? null,
     ]
   );
 }
@@ -541,4 +565,215 @@ export async function upsertChat(thread: ApiChatThread): Promise<void> {
       ]
     );
   }
+}
+
+export async function getReviews(): Promise<ApiReview[]> {
+  const rows = await query<{
+    id: string;
+    seller_id: string;
+    listing_id: string;
+    listing_title: string;
+    reviewer_id: string;
+    reviewer_name: string;
+    rating: number;
+    comment: string | null;
+    created_at: Date;
+  }>(
+    `SELECT id, seller_id, listing_id, listing_title, reviewer_id, reviewer_name,
+            rating, comment, created_at
+     FROM seller_reviews ORDER BY created_at DESC`
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    sellerId: r.seller_id,
+    listingId: r.listing_id,
+    listingTitle: r.listing_title,
+    reviewerId: r.reviewer_id,
+    reviewerName: r.reviewer_name,
+    rating: r.rating,
+    comment: r.comment ?? undefined,
+    createdAt: r.created_at.toISOString(),
+  }));
+}
+
+export async function insertReview(review: ApiReview): Promise<void> {
+  await ensureUser(review.reviewerId);
+  await ensureUser(review.sellerId);
+  await query(
+    `INSERT INTO seller_reviews (
+      id, seller_id, listing_id, listing_title, reviewer_id, reviewer_name, rating, comment, created_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+     ON CONFLICT (id) DO NOTHING`,
+    [
+      review.id,
+      review.sellerId,
+      review.listingId,
+      review.listingTitle,
+      review.reviewerId,
+      review.reviewerName,
+      review.rating,
+      review.comment ?? null,
+      review.createdAt,
+    ]
+  );
+}
+
+export async function topUpWallet(
+  userId: string,
+  amount: number
+): Promise<{ walletBalance: number } | null> {
+  if (amount <= 0 || amount > 500) return null;
+  const txId = `wtx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const rows = await query<{ wallet_balance: string }>(
+    `UPDATE users SET wallet_balance = wallet_balance + $2, updated_at = now()
+     WHERE id = $1 RETURNING wallet_balance`,
+    [userId, amount]
+  );
+  if (!rows[0]) return null;
+  await query(
+    `INSERT INTO wallet_transactions (id, user_id, amount, kind) VALUES ($1, $2, $3, 'top_up')`,
+    [txId, userId, amount]
+  );
+  return { walletBalance: Number(rows[0].wallet_balance) };
+}
+
+export async function promoteListingWallet(
+  userId: string,
+  listingId: string,
+  cost: number
+): Promise<{ walletBalance: number; listing: ApiListing } | null> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+    const balRows = await client.query<{ wallet_balance: string }>(
+      `UPDATE users SET wallet_balance = wallet_balance - $3, updated_at = now()
+       WHERE id = $1 AND wallet_balance >= $3
+       RETURNING wallet_balance`,
+      [userId, listingId, cost]
+    );
+    if (!balRows.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    const listRows = await client.query<ListingRow>(
+      `UPDATE listings SET promoted = true
+       WHERE id = $1 AND seller_id = $2
+       RETURNING id, seller_id, title, price, price_label, location, distance_km,
+         latitude, longitude, slug, image, category, tags, contact, has_video, created_at,
+         expires_at, description, attributes, status, banned, vin_verified, provider_verified, promoted`,
+      [listingId, userId]
+    );
+    if (!listRows.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    const txId = `wtx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await client.query(
+      `INSERT INTO wallet_transactions (id, user_id, amount, kind, listing_id)
+       VALUES ($1, $2, $3, 'promote', $4)`,
+      [txId, userId, -cost, listingId]
+    );
+    await client.query("COMMIT");
+    return {
+      walletBalance: Number(balRows.rows[0].wallet_balance),
+      listing: mapListingRow(listRows.rows[0]),
+    };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
+export async function upsertPushSubscription(
+  userId: string,
+  sub: { endpoint: string; p256dh: string; auth: string }
+): Promise<void> {
+  const id = `psub-${Buffer.from(sub.endpoint).toString("base64url").slice(0, 40)}`;
+  await ensureUser(userId);
+  await query(
+    `INSERT INTO push_subscriptions (id, user_id, endpoint, p256dh, auth_key)
+     VALUES ($1, $2, $3, $4, $5)
+     ON CONFLICT (user_id, endpoint) DO UPDATE SET
+       p256dh = EXCLUDED.p256dh,
+       auth_key = EXCLUDED.auth_key`,
+    [id, userId, sub.endpoint, sub.p256dh, sub.auth]
+  );
+}
+
+export async function deletePushSubscription(
+  userId: string,
+  endpoint: string
+): Promise<void> {
+  await query(
+    `DELETE FROM push_subscriptions WHERE user_id = $1 AND endpoint = $2`,
+    [userId, endpoint]
+  );
+}
+
+export async function getPushSubscriptionsForUsers(
+  userIds: string[]
+): Promise<
+  { userId: string; endpoint: string; p256dh: string; auth: string }[]
+> {
+  if (!userIds.length) return [];
+  const rows = await query<{
+    user_id: string;
+    endpoint: string;
+    p256dh: string;
+    auth_key: string;
+  }>(
+    `SELECT user_id, endpoint, p256dh, auth_key FROM push_subscriptions
+     WHERE user_id = ANY($1::text[])`,
+    [userIds]
+  );
+  return rows.map((r) => ({
+    userId: r.user_id,
+    endpoint: r.endpoint,
+    p256dh: r.p256dh,
+    auth: r.auth_key,
+  }));
+}
+
+export async function setUserAlertQueries(
+  userId: string,
+  queries: string[]
+): Promise<void> {
+  await ensureUser(userId);
+  await pool.query("DELETE FROM user_alert_queries WHERE user_id = $1", [userId]);
+  for (const q of queries.filter((x) => x.trim().length >= 3)) {
+    await query(
+      `INSERT INTO user_alert_queries (user_id, query) VALUES ($1, $2)
+       ON CONFLICT DO NOTHING`,
+      [userId, q.trim()]
+    );
+  }
+}
+
+export async function getUsersMatchingListing(
+  listing: ApiListing
+): Promise<{ userId: string; query: string }[]> {
+  const rows = await query<{ user_id: string; query: string }>(
+    `SELECT user_id, query FROM user_alert_queries`
+  );
+  const tokens = (q: string) =>
+    q
+      .toLowerCase()
+      .split(/[\s,.;:!?—–-]+/)
+      .filter((t) => t.length >= 3);
+  const haystack = [
+    listing.title,
+    listing.location,
+    listing.category,
+    ...listing.tags,
+    listing.description ?? "",
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  return rows.filter((r) => {
+    const t = tokens(r.query);
+    return t.length > 0 && t.every((tok) => haystack.includes(tok));
+  });
 }

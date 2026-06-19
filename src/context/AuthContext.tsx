@@ -46,6 +46,7 @@ export interface LoginPayload {
   email?: string;
   otp?: string;
   city?: string;
+  idToken?: string;
 }
 
 interface AuthContextValue {
@@ -205,6 +206,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   businessType: data.businessType,
                   email: data.email,
                   city: data.city ?? user.city,
+                  idToken: data.idToken,
                 });
 
           if (!apiResult.ok) {

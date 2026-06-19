@@ -2,6 +2,8 @@ import { Router } from "express";
 import crypto from "node:crypto";
 import { issueOtp, verifyOtp } from "../auth/otp-store.js";
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
+import { sendSmsOtp } from "../auth/sms.js";
+import { verifyGoogleIdToken } from "../auth/google-verify.js";
 import { getUser, upsertUser } from "../repository.js";
 import type { ApiUser } from "../types.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
@@ -31,7 +33,7 @@ function providerName(provider: string): string {
 async function buildSession(
   userId: string,
   profile: Partial<ApiUser> & { id: string },
-  meta: { role: string; provider: string }
+  meta: { role: string; provider: string; businessType?: string }
 ) {
   const existing = await getUser(userId);
   const user: ApiUser = {
@@ -42,6 +44,13 @@ async function buildSession(
     avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
     email: profile.email ?? existing?.email,
     warned: existing?.warned ?? false,
+    role: meta.role,
+    businessType: meta.businessType ?? existing?.businessType,
+    authProvider: meta.provider,
+    soldCount: existing?.soldCount ?? 0,
+    walletBalance:
+      existing?.walletBalance ??
+      (meta.role === "pro" ? 25 : meta.role === "admin" ? 0 : 0),
   };
   await upsertUser(user);
   const token = signAccessToken({
@@ -65,6 +74,7 @@ authRouter.post("/otp/send", (req, res) => {
     return;
   }
   const { code, expiresAt } = issueOtp(phone);
+  void sendSmsOtp(phone, code);
   if (process.env.NODE_ENV !== "production") {
     console.log(`[Vauto Auth] OTP for ${phone}: ${code}`);
   }
@@ -81,6 +91,9 @@ authRouter.post("/otp/verify", async (req, res) => {
     const code = String(req.body?.code ?? "").trim();
     const role = String(req.body?.role ?? "private");
     const city = String(req.body?.city ?? "Panevėžys");
+    const businessType = req.body?.businessType
+      ? String(req.body.businessType)
+      : undefined;
 
     if (!verifyOtp(phone, code)) {
       res.status(401).json({ error: "Neteisingas arba pasibaigęs kodas" });
@@ -91,7 +104,7 @@ authRouter.post("/otp/verify", async (req, res) => {
     const session = await buildSession(
       userId,
       { id: userId, phone, city, name: providerName("phone") },
-      { role, provider: "phone" }
+      { role, provider: "phone", businessType }
     );
     res.json(session);
   } catch (e) {
@@ -105,6 +118,32 @@ authRouter.post("/social", async (req, res) => {
     const role = String(req.body?.role ?? "private");
     const email = req.body?.email ? String(req.body.email) : undefined;
     const city = String(req.body?.city ?? "Panevėžys");
+    const businessType = req.body?.businessType
+      ? String(req.body.businessType)
+      : undefined;
+    const idToken = req.body?.idToken ? String(req.body.idToken) : undefined;
+
+    if (provider === "google" && idToken) {
+      const google = await verifyGoogleIdToken(idToken);
+      if (!google) {
+        res.status(401).json({ error: "Netinkamas Google token" });
+        return;
+      }
+      const userId = stableUserId(`google:${google.sub}`);
+      const session = await buildSession(
+        userId,
+        {
+          id: userId,
+          email: google.email,
+          name: google.name ?? providerName("google"),
+          avatar: google.picture ?? defaultAvatar("google"),
+          city,
+        },
+        { role, provider: "google", businessType }
+      );
+      res.json(session);
+      return;
+    }
 
     if (role === "admin") {
       const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
@@ -123,7 +162,7 @@ authRouter.post("/social", async (req, res) => {
           avatar:
             "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
         },
-        { role: "admin", provider }
+        { role: "admin", provider, businessType }
       );
       res.json(session);
       return;
@@ -139,7 +178,7 @@ authRouter.post("/social", async (req, res) => {
         city,
         name: providerName(provider),
       },
-      { role, provider }
+      { role, provider, businessType }
     );
     res.json(session);
   } catch (e) {

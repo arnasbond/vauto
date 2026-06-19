@@ -12,6 +12,10 @@ export interface AuthApiSession {
     city: string;
     avatar: string;
     email?: string;
+    walletBalance?: number;
+    soldCount?: number;
+    role?: UserRole;
+    businessType?: ProBusinessType;
   };
   role: UserRole;
   provider: AuthProvider;
@@ -79,6 +83,7 @@ export async function apiSocialLogin(params: {
   businessType?: ProBusinessType;
   email?: string;
   city?: string;
+  idToken?: string;
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/social", {
     method: "POST",
@@ -112,9 +117,12 @@ export function mapApiUserToProfile(
     avatar: apiUser.avatar,
     authProvider: meta.provider,
     role: meta.role,
-    businessType: meta.businessType,
-    walletBalance: meta.walletBalance ?? (meta.role === "pro" ? 25 : 0),
+    businessType: meta.businessType ?? apiUser.businessType,
+    walletBalance:
+      apiUser.walletBalance ??
+      meta.walletBalance ??
+      (meta.role === "pro" ? 25 : 0),
     memberSince: new Date().toISOString(),
-    soldCount: 0,
+    soldCount: apiUser.soldCount ?? 0,
   };
 }

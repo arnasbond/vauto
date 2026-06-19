@@ -6,6 +6,28 @@ export interface ApiUser {
   avatar: string;
   email?: string;
   warned?: boolean;
+  walletBalance?: number;
+  role?: string;
+  businessType?: string;
+  soldCount?: number;
+  authProvider?: string;
+}
+
+export interface ApiReview {
+  id: string;
+  sellerId: string;
+  listingId: string;
+  listingTitle: string;
+  reviewerId: string;
+  reviewerName: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
+}
+
+export interface ApiPushSubscription {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
 }
 
 export interface ApiListing {

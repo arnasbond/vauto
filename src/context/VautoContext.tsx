@@ -38,7 +38,6 @@ import {
   loadGdprConsent,
   loadListings,
   loadReports,
-  loadReviews,
   loadSavedIds,
   loadSearchIntent,
   loadSoldPromptDismissed,
@@ -53,7 +52,6 @@ import {
   saveGdprConsent,
   saveListings,
   saveReports,
-  saveReviews,
   saveSavedIds,
   saveSearchIntent,
   saveSoldPromptDismissed,
@@ -134,9 +132,11 @@ import {
 } from "@/lib/search-intent";
 import { categoryToUrgency } from "@/lib/reports";
 import { DEMO_REPORTS } from "@/data/mockReports";
-import { DEMO_REVIEWS } from "@/data/mockReviews";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { useAuth, type LoginPayload } from "@/context/AuthContext";
+import { useReviews } from "@/context/ReviewsContext";
+import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
+import { registerWebPush } from "@/lib/web-push";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { logAnalytics } from "@/lib/analytics";
 import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
@@ -391,6 +391,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     authModalOpen,
     authRedirectPath,
   } = useAuth();
+  const { reviews, submitReview } = useReviews();
 
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
@@ -411,7 +412,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [buyerCoords, setBuyerCoords] = useState<UserCoords | null>(null);
   const [gdprConsent, setGdprConsent] = useState(false);
   const [gdprModalOpen, setGdprModalOpen] = useState(false);
-  const [reviews, setReviews] = useState<SellerReview[]>(DEMO_REVIEWS);
   const [searchIntentEvents, setSearchIntentEvents] = useState<SearchIntentEvent[]>([]);
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
@@ -490,8 +490,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
         else errors.push(bannedRes.error);
 
-        const storedReviews = loadReviews();
-        if (storedReviews?.length) setReviews(storedReviews);
         const storedIntent = loadSearchIntent();
         if (storedIntent) setSearchIntentEvents(storedIntent);
         const storedDismissed = loadSoldPromptDismissed();
@@ -529,9 +527,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (storedReports?.length) setReports(storedReports);
       else saveReports(DEMO_REPORTS);
       if (storedBanned?.length) setBannedUserIds(new Set(storedBanned));
-      const storedReviews = loadReviews();
-      if (storedReviews?.length) setReviews(storedReviews);
-      else saveReviews(DEMO_REVIEWS);
       const storedIntent = loadSearchIntent();
       if (storedIntent) setSearchIntentEvents(storedIntent);
       const storedDismissed = loadSoldPromptDismissed();
@@ -572,11 +567,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     if (!hydrated || apiActive) return;
     saveBannedUserIds(Array.from(bannedUserIds));
   }, [bannedUserIds, hydrated, apiActive]);
-
-  useEffect(() => {
-    if (!hydrated || apiActive) return;
-    saveReviews(reviews);
-  }, [reviews, hydrated, apiActive]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -1280,7 +1270,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const setPushAlertsEnabled = useCallback((enabled: boolean) => {
     setPushAlertsEnabledState(enabled);
     savePushAlertsEnabled(enabled);
-    if (enabled) void requestNotificationPermission();
+    if (enabled) {
+      void requestNotificationPermission().then(() => {
+        void registerWebPush(alertQueriesRef.current);
+      });
+    }
   }, []);
 
   const updateSellerMedia = useCallback(
@@ -1761,17 +1755,19 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const topUpWallet = useCallback(
     (amount: number) => {
-      patchAuthUser({ walletBalance: (user.walletBalance ?? 0) + amount });
       if (apiActive) {
-        void apiUpdateUser({
-          ...user,
-          walletBalance: (user.walletBalance ?? 0) + amount,
-        }).then((r) => {
-          if (!r.ok) setSyncError(`Piniginė neišsaugota: ${r.error}`);
+        void apiTopUpWallet(amount).then((r) => {
+          if (r.ok) {
+            patchAuthUser({ walletBalance: r.data.walletBalance });
+          } else {
+            setSyncError(`Piniginė neišsaugota: ${r.error}`);
+          }
         });
+        return;
       }
+      patchAuthUser({ walletBalance: (user.walletBalance ?? 0) + amount });
     },
-    [patchAuthUser, user, apiActive]
+    [patchAuthUser, user.walletBalance, apiActive]
   );
 
   const updateListing = useCallback(
@@ -1816,7 +1812,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [updateListing, listings, user.id, user.soldCount, patchAuthUser]
   );
 
-  const submitReview = useCallback(
+  const handleSubmitReview = useCallback(
     (data: {
       listingId: string;
       listingTitle: string;
@@ -1824,27 +1820,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       rating: number;
       comment?: string;
     }) => {
-      if (!isAuthenticated || user.id === "guest") return;
-      const review: SellerReview = {
-        id: `rev-${Date.now()}`,
-        sellerId: data.sellerId,
-        listingId: data.listingId,
-        listingTitle: data.listingTitle,
-        reviewerId: user.id,
-        reviewerName: user.name,
-        rating: data.rating,
-        comment: data.comment?.trim() || undefined,
-        createdAt: new Date().toISOString(),
-      };
-      setReviews((prev) => [review, ...prev]);
-      logAnalytics("review_submitted", {
-        listingId: data.listingId,
-        sellerId: data.sellerId,
-        rating: data.rating,
-      });
+      submitReview(data);
       setPendingReview(null);
     },
-    [isAuthenticated, user.id, user.name]
+    [submitReview]
   );
 
   const dismissSoldPrompt = useCallback((listingId: string) => {
@@ -1855,6 +1834,22 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     (listingId: string, cost: number): boolean => {
       const balance = user.walletBalance ?? 0;
       if (balance < cost) return false;
+
+      if (apiActive) {
+        void apiPromoteListing(listingId, cost).then((r) => {
+          if (r.ok) {
+            patchAuthUser({ walletBalance: r.data.walletBalance });
+            setListings((prev) =>
+              prev.map((l) =>
+                l.id === listingId ? { ...l, ...r.data.listing, promoted: true } : l
+              )
+            );
+          } else {
+            setSyncError(`Promote nepavyko: ${r.error}`);
+          }
+        });
+      }
+
       patchAuthUser({ walletBalance: balance - cost });
       setListings((prev) =>
         prev.map((l) => {
@@ -1871,7 +1866,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       );
       return true;
     },
-    [user.walletBalance, apiActive]
+    [user.walletBalance, apiActive, patchAuthUser]
   );
 
   const submitReport = useCallback(
@@ -2068,7 +2063,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     markChatRead,
     findListing,
     reviews,
-    submitReview,
+    submitReview: handleSubmitReview,
     trackListingView,
     trackListingCall,
     popularListingIds,

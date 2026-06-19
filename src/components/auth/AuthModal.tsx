@@ -1,10 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useEffect } from "react";
 import { Apple, Phone, Shield, X } from "lucide-react";
 import type { AuthProvider, ProBusinessType, UserRole } from "@/lib/types";
 import { ADMIN_EMAIL } from "@/lib/reports";
 import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
+import {
+  isGoogleAuthConfigured,
+  requestGoogleIdToken,
+} from "@/lib/auth/google-client";
 
 type AuthStep = "methods" | "phone" | "otp" | "role" | "admin";
 
@@ -21,6 +25,7 @@ interface AuthModalProps {
     businessType?: ProBusinessType;
     email?: string;
     otp?: string;
+    idToken?: string;
   }) => void;
 }
 
@@ -64,6 +69,21 @@ export function AuthModal({
   const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
   const [otpSending, setOtpSending] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
+  const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
+  const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open || step !== "methods" || !googleBtnRef.current) return;
+    if (!isGoogleAuthConfigured()) return;
+    void import("@/lib/auth/google-client").then(({ renderGoogleButton }) => {
+      if (!googleBtnRef.current) return;
+      void renderGoogleButton(googleBtnRef.current, (credential) => {
+        setGoogleIdToken(credential);
+        setPendingProvider("google");
+        setStep("role");
+      });
+    });
+  }, [open, step]);
 
   if (!open) return null;
 
@@ -72,16 +92,27 @@ export function AuthModal({
       provider,
       phone: provider === "phone" ? phone : undefined,
       otp: provider === "phone" ? otp : undefined,
+      idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
       role,
       businessType: role === "pro" ? businessType : undefined,
     });
     setStep("methods");
     setOtp("");
+    setGoogleIdToken(null);
   };
 
-  const handleSocial = (provider: "google" | "apple") => {
+  const handleGoogle = async () => {
     onClearError?.();
-    setPendingProvider(provider);
+    if (isGoogleAuthConfigured()) {
+      const token = await requestGoogleIdToken();
+      if (token) {
+        setGoogleIdToken(token);
+        setPendingProvider("google");
+        setStep("role");
+        return;
+      }
+    }
+    setPendingProvider("google");
     setStep("role");
   };
 
@@ -151,17 +182,23 @@ export function AuthModal({
           <div className="space-y-3">
             <button
               type="button"
-              onClick={() => handleSocial("google")}
+              onClick={() => void handleGoogle()}
               disabled={loading}
               className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
             >
               <GoogleIcon />
               Prisijungti su Google
             </button>
+            {isGoogleAuthConfigured() && (
+              <div ref={googleBtnRef} className="flex justify-center" />
+            )}
             <button
               type="button"
-              onClick={() => handleSocial("apple")}
-              disabled={loading}
+              onClick={() => {
+                onClearError?.();
+                setPendingProvider("apple");
+                setStep("role");
+              }}
               className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"
             >
               <Apple className="h-5 w-5" />
