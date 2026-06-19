@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams } from "next/navigation";
+import { useEffect } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -17,6 +18,8 @@ import { AppShell } from "@/components/AppShell";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
 import { ReportButton } from "@/components/support/ReportButton";
 import { TrustBadges } from "@/components/trust/TrustBadges";
+import { SafeMeetingTips } from "@/components/listing/SafeMeetingTips";
+import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import {
@@ -55,6 +58,9 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     startChat,
     deleteListing,
     showToast,
+    trackListingView,
+    trackListingCall,
+    reviews,
   } = useVauto();
 
   const listing = slug
@@ -62,6 +68,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     : id
       ? findListing(id)
       : undefined;
+
+  useEffect(() => {
+    if (listing?.id && !listing.banned) trackListingView(listing.id);
+  }, [listing?.id, listing?.banned, trackListingView]);
 
   if (!listing || listing.banned) {
     return (
@@ -147,6 +157,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           <div className="mt-2">
             <TrustBadges listing={listing} size="md" />
           </div>
+          <SellerRatingBadge
+            sellerId={listing.sellerId}
+            reviews={reviews}
+          />
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[var(--vauto-text-muted)]">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-4 w-4 shrink-0" />
@@ -165,6 +179,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           <div className="mt-5 grid grid-cols-2 gap-3">
             <a
               href={`tel:${phone}`}
+              onClick={() => trackListingCall(listing.id)}
               className="flex items-center justify-center gap-2 rounded-2xl bg-[var(--flux-teal)] py-3.5 text-sm font-bold text-[var(--flux-bg)] shadow-lg shadow-[var(--flux-teal)]/20"
             >
               <Phone className="h-5 w-5" />
@@ -227,6 +242,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             </div>
           </section>
         )}
+
+        {!isOwn && <SafeMeetingTips />}
 
         <div className="mt-6 flex flex-col gap-3">
           {isOwn && (

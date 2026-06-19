@@ -1,0 +1,60 @@
+"use client";
+
+import { CheckCircle, X } from "lucide-react";
+import type { Listing } from "@/lib/types";
+
+interface SoldPromptBannerProps {
+  listings: Listing[];
+  dismissedIds: Set<string>;
+  onMarkSold: (id: string) => void;
+  onDismiss: (id: string) => void;
+}
+
+const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+
+export function SoldPromptBanner({
+  listings,
+  dismissedIds,
+  onMarkSold,
+  onDismiss,
+}: SoldPromptBannerProps) {
+  const candidates = listings.filter((l) => {
+    if (l.status === "sold" || dismissedIds.has(l.id)) return false;
+    const age = Date.now() - new Date(l.createdAt).getTime();
+    return age >= SEVEN_DAYS_MS;
+  });
+
+  if (!candidates.length) return null;
+
+  const listing = candidates[0];
+
+  return (
+    <div className="vauto-dashboard-card mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+      <p className="text-sm font-semibold text-white">
+        Ar pardavėte: {listing.title}?
+      </p>
+      <p className="mt-1 text-xs text-amber-200/70">
+        Skelbimas aktyvus jau 7+ dienas. Pažymėjus kaip parduota, padėsime kitiems
+        pirkėjams.
+      </p>
+      <div className="mt-3 flex gap-2">
+        <button
+          type="button"
+          onClick={() => onMarkSold(listing.id)}
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-emerald-500/20 py-2 text-xs font-semibold text-emerald-300"
+        >
+          <CheckCircle className="h-3.5 w-3.5" />
+          Taip, parduota
+        </button>
+        <button
+          type="button"
+          onClick={() => onDismiss(listing.id)}
+          className="flex items-center justify-center gap-1 rounded-xl bg-white/10 px-4 py-2 text-xs text-slate-400"
+        >
+          <X className="h-3.5 w-3.5" />
+          Dar aktyvu
+        </button>
+      </div>
+    </div>
+  );
+}

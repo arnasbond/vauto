@@ -105,6 +105,7 @@ export default function ProfilePage() {
           onDelete={(id) => {
             if (confirm("Ištrinti skelbimą?")) deleteListing(id);
           }}
+          onMarkSold={markListingSold}
           onTopUp={topUpWallet}
           onPromote={promoteListing}
           onRenew={handleRenew}

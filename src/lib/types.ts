@@ -30,6 +30,9 @@ export interface Listing {
   /** Pro dashboard metrics */
   views?: number;
   clicks?: number;
+  callClicks?: number;
+  chatStarts?: number;
+  saveCount?: number;
   interestScore?: number;
   banned?: boolean;
   /** Vehicles: mock VIN registry verification */
@@ -98,6 +101,20 @@ export interface UserProfile {
   walletBalance?: number;
   email?: string;
   warned?: boolean;
+  memberSince?: string;
+  soldCount?: number;
+}
+
+export interface SellerReview {
+  id: string;
+  sellerId: string;
+  listingId: string;
+  listingTitle: string;
+  reviewerId: string;
+  reviewerName: string;
+  rating: number;
+  comment?: string;
+  createdAt: string;
 }
 
 export type ReportCategory =

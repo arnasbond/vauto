@@ -168,6 +168,9 @@ function prepareListing(listing: Listing): Listing {
   const slug = generateListingSlug(listing.title, listing.location);
   const vin =
     typeof listing.attributes?.vin === "string" ? listing.attributes.vin : undefined;
+  let h = 0;
+  for (let i = 0; i < listing.id.length; i++) h += listing.id.charCodeAt(i);
+  const seedViews = 15 + (h % 120);
   return {
     ...withCoords,
     slug,
@@ -175,6 +178,10 @@ function prepareListing(listing: Listing): Listing {
     description:
       listing.description ??
       `${listing.title} — ${listing.location}. Susisiekite dėl detalių.`,
+    views: listing.views ?? seedViews,
+    callClicks: listing.callClicks ?? Math.max(1, Math.floor(seedViews * 0.08)),
+    chatStarts: listing.chatStarts ?? Math.max(0, Math.floor(seedViews * 0.04)),
+    saveCount: listing.saveCount ?? Math.max(0, Math.floor(seedViews * 0.03)),
     vinVerified: listing.vinVerified ?? (vin ? verifyVin(vin) : false),
     providerVerified:
       listing.providerVerified ?? isVerifiedServiceSeller(listing.sellerId),

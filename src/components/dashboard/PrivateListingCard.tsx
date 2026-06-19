@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { CheckCircle, Pencil, RefreshCw, Trash2 } from "lucide-react";
+import { CheckCircle, Eye, MessageCircle, Pencil, Phone, RefreshCw, Trash2 } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { formatExpiryLabel, isListingActive } from "@/lib/listing-expiry";
+import { getListingMetrics } from "@/lib/listing-analytics";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ListingStatus } from "@/lib/types";
 
@@ -34,6 +35,7 @@ export function PrivateListingCard({
   const status = statusLabel(listing);
   const expiryLabel = formatExpiryLabel(listing);
   const expired = listing.status !== "sold" && !isListingActive(listing);
+  const metrics = getListingMetrics(listing);
 
   return (
     <div className="vauto-dashboard-card rounded-2xl p-3">
@@ -76,6 +78,19 @@ export function PrivateListingCard({
           )}
         </div>
       </div>
+      {listing.status !== "sold" && (
+        <div className="mt-2 flex gap-3 text-[10px] text-slate-500">
+          <span className="inline-flex items-center gap-0.5">
+            <Eye className="h-3 w-3" /> {metrics.views}
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <Phone className="h-3 w-3" /> {metrics.callClicks}
+          </span>
+          <span className="inline-flex items-center gap-0.5">
+            <MessageCircle className="h-3 w-3" /> {metrics.chatStarts}
+          </span>
+        </div>
+      )}
       <div className="mt-3 flex flex-wrap gap-2">
         {expired && (
           <button

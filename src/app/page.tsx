@@ -1,9 +1,12 @@
+"use client";
+
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
 import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
+import { PopularTodaySection, SocialProofStrip } from "@/components/home/HomeInsights";
 
 export default function HomePage() {
   return (
@@ -16,7 +19,7 @@ export default function HomePage() {
           Rask. Įdėk.
         </h1>
         <p className="mt-2 text-[13px] leading-snug text-[var(--vauto-text-muted)]">
-          Registracija nereikalinga naršyti — AI padeda rasti ir publikuoti per
+          Paslaugos ir skelbimai Panevėžyje — AI padeda rasti ir publikuoti per
           sekundes.
         </p>
         <div className="mt-4">
@@ -25,6 +28,8 @@ export default function HomePage() {
       </HeroSection>
 
       <ContentSection>
+        <SocialProofStrip />
+        <PopularTodaySection />
         <FilterBubbles />
         <ListingGrid />
       </ContentSection>

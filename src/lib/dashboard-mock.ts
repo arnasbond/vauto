@@ -1,29 +1,22 @@
 import type { Listing, ServiceBooking } from "@/lib/types";
+import { aggregateSellerMetrics, getListingMetrics } from "@/lib/listing-analytics";
 
-/** Deterministic mock metrics from listing id */
+/** Real metrics from listing fields, with light seed fallback */
 export function mockListingMetrics(listing: Listing) {
+  const m = getListingMetrics(listing);
+  if (m.views > 0) return m;
   let h = 0;
   for (let i = 0; i < listing.id.length; i++) h += listing.id.charCodeAt(i);
-  const views = (listing.views ?? (80 + (h % 420))) + (listing.promoted ? 120 : 0);
-  const clicks = listing.clicks ?? Math.max(3, Math.floor(views * (0.08 + (h % 10) / 100)));
-  const interestScore =
-    listing.interestScore ??
-    Math.min(99, Math.round((clicks / views) * 100 * 2.5 + (h % 20)));
-
-  return { views, clicks, interestScore };
+  const views = 80 + (h % 420) + (listing.promoted ? 120 : 0);
+  const callClicks = Math.max(1, Math.floor(views * 0.08));
+  const chatStarts = Math.max(0, Math.floor(views * 0.04));
+  const saves = Math.max(0, Math.floor(views * 0.03));
+  const interestScore = Math.min(99, Math.round(((callClicks + chatStarts) / views) * 100 * 3));
+  return { views, callClicks, chatStarts, saves, interestScore };
 }
 
 export function mockAggregateAnalytics(listings: Listing[]) {
-  const metrics = listings.map(mockListingMetrics);
-  return {
-    views: metrics.reduce((s, m) => s + m.views, 0),
-    clicks: metrics.reduce((s, m) => s + m.clicks, 0),
-    interestScore: metrics.length
-      ? Math.round(
-          metrics.reduce((s, m) => s + m.interestScore, 0) / metrics.length
-        )
-      : 0,
-  };
+  return aggregateSellerMetrics(listings);
 }
 
 export function mockServiceBookings(): ServiceBooking[] {

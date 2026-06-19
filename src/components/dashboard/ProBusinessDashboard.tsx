@@ -1,10 +1,13 @@
 "use client";
 
 import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
+import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
+import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { mockAggregateAnalytics, mockServiceBookings } from "@/lib/dashboard-mock";
+import { useVauto } from "@/context/VautoContext";
 import type { Listing, UserProfile } from "@/lib/types";
 
 interface ProBusinessDashboardProps {
@@ -12,6 +15,7 @@ interface ProBusinessDashboardProps {
   listings: Listing[];
   onEdit: (listing: Listing) => void;
   onDelete: (id: string) => void;
+  onMarkSold: (id: string) => void;
   onTopUp: (amount: number) => void;
   onPromote: (listingId: string, cost: number) => boolean;
   onRenew: (id: string) => void;
@@ -22,10 +26,12 @@ export function ProBusinessDashboard({
   listings,
   onEdit,
   onDelete,
+  onMarkSold,
   onTopUp,
   onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
+  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt } = useVauto();
   const analytics = mockAggregateAnalytics(listings);
   const showCalendar =
     user.businessType === "services" ||
@@ -35,8 +41,17 @@ export function ProBusinessDashboard({
     <div>
       <MicroAnalytics
         views={analytics.views}
-        clicks={analytics.clicks}
+        callClicks={analytics.callClicks}
+        chatStarts={analytics.chatStarts}
+        saves={analytics.saves}
         interestScore={analytics.interestScore}
+      />
+      <BuyerIntentBanner intentCount={buyerIntentCount} />
+      <SoldPromptBanner
+        listings={listings}
+        dismissedIds={soldPromptDismissed}
+        onMarkSold={onMarkSold}
+        onDismiss={dismissSoldPrompt}
       />
       <VautoWallet
         balance={user.walletBalance ?? 0}

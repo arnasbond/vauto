@@ -38,7 +38,10 @@ import {
   loadGdprConsent,
   loadListings,
   loadReports,
+  loadReviews,
   loadSavedIds,
+  loadSearchIntent,
+  loadSoldPromptDismissed,
   loadUser,
   saveAuthSession,
   saveBannedUserIds,
@@ -46,7 +49,10 @@ import {
   saveGdprConsent,
   saveListings,
   saveReports,
+  saveReviews,
   saveSavedIds,
+  saveSearchIntent,
+  saveSoldPromptDismissed,
   saveUser,
   clearAuthSession,
 } from "@/lib/storage";
@@ -102,12 +108,21 @@ import type {
   SellerFlowStep,
   SellerInputMode,
   SupportReport,
+  SellerReview,
   UserProfile,
   UserRole,
 } from "@/lib/types";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
+import { bumpListingMetric, aggregateSellerMetrics } from "@/lib/listing-analytics";
+import {
+  countBuyerIntentForSeller,
+  getPopularListingIds,
+  recordSearchIntent,
+  type SearchIntentEvent,
+} from "@/lib/search-intent";
 import { ADMIN_EMAIL, categoryToUrgency } from "@/lib/reports";
 import { DEMO_REPORTS } from "@/data/mockReports";
+import { DEMO_REVIEWS } from "@/data/mockReviews";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
 import type { ListingEditPatch } from "@/lib/listing-edit";
@@ -210,6 +225,43 @@ interface VautoContextValue {
   setActiveChatId: (chatId: string | null) => void;
   markChatRead: (chatId: string) => void;
   findListing: (idOrSlug: string) => Listing | undefined;
+
+  reviews: SellerReview[];
+  submitReview: (data: {
+    listingId: string;
+    listingTitle: string;
+    sellerId: string;
+    rating: number;
+    comment?: string;
+  }) => void;
+  trackListingView: (listingId: string) => void;
+  trackListingCall: (listingId: string) => void;
+  popularListingIds: string[];
+  recentSoldStories: { id: string; title: string; location: string; timeAgo: string }[];
+  buyerIntentCount: number;
+  soldPromptDismissed: Set<string>;
+  dismissSoldPrompt: (listingId: string) => void;
+  sellerAnalytics: ReturnType<typeof aggregateSellerMetrics>;
+}
+
+const DEMO_SOLD_STORIES = [
+  { id: "story-1", title: "Dviratis", location: "Panevėžys", timeAgo: "prieš 2 d." },
+  { id: "story-2", title: "iPhone 13", location: "Vilnius", timeAgo: "prieš 3 d." },
+  { id: "story-3", title: "Žolės pjovimas", location: "Panevėžys", timeAgo: "šiandien" },
+];
+
+function formatTimeAgo(iso: string): string {
+  const days = Math.floor(
+    (Date.now() - new Date(iso).getTime()) / (24 * 60 * 60 * 1000)
+  );
+  if (days <= 0) return "šiandien";
+  if (days === 1) return "vakar";
+  return `prieš ${days} d.`;
+}
+
+function anonymizeTitle(title: string): string {
+  const words = title.split(/\s+/);
+  return words.slice(0, 2).join(" ") + (words.length > 2 ? "…" : "");
 }
 
 const VautoContext = createContext<VautoContextValue | null>(null);
@@ -269,8 +321,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [gdprModalOpen, setGdprModalOpen] = useState(false);
   const [authModalOpen, setAuthModalOpen] = useState(false);
   const [authRedirectPath, setAuthRedirectPath] = useState<string | null>(null);
+  const [reviews, setReviews] = useState<SellerReview[]>(DEMO_REVIEWS);
+  const [searchIntentEvents, setSearchIntentEvents] = useState<SearchIntentEvent[]>([]);
+  const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
 
   const activeChatIdRef = useRef<string | null>(null);
+  const viewedListingsRef = useRef<Set<string>>(new Set());
   const smsCancelRef = useRef<Map<string, () => void>>(new Map());
   const gdprPendingAction = useRef<(() => void) | null>(null);
   const chatsRef = useRef(chats);
@@ -315,6 +371,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
         if (auth?.isAuthenticated) setIsAuthenticated(true);
 
+        const storedReviews = loadReviews();
+        if (storedReviews?.length) setReviews(storedReviews);
+        const storedIntent = loadSearchIntent();
+        if (storedIntent) setSearchIntentEvents(storedIntent);
+        const storedDismissed = loadSoldPromptDismissed();
+        if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
+
         if (errors.length) setSyncError(errors[0]);
         setGdprConsent(loadGdprConsent());
         setHydrated(true);
@@ -343,6 +406,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (storedReports?.length) setReports(storedReports);
       else saveReports(DEMO_REPORTS);
       if (storedBanned?.length) setBannedUserIds(new Set(storedBanned));
+      const storedReviews = loadReviews();
+      if (storedReviews?.length) setReviews(storedReviews);
+      else saveReviews(DEMO_REVIEWS);
+      const storedIntent = loadSearchIntent();
+      if (storedIntent) setSearchIntentEvents(storedIntent);
+      const storedDismissed = loadSoldPromptDismissed();
+      if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
       setGdprConsent(loadGdprConsent());
       setHydrated(true);
     }
@@ -378,6 +448,21 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     if (!hydrated || apiActive) return;
     saveBannedUserIds(Array.from(bannedUserIds));
   }, [bannedUserIds, hydrated, apiActive]);
+
+  useEffect(() => {
+    if (!hydrated || apiActive) return;
+    saveReviews(reviews);
+  }, [reviews, hydrated, apiActive]);
+
+  useEffect(() => {
+    if (!hydrated || apiActive) return;
+    saveSearchIntent(searchIntentEvents);
+  }, [searchIntentEvents, hydrated, apiActive]);
+
+  useEffect(() => {
+    if (!hydrated || apiActive) return;
+    saveSoldPromptDismissed(Array.from(soldPromptDismissed));
+  }, [soldPromptDismissed, hydrated, apiActive]);
 
   const [sellerStep, setSellerStep] = useState<SellerFlowStep>("idle");
   const [sellerInputMode, setSellerInputMode] =
@@ -476,6 +561,81 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     return results;
   }, [visibleListings, searchQuery, activeFilterIds, dynamicFilters]);
 
+  const popularListingIds = useMemo(
+    () => getPopularListingIds(visibleListings, 4),
+    [visibleListings]
+  );
+
+  const recentSoldStories = useMemo(() => {
+    const sold = listings
+      .filter((l) => l.status === "sold")
+      .sort(
+        (a, b) =>
+          new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      )
+      .slice(0, 3)
+      .map((l) => ({
+        id: l.id,
+        title: anonymizeTitle(l.title),
+        location: l.location,
+        timeAgo: formatTimeAgo(l.createdAt),
+      }));
+    return sold.length > 0 ? sold : DEMO_SOLD_STORIES;
+  }, [listings]);
+
+  const myActiveListings = useMemo(
+    () =>
+      listings.filter(
+        (l) => l.sellerId === user.id && l.status !== "sold" && !l.banned
+      ),
+    [listings, user.id]
+  );
+
+  const buyerIntentCount = useMemo(
+    () => countBuyerIntentForSeller(searchIntentEvents, myActiveListings),
+    [searchIntentEvents, myActiveListings]
+  );
+
+  const sellerAnalytics = useMemo(
+    () =>
+      aggregateSellerMetrics(
+        listings.filter((l) => l.sellerId === user.id)
+      ),
+    [listings, user.id]
+  );
+
+  const handleSearchQuery = useCallback((q: string) => {
+    setSearchQuery(q);
+    if (q.trim().length >= 2) {
+      setSearchIntentEvents((prev) => recordSearchIntent(prev, q));
+    }
+  }, []);
+
+  const bumpListingById = useCallback(
+    (id: string, field: "views" | "callClicks" | "chatStarts" | "saveCount") => {
+      setListings((prev) =>
+        prev.map((l) => (l.id === id ? bumpListingMetric(l, field) : l))
+      );
+    },
+    []
+  );
+
+  const trackListingView = useCallback(
+    (listingId: string) => {
+      if (viewedListingsRef.current.has(listingId)) return;
+      viewedListingsRef.current.add(listingId);
+      bumpListingById(listingId, "views");
+    },
+    [bumpListingById]
+  );
+
+  const trackListingCall = useCallback(
+    (listingId: string) => {
+      bumpListingById(listingId, "callClicks");
+    },
+    [bumpListingById]
+  );
+
   const toggleFilter = useCallback((id: string) => {
     setActiveFilterIds((prev) => {
       const next = new Set(prev);
@@ -493,8 +653,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
     setSavedIds((prev) => {
       const next = new Set(prev);
+      const adding = !next.has(id);
       if (next.has(id)) next.delete(id);
       else next.add(id);
+      if (adding) bumpListingById(id, "saveCount");
       if (isDataApiEnabled()) {
         void apiUpdateSaved(user.id, Array.from(next)).then((r) => {
           if (!r.ok) setSyncError(`Išsaugota nepavyko: ${r.error}`);
@@ -502,7 +664,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       return next;
     });
-  }, [user.id, isAuthenticated, listings, openAuthModal]);
+  }, [user.id, isAuthenticated, listings, openAuthModal, bumpListingById]);
 
   const deleteListing = useCallback(
     (id: string) => {
@@ -1079,6 +1241,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       };
 
       setChats((prev) => [newChat, ...prev]);
+      bumpListingById(listingId, "chatStarts");
       if (isDataApiEnabled()) {
         void apiUpsertChat(newChat, user.id).then((r) => {
           if (!r.ok) setSyncError(`Pokalbis neišsaugotas: ${r.error}`);
@@ -1086,7 +1249,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       return chatId;
     },
-    [listings, chats, user.id, isAuthenticated, openAuthModal]
+    [listings, chats, user.id, isAuthenticated, openAuthModal, bumpListingById]
   );
 
   const updateEscrow = useCallback(
@@ -1151,6 +1314,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         role: data.role,
         businessType: data.businessType,
         walletBalance: data.role === "pro" ? 25 : 0,
+        memberSince: new Date().toISOString(),
+        soldCount: 0,
         avatar:
           data.provider === "apple"
             ? "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop"
@@ -1213,9 +1378,45 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const markListingSold = useCallback(
-    (id: string) => updateListing(id, { status: "sold" }),
+    (id: string) => {
+      updateListing(id, { status: "sold" });
+      setUser((prev) => ({
+        ...prev,
+        soldCount: (prev.soldCount ?? 0) + 1,
+      }));
+      setSoldPromptDismissed((prev) => new Set([...prev, id]));
+    },
     [updateListing]
   );
+
+  const submitReview = useCallback(
+    (data: {
+      listingId: string;
+      listingTitle: string;
+      sellerId: string;
+      rating: number;
+      comment?: string;
+    }) => {
+      if (!isAuthenticated || user.id === "guest") return;
+      const review: SellerReview = {
+        id: `rev-${Date.now()}`,
+        sellerId: data.sellerId,
+        listingId: data.listingId,
+        listingTitle: data.listingTitle,
+        reviewerId: user.id,
+        reviewerName: user.name,
+        rating: data.rating,
+        comment: data.comment?.trim() || undefined,
+        createdAt: new Date().toISOString(),
+      };
+      setReviews((prev) => [review, ...prev]);
+    },
+    [isAuthenticated, user.id, user.name]
+  );
+
+  const dismissSoldPrompt = useCallback((listingId: string) => {
+    setSoldPromptDismissed((prev) => new Set([...prev, listingId]));
+  }, []);
 
   const promoteListing = useCallback(
     (listingId: string, cost: number): boolean => {
@@ -1234,7 +1435,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             ...l,
             promoted: true,
             views: m.views + 150,
-            clicks: m.clicks + 20,
+            callClicks: m.callClicks + 20,
             interestScore: Math.min(99, m.interestScore + 12),
           };
         })
@@ -1370,7 +1571,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     listings,
     savedIds,
     searchQuery,
-    setSearchQuery,
+    setSearchQuery: handleSearchQuery,
     activeFilterIds,
     toggleFilter,
     rankedListings,
@@ -1434,6 +1635,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setActiveChatId,
     markChatRead,
     findListing,
+    reviews,
+    submitReview,
+    trackListingView,
+    trackListingCall,
+    popularListingIds,
+    recentSoldStories,
+    buyerIntentCount,
+    soldPromptDismissed,
+    dismissSoldPrompt,
+    sellerAnalytics,
   };
 
   return (

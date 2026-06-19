@@ -1,4 +1,12 @@
-import type { AuthSession, ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
+import type {
+  AuthSession,
+  ChatThread,
+  Listing,
+  SellerReview,
+  SupportReport,
+  UserProfile,
+} from "@/lib/types";
+import type { SearchIntentEvent } from "@/lib/search-intent";
 
 const KEYS = {
   listings: "vauto_listings_v1",
@@ -9,6 +17,9 @@ const KEYS = {
   reports: "vauto_reports_v1",
   bannedUsers: "vauto_banned_users_v1",
   gdprConsent: "vauto_gdpr_consent_v1",
+  reviews: "vauto_reviews_v1",
+  searchIntent: "vauto_search_intent_v1",
+  soldPromptDismissed: "vauto_sold_prompt_dismissed_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -97,6 +108,30 @@ export function loadGdprConsent(): boolean {
 
 export function saveGdprConsent(accepted: boolean): void {
   write(KEYS.gdprConsent, accepted);
+}
+
+export function loadReviews(): SellerReview[] | null {
+  return read<SellerReview[]>(KEYS.reviews);
+}
+
+export function saveReviews(reviews: SellerReview[]): void {
+  write(KEYS.reviews, reviews);
+}
+
+export function loadSearchIntent(): SearchIntentEvent[] | null {
+  return read<SearchIntentEvent[]>(KEYS.searchIntent);
+}
+
+export function saveSearchIntent(events: SearchIntentEvent[]): void {
+  write(KEYS.searchIntent, events);
+}
+
+export function loadSoldPromptDismissed(): string[] | null {
+  return read<string[]>(KEYS.soldPromptDismissed);
+}
+
+export function saveSoldPromptDismissed(ids: string[]): void {
+  write(KEYS.soldPromptDismissed, ids);
 }
 
 export function clearAllData(): void {

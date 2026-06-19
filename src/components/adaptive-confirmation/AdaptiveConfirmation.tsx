@@ -7,6 +7,9 @@ import {
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
 import type { AiExtractedListing } from "@/lib/types";
+import { useVauto } from "@/context/VautoContext";
+import { getPriceAdvice } from "@/lib/price-advisor";
+import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
 import { verifyVin } from "@/lib/trust";
 import { AiAssistantPrompt } from "./AiAssistantPrompt";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
@@ -40,6 +43,7 @@ export function AdaptiveConfirmation({
   onCancel,
   onPublish,
 }: AdaptiveConfirmationProps) {
+  const { listings } = useVauto();
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const config = getAdaptiveConfig(adaptiveKey);
   const attributes = draft.attributes ?? {};
@@ -51,6 +55,17 @@ export function AdaptiveConfirmation({
   });
   const assistantMessage = buildAssistantPrompt(adaptiveKey, missingKeys);
   const canPublish = missingKeys.length === 0;
+
+  const priceAdvice = getPriceAdvice(
+    {
+      id: "draft",
+      category: draft.category,
+      location: draft.location,
+      price: draft.price,
+      priceLabel: draft.priceLabel,
+    },
+    listings
+  );
 
   const publishLabel = !canPublish
     ? "Užpildykite privalomus laukus"
@@ -141,6 +156,7 @@ export function AdaptiveConfirmation({
         onUpdate={onUpdate}
         variant="inline"
       />
+      <PriceAdviceCard advice={priceAdvice} />
       {categorySection}
     </ConfirmationShell>
   );

@@ -77,7 +77,8 @@ export function ProListingCard({
             )}
             <div className="mt-1 flex gap-3 text-[10px] text-slate-400">
               <span>{metrics.views} perž.</span>
-              <span>{metrics.clicks} pas.</span>
+              <span>{metrics.callClicks} skamb.</span>
+              <span>{metrics.chatStarts} pok.</span>
               <span className="flex items-center gap-0.5 text-[var(--vauto-teal)]">
                 <TrendingUp className="h-3 w-3" />
                 {metrics.interestScore}%
