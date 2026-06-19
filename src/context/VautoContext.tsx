@@ -22,27 +22,17 @@ import {
 } from "@/lib/scoring";
 import {
   loadAuthSession,
-  loadBannedUserIds,
   loadGdprConsent,
   loadListings,
-  loadReports,
   loadSavedIds,
   loadSearchIntent,
   loadSoldPromptDismissed,
-  loadAlertQueries,
-  loadPushAlertsSeen,
-  loadPushAlertsEnabled,
-  savePushAlertsEnabled,
   loadUser,
-  saveBannedUserIds,
   saveGdprConsent,
   saveListings,
-  saveReports,
   saveSavedIds,
   saveSearchIntent,
   saveSoldPromptDismissed,
-  saveAlertQueries,
-  savePushAlertsSeen,
 } from "@/lib/storage";
 import { distanceToCity, getUserCoords, type UserCoords } from "@/lib/geolocation";
 import {
@@ -59,12 +49,6 @@ import {
   apiHealthCheck,
   apiRenewListing,
   apiUpdateListing,
-  apiFetchReports,
-  apiSubmitReport,
-  apiUpdateReportStatus,
-  apiFetchBannedUsers,
-  apiSetBannedUsers,
-  apiWarnUser,
   apiUpdateSaved,
   apiUpdateUser,
 } from "@/lib/api/client";
@@ -91,8 +75,6 @@ import {
   recordSearchIntent,
   type SearchIntentEvent,
 } from "@/lib/search-intent";
-import { categoryToUrgency } from "@/lib/reports";
-import { DEMO_REPORTS } from "@/data/mockReports";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { useAuth, type LoginPayload } from "@/context/AuthContext";
 import { useReviews } from "@/context/ReviewsContext";
@@ -100,15 +82,13 @@ import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
-import { apiTopUpWallet, apiPromoteListing, apiSyncAlertQueries } from "@/lib/api/wallet-reviews";
-import { registerWebPush } from "@/lib/web-push";
+import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { logAnalytics } from "@/lib/analytics";
 import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
 import {
   buildBuddySoldFollowUp,
 } from "@/lib/buddy-messages";
-import { speakBuddyMessage } from "@/lib/buddy-voice";
 import {
   type ChameleonThemeId,
 } from "@/lib/chameleon-themes";
@@ -124,11 +104,15 @@ import {
   type WakeWordDeps,
 } from "@/context/WakeWordContext";
 import {
-  requestNotificationPermission,
-  showLocalPushNotification,
-  startPushAlertPolling,
-  type PushAlertPayload,
-} from "@/lib/push-alerts";
+  ModerationProvider,
+  useModeration,
+  type ModerationDeps,
+} from "@/context/ModerationContext";
+import {
+  PushAlertsProvider,
+  usePushAlerts,
+  type PushAlertsDeps,
+} from "@/context/PushAlertsContext";
 
 export interface PendingReviewPrompt {
   listingId: string;
@@ -299,6 +283,16 @@ type VautoCatalogSlice = Omit<
   | "setWakeWordEnabled"
   | "requestWakeWordConsent"
   | "disableWakeWordInstantly"
+  | "reports"
+  | "bannedUserIds"
+  | "submitReport"
+  | "warnFromReport"
+  | "banFromReport"
+  | "resolveReport"
+  | "pushAlertsEnabled"
+  | "setPushAlertsEnabled"
+  | "rankedListings"
+  | "popularListingIds"
 >;
 
 const DEMO_SOLD_STORIES = [
@@ -352,9 +346,79 @@ function VautoFacade({
   const chat = useChat();
   const seller = useSellerFlow();
   const wakeWord = useWakeWord();
+  const moderation = useModeration();
+  const pushAlerts = usePushAlerts();
+
+  const visibleListings = useMemo(
+    () =>
+      catalog.listings.filter(
+        (l) => !l.banned && !moderation.bannedUserIds.has(l.sellerId)
+      ),
+    [catalog.listings, moderation.bannedUserIds]
+  );
+
+  const rankedListings = useMemo(() => {
+    let results = rankListings(
+      visibleListings,
+      catalog.searchQuery,
+      resolveSortMode(catalog.activeFilterIds)
+    );
+
+    if (catalog.activeFilterIds.size > 0) {
+      const activeFilters = catalog.dynamicFilters.filter((f) =>
+        catalog.activeFilterIds.has(f.id)
+      );
+      const sortOnly = new Set([
+        "newest",
+        "cheapest",
+        "closest",
+        "budget",
+        "cheap-service",
+      ]);
+      const predicateFilters = activeFilters.filter(
+        (f) => !sortOnly.has(f.id)
+      );
+      if (predicateFilters.length > 0) {
+        results = results.filter((l) =>
+          predicateFilters.every((f) => f.apply(l))
+        );
+      }
+    }
+
+    return results;
+  }, [
+    visibleListings,
+    catalog.searchQuery,
+    catalog.activeFilterIds,
+    catalog.dynamicFilters,
+  ]);
+
+  const popularListingIds = useMemo(
+    () => getPopularListingIds(visibleListings, 4),
+    [visibleListings]
+  );
+
   const value = useMemo<VautoContextValue>(
-    () => ({ ...catalog, ...chat, ...seller, ...wakeWord }),
-    [catalog, chat, seller, wakeWord]
+    () => ({
+      ...catalog,
+      ...chat,
+      ...seller,
+      ...wakeWord,
+      ...moderation,
+      ...pushAlerts,
+      rankedListings,
+      popularListingIds,
+    }),
+    [
+      catalog,
+      chat,
+      seller,
+      wakeWord,
+      moderation,
+      pushAlerts,
+      rankedListings,
+      popularListingIds,
+    ]
   );
 
   return (
@@ -400,8 +464,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set()
   );
-  const [reports, setReports] = useState<SupportReport[]>(DEMO_REPORTS);
-  const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [toast, setToast] = useState<{
     message: string;
     type: "success" | "error" | "info" | "buddy";
@@ -413,7 +475,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
-  const [pushAlertsEnabled, setPushAlertsEnabledState] = useState(true);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
@@ -427,14 +488,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const gdprPendingAction = useRef<(() => void) | null>(null);
   const gdprWakeWordPending = useRef(false);
   const wakeWordActionsRef = useRef<WakeWordActions | null>(null);
-  const pushAlertsSeenRef = useRef<Set<string>>(new Set());
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
-  const searchQueryRef = useRef(searchQuery);
-  searchQueryRef.current = searchQuery;
-  const searchIntentRef = useRef(searchIntentEvents);
-  searchIntentRef.current = searchIntentEvents;
-  const alertQueriesRef = useRef<string[]>([]);
 
   useEffect(() => {
     async function load() {
@@ -444,13 +499,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const storedUser = loadUser();
         const auth = loadAuthSession();
         const uid = storedUser?.id && auth?.isAuthenticated ? storedUser.id : ANONYMOUS_USER.id;
-        const [listingsRes, savedRes, userRes, reportsRes, bannedRes] =
-          await Promise.all([
+        const [listingsRes, savedRes, userRes] = await Promise.all([
           apiFetchListings(),
           apiFetchSaved(uid),
           apiFetchUser(uid),
-          apiFetchReports(),
-          apiFetchBannedUsers(),
         ]);
 
         const errors: string[] = [];
@@ -469,22 +521,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         } else if (storedUser && auth?.isAuthenticated) {
           patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
         }
-        if (reportsRes.ok && reportsRes.data.length) setReports(reportsRes.data);
-        else if (reportsRes.ok) setReports(DEMO_REPORTS);
-        else errors.push(reportsRes.error);
-        if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
-        else errors.push(bannedRes.error);
 
         const storedIntent = loadSearchIntent();
         if (storedIntent) setSearchIntentEvents(storedIntent);
         const storedDismissed = loadSoldPromptDismissed();
         if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
-
-        const seenPush = loadPushAlertsSeen();
-        if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
-        const storedAlerts = loadAlertQueries();
-        if (storedAlerts) alertQueriesRef.current = storedAlerts;
-        setPushAlertsEnabledState(loadPushAlertsEnabled());
 
         if (errors.length) setSyncError(errors[0]);
         setGdprConsent(loadGdprConsent());
@@ -497,8 +538,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const auth = loadAuthSession();
       const storedListings = loadListings();
       const storedSaved = loadSavedIds();
-      const storedReports = loadReports();
-      const storedBanned = loadBannedUserIds();
       if (auth?.isAuthenticated && storedUser) {
         patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
       }
@@ -506,18 +545,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setListings(normalizeListings(storedListings));
       }
       if (storedSaved) setSavedIds(new Set(storedSaved));
-      if (storedReports?.length) setReports(storedReports);
-      else saveReports(DEMO_REPORTS);
-      if (storedBanned?.length) setBannedUserIds(new Set(storedBanned));
       const storedIntent = loadSearchIntent();
       if (storedIntent) setSearchIntentEvents(storedIntent);
       const storedDismissed = loadSoldPromptDismissed();
       if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
-      const seenPush = loadPushAlertsSeen();
-      if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
-      const storedAlerts = loadAlertQueries();
-      if (storedAlerts) alertQueriesRef.current = storedAlerts;
-      setPushAlertsEnabledState(loadPushAlertsEnabled());
       setGdprConsent(loadGdprConsent());
       setHydrated(true);
     }
@@ -533,16 +564,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     if (!hydrated || apiActive) return;
     saveSavedIds(savedIds);
   }, [savedIds, hydrated, apiActive]);
-
-  useEffect(() => {
-    if (!hydrated || apiActive) return;
-    saveReports(reports);
-  }, [reports, hydrated, apiActive]);
-
-  useEffect(() => {
-    if (!hydrated || apiActive) return;
-    saveBannedUserIds(Array.from(bannedUserIds));
-  }, [bannedUserIds, hydrated, apiActive]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -579,44 +600,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const dynamicFilters = useMemo(
     () => generateDynamicFilters(searchQuery),
     [searchQuery]
-  );
-
-  const visibleListings = useMemo(
-    () =>
-      listings.filter(
-        (l) => !l.banned && !bannedUserIds.has(l.sellerId)
-      ),
-    [listings, bannedUserIds]
-  );
-
-  const rankedListings = useMemo(() => {
-    let results = rankListings(
-      visibleListings,
-      searchQuery,
-      resolveSortMode(activeFilterIds)
-    );
-
-    if (activeFilterIds.size > 0) {
-      const activeFilters = dynamicFilters.filter((f) =>
-        activeFilterIds.has(f.id)
-      );
-      const sortOnly = new Set(["newest", "cheapest", "closest", "budget", "cheap-service"]);
-      const predicateFilters = activeFilters.filter(
-        (f) => !sortOnly.has(f.id)
-      );
-      if (predicateFilters.length > 0) {
-        results = results.filter((l) =>
-          predicateFilters.every((f) => f.apply(l))
-        );
-      }
-    }
-
-    return results;
-  }, [visibleListings, searchQuery, activeFilterIds, dynamicFilters]);
-
-  const popularListingIds = useMemo(
-    () => getPopularListingIds(visibleListings, 4),
-    [visibleListings]
   );
 
   const recentSoldStories = useMemo(() => {
@@ -848,31 +831,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
-  const setPushAlertsEnabled = useCallback((enabled: boolean) => {
-    setPushAlertsEnabledState(enabled);
-    savePushAlertsEnabled(enabled);
-    if (!enabled) return;
-    void requestNotificationPermission().then(() => {
-      void registerWebPush(alertQueriesRef.current);
-    });
-  }, []);
-
-  const buildAlertQueries = useCallback(() => {
-    const fromIntent = searchIntentRef.current.slice(0, 8).map((e) => e.query);
-    const q = searchQueryRef.current.trim();
-    const merged = [
-      ...alertQueriesRef.current,
-      ...fromIntent,
-      ...(q.length >= 3 ? [q] : []),
-    ];
-    const unique = [...new Set(merged.map((s) => s.trim().toLowerCase()))].filter(
-      (s) => s.length >= 3
-    );
-    alertQueriesRef.current = unique;
-    saveAlertQueries(unique);
-    return unique;
-  }, []);
-
   const requestMediaConsent = useCallback((onGranted: () => void) => {
     if (gdprConsent) {
       onGranted();
@@ -912,50 +870,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     gdprWakeWordPending.current = true;
     setGdprModalOpen(true);
   }, []);
-  useEffect(() => {
-    if (!hydrated || !pushAlertsEnabled) return;
-
-    if (apiActive) {
-      const queries = buildAlertQueries();
-      void requestNotificationPermission().then(() => {
-        void registerWebPush(queries);
-      });
-      return;
-    }
-
-    const stopPoll = startPushAlertPolling(
-      () => listingsRef.current,
-      buildAlertQueries,
-      (payload: PushAlertPayload) => {
-        pushAlertsSeenRef.current.add(payload.listingId);
-        savePushAlertsSeen(Array.from(pushAlertsSeenRef.current));
-        void showLocalPushNotification(payload);
-        if (payload.voiceText) {
-          speakBuddyMessage(payload.voiceText, { enabled: true });
-        }
-        setToast({ message: payload.body, type: "info" });
-      },
-      pushAlertsSeenRef.current
-    );
-
-    return stopPoll;
-  }, [hydrated, pushAlertsEnabled, apiActive, buildAlertQueries]);
-
-  useEffect(() => {
-    if (!hydrated || !apiActive || !pushAlertsEnabled) return;
-    const queries = buildAlertQueries();
-    void apiSyncAlertQueries(queries);
-  }, [searchQuery, searchIntentEvents, hydrated, apiActive, pushAlertsEnabled, buildAlertQueries]);
-
-  useEffect(() => {
-    if (!hydrated) return;
-    const q = searchQuery.trim();
-    if (q.length < 3) return;
-    const next = [...new Set([...alertQueriesRef.current, q.toLowerCase()])];
-    alertQueriesRef.current = next;
-    saveAlertQueries(next);
-  }, [searchQuery, hydrated]);
-
   const topUpWallet = useCallback(
     (amount: number) => {
       if (apiActive) {
@@ -1072,124 +986,26 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [user.walletBalance, apiActive, patchAuthUser]
   );
 
-  const submitReport = useCallback(
-    (data: {
-      category: ReportCategory;
-      comment: string;
-      listingId?: string;
-      listingTitle?: string;
-      chatId?: string;
-      reportedUserId?: string;
-      chatPreview?: string;
-    }) => {
-      const report: SupportReport = {
-        id: `rep-${Date.now()}`,
-        reporterId: user.id,
-        reporterName: user.name,
-        category: data.category,
-        urgency: categoryToUrgency(data.category),
-        status: "open",
-        comment: data.comment,
-        listingId: data.listingId,
-        listingTitle: data.listingTitle,
-        chatId: data.chatId,
-        reportedUserId: data.reportedUserId,
-        chatPreview: data.chatPreview,
-        createdAt: new Date().toISOString(),
-      };
-      setReports((prev) => [report, ...prev]);
-      if (isDataApiEnabled()) {
-        void apiSubmitReport(report).then((r) => {
-          if (!r.ok) setSyncError(`Pranešimas neišsaugotas: ${r.error}`);
-        });
-      }
-    },
-    [user.id, user.name]
-  );
+  const onBanListing = useCallback((listingId: string) => {
+    setListings((prev) =>
+      prev.map((l) => (l.id === listingId ? { ...l, banned: true } : l))
+    );
+    setSavedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(listingId);
+      return next;
+    });
+  }, []);
 
-  const resolveReport = useCallback(
-    (reportId: string, status: ReportStatus, notify = true) => {
-      setReports((prev) =>
-        prev.map((r) => (r.id === reportId ? { ...r, status } : r))
-      );
-      if (isDataApiEnabled()) {
-        void apiUpdateReportStatus(reportId, status);
-      }
-      if (notify) {
-        showToast(
-          status === "resolved" ? "Pranešimas uždarytas" : "Pranešimas atmestas",
-          "success"
-        );
-      }
-    },
-    [showToast]
-  );
+  const onBanSeller = useCallback((sellerId: string) => {
+    setListings((prev) =>
+      prev.map((l) => (l.sellerId === sellerId ? { ...l, banned: true } : l))
+    );
+  }, []);
 
-  const warnFromReport = useCallback(
-    (reportId: string) => {
-      const report = reports.find((r) => r.id === reportId);
-      if (!report) return;
-      if (report.reportedUserId) {
-        if (report.reportedUserId === user.id) {
-          patchAuthUser({ warned: true });
-        }
-        if (isDataApiEnabled()) {
-          void apiWarnUser(report.reportedUserId);
-        }
-      }
-      resolveReport(reportId, "resolved", false);
-      showToast("Vartotojas įspėtas", "success");
-    },
-    [reports, resolveReport, showToast, user, apiActive]
-  );
-
-  const banFromReport = useCallback(
-    (reportId: string) => {
-      const report = reports.find((r) => r.id === reportId);
-      if (!report) return;
-
-      if (report.listingId) {
-        setListings((prev) =>
-          prev.map((l) =>
-            l.id === report.listingId ? { ...l, banned: true } : l
-          )
-        );
-        setSavedIds((prev) => {
-          const next = new Set(prev);
-          next.delete(report.listingId!);
-          return next;
-        });
-      }
-
-      if (report.reportedUserId) {
-        setBannedUserIds((prev) => {
-          const next = new Set(prev).add(report.reportedUserId!);
-          if (isDataApiEnabled()) {
-            void apiSetBannedUsers(Array.from(next));
-          }
-          return next;
-        });
-        setListings((prev) =>
-          prev.map((l) =>
-            l.sellerId === report.reportedUserId
-              ? { ...l, banned: true }
-              : l
-          )
-        );
-      }
-
-      if (report.listingId && isDataApiEnabled()) {
-        const listing = listings.find((l) => l.id === report.listingId);
-        if (listing) {
-          void apiUpdateListing(listing.id, listing.sellerId, { banned: true });
-        }
-      }
-
-      resolveReport(reportId, "resolved", false);
-      showToast("Skelbimas/vartotojas užblokuotas", "success");
-    },
-    [reports, resolveReport, showToast, listings]
-  );
+  const onAlertToast = useCallback((message: string) => {
+    setToast({ message, type: "info" });
+  }, []);
 
   const catalogValue = useMemo(
     (): VautoCatalogSlice => ({
@@ -1201,7 +1017,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setSearchQuery: handleSearchQuery,
       activeFilterIds,
       toggleFilter,
-      rankedListings,
       dynamicFilters,
       toggleSave,
       deleteListing,
@@ -1224,12 +1039,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       updateListing,
       markListingSold,
       isAdmin,
-      reports,
-      bannedUserIds,
-      submitReport,
-      warnFromReport,
-      banFromReport,
-      resolveReport,
       toast,
       showToast,
       clearToast,
@@ -1244,7 +1053,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       submitReview: handleSubmitReview,
       trackListingView,
       trackListingCall,
-      popularListingIds,
       recentSoldStories,
       buyerIntentCount,
       soldPromptDismissed,
@@ -1253,8 +1061,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       pendingReview,
       queueReviewPrompt,
       clearReviewPrompt,
-      pushAlertsEnabled,
-      setPushAlertsEnabled,
       confirmDialog,
       showConfirm,
       dismissConfirm,
@@ -1270,7 +1076,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       handleSearchQuery,
       activeFilterIds,
       toggleFilter,
-      rankedListings,
       dynamicFilters,
       toggleSave,
       deleteListing,
@@ -1292,12 +1097,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       updateListing,
       markListingSold,
       isAdmin,
-      reports,
-      bannedUserIds,
-      submitReport,
-      warnFromReport,
-      banFromReport,
-      resolveReport,
       toast,
       showToast,
       clearToast,
@@ -1312,7 +1111,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       handleSubmitReview,
       trackListingView,
       trackListingCall,
-      popularListingIds,
       recentSoldStories,
       buyerIntentCount,
       soldPromptDismissed,
@@ -1321,8 +1119,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       pendingReview,
       queueReviewPrompt,
       clearReviewPrompt,
-      pushAlertsEnabled,
-      setPushAlertsEnabled,
       confirmDialog,
       showConfirm,
       dismissConfirm,
@@ -1364,6 +1160,30 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const moderationDeps = useMemo<ModerationDeps>(
+    () => ({
+      listingsRef,
+      onBanListing,
+      onBanSeller,
+      setSyncError,
+      showToast,
+      patchAuthUser,
+    }),
+    [onBanListing, onBanSeller, showToast, patchAuthUser]
+  );
+
+  const pushAlertsDeps = useMemo<PushAlertsDeps>(
+    () => ({
+      apiActive,
+      catalogHydrated: hydrated,
+      searchQuery,
+      searchIntentEvents,
+      listingsRef,
+      onAlertToast,
+    }),
+    [apiActive, hydrated, searchQuery, searchIntentEvents, onAlertToast]
+  );
+
   const wakeWordDeps = useMemo<WakeWordDeps>(
     () => ({
       hydrated,
@@ -1385,22 +1205,26 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   return (
-    <WakeWordProvider deps={wakeWordDeps} actionsRef={wakeWordActionsRef}>
-      <VautoBridgeProvider value={bridgeValue}>
-      <ChatProvider>
-        <SellerFlowContextProvider>
-          <VautoFacade
-            catalog={catalogValue}
-            gdprModalOpen={gdprModalOpen}
-            acceptGdprConsent={acceptGdprConsent}
-            declineGdprConsent={declineGdprConsent}
-          >
-            {children}
-          </VautoFacade>
-        </SellerFlowContextProvider>
-      </ChatProvider>
-    </VautoBridgeProvider>
-    </WakeWordProvider>
+    <ModerationProvider deps={moderationDeps}>
+      <PushAlertsProvider deps={pushAlertsDeps}>
+        <WakeWordProvider deps={wakeWordDeps} actionsRef={wakeWordActionsRef}>
+          <VautoBridgeProvider value={bridgeValue}>
+            <ChatProvider>
+              <SellerFlowContextProvider>
+                <VautoFacade
+                  catalog={catalogValue}
+                  gdprModalOpen={gdprModalOpen}
+                  acceptGdprConsent={acceptGdprConsent}
+                  declineGdprConsent={declineGdprConsent}
+                >
+                  {children}
+                </VautoFacade>
+              </SellerFlowContextProvider>
+            </ChatProvider>
+          </VautoBridgeProvider>
+        </WakeWordProvider>
+      </PushAlertsProvider>
+    </ModerationProvider>
   );
 }
 

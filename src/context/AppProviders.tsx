@@ -8,7 +8,7 @@ import type { ReactNode } from "react";
 /**
  * Application provider tree (Phase 5):
  * AuthProvider → ReviewsProvider → VautoProvider
- *   └─ WakeWordProvider → VautoBridge → ChatProvider → SellerFlowContext → VautoFacade
+ *   └─ Moderation → PushAlerts → WakeWord → VautoBridge → Chat → SellerFlow → VautoFacade
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
