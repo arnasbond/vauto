@@ -26,6 +26,9 @@ interface AuthModalProps {
     email?: string;
     otp?: string;
     idToken?: string;
+    companyName?: string;
+    companyCode?: string;
+    vatCode?: string;
   }) => void;
 }
 
@@ -65,6 +68,9 @@ export function AuthModal({
   const [otp, setOtp] = useState("");
   const [role, setRole] = useState<UserRole>("private");
   const [businessType, setBusinessType] = useState<ProBusinessType>("general");
+  const [companyName, setCompanyName] = useState("");
+  const [companyCode, setCompanyCode] = useState("");
+  const [vatCode, setVatCode] = useState("");
   const [pendingProvider, setPendingProvider] = useState<AuthProvider>("google");
   const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
   const [otpSending, setOtpSending] = useState(false);
@@ -95,6 +101,9 @@ export function AuthModal({
       idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
       role,
       businessType: role === "pro" ? businessType : undefined,
+      companyName: role === "pro" ? companyName.trim() || undefined : undefined,
+      companyCode: role === "pro" ? companyCode.trim() || undefined : undefined,
+      vatCode: role === "pro" ? vatCode.trim() || undefined : undefined,
     });
     setStep("methods");
     setOtp("");
@@ -345,7 +354,7 @@ export function AuthModal({
             </div>
 
             {role === "pro" && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <p className="text-xs font-medium text-slate-400">Verslo tipas</p>
                 {(
                   [
@@ -367,6 +376,29 @@ export function AuthModal({
                     {label}
                   </button>
                 ))}
+                <div className="grid gap-2">
+                  <input
+                    type="text"
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    placeholder="Įmonės pavadinimas"
+                    className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
+                  />
+                  <input
+                    type="text"
+                    value={companyCode}
+                    onChange={(e) => setCompanyCode(e.target.value)}
+                    placeholder="Įmonės kodas"
+                    className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
+                  />
+                  <input
+                    type="text"
+                    value={vatCode}
+                    onChange={(e) => setVatCode(e.target.value)}
+                    placeholder="PVM kodas (nebūtina)"
+                    className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
+                  />
+                </div>
               </div>
             )}
 

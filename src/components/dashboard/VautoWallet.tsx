@@ -27,7 +27,7 @@ export function VautoWallet({ balance, onTopUp }: VautoWalletProps) {
             <Wallet className="h-5 w-5 text-[var(--vauto-teal)]" />
           </div>
           <div>
-            <p className="text-xs text-slate-400">Vauto Wallet</p>
+            <p className="text-xs text-slate-400">VAUTO Pro balansas</p>
             <p className="text-2xl font-bold text-white">
               {balance.toFixed(2)} <span className="text-sm font-normal text-slate-400">€</span>
             </p>
@@ -48,7 +48,7 @@ export function VautoWallet({ balance, onTopUp }: VautoWalletProps) {
         </button>
       </div>
       <p className="mt-3 text-[10px] text-slate-500">
-        Naudokite Smart Promote ir kitoms mokamoms paslaugoms
+        Naudokite PPC paspaudimams, skambučiams ir Smart Promote iškėlimams.
       </p>
     </div>
   );

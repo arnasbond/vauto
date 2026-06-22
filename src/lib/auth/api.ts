@@ -16,6 +16,11 @@ export interface AuthApiSession {
     soldCount?: number;
     role?: UserRole;
     businessType?: ProBusinessType;
+    companyName?: string;
+    companyCode?: string;
+    vatCode?: string;
+    billingPlan?: "free" | "starter" | "pro";
+    billingModel?: "ppc" | "subscription";
   };
   role: UserRole;
   provider: AuthProvider;
@@ -70,6 +75,9 @@ export async function apiVerifyOtp(params: {
   role: UserRole;
   businessType?: ProBusinessType;
   city?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/otp/verify", {
     method: "POST",
@@ -84,6 +92,9 @@ export async function apiSocialLogin(params: {
   email?: string;
   city?: string;
   idToken?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/social", {
     method: "POST",
@@ -118,6 +129,11 @@ export function mapApiUserToProfile(
     authProvider: meta.provider,
     role: meta.role,
     businessType: meta.businessType ?? apiUser.businessType,
+    companyName: apiUser.companyName,
+    companyCode: apiUser.companyCode,
+    vatCode: apiUser.vatCode,
+    billingPlan: apiUser.billingPlan,
+    billingModel: apiUser.billingModel,
     walletBalance:
       apiUser.walletBalance ??
       meta.walletBalance ??

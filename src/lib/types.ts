@@ -103,6 +103,11 @@ export interface UserProfile {
   warned?: boolean;
   memberSince?: string;
   soldCount?: number;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  billingPlan?: "free" | "starter" | "pro";
+  billingModel?: "ppc" | "subscription";
 }
 
 export interface SellerReview {

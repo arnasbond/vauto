@@ -482,6 +482,16 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
   if (!soldCount.ok) return soldCount;
   const authProvider = optionalEnumString(body, "authProvider", AUTH_PROVIDERS);
   if (!authProvider.ok) return authProvider;
+  const companyName = optionalString(body, "companyName", 200);
+  if (!companyName.ok) return companyName;
+  const companyCode = optionalString(body, "companyCode", 40);
+  if (!companyCode.ok) return companyCode;
+  const vatCode = optionalString(body, "vatCode", 40);
+  if (!vatCode.ok) return vatCode;
+  const billingPlan = optionalEnumString(body, "billingPlan", new Set(["free", "starter", "pro"]));
+  if (!billingPlan.ok) return billingPlan;
+  const billingModel = optionalEnumString(body, "billingModel", new Set(["ppc", "subscription"]));
+  if (!billingModel.ok) return billingModel;
   return ok({
     id: id.value,
     name: name.value,
@@ -495,6 +505,11 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
     businessType: businessType.value,
     soldCount: soldCount.value,
     authProvider: authProvider.value,
+    companyName: companyName.value,
+    companyCode: companyCode.value,
+    vatCode: vatCode.value,
+    billingPlan: billingPlan.value,
+    billingModel: billingModel.value,
   });
 }
 

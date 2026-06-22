@@ -11,6 +11,11 @@ export interface ApiUser {
   businessType?: string;
   soldCount?: number;
   authProvider?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  billingPlan?: string;
+  billingModel?: string;
 }
 
 export interface ApiReview {

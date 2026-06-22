@@ -47,6 +47,9 @@ export interface LoginPayload {
   otp?: string;
   city?: string;
   idToken?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
 }
 
 interface AuthContextValue {
@@ -174,6 +177,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       authProvider: data.provider,
       role: data.role,
       businessType: data.businessType,
+      companyName: data.companyName,
+      companyCode: data.companyCode,
+      vatCode: data.vatCode,
+      billingPlan: data.role === "pro" ? "starter" : "free",
+      billingModel: data.role === "pro" ? "ppc" : undefined,
       walletBalance: data.role === "pro" ? 25 : 0,
       memberSince: new Date().toISOString(),
       soldCount: 0,
@@ -199,6 +207,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   role: data.role,
                   businessType: data.businessType,
                   city: data.city ?? user.city,
+                  companyName: data.companyName,
+                  companyCode: data.companyCode,
+                  vatCode: data.vatCode,
                 })
               : await apiSocialLogin({
                   provider: data.provider,
@@ -207,6 +218,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   email: data.email,
                   city: data.city ?? user.city,
                   idToken: data.idToken,
+                  companyName: data.companyName,
+                  companyCode: data.companyCode,
+                  vatCode: data.vatCode,
                 });
 
           if (!apiResult.ok) {

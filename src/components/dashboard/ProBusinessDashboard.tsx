@@ -2,6 +2,9 @@
 
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
+import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
+import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
+import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
@@ -39,6 +42,7 @@ export function ProBusinessDashboard({
 
   return (
     <div>
+      <BusinessIdentityCard user={user} />
       <CallAndSellWidget
         views={analytics.views}
         callClicks={analytics.callClicks}
@@ -57,6 +61,13 @@ export function ProBusinessDashboard({
         balance={user.walletBalance ?? 0}
         onTopUp={onTopUp}
       />
+      <B2BBillingCard
+        balance={user.walletBalance ?? 0}
+        clicks={analytics.views}
+        callClicks={analytics.callClicks}
+        activeListings={listings.length}
+      />
+      <BulkUploadCard />
       {showCalendar && <ServiceCalendar bookings={mockServiceBookings()} />}
 
       <section className="mt-2">

@@ -33,7 +33,14 @@ function providerName(provider: string): string {
 async function buildSession(
   userId: string,
   profile: Partial<ApiUser> & { id: string },
-  meta: { role: string; provider: string; businessType?: string }
+  meta: {
+    role: string;
+    provider: string;
+    businessType?: string;
+    companyName?: string;
+    companyCode?: string;
+    vatCode?: string;
+  }
 ) {
   const existing = await getUser(userId);
   const user: ApiUser = {
@@ -47,6 +54,11 @@ async function buildSession(
     role: meta.role,
     businessType: meta.businessType ?? existing?.businessType,
     authProvider: meta.provider,
+    companyName: meta.companyName ?? existing?.companyName,
+    companyCode: meta.companyCode ?? existing?.companyCode,
+    vatCode: meta.vatCode ?? existing?.vatCode,
+    billingPlan: existing?.billingPlan ?? (meta.role === "pro" ? "starter" : "free"),
+    billingModel: existing?.billingModel ?? (meta.role === "pro" ? "ppc" : undefined),
     soldCount: existing?.soldCount ?? 0,
     walletBalance:
       existing?.walletBalance ??
@@ -94,6 +106,9 @@ authRouter.post("/otp/verify", async (req, res) => {
     const businessType = req.body?.businessType
       ? String(req.body.businessType)
       : undefined;
+    const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
+    const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
+    const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
 
     if (!verifyOtp(phone, code)) {
       res.status(401).json({ error: "Neteisingas arba pasibaigęs kodas" });
@@ -104,7 +119,7 @@ authRouter.post("/otp/verify", async (req, res) => {
     const session = await buildSession(
       userId,
       { id: userId, phone, city, name: providerName("phone") },
-      { role, provider: "phone", businessType }
+      { role, provider: "phone", businessType, companyName, companyCode, vatCode }
     );
     res.json(session);
   } catch (e) {
@@ -123,6 +138,9 @@ authRouter.post("/social", async (req, res) => {
       : undefined;
     const idToken = req.body?.idToken ? String(req.body.idToken) : undefined;
     const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
+    const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
+    const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
+    const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
 
     if (provider === "google" && idToken) {
       const google = await verifyGoogleIdToken(idToken);
@@ -147,7 +165,7 @@ authRouter.post("/social", async (req, res) => {
           avatar: google.picture ?? defaultAvatar("google"),
           city,
         },
-        { role, provider: "google", businessType }
+        { role, provider: "google", businessType, companyName, companyCode, vatCode }
       );
       res.json(session);
       return;
@@ -173,7 +191,7 @@ authRouter.post("/social", async (req, res) => {
           avatar:
             "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
         },
-        { role: "admin", provider, businessType }
+        { role: "admin", provider, businessType, companyName, companyCode, vatCode }
       );
       res.json(session);
       return;
@@ -189,7 +207,7 @@ authRouter.post("/social", async (req, res) => {
         city,
         name: providerName(provider),
       },
-      { role, provider, businessType }
+      { role, provider, businessType, companyName, companyCode, vatCode }
     );
     res.json(session);
   } catch (e) {
