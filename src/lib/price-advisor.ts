@@ -47,6 +47,16 @@ export function getPriceAdvice(
   }
 
   const peers = comparableListings(target, allListings);
+  if (peers.length === 1) {
+    return {
+      verdict: "fair",
+      message: `Panašus skelbimas ${normalizeLocation(target.location)}: ${formatPrice(peers[0].price)}. Tai geras pradinis rinkos orientyras.`,
+      minPrice: peers[0].price,
+      maxPrice: peers[0].price,
+      medianPrice: peers[0].price,
+      sampleSize: 1,
+    };
+  }
   if (peers.length < 2) {
     return {
       verdict: "unknown",

@@ -117,6 +117,28 @@ const RAW_INITIAL_LISTINGS: Listing[] = [
     createdAt: "2026-06-15T09:00:00Z",
   },
   {
+    id: "l-rims-panevezys",
+    title: "Ratlankiai R16 — 4 vnt.",
+    price: 50,
+    location: "Panevėžys",
+    distanceKm: 1.1,
+    contact: "Tel. +3706...",
+    image:
+      "https://images.unsplash.com/photo-1600661653561-629509216228?w=400&h=300&fit=crop",
+    category: "vehicles",
+    tags: ["ratlankiai", "r16", "auto dalys", "garažas", "panevėžys"],
+    attributes: {
+      partType: "Ratlankiai",
+      size: "R16",
+      condition: "Naudoti",
+      quantity: "4 vnt.",
+    },
+    description:
+      "Naudoti R16 ratlankiai iš garažo. Tinka kasdieniam automobiliui, Panevėžyje.",
+    sellerId: "seller-rims",
+    createdAt: "2026-06-18T11:00:00Z",
+  },
+  {
     id: "l-job-offer",
     title: "Sandėlininkas — pilnas etatas",
     price: 1200,

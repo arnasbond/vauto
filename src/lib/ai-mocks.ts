@@ -9,14 +9,21 @@ export async function mockExtractFromImage(
   await delay(AI_MOCK_DELAY_MS);
 
   return {
-    title: "Naudotas iPhone 12 — ekranas be įbrėžimų",
-    price: 280,
+    title: "Ratlankiai R16 — 4 vnt.",
+    price: 50,
     location: "Panevėžys",
     contact: "+370 612 34567",
-    category: "electronics",
+    category: "vehicles",
     confidence: 0.92,
-    description: "Puiki būklė, komplektas su dėklu.",
-    attributes: {},
+    description:
+      "AI iš nuotraukos atpažino automobilio ratlankius. Tinka Autoplius stiliaus auto dalių skelbimui.",
+    attributes: {
+      partType: "Ratlankiai",
+      size: "R16",
+      condition: "Naudoti",
+      quantity: "4 vnt.",
+      marketHint: "Panevėžyje už panašius prašo apie 50€",
+    },
   };
 }
 

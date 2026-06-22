@@ -18,7 +18,7 @@ const EXTRACTION_SCHEMA = `{
   "description": "string",
   "category": "vehicles | clothing | services | real_estate | electronics | home | other",
   "confidence": "number 0-1",
-  "attributes": "object with category-specific fields"
+  "attributes": "object with category-specific fields, e.g. auto parts: partType, size, condition, quantity, marketHint"
 }`;
 
 function parseAttributes(raw: unknown): Record<string, string | string[]> {
@@ -88,7 +88,7 @@ aiRouter.post("/extract-image", async (req, res) => {
         content: [
           {
             type: "text",
-            text: `Ištrauk skelbimo duomenis iš nuotraukos. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity}`,
+            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Jei matai auto dalį (pvz. ratlankį, padangą), category turi būti "vehicles", title turi turėti konkrečią dalį ir dydį, attributes pridėk partType, size, condition, quantity, o price pateik kaip realistišką vietinės rinkos pradinį pasiūlymą eurais. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity}`,
           },
           { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
         ],

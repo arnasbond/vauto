@@ -96,7 +96,7 @@ export async function extractFromImageOpenAI(
       content: [
         {
           type: "text",
-          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. Iš nuotraukos ištrauk skelbimo duomenis. Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
+          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. Iš nuotraukos ištrauk skelbimo duomenis taip, kad vartotojas galėtų arba iškart rasti panašią prekę, arba publikuoti Autoplius/Marktplaats stiliaus skelbimą. Jei matai auto dalį (pvz. ratlankį, padangą), category turi būti "vehicles", title turi turėti konkrečią dalį ir dydį, attributes pridėk partType, size, condition, quantity, o price pateik kaip realistišką vietinės rinkos pradinį pasiūlymą eurais. Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
         },
         { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
       ],
