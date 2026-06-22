@@ -7,6 +7,8 @@ import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { listingPath } from "@/lib/seo";
 import { TrustBadges } from "@/components/trust/TrustBadges";
+import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
+import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import type { ScoredListing } from "@/lib/types";
 
 function SaveButton({
@@ -140,6 +142,7 @@ export function ListingGrid() {
   const { rankedListings, searchQuery } = useVauto();
   const carouselListings = rankedListings.slice(0, 3);
   const gridListings = rankedListings.slice(3);
+  const brokerSignal = buildSmartBrokerSignal(searchQuery, rankedListings);
 
   return (
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
@@ -154,9 +157,12 @@ export function ListingGrid() {
         )}
       </h2>
 
+      {brokerSignal && <SmartBrokerCard signal={brokerSignal} />}
+
       {rankedListings.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[#6b7280]">
-          Nieko nerasta. Pabandykite kitą paiešką.
+        <p className="rounded-2xl border border-dashed border-[#d7dde5] bg-white p-6 text-center text-sm text-[#6b7280]">
+          Tiesioginių skelbimų dar nėra, bet brokeris gali sekti paklausą ir
+          pranešti pardavėjams.
         </p>
       ) : (
         <>

@@ -36,6 +36,10 @@ function listingMatchesQuery(listing: Listing, query: string): boolean {
     listing.category,
     ...listing.tags,
     listing.description ?? "",
+    ...Object.entries(listing.attributes ?? {}).flatMap(([key, value]) => [
+      key,
+      ...(Array.isArray(value) ? value : value ? [value] : []),
+    ]),
   ]
     .join(" ")
     .toLowerCase();

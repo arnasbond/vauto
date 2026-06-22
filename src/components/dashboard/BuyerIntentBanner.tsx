@@ -14,11 +14,12 @@ export function BuyerIntentBanner({ intentCount }: BuyerIntentBannerProps) {
       <Search className="mt-0.5 h-5 w-5 shrink-0 text-[var(--flux-teal)]" />
       <div>
         <p className="text-sm font-semibold text-white">
-          {intentCount} pirkėj{intentCount === 1 ? "as" : "ai"} ieškojo panašių
-          skelbimų šią savaitę
+          VAUTO brokeris rado {intentCount} pirkėj
+          {intentCount === 1 ? "ą" : "us"} jūsų skelbimų kategorijoms
         </p>
         <p className="mt-1 text-xs text-slate-400">
-          Laikykitės aktyvų skelbimą — dominėjimas paieškoje didina skambučius.
+          Tuščios ir silpnos paieškos paverčiamos paklausa — laikykite skelbimus
+          aktyvius ir greitai atsakykite į žinutes.
         </p>
       </div>
       <Sparkles className="h-4 w-4 shrink-0 text-[var(--flux-coral)]" />
