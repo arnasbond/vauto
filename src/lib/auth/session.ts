@@ -1,5 +1,5 @@
 import type { AuthSession } from "@/lib/types";
-import { loadAuthSession, saveAuthSession } from "@/lib/storage";
+import { saveAuthSession } from "@/lib/storage";
 
 const TOKEN_KEY = "vauto_access_token_v1";
 

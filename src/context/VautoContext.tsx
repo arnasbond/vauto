@@ -554,7 +554,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setHydrated(true);
     }
     void load();
-  }, []);
+  }, [patchAuthUser]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;

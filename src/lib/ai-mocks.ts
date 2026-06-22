@@ -3,8 +3,9 @@ import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 const AI_MOCK_DELAY_MS = 1500;
 
 export async function mockExtractFromImage(
-  _fileName?: string
+  fileName?: string
 ): Promise<AiExtractedListing> {
+  void fileName;
   await delay(AI_MOCK_DELAY_MS);
 
   return {
@@ -234,7 +235,8 @@ function extractTitle(text: string, category: ListingCategory): string {
   }
 }
 
-export async function mockTranscribeAudio(_blob?: Blob): Promise<string> {
+export async function mockTranscribeAudio(blob?: Blob): Promise<string> {
+  void blob;
   await delay(800);
   return "Parduodu maišą obuolių, dešimt eurų, Panevėžyje. Skambinkite.";
 }

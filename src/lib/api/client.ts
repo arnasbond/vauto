@@ -1,7 +1,7 @@
 import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
-import { getAuthHeaders, loadAccessToken } from "@/lib/auth/session";
+import { getAuthHeaders } from "@/lib/auth/session";
 
 export type ApiResult<T> =
   | { ok: true; data: T }

@@ -807,8 +807,10 @@ export async function getUsersMatchingListing(
     .join(" ")
     .toLowerCase();
 
-  return rows.filter((r) => {
-    const t = tokens(r.query);
-    return t.length > 0 && t.every((tok) => haystack.includes(tok));
-  });
+  return rows
+    .filter((r) => {
+      const t = tokens(r.query);
+      return t.length > 0 && t.every((tok) => haystack.includes(tok));
+    })
+    .map((r) => ({ userId: r.user_id, query: r.query }));
 }

@@ -58,7 +58,7 @@ export function AdaptiveConfirmation({
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const config = getAdaptiveConfig(adaptiveKey);
-  const attributes = draft.attributes ?? {};
+  const attributes = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const needsPrice = draft.price <= 0;
   const hasPhoto = Boolean(previewImage);
 

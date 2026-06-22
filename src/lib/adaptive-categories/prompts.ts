@@ -65,7 +65,6 @@ export function buildAssistantPrompt(
 ): string | null {
   if (missingKeys.length === 0) return null;
 
-  const config = getAdaptiveConfig(adaptiveKey);
   const hints = missingKeys
     .slice(0, 3)
     .map((k) => FIELD_PROMPTS[k] ?? k)
