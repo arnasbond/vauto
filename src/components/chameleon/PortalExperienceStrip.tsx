@@ -52,7 +52,7 @@ export function PortalExperienceStrip() {
         ))}
       </div>
 
-      <div className="mt-4 grid grid-cols-5 gap-1.5">
+      <div className="mt-4 grid grid-cols-3 gap-1.5 sm:grid-cols-6">
         {portals.map((portal) => (
           <button
             key={portal.theme}
@@ -75,7 +75,9 @@ export function PortalExperienceStrip() {
                   ? "NT"
                   : portal.theme === "paslaugos"
                     ? "Meistrai"
-                    : "Skelbiu"}
+                    : portal.theme === "cvbankas"
+                      ? "Darbas"
+                      : "Skelbiu"}
           </button>
         ))}
       </div>

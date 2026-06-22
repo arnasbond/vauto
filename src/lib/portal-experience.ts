@@ -85,6 +85,18 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
     border: "#99f6e4",
     quickFilters: ["Elektrikas", "Santechnikas", "Valymas"],
   },
+  cvbankas: {
+    theme: "cvbankas",
+    portalName: "CVbankas tipo darbo zona",
+    headline: "Darbo pasiūlymų ir kandidatų režimas",
+    description:
+      "Darbo pasiūlymai, kandidatų skelbimai, atlyginimo tipai ir greitas kontaktas viename sraute.",
+    primaryCta: "Ieškoti darbo",
+    color: "#1f4b99",
+    bg: "#eaf1ff",
+    border: "#c8d8f4",
+    quickFilters: ["Darbas", "Sandėlininkas", "Vairuotojas"],
+  },
 };
 
 export function portalExperienceForQuery(query: string): PortalExperience {
@@ -101,6 +113,9 @@ export function portalExperienceForQuery(query: string): PortalExperience {
   if (/meistr|paslaug|elektrik|santechn|valym|remont|statyb|plytel|groz|grož/.test(q)) {
     return EXPERIENCES.paslaugos;
   }
+  if (/darbas|atlygin|etat|cv|kandidat|vairuotoj|sand[eė]l|kurjer|ie[šs]kau darbo|si[uū]lau darb/.test(q)) {
+    return EXPERIENCES.cvbankas;
+  }
   if (q.trim().length > 0) return EXPERIENCES.skelbiu;
   return EXPERIENCES.flux;
 }
@@ -112,5 +127,6 @@ export function allPortalExperiences(): PortalExperience[] {
     EXPERIENCES.skelbiu,
     EXPERIENCES.aruodas,
     EXPERIENCES.paslaugos,
+    EXPERIENCES.cvbankas,
   ];
 }

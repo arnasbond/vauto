@@ -196,7 +196,8 @@ export function ConversationalReport({
                   chameleonTheme === "autoplius" && "border-[#1a56db] bg-[#e8f0fe] text-[#1a56db]",
                   chameleonTheme === "skelbiu" && "border-[#1565c0] bg-[#e3f2fd] text-[#1565c0]",
                   chameleonTheme === "aruodas" && "border-[#c62828] bg-[#ffebee] text-[#c62828]",
-                  chameleonTheme === "paslaugos" && "border-[#0f766e] bg-[#e6fffb] text-[#0f766e]"
+                  chameleonTheme === "paslaugos" && "border-[#0f766e] bg-[#e6fffb] text-[#0f766e]",
+                  chameleonTheme === "cvbankas" && "border-[#1f4b99] bg-[#eaf1ff] text-[#1f4b99]"
                 )}
               >
                 <MessageCircle className="h-5 w-5" />

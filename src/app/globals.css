@@ -437,6 +437,10 @@ body.chameleon-paslaugos {
   --chameleon-accent: #0f766e;
 }
 
+body.chameleon-cvbankas {
+  --chameleon-accent: #1f4b99;
+}
+
 .chameleon-aruodas-media img {
   min-height: 200px;
   object-fit: cover;
@@ -491,4 +495,11 @@ body.chameleon-paslaugos .chameleon-details-panel textarea {
   border: 1px solid #cfe3ff;
   background: #f8fbff;
   color: #0f172a;
+}
+
+body.chameleon-cvbankas .chameleon-details-panel input,
+body.chameleon-cvbankas .chameleon-details-panel textarea {
+  border: 1px solid #d9e2f1;
+  background: #f8fbff;
+  color: #172033;
 }
