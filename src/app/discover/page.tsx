@@ -6,6 +6,7 @@ import { SearchBar } from "@/components/SearchBar";
 import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
+import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
 import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 
 export default function DiscoverPage() {
@@ -35,6 +36,7 @@ export default function DiscoverPage() {
 
       <section className="px-4 pt-4">
         <MarketplaceCategoryGrid />
+        <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />
         <ListingGrid />

@@ -7,6 +7,7 @@ import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
+import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
 import { PopularTodaySection, SocialProofStrip } from "@/components/home/HomeInsights";
 import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 import { BuddySearchAssistant } from "@/components/conversational/BuddySearchAssistant";
@@ -37,6 +38,7 @@ export default function HomePage() {
 
       <ContentSection>
         <MarketplaceCategoryGrid />
+        <ServiceRequestCard />
         <HotKeywordsGrid />
         <BuddySearchAssistant />
         <SocialProofStrip />

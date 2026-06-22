@@ -8,6 +8,7 @@ import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCar
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
+import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { mockAggregateAnalytics, mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
@@ -68,7 +69,12 @@ export function ProBusinessDashboard({
         activeListings={listings.length}
       />
       <BulkUploadCard />
-      {showCalendar && <ServiceCalendar bookings={mockServiceBookings()} />}
+      {showCalendar && (
+        <>
+          <ServiceLeadInbox balance={user.walletBalance ?? 0} />
+          <ServiceCalendar bookings={mockServiceBookings()} />
+        </>
+      )}
 
       <section className="mt-2">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">

@@ -68,6 +68,7 @@ export function buildSmartBrokerSignal(
   const mode: BrokerMode = listings.length === 0 ? "empty" : "weak-match";
   const city = detectCity(q);
   const categoryLabel = detectCategoryLabel(q);
+  const isServiceLead = categoryLabel === "paslaugos";
   const base = suggestionSeed(q) || q;
   const relatedListings = listings
     .filter((listing) => listing.semanticRelevance > 0.05 || listing.score > 0.25)
@@ -86,9 +87,13 @@ export function buildSmartBrokerSignal(
       `${base} su pristatymu`,
     ],
     message:
-      mode === "empty"
-        ? `Tiesioginio atitikmens dar nėra. VAUTO brokeris užregistravo paklausą „${q}" ir stebės naujus skelbimus.`
-        : `Radome tik silpnus atitikmenis. VAUTO brokeris gali toliau medžioti „${q}" ir pranešti, kai atsiras tikslesnis pasiūlymas.`,
-    sellerPitch: `Pardavėjams su ${categoryLabel} skelbimais ši paklausa bus rodoma kaip pirkėjo signalas ${city}.`,
+      isServiceLead
+        ? `VAUTO užfiksavo paslaugos užklausą „${q}". Meistrams ${city} tai taps realaus laiko lead’u.`
+        : mode === "empty"
+          ? `Tiesioginio atitikmens dar nėra. VAUTO brokeris užregistravo paklausą „${q}" ir stebės naujus skelbimus.`
+          : `Radome tik silpnus atitikmenis. VAUTO brokeris gali toliau medžioti „${q}" ir pranešti, kai atsiras tikslesnis pasiūlymas.`,
+    sellerPitch: isServiceLead
+      ? `Pro meistrai galės atidaryti kontaktą per pay-per-lead arba Pro Meistras planą.`
+      : `Pardavėjams su ${categoryLabel} skelbimais ši paklausa bus rodoma kaip pirkėjo signalas ${city}.`,
   };
 }

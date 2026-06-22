@@ -35,6 +35,7 @@ export const PPC_RATES = {
   listingClick: 0.08,
   callClick: 0.35,
   safeBuyStart: 0.2,
+  serviceLeadOpen: 1.2,
 };
 
 export function estimatePpcSpend(metrics: {
