@@ -8,6 +8,7 @@ import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
 import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
+import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { PopularTodaySection, SocialProofStrip } from "@/components/home/HomeInsights";
 import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 import { BuddySearchAssistant } from "@/components/conversational/BuddySearchAssistant";
@@ -37,6 +38,7 @@ export default function HomePage() {
       </HeroSection>
 
       <ContentSection>
+        <PortalExperienceStrip />
         <MarketplaceCategoryGrid />
         <ServiceRequestCard />
         <HotKeywordsGrid />

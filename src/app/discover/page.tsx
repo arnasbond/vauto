@@ -7,6 +7,7 @@ import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
 import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
+import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 
 export default function DiscoverPage() {
@@ -35,6 +36,7 @@ export default function DiscoverPage() {
       </section>
 
       <section className="px-4 pt-4">
+        <PortalExperienceStrip />
         <MarketplaceCategoryGrid />
         <ServiceRequestCard />
         <HotKeywordsGrid />

@@ -7,7 +7,8 @@ export type ChameleonThemeId =
   | "autoplius"
   | "vinted"
   | "skelbiu"
-  | "aruodas";
+  | "aruodas"
+  | "paslaugos";
 
 export interface ChameleonPromoteLabels {
   modalTitle: string;
@@ -215,6 +216,39 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
       title: "text-[#c62828] font-bold",
     },
   },
+  paslaugos: {
+    id: "paslaugos",
+    bodyClass: "chameleon-paslaugos",
+    portalLabel: "Paslaugos.lt stilius",
+    classicLayout: true,
+    promote: {
+      modalTitle: "Iškelti paslaugą",
+      cardCta: "Iškelti paslaugą",
+      bumpLabel: "TOP meistras",
+      successMessage: "Paslaugos skelbimas iškeltas paslaugų kataloge",
+    },
+    confirmation: {
+      shell: "bg-[#f4f9ff]",
+      headerBar: "border-[#cfe3ff] bg-white",
+      title: "text-[#0f766e] font-bold",
+      subtitle: "text-[#475569]",
+      assistantLabel: "text-[#0f766e] font-bold uppercase text-xs",
+      aiBubble: "bg-white border border-[#cfe3ff] text-[#0f172a] shadow-sm",
+      userBubble: "bg-[#e6fffb] border border-[#99f6e4] text-[#0f172a]",
+      detailsToggle:
+        "border border-[#cfe3ff] bg-white text-[#334155] font-semibold hover:bg-[#f8fbff]",
+      detailsPanel: "border border-[#cfe3ff] bg-white shadow-sm",
+      publishBtn: "bg-[#0f766e] text-white text-lg font-bold hover:bg-[#115e59]",
+      publishBtnDisabled: "disabled:bg-[#99f6e4]",
+      cancelBtn: "text-[#64748b] hover:bg-[#f1f5f9]",
+    },
+    panel: "rounded-xl border border-[#cfe3ff] bg-white p-4 shadow-sm",
+    published: {
+      shell: "bg-[#f4f9ff]",
+      card: "border border-[#cfe3ff] bg-white text-[#0f172a] shadow-md",
+      title: "text-[#0f766e] font-bold",
+    },
+  },
 };
 
 export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
@@ -225,6 +259,8 @@ export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
       return "vinted";
     case "real_estate":
       return "aruodas";
+    case "services":
+      return "paslaugos";
     default:
       return "skelbiu";
   }

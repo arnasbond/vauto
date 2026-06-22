@@ -9,6 +9,7 @@ import { listingPath } from "@/lib/seo";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
+import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { ScoredListing } from "@/lib/types";
 
 function SaveButton({
@@ -143,6 +144,7 @@ export function ListingGrid() {
   const carouselListings = rankedListings.slice(0, 3);
   const gridListings = rankedListings.slice(3);
   const brokerSignal = buildSmartBrokerSignal(searchQuery, rankedListings);
+  const portal = portalExperienceForQuery(searchQuery);
 
   return (
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
@@ -151,7 +153,7 @@ export function ListingGrid() {
         className="font-display mb-4 text-base font-bold tracking-tight text-[#111827]"
       >
         {searchQuery ? (
-          <>Rasta skelbimų: {rankedListings.length}</>
+          <>{portal.portalName}: {rankedListings.length} rezultatų</>
         ) : (
           <>Populiariausi Lietuvoje</>
         )}

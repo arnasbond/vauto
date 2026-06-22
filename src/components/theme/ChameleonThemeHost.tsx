@@ -10,6 +10,7 @@ const CHAMELEON_CLASSES = [
   "chameleon-vinted",
   "chameleon-skelbiu",
   "chameleon-aruodas",
+  "chameleon-paslaugos",
 ] as const;
 
 /** Applies chameleon body class for visual continuity across seller flow */
