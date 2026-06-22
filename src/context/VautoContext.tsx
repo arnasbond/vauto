@@ -10,10 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  ANONYMOUS_USER,
-  INITIAL_LISTINGS,
-} from "@/data/mockListings";
+import { INITIAL_LISTINGS } from "@/data/mockListings";
 import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
   generateDynamicFilters,
