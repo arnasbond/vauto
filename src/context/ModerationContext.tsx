@@ -81,12 +81,13 @@ export function ModerationProvider({
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
   const apiActive = isDataApiEnabled();
+  const canUseAdminApi = apiActive && user.role === "admin";
   const depsRef = useRef(deps);
   depsRef.current = deps;
 
   useEffect(() => {
     async function load() {
-      if (apiActive) {
+      if (canUseAdminApi) {
         const [reportsRes, bannedRes] = await Promise.all([
           apiFetchReports(),
           apiFetchBannedUsers(),
@@ -106,7 +107,7 @@ export function ModerationProvider({
       setHydrated(true);
     }
     void load();
-  }, [apiActive]);
+  }, [apiActive, canUseAdminApi]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -123,7 +124,7 @@ export function ModerationProvider({
       setReports((prev) =>
         prev.map((r) => (r.id === reportId ? { ...r, status } : r))
       );
-      if (apiActive) {
+      if (canUseAdminApi) {
         void apiUpdateReportStatus(reportId, status);
       }
       if (notify) {
@@ -133,7 +134,7 @@ export function ModerationProvider({
         );
       }
     },
-    [apiActive]
+    [canUseAdminApi]
   );
 
   const submitReport = useCallback(
@@ -181,14 +182,14 @@ export function ModerationProvider({
         if (report.reportedUserId === user.id) {
           depsRef.current.patchAuthUser({ warned: true });
         }
-        if (apiActive) {
+        if (canUseAdminApi) {
           void apiWarnUser(report.reportedUserId);
         }
       }
       resolveReport(reportId, "resolved", false);
       depsRef.current.showToast("Vartotojas įspėtas", "success");
     },
-    [reports, resolveReport, user.id, apiActive]
+    [reports, resolveReport, user.id, canUseAdminApi]
   );
 
   const banFromReport = useCallback(
@@ -203,7 +204,7 @@ export function ModerationProvider({
       if (report.reportedUserId) {
         setBannedUserIds((prev) => {
           const next = new Set(prev).add(report.reportedUserId!);
-          if (apiActive) {
+          if (canUseAdminApi) {
             void apiSetBannedUsers(Array.from(next));
           }
           return next;
@@ -211,7 +212,7 @@ export function ModerationProvider({
         depsRef.current.onBanSeller(report.reportedUserId);
       }
 
-      if (report.listingId && apiActive) {
+      if (report.listingId && canUseAdminApi) {
         const listing = depsRef.current.listingsRef.current?.find(
           (l) => l.id === report.listingId
         );
@@ -223,7 +224,7 @@ export function ModerationProvider({
       resolveReport(reportId, "resolved", false);
       depsRef.current.showToast("Skelbimas/vartotojas užblokuotas", "success");
     },
-    [reports, resolveReport, apiActive]
+    [reports, resolveReport, canUseAdminApi]
   );
 
   const value = useMemo(

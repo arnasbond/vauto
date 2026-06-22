@@ -244,13 +244,18 @@ export function AuthModal({
             />
             <button
               type="button"
-              onClick={() => {
-                if (adminEmail.trim().toLowerCase() === ADMIN_EMAIL) {
-                  onComplete({
-                    provider: "google",
-                    role: "admin",
-                    email: ADMIN_EMAIL,
-                  });
+              onClick={async () => {
+                if (adminEmail.trim().toLowerCase() !== ADMIN_EMAIL) return;
+                const token = isGoogleAuthConfigured()
+                  ? await requestGoogleIdToken()
+                  : null;
+                onComplete({
+                  provider: "google",
+                  role: "admin",
+                  email: ADMIN_EMAIL,
+                  idToken: token ?? undefined,
+                });
+                if (!isAuthApiAvailable() || token) {
                   setStep("methods");
                 }
               }}

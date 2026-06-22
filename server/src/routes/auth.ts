@@ -122,11 +122,19 @@ authRouter.post("/social", async (req, res) => {
       ? String(req.body.businessType)
       : undefined;
     const idToken = req.body?.idToken ? String(req.body.idToken) : undefined;
+    const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
 
     if (provider === "google" && idToken) {
       const google = await verifyGoogleIdToken(idToken);
       if (!google) {
         res.status(401).json({ error: "Netinkamas Google token" });
+        return;
+      }
+      if (
+        role === "admin" &&
+        google.email?.toLowerCase() !== adminEmail.toLowerCase()
+      ) {
+        res.status(403).json({ error: "Admin access denied" });
         return;
       }
       const userId = stableUserId(`google:${google.sub}`);
@@ -146,7 +154,10 @@ authRouter.post("/social", async (req, res) => {
     }
 
     if (role === "admin") {
-      const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
+      if (process.env.NODE_ENV === "production") {
+        res.status(401).json({ error: "Admin Google verification required" });
+        return;
+      }
       if (email?.toLowerCase() !== adminEmail.toLowerCase()) {
         res.status(403).json({ error: "Admin access denied" });
         return;
