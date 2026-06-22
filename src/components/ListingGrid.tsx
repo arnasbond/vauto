@@ -32,8 +32,8 @@ function SaveButton({
         size={14}
         className={
           isSaved
-            ? "fill-[var(--vauto-red)] text-[var(--vauto-red)]"
-            : "text-white"
+            ? "fill-[#ef4444] text-[#ef4444]"
+            : "text-[#374151]"
         }
       />
     </button>
@@ -46,8 +46,8 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="vauto-glass-card w-[156px] shrink-0 overflow-hidden rounded-[22px] p-2.5 transition-all hover:border-white/12 sm:w-[160px]">
-      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-black/20">
+    <article className="w-[156px] shrink-0 overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[#1167b1]/30 sm:w-[160px]">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
           <Image
             src={listing.image}
@@ -69,12 +69,12 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
         <SaveButton
           listingId={listing.id}
           isSaved={isSaved}
-          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm"
         />
       </div>
 
       <Link href={href} className="mt-2 block">
-        <h3 className="truncate text-sm font-semibold text-white">
+        <h3 className="truncate text-sm font-semibold text-[#111827]">
           {listing.title}
         </h3>
         <p className="vauto-flux-price text-base">
@@ -83,7 +83,7 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
         <div className="mt-1">
           <TrustBadges listing={listing} />
         </div>
-        <p className="mt-1 truncate text-[10px] text-[var(--vauto-text-muted)]">
+        <p className="mt-1 truncate text-[10px] text-[#6b7280]">
           {listing.location}
         </p>
       </Link>
@@ -97,8 +97,8 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="vauto-glass-card overflow-hidden rounded-[22px] p-2.5 transition-all hover:border-white/12">
-      <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-black/20">
+    <article className="overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[#1167b1]/30">
+      <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
           <Image
             src={listing.image}
@@ -115,11 +115,11 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
         <SaveButton
           listingId={listing.id}
           isSaved={isSaved}
-          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
+          className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-full bg-white/90 shadow-sm backdrop-blur-sm"
         />
       </div>
       <Link href={href} className="mt-2 block">
-        <h3 className="line-clamp-1 text-sm font-semibold text-white">
+        <h3 className="line-clamp-1 text-sm font-semibold text-[#111827]">
           {listing.title}
         </h3>
         <p className="vauto-flux-price text-sm">
@@ -128,7 +128,7 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
         <div className="mt-1">
           <TrustBadges listing={listing} />
         </div>
-        <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
+        <p className="mt-1 text-xs text-[#6b7280]">
           {listing.location}
         </p>
       </Link>
@@ -145,17 +145,17 @@ export function ListingGrid() {
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
       <h2
         id="listing-results-heading"
-        className="font-display mb-4 text-base font-bold tracking-tight text-white"
+        className="font-display mb-4 text-base font-bold tracking-tight text-[#111827]"
       >
         {searchQuery ? (
           <>Rasta skelbimų: {rankedListings.length}</>
         ) : (
-          <>Šalia tavęs</>
+          <>Populiariausi Lietuvoje</>
         )}
       </h2>
 
       {rankedListings.length === 0 ? (
-        <p className="py-8 text-center text-sm text-[var(--vauto-text-muted)]">
+        <p className="py-8 text-center text-sm text-[#6b7280]">
           Nieko nerasta. Pabandykite kitą paiešką.
         </p>
       ) : (
@@ -168,7 +168,7 @@ export function ListingGrid() {
 
           {gridListings.length > 0 && (
             <div className="mt-2">
-              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/40">
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wider text-[#6b7280]">
                 Kiti pasiūlymai
               </h3>
               <div className="grid grid-cols-2 gap-3">

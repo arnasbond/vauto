@@ -103,16 +103,16 @@ export function SellerUploadPanel() {
 
   return (
     <>
-      <p className="mb-4 text-center text-sm text-[var(--vauto-text-muted)]">
-        Kas tai per daiktas ar paslauga?
+      <p className="mb-4 text-center text-sm text-[#6b7280]">
+        Pasirink: pasakyk balsu, įkelk foto arba įvesk trumpą aprašymą.
       </p>
 
       <form
-        className="vauto-flux-glass flex items-center gap-2.5 rounded-[20px] py-1.5 pl-4 pr-1.5"
+        className="flex items-center gap-2 rounded-xl border border-[#cfd8e3] bg-white py-1.5 pl-4 pr-1.5 shadow-sm"
         onSubmit={handleSubmit}
         aria-label="Skelbimo aprašymas"
       >
-        <Sparkles className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
+        <Sparkles className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
         <input
           ref={inputRef}
           type="text"
@@ -120,13 +120,13 @@ export function SellerUploadPanel() {
           onChange={(e) => setQuery(e.target.value)}
           placeholder='Pvz. „Parduodu BMW 5500€ Kaune“'
           enterKeyHint="go"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-[var(--vauto-text-muted)]/80"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] outline-none placeholder:text-[#6b7280]"
         />
         <button
           type="button"
           onClick={handleVoice}
           disabled={isListening}
-          className={`vauto-flux-gradient-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition hover:opacity-90 disabled:opacity-60 ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white shadow-sm transition hover:bg-[#ea580c] disabled:opacity-60 ${
             isListening ? "animate-pulse" : ""
           }`}
           aria-label="Pasakyti balsu"
@@ -135,24 +135,24 @@ export function SellerUploadPanel() {
         </button>
       </form>
 
-      <p className="mt-2 text-center text-xs text-white/35">
-        Enter arba mikrofonas — AI atpažins kategoriją ir atidarys skelbimo formą
+      <p className="mt-2 text-center text-xs text-[#6b7280]">
+        Enter arba mikrofonas — AI atpažins kategoriją, užpildys formą ir pasiūlys kainą.
       </p>
 
       <div className="mt-4 flex items-center justify-center gap-3">
         <button
           type="button"
           onClick={openFilePicker}
-          className="inline-flex items-center gap-1.5 rounded-full border border-white/10 bg-white/[0.04] px-3.5 py-2 text-xs font-medium text-[var(--vauto-text-muted)] hover:bg-white/[0.08]"
+          className="inline-flex items-center gap-1.5 rounded-full border border-[#bfdbfe] bg-[#eef6ff] px-3.5 py-2 text-xs font-semibold text-[#1167b1] hover:bg-[#dbeafe]"
         >
-          <Camera className="h-3.5 w-3.5 text-[var(--flux-teal)]" />
+          <Camera className="h-3.5 w-3.5" />
           {pendingImage ? "Nuotrauka paruošta" : "Pridėti nuotrauką"}
         </button>
         {pendingImage && (
           <button
             type="button"
             onClick={() => runAi()}
-            className="rounded-full bg-[var(--flux-teal)] px-3.5 py-2 text-xs font-semibold text-[var(--flux-bg)]"
+            className="rounded-full bg-[#f97316] px-3.5 py-2 text-xs font-semibold text-white"
           >
             Tęsti su nuotrauka
           </button>
@@ -160,7 +160,7 @@ export function SellerUploadPanel() {
       </div>
 
       {pendingImage && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-white/10">
+        <div className="mt-3 overflow-hidden rounded-xl border border-[#d7dde5] bg-white">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={pendingImage}

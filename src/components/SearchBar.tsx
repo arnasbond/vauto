@@ -127,12 +127,12 @@ export function SearchBar() {
   return (
     <>
       <form
-        className="vauto-flux-glass flex items-center gap-2.5 rounded-[20px] py-1.5 pl-4 pr-1.5"
+        className="flex items-center gap-2 rounded-xl border border-[#cfd8e3] bg-white py-1.5 pl-4 pr-1.5 shadow-sm"
         onSubmit={handleSearchSubmit}
         role="search"
         aria-label="Skelbimų paieška"
       >
-        <Sparkles className="h-4 w-4 shrink-0 text-white/40" aria-hidden />
+        <Sparkles className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
         <input
           ref={inputRef}
           type="search"
@@ -144,13 +144,13 @@ export function SearchBar() {
           }}
           placeholder="Pvz. iPhone 13 Vilniuje arba darbas Kaune"
           enterKeyHint="search"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-muted)] outline-none placeholder:text-[var(--vauto-text-muted)]/80"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#1f2937] outline-none placeholder:text-[#6b7280]"
         />
         <button
           type="button"
           onClick={handlePhotoSearch}
           disabled={isPhotoSearching || isListening}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/10 text-white transition hover:bg-white/15 disabled:opacity-60"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#bfdbfe] bg-[#eef6ff] text-[#1167b1] transition hover:bg-[#dbeafe] disabled:opacity-60"
           aria-label="Ieškoti pagal nuotrauką"
           title="Ieškoti pagal nuotrauką"
         >
@@ -164,7 +164,7 @@ export function SearchBar() {
           type="button"
           onClick={handleVoiceSearch}
           disabled={isListening || isPhotoSearching}
-          className={`vauto-flux-gradient-btn flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white transition duration-500 ease-in-out hover:opacity-90 disabled:opacity-60 ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white shadow-sm transition duration-500 ease-in-out hover:bg-[#ea580c] disabled:opacity-60 ${
             isListening ? "animate-pulse" : ""
           }`}
           aria-label="Balso paieška"
@@ -172,7 +172,7 @@ export function SearchBar() {
           <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
         </button>
       </form>
-      <p className="mt-2 text-center text-[11px] text-[var(--vauto-text-muted)]">
+      <p className="mt-2 text-center text-[11px] text-[#6b7280]">
         Nufotografuokite prekę — VAUTO atpažins ir suras panašius skelbimus.
       </p>
 

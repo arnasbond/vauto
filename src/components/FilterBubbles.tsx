@@ -9,7 +9,7 @@ export function FilterBubbles() {
 
   return (
     <div className="mb-4">
-      <p className="mb-2 text-xs text-[var(--vauto-text-muted)]">
+      <p className="mb-2 text-xs font-semibold text-[#6b7280]">
         AI siūlomi filtrai
       </p>
       <div className="scrollbar-hide -mx-4 flex gap-2 overflow-x-auto px-4">
@@ -23,8 +23,8 @@ export function FilterBubbles() {
               aria-pressed={isActive}
               className={`shrink-0 rounded-full border px-3.5 py-2 text-xs font-semibold transition ${
                 isActive
-                  ? "vauto-flux-chip-on"
-                  : "border-white/10 bg-white/[0.04] text-[#cbd5e1] hover:bg-white/[0.08]"
+                  ? "border-[#1167b1] bg-[#eef6ff] text-[#1167b1]"
+                  : "border-[#d7dde5] bg-white text-[#4b5563] hover:bg-[#f8fafc]"
               }`}
             >
               {filter.label}

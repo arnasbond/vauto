@@ -20,7 +20,7 @@ export function PopularTodaySection() {
 
   return (
     <section className="mb-6">
-      <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-white">
+      <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-[#111827]">
         <Flame className="h-4 w-4 text-[var(--flux-coral)]" />
         Populiaru šiandien — Lietuva
       </h2>
@@ -31,7 +31,7 @@ export function PopularTodaySection() {
             <Link
               key={listing.id}
               href={listingPath(listing)}
-              className="vauto-glass-card w-[140px] shrink-0 overflow-hidden rounded-2xl p-2"
+              className="w-[140px] shrink-0 overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2 shadow-sm"
             >
               <div className="relative aspect-square overflow-hidden rounded-xl">
                 <Image
@@ -42,7 +42,7 @@ export function PopularTodaySection() {
                   className="object-cover"
                 />
               </div>
-              <p className="mt-2 line-clamp-2 text-xs font-semibold text-white">
+              <p className="mt-2 line-clamp-2 text-xs font-semibold text-[#111827]">
                 {listing.title}
               </p>
               <p className="vauto-flux-price text-sm">
@@ -62,17 +62,17 @@ export function SocialProofStrip() {
   if (searchQuery || recentSoldStories.length === 0) return null;
 
   return (
-    <section className="mb-6 rounded-2xl border border-[var(--flux-teal)]/20 bg-[var(--flux-teal)]/5 p-4">
+    <section className="mb-6 rounded-2xl border border-[#bfdbfe] bg-[#eef6ff] p-4">
       <div className="mb-2 flex items-center gap-2">
         <TrendingUp className="h-4 w-4 text-[var(--flux-teal)]" />
-        <h2 className="text-xs font-bold uppercase tracking-wider text-[var(--flux-teal)]">
+        <h2 className="text-xs font-bold uppercase tracking-wider text-[#1167b1]">
           Parduota per Vauto
         </h2>
       </div>
       <ul className="space-y-1.5">
         {recentSoldStories.map((story) => (
-          <li key={story.id} className="text-sm text-[var(--vauto-text-muted)]">
-            <span className="text-white">{story.title}</span>
+          <li key={story.id} className="text-sm text-[#6b7280]">
+            <span className="text-[#111827]">{story.title}</span>
             {" · "}
             {story.location} — {story.timeAgo}
           </li>

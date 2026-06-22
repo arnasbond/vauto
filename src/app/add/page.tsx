@@ -40,16 +40,16 @@ export default function AddPage() {
       <AppShell>
         <HeroSection>
           <Header />
-          <h2 className="mt-6 text-center text-xl font-bold text-white">
+          <h2 className="mt-6 text-center text-xl font-bold text-[#111827]">
             Naujas skelbimas
           </h2>
-          <p className="mt-3 px-6 text-center text-sm text-white/80">
+          <p className="mt-3 px-6 text-center text-sm text-[#6b7280]">
             Prisijunkite arba užsiregistruokite, kad galėtumėte įdėti skelbimą.
           </p>
           <button
             type="button"
             onClick={() => router.push("/")}
-            className="mx-auto mt-6 block text-sm text-white/70 underline"
+            className="mx-auto mt-6 block text-sm text-[#1167b1] underline"
           >
             Grįžti į paiešką
           </button>
@@ -62,11 +62,11 @@ export default function AddPage() {
     <AppShell>
       <HeroSection>
         <Header />
-        <h2 className="font-display mt-6 text-center text-xl font-bold text-white">
-          Naujas skelbimas
+        <h2 className="font-display mt-6 text-center text-xl font-bold text-[#111827]">
+          Plats / Įdėti
         </h2>
-        <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)]">
-          Pasakyk arba įvesk — AI sudėlioja laukus už tave
+        <p className="mt-2 text-center text-sm text-[#6b7280]">
+          Vienas veiksmas: pasirink balsą arba foto — AI užpildys skelbimą ir kainą.
         </p>
         <div className="mt-5">
           <SellerUploadPanel />
