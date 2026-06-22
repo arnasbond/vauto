@@ -32,13 +32,32 @@ import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
-  ApiListing,
-  ApiReview,
-  ApiSupportReport,
   ApiUser,
 } from "../types.js";
+import type { Response } from "express";
+import type { ValidationResult } from "../validation.js";
+import {
+  validateAmount,
+  validateChatThread,
+  validateEscrow,
+  validateIdArray,
+  validateListing,
+  validateListingPatch,
+  validateReport,
+  validateReportStatus,
+  validateReview,
+  validateUser,
+} from "../validation.js";
 
 export const apiRouter = Router();
+
+function badRequest<T>(res: Response, result: ValidationResult<T>): result is { ok: false; error: string } {
+  if (!result.ok) {
+    res.status(400).json({ error: result.error });
+    return true;
+  }
+  return false;
+}
 
 function actorId(req: AuthedRequest): string {
   return req.authUserId ?? String(req.headers["x-user-id"] ?? "");
@@ -124,7 +143,9 @@ apiRouter.get("/listings", async (_req, res) => {
 
 apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const listing = req.body as ApiListing;
+    const parsed = validateListing(req.body);
+    if (badRequest(res, parsed)) return;
+    const listing = parsed.value;
     if (!canActForUser(req, listing.sellerId)) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -160,11 +181,13 @@ apiRouter.post("/listings/:id/renew", requireAuth, async (req: AuthedRequest, re
 
 apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {
+    const parsed = validateListingPatch(req.body);
+    if (badRequest(res, parsed)) return;
     const sellerId = routeActorId(req);
     const listing = await updateListing(
       req.params.id,
       sellerId,
-      req.body as Partial<ApiListing>
+      parsed.value
     );
     if (!listing) return res.status(404).json({ error: "Not found" });
     res.json(listing);
@@ -183,7 +206,9 @@ apiRouter.get("/reports", requireAdmin, async (_req, res) => {
 
 apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const report = req.body as ApiSupportReport;
+    const parsed = validateReport(req.body);
+    if (badRequest(res, parsed)) return;
+    const report = parsed.value;
     if (!canActForUser(req, report.reporterId)) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -197,8 +222,9 @@ apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
 
 apiRouter.patch("/reports/:id", requireAdmin, async (req, res) => {
   try {
-    const { status } = req.body as { status: string };
-    const ok = await updateReportStatus(req.params.id, status);
+    const parsed = validateReportStatus(req.body);
+    if (badRequest(res, parsed)) return;
+    const ok = await updateReportStatus(req.params.id, parsed.value);
     if (!ok) return res.status(404).json({ error: "Not found" });
     res.json({ ok: true });
   } catch (e) {
@@ -216,8 +242,9 @@ apiRouter.get("/banned-users", requireAdmin, async (_req, res) => {
 
 apiRouter.put("/banned-users", requireAdmin, async (req, res) => {
   try {
-    const ids = req.body.ids as string[];
-    await setBannedUserIds(ids);
+    const parsed = validateIdArray(req.body);
+    if (badRequest(res, parsed)) return;
+    await setBannedUserIds(parsed.value);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -253,9 +280,19 @@ apiRouter.put("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
-    const user = req.body as ApiUser;
+    const parsed = validateUser(req.body);
+    if (badRequest(res, parsed)) return;
+    const user: ApiUser = isAdmin(req)
+      ? parsed.value
+      : {
+          ...parsed.value,
+          role: req.authRole ?? parsed.value.role,
+          warned: undefined,
+          walletBalance: undefined,
+          soldCount: undefined,
+        };
     await upsertUser({ ...user, id: req.params.id });
-    res.json(user);
+    res.json({ ...user, id: req.params.id });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -279,8 +316,9 @@ apiRouter.put("/saved/:userId", requireAuth, async (req: AuthedRequest, res) => 
       res.status(403).json({ error: "Forbidden" });
       return;
     }
-    const ids = req.body.ids as string[];
-    await setSavedIds(req.params.userId, ids);
+    const parsed = validateIdArray(req.body);
+    if (badRequest(res, parsed)) return;
+    await setSavedIds(req.params.userId, parsed.value);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -301,7 +339,9 @@ apiRouter.get("/chats/:userId", requireAuth, async (req: AuthedRequest, res) => 
 
 apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const thread = req.body as ApiChatThread;
+    const parsed = validateChatThread(req.body);
+    if (badRequest(res, parsed)) return;
+    const thread = parsed.value;
     if (!canAccessThread(req, thread)) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -333,7 +373,9 @@ apiRouter.get(
 
 apiRouter.put("/escrow", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const escrow = req.body as ApiEscrowTransaction;
+    const parsed = validateEscrow(req.body);
+    if (badRequest(res, parsed)) return;
+    const escrow = parsed.value;
     if (!canAccessEscrow(req, escrow)) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -355,7 +397,9 @@ apiRouter.get("/reviews", async (_req, res) => {
 
 apiRouter.post("/reviews", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const review = req.body as ApiReview;
+    const parsed = validateReview(req.body);
+    if (badRequest(res, parsed)) return;
+    const review = parsed.value;
     if (review.reviewerId !== req.authUserId) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -369,8 +413,9 @@ apiRouter.post("/reviews", requireAuth, async (req: AuthedRequest, res) => {
 
 apiRouter.post("/wallet/top-up", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const amount = Number(req.body?.amount ?? 0);
-    const result = await topUpWallet(req.authUserId!, amount);
+    const amount = validateAmount(req.body, "amount", 1, 500);
+    if (badRequest(res, amount)) return;
+    const result = await topUpWallet(req.authUserId!, amount.value);
     if (!result) {
       res.status(400).json({ error: "Invalid amount" });
       return;
@@ -386,11 +431,12 @@ apiRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
-      const cost = Number(req.body?.cost ?? 5);
+      const cost = validateAmount(req.body, "cost", 1, 500);
+      if (badRequest(res, cost)) return;
       const result = await promoteListingWallet(
         req.authUserId!,
         req.params.id,
-        cost
+        cost.value
       );
       if (!result) {
         res.status(400).json({ error: "Insufficient balance or listing not found" });
