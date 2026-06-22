@@ -220,7 +220,8 @@ function validateMessage(value: unknown): ValidationResult<ApiChatMessage> {
   const text = requiredString(value, "text", 4000);
   if (!text.ok) return text;
   const timestamp = isoDateString(value, "timestamp");
-  if (!timestamp.ok || timestamp.value === undefined) return fail(timestamp.error);
+  if (!timestamp.ok) return timestamp;
+  if (timestamp.value === undefined) return fail("timestamp is required");
   const readAt = isoDateString(value, "readAt", false);
   if (!readAt.ok) return readAt;
   return ok({
@@ -261,7 +262,8 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
   const sellerId = requiredString(body, "sellerId", 120);
   if (!sellerId.ok) return sellerId;
   const createdAt = isoDateString(body, "createdAt");
-  if (!createdAt.ok || createdAt.value === undefined) return fail(createdAt.error);
+  if (!createdAt.ok) return createdAt;
+  if (createdAt.value === undefined) return fail("createdAt is required");
   const contact = optionalString(body, "contact", 120);
   if (!contact.ok) return contact;
   const hasVideo = optionalBoolean(body, "hasVideo");
@@ -422,7 +424,8 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
   const chatPreview = optionalString(body, "chatPreview", 500);
   if (!chatPreview.ok) return chatPreview;
   const createdAt = isoDateString(body, "createdAt");
-  if (!createdAt.ok || createdAt.value === undefined) return fail(createdAt.error);
+  if (!createdAt.ok) return createdAt;
+  if (createdAt.value === undefined) return fail("createdAt is required");
   return ok({
     id: id.value,
     reporterId: reporterId.value,
@@ -556,9 +559,11 @@ export function validateEscrow(body: unknown): ValidationResult<ApiEscrowTransac
   const trackingCode = optionalString(body, "trackingCode", 120);
   if (!trackingCode.ok) return trackingCode;
   const createdAt = isoDateString(body, "createdAt");
-  if (!createdAt.ok || createdAt.value === undefined) return fail(createdAt.error);
+  if (!createdAt.ok) return createdAt;
+  if (createdAt.value === undefined) return fail("createdAt is required");
   const updatedAt = isoDateString(body, "updatedAt");
-  if (!updatedAt.ok || updatedAt.value === undefined) return fail(updatedAt.error);
+  if (!updatedAt.ok) return updatedAt;
+  if (updatedAt.value === undefined) return fail("updatedAt is required");
   return ok({
     id: id.value,
     threadId: threadId.value,
@@ -593,7 +598,8 @@ export function validateReview(body: unknown): ValidationResult<ApiReview> {
   const comment = optionalString(body, "comment", 2000);
   if (!comment.ok) return comment;
   const createdAt = isoDateString(body, "createdAt");
-  if (!createdAt.ok || createdAt.value === undefined) return fail(createdAt.error);
+  if (!createdAt.ok) return createdAt;
+  if (createdAt.value === undefined) return fail("createdAt is required");
   return ok({
     id: id.value,
     sellerId: sellerId.value,
