@@ -21,7 +21,7 @@ export function SmartBrokerCard({ signal }: SmartBrokerCardProps) {
     setPushAlertsEnabled(true);
     showToast(
       `VAUTO brokeris seka „${signal.query}" ir praneš, kai atsiras pasiūlymas.`,
-      "buddy"
+      "info"
     );
   };
 
