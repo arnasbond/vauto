@@ -1,7 +1,7 @@
 "use client";
 
 import { Search } from "lucide-react";
-import { PANEVEZYS_HOT_KEYWORDS } from "@/lib/local-seo";
+import { LITHUANIA_HOT_KEYWORDS } from "@/lib/local-seo";
 import { useVauto } from "@/context/VautoContext";
 
 export function HotKeywordsGrid() {
@@ -13,10 +13,10 @@ export function HotKeywordsGrid() {
     <section className="mb-6">
       <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-white">
         <Search className="h-4 w-4 text-[var(--flux-teal)]" />
-        Populiaru šiandien Panevėžyje
+        Populiaru šiandien Lietuvoje
       </h2>
       <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-        {PANEVEZYS_HOT_KEYWORDS.map((kw) => (
+        {LITHUANIA_HOT_KEYWORDS.map((kw) => (
           <button
             key={kw.query}
             type="button"

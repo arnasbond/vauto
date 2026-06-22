@@ -130,6 +130,10 @@ export function AdaptiveConfirmation({
       location: draft.location,
       price: draft.price,
       priceLabel: draft.priceLabel,
+      title: draft.title,
+      tags: [],
+      description: draft.description,
+      attributes,
     },
     listings
   );

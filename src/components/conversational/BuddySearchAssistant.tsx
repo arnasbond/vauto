@@ -51,7 +51,7 @@ export function BuddySearchAssistant() {
     const { message: msg, listing } = buildSearchBuddyMessage(
       query,
       rankedListings,
-      user.city || "Panevėžyje"
+      user.city || "Lietuvoje"
     );
     setMessage(msg);
     setTargetListingId(listing?.id ?? null);

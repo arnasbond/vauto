@@ -40,7 +40,7 @@ async function buildSession(
     id: userId,
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
     phone: profile.phone ?? existing?.phone ?? "+370",
-    city: profile.city ?? existing?.city ?? "Panevėžys",
+    city: profile.city ?? existing?.city ?? "Vilnius",
     avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
     email: profile.email ?? existing?.email,
     warned: existing?.warned ?? false,
@@ -90,7 +90,7 @@ authRouter.post("/otp/verify", async (req, res) => {
     const phone = String(req.body?.phone ?? "").trim();
     const code = String(req.body?.code ?? "").trim();
     const role = String(req.body?.role ?? "private");
-    const city = String(req.body?.city ?? "Panevėžys");
+    const city = String(req.body?.city ?? "Vilnius");
     const businessType = req.body?.businessType
       ? String(req.body.businessType)
       : undefined;
@@ -117,7 +117,7 @@ authRouter.post("/social", async (req, res) => {
     const provider = String(req.body?.provider ?? "google");
     const role = String(req.body?.role ?? "private");
     const email = req.body?.email ? String(req.body.email) : undefined;
-    const city = String(req.body?.city ?? "Panevėžys");
+    const city = String(req.body?.city ?? "Vilnius");
     const businessType = req.body?.businessType
       ? String(req.body.businessType)
       : undefined;

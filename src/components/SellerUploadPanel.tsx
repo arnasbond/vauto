@@ -118,7 +118,7 @@ export function SellerUploadPanel() {
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder='Pvz. „Parduodu BMW 5500€ Panevėžyje“'
+          placeholder='Pvz. „Parduodu BMW 5500€ Kaune“'
           enterKeyHint="go"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-[var(--vauto-text-muted)]/80"
         />

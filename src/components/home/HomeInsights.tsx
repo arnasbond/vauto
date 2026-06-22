@@ -22,7 +22,7 @@ export function PopularTodaySection() {
     <section className="mb-6">
       <h2 className="mb-3 flex items-center gap-2 font-display text-sm font-bold text-white">
         <Flame className="h-4 w-4 text-[var(--flux-coral)]" />
-        Populiaru šiandien — Panevėžys
+        Populiaru šiandien — Lietuva
       </h2>
       <div className="scrollbar-hide -mx-4 flex gap-3 overflow-x-auto px-4">
         {popular.map((listing) => {

@@ -170,7 +170,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }),
       name: names[data.provider],
       phone: data.phone ?? "",
-      city: data.city || user.city || "Panevėžys",
+      city: data.city || user.city || "Vilnius",
       authProvider: data.provider,
       role: data.role,
       businessType: data.businessType,

@@ -75,7 +75,7 @@ function parseListing(
   return {
     title: String(raw.title ?? "Skelbimas"),
     price: Number(raw.price) || 0,
-    location: String(raw.location ?? "Panevėžys"),
+    location: String(raw.location ?? "Lietuva"),
     contact,
     category: valid.includes(category) ? category : "other",
     description: raw.description ? String(raw.description) : undefined,

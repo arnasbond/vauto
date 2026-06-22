@@ -22,7 +22,7 @@ export async function mockExtractFromImage(
       size: "R16",
       condition: "Naudoti",
       quantity: "4 vnt.",
-      marketHint: "Panevėžyje už panašius prašo apie 50€",
+      marketHint: "Skelbiu.lt tipo rinkoje Lietuvoje panašūs kainuoja apie 50–65€",
     },
   };
 }
@@ -32,7 +32,7 @@ export async function mockExtractFromVoice(
 ): Promise<AiExtractedListing> {
   await delay(AI_MOCK_DELAY_MS);
   return parseTranscript(
-    transcript ?? "Parduodu maišą obuolių, dešimt eurų, Panevėžyje"
+    transcript ?? "Parduodu maišą obuolių, dešimt eurų, Kaune"
   );
 }
 
@@ -44,7 +44,7 @@ export async function mockExtractFromText(
     return {
       title: "Skelbimas",
       price: 0,
-      location: "Panevėžys",
+      location: "Lietuva",
       contact: "+370 612 34567",
       category: "other",
       confidence: 0.5,
@@ -58,13 +58,13 @@ function parseTranscript(text: string): AiExtractedListing {
   const category = detectCategory(text);
   const price = extractPrice(text, category);
   const locationMatch = text.match(
-    /(Vilnius|Kaunas|Panevėžys|Klaipėda|Šiauliai)/i
+    /(Vilnius|Kaunas|Panevėžys|Klaipėda|Šiauliai|Alytus|Marijampolė|Utena|Telšiai|Tauragė|Ukmergė|Palanga)/i
   );
 
   const result: AiExtractedListing = {
     title: extractTitle(text, category),
     price,
-    location: locationMatch?.[1] ?? "Panevėžys",
+    location: locationMatch?.[1] ?? "Lietuva",
     contact: "+370 612 34567",
     category,
     confidence: 0.87,
@@ -185,7 +185,7 @@ function mockAttributesForCategory(
           /montav/i.test(text) ? "Montavimas" : "",
         ].filter(Boolean),
         invoicing: /sąskait/i.test(text) ? "Išrašoma MB/IV" : "Išrašoma MB/IV",
-        workingRadius: "30 km aplink Panevėžį",
+        workingRadius: "30 km aplink pasirinktą miestą",
       };
     case "real_estate":
       return {
@@ -245,7 +245,7 @@ function extractTitle(text: string, category: ListingCategory): string {
 export async function mockTranscribeAudio(blob?: Blob): Promise<string> {
   void blob;
   await delay(800);
-  return "Parduodu maišą obuolių, dešimt eurų, Panevėžyje. Skambinkite.";
+  return "Parduodu maišą obuolių, dešimt eurų, Kaune. Skambinkite.";
 }
 
 function delay(ms: number) {

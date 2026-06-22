@@ -6,7 +6,7 @@ const MEETING_TIPS = [
   "Susitikite viešoje vietoje — prekybos centro parkavimas ar kavinė.",
   "Apžiūrėkite prekę dienos šviesoje, ne vakare.",
   "Neskubėkite mokėti iš anksto — pirmiau pamatykite gyvai.",
-  "Panevėžyje: PC Ryo, IKI ar Maxima parkavimai — populiarios saugios vietos.",
+  "Rinkitės viešas vietas savo mieste: prekybos centrų, IKI ar Maxima parkavimus.",
 ];
 
 export function SafeMeetingTips() {

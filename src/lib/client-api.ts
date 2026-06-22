@@ -24,7 +24,7 @@ export async function extractFromImage(
   ctx: ExtractContext = {}
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
-  const city = ctx.userCity ?? "Panevėžys";
+  const city = ctx.userCity ?? "Lietuva";
 
   if (isAiProxyAvailable() && ctx.imageDataUrl) {
     const remote = await apiExtractImage({
@@ -50,9 +50,9 @@ export async function extractFromVoice(
   ctx: ExtractContext = {}
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
-  const city = ctx.userCity ?? "Panevėžys";
+  const city = ctx.userCity ?? "Lietuva";
   const transcript =
-    ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Panevėžyje";
+    ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Lietuvoje";
 
   if (isAiProxyAvailable() && transcript.trim()) {
     const remote = await apiExtractText({ text: transcript, userCity: city, contact });
@@ -74,7 +74,7 @@ export async function extractFromText(
   ctx: ExtractContext = {}
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
-  const city = ctx.userCity ?? "Panevėžys";
+  const city = ctx.userCity ?? "Lietuva";
   const text = ctx.transcript ?? "";
 
   if (isAiProxyAvailable() && text.trim()) {

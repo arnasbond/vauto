@@ -99,7 +99,7 @@ export function SearchBar() {
         if (!photo) return;
         const extracted = await extractFromImage({
           imageDataUrl: photo,
-          userCity: user.city || "Panevėžys",
+          userCity: user.city || "Lietuva",
           contact: user.phone || "+370 612 34567",
         });
         const query = buildPhotoSearchQuery(extracted);
@@ -142,7 +142,7 @@ export function SearchBar() {
             setSearchVoiceMode(false);
             setSearchQuery(e.target.value);
           }}
-          placeholder="Pvz. darbas Panevėžyje iki 1200€"
+          placeholder="Pvz. iPhone 13 Vilniuje arba darbas Kaune"
           enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-muted)] outline-none placeholder:text-[var(--vauto-text-muted)]/80"
         />

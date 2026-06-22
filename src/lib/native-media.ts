@@ -144,7 +144,7 @@ async function speechRecognitionTranscript(): Promise<string | null> {
   });
 }
 
-const DEMO_TRANSCRIPT = "Parduodu maišą obuolių, dešimt eurų, Panevėžyje";
+const DEMO_TRANSCRIPT = "Parduodu maišą obuolių, dešimt eurų, Kaune";
 
 /** @deprecated Demo transcript no longer injected silently — kept for tests only */
 export const VAUTO_DEMO_VOICE_TRANSCRIPT = DEMO_TRANSCRIPT;

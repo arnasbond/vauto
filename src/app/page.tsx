@@ -21,8 +21,8 @@ export default function HomePage() {
           Rask. Įdėk.
         </h1>
         <p className="mt-2 text-[13px] leading-snug text-[var(--vauto-text-muted)]">
-          Paslaugos ir skelbimai Panevėžyje — AI padeda rasti ir publikuoti per
-          sekundes.
+          Paslaugos ir skelbimai visoje Lietuvoje — AI foto paieška padeda rasti,
+          įvertinti ir publikuoti per sekundes.
         </p>
         <div className="mt-4">
           <SearchBar />

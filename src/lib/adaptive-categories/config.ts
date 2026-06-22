@@ -84,7 +84,7 @@ export const ADAPTIVE_CATEGORIES: Record<
       {
         key: "workingRadius",
         label: "Atstumas kur vyksta",
-        placeholder: "Panevėžys + 30 km",
+        placeholder: "Vilnius / Kaunas / Lietuva + 30 km",
         critical: true,
       },
     ],

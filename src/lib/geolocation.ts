@@ -65,6 +65,15 @@ const CITY_COORDS: Record<string, UserCoords> = {
   Mažeikiai: { lat: 56.3089, lng: 22.3414 },
   Jonava: { lat: 55.0725, lng: 24.2797 },
   Utena: { lat: 55.4974, lng: 25.5997 },
+  Telšiai: { lat: 55.9814, lng: 22.2472 },
+  Tauragė: { lat: 55.2522, lng: 22.2897 },
+  Ukmergė: { lat: 55.2453, lng: 24.7761 },
+  Plungė: { lat: 55.9114, lng: 21.8442 },
+  Kėdainiai: { lat: 55.2881, lng: 23.9747 },
+  Raseiniai: { lat: 55.3797, lng: 23.1239 },
+  Druskininkai: { lat: 54.0167, lng: 23.9667 },
+  Palanga: { lat: 55.9175, lng: 21.0689 },
+  Biržai: { lat: 56.2006, lng: 24.7561 },
 };
 
 export function coordsForCity(city: string): UserCoords | null {
