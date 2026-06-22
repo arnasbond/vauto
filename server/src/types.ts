@@ -99,7 +99,10 @@ export type ApiEscrowStatus =
   | "paying"
   | "paid"
   | "label_sent"
+  | "shipped"
+  | "delivered"
   | "completed"
+  | "disputed"
   | "cancelled";
 
 export interface ApiEscrowTransaction {

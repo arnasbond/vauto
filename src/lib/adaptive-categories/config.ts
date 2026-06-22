@@ -11,6 +11,9 @@ export const ADAPTIVE_CATEGORIES: Record<
     layout: "technical-grid",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
+      { key: "make", label: "Markė", placeholder: "Volkswagen", critical: false, gridSpan: 1 },
+      { key: "model", label: "Modelis", placeholder: "Golf", critical: false, gridSpan: 1 },
+      { key: "year", label: "Metai", placeholder: "2015", critical: false, gridSpan: 1 },
       { key: "mileage", label: "Rida", placeholder: "185 000 km", critical: true, gridSpan: 1 },
       { key: "engine", label: "Variklis", placeholder: "1.6 TDI 77 kW", critical: true, gridSpan: 1 },
       {
@@ -23,6 +26,8 @@ export const ADAPTIVE_CATEGORIES: Record<
         gridSpan: 1,
       },
       { key: "taExpiry", label: "TA galioja iki", placeholder: "2027-03", critical: true, gridSpan: 1 },
+      { key: "bodyType", label: "Kėbulas", placeholder: "Hečbekas", critical: false, gridSpan: 1 },
+      { key: "plateNumber", label: "Valst. numeris", placeholder: "KAA 123", critical: false, gridSpan: 1 },
       { key: "defects", label: "Defektai", placeholder: "Nėra / smulkūs įbrėžimai", gridSpan: 2 },
       {
         key: "vin",

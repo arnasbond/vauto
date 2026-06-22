@@ -33,7 +33,10 @@ const ESCROW_STATUSES = new Set([
   "paying",
   "paid",
   "label_sent",
+  "shipped",
+  "delivered",
   "completed",
+  "disputed",
   "cancelled",
 ]);
 const USER_ROLES = new Set(["private", "pro", "admin"]);

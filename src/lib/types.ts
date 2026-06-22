@@ -193,7 +193,10 @@ export type EscrowStatus =
   | "paying"
   | "paid"
   | "label_sent"
+  | "shipped"
+  | "delivered"
   | "completed"
+  | "disputed"
   | "cancelled";
 
 export interface EscrowTransaction {

@@ -16,6 +16,7 @@ import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
 import { DraftMediaEditor } from "./DraftMediaEditor";
 import { ConversationalReport } from "@/components/conversational/ConversationalReport";
+import { VehicleLookupCard } from "@/components/vehicle/VehicleLookupCard";
 import {
   buildSellerBuddyMessage,
   buildSellerQuickActions,
@@ -218,6 +219,9 @@ export function AdaptiveConfirmation({
             className="w-full rounded-lg border border-[#d0d7de] bg-[#f9fafb] p-2 text-xs text-[#374151]"
           />
         </div>
+      )}
+      {adaptiveKey === "vehicles" && (
+        <VehicleLookupCard vin={vinValue} onApply={onUpdate} />
       )}
 
       {adaptiveKey === "services" && (
