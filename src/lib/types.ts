@@ -108,6 +108,11 @@ export interface UserProfile {
   vatCode?: string;
   billingPlan?: "free" | "starter" | "pro";
   billingModel?: "ppc" | "subscription";
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
+  averageResponseMinutes?: number;
 }
 
 export interface SellerReview {

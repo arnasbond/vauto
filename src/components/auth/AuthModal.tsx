@@ -29,6 +29,10 @@ interface AuthModalProps {
     companyName?: string;
     companyCode?: string;
     vatCode?: string;
+    serviceBaseCity?: string;
+    serviceRadiusKm?: number;
+    serviceNationwide?: boolean;
+    serviceSpecialties?: string[];
   }) => void;
 }
 
@@ -71,6 +75,12 @@ export function AuthModal({
   const [companyName, setCompanyName] = useState("");
   const [companyCode, setCompanyCode] = useState("");
   const [vatCode, setVatCode] = useState("");
+  const [serviceBaseCity, setServiceBaseCity] = useState("Vilnius");
+  const [serviceRadiusKm, setServiceRadiusKm] = useState(25);
+  const [serviceNationwide, setServiceNationwide] = useState(false);
+  const [serviceSpecialties, setServiceSpecialties] = useState<string[]>([
+    "Remontas",
+  ]);
   const [pendingProvider, setPendingProvider] = useState<AuthProvider>("google");
   const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
   const [otpSending, setOtpSending] = useState(false);
@@ -104,6 +114,20 @@ export function AuthModal({
       companyName: role === "pro" ? companyName.trim() || undefined : undefined,
       companyCode: role === "pro" ? companyCode.trim() || undefined : undefined,
       vatCode: role === "pro" ? vatCode.trim() || undefined : undefined,
+      serviceBaseCity:
+        role === "pro" && businessType === "services"
+          ? serviceBaseCity.trim() || "Vilnius"
+          : undefined,
+      serviceRadiusKm:
+        role === "pro" && businessType === "services"
+          ? serviceNationwide
+            ? 999
+            : serviceRadiusKm
+          : undefined,
+      serviceNationwide:
+        role === "pro" && businessType === "services" ? serviceNationwide : undefined,
+      serviceSpecialties:
+        role === "pro" && businessType === "services" ? serviceSpecialties : undefined,
     });
     setStep("methods");
     setOtp("");
@@ -399,6 +423,82 @@ export function AuthModal({
                     className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
                   />
                 </div>
+                {businessType === "services" && (
+                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
+                    <p className="text-xs font-semibold text-slate-300">
+                      Darbo teritorija ir paslaugos
+                    </p>
+                    <input
+                      type="text"
+                      value={serviceBaseCity}
+                      onChange={(e) => setServiceBaseCity(e.target.value)}
+                      placeholder="Bazinis miestas / adresas"
+                      className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      {([10, 25, 50, 100] as const).map((radius) => (
+                        <button
+                          key={radius}
+                          type="button"
+                          onClick={() => {
+                            setServiceNationwide(false);
+                            setServiceRadiusKm(radius);
+                          }}
+                          className={`rounded-lg px-2 py-2 text-xs font-semibold ${
+                            !serviceNationwide && serviceRadiusKm === radius
+                              ? "bg-[var(--vauto-orange)] text-white"
+                              : "bg-white/10 text-slate-300"
+                          }`}
+                        >
+                          {radius} km
+                        </button>
+                      ))}
+                      <button
+                        type="button"
+                        onClick={() => setServiceNationwide(true)}
+                        className={`rounded-lg px-2 py-2 text-xs font-semibold ${
+                          serviceNationwide
+                            ? "bg-[var(--vauto-orange)] text-white"
+                            : "bg-white/10 text-slate-300"
+                        }`}
+                      >
+                        Visa LT
+                      </button>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {[
+                        "Elektrika",
+                        "Santechnika",
+                        "Valymas",
+                        "Plytelių darbai",
+                        "Gipso montavimas",
+                        "Sienų glaistymas",
+                      ].map((specialty) => {
+                        const active = serviceSpecialties.includes(specialty);
+                        return (
+                          <button
+                            key={specialty}
+                            type="button"
+                            onClick={() =>
+                              setServiceSpecialties((prev) =>
+                                active
+                                  ? prev.filter((x) => x !== specialty)
+                                  : [...prev, specialty]
+                              )
+                            }
+                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
+                              active
+                                ? "bg-[var(--vauto-teal)] text-white"
+                                : "bg-white/10 text-slate-300"
+                            }`}
+                          >
+                            {specialty}
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                )}
               </div>
             )}
 

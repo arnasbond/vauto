@@ -16,6 +16,11 @@ export interface ApiUser {
   vatCode?: string;
   billingPlan?: string;
   billingModel?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
+  averageResponseMinutes?: number;
 }
 
 export interface ApiReview {

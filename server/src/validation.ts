@@ -492,6 +492,16 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
   if (!billingPlan.ok) return billingPlan;
   const billingModel = optionalEnumString(body, "billingModel", new Set(["ppc", "subscription"]));
   if (!billingModel.ok) return billingModel;
+  const serviceBaseCity = optionalString(body, "serviceBaseCity", 120);
+  if (!serviceBaseCity.ok) return serviceBaseCity;
+  const serviceRadiusKm = optionalNumber(body, "serviceRadiusKm", 0, 999);
+  if (!serviceRadiusKm.ok) return serviceRadiusKm;
+  const serviceNationwide = optionalBoolean(body, "serviceNationwide");
+  if (!serviceNationwide.ok) return serviceNationwide;
+  const serviceSpecialties = optionalStringArray(body, "serviceSpecialties", 40, 120);
+  if (!serviceSpecialties.ok) return serviceSpecialties;
+  const averageResponseMinutes = optionalNumber(body, "averageResponseMinutes", 0, 10_000);
+  if (!averageResponseMinutes.ok) return averageResponseMinutes;
   return ok({
     id: id.value,
     name: name.value,
@@ -510,6 +520,11 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
     vatCode: vatCode.value,
     billingPlan: billingPlan.value,
     billingModel: billingModel.value,
+    serviceBaseCity: serviceBaseCity.value,
+    serviceRadiusKm: serviceRadiusKm.value,
+    serviceNationwide: serviceNationwide.value,
+    serviceSpecialties: serviceSpecialties.value,
+    averageResponseMinutes: averageResponseMinutes.value,
   });
 }
 

@@ -40,6 +40,10 @@ async function buildSession(
     companyName?: string;
     companyCode?: string;
     vatCode?: string;
+    serviceBaseCity?: string;
+    serviceRadiusKm?: number;
+    serviceNationwide?: boolean;
+    serviceSpecialties?: string[];
   }
 ) {
   const existing = await getUser(userId);
@@ -59,6 +63,11 @@ async function buildSession(
     vatCode: meta.vatCode ?? existing?.vatCode,
     billingPlan: existing?.billingPlan ?? (meta.role === "pro" ? "starter" : "free"),
     billingModel: existing?.billingModel ?? (meta.role === "pro" ? "ppc" : undefined),
+    serviceBaseCity: meta.serviceBaseCity ?? existing?.serviceBaseCity,
+    serviceRadiusKm: meta.serviceRadiusKm ?? existing?.serviceRadiusKm,
+    serviceNationwide: meta.serviceNationwide ?? existing?.serviceNationwide,
+    serviceSpecialties: meta.serviceSpecialties ?? existing?.serviceSpecialties,
+    averageResponseMinutes: existing?.averageResponseMinutes ?? (meta.businessType === "services" ? 12 : undefined),
     soldCount: existing?.soldCount ?? 0,
     walletBalance:
       existing?.walletBalance ??
@@ -109,6 +118,12 @@ authRouter.post("/otp/verify", async (req, res) => {
     const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
     const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
     const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
+    const serviceBaseCity = req.body?.serviceBaseCity ? String(req.body.serviceBaseCity) : undefined;
+    const serviceRadiusKm = req.body?.serviceRadiusKm ? Number(req.body.serviceRadiusKm) : undefined;
+    const serviceNationwide = req.body?.serviceNationwide === true;
+    const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
+      ? (req.body.serviceSpecialties as unknown[]).map(String)
+      : undefined;
 
     if (!verifyOtp(phone, code)) {
       res.status(401).json({ error: "Neteisingas arba pasibaigęs kodas" });
@@ -119,7 +134,18 @@ authRouter.post("/otp/verify", async (req, res) => {
     const session = await buildSession(
       userId,
       { id: userId, phone, city, name: providerName("phone") },
-      { role, provider: "phone", businessType, companyName, companyCode, vatCode }
+      {
+        role,
+        provider: "phone",
+        businessType,
+        companyName,
+        companyCode,
+        vatCode,
+        serviceBaseCity,
+        serviceRadiusKm,
+        serviceNationwide,
+        serviceSpecialties,
+      }
     );
     res.json(session);
   } catch (e) {
@@ -141,6 +167,12 @@ authRouter.post("/social", async (req, res) => {
     const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
     const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
     const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
+    const serviceBaseCity = req.body?.serviceBaseCity ? String(req.body.serviceBaseCity) : undefined;
+    const serviceRadiusKm = req.body?.serviceRadiusKm ? Number(req.body.serviceRadiusKm) : undefined;
+    const serviceNationwide = req.body?.serviceNationwide === true;
+    const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
+      ? (req.body.serviceSpecialties as unknown[]).map(String)
+      : undefined;
 
     if (provider === "google" && idToken) {
       const google = await verifyGoogleIdToken(idToken);
@@ -165,7 +197,18 @@ authRouter.post("/social", async (req, res) => {
           avatar: google.picture ?? defaultAvatar("google"),
           city,
         },
-        { role, provider: "google", businessType, companyName, companyCode, vatCode }
+        {
+          role,
+          provider: "google",
+          businessType,
+          companyName,
+          companyCode,
+          vatCode,
+          serviceBaseCity,
+          serviceRadiusKm,
+          serviceNationwide,
+          serviceSpecialties,
+        }
       );
       res.json(session);
       return;
@@ -191,7 +234,18 @@ authRouter.post("/social", async (req, res) => {
           avatar:
             "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
         },
-        { role: "admin", provider, businessType, companyName, companyCode, vatCode }
+        {
+          role: "admin",
+          provider,
+          businessType,
+          companyName,
+          companyCode,
+          vatCode,
+          serviceBaseCity,
+          serviceRadiusKm,
+          serviceNationwide,
+          serviceSpecialties,
+        }
       );
       res.json(session);
       return;
@@ -207,7 +261,18 @@ authRouter.post("/social", async (req, res) => {
         city,
         name: providerName(provider),
       },
-      { role, provider, businessType, companyName, companyCode, vatCode }
+      {
+        role,
+        provider,
+        businessType,
+        companyName,
+        companyCode,
+        vatCode,
+        serviceBaseCity,
+        serviceRadiusKm,
+        serviceNationwide,
+        serviceSpecialties,
+      }
     );
     res.json(session);
   } catch (e) {

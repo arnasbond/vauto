@@ -12,6 +12,7 @@ import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { mockAggregateAnalytics, mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
+import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
 
 interface ProBusinessDashboardProps {
@@ -35,8 +36,10 @@ export function ProBusinessDashboard({
   onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
-  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt } = useVauto();
+  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews } = useVauto();
   const analytics = mockAggregateAnalytics(listings);
+  const rating = computeSellerRating(reviews, user.id);
+  const serviceRating = rating.count > 0 ? rating.avg : 4.9;
   const showCalendar =
     user.businessType === "services" ||
     listings.some((l) => l.category === "services");
@@ -71,7 +74,11 @@ export function ProBusinessDashboard({
       <BulkUploadCard />
       {showCalendar && (
         <>
-          <ServiceLeadInbox balance={user.walletBalance ?? 0} />
+          <ServiceLeadInbox
+            balance={user.walletBalance ?? 0}
+            user={user}
+            rating={serviceRating}
+          />
           <ServiceCalendar bookings={mockServiceBookings()} />
         </>
       )}

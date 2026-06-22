@@ -1,6 +1,6 @@
 "use client";
 
-import { Building2, ReceiptText } from "lucide-react";
+import { Award, Building2, MapPin, ReceiptText } from "lucide-react";
 import type { UserProfile } from "@/lib/types";
 
 export function BusinessIdentityCard({ user }: { user: UserProfile }) {
@@ -31,6 +31,33 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
               </p>
             </div>
           </div>
+          {user.businessType === "services" && (
+            <div className="mt-3 rounded-xl bg-white/5 p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+                <MapPin className="h-3.5 w-3.5 text-[var(--vauto-orange)]" />
+                Darbo teritorija
+              </p>
+              <p className="text-xs text-slate-400">
+                {user.serviceNationwide
+                  ? "Visa Lietuva"
+                  : `${user.serviceBaseCity ?? "Vilnius"} · ${user.serviceRadiusKm ?? 25} km spindulys`}
+              </p>
+              <div className="mt-2 flex flex-wrap gap-1.5">
+                {(user.serviceSpecialties ?? ["Remontas"]).map((specialty) => (
+                  <span
+                    key={specialty}
+                    className="rounded-full bg-[var(--vauto-teal)]/15 px-2 py-1 text-[10px] font-semibold text-[var(--vauto-teal)]"
+                  >
+                    {specialty}
+                  </span>
+                ))}
+              </div>
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-300">
+                <Award className="h-3.5 w-3.5" />
+                Top Rated Plus suteikiamas nuo 4.8 ★ ir atsakymo iki 15 min.
+              </p>
+            </div>
+          )}
           <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
             <ReceiptText className="h-3.5 w-3.5 text-[var(--vauto-teal)]" />
             Sąskaitos-faktūros bus generuojamos automatiškai pagal šiuos duomenis.

@@ -50,6 +50,10 @@ export interface LoginPayload {
   companyName?: string;
   companyCode?: string;
   vatCode?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
 }
 
 interface AuthContextValue {
@@ -180,6 +184,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       companyName: data.companyName,
       companyCode: data.companyCode,
       vatCode: data.vatCode,
+      serviceBaseCity: data.serviceBaseCity,
+      serviceRadiusKm: data.serviceRadiusKm,
+      serviceNationwide: data.serviceNationwide,
+      serviceSpecialties: data.serviceSpecialties,
+      averageResponseMinutes: data.role === "pro" ? 12 : undefined,
       billingPlan: data.role === "pro" ? "starter" : "free",
       billingModel: data.role === "pro" ? "ppc" : undefined,
       walletBalance: data.role === "pro" ? 25 : 0,
@@ -210,6 +219,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   companyName: data.companyName,
                   companyCode: data.companyCode,
                   vatCode: data.vatCode,
+                  serviceBaseCity: data.serviceBaseCity,
+                  serviceRadiusKm: data.serviceRadiusKm,
+                  serviceNationwide: data.serviceNationwide,
+                  serviceSpecialties: data.serviceSpecialties,
                 })
               : await apiSocialLogin({
                   provider: data.provider,
@@ -221,6 +234,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   companyName: data.companyName,
                   companyCode: data.companyCode,
                   vatCode: data.vatCode,
+                  serviceBaseCity: data.serviceBaseCity,
+                  serviceRadiusKm: data.serviceRadiusKm,
+                  serviceNationwide: data.serviceNationwide,
+                  serviceSpecialties: data.serviceSpecialties,
                 });
 
           if (!apiResult.ok) {

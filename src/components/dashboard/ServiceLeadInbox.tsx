@@ -1,15 +1,33 @@
 "use client";
 
-import { LockKeyhole, MessageCircle, Zap } from "lucide-react";
+import { Award, LockKeyhole, MessageCircle, Zap } from "lucide-react";
 import { useState } from "react";
-import { DEMO_SERVICE_LEADS, urgencyLabel } from "@/lib/service-leads";
+import {
+  DEMO_SERVICE_LEADS,
+  coverageTier,
+  isTopRatedPlus,
+  leadPriceForCoverage,
+  serviceLeadMatchesProvider,
+  urgencyLabel,
+} from "@/lib/service-leads";
+import type { UserProfile } from "@/lib/types";
 
 interface ServiceLeadInboxProps {
   balance: number;
+  user: UserProfile;
+  rating: number;
 }
 
-export function ServiceLeadInbox({ balance }: ServiceLeadInboxProps) {
+export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProps) {
   const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
+  const topRatedPlus = isTopRatedPlus({
+    rating,
+    averageResponseMinutes: user.averageResponseMinutes,
+  });
+  const tier = coverageTier(user.serviceRadiusKm, user.serviceNationwide);
+  const leads = DEMO_SERVICE_LEADS.filter((lead) =>
+    serviceLeadMatchesProvider(lead, user)
+  );
 
   return (
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
@@ -21,14 +39,32 @@ export function ServiceLeadInbox({ balance }: ServiceLeadInboxProps) {
           <h2 className="text-base font-bold text-white">
             Užsakymai tavo rajone
           </h2>
+          <p className="mt-1 text-xs text-slate-500">
+            {user.serviceNationwide
+              ? "Visa Lietuva"
+              : `${user.serviceBaseCity ?? "Vilnius"} · ${user.serviceRadiusKm ?? 25} km`}{" "}
+            · {tier === "national" ? "Premium tarifas" : tier === "regional" ? "Regioninis tarifas" : "Vietinis tarifas"}
+          </p>
         </div>
         <Zap className="h-5 w-5 text-[var(--vauto-orange)]" />
       </div>
 
+      {topRatedPlus && (
+        <div className="mb-3 flex items-center gap-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs font-semibold text-amber-300">
+          <Award className="h-4 w-4" />
+          Top Rated Plus · {rating.toFixed(1)} ★ · atsako per {user.averageResponseMinutes ?? 12} min · -15% lead’ams
+        </div>
+      )}
+
       <div className="space-y-3">
-        {DEMO_SERVICE_LEADS.map((lead) => {
+        {leads.map((lead) => {
           const opened = openedIds.has(lead.id);
-          const canOpen = balance >= lead.leadPrice || opened;
+          const leadPrice = leadPriceForCoverage(lead.leadPrice, {
+            radiusKm: user.serviceRadiusKm,
+            nationwide: user.serviceNationwide,
+            topRatedPlus,
+          });
+          const canOpen = balance >= leadPrice || opened;
           return (
             <article
               key={lead.id}
@@ -42,7 +78,7 @@ export function ServiceLeadInbox({ balance }: ServiceLeadInboxProps) {
                   </p>
                 </div>
                 <span className="rounded-full bg-[var(--vauto-orange)]/15 px-2 py-1 text-[10px] font-bold text-[var(--vauto-orange)]">
-                  {lead.leadPrice.toFixed(2)} €
+                  {leadPrice.toFixed(2)} €
                 </span>
               </div>
               <p className="mt-2 text-xs leading-relaxed text-slate-400">
@@ -74,6 +110,11 @@ export function ServiceLeadInbox({ balance }: ServiceLeadInboxProps) {
             </article>
           );
         })}
+        {leads.length === 0 && (
+          <p className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-400">
+            Šiuo metu nėra lead’ų, atitinkančių jūsų miestą ir specializacijas.
+          </p>
+        )}
       </div>
     </section>
   );

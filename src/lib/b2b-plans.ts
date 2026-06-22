@@ -15,7 +15,12 @@ export const B2B_PLANS: B2BPlan[] = [
     label: "Starto paketas",
     monthlyPrice: 29,
     listingLimit: 50,
-    features: ["Iki 50 aktyvių skelbimų", "PPC skambučių sekimas", "Masinis CSV/XML importas"],
+    features: [
+      "Iki 50 aktyvių skelbimų",
+      "PPC skambučių sekimas",
+      "Vietinių paslaugų lead’ai",
+      "Masinis CSV/XML importas",
+    ],
   },
   {
     id: "pro",
@@ -25,6 +30,7 @@ export const B2B_PLANS: B2BPlan[] = [
     features: [
       "Neriboti skelbimai",
       "Skelbiu.lt kainų palyginimas",
+      "Pro Meistras: daugiau lead’ų ir Top Rated nuolaidos",
       "Automatinis TOP iškėlimas",
       "API/XML feed paruošimas",
     ],
