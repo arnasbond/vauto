@@ -374,6 +374,75 @@ aiRouter.post("/extract-text", async (req, res) => {
   }
 });
 
+aiRouter.post("/visual-rank", async (req, res) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+
+  const { profile, candidates } = req.body as {
+    profile?: {
+      title?: string;
+      category?: string;
+      price?: number;
+      location?: string;
+      description?: string;
+    };
+    candidates?: {
+      id: string;
+      title: string;
+      category: string;
+      price: number;
+      location: string;
+    }[];
+  };
+
+  if (!profile?.title || !Array.isArray(candidates) || !candidates.length) {
+    return res.status(400).json({ error: "profile.title and candidates[] required" });
+  }
+
+  const listText = candidates
+    .slice(0, 40)
+    .map(
+      (c, i) =>
+        `${i + 1}. id=${c.id} | ${c.title} | ${c.category} | ${c.price}€ | ${c.location}`
+    )
+    .join("\n");
+
+  const prompt = `Vartotojas ieško panašių skelbimų pagal AI atpažintą objektą.
+Objektas: "${profile.title}" (kategorija: ${profile.category}, kaina ~${profile.price ?? 0}€, vieta: ${profile.location ?? "Lietuva"})
+${profile.description ? `Aprašymas: ${profile.description}` : ""}
+
+Įvertink kiekvieno kandidato panašumą 0.0–1.0.
+Grąžink JSON: { "scores": { "<listing-id>": 0.0-1.0 } }
+
+Kandidatai:
+${listText}`;
+
+  try {
+    const raw = await chatJson(key, [
+      {
+        role: "system",
+        content:
+          "Esi Vauto paieškos rerankeris. Grąžink tik JSON su scores objektu.",
+      },
+      { role: "user", content: prompt },
+    ]);
+
+    const scores =
+      raw.scores && typeof raw.scores === "object"
+        ? (raw.scores as Record<string, unknown>)
+        : {};
+    const normalized: Record<string, number> = {};
+    for (const c of candidates) {
+      const v = Number(scores[c.id]);
+      if (Number.isFinite(v)) normalized[c.id] = Math.min(1, Math.max(0, v));
+    }
+
+    res.json({ scores: normalized });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/analyze-report", async (req, res) => {
   const { comment, category, listingTitle, chatPreview } = req.body as {
     comment?: string;

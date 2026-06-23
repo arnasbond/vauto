@@ -7,6 +7,7 @@ import { useVauto } from "@/context/VautoContext";
 import { extractFromImage, extractFromText } from "@/lib/client-api";
 import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import {
   AiPhotoFlowSheet,
@@ -25,6 +26,8 @@ export function SearchBar() {
     startListingFromQuery,
     setSearchVoiceMode,
     setSearchInputMode,
+    applyVisualSearch,
+    clearVisualSearch,
     showToast,
     user,
   } = useVauto();
@@ -81,6 +84,7 @@ export function SearchBar() {
       setSearchInputMode("voice");
       setSearchVoiceMode(true);
       setSearchQuery(query);
+      void applyVisualSearch(buildVisualSearchProfile(extracted, "voice"));
       showToast(buildPhotoSearchToast(extracted), "success");
       setVoiceFlowOpen(false);
       scrollToResults();
@@ -116,6 +120,9 @@ export function SearchBar() {
       setSearchInputMode("photo");
       setSearchVoiceMode(false);
       setSearchQuery(query);
+      void applyVisualSearch(
+        buildVisualSearchProfile(extracted, "photo", result.photos[0])
+      );
       showToast(buildPhotoSearchToast(extracted), "success");
       setPhotoFlowOpen(false);
       scrollToResults();
@@ -148,6 +155,7 @@ export function SearchBar() {
           onChange={(e) => {
             setSearchVoiceMode(false);
             setSearchInputMode("text");
+            clearVisualSearch({ keepInputMode: true });
             setSearchQuery(e.target.value);
           }}
           placeholder="Pvz. iPhone 13 Vilniuje arba darbas Kaune"

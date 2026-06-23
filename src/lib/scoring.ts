@@ -1,6 +1,10 @@
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { isListingActive } from "@/lib/listing-expiry";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
+import {
+  computeVisualRelevance,
+  type VisualSearchProfile,
+} from "@/lib/visual-search";
 
 export { isListingActive } from "@/lib/listing-expiry";
 
@@ -110,10 +114,20 @@ function getScoringWeights(query: string): {
 export function rankListings(
   listings: Listing[],
   query: string,
-  sortMode?: "default" | "newest" | "cheapest" | "closest"
+  sortMode?: "default" | "newest" | "cheapest" | "closest",
+  options?: {
+    visualProfile?: VisualSearchProfile | null;
+    visualRankScores?: Record<string, number>;
+  }
 ): ScoredListing[] {
   const active = listings.filter(isListingActive);
-  const w = getScoringWeights(query);
+  const visualProfile = options?.visualProfile ?? null;
+  const visualRankScores = options?.visualRankScores ?? {};
+  const useVisual = Boolean(visualProfile);
+  const baseWeights = getScoringWeights(query);
+  const w = useVisual
+    ? { semantic: 0.25, proximity: 0.15, price: 0.15, recency: 0.05, visual: 0.4 }
+    : { ...baseWeights, visual: 0 };
 
   let results = active
     .map((listing) => {
@@ -121,12 +135,20 @@ export function rankListings(
       const proximityScore = computeProximityScore(listing.distanceKm);
       const priceAttractiveness = computePriceAttractiveness(listing, query);
       const recencyScore = computeRecencyScore(listing.createdAt);
+      const visualRelevance = visualProfile
+        ? (() => {
+            const local = computeVisualRelevance(visualProfile, listing);
+            const remote = visualRankScores[listing.id];
+            return remote !== undefined ? local * 0.45 + remote * 0.55 : local;
+          })()
+        : 0;
 
       const score =
         semanticRelevance * w.semantic +
         proximityScore * w.proximity +
         priceAttractiveness * w.price +
         recencyScore * w.recency +
+        visualRelevance * (w.visual ?? 0) +
         visibilityBoostScore(listing);
 
       return {
@@ -136,6 +158,7 @@ export function rankListings(
         proximityScore,
         priceAttractiveness,
         recencyScore,
+        visualRelevance,
       };
     })
     .sort((a, b) => b.score - a.score);

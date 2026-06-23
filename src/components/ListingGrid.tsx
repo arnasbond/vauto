@@ -8,6 +8,7 @@ import { useVauto } from "@/context/VautoContext";
 import { listingPath } from "@/lib/seo";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
+import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { ScoredListing } from "@/lib/types";
@@ -158,6 +159,8 @@ export function ListingGrid() {
           <>Populiariausi Lietuvoje</>
         )}
       </h2>
+
+      <VisualSearchStrip />
 
       {brokerSignal && <SmartBrokerCard signal={brokerSignal} />}
 

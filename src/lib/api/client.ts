@@ -334,6 +334,22 @@ export async function apiTranscribeAudio(body: {
   });
 }
 
+export async function apiVisualRank(body: {
+  profile: import("@/lib/visual-search").VisualSearchProfile;
+  candidates: {
+    id: string;
+    title: string;
+    category: string;
+    price: number;
+    location: string;
+  }[];
+}): Promise<{ scores: Record<string, number> } | null> {
+  return aiFetch("/api/ai/visual-rank", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiAnalyzeVoice(body: {
   transcript: string;
   mode: "search" | "listing";

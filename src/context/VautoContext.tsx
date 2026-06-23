@@ -17,6 +17,11 @@ import {
   rankListings,
   resolveSortMode,
 } from "@/lib/scoring";
+import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
+import { apiVisualRank } from "@/lib/api/client";
+import {
+  type VisualSearchProfile,
+} from "@/lib/visual-search";
 import {
   loadAuthSession,
   loadGdprConsent,
@@ -50,7 +55,6 @@ import {
   apiUpdateUser,
 } from "@/lib/api/client";
 import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
-import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import type {
   AiExtractedListing,
   ChatThread,
@@ -155,6 +159,11 @@ interface VautoContextValue {
   setSearchVoiceMode: (voice: boolean) => void;
   searchInputMode: import("@/lib/buddy-messages").SearchInputMode;
   setSearchInputMode: (mode: import("@/lib/buddy-messages").SearchInputMode) => void;
+  visualSearchProfile: VisualSearchProfile | null;
+  visualRankScores: Record<string, number>;
+  visualSearchRefining: boolean;
+  clearVisualSearch: (opts?: { keepInputMode?: boolean }) => void;
+  applyVisualSearch: (profile: VisualSearchProfile) => Promise<void>;
   aiDraft: AiExtractedListing | null;
   /** True when AI extraction failed — show structural manual form */
   aiManualFallback: boolean;
@@ -396,7 +405,11 @@ function VautoFacade({
     let results = rankListings(
       visibleListings,
       catalog.searchQuery,
-      resolveSortMode(catalog.activeFilterIds)
+      resolveSortMode(catalog.activeFilterIds),
+      {
+        visualProfile: catalog.visualSearchProfile,
+        visualRankScores: catalog.visualRankScores,
+      }
     );
 
     if (catalog.activeFilterIds.size > 0) {
@@ -426,6 +439,8 @@ function VautoFacade({
     catalog.searchQuery,
     catalog.activeFilterIds,
     catalog.dynamicFilters,
+    catalog.visualSearchProfile,
+    catalog.visualRankScores,
   ]);
 
   const popularListingIds = useMemo(
@@ -512,6 +527,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
   const [searchInputMode, setSearchInputMode] =
     useState<import("@/lib/buddy-messages").SearchInputMode>(null);
+  const [visualSearchProfile, setVisualSearchProfile] =
+    useState<VisualSearchProfile | null>(null);
+  const [visualRankScores, setVisualRankScores] = useState<Record<string, number>>({});
+  const [visualSearchRefining, setVisualSearchRefining] = useState(false);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
@@ -685,6 +704,46 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setSearchIntentEvents((prev) => recordSearchIntent(prev, q));
     }
   }, []);
+
+  const clearVisualSearch = useCallback((opts?: { keepInputMode?: boolean }) => {
+    setVisualSearchProfile(null);
+    setVisualRankScores({});
+    setVisualSearchRefining(false);
+    if (!opts?.keepInputMode) setSearchInputMode(null);
+  }, []);
+
+  const applyVisualSearch = useCallback(
+    async (profile: VisualSearchProfile) => {
+      setVisualSearchProfile(profile);
+      setVisualRankScores({});
+      setVisualSearchRefining(true);
+      try {
+        const candidates = listings
+          .filter((l) => !l.banned && isListingActive(l))
+          .sort((a, b) => {
+            if (a.category === profile.category && b.category !== profile.category) return -1;
+            if (b.category === profile.category && a.category !== profile.category) return 1;
+            return 0;
+          })
+          .slice(0, 40)
+          .map((l) => ({
+            id: l.id,
+            title: l.title,
+            category: l.category,
+            price: l.price,
+            location: l.location,
+          }));
+
+        if (!candidates.length) return;
+
+        const remote = await apiVisualRank({ profile, candidates });
+        if (remote?.scores) setVisualRankScores(remote.scores);
+      } finally {
+        setVisualSearchRefining(false);
+      }
+    },
+    [listings]
+  );
 
   const bumpListingById = useCallback(
     (id: string, field: "views" | "callClicks" | "chatStarts" | "saveCount") => {
@@ -1083,6 +1142,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setSearchVoiceMode,
       searchInputMode,
       setSearchInputMode,
+      visualSearchProfile,
+      visualRankScores,
+      visualSearchRefining,
+      clearVisualSearch,
+      applyVisualSearch,
       isAuthenticated,
       authModalOpen,
       authRedirectPath,
@@ -1143,6 +1207,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       apiActive,
       searchVoiceMode,
       searchInputMode,
+      visualSearchProfile,
+      visualRankScores,
+      visualSearchRefining,
+      clearVisualSearch,
+      applyVisualSearch,
       isAuthenticated,
       authModalOpen,
       authRedirectPath,

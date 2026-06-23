@@ -257,4 +257,5 @@ export interface ScoredListing extends Listing {
   proximityScore: number;
   priceAttractiveness: number;
   recencyScore: number;
+  visualRelevance?: number;
 }
