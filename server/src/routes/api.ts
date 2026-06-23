@@ -222,7 +222,17 @@ apiRouter.post("/bootstrap", async (_req, res) => {
       };
     }
     const embeddings = await getEmbeddingIndexStats();
-    res.json({ ok: true, listings: listings.length, backfill, embeddings });
+    const leadCountRows = await pool.query<{ count: string }>(
+      "SELECT count(*)::text AS count FROM service_leads"
+    );
+    const serviceLeads = Number(leadCountRows.rows[0]?.count ?? 0);
+    res.json({
+      ok: true,
+      listings: listings.length,
+      serviceLeads,
+      backfill,
+      embeddings,
+    });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

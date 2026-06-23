@@ -1247,7 +1247,7 @@ function mapServiceLeadRow(
     hiddenContact: row.hidden_contact,
     contactPhone: revealContact ? row.contact_phone : undefined,
     requiredSpecialties: row.required_specialties ?? [],
-    source: row.source_user_id ? "buyer" : "buyer",
+    source: row.source_user_id ? "buyer" : "demo",
     sourceUserId: row.source_user_id ?? undefined,
     query: row.query_text ?? undefined,
     opened: row.opened,

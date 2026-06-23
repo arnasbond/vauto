@@ -18,6 +18,8 @@ export interface ServiceLead {
   source?: "demo" | "buyer";
   sourceUserId?: string;
   query?: string;
+  /** Set when loaded from API after pay-per-lead open */
+  opened?: boolean;
 }
 
 const CITY_PATTERNS: Array<[RegExp, string]> = [

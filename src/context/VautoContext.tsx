@@ -617,9 +617,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           setLiveServiceLeads(leadsRes.data);
           setOpenedServiceLeadIds(
             new Set(
-              leadsRes.data
-                .filter((lead) => Boolean(lead.contactPhone))
-                .map((lead) => lead.id)
+              leadsRes.data.filter((lead) => lead.opened).map((lead) => lead.id)
             )
           );
         } else {
@@ -770,8 +768,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const serviceLeads = useMemo(
-    () => mergeServiceLeads(liveServiceLeads, { includeDemo: true }),
-    [liveServiceLeads]
+    () => mergeServiceLeads(liveServiceLeads, { includeDemo: !apiActive }),
+    [liveServiceLeads, apiActive]
   );
 
   const registerServiceLead = useCallback(
@@ -849,7 +847,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             setLiveServiceLeads((prev) =>
               prev.map((item) =>
                 item.id === leadId
-                  ? { ...item, contactPhone: res.data.lead.contactPhone }
+                  ? {
+                      ...item,
+                      contactPhone: res.data.lead.contactPhone,
+                      opened: true,
+                    }
                   : item
               )
             );

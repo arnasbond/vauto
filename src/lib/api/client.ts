@@ -495,6 +495,7 @@ export function mapApiServiceLead(lead: ApiServiceLead): import("@/lib/service-l
     source: lead.source ?? "buyer",
     sourceUserId: lead.sourceUserId,
     query: lead.query,
+    opened: lead.opened,
   };
 }
 
