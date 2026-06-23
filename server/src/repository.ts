@@ -493,6 +493,13 @@ export async function updateReportStatus(
   return (res.rowCount ?? 0) > 0;
 }
 
+export async function getAdminUserIds(): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM users WHERE role = 'admin'`
+  );
+  return rows.map((r) => r.id);
+}
+
 export async function getBannedUserIds(): Promise<string[]> {
   const rows = await query<{ user_id: string }>(
     "SELECT user_id FROM banned_users"

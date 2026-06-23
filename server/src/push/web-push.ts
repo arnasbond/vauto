@@ -4,7 +4,7 @@ import {
   getUsersMatchingListing,
 } from "../repository.js";
 import type { ApiListing } from "../types.js";
-import { notifyListingMatchFcm } from "./fcm.js";
+import { notifyListingMatchFcm, notifyUsersFcm } from "./fcm.js";
 
 let configured = false;
 
@@ -20,30 +20,29 @@ function ensureVapid(): boolean {
   return true;
 }
 
-export async function notifyListingMatch(listing: ApiListing): Promise<void> {
-  await Promise.allSettled([
-    notifyListingMatchWeb(listing),
-    notifyListingMatchFcm(listing),
-  ]);
+export interface WebPushPayload {
+  title: string;
+  body: string;
+  url: string;
+  tag?: string;
+  voiceText?: string;
 }
 
-async function notifyListingMatchWeb(listing: ApiListing): Promise<void> {
-  if (!ensureVapid()) return;
+export async function sendWebPushToUsers(
+  userIds: string[],
+  payload: WebPushPayload
+): Promise<void> {
+  if (!ensureVapid() || !userIds.length) return;
 
-  const matches = await getUsersMatchingListing(listing);
-  if (!matches.length) return;
-
-  const userIds = [...new Set(matches.map((m) => m.userId))];
   const subs = await getPushSubscriptionsForUsers(userIds);
   if (!subs.length) return;
 
-  const slug = listing.slug ?? listing.id;
-  const payload = JSON.stringify({
-    title: "VAUTO: naujas skelbimas!",
-    body: `${listing.title} — ${listing.location}`,
-    url: `/listing/${slug}/`,
-    listingId: listing.id,
-    voiceText: `Radau naują skelbimą: ${listing.title} ${listing.location}.`,
+  const body = JSON.stringify({
+    title: payload.title,
+    body: payload.body,
+    url: payload.url,
+    tag: payload.tag,
+    voiceText: payload.voiceText ?? payload.body,
   });
 
   await Promise.allSettled(
@@ -53,10 +52,31 @@ async function notifyListingMatchWeb(listing: ApiListing): Promise<void> {
           endpoint: sub.endpoint,
           keys: { p256dh: sub.p256dh, auth: sub.auth },
         },
-        payload
+        body
       )
     )
   );
+}
+
+export async function notifyListingMatch(listing: ApiListing): Promise<void> {
+  await Promise.allSettled([
+    notifyListingMatchWeb(listing),
+    notifyListingMatchFcm(listing),
+  ]);
+}
+
+async function notifyListingMatchWeb(listing: ApiListing): Promise<void> {
+  const matches = await getUsersMatchingListing(listing);
+  if (!matches.length) return;
+
+  const userIds = [...new Set(matches.map((m) => m.userId))];
+  const slug = listing.slug ?? listing.id;
+  await sendWebPushToUsers(userIds, {
+    title: "VAUTO: naujas skelbimas!",
+    body: `${listing.title} — ${listing.location}`,
+    url: `/listing/${slug}/`,
+    voiceText: `Radau naują skelbimą: ${listing.title} ${listing.location}.`,
+  });
 }
 
 export function getVapidPublicKey(): string | null {

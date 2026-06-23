@@ -51,6 +51,7 @@ export function UserSupportInbox() {
     followUpReport,
     markMyReportRead,
     refreshMyReports,
+    reportStreamConnected,
   } = useVauto();
 
   const [selectedId, setSelectedId] = useState<string | null>(supportFromUrl);
@@ -197,7 +198,9 @@ export function UserSupportInbox() {
                 livePulse ? "bg-emerald-400" : "bg-emerald-600"
               )}
             />
-            Atsakymai atnaujinami kas 8 s
+            {reportStreamConnected
+              ? "Realaus laiko srautas (SSE) aktyvus"
+              : "Atsakymai atnaujinami kas 8 s"}
           </p>
         </div>
         {unreadUserReportCount > 0 && (

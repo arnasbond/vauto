@@ -14,6 +14,12 @@ function urlBase64ToUint8Array(base64String: string): Uint8Array {
 export async function registerWebPush(
   savedQueries: string[]
 ): Promise<boolean> {
+  return ensureWebPushSubscription(savedQueries);
+}
+
+export async function ensureWebPushSubscription(
+  savedQueries: string[] = []
+): Promise<boolean> {
   if (typeof window === "undefined" || !isDataApiEnabled()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
 

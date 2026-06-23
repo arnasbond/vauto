@@ -228,6 +228,7 @@ interface VautoContextValue {
   myReports: SupportReport[];
   unreadAdminCount: number;
   unreadUserReportCount: number;
+  reportStreamConnected: boolean;
   toast: { message: string; type: "success" | "error" | "info" | "buddy" } | null;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   clearToast: () => void;
@@ -318,6 +319,7 @@ type VautoCatalogSlice = Omit<
   | "myReports"
   | "unreadAdminCount"
   | "unreadUserReportCount"
+  | "reportStreamConnected"
   | "pushAlertsEnabled"
   | "setPushAlertsEnabled"
   | "wishlistQueries"

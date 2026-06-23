@@ -31,6 +31,12 @@ import {
 } from "../repository.js";
 import { seedIfEmpty } from "../seed-runtime.js";
 import { notifyListingMatch } from "../push/web-push.js";
+import {
+  notifyAdminsNewReport,
+  notifyAdminsUserFollowUp,
+  notifyReporterReply,
+} from "../push/report-notify.js";
+import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import type {
   ApiChatThread,
@@ -215,6 +221,10 @@ apiRouter.get("/reports/mine", requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+apiRouter.get("/reports/stream", requireAuth, (req: AuthedRequest, res) => {
+  subscribeReportStream(req.authUserId!, req.authRole ?? "private", res);
+});
+
 apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const parsed = validateReport(req.body);
@@ -225,6 +235,8 @@ apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
       return;
     }
     await insertReport(report);
+    publishReportEvent("report_created", report);
+    void notifyAdminsNewReport(report);
     res.status(201).json(report);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -264,10 +276,18 @@ apiRouter.patch("/reports/:id", requireAuth, async (req: AuthedRequest, res) => 
           unreadByAdmin: parsed.value.unreadByAdmin ?? true,
         };
         await upsertReport(reporterUpdate);
+        publishReportEvent("report_updated", reporterUpdate);
+        if (reporterUpdate.unreadByAdmin) {
+          void notifyAdminsUserFollowUp(reporterUpdate);
+        }
         res.json(reporterUpdate);
         return;
       }
       await upsertReport(parsed.value);
+      publishReportEvent("report_updated", parsed.value);
+      if (parsed.value.unreadByReporter) {
+        void notifyReporterReply(parsed.value);
+      }
       res.json(parsed.value);
       return;
     }

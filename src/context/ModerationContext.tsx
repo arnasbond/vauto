@@ -29,7 +29,12 @@ import {
   apiUpsertReport,
   apiWarnUser,
 } from "@/lib/api/client";
+import {
+  connectReportStream,
+  type ReportStreamEvent,
+} from "@/lib/api/report-stream";
 import { isDataApiEnabled } from "@/lib/api/config";
+import { ensureWebPushSubscription } from "@/lib/web-push";
 import {
   loadBannedUserIds,
   loadReports,
@@ -47,6 +52,7 @@ import type {
 
 const ADMIN_POLL_MS = 5_000;
 const USER_POLL_MS = 8_000;
+const STREAM_FALLBACK_POLL_MS = 30_000;
 
 export interface ModerationContextValue {
   reports: SupportReport[];
@@ -72,6 +78,7 @@ export interface ModerationContextValue {
   refreshMyReports: () => Promise<SupportReport[]>;
   unreadAdminCount: number;
   unreadUserReportCount: number;
+  reportStreamConnected: boolean;
 }
 
 export interface ModerationDeps {
@@ -132,6 +139,7 @@ export function ModerationProvider({
   const [reports, setReports] = useState<SupportReport[]>([]);
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
+  const [reportStreamConnected, setReportStreamConnected] = useState(false);
   const apiActive = isDataApiEnabled();
   const canUseAdminApi = apiActive && user.role === "admin";
   const canUseReporterApi = apiActive && !!user.id && !canUseAdminApi;
@@ -171,6 +179,68 @@ export function ModerationProvider({
     },
     [snapshotUserReports]
   );
+
+  const handleStreamEvent = useCallback(
+    (event: ReportStreamEvent) => {
+      if (event.type === "connected") return;
+
+      const report = normalizeReports([event.report])[0];
+
+      setReports((prev) => {
+        const old = prev.find((r) => r.id === report.id) ?? null;
+        const next = old
+          ? prev.map((r) => (r.id === report.id ? report : r))
+          : [report, ...prev];
+
+        if (event.type === "report_created" && depsRef.current.isAdmin) {
+          if (!knownReportIdsRef.current.has(report.id)) {
+            knownReportIdsRef.current.add(report.id);
+            queueMicrotask(() => depsRef.current.onNewAdminReport?.(report));
+          }
+        }
+
+        if (event.type === "report_updated") {
+          if (
+            depsRef.current.isAdmin &&
+            report.unreadByAdmin &&
+            old &&
+            messageCount(report) > messageCount(old)
+          ) {
+            queueMicrotask(() => depsRef.current.onNewAdminReport?.(report));
+          }
+          if (
+            !depsRef.current.isAdmin &&
+            report.reporterId === user.id &&
+            report.unreadByReporter
+          ) {
+            const last = lastNonUserMessage(report);
+            if (last && (!old || messageCount(report) > messageCount(old))) {
+              queueMicrotask(() =>
+                depsRef.current.onNewUserReportReply?.(report, last.text)
+              );
+            }
+          }
+        }
+
+        if (!depsRef.current.isAdmin) {
+          snapshotUserReports(next.filter((r) => r.reporterId === user.id));
+        } else {
+          knownReportIdsRef.current = new Set(next.map((r) => r.id));
+        }
+
+        return next;
+      });
+    },
+    [user.id, snapshotUserReports]
+  );
+
+  useEffect(() => {
+    if (!hydrated || !apiActive || !user.id) return;
+
+    void ensureWebPushSubscription();
+
+    return connectReportStream(handleStreamEvent, setReportStreamConnected);
+  }, [hydrated, apiActive, user.id, handleStreamEvent]);
 
   const refreshMyReports = useCallback(async (): Promise<SupportReport[]> => {
     if (canUseReporterApi) {
@@ -292,9 +362,12 @@ export function ModerationProvider({
     };
 
     void poll();
-    const timer = window.setInterval(() => void poll(), ADMIN_POLL_MS);
+    const timer = window.setInterval(
+      () => void poll(),
+      reportStreamConnected ? STREAM_FALLBACK_POLL_MS : ADMIN_POLL_MS
+    );
     return () => window.clearInterval(timer);
-  }, [deps.isAdmin, hydrated, refreshReports]);
+  }, [deps.isAdmin, hydrated, refreshReports, reportStreamConnected]);
 
   useEffect(() => {
     if (deps.isAdmin || !hydrated || !user.id) return;
@@ -304,9 +377,12 @@ export function ModerationProvider({
     };
 
     void poll();
-    const timer = window.setInterval(() => void poll(), USER_POLL_MS);
+    const timer = window.setInterval(
+      () => void poll(),
+      reportStreamConnected ? STREAM_FALLBACK_POLL_MS : USER_POLL_MS
+    );
     return () => window.clearInterval(timer);
-  }, [deps.isAdmin, hydrated, user.id, refreshMyReports]);
+  }, [deps.isAdmin, hydrated, user.id, refreshMyReports, reportStreamConnected]);
 
   const persistReport = useCallback(
     (report: SupportReport) => {
@@ -544,6 +620,7 @@ export function ModerationProvider({
       refreshMyReports,
       unreadAdminCount,
       unreadUserReportCount,
+      reportStreamConnected,
     }),
     [
       reports,
@@ -561,6 +638,7 @@ export function ModerationProvider({
       refreshMyReports,
       unreadAdminCount,
       unreadUserReportCount,
+      reportStreamConnected,
     ]
   );
 

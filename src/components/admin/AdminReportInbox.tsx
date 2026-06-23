@@ -55,6 +55,7 @@ export function AdminReportInbox() {
     markReportRead,
     refreshReports,
     unreadAdminCount,
+    reportStreamConnected,
     logout,
     findListing,
   } = useVauto();
@@ -138,7 +139,9 @@ export function AdminReportInbox() {
                   livePulse ? "bg-emerald-400" : "bg-emerald-600"
                 )}
               />
-              Realaus laiko pranešimai · atnaujinama kas 5 s
+              {reportStreamConnected
+                ? "Realaus laiko srautas (SSE) aktyvus"
+                : "Realaus laiko pranešimai · atsarginis polling"}
             </p>
           </div>
           {unreadAdminCount > 0 && (

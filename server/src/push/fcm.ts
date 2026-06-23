@@ -25,34 +25,44 @@ async function ensureFirebase(): Promise<boolean> {
   }
 }
 
-export async function notifyListingMatchFcm(listing: ApiListing): Promise<void> {
-  if (!(await ensureFirebase()) || !messaging) return;
+export async function notifyUsersFcm(
+  userIds: string[],
+  payload: { title: string; body: string; url: string }
+): Promise<void> {
+  if (!(await ensureFirebase()) || !messaging || !userIds.length) return;
 
-  const matches = await getUsersMatchingListing(listing);
-  if (!matches.length) return;
-
-  const userIds = [...new Set(matches.map((m) => m.userId))];
   const tokens = await getFcmTokensForUsers(userIds);
   if (!tokens.length) return;
-
-  const slug = listing.slug ?? listing.id;
-  const body = `${listing.title} — ${listing.location}`;
 
   await Promise.allSettled(
     tokens.map((row) =>
       messaging!.send({
         token: row.token,
         notification: {
-          title: "VAUTO: naujas skelbimas!",
-          body,
+          title: payload.title,
+          body: payload.body,
         },
         data: {
-          url: `/listing/${slug}/`,
-          listingId: listing.id,
-          voiceText: `Radau naują skelbimą: ${listing.title} ${listing.location}.`,
+          url: payload.url,
+          voiceText: payload.body,
         },
         android: { priority: "high" },
       })
     )
   );
+}
+
+export async function notifyListingMatchFcm(listing: ApiListing): Promise<void> {
+  const matches = await getUsersMatchingListing(listing);
+  if (!matches.length) return;
+
+  const userIds = [...new Set(matches.map((m) => m.userId))];
+  const slug = listing.slug ?? listing.id;
+  const body = `${listing.title} — ${listing.location}`;
+
+  await notifyUsersFcm(userIds, {
+    title: "VAUTO: naujas skelbimas!",
+    body,
+    url: `/listing/${slug}/`,
+  });
 }
