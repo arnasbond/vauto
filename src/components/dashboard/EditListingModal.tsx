@@ -71,9 +71,7 @@ export function EditListingModal({
         <div className="mb-4 flex items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-semibold text-white">Redaguoti skelbimą</h2>
-            <p className="mt-1 text-xs text-slate-400">
-              {config.label} · {config.portalStyle}
-            </p>
+            <p className="mt-1 text-xs text-slate-400">{config.label}</p>
           </div>
           <button
             type="button"

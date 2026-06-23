@@ -16,13 +16,13 @@ export async function mockExtractFromImage(
     category: "vehicles",
     confidence: 0.92,
     description:
-      "AI iš nuotraukos atpažino automobilio ratlankius. Tinka Autoplius stiliaus auto dalių skelbimui.",
+      "AI iš nuotraukos atpažino automobilio ratlankius. Paruošta auto dalių skelbimui.",
     attributes: {
       partType: "Ratlankiai",
       size: "R16",
       condition: "Naudoti",
       quantity: "4 vnt.",
-      marketHint: "Skelbiu.lt tipo rinkoje Lietuvoje panašūs kainuoja apie 50–65€",
+      marketHint: "Lietuvos rinkoje panašūs kainuoja apie 50–65€",
     },
   };
 }

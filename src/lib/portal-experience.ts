@@ -16,18 +16,18 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
   flux: {
     theme: "flux",
     portalName: "VAUTO",
-    headline: "Visi portalai vienoje paieškoje",
+    headline: "Viskas vienoje paieškoje",
     description:
       "Vienas srautas daiktams, automobiliams, NT, drabužiams ir paslaugoms.",
     primaryCta: "Pradėti paiešką",
     color: "#1167b1",
     bg: "#ffffff",
     border: "#dde5ef",
-    quickFilters: ["Foto paieška", "Skelbiu kainos", "Saugus pirkimas"],
+    quickFilters: ["Foto paieška", "Rinkos kainos", "Saugus pirkimas"],
   },
   autoplius: {
     theme: "autoplius",
-    portalName: "Autoplius tipo auto zona",
+    portalName: "Automobiliai",
     headline: "Auto skelbimo režimas",
     description:
       "Techniniai laukai, VIN / numerio autofill, TA ir rinkos kainos signalai.",
@@ -39,22 +39,22 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
   },
   vinted: {
     theme: "vinted",
-    portalName: "Vinted tipo spinta",
+    portalName: "Apranga",
     headline: "Drabužių ir aksesuarų režimas",
     description:
-      "Lengvas stilius, dydžiai, būklė, brand’ai ir greitas foto įkėlimas.",
-    primaryCta: "Atidaryti spintą",
+      "Lengvas stilius, dydžiai, būklė, prekės ženklai ir greitas foto įkėlimas.",
+    primaryCta: "Ieškoti aprangos",
     color: "#09b1a8",
     bg: "#e6f7f6",
     border: "#b8ebe8",
-    quickFilters: ["Dydis", "Būklė", "Brand"],
+    quickFilters: ["Dydis", "Būklė", "Prekės ženklas"],
   },
   skelbiu: {
     theme: "skelbiu",
-    portalName: "Skelbiu tipo universalus turgus",
+    portalName: "Prekės",
     headline: "Universalūs skelbimai",
     description:
-      "Baldai, telefonai, buitis ir kitos prekės su Skelbiu.lt kainų signalu.",
+      "Baldai, telefonai, buitis ir kitos prekės su rinkos kainų signalais.",
     primaryCta: "Naršyti skelbimus",
     color: "#1565c0",
     bg: "#e3f2fd",
@@ -63,8 +63,8 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
   },
   aruodas: {
     theme: "aruodas",
-    portalName: "Aruodas tipo NT zona",
-    headline: "Nekilnojamo turto režimas",
+    portalName: "Nekilnojamas turtas",
+    headline: "NT skelbimų režimas",
     description:
       "Plotas, kambariai, aukštas, šildymas ir miestų NT paieška viename sraute.",
     primaryCta: "Ieškoti NT",
@@ -75,10 +75,10 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
   },
   paslaugos: {
     theme: "paslaugos",
-    portalName: "Paslaugos.lt tipo meistrai",
+    portalName: "Paslaugos",
     headline: "Greitas paslaugos užsakymas",
     description:
-      "Pasakyk problemą balsu ar įkelk foto — brokeris suves su meistru pagal miestą ir spindulį.",
+      "Pasakyk problemą balsu ar įkelk foto — asistentas suves su meistru pagal miestą ir spindulį.",
     primaryCta: "Reikia paslaugos",
     color: "#0f766e",
     bg: "#e6fffb",
@@ -87,7 +87,7 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
   },
   cvbankas: {
     theme: "cvbankas",
-    portalName: "CVbankas tipo darbo zona",
+    portalName: "Darbas",
     headline: "Darbo pasiūlymų ir kandidatų režimas",
     description:
       "Darbo pasiūlymai, kandidatų skelbimai, atlyginimo tipai ir greitas kontaktas viename sraute.",
@@ -129,4 +129,24 @@ export function allPortalExperiences(): PortalExperience[] {
     EXPERIENCES.paslaugos,
     EXPERIENCES.cvbankas,
   ];
+}
+
+/** Short label for category quick-pick buttons */
+export function portalShortLabel(theme: ChameleonThemeId): string {
+  switch (theme) {
+    case "autoplius":
+      return "Auto";
+    case "vinted":
+      return "Apranga";
+    case "aruodas":
+      return "NT";
+    case "paslaugos":
+      return "Paslaugos";
+    case "cvbankas":
+      return "Darbas";
+    case "skelbiu":
+      return "Prekės";
+    default:
+      return "VAUTO";
+  }
 }

@@ -23,14 +23,14 @@ export default function DiscoverPage() {
 
         <div className="mt-5 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1167b1]">
-            Ontdek
+            Atrasti
           </p>
           <h1 className="mt-1 text-xl font-extrabold text-[#111827]">
             Išmanioji paieška ir rekomendacijos
           </h1>
           <p className="mt-2 text-sm text-[#6b7280]">
             Ieškok tekstu, balsu arba nuotrauka. VAUTO surikiuoja skelbimus ir
-            naudoja Skelbiu.lt kainų signalus visoje Lietuvoje.
+            siūlo rinkos kainų patarimus visoje Lietuvoje.
           </p>
         </div>
       </section>

@@ -84,7 +84,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   autoplius: {
     id: "autoplius",
     bodyClass: "chameleon-autoplius",
-    portalLabel: "Autoplius stilius",
+    portalLabel: "Automobilių skelbimas",
     classicLayout: true,
     promote: {
       modalTitle: "Paryškinti skelbimą",
@@ -118,13 +118,13 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   vinted: {
     id: "vinted",
     bodyClass: "chameleon-vinted",
-    portalLabel: "Vinted stilius",
+    portalLabel: "Aprangos skelbimas",
     classicLayout: false,
     promote: {
-      modalTitle: "Skelbimo išskyrimas (Bump)",
-      cardCta: "Skelbimo išskyrimas (Bump)",
-      bumpLabel: "Spintos iškėlimas",
-      successMessage: "Spintos iškėlimas aktyvuotas",
+      modalTitle: "Iškelti skelbimą",
+      cardCta: "Iškelti skelbimą",
+      bumpLabel: "Iškelti į viršų",
+      successMessage: "Skelbimas iškeltas į viršų",
     },
     confirmation: {
       shell: "bg-[#faf8f5]",
@@ -152,7 +152,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   skelbiu: {
     id: "skelbiu",
     bodyClass: "chameleon-skelbiu",
-    portalLabel: "Skelbiu stilius",
+    portalLabel: "Universalus skelbimas",
     classicLayout: true,
     promote: {
       modalTitle: "Rodyti pirmame puslapyje",
@@ -185,7 +185,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   aruodas: {
     id: "aruodas",
     bodyClass: "chameleon-aruodas",
-    portalLabel: "Aruodas.lt stilius",
+    portalLabel: "NT skelbimas",
     classicLayout: true,
     promote: {
       modalTitle: "Iškelti NT skelbimą",
@@ -220,7 +220,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   paslaugos: {
     id: "paslaugos",
     bodyClass: "chameleon-paslaugos",
-    portalLabel: "Paslaugos.lt stilius",
+    portalLabel: "Paslaugų skelbimas",
     classicLayout: true,
     promote: {
       modalTitle: "Iškelti paslaugą",
@@ -253,7 +253,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
   cvbankas: {
     id: "cvbankas",
     bodyClass: "chameleon-cvbankas",
-    portalLabel: "CVbankas.lt stilius",
+    portalLabel: "Darbo skelbimas",
     classicLayout: true,
     promote: {
       modalTitle: "Iškelti darbo skelbimą",

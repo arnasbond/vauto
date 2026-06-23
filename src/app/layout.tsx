@@ -25,7 +25,7 @@ const outfit = Outfit({
 export const metadata: Metadata = {
   title: "Vauto — AI skelbimai ir paslaugos visoje Lietuvoje",
   description:
-    "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, Skelbiu.lt kainos signalai ir skambutis tiesiai pardavėjui — VAUTO.",
+    "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
   manifest: "/manifest.json",
   icons: {
     icon: [

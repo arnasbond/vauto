@@ -17,13 +17,13 @@ export function BottomNav() {
       undefined
     : undefined;
 
-  const profileLabel = isAdmin ? "VAUTO CC" : "Mijn Vauto";
+  const profileLabel = isAdmin ? "VAUTO CC" : "Mano Vauto";
   const ProfileIcon = isAdmin ? Shield : User;
 
   const tabs = [
-    { href: "/", label: "Home", icon: Home },
-    { href: "/discover", label: "Ontdek", icon: Compass },
-    { href: "/chats", label: "Berichten", icon: MessageCircle, badge: chatBadge },
+    { href: "/", label: "Pradžia", icon: Home },
+    { href: "/discover", label: "Atrasti", icon: Compass },
+    { href: "/chats", label: "Pokalbiai", icon: MessageCircle, badge: chatBadge },
     {
       href: "/profile",
       label: profileLabel,

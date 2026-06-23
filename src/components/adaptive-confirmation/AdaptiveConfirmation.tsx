@@ -310,7 +310,7 @@ export function AdaptiveConfirmation({
       manualFallback={manualFallback}
       canPublish={canPublish}
       publishLabel={publishLabel}
-      portalStyleLabel={`${config.label} · ${config.portalStyle} layout`}
+      portalStyleLabel={config.label}
       onQuickAction={handleQuickAction}
       onCancel={onCancel}
       onPublish={onPublish}

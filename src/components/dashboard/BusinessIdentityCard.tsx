@@ -12,7 +12,7 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
-            Mijn VAUTO Pro
+            Mano VAUTO Pro
           </p>
           <h2 className="mt-1 text-base font-bold text-white">
             {user.companyName || "Verslo paskyra"}

@@ -4,6 +4,7 @@ import { useVauto } from "@/context/VautoContext";
 import {
   allPortalExperiences,
   portalExperienceForQuery,
+  portalShortLabel,
 } from "@/lib/portal-experience";
 
 export function PortalExperienceStrip() {
@@ -35,7 +36,7 @@ export function PortalExperienceStrip() {
           className="shrink-0 rounded-full px-3 py-1 text-[10px] font-bold text-white"
           style={{ background: active.color }}
         >
-          {active.theme === "flux" ? "VAUTO" : "Chameleon"}
+          {active.theme === "flux" ? "VAUTO" : "Kategorija"}
         </span>
       </div>
 
@@ -67,17 +68,7 @@ export function PortalExperienceStrip() {
                   : "1px solid rgba(255,255,255,0.6)",
             }}
           >
-            {portal.theme === "autoplius"
-              ? "Auto"
-              : portal.theme === "vinted"
-                ? "Vinted"
-                : portal.theme === "aruodas"
-                  ? "NT"
-                  : portal.theme === "paslaugos"
-                    ? "Meistrai"
-                    : portal.theme === "cvbankas"
-                      ? "Darbas"
-                      : "Skelbiu"}
+            {portalShortLabel(portal.theme)}
           </button>
         ))}
       </div>

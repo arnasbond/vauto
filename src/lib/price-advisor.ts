@@ -11,7 +11,7 @@ export interface PriceAdvice {
   maxPrice?: number;
   medianPrice?: number;
   sampleSize: number;
-  source?: "skelbiu.lt" | "vauto";
+  source?: "market" | "vauto";
   scope?: "city" | "national";
 }
 
@@ -47,7 +47,7 @@ export function getPriceAdvice(
       verdict: "unknown",
       message: "Paslaugų kainai palyginimas pagal valandą — įveskite kainą rankiniu būdu.",
       sampleSize: 0,
-      source: "skelbiu.lt",
+      source: "market",
     };
   }
 
@@ -68,14 +68,14 @@ export function getPriceAdvice(
     const scopeLabel =
       market.scope === "city" ? market.city : "visoje Lietuvoje";
     let verdict: PriceVerdict = "fair";
-    let message = `Skelbiu.lt rinkos signalas ${scopeLabel}: ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Rekomenduojama starto kaina apie ${formatPrice(medianPrice)}.`;
+    let message = `Rinkos signalas ${scopeLabel}: ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Rekomenduojama starto kaina apie ${formatPrice(medianPrice)}.`;
 
     if (ratio < 0.75) {
       verdict = "low";
-      message = `Skelbiu.lt rinkoje ${scopeLabel} panašūs skelbimai kainuoja ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Jūsų kaina žemesnė — galite parduoti greičiau.`;
+      message = `Rinkoje ${scopeLabel} panašūs skelbimai kainuoja ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Jūsų kaina žemesnė — galite parduoti greičiau.`;
     } else if (ratio > 1.25) {
       verdict = "high";
-      message = `Skelbiu.lt rinkoje ${scopeLabel} panašūs skelbimai kainuoja ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Sumažinus ar priartinus prie ${formatPrice(medianPrice)} sulauksite daugiau dėmesio.`;
+      message = `Rinkoje ${scopeLabel} panašūs skelbimai kainuoja ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Sumažinus ar priartinus prie ${formatPrice(medianPrice)} sulauksite daugiau dėmesio.`;
     }
 
     return {
@@ -85,7 +85,7 @@ export function getPriceAdvice(
       maxPrice,
       medianPrice,
       sampleSize: market.comparables.length,
-      source: "skelbiu.lt",
+      source: "market",
       scope: market.scope,
     };
   }
@@ -106,9 +106,9 @@ export function getPriceAdvice(
   if (peers.length < 2) {
     return {
       verdict: "unknown",
-      message: "Skelbiu.lt kainų adapteris dar neturi pakankamo signalo šiai prekei — stebėkite dominančią kainą.",
+      message: "Dar neturime pakankamai rinkos duomenų šiai prekei — stebėkite dominančią kainą.",
       sampleSize: peers.length,
-      source: "skelbiu.lt",
+      source: "market",
     };
   }
 

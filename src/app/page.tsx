@@ -25,14 +25,14 @@ export default function HomePage() {
         </div>
         <div className="mt-5 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
           <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1167b1]">
-            VAUTO marketplace
+            VAUTO
           </p>
           <h1 className="font-display mt-2 text-[1.65rem] font-extrabold leading-[1.08] tracking-tight text-[#111827] sm:text-[1.875rem]">
             Ieškok. Rask. Įdėk.
           </h1>
           <p className="mt-2 text-[13px] leading-snug text-[#6b7280]">
-            Švarus Marktplaats tipo srautas visai Lietuvai su AI foto paieška
-            ir Skelbiu.lt kainų signalais.
+            Skelbimai ir paslaugos visoje Lietuvoje — AI foto paieška, balso
+            įvedimas ir rinkos kainų patarimai.
           </p>
         </div>
       </HeroSection>

@@ -58,7 +58,7 @@ export function ConfirmationShell({
 
         <h2 className={cn("text-xl font-bold", t.subtitle)}>Patikrinkite skelbimo duomenis</h2>
         <p className={cn("mb-4 text-xs", t.subtitle)}>
-          AI automatiškai sugeneravo struktūrą pagal {config.portalStyle} specifiką ·
+          AI automatiškai sugeneravo struktūrą pagal {config.label} kategoriją ·
           pasitikėjimas {Math.round(draft.confidence * 100)}%
         </p>
 

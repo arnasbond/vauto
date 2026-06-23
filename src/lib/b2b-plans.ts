@@ -29,7 +29,7 @@ export const B2B_PLANS: B2BPlan[] = [
     listingLimit: "unlimited",
     features: [
       "Neriboti skelbimai",
-      "Skelbiu.lt kainų palyginimas",
+      "Rinkos kainų palyginimas",
       "Pro Meistras: daugiau lead’ų ir Top Rated nuolaidos",
       "Automatinis TOP iškėlimas",
       "API/XML feed paruošimas",

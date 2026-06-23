@@ -24,7 +24,7 @@ export function getPromoteSuggestion(listing: Listing): PromoteSuggestion {
     vehicles: `${labels.cardCta} — daugiau peržiūrų ${region} automobilių pirkėjams`,
     clothing: `${labels.bumpLabel} — matomumas mados entuziastams ${region}`,
     services: `${labels.cardCta} — daugiau užklausų ${region}`,
-    real_estate: `${labels.cardCta} — ${labels.bumpLabel} Aruodas.lt stiliaus matomumui ${region}`,
+    real_estate: `${labels.cardCta} — ${labels.bumpLabel} didesniam matomumui ${region}`,
     default: `${labels.cardCta} — padidinkite matomumą ${region} už ${cost.toFixed(2)}€`,
   };
 

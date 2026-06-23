@@ -32,9 +32,9 @@ export function PriceAdviceCard({ advice }: PriceAdviceCardProps) {
       <div>
         <p className="text-xs font-semibold text-white">
           AI kainos patarimas
-          {advice.source === "skelbiu.lt" && (
+          {advice.source === "market" && (
             <span className="ml-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--flux-teal)]">
-              Skelbiu.lt signalas
+              Rinkos duomenys
             </span>
           )}
         </p>

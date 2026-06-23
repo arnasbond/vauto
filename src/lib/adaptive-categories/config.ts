@@ -7,7 +7,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   vehicles: {
     key: "vehicles",
     label: "AUTOMOBILIŲ",
-    portalStyle: "Autoplius",
+    portalStyle: "Auto",
     layout: "technical-grid",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
@@ -41,7 +41,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   clothing: {
     key: "clothing",
     label: "APRANGOS",
-    portalStyle: "Vinted",
+    portalStyle: "Apranga",
     layout: "tag-social",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
@@ -60,7 +60,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   services: {
     key: "services",
     label: "PASLAUGŲ",
-    portalStyle: "Paslaugos.lt",
+    portalStyle: "Paslaugos",
     layout: "service-profile",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
@@ -97,7 +97,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   jobs: {
     key: "jobs",
     label: "DARBO",
-    portalStyle: "CVbankas",
+    portalStyle: "Darbas",
     layout: "service-profile",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
@@ -147,7 +147,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   real_estate: {
     key: "real_estate",
     label: "NEKILNOJAMOJO TURTO",
-    portalStyle: "Aruodas.lt",
+    portalStyle: "NT",
     layout: "estate-sheet",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [
@@ -167,7 +167,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   universal: {
     key: "universal",
     label: "BENDRAS",
-    portalStyle: "Skelbiu.lt",
+    portalStyle: "Prekės",
     layout: "universal",
     baseFields: ["title", "price", "location", "contact", "description"],
     fields: [],

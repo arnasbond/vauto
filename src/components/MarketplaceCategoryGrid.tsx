@@ -20,7 +20,7 @@ const CATEGORIES = [
   { label: "Paslaugos", query: "meistras remontas paslaugos", icon: Wrench },
   { label: "NT", query: "butas namas nuoma", icon: Home },
   { label: "Darbas", query: "darbas pilnas etatas", icon: BriefcaseBusiness },
-  { label: "AI atranda", query: "populiaru skelbiu signalas", icon: Sparkles },
+  { label: "AI atranda", query: "populiaru šiandien", icon: Sparkles },
 ] as const;
 
 export function MarketplaceCategoryGrid() {
