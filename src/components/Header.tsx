@@ -14,13 +14,13 @@ export function Header() {
   return (
     <header className="flex items-center justify-between">
       <Link href="/">
-        <VautoLogo />
+        <VautoLogo className="text-[#1167b1]" />
       </Link>
 
       <div className="flex items-center gap-3">
         <Link
           href="/chats"
-          className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-white/[0.08] bg-white/[0.06] text-white/90 backdrop-blur-md transition hover:bg-white/10"
+          className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#d7dde5] bg-white text-[#1167b1] shadow-sm transition hover:bg-[#eef6ff]"
           aria-label={
             unreadChats > 0
               ? `Pokalbiai, ${unreadChats} neperskaityti`
@@ -36,7 +36,7 @@ export function Header() {
         </Link>
         <Link
           href="/profile"
-          className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-white/40"
+          className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-[#d7dde5]"
           aria-label="Profilis"
         >
           <Image

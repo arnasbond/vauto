@@ -30,7 +30,14 @@ export function PriceAdviceCard({ advice }: PriceAdviceCardProps) {
     <div className={`mt-3 flex gap-2 rounded-xl border p-3 ${border}`}>
       <div className="mt-0.5 shrink-0">{icon}</div>
       <div>
-        <p className="text-xs font-semibold text-white">AI kainos patarimas</p>
+        <p className="text-xs font-semibold text-white">
+          AI kainos patarimas
+          {advice.source === "skelbiu.lt" && (
+            <span className="ml-1 rounded-full bg-white/10 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-[var(--flux-teal)]">
+              Skelbiu.lt signalas
+            </span>
+          )}
+        </p>
         <p className="mt-1 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
           {advice.message}
         </p>

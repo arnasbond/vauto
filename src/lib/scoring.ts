@@ -18,7 +18,12 @@ export function computeSemanticRelevance(
     listing.title,
     listing.location,
     listing.category,
+    listing.description ?? "",
     ...listing.tags,
+    ...Object.entries(listing.attributes ?? {}).flatMap(([key, value]) => [
+      key,
+      ...(Array.isArray(value) ? value : value ? [value] : []),
+    ]),
   ]
     .join(" ")
     .toLowerCase();
@@ -34,6 +39,8 @@ export function computeSemanticRelevance(
     score = Math.min(1, score + 0.4);
   if (/auto|mašin|golf|opel/i.test(query) && listing.category === "vehicles")
     score = Math.min(1, score + 0.35);
+  if (/ratlank|padang|r16|r17|felg|disk/i.test(query) && listing.category === "vehicles")
+    score = Math.min(1, score + 0.45);
   if (/pig|nebrang|budget|cheap/i.test(query) && listing.price < 500)
     score = Math.min(1, score + 0.2);
   if (/meistr|elektr|remont/i.test(query) && listing.category === "services")
@@ -88,7 +95,7 @@ function getScoringWeights(query: string): {
 } {
   const q = query.toLowerCase();
   const isService = /žol|meistr|paslaug|remont|montuoj|elektr|kirp|maniki/i.test(q);
-  const isShippable = /telefon|iphone|siunt|pašt|dvirat|kompiuter/i.test(q);
+  const isShippable = /telefon|iphone|siunt|pašt|dvirat|kompiuter|ratlank|padang/i.test(q);
 
   if (isService) {
     return { semantic: 0.4, proximity: 0.4, price: 0.1, recency: 0.1 };
@@ -149,12 +156,21 @@ export function generateDynamicFilters(query: string): DynamicFilter[] {
   const q = query.toLowerCase();
   const filters: DynamicFilter[] = [];
 
-  if (/auto|mašin|golf|opel|vw/i.test(q)) {
+  if (/auto|mašin|golf|opel|vw|ratlank|padang|r16|r17/i.test(q)) {
     filters.push(
       {
         id: "under-5k",
         label: "Iki 5000€",
         apply: (l) => l.category === "vehicles" && l.price <= 5000,
+      },
+      {
+        id: "auto-parts",
+        label: "Auto dalys",
+        apply: (l) =>
+          l.category === "vehicles" &&
+          /ratlank|padang|dal|r16|r17|felg/i.test(
+            [l.title, l.description ?? "", ...l.tags].join(" ")
+          ),
       },
       {
         id: "automatic",

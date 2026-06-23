@@ -10,10 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
-import {
-  ANONYMOUS_USER,
-  INITIAL_LISTINGS,
-} from "@/data/mockListings";
+import { INITIAL_LISTINGS } from "@/data/mockListings";
 import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
   generateDynamicFilters,
@@ -499,12 +496,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setApiActive(true);
         const storedUser = loadUser();
         const auth = loadAuthSession();
-        const uid = storedUser?.id && auth?.isAuthenticated ? storedUser.id : ANONYMOUS_USER.id;
-        const [listingsRes, savedRes, userRes] = await Promise.all([
-          apiFetchListings(),
-          apiFetchSaved(uid),
-          apiFetchUser(uid),
-        ]);
+        const hasAuthUser = Boolean(storedUser?.id && auth?.isAuthenticated);
+        const listingsRes = await apiFetchListings();
+        const [savedRes, userRes] = hasAuthUser
+          ? await Promise.all([
+              apiFetchSaved(storedUser!.id),
+              apiFetchUser(storedUser!.id),
+            ])
+          : [null, null];
 
         const errors: string[] = [];
         if (listingsRes.ok) {
@@ -515,9 +514,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             )
           );
         } else errors.push(listingsRes.error);
-        if (savedRes.ok) setSavedIds(new Set(savedRes.data));
-        else errors.push(savedRes.error);
-        if (userRes.ok && auth?.isAuthenticated) {
+        if (savedRes?.ok) setSavedIds(new Set(savedRes.data));
+        else if (savedRes) errors.push(savedRes.error);
+        if (userRes?.ok && auth?.isAuthenticated) {
           patchAuthUser(userRes.data);
         } else if (storedUser && auth?.isAuthenticated) {
           patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });

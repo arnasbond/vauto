@@ -20,11 +20,36 @@ export interface VoiceIntentResult {
 const NEW_ADS_RE =
   /(?:ar\s+)?(?:atsirado|yra|radai|rasti)\s+(?:nauj[ųu]\s+)?(?:skelbim[ųu]|įraš[ųu]|pasiūlym[ųu])?(?:\s+(.+))?/i;
 const SERVICE_RE =
-  /(?:surask|rask|ieškok|reikia)\s+(?:man\s+)?(?:laisv[ąa]\s+)?(.+?)(?:\s+panev[eė]žyje|\s+šalia|$)/i;
+  /(?:surask|rask|ieškok|reikia)\s+(?:man\s+)?(?:laisv[ąa]\s+)?(.+?)(?:\s+(?:vilniuje|kaune|klaip[eė]doje|[šs]iauliuose|panev[eė][žz]yje|alytuje|marijampol[eė]je|utenoje|palangoje)|\s+šalia|$)/i;
 const SERVICE_ALT_RE = /(?:meistr[ąa]|paslaug[ąa]|specialist[ąa])\s+(.+)?/i;
+const CITY_PATTERNS: Array<[RegExp, string]> = [
+  [/vilniuje|vilnius/i, "Vilnius"],
+  [/kaune|kaunas/i, "Kaunas"],
+  [/klaip[eė]doje|klaip[eė]da/i, "Klaipėda"],
+  [/[šs]iauliuose|[šs]iauliai/i, "Šiauliai"],
+  [/panev[eė][žz]yje|panev[eė][žz]ys/i, "Panevėžys"],
+  [/alytuje|alytus/i, "Alytus"],
+  [/marijampol[eė]je|marijampol[eė]/i, "Marijampolė"],
+  [/utenoje|utena/i, "Utena"],
+  [/palangoje|palanga/i, "Palanga"],
+];
 
 function normalizeCity(city: string): string {
-  return city.split(",")[0]?.trim() || "Panevėžys";
+  return city.split(",")[0]?.trim() || "Lietuva";
+}
+
+function detectCity(raw: string, fallback: string): string {
+  for (const [pattern, city] of CITY_PATTERNS) {
+    if (pattern.test(raw)) return city;
+  }
+  return normalizeCity(fallback);
+}
+
+function removeCityWords(text: string): string {
+  return CITY_PATTERNS.reduce(
+    (next, [pattern]) => next.replace(pattern, ""),
+    text
+  ).trim();
 }
 
 function tokenize(text: string): string[] {
@@ -50,8 +75,9 @@ function listingMatchesTopic(listing: Listing, topic: string): boolean {
 }
 
 function listingInCity(listing: Listing, city: string): boolean {
+  if (city === "Lietuva") return true;
   const c = city.toLowerCase();
-  return listing.location.toLowerCase().includes(c) || c.includes("panev");
+  return listing.location.toLowerCase().includes(c);
 }
 
 function scoreListing(listing: Listing): number {
@@ -66,22 +92,21 @@ function scoreListing(listing: Listing): number {
 
 export function parseVoiceIntent(
   transcript: string,
-  defaultCity = "Panevėžys"
+  defaultCity = "Lietuva"
 ): VoiceIntent {
   const raw = transcript.trim();
-  const city = /panev[eė]žyje/i.test(raw) ? "Panevėžys" : defaultCity;
+  const city = detectCity(raw, defaultCity);
 
   const newAds = raw.match(NEW_ADS_RE);
   if (newAds) {
-    const topic = (newAds[1] ?? "").replace(/panev[eė]žyje/gi, "").trim() || "bendri";
+    const topic = removeCityWords(newAds[1] ?? "") || "bendri";
     return { type: "check_new_ads", topic, city, raw };
   }
 
   const service = raw.match(SERVICE_RE) ?? raw.match(SERVICE_ALT_RE);
   if (service || /meistr|paslaug|remont|elektrik|santechn/i.test(raw)) {
     const topic =
-      (service?.[1] ?? raw)
-        .replace(/panev[eė]žyje/gi, "")
+      removeCityWords(service?.[1] ?? raw)
         .replace(/laisv[ąa]/gi, "")
         .trim() || "meistras";
     return { type: "service_request", topic, city, raw };
@@ -185,6 +210,6 @@ export function executeVoiceIntent(
     matchCount: 0,
     topListing: null,
     response:
-      "Supratau. Galite paklausti, ar atsirado naujų skelbimų, ar paprašyti surasti meistrą Panevėžyje.",
+      "Supratau. Galite paklausti, ar atsirado naujų skelbimų Vilniuje, Kaune ar kitame Lietuvos mieste.",
   };
 }

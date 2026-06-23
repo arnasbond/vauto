@@ -47,6 +47,13 @@ export interface LoginPayload {
   otp?: string;
   city?: string;
   idToken?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
 }
 
 interface AuthContextValue {
@@ -170,10 +177,20 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }),
       name: names[data.provider],
       phone: data.phone ?? "",
-      city: data.city || user.city || "Panevėžys",
+      city: data.city || user.city || "Vilnius",
       authProvider: data.provider,
       role: data.role,
       businessType: data.businessType,
+      companyName: data.companyName,
+      companyCode: data.companyCode,
+      vatCode: data.vatCode,
+      serviceBaseCity: data.serviceBaseCity,
+      serviceRadiusKm: data.serviceRadiusKm,
+      serviceNationwide: data.serviceNationwide,
+      serviceSpecialties: data.serviceSpecialties,
+      averageResponseMinutes: data.role === "pro" ? 12 : undefined,
+      billingPlan: data.role === "pro" ? "starter" : "free",
+      billingModel: data.role === "pro" ? "ppc" : undefined,
       walletBalance: data.role === "pro" ? 25 : 0,
       memberSince: new Date().toISOString(),
       soldCount: 0,
@@ -199,6 +216,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   role: data.role,
                   businessType: data.businessType,
                   city: data.city ?? user.city,
+                  companyName: data.companyName,
+                  companyCode: data.companyCode,
+                  vatCode: data.vatCode,
+                  serviceBaseCity: data.serviceBaseCity,
+                  serviceRadiusKm: data.serviceRadiusKm,
+                  serviceNationwide: data.serviceNationwide,
+                  serviceSpecialties: data.serviceSpecialties,
                 })
               : await apiSocialLogin({
                   provider: data.provider,
@@ -207,6 +231,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   email: data.email,
                   city: data.city ?? user.city,
                   idToken: data.idToken,
+                  companyName: data.companyName,
+                  companyCode: data.companyCode,
+                  vatCode: data.vatCode,
+                  serviceBaseCity: data.serviceBaseCity,
+                  serviceRadiusKm: data.serviceRadiusKm,
+                  serviceNationwide: data.serviceNationwide,
+                  serviceSpecialties: data.serviceSpecialties,
                 });
 
           if (!apiResult.ok) {

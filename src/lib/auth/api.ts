@@ -16,6 +16,16 @@ export interface AuthApiSession {
     soldCount?: number;
     role?: UserRole;
     businessType?: ProBusinessType;
+    companyName?: string;
+    companyCode?: string;
+    vatCode?: string;
+    billingPlan?: "free" | "starter" | "pro";
+    billingModel?: "ppc" | "subscription";
+    serviceBaseCity?: string;
+    serviceRadiusKm?: number;
+    serviceNationwide?: boolean;
+    serviceSpecialties?: string[];
+    averageResponseMinutes?: number;
   };
   role: UserRole;
   provider: AuthProvider;
@@ -70,6 +80,13 @@ export async function apiVerifyOtp(params: {
   role: UserRole;
   businessType?: ProBusinessType;
   city?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/otp/verify", {
     method: "POST",
@@ -84,6 +101,13 @@ export async function apiSocialLogin(params: {
   email?: string;
   city?: string;
   idToken?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/social", {
     method: "POST",
@@ -118,6 +142,16 @@ export function mapApiUserToProfile(
     authProvider: meta.provider,
     role: meta.role,
     businessType: meta.businessType ?? apiUser.businessType,
+    companyName: apiUser.companyName,
+    companyCode: apiUser.companyCode,
+    vatCode: apiUser.vatCode,
+    billingPlan: apiUser.billingPlan,
+    billingModel: apiUser.billingModel,
+    serviceBaseCity: apiUser.serviceBaseCity,
+    serviceRadiusKm: apiUser.serviceRadiusKm,
+    serviceNationwide: apiUser.serviceNationwide,
+    serviceSpecialties: apiUser.serviceSpecialties,
+    averageResponseMinutes: apiUser.averageResponseMinutes,
     walletBalance:
       apiUser.walletBalance ??
       meta.walletBalance ??

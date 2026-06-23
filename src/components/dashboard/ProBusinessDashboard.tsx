@@ -2,12 +2,17 @@
 
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
+import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
+import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
+import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
+import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { mockAggregateAnalytics, mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
+import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
 
 interface ProBusinessDashboardProps {
@@ -31,14 +36,17 @@ export function ProBusinessDashboard({
   onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
-  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt } = useVauto();
+  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews } = useVauto();
   const analytics = mockAggregateAnalytics(listings);
+  const rating = computeSellerRating(reviews, user.id);
+  const serviceRating = rating.count > 0 ? rating.avg : 4.9;
   const showCalendar =
     user.businessType === "services" ||
     listings.some((l) => l.category === "services");
 
   return (
     <div>
+      <BusinessIdentityCard user={user} />
       <CallAndSellWidget
         views={analytics.views}
         callClicks={analytics.callClicks}
@@ -57,7 +65,23 @@ export function ProBusinessDashboard({
         balance={user.walletBalance ?? 0}
         onTopUp={onTopUp}
       />
-      {showCalendar && <ServiceCalendar bookings={mockServiceBookings()} />}
+      <B2BBillingCard
+        balance={user.walletBalance ?? 0}
+        clicks={analytics.views}
+        callClicks={analytics.callClicks}
+        activeListings={listings.length}
+      />
+      <BulkUploadCard />
+      {showCalendar && (
+        <>
+          <ServiceLeadInbox
+            balance={user.walletBalance ?? 0}
+            user={user}
+            rating={serviceRating}
+          />
+          <ServiceCalendar bookings={mockServiceBookings()} />
+        </>
+      )}
 
       <section className="mt-2">
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">

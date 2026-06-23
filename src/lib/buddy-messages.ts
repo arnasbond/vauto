@@ -49,7 +49,7 @@ export function buildSellerBuddyMessage(params: {
   }
 
   const key = listingToAdaptiveKey(draft.category);
-  const city = draft.location?.split(",")[0]?.trim() || "Panevėžyje";
+  const city = draft.location?.split(",")[0]?.trim() || "Lietuvoje";
   const title = draft.title || "skelbimas";
 
   if (!hasPhoto && key === "vehicles") {
@@ -141,7 +141,7 @@ export function buildSellerQuickActions(params: {
 export function buildSearchBuddyMessage(
   query: string,
   listings: Listing[],
-  city = "Panevėžyje"
+  city = "Lietuvoje"
 ): { message: string; listing: Listing | null } {
   const top = listings[0] ?? null;
 
@@ -207,7 +207,7 @@ export function buildBuddyViewNotification(
   location: string,
   viewerCount = 5
 ): string {
-  const city = location.split(",")[0]?.trim() || "Panevėžyje";
+  const city = location.split(",")[0]?.trim() || "Lietuvoje";
   return `Jūsų skelbimą ${city} peržiūrėjo ${viewerCount} naudotojai.`;
 }
 

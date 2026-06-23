@@ -7,6 +7,7 @@ const EXTRACTION_SCHEMA = `{
   "confidence": "number 0-1",
   "attributes": {
     "mileage": "string", "engine": "string", "fuelType": "string", "defects": "string", "taExpiry": "string",
+    "partType": "string", "quantity": "string", "marketHint": "string",
     "size": "string", "brand": "string", "condition": "string", "color": "string",
     "experience": "string", "serviceList": ["string"], "invoicing": "string", "workingRadius": "string",
     "area": "string", "rooms": "string", "floor": "string", "heating": "string"

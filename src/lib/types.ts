@@ -103,6 +103,16 @@ export interface UserProfile {
   warned?: boolean;
   memberSince?: string;
   soldCount?: number;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  billingPlan?: "free" | "starter" | "pro";
+  billingModel?: "ppc" | "subscription";
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
+  averageResponseMinutes?: number;
 }
 
 export interface SellerReview {
@@ -193,7 +203,10 @@ export type EscrowStatus =
   | "paying"
   | "paid"
   | "label_sent"
+  | "shipped"
+  | "delivered"
   | "completed"
+  | "disputed"
   | "cancelled";
 
 export interface EscrowTransaction {

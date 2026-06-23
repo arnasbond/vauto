@@ -1,6 +1,6 @@
 "use client";
 
-import { CheckCircle2, ShieldCheck } from "lucide-react";
+import { CheckCircle2, PackageCheck, ShieldCheck, Truck } from "lucide-react";
 import { useState } from "react";
 import { EscrowModal } from "@/components/EscrowModal";
 import { useVauto } from "@/context/VautoContext";
@@ -37,29 +37,48 @@ export function EscrowActionBlock({
 
   const inProgress =
     escrow &&
-    ["paying", "paid", "label_sent"].includes(escrow.status);
+    ["paying", "paid", "label_sent", "shipped", "delivered"].includes(escrow.status);
+
+  const statusLabel =
+    escrow?.status === "paying"
+      ? "Mokėjimas vyksta"
+      : escrow?.status === "paid"
+        ? "Apmokėta — rinkitės siuntimą"
+        : escrow?.status === "label_sent"
+          ? "QR lipdukas paruoštas"
+          : escrow?.status === "shipped"
+            ? "Siunta išsiųsta"
+            : escrow?.status === "delivered"
+              ? "Siunta pristatyta"
+              : "Saugus pirkimas";
 
   return (
     <>
-      <div className="mx-2 my-3 rounded-2xl border border-[var(--vauto-blue)]/20 bg-[var(--vauto-blue)]/5 p-4">
+      <div className="mx-2 my-3 rounded-2xl border border-[#bfdbfe] bg-[#eef6ff] p-4">
         <div className="flex items-start gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-[var(--vauto-blue)]/15">
-            <ShieldCheck className="h-5 w-5 text-[var(--vauto-blue)]" />
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-white text-[#1167b1] shadow-sm">
+            {escrow?.status === "label_sent" || escrow?.status === "shipped" ? (
+              <Truck className="h-5 w-5" />
+            ) : escrow?.status === "delivered" ? (
+              <PackageCheck className="h-5 w-5" />
+            ) : (
+              <ShieldCheck className="h-5 w-5" />
+            )}
           </div>
           <div>
-            <p className="text-xs font-medium text-[var(--vauto-blue)]">
-              AI Asistentas
+            <p className="text-xs font-bold uppercase tracking-wide text-[#1167b1]">
+              {statusLabel}
             </p>
-            <p className="mt-1 text-sm text-[var(--vauto-text)]">
+            <p className="mt-1 text-sm text-[#374151]">
               {inProgress ? (
                 <>
-                  Escrow procesas vyksta.{" "}
+                  Mokėjimo / siuntos procesas vyksta.{" "}
                   <button
                     type="button"
-                    className="font-semibold text-[var(--vauto-orange)] underline underline-offset-2"
+                    className="font-semibold text-[#f97316] underline underline-offset-2"
                     onClick={() => setOpen(true)}
                   >
-                    Tęsti mokėjimą
+                    Atidaryti būseną
                   </button>
                 </>
               ) : (
@@ -67,15 +86,19 @@ export function EscrowActionBlock({
                   Atrodo, kad susitarėte dėl sandorio.{" "}
                   <button
                     type="button"
-                    className="font-semibold text-[var(--vauto-orange)] underline underline-offset-2"
+                    className="font-semibold text-[#f97316] underline underline-offset-2"
                     onClick={() => setOpen(true)}
                   >
-                    Spauskite čia, kad sumokėtumėte saugiai ir gautumėte siuntos
-                    lipduką
+                    Pirkti saugiai: bankinis mokėjimas + paštomato QR
                   </button>
                 </>
               )}
             </p>
+            {escrow?.trackingCode && (
+              <p className="mt-2 font-mono text-xs text-[#1167b1]">
+                {escrow.trackingCode}
+              </p>
+            )}
           </div>
         </div>
       </div>

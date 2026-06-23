@@ -1,5 +1,6 @@
 import type { Listing } from "@/lib/types";
 import { formatPrice } from "@/data/mockListings";
+import { getSkelbiuMarketSnapshot } from "@/lib/market-pricing";
 
 export type PriceVerdict = "low" | "fair" | "high" | "unknown";
 
@@ -10,6 +11,8 @@ export interface PriceAdvice {
   maxPrice?: number;
   medianPrice?: number;
   sampleSize: number;
+  source?: "skelbiu.lt" | "vauto";
+  scope?: "city" | "national";
 }
 
 function normalizeLocation(loc: string): string {
@@ -35,7 +38,8 @@ function comparableListings(
 }
 
 export function getPriceAdvice(
-  target: Pick<Listing, "category" | "location" | "price" | "id" | "priceLabel">,
+  target: Pick<Listing, "category" | "location" | "price" | "id" | "priceLabel"> &
+    Partial<Pick<Listing, "title" | "tags" | "description" | "attributes">>,
   allListings: Listing[]
 ): PriceAdvice {
   if (target.priceLabel || target.price <= 0) {
@@ -43,15 +47,68 @@ export function getPriceAdvice(
       verdict: "unknown",
       message: "Paslaugų kainai palyginimas pagal valandą — įveskite kainą rankiniu būdu.",
       sampleSize: 0,
+      source: "skelbiu.lt",
     };
   }
 
+  const market = getSkelbiuMarketSnapshot({
+    title: target.title ?? "",
+    category: target.category,
+    location: target.location,
+    tags: target.tags ?? [],
+    description: target.description,
+    attributes: target.attributes,
+  });
+  if (market.comparables.length > 0) {
+    const prices = market.comparables.map((item) => item.price).sort((a, b) => a - b);
+    const minPrice = prices[0];
+    const maxPrice = prices[prices.length - 1];
+    const medianPrice = prices[Math.floor(prices.length / 2)];
+    const ratio = target.price / medianPrice;
+    const scopeLabel =
+      market.scope === "city" ? market.city : "visoje Lietuvoje";
+    let verdict: PriceVerdict = "fair";
+    let message = `Skelbiu.lt rinkos signalas ${scopeLabel}: ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Rekomenduojama starto kaina apie ${formatPrice(medianPrice)}.`;
+
+    if (ratio < 0.75) {
+      verdict = "low";
+      message = `Skelbiu.lt rinkoje ${scopeLabel} panašūs skelbimai kainuoja ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Jūsų kaina žemesnė — galite parduoti greičiau.`;
+    } else if (ratio > 1.25) {
+      verdict = "high";
+      message = `Skelbiu.lt rinkoje ${scopeLabel} panašūs skelbimai kainuoja ${formatPrice(minPrice)}–${formatPrice(maxPrice)}. Sumažinus ar priartinus prie ${formatPrice(medianPrice)} sulauksite daugiau dėmesio.`;
+    }
+
+    return {
+      verdict,
+      message,
+      minPrice,
+      maxPrice,
+      medianPrice,
+      sampleSize: market.comparables.length,
+      source: "skelbiu.lt",
+      scope: market.scope,
+    };
+  }
+
+  // Fallback only when the external market adapter has no signal yet.
   const peers = comparableListings(target, allListings);
+  if (peers.length === 1) {
+    return {
+      verdict: "fair",
+      message: `Panašus skelbimas ${normalizeLocation(target.location)}: ${formatPrice(peers[0].price)}. Tai geras pradinis rinkos orientyras.`,
+      minPrice: peers[0].price,
+      maxPrice: peers[0].price,
+      medianPrice: peers[0].price,
+      sampleSize: 1,
+      source: "vauto",
+    };
+  }
   if (peers.length < 2) {
     return {
       verdict: "unknown",
-      message: "Dar per mažai panašių skelbimų regione — stebėkite dominančią kainą.",
+      message: "Skelbiu.lt kainų adapteris dar neturi pakankamo signalo šiai prekei — stebėkite dominančią kainą.",
       sampleSize: peers.length,
+      source: "skelbiu.lt",
     };
   }
 
@@ -81,5 +138,6 @@ export function getPriceAdvice(
     maxPrice,
     medianPrice,
     sampleSize: peers.length,
+    source: "vauto",
   };
 }

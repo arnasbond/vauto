@@ -33,20 +33,41 @@ function providerName(provider: string): string {
 async function buildSession(
   userId: string,
   profile: Partial<ApiUser> & { id: string },
-  meta: { role: string; provider: string; businessType?: string }
+  meta: {
+    role: string;
+    provider: string;
+    businessType?: string;
+    companyName?: string;
+    companyCode?: string;
+    vatCode?: string;
+    serviceBaseCity?: string;
+    serviceRadiusKm?: number;
+    serviceNationwide?: boolean;
+    serviceSpecialties?: string[];
+  }
 ) {
   const existing = await getUser(userId);
   const user: ApiUser = {
     id: userId,
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
     phone: profile.phone ?? existing?.phone ?? "+370",
-    city: profile.city ?? existing?.city ?? "Panevėžys",
+    city: profile.city ?? existing?.city ?? "Vilnius",
     avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
     email: profile.email ?? existing?.email,
     warned: existing?.warned ?? false,
     role: meta.role,
     businessType: meta.businessType ?? existing?.businessType,
     authProvider: meta.provider,
+    companyName: meta.companyName ?? existing?.companyName,
+    companyCode: meta.companyCode ?? existing?.companyCode,
+    vatCode: meta.vatCode ?? existing?.vatCode,
+    billingPlan: existing?.billingPlan ?? (meta.role === "pro" ? "starter" : "free"),
+    billingModel: existing?.billingModel ?? (meta.role === "pro" ? "ppc" : undefined),
+    serviceBaseCity: meta.serviceBaseCity ?? existing?.serviceBaseCity,
+    serviceRadiusKm: meta.serviceRadiusKm ?? existing?.serviceRadiusKm,
+    serviceNationwide: meta.serviceNationwide ?? existing?.serviceNationwide,
+    serviceSpecialties: meta.serviceSpecialties ?? existing?.serviceSpecialties,
+    averageResponseMinutes: existing?.averageResponseMinutes ?? (meta.businessType === "services" ? 12 : undefined),
     soldCount: existing?.soldCount ?? 0,
     walletBalance:
       existing?.walletBalance ??
@@ -90,9 +111,18 @@ authRouter.post("/otp/verify", async (req, res) => {
     const phone = String(req.body?.phone ?? "").trim();
     const code = String(req.body?.code ?? "").trim();
     const role = String(req.body?.role ?? "private");
-    const city = String(req.body?.city ?? "Panevėžys");
+    const city = String(req.body?.city ?? "Vilnius");
     const businessType = req.body?.businessType
       ? String(req.body.businessType)
+      : undefined;
+    const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
+    const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
+    const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
+    const serviceBaseCity = req.body?.serviceBaseCity ? String(req.body.serviceBaseCity) : undefined;
+    const serviceRadiusKm = req.body?.serviceRadiusKm ? Number(req.body.serviceRadiusKm) : undefined;
+    const serviceNationwide = req.body?.serviceNationwide === true;
+    const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
+      ? (req.body.serviceSpecialties as unknown[]).map(String)
       : undefined;
 
     if (!verifyOtp(phone, code)) {
@@ -104,7 +134,18 @@ authRouter.post("/otp/verify", async (req, res) => {
     const session = await buildSession(
       userId,
       { id: userId, phone, city, name: providerName("phone") },
-      { role, provider: "phone", businessType }
+      {
+        role,
+        provider: "phone",
+        businessType,
+        companyName,
+        companyCode,
+        vatCode,
+        serviceBaseCity,
+        serviceRadiusKm,
+        serviceNationwide,
+        serviceSpecialties,
+      }
     );
     res.json(session);
   } catch (e) {
@@ -117,16 +158,33 @@ authRouter.post("/social", async (req, res) => {
     const provider = String(req.body?.provider ?? "google");
     const role = String(req.body?.role ?? "private");
     const email = req.body?.email ? String(req.body.email) : undefined;
-    const city = String(req.body?.city ?? "Panevėžys");
+    const city = String(req.body?.city ?? "Vilnius");
     const businessType = req.body?.businessType
       ? String(req.body.businessType)
       : undefined;
     const idToken = req.body?.idToken ? String(req.body.idToken) : undefined;
+    const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
+    const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
+    const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
+    const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
+    const serviceBaseCity = req.body?.serviceBaseCity ? String(req.body.serviceBaseCity) : undefined;
+    const serviceRadiusKm = req.body?.serviceRadiusKm ? Number(req.body.serviceRadiusKm) : undefined;
+    const serviceNationwide = req.body?.serviceNationwide === true;
+    const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
+      ? (req.body.serviceSpecialties as unknown[]).map(String)
+      : undefined;
 
     if (provider === "google" && idToken) {
       const google = await verifyGoogleIdToken(idToken);
       if (!google) {
         res.status(401).json({ error: "Netinkamas Google token" });
+        return;
+      }
+      if (
+        role === "admin" &&
+        google.email?.toLowerCase() !== adminEmail.toLowerCase()
+      ) {
+        res.status(403).json({ error: "Admin access denied" });
         return;
       }
       const userId = stableUserId(`google:${google.sub}`);
@@ -139,14 +197,28 @@ authRouter.post("/social", async (req, res) => {
           avatar: google.picture ?? defaultAvatar("google"),
           city,
         },
-        { role, provider: "google", businessType }
+        {
+          role,
+          provider: "google",
+          businessType,
+          companyName,
+          companyCode,
+          vatCode,
+          serviceBaseCity,
+          serviceRadiusKm,
+          serviceNationwide,
+          serviceSpecialties,
+        }
       );
       res.json(session);
       return;
     }
 
     if (role === "admin") {
-      const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
+      if (process.env.NODE_ENV === "production") {
+        res.status(401).json({ error: "Admin Google verification required" });
+        return;
+      }
       if (email?.toLowerCase() !== adminEmail.toLowerCase()) {
         res.status(403).json({ error: "Admin access denied" });
         return;
@@ -162,7 +234,18 @@ authRouter.post("/social", async (req, res) => {
           avatar:
             "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
         },
-        { role: "admin", provider, businessType }
+        {
+          role: "admin",
+          provider,
+          businessType,
+          companyName,
+          companyCode,
+          vatCode,
+          serviceBaseCity,
+          serviceRadiusKm,
+          serviceNationwide,
+          serviceSpecialties,
+        }
       );
       res.json(session);
       return;
@@ -178,7 +261,18 @@ authRouter.post("/social", async (req, res) => {
         city,
         name: providerName(provider),
       },
-      { role, provider, businessType }
+      {
+        role,
+        provider,
+        businessType,
+        companyName,
+        companyCode,
+        vatCode,
+        serviceBaseCity,
+        serviceRadiusKm,
+        serviceNationwide,
+        serviceSpecialties,
+      }
     );
     res.json(session);
   } catch (e) {

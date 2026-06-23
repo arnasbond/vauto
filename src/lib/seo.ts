@@ -60,7 +60,7 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
   const priceText = listing.priceLabel ?? `${listing.price}€`;
   const regionalTitle = regionalizeTitle(listing.title, listing.location);
   const title = `${regionalTitle} — ${priceText} | VAUTO`;
-  const city = listing.location.split(",")[0]?.trim() || "Panevėžys";
+  const city = listing.location.split(",")[0]?.trim() || "Lietuva";
   const description =
     listing.description?.slice(0, 140) ??
     `${regionalTitle} — skelbimas ${city}. Kaina ${priceText}. Peržiūrėkite ir skambinkite per Vauto.`;

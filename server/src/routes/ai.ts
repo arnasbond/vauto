@@ -18,7 +18,7 @@ const EXTRACTION_SCHEMA = `{
   "description": "string",
   "category": "vehicles | clothing | services | real_estate | electronics | home | other",
   "confidence": "number 0-1",
-  "attributes": "object with category-specific fields"
+  "attributes": "object with category-specific fields, e.g. auto parts: partType, size, condition, quantity, marketHint"
 }`;
 
 function parseAttributes(raw: unknown): Record<string, string | string[]> {
@@ -77,9 +77,11 @@ aiRouter.post("/extract-image", async (req, res) => {
 
   const { imageDataUrl, userCity, contact } = req.body as {
     imageDataUrl: string;
-    userCity: string;
-    contact: string;
+    userCity?: string;
+    contact?: string;
   };
+  const city = userCity || "Lietuva";
+  const phone = contact || "+370 612 34567";
 
   try {
     const raw = await chatJson(key, [
@@ -88,13 +90,13 @@ aiRouter.post("/extract-image", async (req, res) => {
         content: [
           {
             type: "text",
-            text: `Ištrauk skelbimo duomenis iš nuotraukos. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity}`,
+            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Jei matai auto dalį (pvz. ratlankį, padangą), category turi būti "vehicles", title turi turėti konkrečią dalį ir dydį, attributes pridėk partType, size, condition, quantity, o price pateik kaip realistišką vietinės rinkos pradinį pasiūlymą eurais. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
           },
           { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
         ],
       },
     ]);
-    res.json(toListing(raw, userCity, contact));
+    res.json(toListing(raw, city, phone));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -106,9 +108,11 @@ aiRouter.post("/extract-text", async (req, res) => {
 
   const { text, userCity, contact } = req.body as {
     text: string;
-    userCity: string;
-    contact: string;
+    userCity?: string;
+    contact?: string;
   };
+  const city = userCity || "Lietuva";
+  const phone = contact || "+370 612 34567";
 
   try {
     const raw = await chatJson(key, [
@@ -119,10 +123,10 @@ aiRouter.post("/extract-text", async (req, res) => {
       },
       {
         role: "user",
-        content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${userCity}`,
+        content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${city}`,
       },
     ]);
-    res.json(toListing(raw, userCity, contact));
+    res.json(toListing(raw, city, phone));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

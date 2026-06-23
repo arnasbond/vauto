@@ -29,7 +29,7 @@ module.exports = async function handler(req, res) {
           content: [
             {
               type: "text",
-              text: `Ištrauk skelbimo duomenis iš nuotraukos. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity ?? "Panevėžys"}`,
+              text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Jei matai auto dalį (pvz. ratlankį, padangą), category turi būti "vehicles", title turi turėti konkrečią dalį ir dydį, attributes pridėk partType, size, condition, quantity, o price pateik kaip realistišką vietinės rinkos pradinį pasiūlymą eurais. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity ?? "Lietuva"}`,
             },
             { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
           ],
@@ -39,7 +39,7 @@ module.exports = async function handler(req, res) {
     );
     return res
       .status(200)
-      .json(toListing(raw, userCity ?? "Panevėžys", contact ?? "+370 612 34567"));
+      .json(toListing(raw, userCity ?? "Lietuva", contact ?? "+370 612 34567"));
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }

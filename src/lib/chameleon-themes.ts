@@ -7,7 +7,9 @@ export type ChameleonThemeId =
   | "autoplius"
   | "vinted"
   | "skelbiu"
-  | "aruodas";
+  | "aruodas"
+  | "paslaugos"
+  | "cvbankas";
 
 export interface ChameleonPromoteLabels {
   modalTitle: string;
@@ -215,6 +217,72 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
       title: "text-[#c62828] font-bold",
     },
   },
+  paslaugos: {
+    id: "paslaugos",
+    bodyClass: "chameleon-paslaugos",
+    portalLabel: "Paslaugos.lt stilius",
+    classicLayout: true,
+    promote: {
+      modalTitle: "Iškelti paslaugą",
+      cardCta: "Iškelti paslaugą",
+      bumpLabel: "TOP meistras",
+      successMessage: "Paslaugos skelbimas iškeltas paslaugų kataloge",
+    },
+    confirmation: {
+      shell: "bg-[#f4f9ff]",
+      headerBar: "border-[#cfe3ff] bg-white",
+      title: "text-[#0f766e] font-bold",
+      subtitle: "text-[#475569]",
+      assistantLabel: "text-[#0f766e] font-bold uppercase text-xs",
+      aiBubble: "bg-white border border-[#cfe3ff] text-[#0f172a] shadow-sm",
+      userBubble: "bg-[#e6fffb] border border-[#99f6e4] text-[#0f172a]",
+      detailsToggle:
+        "border border-[#cfe3ff] bg-white text-[#334155] font-semibold hover:bg-[#f8fbff]",
+      detailsPanel: "border border-[#cfe3ff] bg-white shadow-sm",
+      publishBtn: "bg-[#0f766e] text-white text-lg font-bold hover:bg-[#115e59]",
+      publishBtnDisabled: "disabled:bg-[#99f6e4]",
+      cancelBtn: "text-[#64748b] hover:bg-[#f1f5f9]",
+    },
+    panel: "rounded-xl border border-[#cfe3ff] bg-white p-4 shadow-sm",
+    published: {
+      shell: "bg-[#f4f9ff]",
+      card: "border border-[#cfe3ff] bg-white text-[#0f172a] shadow-md",
+      title: "text-[#0f766e] font-bold",
+    },
+  },
+  cvbankas: {
+    id: "cvbankas",
+    bodyClass: "chameleon-cvbankas",
+    portalLabel: "CVbankas.lt stilius",
+    classicLayout: true,
+    promote: {
+      modalTitle: "Iškelti darbo skelbimą",
+      cardCta: "Iškelti darbo skelbimą",
+      bumpLabel: "TOP darbo pasiūlymas",
+      successMessage: "Darbo skelbimas iškeltas kandidatų sraute",
+    },
+    confirmation: {
+      shell: "bg-[#f5f7fb]",
+      headerBar: "border-[#d9e2f1] bg-white",
+      title: "text-[#1f4b99] font-bold",
+      subtitle: "text-[#475569]",
+      assistantLabel: "text-[#1f4b99] font-bold uppercase text-xs",
+      aiBubble: "bg-white border border-[#d9e2f1] text-[#172033] shadow-sm",
+      userBubble: "bg-[#eaf1ff] border border-[#c8d8f4] text-[#172033]",
+      detailsToggle:
+        "border border-[#d9e2f1] bg-white text-[#334155] font-semibold hover:bg-[#f8fbff]",
+      detailsPanel: "border border-[#d9e2f1] bg-white shadow-sm",
+      publishBtn: "bg-[#1f4b99] text-white text-lg font-bold hover:bg-[#173a78]",
+      publishBtnDisabled: "disabled:bg-[#9bb4e2]",
+      cancelBtn: "text-[#64748b] hover:bg-[#f1f5f9]",
+    },
+    panel: "rounded-xl border border-[#d9e2f1] bg-white p-4 shadow-sm",
+    published: {
+      shell: "bg-[#f5f7fb]",
+      card: "border border-[#d9e2f1] bg-white text-[#172033] shadow-md",
+      title: "text-[#1f4b99] font-bold",
+    },
+  },
 };
 
 export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
@@ -225,6 +293,10 @@ export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
       return "vinted";
     case "real_estate":
       return "aruodas";
+    case "services":
+      return "paslaugos";
+    case "jobs":
+      return "cvbankas";
     default:
       return "skelbiu";
   }

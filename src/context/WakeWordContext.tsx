@@ -148,7 +148,7 @@ export function WakeWordProvider({
     setWakeWordStatusText("Suprantu…");
     logWakeEvent("command_received", { transcript: transcript.slice(0, 120) });
 
-    const intent = parseVoiceIntent(transcript, userCity || "Panevėžys");
+    const intent = parseVoiceIntent(transcript, userCity || "Lietuva");
     const result = executeVoiceIntent(intent, listingsRef.current ?? []);
 
     setWakeWordStatusText(result.response);

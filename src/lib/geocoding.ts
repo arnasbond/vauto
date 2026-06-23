@@ -20,6 +20,15 @@ export function geocodeLocation(locationText: string): UserCoords {
     "Mažeikiai",
     "Jonava",
     "Utena",
+    "Telšiai",
+    "Tauragė",
+    "Ukmergė",
+    "Plungė",
+    "Kėdainiai",
+    "Raseiniai",
+    "Druskininkai",
+    "Palanga",
+    "Biržai",
   ];
 
   let base: UserCoords | null = null;
@@ -34,8 +43,8 @@ export function geocodeLocation(locationText: string): UserCoords {
   }
 
   if (!base) {
-    base = coordsForCity("Panevėžys") ?? { lat: 55.7348, lng: 24.3575 };
-    matchedCity = "Panevėžys";
+    base = { lat: 55.1694, lng: 23.8813 };
+    matchedCity = "Lietuva";
   }
 
   const neighborhoodJitter = hashJitter(normalized.replace(matchedCity, "").trim());

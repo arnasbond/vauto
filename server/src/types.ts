@@ -11,6 +11,16 @@ export interface ApiUser {
   businessType?: string;
   soldCount?: number;
   authProvider?: string;
+  companyName?: string;
+  companyCode?: string;
+  vatCode?: string;
+  billingPlan?: string;
+  billingModel?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
+  averageResponseMinutes?: number;
 }
 
 export interface ApiReview {
@@ -99,7 +109,10 @@ export type ApiEscrowStatus =
   | "paying"
   | "paid"
   | "label_sent"
+  | "shipped"
+  | "delivered"
   | "completed"
+  | "disputed"
   | "cancelled";
 
 export interface ApiEscrowTransaction {

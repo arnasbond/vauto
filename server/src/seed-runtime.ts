@@ -12,9 +12,9 @@ export async function seedIfEmpty(): Promise<void> {
   let inserted = 0;
   for (const l of DEMO_LISTINGS) {
     await pool.query(
-      `INSERT INTO users (id, name, phone, city) VALUES ($1,'Pardavėjas','+37060000000','Panevėžys')
+      `INSERT INTO users (id, name, phone, city) VALUES ($1,'Pardavėjas','+37060000000',$2)
        ON CONFLICT DO NOTHING`,
-      [l.seller_id]
+      [l.seller_id, l.location]
     );
 
     const res = await pool.query(

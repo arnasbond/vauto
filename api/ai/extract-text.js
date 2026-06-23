@@ -29,12 +29,12 @@ module.exports = async function handler(req, res) {
       },
       {
         role: "user",
-        content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${userCity ?? "Panevėžys"}`,
+        content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${userCity ?? "Lietuva"}`,
       },
     ]);
     return res
       .status(200)
-      .json(toListing(raw, userCity ?? "Panevėžys", contact ?? "+370 612 34567"));
+      .json(toListing(raw, userCity ?? "Lietuva", contact ?? "+370 612 34567"));
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }
