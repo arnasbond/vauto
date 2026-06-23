@@ -219,6 +219,10 @@ interface VautoContextValue {
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
+  replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
+  markReportRead: (reportId: string) => void;
+  refreshReports: () => Promise<SupportReport[]>;
+  unreadAdminCount: number;
   toast: { message: string; type: "success" | "error" | "info" | "buddy" } | null;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   clearToast: () => void;
@@ -300,6 +304,10 @@ type VautoCatalogSlice = Omit<
   | "warnFromReport"
   | "banFromReport"
   | "resolveReport"
+  | "replyToReport"
+  | "markReportRead"
+  | "refreshReports"
+  | "unreadAdminCount"
   | "pushAlertsEnabled"
   | "setPushAlertsEnabled"
   | "wishlistQueries"
@@ -1200,6 +1208,31 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const handleNewAdminReport = useCallback(
+    (report: SupportReport) => {
+      const cat =
+        report.category === "fraud"
+          ? "Sukčiavimas"
+          : report.category === "technical_issue"
+            ? "Techninė problema"
+            : "Pranešimas";
+      showToast(`Naujas pranešimas: ${report.reporterName} — ${cat}`, "info");
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          const notification = new Notification("Vauto — naujas pranešimas", {
+            body: report.comment.slice(0, 140),
+            tag: report.id,
+          });
+          notification.onclick = () => {
+            window.focus();
+            window.location.href = `/profile/?report=${encodeURIComponent(report.id)}`;
+          };
+        }
+      }
+    },
+    [showToast]
+  );
+
   const moderationDeps = useMemo<ModerationDeps>(
     () => ({
       listingsRef,
@@ -1208,8 +1241,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setSyncError,
       showToast,
       patchAuthUser,
+      isAdmin,
+      onNewAdminReport: handleNewAdminReport,
     }),
-    [onBanListing, onBanSeller, showToast, patchAuthUser]
+    [onBanListing, onBanSeller, showToast, patchAuthUser, isAdmin, handleNewAdminReport]
   );
 
   const pushAlertsDeps = useMemo<PushAlertsDeps>(

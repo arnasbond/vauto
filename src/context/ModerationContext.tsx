@@ -14,16 +14,20 @@ import {
 import { DEMO_REPORTS } from "@/data/mockReports";
 import { useAuth } from "@/context/AuthContext";
 import {
+  appendAdminReply,
+  enrichNewReport,
+} from "@/lib/admin-report-ai";
+import {
   apiFetchBannedUsers,
   apiFetchReports,
   apiSetBannedUsers,
   apiSubmitReport,
   apiUpdateListing,
   apiUpdateReportStatus,
+  apiUpsertReport,
   apiWarnUser,
 } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
-import { categoryToUrgency } from "@/lib/reports";
 import {
   loadBannedUserIds,
   loadReports,
@@ -37,6 +41,8 @@ import type {
   SupportReport,
   UserProfile,
 } from "@/lib/types";
+
+const ADMIN_POLL_MS = 12_000;
 
 export interface ModerationContextValue {
   reports: SupportReport[];
@@ -53,6 +59,10 @@ export interface ModerationContextValue {
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
+  replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
+  markReportRead: (reportId: string) => void;
+  refreshReports: () => Promise<SupportReport[]>;
+  unreadAdminCount: number;
 }
 
 export interface ModerationDeps {
@@ -65,9 +75,28 @@ export interface ModerationDeps {
     type: "success" | "error" | "info" | "buddy"
   ) => void;
   patchAuthUser: (patch: Partial<UserProfile>) => void;
+  isAdmin: boolean;
+  onNewAdminReport?: (report: SupportReport) => void;
 }
 
 const ModerationContext = createContext<ModerationContextValue | null>(null);
+
+function normalizeReports(reports: SupportReport[]): SupportReport[] {
+  return reports.map((r) => ({
+    ...r,
+    messages: r.messages ?? [
+      {
+        id: `${r.id}-initial`,
+        senderId: r.reporterId,
+        senderName: r.reporterName,
+        role: "user" as const,
+        text: r.comment,
+        timestamp: r.createdAt,
+      },
+    ],
+    unreadByAdmin: r.unreadByAdmin ?? r.status === "open",
+  }));
+}
 
 export function ModerationProvider({
   deps,
@@ -77,13 +106,35 @@ export function ModerationProvider({
   children: ReactNode;
 }) {
   const { user } = useAuth();
-  const [reports, setReports] = useState<SupportReport[]>(DEMO_REPORTS);
+  const [reports, setReports] = useState<SupportReport[]>(normalizeReports(DEMO_REPORTS));
   const [bannedUserIds, setBannedUserIds] = useState<Set<string>>(new Set());
   const [hydrated, setHydrated] = useState(false);
   const apiActive = isDataApiEnabled();
   const canUseAdminApi = apiActive && user.role === "admin";
   const depsRef = useRef(deps);
   depsRef.current = deps;
+  const knownReportIdsRef = useRef<Set<string>>(new Set());
+
+  const refreshReports = useCallback(async (): Promise<SupportReport[]> => {
+    if (canUseAdminApi) {
+      const reportsRes = await apiFetchReports();
+      if (reportsRes.ok) {
+        const next = normalizeReports(
+          reportsRes.data.length ? reportsRes.data : DEMO_REPORTS
+        );
+        setReports(next);
+        return next;
+      }
+    } else if (depsRef.current.isAdmin) {
+      const stored = loadReports();
+      if (stored?.length) {
+        const next = normalizeReports(stored);
+        setReports(next);
+        return next;
+      }
+    }
+    return reports;
+  }, [canUseAdminApi, reports]);
 
   useEffect(() => {
     async function load() {
@@ -92,15 +143,21 @@ export function ModerationProvider({
           apiFetchReports(),
           apiFetchBannedUsers(),
         ]);
-        if (reportsRes.ok && reportsRes.data.length) {
-          setReports(reportsRes.data);
-        } else if (reportsRes.ok) {
-          setReports(DEMO_REPORTS);
+        if (reportsRes.ok) {
+          const next = normalizeReports(
+            reportsRes.data.length ? reportsRes.data : DEMO_REPORTS
+          );
+          setReports(next);
+          knownReportIdsRef.current = new Set(next.map((r) => r.id));
         }
         if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
       } else {
         const storedReports = loadReports();
-        if (storedReports?.length) setReports(storedReports);
+        if (storedReports?.length) {
+          const next = normalizeReports(storedReports);
+          setReports(next);
+          knownReportIdsRef.current = new Set(next.map((r) => r.id));
+        }
         const storedBanned = loadBannedUserIds();
         if (storedBanned?.length) setBannedUserIds(new Set(storedBanned));
       }
@@ -119,10 +176,45 @@ export function ModerationProvider({
     saveBannedUserIds(Array.from(bannedUserIds));
   }, [bannedUserIds, hydrated, apiActive]);
 
+  useEffect(() => {
+    if (!deps.isAdmin || !hydrated) return;
+
+    const poll = async () => {
+      const prevIds = knownReportIdsRef.current;
+      const next = await refreshReports();
+      const newOnes = next.filter(
+        (r) => r.status === "open" && !prevIds.has(r.id)
+      );
+      knownReportIdsRef.current = new Set(next.map((r) => r.id));
+      for (const report of newOnes) {
+        depsRef.current.onNewAdminReport?.(report);
+      }
+    };
+
+    void poll();
+    const timer = window.setInterval(() => void poll(), ADMIN_POLL_MS);
+    return () => window.clearInterval(timer);
+  }, [deps.isAdmin, hydrated, refreshReports]);
+
+  const persistReport = useCallback(
+    (report: SupportReport) => {
+      if (canUseAdminApi) {
+        void apiUpsertReport(report);
+      } else if (apiActive) {
+        void apiSubmitReport(report);
+      }
+    },
+    [apiActive, canUseAdminApi]
+  );
+
   const resolveReport = useCallback(
     (reportId: string, status: ReportStatus, notify = true) => {
       setReports((prev) =>
-        prev.map((r) => (r.id === reportId ? { ...r, status } : r))
+        prev.map((r) =>
+          r.id === reportId
+            ? { ...r, status, unreadByAdmin: false, updatedAt: new Date().toISOString() }
+            : r
+        )
       );
       if (canUseAdminApi) {
         void apiUpdateReportStatus(reportId, status);
@@ -147,31 +239,51 @@ export function ModerationProvider({
       reportedUserId?: string;
       chatPreview?: string;
     }) => {
-      const report: SupportReport = {
-        id: `rep-${Date.now()}`,
-        reporterId: user.id,
-        reporterName: user.name,
-        category: data.category,
-        urgency: categoryToUrgency(data.category),
-        status: "open",
-        comment: data.comment,
-        listingId: data.listingId,
-        listingTitle: data.listingTitle,
-        chatId: data.chatId,
-        reportedUserId: data.reportedUserId,
-        chatPreview: data.chatPreview,
-        createdAt: new Date().toISOString(),
-      };
+      const report = enrichNewReport(data, user);
       setReports((prev) => [report, ...prev]);
-      if (apiActive) {
-        void apiSubmitReport(report).then((r) => {
-          if (!r.ok) {
-            depsRef.current.setSyncError(`Pranešimas neišsaugotas: ${r.error}`);
-          }
-        });
+      knownReportIdsRef.current.add(report.id);
+      persistReport(report);
+      if (depsRef.current.isAdmin) {
+        depsRef.current.onNewAdminReport?.(report);
       }
+      depsRef.current.showToast(
+        "Pranešimas išsiųstas. Gausite atsakymą toje pačioje gijoje.",
+        "success"
+      );
     },
-    [user.id, user.name, apiActive]
+    [user, persistReport]
+  );
+
+  const replyToReport = useCallback(
+    (reportId: string, text: string, options?: { auto?: boolean }) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      setReports((prev) => {
+        const report = prev.find((r) => r.id === reportId);
+        if (!report) return prev;
+        const updated = appendAdminReply(report, user, trimmed, options?.auto);
+        persistReport(updated);
+        return prev.map((r) => (r.id === reportId ? updated : r));
+      });
+      depsRef.current.showToast("Atsakymas išsiųstas vartotojui", "success");
+    },
+    [user, persistReport]
+  );
+
+  const markReportRead = useCallback(
+    (reportId: string) => {
+      setReports((prev) => {
+        const next = prev.map((r) =>
+          r.id === reportId ? { ...r, unreadByAdmin: false } : r
+        );
+        const report = next.find((r) => r.id === reportId);
+        if (report && canUseAdminApi) {
+          void apiUpsertReport({ ...report, unreadByAdmin: false });
+        }
+        return next;
+      });
+    },
+    [canUseAdminApi]
   );
 
   const warnFromReport = useCallback(
@@ -227,6 +339,11 @@ export function ModerationProvider({
     [reports, resolveReport, canUseAdminApi]
   );
 
+  const unreadAdminCount = useMemo(
+    () => reports.filter((r) => r.status === "open" && r.unreadByAdmin).length,
+    [reports]
+  );
+
   const value = useMemo(
     (): ModerationContextValue => ({
       reports,
@@ -235,6 +352,10 @@ export function ModerationProvider({
       warnFromReport,
       banFromReport,
       resolveReport,
+      replyToReport,
+      markReportRead,
+      refreshReports,
+      unreadAdminCount,
     }),
     [
       reports,
@@ -243,6 +364,10 @@ export function ModerationProvider({
       warnFromReport,
       banFromReport,
       resolveReport,
+      replyToReport,
+      markReportRead,
+      refreshReports,
+      unreadAdminCount,
     ]
   );
 

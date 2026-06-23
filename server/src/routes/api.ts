@@ -21,6 +21,7 @@ import {
   topUpWallet,
   updateListing,
   updateReportStatus,
+  upsertReport,
   upsertChat,
   upsertEscrow,
   upsertUser,
@@ -222,6 +223,17 @@ apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
 
 apiRouter.patch("/reports/:id", requireAdmin, async (req, res) => {
   try {
+    if (req.body && typeof req.body === "object" && "id" in req.body) {
+      const parsed = validateReport(req.body);
+      if (badRequest(res, parsed)) return;
+      if (parsed.value.id !== req.params.id) {
+        res.status(400).json({ error: "Report id mismatch" });
+        return;
+      }
+      await upsertReport(parsed.value);
+      res.json(parsed.value);
+      return;
+    }
     const parsed = validateReportStatus(req.body);
     if (badRequest(res, parsed)) return;
     const ok = await updateReportStatus(req.params.id, parsed.value);

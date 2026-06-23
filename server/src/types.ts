@@ -102,6 +102,14 @@ export interface ApiSupportReport {
   reportedUserId?: string;
   chatPreview?: string;
   createdAt: string;
+  reporterEmail?: string;
+  reporterPhone?: string;
+  reportedUserName?: string;
+  updatedAt?: string;
+  messages?: unknown[];
+  aiSummary?: string;
+  aiSuggestedReply?: string;
+  unreadByAdmin?: boolean;
 }
 
 export type ApiEscrowStatus =

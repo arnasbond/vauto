@@ -135,16 +135,32 @@ export type ReportCategory =
   | "fraud"
   | "bad_info"
   | "chat_abuse"
-  | "general_feedback";
+  | "general_feedback"
+  | "technical_issue"
+  | "account_billing";
 
 export type ReportUrgency = "critical" | "feedback" | "general";
 
 export type ReportStatus = "open" | "resolved" | "dismissed";
 
+export type ReportMessageRole = "user" | "admin" | "system" | "ai";
+
+export interface ReportMessage {
+  id: string;
+  senderId: string;
+  senderName: string;
+  role: ReportMessageRole;
+  text: string;
+  timestamp: string;
+  auto?: boolean;
+}
+
 export interface SupportReport {
   id: string;
   reporterId: string;
   reporterName: string;
+  reporterEmail?: string;
+  reporterPhone?: string;
   category: ReportCategory;
   urgency: ReportUrgency;
   status: ReportStatus;
@@ -153,8 +169,14 @@ export interface SupportReport {
   listingTitle?: string;
   chatId?: string;
   reportedUserId?: string;
+  reportedUserName?: string;
   chatPreview?: string;
   createdAt: string;
+  updatedAt?: string;
+  messages?: ReportMessage[];
+  aiSummary?: string;
+  aiSuggestedReply?: string;
+  unreadByAdmin?: boolean;
 }
 
 export interface AuthSession {

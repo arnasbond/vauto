@@ -25,6 +25,16 @@ export const REPORT_CATEGORIES: {
     label: "Bendras atsiliepimas",
     description: "Pasiūlymai ar klausimai Vauto komandai",
   },
+  {
+    id: "technical_issue",
+    label: "Techninė problema",
+    description: "Klaidos, strigimai, neveikiantys mygtukai",
+  },
+  {
+    id: "account_billing",
+    label: "Paskyra ir mokėjimai",
+    description: "Piniginė, prenumerata, sąskaitos",
+  },
 ];
 
 export function categoryToUrgency(category: ReportCategory): ReportUrgency {
@@ -33,6 +43,7 @@ export function categoryToUrgency(category: ReportCategory): ReportUrgency {
     case "chat_abuse":
       return "critical";
     case "bad_info":
+    case "account_billing":
       return "feedback";
     default:
       return "general";

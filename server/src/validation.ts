@@ -25,7 +25,14 @@ const LISTING_CATEGORIES = new Set([
 ]);
 
 const LISTING_STATUSES = new Set(["active", "sold"]);
-const REPORT_CATEGORIES = new Set(["fraud", "bad_info", "chat_abuse", "general_feedback"]);
+const REPORT_CATEGORIES = new Set([
+  "fraud",
+  "bad_info",
+  "chat_abuse",
+  "general_feedback",
+  "technical_issue",
+  "account_billing",
+]);
 const REPORT_URGENCIES = new Set(["critical", "feedback", "general"]);
 const REPORT_STATUSES = new Set(["open", "resolved", "dismissed"]);
 const ESCROW_STATUSES = new Set([
@@ -429,6 +436,21 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
   const createdAt = isoDateString(body, "createdAt");
   if (!createdAt.ok) return createdAt;
   if (createdAt.value === undefined) return fail("createdAt is required");
+  const reporterEmail = optionalString(body, "reporterEmail", 200);
+  if (!reporterEmail.ok) return reporterEmail;
+  const reporterPhone = optionalString(body, "reporterPhone", 40);
+  if (!reporterPhone.ok) return reporterPhone;
+  const reportedUserName = optionalString(body, "reportedUserName", 160);
+  if (!reportedUserName.ok) return reportedUserName;
+  const updatedAt = isoDateString(body, "updatedAt");
+  if (!updatedAt.ok) return updatedAt;
+  const aiSummary = optionalString(body, "aiSummary", 2000);
+  if (!aiSummary.ok) return aiSummary;
+  const aiSuggestedReply = optionalString(body, "aiSuggestedReply", 4000);
+  if (!aiSuggestedReply.ok) return aiSuggestedReply;
+  const unreadByAdmin = optionalBoolean(body, "unreadByAdmin");
+  if (!unreadByAdmin.ok) return unreadByAdmin;
+  const messages = Array.isArray(body.messages) ? body.messages : undefined;
   return ok({
     id: id.value,
     reporterId: reporterId.value,
@@ -443,6 +465,14 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
     reportedUserId: reportedUserId.value,
     chatPreview: chatPreview.value,
     createdAt: createdAt.value,
+    reporterEmail: reporterEmail.value,
+    reporterPhone: reporterPhone.value,
+    reportedUserName: reportedUserName.value,
+    updatedAt: updatedAt.value,
+    aiSummary: aiSummary.value,
+    aiSuggestedReply: aiSuggestedReply.value,
+    unreadByAdmin: unreadByAdmin.value,
+    messages,
   });
 }
 

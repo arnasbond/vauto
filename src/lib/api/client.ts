@@ -159,6 +159,15 @@ export async function apiUpdateReportStatus(
   });
 }
 
+export async function apiUpsertReport(
+  report: SupportReport
+): Promise<ApiResult<SupportReport>> {
+  return dataFetch<SupportReport>(`/api/reports/${report.id}`, {
+    method: "PATCH",
+    body: JSON.stringify(report),
+  });
+}
+
 export async function apiFetchBannedUsers(): Promise<ApiResult<string[]>> {
   return dataFetch<string[]>("/api/banned-users");
 }

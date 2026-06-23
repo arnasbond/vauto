@@ -326,12 +326,34 @@ export async function getReports(): Promise<ApiSupportReport[]> {
     reported_user_id: string | null;
     chat_preview: string | null;
     created_at: Date;
+    metadata: Record<string, unknown> | null;
   }>(
     `SELECT id, reporter_id, reporter_name, category, urgency, status, comment,
-            listing_id, listing_title, chat_id, reported_user_id, chat_preview, created_at
+            listing_id, listing_title, chat_id, reported_user_id, chat_preview, created_at,
+            COALESCE(metadata, '{}'::jsonb) AS metadata
      FROM support_reports ORDER BY created_at DESC`
   );
-  return rows.map((r) => ({
+  return rows.map((r) => mapReportFromRow(r));
+}
+
+function mapReportFromRow(r: {
+  id: string;
+  reporter_id: string;
+  reporter_name: string;
+  category: string;
+  urgency: string;
+  status: string;
+  comment: string;
+  listing_id: string | null;
+  listing_title: string | null;
+  chat_id: string | null;
+  reported_user_id: string | null;
+  chat_preview: string | null;
+  created_at: Date;
+  metadata: Record<string, unknown> | null;
+}): ApiSupportReport {
+  const meta = r.metadata ?? {};
+  return {
     id: r.id,
     reporterId: r.reporter_id,
     reporterName: r.reporter_name,
@@ -345,17 +367,37 @@ export async function getReports(): Promise<ApiSupportReport[]> {
     reportedUserId: r.reported_user_id ?? undefined,
     chatPreview: r.chat_preview ?? undefined,
     createdAt: r.created_at.toISOString(),
-  }));
+    reporterEmail: meta.reporterEmail as string | undefined,
+    reporterPhone: meta.reporterPhone as string | undefined,
+    reportedUserName: meta.reportedUserName as string | undefined,
+    updatedAt: meta.updatedAt as string | undefined,
+    messages: meta.messages as unknown[] | undefined,
+    aiSummary: meta.aiSummary as string | undefined,
+    aiSuggestedReply: meta.aiSuggestedReply as string | undefined,
+    unreadByAdmin: meta.unreadByAdmin as boolean | undefined,
+  };
 }
 
 export async function insertReport(report: ApiSupportReport): Promise<void> {
   await ensureUser(report.reporterId);
+  const metadata = {
+    reporterEmail: report.reporterEmail,
+    reporterPhone: report.reporterPhone,
+    reportedUserName: report.reportedUserName,
+    messages: report.messages ?? [],
+    aiSummary: report.aiSummary,
+    aiSuggestedReply: report.aiSuggestedReply,
+    unreadByAdmin: report.unreadByAdmin ?? true,
+    updatedAt: report.updatedAt ?? report.createdAt,
+  };
   await query(
     `INSERT INTO support_reports (
       id, reporter_id, reporter_name, category, urgency, status, comment,
-      listing_id, listing_title, chat_id, reported_user_id, chat_preview, created_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
-    ON CONFLICT (id) DO UPDATE SET status = EXCLUDED.status`,
+      listing_id, listing_title, chat_id, reported_user_id, chat_preview, created_at, metadata
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14::jsonb)
+    ON CONFLICT (id) DO UPDATE SET
+      status = EXCLUDED.status,
+      metadata = EXCLUDED.metadata`,
     [
       report.id,
       report.reporterId,
@@ -370,8 +412,13 @@ export async function insertReport(report: ApiSupportReport): Promise<void> {
       report.reportedUserId ?? null,
       report.chatPreview ?? null,
       report.createdAt,
+      JSON.stringify(metadata),
     ]
   );
+}
+
+export async function upsertReport(report: ApiSupportReport): Promise<void> {
+  await insertReport(report);
 }
 
 export async function updateReportStatus(

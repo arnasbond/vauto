@@ -1,7 +1,7 @@
 "use client";
 
 import Link from "next/link";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
 import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
@@ -82,7 +82,17 @@ export default function ProfilePage() {
   }
 
   if (isAdmin) {
-    return <AdminControlCenter />;
+    return (
+      <Suspense
+        fallback={
+          <div className="vauto-dashboard flex min-h-dvh items-center justify-center text-slate-400">
+            Kraunamas administratoriaus kabinetas…
+          </div>
+        }
+      >
+        <AdminControlCenter />
+      </Suspense>
+    );
   }
 
   return (
