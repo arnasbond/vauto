@@ -262,3 +262,27 @@ export async function apiExtractText(body: {
     body: JSON.stringify(body),
   });
 }
+
+export async function apiAnalyzeVoice(body: {
+  transcript: string;
+  mode: "search" | "listing";
+  history: { role: "user" | "assistant"; text: string }[];
+  userCity: string;
+}): Promise<import("@/lib/voice-intent").VoiceIntentAnalysis | null> {
+  return aiFetch("/api/ai/analyze-voice", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiReferenceImages(body: {
+  query: string;
+  category?: string;
+  limit?: number;
+}): Promise<string[] | null> {
+  const data = await aiFetch<{ images: string[] }>("/api/ai/reference-images", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  return data?.images ?? null;
+}

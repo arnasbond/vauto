@@ -125,6 +125,128 @@ aiRouter.post("/extract-image", async (req, res) => {
   }
 });
 
+const VOICE_INTENT_SCHEMA = `{
+  "understoodSummary": "string",
+  "needsClarification": "boolean",
+  "followUpQuestion": "string | null",
+  "missingFields": ["string"],
+  "imageSearchQuery": "string",
+  "mergedTranscript": "string",
+  "category": "electronics | vehicles | services | home | clothing | real_estate | other",
+  "confidence": "number 0-1"
+}`;
+
+const REFERENCE_FALLBACK: Record<string, string[]> = {
+  electronics: [
+    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=300&fit=crop",
+  ],
+  vehicles: [
+    "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&h=300&fit=crop",
+  ],
+  other: [
+    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=300&fit=crop",
+  ],
+};
+
+aiRouter.post("/analyze-voice", async (req, res) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+
+  const { transcript, mode, history, userCity } = req.body as {
+    transcript: string;
+    mode?: "search" | "listing";
+    history?: { role: "user" | "assistant"; text: string }[];
+    userCity?: string;
+  };
+
+  if (!transcript?.trim()) {
+    return res.status(400).json({ error: "transcript is required" });
+  }
+
+  const historyText = (history ?? [])
+    .map((h) => `${h.role === "user" ? "Vartotojas" : "AI"}: ${h.text}`)
+    .join("\n");
+  const modeHint =
+    mode === "listing"
+      ? "Vartotojas nori įdėti / parduoti skelbimą."
+      : "Vartotojas ieško prekės ar paslaugos.";
+
+  try {
+    const raw = await chatJson(key, [
+      {
+        role: "system",
+        content: `Esi Vauto balso asistentas Lietuvoje. ${modeHint} Jei trūksta kritinės info — užduok VIENĮ klausimą lietuviškai. imageSearchQuery angliškai.`,
+      },
+      {
+        role: "user",
+        content: `Istorija:\n${historyText || "(tuščia)"}\n\nĮrašas: "${transcript}"\nJSON: ${VOICE_INTENT_SCHEMA}\nMiestas: ${userCity ?? "Lietuva"}`,
+      },
+    ]);
+    res.json({
+      understoodSummary: String(raw.understoodSummary ?? "Supratau"),
+      needsClarification: Boolean(raw.needsClarification),
+      followUpQuestion: raw.followUpQuestion ? String(raw.followUpQuestion) : null,
+      missingFields: Array.isArray(raw.missingFields) ? raw.missingFields.map(String) : [],
+      imageSearchQuery: String(raw.imageSearchQuery ?? transcript).slice(0, 80),
+      mergedTranscript: String(raw.mergedTranscript ?? transcript),
+      category: String(raw.category ?? "other"),
+      confidence: Number(raw.confidence) || 0.75,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/reference-images", async (req, res) => {
+  const { query, category, limit = 4 } = req.body as {
+    query: string;
+    category?: string;
+    limit?: number;
+  };
+
+  if (!query?.trim()) {
+    return res.status(400).json({ error: "query is required" });
+  }
+
+  try {
+    const url = new URL("https://commons.wikimedia.org/w/api.php");
+    url.searchParams.set("action", "query");
+    url.searchParams.set("format", "json");
+    url.searchParams.set("generator", "search");
+    url.searchParams.set("gsrsearch", query.trim());
+    url.searchParams.set("gsrlimit", String(Math.min(limit, 6)));
+    url.searchParams.set("prop", "imageinfo");
+    url.searchParams.set("iiprop", "url");
+    url.searchParams.set("iiurlwidth", "400");
+
+    const wikiRes = await fetch(url.toString(), {
+      headers: { "User-Agent": "VautoApp/1.0" },
+    });
+
+    const images: string[] = [];
+    if (wikiRes.ok) {
+      const data = (await wikiRes.json()) as {
+        query?: { pages?: Record<string, { imageinfo?: { thumburl?: string; url?: string }[] }> };
+      };
+      for (const page of Object.values(data.query?.pages ?? {})) {
+        const thumb = page.imageinfo?.[0]?.thumburl ?? page.imageinfo?.[0]?.url;
+        if (thumb) images.push(thumb);
+      }
+    }
+
+    if (!images.length) {
+      const key = category && REFERENCE_FALLBACK[category] ? category : "other";
+      res.json({ images: (REFERENCE_FALLBACK[key] ?? REFERENCE_FALLBACK.other).slice(0, limit) });
+      return;
+    }
+
+    res.json({ images: images.slice(0, limit) });
+  } catch {
+    const key = category && REFERENCE_FALLBACK[category] ? category : "other";
+    res.json({ images: (REFERENCE_FALLBACK[key] ?? REFERENCE_FALLBACK.other).slice(0, limit) });
+  }
+});
+
 aiRouter.post("/extract-text", async (req, res) => {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });

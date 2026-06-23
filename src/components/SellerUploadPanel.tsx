@@ -2,14 +2,16 @@
 
 import { Camera, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { createVoiceSession, recordWithSession } from "@/lib/native-media";
+import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
-import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
-import type { VoiceSession } from "@/lib/audio-session";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
+import {
+  VoiceClarifyFlowSheet,
+  type VoiceClarifyResult,
+} from "@/components/voice/VoiceClarifyFlowSheet";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -18,13 +20,13 @@ export function SellerUploadPanel({
   autoOpenPhotoFlow?: boolean;
   onPhotoFlowAutoOpened?: () => void;
 } = {}) {
-  const { submitSellerContent, sellerStep, requestMediaConsent, showToast } =
+  const { submitSellerContent, sellerStep, requestMediaConsent, showToast, user } =
     useVauto();
   const [query, setQuery] = useState("");
-  const [isListening, setIsListening] = useState(false);
-  const [session, setSession] = useState<VoiceSession | null>(null);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
+  const [voiceFlowOpen, setVoiceFlowOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
+  const [voiceSubmitting, setVoiceSubmitting] = useState(false);
   const autoOpenedRef = useRef(false);
 
   const busy =
@@ -54,42 +56,13 @@ export function SellerUploadPanel({
     runAi();
   };
 
-  const levelSource = useCallback(
-    () => session?.getLevels() ?? Array(9).fill(0.35),
-    [session]
-  );
-
-  const handleVoice = async () => {
-    if (isListening || busy) return;
-
-    requestMediaConsent(async () => {
-      const voiceSession = await createVoiceSession();
-      setSession(voiceSession);
-      setIsListening(true);
-
-      try {
-        const transcript = voiceSession
-          ? await recordWithSession(voiceSession)
-          : null;
-        if (transcript?.trim()) {
-          setQuery(transcript);
-          submitSellerContent({
-            text: transcript.trim(),
-            voiceCapture: true,
-          });
-          setQuery("");
-        } else {
-          showToast(
-            "Nepavyko atpažinti balso. Bandykite dar kartą arba įveskite tekstu.",
-            "info"
-          );
-        }
-      } finally {
-        voiceSession?.release();
-        setSession(null);
-        setIsListening(false);
-      }
-    });
+  const handleVoice = () => {
+    if (busy || voiceFlowOpen) return;
+    if (!isVoiceSearchSupported()) {
+      showToast("Ši naršyklė nepalaiko balso įvedimo", "error");
+      return;
+    }
+    requestMediaConsent(() => setVoiceFlowOpen(true));
   };
 
   const openPhotoFlow = () => {
@@ -113,6 +86,21 @@ export function SellerUploadPanel({
     }
   };
 
+  const handleVoiceFlowComplete = async (result: VoiceClarifyResult) => {
+    setVoiceSubmitting(true);
+    try {
+      await submitSellerContent({
+        text: result.mergedTranscript,
+        imageDataUrl: result.referenceImages[0] ?? null,
+        voiceCapture: true,
+      });
+      setQuery("");
+      setVoiceFlowOpen(false);
+    } finally {
+      setVoiceSubmitting(false);
+    }
+  };
+
   if (busy) return null;
 
   return (
@@ -120,14 +108,24 @@ export function SellerUploadPanel({
       <button
         type="button"
         onClick={openPhotoFlow}
-        className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d5a9a]"
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d5a9a]"
       >
         <Camera className="h-5 w-5" />
         Skelbti su AI (nuotraukos)
       </button>
 
+      <button
+        type="button"
+        onClick={handleVoice}
+        disabled={voiceFlowOpen}
+        className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[#f97316] bg-[#fff7ed] py-3.5 text-sm font-semibold text-[#ea580c] hover:bg-[#ffedd5] disabled:opacity-60"
+      >
+        <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
+        Skelbti balsu su AI
+      </button>
+
       <p className="mb-4 text-center text-sm text-[#6b7280]">
-        Arba pasakyk balsu / įvesk trumpą aprašymą.
+        Arba įvesk trumpą aprašymą tekstu.
       </p>
 
       <form
@@ -144,21 +142,10 @@ export function SellerUploadPanel({
           enterKeyHint="go"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] outline-none placeholder:text-[#6b7280]"
         />
-        <button
-          type="button"
-          onClick={handleVoice}
-          disabled={isListening}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white shadow-sm transition hover:bg-[#ea580c] disabled:opacity-60 ${
-            isListening ? "animate-pulse" : ""
-          }`}
-          aria-label="Pasakyti balsu"
-        >
-          <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
-        </button>
       </form>
 
       <p className="mt-2 text-center text-xs text-[#6b7280]">
-        Enter arba mikrofonas — AI atpažins kategoriją, užpildys formą ir pasiūlys kainą.
+        Enter — AI atpažins kategoriją, užpildys formą ir pasiūlys kainą.
       </p>
 
       <AiPhotoFlowSheet
@@ -169,31 +156,14 @@ export function SellerUploadPanel({
         onSubmit={handlePhotoFlowSubmit}
       />
 
-      {isListening && (
-        <div className="fixed inset-0 z-[90] flex items-center justify-center bg-[var(--flux-bg)]/90 backdrop-blur-lg">
-          <div className="vauto-flux-glass mx-6 w-full max-w-xs rounded-3xl px-6 py-8 text-center">
-            <div className="relative mx-auto mb-5 flex h-20 w-20 items-center justify-center">
-              <span className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--flux-teal)]/25" />
-              <span
-                className="mic-ring-pulse absolute inset-0 rounded-full bg-[var(--flux-indigo)]/15"
-                style={{ animationDelay: "0.6s" }}
-              />
-              <span className="vauto-flux-gradient-btn relative flex h-14 w-14 items-center justify-center rounded-2xl">
-                <Mic className="h-7 w-7 text-white" fill="white" strokeWidth={0} />
-              </span>
-            </div>
-            <AudioWaveAnimation
-              variant="large"
-              levelSource={session ? levelSource : undefined}
-              className="mb-4"
-            />
-            <p className="text-sm font-semibold text-white">Klausomasi...</p>
-            <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
-              Papasakokite ką parduodate ar siūlote
-            </p>
-          </div>
-        </div>
-      )}
+      <VoiceClarifyFlowSheet
+        open={voiceFlowOpen}
+        mode="listing"
+        userCity={user.city || "Lietuva"}
+        busy={voiceSubmitting}
+        onClose={() => setVoiceFlowOpen(false)}
+        onComplete={handleVoiceFlowComplete}
+      />
     </>
   );
 }

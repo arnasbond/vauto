@@ -186,3 +186,48 @@ export async function transcribeAudioOpenAI(blob: Blob): Promise<string> {
   const data = await res.json();
   return String(data.text ?? "");
 }
+
+/** GPT-4o — analyze voice intent with optional clarification */
+export async function analyzeVoiceIntentOpenAI(params: {
+  transcript: string;
+  mode: "search" | "listing";
+  history: { role: "user" | "assistant"; text: string }[];
+  userCity: string;
+  schema: string;
+}): Promise<import("@/lib/voice-intent").VoiceIntentAnalysis> {
+  const historyText = params.history
+    .map((h) => `${h.role === "user" ? "Vartotojas" : "AI"}: ${h.text}`)
+    .join("\n");
+
+  const modeHint =
+    params.mode === "listing"
+      ? "Vartotojas nori įdėti / parduoti skelbimą."
+      : "Vartotojas ieško prekės ar paslaugos.";
+
+  const raw = await chatJson(
+    [
+      {
+        role: "system",
+        content: `${ENTERPRISE_TONE_RULES} Esi Vauto balso asistentas Lietuvoje. ${modeHint} Jei trūksta kritinės info (modelis, metai, būklė, matmenys) — užduok VIENĄ trumpą klausimą lietuviškai. Po 2 klausimų tęsk su tuo, ką turi. imageSearchQuery — angliški raktažodžiai nuotraukų paieškai.`,
+      },
+      {
+        role: "user",
+        content: `Pokalbio istorija:\n${historyText || "(tuščia)"}\n\nNaujas vartotojo įrašas: "${params.transcript}"\n\nGrąžink JSON: ${params.schema}\nMiestas: ${params.userCity}`,
+      },
+    ],
+    "gpt-4o-mini"
+  );
+
+  return {
+    understoodSummary: String(raw.understoodSummary ?? "Supratau jūsų užklausą"),
+    needsClarification: Boolean(raw.needsClarification),
+    followUpQuestion: raw.followUpQuestion ? String(raw.followUpQuestion) : null,
+    missingFields: Array.isArray(raw.missingFields)
+      ? raw.missingFields.map(String)
+      : [],
+    imageSearchQuery: String(raw.imageSearchQuery ?? params.transcript).slice(0, 80),
+    mergedTranscript: String(raw.mergedTranscript ?? params.transcript),
+    category: String(raw.category ?? "other"),
+    confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.75)),
+  };
+}

@@ -2,16 +2,19 @@
 
 import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useRef, useState } from "react";
-import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
+import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
-import { BuddyVoicePulse } from "@/components/buddy/BuddyVoicePulse";
-import type { VoiceSearchSession } from "@/lib/voice-search";
-import { extractFromImage } from "@/lib/client-api";
+import { extractFromImage, extractFromText } from "@/lib/client-api";
 import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
+import { detectSellerListingIntent } from "@/lib/scoring";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
+import {
+  VoiceClarifyFlowSheet,
+  type VoiceClarifyResult,
+} from "@/components/voice/VoiceClarifyFlowSheet";
 
 export function SearchBar() {
   const {
@@ -23,13 +26,11 @@ export function SearchBar() {
     showToast,
     user,
   } = useVauto();
-  const [isListening, setIsListening] = useState(false);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
+  const [isVoiceFlowBusy, setIsVoiceFlowBusy] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
-  const [liveSubtitle, setLiveSubtitle] = useState("");
-  const [micReady, setMicReady] = useState(false);
+  const [voiceFlowOpen, setVoiceFlowOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
-  const voiceRef = useRef<VoiceSearchSession | null>(null);
 
   const scrollToResults = () => {
     document
@@ -49,52 +50,50 @@ export function SearchBar() {
   };
 
   const handleVoiceSearch = () => {
-    if (isListening || isPhotoSearching) return;
+    if (isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen) return;
 
     if (!isVoiceSearchSupported()) {
       showToast("Ši naršyklė nepalaiko balso paieškos", "error");
       return;
     }
 
-    requestMediaConsent(() => {
-      setIsListening(true);
-      setMicReady(false);
-      setLiveSubtitle("");
+    requestMediaConsent(() => setVoiceFlowOpen(true));
+  };
 
-      const session = startVoiceSearch({
-        onStart: () => setMicReady(true),
-        onInterim: setLiveSubtitle,
-        silenceMs: 2_800,
-        maxMs: 25_000,
+  const handleVoiceFlowComplete = async (result: VoiceClarifyResult) => {
+    setIsVoiceFlowBusy(true);
+    try {
+      const text = result.mergedTranscript;
+      if (detectSellerListingIntent(text)) {
+        setVoiceFlowOpen(false);
+        if (startListingFromQuery(text)) return;
+      }
+
+      const extracted = await extractFromText({
+        transcript: text,
+        userCity: user.city || "Lietuva",
+        contact: user.phone || "+370 612 34567",
       });
-      voiceRef.current = session;
-
-      void session.promise
-        .then((text) => {
-          if (text) {
-            setSearchVoiceMode(true);
-            if (startListingFromQuery(text)) {
-              setSearchQuery("");
-            } else {
-              setSearchQuery(text);
-              scrollToResults();
-            }
-          } else {
-            setSearchVoiceMode(false);
-            showToast("Nepavyko atpažinti balso — bandykite dar kartą", "info");
-          }
-        })
-        .finally(() => {
-          voiceRef.current = null;
-          setIsListening(false);
-          setMicReady(false);
-          setLiveSubtitle("");
-        });
-    });
+      const query = buildPhotoSearchQuery(extracted);
+      setSearchVoiceMode(true);
+      setSearchQuery(query);
+      showToast(buildPhotoSearchToast(extracted), "success");
+      setVoiceFlowOpen(false);
+      scrollToResults();
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? `Balso paieška nepavyko: ${error.message}`
+          : "Balso paieška nepavyko",
+        "error"
+      );
+    } finally {
+      setIsVoiceFlowBusy(false);
+    }
   };
 
   const handlePhotoSearch = () => {
-    if (isPhotoSearching || isListening) return;
+    if (isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen) return;
     requestMediaConsent(() => setPhotoFlowOpen(true));
   };
 
@@ -127,10 +126,6 @@ export function SearchBar() {
     }
   };
 
-  const handleFinishVoice = () => {
-    voiceRef.current?.stop();
-  };
-
   return (
     <>
       <form
@@ -156,7 +151,7 @@ export function SearchBar() {
         <button
           type="button"
           onClick={handlePhotoSearch}
-          disabled={isPhotoSearching || isListening}
+          disabled={isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#bfdbfe] bg-[#eef6ff] text-[#1167b1] transition hover:bg-[#dbeafe] disabled:opacity-60"
           aria-label="Ieškoti pagal nuotrauką"
           title="Ieškoti pagal nuotrauką"
@@ -170,9 +165,9 @@ export function SearchBar() {
         <button
           type="button"
           onClick={handleVoiceSearch}
-          disabled={isListening || isPhotoSearching}
+          disabled={isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen}
           className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white shadow-sm transition duration-500 ease-in-out hover:bg-[#ea580c] disabled:opacity-60 ${
-            isListening ? "animate-pulse" : ""
+            voiceFlowOpen ? "animate-pulse" : ""
           }`}
           aria-label="Balso paieška"
         >
@@ -180,7 +175,7 @@ export function SearchBar() {
         </button>
       </form>
       <p className="mt-2 text-center text-[11px] text-[#6b7280]">
-        Nufotografuokite prekę — VAUTO atpažins ir suras panašius skelbimus.
+        Pasakykite ar nufotografuokite prekę — AI patikslins ir suras panašius skelbimus.
       </p>
 
       <AiPhotoFlowSheet
@@ -191,23 +186,14 @@ export function SearchBar() {
         onSubmit={handlePhotoFlowSubmit}
       />
 
-      {isListening && (
-        <BuddyVoicePulse
-          mode="listening"
-          variant="fullscreen"
-          subtitle={liveSubtitle}
-          statusText={
-            micReady ? "Klausausi paieškos…" : "Jungiamas mikrofonas…"
-          }
-          hint={
-            micReady
-              ? "Pasakykite ką ieškote — sustos po pauzės arba spauskite „Baigti“"
-              : "Leiskite mikrofono prieigą, jei paprašys"
-          }
-          onCancel={handleFinishVoice}
-          cancelLabel="Baigti"
-        />
-      )}
+      <VoiceClarifyFlowSheet
+        open={voiceFlowOpen}
+        mode="search"
+        userCity={user.city || "Lietuva"}
+        busy={isVoiceFlowBusy}
+        onClose={() => setVoiceFlowOpen(false)}
+        onComplete={handleVoiceFlowComplete}
+      />
     </>
   );
 }
