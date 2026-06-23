@@ -15,10 +15,23 @@ import type { AiExtractedListing } from "@/lib/types";
 
 interface ExtractContext {
   imageDataUrl?: string | null;
+  imageDataUrls?: string[];
   fileName?: string;
   transcript?: string;
+  extraContext?: string;
   userCity?: string;
   contact?: string;
+}
+
+function resolveImages(ctx: ExtractContext): string[] {
+  if (ctx.imageDataUrls?.length) return ctx.imageDataUrls;
+  if (ctx.imageDataUrl) return [ctx.imageDataUrl];
+  return [];
+}
+
+function mergeTranscript(ctx: ExtractContext): string | undefined {
+  const parts = [ctx.transcript, ctx.extraContext].map((s) => s?.trim()).filter(Boolean);
+  return parts.length ? parts.join("\n\n") : undefined;
 }
 
 export async function extractFromImage(
@@ -26,25 +39,34 @@ export async function extractFromImage(
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Lietuva";
+  const images = resolveImages(ctx);
+  const primary = images[0];
 
-  if (isAiProxyAvailable() && ctx.imageDataUrl) {
+  if (isAiProxyAvailable() && primary) {
     const remote = await apiExtractImage({
-      imageDataUrl: ctx.imageDataUrl,
+      imageDataUrl: primary,
+      imageDataUrls: images.length > 1 ? images : undefined,
+      extraContext: ctx.extraContext,
       userCity: city,
       contact,
     });
     if (remote) return remote;
   }
 
-  if (hasOpenAiKey() && ctx.imageDataUrl) {
+  if (hasOpenAiKey() && primary) {
     try {
-      return await extractFromImageOpenAI(ctx.imageDataUrl, city, contact);
+      return await extractFromImageOpenAI(
+        images.length > 1 ? images : primary,
+        city,
+        contact,
+        ctx.extraContext
+      );
     } catch (e) {
       console.warn("[Vauto] OpenAI vision failed, using mock:", e);
     }
   }
 
-  return mockExtractFromImage(ctx.fileName, ctx.imageDataUrl ?? undefined);
+  return mockExtractFromImage(ctx.fileName, primary);
 }
 
 export async function extractFromVoice(
@@ -97,9 +119,13 @@ export async function extractFromText(
 export async function extractCombined(
   ctx: ExtractContext
 ): Promise<AiExtractedListing> {
-  if (ctx.imageDataUrl && ctx.transcript?.trim()) {
-    const fromImage = await extractFromImage(ctx);
-    const fromText = await extractFromText(ctx);
+  const images = resolveImages(ctx);
+  const transcript = mergeTranscript(ctx);
+  const merged: ExtractContext = { ...ctx, transcript, imageDataUrl: images[0] };
+
+  if (images.length && transcript) {
+    const fromImage = await extractFromImage(merged);
+    const fromText = await extractFromText(merged);
     return {
       ...fromImage,
       title: fromText.title || fromImage.title,
@@ -108,7 +134,7 @@ export async function extractCombined(
       confidence: Math.max(fromImage.confidence, fromText.confidence) * 0.95,
     };
   }
-  if (ctx.imageDataUrl) return extractFromImage(ctx);
-  if (ctx.transcript?.trim()) return extractFromText(ctx);
+  if (images.length) return extractFromImage(merged);
+  if (transcript) return extractFromText(merged);
   throw new Error("Nėra duomenų apdorojimui");
 }

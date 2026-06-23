@@ -85,21 +85,34 @@ function parseListing(
   };
 }
 
-/** GPT-4o Vision — analyze listing photo */
+/** GPT-4o Vision — analyze listing photo(s) */
 export async function extractFromImageOpenAI(
-  imageDataUrl: string,
+  imageDataUrl: string | string[],
   userCity: string,
-  contact: string
+  contact: string,
+  extraContext?: string
 ): Promise<AiExtractedListing> {
+  const images = Array.isArray(imageDataUrl) ? imageDataUrl : [imageDataUrl];
+  const contextNote = extraContext?.trim()
+    ? `\n\nPapildoma informacija nuo vartotojo (ko nematyti nuotraukose): ${extraContext.trim()}`
+    : "";
+  const imageCountNote =
+    images.length > 1
+      ? `\n\nVartotojas įkėlė ${images.length} nuotraukas — naudok visas analizei.`
+      : "";
+
   const raw = await chatJson([
     {
       role: "user",
       content: [
         {
           type: "text",
-          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. ${VISION_EXTRACTION_INSTRUCTIONS} Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
+          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. ${VISION_EXTRACTION_INSTRUCTIONS}${imageCountNote}${contextNote} Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
         },
-        { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+        ...images.map((url) => ({
+          type: "image_url" as const,
+          image_url: { url, detail: "high" as const },
+        })),
       ],
     },
   ]);

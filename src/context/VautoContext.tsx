@@ -167,6 +167,8 @@ interface VautoContextValue {
   submitSellerContent: (payload: {
     text?: string;
     imageDataUrl?: string | null;
+    imageDataUrls?: string[];
+    extraContext?: string;
     videoUrl?: string;
     /** Set when input came from microphone — preserves voice mode + TTS */
     voiceCapture?: boolean;

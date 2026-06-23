@@ -6,9 +6,12 @@ import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
 import { BuddyVoicePulse } from "@/components/buddy/BuddyVoicePulse";
 import type { VoiceSearchSession } from "@/lib/voice-search";
-import { capturePhoto } from "@/lib/native-media";
 import { extractFromImage } from "@/lib/client-api";
 import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
+import {
+  AiPhotoFlowSheet,
+  type AiPhotoFlowResult,
+} from "@/components/photo/AiPhotoFlowSheet";
 
 export function SearchBar() {
   const {
@@ -22,6 +25,7 @@ export function SearchBar() {
   } = useVauto();
   const [isListening, setIsListening] = useState(false);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
+  const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [liveSubtitle, setLiveSubtitle] = useState("");
   const [micReady, setMicReady] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -91,34 +95,36 @@ export function SearchBar() {
 
   const handlePhotoSearch = () => {
     if (isPhotoSearching || isListening) return;
+    requestMediaConsent(() => setPhotoFlowOpen(true));
+  };
 
-    requestMediaConsent(async () => {
-      setIsPhotoSearching(true);
-      try {
-        const photo = await capturePhoto();
-        if (!photo) return;
-        const extracted = await extractFromImage({
-          imageDataUrl: photo.dataUrl,
-          fileName: photo.fileName,
-          userCity: user.city || "Lietuva",
-          contact: user.phone || "+370 612 34567",
-        });
-        const query = buildPhotoSearchQuery(extracted);
-        setSearchVoiceMode(false);
-        setSearchQuery(query);
-        showToast(buildPhotoSearchToast(extracted), "success");
-        scrollToResults();
-      } catch (error) {
-        showToast(
-          error instanceof Error
-            ? `Nuotraukos paieška nepavyko: ${error.message}`
-            : "Nuotraukos paieška nepavyko",
-          "error"
-        );
-      } finally {
-        setIsPhotoSearching(false);
-      }
-    });
+  const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
+    setIsPhotoSearching(true);
+    try {
+      const extracted = await extractFromImage({
+        imageDataUrl: result.photos[0],
+        imageDataUrls: result.photos,
+        extraContext: result.extraContext || undefined,
+        fileName: result.fileName,
+        userCity: user.city || "Lietuva",
+        contact: user.phone || "+370 612 34567",
+      });
+      const query = buildPhotoSearchQuery(extracted);
+      setSearchVoiceMode(false);
+      setSearchQuery(query);
+      showToast(buildPhotoSearchToast(extracted), "success");
+      setPhotoFlowOpen(false);
+      scrollToResults();
+    } catch (error) {
+      showToast(
+        error instanceof Error
+          ? `Nuotraukos paieška nepavyko: ${error.message}`
+          : "Nuotraukos paieška nepavyko",
+        "error"
+      );
+    } finally {
+      setIsPhotoSearching(false);
+    }
   };
 
   const handleFinishVoice = () => {
@@ -176,6 +182,14 @@ export function SearchBar() {
       <p className="mt-2 text-center text-[11px] text-[#6b7280]">
         Nufotografuokite prekę — VAUTO atpažins ir suras panašius skelbimus.
       </p>
+
+      <AiPhotoFlowSheet
+        open={photoFlowOpen}
+        mode="search"
+        busy={isPhotoSearching}
+        onClose={() => setPhotoFlowOpen(false)}
+        onSubmit={handlePhotoFlowSubmit}
+      />
 
       {isListening && (
         <BuddyVoicePulse

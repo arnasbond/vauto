@@ -75,13 +75,33 @@ aiRouter.post("/extract-image", async (req, res) => {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
 
-  const { imageDataUrl, userCity, contact } = req.body as {
-    imageDataUrl: string;
+  const { imageDataUrl, imageDataUrls, extraContext, userCity, contact } = req.body as {
+    imageDataUrl?: string;
+    imageDataUrls?: string[];
+    extraContext?: string;
     userCity?: string;
     contact?: string;
   };
   const city = userCity || "Lietuva";
   const phone = contact || "+370 612 34567";
+  const images =
+    Array.isArray(imageDataUrls) && imageDataUrls.length
+      ? imageDataUrls
+      : imageDataUrl
+        ? [imageDataUrl]
+        : [];
+
+  if (!images.length) {
+    return res.status(400).json({ error: "imageDataUrl is required" });
+  }
+
+  const imageCountNote =
+    images.length > 1
+      ? ` Vartotojas įkėlė ${images.length} nuotraukas — naudok visas analizei.`
+      : "";
+  const contextNote = extraContext?.trim()
+    ? ` Papildoma informacija (ko nematyti nuotraukose): ${extraContext.trim()}`
+    : "";
 
   try {
     const raw = await chatJson(key, [
@@ -90,9 +110,12 @@ aiRouter.post("/extract-image", async (req, res) => {
         content: [
           {
             type: "text",
-            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai (telefonas → electronics, ne vehicles). Jei auto dalis — category vehicles su partType, size, condition, quantity. Kaina EUR. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai (telefonas → electronics, ne vehicles). Jei auto dalis — category vehicles su partType, size, condition, quantity. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
           },
-          { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+          ...images.map((url) => ({
+            type: "image_url",
+            image_url: { url, detail: "high" },
+          })),
         ],
       },
     ]);

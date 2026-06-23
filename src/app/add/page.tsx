@@ -1,11 +1,15 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
+import {
+  AiIntroModal,
+  hasSeenAiIntro,
+} from "@/components/photo/AiIntroModal";
 import { useVauto } from "@/context/VautoContext";
 
 export default function AddPage() {
@@ -17,6 +21,8 @@ export default function AddPage() {
     submitSellerContent,
     sellerStep,
   } = useVauto();
+  const [introOpen, setIntroOpen] = useState(false);
+  const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
 
   useEffect(() => {
     if (!isAuthenticated) {
@@ -26,6 +32,9 @@ export default function AddPage() {
     const pending = consumePendingSellerQuery();
     if (pending && sellerStep === "idle") {
       void submitSellerContent({ text: pending });
+    }
+    if (!hasSeenAiIntro() && sellerStep === "idle") {
+      setIntroOpen(true);
     }
   }, [
     isAuthenticated,
@@ -63,15 +72,27 @@ export default function AddPage() {
       <HeroSection>
         <Header />
         <h2 className="font-display mt-6 text-center text-xl font-bold text-[#111827]">
-          Plats / Įdėti
+          Naujas skelbimas
         </h2>
         <p className="mt-2 text-center text-sm text-[#6b7280]">
-          Vienas veiksmas: pasirink balsą arba foto — AI užpildys skelbimą ir kainą.
+          Pridėkite nuotraukas — AI užpildys skelbimą ir pasiūlys kainą.
         </p>
         <div className="mt-5">
-          <SellerUploadPanel />
+          <SellerUploadPanel
+            autoOpenPhotoFlow={startAiAfterIntro}
+            onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
+          />
         </div>
       </HeroSection>
+
+      <AiIntroModal
+        open={introOpen}
+        onClose={() => setIntroOpen(false)}
+        onStartAi={() => {
+          setIntroOpen(false);
+          setStartAiAfterIntro(true);
+        }}
+      />
     </AppShell>
   );
 }

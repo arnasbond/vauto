@@ -1,36 +1,52 @@
 "use client";
 
 import { Camera, Mic, Sparkles } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createVoiceSession, recordWithSession } from "@/lib/native-media";
 import { useVauto } from "@/context/VautoContext";
 import { AudioWaveAnimation } from "@/components/AudioWaveAnimation";
 import type { VoiceSession } from "@/lib/audio-session";
+import {
+  AiPhotoFlowSheet,
+  type AiPhotoFlowResult,
+} from "@/components/photo/AiPhotoFlowSheet";
 
-export function SellerUploadPanel() {
-  const { submitSellerContent, sellerStep, requestMediaConsent, showToast } = useVauto();
+export function SellerUploadPanel({
+  autoOpenPhotoFlow = false,
+  onPhotoFlowAutoOpened,
+}: {
+  autoOpenPhotoFlow?: boolean;
+  onPhotoFlowAutoOpened?: () => void;
+} = {}) {
+  const { submitSellerContent, sellerStep, requestMediaConsent, showToast } =
+    useVauto();
   const [query, setQuery] = useState("");
   const [isListening, setIsListening] = useState(false);
   const [session, setSession] = useState<VoiceSession | null>(null);
-  const [pendingImage, setPendingImage] = useState<string | null>(null);
-  const inputRef = useRef<HTMLInputElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
+  const [photoSubmitting, setPhotoSubmitting] = useState(false);
+  const autoOpenedRef = useRef(false);
 
   const busy =
     sellerStep !== "idle" && sellerStep !== "published";
 
+  useEffect(() => {
+    if (!autoOpenPhotoFlow || autoOpenedRef.current || busy) return;
+    autoOpenedRef.current = true;
+    requestMediaConsent(() => {
+      setPhotoFlowOpen(true);
+      onPhotoFlowAutoOpened?.();
+    });
+  }, [autoOpenPhotoFlow, busy, onPhotoFlowAutoOpened, requestMediaConsent]);
+
   const runAi = useCallback(
     (text?: string) => {
       const trimmed = text?.trim() ?? query.trim();
-      if (!trimmed && !pendingImage) return;
-      submitSellerContent({
-        text: trimmed || undefined,
-        imageDataUrl: pendingImage,
-      });
+      if (!trimmed) return;
+      submitSellerContent({ text: trimmed });
       setQuery("");
-      setPendingImage(null);
     },
-    [query, pendingImage, submitSellerContent]
+    [query, submitSellerContent]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -59,11 +75,9 @@ export function SellerUploadPanel() {
           setQuery(transcript);
           submitSellerContent({
             text: transcript.trim(),
-            imageDataUrl: pendingImage,
             voiceCapture: true,
           });
           setQuery("");
-          setPendingImage(null);
         } else {
           showToast(
             "Nepavyko atpažinti balso. Bandykite dar kartą arba įveskite tekstu.",
@@ -78,33 +92,42 @@ export function SellerUploadPanel() {
     });
   };
 
-  const openFilePicker = () => {
+  const openPhotoFlow = () => {
     if (busy) return;
-    requestMediaConsent(() => fileInputRef.current?.click());
+    requestMediaConsent(() => setPhotoFlowOpen(true));
   };
 
-  const handleFile = (file: File) => {
-    if (!file.type.startsWith("image/")) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result as string;
-      if (query.trim()) {
-        submitSellerContent({ text: query.trim(), imageDataUrl: dataUrl });
-        setQuery("");
-        setPendingImage(null);
-      } else {
-        setPendingImage(dataUrl);
-      }
-    };
-    reader.readAsDataURL(file);
+  const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
+    setPhotoSubmitting(true);
+    try {
+      await submitSellerContent({
+        imageDataUrls: result.photos,
+        imageDataUrl: result.photos[0],
+        extraContext: result.extraContext || undefined,
+        text: query.trim() || undefined,
+      });
+      setQuery("");
+      setPhotoFlowOpen(false);
+    } finally {
+      setPhotoSubmitting(false);
+    }
   };
 
   if (busy) return null;
 
   return (
     <>
+      <button
+        type="button"
+        onClick={openPhotoFlow}
+        className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d5a9a]"
+      >
+        <Camera className="h-5 w-5" />
+        Skelbti su AI (nuotraukos)
+      </button>
+
       <p className="mb-4 text-center text-sm text-[#6b7280]">
-        Pasirink: pasakyk balsu, įkelk foto arba įvesk trumpą aprašymą.
+        Arba pasakyk balsu / įvesk trumpą aprašymą.
       </p>
 
       <form
@@ -114,7 +137,6 @@ export function SellerUploadPanel() {
       >
         <Sparkles className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
         <input
-          ref={inputRef}
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
@@ -139,47 +161,12 @@ export function SellerUploadPanel() {
         Enter arba mikrofonas — AI atpažins kategoriją, užpildys formą ir pasiūlys kainą.
       </p>
 
-      <div className="mt-4 flex items-center justify-center gap-3">
-        <button
-          type="button"
-          onClick={openFilePicker}
-          className="inline-flex items-center gap-1.5 rounded-full border border-[#bfdbfe] bg-[#eef6ff] px-3.5 py-2 text-xs font-semibold text-[#1167b1] hover:bg-[#dbeafe]"
-        >
-          <Camera className="h-3.5 w-3.5" />
-          {pendingImage ? "Nuotrauka paruošta" : "Pridėti nuotrauką"}
-        </button>
-        {pendingImage && (
-          <button
-            type="button"
-            onClick={() => runAi()}
-            className="rounded-full bg-[#f97316] px-3.5 py-2 text-xs font-semibold text-white"
-          >
-            Tęsti su nuotrauka
-          </button>
-        )}
-      </div>
-
-      {pendingImage && (
-        <div className="mt-3 overflow-hidden rounded-xl border border-[#d7dde5] bg-white">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={pendingImage}
-            alt="Paruošta nuotrauka"
-            className="mx-auto max-h-32 object-cover"
-          />
-        </div>
-      )}
-
-      <input
-        ref={fileInputRef}
-        type="file"
-        accept="image/*"
-        className="hidden"
-        onChange={(e) => {
-          const file = e.target.files?.[0];
-          if (file) handleFile(file);
-          e.target.value = "";
-        }}
+      <AiPhotoFlowSheet
+        open={photoFlowOpen}
+        mode="listing"
+        busy={photoSubmitting}
+        onClose={() => setPhotoFlowOpen(false)}
+        onSubmit={handlePhotoFlowSubmit}
       />
 
       {isListening && (

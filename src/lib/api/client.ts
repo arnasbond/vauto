@@ -241,6 +241,8 @@ export async function apiUpsertEscrow(
 
 export async function apiExtractImage(body: {
   imageDataUrl: string;
+  imageDataUrls?: string[];
+  extraContext?: string;
   userCity: string;
   contact: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {

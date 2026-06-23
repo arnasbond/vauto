@@ -13,6 +13,27 @@ export interface CapturedPhoto {
 
 export type PhotoPickSource = "camera" | "gallery" | "prompt";
 
+/** Capture from a known source (no web prompt sheet — use PhotoSourceSheet in React UI). */
+export async function capturePhotoFromSource(
+  source: "camera" | "gallery"
+): Promise<CapturedPhoto | null> {
+  return capturePhoto(source);
+}
+
+/** Pick multiple images from gallery (web multi-select; native picks one at a time). */
+export async function pickMultipleFromGallery(
+  maxCount: number
+): Promise<CapturedPhoto[]> {
+  if (maxCount <= 0) return [];
+
+  if (Capacitor.isNativePlatform()) {
+    const one = await capturePhoto("gallery");
+    return one ? [one] : [];
+  }
+
+  return pickFilesAsDataUrls("image/*", maxCount);
+}
+
 /** Pick or capture a photo — Capacitor Camera on native, camera/gallery choice on web */
 export async function capturePhoto(
   source: PhotoPickSource = "prompt"
@@ -84,6 +105,41 @@ function pickFileAsDataUrl(
         });
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
+    };
+    input.click();
+  });
+}
+
+function pickFilesAsDataUrls(
+  accept: string,
+  maxCount: number
+): Promise<CapturedPhoto[]> {
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = accept;
+    input.multiple = true;
+    input.onchange = () => {
+      const files = Array.from(input.files ?? []).slice(0, maxCount);
+      if (!files.length) {
+        resolve([]);
+        return;
+      }
+      Promise.all(
+        files.map(
+          (file) =>
+            new Promise<CapturedPhoto | null>((res) => {
+              const reader = new FileReader();
+              reader.onload = () =>
+                res({
+                  dataUrl: reader.result as string,
+                  fileName: file.name,
+                });
+              reader.onerror = () => res(null);
+              reader.readAsDataURL(file);
+            })
+        )
+      ).then((items) => resolve(items.filter((x): x is CapturedPhoto => x !== null)));
     };
     input.click();
   });

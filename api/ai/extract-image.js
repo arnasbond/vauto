@@ -5,6 +5,17 @@ const {
   toListing,
 } = require("../lib/openai");
 
+function buildVisionPrompt(userCity, imageCount, extraContext) {
+  const imageCountNote =
+    imageCount > 1
+      ? ` Vartotojas įkėlė ${imageCount} nuotraukas — naudok visas analizei.`
+      : "";
+  const contextNote = extraContext?.trim()
+    ? ` Papildoma informacija (ko nematyti nuotraukose): ${extraContext.trim()}`
+    : "";
+  return `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai (telefonas → electronics, ne vehicles). Jei auto dalis — category vehicles su partType, size, condition, quantity. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity ?? "Lietuva"}`;
+}
+
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
@@ -15,8 +26,14 @@ module.exports = async function handler(req, res) {
     return res.status(503).json({ error: "OPENAI_API_KEY not configured on server" });
   }
 
-  const { imageDataUrl, userCity, contact } = req.body || {};
-  if (!imageDataUrl) {
+  const { imageDataUrl, imageDataUrls, extraContext, userCity, contact } =
+    req.body || {};
+  const images = Array.isArray(imageDataUrls) && imageDataUrls.length
+    ? imageDataUrls
+    : imageDataUrl
+      ? [imageDataUrl]
+      : [];
+  if (!images.length) {
     return res.status(400).json({ error: "imageDataUrl is required" });
   }
 
@@ -29,9 +46,12 @@ module.exports = async function handler(req, res) {
           content: [
             {
               type: "text",
-              text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai (telefonas → electronics, ne vehicles). Jei auto dalis — category vehicles su partType, size, condition, quantity. Kaina EUR. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity ?? "Lietuva"}`,
+              text: buildVisionPrompt(userCity, images.length, extraContext),
             },
-            { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
+            ...images.map((url) => ({
+              type: "image_url",
+              image_url: { url, detail: "high" },
+            })),
           ],
         },
       ],

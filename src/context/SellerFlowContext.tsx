@@ -89,6 +89,8 @@ export interface SellerFlowContextValue {
   submitSellerContent: (payload: {
     text?: string;
     imageDataUrl?: string | null;
+    imageDataUrls?: string[];
+    extraContext?: string;
     videoUrl?: string;
     voiceCapture?: boolean;
   }) => Promise<void>;
@@ -141,6 +143,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       opts?: {
         transcript?: string;
         previewImage?: string | null;
+        previewImages?: string[];
+        extraContext?: string;
         videoUrl?: string;
       }
     ) => {
@@ -183,7 +187,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         const ctx = {
           imageDataUrl: opts?.previewImage,
+          imageDataUrls: opts?.previewImages,
           transcript: opts?.transcript,
+          extraContext: opts?.extraContext,
           userCity: locationHint,
           contact: user.phone,
         };
@@ -253,30 +259,39 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     async (payload: {
       text?: string;
       imageDataUrl?: string | null;
+      imageDataUrls?: string[];
+      extraContext?: string;
       videoUrl?: string;
       voiceCapture?: boolean;
     }) => {
       if (!requireAuthForListing("/add")) return;
 
-      if (payload.imageDataUrl) setSellerPreviewImage(payload.imageDataUrl);
+      const primaryImage =
+        payload.imageDataUrl ??
+        payload.imageDataUrls?.[0] ??
+        parseVideoUrl(payload.videoUrl ?? "").thumbnail;
+
+      if (primaryImage) setSellerPreviewImage(primaryImage);
       if (payload.videoUrl) {
         setSellerVideoUrl(payload.videoUrl);
         const vid = parseVideoUrl(payload.videoUrl);
         setSellerHasVideo(vid.hasVideo);
-        if (vid.thumbnail && !payload.imageDataUrl) {
+        if (vid.thumbnail && !primaryImage) {
           setSellerPreviewImage(vid.thumbnail);
         }
       }
 
+      const hasImages = Boolean(primaryImage || payload.imageDataUrls?.length);
+
       const mode: SellerInputMode = payload.voiceCapture
-        ? payload.imageDataUrl && payload.text
+        ? hasImages && payload.text
           ? "combined"
-          : payload.imageDataUrl
+          : hasImages
             ? "upload"
             : "voice"
-        : payload.imageDataUrl && payload.text
+        : hasImages && payload.text
           ? "combined"
-          : payload.imageDataUrl
+          : hasImages
             ? "upload"
             : "text";
 
@@ -284,8 +299,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (payload.text?.trim()) setSellerUserPrompt(payload.text.trim());
       await runAiProcessing(mode, {
         transcript: payload.text,
-        previewImage:
-          payload.imageDataUrl ?? parseVideoUrl(payload.videoUrl ?? "").thumbnail,
+        previewImage: primaryImage,
+        previewImages: payload.imageDataUrls,
+        extraContext: payload.extraContext,
         videoUrl: payload.videoUrl,
       });
     },
