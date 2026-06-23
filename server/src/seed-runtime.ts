@@ -1,5 +1,6 @@
 import { pool } from "./db.js";
 import { DEMO_LISTINGS, DEMO_USER } from "./demo-listings.js";
+import { DEMO_SERVICE_LEADS } from "./demo-service-leads.js";
 
 /** Upsert demo rows — safe on every startup (adds missing listings after deploys). */
 export async function seedIfEmpty(): Promise<void> {
@@ -49,5 +50,39 @@ export async function seedIfEmpty(): Promise<void> {
 
   if (inserted > 0) {
     console.log(`Demo seed: added ${inserted} listing(s)`);
+  }
+
+  let leadsInserted = 0;
+  for (const lead of DEMO_SERVICE_LEADS) {
+    const createdAt = new Date(Date.now() - lead.minutesAgo * 60 * 1000).toISOString();
+    const res = await pool.query(
+      `INSERT INTO service_leads (
+         id, source_user_id, title, city, category, summary, urgency,
+         budget_hint, lead_price, hidden_contact, contact_phone,
+         required_specialties, query_text, created_at
+       )
+       VALUES ($1,NULL,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::timestamptz)
+       ON CONFLICT (id) DO NOTHING`,
+      [
+        lead.id,
+        lead.title,
+        lead.city,
+        lead.category,
+        lead.summary,
+        lead.urgency,
+        lead.budgetHint,
+        lead.leadPrice,
+        lead.hiddenContact,
+        lead.contactPhone,
+        lead.requiredSpecialties,
+        lead.title,
+        createdAt,
+      ]
+    );
+    if ((res.rowCount ?? 0) > 0) leadsInserted++;
+  }
+
+  if (leadsInserted > 0) {
+    console.log(`Demo seed: added ${leadsInserted} service lead(s)`);
   }
 }

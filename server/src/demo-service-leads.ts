@@ -1,0 +1,47 @@
+/** Demo paslaugų lead'ai — sinchronizuoti su frontend DEMO_SERVICE_LEADS. */
+export const DEMO_SERVICE_LEADS = [
+  {
+    id: "lead-electric-1",
+    title: "Pakeisti 4 rozetes virtuvėje",
+    city: "Vilnius",
+    category: "Elektrikas",
+    summary:
+      "Klientas ieško elektriko šiandien arba rytoj. Reikia pakeisti 4 rozetes virtuvėje.",
+    urgency: "today" as const,
+    budgetHint: "40–80 €",
+    leadPrice: 1.5,
+    hiddenContact: "+370 6•• •••••",
+    contactPhone: "+370 612 44550",
+    requiredSpecialties: ["Elektrika", "Remontas"],
+    minutesAgo: 12,
+  },
+  {
+    id: "lead-plumbing-1",
+    title: "Varva čiaupas vonioje",
+    city: "Kaunas",
+    category: "Santechnikas",
+    summary:
+      "Nuotraukoje matosi pratekėjimas po kriaukle. Klientas nori greito kontakto.",
+    urgency: "today" as const,
+    budgetHint: "30–70 €",
+    leadPrice: 1.2,
+    hiddenContact: "+370 6•• •••••",
+    contactPhone: "+370 612 44551",
+    requiredSpecialties: ["Santechnika", "Remontas"],
+    minutesAgo: 42,
+  },
+  {
+    id: "lead-cleaning-1",
+    title: "Buto valymas po nuomos",
+    city: "Klaipėda",
+    category: "Valymas",
+    summary: "2 kambarių butas, reikia generalinio valymo šią savaitę.",
+    urgency: "this_week" as const,
+    budgetHint: "60–120 €",
+    leadPrice: 0.8,
+    hiddenContact: "+370 6•• •••••",
+    contactPhone: "+370 612 44552",
+    requiredSpecialties: ["Valymas"],
+    minutesAgo: 120,
+  },
+];

@@ -13,10 +13,12 @@ export type ServerVehicleLookupResult = (PlateLookupResult | VinLookupResult) & 
 
 export function vehicleLookupFeatures(): {
   regitraPlateApi: boolean;
+  regitraDemo: boolean;
   nhtsaVin: boolean;
 } {
   return {
     regitraPlateApi: regitraPlateApiConfigured(),
+    regitraDemo: !regitraPlateApiConfigured(),
     nhtsaVin: true,
   };
 }

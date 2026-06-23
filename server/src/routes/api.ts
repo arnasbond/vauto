@@ -117,6 +117,34 @@ async function serviceLeadsReady(): Promise<boolean> {
   }
 }
 
+function computeReadiness(
+  features: Record<string, boolean>,
+  embeddings: { activeListings: number; textIndexed: number; imageIndexed: number } | undefined,
+  serviceLeads: boolean
+): { score: number; regitraMode: "live" | "demo"; embeddingsSynced: boolean } {
+  const embeddingsSynced = Boolean(
+    embeddings &&
+      embeddings.activeListings > 0 &&
+      embeddings.textIndexed >= embeddings.activeListings &&
+      embeddings.imageIndexed >= embeddings.textIndexed
+  );
+  const checks = [
+    features.jwt,
+    features.openai,
+    features.stripe,
+    features.stripeWebhook,
+    features.vehicleLookup,
+    serviceLeads,
+    embeddingsSynced,
+    features.regitraPlateApi || features.regitraDemo,
+  ];
+  return {
+    score: Math.round((checks.filter(Boolean).length / checks.length) * 100),
+    regitraMode: features.regitraPlateApi ? "live" : "demo",
+    embeddingsSynced,
+  };
+}
+
 apiRouter.get("/health", async (_req, res) => {
   const vehicle = vehicleLookupFeatures();
   const features = {
@@ -136,6 +164,7 @@ apiRouter.get("/health", async (_req, res) => {
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
     regitraPlateApi: vehicle.regitraPlateApi,
+    regitraDemo: vehicle.regitraDemo,
     vehicleLookup: vehicle.nhtsaVin,
   };
 
@@ -150,12 +179,18 @@ apiRouter.get("/health", async (_req, res) => {
     await pool.query("SELECT 1");
     serviceLeads = await serviceLeadsReady();
     embeddings = await getEmbeddingIndexStats();
+    const readiness = computeReadiness(
+      { ...features, serviceLeads },
+      embeddings,
+      serviceLeads
+    );
     res.json({
       ok: true,
       service: "vauto-api",
       db: "connected",
       features: { ...features, serviceLeads },
       embeddings,
+      readiness,
     });
   } catch (e) {
     res.status(503).json({

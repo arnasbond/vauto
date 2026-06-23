@@ -83,8 +83,14 @@ export interface ApiHealthDetails {
     stripe?: boolean;
     stripeWebhook?: boolean;
     regitraPlateApi?: boolean;
+    regitraDemo?: boolean;
     vehicleLookup?: boolean;
     serviceLeads?: boolean;
+  };
+  readiness?: {
+    score: number;
+    regitraMode: "live" | "demo";
+    embeddingsSynced: boolean;
   };
   embeddings?: {
     activeListings: number;

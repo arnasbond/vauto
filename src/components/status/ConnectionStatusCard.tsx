@@ -19,6 +19,7 @@ const FEATURE_LABELS: Record<string, string> = {
   stripe: "Stripe mokėjimai",
   stripeWebhook: "Stripe webhook",
   regitraPlateApi: "Regitra plate API",
+  regitraDemo: "Regitra demo",
   vehicleLookup: "Transporto lookup",
   serviceLeads: "Paslaugų lead'ai",
 };
@@ -65,6 +66,12 @@ export function ConnectionStatusCard() {
             {live
               ? "Duomenys sinchronizuojami su serveriu"
               : "Duomenys saugomi šiame įrenginyje"}
+            {health?.readiness && live && (
+              <span className="ml-1 text-emerald-400">
+                · {health.readiness.score}/100
+                {health.readiness.regitraMode === "demo" ? " (Regitra demo)" : ""}
+              </span>
+            )}
           </p>
         </div>
       </div>
