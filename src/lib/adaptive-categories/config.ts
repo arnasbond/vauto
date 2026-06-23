@@ -153,7 +153,7 @@ export const ADAPTIVE_CATEGORIES: Record<
     fields: [
       { key: "area", label: "Kvadratūra", placeholder: "62 kv.m.", critical: true, gridSpan: 1 },
       { key: "rooms", label: "Kambariai", placeholder: "3", critical: true, gridSpan: 1 },
-      { key: "floor", label: "Aukštas", placeholder: "2 / 5", critical: true, gridSpan: 1 },
+      { key: "floor", label: "Aukštas", placeholder: "2 / 5", critical: false, gridSpan: 1 },
       {
         key: "heating",
         label: "Šildymas",

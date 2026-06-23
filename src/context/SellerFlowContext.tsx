@@ -41,6 +41,11 @@ import {
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { detectVehicleMake } from "@/lib/vehicle-keywords";
+import {
+  detectPropertyTypeFromText,
+  detectTransactionFromText,
+  defaultTransactionForType,
+} from "@/lib/real-estate-catalog";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -246,6 +251,31 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           if (!attrs.defects) attrs.defects = "Be defektų";
           if (!attrs.steering) attrs.steering = "Kairėje";
           next = { ...next, category: "vehicles", attributes: attrs };
+        } else {
+          const detectedProperty = detectPropertyTypeFromText(title);
+          const looksLikeRealEstate =
+            next.category === "real_estate" ||
+            Boolean(detectedProperty) ||
+            Boolean(next.attributes?.propertyType) ||
+            /\b(butas|namas|sklypas|nuomoju|kambar|kv\.?m|aukštas|nt\b|nekilnojam|patalp|garaž)/i.test(title);
+
+          if (looksLikeRealEstate) {
+            const attrs = { ...(next.attributes ?? {}) };
+            const propertyType =
+              (attrs.propertyType as string) || detectedProperty || "butas";
+            if (!attrs.propertyType) attrs.propertyType = propertyType;
+            if (!attrs.transactionType) {
+              attrs.transactionType =
+                detectTransactionFromText(title) ??
+                defaultTransactionForType(propertyType);
+            }
+            const roomsMatch = title.match(/(\d+)\s*kamb/i);
+            if (!attrs.rooms && roomsMatch) attrs.rooms = roomsMatch[1];
+            const areaMatch = title.match(/(\d+(?:[.,]\d+)?)\s*(?:kv\.?m|m²|m2)/i);
+            if (!attrs.area && areaMatch) attrs.area = areaMatch[1].replace(",", ".");
+            if (!attrs.sellerRole) attrs.sellerRole = "Privatus asmuo";
+            next = { ...next, category: "real_estate", attributes: attrs };
+          }
         }
 
         const geo = geocodeLocation(next.location);

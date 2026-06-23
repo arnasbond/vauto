@@ -5,6 +5,7 @@ import { useVauto } from "@/context/VautoContext";
 import { AdaptiveConfirmation } from "@/components/adaptive-confirmation/AdaptiveConfirmation";
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 import { VehicleListingWizard } from "@/components/vehicle/VehicleListingWizard";
+import { RealEstateListingWizard } from "@/components/real-estate/RealEstateListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 
 /**
@@ -43,10 +44,28 @@ export function AiConfirmationScreen() {
   };
 
   const isVehicle = listingToAdaptiveKey(aiDraft.category) === "vehicles";
+  const isRealEstate = listingToAdaptiveKey(aiDraft.category) === "real_estate";
 
   if (isVehicle) {
     return (
       <VehicleListingWizard
+        draft={aiDraft}
+        previewImage={sellerPreviewImage}
+        videoUrl={sellerVideoUrl}
+        manualFallback={aiManualFallback}
+        onUpdate={updateAiDraft}
+        onAttributeChange={handleAttributeChange}
+        onMediaChange={updateSellerMedia}
+        requestMediaConsent={requestMediaConsent}
+        onCancel={cancelSellerFlow}
+        onPublish={publishListing}
+      />
+    );
+  }
+
+  if (isRealEstate) {
+    return (
+      <RealEstateListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
         videoUrl={sellerVideoUrl}
