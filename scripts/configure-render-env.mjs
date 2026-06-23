@@ -144,8 +144,12 @@ async function main() {
     method: "POST",
     body: JSON.stringify({ clearCache: "do_not_clear" }),
   });
-  const d = deploy.deploy || deploy;
-  console.log(`✓ Deploy triggered: ${d.id} (${d.status})`);
+  const d = deploy?.deploy || deploy;
+  if (d?.id) {
+    console.log(`✓ Deploy triggered: ${d.id} (${d.status ?? "queued"})`);
+  } else {
+    console.log("✓ Env updated (deploy may already be in progress)");
+  }
   console.log("Check: https://vauto-api.onrender.com/api/health");
 }
 
