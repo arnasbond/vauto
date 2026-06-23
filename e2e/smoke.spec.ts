@@ -57,4 +57,9 @@ test.describe("Vauto smoke", () => {
     const json = await res.json();
     expect(json.apiUrl).toBeTruthy();
   });
+
+  test("discover page loads", async ({ page }) => {
+    await page.goto("/discover/");
+    await expect(page.locator("body")).toContainText(/atrask|iešk|skelbim/i);
+  });
 });

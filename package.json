@@ -24,7 +24,8 @@
     "redeploy:render": "node scripts/redeploy-render.mjs",
     "render:stripe-env": "node scripts/set-render-stripe-env.mjs",
     "render:configure-env": "node scripts/configure-render-env.mjs",
-    "verify:health": "node scripts/verify-health.mjs"
+    "verify:health": "node scripts/verify-health.mjs",
+    "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
