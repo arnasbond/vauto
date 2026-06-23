@@ -68,6 +68,10 @@ import {
   detectLocationType,
   looksLikeJobListing,
 } from "@/lib/job-catalog";
+import {
+  detectServiceSpecialty,
+  looksLikeServiceListing,
+} from "@/lib/service-catalog";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -314,6 +318,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             }
             if (!attrs.condition) attrs.condition = "Gera";
             next = { ...next, category: "clothing", attributes: attrs };
+          } else if (looksLikeServiceListing(title, next.category)) {
+            const attrs = { ...(next.attributes ?? {}) };
+            if (!attrs.serviceSpecialty) {
+              const specialty = detectServiceSpecialty(title);
+              if (specialty) attrs.serviceSpecialty = specialty;
+            }
+            if (!attrs.serviceRadius) attrs.serviceRadius = "25 km";
+            if (!attrs.experience) attrs.experience = "5+ metai";
+            const serviceList = attrs.serviceList;
+            const hasServices = Array.isArray(serviceList)
+              ? serviceList.length > 0
+              : Boolean(serviceList);
+            if (!hasServices) attrs.serviceList = ["Remontas", "Montavimas"];
+            if (!next.price || next.price <= 0) next = { ...next, price: 30 };
+            next = { ...next, category: "services", attributes: attrs };
           } else if (looksLikeJobListing(title, next.category)) {
             const attrs = { ...(next.attributes ?? {}) };
             if (!attrs.jobType) attrs.jobType = defaultJobType(title);

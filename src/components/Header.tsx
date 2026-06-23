@@ -7,20 +7,24 @@ import { VautoLogo } from "@/components/VautoLogo";
 import { useVauto } from "@/context/VautoContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
 
+import { useActivePortal } from "@/hooks/useActivePortal";
+
 export function Header() {
   const { user, chats } = useVauto();
+  const { ui } = useActivePortal();
   const unreadChats = countUnreadChats(chats, user.id);
 
   return (
     <header className="flex items-center justify-between">
       <Link href="/">
-        <VautoLogo className="text-[#1167b1]" />
+        <VautoLogo color={ui.accent} dotColor={ui.cta} />
       </Link>
 
       <div className="flex items-center gap-3">
         <Link
           href="/chats"
-          className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border border-[#d7dde5] bg-white text-[#1167b1] shadow-sm transition hover:bg-[#eef6ff]"
+          className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border bg-white shadow-sm transition hover:opacity-90"
+          style={{ borderColor: ui.border, color: ui.accent }}
           aria-label={
             unreadChats > 0
               ? `Pokalbiai, ${unreadChats} neperskaityti`

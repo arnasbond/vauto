@@ -934,6 +934,6 @@ export function formatDistance(km: number): string {
 }
 
 export function formatDistanceBadge(km: number): string {
-  if (km < 1) return `${Math.round(km * 1000)} m away`;
-  return `${km.toFixed(km < 10 ? 1 : 0)} km away`;
+  if (km < 1) return `${Math.round(km * 1000)} m`;
+  return `${km.toFixed(km < 10 ? 1 : 0)} km`;
 }

@@ -15,6 +15,23 @@ export interface VisualSearchProfile {
   previewImage?: string | null;
 }
 
+const CATEGORY_FALLBACK: Record<ListingCategory, string> = {
+  vehicles: "Automobilis nuotraukoje",
+  electronics: "Elektronika nuotraukoje",
+  services: "Paslauga nuotraukoje",
+  jobs: "Darbo skelbimas",
+  home: "Prekė nuotraukoje",
+  clothing: "Drabužis nuotraukoje",
+  real_estate: "NT objektas nuotraukoje",
+  other: "Prekė nuotraukoje",
+};
+
+function safeTitle(title: string | undefined, category: ListingCategory): string {
+  const t = title?.trim();
+  if (t && t !== "undefined" && t !== "null") return t;
+  return CATEGORY_FALLBACK[category] ?? "Prekė nuotraukoje";
+}
+
 export function buildVisualSearchProfile(
   extracted: AiExtractedListing,
   source: VisualSearchSource,
@@ -22,7 +39,7 @@ export function buildVisualSearchProfile(
 ): VisualSearchProfile {
   return {
     source,
-    title: extracted.title,
+    title: safeTitle(extracted.title, extracted.category),
     category: extracted.category,
     price: extracted.price,
     location: extracted.location,

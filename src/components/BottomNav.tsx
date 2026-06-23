@@ -4,12 +4,14 @@ import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { Compass, Home, MessageCircle, Plus, Shield, User } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
+import { useActivePortal } from "@/hooks/useActivePortal";
 import { countUnreadChats } from "@/lib/chat-helpers";
 
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const { chats, isAdmin, unreadAdminCount, unreadUserReportCount, user, requireAuthForListing } = useVauto();
+  const { ui } = useActivePortal();
   const unreadChats = countUnreadChats(chats, user.id);
   const chatBadge = unreadChats > 0 ? unreadChats : undefined;
   const profileBadge = isAdmin
@@ -41,12 +43,13 @@ export function BottomNav() {
     }
   };
 
-  const linkClass = (path: string) => {
+  const linkClass = () =>
+    "flex min-w-0 flex-1 flex-col items-center gap-1 text-[10px] font-semibold transition-colors";
+
+  const linkStyle = (path: string) => {
     const isActive =
       pathname === path || (path !== "/" && pathname.startsWith(path));
-    return `flex min-w-0 flex-1 flex-col items-center gap-1 text-[10px] font-semibold transition-colors ${
-      isActive ? "text-[#1167b1]" : "text-[#6b7280] hover:text-[#1167b1]"
-    }`;
+    return { color: isActive ? ui.accent : ui.textMuted };
   };
 
   return (
@@ -55,7 +58,7 @@ export function BottomNav() {
         {tabs.slice(0, 2).map((tab) => {
           const Icon = tab.icon;
           return (
-            <Link key={tab.href} href={tab.href} className={linkClass(tab.href)}>
+            <Link key={tab.href} href={tab.href} className={linkClass()} style={linkStyle(tab.href)}>
               <Icon size={21} />
               <span className="truncate">{tab.label}</span>
             </Link>
@@ -65,10 +68,14 @@ export function BottomNav() {
         <button
           type="button"
           onClick={handleAddClick}
-          className="relative -mt-8 flex min-w-[72px] flex-col items-center gap-1 text-[10px] font-bold text-[#f97316]"
+          className="relative -mt-8 flex min-w-[72px] flex-col items-center gap-1 text-[10px] font-bold"
+          style={{ color: ui.cta }}
           aria-label="Įdėti skelbimą"
         >
-          <span className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white bg-[#f97316] text-white shadow-[0_10px_28px_rgba(249,115,22,0.35)]">
+          <span
+            className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white text-white shadow-lg"
+            style={{ backgroundColor: ui.cta, boxShadow: `0 10px 28px ${ui.cta}59` }}
+          >
             <Plus size={26} strokeWidth={2} />
           </span>
           <span>Įdėti</span>
@@ -77,7 +84,7 @@ export function BottomNav() {
         {tabs.slice(2).map((tab) => {
           const Icon = tab.icon;
           return (
-            <Link key={tab.href} href={tab.href} className={`relative ${linkClass(tab.href)}`}>
+            <Link key={tab.href} href={tab.href} className={`relative ${linkClass()}`} style={linkStyle(tab.href)}>
               <div className="relative">
                 <Icon size={20} />
                 {tab.badge !== undefined && (

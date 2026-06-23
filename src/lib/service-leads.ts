@@ -11,7 +11,111 @@ export interface ServiceLead {
   leadPrice: number;
   createdAt: string;
   hiddenContact: string;
+  /** Revealed after pay-per-lead open */
+  contactPhone?: string;
   requiredSpecialties: string[];
+  /** Live lead from buyer search (not demo seed) */
+  source?: "demo" | "buyer";
+  sourceUserId?: string;
+  query?: string;
+}
+
+const CITY_PATTERNS: Array<[RegExp, string]> = [
+  [/vilniuje|vilnius/i, "Vilnius"],
+  [/kaune|kaunas/i, "Kaunas"],
+  [/klaip[eė]doje|klaip[eė]da/i, "Klaipėda"],
+  [/[šs]iauliuose|[šs]iauliai/i, "Šiauliai"],
+  [/panev[eė][žz]yje|panev[eė][žz]ys/i, "Panevėžys"],
+  [/alytuje|alytus/i, "Alytus"],
+  [/marijampol[eė]je|marijampol[eė]/i, "Marijampolė"],
+  [/utenoje|utena/i, "Utena"],
+  [/palangoje|palanga/i, "Palanga"],
+];
+
+export function detectCityFromServiceQuery(query: string): string {
+  for (const [pattern, city] of CITY_PATTERNS) {
+    if (pattern.test(query)) return city;
+  }
+  return "Vilnius";
+}
+
+function maskPhone(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 8) return "+370 6•• •••••";
+  return `+370 6•• •••••`;
+}
+
+function detectUrgency(query: string): ServiceUrgency {
+  if (/skub|šiandien|greit|nedelsiant/i.test(query)) return "today";
+  if (/savait/i.test(query)) return "this_week";
+  return "flexible";
+}
+
+function leadTitleFromQuery(query: string): string {
+  const q = query.trim();
+  if (q.length <= 60) return q;
+  return `${q.slice(0, 57)}…`;
+}
+
+/** Create a buyer service lead from search / voice / photo flow */
+export function buildServiceLeadFromQuery(
+  query: string,
+  opts?: { userId?: string; contactPhone?: string; defaultCity?: string }
+): ServiceLead | null {
+  const q = query.trim();
+  if (q.length < 6 || !isServiceDemandQuery(q)) return null;
+
+  const city =
+    detectCityFromServiceQuery(q) !== "Vilnius"
+      ? detectCityFromServiceQuery(q)
+      : opts?.defaultCity ?? "Vilnius";
+
+  let category = "Meistras";
+  if (/elektrik/i.test(q)) category = "Elektrikas";
+  else if (/santechn|čiaup/i.test(q)) category = "Santechnikas";
+  else if (/valym/i.test(q)) category = "Valymas";
+  else if (/statyb|plytel|remont/i.test(q)) category = "Statybos";
+  else if (/gro[žz]|kirp/i.test(q)) category = "Grožio paslaugos";
+
+  const contact = opts?.contactPhone?.trim() || "+370 612 44550";
+
+  return {
+    id: `lead-live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: leadTitleFromQuery(q),
+    city,
+    category,
+    summary: `Kliento užklausa: ${q}`,
+    urgency: detectUrgency(q),
+    budgetHint: "Sutarti su klientu",
+    leadPrice: 1.2,
+    createdAt: new Date().toISOString(),
+    hiddenContact: maskPhone(contact),
+    contactPhone: contact,
+    requiredSpecialties: [category],
+    source: "buyer",
+    sourceUserId: opts?.userId,
+    query: q,
+  };
+}
+
+/** Demo seeds + live buyer leads — live wins on id conflict */
+export function mergeServiceLeads(
+  live: ServiceLead[],
+  opts?: { includeDemo?: boolean }
+): ServiceLead[] {
+  const includeDemo = opts?.includeDemo ?? true;
+  const byId = new Map<string, ServiceLead>();
+  if (includeDemo) {
+    for (const lead of DEMO_SERVICE_LEADS) {
+      byId.set(lead.id, { ...lead, source: "demo" });
+    }
+  }
+  for (const lead of live) {
+    byId.set(lead.id, lead);
+  }
+  return Array.from(byId.values()).sort(
+    (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
 }
 
 export type ServiceCoverageTier = "local" | "regional" | "national";

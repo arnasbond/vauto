@@ -54,11 +54,13 @@ function suggestionSeed(query: string): string {
     .trim();
 }
 
+import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+
 export function buildSmartBrokerSignal(
   query: string,
   listings: ScoredListing[]
 ): SmartBrokerSignal | null {
-  const q = query.trim();
+  const q = sanitizeSearchQuery(query);
   if (q.length < 3) return null;
 
   const top = listings[0];

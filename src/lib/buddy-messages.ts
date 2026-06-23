@@ -1,4 +1,5 @@
 import type { AiExtractedListing, Listing, ScoredListing } from "@/lib/types";
+import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { getFirstName } from "@/lib/buddy-voice";
@@ -149,6 +150,7 @@ export function buildSearchBuddyMessage(
   city = "Lietuvoje",
   opts?: { inputMode?: SearchInputMode; subscribed?: boolean }
 ): { message: string; listing: Listing | null } {
+  const q = sanitizeSearchQuery(query);
   const matchStatus = getSearchMatchStatus(listings);
   const top = listings[0] ?? null;
   const inputMode = opts?.inputMode ?? "text";
@@ -164,7 +166,7 @@ export function buildSearchBuddyMessage(
       ? "Jau stebime pageidavimų sąraše — pranešime, kai atsiras."
       : "Įtraukite į pageidavimų sąrašą — gausite realaus laiko pranešimą ir galėsite iškart atidaryti prekę.";
     return {
-      message: `Tokios prekės „${query}" (${city}) dar nėra. ${clarify} ${wishlist}`,
+      message: `Tokios prekės „${q}" (${city}) dar nėra. ${clarify} ${wishlist}`,
       listing: null,
     };
   }
@@ -174,14 +176,14 @@ export function buildSearchBuddyMessage(
       ? "Toliau stebime pageidavimų sąraše tikslesniam atitikmeniui."
       : "Įtraukite į pageidavimų sąrašą — pranešime, kai atsiras tikslesnis skelbimas.";
     return {
-      message: `Radome panašius skelbimus, bet ne tiksliai „${query}". ${wishlist} Žemiau — artimiausi variantai.`,
+      message: `Radome panašius skelbimus, bet ne tiksliai „${q}". ${wishlist} Žemiau — artimiausi variantai.`,
       listing: top,
     };
   }
 
   if (!top) {
     return {
-      message: `Pagal užklausą „${query}" (${city}) rezultatų nerasta.`,
+      message: `Pagal užklausą „${q}" (${city}) rezultatų nerasta.`,
       listing: null,
     };
   }

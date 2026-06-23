@@ -9,6 +9,7 @@ import { RealEstateListingWizard } from "@/components/real-estate/RealEstateList
 import { ClothingListingWizard } from "@/components/clothing/ClothingListingWizard";
 import { GeneralListingWizard } from "@/components/general/GeneralListingWizard";
 import { JobListingWizard } from "@/components/jobs/JobListingWizard";
+import { ServiceListingWizard } from "@/components/services/ServiceListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 
 /**
@@ -52,6 +53,7 @@ export function AiConfirmationScreen() {
   const isClothing = listingToAdaptiveKey(aiDraft.category) === "clothing";
   const isUniversal = listingToAdaptiveKey(aiDraft.category) === "universal";
   const isJobs = listingToAdaptiveKey(aiDraft.category) === "jobs";
+  const isServices = listingToAdaptiveKey(aiDraft.category) === "services";
 
   if (isVehicle) {
     return (
@@ -128,6 +130,23 @@ export function AiConfirmationScreen() {
         manualFallback={aiManualFallback}
         onUpdate={updateAiDraft}
         onAttributeChange={handleAttributeChange}
+        onCancel={cancelSellerFlow}
+        onPublish={publishListing}
+        onToast={showToast}
+      />
+    );
+  }
+
+  if (isServices) {
+    return (
+      <ServiceListingWizard
+        draft={aiDraft}
+        previewImage={sellerPreviewImage}
+        manualFallback={aiManualFallback}
+        onUpdate={updateAiDraft}
+        onAttributeChange={handleAttributeChange}
+        onMediaChange={updateSellerMedia}
+        requestMediaConsent={requestMediaConsent}
         onCancel={cancelSellerFlow}
         onPublish={publishListing}
         onToast={showToast}

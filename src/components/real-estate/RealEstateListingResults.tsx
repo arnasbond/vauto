@@ -6,50 +6,41 @@ import { Heart } from "lucide-react";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { realEstateSummaryLabel } from "@/lib/real-estate-catalog";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
-function formatMileage(value: string | string[] | number): string {
-  const raw = Array.isArray(value) ? value[0] : value;
-  const s = String(raw ?? "").trim();
-  if (!s) return "";
-  if (/km/i.test(s)) return s;
-  return `${s} km`;
-}
-
-function VehicleRow({ listing }: { listing: ScoredListing }) {
+function RealEstateRow({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("autoplius");
+  const ui = getPortalUi("aruodas");
   const isSaved = savedIds.has(listing.id);
   const attrs = listing.attributes ?? {};
-  const specs = [
-    attrs.year,
-    attrs.fuelType,
-    attrs.mileage && formatMileage(attrs.mileage),
-    attrs.gearbox,
-  ]
-    .filter(Boolean)
-    .join(" · ");
+  const rooms = attrs.rooms ? `${attrs.rooms} kamb.` : null;
+  const area = attrs.area ? `${attrs.area} m²` : null;
+  const meta = [rooms, area, realEstateSummaryLabel(attrs)].filter(Boolean).join(" · ");
 
   return (
     <article
       className="flex gap-3 border-b py-3 last:border-0"
       style={{ borderColor: ui.border }}
     >
-      <Link href={listingPath(listing)} className="relative h-[72px] w-[96px] shrink-0 overflow-hidden rounded-md bg-[#e5e7eb]">
-        <Image src={listing.image} alt={listing.title} fill sizes="96px" className="object-cover" />
+      <Link
+        href={listingPath(listing)}
+        className="relative h-[80px] w-[112px] shrink-0 overflow-hidden rounded-md bg-[#eee]"
+      >
+        <Image src={listing.image} alt={listing.title} fill sizes="112px" className="object-cover" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={listingPath(listing)}>
           <h3 className="text-sm font-bold leading-snug hover:underline" style={{ color: ui.link }}>
             {listing.title}
           </h3>
-          {specs && (
+          {meta && (
             <p className="mt-0.5 text-xs" style={{ color: ui.textMuted }}>
-              {specs}
+              {meta}
             </p>
           )}
-          <p className="mt-1 text-base font-extrabold" style={{ color: ui.price }}>
+          <p className="mt-1 text-lg font-extrabold" style={{ color: ui.price }}>
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
           <p className="mt-0.5 text-[11px]" style={{ color: ui.textMuted }}>
@@ -73,22 +64,22 @@ function VehicleRow({ listing }: { listing: ScoredListing }) {
   );
 }
 
-interface VehicleListingResultsProps {
+interface RealEstateListingResultsProps {
   listings: ScoredListing[];
   title?: string;
 }
 
-export function VehicleListingResults({ listings, title }: VehicleListingResultsProps) {
-  const ui = getPortalUi("autoplius");
-  const vehicles = listings.filter((l) => l.category === "vehicles");
+export function RealEstateListingResults({ listings, title }: RealEstateListingResultsProps) {
+  const ui = getPortalUi("aruodas");
+  const items = listings.filter((l) => l.category === "real_estate");
 
-  if (vehicles.length === 0) {
+  if (items.length === 0) {
     return (
       <p
         className="rounded-lg border border-dashed p-6 text-center text-sm"
         style={{ borderColor: ui.border, color: ui.textMuted }}
       >
-        Automobilių nerasta. Pabandykite kitą markę ar miestą.
+        NT skelbimų nerasta. Pabandykite kitą tipą ar miestą.
       </p>
     );
   }
@@ -96,12 +87,12 @@ export function VehicleListingResults({ listings, title }: VehicleListingResults
   return (
     <div className="rounded-lg border bg-white px-3 shadow-sm" style={{ borderColor: ui.border }}>
       {title && (
-        <h3 className="border-b py-3 text-sm font-bold" style={{ borderColor: ui.border, color: ui.text }}>
+        <h3 className="border-b py-3 text-sm font-semibold" style={{ borderColor: ui.border, color: ui.text }}>
           {title}
         </h3>
       )}
-      {vehicles.map((listing) => (
-        <VehicleRow key={listing.id} listing={listing} />
+      {items.map((listing) => (
+        <RealEstateRow key={listing.id} listing={listing} />
       ))}
     </div>
   );

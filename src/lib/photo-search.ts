@@ -12,31 +12,53 @@ const CATEGORY_LABELS: Record<string, string> = {
   other: "prekė",
 };
 
+function safeToken(value: unknown): string | null {
+  if (value === null || value === undefined) return null;
+  const s = String(value).trim();
+  if (!s || s === "undefined" || s === "null") return null;
+  return s;
+}
+
 function attributeTokens(attributes: AiExtractedListing["attributes"]): string[] {
   if (!attributes) return [];
   const tokens: string[] = [];
   for (const [key, value] of Object.entries(attributes)) {
     if (key.startsWith("_")) continue;
-    tokens.push(key);
-    if (Array.isArray(value)) tokens.push(...value);
-    else if (value) tokens.push(value);
+    const keyToken = safeToken(key);
+    if (keyToken) tokens.push(keyToken);
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const t = safeToken(item);
+        if (t) tokens.push(t);
+      }
+    } else {
+      const t = safeToken(value);
+      if (t) tokens.push(t);
+    }
   }
   return tokens;
 }
 
+function fallbackTitle(result: AiExtractedListing): string {
+  const title = safeToken(result.title);
+  if (title) return title;
+  return CATEGORY_LABELS[result.category] ?? "prekė";
+}
+
 export function buildPhotoSearchQuery(result: AiExtractedListing): string {
   const tokens = [
-    result.title,
+    fallbackTitle(result),
     result.category,
     CATEGORY_LABELS[result.category],
-    result.location,
+    safeToken(result.location),
     ...attributeTokens(result.attributes),
   ]
+    .filter((t): t is string => Boolean(t))
     .join(" ")
     .toLowerCase()
     .split(/[\s,.;:!?()[\]'"„“—–-]+/)
     .map((token) => token.trim())
-    .filter((token) => token.length >= 3);
+    .filter((token) => token.length >= 3 && token !== "undefined");
 
   return [...new Set(tokens)].slice(0, 8).join(" ");
 }
@@ -49,5 +71,5 @@ export function buildPhotoSearchToast(result: AiExtractedListing): string {
     result.price > 0
       ? `, rinkos kaina apie ${formatPrice(result.price, result.priceLabel)}`
       : "";
-  return `Atpažinau: ${result.title}${price}. Ieškau panašių skelbimų.`;
+  return `Atpažinau: ${fallbackTitle(result)}${price}. Ieškau panašių skelbimų.`;
 }

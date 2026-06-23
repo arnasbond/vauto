@@ -1,15 +1,14 @@
 "use client";
 
 import { Award, LockKeyhole, MessageCircle, Zap } from "lucide-react";
-import { useState } from "react";
 import {
-  DEMO_SERVICE_LEADS,
   coverageTier,
   isTopRatedPlus,
   leadPriceForCoverage,
   serviceLeadMatchesProvider,
   urgencyLabel,
 } from "@/lib/service-leads";
+import { useVauto } from "@/context/VautoContext";
 import type { UserProfile } from "@/lib/types";
 
 interface ServiceLeadInboxProps {
@@ -19,15 +18,23 @@ interface ServiceLeadInboxProps {
 }
 
 export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProps) {
-  const [openedIds, setOpenedIds] = useState<Set<string>>(new Set());
+  const { serviceLeads, openedServiceLeadIds, openServiceLead, showToast } = useVauto();
+
   const topRatedPlus = isTopRatedPlus({
     rating,
     averageResponseMinutes: user.averageResponseMinutes,
   });
   const tier = coverageTier(user.serviceRadiusKm, user.serviceNationwide);
-  const leads = DEMO_SERVICE_LEADS.filter((lead) =>
-    serviceLeadMatchesProvider(lead, user)
-  );
+  const leads = serviceLeads.filter((lead) => serviceLeadMatchesProvider(lead, user));
+
+  const handleOpen = (leadId: string, price: number) => {
+    const ok = openServiceLead(leadId);
+    if (ok) {
+      showToast(`Kontaktas atidarytas (−${price.toFixed(2)} €)`, "success");
+      return;
+    }
+    showToast("Nepakanka balanso — papildykite piniginę.", "info");
+  };
 
   return (
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
@@ -58,13 +65,17 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
 
       <div className="space-y-3">
         {leads.map((lead) => {
-          const opened = openedIds.has(lead.id);
+          const opened = openedServiceLeadIds.has(lead.id);
           const leadPrice = leadPriceForCoverage(lead.leadPrice, {
             radiusKm: user.serviceRadiusKm,
             nationwide: user.serviceNationwide,
             topRatedPlus,
           });
           const canOpen = balance >= leadPrice || opened;
+          const contact = opened
+            ? lead.contactPhone ?? "+370 612 44550"
+            : lead.hiddenContact;
+
           return (
             <article
               key={lead.id}
@@ -72,7 +83,14 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
-                  <p className="text-sm font-semibold text-white">{lead.title}</p>
+                  <div className="flex items-center gap-2">
+                    <p className="text-sm font-semibold text-white">{lead.title}</p>
+                    {lead.source === "buyer" && (
+                      <span className="rounded-full bg-[var(--vauto-teal)]/20 px-2 py-0.5 text-[9px] font-bold uppercase text-[var(--vauto-teal)]">
+                        Live
+                      </span>
+                    )}
+                  </div>
                   <p className="text-[10px] text-slate-500">
                     {lead.category} · {lead.city} · {urgencyLabel(lead.urgency)}
                   </p>
@@ -86,14 +104,12 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
               </p>
               <p className="mt-2 text-xs text-slate-500">
                 Biudžetas: {lead.budgetHint} · Kontaktas:{" "}
-                <span className="font-mono">
-                  {opened ? "+370 612 44550" : lead.hiddenContact}
-                </span>
+                <span className="font-mono">{contact}</span>
               </p>
               <button
                 type="button"
-                disabled={!canOpen}
-                onClick={() => setOpenedIds((prev) => new Set([...prev, lead.id]))}
+                disabled={!canOpen && !opened}
+                onClick={() => handleOpen(lead.id, leadPrice)}
                 className="mt-3 inline-flex items-center gap-1.5 rounded-xl bg-[var(--vauto-teal)] px-3 py-2 text-xs font-semibold text-white disabled:bg-slate-700 disabled:text-slate-400"
               >
                 {opened ? (

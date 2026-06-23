@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
+import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 
 const CHAMELEON_CLASSES = [
@@ -36,6 +37,17 @@ export function ChameleonThemeHost() {
       body.classList.add("chameleon-flux");
     };
   }, [theme.bodyClass]);
+
+  useEffect(() => {
+    const ui = getPortalUi(effectiveTheme);
+    let meta = document.querySelector('meta[name="theme-color"]');
+    if (!meta) {
+      meta = document.createElement("meta");
+      meta.setAttribute("name", "theme-color");
+      document.head.appendChild(meta);
+    }
+    meta.setAttribute("content", ui.bannerBg);
+  }, [effectiveTheme]);
 
   return null;
 }

@@ -9,6 +9,8 @@ import {
   isGoogleAuthConfigured,
   requestGoogleIdToken,
 } from "@/lib/auth/google-client";
+import { isAppleAuthConfigured } from "@/lib/auth/apple-client";
+import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
 
 type AuthStep = "methods" | "phone" | "otp" | "role" | "admin";
 
@@ -106,7 +108,7 @@ export function AuthModal({
   const finish = (provider: AuthProvider) => {
     onComplete({
       provider,
-      phone: provider === "phone" ? phone : undefined,
+      phone: provider === "phone" ? normalizeLtPhoneForApi(phone) : undefined,
       otp: provider === "phone" ? otp : undefined,
       idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
       role,
@@ -155,7 +157,7 @@ export function AuthModal({
     setOtpSending(true);
     try {
       if (isAuthApiAvailable()) {
-        const res = await apiSendOtp(phone);
+        const res = await apiSendOtp(normalizeLtPhoneForApi(phone));
         if (!res.ok) {
           setOtpError(res.error);
           return;
@@ -225,18 +227,20 @@ export function AuthModal({
             {isGoogleAuthConfigured() && (
               <div ref={googleBtnRef} className="flex justify-center" />
             )}
-            <button
-              type="button"
-              onClick={() => {
-                onClearError?.();
-                setPendingProvider("apple");
-                setStep("role");
-              }}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"
-            >
-              <Apple className="h-5 w-5" />
-              Prisijungti su Apple
-            </button>
+            {isAppleAuthConfigured() && (
+              <button
+                type="button"
+                onClick={() => {
+                  onClearError?.();
+                  setPendingProvider("apple");
+                  setStep("role");
+                }}
+                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"
+              >
+                <Apple className="h-5 w-5" />
+                Prisijungti su Apple
+              </button>
+            )}
             <button
               type="button"
               onClick={() => setStep("phone")}
@@ -312,7 +316,7 @@ export function AuthModal({
             <input
               type="tel"
               value={phone}
-              onChange={(e) => setPhone(e.target.value)}
+              onChange={(e) => setPhone(formatLtPhoneInput(e.target.value))}
               className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-teal)]"
               placeholder="+370 600 00000"
             />

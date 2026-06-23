@@ -22,7 +22,7 @@ import {
   type VehicleModification,
 } from "@/lib/vehicle-catalog";
 import {
-  lookupVehicleDemo,
+  lookupVehicle,
   vehicleLookupToDraftPatch,
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
 import { capturePhoto } from "@/lib/native-media";
@@ -224,13 +224,13 @@ export function VehicleListingWizard({
   );
 
   const runVinLookup = useCallback(
-    (vin: string) => {
-      const patch = vehicleLookupToDraftPatch(
-        lookupVehicleDemo(vin, { make, model })
-      );
-      onUpdate({
-        ...patch,
-        attributes: { ...attrs, ...patch.attributes, vin },
+    (vinValue: string) => {
+      void lookupVehicle(vinValue, { make, model }).then((lookup) => {
+        const patch = vehicleLookupToDraftPatch(lookup);
+        onUpdate({
+          ...patch,
+          attributes: { ...attrs, ...patch.attributes, vin: vinValue },
+        });
       });
     },
     [attrs, make, model, onUpdate]

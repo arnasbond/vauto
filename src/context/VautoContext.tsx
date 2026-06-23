@@ -13,6 +13,11 @@ import {
 import { INITIAL_LISTINGS } from "@/data/mockListings";
 import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
 import {
+  portalRankedListings,
+  portalThemeForQuery,
+  sanitizeSearchQuery,
+} from "@/lib/portal-listing-filter";
+import {
   generateDynamicFilters,
   rankListings,
   resolveSortMode,
@@ -28,13 +33,17 @@ import {
   loadGdprConsent,
   loadListings,
   loadSavedIds,
+  loadOpenedServiceLeads,
   loadSearchIntent,
+  loadServiceLeads,
   loadSoldPromptDismissed,
   loadUser,
   saveGdprConsent,
   saveListings,
+  saveOpenedServiceLeads,
   saveSavedIds,
   saveSearchIntent,
+  saveServiceLeads,
   saveSoldPromptDismissed,
 } from "@/lib/storage";
 import { distanceToCity, getUserCoords, type UserCoords } from "@/lib/geolocation";
@@ -82,6 +91,13 @@ import {
   recordSearchIntent,
   type SearchIntentEvent,
 } from "@/lib/search-intent";
+import {
+  buildServiceLeadFromQuery,
+  isServiceDemandQuery,
+  leadPriceForCoverage,
+  mergeServiceLeads,
+  type ServiceLead,
+} from "@/lib/service-leads";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { useAuth, type LoginPayload } from "@/context/AuthContext";
 import { useReviews } from "@/context/ReviewsContext";
@@ -272,6 +288,10 @@ interface VautoContextValue {
   soldPromptDismissed: Set<string>;
   dismissSoldPrompt: (listingId: string) => void;
   sellerAnalytics: ReturnType<typeof aggregateSellerMetrics>;
+  serviceLeads: ServiceLead[];
+  openedServiceLeadIds: Set<string>;
+  registerServiceLead: (query: string) => void;
+  openServiceLead: (leadId: string) => boolean;
   pendingReview: PendingReviewPrompt | null;
   queueReviewPrompt: (data: PendingReviewPrompt & { delayMs?: number }) => void;
   clearReviewPrompt: () => void;
@@ -436,6 +456,11 @@ function VautoFacade({
       }
     }
 
+    const q = catalog.searchQuery.trim();
+    if (q && portalThemeForQuery(q) !== "flux") {
+      results = portalRankedListings(q, results);
+    }
+
     return results;
   }, [
     visibleListings,
@@ -525,6 +550,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [gdprConsent, setGdprConsent] = useState(false);
   const [gdprModalOpen, setGdprModalOpen] = useState(false);
   const [searchIntentEvents, setSearchIntentEvents] = useState<SearchIntentEvent[]>([]);
+  const [liveServiceLeads, setLiveServiceLeads] = useState<ServiceLead[]>([]);
+  const [openedServiceLeadIds, setOpenedServiceLeadIds] = useState<Set<string>>(new Set());
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
@@ -587,6 +614,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (storedIntent) setSearchIntentEvents(storedIntent);
         const storedDismissed = loadSoldPromptDismissed();
         if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
+        const storedLeads = loadServiceLeads();
+        if (storedLeads?.length) setLiveServiceLeads(storedLeads);
+        const storedOpened = loadOpenedServiceLeads();
+        if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
 
         if (errors.length) setSyncError(errors[0]);
         setGdprConsent(loadGdprConsent());
@@ -610,11 +641,24 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (storedIntent) setSearchIntentEvents(storedIntent);
       const storedDismissed = loadSoldPromptDismissed();
       if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
+      const storedLeads = loadServiceLeads();
+      if (storedLeads?.length) setLiveServiceLeads(storedLeads);
+      const storedOpened = loadOpenedServiceLeads();
+      if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
       setGdprConsent(loadGdprConsent());
       setHydrated(true);
     }
     void load();
   }, [patchAuthUser]);
+
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) {
+      const clean = sanitizeSearchQuery(q);
+      if (clean) setSearchQuery(clean);
+    }
+  }, [hydrated]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -625,6 +669,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     if (!hydrated || apiActive) return;
     saveSavedIds(savedIds);
   }, [savedIds, hydrated, apiActive]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveServiceLeads(liveServiceLeads);
+  }, [liveServiceLeads, hydrated]);
+
+  useEffect(() => {
+    if (!hydrated) return;
+    saveOpenedServiceLeads([...openedServiceLeadIds]);
+  }, [openedServiceLeadIds, hydrated]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -701,12 +755,74 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [listings, user.id]
   );
 
-  const handleSearchQuery = useCallback((q: string) => {
-    setSearchQuery(q);
-    if (q.trim().length >= 2) {
-      setSearchIntentEvents((prev) => recordSearchIntent(prev, q));
-    }
-  }, []);
+  const serviceLeads = useMemo(
+    () => mergeServiceLeads(liveServiceLeads, { includeDemo: true }),
+    [liveServiceLeads]
+  );
+
+  const registerServiceLead = useCallback(
+    (query: string) => {
+      const lead = buildServiceLeadFromQuery(query, {
+        userId: user.id,
+        contactPhone: user.phone,
+        defaultCity: user.city?.split(",")[0],
+      });
+      if (!lead) return;
+
+      setLiveServiceLeads((prev) => {
+        const recentDuplicate = prev.some(
+          (item) =>
+            item.query?.toLowerCase() === lead.query?.toLowerCase() &&
+            Date.now() - new Date(item.createdAt).getTime() < 60 * 60 * 1000
+        );
+        if (recentDuplicate) return prev;
+        return [lead, ...prev].slice(0, 50);
+      });
+    },
+    [user.id, user.phone, user.city]
+  );
+
+  const openServiceLead = useCallback(
+    (leadId: string): boolean => {
+      const lead = serviceLeads.find((l) => l.id === leadId);
+      if (!lead) return false;
+      if (openedServiceLeadIds.has(leadId)) return true;
+
+      const price = leadPriceForCoverage(lead.leadPrice, {
+        radiusKm: user.serviceRadiusKm,
+        nationwide: user.serviceNationwide,
+        topRatedPlus: false,
+      });
+      const balance = user.walletBalance ?? 0;
+      if (balance < price) return false;
+
+      patchAuthUser({ walletBalance: balance - price });
+      setOpenedServiceLeadIds((prev) => new Set([...prev, leadId]));
+      return true;
+    },
+    [
+      serviceLeads,
+      openedServiceLeadIds,
+      user.walletBalance,
+      user.serviceRadiusKm,
+      user.serviceNationwide,
+      patchAuthUser,
+    ]
+  );
+
+  const handleSearchQuery = useCallback(
+    (q: string) => {
+      const clean = sanitizeSearchQuery(q);
+      setSearchQuery(clean);
+      if (clean.length >= 2) {
+        setSearchIntentEvents((prev) => recordSearchIntent(prev, clean));
+      }
+      if (isServiceDemandQuery(clean)) {
+        registerServiceLead(clean);
+      }
+    },
+    [registerServiceLead]
+  );
 
   const clearVisualSearch = useCallback((opts?: { keepInputMode?: boolean }) => {
     setVisualSearchProfile(null);
@@ -1274,6 +1390,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       soldPromptDismissed,
       dismissSoldPrompt,
       sellerAnalytics,
+      serviceLeads,
+      openedServiceLeadIds,
+      registerServiceLead,
+      openServiceLead,
       pendingReview,
       queueReviewPrompt,
       clearReviewPrompt,
@@ -1341,6 +1461,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       soldPromptDismissed,
       dismissSoldPrompt,
       sellerAnalytics,
+      serviceLeads,
+      openedServiceLeadIds,
+      registerServiceLead,
+      openServiceLead,
       pendingReview,
       queueReviewPrompt,
       clearReviewPrompt,

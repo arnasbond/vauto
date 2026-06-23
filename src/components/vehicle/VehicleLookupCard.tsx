@@ -1,10 +1,10 @@
 "use client";
 
-import { Camera, CheckCircle2, Database, ScanLine } from "lucide-react";
+import { Camera, CheckCircle2, Database, Loader2, ScanLine } from "lucide-react";
 import { useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import {
-  lookupVehicleDemo,
+  lookupVehicle,
   vehicleLookupToDraftPatch,
   type VehicleLookupResult,
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
@@ -16,11 +16,17 @@ interface VehicleLookupCardProps {
 
 export function VehicleLookupCard({ vin, onApply }: VehicleLookupCardProps) {
   const [result, setResult] = useState<VehicleLookupResult | null>(null);
+  const [loading, setLoading] = useState(false);
 
-  const runLookup = (identifier?: string) => {
-    const next = lookupVehicleDemo(identifier);
-    setResult(next);
-    onApply(vehicleLookupToDraftPatch(next));
+  const runLookup = async (identifier?: string) => {
+    setLoading(true);
+    try {
+      const next = await lookupVehicle(identifier);
+      setResult(next);
+      onApply(vehicleLookupToDraftPatch(next));
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -31,25 +37,31 @@ export function VehicleLookupCard({ vin, onApply }: VehicleLookupCardProps) {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-wide text-[#1167b1]">
-            Regitra / VIN demo autofill
+            Regitra / VIN autofill
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[#4b5563]">
-            Nufotografavus VIN arba valstybinį numerį, VAUTO paruoštas užpildyti
-            markę, modelį, metus, kurą, variklį ir TA galiojimą.
+            VIN dekoduojamas per NHTSA (tikras API). Valstybinis numeris — demo
+            Regitra adapteris.
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button
               type="button"
-              onClick={() => runLookup(vin)}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1167b1] px-3 py-2 text-xs font-semibold text-white"
+              disabled={loading}
+              onClick={() => void runLookup(vin)}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg bg-[#1167b1] px-3 py-2 text-xs font-semibold text-white disabled:opacity-60"
             >
-              <ScanLine className="h-3.5 w-3.5" />
+              {loading ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <ScanLine className="h-3.5 w-3.5" />
+              )}
               VIN lookup
             </button>
             <button
               type="button"
-              onClick={() => runLookup("KAA 123")}
-              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#1167b1] bg-white px-3 py-2 text-xs font-semibold text-[#1167b1]"
+              disabled={loading}
+              onClick={() => void runLookup("KAA 123")}
+              className="inline-flex items-center justify-center gap-1.5 rounded-lg border border-[#1167b1] bg-white px-3 py-2 text-xs font-semibold text-[#1167b1] disabled:opacity-60"
             >
               <Camera className="h-3.5 w-3.5" />
               Numerio foto
@@ -70,7 +82,7 @@ export function VehicleLookupCard({ vin, onApply }: VehicleLookupCardProps) {
             <span>{result.fuelType}</span>
             <span>{result.engine}</span>
             <span>TA iki {result.taExpiry}</span>
-            <span>{result.taValid ? "TA galioja" : "TA negalioja"}</span>
+            <span>{result.taValid ? "TA galioja" : "TA nežinoma"}</span>
           </div>
         </div>
       )}

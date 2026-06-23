@@ -2,7 +2,7 @@ import type { AiExtractedListing } from "@/lib/types";
 import { isValidVin, normalizeVin } from "@/lib/trust";
 
 export interface VehicleLookupResult {
-  source: "regitra-demo" | "vin-decoder-demo" | "vision-demo";
+  source: "regitra-demo" | "vin-decoder-demo" | "vin-decoder-nhtsa" | "vision-demo";
   confidence: number;
   plateNumber?: string;
   vin?: string;
@@ -50,6 +50,65 @@ const CITROEN_DS5_DEMO: VehicleLookupResult = {
   registrationCountry: "LT",
 };
 
+interface NhtsaVinRow {
+  ErrorCode?: string;
+  Make?: string;
+  Model?: string;
+  ModelYear?: string;
+  FuelTypePrimary?: string;
+  DisplacementL?: string;
+  EngineHP?: string;
+  BodyClass?: string;
+}
+
+function mapFuel(raw?: string): string {
+  const v = (raw ?? "").toLowerCase();
+  if (/diesel/i.test(v)) return "Dyzelinas";
+  if (/electric/i.test(v)) return "Elektra";
+  if (/hybrid/i.test(v)) return "Hibridas";
+  if (/gasoline|petrol/i.test(v)) return "Benzinas";
+  return raw?.trim() || "Nežinoma";
+}
+
+function engineLabel(row: NhtsaVinRow): string {
+  const parts: string[] = [];
+  if (row.DisplacementL) parts.push(`${row.DisplacementL} L`);
+  if (row.EngineHP) parts.push(`${row.EngineHP} AG`);
+  return parts.join(" ") || "Nežinomas";
+}
+
+export async function lookupVehicleByVinNhtsa(vin: string): Promise<VehicleLookupResult | null> {
+  const normalized = normalizeVin(vin);
+  if (!isValidVin(normalized)) return null;
+
+  try {
+    const res = await fetch(
+      `https://vpic.nhtsa.dot.gov/api/vehicles/DecodeVinValuesExtended/${encodeURIComponent(normalized)}?format=json`
+    );
+    if (!res.ok) return null;
+    const json = (await res.json()) as { Results?: NhtsaVinRow[] };
+    const row = json.Results?.[0];
+    if (!row || row.ErrorCode !== "0" || !row.Make) return null;
+
+    return {
+      source: "vin-decoder-nhtsa",
+      confidence: 0.88,
+      vin: normalized,
+      make: row.Make.trim(),
+      model: (row.Model ?? "").trim() || "Modelis",
+      year: String(row.ModelYear ?? "").trim() || "—",
+      fuelType: mapFuel(row.FuelTypePrimary),
+      engine: engineLabel(row),
+      bodyType: (row.BodyClass ?? "Nežinomas").trim(),
+      taExpiry: "—",
+      taValid: false,
+      registrationCountry: "—",
+    };
+  } catch {
+    return null;
+  }
+}
+
 export function lookupVehicleDemo(
   identifier?: string,
   hint?: { make?: string; model?: string }
@@ -80,9 +139,26 @@ export function lookupVehicleDemo(
   return DEMO_VEHICLE;
 }
 
+export async function lookupVehicle(
+  identifier?: string,
+  hint?: { make?: string; model?: string }
+): Promise<VehicleLookupResult> {
+  const normalized = identifier?.trim().toUpperCase() ?? "";
+  if (isValidVin(normalized)) {
+    const nhtsa = await lookupVehicleByVinNhtsa(normalized);
+    if (nhtsa) return nhtsa;
+  }
+  return lookupVehicleDemo(identifier, hint);
+}
+
 export function vehicleLookupToDraftPatch(
   result: VehicleLookupResult
 ): Partial<AiExtractedListing> {
+  const sourceLabel =
+    result.source === "vin-decoder-nhtsa"
+      ? "NHTSA VIN dekoderio"
+      : "Regitra/VIN demo adapterio";
+
   return {
     title: `${result.make} ${result.model} ${result.year}`,
     category: "vehicles",
@@ -98,9 +174,9 @@ export function vehicleLookupToDraftPatch(
       bodyType: result.bodyType,
       mileage: result.mileage,
       taExpiry: result.taExpiry,
-      taStatus: result.taValid ? "TA galioja" : "TA negalioja",
+      taStatus: result.taValid ? "TA galioja" : "TA nežinoma",
       vehicleDataSource: result.source,
     },
-    description: `${result.make} ${result.model}, ${result.year} m., ${result.fuelType}, ${result.engine}. TA galioja iki ${result.taExpiry}. Duomenys užpildyti iš Regitra/VIN demo adapterio.`,
+    description: `${result.make} ${result.model}, ${result.year} m., ${result.fuelType}, ${result.engine}. Duomenys iš ${sourceLabel}.`,
   };
 }
