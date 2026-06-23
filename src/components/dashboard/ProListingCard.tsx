@@ -1,11 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { Sparkles, TrendingUp, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
-import { mockListingMetrics } from "@/lib/dashboard-mock";
+import { getListingMetrics } from "@/lib/listing-analytics";
 import { getPromoteSuggestion } from "@/lib/smart-promote";
 import { categoryToTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
@@ -13,11 +13,16 @@ import { listingPath } from "@/lib/seo";
 import type { Listing } from "@/lib/types";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { formatExpiryLabel, isListingActive } from "@/lib/listing-expiry";
+import { ListingMarketStats } from "./ListingMarketStats";
 import { SmartPromoteModal } from "./SmartPromoteModal";
 
 interface ProListingCardProps {
   listing: Listing;
+  allListings: Listing[];
+  buyerIntentCount?: number;
   walletBalance: number;
+  autoOpenPromote?: boolean;
+  onPromoteOpened?: () => void;
   onEdit: () => void;
   onDelete: () => void;
   onPromote: (listingId: string, cost: number) => boolean;
@@ -26,20 +31,33 @@ interface ProListingCardProps {
 
 export function ProListingCard({
   listing,
+  allListings,
+  buyerIntentCount = 0,
   walletBalance,
+  autoOpenPromote = false,
+  onPromoteOpened,
   onEdit,
   onDelete,
   onPromote,
   onRenew,
 }: ProListingCardProps) {
   const [promoteOpen, setPromoteOpen] = useState(false);
-  const metrics = mockListingMetrics(listing);
-  const suggestion = getPromoteSuggestion(listing);
+  const metrics = getListingMetrics(listing);
+  const suggestion = getPromoteSuggestion(listing, {
+    allListings,
+    buyerIntentCount,
+  });
   const promoteTheme = categoryToTheme(listing.category);
-  const promoteLabels = suggestion.labels;
   const isSold = listing.status === "sold";
   const expiryLabel = formatExpiryLabel(listing);
   const expired = !isSold && !isListingActive(listing);
+
+  useEffect(() => {
+    if (autoOpenPromote && !isSold && !listing.promoted) {
+      setPromoteOpen(true);
+      onPromoteOpened?.();
+    }
+  }, [autoOpenPromote, isSold, listing.promoted, onPromoteOpened]);
 
   return (
     <>
@@ -97,6 +115,12 @@ export function ProListingCard({
                 {metrics.interestScore}%
               </span>
             </div>
+            <ListingMarketStats
+              listing={listing}
+              allListings={allListings}
+              buyerIntentCount={buyerIntentCount}
+              compact
+            />
           </div>
         </div>
 
@@ -138,11 +162,16 @@ export function ProListingCard({
                   promoteTheme === "flux" && "text-[var(--vauto-teal)]"
                 )}
               >
-                {promoteLabels.cardCta}
+                {suggestion.reason}
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-slate-300">
                 {suggestion.message} · {suggestion.cost.toFixed(2)}€
               </p>
+              {suggestion.competitorCount > 0 && (
+                <p className="mt-0.5 text-[10px] text-slate-400">
+                  {suggestion.competitorCount} konkurentai · {suggestion.expectedLift}
+                </p>
+              )}
             </div>
           </button>
         )}

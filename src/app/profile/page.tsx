@@ -98,6 +98,7 @@ export default function ProfilePage() {
         <ProBusinessDashboard
           user={user}
           listings={myListings}
+          allListings={listings}
           onEdit={setEditingListing}
           onDelete={(id) => {
             if (confirm("Ištrinti skelbimą?")) deleteListing(id);

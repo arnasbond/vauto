@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
-import { Check, CreditCard, Sparkles, Wallet, X } from "lucide-react";
+import { Check, CreditCard, Sparkles, TrendingUp, Users, Wallet, X } from "lucide-react";
+import { formatPrice } from "@/data/mockListings";
 import type { Listing } from "@/lib/types";
 import type { PromoteSuggestion } from "@/lib/smart-promote";
+import { precisionLabel } from "@/lib/market-insights";
 import { categoryToTheme, getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 
@@ -33,6 +35,8 @@ export function SmartPromoteModal({
   const theme = getChameleonTheme(categoryToTheme(listing.category));
   const labels = suggestion.labels;
   const classic = theme.classicLayout;
+  const insights = suggestion.insights;
+  const advice = insights?.priceAdvice;
 
   if (!open) return null;
 
@@ -82,12 +86,87 @@ export function SmartPromoteModal({
             </p>
             <p
               className={cn(
-                "mb-4 text-xs leading-relaxed",
+                "mb-3 text-xs leading-relaxed",
                 classic ? "text-[#6b7280]" : "text-teal-200/80"
               )}
             >
               {suggestion.message} · {labels.bumpLabel} · {suggestion.durationDays} d.
             </p>
+
+            {insights && suggestion.competitorCount > 0 && (
+              <div
+                className={cn(
+                  "mb-4 rounded-xl border p-3",
+                  classic
+                    ? "border-[#d0d7de] bg-[#f8fafc]"
+                    : "border-white/10 bg-white/5"
+                )}
+              >
+                <p
+                  className={cn(
+                    "mb-2 text-[10px] font-semibold uppercase tracking-wide",
+                    classic ? "text-[#6b7280]" : "text-slate-500"
+                  )}
+                >
+                  Konkurentų statistika
+                </p>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="flex items-center gap-1.5">
+                    <Users className="h-3.5 w-3.5 text-sky-400" />
+                    <span className={classic ? "text-[#374151]" : "text-slate-300"}>
+                      {suggestion.competitorCount} panašūs skelbimai
+                    </span>
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className={classic ? "text-[#374151]" : "text-slate-300"}>
+                      {suggestion.expectedLift}
+                    </span>
+                  </div>
+                </div>
+                {advice?.minPrice != null && advice.maxPrice != null && (
+                  <p
+                    className={cn(
+                      "mt-2 text-[11px]",
+                      classic ? "text-[#1565c0]" : "text-[var(--vauto-teal)]"
+                    )}
+                  >
+                    Rinkos kainos {insights.scopeLabel}:{" "}
+                    {formatPrice(advice.minPrice)} – {formatPrice(advice.maxPrice)}
+                    {advice.medianPrice != null &&
+                      ` (vid. ${formatPrice(advice.medianPrice)})`}
+                  </p>
+                )}
+                <p
+                  className={cn(
+                    "mt-1 text-[10px]",
+                    classic ? "text-[#6b7280]" : "text-slate-500"
+                  )}
+                >
+                  Jūsų pozicija: {insights.pricePositionLabel} ·{" "}
+                  {precisionLabel(insights.precision)}
+                </p>
+                {insights.topComparables.length > 0 && (
+                  <ul className="mt-2 space-y-1 border-t border-white/10 pt-2">
+                    {insights.topComparables.map((item, i) => (
+                      <li
+                        key={`${item.title}-${i}`}
+                        className={cn(
+                          "flex justify-between gap-2 text-[10px]",
+                          classic ? "text-[#6b7280]" : "text-slate-400"
+                        )}
+                      >
+                        <span className="truncate">{item.title}</span>
+                        <span className="shrink-0 font-medium">
+                          {formatPrice(item.price)}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            )}
+
             <p className={cn("mb-4 text-3xl font-bold", titleColor)}>
               {suggestion.cost.toFixed(2)} €
             </p>

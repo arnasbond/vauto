@@ -1,16 +1,19 @@
 "use client";
 
+import { useCallback, useState } from "react";
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
 import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
 import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
+import { BusinessMarketInsights } from "@/components/dashboard/BusinessMarketInsights";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
 import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
+import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
-import { mockAggregateAnalytics, mockServiceBookings } from "@/lib/dashboard-mock";
+import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
 import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
@@ -18,6 +21,7 @@ import type { Listing, UserProfile } from "@/lib/types";
 interface ProBusinessDashboardProps {
   user: UserProfile;
   listings: Listing[];
+  allListings: Listing[];
   onEdit: (listing: Listing) => void;
   onDelete: (id: string) => void;
   onMarkSold: (id: string) => void;
@@ -29,6 +33,7 @@ interface ProBusinessDashboardProps {
 export function ProBusinessDashboard({
   user,
   listings,
+  allListings,
   onEdit,
   onDelete,
   onMarkSold,
@@ -36,22 +41,46 @@ export function ProBusinessDashboard({
   onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
-  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews } = useVauto();
-  const analytics = mockAggregateAnalytics(listings);
+  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews, sellerAnalytics } =
+    useVauto();
   const rating = computeSellerRating(reviews, user.id);
   const serviceRating = rating.count > 0 ? rating.avg : 4.9;
   const showCalendar =
     user.businessType === "services" ||
     listings.some((l) => l.category === "services");
 
+  const [promoteTargetId, setPromoteTargetId] = useState<string | null>(null);
+
+  const handlePromoteFromInsights = useCallback((listingId: string) => {
+    setPromoteTargetId(listingId);
+    requestAnimationFrame(() => {
+      document
+        .getElementById(`listing-card-${listingId}`)
+        ?.scrollIntoView({ behavior: "smooth", block: "center" });
+    });
+  }, []);
+
   return (
     <div>
       <BusinessIdentityCard user={user} />
+      <BusinessMarketInsights
+        listings={listings}
+        allListings={allListings}
+        buyerIntentCount={buyerIntentCount}
+        onPromoteListing={handlePromoteFromInsights}
+      />
+      <MicroAnalytics
+        views={sellerAnalytics.views}
+        callClicks={sellerAnalytics.callClicks}
+        saves={sellerAnalytics.saves}
+        chatStarts={sellerAnalytics.chatStarts}
+        interestScore={sellerAnalytics.interestScore}
+      />
       <CallAndSellWidget
-        views={analytics.views}
-        callClicks={analytics.callClicks}
-        saves={analytics.saves}
-        chatStarts={analytics.chatStarts}
+        views={sellerAnalytics.views}
+        callClicks={sellerAnalytics.callClicks}
+        saves={sellerAnalytics.saves}
+        chatStarts={sellerAnalytics.chatStarts}
       />
       <BuyerIntentBanner intentCount={buyerIntentCount} />
       <SoldPromptBanner
@@ -67,8 +96,8 @@ export function ProBusinessDashboard({
       />
       <B2BBillingCard
         balance={user.walletBalance ?? 0}
-        clicks={analytics.views}
-        callClicks={analytics.callClicks}
+        clicks={sellerAnalytics.views}
+        callClicks={sellerAnalytics.callClicks}
         activeListings={listings.length}
       />
       <BulkUploadCard />
@@ -94,15 +123,20 @@ export function ProBusinessDashboard({
             </p>
           ) : (
             listings.map((l) => (
-              <ProListingCard
-                key={l.id}
-                listing={l}
-                walletBalance={user.walletBalance ?? 0}
-                onEdit={() => onEdit(l)}
-                onDelete={() => onDelete(l.id)}
-                onPromote={onPromote}
-                onRenew={() => onRenew(l.id)}
-              />
+              <div key={l.id} id={`listing-card-${l.id}`}>
+                <ProListingCard
+                  listing={l}
+                  allListings={allListings}
+                  buyerIntentCount={buyerIntentCount}
+                  walletBalance={user.walletBalance ?? 0}
+                  autoOpenPromote={promoteTargetId === l.id}
+                  onPromoteOpened={() => setPromoteTargetId(null)}
+                  onEdit={() => onEdit(l)}
+                  onDelete={() => onDelete(l.id)}
+                  onPromote={onPromote}
+                  onRenew={() => onRenew(l.id)}
+                />
+              </div>
             ))
           )}
         </div>
