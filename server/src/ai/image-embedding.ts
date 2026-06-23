@@ -8,6 +8,7 @@ import {
   getListingForEmbedding,
   listListingsMissingImageEmbeddings,
   searchListingsByImageEmbeddingRows,
+  syncImageEmbeddingsFromSearch,
   updateListingImageEmbedding,
 } from "../repository.js";
 
@@ -24,21 +25,28 @@ async function visualFingerprintFromImage(
 
 export async function refreshListingImageEmbedding(
   listingId: string
-): Promise<void> {
+): Promise<boolean> {
   const listing = await getListingForEmbedding(listingId);
-  if (!listing || listing.banned || listing.status === "sold" || !listing.image) {
-    return;
+  if (!listing || listing.banned || listing.status === "sold") {
+    return false;
   }
 
-  const fingerprint =
-    (await visualFingerprintFromImage(listing.image)) ||
-    buildListingSearchText(listing);
-  if (!fingerprint.trim()) return;
+  const imageUrl = listing.image?.trim() ?? "";
+  const skipVision =
+    !imageUrl ||
+    (imageUrl.startsWith("data:") && imageUrl.length > 500_000);
+
+  const fingerprint = skipVision
+    ? buildListingSearchText(listing)
+    : (await visualFingerprintFromImage(imageUrl)) ||
+      buildListingSearchText(listing);
+  if (!fingerprint.trim()) return false;
 
   const embedding = await embedSearchText(fingerprint);
-  if (!embedding) return;
+  if (!embedding) return false;
 
   await updateListingImageEmbedding(listingId, embedding);
+  return true;
 }
 
 export async function imageSearchScores(
@@ -69,12 +77,11 @@ export async function imageSearchScores(
 }
 
 export async function backfillImageEmbeddings(max = 15): Promise<number> {
+  let count = await syncImageEmbeddingsFromSearch(max);
   const ids = await listListingsMissingImageEmbeddings(max);
-  let count = 0;
   for (const id of ids) {
     try {
-      await refreshListingImageEmbedding(id);
-      count += 1;
+      if (await refreshListingImageEmbedding(id)) count += 1;
     } catch {
       /* skip */
     }

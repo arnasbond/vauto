@@ -57,6 +57,10 @@ services:
         value: "1"
       - key: PUBLIC_API_URL
         value: https://vauto-api.onrender.com
+      - key: REGITRA_PLATE_API_USERNAME
+        sync: false
+      - key: REGITRA_PLATE_API_PASSWORD
+        sync: false
 
 databases:
   - name: vauto-db

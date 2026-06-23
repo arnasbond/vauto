@@ -1073,13 +1073,34 @@ export async function searchListingsByImageEmbeddingRows(): Promise<
     }));
 }
 
+export async function syncImageEmbeddingsFromSearch(
+  limit = 100
+): Promise<number> {
+  const rows = await query<{ id: string }>(
+    `UPDATE listings
+     SET image_embedding = search_embedding,
+         image_embedding_updated_at = now()
+     WHERE id IN (
+       SELECT id FROM listings
+       WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+         AND search_embedding IS NOT NULL
+         AND image_embedding IS NULL
+       ORDER BY created_at DESC
+       LIMIT $1
+     )
+     RETURNING id`,
+    [limit]
+  );
+  return rows.length;
+}
+
 export async function listListingsMissingImageEmbeddings(
   limit: number
 ): Promise<string[]> {
   const rows = await query<{ id: string }>(
     `SELECT id FROM listings
      WHERE NOT banned AND COALESCE(status, 'active') = 'active'
-       AND image IS NOT NULL AND image <> ''
+       AND search_embedding IS NOT NULL
        AND image_embedding IS NULL
      ORDER BY created_at DESC
      LIMIT $1`,
