@@ -640,7 +640,8 @@ export async function topUpWallet(
 export async function promoteListingWallet(
   userId: string,
   listingId: string,
-  cost: number
+  cost: number,
+  tier = 2
 ): Promise<{ walletBalance: number; listing: ApiListing } | null> {
   const client = await pool.connect();
   try {
@@ -655,13 +656,29 @@ export async function promoteListingWallet(
       await client.query("ROLLBACK");
       return null;
     }
+    const existing = await client.query<{ attributes: Record<string, unknown> | null }>(
+      `SELECT attributes FROM listings WHERE id = $1 AND seller_id = $2`,
+      [listingId, userId]
+    );
+    if (!existing.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+    const durationDays = tier <= 1 ? 7 : tier === 2 ? 14 : tier === 3 ? 30 : tier === 4 ? 60 : 90;
+    const expires = new Date();
+    expires.setDate(expires.getDate() + durationDays);
+    const attrs = {
+      ...(existing.rows[0].attributes ?? {}),
+      _visibilityTier: String(tier),
+      _visibilityExpiresAt: expires.toISOString(),
+    };
     const listRows = await client.query<ListingRow>(
-      `UPDATE listings SET promoted = true
+      `UPDATE listings SET promoted = true, attributes = $3::jsonb
        WHERE id = $1 AND seller_id = $2
        RETURNING id, seller_id, title, price, price_label, location, distance_km,
          latitude, longitude, slug, image, category, tags, contact, has_video, created_at,
          expires_at, description, attributes, status, banned, vin_verified, provider_verified, promoted`,
-      [listingId, userId]
+      [listingId, userId, JSON.stringify(attrs)]
     );
     if (!listRows.rows[0]) {
       await client.query("ROLLBACK");

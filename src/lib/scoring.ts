@@ -1,5 +1,6 @@
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { isListingActive } from "@/lib/listing-expiry";
+import { visibilityBoostScore } from "@/lib/visibility-plans";
 
 export { isListingActive } from "@/lib/listing-expiry";
 
@@ -125,7 +126,8 @@ export function rankListings(
         semanticRelevance * w.semantic +
         proximityScore * w.proximity +
         priceAttractiveness * w.price +
-        recencyScore * w.recency;
+        recencyScore * w.recency +
+        visibilityBoostScore(listing);
 
       return {
         ...listing,

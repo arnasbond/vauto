@@ -2,6 +2,7 @@ import type { Listing } from "@/lib/types";
 import { formatPrice } from "@/data/mockListings";
 import { getPriceAdvice, type PriceAdvice, type PriceVerdict } from "@/lib/price-advisor";
 import { getSkelbiuMarketSnapshot, type MarketComparable } from "@/lib/market-pricing";
+import { isVisibilityActive } from "@/lib/visibility-plans";
 
 export type MarketPrecision = "low" | "medium" | "high";
 
@@ -91,7 +92,7 @@ function buildBoostTips(
   const tips: BoostTip[] = [];
   const views = listing.views ?? 0;
 
-  if (competitorCount >= 3 && !listing.promoted) {
+  if (competitorCount >= 3 && !isVisibilityActive(listing)) {
     tips.push({
       id: "promote-competition",
       title: "Iškelkite skelbimą",
@@ -121,7 +122,7 @@ function buildBoostTips(
     });
   }
 
-  if (buyerIntentCount > 0 && !listing.promoted) {
+  if (buyerIntentCount > 0 && !isVisibilityActive(listing)) {
     tips.push({
       id: "promote-demand",
       title: "Yra aktyvi paklausa",
@@ -141,7 +142,7 @@ function buildBoostTips(
     });
   }
 
-  if (views < 5 && competitorCount > 0 && !listing.promoted) {
+  if (views < 5 && competitorCount > 0 && !isVisibilityActive(listing)) {
     tips.push({
       id: "promote-visibility",
       title: "Padidinkite matomumą",
@@ -155,8 +156,8 @@ function buildBoostTips(
   return tips.sort((a, b) => order[a.urgency] - order[b.urgency]).slice(0, 4);
 }
 
-function predictedLift(competitorCount: number, promoted: boolean): string {
-  if (promoted) return "Jau iškeltas — stebėkite peržiūras";
+function predictedLift(competitorCount: number, listing: Listing): string {
+  if (isVisibilityActive(listing)) return "Aktyvus matomumo planas — stebėkite peržiūras";
   if (competitorCount >= 6) return "Iki +280% matomumo TOP pozicijoje";
   if (competitorCount >= 3) return "Iki +180% matomumo iškėlimo metu";
   if (competitorCount >= 1) return "Iki +120% matomumo paryškinimui";
@@ -200,7 +201,7 @@ export function getMarketInsights(
     scopeLabel,
     topComparables: snapshot.comparables.slice(0, 3),
     boostTips,
-    predictedVisibilityLift: predictedLift(competitorCount, !!listing.promoted),
+    predictedVisibilityLift: predictedLift(competitorCount, listing),
     pricePositionLabel: pricePositionLabel(
       priceAdvice.verdict,
       priceAdvice.minPrice,

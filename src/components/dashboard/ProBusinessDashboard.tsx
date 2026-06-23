@@ -12,11 +12,13 @@ import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
 import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
 import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
+import { VisibilityPricingCard } from "@/components/dashboard/VisibilityPricingCard";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
 import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
+import type { VisibilityTierId } from "@/lib/visibility-plans";
 
 interface ProBusinessDashboardProps {
   user: UserProfile;
@@ -26,7 +28,7 @@ interface ProBusinessDashboardProps {
   onDelete: (id: string) => void;
   onMarkSold: (id: string) => void;
   onTopUp: (amount: number) => void;
-  onPromote: (listingId: string, cost: number) => boolean;
+  onPromote: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   onRenew: (id: string) => void;
 }
 
@@ -100,6 +102,11 @@ export function ProBusinessDashboard({
         callClicks={sellerAnalytics.callClicks}
         activeListings={listings.length}
       />
+      <VisibilityPricingCard
+        listings={listings}
+        allListings={allListings}
+        user={user}
+      />
       <BulkUploadCard />
       {showCalendar && (
         <>
@@ -127,6 +134,7 @@ export function ProBusinessDashboard({
                 <ProListingCard
                   listing={l}
                   allListings={allListings}
+                  user={user}
                   buyerIntentCount={buyerIntentCount}
                   walletBalance={user.walletBalance ?? 0}
                   autoOpenPromote={promoteTargetId === l.id}

@@ -27,6 +27,10 @@ export interface Listing {
   attributes?: CategoryAttributes;
   status?: ListingStatus;
   promoted?: boolean;
+  /** Matomumo pakopa 1–5 (fiksuota kainodara) */
+  visibilityTier?: 1 | 2 | 3 | 4 | 5;
+  /** ISO data kada baigiasi matomumo pakopa */
+  visibilityExpiresAt?: string;
   /** Pro dashboard metrics */
   views?: number;
   clicks?: number;

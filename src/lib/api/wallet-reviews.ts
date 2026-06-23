@@ -53,13 +53,14 @@ export async function apiTopUpWallet(
 
 export async function apiPromoteListing(
   listingId: string,
-  cost: number
+  cost: number,
+  tier: number
 ): Promise<
   ApiResult<{ walletBalance: number; listing: import("@/lib/types").Listing }>
 > {
   return authedFetch(`/api/listings/${listingId}/promote`, {
     method: "POST",
-    body: JSON.stringify({ cost }),
+    body: JSON.stringify({ cost, tier }),
   });
 }
 

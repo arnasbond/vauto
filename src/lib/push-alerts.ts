@@ -1,5 +1,6 @@
 import type { Listing } from "@/lib/types";
 import { logWakeEvent } from "@/lib/wake-word-engine";
+import { visibilityBoostScore } from "@/lib/visibility-plans";
 
 const ALERT_CHECK_MS = 120_000;
 
@@ -38,7 +39,7 @@ function listingScore(listing: Listing): number {
     (listing.views ?? 0) +
     (listing.callClicks ?? 0) * 3 +
     (listing.saveCount ?? 0) * 2 +
-    (listing.promoted ? 8 : 0)
+    Math.round(visibilityBoostScore(listing) * 40)
   );
 }
 

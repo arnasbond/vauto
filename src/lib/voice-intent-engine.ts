@@ -1,4 +1,5 @@
 import type { Listing } from "@/lib/types";
+import { visibilityBoostScore } from "@/lib/visibility-plans";
 import { logWakeEvent } from "@/lib/wake-word-engine";
 
 export type VoiceIntentType = "check_new_ads" | "service_request" | "unknown";
@@ -86,7 +87,7 @@ function scoreListing(listing: Listing): number {
     (listing.callClicks ?? 0) * 3 +
     (listing.saveCount ?? 0) * 2 +
     (listing.providerVerified ? 10 : 0) +
-    (listing.promoted ? 5 : 0)
+    Math.round(visibilityBoostScore(listing) * 25)
   );
 }
 

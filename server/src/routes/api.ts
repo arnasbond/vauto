@@ -433,10 +433,16 @@ apiRouter.post(
     try {
       const cost = validateAmount(req.body, "cost", 1, 500);
       if (badRequest(res, cost)) return;
+      const tierRaw = req.body?.tier;
+      const tier =
+        typeof tierRaw === "number" && tierRaw >= 1 && tierRaw <= 5
+          ? tierRaw
+          : 2;
       const result = await promoteListingWallet(
         req.authUserId!,
         req.params.id,
-        cost.value
+        cost.value,
+        tier
       );
       if (!result) {
         res.status(400).json({ error: "Insufficient balance or listing not found" });

@@ -65,6 +65,11 @@ import type {
   UserProfile,
 } from "@/lib/types";
 import { mockListingMetrics } from "@/lib/dashboard-mock";
+import {
+  buildVisibilityAttributes,
+  getVisibilityPlanById,
+  type VisibilityTierId,
+} from "@/lib/visibility-plans";
 import { bumpListingMetric, aggregateSellerMetrics } from "@/lib/listing-analytics";
 import {
   countBuyerIntentForSeller,
@@ -195,7 +200,7 @@ interface VautoContextValue {
   login: (data: LoginPayload) => Promise<void>;
   logout: () => void;
   topUpWallet: (amount: number) => void;
-  promoteListing: (listingId: string, cost: number) => boolean;
+  promoteListing: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
 
@@ -962,12 +967,25 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const promoteListing = useCallback(
-    (listingId: string, cost: number): boolean => {
+    (listingId: string, cost: number, tierId: VisibilityTierId): boolean => {
       const balance = user.walletBalance ?? 0;
       if (balance < cost) return false;
 
+      const listing = listings.find((l) => l.id === listingId);
+      if (!listing) return false;
+
+      const plan = getVisibilityPlanById(tierId, listing, listings, user);
+      if (!plan?.available || plan.price !== cost) return false;
+
+      const attrs = buildVisibilityAttributes(
+        tierId,
+        plan.durationDays,
+        listing.attributes
+      );
+      const expiresAt = attrs?.["_visibilityExpiresAt"] as string | undefined;
+
       if (apiActive) {
-        void apiPromoteListing(listingId, cost).then((r) => {
+        void apiPromoteListing(listingId, cost, tierId).then((r) => {
           if (r.ok) {
             patchAuthUser({ walletBalance: r.data.walletBalance });
             setListings((prev) =>
@@ -989,15 +1007,18 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           return {
             ...l,
             promoted: true,
-            views: m.views + 150,
-            callClicks: m.callClicks + 20,
-            interestScore: Math.min(99, m.interestScore + 12),
+            visibilityTier: tierId,
+            visibilityExpiresAt: expiresAt,
+            attributes: attrs,
+            views: m.views + 50 * tierId,
+            callClicks: m.callClicks + 5 * tierId,
+            interestScore: Math.min(99, m.interestScore + 4 * tierId),
           };
         })
       );
       return true;
     },
-    [user.walletBalance, apiActive, patchAuthUser]
+    [user, listings, apiActive, patchAuthUser]
   );
 
   const onBanListing = useCallback((listingId: string) => {
