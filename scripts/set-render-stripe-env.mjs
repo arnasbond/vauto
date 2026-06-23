@@ -56,10 +56,13 @@ async function api(path, opts = {}) {
 }
 
 async function upsertEnv(key, value) {
-  await api(`/services/${SERVICE_ID}/env-vars`, {
-    method: "PUT",
-    body: JSON.stringify([{ key, value }]),
-  });
+  await api(
+    `/services/${SERVICE_ID}/env-vars/${encodeURIComponent(key)}`,
+    {
+      method: "PUT",
+      body: JSON.stringify({ value }),
+    }
+  );
   console.log(`✓ ${key}`);
 }
 
