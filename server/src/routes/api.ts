@@ -174,6 +174,33 @@ apiRouter.post("/admin/backfill-embeddings", requireAdmin, async (req, res) => {
   }
 });
 
+apiRouter.post("/admin/setup-stripe", requireAdmin, async (_req, res) => {
+  try {
+    const { getStripe } = await import("../billing/stripe-client.js");
+    if (!getStripe()) {
+      return res.status(503).json({ error: "STRIPE_SECRET_KEY not set on server" });
+    }
+    const {
+      ensureStripePortalConfiguration,
+      ensureStripeWebhookEndpoint,
+    } = await import("../billing/ensure-stripe.js");
+    const portal = await ensureStripePortalConfiguration();
+    const webhook = await ensureStripeWebhookEndpoint();
+    res.json({
+      ok: true,
+      portal,
+      webhook: {
+        url: webhook.url,
+        created: webhook.created,
+        hasNewSecret: Boolean(webhook.secret),
+        webhookSecret: webhook.secret ?? null,
+      },
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.get("/listings", async (_req, res) => {
   try {
     res.json(await getListings());

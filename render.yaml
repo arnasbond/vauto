@@ -51,6 +51,10 @@ services:
         sync: false
       - key: STRIPE_WEBHOOK_SECRET
         sync: false
+      - key: STRIPE_AUTO_WEBHOOK
+        value: "1"
+      - key: PUBLIC_API_URL
+        value: https://vauto-api.onrender.com
 
 databases:
   - name: vauto-db

@@ -49,6 +49,8 @@ app.listen(port, async () => {
     void backfillImageEmbeddings(25).then((n) => {
       if (n > 0) console.log(`Image embedding backfill: ${n} listings`);
     });
+    const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");
+    void runStripeBootstrap();
     console.log(`Vauto API http://localhost:${port} (PostgreSQL OK)`);
   } catch {
     console.warn(
