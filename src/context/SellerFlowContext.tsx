@@ -46,6 +46,14 @@ import {
   detectTransactionFromText,
   defaultTransactionForType,
 } from "@/lib/real-estate-catalog";
+import {
+  detectBrandFromText,
+  detectClothingGroupFromText,
+  detectSizeFromText,
+  detectSubcategoryFromText,
+  formatVintedCategory,
+  looksLikeClothingListing,
+} from "@/lib/clothing-catalog";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -275,6 +283,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             if (!attrs.area && areaMatch) attrs.area = areaMatch[1].replace(",", ".");
             if (!attrs.sellerRole) attrs.sellerRole = "Privatus asmuo";
             next = { ...next, category: "real_estate", attributes: attrs };
+          } else if (looksLikeClothingListing(title, next.category)) {
+            const attrs = { ...(next.attributes ?? {}) };
+            const group = detectClothingGroupFromText(title) ?? "Moterims";
+            const sub = detectSubcategoryFromText(title, group) ?? "Kita";
+            if (!attrs.vintedCategory) {
+              attrs.vintedCategory = formatVintedCategory(group, sub);
+            }
+            if (!attrs.brand) {
+              const brand = detectBrandFromText(title);
+              if (brand) attrs.brand = brand;
+            }
+            if (!attrs.size) {
+              const size = detectSizeFromText(title);
+              if (size) attrs.size = size;
+            }
+            if (!attrs.condition) attrs.condition = "Gera";
+            next = { ...next, category: "clothing", attributes: attrs };
           }
         }
 

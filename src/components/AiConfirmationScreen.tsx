@@ -6,6 +6,7 @@ import { AdaptiveConfirmation } from "@/components/adaptive-confirmation/Adaptiv
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 import { VehicleListingWizard } from "@/components/vehicle/VehicleListingWizard";
 import { RealEstateListingWizard } from "@/components/real-estate/RealEstateListingWizard";
+import { ClothingListingWizard } from "@/components/clothing/ClothingListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 
 /**
@@ -26,6 +27,7 @@ export function AiConfirmationScreen() {
     publishListing,
     cancelSellerFlow,
     requestMediaConsent,
+    showToast,
   } = useVauto();
 
   useEffect(() => {
@@ -45,6 +47,7 @@ export function AiConfirmationScreen() {
 
   const isVehicle = listingToAdaptiveKey(aiDraft.category) === "vehicles";
   const isRealEstate = listingToAdaptiveKey(aiDraft.category) === "real_estate";
+  const isClothing = listingToAdaptiveKey(aiDraft.category) === "clothing";
 
   if (isVehicle) {
     return (
@@ -76,6 +79,23 @@ export function AiConfirmationScreen() {
         requestMediaConsent={requestMediaConsent}
         onCancel={cancelSellerFlow}
         onPublish={publishListing}
+      />
+    );
+  }
+
+  if (isClothing) {
+    return (
+      <ClothingListingWizard
+        draft={aiDraft}
+        previewImage={sellerPreviewImage}
+        manualFallback={aiManualFallback}
+        onUpdate={updateAiDraft}
+        onAttributeChange={handleAttributeChange}
+        onMediaChange={updateSellerMedia}
+        requestMediaConsent={requestMediaConsent}
+        onCancel={cancelSellerFlow}
+        onPublish={publishListing}
+        onToast={showToast}
       />
     );
   }
