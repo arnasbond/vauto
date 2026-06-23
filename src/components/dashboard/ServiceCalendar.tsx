@@ -11,9 +11,14 @@ export function ServiceCalendar({ bookings }: { bookings: ServiceBooking[] }) {
 
   return (
     <div className="vauto-dashboard-card mb-4 rounded-2xl p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Calendar className="h-4 w-4 text-[var(--vauto-orange)]" />
-        <h3 className="text-sm font-semibold text-white">Artimiausi užsakymai</h3>
+      <div className="mb-3 flex items-center justify-between gap-2">
+        <div className="flex items-center gap-2">
+          <Calendar className="h-4 w-4 text-[var(--vauto-orange)]" />
+          <h3 className="text-sm font-semibold text-white">Artimiausi užsakymai</h3>
+        </div>
+        <span className="rounded-full bg-amber-500/15 px-2 py-0.5 text-[9px] font-semibold uppercase text-amber-300">
+          Demo
+        </span>
       </div>
       <div className="space-y-3">
         {Object.entries(grouped).map(([date, items]) => (

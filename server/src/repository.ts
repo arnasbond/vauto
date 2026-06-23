@@ -238,6 +238,19 @@ export async function updateListing(
   );
   if (!rows[0] || rows[0].seller_id !== sellerId) return null;
 
+  if (patch.status === "sold") {
+    const prev = await query<{ status: string | null }>(
+      "SELECT status FROM listings WHERE id = $1",
+      [id]
+    );
+    if (prev[0]?.status !== "sold") {
+      await query(
+        `UPDATE users SET sold_count = sold_count + 1, updated_at = now() WHERE id = $1`,
+        [sellerId]
+      );
+    }
+  }
+
   const fields: string[] = [];
   const values: unknown[] = [];
   let i = 1;
@@ -280,6 +293,9 @@ export async function updateListing(
     void import("./ai/listing-embedding.js")
       .then((m) => m.refreshListingEmbedding(id))
       .catch(() => {});
+  }
+
+  if (patch.image !== undefined || needsEmbed) {
     void import("./ai/image-embedding.js")
       .then((m) => m.refreshListingImageEmbedding(id))
       .catch(() => {});

@@ -28,7 +28,7 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
   const leads = serviceLeads.filter((lead) => serviceLeadMatchesProvider(lead, user));
 
   const handleOpen = (leadId: string, price: number) => {
-    const ok = openServiceLead(leadId);
+    const ok = openServiceLead(leadId, price);
     if (ok) {
       showToast(`Kontaktas atidarytas (−${price.toFixed(2)} €)`, "success");
       return;

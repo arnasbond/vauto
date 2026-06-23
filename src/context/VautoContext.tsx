@@ -294,7 +294,7 @@ interface VautoContextValue {
   serviceLeads: ServiceLead[];
   openedServiceLeadIds: Set<string>;
   registerServiceLead: (query: string) => void;
-  openServiceLead: (leadId: string) => boolean;
+  openServiceLead: (leadId: string, chargedPrice?: number) => boolean;
   pendingReview: PendingReviewPrompt | null;
   queueReviewPrompt: (data: PendingReviewPrompt & { delayMs?: number }) => void;
   clearReviewPrompt: () => void;
@@ -610,7 +610,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (userRes?.ok && auth?.isAuthenticated) {
           patchAuthUser(userRes.data);
         } else if (storedUser && auth?.isAuthenticated) {
-          patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
+          patchAuthUser({ role: "private", ...storedUser });
         }
 
         if (errors.length) setSyncError(errors[0]);
@@ -629,7 +629,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const storedListings = loadListings();
       const storedSaved = loadSavedIds();
       if (auth?.isAuthenticated && storedUser) {
-        patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
+        patchAuthUser({ role: "private", ...storedUser });
       }
       if (storedListings?.length) {
         setListings(normalizeListings(storedListings));
@@ -807,30 +807,24 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const openServiceLead = useCallback(
-    (leadId: string): boolean => {
+    (leadId: string, chargedPrice?: number): boolean => {
       const lead = serviceLeads.find((l) => l.id === leadId);
       if (!lead) return false;
       if (openedServiceLeadIds.has(leadId)) return true;
 
-      const price = leadPriceForCoverage(lead.leadPrice, {
-        radiusKm: user.serviceRadiusKm,
-        nationwide: user.serviceNationwide,
-        topRatedPlus: false,
-      });
+      const price =
+        chargedPrice ??
+        leadPriceForCoverage(lead.leadPrice, {
+          radiusKm: user.serviceRadiusKm,
+          nationwide: user.serviceNationwide,
+          topRatedPlus: false,
+        });
       const balance = user.walletBalance ?? 0;
       if (balance < price) return false;
 
-      patchAuthUser({ walletBalance: balance - price });
-      setOpenedServiceLeadIds((prev) => new Set([...prev, leadId]));
-      setLiveServiceLeads((prev) =>
-        prev.map((item) =>
-          item.id === leadId
-            ? { ...item, contactPhone: item.contactPhone ?? lead.contactPhone }
-            : item
-        )
-      );
-
-      if (apiActive && isDataApiEnabled() && lead.source === "buyer") {
+      if (apiActive && isDataApiEnabled()) {
+        patchAuthUser({ walletBalance: balance - price });
+        setOpenedServiceLeadIds((prev) => new Set([...prev, leadId]));
         void apiOpenServiceLead(leadId, price).then((res) => {
           if (!res.ok) {
             patchAuthUser({ walletBalance: balance });
@@ -857,7 +851,18 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             );
           }
         });
+        return true;
       }
+
+      patchAuthUser({ walletBalance: balance - price });
+      setOpenedServiceLeadIds((prev) => new Set([...prev, leadId]));
+      setLiveServiceLeads((prev) =>
+        prev.map((item) =>
+          item.id === leadId
+            ? { ...item, contactPhone: item.contactPhone ?? lead.contactPhone, opened: true }
+            : item
+        )
+      );
 
       return true;
     },
@@ -1082,6 +1087,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setSavedIds((prev) => {
         const next = new Set(prev);
         next.delete(id);
+        if (isDataApiEnabled()) {
+          void apiUpdateSaved(user.id, Array.from(next)).then((r) => {
+            if (!r.ok) setSyncError(`Išsaugota nepavyko: ${r.error}`);
+          });
+        }
         return next;
       });
       if (isDataApiEnabled()) {
@@ -1333,38 +1343,41 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       );
       const expiresAt = attrs?.["_visibilityExpiresAt"] as string | undefined;
 
+      const applyLocalPromote = (walletBalance: number, listingPatch?: Listing) => {
+        patchAuthUser({ walletBalance });
+        setListings((prev) =>
+          prev.map((l) => {
+            if (l.id !== listingId) return l;
+            if (listingPatch) {
+              return { ...l, ...listingPatch, promoted: true };
+            }
+            const m = mockListingMetrics(l);
+            return {
+              ...l,
+              promoted: true,
+              visibilityTier: tierId,
+              visibilityExpiresAt: expiresAt,
+              attributes: attrs,
+              views: m.views + 50 * tierId,
+              callClicks: m.callClicks + 5 * tierId,
+              interestScore: Math.min(99, m.interestScore + 4 * tierId),
+            };
+          })
+        );
+      };
+
       if (apiActive) {
         void apiPromoteListing(listingId, cost, tierId).then((r) => {
           if (r.ok) {
-            patchAuthUser({ walletBalance: r.data.walletBalance });
-            setListings((prev) =>
-              prev.map((l) =>
-                l.id === listingId ? { ...l, ...r.data.listing, promoted: true } : l
-              )
-            );
+            applyLocalPromote(r.data.walletBalance, r.data.listing);
           } else {
             setSyncError(`Promote nepavyko: ${r.error}`);
           }
         });
+        return true;
       }
 
-      patchAuthUser({ walletBalance: balance - cost });
-      setListings((prev) =>
-        prev.map((l) => {
-          if (l.id !== listingId) return l;
-          const m = mockListingMetrics(l);
-          return {
-            ...l,
-            promoted: true,
-            visibilityTier: tierId,
-            visibilityExpiresAt: expiresAt,
-            attributes: attrs,
-            views: m.views + 50 * tierId,
-            callClicks: m.callClicks + 5 * tierId,
-            interestScore: Math.min(99, m.interestScore + 4 * tierId),
-          };
-        })
-      );
+      applyLocalPromote(balance - cost);
       return true;
     },
     [user, listings, apiActive, patchAuthUser]

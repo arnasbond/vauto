@@ -11,6 +11,52 @@ export interface CapturedPhoto {
   fileName?: string;
 }
 
+/** Resize/compress web images before upload (keeps under ~400KB). */
+export async function compressDataUrl(
+  dataUrl: string,
+  opts?: { maxDim?: number; quality?: number; maxChars?: number }
+): Promise<string> {
+  if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
+    return dataUrl;
+  }
+  const maxDim = opts?.maxDim ?? 1280;
+  const maxChars = opts?.maxChars ?? 400_000;
+  if (dataUrl.length <= maxChars) return dataUrl;
+
+  return new Promise((resolve) => {
+    const img = new Image();
+    img.onload = () => {
+      const scale = Math.min(1, maxDim / Math.max(img.width, img.height, 1));
+      const w = Math.max(1, Math.round(img.width * scale));
+      const h = Math.max(1, Math.round(img.height * scale));
+      const canvas = document.createElement("canvas");
+      canvas.width = w;
+      canvas.height = h;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) {
+        resolve(dataUrl);
+        return;
+      }
+      ctx.drawImage(img, 0, 0, w, h);
+      let quality = opts?.quality ?? 0.82;
+      let out = canvas.toDataURL("image/jpeg", quality);
+      while (out.length > maxChars && quality > 0.45) {
+        quality -= 0.08;
+        out = canvas.toDataURL("image/jpeg", quality);
+      }
+      resolve(out);
+    };
+    img.onerror = () => resolve(dataUrl);
+    img.src = dataUrl;
+  });
+}
+
+async function normalizeCapturedPhoto(photo: CapturedPhoto): Promise<CapturedPhoto> {
+  if (Capacitor.isNativePlatform()) return photo;
+  const dataUrl = await compressDataUrl(photo.dataUrl);
+  return { ...photo, dataUrl };
+}
+
 export type PhotoPickSource = "camera" | "gallery" | "prompt";
 
 /** Capture from a known source (no web prompt sheet — use PhotoSourceSheet in React UI). */
@@ -66,7 +112,10 @@ export async function capturePhoto(
     });
 
     if (!photo.dataUrl) return null;
-    return { dataUrl: photo.dataUrl, fileName: photo.path?.split("/").pop() };
+    return normalizeCapturedPhoto({
+      dataUrl: photo.dataUrl,
+      fileName: photo.path?.split("/").pop(),
+    });
   }
 
   let pick = source;
@@ -98,11 +147,12 @@ function pickFileAsDataUrl(
         return;
       }
       const reader = new FileReader();
-      reader.onload = () =>
-        resolve({
+      reader.onload = () => {
+        void normalizeCapturedPhoto({
           dataUrl: reader.result as string,
           fileName: file.name,
-        });
+        }).then(resolve);
+      };
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     };
@@ -130,11 +180,12 @@ function pickFilesAsDataUrls(
           (file) =>
             new Promise<CapturedPhoto | null>((res) => {
               const reader = new FileReader();
-              reader.onload = () =>
-                res({
+              reader.onload = () => {
+                void normalizeCapturedPhoto({
                   dataUrl: reader.result as string,
                   fileName: file.name,
-                });
+                }).then(res);
+              };
               reader.onerror = () => res(null);
               reader.readAsDataURL(file);
             })

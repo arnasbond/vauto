@@ -40,7 +40,7 @@ export function ReviewsProvider({ children }: { children: ReactNode }) {
     async function load() {
       if (apiActive) {
         const res = await apiFetchReviews();
-        if (res.ok && res.data.length) {
+        if (res.ok) {
           setReviews(res.data);
         } else {
           const stored = loadReviews();

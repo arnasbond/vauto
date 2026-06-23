@@ -25,7 +25,8 @@
     "render:stripe-env": "node scripts/set-render-stripe-env.mjs",
     "render:configure-env": "node scripts/configure-render-env.mjs",
     "verify:health": "node scripts/verify-health.mjs",
-    "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness"
+    "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness",
+    "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
