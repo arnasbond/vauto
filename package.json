@@ -22,6 +22,8 @@
     "pitch:pdf": "node scripts/generate-pitch-pdf.mjs",
     "provision:render": "node scripts/provision-render.mjs",
     "redeploy:render": "node scripts/redeploy-render.mjs",
+    "render:stripe-env": "node scripts/set-render-stripe-env.mjs",
+    "render:configure-env": "node scripts/configure-render-env.mjs",
     "verify:health": "node scripts/verify-health.mjs"
   },
   "dependencies": {

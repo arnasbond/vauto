@@ -1,0 +1,47 @@
+name: Configure Render env
+
+on:
+  workflow_dispatch:
+
+jobs:
+  configure:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set Render env and redeploy
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
+          STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
+          STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+        run: |
+          if [ -z "$RENDER_API_KEY" ]; then
+            echo "RENDER_API_KEY not set"
+            exit 1
+          fi
+          node scripts/configure-render-env.mjs
+
+      - name: Wait for API health
+        run: |
+          URL="https://vauto-api.onrender.com/api/health"
+          for i in $(seq 1 30); do
+            BODY=$(curl -sf "$URL" || true)
+            echo "$BODY"
+            if echo "$BODY" | grep -q '"stripe"'; then
+              echo "API healthy with features"
+              exit 0
+            fi
+            if echo "$BODY" | grep -q '"db":"connected"'; then
+              echo "API healthy"
+              exit 0
+            fi
+            echo "Attempt $i/30 — waiting…"
+            sleep 20
+          done
+          echo "Health check timed out"
+          exit 1
