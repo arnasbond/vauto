@@ -589,13 +589,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const auth = loadAuthSession();
         const hasAuthUser = Boolean(storedUser?.id && auth?.isAuthenticated);
         const listingsRes = await apiFetchListings();
-        const [savedRes, userRes, leadsRes] = hasAuthUser
+        const [savedRes, userRes] = hasAuthUser
           ? await Promise.all([
               apiFetchSaved(storedUser!.id),
               apiFetchUser(storedUser!.id),
-              apiFetchServiceLeads(),
             ])
-          : [null, null, null];
+          : [null, null];
 
         const errors: string[] = [];
         if (listingsRes.ok) {
@@ -612,19 +611,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           patchAuthUser(userRes.data);
         } else if (storedUser && auth?.isAuthenticated) {
           patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
-        }
-        if (leadsRes?.ok) {
-          setLiveServiceLeads(leadsRes.data);
-          setOpenedServiceLeadIds(
-            new Set(
-              leadsRes.data.filter((lead) => lead.opened).map((lead) => lead.id)
-            )
-          );
-        } else {
-          const storedLeads = loadServiceLeads();
-          if (storedLeads?.length) setLiveServiceLeads(storedLeads);
-          const storedOpened = loadOpenedServiceLeads();
-          if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
         }
 
         if (errors.length) setSyncError(errors[0]);
@@ -662,6 +648,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
     void load();
   }, [patchAuthUser]);
+
+  const syncServiceLeadsFromApi = useCallback(async () => {
+    const res = await apiFetchServiceLeads();
+    if (!res.ok) return;
+    setLiveServiceLeads(res.data);
+    setOpenedServiceLeadIds(
+      new Set(res.data.filter((lead) => lead.opened).map((lead) => lead.id))
+    );
+  }, []);
+
+  useEffect(() => {
+    if (!hydrated || !apiActive || !isAuthenticated || user.id === "guest") return;
+    void syncServiceLeadsFromApi();
+  }, [hydrated, apiActive, isAuthenticated, user.id, syncServiceLeadsFromApi]);
 
   useEffect(() => {
     if (!hydrated || typeof window === "undefined") return;
