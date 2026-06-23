@@ -1,5 +1,6 @@
 import { getOpenAiKey } from "@/lib/openai-settings";
 import { ENTERPRISE_TONE_RULES } from "@/lib/ai-safeguards";
+import { VISION_EXTRACTION_INSTRUCTIONS } from "@/lib/vision-prompt";
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 
 const EXTRACTION_SCHEMA = `{
@@ -96,9 +97,9 @@ export async function extractFromImageOpenAI(
       content: [
         {
           type: "text",
-          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. Iš nuotraukos ištrauk skelbimo duomenis taip, kad vartotojas galėtų arba iškart rasti panašią prekę, arba publikuoti tvarkingą skelbimą. Jei matai auto dalį (pvz. ratlankį, padangą), category turi būti "vehicles", title turi turėti konkrečią dalį ir dydį, attributes pridėk partType, size, condition, quantity, o price pateik kaip realistišką vietinės rinkos pradinį pasiūlymą eurais. Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
+          text: `${ENTERPRISE_TONE_RULES} Tu esi Vauto skelbimų portalo AI asistentas Lietuvoje. ${VISION_EXTRACTION_INSTRUCTIONS} Grąžink JSON: ${EXTRACTION_SCHEMA}. Vartotojo miestas: ${userCity}. Kontaktai bus pridėti atskirai.`,
         },
-        { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
+        { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
       ],
     },
   ]);

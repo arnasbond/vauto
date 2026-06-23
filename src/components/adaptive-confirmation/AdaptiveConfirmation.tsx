@@ -177,7 +177,7 @@ export function AdaptiveConfirmation({
   const handlePhotoCapture = useCallback(() => {
     requestMediaConsent(async () => {
       const photo = await capturePhoto();
-      if (photo) onMediaChange({ imageDataUrl: photo });
+      if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
     });
   }, [requestMediaConsent, onMediaChange]);
 

@@ -3,28 +3,55 @@ import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 const AI_MOCK_DELAY_MS = 1500;
 
 export async function mockExtractFromImage(
-  fileName?: string
+  fileName?: string,
+  imageDataUrl?: string
 ): Promise<AiExtractedListing> {
-  void fileName;
+  void imageDataUrl;
   await delay(AI_MOCK_DELAY_MS);
 
+  const hint = normalizeImageHint(fileName);
+
+  if (/ratlank|padang|wheel|r1[456789]\b/i.test(hint)) {
+    return {
+      title: "Ratlankiai R16 — 4 vnt.",
+      price: 50,
+      location: "Lietuva",
+      contact: "+370 612 34567",
+      category: "vehicles",
+      confidence: 0.75,
+      description: "Automobilio ratlankiai.",
+      attributes: {
+        partType: "Ratlankiai",
+        size: "R16",
+        condition: "Naudoti",
+        quantity: "4 vnt.",
+      },
+    };
+  }
+
+  if (hint.length >= 3) {
+    return parseTranscript(hint);
+  }
+
   return {
-    title: "Ratlankiai R16 — 4 vnt.",
-    price: 50,
-    location: "Panevėžys",
+    title: "Prekė nuotraukoje",
+    price: 0,
+    location: "Lietuva",
     contact: "+370 612 34567",
-    category: "vehicles",
-    confidence: 0.92,
+    category: "other",
+    confidence: 0.25,
     description:
-      "AI iš nuotraukos atpažino automobilio ratlankius. Paruošta auto dalių skelbimui.",
-    attributes: {
-      partType: "Ratlankiai",
-      size: "R16",
-      condition: "Naudoti",
-      quantity: "4 vnt.",
-      marketHint: "Lietuvos rinkoje panašūs kainuoja apie 50–65€",
-    },
+      "Nepavyko tiksliai atpažinti — patikslinkite paiešką arba naudokite AI su interneto ryšiu.",
+    attributes: {},
   };
+}
+
+function normalizeImageHint(fileName?: string): string {
+  if (!fileName) return "";
+  return fileName
+    .replace(/\.[a-z0-9]+$/i, "")
+    .replace(/[_-]+/g, " ")
+    .trim();
 }
 
 export async function mockExtractFromVoice(
@@ -133,7 +160,7 @@ function detectCategory(text: string): ListingCategory {
   ) {
     return "services";
   }
-  if (/telefon|iphone|samsung/i.test(t)) return "electronics";
+  if (/telefon|iphone|samsung|xiaomi|huawei|pixel|mobilus/i.test(t)) return "electronics";
   if (/obuol|maiš|daržov/i.test(t)) return "home";
   return "other";
 }
@@ -233,8 +260,12 @@ function extractTitle(text: string, category: ListingCategory): string {
       return /siūlau darb|siulau darb/i.test(text)
         ? "Siūlomas darbas"
         : "Ieškau darbo";
-    case "electronics":
-      return "Mobilus telefonas";
+    case "electronics": {
+      const phone =
+        text.match(/\b(iphone\s?\d+|samsung\s?galaxy|xiaomi|huawei|pixel)\b/i)?.[0] ??
+        (/\biphone\b/i.test(text) ? "iPhone" : null);
+      return phone ? phone.charAt(0).toUpperCase() + phone.slice(1) : "Mobilus telefonas";
+    }
     case "home":
       return /obuol/i.test(text) ? "Maišas obuolių — švieži" : "Buitinė prekė";
     default:

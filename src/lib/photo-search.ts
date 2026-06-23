@@ -42,6 +42,9 @@ export function buildPhotoSearchQuery(result: AiExtractedListing): string {
 }
 
 export function buildPhotoSearchToast(result: AiExtractedListing): string {
+  if (result.confidence < 0.4) {
+    return `Nepavyko tiksliai atpažinti. Patikslinkite paiešką ranka arba bandykite dar kartą.`;
+  }
   const price =
     result.price > 0
       ? `, rinkos kaina apie ${formatPrice(result.price, result.priceLabel)}`

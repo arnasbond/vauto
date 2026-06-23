@@ -495,9 +495,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     requestMediaConsent(async () => {
       const photo = await capturePhoto();
       if (!photo) return;
-      setSellerPreviewImage(photo);
+      setSellerPreviewImage(photo.dataUrl);
       setSellerInputMode("upload");
-      await runAiProcessing("upload", { previewImage: photo });
+      await runAiProcessing("upload", { previewImage: photo.dataUrl });
     });
   }, [requireAuthForListing, runAiProcessing, requestMediaConsent]);
 

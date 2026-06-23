@@ -6,8 +6,17 @@ import {
   type VoiceSession,
 } from "@/lib/audio-session";
 
-/** Pick or capture a photo — Capacitor Camera on native, file input on web */
-export async function capturePhoto(): Promise<string | null> {
+export interface CapturedPhoto {
+  dataUrl: string;
+  fileName?: string;
+}
+
+export type PhotoPickSource = "camera" | "gallery" | "prompt";
+
+/** Pick or capture a photo — Capacitor Camera on native, camera/gallery choice on web */
+export async function capturePhoto(
+  source: PhotoPickSource = "prompt"
+): Promise<CapturedPhoto | null> {
   if (Capacitor.isNativePlatform()) {
     const { Camera, CameraResultType, CameraSource } = await import(
       "@capacitor/camera"
@@ -18,27 +27,49 @@ export async function capturePhoto(): Promise<string | null> {
       await Camera.requestPermissions({ permissions: ["camera", "photos"] });
     }
 
+    const cameraSource =
+      source === "camera"
+        ? CameraSource.Camera
+        : source === "gallery"
+          ? CameraSource.Photos
+          : CameraSource.Prompt;
+
     const photo = await Camera.getPhoto({
       quality: 85,
       allowEditing: false,
       resultType: CameraResultType.DataUrl,
-      source: CameraSource.Prompt,
+      source: cameraSource,
       promptLabelHeader: "Nuotrauka",
       promptLabelPhoto: "Galerija",
-      promptLabelPicture: "Kamera",
+      promptLabelPicture: "Fotografuoti",
     });
 
-    return photo.dataUrl ?? null;
+    if (!photo.dataUrl) return null;
+    return { dataUrl: photo.dataUrl, fileName: photo.path?.split("/").pop() };
   }
 
-  return pickFileAsDataUrl("image/*");
+  let pick = source;
+  if (pick === "prompt") {
+    const chosen = await pickPhotoSourceOnWeb();
+    if (!chosen) return null;
+    pick = chosen;
+  }
+
+  return pickFileAsDataUrl(
+    "image/*",
+    pick === "camera" ? "environment" : undefined
+  );
 }
 
-function pickFileAsDataUrl(accept: string): Promise<string | null> {
+function pickFileAsDataUrl(
+  accept: string,
+  capture?: "user" | "environment"
+): Promise<CapturedPhoto | null> {
   return new Promise((resolve) => {
     const input = document.createElement("input");
     input.type = "file";
     input.accept = accept;
+    if (capture) input.setAttribute("capture", capture);
     input.onchange = () => {
       const file = input.files?.[0];
       if (!file) {
@@ -46,11 +77,73 @@ function pickFileAsDataUrl(accept: string): Promise<string | null> {
         return;
       }
       const reader = new FileReader();
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () =>
+        resolve({
+          dataUrl: reader.result as string,
+          fileName: file.name,
+        });
       reader.onerror = () => resolve(null);
       reader.readAsDataURL(file);
     };
     input.click();
+  });
+}
+
+/** Web-only sheet: fotografuoti arba galerija */
+function pickPhotoSourceOnWeb(): Promise<"camera" | "gallery" | null> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") {
+      resolve(null);
+      return;
+    }
+
+    const overlay = document.createElement("div");
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.className =
+      "fixed inset-0 z-[300] flex items-end justify-center bg-black/60 p-4";
+
+    const panel = document.createElement("div");
+    panel.className =
+      "w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl animate-in";
+
+    const title = document.createElement("p");
+    title.className =
+      "mb-3 text-center text-sm font-semibold text-[#111827]";
+    title.textContent = "Kaip įkelti nuotrauką?";
+
+    const cameraBtn = document.createElement("button");
+    cameraBtn.type = "button";
+    cameraBtn.className =
+      "mb-2 w-full rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white";
+    cameraBtn.textContent = "Fotografuoti";
+
+    const galleryBtn = document.createElement("button");
+    galleryBtn.type = "button";
+    galleryBtn.className =
+      "mb-2 w-full rounded-xl border border-[#dde5ef] py-3.5 text-sm font-semibold text-[#111827]";
+    galleryBtn.textContent = "Pasirinkti iš galerijos";
+
+    const cancelBtn = document.createElement("button");
+    cancelBtn.type = "button";
+    cancelBtn.className = "w-full py-2 text-sm text-[#6b7280]";
+    cancelBtn.textContent = "Atšaukti";
+
+    const cleanup = (value: "camera" | "gallery" | null) => {
+      overlay.remove();
+      resolve(value);
+    };
+
+    cameraBtn.onclick = () => cleanup("camera");
+    galleryBtn.onclick = () => cleanup("gallery");
+    cancelBtn.onclick = () => cleanup(null);
+    overlay.onclick = (e) => {
+      if (e.target === overlay) cleanup(null);
+    };
+
+    panel.append(title, cameraBtn, galleryBtn, cancelBtn);
+    overlay.appendChild(panel);
+    document.body.appendChild(overlay);
   });
 }
 

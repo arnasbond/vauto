@@ -15,6 +15,7 @@ import type { AiExtractedListing } from "@/lib/types";
 
 interface ExtractContext {
   imageDataUrl?: string | null;
+  fileName?: string;
   transcript?: string;
   userCity?: string;
   contact?: string;
@@ -43,7 +44,7 @@ export async function extractFromImage(
     }
   }
 
-  return mockExtractFromImage();
+  return mockExtractFromImage(ctx.fileName, ctx.imageDataUrl ?? undefined);
 }
 
 export async function extractFromVoice(

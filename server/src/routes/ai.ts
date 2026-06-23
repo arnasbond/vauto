@@ -90,9 +90,9 @@ aiRouter.post("/extract-image", async (req, res) => {
         content: [
           {
             type: "text",
-            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Jei matai auto dalį (pvz. ratlankį, padangą), category turi būti "vehicles", title turi turėti konkrečią dalį ir dydį, attributes pridėk partType, size, condition, quantity, o price pateik kaip realistišką vietinės rinkos pradinį pasiūlymą eurais. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai (telefonas → electronics, ne vehicles). Jei auto dalis — category vehicles su partType, size, condition, quantity. Kaina EUR. JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
           },
-          { type: "image_url", image_url: { url: imageDataUrl, detail: "low" } },
+          { type: "image_url", image_url: { url: imageDataUrl, detail: "high" } },
         ],
       },
     ]);

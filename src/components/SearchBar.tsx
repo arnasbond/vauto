@@ -98,7 +98,8 @@ export function SearchBar() {
         const photo = await capturePhoto();
         if (!photo) return;
         const extracted = await extractFromImage({
-          imageDataUrl: photo,
+          imageDataUrl: photo.dataUrl,
+          fileName: photo.fileName,
           userCity: user.city || "Lietuva",
           contact: user.phone || "+370 612 34567",
         });
