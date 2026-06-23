@@ -18,9 +18,10 @@ import {
   resolveSortMode,
 } from "@/lib/scoring";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
-import { apiVisualRank, apiSemanticSearch, apiSubscribeB2BPlan } from "@/lib/api/client";
+import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan } from "@/lib/api/client";
 import {
   type VisualSearchProfile,
+  mergeRankScores,
 } from "@/lib/visual-search";
 import {
   loadAuthSession,
@@ -737,27 +738,41 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
         if (!candidates.length) return;
 
-        const [visualRank, semantic] = await Promise.all([
+        const hasPhoto = Boolean(profile.previewImage);
+        const imageCandidates = hasPhoto
+          ? listings
+              .filter((l) => !l.banned && isListingActive(l) && l.image)
+              .slice(0, 40)
+              .map((l) => ({
+                id: l.id,
+                image: l.image,
+              }))
+          : [];
+
+        const [visualRank, semantic, imageRank] = await Promise.all([
           apiVisualRank({ profile, candidates }),
           apiSemanticSearch({ profile, limit: 40 }),
+          hasPhoto && profile.previewImage
+            ? apiImageSearch({
+                imageDataUrl: profile.previewImage,
+                candidates: imageCandidates,
+                limit: 40,
+              })
+            : Promise.resolve(null),
         ]);
 
-        const merged: Record<string, number> = {};
-        const allIds = new Set([
-          ...Object.keys(visualRank?.scores ?? {}),
-          ...Object.keys(semantic?.scores ?? {}),
-        ]);
-        for (const id of allIds) {
-          const v = visualRank?.scores?.[id];
-          const s = semantic?.scores?.[id];
-          if (v !== undefined && s !== undefined) {
-            merged[id] = Math.round((v * 0.4 + s * 0.6) * 1000) / 1000;
-          } else if (s !== undefined) {
-            merged[id] = s;
-          } else if (v !== undefined) {
-            merged[id] = v;
-          }
-        }
+        const merged = mergeRankScores(
+          hasPhoto
+            ? [
+                { weight: 0.25, scores: visualRank?.scores },
+                { weight: 0.4, scores: semantic?.scores },
+                { weight: 0.35, scores: imageRank?.scores },
+              ]
+            : [
+                { weight: 0.4, scores: visualRank?.scores },
+                { weight: 0.6, scores: semantic?.scores },
+              ]
+        );
 
         if (Object.keys(merged).length) setVisualRankScores(merged);
         else if (visualRank?.scores) setVisualRankScores(visualRank.scores);
@@ -1013,14 +1028,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (apiActive) {
         const r = await apiSubscribeB2BPlan(planId);
         if (r.ok) {
+          if (r.data.checkoutUrl) {
+            window.location.href = r.data.checkoutUrl;
+            return true;
+          }
           const u = r.data.user;
-          patchAuthUser({
-            billingPlan:
-              (u.billingPlan as UserProfile["billingPlan"]) ?? planId,
-            role:
-              u.role === "pro" || planId === "pro" ? "pro" : user.role,
-          });
-          showToast(r.data.message, "success");
+          if (u) {
+            patchAuthUser({
+              billingPlan:
+                (u.billingPlan as UserProfile["billingPlan"]) ?? planId,
+              role:
+                u.role === "pro" || planId === "pro" ? "pro" : user.role,
+            });
+          }
+          if (r.data.message) showToast(r.data.message, "success");
           return true;
         }
         showToast(r.error, "error");

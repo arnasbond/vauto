@@ -1,0 +1,48 @@
+import Stripe from "stripe";
+import { STRIPE_PLANS, type StripePlanId } from "./stripe-plans.js";
+
+let stripeClient: Stripe | null = null;
+
+export function getStripe(): Stripe | null {
+  const key = process.env.STRIPE_SECRET_KEY?.trim();
+  if (!key) return null;
+  if (!stripeClient) stripeClient = new Stripe(key);
+  return stripeClient;
+}
+
+export function appOrigin(): string {
+  return (process.env.APP_ORIGIN ?? "http://localhost:3000").replace(/\/$/, "");
+}
+
+export async function createPlanCheckoutSession(opts: {
+  userId: string;
+  planId: StripePlanId;
+  email?: string;
+}): Promise<Stripe.Checkout.Session> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("STRIPE_SECRET_KEY not configured");
+
+  const plan = STRIPE_PLANS[opts.planId];
+
+  return stripe.checkout.sessions.create({
+    mode: "subscription",
+    customer_email: opts.email,
+    line_items: [
+      {
+        price_data: {
+          currency: "eur",
+          product_data: { name: plan.label },
+          unit_amount: plan.amount,
+          recurring: { interval: "month" },
+        },
+        quantity: 1,
+      },
+    ],
+    metadata: {
+      userId: opts.userId,
+      planId: opts.planId,
+    },
+    success_url: `${appOrigin()}/profile?billing=success&plan=${opts.planId}`,
+    cancel_url: `${appOrigin()}/profile?billing=cancel`,
+  });
+}

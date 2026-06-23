@@ -367,12 +367,25 @@ export async function apiSemanticSearch(body: {
   });
 }
 
+export async function apiImageSearch(body: {
+  imageDataUrl: string;
+  candidates?: { id: string; image: string }[];
+  limit?: number;
+}): Promise<{ scores: Record<string, number> } | null> {
+  return aiFetch("/api/ai/image-search", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiSubscribeB2BPlan(planId: string): Promise<
   ApiResult<{
     ok: boolean;
     mode: string;
-    message: string;
-    user: UserProfile;
+    message?: string;
+    checkoutUrl?: string;
+    sessionId?: string;
+    user?: UserProfile;
   }>
 > {
   return dataFetch("/api/billing/subscribe", {

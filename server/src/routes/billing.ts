@@ -1,10 +1,16 @@
-import { Router } from "express";
+import { Router, type Request, type Response } from "express";
+import type Stripe from "stripe";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
-import { subscribeUserPlan } from "../repository.js";
+import { getUser, subscribeUserPlan } from "../repository.js";
+import {
+  createPlanCheckoutSession,
+  getStripe,
+} from "../billing/stripe-client.js";
+import type { StripePlanId } from "../billing/stripe-plans.js";
 
 export const billingRouter = Router();
 
-const VALID_PLANS = new Set(["starter", "pro"]);
+const VALID_PLANS = new Set<string>(["starter", "pro"]);
 
 billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) => {
   try {
@@ -13,10 +19,22 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
       return res.status(400).json({ error: "Invalid planId" });
     }
 
-    const stripeKey = process.env.STRIPE_SECRET_KEY;
-    if (stripeKey) {
-      return res.status(501).json({
-        error: "Stripe checkout is configured but not wired yet. Use demo mode without STRIPE_SECRET_KEY.",
+    const stripe = getStripe();
+    if (stripe) {
+      const user = await getUser(req.authUserId!);
+      const session = await createPlanCheckoutSession({
+        userId: req.authUserId!,
+        planId: planId as StripePlanId,
+        email: user?.email,
+      });
+      if (!session.url) {
+        return res.status(500).json({ error: "Stripe checkout URL missing" });
+      }
+      return res.json({
+        ok: true,
+        mode: "stripe",
+        checkoutUrl: session.url,
+        sessionId: session.id,
       });
     }
 
@@ -36,3 +54,40 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
     res.status(500).json({ error: String(e) });
   }
 });
+
+export async function handleStripeWebhook(
+  req: Request,
+  res: Response
+): Promise<void> {
+  const stripe = getStripe();
+  const secret = process.env.STRIPE_WEBHOOK_SECRET?.trim();
+  const signature = req.headers["stripe-signature"];
+
+  if (!stripe || !secret) {
+    res.status(503).send("Stripe webhook not configured");
+    return;
+  }
+  if (!signature || typeof signature !== "string") {
+    res.status(400).send("Missing stripe-signature");
+    return;
+  }
+
+  let event: Stripe.Event;
+  try {
+    event = stripe.webhooks.constructEvent(req.body, signature, secret);
+  } catch (e) {
+    res.status(400).send(`Webhook Error: ${String(e)}`);
+    return;
+  }
+
+  if (event.type === "checkout.session.completed") {
+    const session = event.data.object as Stripe.Checkout.Session;
+    const userId = session.metadata?.userId;
+    const planId = session.metadata?.planId;
+    if (userId && planId && VALID_PLANS.has(planId)) {
+      await subscribeUserPlan(userId, planId, session.id);
+    }
+  }
+
+  res.json({ received: true });
+}

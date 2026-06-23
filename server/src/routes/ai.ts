@@ -374,6 +374,28 @@ aiRouter.post("/extract-text", async (req, res) => {
   }
 });
 
+aiRouter.post("/image-search", async (req, res) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+
+  const { imageDataUrl, limit = 40 } = req.body as {
+    imageDataUrl?: string;
+    limit?: number;
+  };
+
+  if (!imageDataUrl?.trim()) {
+    return res.status(400).json({ error: "imageDataUrl is required" });
+  }
+
+  try {
+    const { imageSearchScores } = await import("../ai/image-embedding.js");
+    const scores = await imageSearchScores(imageDataUrl, limit);
+    res.json({ scores });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/semantic-search", async (req, res) => {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });

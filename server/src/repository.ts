@@ -220,6 +220,9 @@ export async function insertListing(listing: ApiListing): Promise<void> {
   void import("./ai/listing-embedding.js")
     .then((m) => m.refreshListingEmbedding(listing.id))
     .catch(() => {});
+  void import("./ai/image-embedding.js")
+    .then((m) => m.refreshListingImageEmbedding(listing.id))
+    .catch(() => {});
 }
 
 export async function updateListing(
@@ -274,6 +277,9 @@ export async function updateListing(
   if (needsEmbed) {
     void import("./ai/listing-embedding.js")
       .then((m) => m.refreshListingEmbedding(id))
+      .catch(() => {});
+    void import("./ai/image-embedding.js")
+      .then((m) => m.refreshListingImageEmbedding(id))
       .catch(() => {});
   }
 
@@ -1039,16 +1045,58 @@ export async function listListingsMissingEmbeddings(
   return rows.map((r) => r.id);
 }
 
+export async function updateListingImageEmbedding(
+  id: string,
+  embedding: number[]
+): Promise<void> {
+  await query(
+    `UPDATE listings SET image_embedding = $2::jsonb, image_embedding_updated_at = now() WHERE id = $1`,
+    [id, JSON.stringify(embedding)]
+  );
+}
+
+export async function searchListingsByImageEmbeddingRows(): Promise<
+  { id: string; embedding: number[] }[]
+> {
+  const rows = await query<{ id: string; image_embedding: unknown }>(
+    `SELECT id, image_embedding FROM listings
+     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+       AND image_embedding IS NOT NULL`
+  );
+  return rows
+    .filter((r) => Array.isArray(r.image_embedding))
+    .map((r) => ({
+      id: r.id,
+      embedding: r.image_embedding as number[],
+    }));
+}
+
+export async function listListingsMissingImageEmbeddings(
+  limit: number
+): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM listings
+     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+       AND image IS NOT NULL AND image <> ''
+       AND image_embedding IS NULL
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return rows.map((r) => r.id);
+}
+
 export async function subscribeUserPlan(
   userId: string,
-  planId: string
+  planId: string,
+  stripeSessionId?: string
 ): Promise<ApiUser | null> {
   const subId = `sub_${Date.now()}_${userId.slice(0, 8)}`;
   await ensureUser(userId);
   await query(
-    `INSERT INTO billing_subscriptions (id, user_id, plan_id, status)
-     VALUES ($1, $2, $3, 'active')`,
-    [subId, userId, planId]
+    `INSERT INTO billing_subscriptions (id, user_id, plan_id, status, stripe_session_id)
+     VALUES ($1, $2, $3, 'active', $4)`,
+    [subId, userId, planId, stripeSessionId ?? null]
   );
   if (planId === "pro") {
     await query(

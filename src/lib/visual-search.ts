@@ -101,6 +101,33 @@ export function computeVisualRelevance(
   return Math.min(1, Math.max(0, score * (0.65 + profile.confidence * 0.35)));
 }
 
+/** Weighted merge of multiple score maps (normalizes by available weights). */
+export function mergeRankScores(
+  entries: { weight: number; scores?: Record<string, number> }[]
+): Record<string, number> {
+  const merged: Record<string, number> = {};
+  const allIds = new Set(
+    entries.flatMap((e) => Object.keys(e.scores ?? {}))
+  );
+
+  for (const id of allIds) {
+    let sum = 0;
+    let weightSum = 0;
+    for (const entry of entries) {
+      const value = entry.scores?.[id];
+      if (value !== undefined) {
+        sum += entry.weight * value;
+        weightSum += entry.weight;
+      }
+    }
+    if (weightSum > 0) {
+      merged[id] = Math.round((sum / weightSum) * 1000) / 1000;
+    }
+  }
+
+  return merged;
+}
+
 export function visualSearchLabel(profile: VisualSearchProfile): string {
   const mode = profile.source === "photo" ? "nuotraukos" : "balso";
   return `Paieška pagal ${mode} aprašymą: ${profile.title}`;

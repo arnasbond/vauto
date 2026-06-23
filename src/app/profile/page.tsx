@@ -12,6 +12,7 @@ import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { EditListingModal } from "@/components/dashboard/EditListingModal";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
@@ -126,6 +127,9 @@ export default function ProfilePage() {
 
   return (
     <DashboardShell>
+      <Suspense fallback={null}>
+        <BillingReturnToast />
+      </Suspense>
       <Suspense fallback={null}>
         <ProUpgradeNotice />
       </Suspense>
