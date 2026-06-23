@@ -417,28 +417,84 @@ body.chameleon-flux {
 }
 
 body.chameleon-autoplius {
-  --chameleon-accent: #1a56db;
+  --chameleon-accent: #1167b1;
   --chameleon-cta: #ea580c;
+  --portal-accent: #1167b1;
+  --portal-cta: #ea580c;
+  --portal-wizard-bg: #f3f4f6;
+  --portal-wizard-surface: #ffffff;
+  --portal-progress: #1167b1;
+  --portal-bg: #f3f4f6;
+  --portal-text: #1f2937;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  color: var(--portal-text);
+  background: var(--portal-bg);
 }
 
 body.chameleon-vinted {
   --chameleon-accent: #09b1a8;
+  --portal-accent: #09b1a8;
+  --portal-cta: #09b1a8;
+  --portal-wizard-bg: #faf8f5;
+  --portal-wizard-surface: #fffdf9;
+  --portal-progress: #09b1a8;
+  --portal-bg: #faf8f5;
+  --portal-text: #374151;
+  font-weight: 300;
+  color: var(--portal-text);
+  background: var(--portal-bg);
 }
 
 body.chameleon-skelbiu {
   --chameleon-accent: #1565c0;
+  --portal-accent: #1565c0;
+  --portal-cta: #43a047;
+  --portal-wizard-bg: #eceff1;
+  --portal-wizard-surface: #ffffff;
+  --portal-progress: #1565c0;
+  --portal-bg: #eceff1;
+  --portal-text: #263238;
+  color: var(--portal-text);
+  background: var(--portal-bg);
 }
 
 body.chameleon-aruodas {
   --chameleon-accent: #c62828;
+  --portal-accent: #c62828;
+  --portal-cta: #c62828;
+  --portal-wizard-bg: #f5f5f5;
+  --portal-wizard-surface: #ffffff;
+  --portal-progress: #c62828;
+  --portal-bg: #f5f5f5;
+  --portal-text: #212121;
+  color: var(--portal-text);
+  background: var(--portal-bg);
 }
 
 body.chameleon-paslaugos {
   --chameleon-accent: #0f766e;
+  --portal-accent: #0f766e;
+  --portal-cta: #0f766e;
+  --portal-wizard-bg: #f4f9ff;
+  --portal-wizard-surface: #ffffff;
+  --portal-progress: #0f766e;
+  --portal-bg: #f4f9ff;
+  --portal-text: #0f172a;
+  color: var(--portal-text);
+  background: var(--portal-bg);
 }
 
 body.chameleon-cvbankas {
   --chameleon-accent: #1f4b99;
+  --portal-accent: #1f4b99;
+  --portal-cta: #1f4b99;
+  --portal-wizard-bg: #f5f7fb;
+  --portal-wizard-surface: #ffffff;
+  --portal-progress: #1f4b99;
+  --portal-bg: #f5f7fb;
+  --portal-text: #172033;
+  color: var(--portal-text);
+  background: var(--portal-bg);
 }
 
 .chameleon-aruodas-media img {
@@ -502,4 +558,30 @@ body.chameleon-cvbankas .chameleon-details-panel textarea {
   border: 1px solid #d9e2f1;
   background: #f8fbff;
   color: #172033;
+}
+
+/* Portal listing cards inherit accent on hover */
+body.chameleon-autoplius .portal-listing-card:hover {
+  border-color: #1167b1;
+}
+body.chameleon-aruodas .portal-listing-card:hover {
+  border-color: #c62828;
+}
+body.chameleon-vinted .portal-listing-card:hover {
+  border-color: #09b1a8;
+}
+body.chameleon-skelbiu .portal-listing-card:hover {
+  border-color: #1565c0;
+}
+body.chameleon-cvbankas .portal-listing-card:hover {
+  border-color: #1f4b99;
+}
+
+.chameleon-wizard-shell .rounded-lg.border.px-3.py-2.text-sm.font-medium {
+  transition: border-color 0.15s, background-color 0.15s;
+}
+
+body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[\#1167b1\] {
+  border-color: var(--portal-accent);
+  background: var(--portal-accent);
 }

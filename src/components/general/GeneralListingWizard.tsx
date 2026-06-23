@@ -166,7 +166,7 @@ export function GeneralListingWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-white">
+    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#eceff1)]">
       <div className="mx-auto min-h-full max-w-2xl pb-10">
         <div className="flex items-center justify-between border-b border-[#e0e0e0] px-4 py-3">
           <span className="text-lg font-bold text-[#43a047]">skelbiu.lt</span>

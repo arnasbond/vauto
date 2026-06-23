@@ -1,8 +1,9 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
+import { portalExperienceForQuery } from "@/lib/portal-experience";
 
 const CHAMELEON_CLASSES = [
   "chameleon-flux",
@@ -14,10 +15,17 @@ const CHAMELEON_CLASSES = [
   "chameleon-cvbankas",
 ] as const;
 
-/** Applies chameleon body class for visual continuity across seller flow */
+/** Applies chameleon body class — seller flow or active search portal */
 export function ChameleonThemeHost() {
-  const { chameleonTheme } = useVauto();
-  const theme = getChameleonTheme(chameleonTheme);
+  const { chameleonTheme, searchQuery, sellerStep } = useVauto();
+
+  const effectiveTheme = useMemo(() => {
+    if (sellerStep !== "idle") return chameleonTheme;
+    if (searchQuery.trim()) return portalExperienceForQuery(searchQuery).theme;
+    return "flux";
+  }, [chameleonTheme, searchQuery, sellerStep]);
+
+  const theme = getChameleonTheme(effectiveTheme);
 
   useEffect(() => {
     const body = document.body;

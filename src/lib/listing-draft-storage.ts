@@ -2,6 +2,7 @@ import type { AiExtractedListing } from "@/lib/types";
 
 const CLOTHING_DRAFT_KEY = "vauto_clothing_listing_draft_v1";
 const GENERAL_DRAFT_KEY = "vauto_general_listing_draft_v1";
+const JOB_DRAFT_KEY = "vauto_job_listing_draft_v1";
 
 export interface SavedListingDraft {
   draft: AiExtractedListing;
@@ -71,4 +72,26 @@ export function loadGeneralListingDraft(): SavedListingDraft | null {
 export function clearGeneralListingDraft(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(GENERAL_DRAFT_KEY);
+}
+
+export function saveJobListingDraft(
+  draft: AiExtractedListing,
+  previewImage: string | null
+): void {
+  if (typeof window === "undefined") return;
+  try {
+    const payload: SavedListingDraft = {
+      draft,
+      previewImage,
+      savedAt: new Date().toISOString(),
+    };
+    localStorage.setItem(JOB_DRAFT_KEY, JSON.stringify(payload));
+  } catch {
+    /* quota */
+  }
+}
+
+export function clearJobListingDraft(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(JOB_DRAFT_KEY);
 }

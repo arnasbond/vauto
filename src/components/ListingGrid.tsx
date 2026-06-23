@@ -9,6 +9,11 @@ import { listingPath } from "@/lib/seo";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
+import { JobSearchPanel } from "@/components/jobs/JobSearchPanel";
+import { JobListingResults } from "@/components/jobs/JobListingResults";
+import { VehicleSearchPanel } from "@/components/vehicle/VehicleSearchPanel";
+import { VehicleListingResults } from "@/components/vehicle/VehicleListingResults";
+import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { ScoredListing } from "@/lib/types";
@@ -50,7 +55,7 @@ function ListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="w-[156px] shrink-0 overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[#1167b1]/30 sm:w-[160px]">
+    <article className="portal-listing-card w-[156px] shrink-0 overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[var(--portal-accent,#1167b1)]/30 sm:w-[160px]">
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
           <Image
@@ -101,7 +106,7 @@ function WideListingCard({ listing }: { listing: ScoredListing }) {
   const href = listingPath(listing);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[#1167b1]/30">
+    <article className="portal-listing-card overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[var(--portal-accent,#1167b1)]/30">
       <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
           <Image
@@ -146,12 +151,16 @@ export function ListingGrid() {
   const gridListings = rankedListings.slice(3);
   const brokerSignal = buildSmartBrokerSignal(searchQuery, rankedListings);
   const portal = portalExperienceForQuery(searchQuery);
+  const isJobPortal = portal.theme === "cvbankas";
+  const isAutoPortal = portal.theme === "autoplius";
+  const ui = getPortalUi(portal.theme);
 
   return (
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
       <h2
         id="listing-results-heading"
-        className="font-display mb-4 text-base font-bold tracking-tight text-[#111827]"
+        className={`mb-4 text-base font-bold tracking-tight ${ui.fontClass}`}
+        style={{ color: ui.text }}
       >
         {searchQuery ? (
           <>{portal.portalName}: {rankedListings.length} rezultatų</>
@@ -160,15 +169,48 @@ export function ListingGrid() {
         )}
       </h2>
 
+      {isAutoPortal && <VehicleSearchPanel />}
+      {isJobPortal && <JobSearchPanel />}
+
       <VisualSearchStrip />
 
-      {brokerSignal && <SmartBrokerCard signal={brokerSignal} />}
+      {brokerSignal && !isJobPortal && !isAutoPortal && <SmartBrokerCard signal={brokerSignal} />}
 
       {rankedListings.length === 0 ? (
-        <p className="rounded-2xl border border-dashed border-[#d7dde5] bg-white p-6 text-center text-sm text-[#6b7280]">
-          Tiesioginių skelbimų dar nėra. Patikslinkite paiešką arba įtraukite prekę į
-          pageidavimų sąrašą — pranešime, kai kas nors įkels atitinkantį skelbimą.
+        <p
+          className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
+          style={{ borderColor: ui.border, color: ui.textMuted }}
+        >
+          {isJobPortal
+            ? "Darbo skelbimų nerasta. Pabandykite kitą raktinį žodį ar miestą."
+            : isAutoPortal
+              ? "Automobilių nerasta. Pabandykite kitą markę ar miestą."
+              : "Tiesioginių skelbimų dar nėra. Patikslinkite paiešką arba įtraukite prekę į pageidavimų sąrašą — pranešime, kai kas nors įkels atitinkantį skelbimą."}
         </p>
+      ) : isAutoPortal ? (
+        <>
+          <VehicleListingResults listings={rankedListings} />
+          {rankedListings.length > 3 && (
+            <div className="mt-6">
+              <VehicleListingResults
+                listings={rankedListings.slice(3, 8)}
+                title="Kiti pasiūlymai"
+              />
+            </div>
+          )}
+        </>
+      ) : isJobPortal ? (
+        <>
+          <JobListingResults listings={rankedListings} />
+          {rankedListings.length > 3 && (
+            <div className="mt-6">
+              <JobListingResults
+                listings={rankedListings.slice(3, 8)}
+                title="Jus taip pat gali sudominti:"
+              />
+            </div>
+          )}
+        </>
       ) : (
         <>
           <div className="scrollbar-hide -mx-4 flex gap-3 overflow-x-auto px-4 pb-4">

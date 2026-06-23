@@ -61,6 +61,13 @@ import {
   isGeneralListingCategory,
   looksLikeGeneralListing,
 } from "@/lib/general-catalog";
+import {
+  defaultJobType,
+  detectExperienceArea,
+  detectJobGroup,
+  detectLocationType,
+  looksLikeJobListing,
+} from "@/lib/job-catalog";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -307,6 +314,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             }
             if (!attrs.condition) attrs.condition = "Gera";
             next = { ...next, category: "clothing", attributes: attrs };
+          } else if (looksLikeJobListing(title, next.category)) {
+            const attrs = { ...(next.attributes ?? {}) };
+            if (!attrs.jobType) attrs.jobType = defaultJobType(title);
+            if (!attrs.jobTitle && next.title) attrs.jobTitle = next.title;
+            if (!attrs.cvEmail && user.email) attrs.cvEmail = user.email;
+            if (!attrs.experienceArea) {
+              const area = detectExperienceArea(title);
+              if (area) attrs.experienceArea = area;
+            }
+            if (!attrs.jobGroup) attrs.jobGroup = detectJobGroup(title);
+            if (!attrs.locationType) attrs.locationType = detectLocationType(title);
+            if (!attrs.workTimeFull) attrs.workTimeFull = "true";
+            if (!attrs.salaryPeriod) attrs.salaryPeriod = "€/mėn.";
+            if (!attrs.adLanguage) attrs.adLanguage = "LT";
+            next = { ...next, category: "jobs", attributes: attrs };
           } else if (
             looksLikeGeneralListing(title, next.category) &&
             !["services", "jobs", "vehicles", "real_estate", "clothing"].includes(next.category)
@@ -363,7 +385,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, showToast]
+    [user.city, user.phone, user.email, showToast]
   );
 
   const submitSellerContent = useCallback(

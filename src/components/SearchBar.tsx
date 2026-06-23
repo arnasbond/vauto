@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
 import { extractFromImage, extractFromText } from "@/lib/client-api";
@@ -9,6 +9,8 @@ import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
+import { getPortalUi } from "@/lib/chameleon-portal-ui";
+import { portalExperienceForQuery } from "@/lib/portal-experience";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -30,12 +32,20 @@ export function SearchBar() {
     clearVisualSearch,
     showToast,
     user,
+    sellerStep,
+    chameleonTheme,
   } = useVauto();
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [isVoiceFlowBusy, setIsVoiceFlowBusy] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [voiceFlowOpen, setVoiceFlowOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const activeTheme =
+    sellerStep !== "idle"
+      ? chameleonTheme
+      : portalExperienceForQuery(searchQuery).theme;
+  const ui = useMemo(() => getPortalUi(activeTheme), [activeTheme]);
 
   const scrollToResults = () => {
     document
@@ -141,12 +151,13 @@ export function SearchBar() {
   return (
     <>
       <form
-        className="flex items-center gap-2 rounded-xl border border-[#cfd8e3] bg-white py-1.5 pl-4 pr-1.5 shadow-sm"
+        className="flex items-center gap-2 rounded-xl border bg-white py-1.5 pl-4 pr-1.5 shadow-sm transition-colors"
+        style={{ borderColor: ui.searchBorder }}
         onSubmit={handleSearchSubmit}
         role="search"
         aria-label="Skelbimų paieška"
       >
-        <Sparkles className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
+        <Sparkles className="h-4 w-4 shrink-0" style={{ color: ui.accent }} aria-hidden />
         <input
           ref={inputRef}
           type="search"
@@ -160,13 +171,19 @@ export function SearchBar() {
           }}
           placeholder="Pvz. iPhone 13 Vilniuje arba darbas Kaune"
           enterKeyHint="search"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#1f2937] outline-none placeholder:text-[#6b7280]"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm outline-none"
+          style={{ color: ui.text }}
         />
         <button
           type="button"
           onClick={handlePhotoSearch}
           disabled={isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen}
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[#bfdbfe] bg-[#eef6ff] text-[#1167b1] transition hover:bg-[#dbeafe] disabled:opacity-60"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-60"
+          style={{
+            borderColor: ui.searchBorder,
+            background: `${ui.accent}14`,
+            color: ui.accent,
+          }}
           aria-label="Ieškoti pagal nuotrauką"
           title="Ieškoti pagal nuotrauką"
         >
@@ -180,9 +197,10 @@ export function SearchBar() {
           type="button"
           onClick={handleVoiceSearch}
           disabled={isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#f97316] text-white shadow-sm transition duration-500 ease-in-out hover:bg-[#ea580c] disabled:opacity-60 ${
+          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition duration-500 ease-in-out disabled:opacity-60 ${
             voiceFlowOpen ? "animate-pulse" : ""
           }`}
+          style={{ backgroundColor: ui.cta }}
           aria-label="Balso paieška"
         >
           <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />

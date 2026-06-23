@@ -29,7 +29,7 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[#f3f5f8] text-[#1f2937]">
+    <div className="flex min-h-dvh flex-col bg-[var(--portal-bg,#f3f5f8)] text-[var(--portal-text,#1f2937)] transition-colors duration-300">
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col pb-24">
         <div className="px-4 pt-2">
           <SyncErrorBanner />

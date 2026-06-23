@@ -152,11 +152,11 @@ function ProgressHeader({
       <div
         className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-full"
         style={{
-          background: `conic-gradient(#1167b1 ${pct}%, #e5e7eb ${pct}%)`,
+          background: `conic-gradient(var(--portal-progress, #1167b1) ${pct}%, #e5e7eb ${pct}%)`,
         }}
       >
         <div className="flex h-11 w-11 flex-col items-center justify-center rounded-full bg-white text-center">
-          <span className="text-sm font-bold leading-none text-[#1167b1]">{step}</span>
+          <span className="text-sm font-bold leading-none text-[var(--portal-accent,#1167b1)]">{step}</span>
           <span className="text-[10px] text-[#9ca3af]">/ {TOTAL_STEPS}</span>
         </div>
       </div>
@@ -285,8 +285,8 @@ export function VehicleListingWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#f3f4f6]">
-      <div className="mx-auto min-h-full max-w-lg bg-white px-4 py-5 shadow-sm">
+    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]">
+      <div className="mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm">
         <ProgressHeader
           step={step}
           summary={step > 1 ? summary : make || ""}

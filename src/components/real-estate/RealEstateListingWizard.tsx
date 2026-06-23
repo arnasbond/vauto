@@ -354,8 +354,8 @@ export function RealEstateListingWizard({
   const stepTitle = STEP_TITLES[step - 1];
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#f5f5f5]">
-      <div className="mx-auto min-h-full max-w-lg bg-white px-4 py-4 shadow-sm">
+    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f5f5f5)]">
+      <div className="mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-4 shadow-sm">
         <ProgressHeader
           step={progressStep}
           breadcrumb={step > 1 ? breadcrumb : ""}

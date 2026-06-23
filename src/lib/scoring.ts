@@ -85,6 +85,35 @@ export function computeSemanticRelevance(
   )
     score = Math.min(1, score + 0.4);
 
+  if (listing.category === "jobs") {
+    const expArea = String(attrs.experienceArea ?? "").toLowerCase();
+    const employer = String(attrs.employerName ?? "").toLowerCase();
+    const jobGroup = String(attrs.jobGroup ?? "").toLowerCase();
+    const qLower = query.toLowerCase();
+
+    if (expArea && tokens.some((t) => expArea.includes(t))) {
+      score = Math.min(1, score + 0.25);
+    }
+    if (employer && tokens.some((t) => employer.includes(t))) {
+      score = Math.min(1, score + 0.3);
+    }
+    if (jobGroup && qLower.includes(jobGroup)) {
+      score = Math.min(1, score + 0.15);
+    }
+    const listingCity = listing.location.toLowerCase();
+    if (tokens.some((t) => t.length > 3 && listingCity.includes(t))) {
+      score = Math.min(1, score + 0.2);
+    }
+    if (/vairuotoj|kurjer|sand[eė]l|program|buhalter|barista/i.test(query)) {
+      if (haystack.match(/vairuotoj|kurjer|sand[eė]l|program|buhalter|barista/i)) {
+        score = Math.min(1, score + 0.28);
+      }
+    }
+    if (attrs.locationType === "Darbas namuose" && /nuotolin|namuose|remote/i.test(query)) {
+      score = Math.min(1, score + 0.25);
+    }
+  }
+
   const skCat = String(attrs.skelbiuCategory ?? "").toLowerCase();
   const isGeneral =
     listing.category === "other" ||

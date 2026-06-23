@@ -132,7 +132,7 @@ export function ClothingListingWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto bg-[#faf8f5]">
+    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#faf8f5)]">
       <div className="mx-auto min-h-full max-w-lg bg-[#faf8f5] pb-8">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e8e4df] bg-[#fffdf9] px-4 py-3">
           <div className="flex items-center gap-2">
