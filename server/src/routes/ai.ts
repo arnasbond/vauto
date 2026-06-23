@@ -276,3 +276,29 @@ aiRouter.post("/extract-text", async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+aiRouter.post("/analyze-report", async (req, res) => {
+  const { comment, category, listingTitle, chatPreview } = req.body as {
+    comment?: string;
+    category?: string;
+    listingTitle?: string;
+    chatPreview?: string;
+  };
+
+  if (!comment?.trim() || !category?.trim()) {
+    return res.status(400).json({ error: "comment and category required" });
+  }
+
+  try {
+    const { analyzeReportWithAi } = await import("../ai/report-analysis.js");
+    const analysis = await analyzeReportWithAi({
+      comment: comment.trim(),
+      category: category.trim(),
+      listingTitle,
+      chatPreview,
+    });
+    res.json(analysis);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});

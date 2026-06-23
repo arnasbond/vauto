@@ -14,6 +14,8 @@ const FEATURE_LABELS: Record<string, string> = {
   webPush: "Web Push",
   fcm: "Android FCM",
   jwt: "JWT sesijos",
+  openai: "OpenAI AI",
+  reportEmail: "El. paštas admin",
 };
 
 export function ConnectionStatusCard() {

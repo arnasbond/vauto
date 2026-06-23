@@ -448,6 +448,8 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
   if (!aiSummary.ok) return aiSummary;
   const aiSuggestedReply = optionalString(body, "aiSuggestedReply", 4000);
   if (!aiSuggestedReply.ok) return aiSuggestedReply;
+  const aiPowered = optionalBoolean(body, "aiPowered");
+  if (!aiPowered.ok) return aiPowered;
   const unreadByAdmin = optionalBoolean(body, "unreadByAdmin");
   if (!unreadByAdmin.ok) return unreadByAdmin;
   const unreadByReporter = optionalBoolean(body, "unreadByReporter");
@@ -473,6 +475,7 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
     updatedAt: updatedAt.value,
     aiSummary: aiSummary.value,
     aiSuggestedReply: aiSuggestedReply.value,
+    aiPowered: aiPowered.value,
     unreadByAdmin: unreadByAdmin.value,
     unreadByReporter: unreadByReporter.value,
     messages,

@@ -376,6 +376,7 @@ function mapReportFromRow(r: {
     aiSuggestedReply: meta.aiSuggestedReply as string | undefined,
     unreadByAdmin: meta.unreadByAdmin as boolean | undefined,
     unreadByReporter: meta.unreadByReporter as boolean | undefined,
+    aiPowered: meta.aiPowered as boolean | undefined,
   };
 }
 
@@ -449,6 +450,7 @@ export async function insertReport(report: ApiSupportReport): Promise<void> {
     aiSuggestedReply: report.aiSuggestedReply,
     unreadByAdmin: report.unreadByAdmin ?? true,
     unreadByReporter: report.unreadByReporter ?? false,
+    aiPowered: report.aiPowered ?? false,
     updatedAt: report.updatedAt ?? report.createdAt,
   };
   await query(
@@ -498,6 +500,21 @@ export async function getAdminUserIds(): Promise<string[]> {
     `SELECT id FROM users WHERE role = 'admin'`
   );
   return rows.map((r) => r.id);
+}
+
+export async function getAdminNotifyEmails(): Promise<string[]> {
+  const rows = await query<{ email: string | null }>(
+    `SELECT email FROM users WHERE role = 'admin' AND email IS NOT NULL AND email <> ''`
+  );
+  const fromDb = rows.map((r) => r.email!.trim()).filter(Boolean);
+  const fromEnv =
+    process.env.ADMIN_NOTIFY_EMAIL?.split(",")
+      .map((e) => e.trim())
+      .filter(Boolean) ?? [];
+  const fallback = process.env.ADMIN_EMAIL?.trim()
+    ? [process.env.ADMIN_EMAIL.trim()]
+    : ["admin@vauto.com"];
+  return [...new Set([...fromEnv, ...fromDb, ...fallback])];
 }
 
 export async function getBannedUserIds(): Promise<string[]> {

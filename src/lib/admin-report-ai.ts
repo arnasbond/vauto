@@ -220,6 +220,7 @@ export function reportMetadata(report: SupportReport): Record<string, unknown> {
     aiSuggestedReply: report.aiSuggestedReply,
     unreadByAdmin: report.unreadByAdmin ?? false,
     unreadByReporter: report.unreadByReporter ?? false,
+    aiPowered: report.aiPowered ?? false,
     updatedAt: report.updatedAt ?? report.createdAt,
   };
 }
@@ -240,6 +241,7 @@ export function applyReportMetadata(
     unreadByAdmin: (metadata.unreadByAdmin as boolean) ?? report.unreadByAdmin,
     unreadByReporter:
       (metadata.unreadByReporter as boolean) ?? report.unreadByReporter,
+    aiPowered: (metadata.aiPowered as boolean) ?? report.aiPowered,
     updatedAt: (metadata.updatedAt as string) ?? report.updatedAt,
   };
 }

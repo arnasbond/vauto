@@ -37,6 +37,7 @@ import {
   notifyReporterReply,
 } from "../push/report-notify.js";
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
+import { enrichReportWithAi } from "../reports/enrich-report.js";
 import { requireAdmin, requireAuth } from "../middleware/auth.js";
 import type {
   ApiChatThread,
@@ -110,6 +111,8 @@ apiRouter.get("/health", async (_req, res) => {
     ),
     fcm: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
     jwt: Boolean(process.env.JWT_SECRET),
+    openai: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
   };
 
   try {
@@ -237,6 +240,9 @@ apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
     await insertReport(report);
     publishReportEvent("report_created", report);
     void notifyAdminsNewReport(report);
+    void enrichReportWithAi(report).catch((e) =>
+      console.warn("[vauto] report AI enrich failed", e)
+    );
     res.status(201).json(report);
   } catch (e) {
     res.status(500).json({ error: String(e) });

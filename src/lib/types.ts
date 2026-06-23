@@ -178,6 +178,7 @@ export interface SupportReport {
   aiSuggestedReply?: string;
   unreadByAdmin?: boolean;
   unreadByReporter?: boolean;
+  aiPowered?: boolean;
 }
 
 export interface AuthSession {

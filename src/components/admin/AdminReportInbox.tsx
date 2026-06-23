@@ -12,6 +12,7 @@ import {
   Mail,
   MessageSquare,
   Phone,
+  RefreshCw,
   Send,
   Shield,
   Sparkles,
@@ -21,6 +22,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { useVauto } from "@/context/VautoContext";
 import { analyzeReportText } from "@/lib/admin-report-ai";
+import { apiAnalyzeReport } from "@/lib/api/client";
 import { REPORT_CATEGORIES, URGENCY_META } from "@/lib/reports";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ReportMessage, ReportUrgency, SupportReport } from "@/lib/types";
@@ -64,6 +66,7 @@ export function AdminReportInbox() {
   const [selectedId, setSelectedId] = useState<string | null>(reportFromUrl);
   const [replyText, setReplyText] = useState("");
   const [livePulse, setLivePulse] = useState(false);
+  const [reanalyzing, setReanalyzing] = useState(false);
 
   useEffect(() => {
     if (typeof Notification !== "undefined" && Notification.permission === "default") {
@@ -111,9 +114,36 @@ export function AdminReportInbox() {
     router.replace("/profile/", { scroll: false });
   }, [router]);
 
-  const ai = selected
-    ? analyzeReportText(selected.comment, selected.category)
-    : null;
+  const ai = useMemo(() => {
+    if (!selected) return null;
+    const fallback = analyzeReportText(selected.comment, selected.category);
+    return {
+      summary: selected.aiSummary ?? fallback.summary,
+      suggestedReply: selected.aiSuggestedReply ?? fallback.suggestedReply,
+      urgencyNote: fallback.urgencyNote,
+      suggestedCategory: fallback.suggestedCategory,
+      confidence: fallback.confidence,
+      aiPowered: selected.aiPowered ?? false,
+    };
+  }, [selected]);
+
+  const handleReanalyze = async () => {
+    if (!selected) return;
+    setReanalyzing(true);
+    try {
+      const result = await apiAnalyzeReport({
+        comment: selected.comment,
+        category: selected.category,
+        listingTitle: selected.listingTitle,
+        chatPreview: selected.chatPreview,
+      });
+      if (result) {
+        setReplyText(result.suggestedReply);
+      }
+    } finally {
+      setReanalyzing(false);
+    }
+  };
 
   const handleSendReply = (text?: string, auto = false) => {
     if (!selected) return;
@@ -231,9 +261,23 @@ export function AdminReportInbox() {
 
           {ai && (
             <div className="vauto-dashboard-card rounded-2xl p-4">
-              <div className="mb-2 flex items-center gap-2">
+              <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Bot className="h-4 w-4 text-violet-400" />
                 <h3 className="text-sm font-semibold text-white">AI pagalba administratoriui</h3>
+                {ai.aiPowered && (
+                  <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-200">
+                    GPT-4o-mini
+                  </span>
+                )}
+                <button
+                  type="button"
+                  onClick={() => void handleReanalyze()}
+                  disabled={reanalyzing}
+                  className="ml-auto flex items-center gap-1 rounded-lg bg-white/10 px-2 py-1 text-[10px] text-slate-300"
+                >
+                  <RefreshCw className={`h-3 w-3 ${reanalyzing ? "animate-spin" : ""}`} />
+                  Peranalizuoti
+                </button>
               </div>
               <p className="text-xs leading-relaxed text-slate-400">{ai.summary}</p>
               <p className="mt-2 text-[11px] text-slate-500">{ai.urgencyNote}</p>

@@ -111,6 +111,7 @@ export interface ApiSupportReport {
   aiSuggestedReply?: string;
   unreadByAdmin?: boolean;
   unreadByReporter?: boolean;
+  aiPowered?: boolean;
 }
 
 export type ApiEscrowStatus =

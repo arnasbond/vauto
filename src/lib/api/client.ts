@@ -71,6 +71,8 @@ export interface ApiHealthDetails {
     webPush: boolean;
     fcm: boolean;
     jwt: boolean;
+    openai?: boolean;
+    reportEmail?: boolean;
   };
 }
 
@@ -262,6 +264,18 @@ export async function apiUpsertEscrow(
     method: "PUT",
     body: JSON.stringify(escrow),
     userId: escrow.buyerId,
+  });
+}
+
+export async function apiAnalyzeReport(body: {
+  comment: string;
+  category: string;
+  listingTitle?: string;
+  chatPreview?: string;
+}): Promise<import("@/lib/admin-report-ai").ReportAiAnalysis | null> {
+  return aiFetch("/api/ai/analyze-report", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 
