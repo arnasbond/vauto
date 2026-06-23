@@ -350,6 +350,37 @@ export async function apiVisualRank(body: {
   });
 }
 
+export async function apiSemanticSearch(body: {
+  profile: import("@/lib/visual-search").VisualSearchProfile;
+  candidates?: {
+    id: string;
+    title: string;
+    category: string;
+    location: string;
+    description?: string;
+  }[];
+  limit?: number;
+}): Promise<{ scores: Record<string, number> } | null> {
+  return aiFetch("/api/ai/semantic-search", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiSubscribeB2BPlan(planId: string): Promise<
+  ApiResult<{
+    ok: boolean;
+    mode: string;
+    message: string;
+    user: UserProfile;
+  }>
+> {
+  return dataFetch("/api/billing/subscribe", {
+    method: "POST",
+    body: JSON.stringify({ planId }),
+  });
+}
+
 export async function apiAnalyzeVoice(body: {
   transcript: string;
   mode: "search" | "listing";

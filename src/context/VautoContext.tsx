@@ -18,7 +18,7 @@ import {
   resolveSortMode,
 } from "@/lib/scoring";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
-import { apiVisualRank } from "@/lib/api/client";
+import { apiVisualRank, apiSemanticSearch, apiSubscribeB2BPlan } from "@/lib/api/client";
 import {
   type VisualSearchProfile,
 } from "@/lib/visual-search";
@@ -209,6 +209,7 @@ interface VautoContextValue {
   login: (data: LoginPayload) => Promise<void>;
   logout: () => void;
   topUpWallet: (amount: number) => void;
+  subscribeB2BPlan: (planId: "starter" | "pro") => Promise<boolean>;
   promoteListing: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
@@ -736,8 +737,30 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
         if (!candidates.length) return;
 
-        const remote = await apiVisualRank({ profile, candidates });
-        if (remote?.scores) setVisualRankScores(remote.scores);
+        const [visualRank, semantic] = await Promise.all([
+          apiVisualRank({ profile, candidates }),
+          apiSemanticSearch({ profile, limit: 40 }),
+        ]);
+
+        const merged: Record<string, number> = {};
+        const allIds = new Set([
+          ...Object.keys(visualRank?.scores ?? {}),
+          ...Object.keys(semantic?.scores ?? {}),
+        ]);
+        for (const id of allIds) {
+          const v = visualRank?.scores?.[id];
+          const s = semantic?.scores?.[id];
+          if (v !== undefined && s !== undefined) {
+            merged[id] = Math.round((v * 0.4 + s * 0.6) * 1000) / 1000;
+          } else if (s !== undefined) {
+            merged[id] = s;
+          } else if (v !== undefined) {
+            merged[id] = v;
+          }
+        }
+
+        if (Object.keys(merged).length) setVisualRankScores(merged);
+        else if (visualRank?.scores) setVisualRankScores(visualRank.scores);
       } finally {
         setVisualSearchRefining(false);
       }
@@ -985,6 +1008,39 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [patchAuthUser, user.walletBalance, apiActive]
   );
 
+  const subscribeB2BPlan = useCallback(
+    async (planId: "starter" | "pro") => {
+      if (apiActive) {
+        const r = await apiSubscribeB2BPlan(planId);
+        if (r.ok) {
+          const u = r.data.user;
+          patchAuthUser({
+            billingPlan:
+              (u.billingPlan as UserProfile["billingPlan"]) ?? planId,
+            role:
+              u.role === "pro" || planId === "pro" ? "pro" : user.role,
+          });
+          showToast(r.data.message, "success");
+          return true;
+        }
+        showToast(r.error, "error");
+        return false;
+      }
+      patchAuthUser({
+        billingPlan: planId,
+        role: planId === "pro" ? "pro" : user.role,
+      });
+      showToast(
+        planId === "pro"
+          ? "Pro planas aktyvuotas (demo)"
+          : "Starto planas užregistruotas (demo)",
+        "success"
+      );
+      return true;
+    },
+    [apiActive, patchAuthUser, showToast, user.role]
+  );
+
   const updateListing = useCallback(
     (id: string, patch: ListingEditPatch) => {
       setListings((prev) =>
@@ -1157,6 +1213,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       topUpWallet,
+      subscribeB2BPlan,
       promoteListing,
       updateListing,
       markListingSold,
@@ -1222,6 +1279,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       login,
       logout,
       topUpWallet,
+      subscribeB2BPlan,
       promoteListing,
       updateListing,
       markListingSold,

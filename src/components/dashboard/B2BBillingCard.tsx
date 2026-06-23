@@ -2,13 +2,16 @@
 
 import { useState } from "react";
 import { BarChart3, CreditCard } from "lucide-react";
-import { B2B_PLANS, estimatePpcSpend } from "@/lib/b2b-plans";
+import { B2B_PLANS, estimatePpcSpend, type B2BBillingPlanId } from "@/lib/b2b-plans";
+import type { UserProfile } from "@/lib/types";
 
 interface B2BBillingCardProps {
   balance: number;
   clicks: number;
   callClicks: number;
   activeListings: number;
+  currentPlan?: UserProfile["billingPlan"];
+  onSubscribe?: (planId: B2BBillingPlanId) => Promise<boolean>;
 }
 
 export function B2BBillingCard({
@@ -16,13 +19,25 @@ export function B2BBillingCard({
   clicks,
   callClicks,
   activeListings,
+  currentPlan = "free",
+  onSubscribe,
 }: B2BBillingCardProps) {
-  const [demoPlan, setDemoPlan] = useState<string | null>(null);
+  const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
   const estimatedSpend = estimatePpcSpend({
     clicks,
     callClicks,
     safeBuyStarts: Math.max(0, Math.floor(callClicks * 0.4)),
   });
+
+  const handleSubscribe = async (planId: B2BBillingPlanId) => {
+    if (!onSubscribe) return;
+    setLoadingPlan(planId);
+    try {
+      await onSubscribe(planId);
+    } finally {
+      setLoadingPlan(null);
+    }
+  };
 
   return (
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
@@ -47,29 +62,39 @@ export function B2BBillingCard({
       </div>
 
       <div className="grid gap-2">
-        {B2B_PLANS.map((plan) => (
-          <div key={plan.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
-            <div className="flex items-center justify-between">
-              <p className="font-semibold text-white">{plan.label}</p>
-              <span className="text-sm font-bold text-[var(--vauto-orange)]">
-                {plan.monthlyPrice} €/mėn.
-              </span>
+        {B2B_PLANS.map((plan) => {
+          const isActive = currentPlan === plan.id;
+          const isLoading = loadingPlan === plan.id;
+
+          return (
+            <div key={plan.id} className="rounded-xl border border-white/10 bg-white/5 p-3">
+              <div className="flex items-center justify-between">
+                <p className="font-semibold text-white">{plan.label}</p>
+                <span className="text-sm font-bold text-[var(--vauto-orange)]">
+                  {plan.monthlyPrice} €/mėn.
+                </span>
+              </div>
+              <p className="mt-1 text-xs text-slate-400">
+                {plan.listingLimit === "unlimited"
+                  ? "Neriboti aktyvūs skelbimai"
+                  : `Iki ${plan.listingLimit} aktyvių skelbimų`}{" "}
+                · dabar: {activeListings}
+              </p>
+              <button
+                type="button"
+                disabled={isActive || isLoading || !onSubscribe}
+                onClick={() => void handleSubscribe(plan.id)}
+                className="mt-2 w-full rounded-lg border border-[var(--vauto-teal)]/40 py-2 text-xs font-semibold text-[var(--vauto-teal)] hover:bg-[var(--vauto-teal)]/10 disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {isActive
+                  ? "Aktyvus planas"
+                  : isLoading
+                    ? "Aktyvuojama…"
+                    : "Užsisakyti planą"}
+              </button>
             </div>
-            <p className="mt-1 text-xs text-slate-400">
-              {plan.listingLimit === "unlimited"
-                ? "Neriboti aktyvūs skelbimai"
-                : `Iki ${plan.listingLimit} aktyvių skelbimų`}{" "}
-              · dabar: {activeListings}
-            </p>
-            <button
-              type="button"
-              onClick={() => setDemoPlan(plan.id)}
-              className="mt-2 w-full rounded-lg border border-[var(--vauto-teal)]/40 py-2 text-xs font-semibold text-[var(--vauto-teal)] hover:bg-[var(--vauto-teal)]/10"
-            >
-              {demoPlan === plan.id ? "Užklausa išsiųsta (demo)" : "Užsisakyti planą (demo)"}
-            </button>
-          </div>
-        ))}
+          );
+        })}
       </div>
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">

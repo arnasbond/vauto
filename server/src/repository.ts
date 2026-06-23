@@ -83,9 +83,11 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     business_type: string | null;
     sold_count: number;
     auth_provider: string | null;
+    billing_plan: string | null;
   }>(
     `SELECT id, name, phone, city, avatar_url, email, warned,
-            wallet_balance, role, business_type, sold_count, auth_provider
+            wallet_balance, role, business_type, sold_count, auth_provider,
+            billing_plan
      FROM users WHERE id = $1`,
     [id]
   );
@@ -103,6 +105,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     businessType: r.business_type ?? undefined,
     soldCount: r.sold_count,
     authProvider: r.auth_provider ?? undefined,
+    billingPlan: r.billing_plan ?? undefined,
     avatar:
       r.avatar_url ??
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
@@ -213,6 +216,10 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.promoted ?? false,
     ]
   );
+
+  void import("./ai/listing-embedding.js")
+    .then((m) => m.refreshListingEmbedding(listing.id))
+    .catch(() => {});
 }
 
 export async function updateListing(
@@ -256,6 +263,19 @@ export async function updateListing(
 
   values.push(id);
   await query(`UPDATE listings SET ${fields.join(", ")} WHERE id = $${i}`, values);
+
+  const needsEmbed =
+    patch.title !== undefined ||
+    patch.description !== undefined ||
+    patch.category !== undefined ||
+    patch.tags !== undefined ||
+    patch.attributes !== undefined;
+
+  if (needsEmbed) {
+    void import("./ai/listing-embedding.js")
+      .then((m) => m.refreshListingEmbedding(id))
+      .catch(() => {});
+  }
 
   const all = await getListings();
   return all.find((l) => l.id === id) ?? null;
@@ -970,4 +990,76 @@ export async function getUsersMatchingListing(
       return t.length > 0 && t.every((tok) => haystack.includes(tok));
     })
     .map((r) => ({ userId: r.user_id, query: r.query }));
+}
+
+export async function getListingForEmbedding(
+  id: string
+): Promise<ApiListing | null> {
+  const rows = await query<ListingRow>(`${LISTING_SELECT} WHERE id = $1`, [id]);
+  return rows[0] ? mapListingRow(rows[0]) : null;
+}
+
+export async function updateListingEmbedding(
+  id: string,
+  embedding: number[]
+): Promise<void> {
+  await query(
+    `UPDATE listings SET search_embedding = $2::jsonb, embedding_updated_at = now() WHERE id = $1`,
+    [id, JSON.stringify(embedding)]
+  );
+}
+
+export async function searchListingsByEmbeddingRows(): Promise<
+  { id: string; embedding: number[] }[]
+> {
+  const rows = await query<{ id: string; search_embedding: unknown }>(
+    `SELECT id, search_embedding FROM listings
+     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+       AND search_embedding IS NOT NULL`
+  );
+  return rows
+    .filter((r) => Array.isArray(r.search_embedding))
+    .map((r) => ({
+      id: r.id,
+      embedding: r.search_embedding as number[],
+    }));
+}
+
+export async function listListingsMissingEmbeddings(
+  limit: number
+): Promise<string[]> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM listings
+     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+       AND search_embedding IS NULL
+     ORDER BY created_at DESC
+     LIMIT $1`,
+    [limit]
+  );
+  return rows.map((r) => r.id);
+}
+
+export async function subscribeUserPlan(
+  userId: string,
+  planId: string
+): Promise<ApiUser | null> {
+  const subId = `sub_${Date.now()}_${userId.slice(0, 8)}`;
+  await ensureUser(userId);
+  await query(
+    `INSERT INTO billing_subscriptions (id, user_id, plan_id, status)
+     VALUES ($1, $2, $3, 'active')`,
+    [subId, userId, planId]
+  );
+  if (planId === "pro") {
+    await query(
+      `UPDATE users SET billing_plan = $2, role = 'pro' WHERE id = $1`,
+      [userId, planId]
+    );
+  } else {
+    await query(`UPDATE users SET billing_plan = $2 WHERE id = $1`, [
+      userId,
+      planId,
+    ]);
+  }
+  return getUser(userId);
 }

@@ -374,6 +374,43 @@ aiRouter.post("/extract-text", async (req, res) => {
   }
 });
 
+aiRouter.post("/semantic-search", async (req, res) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+
+  const { profile, limit = 40 } = req.body as {
+    profile?: {
+      title?: string;
+      category?: string;
+      price?: number;
+      location?: string;
+      description?: string;
+    };
+    limit?: number;
+  };
+
+  if (!profile?.title) {
+    return res.status(400).json({ error: "profile.title is required" });
+  }
+
+  try {
+    const { buildVisualProfileText, semanticSearchScores } = await import(
+      "../ai/listing-embedding.js"
+    );
+    const queryText = buildVisualProfileText({
+      title: profile.title,
+      category: profile.category ?? "other",
+      location: profile.location,
+      description: profile.description,
+      price: profile.price,
+    });
+    const scores = await semanticSearchScores(queryText, limit);
+    res.json({ scores });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/visual-rank", async (req, res) => {
   const key = process.env.OPENAI_API_KEY;
   if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });

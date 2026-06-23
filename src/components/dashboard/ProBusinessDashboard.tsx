@@ -51,7 +51,7 @@ export function ProBusinessDashboard({
   onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
-  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews, sellerAnalytics } =
+  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews, sellerAnalytics, subscribeB2BPlan } =
     useVauto();
   const rating = computeSellerRating(reviews, user.id);
   const serviceRating = rating.count > 0 ? rating.avg : 4.9;
@@ -143,6 +143,8 @@ export function ProBusinessDashboard({
             clicks={sellerAnalytics.views}
             callClicks={sellerAnalytics.callClicks}
             activeListings={listings.length}
+            currentPlan={user.billingPlan}
+            onSubscribe={subscribeB2BPlan}
           />
           <VisibilityPricingCard
             listings={listings}
