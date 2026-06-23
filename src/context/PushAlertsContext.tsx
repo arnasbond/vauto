@@ -11,7 +11,7 @@ import {
   type ReactNode,
   type RefObject,
 } from "react";
-import { apiSyncAlertQueries } from "@/lib/api/wallet-reviews";
+import { apiFetchAlertQueries, apiSyncAlertQueries } from "@/lib/api/wallet-reviews";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import {
   requestNotificationPermission,
@@ -34,18 +34,28 @@ import type { SearchIntentEvent } from "@/lib/search-intent";
 export interface PushAlertsContextValue {
   pushAlertsEnabled: boolean;
   setPushAlertsEnabled: (enabled: boolean) => void;
+  wishlistQueries: string[];
+  subscribeWishlist: (query: string) => Promise<boolean>;
+  unsubscribeWishlist: (query: string) => void;
+  isWishlistSubscribed: (query: string) => boolean;
 }
 
 export interface PushAlertsDeps {
   apiActive: boolean;
   catalogHydrated: boolean;
-  searchQuery: string;
-  searchIntentEvents: SearchIntentEvent[];
+  isAuthenticated: boolean;
   listingsRef: RefObject<Listing[]>;
   onAlertToast: (message: string) => void;
+  /** @deprecated kept for type compat — wishlist no longer auto-syncs from search */
+  searchQuery?: string;
+  searchIntentEvents?: SearchIntentEvent[];
 }
 
 const PushAlertsContext = createContext<PushAlertsContextValue | null>(null);
+
+function normalizeQuery(q: string): string {
+  return q.trim().toLowerCase();
+}
 
 export function PushAlertsProvider({
   deps,
@@ -55,40 +65,79 @@ export function PushAlertsProvider({
   children: ReactNode;
 }) {
   const [pushAlertsEnabled, setPushAlertsEnabledState] = useState(true);
+  const [wishlistQueries, setWishlistQueries] = useState<string[]>([]);
   const [hydrated, setHydrated] = useState(false);
   const pushAlertsSeenRef = useRef<Set<string>>(new Set());
-  const alertQueriesRef = useRef<string[]>([]);
-  const searchQueryRef = useRef(deps.searchQuery);
-  searchQueryRef.current = deps.searchQuery;
-  const searchIntentRef = useRef(deps.searchIntentEvents);
-  searchIntentRef.current = deps.searchIntentEvents;
   const depsRef = useRef(deps);
   depsRef.current = deps;
 
   useEffect(() => {
     const seenPush = loadPushAlertsSeen();
     if (seenPush) pushAlertsSeenRef.current = new Set(seenPush);
-    const storedAlerts = loadAlertQueries();
-    if (storedAlerts) alertQueriesRef.current = storedAlerts;
+    const stored = loadAlertQueries();
+    if (stored?.length) setWishlistQueries(stored);
     setPushAlertsEnabledState(loadPushAlertsEnabled());
     setHydrated(true);
   }, []);
 
-  const buildAlertQueries = useCallback(() => {
-    const fromIntent = searchIntentRef.current.slice(0, 8).map((e) => e.query);
-    const q = searchQueryRef.current.trim();
-    const merged = [
-      ...alertQueriesRef.current,
-      ...fromIntent,
-      ...(q.length >= 3 ? [q] : []),
-    ];
-    const unique = [...new Set(merged.map((s) => s.trim().toLowerCase()))].filter(
-      (s) => s.length >= 3
-    );
-    alertQueriesRef.current = unique;
-    saveAlertQueries(unique);
-    return unique;
-  }, []);
+  useEffect(() => {
+    if (!hydrated || !deps.apiActive || !deps.isAuthenticated) return;
+    void apiFetchAlertQueries().then((res) => {
+      if (res.ok && res.data?.queries?.length) {
+        setWishlistQueries(res.data.queries);
+        saveAlertQueries(res.data.queries);
+      }
+    });
+  }, [hydrated, deps.apiActive, deps.isAuthenticated]);
+
+  const persistWishlist = useCallback(
+    (queries: string[]) => {
+      const unique = [...new Set(queries.map(normalizeQuery))].filter(
+        (s) => s.length >= 3
+      );
+      setWishlistQueries(unique);
+      saveAlertQueries(unique);
+      if (depsRef.current.apiActive && depsRef.current.isAuthenticated) {
+        void apiSyncAlertQueries(unique);
+      }
+      return unique;
+    },
+    []
+  );
+
+  const subscribeWishlist = useCallback(
+    async (rawQuery: string): Promise<boolean> => {
+      const q = normalizeQuery(rawQuery);
+      if (q.length < 3) return false;
+
+      const perm = await requestNotificationPermission();
+      if (perm !== "granted") return false;
+
+      const next = persistWishlist([...wishlistQueries, q]);
+
+      if (depsRef.current.apiActive && depsRef.current.isAuthenticated) {
+        await registerWebPush(next);
+      }
+
+      setPushAlertsEnabledState(true);
+      savePushAlertsEnabled(true);
+      return true;
+    },
+    [persistWishlist, wishlistQueries]
+  );
+
+  const unsubscribeWishlist = useCallback(
+    (rawQuery: string) => {
+      const q = normalizeQuery(rawQuery);
+      persistWishlist(wishlistQueries.filter((x) => x !== q));
+    },
+    [persistWishlist, wishlistQueries]
+  );
+
+  const isWishlistSubscribed = useCallback(
+    (rawQuery: string) => wishlistQueries.includes(normalizeQuery(rawQuery)),
+    [wishlistQueries]
+  );
 
   const setPushAlertsEnabled = useCallback(
     (enabled: boolean) => {
@@ -96,26 +145,26 @@ export function PushAlertsProvider({
       savePushAlertsEnabled(enabled);
       if (!enabled) return;
       void requestNotificationPermission().then(() => {
-        void registerWebPush(alertQueriesRef.current);
+        void registerWebPush(wishlistQueries);
       });
     },
-    []
+    [wishlistQueries]
   );
 
   useEffect(() => {
     if (!hydrated || !deps.catalogHydrated || !pushAlertsEnabled) return;
+    if (wishlistQueries.length === 0) return;
 
-    if (deps.apiActive) {
-      const queries = buildAlertQueries();
+    if (deps.apiActive && deps.isAuthenticated) {
       void requestNotificationPermission().then(() => {
-        void registerWebPush(queries);
+        void registerWebPush(wishlistQueries);
       });
       return;
     }
 
     const stopPoll = startPushAlertPolling(
       () => depsRef.current.listingsRef.current ?? [],
-      buildAlertQueries,
+      () => wishlistQueries,
       (payload: PushAlertPayload) => {
         pushAlertsSeenRef.current.add(payload.listingId);
         savePushAlertsSeen(Array.from(pushAlertsSeenRef.current));
@@ -134,40 +183,27 @@ export function PushAlertsProvider({
     deps.catalogHydrated,
     pushAlertsEnabled,
     deps.apiActive,
-    buildAlertQueries,
+    deps.isAuthenticated,
+    wishlistQueries,
   ]);
-
-  useEffect(() => {
-    if (!hydrated || !deps.catalogHydrated || !deps.apiActive || !pushAlertsEnabled) {
-      return;
-    }
-    const queries = buildAlertQueries();
-    void apiSyncAlertQueries(queries);
-  }, [
-    deps.searchQuery,
-    deps.searchIntentEvents,
-    hydrated,
-    deps.catalogHydrated,
-    deps.apiActive,
-    pushAlertsEnabled,
-    buildAlertQueries,
-  ]);
-
-  useEffect(() => {
-    if (!hydrated || !deps.catalogHydrated) return;
-    const q = deps.searchQuery.trim();
-    if (q.length < 3) return;
-    const next = [...new Set([...alertQueriesRef.current, q.toLowerCase()])];
-    alertQueriesRef.current = next;
-    saveAlertQueries(next);
-  }, [deps.searchQuery, hydrated, deps.catalogHydrated]);
 
   const value = useMemo(
     (): PushAlertsContextValue => ({
       pushAlertsEnabled,
       setPushAlertsEnabled,
+      wishlistQueries,
+      subscribeWishlist,
+      unsubscribeWishlist,
+      isWishlistSubscribed,
     }),
-    [pushAlertsEnabled, setPushAlertsEnabled]
+    [
+      pushAlertsEnabled,
+      setPushAlertsEnabled,
+      wishlistQueries,
+      subscribeWishlist,
+      unsubscribeWishlist,
+      isWishlistSubscribed,
+    ]
   );
 
   return (

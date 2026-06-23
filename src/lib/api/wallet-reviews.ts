@@ -87,6 +87,12 @@ export async function apiSyncAlertQueries(
   });
 }
 
+export async function apiFetchAlertQueries(): Promise<
+  ApiResult<{ queries: string[] }>
+> {
+  return authedFetch<{ queries: string[] }>("/api/push/alert-queries");
+}
+
 export async function apiRegisterFcmToken(
   token: string,
   platform: string

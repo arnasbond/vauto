@@ -17,6 +17,7 @@ import {
   type BuddyState,
 } from "@/lib/buddy-voice";
 import { resolveListingPhone } from "@/lib/listing-display";
+import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 
@@ -27,9 +28,16 @@ export function BuddySearchAssistant() {
     rankedListings,
     user,
     searchVoiceMode,
+    searchInputMode,
     startChat,
     trackListingCall,
     listings,
+    subscribeWishlist,
+    isWishlistSubscribed,
+    showToast,
+    isAuthenticated,
+    openAuthModal,
+    setSearchInputMode,
   } = useVauto();
 
   const [buddyState, setBuddyState] = useState<BuddyState>("idle");
@@ -40,6 +48,9 @@ export function BuddySearchAssistant() {
 
   const query = searchQuery.trim();
   const active = isBuddySearchQuery(query);
+  const matchStatus = getSearchMatchStatus(rankedListings);
+  const weakOrNone = matchStatus !== "strong";
+  const subscribed = isWishlistSubscribed(query);
 
   useEffect(() => {
     if (!active) {
@@ -51,7 +62,8 @@ export function BuddySearchAssistant() {
     const { message: msg, listing } = buildSearchBuddyMessage(
       query,
       rankedListings,
-      user.city || "Lietuvoje"
+      user.city || "Lietuvoje",
+      { inputMode: searchInputMode, subscribed }
     );
     setMessage(msg);
     setTargetListingId(listing?.id ?? null);
@@ -63,6 +75,8 @@ export function BuddySearchAssistant() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const delay = reducedMotion ? 0 : 600;
+    const shouldSpeak =
+      searchVoiceMode || searchInputMode === "voice";
 
     const timer = setTimeout(() => {
       setShowMessage(true);
@@ -70,10 +84,10 @@ export function BuddySearchAssistant() {
       if (spokenRef.current !== msg) {
         spokenRef.current = msg;
         speakBuddyMessage(msg, {
-          enabled: searchVoiceMode,
+          enabled: shouldSpeak,
           onEnd: () => setBuddyState("idle"),
         });
-        if (!searchVoiceMode) {
+        if (!shouldSpeak) {
           setTimeout(() => setBuddyState("idle"), 400);
         }
       }
@@ -83,7 +97,15 @@ export function BuddySearchAssistant() {
       clearTimeout(timer);
       stopBuddySpeech();
     };
-  }, [active, query, rankedListings, user.city, searchVoiceMode]);
+  }, [
+    active,
+    query,
+    rankedListings,
+    user.city,
+    searchVoiceMode,
+    searchInputMode,
+    subscribed,
+  ]);
 
   if (!active) return null;
 
@@ -92,10 +114,34 @@ export function BuddySearchAssistant() {
       listings.find((l) => l.id === targetListingId)
     : null;
 
-  const actions = buildSearchQuickActions(listing ?? null);
+  const actions = buildSearchQuickActions(listing ?? null, {
+    matchWeakOrNone: weakOrNone,
+    subscribed,
+  });
 
-  const handleAction = (id: BuddyActionId) => {
+  const handleAction = async (id: BuddyActionId) => {
     logBuddyState("idle", { context: "search_action", action: id, listingId: listing?.id });
+
+    if (id === "wishlist") {
+      if (!isAuthenticated) {
+        openAuthModal();
+        return;
+      }
+      const ok = await subscribeWishlist(query);
+      showToast(
+        ok
+          ? `„${query}" įtraukta į pageidavimų sąrašą. Pranešime, kai atsiras.`
+          : "Leiskite pranešimus naršyklėje, kad gautumėte žinutę apie naują skelbimą.",
+        ok ? "success" : "info"
+      );
+      return;
+    }
+
+    if (id === "refine_search") {
+      setSearchInputMode(searchInputMode === "voice" ? "voice" : "text");
+      document.querySelector<HTMLInputElement>('input[name="q"]')?.focus();
+      return;
+    }
 
     if (!listing) {
       if (id === "see_listings") {
@@ -139,7 +185,7 @@ export function BuddySearchAssistant() {
             )}
           </div>
           {showMessage && (
-            <BuddyQuickActions actions={actions} onAction={handleAction} />
+            <BuddyQuickActions actions={actions} onAction={(id) => void handleAction(id)} />
           )}
         </div>
       </div>

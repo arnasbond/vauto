@@ -23,6 +23,7 @@ export function SearchBar() {
     requestMediaConsent,
     startListingFromQuery,
     setSearchVoiceMode,
+    setSearchInputMode,
     showToast,
     user,
   } = useVauto();
@@ -45,6 +46,7 @@ export function SearchBar() {
       inputRef.current?.blur();
       return;
     }
+    setSearchInputMode("text");
     scrollToResults();
     inputRef.current?.blur();
   };
@@ -75,6 +77,7 @@ export function SearchBar() {
         contact: user.phone || "+370 612 34567",
       });
       const query = buildPhotoSearchQuery(extracted);
+      setSearchInputMode("voice");
       setSearchVoiceMode(true);
       setSearchQuery(query);
       showToast(buildPhotoSearchToast(extracted), "success");
@@ -109,6 +112,7 @@ export function SearchBar() {
         contact: user.phone || "+370 612 34567",
       });
       const query = buildPhotoSearchQuery(extracted);
+      setSearchInputMode("photo");
       setSearchVoiceMode(false);
       setSearchQuery(query);
       showToast(buildPhotoSearchToast(extracted), "success");
@@ -142,6 +146,7 @@ export function SearchBar() {
           value={searchQuery}
           onChange={(e) => {
             setSearchVoiceMode(false);
+            setSearchInputMode("text");
             setSearchQuery(e.target.value);
           }}
           placeholder="Pvz. iPhone 13 Vilniuje arba darbas Kaune"

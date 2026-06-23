@@ -1,6 +1,7 @@
 import { Router } from "express";
 import {
   deletePushSubscription,
+  getUserAlertQueries,
   setUserAlertQueries,
   upsertFcmToken,
   upsertPushSubscription,
@@ -61,6 +62,15 @@ pushRouter.put("/alert-queries", requireAuth, async (req: AuthedRequest, res) =>
       : [];
     await setUserAlertQueries(req.authUserId!, queries);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+pushRouter.get("/alert-queries", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const queries = await getUserAlertQueries(req.authUserId!);
+    res.json({ queries });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

@@ -1,15 +1,24 @@
 "use client";
 
 import { useEffect } from "react";
+import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/context/AuthContext";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { logWakeEvent } from "@/lib/wake-word-engine";
-import { registerNativePush } from "@/lib/native-push";
+import {
+  attachNativePushNavigation,
+  registerNativePush,
+} from "@/lib/native-push";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    attachNativePushNavigation((path) => router.push(path));
+  }, [router]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !isAuthenticated) return;
@@ -37,11 +46,14 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
         logWakeEvent("notification_voice_playback", { url: data.url });
         speakBuddyMessage(data.voiceText, { enabled: true });
       }
+      if (data?.type === "VAUTO_NAVIGATE" && data.url) {
+        router.push(data.url);
+      }
     };
 
     navigator.serviceWorker.addEventListener("message", onMessage);
     return () => navigator.serviceWorker.removeEventListener("message", onMessage);
-  }, []);
+  }, [router]);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;

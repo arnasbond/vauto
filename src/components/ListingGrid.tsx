@@ -163,8 +163,8 @@ export function ListingGrid() {
 
       {rankedListings.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-[#d7dde5] bg-white p-6 text-center text-sm text-[#6b7280]">
-          Tiesioginių skelbimų dar nėra, bet brokeris gali sekti paklausą ir
-          pranešti pardavėjams.
+          Tiesioginių skelbimų dar nėra. Patikslinkite paiešką arba įtraukite prekę į
+          pageidavimų sąrašą — pranešime, kai kas nors įkels atitinkantį skelbimą.
         </p>
       ) : (
         <>

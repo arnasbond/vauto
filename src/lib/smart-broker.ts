@@ -90,8 +90,8 @@ export function buildSmartBrokerSignal(
       isServiceLead
         ? `VAUTO užfiksavo paslaugos užklausą „${q}". Meistrams ${city} tai taps realaus laiko lead’u.`
         : mode === "empty"
-          ? `Tiesioginio atitikmens dar nėra. VAUTO brokeris užregistravo paklausą „${q}" ir stebės naujus skelbimus.`
-          : `Radome tik silpnus atitikmenis. VAUTO brokeris gali toliau medžioti „${q}" ir pranešti, kai atsiras tikslesnis pasiūlymas.`,
+          ? `Tiesioginio atitikmens dar nėra. Patikslinkite užklausą arba įtraukite į pageidavimų sąrašą — pranešime, kai atsiras.`
+          : `Radome tik panašius skelbimus. Įtraukite „${q}" į pageidavimų sąrašą — gausite pranešimą, kai atsiras tikslesnis pasiūlymas.`,
     sellerPitch: isServiceLead
       ? `Pro meistrai galės atidaryti kontaktą per pay-per-lead arba Pro Meistras planą.`
       : `Pardavėjams su ${categoryLabel} skelbimais ši paklausa bus rodoma kaip pirkėjo signalas ${city}.`,

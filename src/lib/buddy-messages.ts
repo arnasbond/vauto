@@ -1,4 +1,5 @@
-import type { AiExtractedListing, Listing } from "@/lib/types";
+import type { AiExtractedListing, Listing, ScoredListing } from "@/lib/types";
+import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { getFirstName } from "@/lib/buddy-voice";
 
@@ -10,7 +11,9 @@ export type BuddyActionId =
   | "call_provider"
   | "chat_provider"
   | "see_listings"
-  | "promote_free";
+  | "promote_free"
+  | "wishlist"
+  | "refine_search";
 
 export interface BuddyQuickAction {
   id: BuddyActionId;
@@ -138,16 +141,47 @@ export function buildSellerQuickActions(params: {
   return actions.slice(0, 3);
 }
 
+export type SearchInputMode = "text" | "voice" | "photo" | null;
+
 export function buildSearchBuddyMessage(
   query: string,
-  listings: Listing[],
-  city = "Lietuvoje"
+  listings: ScoredListing[],
+  city = "Lietuvoje",
+  opts?: { inputMode?: SearchInputMode; subscribed?: boolean }
 ): { message: string; listing: Listing | null } {
+  const matchStatus = getSearchMatchStatus(listings);
   const top = listings[0] ?? null;
+  const inputMode = opts?.inputMode ?? "text";
+
+  if (matchStatus === "none") {
+    const clarify =
+      inputMode === "photo"
+        ? "Patikslinkite užklausą tekste (modelis, metai, būklė) arba bandykite kita kampu nufotografuoti."
+        : inputMode === "voice"
+          ? "Pasakykite tiksliau: modelis, metai, būklė ar miestas."
+          : "Patikslinkite užklausą — pridėkite modelį, metus ar būklę.";
+    const wishlist = opts?.subscribed
+      ? "Jau stebime pageidavimų sąraše — pranešime, kai atsiras."
+      : "Įtraukite į pageidavimų sąrašą — gausite realaus laiko pranešimą ir galėsite iškart atidaryti prekę.";
+    return {
+      message: `Tokios prekės „${query}" (${city}) dar nėra. ${clarify} ${wishlist}`,
+      listing: null,
+    };
+  }
+
+  if (matchStatus === "weak") {
+    const wishlist = opts?.subscribed
+      ? "Toliau stebime pageidavimų sąraše tikslesniam atitikmeniui."
+      : "Įtraukite į pageidavimų sąrašą — pranešime, kai atsiras tikslesnis skelbimas.";
+    return {
+      message: `Radome panašius skelbimus, bet ne tiksliai „${query}". ${wishlist} Žemiau — artimiausi variantai.`,
+      listing: top,
+    };
+  }
 
   if (!top) {
     return {
-      message: `Pagal užklausą „${query}" (${city}) rezultatų nerasta. Pabandykite kitą formuluotę.`,
+      message: `Pagal užklausą „${query}" (${city}) rezultatų nerasta.`,
       listing: null,
     };
   }
@@ -174,8 +208,34 @@ export function buildSearchBuddyMessage(
 }
 
 export function buildSearchQuickActions(
-  listing: Listing | null
+  listing: Listing | null,
+  opts?: { matchWeakOrNone?: boolean; subscribed?: boolean }
 ): BuddyQuickAction[] {
+  if (!listing && opts?.matchWeakOrNone) {
+    const actions: BuddyQuickAction[] = [];
+    if (!opts.subscribed) {
+      actions.push({
+        id: "wishlist",
+        label: "Į pageidavimų sąrašą",
+        emoji: "🔔",
+        variant: "primary",
+      });
+    }
+    actions.push({
+      id: "refine_search",
+      label: "Patikslinti paiešką",
+      emoji: "",
+      variant: "secondary",
+    });
+    actions.push({
+      id: "see_listings",
+      label: "Žiūrėti panašius",
+      emoji: "",
+      variant: "secondary",
+    });
+    return actions;
+  }
+
   if (!listing) {
     return [
       { id: "see_listings", label: "Rodyti skelbimus", emoji: "", variant: "primary" },

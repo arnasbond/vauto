@@ -786,6 +786,14 @@ export async function setUserAlertQueries(
   }
 }
 
+export async function getUserAlertQueries(userId: string): Promise<string[]> {
+  const rows = await query<{ query: string }>(
+    `SELECT query FROM user_alert_queries WHERE user_id = $1 ORDER BY query`,
+    [userId]
+  );
+  return rows.map((r) => r.query);
+}
+
 export async function getUsersMatchingListing(
   listing: ApiListing
 ): Promise<{ userId: string; query: string }[]> {

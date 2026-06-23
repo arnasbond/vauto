@@ -14,6 +14,7 @@ import { EditListingModal } from "@/components/dashboard/EditListingModal";
 import { PrivateSellerDashboard } from "@/components/dashboard/PrivateSellerDashboard";
 import { ProBusinessDashboard } from "@/components/dashboard/ProBusinessDashboard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
+import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
@@ -90,6 +91,8 @@ export default function ProfilePage() {
       <SellerTrustCard user={user} listings={listings} />
 
       <SavedListingsSection />
+
+      <WishlistSection />
 
       {user.role === "pro" ? (
         <ProBusinessDashboard

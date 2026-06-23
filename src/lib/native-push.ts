@@ -3,6 +3,10 @@ import { apiRegisterFcmToken } from "@/lib/api/wallet-reviews";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { logWakeEvent } from "@/lib/wake-word-engine";
 
+type NavigateFn = (url: string) => void;
+
+let listenersAttached = false;
+
 export async function registerNativePush(): Promise<boolean> {
   if (!Capacitor.isNativePlatform() || !isDataApiEnabled()) return false;
 
@@ -57,6 +61,29 @@ export async function registerNativePush(): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Open listing when user taps a push notification (Android/iOS). */
+export function attachNativePushNavigation(navigate: NavigateFn): void {
+  if (!Capacitor.isNativePlatform() || listenersAttached) return;
+  listenersAttached = true;
+
+  void import("@capacitor/push-notifications").then(({ PushNotifications }) => {
+    void PushNotifications.addListener(
+      "pushNotificationActionPerformed",
+      (action) => {
+        const data = action.notification.data as {
+          url?: string;
+          listingId?: string;
+        };
+        const url = data?.url;
+        if (url) {
+          logWakeEvent("fcm_notification_open", { url });
+          navigate(url.startsWith("/") ? url : `/${url}`);
+        }
+      }
+    );
+  });
 }
 
 export function isNativePushSupported(): boolean {

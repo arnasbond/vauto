@@ -41,15 +41,15 @@ function findBackgroundAlert() {
           !l.banned &&
           new Date(l.createdAt).getTime() >= dayAgo &&
           listingMatchesQuery(l, query) &&
-          (l.score ?? 0) >= 5
+          (l.score ?? 0) >= 0
       )
       .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))[0];
 
     if (match) {
       alertState.seenIds.add(match.id);
       return {
-        title: "VAUTO: naujas skelbimas!",
-        body: `${match.title} — ${match.location}. Atitinka „${query}".`,
+        title: "VAUTO: pageidavimas įvykdytas!",
+        body: `${match.title} — ${match.location}. Atitinka „${query}". Spauskite — atidarysite prekę.`,
         url: `/listing/${match.slug || match.id}/`,
         listingId: match.id,
         voiceText: `Sveiki! Radau naują skelbimą: ${match.title} ${match.location}.`,

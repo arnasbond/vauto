@@ -148,6 +148,8 @@ interface VautoContextValue {
   sellerUserPrompt: string | null;
   searchVoiceMode: boolean;
   setSearchVoiceMode: (voice: boolean) => void;
+  searchInputMode: import("@/lib/buddy-messages").SearchInputMode;
+  setSearchInputMode: (mode: import("@/lib/buddy-messages").SearchInputMode) => void;
   aiDraft: AiExtractedListing | null;
   /** True when AI extraction failed — show structural manual form */
   aiManualFallback: boolean;
@@ -257,6 +259,10 @@ interface VautoContextValue {
 
   pushAlertsEnabled: boolean;
   setPushAlertsEnabled: (enabled: boolean) => void;
+  wishlistQueries: string[];
+  subscribeWishlist: (query: string) => Promise<boolean>;
+  unsubscribeWishlist: (query: string) => void;
+  isWishlistSubscribed: (query: string) => boolean;
 
   confirmDialog: ConfirmDialogState | null;
   showConfirm: (opts: ConfirmDialogState) => Promise<boolean>;
@@ -291,6 +297,10 @@ type VautoCatalogSlice = Omit<
   | "resolveReport"
   | "pushAlertsEnabled"
   | "setPushAlertsEnabled"
+  | "wishlistQueries"
+  | "subscribeWishlist"
+  | "unsubscribeWishlist"
+  | "isWishlistSubscribed"
   | "rankedListings"
   | "popularListingIds"
 >;
@@ -475,6 +485,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
   const [searchVoiceMode, setSearchVoiceMode] = useState(false);
+  const [searchInputMode, setSearchInputMode] =
+    useState<import("@/lib/buddy-messages").SearchInputMode>(null);
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
@@ -1028,6 +1040,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       apiActive,
       searchVoiceMode,
       setSearchVoiceMode,
+      searchInputMode,
+      setSearchInputMode,
       isAuthenticated,
       authModalOpen,
       authRedirectPath,
@@ -1087,6 +1101,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       clearSyncError,
       apiActive,
       searchVoiceMode,
+      searchInputMode,
       isAuthenticated,
       authModalOpen,
       authRedirectPath,
@@ -1180,12 +1195,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     () => ({
       apiActive,
       catalogHydrated: hydrated,
-      searchQuery,
-      searchIntentEvents,
+      isAuthenticated,
       listingsRef,
       onAlertToast,
     }),
-    [apiActive, hydrated, searchQuery, searchIntentEvents, onAlertToast]
+    [apiActive, hydrated, isAuthenticated, onAlertToast]
   );
 
   const wakeWordDeps = useMemo<WakeWordDeps>(

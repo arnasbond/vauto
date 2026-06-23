@@ -59,15 +59,14 @@ export function findHighScoreAlertMatch(
           l.status !== "sold" &&
           !l.banned &&
           new Date(l.createdAt).getTime() >= dayAgo &&
-          listingMatchesQuery(l, query) &&
-          listingScore(l) >= 5
+          listingMatchesQuery(l, query)
       )
       .sort((a, b) => listingScore(b) - listingScore(a))[0];
 
     if (match) {
       return {
-        title: "VAUTO: naujas skelbimas!",
-        body: `${match.title} — ${match.location}. Atitinka „${query}".`,
+        title: "VAUTO: pageidavimas įvykdytas!",
+        body: `${match.title} — ${match.location}. Atitinka „${query}". Spauskite — atidarysite prekę.`,
         url: `/listing/${match.slug ?? match.id}/`,
         listingId: match.id,
         voiceText: `Sveiki! Radau naują skelbimą: ${match.title} ${match.location}.`,
