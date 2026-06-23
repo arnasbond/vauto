@@ -88,10 +88,21 @@ export function ConnectionStatusCard() {
       )}
 
       {health?.embeddings && live && (
-        <p className="mt-3 text-[10px] text-slate-500">
+        <p
+          className={`mt-3 text-[10px] ${
+            health.embeddings.imageIndexed >= health.embeddings.textIndexed &&
+            health.embeddings.textIndexed > 0
+              ? "text-emerald-400"
+              : "text-slate-500"
+          }`}
+        >
           Paieškos indeksas: {health.embeddings.textIndexed} tekst. ·{" "}
           {health.embeddings.imageIndexed} vaizd. ·{" "}
           {health.embeddings.activeListings} aktyvūs skelbimai
+          {health.embeddings.imageIndexed >= health.embeddings.textIndexed &&
+          health.embeddings.textIndexed > 0
+            ? " · sinchronizuota"
+            : ""}
         </p>
       )}
     </section>

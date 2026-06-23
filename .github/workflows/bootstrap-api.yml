@@ -13,9 +13,8 @@ jobs:
     steps:
       - name: Wake API and seed demo catalog
         run: |
-          URL="https://vauto-api.onrender.com/api/bootstrap"
           for i in $(seq 1 18); do
-            RESP=$(curl -s -w "\n%{http_code}" -X POST "$URL" || true)
+            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" || true)
             CODE=$(echo "$RESP" | tail -1)
             BODY=$(echo "$RESP" | sed '$d')
             if [ "$CODE" = "200" ]; then
@@ -24,7 +23,19 @@ jobs:
               echo "Listings on API: $COUNT"
               HEALTH=$(curl -sf "https://vauto-api.onrender.com/api/health" || echo '{}')
               echo "Embeddings: $(echo "$HEALTH" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const h=JSON.parse(d);console.log(JSON.stringify(h.embeddings??{}))}catch{console.log('{}')}})")"
-              exit 0
+              echo "$HEALTH" | node -e "
+                let d=''; process.stdin.on('data',c=>d+=c);
+                process.stdin.on('end',()=>{
+                  try {
+                    const e=JSON.parse(d).embeddings||{};
+                    const text=Number(e.textIndexed||0);
+                    const image=Number(e.imageIndexed||0);
+                    if (text===0 || image>=text) process.exit(0);
+                    process.exit(1);
+                  } catch { process.exit(0); }
+                });
+              " && exit 0
+              echo "Text/image embeddings not yet in sync — retrying after deploy"
             fi
             echo "Attempt $i/18 — HTTP ${CODE:-000} (endpoint may need redeploy)"
             sleep 20

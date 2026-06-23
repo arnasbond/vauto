@@ -51,9 +51,29 @@ jobs:
 
       - name: Bootstrap catalog and embeddings
         run: |
-          URL="https://vauto-api.onrender.com/api/bootstrap"
-          RESP=$(curl -s -w "\n%{http_code}" -X POST "$URL" || true)
-          CODE=$(echo "$RESP" | tail -1)
-          BODY=$(echo "$RESP" | sed '$d')
-          echo "Bootstrap HTTP $CODE: $BODY"
-          curl -sf "https://vauto-api.onrender.com/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const h=JSON.parse(d);console.log('Features:',JSON.stringify(h.features));console.log('Embeddings:',JSON.stringify(h.embeddings))})"
+          for i in $(seq 1 12); do
+            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" || true)
+            CODE=$(echo "$RESP" | tail -1)
+            BODY=$(echo "$RESP" | sed '$d')
+            echo "Bootstrap attempt $i/12 — HTTP $CODE: $BODY"
+            HEALTH=$(curl -sf "https://vauto-api.onrender.com/api/health" || echo '{}')
+            echo "$HEALTH" | node -e "
+              let d=''; process.stdin.on('data',c=>d+=c);
+              process.stdin.on('end',()=>{
+                try {
+                  const h=JSON.parse(d);
+                  const e=h.embeddings||{};
+                  console.log('Embeddings:', JSON.stringify(e));
+                  const text=Number(e.textIndexed||0);
+                  const image=Number(e.imageIndexed||0);
+                  if (text>0 && image>=text) process.exit(0);
+                  if (text===0) process.exit(0);
+                  process.exit(1);
+                } catch { process.exit(1); }
+              });
+            " && exit 0
+            echo "Waiting for Render deploy + embedding sync…"
+            sleep 30
+          done
+          echo "Bootstrap finished (embeddings may sync on next deploy)"
+          curl -sf "https://vauto-api.onrender.com/api/health" || true
