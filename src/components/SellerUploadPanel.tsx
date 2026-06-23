@@ -4,6 +4,7 @@ import { Camera, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
+import { AiModeBadge } from "@/components/AiModeBadge";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -89,9 +90,10 @@ export function SellerUploadPanel({
   const handleVoiceFlowComplete = async (result: VoiceClarifyResult) => {
     setVoiceSubmitting(true);
     try {
+      const userPhoto = result.referenceImages.find((src) => src.startsWith("data:"));
       await submitSellerContent({
         text: result.mergedTranscript,
-        imageDataUrl: result.referenceImages[0] ?? null,
+        imageDataUrl: userPhoto ?? null,
         voiceCapture: true,
       });
       setQuery("");
@@ -101,13 +103,15 @@ export function SellerUploadPanel({
     }
   };
 
-  if (busy) return null;
+  const processing = sellerStep === "processing";
 
   return (
     <>
+      <div className={processing ? "pointer-events-none opacity-50" : undefined}>
       <button
         type="button"
         onClick={openPhotoFlow}
+        disabled={busy || processing}
         className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d5a9a]"
       >
         <Camera className="h-5 w-5" />
@@ -117,7 +121,7 @@ export function SellerUploadPanel({
       <button
         type="button"
         onClick={handleVoice}
-        disabled={voiceFlowOpen}
+        disabled={busy || processing || voiceFlowOpen}
         className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[#f97316] bg-[#fff7ed] py-3.5 text-sm font-semibold text-[#ea580c] hover:bg-[#ffedd5] disabled:opacity-60"
       >
         <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
@@ -147,6 +151,17 @@ export function SellerUploadPanel({
       <p className="mt-2 text-center text-xs text-[#6b7280]">
         Enter — AI atpažins kategoriją, užpildys formą ir pasiūlys kainą.
       </p>
+      </div>
+
+      {processing && (
+        <p className="mt-3 text-center text-sm font-medium text-[#1167b1]">
+          AI apdoroja skelbimą — neuždarykite šio lango…
+        </p>
+      )}
+
+      <div className="mt-2 flex justify-center">
+        <AiModeBadge compact />
+      </div>
 
       <AiPhotoFlowSheet
         open={photoFlowOpen}

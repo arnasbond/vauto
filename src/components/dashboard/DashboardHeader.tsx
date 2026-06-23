@@ -59,7 +59,7 @@ export function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
       <div className="mt-4 flex items-center gap-2 rounded-xl bg-[var(--vauto-teal)]/10 px-3 py-2">
         <User className="h-4 w-4 text-[var(--vauto-teal)]" />
         <span className="text-xs text-teal-100/90">
-          Dashboard · Mano skelbimai ir valdymas
+          Valdymo skydelis · Mano skelbimai ir analitika
         </span>
       </div>
     </div>

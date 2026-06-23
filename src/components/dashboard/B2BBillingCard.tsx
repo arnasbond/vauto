@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { BarChart3, CreditCard } from "lucide-react";
 import { B2B_PLANS, estimatePpcSpend } from "@/lib/b2b-plans";
 
@@ -16,6 +17,7 @@ export function B2BBillingCard({
   callClicks,
   activeListings,
 }: B2BBillingCardProps) {
+  const [demoPlan, setDemoPlan] = useState<string | null>(null);
   const estimatedSpend = estimatePpcSpend({
     clicks,
     callClicks,
@@ -59,6 +61,13 @@ export function B2BBillingCard({
                 : `Iki ${plan.listingLimit} aktyvių skelbimų`}{" "}
               · dabar: {activeListings}
             </p>
+            <button
+              type="button"
+              onClick={() => setDemoPlan(plan.id)}
+              className="mt-2 w-full rounded-lg border border-[var(--vauto-teal)]/40 py-2 text-xs font-semibold text-[var(--vauto-teal)] hover:bg-[var(--vauto-teal)]/10"
+            >
+              {demoPlan === plan.id ? "Užklausa išsiųsta (demo)" : "Užsisakyti planą (demo)"}
+            </button>
           </div>
         ))}
       </div>

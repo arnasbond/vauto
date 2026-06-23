@@ -65,7 +65,9 @@ async function chatJson(
   });
 
   if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-  const data = await res.json();
+  const data = (await res.json()) as {
+    choices?: { message?: { content?: string } }[];
+  };
   const content = data.choices?.[0]?.message?.content;
   if (!content) throw new Error("Empty OpenAI response");
   return JSON.parse(content);
@@ -244,6 +246,101 @@ aiRouter.post("/reference-images", async (req, res) => {
   } catch {
     const key = category && REFERENCE_FALLBACK[category] ? category : "other";
     res.json({ images: (REFERENCE_FALLBACK[key] ?? REFERENCE_FALLBACK.other).slice(0, limit) });
+  }
+});
+
+aiRouter.post("/extract-combined", async (req, res) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+
+  const { imageDataUrl, imageDataUrls, text, extraContext, userCity, contact } =
+    req.body as {
+      imageDataUrl?: string;
+      imageDataUrls?: string[];
+      text?: string;
+      extraContext?: string;
+      userCity?: string;
+      contact?: string;
+    };
+  const city = userCity || "Lietuva";
+  const phone = contact || "+370 612 34567";
+  const images =
+    Array.isArray(imageDataUrls) && imageDataUrls.length
+      ? imageDataUrls
+      : imageDataUrl
+        ? [imageDataUrl]
+        : [];
+  const transcript = [text, extraContext]
+    .map((s) => s?.trim())
+    .filter(Boolean)
+    .join("\n\n");
+
+  if (!images.length || !transcript) {
+    return res.status(400).json({ error: "imageDataUrl and text are required" });
+  }
+
+  const imageCountNote =
+    images.length > 1
+      ? ` Vartotojas įkėlė ${images.length} nuotraukas — naudok visas analizei.`
+      : "";
+
+  try {
+    const raw = await chatJson(key, [
+      {
+        role: "user",
+        content: [
+          {
+            type: "text",
+            text: `Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo balso/teksto aprašymo vienu kartu. Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai. Atpažink tiksliai pagrindinį objektą.${imageCountNote} Vartotojo aprašymas: "${transcript}" JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+          },
+          ...images.map((url) => ({
+            type: "image_url",
+            image_url: { url, detail: "high" },
+          })),
+        ],
+      },
+    ]);
+    res.json(toListing(raw, city, phone));
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/transcribe-audio", async (req, res) => {
+  const key = process.env.OPENAI_API_KEY;
+  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+
+  const { audioBase64, mimeType = "audio/webm" } = req.body as {
+    audioBase64?: string;
+    mimeType?: string;
+  };
+
+  if (!audioBase64?.trim()) {
+    return res.status(400).json({ error: "audioBase64 is required" });
+  }
+
+  try {
+    const buffer = Buffer.from(audioBase64, "base64");
+    const form = new FormData();
+    form.append("file", new Blob([buffer], { type: mimeType }), "recording.webm");
+    form.append("model", "whisper-1");
+    form.append("language", "lt");
+
+    const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
+      method: "POST",
+      headers: { Authorization: `Bearer ${key}` },
+      body: form,
+    });
+
+    if (!whisperRes.ok) {
+      const err = await whisperRes.text();
+      return res.status(500).json({ error: `Whisper: ${whisperRes.status} ${err}` });
+    }
+
+    const data = (await whisperRes.json()) as { text?: string };
+    res.json({ text: String(data.text ?? "").trim() });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 

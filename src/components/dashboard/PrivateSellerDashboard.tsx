@@ -1,6 +1,7 @@
 "use client";
 
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
+import { ProUpsellCard } from "@/components/dashboard/ProUpsellCard";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { PrivateListingCard } from "@/components/dashboard/PrivateListingCard";
@@ -31,6 +32,8 @@ export function PrivateSellerDashboard({
 
   return (
     <div>
+      <ProUpsellCard />
+
       {listings.length > 0 && (
         <CallAndSellWidget
           views={sellerAnalytics.views}

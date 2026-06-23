@@ -1,5 +1,6 @@
 import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 import type { ListingEditPatch } from "@/lib/listing-edit";
+import { AI_FETCH_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 import { getAuthHeaders } from "@/lib/auth/session";
 
@@ -46,9 +47,13 @@ async function aiFetch<T>(
   const base = getAiBaseUrl();
   if (!base) return null;
 
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_FETCH_TIMEOUT_MS);
+
   try {
     const res = await fetch(`${base}${path}`, {
       ...opts,
+      signal: controller.signal,
       headers: {
         "Content-Type": "application/json",
         ...(opts?.headers as Record<string, string>),
@@ -58,6 +63,8 @@ async function aiFetch<T>(
     return (await res.json()) as T;
   } catch {
     return null;
+  } finally {
+    clearTimeout(timer);
   }
 }
 
@@ -298,6 +305,30 @@ export async function apiExtractText(body: {
   contact: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {
   return aiFetch("/api/ai/extract-text", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiExtractCombined(body: {
+  imageDataUrl: string;
+  imageDataUrls?: string[];
+  text: string;
+  extraContext?: string;
+  userCity: string;
+  contact: string;
+}): Promise<import("@/lib/types").AiExtractedListing | null> {
+  return aiFetch("/api/ai/extract-combined", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiTranscribeAudio(body: {
+  audioBase64: string;
+  mimeType?: string;
+}): Promise<{ text: string } | null> {
+  return aiFetch("/api/ai/transcribe-audio", {
     method: "POST",
     body: JSON.stringify(body),
   });

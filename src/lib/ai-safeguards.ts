@@ -4,6 +4,9 @@ import type { SellerInputMode } from "@/lib/types";
 /** Global ceiling for AI extraction — prevents UI freeze on slow/hung responses */
 export const AI_PROCESSING_TIMEOUT_MS = 12000;
 
+/** Client fetch budget for AI proxy calls (slightly under processing ceiling) */
+export const AI_FETCH_TIMEOUT_MS = 11_000;
+
 /** Shorter budget for local mock extraction only */
 export const AI_MOCK_TIMEOUT_MS = 5000;
 

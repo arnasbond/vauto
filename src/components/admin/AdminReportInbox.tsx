@@ -43,7 +43,7 @@ function roleStyles(role: ReportMessage["role"]) {
   }
 }
 
-export function AdminReportInbox() {
+export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = {}) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const reportFromUrl = searchParams.get("report");
@@ -153,8 +153,9 @@ export function AdminReportInbox() {
     setReplyText("");
   };
 
-  return (
-    <DashboardShell>
+  const body = (
+    <>
+      {!embedded && (
       <div className="mb-5">
         <div className="flex items-center gap-3">
           <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-red-500/20">
@@ -193,6 +194,7 @@ export function AdminReportInbox() {
           </button>
         </div>
       </div>
+      )}
 
       {!selected ? (
         <>
@@ -413,8 +415,13 @@ export function AdminReportInbox() {
       <div className="mt-8">
         <AiSettingsCard />
       </div>
-    </DashboardShell>
+    </>
   );
+
+  if (embedded) {
+    return <div className="px-4 pb-8">{body}</div>;
+  }
+  return <DashboardShell>{body}</DashboardShell>;
 }
 
 function ReportListSummary({ report }: { report: SupportReport }) {

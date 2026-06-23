@@ -3,7 +3,7 @@ import {
   mockExtractFromText,
   mockExtractFromVoice,
 } from "@/lib/ai-mocks";
-import { apiExtractImage, apiExtractText } from "@/lib/api/client";
+import { apiExtractCombined, apiExtractImage, apiExtractText } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { hasOpenAiKey } from "@/lib/openai-settings";
 import {
@@ -119,11 +119,41 @@ export async function extractFromText(
 export async function extractCombined(
   ctx: ExtractContext
 ): Promise<AiExtractedListing> {
+  const contact = ctx.contact ?? "+370 612 34567";
+  const city = ctx.userCity ?? "Lietuva";
   const images = resolveImages(ctx);
   const transcript = mergeTranscript(ctx);
   const merged: ExtractContext = { ...ctx, transcript, imageDataUrl: images[0] };
 
   if (images.length && transcript) {
+    const primary = images[0];
+    if (isAiProxyAvailable() && primary) {
+      const remote = await apiExtractCombined({
+        imageDataUrl: primary,
+        imageDataUrls: images.length > 1 ? images : undefined,
+        text: transcript,
+        extraContext: ctx.extraContext,
+        userCity: city,
+        contact,
+      });
+      if (remote) return remote;
+    }
+
+    if (hasOpenAiKey() && primary) {
+      try {
+        const { extractCombinedOpenAI } = await import("@/lib/openai");
+        return await extractCombinedOpenAI(
+          images.length > 1 ? images : primary,
+          transcript,
+          city,
+          contact,
+          ctx.extraContext
+        );
+      } catch (e) {
+        console.warn("[Vauto] OpenAI combined extract failed, using sequential:", e);
+      }
+    }
+
     const fromImage = await extractFromImage(merged);
     const fromText = await extractFromText(merged);
     return {

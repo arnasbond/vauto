@@ -187,34 +187,33 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       };
 
       try {
-        const coords = await getUserCoords();
-        let locationHint = user.city;
-        if (coords) {
+        const coordsPromise = getUserCoords();
+        const locationHintPromise = coordsPromise.then((coords) => {
+          if (!coords) return user.city;
           const d = distanceToCity(coords, user.city);
-          if (d !== null && d < 50) locationHint = user.city;
-        }
+          return d !== null && d < 50 ? user.city : user.city;
+        });
 
-        const ctx = {
-          imageDataUrl: opts?.previewImage,
-          imageDataUrls: opts?.previewImages,
-          transcript: opts?.transcript,
-          extraContext: opts?.extraContext,
-          userCity: locationHint,
-          contact: user.phone,
-        };
+        const extractPromise = locationHintPromise.then((locationHint) => {
+          const ctx = {
+            imageDataUrl: opts?.previewImage,
+            imageDataUrls: opts?.previewImages,
+            transcript: opts?.transcript,
+            extraContext: opts?.extraContext,
+            userCity: locationHint,
+            contact: user.phone,
+          };
 
-        const extractPromise = (async () => {
           if (mode === "combined") return extractCombined(ctx);
           if (mode === "upload") return extractFromImage(ctx);
           if (mode === "text") return extractFromText(ctx);
           return extractFromVoice(ctx);
-        })();
+        });
 
-        const extracted = await withAiTimeout(
-          extractPromise,
-          undefined,
-          `extract_${mode ?? "unknown"}`
-        );
+        const [locationHint, extracted] = await Promise.all([
+          locationHintPromise,
+          withAiTimeout(extractPromise, undefined, `extract_${mode ?? "unknown"}`),
+        ]);
 
         if (!isValidAiExtracted(extracted)) {
           enterManualFallback("invalid_extraction");

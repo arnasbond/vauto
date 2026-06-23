@@ -162,6 +162,42 @@ export async function extractFromTextOpenAI(
   return parseListing(raw, contact);
 }
 
+/** GPT-4o Vision + text — single call for photo + voice/text */
+export async function extractCombinedOpenAI(
+  imageDataUrl: string | string[],
+  transcript: string,
+  userCity: string,
+  contact: string,
+  extraContext?: string
+): Promise<AiExtractedListing> {
+  const images = Array.isArray(imageDataUrl) ? imageDataUrl : [imageDataUrl];
+  const contextNote = extraContext?.trim()
+    ? `\n\nPapildomas kontekstas: ${extraContext.trim()}`
+    : "";
+  const imageCountNote =
+    images.length > 1
+      ? `\n\nVartotojas įkėlė ${images.length} nuotraukas — naudok visas analizei.`
+      : "";
+
+  const raw = await chatJson([
+    {
+      role: "user",
+      content: [
+        {
+          type: "text",
+          text: `${ENTERPRISE_TONE_RULES} Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo aprašymo vienu kartu. Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai.${imageCountNote}${contextNote} Vartotojo aprašymas: "${transcript}" Grąžink JSON: ${EXTRACTION_SCHEMA}. Miestas: ${userCity}.`,
+        },
+        ...images.map((url) => ({
+          type: "image_url" as const,
+          image_url: { url, detail: "high" as const },
+        })),
+      ],
+    },
+  ]);
+
+  return parseListing(raw, contact);
+}
+
 /** Whisper — transcribe audio blob (when Web Speech API unavailable) */
 export async function transcribeAudioOpenAI(blob: Blob): Promise<string> {
   const key = getOpenAiKey();

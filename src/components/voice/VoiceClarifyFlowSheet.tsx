@@ -112,6 +112,14 @@ export function VoiceClarifyFlowSheet({
 
         setHistory(nextHistory);
         setAnalysis(result);
+
+        if (mode === "listing") {
+          setStep("confirm");
+          const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
+          speakBuddyMessage(confirmMsg, { enabled: true });
+          return;
+        }
+
         setStep("images");
 
         const images = await searchReferenceImages(

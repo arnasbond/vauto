@@ -48,7 +48,7 @@ export function VautoWallet({ balance, onTopUp }: VautoWalletProps) {
         </button>
       </div>
       <p className="mt-3 text-[10px] text-slate-500">
-        Naudokite PPC paspaudimams, skambučiams ir Smart Promote iškėlimams.
+        Naudokite PPC paspaudimams, skambučiams ir išmaniesiems reklamavimams.
       </p>
     </div>
   );

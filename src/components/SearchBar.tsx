@@ -7,6 +7,7 @@ import { useVauto } from "@/context/VautoContext";
 import { extractFromImage, extractFromText } from "@/lib/client-api";
 import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { AiModeBadge } from "@/components/AiModeBadge";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -180,8 +181,11 @@ export function SearchBar() {
         </button>
       </form>
       <p className="mt-2 text-center text-[11px] text-[#6b7280]">
-        Pasakykite ar nufotografuokite prekę — AI patikslins ir suras panašius skelbimus.
+        Pasakykite ar nufotografuokite prekę — AI patikslins ir suras panašius skelbimus pagal aprašymą.
       </p>
+      <div className="mt-1.5 flex justify-center">
+        <AiModeBadge compact />
+      </div>
 
       <AiPhotoFlowSheet
         open={photoFlowOpen}

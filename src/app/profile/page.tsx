@@ -1,9 +1,11 @@
 "use client";
 
+import dynamic from "next/dynamic";
 import Link from "next/link";
 import { Suspense, useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
-import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
+import { AdminProfileShell } from "@/components/admin/AdminProfileShell";
+import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
 import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
 import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
@@ -12,14 +14,40 @@ import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { EditListingModal } from "@/components/dashboard/EditListingModal";
-import { PrivateSellerDashboard } from "@/components/dashboard/PrivateSellerDashboard";
-import { ProBusinessDashboard } from "@/components/dashboard/ProBusinessDashboard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
+
+const PrivateSellerDashboard = dynamic(
+  () =>
+    import("@/components/dashboard/PrivateSellerDashboard").then(
+      (m) => m.PrivateSellerDashboard
+    ),
+  {
+    loading: () => (
+      <div className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-slate-500">
+        Kraunamas valdymo skydelis…
+      </div>
+    ),
+  }
+);
+
+const ProBusinessDashboard = dynamic(
+  () =>
+    import("@/components/dashboard/ProBusinessDashboard").then(
+      (m) => m.ProBusinessDashboard
+    ),
+  {
+    loading: () => (
+      <div className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-slate-500">
+        Kraunamas verslo skydelis…
+      </div>
+    ),
+  }
+);
 
 export default function ProfilePage() {
   const { openAuthModal } = useAuth();
@@ -54,7 +82,7 @@ export default function ProfilePage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--vauto-teal)]/20">
             <LayoutDashboard className="h-8 w-8 text-[var(--vauto-teal)]" />
           </div>
-          <h1 className="text-xl font-bold text-white">Vauto Dashboard</h1>
+          <h1 className="text-xl font-bold text-white">Valdymo skydelis</h1>
           <p className="mt-2 text-sm text-slate-400">
             Prisijunkite, kad valdytumėte skelbimus, analitiką ir mokamas
             paslaugas.
@@ -91,13 +119,16 @@ export default function ProfilePage() {
           </div>
         }
       >
-        <AdminControlCenter />
+        <AdminProfileShell />
       </Suspense>
     );
   }
 
   return (
     <DashboardShell>
+      <Suspense fallback={null}>
+        <ProUpgradeNotice />
+      </Suspense>
       <DashboardHeader user={user} onLogout={logout} />
 
       <SellerTrustCard user={user} listings={listings} />

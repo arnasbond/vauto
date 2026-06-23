@@ -62,11 +62,7 @@ export function startVoiceSearch(
 
   const SpeechRecognition = getSpeechRecognition();
   if (!SpeechRecognition) {
-    return {
-      promise: Promise.resolve(null),
-      stop: () => {},
-      cancel: () => {},
-    };
+    return startWhisperVoiceSearch(options);
   }
 
   let active = true;
@@ -201,6 +197,75 @@ export function startVoiceSearch(
   return { promise, stop, cancel };
 }
 
+async function blobToBase64(blob: Blob): Promise<string> {
+  const buffer = await blob.arrayBuffer();
+  const bytes = new Uint8Array(buffer);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
+  return btoa(binary);
+}
+
+async function transcribeBlob(blob: Blob): Promise<string | null> {
+  const { isAiProxyAvailable } = await import("@/lib/api/config");
+  const { apiTranscribeAudio } = await import("@/lib/api/client");
+  const { hasOpenAiKey } = await import("@/lib/openai-settings");
+
+  if (isAiProxyAvailable()) {
+    const audioBase64 = await blobToBase64(blob);
+    const remote = await apiTranscribeAudio({
+      audioBase64,
+      mimeType: blob.type || "audio/webm",
+    });
+    if (remote?.text) return remote.text;
+  }
+
+  if (hasOpenAiKey()) {
+    const { transcribeAudioOpenAI } = await import("@/lib/openai");
+    const text = await transcribeAudioOpenAI(blob);
+    return text.trim() || null;
+  }
+
+  return null;
+}
+
+/** Whisper fallback when Web Speech API is unavailable */
+function startWhisperVoiceSearch(options: VoiceSearchOptions = {}): VoiceSearchSession {
+  const { onStart, maxMs = DEFAULT_MAX_MS } = options;
+  let cancelled = false;
+  let sessionRelease: (() => void) | null = null;
+
+  const promise = (async (): Promise<string | null> => {
+    const { createVoiceSession } = await import("@/lib/audio-session");
+    const session = await createVoiceSession();
+    if (!session || cancelled) {
+      session?.release();
+      return null;
+    }
+    sessionRelease = session.release;
+    onStart?.();
+    const blob = await session.record(maxMs);
+    session.release();
+    sessionRelease = null;
+    if (cancelled || !blob) return null;
+    return transcribeBlob(blob);
+  })();
+
+  return {
+    promise,
+    stop: () => {
+      sessionRelease?.();
+      sessionRelease = null;
+    },
+    cancel: () => {
+      cancelled = true;
+      sessionRelease?.();
+      sessionRelease = null;
+    },
+  };
+}
+
 export function isVoiceSearchSupported(): boolean {
-  return Boolean(getSpeechRecognition());
+  if (getSpeechRecognition()) return true;
+  if (typeof navigator === "undefined") return false;
+  return Boolean(navigator.mediaDevices?.getUserMedia);
 }

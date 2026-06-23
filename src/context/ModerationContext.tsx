@@ -352,6 +352,7 @@ export function ModerationProvider({
 
   useEffect(() => {
     if (!deps.isAdmin || !hydrated) return;
+    if (reportStreamConnected) return;
 
     const poll = async () => {
       const prevIds = knownReportIdsRef.current;
@@ -375,6 +376,7 @@ export function ModerationProvider({
 
   useEffect(() => {
     if (deps.isAdmin || !hydrated || !user.id) return;
+    if (reportStreamConnected) return;
 
     const poll = async () => {
       await refreshMyReports();
