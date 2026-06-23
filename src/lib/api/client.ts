@@ -139,6 +139,12 @@ export async function apiFetchReports(): Promise<ApiResult<SupportReport[]>> {
   return dataFetch<SupportReport[]>("/api/reports");
 }
 
+export async function apiFetchMyReports(
+  userId: string
+): Promise<ApiResult<SupportReport[]>> {
+  return dataFetch<SupportReport[]>("/api/reports/mine", { userId });
+}
+
 export async function apiSubmitReport(
   report: SupportReport
 ): Promise<ApiResult<null>> {
@@ -156,6 +162,17 @@ export async function apiUpdateReportStatus(
   return dataFetch<null>(`/api/reports/${id}`, {
     method: "PATCH",
     body: JSON.stringify({ status }),
+  });
+}
+
+export async function apiPatchMyReport(
+  report: SupportReport,
+  userId: string
+): Promise<ApiResult<SupportReport>> {
+  return dataFetch<SupportReport>(`/api/reports/${report.id}`, {
+    method: "PATCH",
+    body: JSON.stringify(report),
+    userId,
   });
 }
 

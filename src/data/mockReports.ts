@@ -56,7 +56,9 @@ export const DEMO_REPORTS: SupportReport[] = [
     reportedUserId: "seller-phone",
     chatPreview: "Jei neperki šiandien — užblokuosiu tave!",
     createdAt: "2026-06-18T12:00:00Z",
+    updatedAt: "2026-06-19T09:15:00Z",
     unreadByAdmin: false,
+    unreadByReporter: true,
     messages: [
       {
         id: "rep-2-u",
@@ -74,6 +76,14 @@ export const DEMO_REPORTS: SupportReport[] = [
         text: "Gavome pranešimą apie pokalbio pažeidimą. Peržiūrėsime pokalbio istoriją.",
         timestamp: "2026-06-18T12:00:02Z",
         auto: true,
+      },
+      {
+        id: "rep-2-a",
+        senderId: "admin",
+        senderName: "Vauto komanda",
+        role: "admin",
+        text: "Sveiki, peržiūrėjome pokalbio fragmentą. Jei situacija kartosis — praneškite dar kartą.",
+        timestamp: "2026-06-19T09:15:00Z",
       },
     ],
   },

@@ -138,7 +138,7 @@ export function AdminReportInbox() {
                   livePulse ? "bg-emerald-400" : "bg-emerald-600"
                 )}
               />
-              Realaus laiko pranešimai · atnaujinama kas 12 s
+              Realaus laiko pranešimai · atnaujinama kas 5 s
             </p>
           </div>
           {unreadAdminCount > 0 && (

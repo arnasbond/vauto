@@ -375,7 +375,67 @@ function mapReportFromRow(r: {
     aiSummary: meta.aiSummary as string | undefined,
     aiSuggestedReply: meta.aiSuggestedReply as string | undefined,
     unreadByAdmin: meta.unreadByAdmin as boolean | undefined,
+    unreadByReporter: meta.unreadByReporter as boolean | undefined,
   };
+}
+
+export async function getReportById(
+  id: string
+): Promise<ApiSupportReport | null> {
+  const rows = await query<{
+    id: string;
+    reporter_id: string;
+    reporter_name: string;
+    category: string;
+    urgency: string;
+    status: string;
+    comment: string;
+    listing_id: string | null;
+    listing_title: string | null;
+    chat_id: string | null;
+    reported_user_id: string | null;
+    chat_preview: string | null;
+    created_at: Date;
+    metadata: Record<string, unknown> | null;
+  }>(
+    `SELECT id, reporter_id, reporter_name, category, urgency, status, comment,
+            listing_id, listing_title, chat_id, reported_user_id, chat_preview, created_at,
+            COALESCE(metadata, '{}'::jsonb) AS metadata
+     FROM support_reports WHERE id = $1`,
+    [id]
+  );
+  const row = rows[0];
+  return row ? mapReportFromRow(row) : null;
+}
+
+export async function getReportsByReporter(
+  reporterId: string
+): Promise<ApiSupportReport[]> {
+  const rows = await query<{
+    id: string;
+    reporter_id: string;
+    reporter_name: string;
+    category: string;
+    urgency: string;
+    status: string;
+    comment: string;
+    listing_id: string | null;
+    listing_title: string | null;
+    chat_id: string | null;
+    reported_user_id: string | null;
+    chat_preview: string | null;
+    created_at: Date;
+    metadata: Record<string, unknown> | null;
+  }>(
+    `SELECT id, reporter_id, reporter_name, category, urgency, status, comment,
+            listing_id, listing_title, chat_id, reported_user_id, chat_preview, created_at,
+            COALESCE(metadata, '{}'::jsonb) AS metadata
+     FROM support_reports
+     WHERE reporter_id = $1
+     ORDER BY created_at DESC`,
+    [reporterId]
+  );
+  return rows.map((r) => mapReportFromRow(r));
 }
 
 export async function insertReport(report: ApiSupportReport): Promise<void> {
@@ -388,6 +448,7 @@ export async function insertReport(report: ApiSupportReport): Promise<void> {
     aiSummary: report.aiSummary,
     aiSuggestedReply: report.aiSuggestedReply,
     unreadByAdmin: report.unreadByAdmin ?? true,
+    unreadByReporter: report.unreadByReporter ?? false,
     updatedAt: report.updatedAt ?? report.createdAt,
   };
   await query(

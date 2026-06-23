@@ -16,6 +16,7 @@ import { PrivateSellerDashboard } from "@/components/dashboard/PrivateSellerDash
 import { ProBusinessDashboard } from "@/components/dashboard/ProBusinessDashboard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
+import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
@@ -132,6 +133,15 @@ export default function ProfilePage() {
       )}
 
       <div className="mt-8 space-y-4">
+        <Suspense
+          fallback={
+            <div className="vauto-dashboard-card rounded-2xl p-4 text-xs text-slate-500">
+              Kraunami pranešimai…
+            </div>
+          }
+        >
+          <UserSupportInbox />
+        </Suspense>
         <ConnectionStatusCard />
         <WakeWordSettingsCard />
         <PrivacySettingsCard />

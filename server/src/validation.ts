@@ -450,6 +450,8 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
   if (!aiSuggestedReply.ok) return aiSuggestedReply;
   const unreadByAdmin = optionalBoolean(body, "unreadByAdmin");
   if (!unreadByAdmin.ok) return unreadByAdmin;
+  const unreadByReporter = optionalBoolean(body, "unreadByReporter");
+  if (!unreadByReporter.ok) return unreadByReporter;
   const messages = Array.isArray(body.messages) ? body.messages : undefined;
   return ok({
     id: id.value,
@@ -472,6 +474,7 @@ export function validateReport(body: unknown): ValidationResult<ApiSupportReport
     aiSummary: aiSummary.value,
     aiSuggestedReply: aiSuggestedReply.value,
     unreadByAdmin: unreadByAdmin.value,
+    unreadByReporter: unreadByReporter.value,
     messages,
   });
 }

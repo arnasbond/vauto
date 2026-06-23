@@ -159,6 +159,30 @@ export function enrichNewReport(
     aiSummary: analysis.summary,
     aiSuggestedReply: analysis.suggestedReply,
     unreadByAdmin: true,
+    unreadByReporter: false,
+  };
+}
+
+export function appendUserReply(
+  report: SupportReport,
+  user: UserProfile,
+  text: string
+): SupportReport {
+  const message: ReportMessage = {
+    id: `rm-${Date.now()}-user`,
+    senderId: user.id,
+    senderName: user.name,
+    role: "user",
+    text,
+    timestamp: new Date().toISOString(),
+  };
+  return {
+    ...report,
+    comment: text,
+    messages: [...(report.messages ?? []), message],
+    updatedAt: message.timestamp,
+    unreadByAdmin: true,
+    unreadByReporter: false,
   };
 }
 
@@ -182,6 +206,7 @@ export function appendAdminReply(
     messages: [...(report.messages ?? []), message],
     updatedAt: message.timestamp,
     unreadByAdmin: false,
+    unreadByReporter: true,
   };
 }
 
@@ -194,6 +219,7 @@ export function reportMetadata(report: SupportReport): Record<string, unknown> {
     aiSummary: report.aiSummary,
     aiSuggestedReply: report.aiSuggestedReply,
     unreadByAdmin: report.unreadByAdmin ?? false,
+    unreadByReporter: report.unreadByReporter ?? false,
     updatedAt: report.updatedAt ?? report.createdAt,
   };
 }
@@ -212,6 +238,8 @@ export function applyReportMetadata(
     aiSummary: (metadata.aiSummary as string) ?? report.aiSummary,
     aiSuggestedReply: (metadata.aiSuggestedReply as string) ?? report.aiSuggestedReply,
     unreadByAdmin: (metadata.unreadByAdmin as boolean) ?? report.unreadByAdmin,
+    unreadByReporter:
+      (metadata.unreadByReporter as boolean) ?? report.unreadByReporter,
     updatedAt: (metadata.updatedAt as string) ?? report.updatedAt,
   };
 }

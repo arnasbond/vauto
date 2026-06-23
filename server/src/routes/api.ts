@@ -7,7 +7,9 @@ import {
   getChats,
   getEscrowForThread,
   getListings,
+  getReportById,
   getReports,
+  getReportsByReporter,
   getReviews,
   getSavedIds,
   getUser,
@@ -205,6 +207,14 @@ apiRouter.get("/reports", requireAdmin, async (_req, res) => {
   }
 });
 
+apiRouter.get("/reports/mine", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    res.json(await getReportsByReporter(req.authUserId!));
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const parsed = validateReport(req.body);
@@ -221,8 +231,18 @@ apiRouter.post("/reports", requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
-apiRouter.patch("/reports/:id", requireAdmin, async (req, res) => {
+apiRouter.patch("/reports/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {
+    const existing = await getReportById(req.params.id);
+    if (!existing) return res.status(404).json({ error: "Not found" });
+
+    const admin = isAdmin(req);
+    const isOwner = existing.reporterId === req.authUserId;
+    if (!admin && !isOwner) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+
     if (req.body && typeof req.body === "object" && "id" in req.body) {
       const parsed = validateReport(req.body);
       if (badRequest(res, parsed)) return;
@@ -230,8 +250,30 @@ apiRouter.patch("/reports/:id", requireAdmin, async (req, res) => {
         res.status(400).json({ error: "Report id mismatch" });
         return;
       }
+      if (!admin) {
+        if (parsed.value.reporterId !== req.authUserId) {
+          res.status(403).json({ error: "Forbidden" });
+          return;
+        }
+        const reporterUpdate = {
+          ...existing,
+          messages: parsed.value.messages,
+          comment: parsed.value.comment,
+          updatedAt: parsed.value.updatedAt ?? new Date().toISOString(),
+          unreadByReporter: parsed.value.unreadByReporter,
+          unreadByAdmin: parsed.value.unreadByAdmin ?? true,
+        };
+        await upsertReport(reporterUpdate);
+        res.json(reporterUpdate);
+        return;
+      }
       await upsertReport(parsed.value);
       res.json(parsed.value);
+      return;
+    }
+
+    if (!admin) {
+      res.status(403).json({ error: "Forbidden" });
       return;
     }
     const parsed = validateReportStatus(req.body);

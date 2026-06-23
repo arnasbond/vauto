@@ -220,9 +220,14 @@ interface VautoContextValue {
   banFromReport: (reportId: string) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
   replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
+  followUpReport: (reportId: string, text: string) => void;
   markReportRead: (reportId: string) => void;
+  markMyReportRead: (reportId: string) => void;
   refreshReports: () => Promise<SupportReport[]>;
+  refreshMyReports: () => Promise<SupportReport[]>;
+  myReports: SupportReport[];
   unreadAdminCount: number;
+  unreadUserReportCount: number;
   toast: { message: string; type: "success" | "error" | "info" | "buddy" } | null;
   showToast: (message: string, type?: "success" | "error" | "info") => void;
   clearToast: () => void;
@@ -305,9 +310,14 @@ type VautoCatalogSlice = Omit<
   | "banFromReport"
   | "resolveReport"
   | "replyToReport"
+  | "followUpReport"
   | "markReportRead"
+  | "markMyReportRead"
   | "refreshReports"
+  | "refreshMyReports"
+  | "myReports"
   | "unreadAdminCount"
+  | "unreadUserReportCount"
   | "pushAlertsEnabled"
   | "setPushAlertsEnabled"
   | "wishlistQueries"
@@ -1233,6 +1243,25 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [showToast]
   );
 
+  const handleNewUserReportReply = useCallback(
+    (report: SupportReport, preview: string) => {
+      showToast("Gavote atsakymą į pranešimą", "info");
+      if (typeof window !== "undefined" && "Notification" in window) {
+        if (Notification.permission === "granted") {
+          const notification = new Notification("Vauto — atsakymas į pranešimą", {
+            body: preview.slice(0, 140),
+            tag: `reply-${report.id}`,
+          });
+          notification.onclick = () => {
+            window.focus();
+            window.location.href = `/profile/?support=${encodeURIComponent(report.id)}`;
+          };
+        }
+      }
+    },
+    [showToast]
+  );
+
   const moderationDeps = useMemo<ModerationDeps>(
     () => ({
       listingsRef,
@@ -1243,8 +1272,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       patchAuthUser,
       isAdmin,
       onNewAdminReport: handleNewAdminReport,
+      onNewUserReportReply: handleNewUserReportReply,
     }),
-    [onBanListing, onBanSeller, showToast, patchAuthUser, isAdmin, handleNewAdminReport]
+    [onBanListing, onBanSeller, showToast, patchAuthUser, isAdmin, handleNewAdminReport, handleNewUserReportReply]
   );
 
   const pushAlertsDeps = useMemo<PushAlertsDeps>(

@@ -9,10 +9,16 @@ import { countUnreadChats } from "@/lib/chat-helpers";
 export function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
-  const { chats, isAdmin, unreadAdminCount, user, requireAuthForListing } = useVauto();
+  const { chats, isAdmin, unreadAdminCount, unreadUserReportCount, user, requireAuthForListing } = useVauto();
   const unreadChats = countUnreadChats(chats, user.id);
   const chatBadge = unreadChats > 0 ? unreadChats : undefined;
-  const adminBadge = isAdmin && unreadAdminCount > 0 ? unreadAdminCount : undefined;
+  const profileBadge = isAdmin
+    ? unreadAdminCount > 0
+      ? unreadAdminCount
+      : undefined
+    : unreadUserReportCount > 0
+      ? unreadUserReportCount
+      : undefined;
 
   const profileLabel = isAdmin ? "VAUTO CC" : "Mano Vauto";
   const ProfileIcon = isAdmin ? Shield : User;
@@ -25,7 +31,7 @@ export function BottomNav() {
       href: "/profile",
       label: profileLabel,
       icon: ProfileIcon,
-      badge: adminBadge,
+      badge: profileBadge,
     },
   ];
 
