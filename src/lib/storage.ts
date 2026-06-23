@@ -7,6 +7,7 @@ import type {
   UserProfile,
 } from "@/lib/types";
 import type { SearchIntentEvent } from "@/lib/search-intent";
+import type { SocialSyncPrefs } from "@/lib/social-share";
 
 const KEYS = {
   listings: "vauto_listings_v1",
@@ -24,6 +25,7 @@ const KEYS = {
   alertQueries: "vauto_alert_queries_v1",
   pushAlertsSeen: "vauto_push_alerts_seen_v1",
   pushAlertsEnabled: "vauto_push_alerts_v1",
+  socialSync: "vauto_social_sync_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -169,6 +171,14 @@ export function loadPushAlertsEnabled(): boolean {
 
 export function savePushAlertsEnabled(enabled: boolean): void {
   write(KEYS.pushAlertsEnabled, enabled);
+}
+
+export function loadSocialSyncPrefs(): SocialSyncPrefs | null {
+  return read<SocialSyncPrefs>(KEYS.socialSync);
+}
+
+export function saveSocialSyncPrefs(prefs: SocialSyncPrefs): void {
+  write(KEYS.socialSync, prefs);
 }
 
 export function clearAllData(): void {

@@ -20,6 +20,7 @@ import {
 } from "@/lib/visibility-plans";
 import type { VisibilityTierId } from "@/lib/visibility-plans";
 import { ListingMarketStats } from "./ListingMarketStats";
+import { ShareListingButton } from "@/components/social/ShareListingButton";
 import { SmartPromoteModal } from "./SmartPromoteModal";
 
 interface ProListingCardProps {
@@ -193,6 +194,9 @@ export function ProListingCard({
         )}
 
         <div className="mt-2 flex flex-wrap gap-2">
+          {!isSold && (
+            <ShareListingButton listing={listing} className="flex-1 min-w-[120px]" />
+          )}
           {expired && (
             <button
               type="button"

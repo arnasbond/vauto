@@ -5,6 +5,8 @@ import type { ReactNode } from "react";
 import type { AdaptiveCategoryConfig } from "@/lib/adaptive-categories";
 import type { AiExtractedListing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 
@@ -85,47 +87,77 @@ export function ConfirmationShell({
 
 export function PublishedOverlay() {
   const { chameleonTheme } = useVauto();
+  const { lastPublishedListing, finishPublishedFlow } = useSellerFlow();
   const theme = getChameleonTheme(chameleonTheme);
   const p = theme.published;
 
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center backdrop-blur-lg transition-colors duration-300",
+        "fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto backdrop-blur-lg transition-colors duration-300",
         p.shell
       )}
     >
-      <div className={cn("mx-6 max-w-sm rounded-3xl p-8 text-center transition-colors duration-300", p.card)}>
-        <div
+      <div
+        className={cn(
+          "mx-4 my-6 w-full max-w-md rounded-3xl p-6 text-left transition-colors duration-300 sm:p-8",
+          p.card
+        )}
+      >
+        <div className="mb-4 flex items-center gap-3">
+          <div
+            className={cn(
+              "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
+              chameleonTheme === "flux"
+                ? "bg-[var(--vauto-teal)]/20"
+                : chameleonTheme === "autoplius"
+                  ? "bg-[#e8f0fe]"
+                  : chameleonTheme === "vinted"
+                    ? "bg-[#e6f7f6]"
+                    : chameleonTheme === "aruodas"
+                      ? "bg-[#ffebee]"
+                      : "bg-[#e3f2fd]"
+            )}
+          >
+            <Check
+              className={cn(
+                "h-6 w-6",
+                chameleonTheme === "flux"
+                  ? "text-[var(--vauto-teal)]"
+                  : chameleonTheme === "autoplius"
+                    ? "text-[#1a56db]"
+                    : chameleonTheme === "vinted"
+                      ? "text-[#09b1a8]"
+                      : chameleonTheme === "aruodas"
+                        ? "text-[#c62828]"
+                        : "text-[#1565c0]"
+              )}
+            />
+          </div>
+          <div>
+            <h2 className={cn("text-lg font-semibold", p.title)}>Skelbimas paskelbtas!</h2>
+            <p className={cn("text-xs", p.title, "opacity-70")}>
+              Pasidalykite socialiniuose tinkluose — papildoma reklama
+            </p>
+          </div>
+        </div>
+
+        {lastPublishedListing && (
+          <ShareListingPanel listing={lastPublishedListing} className="mb-4" />
+        )}
+
+        <button
+          type="button"
+          onClick={finishPublishedFlow}
           className={cn(
-            "mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full",
+            "w-full rounded-xl py-3 text-sm font-semibold",
             chameleonTheme === "flux"
-              ? "bg-[var(--vauto-teal)]/20"
-              : chameleonTheme === "autoplius"
-                ? "bg-[#e8f0fe]"
-                : chameleonTheme === "vinted"
-                  ? "bg-[#e6f7f6]"
-                  : chameleonTheme === "aruodas"
-                    ? "bg-[#ffebee]"
-                    : "bg-[#e3f2fd]"
+              ? "bg-[var(--vauto-teal)] text-white"
+              : "bg-[#1565c0] text-white"
           )}
         >
-          <Check
-            className={cn(
-              "h-8 w-8",
-              chameleonTheme === "flux"
-                ? "text-[var(--vauto-teal)]"
-                : chameleonTheme === "autoplius"
-                  ? "text-[#1a56db]"
-                  : chameleonTheme === "vinted"
-                    ? "text-[#09b1a8]"
-                    : chameleonTheme === "aruodas"
-                      ? "text-[#c62828]"
-                      : "text-[#1565c0]"
-            )}
-          />
-        </div>
-        <h2 className={cn("text-lg font-semibold", p.title)}>Skelbimas paskelbtas!</h2>
+          Baigti
+        </button>
       </div>
     </div>
   );

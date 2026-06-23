@@ -40,6 +40,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
 import type {
@@ -86,6 +87,8 @@ export interface SellerFlowContextValue {
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
   publishListing: () => void;
   cancelSellerFlow: () => void;
+  lastPublishedListing: Listing | null;
+  finishPublishedFlow: () => void;
   submitSellerContent: (payload: {
     text?: string;
     imageDataUrl?: string | null;
@@ -125,6 +128,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [sellerVideoUrl, setSellerVideoUrl] = useState("");
   const [sellerHasVideo, setSellerHasVideo] = useState(false);
   const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(null);
+  const [lastPublishedListing, setLastPublishedListing] = useState<Listing | null>(null);
 
   const resetSellerFlow = useCallback(() => {
     setSellerStep("idle");
@@ -135,7 +139,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerPreviewImage(null);
     setSellerVideoUrl("");
     setSellerHasVideo(false);
+    setLastPublishedListing(null);
   }, []);
+
+  const finishPublishedFlow = useCallback(() => {
+    resetSellerFlow();
+  }, [resetSellerFlow]);
 
   const runAiProcessing = useCallback(
     async (
@@ -468,14 +477,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }
 
     setListings((prev) => [published, ...prev]);
+    setLastPublishedListing(published);
     setSellerStep("published");
     scheduleSellerEngagementPush(published.id, published.location, published.title);
-    setTimeout(resetSellerFlow, 4000);
+    void runAutoShareOnPublish(published).then((result) => {
+      if (result.method === "native") {
+        showToast("Skelbimas pasidalintas per sisteminį dalijimosi meniu.", "success");
+      } else if (result.method === "platform" && result.platform) {
+        showToast(`Atidarytas ${result.platform} dalijimosi langas.`, "info");
+      }
+    });
   }, [
     aiDraft,
     sellerPreviewImage,
     sellerHasVideo,
-    resetSellerFlow,
     user,
     listings,
     buyerCoords,
@@ -569,6 +584,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       updateAiDraft,
       publishListing,
       cancelSellerFlow,
+      lastPublishedListing,
+      finishPublishedFlow,
       submitSellerContent,
       startListingFromQuery,
       pendingSellerQuery,
@@ -590,6 +607,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       updateAiDraft,
       publishListing,
       cancelSellerFlow,
+      lastPublishedListing,
+      finishPublishedFlow,
       submitSellerContent,
       startListingFromQuery,
       pendingSellerQuery,

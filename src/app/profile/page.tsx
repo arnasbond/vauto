@@ -5,6 +5,7 @@ import { useState } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import { AdminControlCenter } from "@/components/admin/AdminControlCenter";
 import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
+import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
@@ -124,6 +125,7 @@ export default function ProfilePage() {
         <ConnectionStatusCard />
         <WakeWordSettingsCard />
         <PrivacySettingsCard />
+        <SocialSyncSettingsCard />
         <PushAlertsSettingsCard />
       </div>
 

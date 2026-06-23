@@ -6,6 +6,7 @@ import { CheckCircle, Eye, MessageCircle, Pencil, Phone, RefreshCw, Trash2 } fro
 import { formatPrice } from "@/data/mockListings";
 import { formatExpiryLabel, isListingActive } from "@/lib/listing-expiry";
 import { getListingMetrics } from "@/lib/listing-analytics";
+import { ShareListingButton } from "@/components/social/ShareListingButton";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ListingStatus } from "@/lib/types";
 
@@ -101,6 +102,9 @@ export function PrivateListingCard({
             <RefreshCw className="h-3 w-3" />
             Pratęsti 90 d.
           </button>
+        )}
+        {listing.status !== "sold" && (
+          <ShareListingButton listing={listing} className="flex-1" />
         )}
         <button
           type="button"

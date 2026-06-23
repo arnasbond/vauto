@@ -19,6 +19,7 @@ import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
 import { ReportButton } from "@/components/support/ReportButton";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { SafeMeetingTips } from "@/components/listing/SafeMeetingTips";
+import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
@@ -258,6 +259,14 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         {!isOwn && <SafeMeetingTips />}
 
         <div className="mt-6 flex flex-col gap-3">
+          {isOwn && listing.status !== "sold" && (
+            <section className="vauto-glass-card rounded-2xl p-4">
+              <h2 className="mb-2 text-sm font-semibold text-white">
+                Papildoma reklama socialiniuose tinkluose
+              </h2>
+              <ShareListingPanel listing={listing} compact />
+            </section>
+          )}
           {isOwn && (
             <button
               type="button"
