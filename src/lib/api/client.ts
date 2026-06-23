@@ -449,3 +449,113 @@ export async function apiReferenceImages(body: {
   });
   return data?.images ?? null;
 }
+
+export interface ApiServiceLead {
+  id: string;
+  title: string;
+  city: string;
+  category: string;
+  summary: string;
+  urgency: "today" | "this_week" | "flexible";
+  budgetHint: string;
+  leadPrice: number;
+  createdAt: string;
+  hiddenContact: string;
+  contactPhone?: string;
+  requiredSpecialties: string[];
+  source?: "demo" | "buyer";
+  sourceUserId?: string;
+  query?: string;
+  opened?: boolean;
+}
+
+export function mapApiServiceLead(lead: ApiServiceLead): import("@/lib/service-leads").ServiceLead {
+  return {
+    id: lead.id,
+    title: lead.title,
+    city: lead.city,
+    category: lead.category,
+    summary: lead.summary,
+    urgency: lead.urgency,
+    budgetHint: lead.budgetHint,
+    leadPrice: lead.leadPrice,
+    createdAt: lead.createdAt,
+    hiddenContact: lead.hiddenContact,
+    contactPhone: lead.contactPhone,
+    requiredSpecialties: lead.requiredSpecialties,
+    source: lead.source ?? "buyer",
+    sourceUserId: lead.sourceUserId,
+    query: lead.query,
+  };
+}
+
+export async function apiFetchServiceLeads(): Promise<
+  ApiResult<import("@/lib/service-leads").ServiceLead[]>
+> {
+  const r = await dataFetch<ApiServiceLead[]>("/api/service-leads");
+  if (!r.ok) return r;
+  return { ok: true, data: r.data.map(mapApiServiceLead) };
+}
+
+export async function apiCreateServiceLead(
+  lead: import("@/lib/service-leads").ServiceLead
+): Promise<ApiResult<import("@/lib/service-leads").ServiceLead>> {
+  const r = await dataFetch<ApiServiceLead>("/api/service-leads", {
+    method: "POST",
+    body: JSON.stringify({
+      title: lead.title,
+      city: lead.city,
+      category: lead.category,
+      summary: lead.summary,
+      urgency: lead.urgency,
+      budgetHint: lead.budgetHint,
+      leadPrice: lead.leadPrice,
+      hiddenContact: lead.hiddenContact,
+      contactPhone: lead.contactPhone ?? lead.hiddenContact,
+      requiredSpecialties: lead.requiredSpecialties,
+      query: lead.query,
+    }),
+  });
+  if (!r.ok) return r;
+  return { ok: true, data: mapApiServiceLead(r.data) };
+}
+
+export async function apiOpenServiceLead(
+  leadId: string,
+  cost: number
+): Promise<
+  ApiResult<{ walletBalance: number; lead: import("@/lib/service-leads").ServiceLead }>
+> {
+  const r = await dataFetch<{ walletBalance: number; lead: ApiServiceLead }>(
+    `/api/service-leads/${encodeURIComponent(leadId)}/open`,
+    {
+      method: "POST",
+      body: JSON.stringify({ cost }),
+    }
+  );
+  if (!r.ok) return r;
+  return {
+    ok: true,
+    data: {
+      walletBalance: r.data.walletBalance,
+      lead: mapApiServiceLead(r.data.lead),
+    },
+  };
+}
+
+export async function apiLookupVehicle(
+  identifier: string
+): Promise<import("@/lib/vehicle-intelligence/vehicle-lookup").VehicleLookupResult | null> {
+  const r = await dataFetch<
+    import("@/lib/vehicle-intelligence/vehicle-lookup").VehicleLookupResult & {
+      identifier?: string;
+    }
+  >("/api/vehicle/lookup", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
+  });
+  if (!r.ok) return null;
+  const { identifier: _ignored, ...rest } = r.data;
+  void _ignored;
+  return rest;
+}

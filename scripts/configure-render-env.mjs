@@ -135,6 +135,8 @@ async function main() {
     "STRIPE_WEBHOOK_SECRET",
     "OPENAI_API_KEY",
     "GEMINI_API_KEY",
+    "REGITRA_PLATE_API_USERNAME",
+    "REGITRA_PLATE_API_PASSWORD",
   ]) {
     const val = process.env[key]?.trim();
     if (val) await setEnvVar(key, val);

@@ -4,6 +4,8 @@ import type {
   ApiEscrowTransaction,
   ApiListing,
   ApiReview,
+  ApiServiceLead,
+  ApiServiceUrgency,
   ApiSupportReport,
   ApiUser,
 } from "./types.js";
@@ -1187,4 +1189,248 @@ export async function getEmbeddingIndexStats(): Promise<{
     textIndexed: Number(r?.text_indexed ?? 0),
     imageIndexed: Number(r?.image_indexed ?? 0),
   };
+}
+
+type ServiceLeadRow = {
+  id: string;
+  source_user_id: string | null;
+  title: string;
+  city: string;
+  category: string;
+  summary: string;
+  urgency: string;
+  budget_hint: string;
+  lead_price: string;
+  hidden_contact: string;
+  contact_phone: string;
+  required_specialties: string[];
+  query_text: string | null;
+  created_at: Date;
+  opened: boolean;
+};
+
+function mapServiceLeadRow(
+  row: ServiceLeadRow,
+  revealContact: boolean
+): ApiServiceLead {
+  return {
+    id: row.id,
+    title: row.title,
+    city: row.city,
+    category: row.category,
+    summary: row.summary,
+    urgency: row.urgency as ApiServiceUrgency,
+    budgetHint: row.budget_hint,
+    leadPrice: Number(row.lead_price),
+    createdAt: row.created_at.toISOString(),
+    hiddenContact: row.hidden_contact,
+    contactPhone: revealContact ? row.contact_phone : undefined,
+    requiredSpecialties: row.required_specialties ?? [],
+    source: row.source_user_id ? "buyer" : "buyer",
+    sourceUserId: row.source_user_id ?? undefined,
+    query: row.query_text ?? undefined,
+    opened: row.opened,
+  };
+}
+
+function serviceLeadMatchesProviderRow(
+  lead: ServiceLeadRow,
+  provider: {
+    serviceBaseCity?: string;
+    serviceNationwide?: boolean;
+    serviceSpecialties?: string[];
+  }
+): boolean {
+  if (!provider.serviceNationwide && provider.serviceBaseCity) {
+    if (
+      provider.serviceBaseCity.toLowerCase() !== lead.city.toLowerCase()
+    ) {
+      return false;
+    }
+  }
+  const specialties = provider.serviceSpecialties ?? [];
+  if (specialties.length === 0) return true;
+  const required = lead.required_specialties ?? [];
+  return required.some((req) =>
+    specialties.some(
+      (spec) =>
+        spec.toLowerCase().includes(req.toLowerCase()) ||
+        req.toLowerCase().includes(spec.toLowerCase())
+    )
+  );
+}
+
+export async function insertServiceLead(
+  sourceUserId: string | undefined,
+  lead: {
+    title: string;
+    city: string;
+    category: string;
+    summary: string;
+    urgency: string;
+    budgetHint: string;
+    leadPrice: number;
+    hiddenContact: string;
+    contactPhone: string;
+    requiredSpecialties: string[];
+    query?: string;
+  }
+): Promise<ApiServiceLead | null> {
+  if (lead.query && sourceUserId) {
+    const dup = await query<{ id: string }>(
+      `SELECT id FROM service_leads
+       WHERE source_user_id = $1
+         AND lower(query_text) = lower($2)
+         AND created_at > now() - interval '1 hour'
+       LIMIT 1`,
+      [sourceUserId, lead.query]
+    );
+    if (dup[0]) return null;
+  }
+
+  const id = `lead-live-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  if (sourceUserId) await ensureUser(sourceUserId);
+
+  const rows = await query<ServiceLeadRow>(
+    `INSERT INTO service_leads (
+       id, source_user_id, title, city, category, summary, urgency,
+       budget_hint, lead_price, hidden_contact, contact_phone,
+       required_specialties, query_text
+     )
+     VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13)
+     RETURNING id, source_user_id, title, city, category, summary, urgency,
+       budget_hint, lead_price, hidden_contact, contact_phone,
+       required_specialties, query_text, created_at,
+       false AS opened`,
+    [
+      id,
+      sourceUserId ?? null,
+      lead.title,
+      lead.city,
+      lead.category,
+      lead.summary,
+      lead.urgency,
+      lead.budgetHint,
+      lead.leadPrice,
+      lead.hiddenContact,
+      lead.contactPhone,
+      lead.requiredSpecialties,
+      lead.query ?? null,
+    ]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return mapServiceLeadRow(row, false);
+}
+
+export async function getServiceLeadsForProvider(
+  providerId: string
+): Promise<ApiServiceLead[]> {
+  const provider = await getUser(providerId);
+  const rows = await query<ServiceLeadRow>(
+    `SELECT sl.id, sl.source_user_id, sl.title, sl.city, sl.category, sl.summary,
+            sl.urgency, sl.budget_hint, sl.lead_price, sl.hidden_contact, sl.contact_phone,
+            sl.required_specialties, sl.query_text, sl.created_at,
+            (slo.provider_id IS NOT NULL) AS opened
+     FROM service_leads sl
+     LEFT JOIN service_lead_opens slo
+       ON sl.id = slo.lead_id AND slo.provider_id = $1
+     WHERE sl.created_at > now() - interval '30 days'
+     ORDER BY sl.created_at DESC
+     LIMIT 100`,
+    [providerId]
+  );
+
+  return rows
+    .filter((row) =>
+      serviceLeadMatchesProviderRow(row, {
+        serviceBaseCity: provider?.serviceBaseCity,
+        serviceNationwide: provider?.serviceNationwide,
+        serviceSpecialties: provider?.serviceSpecialties,
+      })
+    )
+    .map((row) => mapServiceLeadRow(row, row.opened));
+}
+
+export async function openServiceLeadWallet(
+  providerId: string,
+  leadId: string,
+  cost: number
+): Promise<{ walletBalance: number; lead: ApiServiceLead } | null> {
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const existingOpen = await client.query(
+      `SELECT 1 FROM service_lead_opens WHERE lead_id = $1 AND provider_id = $2`,
+      [leadId, providerId]
+    );
+    if (existingOpen.rows[0]) {
+      const leadRows = await client.query<ServiceLeadRow>(
+        `SELECT sl.id, sl.source_user_id, sl.title, sl.city, sl.category, sl.summary,
+                sl.urgency, sl.budget_hint, sl.lead_price, sl.hidden_contact, sl.contact_phone,
+                sl.required_specialties, sl.query_text, sl.created_at, true AS opened
+         FROM service_leads sl WHERE sl.id = $1`,
+        [leadId]
+      );
+      const balRows = await client.query<{ wallet_balance: string }>(
+        `SELECT wallet_balance FROM users WHERE id = $1`,
+        [providerId]
+      );
+      await client.query("COMMIT");
+      const row = leadRows.rows[0];
+      if (!row || !balRows.rows[0]) return null;
+      return {
+        walletBalance: Number(balRows.rows[0].wallet_balance),
+        lead: mapServiceLeadRow(row, true),
+      };
+    }
+
+    const balRows = await client.query<{ wallet_balance: string }>(
+      `UPDATE users SET wallet_balance = wallet_balance - $2, updated_at = now()
+       WHERE id = $1 AND wallet_balance >= $2
+       RETURNING wallet_balance`,
+      [providerId, cost]
+    );
+    if (!balRows.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    const leadRows = await client.query<ServiceLeadRow>(
+      `SELECT id, source_user_id, title, city, category, summary, urgency,
+              budget_hint, lead_price, hidden_contact, contact_phone,
+              required_specialties, query_text, created_at, false AS opened
+       FROM service_leads WHERE id = $1`,
+      [leadId]
+    );
+    if (!leadRows.rows[0]) {
+      await client.query("ROLLBACK");
+      return null;
+    }
+
+    await client.query(
+      `INSERT INTO service_lead_opens (lead_id, provider_id, price_paid)
+       VALUES ($1, $2, $3)`,
+      [leadId, providerId, cost]
+    );
+
+    const txId = `wtx-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await client.query(
+      `INSERT INTO wallet_transactions (id, user_id, amount, kind)
+       VALUES ($1, $2, $3, 'service_lead')`,
+      [txId, providerId, -cost]
+    );
+
+    await client.query("COMMIT");
+    return {
+      walletBalance: Number(balRows.rows[0].wallet_balance),
+      lead: mapServiceLeadRow(leadRows.rows[0], true),
+    };
+  } catch (e) {
+    await client.query("ROLLBACK");
+    throw e;
+  } finally {
+    client.release();
+  }
 }

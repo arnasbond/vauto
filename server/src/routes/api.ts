@@ -14,10 +14,13 @@ import {
   getReportsByReporter,
   getReviews,
   getSavedIds,
+  getServiceLeadsForProvider,
   getUser,
   insertListing,
   insertReport,
   insertReview,
+  insertServiceLead,
+  openServiceLeadWallet,
   promoteListingWallet,
   renewListing,
   setBannedUserIds,
@@ -32,6 +35,10 @@ import {
   warnUser,
 } from "../repository.js";
 import { seedIfEmpty } from "../seed-runtime.js";
+import {
+  lookupVehicleOnServer,
+  vehicleLookupFeatures,
+} from "../vehicle/vehicle-lookup-route.js";
 import { notifyListingMatch } from "../push/web-push.js";
 import {
   notifyAdminsNewReport,
@@ -58,6 +65,7 @@ import {
   validateReport,
   validateReportStatus,
   validateReview,
+  validateServiceLeadCreate,
   validateUser,
 } from "../validation.js";
 
@@ -117,6 +125,8 @@ apiRouter.get("/health", async (_req, res) => {
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
+    regitraPlateApi: vehicleLookupFeatures().regitraPlateApi,
+    vehicleLookup: true,
   };
 
   let embeddings: {
@@ -151,7 +161,21 @@ apiRouter.post("/bootstrap", async (_req, res) => {
   try {
     await seedIfEmpty();
     const listings = await getListings();
-    res.json({ ok: true, listings: listings.length });
+    let backfill = { text: 0, image: 0 };
+    if (hasAiKey()) {
+      const { backfillListingEmbeddings } = await import(
+        "../ai/listing-embedding.js"
+      );
+      const { backfillImageEmbeddings } = await import(
+        "../ai/image-embedding.js"
+      );
+      backfill = {
+        text: await backfillListingEmbeddings(40),
+        image: await backfillImageEmbeddings(20),
+      };
+    }
+    const embeddings = await getEmbeddingIndexStats();
+    res.json({ ok: true, listings: listings.length, backfill, embeddings });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -583,6 +607,73 @@ apiRouter.post(
       );
       if (!result) {
         res.status(400).json({ error: "Insufficient balance or listing not found" });
+        return;
+      }
+      res.json(result);
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  }
+);
+
+apiRouter.post("/vehicle/lookup", async (req, res) => {
+  try {
+    const identifier = String(
+      (req.body as { identifier?: string })?.identifier ?? ""
+    ).trim();
+    if (!identifier) {
+      res.status(400).json({ error: "identifier is required" });
+      return;
+    }
+    const result = await lookupVehicleOnServer(identifier);
+    if (!result) {
+      res.status(404).json({ error: "Vehicle not found" });
+      return;
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.get("/service-leads", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const leads = await getServiceLeadsForProvider(req.authUserId!);
+    res.json(leads);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/service-leads", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const parsed = validateServiceLeadCreate(req.body);
+    if (badRequest(res, parsed)) return;
+    const lead = await insertServiceLead(req.authUserId, parsed.value);
+    if (!lead) {
+      res.status(409).json({ error: "Duplicate lead within the last hour" });
+      return;
+    }
+    res.status(201).json(lead);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post(
+  "/service-leads/:id/open",
+  requireAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const cost = validateAmount(req.body, "cost", 0.5, 50);
+      if (badRequest(res, cost)) return;
+      const result = await openServiceLeadWallet(
+        req.authUserId!,
+        req.params.id,
+        cost.value
+      );
+      if (!result) {
+        res.status(400).json({ error: "Insufficient balance or lead not found" });
         return;
       }
       res.json(result);

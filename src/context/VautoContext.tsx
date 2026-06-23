@@ -55,10 +55,13 @@ import { normalizeListings } from "@/lib/listing-normalize";
 import { generateListingSlug, listingPath } from "@/lib/seo";
 import {
   apiDeleteListing,
+  apiCreateServiceLead,
   apiFetchListings,
   apiFetchSaved,
+  apiFetchServiceLeads,
   apiFetchUser,
   apiHealthCheck,
+  apiOpenServiceLead,
   apiRenewListing,
   apiUpdateListing,
   apiUpdateSaved,
@@ -586,12 +589,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const auth = loadAuthSession();
         const hasAuthUser = Boolean(storedUser?.id && auth?.isAuthenticated);
         const listingsRes = await apiFetchListings();
-        const [savedRes, userRes] = hasAuthUser
+        const [savedRes, userRes, leadsRes] = hasAuthUser
           ? await Promise.all([
               apiFetchSaved(storedUser!.id),
               apiFetchUser(storedUser!.id),
+              apiFetchServiceLeads(),
             ])
-          : [null, null];
+          : [null, null, null];
 
         const errors: string[] = [];
         if (listingsRes.ok) {
@@ -609,17 +613,27 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         } else if (storedUser && auth?.isAuthenticated) {
           patchAuthUser({ role: "private", walletBalance: 0, ...storedUser });
         }
+        if (leadsRes?.ok) {
+          setLiveServiceLeads(leadsRes.data);
+          setOpenedServiceLeadIds(
+            new Set(
+              leadsRes.data
+                .filter((lead) => Boolean(lead.contactPhone))
+                .map((lead) => lead.id)
+            )
+          );
+        } else {
+          const storedLeads = loadServiceLeads();
+          if (storedLeads?.length) setLiveServiceLeads(storedLeads);
+          const storedOpened = loadOpenedServiceLeads();
+          if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
+        }
 
+        if (errors.length) setSyncError(errors[0]);
         const storedIntent = loadSearchIntent();
         if (storedIntent) setSearchIntentEvents(storedIntent);
         const storedDismissed = loadSoldPromptDismissed();
         if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
-        const storedLeads = loadServiceLeads();
-        if (storedLeads?.length) setLiveServiceLeads(storedLeads);
-        const storedOpened = loadOpenedServiceLeads();
-        if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
-
-        if (errors.length) setSyncError(errors[0]);
         setGdprConsent(loadGdprConsent());
         setHydrated(true);
         return;
@@ -671,14 +685,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, [savedIds, hydrated, apiActive]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || apiActive) return;
     saveServiceLeads(liveServiceLeads);
-  }, [liveServiceLeads, hydrated]);
+  }, [liveServiceLeads, hydrated, apiActive]);
 
   useEffect(() => {
-    if (!hydrated) return;
+    if (!hydrated || apiActive) return;
     saveOpenedServiceLeads([...openedServiceLeadIds]);
-  }, [openedServiceLeadIds, hydrated]);
+  }, [openedServiceLeadIds, hydrated, apiActive]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -769,17 +783,29 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       });
       if (!lead) return;
 
-      setLiveServiceLeads((prev) => {
-        const recentDuplicate = prev.some(
-          (item) =>
-            item.query?.toLowerCase() === lead.query?.toLowerCase() &&
-            Date.now() - new Date(item.createdAt).getTime() < 60 * 60 * 1000
-        );
-        if (recentDuplicate) return prev;
-        return [lead, ...prev].slice(0, 50);
-      });
+      const addLead = (item: ServiceLead) => {
+        setLiveServiceLeads((prev) => {
+          const recentDuplicate = prev.some(
+            (entry) =>
+              entry.query?.toLowerCase() === item.query?.toLowerCase() &&
+              Date.now() - new Date(entry.createdAt).getTime() < 60 * 60 * 1000
+          );
+          if (recentDuplicate) return prev;
+          return [item, ...prev].slice(0, 50);
+        });
+      };
+
+      if (apiActive && isDataApiEnabled()) {
+        void apiCreateServiceLead(lead).then((res) => {
+          if (res.ok) addLead(res.data);
+          else addLead(lead);
+        });
+        return;
+      }
+
+      addLead(lead);
     },
-    [user.id, user.phone, user.city]
+    [user.id, user.phone, user.city, apiActive]
   );
 
   const openServiceLead = useCallback(
@@ -798,6 +824,39 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
       patchAuthUser({ walletBalance: balance - price });
       setOpenedServiceLeadIds((prev) => new Set([...prev, leadId]));
+      setLiveServiceLeads((prev) =>
+        prev.map((item) =>
+          item.id === leadId
+            ? { ...item, contactPhone: item.contactPhone ?? lead.contactPhone }
+            : item
+        )
+      );
+
+      if (apiActive && isDataApiEnabled() && lead.source === "buyer") {
+        void apiOpenServiceLead(leadId, price).then((res) => {
+          if (!res.ok) {
+            patchAuthUser({ walletBalance: balance });
+            setOpenedServiceLeadIds((prev) => {
+              const next = new Set(prev);
+              next.delete(leadId);
+              return next;
+            });
+            setSyncError(`Lead atidarymas nepavyko: ${res.error}`);
+            return;
+          }
+          patchAuthUser({ walletBalance: res.data.walletBalance });
+          if (res.data.lead.contactPhone) {
+            setLiveServiceLeads((prev) =>
+              prev.map((item) =>
+                item.id === leadId
+                  ? { ...item, contactPhone: res.data.lead.contactPhone }
+                  : item
+              )
+            );
+          }
+        });
+      }
+
       return true;
     },
     [
@@ -807,6 +866,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       user.serviceRadiusKm,
       user.serviceNationwide,
       patchAuthUser,
+      apiActive,
     ]
   );
 

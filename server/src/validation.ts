@@ -691,3 +691,79 @@ export function validateAmount(
   if (!isRecord(body)) return fail("Body must be an object");
   return requiredNumber(body, key, min, max);
 }
+
+const SERVICE_URGENCIES = new Set(["today", "this_week", "flexible"]);
+
+export function validateServiceLeadCreate(
+  body: unknown
+): ValidationResult<{
+  title: string;
+  city: string;
+  category: string;
+  summary: string;
+  urgency: "today" | "this_week" | "flexible";
+  budgetHint: string;
+  leadPrice: number;
+  hiddenContact: string;
+  contactPhone: string;
+  requiredSpecialties: string[];
+  query?: string;
+}> {
+  if (!isRecord(body)) return fail("Body must be an object");
+  const title = requiredString(body, "title", 200);
+  if (!title.ok) return title;
+  const city = requiredString(body, "city", 80);
+  if (!city.ok) return city;
+  const category = requiredString(body, "category", 80);
+  if (!category.ok) return category;
+  const summary = requiredString(body, "summary", 2000);
+  if (!summary.ok) return summary;
+  const hiddenContact = requiredString(body, "hiddenContact", 40);
+  if (!hiddenContact.ok) return hiddenContact;
+  const contactPhone = requiredString(body, "contactPhone", 30);
+  if (!contactPhone.ok) return contactPhone;
+
+  const urgencyRaw = body.urgency;
+  const urgency =
+    typeof urgencyRaw === "string" && SERVICE_URGENCIES.has(urgencyRaw)
+      ? (urgencyRaw as "today" | "this_week" | "flexible")
+      : "flexible";
+
+  const budgetHint =
+    typeof body.budgetHint === "string" && body.budgetHint.trim()
+      ? body.budgetHint.trim().slice(0, 80)
+      : "Sutarti";
+
+  const leadPriceRaw = body.leadPrice;
+  const leadPrice =
+    typeof leadPriceRaw === "number" && leadPriceRaw >= 0.5 && leadPriceRaw <= 50
+      ? leadPriceRaw
+      : 1.2;
+
+  const specialtiesRaw = body.requiredSpecialties;
+  const requiredSpecialties = Array.isArray(specialtiesRaw)
+    ? specialtiesRaw
+        .filter((s): s is string => typeof s === "string" && s.trim().length > 0)
+        .map((s) => s.trim().slice(0, 80))
+        .slice(0, 10)
+    : [];
+
+  const query =
+    typeof body.query === "string" && body.query.trim()
+      ? body.query.trim().slice(0, 2000)
+      : undefined;
+
+  return ok({
+    title: title.value,
+    city: city.value,
+    category: category.value,
+    summary: summary.value,
+    urgency,
+    budgetHint,
+    leadPrice,
+    hiddenContact: hiddenContact.value,
+    contactPhone: contactPhone.value,
+    requiredSpecialties,
+    query,
+  });
+}

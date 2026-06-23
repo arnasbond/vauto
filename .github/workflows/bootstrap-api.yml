@@ -22,6 +22,8 @@ jobs:
               echo "Bootstrap OK: $BODY"
               COUNT=$(curl -sf "https://vauto-api.onrender.com/api/listings" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))")
               echo "Listings on API: $COUNT"
+              HEALTH=$(curl -sf "https://vauto-api.onrender.com/api/health" || echo '{}')
+              echo "Embeddings: $(echo "$HEALTH" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{try{const h=JSON.parse(d);console.log(JSON.stringify(h.embeddings??{}))}catch{console.log('{}')}})")"
               exit 0
             fi
             echo "Attempt $i/18 — HTTP ${CODE:-000} (endpoint may need redeploy)"

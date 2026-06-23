@@ -2,7 +2,7 @@ import type { AiExtractedListing } from "@/lib/types";
 import { isValidVin, normalizeVin } from "@/lib/trust";
 
 export interface VehicleLookupResult {
-  source: "regitra-demo" | "vin-decoder-demo" | "vin-decoder-nhtsa" | "vision-demo";
+  source: "regitra-demo" | "regitra-plate-api" | "vin-decoder-demo" | "vin-decoder-nhtsa" | "vision-demo";
   confidence: number;
   plateNumber?: string;
   vin?: string;
@@ -144,6 +144,14 @@ export async function lookupVehicle(
   hint?: { make?: string; model?: string }
 ): Promise<VehicleLookupResult> {
   const normalized = identifier?.trim().toUpperCase() ?? "";
+
+  const { isDataApiEnabled } = await import("@/lib/api/config");
+  if (isDataApiEnabled() && normalized) {
+    const { apiLookupVehicle } = await import("@/lib/api/client");
+    const remote = await apiLookupVehicle(normalized);
+    if (remote) return remote;
+  }
+
   if (isValidVin(normalized)) {
     const nhtsa = await lookupVehicleByVinNhtsa(normalized);
     if (nhtsa) return nhtsa;
@@ -157,7 +165,9 @@ export function vehicleLookupToDraftPatch(
   const sourceLabel =
     result.source === "vin-decoder-nhtsa"
       ? "NHTSA VIN dekoderio"
-      : "Regitra/VIN demo adapterio";
+      : result.source === "regitra-plate-api"
+        ? "LT numerio API (Regitra duomenys)"
+        : "Regitra/VIN demo adapterio";
 
   return {
     title: `${result.make} ${result.model} ${result.year}`,

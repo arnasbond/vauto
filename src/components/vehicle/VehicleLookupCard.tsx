@@ -40,8 +40,8 @@ export function VehicleLookupCard({ vin, onApply }: VehicleLookupCardProps) {
             Regitra / VIN autofill
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[#4b5563]">
-            VIN dekoduojamas per NHTSA (tikras API). Valstybinis numeris — demo
-            Regitra adapteris.
+            VIN — NHTSA API. Valstybinis numeris — per serverį (Regitra plate API
+            jei sukonfigūruota, kitaip demo).
           </p>
           <div className="mt-3 grid grid-cols-2 gap-2">
             <button

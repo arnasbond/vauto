@@ -137,3 +137,24 @@ export interface ApiEscrowTransaction {
   createdAt: string;
   updatedAt: string;
 }
+
+export type ApiServiceUrgency = "today" | "this_week" | "flexible";
+
+export interface ApiServiceLead {
+  id: string;
+  title: string;
+  city: string;
+  category: string;
+  summary: string;
+  urgency: ApiServiceUrgency;
+  budgetHint: string;
+  leadPrice: number;
+  createdAt: string;
+  hiddenContact: string;
+  contactPhone?: string;
+  requiredSpecialties: string[];
+  source?: "demo" | "buyer";
+  sourceUserId?: string;
+  query?: string;
+  opened?: boolean;
+}
