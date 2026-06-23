@@ -18,6 +18,7 @@ export async function createPlanCheckoutSession(opts: {
   userId: string;
   planId: StripePlanId;
   email?: string;
+  customerId?: string;
 }): Promise<Stripe.Checkout.Session> {
   const stripe = getStripe();
   if (!stripe) throw new Error("STRIPE_SECRET_KEY not configured");
@@ -26,7 +27,9 @@ export async function createPlanCheckoutSession(opts: {
 
   return stripe.checkout.sessions.create({
     mode: "subscription",
-    customer_email: opts.email,
+    ...(opts.customerId
+      ? { customer: opts.customerId }
+      : { customer_email: opts.email }),
     line_items: [
       {
         price_data: {
@@ -45,4 +48,25 @@ export async function createPlanCheckoutSession(opts: {
     success_url: `${appOrigin()}/profile?billing=success&plan=${opts.planId}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appOrigin()}/profile?billing=cancel`,
   });
+}
+
+export async function createBillingPortalSession(
+  customerId: string
+): Promise<Stripe.BillingPortal.Session> {
+  const stripe = getStripe();
+  if (!stripe) throw new Error("STRIPE_SECRET_KEY not configured");
+
+  return stripe.billingPortal.sessions.create({
+    customer: customerId,
+    return_url: `${appOrigin()}/profile`,
+  });
+}
+
+export function resolveStripeCustomerId(
+  customer: string | Stripe.Customer | Stripe.DeletedCustomer | null
+): string | undefined {
+  if (!customer || typeof customer === "object" && "deleted" in customer) {
+    return undefined;
+  }
+  return typeof customer === "string" ? customer : customer.id;
 }

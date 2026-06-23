@@ -1089,14 +1089,20 @@ export async function listListingsMissingImageEmbeddings(
 export async function subscribeUserPlan(
   userId: string,
   planId: string,
-  stripeSessionId?: string
+  stripeSessionId?: string,
+  stripeCustomerId?: string
 ): Promise<ApiUser | null> {
   if (stripeSessionId) {
     const existing = await query<{ user_id: string }>(
       `SELECT user_id FROM billing_subscriptions WHERE stripe_session_id = $1 LIMIT 1`,
       [stripeSessionId]
     );
-    if (existing[0]) return getUser(existing[0].user_id);
+    if (existing[0]) {
+      if (stripeCustomerId) {
+        await setUserStripeCustomerId(userId, stripeCustomerId);
+      }
+      return getUser(existing[0].user_id);
+    }
   }
 
   const subId = `sub_${Date.now()}_${userId.slice(0, 8)}`;
@@ -1117,7 +1123,46 @@ export async function subscribeUserPlan(
       planId,
     ]);
   }
+  if (stripeCustomerId) {
+    await setUserStripeCustomerId(userId, stripeCustomerId);
+  }
   return getUser(userId);
+}
+
+export async function setUserStripeCustomerId(
+  userId: string,
+  customerId: string
+): Promise<void> {
+  await query(`UPDATE users SET stripe_customer_id = $2 WHERE id = $1`, [
+    userId,
+    customerId,
+  ]);
+}
+
+export async function getUserStripeCustomerId(
+  userId: string
+): Promise<string | null> {
+  const rows = await query<{ stripe_customer_id: string | null }>(
+    `SELECT stripe_customer_id FROM users WHERE id = $1`,
+    [userId]
+  );
+  return rows[0]?.stripe_customer_id ?? null;
+}
+
+export async function cancelUserBillingByStripeCustomer(
+  customerId: string
+): Promise<void> {
+  await query(
+    `UPDATE billing_subscriptions SET status = 'canceled'
+     WHERE user_id IN (SELECT id FROM users WHERE stripe_customer_id = $1)
+       AND status = 'active'`,
+    [customerId]
+  );
+  await query(
+    `UPDATE users SET billing_plan = 'free'
+     WHERE stripe_customer_id = $1`,
+    [customerId]
+  );
 }
 
 export async function getEmbeddingIndexStats(): Promise<{

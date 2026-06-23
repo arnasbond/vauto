@@ -1,10 +1,17 @@
 import { Router, type Request, type Response } from "express";
 import type Stripe from "stripe";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
-import { getUser, subscribeUserPlan } from "../repository.js";
 import {
+  cancelUserBillingByStripeCustomer,
+  getUser,
+  getUserStripeCustomerId,
+  subscribeUserPlan,
+} from "../repository.js";
+import {
+  createBillingPortalSession,
   createPlanCheckoutSession,
   getStripe,
+  resolveStripeCustomerId,
 } from "../billing/stripe-client.js";
 import type { StripePlanId } from "../billing/stripe-plans.js";
 
@@ -40,7 +47,13 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
       return res.status(400).json({ error: "Invalid plan in session" });
     }
 
-    const user = await subscribeUserPlan(userId, planId, session.id);
+    const customerId = resolveStripeCustomerId(session.customer);
+    const user = await subscribeUserPlan(
+      userId,
+      planId,
+      session.id,
+      customerId
+    );
     if (!user) return res.status(404).json({ error: "User not found" });
 
     res.json({
@@ -58,6 +71,31 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+billingRouter.post("/portal", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({ error: "Stripe not configured" });
+    }
+
+    const customerId = await getUserStripeCustomerId(req.authUserId!);
+    if (!customerId) {
+      return res.status(404).json({
+        error: "Stripe klientas nerastas. Pirmiausia užsisakykite planą.",
+      });
+    }
+
+    const session = await createBillingPortalSession(customerId);
+    if (!session.url) {
+      return res.status(500).json({ error: "Portal URL missing" });
+    }
+
+    res.json({ ok: true, portalUrl: session.url });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const planId = String((req.body as { planId?: string })?.planId ?? "");
@@ -68,10 +106,12 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
     const stripe = getStripe();
     if (stripe) {
       const user = await getUser(req.authUserId!);
+      const existingCustomerId = await getUserStripeCustomerId(req.authUserId!);
       const session = await createPlanCheckoutSession({
         userId: req.authUserId!,
         planId: planId as StripePlanId,
         email: user?.email,
+        customerId: existingCustomerId ?? undefined,
       });
       if (!session.url) {
         return res.status(500).json({ error: "Stripe checkout URL missing" });
@@ -130,8 +170,17 @@ export async function handleStripeWebhook(
     const session = event.data.object as Stripe.Checkout.Session;
     const userId = session.metadata?.userId;
     const planId = session.metadata?.planId;
+    const customerId = resolveStripeCustomerId(session.customer);
     if (userId && planId && VALID_PLANS.has(planId)) {
-      await subscribeUserPlan(userId, planId, session.id);
+      await subscribeUserPlan(userId, planId, session.id, customerId);
+    }
+  }
+
+  if (event.type === "customer.subscription.deleted") {
+    const subscription = event.data.object as Stripe.Subscription;
+    const customerId = resolveStripeCustomerId(subscription.customer);
+    if (customerId) {
+      await cancelUserBillingByStripeCustomer(customerId);
     }
   }
 

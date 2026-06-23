@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
@@ -16,6 +16,7 @@ import { VisibilityPricingCard } from "@/components/dashboard/VisibilityPricingC
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
+import { apiFetchHealthDetails } from "@/lib/api/client";
 import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
 import type { VisibilityTierId } from "@/lib/visibility-plans";
@@ -51,8 +52,27 @@ export function ProBusinessDashboard({
   onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
-  const { buyerIntentCount, soldPromptDismissed, dismissSoldPrompt, reviews, sellerAnalytics, subscribeB2BPlan } =
-    useVauto();
+  const {
+    buyerIntentCount,
+    soldPromptDismissed,
+    dismissSoldPrompt,
+    reviews,
+    sellerAnalytics,
+    subscribeB2BPlan,
+    openBillingPortal,
+    apiActive,
+  } = useVauto();
+  const [stripeEnabled, setStripeEnabled] = useState(false);
+
+  useEffect(() => {
+    if (!apiActive) {
+      setStripeEnabled(false);
+      return;
+    }
+    void apiFetchHealthDetails().then((r) => {
+      if (r.ok) setStripeEnabled(Boolean(r.data.features?.stripe));
+    });
+  }, [apiActive]);
   const rating = computeSellerRating(reviews, user.id);
   const serviceRating = rating.count > 0 ? rating.avg : 4.9;
   const showCalendar =
@@ -145,6 +165,8 @@ export function ProBusinessDashboard({
             activeListings={listings.length}
             currentPlan={user.billingPlan}
             onSubscribe={subscribeB2BPlan}
+            onManageBilling={openBillingPortal}
+            stripeEnabled={stripeEnabled}
           />
           <VisibilityPricingCard
             listings={listings}

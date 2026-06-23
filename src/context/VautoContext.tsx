@@ -18,7 +18,7 @@ import {
   resolveSortMode,
 } from "@/lib/scoring";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
-import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan } from "@/lib/api/client";
+import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan, apiBillingPortal } from "@/lib/api/client";
 import {
   type VisualSearchProfile,
   mergeRankScores,
@@ -211,6 +211,7 @@ interface VautoContextValue {
   logout: () => void;
   topUpWallet: (amount: number) => void;
   subscribeB2BPlan: (planId: "starter" | "pro") => Promise<boolean>;
+  openBillingPortal: () => Promise<boolean>;
   promoteListing: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
@@ -1062,6 +1063,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [apiActive, patchAuthUser, showToast, user.role]
   );
 
+  const openBillingPortal = useCallback(async () => {
+    if (!apiActive) {
+      showToast("Stripe portalas pasiekiamas tik su Live API", "info");
+      return false;
+    }
+    const r = await apiBillingPortal();
+    if (r.ok && r.data.portalUrl) {
+      window.location.href = r.data.portalUrl;
+      return true;
+    }
+    showToast(r.ok ? "Portalas nepasiekiamas" : r.error, "error");
+    return false;
+  }, [apiActive, showToast]);
+
   const updateListing = useCallback(
     (id: string, patch: ListingEditPatch) => {
       setListings((prev) =>
@@ -1235,6 +1250,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       logout,
       topUpWallet,
       subscribeB2BPlan,
+      openBillingPortal,
       promoteListing,
       updateListing,
       markListingSold,
@@ -1301,6 +1317,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       logout,
       topUpWallet,
       subscribeB2BPlan,
+      openBillingPortal,
       promoteListing,
       updateListing,
       markListingSold,

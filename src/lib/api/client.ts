@@ -416,6 +416,15 @@ export async function apiConfirmBillingSession(sessionId: string): Promise<
   });
 }
 
+export async function apiBillingPortal(): Promise<
+  ApiResult<{ ok: boolean; portalUrl: string }>
+> {
+  return dataFetch("/api/billing/portal", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function apiAnalyzeVoice(body: {
   transcript: string;
   mode: "search" | "listing";

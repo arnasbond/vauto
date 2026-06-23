@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { BarChart3, CreditCard } from "lucide-react";
+import { BarChart3, CreditCard, Settings2 } from "lucide-react";
 import { B2B_PLANS, estimatePpcSpend, type B2BBillingPlanId } from "@/lib/b2b-plans";
 import type { UserProfile } from "@/lib/types";
 
@@ -12,6 +12,8 @@ interface B2BBillingCardProps {
   activeListings: number;
   currentPlan?: UserProfile["billingPlan"];
   onSubscribe?: (planId: B2BBillingPlanId) => Promise<boolean>;
+  onManageBilling?: () => Promise<boolean>;
+  stripeEnabled?: boolean;
 }
 
 export function B2BBillingCard({
@@ -21,13 +23,18 @@ export function B2BBillingCard({
   activeListings,
   currentPlan = "free",
   onSubscribe,
+  onManageBilling,
+  stripeEnabled = false,
 }: B2BBillingCardProps) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const [managing, setManaging] = useState(false);
   const estimatedSpend = estimatePpcSpend({
     clicks,
     callClicks,
     safeBuyStarts: Math.max(0, Math.floor(callClicks * 0.4)),
   });
+
+  const hasPaidPlan = currentPlan === "starter" || currentPlan === "pro";
 
   const handleSubscribe = async (planId: B2BBillingPlanId) => {
     if (!onSubscribe) return;
@@ -36,6 +43,16 @@ export function B2BBillingCard({
       await onSubscribe(planId);
     } finally {
       setLoadingPlan(null);
+    }
+  };
+
+  const handleManage = async () => {
+    if (!onManageBilling) return;
+    setManaging(true);
+    try {
+      await onManageBilling();
+    } finally {
+      setManaging(false);
     }
   };
 
@@ -60,6 +77,18 @@ export function B2BBillingCard({
           Balansas: {balance.toFixed(2)} € · {clicks} paspaud. · {callClicks} skamb.
         </p>
       </div>
+
+      {hasPaidPlan && stripeEnabled && onManageBilling && (
+        <button
+          type="button"
+          disabled={managing}
+          onClick={() => void handleManage()}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-white/15 bg-white/5 py-2.5 text-xs font-semibold text-slate-200 hover:bg-white/10 disabled:opacity-50"
+        >
+          <Settings2 className="h-3.5 w-3.5" />
+          {managing ? "Atidaroma…" : "Valdyti prenumeratą (Stripe)"}
+        </button>
+      )}
 
       <div className="grid gap-2">
         {B2B_PLANS.map((plan) => {
@@ -89,8 +118,12 @@ export function B2BBillingCard({
                 {isActive
                   ? "Aktyvus planas"
                   : isLoading
-                    ? "Aktyvuojama…"
-                    : "Užsisakyti planą"}
+                    ? stripeEnabled
+                      ? "Nukreipiama į Stripe…"
+                      : "Aktyvuojama…"
+                    : stripeEnabled
+                      ? "Mokėti per Stripe"
+                      : "Užsisakyti planą (demo)"}
               </button>
             </div>
           );
@@ -99,7 +132,9 @@ export function B2BBillingCard({
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-500">
         <BarChart3 className="h-3.5 w-3.5" />
-        Verslas moka tik už rezultatą arba renkasi fiksuotą mėnesinį paketą.
+        {stripeEnabled
+          ? "Mokėjimai per Stripe · atšaukimas bet kada portale."
+          : "Verslas moka už rezultatą arba renkasi fiksuotą mėnesinį paketą (demo)."}
       </p>
     </section>
   );
