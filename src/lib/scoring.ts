@@ -35,6 +35,8 @@ export function computeSemanticRelevance(
       key,
       ...(Array.isArray(value) ? value : value ? [value] : []),
     ]),
+    String(listing.attributes?.skelbiuCategory ?? ""),
+    String(listing.attributes?.listingAction ?? ""),
   ]
     .join(" ")
     .toLowerCase();
@@ -82,6 +84,31 @@ export function computeSemanticRelevance(
     listing.category === "jobs"
   )
     score = Math.min(1, score + 0.4);
+
+  const skCat = String(attrs.skelbiuCategory ?? "").toLowerCase();
+  const isGeneral =
+    listing.category === "other" ||
+    listing.category === "electronics" ||
+    listing.category === "home";
+  if (isGeneral && skCat) {
+    const catHits = tokens.filter((t) => skCat.includes(t)).length;
+    if (catHits > 0) score = Math.min(1, score + 0.2 + catHits * 0.08);
+  }
+  if (isGeneral && /kamado|kepsnin|grill/i.test(query) && /kepsnin|kamado|grill/i.test(skCat)) {
+    score = Math.min(1, score + 0.35);
+  }
+  if (/parduod|siūl|pardav/i.test(query) && attrs.listingAction === "Siūlau") {
+    score = Math.min(1, score + 0.12);
+  }
+  if (/ieškau|perku|reikia/i.test(query) && attrs.listingAction === "Ieškau") {
+    score = Math.min(1, score + 0.12);
+  }
+  if (/telefon|iphone|samsung/i.test(query) && listing.category === "electronics") {
+    score = Math.min(1, score + 0.3);
+  }
+  if (/bald|sofa|komod/i.test(query) && listing.category === "home") {
+    score = Math.min(1, score + 0.3);
+  }
 
   return Math.min(1, Math.max(0, score));
 }

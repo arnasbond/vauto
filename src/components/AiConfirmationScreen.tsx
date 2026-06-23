@@ -7,6 +7,7 @@ import { PublishedOverlay } from "@/components/adaptive-confirmation/Confirmatio
 import { VehicleListingWizard } from "@/components/vehicle/VehicleListingWizard";
 import { RealEstateListingWizard } from "@/components/real-estate/RealEstateListingWizard";
 import { ClothingListingWizard } from "@/components/clothing/ClothingListingWizard";
+import { GeneralListingWizard } from "@/components/general/GeneralListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 
 /**
@@ -48,6 +49,7 @@ export function AiConfirmationScreen() {
   const isVehicle = listingToAdaptiveKey(aiDraft.category) === "vehicles";
   const isRealEstate = listingToAdaptiveKey(aiDraft.category) === "real_estate";
   const isClothing = listingToAdaptiveKey(aiDraft.category) === "clothing";
+  const isUniversal = listingToAdaptiveKey(aiDraft.category) === "universal";
 
   if (isVehicle) {
     return (
@@ -86,6 +88,23 @@ export function AiConfirmationScreen() {
   if (isClothing) {
     return (
       <ClothingListingWizard
+        draft={aiDraft}
+        previewImage={sellerPreviewImage}
+        manualFallback={aiManualFallback}
+        onUpdate={updateAiDraft}
+        onAttributeChange={handleAttributeChange}
+        onMediaChange={updateSellerMedia}
+        requestMediaConsent={requestMediaConsent}
+        onCancel={cancelSellerFlow}
+        onPublish={publishListing}
+        onToast={showToast}
+      />
+    );
+  }
+
+  if (isUniversal) {
+    return (
+      <GeneralListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
         manualFallback={aiManualFallback}

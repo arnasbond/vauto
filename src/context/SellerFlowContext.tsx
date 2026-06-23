@@ -54,6 +54,13 @@ import {
   formatVintedCategory,
   looksLikeClothingListing,
 } from "@/lib/clothing-catalog";
+import {
+  detectConditionFromText,
+  detectListingActionFromText,
+  detectSkelbiuCategoryFromText,
+  isGeneralListingCategory,
+  looksLikeGeneralListing,
+} from "@/lib/general-catalog";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -300,6 +307,24 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             }
             if (!attrs.condition) attrs.condition = "Gera";
             next = { ...next, category: "clothing", attributes: attrs };
+          } else if (
+            looksLikeGeneralListing(title, next.category) &&
+            !["services", "jobs", "vehicles", "real_estate", "clothing"].includes(next.category)
+          ) {
+            const attrs = { ...(next.attributes ?? {}) };
+            if (!attrs.listingAction) {
+              attrs.listingAction = detectListingActionFromText(title);
+            }
+            if (!attrs.sellerType) attrs.sellerType = "Privatus asmuo";
+            const skCat = detectSkelbiuCategoryFromText(title);
+            if (skCat && !attrs.skelbiuCategory) attrs.skelbiuCategory = skCat;
+            const cond = detectConditionFromText(title);
+            if (cond && !attrs.condition) attrs.condition = cond;
+            if (!isGeneralListingCategory(next.category)) {
+              next = { ...next, category: "other", attributes: attrs };
+            } else {
+              next = { ...next, attributes: attrs };
+            }
           }
         }
 
