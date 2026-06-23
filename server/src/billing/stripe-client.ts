@@ -42,7 +42,7 @@ export async function createPlanCheckoutSession(opts: {
       userId: opts.userId,
       planId: opts.planId,
     },
-    success_url: `${appOrigin()}/profile?billing=success&plan=${opts.planId}`,
+    success_url: `${appOrigin()}/profile?billing=success&plan=${opts.planId}&session_id={CHECKOUT_SESSION_ID}`,
     cancel_url: `${appOrigin()}/profile?billing=cancel`,
   });
 }

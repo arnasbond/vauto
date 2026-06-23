@@ -6,6 +6,7 @@ import {
   getBannedUserIds,
   getChats,
   getEscrowForThread,
+  getEmbeddingIndexStats,
   getListings,
   getReportById,
   getReports,
@@ -113,15 +114,25 @@ apiRouter.get("/health", async (_req, res) => {
     jwt: Boolean(process.env.JWT_SECRET),
     openai: Boolean(process.env.OPENAI_API_KEY?.trim()),
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
+    stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
+    stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
   };
+
+  let embeddings: {
+    activeListings: number;
+    textIndexed: number;
+    imageIndexed: number;
+  } | undefined;
 
   try {
     await pool.query("SELECT 1");
+    embeddings = await getEmbeddingIndexStats();
     res.json({
       ok: true,
       service: "vauto-api",
       db: "connected",
       features,
+      embeddings,
     });
   } catch (e) {
     res.status(503).json({
@@ -140,6 +151,24 @@ apiRouter.post("/bootstrap", async (_req, res) => {
     await seedIfEmpty();
     const listings = await getListings();
     res.json({ ok: true, listings: listings.length });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/admin/backfill-embeddings", requireAdmin, async (req, res) => {
+  try {
+    const limit = Math.min(Math.max(Number(req.body?.limit ?? 50), 1), 100);
+    const { backfillListingEmbeddings } = await import(
+      "../ai/listing-embedding.js"
+    );
+    const { backfillImageEmbeddings } = await import(
+      "../ai/image-embedding.js"
+    );
+    const text = await backfillListingEmbeddings(limit);
+    const image = await backfillImageEmbeddings(Math.ceil(limit / 2));
+    const embeddings = await getEmbeddingIndexStats();
+    res.json({ ok: true, text, image, embeddings });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

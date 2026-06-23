@@ -16,6 +16,8 @@ const FEATURE_LABELS: Record<string, string> = {
   jwt: "JWT sesijos",
   openai: "OpenAI AI",
   reportEmail: "El. paštas admin",
+  stripe: "Stripe mokėjimai",
+  stripeWebhook: "Stripe webhook",
 };
 
 export function ConnectionStatusCard() {
@@ -80,6 +82,14 @@ export function ConnectionStatusCard() {
             </li>
           ))}
         </ul>
+      )}
+
+      {health?.embeddings && live && (
+        <p className="mt-3 text-[10px] text-slate-500">
+          Paieškos indeksas: {health.embeddings.textIndexed} tekst. ·{" "}
+          {health.embeddings.imageIndexed} vaizd. ·{" "}
+          {health.embeddings.activeListings} aktyvūs skelbimai
+        </p>
       )}
     </section>
   );

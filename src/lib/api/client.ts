@@ -80,6 +80,13 @@ export interface ApiHealthDetails {
     jwt: boolean;
     openai?: boolean;
     reportEmail?: boolean;
+    stripe?: boolean;
+    stripeWebhook?: boolean;
+  };
+  embeddings?: {
+    activeListings: number;
+    textIndexed: number;
+    imageIndexed: number;
   };
 }
 
@@ -391,6 +398,21 @@ export async function apiSubscribeB2BPlan(planId: string): Promise<
   return dataFetch("/api/billing/subscribe", {
     method: "POST",
     body: JSON.stringify({ planId }),
+  });
+}
+
+export async function apiConfirmBillingSession(sessionId: string): Promise<
+  ApiResult<{
+    ok: boolean;
+    mode: string;
+    message: string;
+    planId: string;
+    user: UserProfile;
+  }>
+> {
+  return dataFetch("/api/billing/confirm", {
+    method: "POST",
+    body: JSON.stringify({ sessionId }),
   });
 }
 

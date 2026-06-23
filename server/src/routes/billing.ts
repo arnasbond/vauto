@@ -12,6 +12,52 @@ export const billingRouter = Router();
 
 const VALID_PLANS = new Set<string>(["starter", "pro"]);
 
+billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const sessionId = String(
+      (req.body as { sessionId?: string })?.sessionId ?? ""
+    );
+    if (!sessionId) {
+      return res.status(400).json({ error: "sessionId is required" });
+    }
+
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({ error: "Stripe not configured" });
+    }
+
+    const session = await stripe.checkout.sessions.retrieve(sessionId);
+    if (session.payment_status !== "paid") {
+      return res.status(402).json({ error: "Payment not completed" });
+    }
+
+    const userId = session.metadata?.userId;
+    const planId = session.metadata?.planId;
+    if (!userId || userId !== req.authUserId) {
+      return res.status(403).json({ error: "Session does not belong to user" });
+    }
+    if (!planId || !VALID_PLANS.has(planId)) {
+      return res.status(400).json({ error: "Invalid plan in session" });
+    }
+
+    const user = await subscribeUserPlan(userId, planId, session.id);
+    if (!user) return res.status(404).json({ error: "User not found" });
+
+    res.json({
+      ok: true,
+      mode: "stripe",
+      user,
+      planId,
+      message:
+        planId === "pro"
+          ? "Pro planas aktyvuotas!"
+          : "Starto planas aktyvuotas!",
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const planId = String((req.body as { planId?: string })?.planId ?? "");

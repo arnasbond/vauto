@@ -40,13 +40,13 @@ app.listen(port, async () => {
     const { backfillListingEmbeddings } = await import(
       "./ai/listing-embedding.js"
     );
-    void backfillListingEmbeddings(30).then((n) => {
+    void backfillListingEmbeddings(50).then((n) => {
       if (n > 0) console.log(`Embedding backfill: ${n} listings`);
     });
     const { backfillImageEmbeddings } = await import(
       "./ai/image-embedding.js"
     );
-    void backfillImageEmbeddings(15).then((n) => {
+    void backfillImageEmbeddings(25).then((n) => {
       if (n > 0) console.log(`Image embedding backfill: ${n} listings`);
     });
     console.log(`Vauto API http://localhost:${port} (PostgreSQL OK)`);

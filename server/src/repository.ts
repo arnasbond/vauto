@@ -1091,6 +1091,14 @@ export async function subscribeUserPlan(
   planId: string,
   stripeSessionId?: string
 ): Promise<ApiUser | null> {
+  if (stripeSessionId) {
+    const existing = await query<{ user_id: string }>(
+      `SELECT user_id FROM billing_subscriptions WHERE stripe_session_id = $1 LIMIT 1`,
+      [stripeSessionId]
+    );
+    if (existing[0]) return getUser(existing[0].user_id);
+  }
+
   const subId = `sub_${Date.now()}_${userId.slice(0, 8)}`;
   await ensureUser(userId);
   await query(
@@ -1110,4 +1118,28 @@ export async function subscribeUserPlan(
     ]);
   }
   return getUser(userId);
+}
+
+export async function getEmbeddingIndexStats(): Promise<{
+  activeListings: number;
+  textIndexed: number;
+  imageIndexed: number;
+}> {
+  const rows = await query<{
+    active_listings: string;
+    text_indexed: string;
+    image_indexed: string;
+  }>(
+    `SELECT
+       COUNT(*) FILTER (WHERE NOT banned AND COALESCE(status, 'active') = 'active')::text AS active_listings,
+       COUNT(*) FILTER (WHERE search_embedding IS NOT NULL)::text AS text_indexed,
+       COUNT(*) FILTER (WHERE image_embedding IS NOT NULL)::text AS image_indexed
+     FROM listings`
+  );
+  const r = rows[0];
+  return {
+    activeListings: Number(r?.active_listings ?? 0),
+    textIndexed: Number(r?.text_indexed ?? 0),
+    imageIndexed: Number(r?.image_indexed ?? 0),
+  };
 }

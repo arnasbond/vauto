@@ -25,8 +25,12 @@ export function VisualSearchStrip() {
         </p>
         <p className="mt-0.5 text-[11px] text-[#6b7280]">
           {visualSearchRefining
-            ? "AI tikslina panašumą su skelbimais…"
-            : "Rezultatai surikiuoti pagal vizualinį ir semantinį panašumą."}
+            ? visualSearchProfile.source === "photo"
+              ? "AI analizuoja nuotrauką ir lygina su skelbimų vaizdais…"
+              : "AI tikslina panašumą su skelbimais…"
+            : visualSearchProfile.source === "photo"
+              ? "Rezultatai: vaizdo, semantinis ir AI panašumas."
+              : "Rezultatai surikiuoti pagal semantinį ir AI panašumą."}
         </p>
       </div>
       {visualSearchProfile.source === "photo" && (
