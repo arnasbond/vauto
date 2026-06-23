@@ -1,4 +1,9 @@
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
+import {
+  detectVehicleMake,
+  isVehicleQuery,
+  VEHICLE_GENERIC_PATTERN,
+} from "@/lib/vehicle-keywords";
 
 const AI_MOCK_DELAY_MS = 1500;
 
@@ -141,9 +146,7 @@ function extractPrice(text: string, category: ListingCategory): number {
 function detectCategory(text: string): ListingCategory {
   const t = text.toLowerCase();
 
-  if (
-    /bmw|audi|auto|masin|mašin|vairas|rida|dyzel|benzin|opel|vw|golf/i.test(t)
-  ) {
+  if (isVehicleQuery(text) || VEHICLE_GENERIC_PATTERN.test(t)) {
     return "vehicles";
   }
   if (/suknel|batai|zara|rubas|drabuž|marškin|striuk|nike|dydis|būklė/i.test(t)) {
@@ -244,8 +247,10 @@ function mockAttributesForCategory(
 
 function extractTitle(text: string, category: ListingCategory): string {
   switch (category) {
-    case "vehicles":
-      return "Automobilis (atpažintas iš AI)";
+    case "vehicles": {
+      const make = detectVehicleMake(text);
+      return make ? `${make} automobilis` : "Automobilis (atpažintas iš AI)";
+    }
     case "clothing":
       return "Drabužis / Apranga";
     case "real_estate":

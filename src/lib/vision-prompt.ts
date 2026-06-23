@@ -1,4 +1,5 @@
 export const VISION_EXTRACTION_INSTRUCTIONS = `Atpažink tiksliai pagrindinį objektą nuotraukoje (telefonas, kompiuteris, planšetė, baldai, drabužis, avalynė, automobilis, auto dalis, nekilnojamas turtas ir kt.).
+Jei matomas visas automobilis (Citroën, Peugeot, BMW, VW, Toyota ir kt.) — category "vehicles", title su make+model, attributes: make, model, year, fuelType.
 Jei pateikta kelios nuotraukos — naudok visas kampų perspektyvas ir etiketes, kad tiksliau nustatytum prekę.
 Jei vartotojas papildomai nurodė tekstą (ko nematyti nuotraukose) — integruok jį į title, description ir attributes.
 category ir title privalo atitikti tai, ką realiai matai — neįvardink kito daikto (pvz. nekurk ratlankių jei matai telefoną).

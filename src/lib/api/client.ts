@@ -102,7 +102,8 @@ export async function apiFetchHealthDetails(): Promise<ApiResult<ApiHealthDetail
 export async function apiAiHealthCheck(): Promise<{
   ok: boolean;
   openai: boolean;
-  mode: "server" | "demo";
+  provider?: string | null;
+  mode: string;
 } | null> {
   return aiFetch("/api/ai/health");
 }

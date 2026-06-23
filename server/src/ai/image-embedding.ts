@@ -1,3 +1,4 @@
+import { visionDescribe } from "./llm-provider.js";
 import { cosineSimilarity } from "./vector-math.js";
 import { embedSearchText } from "./listing-embedding.js";
 import {
@@ -14,37 +15,8 @@ Output dense English keywords only (no full sentences), max 80 words.`;
 async function visualFingerprintFromImage(
   imageUrl: string
 ): Promise<string | null> {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key || !imageUrl.trim()) return null;
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.1,
-      messages: [
-        {
-          role: "user",
-          content: [
-            { type: "text", text: VISUAL_FINGERPRINT_PROMPT },
-            { type: "image_url", image_url: { url: imageUrl, detail: "low" } },
-          ],
-        },
-      ],
-    }),
-  });
-
-  if (!res.ok) return null;
-
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const text = data.choices?.[0]?.message?.content?.trim();
-  return text || null;
+  if (!imageUrl.trim()) return null;
+  return visionDescribe(VISUAL_FINGERPRINT_PROMPT, imageUrl);
 }
 
 export async function refreshListingImageEmbedding(

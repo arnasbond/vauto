@@ -2,6 +2,7 @@ import { apiAnalyzeVoice } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { hasOpenAiKey } from "@/lib/openai-settings";
 import { analyzeVoiceIntentOpenAI } from "@/lib/openai";
+import { isVehicleQuery } from "@/lib/vehicle-keywords";
 
 export interface VoiceIntentTurn {
   role: "user" | "assistant";
@@ -41,8 +42,8 @@ function mockAnalyzeVoiceIntent(
   const lower = merged.toLowerCase();
 
   const isPhone = /telefon|iphone|samsung|xiaomi|huawei|mobilus/i.test(lower);
-  const isCar = /bmw|audi|vw|volkswagen|mercedes|toyota|auto|mašin/i.test(lower);
-  const hasModel = /\b(13|14|15|520|320|a4|a6|golf|corolla)\b/i.test(lower);
+  const isCar = isVehicleQuery(lower);
+  const hasModel = /\b(c[1-5]|xsara|berlingo|308|208|golf|passat|corolla|520|320|a4|a6|c3|c4|c5)\b/i.test(lower);
   const hasYear = /\b(19|20)\d{2}\b/.test(lower);
   const rounds = history.filter((h) => h.role === "assistant").length;
 

@@ -19,6 +19,8 @@ jobs:
           RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
             echo "RENDER_API_KEY not set"
@@ -32,8 +34,8 @@ jobs:
           for i in $(seq 1 30); do
             BODY=$(curl -sf "$URL" || true)
             echo "$BODY"
-            if echo "$BODY" | grep -q '"stripe"'; then
-              echo "API healthy with features"
+            if echo "$BODY" | grep -q '"openai":true'; then
+              echo "API healthy with AI"
               exit 0
             fi
             if echo "$BODY" | grep -q '"db":"connected"'; then

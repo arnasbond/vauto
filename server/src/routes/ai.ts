@@ -1,13 +1,22 @@
 import { Router } from "express";
+import {
+  chatJson,
+  hasAiKey,
+  resolveAiProvider,
+  visionExtractJson,
+} from "../ai/llm-provider.js";
 
 export const aiRouter = Router();
 
+const AI_UNAVAILABLE = { error: "AI API key not set (OPENAI_API_KEY or GEMINI_API_KEY)" };
+
 aiRouter.get("/health", (_req, res) => {
-  const hasKey = Boolean(process.env.OPENAI_API_KEY?.trim());
+  const provider = resolveAiProvider();
   res.json({
     ok: true,
-    openai: hasKey,
-    mode: hasKey ? "server" : "demo",
+    openai: provider !== null,
+    provider,
+    mode: provider ?? "demo",
   });
 });
 
@@ -45,37 +54,12 @@ function toListing(raw: Record<string, unknown>, userCity: string, contact: stri
   };
 }
 
-async function chatJson(
-  key: string,
-  messages: object[],
-  model = "gpt-4o-mini"
-): Promise<Record<string, unknown>> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model,
-      response_format: { type: "json_object" },
-      messages,
-      temperature: 0.2,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty OpenAI response");
-  return JSON.parse(content);
-}
+const VEHICLE_VISION_RULES = `Jei nuotraukoje matomas visas automobilis (Citroën, Peugeot, BMW, VW ir kt.) — category "vehicles", title su make+model, attributes: make, model, year (jei matoma), fuelType, mileage (jei matoma), bodyType.
+Jei auto dalis (ratlankis, padanga) — category "vehicles" su partType, size, condition, quantity.
+Jei mobilus telefonas — category "electronics", ne vehicles.`;
 
 aiRouter.post("/extract-image", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { imageDataUrl, imageDataUrls, extraContext, userCity, contact } = req.body as {
     imageDataUrl?: string;
@@ -106,21 +90,10 @@ aiRouter.post("/extract-image", async (req, res) => {
     : "";
 
   try {
-    const raw = await chatJson(key, [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai (telefonas → electronics, ne vehicles). Jei auto dalis — category vehicles su partType, size, condition, quantity. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
-          },
-          ...images.map((url) => ({
-            type: "image_url",
-            image_url: { url, detail: "high" },
-          })),
-        ],
-      },
-    ]);
+    const raw = await visionExtractJson(
+      `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. ${VEHICLE_VISION_RULES} Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+      images
+    );
     res.json(toListing(raw, city, phone));
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -151,8 +124,7 @@ const REFERENCE_FALLBACK: Record<string, string[]> = {
 };
 
 aiRouter.post("/analyze-voice", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { transcript, mode, history, userCity } = req.body as {
     transcript: string;
@@ -174,7 +146,7 @@ aiRouter.post("/analyze-voice", async (req, res) => {
       : "Vartotojas ieško prekės ar paslaugos.";
 
   try {
-    const raw = await chatJson(key, [
+    const raw = await chatJson([
       {
         role: "system",
         content: `Esi Vauto balso asistentas Lietuvoje. ${modeHint} Jei trūksta kritinės info — užduok VIENĮ klausimą lietuviškai. imageSearchQuery angliškai.`,
@@ -250,8 +222,7 @@ aiRouter.post("/reference-images", async (req, res) => {
 });
 
 aiRouter.post("/extract-combined", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { imageDataUrl, imageDataUrls, text, extraContext, userCity, contact } =
     req.body as {
@@ -285,21 +256,10 @@ aiRouter.post("/extract-combined", async (req, res) => {
       : "";
 
   try {
-    const raw = await chatJson(key, [
-      {
-        role: "user",
-        content: [
-          {
-            type: "text",
-            text: `Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo balso/teksto aprašymo vienu kartu. Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai. Atpažink tiksliai pagrindinį objektą.${imageCountNote} Vartotojo aprašymas: "${transcript}" JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
-          },
-          ...images.map((url) => ({
-            type: "image_url",
-            image_url: { url, detail: "high" },
-          })),
-        ],
-      },
-    ]);
+    const raw = await visionExtractJson(
+      `Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo balso/teksto aprašymo vienu kartu. ${VEHICLE_VISION_RULES} Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai.${imageCountNote} Vartotojo aprašymas: "${transcript}" JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
+      images
+    );
     res.json(toListing(raw, city, phone));
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -307,8 +267,12 @@ aiRouter.post("/extract-combined", async (req, res) => {
 });
 
 aiRouter.post("/transcribe-audio", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  if (!openaiKey) {
+    return res.status(503).json({
+      error: "Whisper requires OPENAI_API_KEY — use browser speech or add OpenAI key",
+    });
+  }
 
   const { audioBase64, mimeType = "audio/webm" } = req.body as {
     audioBase64?: string;
@@ -328,7 +292,7 @@ aiRouter.post("/transcribe-audio", async (req, res) => {
 
     const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
       method: "POST",
-      headers: { Authorization: `Bearer ${key}` },
+      headers: { Authorization: `Bearer ${openaiKey}` },
       body: form,
     });
 
@@ -345,8 +309,7 @@ aiRouter.post("/transcribe-audio", async (req, res) => {
 });
 
 aiRouter.post("/extract-text", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { text, userCity, contact } = req.body as {
     text: string;
@@ -357,7 +320,7 @@ aiRouter.post("/extract-text", async (req, res) => {
   const phone = contact || "+370 612 34567";
 
   try {
-    const raw = await chatJson(key, [
+    const raw = await chatJson([
       {
         role: "system",
         content:
@@ -375,8 +338,7 @@ aiRouter.post("/extract-text", async (req, res) => {
 });
 
 aiRouter.post("/image-search", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { imageDataUrl, limit = 40 } = req.body as {
     imageDataUrl?: string;
@@ -397,8 +359,7 @@ aiRouter.post("/image-search", async (req, res) => {
 });
 
 aiRouter.post("/semantic-search", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { profile, limit = 40 } = req.body as {
     profile?: {
@@ -434,8 +395,7 @@ aiRouter.post("/semantic-search", async (req, res) => {
 });
 
 aiRouter.post("/visual-rank", async (req, res) => {
-  const key = process.env.OPENAI_API_KEY;
-  if (!key) return res.status(503).json({ error: "OPENAI_API_KEY not set" });
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
   const { profile, candidates } = req.body as {
     profile?: {
@@ -477,7 +437,7 @@ Kandidatai:
 ${listText}`;
 
   try {
-    const raw = await chatJson(key, [
+    const raw = await chatJson([
       {
         role: "system",
         content:

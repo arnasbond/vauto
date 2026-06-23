@@ -2,6 +2,12 @@ import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { isListingActive } from "@/lib/listing-expiry";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 import {
+  extractPlateFromQuery,
+  extractVinFromQuery,
+  isVehicleQuery,
+  VEHICLE_BRAND_PATTERN,
+} from "@/lib/vehicle-keywords";
+import {
   computeVisualRelevance,
   type VisualSearchProfile,
 } from "@/lib/visual-search";
@@ -38,11 +44,32 @@ export function computeSemanticRelevance(
   const matches = tokens.filter((t) => haystack.includes(t)).length;
   let score = matches / tokens.length;
 
+  const plate = extractPlateFromQuery(query);
+  const vin = extractVinFromQuery(query);
+  const attrs = listing.attributes ?? {};
+  const listingPlate = String(attrs.plateNumber ?? attrs.plate ?? "").toUpperCase();
+  const listingVin = String(attrs.vin ?? "").toUpperCase();
+
+  if (plate && listingPlate.replace(/\s+/g, "") === plate.replace(/\s+/g, "")) {
+    score = 1;
+  }
+  if (vin && listingVin === vin) {
+    score = 1;
+  }
+  if (vin && listingVin.includes(vin)) {
+    score = Math.max(score, 0.95);
+  }
+
   if (/telefon|phone|mobil/i.test(query) && listing.category === "electronics")
     score = Math.min(1, score + 0.3);
   if (/žol|pjov|sod/i.test(query) && listing.category === "services")
     score = Math.min(1, score + 0.4);
-  if (/auto|mašin|golf|opel/i.test(query) && listing.category === "vehicles")
+  if (
+    (isVehicleQuery(query) || VEHICLE_BRAND_PATTERN.test(query)) &&
+    listing.category === "vehicles"
+  )
+    score = Math.min(1, score + 0.35);
+  if (/auto|mašin|golf|opel|citroen|peugeot|bmw|audi|vw/i.test(query) && listing.category === "vehicles")
     score = Math.min(1, score + 0.35);
   if (/ratlank|padang|r16|r17|felg|disk/i.test(query) && listing.category === "vehicles")
     score = Math.min(1, score + 0.45);

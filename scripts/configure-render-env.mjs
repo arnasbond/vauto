@@ -130,7 +130,12 @@ async function main() {
   await setEnvVar("PUBLIC_API_URL", "https://vauto-api.onrender.com");
   await setEnvVar("APP_ORIGIN", "https://vauto-chi.vercel.app");
 
-  for (const key of ["STRIPE_SECRET_KEY", "STRIPE_WEBHOOK_SECRET"]) {
+  for (const key of [
+    "STRIPE_SECRET_KEY",
+    "STRIPE_WEBHOOK_SECRET",
+    "OPENAI_API_KEY",
+    "GEMINI_API_KEY",
+  ]) {
     const val = process.env[key]?.trim();
     if (val) await setEnvVar(key, val);
   }

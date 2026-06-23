@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { hasAiKey } from "../ai/llm-provider.js";
 import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
@@ -112,7 +113,7 @@ apiRouter.get("/health", async (_req, res) => {
     ),
     fcm: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
     jwt: Boolean(process.env.JWT_SECRET),
-    openai: Boolean(process.env.OPENAI_API_KEY?.trim()),
+    openai: hasAiKey(),
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
