@@ -25,7 +25,7 @@ export const ADAPTIVE_CATEGORIES: Record<
         options: ["Benzinas", "Dyzelinas", "Elektra", "Hibridas", "LPG"],
         gridSpan: 1,
       },
-      { key: "taExpiry", label: "TA galioja iki", placeholder: "2027-03", critical: true, gridSpan: 1 },
+      { key: "taExpiry", label: "TA galioja iki", placeholder: "2027-03", critical: false, gridSpan: 1 },
       { key: "bodyType", label: "Kėbulas", placeholder: "Hečbekas", critical: false, gridSpan: 1 },
       { key: "plateNumber", label: "Valst. numeris", placeholder: "KAA 123", critical: false, gridSpan: 1 },
       { key: "defects", label: "Defektai", placeholder: "Nėra / smulkūs įbrėžimai", gridSpan: 2 },

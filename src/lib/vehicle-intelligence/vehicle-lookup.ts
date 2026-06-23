@@ -35,21 +35,48 @@ const DEMO_VEHICLE: VehicleLookupResult = {
   registrationCountry: "LT",
 };
 
-export function lookupVehicleDemo(identifier?: string): VehicleLookupResult {
+const CITROEN_DS5_DEMO: VehicleLookupResult = {
+  source: "vin-decoder-demo",
+  confidence: 0.91,
+  make: "Citroën",
+  model: "DS5",
+  year: "2013",
+  fuelType: "Dyzelinas",
+  engine: "1.6 e-HDi 85 kW",
+  bodyType: "Hečbekas",
+  mileage: undefined,
+  taExpiry: "2027-06",
+  taValid: true,
+  registrationCountry: "LT",
+};
+
+export function lookupVehicleDemo(
+  identifier?: string,
+  hint?: { make?: string; model?: string }
+): VehicleLookupResult {
   const normalized = identifier?.trim().toUpperCase() ?? "";
+  const makeHint = hint?.make?.toLowerCase() ?? "";
+  const modelHint = hint?.model?.toLowerCase() ?? "";
+
+  const citroenDs5 =
+    makeHint.includes("citro") && modelHint.includes("ds5");
+
   if (isValidVin(normalized)) {
+    const base = citroenDs5 ? CITROEN_DS5_DEMO : DEMO_VEHICLE;
     return {
-      ...DEMO_VEHICLE,
+      ...base,
       source: "vin-decoder-demo",
       vin: normalizeVin(normalized),
     };
   }
   if (/^[A-Z]{3}\s?\d{3}$/.test(normalized)) {
+    const base = citroenDs5 ? CITROEN_DS5_DEMO : DEMO_VEHICLE;
     return {
-      ...DEMO_VEHICLE,
+      ...base,
       plateNumber: normalized.replace(/\s?(\d{3})$/, " $1"),
     };
   }
+  if (citroenDs5) return CITROEN_DS5_DEMO;
   return DEMO_VEHICLE;
 }
 

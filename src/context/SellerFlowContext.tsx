@@ -40,6 +40,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { detectVehicleMake } from "@/lib/vehicle-keywords";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -223,6 +224,28 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         let next = extracted;
         if (!next.location && locationHint) {
           next = { ...next, location: locationHint };
+        }
+
+        const title = next.title ?? "";
+        const detectedMake = detectVehicleMake(title);
+        const looksLikeVehicle =
+          next.category === "vehicles" ||
+          Boolean(detectedMake) ||
+          Boolean(next.attributes?.make) ||
+          /\b(vin|automobili|mašin|kebulo|varikli)\b/i.test(title);
+
+        if (looksLikeVehicle) {
+          const attrs = { ...(next.attributes ?? {}) };
+          if (!attrs.make && detectedMake) attrs.make = detectedMake;
+          const yearMatch = title.match(/\b(19|20)\d{2}\b/);
+          if (!attrs.year && yearMatch) attrs.year = yearMatch[0];
+          const modelMatch = title.match(
+            /\b(C[1-5]|DS[3-7]|Golf|Passat|A[346]|320|520|Corolla|Focus)\b/i
+          );
+          if (!attrs.model && modelMatch) attrs.model = modelMatch[0];
+          if (!attrs.defects) attrs.defects = "Be defektų";
+          if (!attrs.steering) attrs.steering = "Kairėje";
+          next = { ...next, category: "vehicles", attributes: attrs };
         }
 
         const geo = geocodeLocation(next.location);

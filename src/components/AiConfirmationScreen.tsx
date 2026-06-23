@@ -4,6 +4,8 @@ import { useEffect } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { AdaptiveConfirmation } from "@/components/adaptive-confirmation/AdaptiveConfirmation";
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
+import { VehicleListingWizard } from "@/components/vehicle/VehicleListingWizard";
+import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 
 /**
  * AI patvirtinimo ekranas — naudoja `sellerStep` + `aiDraft` iš VautoContext
@@ -39,6 +41,25 @@ export function AiConfirmationScreen() {
       attributes: { ...aiDraft.attributes, [key]: value },
     });
   };
+
+  const isVehicle = listingToAdaptiveKey(aiDraft.category) === "vehicles";
+
+  if (isVehicle) {
+    return (
+      <VehicleListingWizard
+        draft={aiDraft}
+        previewImage={sellerPreviewImage}
+        videoUrl={sellerVideoUrl}
+        manualFallback={aiManualFallback}
+        onUpdate={updateAiDraft}
+        onAttributeChange={handleAttributeChange}
+        onMediaChange={updateSellerMedia}
+        requestMediaConsent={requestMediaConsent}
+        onCancel={cancelSellerFlow}
+        onPublish={publishListing}
+      />
+    );
+  }
 
   return (
     <AdaptiveConfirmation
