@@ -601,7 +601,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           const fromApi = listingsRes.data.map(withDefaultExpiry);
           setListings(
             normalizeListings(
-              mergeApiWithDemoCatalog(fromApi, INITIAL_LISTINGS)
+              mergeApiWithDemoCatalog(fromApi, INITIAL_LISTINGS, {
+                apiActive: true,
+              })
             )
           );
         } else errors.push(listingsRes.error);

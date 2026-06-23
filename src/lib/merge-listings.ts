@@ -1,18 +1,20 @@
 import type { Listing } from "@/lib/types";
 
-/** When live API has enough listings, skip demo noise in search results. */
-const DEMO_MERGE_THRESHOLD = 10;
+function sortByNewest(items: Listing[]): Listing[] {
+  return [...items].sort(
+    (a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+  );
+}
 
 /** API wins on ID conflict; demo catalog fills gaps when API seed is incomplete. */
 export function mergeApiWithDemoCatalog(
   fromApi: Listing[],
-  demos: Listing[]
+  demos: Listing[],
+  options?: { apiActive?: boolean }
 ): Listing[] {
-  if (fromApi.length >= DEMO_MERGE_THRESHOLD) {
-    return [...fromApi].sort(
-      (a, b) =>
-        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-    );
+  if (options?.apiActive && fromApi.length > 0) {
+    return sortByNewest(fromApi);
   }
   const byId = new Map(demos.map((d) => [d.id, d]));
   const seenSlugs = new Set(
@@ -33,8 +35,5 @@ export function mergeApiWithDemoCatalog(
     if (item.slug) seenSlugs.add(item.slug);
   }
 
-  return Array.from(byId.values()).sort(
-    (a, b) =>
-      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
-  );
+  return sortByNewest(Array.from(byId.values()));
 }
