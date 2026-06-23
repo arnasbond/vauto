@@ -207,3 +207,19 @@ export function applyAnalysisToReport(
     updatedAt: new Date().toISOString(),
   };
 }
+
+const AUTO_REPLY_CATEGORIES = new Set([
+  "general_feedback",
+  "technical_issue",
+  "account_billing",
+]);
+
+const AUTO_REPLY_MIN_CONFIDENCE = 0.82;
+
+export function shouldAutoReply(analysis: ReportAiAnalysis): boolean {
+  return (
+    analysis.aiPowered &&
+    analysis.confidence >= AUTO_REPLY_MIN_CONFIDENCE &&
+    AUTO_REPLY_CATEGORIES.has(analysis.category)
+  );
+}

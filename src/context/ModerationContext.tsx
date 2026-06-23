@@ -13,6 +13,7 @@ import {
 } from "react";
 import { DEMO_REPORTS } from "@/data/mockReports";
 import { useAuth } from "@/context/AuthContext";
+import { ADMIN_EMAIL } from "@/lib/reports";
 import {
   appendAdminReply,
   appendUserReply,
@@ -141,7 +142,10 @@ export function ModerationProvider({
   const [hydrated, setHydrated] = useState(false);
   const [reportStreamConnected, setReportStreamConnected] = useState(false);
   const apiActive = isDataApiEnabled();
-  const canUseAdminApi = apiActive && user.role === "admin";
+  const isAdminUser =
+    user.role === "admin" ||
+    user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const canUseAdminApi = apiActive && isAdminUser;
   const canUseReporterApi = apiActive && !!user.id && !canUseAdminApi;
   const depsRef = useRef(deps);
   depsRef.current = deps;

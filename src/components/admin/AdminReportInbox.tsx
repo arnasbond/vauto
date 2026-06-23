@@ -281,6 +281,11 @@ export function AdminReportInbox() {
               </div>
               <p className="text-xs leading-relaxed text-slate-400">{ai.summary}</p>
               <p className="mt-2 text-[11px] text-slate-500">{ai.urgencyNote}</p>
+              {(selected.messages ?? []).some((m) => m.role === "ai" && m.auto) && (
+                <p className="mt-2 text-[10px] text-emerald-400">
+                  Automatinis AI atsakymas jau išsiųstas vartotojui.
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => {

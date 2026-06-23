@@ -38,7 +38,7 @@ import {
 } from "../push/report-notify.js";
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
-import { requireAdmin, requireAuth } from "../middleware/auth.js";
+import { requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -254,7 +254,7 @@ apiRouter.patch("/reports/:id", requireAuth, async (req: AuthedRequest, res) => 
     const existing = await getReportById(req.params.id);
     if (!existing) return res.status(404).json({ error: "Not found" });
 
-    const admin = isAdmin(req);
+    const admin = await userIsAdmin(req);
     const isOwner = existing.reporterId === req.authUserId;
     if (!admin && !isOwner) {
       res.status(403).json({ error: "Forbidden" });

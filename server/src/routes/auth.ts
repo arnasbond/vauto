@@ -30,6 +30,18 @@ function providerName(provider: string): string {
   return "Mobilus vartotojas";
 }
 
+function resolveAdminEmail(): string {
+  return (process.env.ADMIN_EMAIL ?? "admin@vauto.com").toLowerCase();
+}
+
+function resolveRole(
+  metaRole: string,
+  email?: string | null
+): string {
+  if (email?.toLowerCase() === resolveAdminEmail()) return "admin";
+  return metaRole;
+}
+
 async function buildSession(
   userId: string,
   profile: Partial<ApiUser> & { id: string },
@@ -47,22 +59,24 @@ async function buildSession(
   }
 ) {
   const existing = await getUser(userId);
+  const email = profile.email ?? existing?.email;
+  const role = resolveRole(meta.role, email);
   const user: ApiUser = {
     id: userId,
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
     phone: profile.phone ?? existing?.phone ?? "+370",
     city: profile.city ?? existing?.city ?? "Vilnius",
     avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
-    email: profile.email ?? existing?.email,
+    email,
     warned: existing?.warned ?? false,
-    role: meta.role,
+    role,
     businessType: meta.businessType ?? existing?.businessType,
     authProvider: meta.provider,
     companyName: meta.companyName ?? existing?.companyName,
     companyCode: meta.companyCode ?? existing?.companyCode,
     vatCode: meta.vatCode ?? existing?.vatCode,
-    billingPlan: existing?.billingPlan ?? (meta.role === "pro" ? "starter" : "free"),
-    billingModel: existing?.billingModel ?? (meta.role === "pro" ? "ppc" : undefined),
+    billingPlan: existing?.billingPlan ?? (role === "pro" ? "starter" : "free"),
+    billingModel: existing?.billingModel ?? (role === "pro" ? "ppc" : undefined),
     serviceBaseCity: meta.serviceBaseCity ?? existing?.serviceBaseCity,
     serviceRadiusKm: meta.serviceRadiusKm ?? existing?.serviceRadiusKm,
     serviceNationwide: meta.serviceNationwide ?? existing?.serviceNationwide,
@@ -71,19 +85,19 @@ async function buildSession(
     soldCount: existing?.soldCount ?? 0,
     walletBalance:
       existing?.walletBalance ??
-      (meta.role === "pro" ? 25 : meta.role === "admin" ? 0 : 0),
+      (role === "pro" ? 25 : role === "admin" ? 0 : 0),
   };
   await upsertUser(user);
   const token = signAccessToken({
     sub: userId,
-    role: meta.role,
+    role,
     provider: meta.provider,
   });
   return {
     token,
     expiresAt: new Date(Date.now() + getTokenTtlMs()).toISOString(),
     user,
-    role: meta.role,
+    role,
     provider: meta.provider,
   };
 }

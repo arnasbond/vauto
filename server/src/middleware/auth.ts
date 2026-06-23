@@ -1,10 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../auth/tokens.js";
+import { getUser } from "../repository.js";
 
 export interface AuthedRequest extends Request {
   authUserId?: string;
   authRole?: string;
   authSource?: "bearer" | "legacy-header";
+}
+
+function adminEmail(): string {
+  return (process.env.ADMIN_EMAIL ?? "admin@vauto.com").toLowerCase();
 }
 
 function allowLegacyUserHeader(): boolean {
@@ -49,17 +54,27 @@ export function requireAuth(
   });
 }
 
+export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
+  if (req.authRole === "admin") return true;
+  if (!req.authUserId) return false;
+  const user = await getUser(req.authUserId);
+  return user?.email?.toLowerCase() === adminEmail();
+}
+
 export function requireAdmin(
   req: AuthedRequest,
   res: Response,
   next: NextFunction
 ): void {
   requireAuth(req, res, () => {
-    if (req.authRole !== "admin") {
+    void (async () => {
+      if (await userIsAdmin(req)) {
+        req.authRole = "admin";
+        next();
+        return;
+      }
       res.status(403).json({ error: "Admin access required" });
-      return;
-    }
-    next();
+    })();
   });
 }
 
