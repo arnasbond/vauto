@@ -46,7 +46,7 @@ app.listen(port, async () => {
     const { backfillImageEmbeddings } = await import(
       "./ai/image-embedding.js"
     );
-    void backfillImageEmbeddings(25).then((n) => {
+    void backfillImageEmbeddings(50).then((n) => {
       if (n > 0) console.log(`Image embedding backfill: ${n} listings`);
     });
     const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");

@@ -48,3 +48,12 @@ jobs:
         run: |
           COUNT=$(curl -sf "https://vauto-api.onrender.com/api/listings" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))")
           echo "Listings on API: $COUNT"
+
+      - name: Bootstrap catalog and embeddings
+        run: |
+          URL="https://vauto-api.onrender.com/api/bootstrap"
+          RESP=$(curl -s -w "\n%{http_code}" -X POST "$URL" || true)
+          CODE=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "Bootstrap HTTP $CODE: $BODY"
+          curl -sf "https://vauto-api.onrender.com/api/health" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>{const h=JSON.parse(d);console.log('Features:',JSON.stringify(h.features));console.log('Embeddings:',JSON.stringify(h.embeddings))})"

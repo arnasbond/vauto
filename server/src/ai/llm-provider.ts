@@ -18,6 +18,29 @@ function parseDataUrl(url: string): { mime: string; data: string } | null {
   return { mime: m[1], data: m[2] };
 }
 
+async function imageUrlToInlinePart(
+  url: string
+): Promise<{ inline_data: { mime_type: string; data: string } } | null> {
+  const parsed = parseDataUrl(url);
+  if (parsed) {
+    return {
+      inline_data: { mime_type: parsed.mime, data: parsed.data },
+    };
+  }
+  if (!/^https?:\/\//i.test(url)) return null;
+  try {
+    const res = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+    if (!res.ok) return null;
+    const mime = res.headers.get("content-type")?.split(";")[0] || "image/jpeg";
+    const buf = Buffer.from(await res.arrayBuffer());
+    return {
+      inline_data: { mime_type: mime, data: buf.toString("base64") },
+    };
+  } catch {
+    return null;
+  }
+}
+
 async function openaiChatJson(
   messages: object[],
   model = "gpt-4o-mini"
@@ -52,12 +75,8 @@ async function geminiChatJson(
   const key = process.env.GEMINI_API_KEY!.trim();
   const parts: object[] = [{ text: prompt }];
   for (const url of imageDataUrls) {
-    const parsed = parseDataUrl(url);
-    if (parsed) {
-      parts.push({
-        inline_data: { mime_type: parsed.mime, data: parsed.data },
-      });
-    }
+    const inline = await imageUrlToInlinePart(url);
+    if (inline) parts.push(inline);
   }
 
   const res = await fetch(
@@ -138,12 +157,8 @@ async function geminiGeneratePlainText(
   const key = process.env.GEMINI_API_KEY!.trim();
   const parts: object[] = [{ text: prompt }];
   for (const url of imageDataUrls) {
-    const parsed = parseDataUrl(url);
-    if (parsed) {
-      parts.push({
-        inline_data: { mime_type: parsed.mime, data: parsed.data },
-      });
-    }
+    const inline = await imageUrlToInlinePart(url);
+    if (inline) parts.push(inline);
   }
 
   const res = await fetch(

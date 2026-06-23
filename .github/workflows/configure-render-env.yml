@@ -21,6 +21,8 @@ jobs:
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          REGITRA_PLATE_API_USERNAME: ${{ secrets.REGITRA_PLATE_API_USERNAME }}
+          REGITRA_PLATE_API_PASSWORD: ${{ secrets.REGITRA_PLATE_API_PASSWORD }}
         run: |
           if [ -z "$RENDER_API_KEY" ]; then
             echo "RENDER_API_KEY not set"

@@ -82,6 +82,9 @@ export interface ApiHealthDetails {
     reportEmail?: boolean;
     stripe?: boolean;
     stripeWebhook?: boolean;
+    regitraPlateApi?: boolean;
+    vehicleLookup?: boolean;
+    serviceLeads?: boolean;
   };
   embeddings?: {
     activeListings: number;

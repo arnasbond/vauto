@@ -1,6 +1,9 @@
 import { visionDescribe } from "./llm-provider.js";
 import { cosineSimilarity } from "./vector-math.js";
-import { embedSearchText } from "./listing-embedding.js";
+import {
+  buildListingSearchText,
+  embedSearchText,
+} from "./listing-embedding.js";
 import {
   getListingForEmbedding,
   listListingsMissingImageEmbeddings,
@@ -27,8 +30,10 @@ export async function refreshListingImageEmbedding(
     return;
   }
 
-  const fingerprint = await visualFingerprintFromImage(listing.image);
-  if (!fingerprint) return;
+  const fingerprint =
+    (await visualFingerprintFromImage(listing.image)) ||
+    buildListingSearchText(listing);
+  if (!fingerprint.trim()) return;
 
   const embedding = await embedSearchText(fingerprint);
   if (!embedding) return;

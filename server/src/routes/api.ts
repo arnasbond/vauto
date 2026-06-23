@@ -108,7 +108,17 @@ function routeActorId(req: AuthedRequest): string {
   return actorId(req);
 }
 
+async function serviceLeadsReady(): Promise<boolean> {
+  try {
+    await pool.query("SELECT 1 FROM service_leads LIMIT 1");
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 apiRouter.get("/health", async (_req, res) => {
+  const vehicle = vehicleLookupFeatures();
   const features = {
     sms: Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
@@ -125,8 +135,8 @@ apiRouter.get("/health", async (_req, res) => {
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
-    regitraPlateApi: vehicleLookupFeatures().regitraPlateApi,
-    vehicleLookup: true,
+    regitraPlateApi: vehicle.regitraPlateApi,
+    vehicleLookup: vehicle.nhtsaVin,
   };
 
   let embeddings: {
@@ -134,15 +144,17 @@ apiRouter.get("/health", async (_req, res) => {
     textIndexed: number;
     imageIndexed: number;
   } | undefined;
+  let serviceLeads = false;
 
   try {
     await pool.query("SELECT 1");
+    serviceLeads = await serviceLeadsReady();
     embeddings = await getEmbeddingIndexStats();
     res.json({
       ok: true,
       service: "vauto-api",
       db: "connected",
-      features,
+      features: { ...features, serviceLeads },
       embeddings,
     });
   } catch (e) {
@@ -170,8 +182,8 @@ apiRouter.post("/bootstrap", async (_req, res) => {
         "../ai/image-embedding.js"
       );
       backfill = {
-        text: await backfillListingEmbeddings(40),
-        image: await backfillImageEmbeddings(20),
+        text: await backfillListingEmbeddings(50),
+        image: await backfillImageEmbeddings(50),
       };
     }
     const embeddings = await getEmbeddingIndexStats();

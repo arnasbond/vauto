@@ -18,6 +18,9 @@ const FEATURE_LABELS: Record<string, string> = {
   reportEmail: "El. paštas admin",
   stripe: "Stripe mokėjimai",
   stripeWebhook: "Stripe webhook",
+  regitraPlateApi: "Regitra plate API",
+  vehicleLookup: "Transporto lookup",
+  serviceLeads: "Paslaugų lead'ai",
 };
 
 export function ConnectionStatusCard() {
