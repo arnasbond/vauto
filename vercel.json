@@ -21,6 +21,13 @@
       "destination": "/listing/index.html?slug=:slug"
     }
   ],
+  "redirects": [
+    {
+      "source": "/admin/ai",
+      "destination": "/admin/ai/",
+      "permanent": true
+    }
+  ],
   "headers": [
     {
       "source": "/profile/(.*)",

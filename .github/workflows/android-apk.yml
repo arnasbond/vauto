@@ -33,6 +33,9 @@ jobs:
         run: npm run build
 
       - name: Sync Capacitor Android
+        env:
+          CAPACITOR_USE_REMOTE: "1"
+          CAPACITOR_REMOTE_URL: https://vauto-chi.vercel.app
         run: npx cap sync android
 
       - name: Build debug APK
