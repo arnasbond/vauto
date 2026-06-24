@@ -12,7 +12,7 @@ npm install
 npm run dev
 ```
 
-Atidarykite http://localhost:3000. Duomenys saugomi naršyklės `localStorage`. AI veikia per Vercel serverį (jei `OPENAI_API_KEY` sukonfigūruotas).
+Atidarykite http://localhost:3000. Duomenys saugomi naršyklės `localStorage`. AI veikia per Vercel/Render serverį (jei `GEMINI_API_KEY` sukonfigūruotas).
 
 ## Pilnas stack (frontend + API + PostgreSQL)
 
@@ -49,10 +49,10 @@ Reikia: `ANDROID_HOME`, `JAVA_HOME`, Android SDK.
 
 | Kintamasis | Kur | Paskirtis |
 |------------|-----|-----------|
-| `OPENAI_API_KEY` | Vercel / server | Serverio AI (rekomenduojama produkcijai) |
+| `GEMINI_API_KEY` | Vercel / Render / server | Serverio AI (Gemini, rekomenduojama produkcijai) |
+| `AI_KEY` | Vercel / Render / server | Alternatyvus Gemini raktas |
 | `NEXT_PUBLIC_API_URL` | `.env.local` | Express backend URL |
 | `DATABASE_URL` | `server/.env` | PostgreSQL connection string |
-| `NEXT_PUBLIC_OPENAI_API_KEY` | `.env.local` | Tik lokaliai (nebūtina) |
 
 Žr. `.env.example`.
 
@@ -61,8 +61,8 @@ Reikia: `ANDROID_HOME`, `JAVA_HOME`, Android SDK.
 ### Vercel (frontend + AI proxy)
 
 - GitHub repo prijungtas prie Vercel
-- `OPENAI_API_KEY` → Vercel Environment Variables
-- AI endpointai: `/api/ai/health`, `/api/ai/extract-text`, `/api/ai/extract-image`
+- `GEMINI_API_KEY` → Vercel Environment Variables
+- AI endpointai: `/api/ai/health`, `/api/ai/extract-text`, `/api/ai/extract-image`, `/api/vauto-agent`
 
 ### Express API (Railway / Render / VPS)
 
@@ -71,20 +71,20 @@ cd server
 docker build -t vauto-api .
 docker run -p 4000:4000 \
   -e DATABASE_URL=postgresql://... \
-  -e OPENAI_API_KEY=sk-... \
+  -e GEMINI_API_KEY=your-gemini-key \
   vauto-api
 ```
 
 Arba `docker compose up -d` (db + api kartu).
 
-**Render (1-click):** prijunkite repo → New Blueprint → `render.yaml` → įveskite `OPENAI_API_KEY` → po deploy nustatykite Vercel `NEXT_PUBLIC_API_URL` į Render API URL.
+**Render (1-click):** prijunkite repo → New Blueprint → `render.yaml` → įveskite `GEMINI_API_KEY` → po deploy nustatykite Vercel `NEXT_PUBLIC_API_URL` į Render API URL.
 
 **Automatinis Render (API raktas):**
 
 ```bash
 # 1. Render Dashboard → Account Settings → API Keys
 gh secret set RENDER_API_KEY -R arnasbond/vauto
-gh secret set OPENAI_API_KEY -R arnasbond/vauto  # jei dar nėra
+gh secret set GEMINI_API_KEY -R arnasbond/vauto
 
 # 2. GitHub Actions → Provision Render API → Run workflow
 # arba lokaliai:
@@ -111,11 +111,10 @@ vauto/
 
 ## AI režimai
 
-1. **Serverio AI** — Vercel `OPENAI_API_KEY` (numatytasis produkcijoje)
-2. **Asmeninis raktas** — profilyje → AI nustatymai
-3. **Demo** — mock duomenys, jei AI nepasiekiamas
+1. **Serverio AI** — Vercel/Render `GEMINI_API_KEY` (numatytasis produkcijoje)
+2. **Demo** — mock duomenys, jei Gemini nepasiekiamas
 
-Patikrinti: Profilis → „Testuoti AI“.
+Patikrinti: Profilis → „Testuoti Gemini“.
 
 ## Admin ir moderacija
 

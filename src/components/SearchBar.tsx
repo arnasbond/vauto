@@ -207,8 +207,9 @@ export function SearchBar() {
         <Sparkles className="h-4 w-4 shrink-0" style={{ color: ui.accent }} aria-hidden />
         <input
           ref={inputRef}
-          type="text"
+          type="search"
           name="q"
+          role="searchbox"
           value={searchQuery}
           onChange={(e) => {
             setSearchVoiceMode(false);

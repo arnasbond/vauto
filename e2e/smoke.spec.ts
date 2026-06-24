@@ -56,7 +56,9 @@ test.describe("Vauto smoke", () => {
 
   test("home search accepts input", async ({ page }) => {
     await page.goto("/");
-    const search = page.getByRole("searchbox").or(page.getByPlaceholder(/ieškoti|paieška/i));
+    const search = page.locator('input[name="q"]').or(
+      page.getByPlaceholder(/Gemini|ieškoti|paieška/i)
+    );
     await search.first().fill("dviratis");
     await expect(search.first()).toHaveValue("dviratis");
   });
