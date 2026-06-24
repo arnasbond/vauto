@@ -48,6 +48,18 @@ async function vercel(path, opts = {}) {
 }
 
 async function upsertEnv(key, value, target) {
+  const list = await vercel(
+    `/v9/projects/${PROJECT_ID}/env?decrypt=false&target=${target}`
+  );
+  const row = (list?.envs || []).find((e) => e.key === key);
+  if (row?.id) {
+    await vercel(`/v9/projects/${PROJECT_ID}/env/${row.id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ value, type: "encrypted", target: [target] }),
+    });
+    console.log(`✓ Vercel ${target}: updated ${key}`);
+    return;
+  }
   await vercel(`/v10/projects/${PROJECT_ID}/env`, {
     method: "POST",
     body: JSON.stringify({
@@ -57,7 +69,7 @@ async function upsertEnv(key, value, target) {
       target: [target],
     }),
   });
-  console.log(`✓ Vercel ${target}: ${key}`);
+  console.log(`✓ Vercel ${target}: created ${key}`);
 }
 
 async function deleteEnv(key, target) {
