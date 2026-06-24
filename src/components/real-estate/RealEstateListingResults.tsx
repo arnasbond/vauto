@@ -6,7 +6,7 @@ import { Heart } from "lucide-react";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
-import { realEstateSummaryLabel } from "@/lib/real-estate-catalog";
+import { formatRealEstateArea, realEstateSummaryLabel } from "@/lib/real-estate-catalog";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
@@ -16,8 +16,9 @@ function RealEstateRow({ listing }: { listing: ScoredListing }) {
   const isSaved = savedIds.has(listing.id);
   const attrs = listing.attributes ?? {};
   const rooms = attrs.rooms ? `${attrs.rooms} kamb.` : null;
-  const area = attrs.area ? `${attrs.area} m²` : null;
-  const meta = [rooms, area, realEstateSummaryLabel(attrs)].filter(Boolean).join(" · ");
+  const area = attrs.area ? formatRealEstateArea(attrs.area) : null;
+  const summary = realEstateSummaryLabel(attrs);
+  const meta = [rooms, area, summary !== area ? summary : ""].filter(Boolean).join(" · ");
 
   return (
     <article

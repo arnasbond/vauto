@@ -154,13 +154,20 @@ export function streetsFor(settlement: string): string[] {
   return STREETS_BY_SETTLEMENT[settlement] ?? [];
 }
 
+export function formatRealEstateArea(value: string | string[] | undefined): string {
+  const s = String(Array.isArray(value) ? value[0] : value ?? "").trim();
+  if (!s) return "";
+  if (/\b(m²|m2|kv\.?\s*m|\ba\b|ha\b)/i.test(s)) return s;
+  return `${s} m²`;
+}
+
 export function realEstateSummaryLabel(attrs: Record<string, string | string[] | undefined>): string {
   const type = String(attrs.propertyType ?? "");
   const typeLabel = PROPERTY_TYPES.find((p) => p.id === type)?.label ?? "";
   const tx = String(attrs.transactionType ?? "");
   const settlement = String(attrs.settlement ?? attrs.municipality ?? "");
-  const area = String(attrs.area ?? "");
-  const parts = [typeLabel, tx, settlement, area ? `${area} m²` : ""].filter(Boolean);
+  const area = formatRealEstateArea(attrs.area);
+  const parts = [typeLabel, tx, settlement, area].filter(Boolean);
   return parts.join(" · ");
 }
 
