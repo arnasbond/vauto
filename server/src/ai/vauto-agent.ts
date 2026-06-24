@@ -10,6 +10,13 @@ import {
   resolveGeminiApiKey,
 } from "../load-env.js";
 import {
+  AGENT_MEMORY_SYSTEM_HINT,
+  buildAgentMemoryContextBlock,
+  type AgentMemoryPayload,
+  type AgentSearchFilters,
+} from "./agent-memory-context.js";
+import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
+import {
   AgentRouteError,
   fetchWithTimeout,
   isAbortError,
@@ -50,6 +57,13 @@ export interface VautoAgentRequest {
     searchResultCount?: number;
     lastSearchQuery?: string;
     currentView?: string;
+    defaultRegion?: string;
+    primaryVehicle?: {
+      make: string;
+      model: string;
+      year: number;
+    };
+    activeSearchFilters?: AgentSearchFilters | null;
   };
   /** Server-verified admin only — injected into Gemini systemInstruction */
   adminProjectContext?: string;
@@ -66,6 +80,8 @@ const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turga
 Tavo tikslas – vesti vartotoją pokalbiu per visą procesą lietuviškai, ne palikti sausų formų laukų.
 
 ${LT_LOCATION_AGENT_HINT}
+
+${AGENT_MEMORY_SYSTEM_HINT}
 
 PARDAVIMO VEDLYS:
 - Kai vartotojas įkelia nuotrauką ar tekstą — iškart sugeneruok profesionalų aprašymą, nustatyk tikslią kategoriją, pasiūlyk rinkos kainą (analyzeMarketPrice) ir iškviesk postNewListing.
@@ -205,11 +221,17 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   );
 
   const ctx: AgentToolContext = {
-    userCity: req.context.userCity?.trim() || "Lietuva",
+    userCity: resolveAgentDefaultCity(req.context.userCity),
     userRole: req.context.userRole ?? "buyer",
     contact: req.context.contact?.trim() || "+370 612 34567",
     listingsSnapshot: req.context.listings,
   };
+
+  const memoryBlock = buildAgentMemoryContextBlock({
+    defaultRegion: req.context.defaultRegion ?? ctx.userCity,
+    primaryVehicle: req.context.primaryVehicle,
+    activeSearchFilters: req.context.activeSearchFilters ?? null,
+  } satisfies AgentMemoryPayload);
 
   const contents: GeminiContent[] = req.messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
@@ -246,6 +268,13 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     contents.unshift({
       role: "user",
       parts: [{ text: `[Vedlio kontekstas: ${wizardBits.join("; ")}]` }],
+    });
+  }
+
+  if (memoryBlock) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: memoryBlock }],
     });
   }
 

@@ -9,6 +9,7 @@ import {
   resolveLtCityNominative,
 } from "./lithuanian-location-normalize.js";
 import { buildSellerContextualVoiceFollowUp } from "./seller-voice-prompt.js";
+import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -264,8 +265,11 @@ export async function executeAgentTool(
       const category = args.category ? String(args.category) : undefined;
       const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
       const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
-      const cityRaw = args.city ? String(args.city) : undefined;
-      const city = cityRaw ? normCity(resolveLtCityNominative(cityRaw)) : undefined;
+      const cityRaw = args.city ? String(args.city).trim() : "";
+      const cityNominative = cityRaw
+        ? resolveLtCityNominative(cityRaw)
+        : resolveAgentDefaultCity(ctx.userCity);
+      const city = normCity(cityNominative);
       const limit = Math.min(Number(args.limit) || 12, 24);
 
       let filtered = listings.filter((l) => l.price > 0);
@@ -276,13 +280,11 @@ export async function executeAgentTool(
       if (minPrice != null && !Number.isNaN(minPrice)) {
         filtered = filtered.filter((l) => l.price >= minPrice);
       }
-      if (city) {
-        filtered = filtered.filter(
-          (l) =>
-            normCity(l.location) === city ||
-            l.location.toLowerCase().includes(city)
-        );
-      }
+      filtered = filtered.filter(
+        (l) =>
+          normCity(l.location) === city ||
+          l.location.toLowerCase().includes(city)
+      );
       if (query) {
         const tokens = query
           .split(/[\s,.;:!?]+/)
@@ -297,6 +299,14 @@ export async function executeAgentTool(
 
       const results = filtered.slice(0, limit);
       const searchQuery = [query, category, city].filter(Boolean).join(" ").trim();
+
+      const searchFilters: AgentSearchFilters = {
+        query: query || undefined,
+        category,
+        city: cityNominative,
+        maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
+        minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
+      };
 
       return {
         result: {
@@ -313,6 +323,7 @@ export async function executeAgentTool(
                 type: "search",
                 searchQuery: searchQuery || results[0]!.title,
                 listingIds: results.map((r) => r.id),
+                filters: searchFilters,
               }
             : {
                 type: "empty_search",
@@ -325,8 +336,9 @@ export async function executeAgentTool(
       const title = String(args.title ?? "Skelbimas");
       const description = String(args.description ?? "");
       const price = Number(args.price) || 0;
-      const city = String(args.city ?? ctx.userCity);
-      const normalizedCity = resolveLtCityNominative(city);
+      const normalizedCity = resolveAgentDefaultCity(
+        args.city ? String(args.city) : ctx.userCity
+      );
       const category = String(args.category ?? "other");
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String)
@@ -619,11 +631,21 @@ export async function executeAgentTool(
   }
 }
 
+export interface AgentSearchFilters {
+  query?: string;
+  category?: string;
+  city?: string;
+  maxPrice?: number;
+  minPrice?: number;
+  refinements?: string[];
+}
+
 export type AgentSideEffect =
   | {
       type: "search";
       searchQuery: string;
       listingIds: string[];
+      filters?: AgentSearchFilters;
     }
   | {
       type: "listing_draft";

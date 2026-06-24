@@ -3,12 +3,17 @@ const {
   mergeVehicleToolArgs,
   enrichVehicleListingDraftFromArgs,
 } = require("./vehicle-attribute-extract");
+const { buildSellerContextualVoiceFollowUp } = require("./seller-voice-prompt");
 const {
   resolveLtCityNominative,
   normCityForFilter,
   LT_LOCATION_AGENT_HINT,
 } = require("./lithuanian-location-normalize");
-const { buildSellerContextualVoiceFollowUp } = require("./seller-voice-prompt");
+const {
+  AGENT_MEMORY_SYSTEM_HINT,
+  buildAgentMemoryContextBlock,
+} = require("./agent-memory-context");
+const { resolveAgentDefaultCity } = require("./zero-ui-defaults");
 
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
@@ -16,6 +21,7 @@ const BUDDY_REPEAT_PROMPT =
 const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
 Vesk vartotoją pokalbiu lietuviškai. Pardavimui — postNewListing + analyzeMarketPrice, klausk trūkstamų duomenų.
 ${LT_LOCATION_AGENT_HINT}
+${AGENT_MEMORY_SYSTEM_HINT}
 AUTOMOBILIAMS: iš balso/teksto VISADA ištrauk make, model, year (atskirais laukais arba attributes) ir perduok postNewListing su category=vehicles.
 Kai postNewListing grąžina voiceFollowUp — ištark VERBATIM kaip TTS atsakymą.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
@@ -200,19 +206,20 @@ function executeAgentTool(name, args, ctx) {
     const category = args.category ? String(args.category) : undefined;
     const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
     const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
-    const cityRaw = args.city ? String(args.city) : undefined;
-    const city = cityRaw ? normCity(resolveLtCityNominative(cityRaw)) : undefined;
+    const cityRaw = args.city ? String(args.city).trim() : "";
+    const cityNominative = cityRaw
+      ? resolveLtCityNominative(cityRaw)
+      : resolveAgentDefaultCity(ctx.userCity);
+    const city = normCity(cityNominative);
     const limit = Math.min(Number(args.limit) || 12, 24);
 
     let filtered = listings.filter((l) => l.price > 0);
     if (category) filtered = filtered.filter((l) => l.category === category);
     if (maxPrice != null && !Number.isNaN(maxPrice)) filtered = filtered.filter((l) => l.price <= maxPrice);
     if (minPrice != null && !Number.isNaN(minPrice)) filtered = filtered.filter((l) => l.price >= minPrice);
-    if (city) {
-      filtered = filtered.filter(
-        (l) => normCity(l.location) === city || l.location.toLowerCase().includes(city)
-      );
-    }
+    filtered = filtered.filter(
+      (l) => normCity(l.location) === city || l.location.toLowerCase().includes(city)
+    );
     if (query) {
       filtered = filtered.filter(
         (l) =>
@@ -221,7 +228,14 @@ function executeAgentTool(name, args, ctx) {
       );
     }
     const results = filtered.slice(0, limit);
-    const searchQuery = [query, category, city].filter(Boolean).join(" ").trim();
+    const searchQuery = [query, category, cityNominative].filter(Boolean).join(" ").trim();
+    const searchFilters = {
+      query: query || undefined,
+      category,
+      city: cityNominative,
+      maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
+      minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
+    };
     return {
       result: { count: results.length, listings: results },
       sideEffect:
@@ -230,6 +244,7 @@ function executeAgentTool(name, args, ctx) {
               type: "search",
               searchQuery: searchQuery || results[0].title,
               listingIds: results.map((r) => r.id),
+              filters: searchFilters,
             }
           : { type: "empty_search", searchQuery: searchQuery || query || "paieška" },
     };
@@ -239,7 +254,9 @@ function executeAgentTool(name, args, ctx) {
     const title = String(args.title ?? "Skelbimas");
     const description = String(args.description ?? "");
     const price = Number(args.price) || 0;
-    const normalizedCity = resolveLtCityNominative(String(args.city ?? ctx.userCity));
+    const normalizedCity = resolveAgentDefaultCity(
+      args.city ? String(args.city) : ctx.userCity
+    );
     const mergedAttrs = mergeVehicleToolArgs(args);
     const enriched = enrichVehicleListingDraftFromArgs(
       title,
@@ -481,11 +498,17 @@ async function runVautoAgentInner(req) {
   );
 
   const ctx = {
-    userCity: req.context?.userCity?.trim() || "Lietuva",
+    userCity: resolveAgentDefaultCity(req.context?.userCity),
     userRole: req.context?.userRole ?? "buyer",
     contact: req.context?.contact?.trim() || "+370 612 34567",
     listingsSnapshot: req.context?.listings ?? [],
   };
+
+  const memoryBlock = buildAgentMemoryContextBlock({
+    defaultRegion: req.context?.defaultRegion ?? ctx.userCity,
+    primaryVehicle: req.context?.primaryVehicle,
+    activeSearchFilters: req.context?.activeSearchFilters ?? null,
+  });
 
   const contents = (req.messages ?? []).map((m) => ({
     role: m.role === "user" ? "user" : "model",
@@ -522,6 +545,13 @@ async function runVautoAgentInner(req) {
     contents.unshift({
       role: "user",
       parts: [{ text: `[Vedlio kontekstas: ${wizardBits.join("; ")}]` }],
+    });
+  }
+
+  if (memoryBlock) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: memoryBlock }],
     });
   }
 

@@ -107,6 +107,7 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
+import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
 import { ZeroUiSellerBridge } from "@/components/zero-ui/ZeroUiSellerBridge";
@@ -518,10 +519,12 @@ function VautoFacade({
   return (
     <VautoContext.Provider value={value}>
       <AdminProjectContextProvider>
-        <VautoAgentProvider>
-          <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
-          {children}
-        </VautoAgentProvider>
+        <ZeroUiMemoryProvider>
+          <VautoAgentProvider>
+            <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
+            {children}
+          </VautoAgentProvider>
+        </ZeroUiMemoryProvider>
       </AdminProjectContextProvider>
       <SellerFlowOverlays />
       <ZeroUiSellerBridge />

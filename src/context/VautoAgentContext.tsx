@@ -27,7 +27,12 @@ import { registerWanted } from "@/lib/matching-service";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
+import { useZeroUiMemory } from "@/context/ZeroUiMemoryContext";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
+import {
+  filtersFromSearchAction,
+  selectAgentSessionMessages,
+} from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 
@@ -66,6 +71,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   } = useVauto();
   const { navigateTo } = useNavigation();
   const { currentView: zeroUiScreen, setScreen, goToMarketplace } = useZeroUiScreen();
+  const {
+    buildAgentContext,
+    noteUserMessage,
+    recordSearchFilters,
+  } = useZeroUiMemory();
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AgentChatMessage[]>([
@@ -97,6 +107,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         goToMarketplace("agent");
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
+        const nextFilters = filtersFromSearchAction(actions);
+        if (nextFilters) recordSearchFilters(nextFilters);
         showToast(`Radau ${actions.listingIds.length} skelbimų`, "success");
         window.setTimeout(() => {
           document
@@ -177,6 +189,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setSearchQuery,
       showToast,
       subscribeWishlist,
+      recordSearchFilters,
     ]
   );
 
@@ -194,13 +207,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
       const nextMessages = [...messages, userMsg];
       setMessages(nextMessages);
+      noteUserMessage(trimmed);
       setBusy(true);
+
+      const sessionMessages = selectAgentSessionMessages(nextMessages);
+      const memoryContext = buildAgentContext(user);
 
       try {
         const res = await apiVautoAgent({
-          messages: nextMessages.map((m) => ({ role: m.role, text: m.text })),
+          messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
           context: {
-            userCity: user.city || "Lietuva",
+            ...memoryContext,
             userRole: resolveAgentUserRole(user),
             contact: user.phone || "+370 612 34567",
             listings: compactListingsForAgent(listings),
@@ -270,6 +287,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       rankedListings,
       searchQuery,
       includeAdminContext,
+      buildAgentContext,
+      noteUserMessage,
       zeroUiScreen,
       open,
     ]

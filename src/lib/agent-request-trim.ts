@@ -1,7 +1,7 @@
 import type { VautoAgentContext } from "@/lib/vauto-agent-client";
 
 /** Keep agent POST bodies under platform limits (Vercel ~4.5MB, safe target much lower). */
-export const AGENT_MAX_MESSAGES = 32;
+export const AGENT_MAX_MESSAGES = 8;
 export const AGENT_MAX_MESSAGE_CHARS = 12_000;
 export const AGENT_MAX_LISTINGS = 48;
 export const AGENT_MAX_LISTING_DESC_CHARS = 160;

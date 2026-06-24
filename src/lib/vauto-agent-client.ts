@@ -7,8 +7,24 @@ export interface AgentChatMessage {
   toolCalls?: { name: string; result: unknown }[];
 }
 
+export interface AgentSearchFilters {
+  query?: string;
+  category?: string;
+  city?: string;
+  maxPrice?: number;
+  minPrice?: number;
+  refinements?: string[];
+}
+
 export interface VautoAgentContext {
   userCity?: string;
+  defaultRegion?: string;
+  primaryVehicle?: {
+    make: string;
+    model: string;
+    year: number;
+  };
+  activeSearchFilters?: AgentSearchFilters | null;
   userRole?: "buyer" | "seller" | "business" | "admin";
   contact?: string;
   listings?: AgentListingSnapshot[];
@@ -41,7 +57,12 @@ export interface AgentListingSnapshot {
 
 export type VautoAgentAction =
   | { type: "none" }
-  | { type: "search"; searchQuery: string; listingIds: string[] }
+  | {
+      type: "search";
+      searchQuery: string;
+      listingIds: string[];
+      filters?: AgentSearchFilters;
+    }
   | {
       type: "listing_draft";
       listingDraft: {

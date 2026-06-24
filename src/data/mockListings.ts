@@ -21,9 +21,14 @@ export const ANONYMOUS_USER: UserProfile = {
   avatar:
     "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop",
   phone: "",
-  city: "",
+  city: "Panevėžys",
   role: "private",
   walletBalance: 0,
+  primaryVehicle: {
+    make: "Volvo",
+    model: "V70",
+    year: 2006,
+  },
 };
 
 /** Mock listings aligned with design mockup */

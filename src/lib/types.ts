@@ -117,6 +117,12 @@ export interface UserProfile {
   serviceNationwide?: boolean;
   serviceSpecialties?: string[];
   averageResponseMinutes?: number;
+  /** Primary vehicle for parts/service voice context (Fleet memory). */
+  primaryVehicle?: {
+    make: string;
+    model: string;
+    year: number;
+  };
 }
 
 export interface SellerReview {
