@@ -2,6 +2,7 @@ import { apiAnalyzeVoice } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { hasOpenAiKey } from "@/lib/openai-settings";
 import { analyzeVoiceIntentOpenAI } from "@/lib/openai";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
 
 export interface VoiceIntentTurn {
@@ -111,10 +112,11 @@ export async function analyzeVoiceIntent(params: {
 }): Promise<VoiceIntentAnalysis> {
   const history = params.history ?? [];
   const city = params.userCity ?? "Lietuva";
+  const transcript = sanitizeSpeechTranscript(params.transcript);
 
   if (isAiProxyAvailable()) {
     const remote = await apiAnalyzeVoice({
-      transcript: params.transcript,
+      transcript,
       mode: params.mode,
       history,
       userCity: city,
@@ -125,7 +127,7 @@ export async function analyzeVoiceIntent(params: {
   if (hasOpenAiKey()) {
     try {
       return await analyzeVoiceIntentOpenAI({
-        transcript: params.transcript,
+        transcript,
         mode: params.mode,
         history,
         userCity: city,
@@ -136,5 +138,5 @@ export async function analyzeVoiceIntent(params: {
     }
   }
 
-  return mockAnalyzeVoiceIntent(params.transcript, params.mode, history);
+  return mockAnalyzeVoiceIntent(transcript, params.mode, history);
 }

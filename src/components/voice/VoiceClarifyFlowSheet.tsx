@@ -10,6 +10,7 @@ import {
   type VoiceIntentAnalysis,
   type VoiceIntentTurn,
 } from "@/lib/voice-intent";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import {
   isVoiceSearchSupported,
   startVoiceSearch,
@@ -160,8 +161,9 @@ export function VoiceClarifyFlowSheet({
 
     void session.promise
       .then((text) => {
-        if (text?.trim()) {
-          void processTranscript(text.trim());
+        const cleaned = text ? sanitizeSpeechTranscript(text.trim()) : null;
+        if (cleaned) {
+          void processTranscript(cleaned);
         } else if (step !== "confirm") {
           setError("Nepavyko atpažinti balso — bandykite dar kartą");
           setStep("listen");

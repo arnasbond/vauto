@@ -126,6 +126,13 @@ export function SearchBar() {
         userCity: user.city || "Lietuva",
         contact: user.phone || "+370 612 34567",
       });
+      if (extracted.confidence < 0.4) {
+        showToast(
+          "AI nepavyko tiksliai atpažinti nuotraukoje. Bandykite dar kartą arba įveskite paiešką ranka.",
+          "error"
+        );
+        return;
+      }
       const query = buildPhotoSearchQuery(extracted);
       setSearchInputMode("photo");
       setSearchVoiceMode(false);

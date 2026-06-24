@@ -5,12 +5,14 @@ import {
 } from "@/lib/ai-mocks";
 import { apiExtractCombined, apiExtractImage, apiExtractText } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
+import { compressForAiVision } from "@/lib/native-media";
 import { hasOpenAiKey } from "@/lib/openai-settings";
 import {
   extractFromImageOpenAI,
   extractFromTextOpenAI,
   extractFromVoiceOpenAI,
 } from "@/lib/openai";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import type { AiExtractedListing } from "@/lib/types";
 
 interface ExtractContext {
@@ -23,6 +25,11 @@ interface ExtractContext {
   contact?: string;
 }
 
+async function prepareImagesForAi(urls: string[]): Promise<string[]> {
+  if (!urls.length) return [];
+  return Promise.all(urls.map((url) => compressForAiVision(url)));
+}
+
 function resolveImages(ctx: ExtractContext): string[] {
   if (ctx.imageDataUrls?.length) return ctx.imageDataUrls;
   if (ctx.imageDataUrl) return [ctx.imageDataUrl];
@@ -30,7 +37,9 @@ function resolveImages(ctx: ExtractContext): string[] {
 }
 
 function mergeTranscript(ctx: ExtractContext): string | undefined {
-  const parts = [ctx.transcript, ctx.extraContext].map((s) => s?.trim()).filter(Boolean);
+  const parts = [ctx.transcript, ctx.extraContext]
+    .map((s) => (s ? sanitizeSpeechTranscript(s.trim()) : ""))
+    .filter(Boolean);
   return parts.length ? parts.join("\n\n") : undefined;
 }
 
@@ -39,7 +48,7 @@ export async function extractFromImage(
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Lietuva";
-  const images = resolveImages(ctx);
+  const images = await prepareImagesForAi(resolveImages(ctx));
   const primary = images[0];
 
   if (isAiProxyAvailable() && primary) {
@@ -74,8 +83,9 @@ export async function extractFromVoice(
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Lietuva";
-  const transcript =
-    ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Lietuvoje";
+  const transcript = sanitizeSpeechTranscript(
+    ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Lietuvoje"
+  );
 
   if (isAiProxyAvailable() && transcript.trim()) {
     const remote = await apiExtractText({ text: transcript, userCity: city, contact });
@@ -98,7 +108,7 @@ export async function extractFromText(
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Lietuva";
-  const text = ctx.transcript ?? "";
+  const text = sanitizeSpeechTranscript(ctx.transcript ?? "");
 
   if (isAiProxyAvailable() && text.trim()) {
     const remote = await apiExtractText({ text, userCity: city, contact });
@@ -121,7 +131,7 @@ export async function extractCombined(
 ): Promise<AiExtractedListing> {
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Lietuva";
-  const images = resolveImages(ctx);
+  const images = await prepareImagesForAi(resolveImages(ctx));
   const transcript = mergeTranscript(ctx);
   const merged: ExtractContext = { ...ctx, transcript, imageDataUrl: images[0] };
 

@@ -1,6 +1,9 @@
 import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 import type { ListingEditPatch } from "@/lib/listing-edit";
-import { AI_FETCH_TIMEOUT_MS } from "@/lib/ai-safeguards";
+import {
+  AI_FETCH_TIMEOUT_MS,
+  AI_VISION_FETCH_TIMEOUT_MS,
+} from "@/lib/ai-safeguards";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 import { getAuthHeaders } from "@/lib/auth/session";
 
@@ -40,15 +43,27 @@ async function dataFetch<T>(
   }
 }
 
-async function aiFetch<T>(
-  path: string,
-  opts?: RequestInit
-): Promise<T | null> {
-  const base = getAiBaseUrl();
-  if (!base) return null;
+function getAiBaseUrls(): string[] {
+  const urls: string[] = [];
+  const dataApi = getDataApiBaseUrl();
+  if (dataApi) urls.push(dataApi);
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin;
+    if (!urls.includes(origin)) urls.push(origin);
+  }
+  const legacy = getAiBaseUrl();
+  if (legacy && !urls.includes(legacy)) urls.push(legacy);
+  return urls;
+}
 
+async function aiFetchOnce<T>(
+  base: string,
+  path: string,
+  opts: RequestInit | undefined,
+  timeoutMs: number
+): Promise<T | null> {
   const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), AI_FETCH_TIMEOUT_MS);
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
     const res = await fetch(`${base}${path}`, {
@@ -66,6 +81,18 @@ async function aiFetch<T>(
   } finally {
     clearTimeout(timer);
   }
+}
+
+async function aiFetch<T>(
+  path: string,
+  opts?: RequestInit,
+  timeoutMs = AI_FETCH_TIMEOUT_MS
+): Promise<T | null> {
+  for (const base of getAiBaseUrls()) {
+    const data = await aiFetchOnce<T>(base, path, opts, timeoutMs);
+    if (data !== null) return data;
+  }
+  return null;
 }
 
 export interface ApiHealthDetails {
@@ -114,7 +141,16 @@ export async function apiAiHealthCheck(): Promise<{
   provider?: string | null;
   mode: string;
 } | null> {
-  return aiFetch("/api/ai/health");
+  for (const base of getAiBaseUrls()) {
+    const health = await aiFetchOnce<{
+      ok: boolean;
+      openai: boolean;
+      provider?: string | null;
+      mode: string;
+    }>(base, "/api/ai/health", undefined, 8_000);
+    if (health?.openai) return health;
+  }
+  return aiFetch("/api/ai/health", undefined, 8_000);
 }
 
 export async function apiFetchListings(): Promise<ApiResult<Listing[]>> {
@@ -320,10 +356,14 @@ export async function apiExtractImage(body: {
   userCity: string;
   contact: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {
-  return aiFetch("/api/ai/extract-image", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  return aiFetch(
+    "/api/ai/extract-image",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    AI_VISION_FETCH_TIMEOUT_MS
+  );
 }
 
 export async function apiExtractText(body: {
@@ -345,10 +385,14 @@ export async function apiExtractCombined(body: {
   userCity: string;
   contact: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {
-  return aiFetch("/api/ai/extract-combined", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  return aiFetch(
+    "/api/ai/extract-combined",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    AI_VISION_FETCH_TIMEOUT_MS
+  );
 }
 
 export async function apiTranscribeAudio(body: {

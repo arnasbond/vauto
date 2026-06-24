@@ -5,23 +5,35 @@ import {
   transcribeFromSession,
   type VoiceSession,
 } from "@/lib/audio-session";
+import { rebuildSpeechTranscript, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 
 export interface CapturedPhoto {
   dataUrl: string;
   fileName?: string;
 }
 
+/** Always resize for AI vision API (faster upload, fewer timeouts). */
+export async function compressForAiVision(dataUrl: string): Promise<string> {
+  return compressDataUrl(dataUrl, {
+    maxDim: 1024,
+    quality: 0.78,
+    maxChars: 150_000,
+    force: true,
+  });
+}
+
 /** Resize/compress web images before upload (keeps under ~400KB). */
 export async function compressDataUrl(
   dataUrl: string,
-  opts?: { maxDim?: number; quality?: number; maxChars?: number }
+  opts?: { maxDim?: number; quality?: number; maxChars?: number; force?: boolean }
 ): Promise<string> {
   if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
     return dataUrl;
   }
   const maxDim = opts?.maxDim ?? 1280;
   const maxChars = opts?.maxChars ?? 400_000;
-  if (dataUrl.length <= maxChars) return dataUrl;
+  const force = opts?.force ?? false;
+  if (!force && dataUrl.length <= maxChars) return dataUrl;
 
   return new Promise((resolve) => {
     const img = new Image();
@@ -320,20 +332,16 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     }, 20_000);
 
     rec.onresult = (event) => {
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const part = event.results[i]?.[0]?.transcript ?? "";
-        if (event.results[i]?.isFinal) committed += part;
-        else interim += part;
-      }
-      if (`${committed}${interim}`.trim()) scheduleSilence();
+      const { final, combined } = rebuildSpeechTranscript(event);
+      committed = final;
+      if (combined) scheduleSilence();
     };
     rec.onerror = (ev: { error: string }) => {
       if (ev.error === "no-speech" || ev.error === "aborted") return;
       if (ev.error === "not-allowed") finish(null);
     };
     rec.onend = () => {
-      if (!resolved && committed.trim()) finish(committed.trim());
+      if (!resolved && committed.trim()) finish(sanitizeSpeechTranscript(committed.trim()));
     };
 
     try {

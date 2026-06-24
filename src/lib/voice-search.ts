@@ -1,3 +1,5 @@
+import { rebuildSpeechTranscript, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+
 type SpeechRecognitionCtor = new () => {
   lang: string;
   continuous: boolean;
@@ -106,7 +108,8 @@ export function startVoiceSearch(
     if (!committed.trim()) return;
     if (silenceTimer) clearTimeout(silenceTimer);
     silenceTimer = setTimeout(() => {
-      if (active && committed.trim()) finish(committed);
+      if (active && committed.trim())
+        finish(sanitizeSpeechTranscript(committed.trim()) || null);
     }, silenceMs);
   };
 
@@ -125,19 +128,10 @@ export function startVoiceSearch(
     };
 
     instance.onresult = (event) => {
-      let interim = "";
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const part = event.results[i]?.[0]?.transcript ?? "";
-        if (event.results[i]?.isFinal) committed += part;
-        else interim += part;
-      }
-      const combined = `${committed}${interim}`.trim();
+      const { final, combined } = rebuildSpeechTranscript(event);
+      committed = final;
       if (combined) onInterim?.(combined);
-      if (event.results[event.results.length - 1]?.isFinal && committed.trim()) {
-        scheduleSilenceStop();
-      } else if (combined) {
-        scheduleSilenceStop();
-      }
+      if (final || combined) scheduleSilenceStop();
     };
 
     instance.onerror = (ev) => {
@@ -166,7 +160,7 @@ export function startVoiceSearch(
 
   rec = bindRecognition();
   maxTimer = setTimeout(() => {
-    finish(committed.trim() || null);
+    finish(sanitizeSpeechTranscript(committed.trim()) || null);
   }, maxMs);
 
   try {
@@ -177,7 +171,7 @@ export function startVoiceSearch(
 
   const stop = () => {
     if (resolved) return;
-    finish(committed.trim() || null);
+    finish(sanitizeSpeechTranscript(committed.trim()) || null);
   };
 
   const cancel = () => {

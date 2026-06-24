@@ -2,16 +2,30 @@ import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import type { SellerInputMode } from "@/lib/types";
 
 /** Global ceiling for AI extraction — prevents UI freeze on slow/hung responses */
-export const AI_PROCESSING_TIMEOUT_MS = 12000;
+export const AI_PROCESSING_TIMEOUT_MS = 28_000;
 
 /** Client fetch budget for AI proxy calls (slightly under processing ceiling) */
-export const AI_FETCH_TIMEOUT_MS = 11_000;
+export const AI_FETCH_TIMEOUT_MS = 12_000;
+
+/** Vision / large payload calls (Render cold start + Gemini) */
+export const AI_VISION_FETCH_TIMEOUT_MS = 26_000;
 
 /** Shorter budget for local mock extraction only */
 export const AI_MOCK_TIMEOUT_MS = 5000;
 
 export const MANUAL_FALLBACK_TOAST =
-  "Atsiprašau, nepavyko automatiškai suprasti įrašo. Užpildykime trumpą formą rankiniu būdu.";
+  "Atsiprašome, nepavyko automatiškai suprasti įrašo. Užpildykime trumpą formą rankiniu būdu.";
+
+/** Titles returned when vision AI is unavailable — must not pass as valid extraction */
+export const DEMO_AI_PLACEHOLDER_TITLES = new Set([
+  "prekė nuotraukoje",
+  "universalus daiktas",
+  "skelbimas",
+  "automobilis (atpažintas iš ai)",
+  "mobilus telefonas",
+  "buitinė prekė",
+  "drabužis / apranga",
+]);
 
 export const ENTERPRISE_TONE_RULES =
   "Būk profesionalus, glaustas ir orientuotas į faktus. Nenaudok emoji. Venk žargono ir perteklinių emocijų. Sutelk dėmesį į skelbimo būseną ir reikalingus veiksmus.";
@@ -86,6 +100,22 @@ export function isValidAiExtracted(
 
   const title = data.title?.trim() ?? "";
   if (title.length < 2) return false;
+
+  const titleKey = title.toLowerCase();
+  if (
+    DEMO_AI_PLACEHOLDER_TITLES.has(titleKey) &&
+    (data.confidence ?? 0) < 0.55
+  ) {
+    return false;
+  }
+
+  if (
+    data.description &&
+    /nepavyko tiksliai atpažinti/i.test(data.description) &&
+    (data.confidence ?? 0) < 0.55
+  ) {
+    return false;
+  }
 
   const genericPlaceholders = ["skelbimas", "naujas skelbimas", "be pavadinimo"];
   if (

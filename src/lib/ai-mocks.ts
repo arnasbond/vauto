@@ -163,7 +163,7 @@ function detectCategory(text: string): ListingCategory {
   ) {
     return "services";
   }
-  if (/telefon|iphone|samsung|xiaomi|huawei|pixel|mobilus/i.test(t)) return "electronics";
+  if (/telefon|iphone|samsung|xiaomi|huawei|pixel|mobilus|planšet|laptop|nešiojam|kompiuter|notebook/i.test(t)) return "electronics";
   if (/obuol|maiš|daržov/i.test(t)) return "home";
   return "other";
 }
@@ -269,7 +269,10 @@ function extractTitle(text: string, category: ListingCategory): string {
       const phone =
         text.match(/\b(iphone\s?\d+|samsung\s?galaxy|xiaomi|huawei|pixel)\b/i)?.[0] ??
         (/\biphone\b/i.test(text) ? "iPhone" : null);
-      return phone ? phone.charAt(0).toUpperCase() + phone.slice(1) : "Mobilus telefonas";
+      if (phone) return phone.charAt(0).toUpperCase() + phone.slice(1);
+      if (/planšet/i.test(text)) return "Planšetinis kompiuteris";
+      if (/laptop|nešiojam|notebook|kompiuter/i.test(text)) return "Nešiojamas kompiuteris";
+      return "Mobilus telefonas";
     }
     case "home":
       return /obuol/i.test(text) ? "Maišas obuolių — švieži" : "Buitinė prekė";
