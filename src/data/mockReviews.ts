@@ -26,7 +26,7 @@ export const DEMO_REVIEWS: SellerReview[] = [
   {
     id: "rev-3",
     sellerId: "seller-phone",
-    listingId: "l-phone",
+    listingId: "lt-el-001",
     listingTitle: "Mobilus telefonas",
     reviewerId: "user-demo-3",
     reviewerName: "Gintarė P.",

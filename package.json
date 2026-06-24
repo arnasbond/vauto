@@ -30,7 +30,8 @@
     "test:api-smoke": "node scripts/api-listing-smoke.mjs",
     "audit:security": "node scripts/audit-security.mjs",
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs",
-    "sim:e2e": "npm run e2e:simulate --prefix server"
+    "sim:e2e": "npm run e2e:simulate --prefix server",
+    "generate:mock-catalog": "node scripts/generate-mock-catalog.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",
