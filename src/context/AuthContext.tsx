@@ -59,6 +59,8 @@ export interface LoginPayload {
 interface AuthContextValue {
   user: UserProfile;
   isAuthenticated: boolean;
+  /** False until localStorage session restore finishes (avoids guest flash on /add). */
+  authHydrated: boolean;
   isAdmin: boolean;
   authModalOpen: boolean;
   authRedirectPath: string | null;
@@ -290,6 +292,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     () => ({
       user,
       isAuthenticated,
+      authHydrated: hydrated,
       isAdmin,
       authModalOpen,
       authRedirectPath,
@@ -307,6 +310,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     [
       user,
       isAuthenticated,
+      hydrated,
       isAdmin,
       authModalOpen,
       authRedirectPath,

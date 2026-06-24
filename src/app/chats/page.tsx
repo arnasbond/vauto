@@ -12,11 +12,21 @@ import {
 
 export default function ChatsPage() {
   const { openAuthModal } = useAuth();
-  const { chats, user, isAuthenticated } = useVauto();
+  const { chats, user, isAuthenticated, authHydrated } = useVauto();
 
   const myChats = chats.filter(
     (c) => c.buyerId === user.id || c.sellerId === user.id
   );
+
+  if (!authHydrated) {
+    return (
+      <AppShell>
+        <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">
+          Kraunama…
+        </p>
+      </AppShell>
+    );
+  }
 
   if (!isAuthenticated) {
     return (

@@ -16,6 +16,7 @@ export default function AddPage() {
   const router = useRouter();
   const {
     isAuthenticated,
+    authHydrated,
     requireAuthForListing,
     consumePendingSellerQuery,
     submitSellerContent,
@@ -25,6 +26,7 @@ export default function AddPage() {
   const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
 
   useEffect(() => {
+    if (!authHydrated) return;
     if (!isAuthenticated) {
       requireAuthForListing("/add");
       return;
@@ -37,12 +39,26 @@ export default function AddPage() {
       setIntroOpen(true);
     }
   }, [
+    authHydrated,
     isAuthenticated,
     requireAuthForListing,
     consumePendingSellerQuery,
     submitSellerContent,
     sellerStep,
   ]);
+
+  if (!authHydrated) {
+    return (
+      <AppShell>
+        <HeroSection>
+          <Header />
+          <p className="mt-10 text-center text-sm text-[#6b7280]">
+            Kraunama…
+          </p>
+        </HeroSection>
+      </AppShell>
+    );
+  }
 
   if (!isAuthenticated) {
     return (

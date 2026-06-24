@@ -220,6 +220,7 @@ interface VautoContextValue {
   updateEscrow: (chatId: string, escrow: EscrowTransaction) => void;
 
   isAuthenticated: boolean;
+  authHydrated: boolean;
   authModalOpen: boolean;
   authRedirectPath: string | null;
   openAuthModal: (redirectPath?: string) => void;
@@ -523,6 +524,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const {
     user,
     isAuthenticated,
+    authHydrated,
     isAdmin,
     updateUser: patchAuthUser,
     openAuthModal,
@@ -1433,6 +1435,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       clearVisualSearch,
       applyVisualSearch,
       isAuthenticated,
+      authHydrated,
       authModalOpen,
       authRedirectPath,
       openAuthModal,
@@ -1504,6 +1507,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       clearVisualSearch,
       applyVisualSearch,
       isAuthenticated,
+      authHydrated,
       authModalOpen,
       authRedirectPath,
       openAuthModal,

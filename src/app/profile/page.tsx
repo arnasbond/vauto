@@ -56,6 +56,7 @@ export default function ProfilePage() {
     user,
     listings,
     isAuthenticated,
+    authHydrated,
     logout,
     deleteListing,
     updateListing,
@@ -75,6 +76,14 @@ export default function ProfilePage() {
     await renewListing(id);
     showToast("Skelbimas pratęstas 90 dienų", "success");
   };
+
+  if (!authHydrated) {
+    return (
+      <div className="vauto-dashboard flex min-h-dvh items-center justify-center px-6 pb-24 text-sm text-slate-400">
+        Kraunama…
+      </div>
+    );
+  }
 
   if (!isAuthenticated) {
     return (
