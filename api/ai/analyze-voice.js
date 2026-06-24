@@ -1,9 +1,12 @@
 const { unifiedLlmJson, hasAiKey } = require("../lib/vauto-unified");
 
+const BUDDY_REPEAT_PROMPT =
+  "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
+
 const VOICE_INTENT_SCHEMA = `{
   "understoodSummary": "string — lietuviškai, be žodžio ieškoti jei vartotojas kelia skelbimą",
   "needsClarification": "boolean",
-  "followUpQuestion": "string | null",
+  "followUpQuestion": "string | null — vienas TTS klausimas trūkstamiems laukams (pvz. „AI užpildė markę ir modelį. Kokiais metais… ir kokia kaina?“)",
   "missingFields": ["string"],
   "imageSearchQuery": "string — tik paieškai, angliški raktažodžiai",
   "mergedTranscript": "string",
@@ -44,6 +47,8 @@ ${historyText || "(tuščia)"}
 Naujas įrašas: "${transcript}"
 Miestas: ${userCity ?? "Lietuva"}
 
+Jei kelia skelbimą ir trūksta laukų — needsClarification=true, followUpQuestion vienu šiltu klausimu.
+
 Grąžink JSON: ${VOICE_INTENT_SCHEMA}`
     );
 
@@ -60,7 +65,17 @@ Grąžink JSON: ${VOICE_INTENT_SCHEMA}`
       confidence: Number(raw.confidence) || 0.75,
       intent: String(raw.intent ?? (mode === "listing" ? "sell" : "search")),
     });
-  } catch (e) {
-    return res.status(500).json({ error: String(e) });
+  } catch {
+    return res.status(200).json({
+      understoodSummary: "Ne viską aiškiai supratau",
+      needsClarification: true,
+      followUpQuestion: BUDDY_REPEAT_PROMPT,
+      missingFields: [],
+      imageSearchQuery: "",
+      mergedTranscript: String(transcript),
+      category: "other",
+      confidence: 0.2,
+      intent: mode === "listing" ? "sell" : "search",
+    });
   }
 };

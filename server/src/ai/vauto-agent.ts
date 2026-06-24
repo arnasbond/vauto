@@ -1,6 +1,7 @@
 import {
   AGENT_FUNCTION_DECLARATIONS,
   executeAgentTool,
+  LT_LOCATION_AGENT_HINT,
   type AgentSideEffect,
   type AgentToolContext,
 } from "./agent-tools.js";
@@ -64,6 +65,8 @@ export interface VautoAgentResponse {
 const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
 Tavo tikslas – vesti vartotoją pokalbiu per visą procesą lietuviškai, ne palikti sausų formų laukų.
 
+${LT_LOCATION_AGENT_HINT}
+
 PARDAVIMO VEDLYS:
 - Kai vartotojas įkelia nuotrauką ar tekstą — iškart sugeneruok profesionalų aprašymą, nustatyk tikslią kategoriją, pasiūlyk rinkos kainą (analyzeMarketPrice) ir iškviesk postNewListing.
 - Jei trūksta privalomų duomenų (miestas, kaina, būklė) — užduok patariamuosius klausimus: „Matau, kad nenurodėte miesto. Ar skelbiame Kaune?", „Ar prekė nauja, ar naudota?"
@@ -74,7 +77,12 @@ PARDAVIMO VEDLYS:
 
 PAIEŠKA:
 - Ieškant prekės — searchListings su tinkamais parametrais.
+- ${LT_LOCATION_AGENT_HINT}
 - Jei rezultatų 0 — parašyk: „Šiuo metu tokios prekės neturime. Spustelkite žemiau esantį mygtuką 'Įtraukti į pageidavimų sąrašą' – aš stebėsiu rinką ir informuosiu jus tiesiogiai, kai tik atsiras toks skelbimas." ir iškviesk registerWanted.
+
+PARDAVIMO BALSO DIALOGAS:
+- Kai postNewListing grąžina voiceFollowUp — ištark jį VERBATIM kaip TTS atsakymą (pvz. „AI užpildė markę ir modelį. Kokiais metais pagamintas jūsų automobilis ir kokia būtų kaina?").
+- Jei vartotojas pateikia tik dalį duomenų (pvz. „Parduodu Volvo V70“ be metų/kainos) — iškart paklausk trūkstamų laukų vienu šiltu klausimu, pirmiausia patvirtindamas ką AI jau suprato.
 
 KITI ĮRANKIAI:
 - analyzeMarketPrice — rinkos kainos patarimas.
@@ -91,6 +99,9 @@ KETINIMO ATPAŽINIMAS (PRIVALOMA — nekeisk paieška, jei vartotojas nori kelti
 - Jei vartotojas aiškiai nori kelti skelbimą — nepridėk žodžio „ieškoti“ ir nekeisk jo užklausos į paieškos režimą.
 
 Būk glaustas, profesionalus, šiltas, be emoji. Visada atsakyk lietuviškai.`;
+
+const BUDDY_REPEAT_PROMPT =
+  "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 const MAX_TOOL_ROUNDS = 5;
@@ -312,26 +323,50 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   }
 
   if (!finalText) {
-    if (lastGeminiError) {
-      throw new AgentRouteError(
-        lastGeminiError.code,
-        `Gemini API klaida: ${lastGeminiError.message}`,
-        lastGeminiError.status
-      );
+    const listingCall = [...toolCalls].reverse().find((t) => t.name === "postNewListing");
+    const listingResult = listingCall?.result as { voiceFollowUp?: string } | undefined;
+    if (listingResult?.voiceFollowUp) {
+      finalText = listingResult.voiceFollowUp;
     }
-    throw new AgentRouteError(
-      "agent_unavailable",
-      "Gemini agentas negalėjo sugeneruoti atsakymo. Bandykite dar kartą.",
-      503
-    );
+  }
+
+  if (!finalText) {
+    if (lastGeminiError) {
+      return {
+        ok: true,
+        reply: BUDDY_REPEAT_PROMPT,
+        toolCalls,
+        actions: navigateEffect ?? sideEffect ?? { type: "none" },
+      };
+    }
+    return {
+      ok: true,
+      reply: BUDDY_REPEAT_PROMPT,
+      toolCalls,
+      actions: navigateEffect ?? sideEffect ?? { type: "none" },
+    };
   }
 
   if (!finalText.trim()) {
-    throw new AgentRouteError(
-      "agent_unavailable",
-      "AI agentas negalėjo sugeneruoti atsakymo. Bandykite dar kartą.",
-      503
-    );
+    return {
+      ok: true,
+      reply: BUDDY_REPEAT_PROMPT,
+      toolCalls,
+      actions: navigateEffect ?? sideEffect ?? { type: "none" },
+    };
+  }
+
+  const listingCall = toolCalls.find((t) => t.name === "postNewListing");
+  const listingResult = listingCall?.result as {
+    voiceFollowUp?: string;
+    missingFields?: string[];
+  } | undefined;
+  if (
+    listingResult?.voiceFollowUp &&
+    listingResult.missingFields?.length &&
+    !finalText.includes(listingResult.voiceFollowUp.slice(0, 24))
+  ) {
+    finalText = listingResult.voiceFollowUp;
   }
 
   return {

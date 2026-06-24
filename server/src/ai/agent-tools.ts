@@ -3,6 +3,12 @@ import {
   enrichVehicleListingDraftFromArgs,
   mergeVehicleToolArgs,
 } from "./vehicle-attribute-extract.js";
+import {
+  LT_LOCATION_AGENT_HINT,
+  normCityForFilter,
+  resolveLtCityNominative,
+} from "./lithuanian-location-normalize.js";
+import { buildSellerContextualVoiceFollowUp } from "./seller-voice-prompt.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -76,7 +82,11 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         },
         maxPrice: { type: "NUMBER" },
         minPrice: { type: "NUMBER" },
-        city: { type: "STRING" },
+        city: {
+          type: "STRING",
+          description:
+            "Lietuvos miestas vardininku (Panevėžys, Biržai, Rokiškis) — normalizuok iš bet kurio linksnio (Panevėžyje, Biržuose, Rokiškio)",
+        },
         limit: { type: "INTEGER" },
       },
     },
@@ -236,8 +246,10 @@ async function resolveListings(ctx: AgentToolContext): Promise<AgentListingSumma
 }
 
 function normCity(loc: string): string {
-  return loc.toLowerCase().trim().split(/[,\s]/)[0] ?? loc;
+  return normCityForFilter(loc);
 }
+
+export { LT_LOCATION_AGENT_HINT };
 
 export async function executeAgentTool(
   name: string,
@@ -252,7 +264,8 @@ export async function executeAgentTool(
       const category = args.category ? String(args.category) : undefined;
       const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
       const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
-      const city = args.city ? normCity(String(args.city)) : undefined;
+      const cityRaw = args.city ? String(args.city) : undefined;
+      const city = cityRaw ? normCity(resolveLtCityNominative(cityRaw)) : undefined;
       const limit = Math.min(Number(args.limit) || 12, 24);
 
       let filtered = listings.filter((l) => l.price > 0);
@@ -313,6 +326,7 @@ export async function executeAgentTool(
       const description = String(args.description ?? "");
       const price = Number(args.price) || 0;
       const city = String(args.city ?? ctx.userCity);
+      const normalizedCity = resolveLtCityNominative(city);
       const category = String(args.category ?? "other");
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String)
@@ -326,7 +340,7 @@ export async function executeAgentTool(
       );
 
       const missingFields: string[] = [];
-      if (!city?.trim() || city.toLowerCase() === "miestas") missingFields.push("city");
+      if (!normalizedCity?.trim() || normalizedCity.toLowerCase() === "miestas") missingFields.push("city");
       if (price <= 0) missingFields.push("price");
       if (!description.trim()) missingFields.push("description");
       const attributes = enriched.attributes;
@@ -343,7 +357,7 @@ export async function executeAgentTool(
         title: enriched.title,
         description: enriched.description,
         price,
-        location: city,
+        location: normalizedCity,
         contact: ctx.contact,
         category: enriched.category,
         confidence: 0.9,
@@ -379,6 +393,12 @@ export async function executeAgentTool(
         );
       }
 
+      const voiceFollowUp = buildSellerContextualVoiceFollowUp(
+        enriched.category,
+        attributes,
+        missingFields
+      );
+
       return {
         result: {
           ok: true,
@@ -386,6 +406,7 @@ export async function executeAgentTool(
           draft,
           missingFields,
           suggestedQuestions,
+          voiceFollowUp,
         },
         sideEffect: {
           type: "listing_draft",
@@ -400,7 +421,8 @@ export async function executeAgentTool(
       const model = String(args.model ?? "").toLowerCase();
       const year = args.year != null ? String(args.year) : "";
       const category = args.category ? String(args.category) : undefined;
-      const city = args.city ? normCity(String(args.city)) : undefined;
+      const cityRaw = args.city ? String(args.city) : undefined;
+      const city = cityRaw ? normCity(resolveLtCityNominative(cityRaw)) : undefined;
 
       let peers = listings.filter((l) => l.price > 0);
       if (category) peers = peers.filter((l) => l.category === category);

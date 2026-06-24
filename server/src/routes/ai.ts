@@ -149,7 +149,8 @@ aiRouter.post("/analyze-voice", async (req, res) => {
     const raw = await chatJson([
       {
         role: "system",
-        content: `Esi Vauto balso asistentas Lietuvoje (tik Gemini). ${modeHint} understoodSummary — lietuviškai, BE žodžių „ieškoti“ jei vartotojas kelia skelbimą. imageSearchQuery — tik kai vartotojas IEŠKO, angliški raktažodžiai.`,
+        content: `Esi Vauto balso asistentas Lietuvoje (tik Gemini). ${modeHint} understoodSummary — lietuviškai, BE žodžių „ieškoti“ jei vartotojas kelia skelbimą. imageSearchQuery — tik kai vartotojas IEŠKO, angliški raktažodžiai.
+Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarification=true ir followUpQuestion vienu TTS klausimu (pvz. automobiliui: „AI užpildė markę ir modelį. Kokiais metais pagamintas jūsų automobilis ir kokia būtų kaina?“).`,
       },
       {
         role: "user",
@@ -166,8 +167,18 @@ aiRouter.post("/analyze-voice", async (req, res) => {
       category: String(raw.category ?? "other"),
       confidence: Number(raw.confidence) || 0.75,
     });
-  } catch (e) {
-    res.status(500).json({ error: String(e) });
+  } catch {
+    res.json({
+      understoodSummary: "Ne viską aiškiai supratau",
+      needsClarification: true,
+      followUpQuestion:
+        "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?",
+      missingFields: [],
+      imageSearchQuery: "",
+      mergedTranscript: String(transcript ?? ""),
+      category: "other",
+      confidence: 0.2,
+    });
   }
 });
 

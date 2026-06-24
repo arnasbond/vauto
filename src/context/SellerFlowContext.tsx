@@ -81,6 +81,9 @@ import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { buildPartialListingVoicePromptFromDraft } from "@/lib/voice-listing-context";
+import { BUDDY_REPEAT_PROMPT, isUnclearTranscript } from "@/lib/voice-graceful";
 import type {
   AiExtractedListing,
   Listing,
@@ -399,6 +402,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         setAiDraft(next);
         setSellerStep("confirmation");
+
+        const voicePrompt = buildPartialListingVoicePromptFromDraft(next);
+        if (voicePrompt && (mode === "voice" || opts?.transcript?.trim())) {
+          speakBuddyMessage(voicePrompt, { enabled: true });
+        }
+
         logAiSafeguard("processing_success", {
           mode,
           elapsedMs: Math.round(performance.now() - started),
@@ -496,6 +505,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           : "AI paruošė skelbimą — patvirtinkite arba pataisykite.",
         "success"
       );
+      const voicePrompt = buildPartialListingVoicePromptFromDraft(enriched);
+      if (voicePrompt) {
+        speakBuddyMessage(voicePrompt, { enabled: true });
+      }
     },
     [requireAuthForListing, setChameleonTheme, showToast]
   );
@@ -522,13 +535,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const completeVoiceRecording = useCallback(
     (transcript: string | null) => {
-      if (!transcript) {
-        resetSellerFlow();
+      const cleaned = transcript?.trim() ?? "";
+      if (isUnclearTranscript(cleaned)) {
+        speakBuddyMessage(BUDDY_REPEAT_PROMPT, { enabled: true });
+        setSellerStep("recording");
         return;
       }
-      void runAiProcessing("voice", { transcript });
+      void runAiProcessing("voice", { transcript: cleaned });
     },
-    [runAiProcessing, resetSellerFlow]
+    [runAiProcessing]
   );
 
   const cancelVoiceRecording = useCallback(() => {

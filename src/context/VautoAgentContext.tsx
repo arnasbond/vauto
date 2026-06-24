@@ -15,6 +15,7 @@ import {
 import { useVauto } from "@/context/VautoContext";
 import { apiVautoAgent } from "@/lib/api/client";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import {
   compactListingsForAgent,
   mapAgentDraftToListing,
@@ -213,34 +214,29 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         });
 
         if (!res.ok) {
-          const message =
-            res.code === "payload_too_large"
-              ? "Užklausa per didelė. Sutrumpinkite žinutę arba išvalykite seną pokalbio istoriją."
-              : res.code === "timeout"
-              ? "AI užklausa užtruko. Sumažinkite Gemini kontekstą arba bandykite vėliau."
-              : res.error || "AI agentas laikinai nepasiekiamas";
+          const message = buddyMessageForAgentFailure(res.error);
           setMessages((prev) => [
             ...prev,
             {
               role: "assistant",
-              text: `${message} Galite toliau naudoti paiešką viršuje — skelbimai filtruojami vietoje.`,
+              text: message,
             },
           ]);
-          if (open) showToast(message, "error");
-          return { ok: false, error: message };
+          if (open) showToast(message, "info");
+          return { ok: true, reply: message };
         }
 
         if (!res.reply) {
-          const fallback = "AI agentas laikinai nepasiekiamas";
+          const fallback = BUDDY_REPEAT_PROMPT;
           setMessages((prev) => [
             ...prev,
             {
               role: "assistant",
-              text: `${fallback} Paieška portale vis tiek veikia.`,
+              text: fallback,
             },
           ]);
-          if (open) showToast(fallback, "error");
-          return { ok: false, error: fallback };
+          if (open) showToast(fallback, "info");
+          return { ok: true, reply: fallback };
         }
 
         setLastError(undefined);
@@ -254,11 +250,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ]);
         applyActions(res.actions);
         return { ok: true, reply: res.reply };
-      } catch (e) {
-        const message =
-          e instanceof Error ? e.message : "Nepavyko susisiekti su AI agentu";
-        if (open) showToast(message, "error");
-        return { ok: false, error: message };
+      } catch {
+        const message = BUDDY_REPEAT_PROMPT;
+        if (open) showToast(message, "info");
+        return { ok: true, reply: message };
       } finally {
         setBusy(false);
       }

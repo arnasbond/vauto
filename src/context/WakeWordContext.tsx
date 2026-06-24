@@ -18,6 +18,11 @@ import {
 import { logAnalytics } from "@/lib/analytics";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
+  BUDDY_REPEAT_PROMPT,
+  buddyMessageForAgentFailure,
+  isUnclearTranscript,
+} from "@/lib/voice-graceful";
+import {
   createWakeWordSession,
   isWakeWordBackgroundSupported,
   logWakeEvent,
@@ -138,6 +143,25 @@ export function WakeWordProvider({
   }, [setWakeWordEnabled]);
 
   const processWakeCommand = useCallback((transcript: string) => {
+    if (isUnclearTranscript(transcript)) {
+      setWakeWordPhase("passive");
+      setWakeWordStatusText(BUDDY_REPEAT_PROMPT);
+      depsRef.current.showToast(BUDDY_REPEAT_PROMPT, "buddy");
+      const resumeListening = () => {
+        setWakeWordTranscript(undefined);
+        setWakeWordStatusText(undefined);
+        const session = wakeWordSessionRef.current;
+        if (session?.isRunning() && isAppForeground()) {
+          resumePassivePhase(session, setWakeWordPhase);
+        }
+      };
+      speakBuddyMessage(BUDDY_REPEAT_PROMPT, {
+        enabled: true,
+        onEnd: resumeListening,
+      });
+      return;
+    }
+
     setWakeWordPhase("processing");
     setWakeWordTranscript(transcript);
     setWakeWordStatusText("Suprantu…");
@@ -161,21 +185,23 @@ export function WakeWordProvider({
       transcript,
       depsRef.current.agentRef.current
     ).then((result) => {
-      if (result.ok && result.reply) {
-        setWakeWordStatusText(result.reply);
-        depsRef.current.showToast(result.reply.slice(0, 120), "buddy");
-        speakBuddyMessage(result.reply, {
+      const message =
+        result.ok && result.reply
+          ? result.reply
+          : buddyMessageForAgentFailure(result.error);
+      if (!result.ok || !result.reply) {
+        setWakeWordStatusText(message);
+        depsRef.current.showToast(message, "buddy");
+        speakBuddyMessage(message, {
           enabled: true,
           onEnd: resumeListening,
         });
         return;
       }
 
-      const message =
-        result.error ?? "AI agentas laikinai nepasiekiamas. Bandykite dar kartą.";
-      setWakeWordStatusText(message);
-      depsRef.current.showToast(message, "error");
-      speakBuddyMessage(message, {
+      setWakeWordStatusText(result.reply);
+      depsRef.current.showToast(result.reply.slice(0, 120), "buddy");
+      speakBuddyMessage(result.reply, {
         enabled: true,
         onEnd: resumeListening,
       });

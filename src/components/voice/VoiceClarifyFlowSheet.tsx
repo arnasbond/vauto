@@ -7,9 +7,11 @@ import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import { searchReferenceImages } from "@/lib/reference-images";
 import {
   analyzeVoiceIntent,
+  BUDDY_REPEAT_PROMPT,
   type VoiceIntentAnalysis,
   type VoiceIntentTurn,
 } from "@/lib/voice-intent";
+import { isUnclearTranscript } from "@/lib/voice-graceful";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import {
   isVoiceSearchSupported,
@@ -100,6 +102,7 @@ export function VoiceClarifyFlowSheet({
   const voiceRef = useRef<VoiceSearchSession | null>(null);
   const startedRef = useRef(false);
   const historyRef = useRef<VoiceIntentTurn[]>([]);
+  const startListeningRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     historyRef.current = history;
@@ -232,6 +235,15 @@ export function VoiceClarifyFlowSheet({
 
   const processTranscript = useCallback(
     async (transcript: string) => {
+      if (isUnclearTranscript(transcript)) {
+        setError(null);
+        setStep("listen");
+        speakBuddyMessage(BUDDY_REPEAT_PROMPT, { enabled: true });
+        emitPhase("listening");
+        window.setTimeout(() => startListeningRef.current?.(), 600);
+        return;
+      }
+
       setHeardTranscript(transcript);
       emitSubtitle(transcript);
       setStep("analyze");
@@ -256,12 +268,12 @@ export function VoiceClarifyFlowSheet({
         setStep("intent_ack");
         await delay(INTENT_ACK_MS);
         await continueAfterIntentAck(result, nextHistory);
-      } catch (e) {
-        setError(
-          e instanceof Error ? e.message : "Nepavyko apdoroti balso užklausos"
-        );
+      } catch {
+        setError(null);
         setStep("listen");
-        emitPhase("idle");
+        speakBuddyMessage(BUDDY_REPEAT_PROMPT, { enabled: true });
+        emitPhase("listening");
+        window.setTimeout(() => startListeningRef.current?.(), 600);
       }
     },
     [continueAfterIntentAck, emitPhase, emitSubtitle, mode, userCity]
@@ -288,14 +300,16 @@ export function VoiceClarifyFlowSheet({
     void session.promise
       .then((text) => {
         const cleaned = text ? sanitizeSpeechTranscript(text.trim()) : null;
-        if (cleaned) {
+        if (cleaned && !isUnclearTranscript(cleaned)) {
           setHeardTranscript(cleaned);
           emitSubtitle(cleaned);
           void processTranscript(cleaned);
         } else if (step !== "confirm") {
-          setError("Nepavyko atpažinti balso — bandykite dar kartą");
+          setError(null);
           setStep("listen");
-          emitPhase("idle");
+          speakBuddyMessage(BUDDY_REPEAT_PROMPT, { enabled: true });
+          emitPhase("listening");
+          window.setTimeout(() => startListeningRef.current?.(), 600);
         }
       })
       .finally(() => {
@@ -304,6 +318,10 @@ export function VoiceClarifyFlowSheet({
         setMicReady(false);
       });
   }, [emitPhase, emitSubtitle, isListening, processTranscript, step]);
+
+  useEffect(() => {
+    startListeningRef.current = startListening;
+  }, [startListening]);
 
   useEffect(() => {
     if (!open) return;

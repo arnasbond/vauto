@@ -2,7 +2,15 @@ import { apiAnalyzeVoice } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { extractVehicleAttributesFromText } from "@/lib/vehicle-attribute-extract";
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
+import { buildPartialListingVoicePrompt } from "@/lib/voice-listing-context";
+import {
+  BUDDY_REPEAT_PROMPT,
+  createGracefulVoiceIntentFallback,
+  isUnclearTranscript,
+  isValidVoiceIntentPayload,
+} from "@/lib/voice-graceful";
 
 export interface VoiceIntentTurn {
   role: "user" | "assistant";
@@ -24,7 +32,7 @@ export interface VoiceIntentAnalysis {
 const VOICE_INTENT_SCHEMA = `{
   "understoodSummary": "string — lietuviškai, trumpai ką supratai",
   "needsClarification": "boolean",
-  "followUpQuestion": "string | null",
+  "followUpQuestion": "string | null — jei trūksta laukų, vienas šiltas TTS klausimas (pvz. automobiliui: „AI užpildė markę ir modelį. Kokiais metais… ir kokia kaina?“)",
   "missingFields": ["string"],
   "imageSearchQuery": "string — tik paieškai",
   "mergedTranscript": "string",
@@ -47,8 +55,9 @@ function mockAnalyzeVoiceIntent(
 
   const isPhone = /telefon|iphone|samsung|xiaomi|huawei|mobilus/i.test(lower);
   const isCar = isVehicleQuery(lower);
-  const hasModel = /\b(c[1-5]|xsara|berlingo|308|208|golf|passat|corolla|520|320|a4|a6|c3|c4|c5)\b/i.test(lower);
+  const hasModel = /\b(c[1-5]|xsara|berlingo|308|208|golf|passat|corolla|520|320|a4|a6|c3|c4|c5|v70|v50|v60)\b/i.test(lower);
   const hasYear = /\b(19|20)\d{2}\b/.test(lower);
+  const hasPrice = /\b\d{2,6}\s*(eur|€|euro)\b/i.test(lower);
   const rounds = history.filter((h) => h.role === "assistant").length;
 
   if (rounds >= 2) {
@@ -63,6 +72,39 @@ function mockAnalyzeVoiceIntent(
       confidence: 0.72,
       intent: isListing ? "sell" : "search",
     };
+  }
+
+  if (isListing && isCar) {
+    const extracted = extractVehicleAttributesFromText(merged);
+    const voicePrompt = buildPartialListingVoicePrompt({
+      category: "vehicles",
+      attributes: {
+        make: extracted.make,
+        model: extracted.model,
+        year: extracted.year,
+      },
+      price: hasPrice ? 1 : 0,
+    });
+
+    if (voicePrompt && (!hasYear || !hasPrice)) {
+      const missing: string[] = [];
+      if (!extracted.year && !hasYear) missing.push("metai");
+      if (!hasPrice) missing.push("kaina");
+      if (!extracted.make) missing.push("markė");
+      if (!extracted.model) missing.push("modelis");
+
+      return {
+        understoodSummary: `Supratau: ${merged.slice(0, 100)}`,
+        needsClarification: true,
+        followUpQuestion: voicePrompt,
+        missingFields: missing,
+        imageSearchQuery: "",
+        mergedTranscript: merged,
+        category: "vehicles",
+        confidence: 0.68,
+        intent: "sell",
+      };
+    }
   }
 
   if (!isListing && isPhone && !hasModel) {
@@ -118,29 +160,41 @@ export async function analyzeVoiceIntent(params: {
   const city = params.userCity ?? "Lietuva";
   const transcript = sanitizeSpeechTranscript(params.transcript);
 
+  if (isUnclearTranscript(transcript)) {
+    return createGracefulVoiceIntentFallback(transcript);
+  }
+
   if (isAiProxyAvailable()) {
-    const remote = await apiAnalyzeVoice({
-      transcript,
-      mode: params.mode,
-      history,
-      userCity: city,
-    });
-    if (remote) {
-      const intent =
-        (remote as VoiceIntentAnalysis).intent ??
-        (detectSellerListingIntent(transcript) || params.mode === "listing"
-          ? "sell"
-          : "search");
-      return {
-        ...remote,
-        intent,
-        imageSearchQuery: intent === "sell" ? "" : remote.imageSearchQuery,
-        understoodSummary: remote.understoodSummary.replace(/\s*\(ieškoti\)\s*$/i, ""),
-      };
+    try {
+      const remote = await apiAnalyzeVoice({
+        transcript,
+        mode: params.mode,
+        history,
+        userCity: city,
+      });
+      if (remote && isValidVoiceIntentPayload(remote)) {
+        const intent =
+          (remote as VoiceIntentAnalysis).intent ??
+          (detectSellerListingIntent(transcript) || params.mode === "listing"
+            ? "sell"
+            : "search");
+        return {
+          ...remote,
+          intent,
+          imageSearchQuery: intent === "sell" ? "" : remote.imageSearchQuery,
+          understoodSummary: remote.understoodSummary.replace(/\s*\(ieškoti\)\s*$/i, ""),
+        };
+      }
+    } catch {
+      /* fall through to mock / graceful */
     }
   }
 
-  return mockAnalyzeVoiceIntent(transcript, params.mode, history);
+  try {
+    return mockAnalyzeVoiceIntent(transcript, params.mode, history);
+  } catch {
+    return createGracefulVoiceIntentFallback(transcript);
+  }
 }
 
-export { VOICE_INTENT_SCHEMA };
+export { VOICE_INTENT_SCHEMA, BUDDY_REPEAT_PROMPT };
