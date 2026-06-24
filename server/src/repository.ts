@@ -305,6 +305,41 @@ export async function updateListing(
   return all.find((l) => l.id === id) ?? null;
 }
 
+/** Admin-only patch — does not require seller_id match. */
+export async function adminPatchListing(
+  id: string,
+  patch: Partial<Pick<ApiListing, "banned" | "status">>
+): Promise<ApiListing | null> {
+  const rows = await query<{ id: string }>(
+    "SELECT id FROM listings WHERE id = $1",
+    [id]
+  );
+  if (!rows[0]) return null;
+
+  const fields: string[] = [];
+  const values: unknown[] = [];
+  let i = 1;
+
+  const set = (col: string, val: unknown) => {
+    fields.push(`${col} = $${i++}`);
+    values.push(val);
+  };
+
+  if (patch.banned !== undefined) set("banned", patch.banned);
+  if (patch.status !== undefined) set("status", patch.status);
+
+  if (fields.length === 0) {
+    const all = await getListings();
+    return all.find((l) => l.id === id) ?? null;
+  }
+
+  values.push(id);
+  await query(`UPDATE listings SET ${fields.join(", ")} WHERE id = $${i}`, values);
+
+  const all = await getListings();
+  return all.find((l) => l.id === id) ?? null;
+}
+
 export async function renewListing(
   id: string,
   sellerId: string

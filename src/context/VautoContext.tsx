@@ -250,6 +250,8 @@ interface VautoContextValue {
   }) => void;
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
+  setListingBanned: (listingId: string, banned: boolean) => void;
+  setSellerBanned: (sellerId: string, banned: boolean) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
   replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
   followUpReport: (reportId: string, text: string) => void;
@@ -345,6 +347,8 @@ type VautoCatalogSlice = Omit<
   | "submitReport"
   | "warnFromReport"
   | "banFromReport"
+  | "setListingBanned"
+  | "setSellerBanned"
   | "resolveReport"
   | "replyToReport"
   | "followUpReport"
@@ -1398,6 +1402,19 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     });
   }, []);
 
+  const onSetListingBanned = useCallback((listingId: string, banned: boolean) => {
+    setListings((prev) =>
+      prev.map((l) => (l.id === listingId ? { ...l, banned } : l))
+    );
+    if (banned) {
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(listingId);
+        return next;
+      });
+    }
+  }, []);
+
   const onBanSeller = useCallback((sellerId: string) => {
     setListings((prev) =>
       prev.map((l) => (l.sellerId === sellerId ? { ...l, banned: true } : l))
@@ -1639,6 +1656,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       listingsRef,
       onBanListing,
       onBanSeller,
+      onSetListingBanned,
       setSyncError,
       showToast,
       patchAuthUser,
@@ -1646,7 +1664,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       onNewAdminReport: handleNewAdminReport,
       onNewUserReportReply: handleNewUserReportReply,
     }),
-    [onBanListing, onBanSeller, showToast, patchAuthUser, isAdmin, handleNewAdminReport, handleNewUserReportReply]
+    [onBanListing, onBanSeller, onSetListingBanned, showToast, patchAuthUser, isAdmin, handleNewAdminReport, handleNewUserReportReply]
   );
 
   const pushAlertsDeps = useMemo<PushAlertsDeps>(

@@ -3,6 +3,7 @@ import { hasAiKey } from "../ai/llm-provider.js";
 import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
+  adminPatchListing,
   deleteListing,
   getBannedUserIds,
   getChats,
@@ -464,6 +465,25 @@ apiRouter.put("/banned-users", requireAdmin, async (req, res) => {
     if (badRequest(res, parsed)) return;
     await setBannedUserIds(parsed.value);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.patch("/admin/listings/:id", requireAdmin, async (req, res) => {
+  try {
+    const parsed = validateListingPatch(req.body);
+    if (badRequest(res, parsed)) return;
+    const patch: Partial<{ banned: boolean; status: string }> = {};
+    if (parsed.value.banned !== undefined) patch.banned = parsed.value.banned;
+    if (parsed.value.status !== undefined) patch.status = parsed.value.status;
+    if (Object.keys(patch).length === 0) {
+      res.status(400).json({ error: "Provide banned and/or status" });
+      return;
+    }
+    const listing = await adminPatchListing(req.params.id, patch);
+    if (!listing) return res.status(404).json({ error: "Not found" });
+    res.json(listing);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

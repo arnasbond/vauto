@@ -224,6 +224,16 @@ export async function apiSetBannedUsers(
   });
 }
 
+export async function apiAdminModerateListing(
+  id: string,
+  patch: { banned?: boolean; status?: Listing["status"] }
+): Promise<ApiResult<Listing>> {
+  return dataFetch<Listing>(`/api/admin/listings/${id}`, {
+    method: "PATCH",
+    body: JSON.stringify(patch),
+  });
+}
+
 export async function apiWarnUser(userId: string): Promise<ApiResult<null>> {
   return dataFetch<null>(`/api/users/${userId}/warn`, {
     method: "POST",

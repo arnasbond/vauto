@@ -20,13 +20,13 @@ import {
   enrichNewReport,
 } from "@/lib/admin-report-ai";
 import {
+  apiAdminModerateListing,
   apiFetchBannedUsers,
   apiFetchMyReports,
   apiFetchReports,
   apiPatchMyReport,
   apiSetBannedUsers,
   apiSubmitReport,
-  apiUpdateListing,
   apiUpsertReport,
   apiWarnUser,
 } from "@/lib/api/client";
@@ -70,6 +70,8 @@ export interface ModerationContextValue {
   }) => void;
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
+  setListingBanned: (listingId: string, banned: boolean) => void;
+  setSellerBanned: (sellerId: string, banned: boolean) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
   replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
   followUpReport: (reportId: string, text: string) => void;
@@ -86,6 +88,7 @@ export interface ModerationDeps {
   listingsRef: RefObject<Listing[]>;
   onBanListing: (listingId: string) => void;
   onBanSeller: (sellerId: string) => void;
+  onSetListingBanned: (listingId: string, banned: boolean) => void;
   setSyncError: (msg: string | null) => void;
   showToast: (
     message: string,
@@ -573,18 +576,53 @@ export function ModerationProvider({
       }
 
       if (report.listingId && canUseAdminApi) {
-        const listing = depsRef.current.listingsRef.current?.find(
-          (l) => l.id === report.listingId
-        );
-        if (listing) {
-          void apiUpdateListing(listing.id, listing.sellerId, { banned: true });
-        }
+        void apiAdminModerateListing(report.listingId, { banned: true });
       }
 
       resolveReport(reportId, "resolved", false);
       depsRef.current.showToast("Skelbimas/vartotojas užblokuotas", "success");
     },
     [reports, resolveReport, canUseAdminApi]
+  );
+
+  const setListingBanned = useCallback(
+    (listingId: string, banned: boolean) => {
+      depsRef.current.onSetListingBanned(listingId, banned);
+      if (canUseAdminApi) {
+        void apiAdminModerateListing(listingId, { banned }).then((r) => {
+          if (!r.ok) {
+            depsRef.current.setSyncError(`Nepavyko moderuoti: ${r.error}`);
+          }
+        });
+      }
+      depsRef.current.showToast(
+        banned ? "Skelbimas užblokuotas" : "Skelbimo blokavimas panaikintas",
+        "success"
+      );
+    },
+    [canUseAdminApi]
+  );
+
+  const setSellerBanned = useCallback(
+    (sellerId: string, banned: boolean) => {
+      if (banned) {
+        depsRef.current.onBanSeller(sellerId);
+      }
+      setBannedUserIds((prev) => {
+        const next = new Set(prev);
+        if (banned) next.add(sellerId);
+        else next.delete(sellerId);
+        if (canUseAdminApi) {
+          void apiSetBannedUsers(Array.from(next));
+        }
+        return next;
+      });
+      depsRef.current.showToast(
+        banned ? "Pardavėjas užblokuotas" : "Pardavėjo blokavimas panaikintas",
+        "success"
+      );
+    },
+    [canUseAdminApi]
   );
 
   const myReports = useMemo(
@@ -617,6 +655,8 @@ export function ModerationProvider({
       submitReport,
       warnFromReport,
       banFromReport,
+      setListingBanned,
+      setSellerBanned,
       resolveReport,
       replyToReport,
       followUpReport,
@@ -635,6 +675,8 @@ export function ModerationProvider({
       submitReport,
       warnFromReport,
       banFromReport,
+      setListingBanned,
+      setSellerBanned,
       resolveReport,
       replyToReport,
       followUpReport,

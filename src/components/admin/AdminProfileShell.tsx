@@ -2,10 +2,11 @@
 
 import { Suspense, useState } from "react";
 import { AdminReportInbox } from "@/components/admin/AdminReportInbox";
+import { AdminListingModeration } from "@/components/admin/AdminListingModeration";
 import { AdminAccountPanel } from "@/components/admin/AdminAccountPanel";
 import { useAuth } from "@/context/AuthContext";
 
-type AdminTab = "moderation" | "account";
+type AdminTab = "moderation" | "listings" | "account";
 
 export function AdminProfileShell() {
   const [tab, setTab] = useState<AdminTab>("moderation");
@@ -18,7 +19,8 @@ export function AdminProfileShell() {
         <div className="mt-3 flex gap-2">
           {(
             [
-              { id: "moderation" as const, label: "Moderacija" },
+              { id: "moderation" as const, label: "Pranešimai" },
+              { id: "listings" as const, label: "Skelbimai" },
               { id: "account" as const, label: "Mano paskyra" },
             ] as const
           ).map((item) => (
@@ -48,6 +50,8 @@ export function AdminProfileShell() {
         >
           <AdminReportInbox embedded />
         </Suspense>
+      ) : tab === "listings" ? (
+        <AdminListingModeration />
       ) : (
         <AdminAccountPanel onLogout={logout} />
       )}
