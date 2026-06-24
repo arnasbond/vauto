@@ -3,7 +3,12 @@ import {
   mockExtractFromText,
   mockExtractFromVoice,
 } from "@/lib/ai-mocks";
-import { apiExtractCombined, apiExtractImage, apiExtractText } from "@/lib/api/client";
+import {
+  apiExtractCombined,
+  apiExtractImage,
+  apiExtractText,
+  apiVautoServer,
+} from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { compressForAiVision } from "@/lib/native-media";
 import { hasOpenAiKey } from "@/lib/openai-settings";
@@ -13,6 +18,7 @@ import {
   extractFromVoiceOpenAI,
 } from "@/lib/openai";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { mapVautoServerListing } from "@/lib/vauto-unified-client";
 import type { AiExtractedListing } from "@/lib/types";
 
 interface ExtractContext {
@@ -43,6 +49,57 @@ function mergeTranscript(ctx: ExtractContext): string | undefined {
   return parts.length ? parts.join("\n\n") : undefined;
 }
 
+/** Primary path: unified Gemini server (parse_text / analyze_image / parse_combined) */
+async function tryUnifiedExtract(
+  ctx: ExtractContext,
+  mode: "text" | "image" | "combined"
+): Promise<AiExtractedListing | null> {
+  if (!isAiProxyAvailable()) return null;
+
+  const contact = ctx.contact ?? "+370 612 34567";
+  const city = ctx.userCity ?? "Lietuva";
+  const images = await prepareImagesForAi(resolveImages(ctx));
+  const text = mergeTranscript(ctx) ?? ctx.transcript?.trim();
+
+  if (mode === "text" && text) {
+    const res = await apiVautoServer({
+      action: "parse_text",
+      text,
+      extraContext: ctx.extraContext,
+      userCity: city,
+      contact,
+    });
+    if (res && "listing" in res) return mapVautoServerListing(res.listing);
+  }
+
+  if (mode === "image" && images[0]) {
+    const res = await apiVautoServer({
+      action: "analyze_image",
+      imageDataUrl: images[0],
+      imageDataUrls: images.length > 1 ? images : undefined,
+      extraContext: ctx.extraContext,
+      userCity: city,
+      contact,
+    });
+    if (res && "listing" in res) return mapVautoServerListing(res.listing);
+  }
+
+  if (mode === "combined" && images[0] && text) {
+    const res = await apiVautoServer({
+      action: "parse_combined",
+      text,
+      imageDataUrl: images[0],
+      imageDataUrls: images.length > 1 ? images : undefined,
+      extraContext: ctx.extraContext,
+      userCity: city,
+      contact,
+    });
+    if (res && "listing" in res) return mapVautoServerListing(res.listing);
+  }
+
+  return null;
+}
+
 export async function extractFromImage(
   ctx: ExtractContext = {}
 ): Promise<AiExtractedListing> {
@@ -50,6 +107,9 @@ export async function extractFromImage(
   const city = ctx.userCity ?? "Lietuva";
   const images = await prepareImagesForAi(resolveImages(ctx));
   const primary = images[0];
+
+  const unified = await tryUnifiedExtract(ctx, "image");
+  if (unified) return unified;
 
   if (isAiProxyAvailable() && primary) {
     const remote = await apiExtractImage({
@@ -87,6 +147,9 @@ export async function extractFromVoice(
     ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Lietuvoje"
   );
 
+  const unified = await tryUnifiedExtract({ ...ctx, transcript }, "text");
+  if (unified) return unified;
+
   if (isAiProxyAvailable() && transcript.trim()) {
     const remote = await apiExtractText({ text: transcript, userCity: city, contact });
     if (remote) return remote;
@@ -109,6 +172,9 @@ export async function extractFromText(
   const contact = ctx.contact ?? "+370 612 34567";
   const city = ctx.userCity ?? "Lietuva";
   const text = sanitizeSpeechTranscript(ctx.transcript ?? "");
+
+  const unified = await tryUnifiedExtract({ ...ctx, transcript: text }, "text");
+  if (unified) return unified;
 
   if (isAiProxyAvailable() && text.trim()) {
     const remote = await apiExtractText({ text, userCity: city, contact });
@@ -134,6 +200,9 @@ export async function extractCombined(
   const images = await prepareImagesForAi(resolveImages(ctx));
   const transcript = mergeTranscript(ctx);
   const merged: ExtractContext = { ...ctx, transcript, imageDataUrl: images[0] };
+
+  const unified = await tryUnifiedExtract(merged, "combined");
+  if (unified) return unified;
 
   if (images.length && transcript) {
     const primary = images[0];

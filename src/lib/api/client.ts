@@ -135,6 +135,35 @@ export async function apiFetchHealthDetails(): Promise<ApiResult<ApiHealthDetail
   return dataFetch<ApiHealthDetails>("/api/health");
 }
 
+export async function apiVautoServer(
+  body: import("@/lib/vauto-unified-client").VautoServerRequest
+): Promise<
+  | import("@/lib/vauto-unified-client").VautoServerParseResponse
+  | import("@/lib/vauto-unified-client").VautoServerUploadResponse
+  | null
+> {
+  const timeoutMs =
+    body.action === "upload_media"
+      ? AI_FETCH_TIMEOUT_MS
+      : body.action === "parse_text"
+        ? AI_FETCH_TIMEOUT_MS
+        : AI_VISION_FETCH_TIMEOUT_MS;
+
+  return aiFetch("/api/vauto-server", {
+    method: "POST",
+    body: JSON.stringify(body),
+  }, timeoutMs);
+}
+
+export async function apiUploadMedia(imageDataUrl: string): Promise<string | null> {
+  const res = await apiVautoServer({
+    action: "upload_media",
+    imageDataUrl,
+  });
+  if (res && "url" in res) return res.url;
+  return null;
+}
+
 export async function apiAiHealthCheck(): Promise<{
   ok: boolean;
   openai: boolean;

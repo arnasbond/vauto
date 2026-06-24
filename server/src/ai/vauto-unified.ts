@@ -1,0 +1,200 @@
+import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
+import { unifiedLlmJson } from "./llm-provider.js";
+
+export const VAUTO_UNIFIED_SCHEMA = `{
+  "intent": "sell | search | service | general",
+  "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
+  "title": "string — patrauklus lietuviškas skelbimo pavadinimas",
+  "price": "number | null — kaina EUR; null jei nenurodyta",
+  "city": "string — Lietuvos miestas arba 'Lietuva'",
+  "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (2–5 sakiniai, be emoji)",
+  "technicalFields": "object — kategorijai būdingi laukai (metai, kuroTipas, markė, modelis, mileage, dydis, būklė, kambariai ir pan.)",
+  "confidence": "number 0-1"
+}`;
+
+const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
+Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
+Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
+Kategoriją parink tiksliai pagal objektą. Aprašymą sugeneruok profesionaliai lietuviškai.
+Jei kainos ar miesto nėra — price: null, city: numatytasis miestas arba "Lietuva".
+Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
+NT: propertyType, area, rooms, floor. Elektronikai: brand, model, condition.`;
+
+const CATEGORY_TO_INTERNAL: Record<string, string> = {
+  AUTOMOBILIAI: "vehicles",
+  NT: "real_estate",
+  ELEKTRONIKA: "electronics",
+  DARBAS: "jobs",
+  NAMAI: "home",
+  SPORTAS: "other",
+  APRANGA: "clothing",
+  PASLAUGOS: "services",
+  VAIKAMS: "other",
+  GYVUNAI: "other",
+};
+
+function parseTechnicalFields(raw: unknown): Record<string, string | string[]> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string | string[]> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v == null || v === "") continue;
+    if (Array.isArray(v)) out[k] = v.map(String);
+    else out[k] = String(v);
+  }
+  return out;
+}
+
+export interface VautoUnifiedParsed {
+  intent: string;
+  category: string;
+  title: string;
+  price: number | null;
+  city: string;
+  description: string;
+  technicalFields: Record<string, string | string[]>;
+  confidence: number;
+}
+
+export interface VautoListingPayload {
+  title: string;
+  price: number;
+  location: string;
+  contact: string;
+  category: string;
+  description?: string;
+  confidence: number;
+  attributes: Record<string, string | string[]>;
+  intent?: string;
+}
+
+function toListingPayload(
+  raw: Record<string, unknown>,
+  userCity: string,
+  contact: string
+): VautoListingPayload {
+  const categoryKey = String(raw.category ?? "NAMAI").toUpperCase();
+  const internalCategory = CATEGORY_TO_INTERNAL[categoryKey] ?? "other";
+  const priceRaw = raw.price;
+  const price =
+    priceRaw === null || priceRaw === undefined ? 0 : Number(priceRaw) || 0;
+
+  const technicalFields = parseTechnicalFields(raw.technicalFields ?? raw.attributes);
+
+  return {
+    title: String(raw.title ?? "Skelbimas"),
+    price,
+    location: String(raw.city ?? raw.location ?? userCity),
+    contact,
+    category: internalCategory,
+    description: raw.description ? String(raw.description) : undefined,
+    confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.85)),
+    attributes: {
+      ...technicalFields,
+      _intent: String(raw.intent ?? "sell"),
+      _vautoCategory: categoryKey,
+    },
+    intent: String(raw.intent ?? "sell"),
+  };
+}
+
+function buildTextPrompt(text: string, userCity: string, extraContext?: string): string {
+  const extra = extraContext?.trim()
+    ? `\nPapildomas kontekstas: ${extraContext.trim()}`
+    : "";
+  return `${SYSTEM_RULES}
+
+Vartotojo tekstas: """${text}"""${extra}
+Numatytas miestas jei nepaminėtas: ${userCity}
+Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
+}
+
+function buildImagePrompt(
+  userCity: string,
+  text?: string,
+  extraContext?: string
+): string {
+  const textNote = text?.trim()
+    ? `\nVartotojo papildomas aprašymas (prioritetas kainai ir detalėms): """${text.trim()}"""`
+    : "";
+  const extra = extraContext?.trim()
+    ? `\nKontekstas: ${extraContext.trim()}`
+    : "";
+  return `${SYSTEM_RULES}
+
+Analizuok nuotrauką(-as). Atpažink TIKSLŲ objektą — pavadinimas ir kategorija turi atitikti tai, ką matai (laptopas → ELEKTRONIKA, ne planšetė jei tai laptopas).${textNote}${extra}
+Numatytas miestas: ${userCity}
+Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
+}
+
+export type VautoServerAction =
+  | "parse_text"
+  | "analyze_image"
+  | "parse_combined"
+  | "upload_media";
+
+export interface VautoServerRequest {
+  action: VautoServerAction;
+  text?: string;
+  imageDataUrl?: string;
+  imageDataUrls?: string[];
+  extraContext?: string;
+  userCity?: string;
+  contact?: string;
+}
+
+export async function handleVautoServerAction(body: VautoServerRequest) {
+  const action = body.action;
+  const city = body.userCity?.trim() || "Lietuva";
+  const contact = body.contact?.trim() || "+370 612 34567";
+
+  if (action === "upload_media") {
+    const image = body.imageDataUrl;
+    if (!image?.trim()) {
+      throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
+    }
+    if (!isCloudinaryConfigured()) {
+      throw Object.assign(
+        new Error(
+          "Cloudinary not configured (CLOUDINARY_CLOUD_NAME + CLOUDINARY_UPLOAD_PRESET)"
+        ),
+        { status: 503 }
+      );
+    }
+    const uploaded = await uploadImageToCloudinary(image);
+    return { ok: true, action, url: uploaded.url, publicId: uploaded.publicId };
+  }
+
+  const images =
+    Array.isArray(body.imageDataUrls) && body.imageDataUrls.length
+      ? body.imageDataUrls
+      : body.imageDataUrl
+        ? [body.imageDataUrl]
+        : [];
+
+  if (action === "parse_text") {
+    const text = body.text?.trim();
+    if (!text) {
+      throw Object.assign(new Error("text is required for parse_text"), { status: 400 });
+    }
+    const raw = await unifiedLlmJson(
+      buildTextPrompt(text, city, body.extraContext),
+      []
+    );
+    const listing = toListingPayload(raw, city, contact);
+    return { ok: true, action, parsed: raw, listing };
+  }
+
+  if (action === "analyze_image" || action === "parse_combined") {
+    if (!images.length) {
+      throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
+    }
+    const raw = await unifiedLlmJson(
+      buildImagePrompt(city, body.text, body.extraContext),
+      images
+    );
+    const listing = toListingPayload(raw, city, contact);
+    return { ok: true, action, parsed: raw, listing };
+  }
+
+  throw Object.assign(new Error(`Unknown action: ${action}`), { status: 400 });
+}

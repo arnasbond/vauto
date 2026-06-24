@@ -3,8 +3,8 @@
 export type AiProvider = "openai" | "gemini" | null;
 
 export function resolveAiProvider(): AiProvider {
-  if (process.env.OPENAI_API_KEY?.trim()) return "openai";
   if (process.env.GEMINI_API_KEY?.trim()) return "gemini";
+  if (process.env.OPENAI_API_KEY?.trim()) return "openai";
   return null;
 }
 
@@ -70,7 +70,8 @@ async function openaiChatJson(
 
 async function geminiChatJson(
   prompt: string,
-  imageDataUrls: string[] = []
+  imageDataUrls: string[] = [],
+  model = "gemini-2.0-flash"
 ): Promise<Record<string, unknown>> {
   const key = process.env.GEMINI_API_KEY!.trim();
   const parts: object[] = [{ text: prompt }];
@@ -80,7 +81,7 @@ async function geminiChatJson(
   }
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
     {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -93,13 +94,53 @@ async function geminiChatJson(
       }),
     }
   );
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
+  if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Empty Gemini response");
   return JSON.parse(text);
+}
+
+const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
+
+/** VAUTO unified parser — prefers Gemini 2.5 Flash, falls back to 2.0 / OpenAI */
+export async function unifiedLlmJson(
+  prompt: string,
+  imageDataUrls: string[] = []
+): Promise<Record<string, unknown>> {
+  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  if (geminiKey) {
+    for (const model of UNIFIED_GEMINI_MODELS) {
+      try {
+        return await geminiChatJson(prompt, imageDataUrls, model);
+      } catch (e) {
+        console.warn(`[vauto-unified] ${model} failed:`, e);
+      }
+    }
+  }
+
+  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  if (openaiKey) {
+    if (imageDataUrls.length) {
+      return openaiChatJson([
+        {
+          role: "user",
+          content: [
+            { type: "text", text: prompt },
+            ...imageDataUrls.map((url) => ({
+              type: "image_url" as const,
+              image_url: { url, detail: "high" as const },
+            })),
+          ],
+        },
+      ]);
+    }
+    return openaiChatJson([{ role: "user", content: prompt }]);
+  }
+
+  throw new Error("No AI API key (GEMINI_API_KEY or OPENAI_API_KEY)");
 }
 
 export async function chatJson(

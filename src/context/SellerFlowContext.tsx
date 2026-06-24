@@ -24,7 +24,7 @@ import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
-import { apiCreateListing, apiUpdateUser } from "@/lib/api/client";
+import { apiCreateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { attributesToTags } from "@/lib/listing-attributes";
@@ -583,6 +583,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       PLACEHOLDER_IMAGES.other;
     if (listingImage.startsWith("data:image")) {
       listingImage = await compressDataUrl(listingImage);
+      const cloudUrl = await apiUploadMedia(listingImage);
+      if (cloudUrl) listingImage = cloudUrl;
     }
 
     const createdAt = new Date().toISOString();

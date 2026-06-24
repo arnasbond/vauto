@@ -6,8 +6,10 @@ export async function resolveAiModeLabel(): Promise<string> {
   if (health?.openai) {
     const label =
       health.mode === "gemini"
-        ? "Gemini · Vauto serveris"
-        : "GPT-4o-mini · Vauto serveris";
+        ? "Gemini Flash · Vauto serveris"
+        : health.provider === "gemini"
+          ? "Gemini Flash · Vauto serveris"
+          : "GPT-4o-mini · Vauto serveris";
     return label;
   }
   if (hasOpenAiKey()) return "GPT-4o-mini · asmeninis raktas";
