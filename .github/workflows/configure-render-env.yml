@@ -36,6 +36,10 @@ jobs:
           for i in $(seq 1 30); do
             BODY=$(curl -sf "$URL" || true)
             echo "$BODY"
+            if echo "$BODY" | grep -q '"geminiAgent":true'; then
+              echo "API healthy with Gemini agent"
+              exit 0
+            fi
             if echo "$BODY" | grep -q '"openai":true'; then
               echo "API healthy with AI"
               exit 0

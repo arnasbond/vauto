@@ -135,12 +135,24 @@ async function main() {
     "STRIPE_WEBHOOK_SECRET",
     "OPENAI_API_KEY",
     "GEMINI_API_KEY",
+    "AI_KEY",
     "GOOGLE_CLIENT_ID",
     "REGITRA_PLATE_API_USERNAME",
     "REGITRA_PLATE_API_PASSWORD",
   ]) {
     const val = process.env[key]?.trim();
     if (val) await setEnvVar(key, val);
+  }
+
+  const gemini =
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.AI_KEY?.trim() ||
+    existing.get("GEMINI_API_KEY")?.trim() ||
+    existing.get("AI_KEY")?.trim();
+  if (gemini) {
+    await setEnvVar("GEMINI_API_KEY", gemini);
+  } else {
+    console.warn("⚠ GEMINI_API_KEY / AI_KEY not set — agent will fail on Render");
   }
 
   const deploy = await api(`/services/${SERVICE_ID}/deploys`, {

@@ -6,6 +6,10 @@ import {
 } from "./agent-tools.js";
 import { buildAgentSystemInstruction } from "./agent-system-instruction.js";
 import {
+  resolveGeminiApiKey,
+  resolveOpenAiApiKey,
+} from "../load-env.js";
+import {
   AgentRouteError,
   fetchWithTimeout,
   isAbortError,
@@ -97,11 +101,11 @@ async function geminiAgentTurn(
   model: string,
   systemInstruction: string
 ): Promise<{ parts: GeminiPart[]; text: string }> {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key = resolveGeminiApiKey();
   if (!key) {
     throw new AgentRouteError(
       "agent_unavailable",
-      "GEMINI_API_KEY not configured",
+      "GEMINI_API_KEY not configured on server",
       503
     );
   }
@@ -165,11 +169,11 @@ async function openaiAgentFallback(
   toolResults: string,
   systemInstruction: string
 ): Promise<string> {
-  const key = process.env.OPENAI_API_KEY?.trim();
+  const key = resolveOpenAiApiKey();
   if (!key) {
     throw new AgentRouteError(
       "agent_unavailable",
-      "AI agentas laikinai nepasiekiamas (nėra API rakto)",
+      "OpenAI atsarginis režimas nepasiekiamas (OPENAI_API_KEY nenustatytas)",
       503
     );
   }
@@ -296,7 +300,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   let sideEffect: AgentSideEffect | undefined;
   let finalText = "";
 
-  const hasGemini = Boolean(process.env.GEMINI_API_KEY?.trim());
+  const hasGemini = Boolean(resolveGeminiApiKey());
+  const hasOpenAi = Boolean(resolveOpenAiApiKey());
+  let lastGeminiError: AgentRouteError | null = null;
 
   if (hasGemini) {
     for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
@@ -308,9 +314,18 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
           const turn = await geminiAgentTurn(contents, model, systemInstruction);
           parts = turn.parts;
           text = turn.text;
+          lastGeminiError = null;
           break;
         } catch (e) {
-          console.warn(`[vauto-agent] ${model}:`, e);
+          lastGeminiError =
+            e instanceof AgentRouteError
+              ? e
+              : new AgentRouteError(
+                  "gemini_error",
+                  e instanceof Error ? e.message : "Gemini API klaida",
+                  502
+                );
+          console.warn(`[vauto-agent] ${model}:`, lastGeminiError.message);
         }
       }
 
@@ -344,6 +359,16 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   }
 
   if (!finalText) {
+    if (lastGeminiError && !hasOpenAi) {
+      throw lastGeminiError;
+    }
+    if (!hasOpenAi) {
+      throw new AgentRouteError(
+        "agent_unavailable",
+        "GEMINI_API_KEY neveikia ir OPENAI_API_KEY nenustatytas serveryje",
+        503
+      );
+    }
     const toolSummary = toolCalls
       .map((t) => `${t.name}: ${JSON.stringify(t.result).slice(0, 400)}`)
       .join("\n");

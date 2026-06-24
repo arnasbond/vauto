@@ -32,8 +32,8 @@ export function validateProductionEnv(): EnvCheckResult {
     warnings.push("Web Push disabled (VAPID keys missing)");
   }
 
-  if (!process.env.FIREBASE_SERVICE_ACCOUNT_JSON) {
-    warnings.push("FCM Android push disabled (Firebase service account missing)");
+  if (!process.env.GEMINI_API_KEY?.trim() && !process.env.AI_KEY?.trim()) {
+    warnings.push("Gemini agent disabled (GEMINI_API_KEY / AI_KEY missing)");
   }
 
   for (const w of warnings) {

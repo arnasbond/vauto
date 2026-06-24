@@ -6,6 +6,7 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import { userIsAdmin } from "../middleware/auth.js";
 import { getAdminAgentContext } from "../repository.js";
 import { trimVautoAgentRequest } from "../ai/agent-request-trim.js";
+import { hasAgentAiKey } from "../load-env.js";
 
 export const vautoAgentRouter = Router();
 
@@ -25,15 +26,12 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
     });
   }
 
-  const hasKey =
-    Boolean(process.env.GEMINI_API_KEY?.trim()) ||
-    Boolean(process.env.OPENAI_API_KEY?.trim());
-
-  if (!hasKey) {
+  if (!hasAgentAiKey()) {
     return res.status(503).json({
       ok: false,
       code: "agent_unavailable",
-      error: "AI agent unavailable (GEMINI_API_KEY or OPENAI_API_KEY required)",
+      error:
+        "AI agent unavailable (set GEMINI_API_KEY or OPENAI_API_KEY on the server)",
     });
   }
 
