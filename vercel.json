@@ -13,6 +13,14 @@
   },
   "rewrites": [
     {
+      "source": "/api/vauto-agent",
+      "destination": "https://vauto-api.onrender.com/api/vauto-agent"
+    },
+    {
+      "source": "/api/vauto-agent/",
+      "destination": "https://vauto-api.onrender.com/api/vauto-agent"
+    },
+    {
       "source": "/listing/:slug",
       "destination": "/listing/index.html?slug=:slug"
     },

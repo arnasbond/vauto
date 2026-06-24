@@ -148,7 +148,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) {
           const message =
-            res.code === "timeout"
+            res.code === "payload_too_large"
+              ? "Užklausa per didelė. Sutrumpinkite žinutę arba išvalykite seną pokalbio istoriją."
+              : res.code === "timeout"
               ? "AI užklausa užtruko. Sumažinkite Gemini kontekstą arba bandykite vėliau."
               : res.error || "AI agentas laikinai nepasiekiamas";
           showToast(message, "error");

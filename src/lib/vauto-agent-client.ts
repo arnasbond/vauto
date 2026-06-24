@@ -98,14 +98,14 @@ const VALID: ListingCategory[] = [
 export function compactListingsForAgent(listings: Listing[]): AgentListingSnapshot[] {
   return listings
     .filter((l) => l.status !== "sold" && !l.banned)
-    .slice(0, 120)
+    .slice(0, 48)
     .map((l) => ({
       id: l.id,
       title: l.title,
       price: l.price,
       category: l.category,
       location: l.location,
-      description: l.description?.slice(0, 200),
+      description: l.description?.slice(0, 160),
     }));
 }
 

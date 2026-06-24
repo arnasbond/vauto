@@ -7,6 +7,7 @@ import {
 } from "@/lib/ai-safeguards";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 import { getAuthHeaders } from "@/lib/auth/session";
+import { trimAgentRequestBody } from "@/lib/agent-request-trim";
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -86,10 +87,18 @@ async function aiFetchOnce<T>(
     }
     if (!res.ok) {
       const errBody = payload as { error?: string; code?: string } | null;
+      const code =
+        res.status === 413
+          ? "payload_too_large"
+          : errBody?.code;
+      const error =
+        res.status === 413
+          ? "Užklausa per didelė. Sutrumpinkite žinutę arba pokalbio istoriją."
+          : errBody?.error || text || res.statusText || `HTTP ${res.status}`;
       return {
         data: null,
-        error: errBody?.error || text || res.statusText || `HTTP ${res.status}`,
-        code: errBody?.code,
+        error,
+        code,
       };
     }
     return { data: payload as T };
@@ -118,10 +127,12 @@ async function aiFetch<T>(
 async function aiFetchWithMeta<T>(
   path: string,
   opts?: RequestInit,
-  timeoutMs = AI_FETCH_TIMEOUT_MS
+  timeoutMs = AI_FETCH_TIMEOUT_MS,
+  bases?: string[]
 ): Promise<{ data: T | null; error?: string; code?: string }> {
   let lastError: { error?: string; code?: string } = {};
-  for (const base of getAiBaseUrls()) {
+  const urls = bases?.length ? bases : getAiBaseUrls();
+  for (const base of urls) {
     const result = await aiFetchOnce<T>(base, path, opts, timeoutMs);
     if (result.data !== null) return result;
     lastError = { error: result.error, code: result.code };
@@ -204,27 +215,37 @@ export async function apiVautoAgent(body: {
   /** Server loads admin Gemini context from DB — avoids huge POST bodies */
   includeAdminContext?: boolean;
 }): Promise<import("@/lib/vauto-agent-client").VautoAgentApiResult> {
-  const timeoutMs = body.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
+  const trimmed = trimAgentRequestBody(body);
+  const timeoutMs = trimmed.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
+  const renderBase = getDataApiBaseUrl();
+
+  const fetchOpts = {
+    method: "POST" as const,
+    headers: getAuthHeaders(),
+    body: JSON.stringify(trimmed),
+  };
+
+  if (renderBase) {
+    const { data, error, code } = await aiFetchWithMeta<
+      import("@/lib/vauto-agent-client").VautoAgentApiResult
+    >("/api/vauto-agent", fetchOpts, timeoutMs, [renderBase]);
+
+    if (data && "reply" in data && data.reply) return data;
+    if (data && "ok" in data && data.ok === false) return data;
+
+    return {
+      ok: false,
+      error: error || "AI agentas laikinai nepasiekiamas",
+      code: code || "agent_unavailable",
+    };
+  }
 
   const { data, error, code } = await aiFetchWithMeta<
     import("@/lib/vauto-agent-client").VautoAgentApiResult
-  >(
-    "/api/vauto-agent",
-    {
-      method: "POST",
-      headers: getAuthHeaders(),
-      body: JSON.stringify(body),
-    },
-    timeoutMs
-  );
+  >("/api/vauto-agent", fetchOpts, timeoutMs);
 
-  if (data && "reply" in data && data.reply) {
-    return data;
-  }
-
-  if (data && "ok" in data && data.ok === false) {
-    return data;
-  }
+  if (data && "reply" in data && data.reply) return data;
+  if (data && "ok" in data && data.ok === false) return data;
 
   return {
     ok: false,

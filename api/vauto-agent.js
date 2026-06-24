@@ -2,11 +2,48 @@ const { runVautoAgent, hasAgentKey } = require("./lib/vauto-agent");
 const { isBearerAdmin } = require("./lib/auth-token");
 
 const MAX_ADMIN_PROJECT_CONTEXT_CHARS = 80_000;
+const AGENT_MAX_MESSAGES = 32;
+const AGENT_MAX_MESSAGE_CHARS = 12_000;
+const AGENT_MAX_LISTINGS = 48;
+const AGENT_MAX_LISTING_DESC_CHARS = 160;
+
 const RENDER_API_URL = (
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.RENDER_API_URL ||
   ""
 ).replace(/\/$/, "");
+
+function capText(text, max) {
+  const t = String(text ?? "").trim();
+  if (t.length <= max) return t;
+  return `${t.slice(0, max)}…`;
+}
+
+function trimAgentBody(body) {
+  const messages = (body.messages ?? [])
+    .slice(-AGENT_MAX_MESSAGES)
+    .map((m) => ({
+      role: m.role,
+      text: capText(m.text, AGENT_MAX_MESSAGE_CHARS),
+    }))
+    .filter((m) => m.text.length > 0);
+
+  const context = body.context ?? {};
+  if (Array.isArray(context.listings) && context.listings.length) {
+    context.listings = context.listings.slice(0, AGENT_MAX_LISTINGS).map((l) => ({
+      ...l,
+      description: l.description
+        ? capText(l.description, AGENT_MAX_LISTING_DESC_CHARS)
+        : undefined,
+    }));
+  }
+
+  return {
+    ...body,
+    messages: messages.length ? messages : (body.messages ?? []).slice(-1),
+    context,
+  };
+}
 
 async function proxyToRenderApi(req, res) {
   if (!RENDER_API_URL) return false;
@@ -16,21 +53,26 @@ async function proxyToRenderApi(req, res) {
     const auth = req.headers?.authorization;
     if (auth) headers.Authorization = auth;
 
+    const payload = trimAgentBody(req.body || {});
     const upstream = await fetch(`${RENDER_API_URL}/api/vauto-agent`, {
       method: "POST",
       headers,
-      body: JSON.stringify(req.body || {}),
+      body: JSON.stringify(payload),
     });
 
     const text = await upstream.text();
-    let payload;
+    let body;
     try {
-      payload = JSON.parse(text);
+      body = JSON.parse(text);
     } catch {
-      payload = { ok: false, error: text || upstream.statusText, code: "agent_unavailable" };
+      body = {
+        ok: false,
+        error: text || upstream.statusText,
+        code: upstream.status === 413 ? "payload_too_large" : "agent_unavailable",
+      };
     }
 
-    return res.status(upstream.status).json(payload);
+    return res.status(upstream.status).json(body);
   } catch (e) {
     console.warn("[vauto-agent] Render proxy failed:", e.message);
     return false;
@@ -46,17 +88,14 @@ module.exports = async function handler(req, res) {
     return jsonError(res, 405, "invalid_request", "Method not allowed");
   }
 
-  const body = req.body || {};
-  const { messages, context, adminProjectContext: rawAdminContext, includeAdminContext } =
-    body;
+  const proxied = await proxyToRenderApi(req, res);
+  if (proxied !== false) return;
+
+  const body = trimAgentBody(req.body || {});
+  const { messages, context, adminProjectContext: rawAdminContext } = body;
 
   if (!Array.isArray(messages) || !messages.length) {
     return jsonError(res, 400, "invalid_request", "messages array is required");
-  }
-
-  if (includeAdminContext === true || (rawAdminContext != null && String(rawAdminContext).trim())) {
-    const proxied = await proxyToRenderApi(req, res);
-    if (proxied !== false) return;
   }
 
   if (!hasAgentKey()) {
@@ -90,4 +129,12 @@ module.exports = async function handler(req, res) {
     const status = e.status || (code === "timeout" ? 504 : 503);
     return jsonError(res, status, code, e.message || String(e));
   }
+};
+
+module.exports.config = {
+  api: {
+    bodyParser: {
+      sizeLimit: "10mb",
+    },
+  },
 };

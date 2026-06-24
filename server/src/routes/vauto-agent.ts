@@ -5,6 +5,7 @@ import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "../ai/agent-system-instruction.
 import type { AuthedRequest } from "../middleware/auth.js";
 import { userIsAdmin } from "../middleware/auth.js";
 import { getAdminAgentContext } from "../repository.js";
+import { trimVautoAgentRequest } from "../ai/agent-request-trim.js";
 
 export const vautoAgentRouter = Router();
 
@@ -82,11 +83,13 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
   }
 
   try {
-    const result = await runVautoAgent({
-      messages,
-      context: context ?? {},
-      adminProjectContext,
-    });
+    const result = await runVautoAgent(
+      trimVautoAgentRequest({
+        messages,
+        context: context ?? {},
+        adminProjectContext,
+      })
+    );
     res.json(result);
   } catch (e) {
     const err = normalizeAgentRouteError(e);

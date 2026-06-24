@@ -25,7 +25,7 @@ app.post(
   express.raw({ type: "application/json" }),
   handleStripeWebhook
 );
-app.use(express.json({ limit: "15mb" }));
+app.use(express.json({ limit: "25mb" }));
 app.use(optionalAuth);
 
 app.use("/api/auth", authRouter);
@@ -35,6 +35,26 @@ app.use("/api/ai", aiRouter);
 app.use("/api/vauto-server", vautoServerRouter);
 app.use("/api/vauto-agent", vautoAgentRouter);
 app.use("/api/billing", billingRouter);
+
+app.use(
+  (
+    err: Error & { type?: string; status?: number },
+    _req: express.Request,
+    res: express.Response,
+    next: express.NextFunction
+  ) => {
+    if (err.type === "entity.too.large") {
+      res.status(413).json({
+        ok: false,
+        code: "payload_too_large",
+        error:
+          "Užklausa per didelė. Sutrumpinkite žinutę arba pokalbio istoriją.",
+      });
+      return;
+    }
+    next(err);
+  }
+);
 
 app.listen(port, async () => {
   try {
