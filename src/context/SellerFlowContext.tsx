@@ -19,7 +19,7 @@ import {
 } from "@/lib/client-api";
 import { isDuplicateListing } from "@/lib/dedup";
 import { moderateListing } from "@/lib/moderation";
-import { capturePhoto } from "@/lib/native-media";
+import { capturePhoto, compressDataUrl } from "@/lib/native-media";
 import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
@@ -577,6 +577,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
     const vinOk = vin ? verifyVin(vin) : false;
 
+    let listingImage =
+      sellerPreviewImage ??
+      PLACEHOLDER_IMAGES[aiDraft.category] ??
+      PLACEHOLDER_IMAGES.other;
+    if (listingImage.startsWith("data:image")) {
+      listingImage = await compressDataUrl(listingImage);
+    }
+
     const createdAt = new Date().toISOString();
     const newListing: Listing = enrichListingCoords({
       id: `l-${Date.now()}`,
@@ -586,10 +594,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       location: aiDraft.location,
       distanceKm: distKm,
       slug: generateListingSlug(aiDraft.title, aiDraft.location),
-      image:
-        sellerPreviewImage ??
-        PLACEHOLDER_IMAGES[aiDraft.category] ??
-        PLACEHOLDER_IMAGES.other,
+      image: listingImage,
       category: aiDraft.category,
       tags: attributesToTags(aiDraft),
       description: aiDraft.description,
@@ -617,7 +622,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         setSyncError(`Nepavyko publikuoti: ${createRes.error}`);
         return;
       }
-      published = withDefaultExpiry(createRes.data ?? newListing);
+      published = withDefaultExpiry(createRes.data);
+      showToast("Skelbimas publikuotas!", "success");
     }
 
     setListings((prev) => [published, ...prev]);

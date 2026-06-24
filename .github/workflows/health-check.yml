@@ -13,3 +13,7 @@ jobs:
 
       - name: Verify production readiness
         run: node scripts/verify-health.mjs --strict-readiness
+
+      - name: Live API listing smoke (OTP + all categories)
+        run: node scripts/api-listing-smoke.mjs
+        continue-on-error: true

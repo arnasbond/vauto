@@ -124,8 +124,8 @@ export async function apiFetchListings(): Promise<ApiResult<Listing[]>> {
 export async function apiCreateListing(
   listing: Listing,
   userId: string
-): Promise<ApiResult<null>> {
-  return dataFetch<null>("/api/listings", {
+): Promise<ApiResult<Listing>> {
+  return dataFetch<Listing>("/api/listings", {
     method: "POST",
     body: JSON.stringify(listing),
     userId,
