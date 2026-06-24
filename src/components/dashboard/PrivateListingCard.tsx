@@ -22,8 +22,8 @@ function statusLabel(listing: Listing): { text: string; className: string } {
   if (listing.status === "sold")
     return { text: "Parduota", className: "bg-slate-500/30 text-slate-600" };
   if (!isListingActive(listing))
-    return { text: "Pasibaigęs", className: "bg-red-500/20 text-red-300" };
-  return { text: "Aktyvus", className: "bg-emerald-500/20 text-emerald-300" };
+    return { text: "Pasibaigęs", className: "bg-red-100 text-red-800" };
+  return { text: "Aktyvus", className: "bg-emerald-100 text-emerald-800" };
 }
 
 export function PrivateListingCard({
@@ -71,7 +71,7 @@ export function PrivateListingCard({
           {expiryLabel && listing.status !== "sold" && (
             <p
               className={`mt-0.5 text-[10px] font-medium ${
-                expired ? "text-red-300" : "text-amber-300"
+                expired ? "text-red-700" : "text-amber-700"
               }`}
             >
               {expiryLabel}
@@ -118,7 +118,7 @@ export function PrivateListingCard({
           <button
             type="button"
             onClick={onMarkSold}
-            className="flex items-center justify-center gap-1 rounded-xl bg-emerald-500/15 px-3 py-2 text-xs font-medium text-emerald-300"
+            className="flex items-center justify-center gap-1 rounded-xl bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800"
           >
             <CheckCircle className="h-3 w-3" />
             Parduota
@@ -127,7 +127,7 @@ export function PrivateListingCard({
         <button
           type="button"
           onClick={onDelete}
-          className="flex items-center justify-center rounded-xl bg-red-500/15 px-3 py-2 text-xs text-red-300"
+          className="flex items-center justify-center rounded-xl bg-red-50 px-3 py-2 text-xs text-red-700"
         >
           <Trash2 className="h-3.5 w-3.5" />
         </button>

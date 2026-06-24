@@ -119,7 +119,7 @@ export function ProListingCard({
             {expiryLabel && (
               <p
                 className={`mt-0.5 text-[10px] font-medium ${
-                  expired ? "text-red-300" : "text-amber-300"
+                  expired ? "text-red-700" : "text-amber-700"
                 }`}
               >
                 {expiryLabel}
@@ -217,7 +217,7 @@ export function ProListingCard({
           <button
             type="button"
             onClick={onDelete}
-            className="rounded-xl bg-red-500/15 px-4 py-2 text-xs text-red-300"
+            className="rounded-xl bg-red-50 px-4 py-2 text-xs text-red-700"
           >
             Ištrinti
           </button>

@@ -253,7 +253,7 @@ export function UserSupportInbox() {
                 </div>
                 <div className="flex shrink-0 flex-col items-end gap-1">
                   {r.unreadByReporter && (
-                    <span className="rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-bold text-amber-200">
+                    <span className="rounded bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
                       NAUJAS
                     </span>
                   )}

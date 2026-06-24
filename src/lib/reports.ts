@@ -56,18 +56,18 @@ export const URGENCY_META: Record<
 > = {
   critical: {
     label: "Kritinis",
-    className: "bg-red-500/15 text-red-300 border-red-500/30",
+    className: "bg-red-50 text-red-800 border-red-200",
     dot: "bg-red-500",
   },
   feedback: {
     label: "Atsiliepimas",
-    className: "bg-amber-500/15 text-amber-200 border-amber-500/30",
-    dot: "bg-amber-400",
+    className: "bg-amber-50 text-amber-800 border-amber-200",
+    dot: "bg-amber-500",
   },
   general: {
     label: "Bendras",
-    className: "bg-emerald-500/15 text-emerald-200 border-emerald-500/30",
-    dot: "bg-emerald-400",
+    className: "bg-emerald-50 text-emerald-800 border-emerald-200",
+    dot: "bg-emerald-500",
   },
 };
 

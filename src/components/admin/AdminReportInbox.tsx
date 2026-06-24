@@ -361,7 +361,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
               <button
                 type="button"
                 onClick={() => warnFromReport(selected.id)}
-                className="flex items-center gap-1 rounded-lg bg-amber-500/15 px-3 py-2 text-xs font-medium text-amber-300"
+                className="flex items-center gap-1 rounded-lg bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800"
               >
                 <AlertTriangle className="h-3.5 w-3.5" />
                 Įspėti
@@ -369,7 +369,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
               <button
                 type="button"
                 onClick={() => banFromReport(selected.id)}
-                className="flex items-center gap-1 rounded-lg bg-red-500/15 px-3 py-2 text-xs font-medium text-red-300"
+                className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700"
               >
                 <Ban className="h-3.5 w-3.5" />
                 Blokuoti
@@ -380,7 +380,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                   resolveReport(selected.id, "resolved");
                   closeDetail();
                 }}
-                className="flex items-center gap-1 rounded-lg bg-emerald-500/15 px-3 py-2 text-xs font-medium text-emerald-300"
+                className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800"
               >
                 <CheckCircle className="h-3.5 w-3.5" />
                 Uždaryti

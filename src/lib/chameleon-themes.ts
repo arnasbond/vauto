@@ -65,7 +65,7 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
       title: "text-[var(--vauto-teal)]",
       subtitle: "text-slate-400",
       assistantLabel: "text-[var(--vauto-teal)]",
-      aiBubble: "bg-[var(--vauto-teal)]/12 ring-[var(--vauto-teal)]/20 text-teal-50",
+      aiBubble: "bg-[var(--vauto-teal)]/12 ring-[var(--vauto-teal)]/20 text-teal-900",
       userBubble: "bg-[var(--flux-indigo)]/40 text-white",
       detailsToggle: "border-white/10 bg-white/5 text-slate-300",
       detailsPanel: "border-white/10 bg-black/20",

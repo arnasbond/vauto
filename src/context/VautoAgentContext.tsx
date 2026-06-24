@@ -1,17 +1,19 @@
 "use client";
 
-import { Loader2, Send, Sparkles, X } from "lucide-react";
+import { Loader2, Mic, Send, Sparkles, X } from "lucide-react";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { apiVautoAgent } from "@/lib/api/client";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import {
   compactListingsForAgent,
   mapAgentDraftToListing,
@@ -19,6 +21,7 @@ import {
   resolveAgentUserRole,
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
+import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 
 interface VautoAgentContextValue {
   open: boolean;
@@ -177,6 +180,32 @@ export function useVautoAgent(): VautoAgentContextValue {
 function VautoAgentSheet() {
   const { open, setOpen, messages, busy, sendAgentMessage } = useVautoAgent();
   const [input, setInput] = useState("");
+  const [recording, setRecording] = useState(false);
+  const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
+
+  useEffect(() => {
+    return () => voiceSessionRef.current?.cancel();
+  }, []);
+
+  const handleVoice = () => {
+    if (recording) {
+      voiceSessionRef.current?.stop();
+      return;
+    }
+    if (!isVoiceSearchSupported()) return;
+    setRecording(true);
+    const session = startVoiceSearch({
+      onInterim: (text) => {
+        if (text.trim()) setInput(sanitizeSpeechTranscript(text));
+      },
+    });
+    voiceSessionRef.current = session;
+    void session.promise.then((text) => {
+      setRecording(false);
+      voiceSessionRef.current = null;
+      if (text?.trim()) setInput(sanitizeSpeechTranscript(text));
+    });
+  };
 
   if (!open) return <VautoAgentFab />;
 
@@ -247,6 +276,19 @@ function VautoAgentSheet() {
           }}
         >
           <div className="mx-auto flex max-w-lg gap-2">
+            {isVoiceSearchSupported() && (
+              <button
+                type="button"
+                onClick={handleVoice}
+                disabled={busy}
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#d1d5db] text-[#6b7280] disabled:opacity-40 ${
+                  recording ? "animate-pulse border-[#1167b1] text-[#1167b1]" : ""
+                }`}
+                aria-label={recording ? "Sustabdyti balso įrašymą" : "Balso įvedimas"}
+              >
+                <Mic className="h-4 w-4" fill={recording ? "currentColor" : "none"} />
+              </button>
+            )}
             <input
               value={input}
               onChange={(e) => setInput(e.target.value)}

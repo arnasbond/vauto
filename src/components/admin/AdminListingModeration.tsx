@@ -111,12 +111,12 @@ export function AdminListingModeration() {
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-1.5">
                       {listing.banned && (
-                        <span className="rounded-full bg-red-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-red-300">
+                        <span className="rounded-full bg-red-100 px-2 py-0.5 text-[10px] font-bold uppercase text-red-800">
                           Blokuotas
                         </span>
                       )}
                       {sellerBanned && (
-                        <span className="rounded-full bg-amber-500/20 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-300">
+                        <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
                           Pardavėjas blokuotas
                         </span>
                       )}
@@ -148,8 +148,8 @@ export function AdminListingModeration() {
                     className={cn(
                       "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium",
                       listing.banned
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : "bg-red-500/15 text-red-300"
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "bg-red-50 text-red-700"
                     )}
                   >
                     {listing.banned ? (
@@ -170,8 +170,8 @@ export function AdminListingModeration() {
                     className={cn(
                       "flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium",
                       sellerBanned
-                        ? "bg-emerald-500/15 text-emerald-300"
-                        : "bg-amber-500/15 text-amber-300"
+                        ? "bg-emerald-50 text-emerald-800"
+                        : "bg-amber-50 text-amber-800"
                     )}
                   >
                     {sellerBanned ? (

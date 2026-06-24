@@ -49,16 +49,16 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
 
   return (
     <div className="flex h-[calc(100dvh-2rem)] flex-col px-4">
-      <div className="mb-4 flex items-center gap-3 border-b border-white/10 pb-3">
+      <div className="mb-4 flex items-center gap-3 border-b border-slate-200 pb-3">
         <Link
           href="/chats"
-          className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-white/5"
+          className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
         <div className="flex-1">
-          <h1 className="font-semibold text-white">{chat.listingTitle}</h1>
-          <p className="text-xs text-[var(--vauto-text-muted)]">
+          <h1 className="font-semibold text-slate-900">{chat.listingTitle}</h1>
+          <p className="text-xs text-slate-500">
             {isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis"}
           </p>
         </div>
@@ -84,10 +84,10 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
               <div
                 className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
                   isSystem
-                    ? "rounded-md border border-white/10 bg-white/5 text-xs italic text-slate-400"
+                    ? "rounded-md border border-slate-200 bg-slate-50 text-xs italic text-slate-600"
                     : isMe
-                      ? "rounded-br-md bg-[var(--flux-teal)] text-[var(--flux-bg)]"
-                      : "rounded-bl-md bg-white/10 text-white"
+                      ? "rounded-br-md bg-[var(--vauto-teal)] text-white"
+                      : "rounded-bl-md bg-slate-100 text-slate-900"
                 }`}
               >
                 {msg.text}
@@ -117,8 +117,8 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
       )}
 
       {showReviewPrompt && (
-        <div className="mb-2 rounded-xl border border-amber-500/20 bg-amber-500/10 p-3">
-          <p className="text-xs text-amber-200">
+        <div className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
+          <p className="text-xs text-amber-900">
             Ar pavyko susitarti dėl {chat.listingTitle}?
           </p>
           <button
@@ -130,14 +130,14 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
                 sellerId: chat.sellerId,
               })
             }
-            className="mt-2 text-xs font-semibold text-amber-300 underline"
+            className="mt-2 text-xs font-semibold text-amber-800 underline"
           >
             Palikti atsiliepimą
           </button>
         </div>
       )}
 
-      <div className="flex gap-2 border-t border-white/10 pt-3">
+      <div className="flex gap-2 border-t border-slate-200 pt-3">
         <label htmlFor="chat-message-input" className="sr-only">
           Žinutė pardavėjui
         </label>
@@ -147,7 +147,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder='Parašykite... (bandykite "perku" arba "tinka")'
-          className="flex-1 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-white outline-none placeholder:text-white/30 focus:ring-2 focus:ring-[var(--flux-teal)]/30"
+          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
         />
         <button
           type="button"

@@ -6,7 +6,7 @@ function ChatThreadLoader() {
   return (
     <Suspense
       fallback={
-        <p className="py-12 text-center text-[var(--vauto-text-muted)]">
+        <p className="py-12 text-center text-slate-500">
           Kraunama...
         </p>
       }
@@ -18,7 +18,7 @@ function ChatThreadLoader() {
 
 export default function ChatThreadPage() {
   return (
-    <AppShell hideNav>
+    <AppShell variant="plain" hideNav>
       <ChatThreadLoader />
     </AppShell>
   );
