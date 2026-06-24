@@ -206,12 +206,19 @@ function executeAgentTool(name, args, ctx) {
     if (ctx.userRole !== "admin") {
       return { result: { ok: false, message: "Tik administratoriui." } };
     }
+    const listingId = String(args.listingId ?? "").trim();
+    const reason = String(args.reason ?? "").trim();
+    if (!listingId) {
+      return { result: { ok: false, message: "Nenurodytas skelbimo ID." } };
+    }
     return {
       result: {
         ok: true,
-        listingId: String(args.listingId ?? ""),
-        reason: String(args.reason ?? ""),
+        listingId,
+        reason,
+        message: "Skelbimas pažymėtas moderavimui.",
       },
+      sideEffect: { type: "block_listing", listingId, reason },
     };
   }
 

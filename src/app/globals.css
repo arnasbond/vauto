@@ -409,6 +409,12 @@ body.vauto-audio-first .vauto-dashboard-card {
     linear-gradient(160deg, var(--flux-bg) 0%, #111827 50%, var(--flux-bg) 100%);
 }
 
+.vauto-light-modal {
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.2);
+}
+
 /* ── Chameleon theme continuity (seller flow) ── */
 body.chameleon-flux {
   transition: background-color 0.3s ease, color 0.3s ease;

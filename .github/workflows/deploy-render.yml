@@ -44,6 +44,9 @@ jobs:
           echo "Health check timed out (deploy may still be in progress)"
           exit 0
 
+      - name: Verify AI routes
+        run: node scripts/verify-health.mjs
+
       - name: Verify listings count
         run: |
           COUNT=$(curl -sf "https://vauto-api.onrender.com/api/listings" | node -e "let d='';process.stdin.on('data',c=>d+=c);process.stdin.on('end',()=>console.log(JSON.parse(d).length))")

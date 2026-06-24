@@ -39,6 +39,12 @@ export type VautoAgentAction =
         attributes?: Record<string, string | string[]>;
       };
       imageUrl?: string;
+    }
+  | {
+      type: "block_listing";
+      listingId: string;
+      reason: string;
+      listingTitle?: string;
     };
 
 export interface VautoAgentResponse {

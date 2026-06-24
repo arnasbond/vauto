@@ -2,8 +2,9 @@
 
 import { useMemo, useState } from "react";
 import Link from "next/link";
-import { Ban, CheckCircle, ExternalLink, Search, UserX } from "lucide-react";
+import { Ban, CheckCircle, ExternalLink, Search, Sparkles, UserX } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { listingPath } from "@/lib/seo";
 import { cn } from "@/lib/cn";
 
@@ -16,6 +17,7 @@ export function AdminListingModeration() {
     setListingBanned,
     setSellerBanned,
   } = useVauto();
+  const { setOpen, sendAgentMessage } = useVautoAgent();
 
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<ListingFilter>("all");
@@ -51,10 +53,25 @@ export function AdminListingModeration() {
 
   return (
     <div className="px-4 pb-8">
-      <p className="mb-4 text-xs text-slate-400">
-        Peržiūrėkite ir moderuokite skelbimus tiesiogiai — blokuokite ar atblokuokite
-        skelbimą arba pardavėją.
-      </p>
+      <div className="mb-4 flex flex-wrap items-center justify-between gap-2">
+        <p className="text-xs text-slate-400">
+          Peržiūrėkite ir moderuokite skelbimus tiesiogiai — blokuokite ar atblokuokite
+          skelbimą arba pardavėją.
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            setOpen(true);
+            void sendAgentMessage(
+              "Peržiūrėk aktyvius skelbimus ir blokuok įtartinus (sukčiai, nelegalūs daiktai). Naudok blockListing įrankį su listingId ir priežastimi."
+            );
+          }}
+          className="flex shrink-0 items-center gap-1.5 rounded-full bg-[#1167b1] px-3 py-1.5 text-xs font-semibold text-white"
+        >
+          <Sparkles className="h-3.5 w-3.5" />
+          AI moderacija
+        </button>
+      </div>
 
       <div className="relative mb-4">
         <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-500" />

@@ -162,6 +162,8 @@ apiRouter.get("/health", async (_req, res) => {
     fcm: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
     jwt: Boolean(process.env.JWT_SECRET),
     openai: hasAiKey(),
+    geminiAgent: Boolean(process.env.GEMINI_API_KEY?.trim()),
+    vautoUnified: hasAiKey(),
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),

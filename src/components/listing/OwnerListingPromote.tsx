@@ -31,7 +31,7 @@ export function OwnerListingPromote({ listing }: OwnerListingPromoteProps) {
     <section className="vauto-glass-card rounded-2xl p-4">
       <div className="mb-2 flex items-center gap-2">
         <TrendingUp className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h2 className="text-sm font-semibold text-white">Padidinti matomumą</h2>
+        <h2 className="text-sm font-semibold text-slate-900">Padidinti matomumą</h2>
       </div>
       <ListingMarketStats
         listing={listing}

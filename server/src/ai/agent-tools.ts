@@ -1,4 +1,4 @@
-import { getListings } from "../repository.js";
+import { adminPatchListing, getListings } from "../repository.js";
 
 export interface AgentListingSummary {
   id: string;
@@ -319,14 +319,47 @@ export async function executeAgentTool(
           },
         };
       }
-      return {
-        result: {
-          ok: true,
-          listingId: String(args.listingId ?? ""),
-          reason: String(args.reason ?? ""),
-          message: "Skelbimas pažymėtas moderavimui. Administratorius bus informuotas.",
-        },
-      };
+      const listingId = String(args.listingId ?? "").trim();
+      const reason = String(args.reason ?? "").trim();
+      if (!listingId) {
+        return {
+          result: { ok: false, message: "Nenurodytas skelbimo ID." },
+        };
+      }
+      try {
+        const updated = await adminPatchListing(listingId, { banned: true });
+        if (!updated) {
+          return {
+            result: {
+              ok: false,
+              message: `Skelbimas ${listingId} nerastas.`,
+            },
+          };
+        }
+        return {
+          result: {
+            ok: true,
+            listingId,
+            reason,
+            title: updated.title,
+            message: `Skelbimas „${updated.title}" užblokuotas.`,
+          },
+          sideEffect: {
+            type: "block_listing",
+            listingId,
+            reason,
+            listingTitle: updated.title,
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message:
+              e instanceof Error ? e.message : "Nepavyko užblokuoti skelbimo.",
+          },
+        };
+      }
     }
 
     default:
@@ -353,4 +386,10 @@ export type AgentSideEffect =
         attributes?: Record<string, string>;
       };
       imageUrl?: string;
+    }
+  | {
+      type: "block_listing";
+      listingId: string;
+      reason: string;
+      listingTitle?: string;
     };

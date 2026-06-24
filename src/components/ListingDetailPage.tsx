@@ -78,10 +78,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
 
   if (!listing || listing.banned) {
     return (
-      <AppShell hideNav>
+      <AppShell variant="plain" hideNav>
         <div className="px-4 py-12 text-center">
-          <p className="text-[var(--vauto-text-muted)]">Skelbimas nerastas.</p>
-          <Link href="/" className="mt-4 inline-block text-sm text-[var(--flux-teal)]">
+          <p className="text-slate-500">Skelbimas nerastas.</p>
+          <Link href="/" className="mt-4 inline-block text-sm text-[var(--vauto-teal)]">
             Grįžti į paiešką
           </Link>
         </div>
@@ -123,7 +123,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   };
 
   return (
-    <AppShell hideNav>
+    <AppShell variant="plain" hideNav>
       <ListingSeoHead listing={listing} />
       <div className="flex flex-col px-4 pb-8 pt-2">
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-black/20">
@@ -159,10 +159,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         </div>
 
         <div className="mt-4">
-          <span className="rounded-full bg-[var(--flux-teal)]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--flux-teal)]">
+          <span className="rounded-full bg-[var(--vauto-teal)]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--vauto-teal)]">
             {categoryLabel}
           </span>
-          <h1 className="mt-2 font-display text-xl font-bold text-white">
+          <h1 className="mt-2 font-display text-xl font-bold text-slate-900">
             {listing.title}
           </h1>
           <p className="vauto-flux-price mt-1 text-2xl">
@@ -175,7 +175,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             sellerId={listing.sellerId}
             reviews={reviews}
           />
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-[var(--vauto-text-muted)]">
+          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-4 w-4 shrink-0" />
               {listing.location} · {formatDistanceBadge(listing.distanceKm)}
@@ -202,7 +202,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             <button
               type="button"
               onClick={handleChat}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-white/10 bg-white/5 py-3 text-sm font-semibold text-white"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-3 text-sm font-semibold text-slate-900"
             >
               <MessageCircle className="h-5 w-5" />
               Rašyti pardavėjui
@@ -210,27 +210,27 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </div>
         )}
 
-        <p className="mt-2 text-center text-xs text-white/40">
+        <p className="mt-2 text-center text-xs text-slate-400">
           {phoneDisplay}
         </p>
 
         {(listing.description || detailRows.length > 0) && (
           <section className="vauto-glass-card mt-6 rounded-2xl p-4">
-            <h2 className="text-sm font-semibold text-white">Apie skelbimą</h2>
+            <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
             {listing.description && (
-              <p className="mt-2 text-sm leading-relaxed text-[var(--vauto-text-muted)]">
+              <p className="mt-2 text-sm leading-relaxed text-slate-600">
                 {listing.description}
               </p>
             )}
             {detailRows.length > 0 && (
-              <dl className={`mt-3 grid gap-2 ${listing.description ? "border-t border-white/5 pt-3" : ""}`}>
+              <dl className={`mt-3 grid gap-2 ${listing.description ? "border-t border-slate-100 pt-3" : ""}`}>
                 {detailRows.map((row) => (
                   <div
                     key={row.label}
                     className="flex justify-between gap-4 text-sm"
                   >
-                    <dt className="text-[var(--vauto-text-muted)]">{row.label}</dt>
-                    <dd className="text-right font-medium text-white">{row.value}</dd>
+                    <dt className="text-slate-500">{row.label}</dt>
+                    <dd className="text-right font-medium text-slate-900">{row.value}</dd>
                   </div>
                 ))}
               </dl>
@@ -240,7 +240,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
 
         {listing.tags.length > 0 && (
           <section className="mt-4">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-white/40">
+            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <Tag className="h-3.5 w-3.5" />
               Žymos
             </h2>
@@ -248,7 +248,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               {listing.tags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-[var(--vauto-text-muted)]"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"
                 >
                   {tag}
                 </span>
@@ -265,7 +265,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           )}
           {isOwn && listing.status !== "sold" && (
             <section className="vauto-glass-card rounded-2xl p-4">
-              <h2 className="mb-2 text-sm font-semibold text-white">
+              <h2 className="mb-2 text-sm font-semibold text-slate-900">
                 Papildoma reklama socialiniuose tinkluose
               </h2>
               <ShareListingPanel listing={listing} compact />
@@ -275,7 +275,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             <button
               type="button"
               onClick={handleDelete}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-400/30 bg-red-500/10 py-3.5 text-sm font-medium text-red-300"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700"
             >
               <Trash2 className="h-4 w-4" />
               Ištrinti skelbimą

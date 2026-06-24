@@ -41,6 +41,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     setSearchInputMode,
     applyAgentListingDraft,
+    setListingBanned,
     showToast,
   } = useVauto();
 
@@ -71,9 +72,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         applyAgentListingDraft(draft, actions.imageUrl);
         setOpen(false);
       }
+      if (actions.type === "block_listing" && actions.listingId) {
+        setListingBanned(actions.listingId, true);
+        showToast(
+          actions.listingTitle
+            ? `AI užblokavo: ${actions.listingTitle}`
+            : `Skelbimas užblokuotas (${actions.listingId})`,
+          "success"
+        );
+      }
     },
     [
       applyAgentListingDraft,
+      setListingBanned,
       setSearchInputMode,
       setSearchQuery,
       showToast,

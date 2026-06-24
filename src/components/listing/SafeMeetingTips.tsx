@@ -12,17 +12,17 @@ const MEETING_TIPS = [
 export function SafeMeetingTips() {
   return (
     <section className="vauto-glass-card mt-4 rounded-2xl p-4">
-      <h2 className="flex items-center gap-2 text-sm font-semibold text-white">
-        <Shield className="h-4 w-4 text-[var(--flux-teal)]" />
+      <h2 className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+        <Shield className="h-4 w-4 text-[var(--vauto-teal)]" />
         Saugus susitikimas
       </h2>
       <ul className="mt-2 space-y-2">
         {MEETING_TIPS.map((tip) => (
           <li
             key={tip}
-            className="flex gap-2 text-xs leading-relaxed text-[var(--vauto-text-muted)]"
+            className="flex gap-2 text-xs leading-relaxed text-slate-600"
           >
-            <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-[var(--flux-teal)]" />
+            <MapPin className="mt-0.5 h-3 w-3 shrink-0 text-[var(--vauto-teal)]" />
             {tip}
           </li>
         ))}
