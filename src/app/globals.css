@@ -595,3 +595,96 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   border-color: var(--portal-accent);
   background: var(--portal-accent);
 }
+
+/* Zero-UI voice feedback */
+@keyframes zero-ui-search-pulse {
+  0%,
+  100% {
+    box-shadow:
+      0 0 0 0 rgba(17, 103, 177, 0.28),
+      0 1px 2px rgba(0, 0, 0, 0.05);
+  }
+  50% {
+    box-shadow:
+      0 0 0 4px rgba(17, 103, 177, 0.14),
+      0 0 24px rgba(249, 115, 22, 0.12);
+  }
+}
+
+.zero-ui-search-active {
+  animation: zero-ui-search-pulse 1.5s ease-in-out infinite;
+  will-change: box-shadow;
+}
+
+@keyframes zero-ui-glow-voice {
+  0%,
+  100% {
+    background-color: rgba(249, 115, 22, 0.55);
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.35);
+  }
+  50% {
+    background-color: rgba(249, 115, 22, 0.95);
+    box-shadow: 0 0 0 6px rgba(249, 115, 22, 0);
+  }
+}
+
+@keyframes zero-ui-glow-gemini {
+  0%,
+  100% {
+    background-color: rgba(17, 103, 177, 0.55);
+    box-shadow: 0 0 0 0 rgba(17, 103, 177, 0.35);
+  }
+  50% {
+    background-color: rgba(17, 103, 177, 0.95);
+    box-shadow: 0 0 0 6px rgba(17, 103, 177, 0);
+  }
+}
+
+.zero-ui-glow-voice {
+  animation: zero-ui-glow-voice 1.4s ease-in-out infinite;
+}
+
+.zero-ui-glow-gemini {
+  animation: zero-ui-glow-gemini 1.4s ease-in-out infinite;
+}
+
+.zero-ui-ring-pulse {
+  animation: buddy-ring-pulse 2.2s ease-out infinite;
+  will-change: transform, opacity;
+}
+
+.zero-ui-dot-pulse {
+  animation: zero-ui-glow-voice 1.4s ease-in-out infinite;
+}
+
+.zero-ui-icon-pulse {
+  animation: zero-ui-icon-breathe 1.5s ease-in-out infinite;
+}
+
+@keyframes zero-ui-icon-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+@keyframes zero-ui-intent-enter {
+  0% {
+    opacity: 0;
+    transform: translateY(6px) scale(0.97);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.zero-ui-intent-ack {
+  animation: zero-ui-intent-enter 0.35s ease-out forwards;
+  will-change: transform, opacity;
+}

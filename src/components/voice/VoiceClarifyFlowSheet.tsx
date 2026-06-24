@@ -16,6 +16,14 @@ import {
   startVoiceSearch,
   type VoiceSearchSession,
 } from "@/lib/voice-search";
+import {
+  ZeroUiVoicePulse,
+  type ZeroUiVoicePhase,
+} from "@/components/zero-ui/ZeroUiVoicePulse";
+import {
+  ZeroUiIntentAck,
+  type ZeroUiIntentKind,
+} from "@/components/zero-ui/ZeroUiIntentAck";
 
 export interface VoiceClarifyResult {
   mergedTranscript: string;
@@ -24,7 +32,18 @@ export interface VoiceClarifyResult {
   history: VoiceIntentTurn[];
 }
 
-type FlowStep = "listen" | "analyze" | "clarify" | "images" | "confirm";
+type FlowStep =
+  | "listen"
+  | "analyze"
+  | "intent_ack"
+  | "clarify"
+  | "images"
+  | "confirm";
+
+const INTENT_ACK_MS = 1_200;
+const SILENCE_HOLD_DEBOUNCE_MS = 450;
+
+export type VoiceFlowPhase = ZeroUiVoicePhase | "idle";
 
 interface VoiceClarifyFlowSheetProps {
   open: boolean;
@@ -33,6 +52,27 @@ interface VoiceClarifyFlowSheetProps {
   onClose: () => void;
   onComplete: (result: VoiceClarifyResult) => void | Promise<void>;
   busy?: boolean;
+  onLiveSubtitle?: (text: string) => void;
+  onVoicePhase?: (phase: VoiceFlowPhase) => void;
+}
+
+function resolveIntentKind(
+  result: VoiceIntentAnalysis,
+  mode: "search" | "listing"
+): ZeroUiIntentKind {
+  if (result.needsClarification) return "clarify";
+  if (
+    result.intent === "sell" ||
+    mode === "listing" ||
+    /\bparduod|įdėti\s+skelb|kelti\s+skelb|skelbt/i.test(result.mergedTranscript)
+  ) {
+    return "listing";
+  }
+  return "search";
+}
+
+function delay(ms: number) {
+  return new Promise<void>((resolve) => window.setTimeout(resolve, ms));
 }
 
 export function VoiceClarifyFlowSheet({
@@ -42,12 +82,18 @@ export function VoiceClarifyFlowSheet({
   onClose,
   onComplete,
   busy = false,
+  onLiveSubtitle,
+  onVoicePhase,
 }: VoiceClarifyFlowSheetProps) {
   const [step, setStep] = useState<FlowStep>("listen");
   const [history, setHistory] = useState<VoiceIntentTurn[]>([]);
   const [analysis, setAnalysis] = useState<VoiceIntentAnalysis | null>(null);
   const [referenceImages, setReferenceImages] = useState<string[]>([]);
   const [liveSubtitle, setLiveSubtitle] = useState("");
+  const [heardTranscript, setHeardTranscript] = useState("");
+  const [listenPhase, setListenPhase] = useState<"listening" | "silence_hold">(
+    "listening"
+  );
   const [micReady, setMicReady] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -58,6 +104,50 @@ export function VoiceClarifyFlowSheet({
   useEffect(() => {
     historyRef.current = history;
   }, [history]);
+
+  const displaySubtitle = liveSubtitle || heardTranscript;
+
+  const emitSubtitle = useCallback(
+    (text: string) => {
+      setLiveSubtitle(text);
+      onLiveSubtitle?.(text);
+    },
+    [onLiveSubtitle]
+  );
+
+  const emitPhase = useCallback(
+    (phase: VoiceFlowPhase) => {
+      onVoicePhase?.(phase);
+    },
+    [onVoicePhase]
+  );
+
+  useEffect(() => {
+    if (!isListening) {
+      setListenPhase("listening");
+      return;
+    }
+    setListenPhase("listening");
+    if (!displaySubtitle.trim()) return;
+    const timer = window.setTimeout(
+      () => setListenPhase("silence_hold"),
+      SILENCE_HOLD_DEBOUNCE_MS
+    );
+    return () => window.clearTimeout(timer);
+  }, [displaySubtitle, isListening]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (isListening) {
+      emitPhase(listenPhase);
+      return;
+    }
+    if (step === "analyze" || step === "images" || step === "intent_ack") {
+      emitPhase("thinking");
+      return;
+    }
+    emitPhase("idle");
+  }, [open, isListening, listenPhase, step, emitPhase]);
 
   const title =
     mode === "search" ? "Balso paieška su AI" : "Skelbti balsu su AI";
@@ -71,11 +161,15 @@ export function VoiceClarifyFlowSheet({
     setAnalysis(null);
     setReferenceImages([]);
     setLiveSubtitle("");
+    setHeardTranscript("");
+    setListenPhase("listening");
     setMicReady(false);
     setIsListening(false);
     setError(null);
     startedRef.current = false;
-  }, []);
+    onLiveSubtitle?.("");
+    emitPhase("idle");
+  }, [emitPhase, onLiveSubtitle]);
 
   const handleClose = () => {
     if (busy) return;
@@ -83,10 +177,67 @@ export function VoiceClarifyFlowSheet({
     onClose();
   };
 
+  const continueAfterIntentAck = useCallback(
+    async (result: VoiceIntentAnalysis, nextHistory: VoiceIntentTurn[]) => {
+      if (result.needsClarification && result.followUpQuestion) {
+        setHistory([
+          ...nextHistory,
+          { role: "assistant", text: result.followUpQuestion },
+        ]);
+        setAnalysis(result);
+        setStep("clarify");
+        speakBuddyMessage(result.followUpQuestion, { enabled: true });
+        return;
+      }
+
+      setHistory(nextHistory);
+      setAnalysis(result);
+
+      const isListing =
+        result.intent === "sell" ||
+        mode === "listing" ||
+        /\bparduod|įdėti\s+skelb|kelti\s+skelb|skelbt/i.test(
+          result.mergedTranscript
+        );
+
+      if (isListing) {
+        setStep("confirm");
+        const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
+        speakBuddyMessage(confirmMsg, { enabled: true });
+        return;
+      }
+
+      setStep("images");
+
+      if (!result.imageSearchQuery?.trim()) {
+        setStep("confirm");
+        const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
+        speakBuddyMessage(confirmMsg, { enabled: true });
+        return;
+      }
+
+      const images = await searchReferenceImages(
+        result.imageSearchQuery,
+        result.category,
+        4
+      );
+      setReferenceImages(images);
+      setStep("confirm");
+
+      const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
+      speakBuddyMessage(confirmMsg, { enabled: true });
+    },
+    [mode]
+  );
+
   const processTranscript = useCallback(
     async (transcript: string) => {
+      setHeardTranscript(transcript);
+      emitSubtitle(transcript);
       setStep("analyze");
       setError(null);
+      emitPhase("thinking");
+
       const currentHistory = historyRef.current;
       try {
         const result = await analyzeVoiceIntent({
@@ -101,61 +252,19 @@ export function VoiceClarifyFlowSheet({
           { role: "user", text: transcript },
         ];
 
-        if (result.needsClarification && result.followUpQuestion) {
-          setHistory([
-            ...nextHistory,
-            { role: "assistant", text: result.followUpQuestion },
-          ]);
-          setAnalysis(result);
-          setStep("clarify");
-          speakBuddyMessage(result.followUpQuestion, { enabled: true });
-          return;
-        }
-
-        setHistory(nextHistory);
         setAnalysis(result);
-
-        const isListing =
-          result.intent === "sell" ||
-          mode === "listing" ||
-          /\bparduod|įdėti\s+skelb|kelti\s+skelb|skelbt/i.test(
-            result.mergedTranscript
-          );
-
-        if (isListing) {
-          setStep("confirm");
-          const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
-          speakBuddyMessage(confirmMsg, { enabled: true });
-          return;
-        }
-
-        setStep("images");
-
-        if (!result.imageSearchQuery?.trim()) {
-          setStep("confirm");
-          const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
-          speakBuddyMessage(confirmMsg, { enabled: true });
-          return;
-        }
-
-        const images = await searchReferenceImages(
-          result.imageSearchQuery,
-          result.category,
-          4
-        );
-        setReferenceImages(images);
-        setStep("confirm");
-
-        const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
-        speakBuddyMessage(confirmMsg, { enabled: true });
+        setStep("intent_ack");
+        await delay(INTENT_ACK_MS);
+        await continueAfterIntentAck(result, nextHistory);
       } catch (e) {
         setError(
           e instanceof Error ? e.message : "Nepavyko apdoroti balso užklausos"
         );
         setStep("listen");
+        emitPhase("idle");
       }
     },
-    [mode, userCity]
+    [continueAfterIntentAck, emitPhase, emitSubtitle, mode, userCity]
   );
 
   const startListening = useCallback(() => {
@@ -163,12 +272,14 @@ export function VoiceClarifyFlowSheet({
 
     setIsListening(true);
     setMicReady(false);
-    setLiveSubtitle("");
+    emitSubtitle("");
+    setHeardTranscript("");
+    setListenPhase("listening");
     setStep((s) => (s === "confirm" ? s : "listen"));
 
     const session = startVoiceSearch({
       onStart: () => setMicReady(true),
-      onInterim: setLiveSubtitle,
+      onInterim: emitSubtitle,
       silenceMs: 1_500,
       maxMs: 25_000,
     });
@@ -178,19 +289,21 @@ export function VoiceClarifyFlowSheet({
       .then((text) => {
         const cleaned = text ? sanitizeSpeechTranscript(text.trim()) : null;
         if (cleaned) {
+          setHeardTranscript(cleaned);
+          emitSubtitle(cleaned);
           void processTranscript(cleaned);
         } else if (step !== "confirm") {
           setError("Nepavyko atpažinti balso — bandykite dar kartą");
           setStep("listen");
+          emitPhase("idle");
         }
       })
       .finally(() => {
         voiceRef.current = null;
         setIsListening(false);
         setMicReady(false);
-        setLiveSubtitle("");
       });
-  }, [isListening, processTranscript, step]);
+  }, [emitPhase, emitSubtitle, isListening, processTranscript, step]);
 
   useEffect(() => {
     if (!open) return;
@@ -226,6 +339,12 @@ export function VoiceClarifyFlowSheet({
     setStep("listen");
     startListening();
   };
+
+  const pulsePhase: ZeroUiVoicePhase | null = isListening
+    ? listenPhase
+    : step === "analyze" || step === "images" || step === "intent_ack"
+      ? "thinking"
+      : null;
 
   if (!open) return null;
 
@@ -269,12 +388,25 @@ export function VoiceClarifyFlowSheet({
           </div>
         ))}
 
+        {step === "intent_ack" && analysis && (
+          <div className="py-4">
+            <ZeroUiIntentAck
+              summary={analysis.understoodSummary}
+              intent={resolveIntentKind(analysis, mode)}
+            />
+          </div>
+        )}
+
         {(step === "analyze" || step === "images") && (
-          <div className="flex items-center gap-3 py-4">
-            <Loader2 className="h-5 w-5 animate-spin text-[#1167b1]" />
-            <p className="text-sm text-[#6b7280]">
+          <div className="py-4">
+            <ZeroUiVoicePulse
+              phase="thinking"
+              subtitle={displaySubtitle}
+              variant="inline"
+            />
+            <p className="mt-2 text-center text-xs text-[#6b7280]">
               {step === "analyze"
-                ? "Analizuoju, ką pasakėte…"
+                ? "Gemini analizuoja jūsų užklausą…"
                 : "Ieškau panašių nuotraukų internete…"}
             </p>
           </div>
@@ -325,26 +457,29 @@ export function VoiceClarifyFlowSheet({
           </p>
         )}
 
-        {isListening && (
-          <div className="mt-6 flex flex-col items-center text-center">
-            <span className="mb-3 flex h-16 w-16 items-center justify-center rounded-full bg-[#fff7ed] text-[#f97316] animate-pulse">
-              <Mic className="h-8 w-8" fill="currentColor" strokeWidth={0} />
-            </span>
-            <p className="text-sm font-semibold text-[#111827]">
-              {micReady ? "Klausausi…" : "Jungiamas mikrofonas…"}
-            </p>
-            {liveSubtitle && (
-              <p className="mt-2 max-w-sm text-sm italic text-[#6b7280]">
-                {liveSubtitle}
-              </p>
+        {pulsePhase && step !== "analyze" && step !== "images" && (
+          <div className="mt-6">
+            <ZeroUiVoicePulse
+              phase={pulsePhase}
+              subtitle={displaySubtitle}
+              variant="hero"
+            />
+            {isListening && (
+              <>
+                <p className="mt-2 text-center text-xs text-[#9ca3af]">
+                  {micReady
+                    ? "Kalbėkite natūraliai — subtitrai atnaujinami gyvai"
+                    : "Jungiamas mikrofonas…"}
+                </p>
+                <button
+                  type="button"
+                  onClick={() => voiceRef.current?.stop()}
+                  className="mx-auto mt-4 block text-sm font-medium text-[#1167b1]"
+                >
+                  Baigti kalbėti
+                </button>
+              </>
             )}
-            <button
-              type="button"
-              onClick={() => voiceRef.current?.stop()}
-              className="mt-4 text-sm font-medium text-[#1167b1]"
-            >
-              Baigti kalbėti
-            </button>
           </div>
         )}
 
