@@ -77,8 +77,13 @@ export function portalRankedListings(
 }
 
 /** Sanitize search query — never show literal "undefined" / "null". */
-export function sanitizeSearchQuery(raw: string): string {
-  const q = String(raw ?? "").trim();
-  if (!q || q === "undefined" || q === "null") return "";
-  return q.replace(/\bundefined\b/gi, "").replace(/\s+/g, " ").trim();
+export function sanitizeSearchQuery(
+  raw: string,
+  mode: "live" | "final" = "live"
+): string {
+  let q = String(raw ?? "").replace(/\bundefined\b/gi, "");
+  if (q === "null") return "";
+  q = q.replace(/ {2,}/g, " ");
+  if (mode === "final") return q.trim();
+  return q.replace(/^\s+/, "");
 }

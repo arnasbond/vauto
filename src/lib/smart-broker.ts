@@ -60,7 +60,7 @@ export function buildSmartBrokerSignal(
   query: string,
   listings: ScoredListing[]
 ): SmartBrokerSignal | null {
-  const q = sanitizeSearchQuery(query);
+  const q = sanitizeSearchQuery(query, "final");
   if (q.length < 3) return null;
 
   const top = listings[0];

@@ -684,7 +684,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     if (!hydrated || typeof window === "undefined") return;
     const q = new URLSearchParams(window.location.search).get("q");
     if (q) {
-      const clean = sanitizeSearchQuery(q);
+      const clean = sanitizeSearchQuery(q, "final");
       if (clean) setSearchQuery(clean);
     }
   }, [hydrated]);

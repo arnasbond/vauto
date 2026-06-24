@@ -263,7 +263,7 @@ export function useVautoAgent(): VautoAgentContextValue {
 
 function VautoAgentSheet() {
   const { open, setOpen, messages, busy, sendAgentMessage } = useVautoAgent();
-  const [input, setInput] = useState("");
+  const { searchQuery, setSearchQuery } = useVauto();
   const [recording, setRecording] = useState(false);
   const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
 
@@ -280,14 +280,14 @@ function VautoAgentSheet() {
     setRecording(true);
     const session = startVoiceSearch({
       onInterim: (text) => {
-        if (text.trim()) setInput(sanitizeSpeechTranscript(text));
+        if (text.trim()) setSearchQuery(sanitizeSpeechTranscript(text));
       },
     });
     voiceSessionRef.current = session;
     void session.promise.then((text) => {
       setRecording(false);
       voiceSessionRef.current = null;
-      if (text?.trim()) setInput(sanitizeSpeechTranscript(text));
+      if (text?.trim()) setSearchQuery(sanitizeSpeechTranscript(text));
     });
   };
 
@@ -314,10 +314,14 @@ function VautoAgentSheet() {
           <div className="flex flex-1 items-center justify-center gap-2 pr-9">
             <Sparkles className="h-4 w-4 text-[#1167b1]" />
             <h2 className="font-display text-base font-bold text-[#111827]">
-              VAUTO asistentas
+              VAUTO Gemini
             </h2>
           </div>
         </header>
+
+        <p className="shrink-0 border-b border-[#e5e7eb] bg-[#f8fafc] px-4 py-2 text-center text-[11px] text-[#6b7280]">
+          Tas pats laukas kaip paieškoje viršuje — tekstas sinchronizuojamas.
+        </p>
 
         <div className="flex-1 overflow-y-auto px-4 py-4 pb-28">
           {messages.map((m, i) => (
@@ -353,9 +357,8 @@ function VautoAgentSheet() {
           className="fixed bottom-0 left-0 right-0 border-t border-[#e5e7eb] bg-white p-4"
           onSubmit={(e) => {
             e.preventDefault();
-            const t = input.trim();
-            if (!t) return;
-            setInput("");
+            const t = searchQuery.trim();
+            if (!t || busy) return;
             void sendAgentMessage(t);
           }}
         >
@@ -374,16 +377,16 @@ function VautoAgentSheet() {
               </button>
             )}
             <input
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Pvz. Ieškau šeimyninio auto iki 7000€ Kaune"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Paklauskite Gemini — paieška, skelbimas, patarimai…"
               className="min-w-0 flex-1 rounded-xl border border-[#d1d5db] bg-white px-4 py-3 text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none focus:border-[#1167b1]"
               disabled={busy}
               autoComplete="off"
             />
             <button
               type="submit"
-              disabled={busy || !input.trim()}
+              disabled={busy || !searchQuery.trim()}
               className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1167b1] text-white disabled:opacity-40"
               aria-label="Siųsti"
             >

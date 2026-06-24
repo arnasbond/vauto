@@ -4,8 +4,10 @@ import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { extractFromImage, extractFromText } from "@/lib/client-api";
 import { buildPhotoSearchQuery, buildPhotoSearchToast, buildVoiceSearchQuery } from "@/lib/photo-search";
+import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
@@ -35,6 +37,7 @@ export function SearchBar() {
     sellerStep,
     chameleonTheme,
   } = useVauto();
+  const { sendAgentMessage, setOpen: setAgentOpen, busy: agentBusy } = useVautoAgent();
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [isVoiceFlowBusy, setIsVoiceFlowBusy] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
@@ -55,12 +58,18 @@ export function SearchBar() {
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (startListingFromQuery(searchQuery)) {
+    const q = sanitizeSearchQuery(searchQuery, "final");
+    if (!q) return;
+
+    if (startListingFromQuery(q)) {
       setSearchQuery("");
       inputRef.current?.blur();
       return;
     }
+
     setSearchInputMode("text");
+    setAgentOpen(true);
+    void sendAgentMessage(q);
     scrollToResults();
     inputRef.current?.blur();
   };
@@ -167,7 +176,7 @@ export function SearchBar() {
         <Sparkles className="h-4 w-4 shrink-0" style={{ color: ui.accent }} aria-hidden />
         <input
           ref={inputRef}
-          type="search"
+          type="text"
           name="q"
           value={searchQuery}
           onChange={(e) => {
@@ -176,10 +185,11 @@ export function SearchBar() {
             clearVisualSearch({ keepInputMode: true });
             setSearchQuery(e.target.value);
           }}
-          placeholder="Pvz. iPhone 13 Vilniuje arba darbas Kaune"
+          placeholder="Paklauskite Gemini — pvz. iPhone 13 Vilniuje arba noriu įkelti skelbimą"
           enterKeyHint="search"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm outline-none"
-          style={{ color: ui.text }}
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none"
+          disabled={agentBusy}
+          autoComplete="off"
         />
         <button
           type="button"
@@ -214,7 +224,7 @@ export function SearchBar() {
         </button>
       </form>
       <p className="mt-2 text-center text-[11px] text-[#6b7280]">
-        Pasakykite ar nufotografuokite prekę — AI patikslins ir suras panašius skelbimus pagal aprašymą.
+        Vienas Gemini laukas — rašykite, kalbėkite arba nufotografuokite. Enter siunčia asistentui.
       </p>
       <div className="mt-1.5 flex justify-center">
         <AiModeBadge compact />

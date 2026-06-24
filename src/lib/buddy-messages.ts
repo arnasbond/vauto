@@ -151,7 +151,7 @@ export function buildSearchBuddyMessage(
   city = "Lietuvoje",
   opts?: { inputMode?: SearchInputMode; subscribed?: boolean }
 ): { message: string; listing: Listing | null } {
-  const q = sanitizeSearchQuery(query);
+  const q = sanitizeSearchQuery(query, "final");
   const matchStatus = getSearchMatchStatus(listings);
   const top = listings[0] ?? null;
 
