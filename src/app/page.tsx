@@ -14,9 +14,12 @@ import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 import { ZeroUiListingPreview } from "@/components/zero-ui/ZeroUiListingPreview";
 import { ZeroUiBusinessDashboard } from "@/components/zero-ui/ZeroUiBusinessDashboard";
 import { ZeroUiAdminPanel } from "@/components/zero-ui/ZeroUiAdminPanel";
+import { ZeroUiViewTransition } from "@/components/zero-ui/ZeroUiViewTransition";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { useVauto } from "@/context/VautoContext";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
+import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
+import { useCallback } from "react";
 
 function DefaultHero() {
   return (
@@ -75,12 +78,22 @@ function MarketplaceView() {
 export default function HomePage() {
   const { currentView } = useZeroUiScreen();
 
+  const renderView = useCallback((view: ZeroUiScreen) => {
+    switch (view) {
+      case "marketplace":
+        return <MarketplaceView />;
+      case "listing_preview":
+        return <ZeroUiListingPreview />;
+      case "business_dashboard":
+        return <ZeroUiBusinessDashboard />;
+      case "admin_panel":
+        return <ZeroUiAdminPanel />;
+    }
+  }, []);
+
   return (
     <AppShell>
-      {currentView === "marketplace" && <MarketplaceView />}
-      {currentView === "listing_preview" && <ZeroUiListingPreview />}
-      {currentView === "business_dashboard" && <ZeroUiBusinessDashboard />}
-      {currentView === "admin_panel" && <ZeroUiAdminPanel />}
+      <ZeroUiViewTransition view={currentView} renderView={renderView} />
     </AppShell>
   );
 }
