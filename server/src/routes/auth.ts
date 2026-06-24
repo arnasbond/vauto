@@ -1,6 +1,6 @@
 import { Router } from "express";
 import crypto from "node:crypto";
-import { issueOtp, verifyOtp } from "../auth/otp-store.js";
+import { issueOtp, usesDemoOtp, verifyOtp } from "../auth/otp-store.js";
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
 import { sendSmsOtp } from "../auth/sms.js";
 import { verifyGoogleIdToken } from "../auth/google-verify.js";
@@ -110,13 +110,15 @@ authRouter.post("/otp/send", (req, res) => {
   }
   const { code, expiresAt } = issueOtp(phone);
   void sendSmsOtp(phone, code);
-  if (process.env.NODE_ENV !== "production") {
-    console.log(`[Vauto Auth] OTP for ${phone}: ${code}`);
+  if (usesDemoOtp()) {
+    console.log(`[Vauto Auth] Demo OTP for ${phone}: ${code}`);
   }
   res.json({
     ok: true,
     expiresAt: new Date(expiresAt).toISOString(),
-    ...(process.env.NODE_ENV !== "production" ? { devHint: "Demo OTP: 123456" } : {}),
+    ...(usesDemoOtp()
+      ? { devHint: `Demo OTP: ${process.env.VAUTO_DEMO_OTP ?? "123456"}` }
+      : {}),
   });
 });
 

@@ -13,12 +13,28 @@ function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, "");
 }
 
+function smsConfigured(): boolean {
+  return Boolean(
+    process.env.TWILIO_ACCOUNT_SID &&
+      process.env.TWILIO_AUTH_TOKEN &&
+      process.env.TWILIO_FROM_NUMBER
+  );
+}
+
+/** Demo OTP when Twilio is off — enables auth testing on production staging. */
+export function usesDemoOtp(): boolean {
+  return (
+    process.env.NODE_ENV !== "production" ||
+    !smsConfigured() ||
+    Boolean(process.env.VAUTO_DEMO_OTP)
+  );
+}
+
 export function issueOtp(phone: string): { code: string; expiresAt: number } {
   const key = normalizePhone(phone);
-  const code =
-    process.env.NODE_ENV === "production"
-      ? String(crypto.randomInt(100000, 999999))
-      : process.env.VAUTO_DEMO_OTP ?? "123456";
+  const code = usesDemoOtp()
+    ? process.env.VAUTO_DEMO_OTP ?? "123456"
+    : String(crypto.randomInt(100000, 999999));
   const expiresAt = Date.now() + OTP_TTL_MS;
   store.set(key, { code, expiresAt });
   return { code, expiresAt };

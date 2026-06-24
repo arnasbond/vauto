@@ -8,12 +8,16 @@ import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
+import {
+  isVehiclePartsListing,
+  queryWantsVehicleParts,
+} from "@/lib/vehicle-parts";
 
 function formatMileage(value: string | string[] | number): string {
   const raw = Array.isArray(value) ? value[0] : value;
   const s = String(raw ?? "").trim();
   if (!s) return "";
-  if (/km/i.test(s)) return s;
+  if (/\bkm\b/i.test(s)) return s;
   return `${s} km`;
 }
 
@@ -80,7 +84,11 @@ interface VehicleListingResultsProps {
 
 export function VehicleListingResults({ listings, title }: VehicleListingResultsProps) {
   const ui = getPortalUi("autoplius");
-  const vehicles = listings.filter((l) => l.category === "vehicles");
+  const { searchQuery } = useVauto();
+  const showParts = queryWantsVehicleParts(searchQuery);
+  const vehicles = listings
+    .filter((l) => l.category === "vehicles")
+    .filter((l) => showParts || !isVehiclePartsListing(l));
 
   if (vehicles.length === 0) {
     return (
