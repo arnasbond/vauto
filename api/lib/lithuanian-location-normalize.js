@@ -90,7 +90,7 @@ function normCityForFilter(loc) {
   return normalizeLtLocationKey(nominative.split(/[,/\s]/)[0] ?? nominative);
 }
 
-const LT_LOCATION_AGENT_HINT = `VIETOVĖS (PRIVALOMA): Atpažink lietuviškus vietovardžius bet kuriuo linksniu ir searchListings.city / postNewListing.city perduok TIK vardininku (Panevėžys, Biržai, Rokiškis, Pasvalys, Kupiškis).`;
+const LT_LOCATION_AGENT_HINT = `VIETOVĖS (PRIVALOMA): Atpažink lietuviškus vietovardžius bet kuriuo linksniu (Vilniuje, Kaune, Klaipėdoje, Šiauliuose, Panevėžyje, Pasvalyje ir t.t.) ir searchListings.city / postNewListing.city perduok TIK vardininku. Jei vartotojas neįvardina miesto — NEPERDUOK city parametro; paieška vyksta visoje Lietuvoje.`;
 
 module.exports = {
   resolveLtCityNominative,

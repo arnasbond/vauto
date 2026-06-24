@@ -240,19 +240,19 @@ function executeAgentTool(name, args, ctx) {
     const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
     const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
     const cityRaw = args.city ? String(args.city).trim() : "";
-    const cityNominative = cityRaw
-      ? resolveLtCityNominative(cityRaw)
-      : resolveAgentDefaultCity(ctx.userCity);
-    const city = normCity(cityNominative);
+    const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
+    const city = cityNominative ? normCity(cityNominative) : "";
     const limit = Math.min(Number(args.limit) || 12, 24);
 
     let filtered = listings.filter((l) => l.price > 0);
     if (category) filtered = filtered.filter((l) => l.category === category);
     if (maxPrice != null && !Number.isNaN(maxPrice)) filtered = filtered.filter((l) => l.price <= maxPrice);
     if (minPrice != null && !Number.isNaN(minPrice)) filtered = filtered.filter((l) => l.price >= minPrice);
-    filtered = filtered.filter(
-      (l) => normCity(l.location) === city || l.location.toLowerCase().includes(city)
-    );
+    if (city) {
+      filtered = filtered.filter(
+        (l) => normCity(l.location) === city || l.location.toLowerCase().includes(city)
+      );
+    }
     if (query) {
       filtered = filtered.filter(
         (l) =>
@@ -265,7 +265,7 @@ function executeAgentTool(name, args, ctx) {
     const searchFilters = {
       query: query || undefined,
       category,
-      city: cityNominative,
+      city: cityNominative || undefined,
       maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
       minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
     };
@@ -305,9 +305,13 @@ function executeAgentTool(name, args, ctx) {
     const title = String(args.title ?? "Skelbimas");
     const description = String(args.description ?? "");
     const price = Number(args.price) || 0;
-    const normalizedCity = resolveAgentDefaultCity(
-      args.city ? String(args.city) : ctx.userCity
-    );
+    const cityArg = args.city ? String(args.city).trim() : "";
+    const userCityArg = ctx.userCity?.trim() ?? "";
+    const normalizedCity = cityArg
+      ? resolveAgentDefaultCity(cityArg)
+      : userCityArg
+        ? resolveAgentDefaultCity(userCityArg)
+        : "";
     const mergedAttrs = mergeVehicleToolArgs(args);
     const enriched = enrichVehicleListingDraftFromArgs(
       title,
@@ -389,14 +393,12 @@ function executeAgentTool(name, args, ctx) {
     const year = args.year != null ? String(args.year) : "";
     const category = args.category ? String(args.category) : undefined;
     const cityRaw = args.city ? String(args.city).trim() : "";
-    const cityNominative = cityRaw
-      ? resolveLtCityNominative(cityRaw)
-      : resolveAgentDefaultCity(ctx.userCity);
+    const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
 
     const analysis = runMarketPriceAnalysis(listings, {
       title: `${brand} ${model} ${year}`.trim(),
       category,
-      city: cityNominative,
+      city: cityNominative || undefined,
       make: brand,
       model,
       year,

@@ -17,6 +17,7 @@ import {
   type AgentSearchFilters,
 } from "@/lib/agent-session-memory";
 import {
+  ALL_LITHUANIA_LABEL,
   DEFAULT_USER_REGION,
   resolveDefaultUserCity,
   resolvePrimaryVehicle,
@@ -73,8 +74,8 @@ export function ZeroUiMemoryProvider({ children }: { children: ReactNode }) {
       );
 
       return {
-        userCity: defaultRegion || DEFAULT_USER_REGION,
-        defaultRegion: defaultRegion || DEFAULT_USER_REGION,
+        userCity: defaultRegion,
+        defaultRegion,
         primaryVehicle,
         activeSearchFilters,
       };
@@ -84,7 +85,7 @@ export function ZeroUiMemoryProvider({ children }: { children: ReactNode }) {
 
   const value = useMemo(
     (): ZeroUiMemoryContextValue => ({
-      defaultRegion: DEFAULT_USER_REGION,
+      defaultRegion: DEFAULT_USER_REGION || ALL_LITHUANIA_LABEL,
       primaryVehicle: resolvePrimaryVehicle(null),
       activeSearchFilters,
       buildAgentContext,

@@ -164,4 +164,4 @@ export function normCityForFilter(loc: string): string {
   return normalizeLtLocationKey(nominative.split(/[,/\s]/)[0] ?? nominative);
 }
 
-export const LT_LOCATION_AGENT_HINT = `VIETOVĖS (PRIVALOMA): Atpažink lietuviškus vietovardžius bet kuriuo linksniu (pvz. „Panevėžyje“, „Biržuose“, „Rokiškio“, „Pasvalyje“, „Kupiškyje“) ir searchListings.city / postNewListing.city perduok TIK vardininku — „Panevėžys“, „Biržai“, „Rokiškis“, „Pasvalys“, „Kupiškis“. Nenaudok vietininko ar kilmininko formų filtre.`;
+export const LT_LOCATION_AGENT_HINT = `VIETOVĖS (PRIVALOMA): Atpažink lietuviškus vietovardžius bet kuriuo linksniu (Vilniuje, Kaune, Klaipėdoje, Šiauliuose, Panevėžyje, Pasvalyje ir t.t.) ir searchListings.city / postNewListing.city perduok TIK vardininku (Vilnius, Kaunas, Klaipėda, Šiauliai, Panevėžys, Pasvalys). Jei vartotojas neįvardina miesto — NEPERDUOK city parametro; paieška ir B2B analitika vyksta visoje Lietuvoje.`;

@@ -36,6 +36,8 @@ import {
   type WakeWordGeminiAgent,
 } from "@/lib/voice-intent-engine";
 import { requestNotificationPermission } from "@/lib/push-alerts";
+import { usePathname } from "next/navigation";
+import { useZeroUiScreenOptional } from "@/context/ZeroUiScreenContext";
 
 export interface WakeWordContextValue {
   wakeWordEnabled: boolean;
@@ -79,6 +81,10 @@ export function WakeWordProvider({
   const [wakeWordStatusText, setWakeWordStatusText] = useState<string>();
   const [wakeWordTranscript, setWakeWordTranscript] = useState<string>();
   const wakeWordSessionRef = useRef<WakeWordSession | null>(null);
+  const pathname = usePathname();
+  const zeroUi = useZeroUiScreenOptional();
+  const marketplaceWakeActive =
+    pathname === "/" && (zeroUi?.currentView ?? "marketplace") === "marketplace";
 
   const depsRef = useRef(deps);
   depsRef.current = deps;
@@ -237,6 +243,7 @@ export function WakeWordProvider({
       !deps.hydrated ||
       !wakeWordEnabled ||
       !deps.gdprConsent ||
+      !marketplaceWakeActive ||
       !isWakeWordBackgroundSupported()
     ) {
       wakeWordSessionRef.current?.stop();
@@ -291,6 +298,7 @@ export function WakeWordProvider({
     deps.hydrated,
     deps.gdprConsent,
     wakeWordEnabled,
+    marketplaceWakeActive,
     processWakeCommand,
     disableWakeWordInstantly,
   ]);

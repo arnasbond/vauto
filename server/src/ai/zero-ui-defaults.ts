@@ -1,6 +1,9 @@
 import { resolveLtCityNominative } from "./lithuanian-location-normalize.js";
 
-export const DEFAULT_USER_REGION = "Panevėžys";
+/** Empty string = search/list nationwide (Visa Lietuva). */
+export const DEFAULT_USER_REGION = "";
+
+export const ALL_LITHUANIA_LABEL = "Visa Lietuva";
 
 export interface PrimaryVehicle {
   make: string;
@@ -19,9 +22,10 @@ export function resolveAgentDefaultCity(input?: string | null): string {
   if (
     !trimmed ||
     trimmed.toLowerCase() === "lietuva" ||
-    trimmed.toLowerCase() === "miestas"
+    trimmed.toLowerCase() === "miestas" ||
+    trimmed.toLowerCase() === "visa lietuva"
   ) {
-    return DEFAULT_USER_REGION;
+    return "";
   }
   return resolveLtCityNominative(trimmed);
 }

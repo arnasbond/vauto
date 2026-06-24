@@ -380,8 +380,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     const listingResult = listingCall?.result as {
       voiceFollowUp?: string;
       proactivePricingMessage?: string | null;
+      marketAnalysisDeferred?: boolean;
     } | undefined;
-    if (listingResult?.proactivePricingMessage) {
+    if (listingResult?.marketAnalysisDeferred && listingResult.voiceFollowUp) {
+      finalText = listingResult.voiceFollowUp;
+    } else if (listingResult?.proactivePricingMessage) {
       finalText = listingResult.proactivePricingMessage;
     } else if (listingResult?.voiceFollowUp) {
       finalText = listingResult.voiceFollowUp;
@@ -434,8 +437,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     voiceFollowUp?: string;
     missingFields?: string[];
     proactivePricingMessage?: string | null;
+    marketAnalysisDeferred?: boolean;
   } | undefined;
-  if (
+  if (listingResult?.marketAnalysisDeferred && listingResult.voiceFollowUp) {
+    finalText = listingResult.voiceFollowUp;
+  } else if (
     listingResult?.proactivePricingMessage &&
     !finalText.includes(listingResult.proactivePricingMessage.slice(0, 24))
   ) {

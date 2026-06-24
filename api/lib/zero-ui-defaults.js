@@ -1,6 +1,7 @@
 const { resolveLtCityNominative } = require("./lithuanian-location-normalize");
 
-const DEFAULT_USER_REGION = "Panevėžys";
+const DEFAULT_USER_REGION = "";
+const ALL_LITHUANIA_LABEL = "Visa Lietuva";
 
 const DEFAULT_PRIMARY_VEHICLE = {
   make: "Volvo",
@@ -13,9 +14,10 @@ function resolveAgentDefaultCity(input) {
   if (
     !trimmed ||
     trimmed.toLowerCase() === "lietuva" ||
-    trimmed.toLowerCase() === "miestas"
+    trimmed.toLowerCase() === "miestas" ||
+    trimmed.toLowerCase() === "visa lietuva"
   ) {
-    return DEFAULT_USER_REGION;
+    return "";
   }
   return resolveLtCityNominative(trimmed);
 }
@@ -26,6 +28,7 @@ function formatPrimaryVehicleLabel(vehicle) {
 
 module.exports = {
   DEFAULT_USER_REGION,
+  ALL_LITHUANIA_LABEL,
   DEFAULT_PRIMARY_VEHICLE,
   resolveAgentDefaultCity,
   formatPrimaryVehicleLabel,

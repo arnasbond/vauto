@@ -84,6 +84,8 @@ export function runMarketPriceAnalysis(
     minPrice,
     maxPrice,
     medianPrice,
-    message: `Rinkoje rasta ${peers.length} panašių skelbimų: ${minPrice}–${maxPrice} €, vidurkis ~${medianPrice} €.`,
+    message: city
+      ? `Rinkoje rasta ${peers.length} panašių skelbimų: ${minPrice}–${maxPrice} €, vidurkis ~${medianPrice} €.`
+      : `Rinkoje (visa Lietuva) rasta ${peers.length} panašių skelbimų: ${minPrice}–${maxPrice} €, vidurkis ~${medianPrice} €.`,
   };
 }

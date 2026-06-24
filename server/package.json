@@ -8,6 +8,7 @@
     "start": "node dist/index.js",
     "build": "tsc",
     "seed": "tsx src/seed.ts",
+    "e2e:simulate": "tsx src/test/vauto-e2e-simulation.ts",
     "setup-stripe": "tsx scripts/setup-stripe.ts"
   },
   "dependencies": {

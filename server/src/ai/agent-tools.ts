@@ -15,19 +15,14 @@ import {
   buildProactivePricingMessage,
   buildProactiveSearchResetMessage,
 } from "./proactive-agent.js";
+import { scheduleDeferredListingMarketAnalysis } from "./background-market-analysis.js";
 import {
   buildBusinessProUpsellMessage,
   buildMicroPaymentVoiceReply,
-  buildSmartBoostProactiveMessage,
   defaultPriceForProduct,
   inferMicroPaymentProduct,
   requiresBusinessProForRegionStats,
   resolveMonetizationState,
-  shouldOfferSmartBoost,
-  SMART_BOOST_B2B,
-  SMART_BOOST_C2C,
-  B2B_LEAD_PRICE,
-  BUSINESS_MONTHLY_PRO,
   type MonetizationState,
 } from "./monetization-engine.js";
 
@@ -308,10 +303,8 @@ export async function executeAgentTool(
       const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
       const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
       const cityRaw = args.city ? String(args.city).trim() : "";
-      const cityNominative = cityRaw
-        ? resolveLtCityNominative(cityRaw)
-        : resolveAgentDefaultCity(ctx.userCity);
-      const city = normCity(cityNominative);
+      const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
+      const city = cityNominative ? normCity(cityNominative) : "";
       const limit = Math.min(Number(args.limit) || 12, 24);
 
       let filtered = listings.filter((l) => l.price > 0);
@@ -322,11 +315,13 @@ export async function executeAgentTool(
       if (minPrice != null && !Number.isNaN(minPrice)) {
         filtered = filtered.filter((l) => l.price >= minPrice);
       }
-      filtered = filtered.filter(
-        (l) =>
-          normCity(l.location) === city ||
-          l.location.toLowerCase().includes(city)
-      );
+      if (city) {
+        filtered = filtered.filter(
+          (l) =>
+            normCity(l.location) === city ||
+            l.location.toLowerCase().includes(city)
+        );
+      }
       if (query) {
         const tokens = query
           .split(/[\s,.;:!?]+/)
@@ -345,7 +340,7 @@ export async function executeAgentTool(
       const searchFilters: AgentSearchFilters = {
         query: query || undefined,
         category,
-        city: cityNominative,
+        city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
       };
@@ -393,9 +388,13 @@ export async function executeAgentTool(
       const title = String(args.title ?? "Skelbimas");
       const description = String(args.description ?? "");
       const price = Number(args.price) || 0;
-      const normalizedCity = resolveAgentDefaultCity(
-        args.city ? String(args.city) : ctx.userCity
-      );
+      const cityArg = args.city ? String(args.city).trim() : "";
+      const userCityArg = ctx.userCity?.trim() ?? "";
+      const normalizedCity = cityArg
+        ? resolveAgentDefaultCity(cityArg)
+        : userCityArg
+          ? resolveAgentDefaultCity(userCityArg)
+          : "";
       const category = String(args.category ?? "other");
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String)
@@ -436,7 +435,7 @@ export async function executeAgentTool(
       const suggestedQuestions: string[] = [];
       if (missingFields.includes("city")) {
         suggestedQuestions.push(
-          `Matau, kad nenurodėte miesto. Ar skelbiame ${ctx.userCity}?`
+          "Matau, kad nenurodėte miesto. Kuriame mieste skelbiate?"
         );
       }
       if (missingFields.includes("price")) {
@@ -473,31 +472,21 @@ export async function executeAgentTool(
       const monState =
         ctx.monetization ??
         resolveMonetizationState({ userRole: ctx.userRole });
-      if (price > 0) {
-        marketAnalysis = runMarketPriceAnalysis(listings, {
+      const marketAnalysisDeferred = price > 0;
+
+      if (marketAnalysisDeferred) {
+        void scheduleDeferredListingMarketAnalysis({
+          listings,
           title: enriched.title,
           category: enriched.category,
           city: normalizedCity,
           make: String(attributes.make ?? ""),
           model: String(attributes.model ?? ""),
           year: String(attributes.year ?? ""),
+          price,
+          userRole: ctx.userRole,
+          monetization: monState,
         });
-        if (
-          shouldOfferSmartBoost(monState, price, marketAnalysis.medianPrice)
-        ) {
-          proactivePricingMessage = buildSmartBoostProactiveMessage(
-            price,
-            marketAnalysis.medianPrice!,
-            monState,
-            enriched.title
-          );
-        } else {
-          proactivePricingMessage = buildProactivePricingMessage(
-            price,
-            marketAnalysis,
-            enriched.title
-          );
-        }
       }
 
       return {
@@ -510,6 +499,7 @@ export async function executeAgentTool(
           voiceFollowUp,
           marketAnalysis,
           proactivePricingMessage,
+          marketAnalysisDeferred,
         },
         sideEffect: {
           type: "listing_draft",
@@ -525,9 +515,7 @@ export async function executeAgentTool(
       const year = args.year != null ? String(args.year) : "";
       const category = args.category ? String(args.category) : undefined;
       const cityRaw = args.city ? String(args.city).trim() : "";
-      const cityNominative = cityRaw
-        ? resolveLtCityNominative(cityRaw)
-        : resolveAgentDefaultCity(ctx.userCity);
+      const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
 
       const analysis = runMarketPriceAnalysis(listings, {
         title: `${brand} ${model} ${year}`.trim(),

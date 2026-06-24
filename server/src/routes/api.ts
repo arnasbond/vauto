@@ -73,6 +73,7 @@ import {
   validateServiceLeadCreate,
   validateUser,
 } from "../validation.js";
+import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
 
 export const apiRouter = Router();
 
@@ -207,6 +208,16 @@ apiRouter.get("/health", async (_req, res) => {
       features,
       error: String(e),
     });
+  }
+});
+
+/** Centralized buyer/seller session simulation for QA and production smoke checks. */
+apiRouter.get("/test/e2e-simulation", async (_req, res) => {
+  try {
+    const result = await runVautoE2eSimulation();
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
   }
 });
 

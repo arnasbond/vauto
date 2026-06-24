@@ -1,6 +1,6 @@
 import {
+  ALL_LITHUANIA_LABEL,
   DEFAULT_PRIMARY_VEHICLE,
-  DEFAULT_USER_REGION,
   formatPrimaryVehicleLabel,
   type PrimaryVehicle,
 } from "./zero-ui-defaults.js";
@@ -21,7 +21,7 @@ export interface AgentMemoryPayload {
 }
 
 export const AGENT_MEMORY_SYSTEM_HINT = `ATMINTIS IR KONTEKSTAS (PRIVALOMA):
-- Numatytoji vartotojo lokacija: ${DEFAULT_USER_REGION}. Jei miestas neįvardytas balsu ar tekste — naudok ją postNewListing.city ir searchListings.city (location: "${DEFAULT_USER_REGION}").
+- Numatytoji paieškos aprėptis: ${ALL_LITHUANIA_LABEL}. Jei vartotojas neįvardina miesto — NEPERDUOK searchListings.city ir postNewListing.city; ieškok visoje Lietuvoje be lokacijos filtro.
 - Vartotojo automobilis (Fleet): ${formatPrimaryVehicleLabel(DEFAULT_PRIMARY_VEHICLE)}. Jei užklausa neaiški (pvz. „rask priekinį bamperį“, „kiek kainuoja generatoriaus keitimas?“) — searchListings.query ir category filtruok TIK šiam modeliui; query turi apimti make, model, year.
 - SESIJOS TĘSTINUMAS: Jei vartotojas refine'ina ankstesnę paiešką (pvz. „O dabar rodyk tik pilkos spalvos“), SULIET activeSearchFilters su nauju filtru — nepradėk paieškos iš naujo be senų kriterijų (miestas, kaina, kategorija, query).
 - PROAKTYVUS FILTRŲ IŠVALYMAS: Jei vartotojas pateikia kardinaliai naują paiešką (kitas miestas, kita markė, „nauji BMW nuo 2018“ ir pan.) — NENAUDOK senų activeSearchFilters; searchListings turi naudoti tik naują užklausą. Klientas jau pažymėjo searchSessionReset=true.`;
@@ -33,10 +33,16 @@ export function buildAgentMemoryContextBlock(
 
   const lines: string[] = [];
 
-  const region = memory.defaultRegion?.trim() || DEFAULT_USER_REGION;
-  lines.push(
-    `defaultRegion=${region} (naudok postNewListing/searchListings kai lokacija neįvardyta)`
-  );
+  const region = memory.defaultRegion?.trim();
+  if (region) {
+    lines.push(
+      `defaultRegion=${region} (naudok searchListings.city / postNewListing.city tik kai vartotojas įvardina šį miestą)`
+    );
+  } else {
+    lines.push(
+      `defaultRegion=${ALL_LITHUANIA_LABEL} (nepridėk city parametro jei vartotojas neįvardino miesto)`
+    );
+  }
 
   const vehicle = memory.primaryVehicle ?? DEFAULT_PRIMARY_VEHICLE;
   lines.push(

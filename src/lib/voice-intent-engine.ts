@@ -228,6 +228,8 @@ export interface WakeWordGeminiAgent {
     options?: { skipBusyCheck?: boolean }
   ) => Promise<WakeWordAgentResult>;
   setAgentOpen: (open: boolean) => void;
+  syncSearchQuery?: (query: string) => void;
+  ensureMarketplace?: () => void;
 }
 
 /**
@@ -249,6 +251,7 @@ export async function dispatchWakeWordToGeminiAgent(
     transcript: trimmed.slice(0, 120),
   });
 
-  agent.setAgentOpen(true);
+  agent.ensureMarketplace?.();
+  agent.syncSearchQuery?.(trimmed);
   return agent.sendAgentMessage(trimmed, { skipBusyCheck: true });
 }

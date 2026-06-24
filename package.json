@@ -29,7 +29,8 @@
     "sync:runtime-config": "node scripts/write-runtime-config.mjs",
     "test:api-smoke": "node scripts/api-listing-smoke.mjs",
     "audit:security": "node scripts/audit-security.mjs",
-    "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs"
+    "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs",
+    "sim:e2e": "npm run e2e:simulate --prefix server"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

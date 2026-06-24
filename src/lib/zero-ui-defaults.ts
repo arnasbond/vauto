@@ -1,5 +1,7 @@
-/** Zero-UI demo / default user profile anchors for agent memory. */
-export const DEFAULT_USER_REGION = "Panevėžys";
+/** Zero-UI default user profile anchors for agent memory. Empty = Visa Lietuva. */
+export const DEFAULT_USER_REGION = "";
+
+export const ALL_LITHUANIA_LABEL = "Visa Lietuva";
 
 export interface PrimaryVehicle {
   make: string;
@@ -15,8 +17,13 @@ export const DEFAULT_PRIMARY_VEHICLE: PrimaryVehicle = {
 
 export function resolveDefaultUserCity(city?: string | null): string {
   const trimmed = city?.trim();
-  if (!trimmed || trimmed.toLowerCase() === "lietuva" || trimmed.toLowerCase() === "miestas") {
-    return DEFAULT_USER_REGION;
+  if (
+    !trimmed ||
+    trimmed.toLowerCase() === "lietuva" ||
+    trimmed.toLowerCase() === "miestas" ||
+    trimmed.toLowerCase() === "visa lietuva"
+  ) {
+    return "";
   }
   return trimmed;
 }
