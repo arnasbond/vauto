@@ -44,11 +44,14 @@ export async function apiSubmitReview(
 
 export async function apiTopUpWallet(
   amount: number
-): Promise<ApiResult<{ walletBalance: number }>> {
-  return authedFetch<{ walletBalance: number }>("/api/wallet/top-up", {
-    method: "POST",
-    body: JSON.stringify({ amount }),
-  });
+): Promise<ApiResult<{ walletBalance: number; mode?: string }>> {
+  return authedFetch<{ walletBalance: number; mode?: string }>(
+    "/api/wallet/top-up",
+    {
+      method: "POST",
+      body: JSON.stringify({ amount }),
+    }
+  );
 }
 
 export async function apiPromoteListing(

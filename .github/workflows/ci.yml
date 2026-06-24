@@ -52,6 +52,11 @@ jobs:
       - name: Install Playwright browsers
         run: npx playwright install --with-deps chromium
 
+      - name: Sync runtime config
+        run: npm run sync:runtime-config
+        env:
+          NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+
       - name: Build static export
         run: npm run build
 

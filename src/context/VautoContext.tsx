@@ -618,7 +618,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         if (userRes?.ok && auth?.isAuthenticated) {
           patchAuthUser(userRes.data);
         } else if (storedUser && auth?.isAuthenticated) {
-          patchAuthUser({ role: "private", ...storedUser });
+          patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
         }
 
         if (errors.length) setSyncError(errors[0]);
@@ -637,7 +637,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       const storedListings = loadListings();
       const storedSaved = loadSavedIds();
       if (auth?.isAuthenticated && storedUser) {
-        patchAuthUser({ role: "private", ...storedUser });
+        patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
       }
       if (storedListings?.length) {
         setListings(normalizeListings(storedListings));
@@ -1209,6 +1209,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         void apiTopUpWallet(amount).then((r) => {
           if (r.ok) {
             patchAuthUser({ walletBalance: r.data.walletBalance });
+            showToast(
+              r.data.mode === "demo"
+                ? `Demo papildymas: +${amount} € (be kortelės)`
+                : `Balansas papildytas +${amount} €`,
+              "success"
+            );
           } else {
             setSyncError(`Piniginė neišsaugota: ${r.error}`);
           }
@@ -1216,8 +1222,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         return;
       }
       patchAuthUser({ walletBalance: (user.walletBalance ?? 0) + amount });
+      showToast(`Demo papildymas: +${amount} €`, "success");
     },
-    [patchAuthUser, user.walletBalance, apiActive]
+    [patchAuthUser, user.walletBalance, apiActive, showToast]
   );
 
   const subscribeB2BPlan = useCallback(

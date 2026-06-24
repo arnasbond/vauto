@@ -16,6 +16,9 @@ assert(amount.ok && amount.value === 25, "validateAmount accepts 25");
 const badAmount = validateAmount({ amount: 0 }, "amount", 1, 500);
 assert(!badAmount.ok, "validateAmount rejects 0");
 
+const walletAmount = validateAmount({ amount: 10 }, "amount", 1, 500);
+assert(walletAmount.ok && walletAmount.value === 10, "wallet top-up amount valid");
+
 const lead = validateServiceLeadCreate({
   title: "Elektrikas Vilniuje",
   city: "Vilnius",

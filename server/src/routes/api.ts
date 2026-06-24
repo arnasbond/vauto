@@ -658,7 +658,7 @@ apiRouter.post("/wallet/top-up", requireAuth, async (req: AuthedRequest, res) =>
       res.status(400).json({ error: "Invalid amount" });
       return;
     }
-    res.json(result);
+    res.json({ ...result, mode: "demo" });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

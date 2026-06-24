@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seedDemoUser } from "./helpers/seed-demo-user";
+import { seedDemoUser, seedProUser } from "./helpers/seed-demo-user";
 
 test.describe("Vauto smoke", () => {
   test("home page loads with listings", async ({ page }) => {
@@ -75,6 +75,18 @@ test.describe("Vauto smoke", () => {
     expect(res.ok()).toBeTruthy();
     const json = await res.json();
     expect(json.apiUrl).toBeTruthy();
+  });
+
+  test("profile shows pro business dashboard for pro user", async ({ page }) => {
+    await seedProUser(page);
+    await page.goto("/profile/");
+    await expect(page.getByText(/Mano VAUTO Pro/i)).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByText(/E2E Autocentras/i)).toBeVisible();
+    await expect(page.getByText(/VAUTO Pro balansas/i)).toBeVisible();
+    await page.getByRole("button", { name: "Kainodara" }).click();
+    await expect(page.getByText(/PPC \+ planai/i)).toBeVisible();
   });
 
   test("discover page loads", async ({ page }) => {

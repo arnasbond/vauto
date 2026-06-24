@@ -259,7 +259,7 @@ export function AuthModal({
             {isGoogleAuthConfigured() && (
               <div ref={googleBtnRef} className="flex justify-center" />
             )}
-            {isAppleAuthConfigured() && (
+            {isAppleAuthConfigured() ? (
               <button
                 type="button"
                 onClick={() => {
@@ -271,6 +271,15 @@ export function AuthModal({
               >
                 <Apple className="h-5 w-5" />
                 Prisijungti su Apple
+              </button>
+            ) : (
+              <button
+                type="button"
+                disabled
+                className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl bg-black/40 py-3.5 text-sm font-semibold text-white/50 ring-1 ring-white/10"
+              >
+                <Apple className="h-5 w-5" />
+                Apple (netrukus)
               </button>
             )}
             <button
