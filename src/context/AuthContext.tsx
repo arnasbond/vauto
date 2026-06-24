@@ -142,11 +142,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const requireAuthForListing = useCallback(
     (redirectPath = "/add") => {
+      if (!hydrated) return false;
       if (isAuthenticated) return true;
       openAuthModal(redirectPath);
       return false;
     },
-    [isAuthenticated, openAuthModal]
+    [hydrated, isAuthenticated, openAuthModal]
   );
 
   const loginLocal = useCallback((data: LoginPayload): UserProfile => {

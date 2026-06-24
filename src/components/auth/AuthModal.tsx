@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Apple, Phone, Shield, X } from "lucide-react";
 import type { AuthProvider, ProBusinessType, UserRole } from "@/lib/types";
-import { ADMIN_EMAIL } from "@/lib/reports";
+import { ADMIN_EMAIL, ADMIN_PHONE } from "@/lib/reports";
 import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 import {
   isGoogleAuthConfigured,
@@ -112,6 +112,7 @@ export function AuthModal({
       otp: provider === "phone" ? otp : undefined,
       idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
       role,
+      email: role === "admin" ? ADMIN_EMAIL : undefined,
       businessType: role === "pro" ? businessType : undefined,
       companyName: role === "pro" ? companyName.trim() || undefined : undefined,
       companyCode: role === "pro" ? companyCode.trim() || undefined : undefined,
@@ -138,6 +139,12 @@ export function AuthModal({
 
   const handleGoogle = async () => {
     onClearError?.();
+    if (isAuthApiAvailable() && !isGoogleAuthConfigured()) {
+      setOtpError(
+        "Google prisijungimas dar neaktyvuotas serveryje. Naudokite telefoną arba admin OTP."
+      );
+      return;
+    }
     if (isGoogleAuthConfigured()) {
       const token = await requestGoogleIdToken();
       if (token) {
@@ -146,9 +153,15 @@ export function AuthModal({
         setStep("role");
         return;
       }
+      if (isAuthApiAvailable()) {
+        setOtpError("Nepavyko gauti Google patvirtinimo. Bandykite dar kartą.");
+        return;
+      }
     }
-    setPendingProvider("google");
-    setStep("role");
+    if (!isAuthApiAvailable()) {
+      setPendingProvider("google");
+      setStep("role");
+    }
   };
 
   const sendOtp = async () => {
@@ -176,6 +189,10 @@ export function AuthModal({
       return;
     }
     setPendingProvider("phone");
+    if (role === "admin") {
+      finish("phone");
+      return;
+    }
     setStep("role");
   };
 
@@ -218,12 +235,21 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => void handleGoogle()}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-100 disabled:opacity-60"
+              disabled={
+                loading || (isAuthApiAvailable() && !isGoogleAuthConfigured())
+              }
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <GoogleIcon />
               Prisijungti su Google
             </button>
+            {isAuthApiAvailable() && !isGoogleAuthConfigured() && (
+              <p className="text-center text-[10px] text-slate-500">
+                Google OAuth — įjunkite{" "}
+                <span className="font-mono text-slate-400">googleClientId</span>{" "}
+                runtime-config arba Vercel env.
+              </p>
+            )}
             {isGoogleAuthConfigured() && (
               <div ref={googleBtnRef} className="flex justify-center" />
             )}
@@ -279,28 +305,55 @@ export function AuthModal({
               className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-red-400"
               placeholder="admin@vauto.com"
             />
-            <button
-              type="button"
-              onClick={async () => {
-                if (adminEmail.trim().toLowerCase() !== ADMIN_EMAIL) return;
-                const token = isGoogleAuthConfigured()
-                  ? await requestGoogleIdToken()
-                  : null;
-                onComplete({
-                  provider: "google",
-                  role: "admin",
-                  email: ADMIN_EMAIL,
-                  idToken: token ?? undefined,
-                });
-                if (!isAuthApiAvailable() || token) {
-                  setStep("methods");
-                }
-              }}
-              disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
-              className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
-            >
-              Prisijungti kaip admin
-            </button>
+            {isGoogleAuthConfigured() ? (
+              <button
+                type="button"
+                onClick={async () => {
+                  if (adminEmail.trim().toLowerCase() !== ADMIN_EMAIL) return;
+                  const token = await requestGoogleIdToken();
+                  if (!token && isAuthApiAvailable()) {
+                    setOtpError("Nepavyko gauti Google patvirtinimo.");
+                    return;
+                  }
+                  onComplete({
+                    provider: "google",
+                    role: "admin",
+                    email: ADMIN_EMAIL,
+                    idToken: token ?? undefined,
+                  });
+                  if (!isAuthApiAvailable() || token) {
+                    setStep("methods");
+                  }
+                }}
+                disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
+                className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
+              >
+                Prisijungti su Google (admin)
+              </button>
+            ) : (
+              <>
+                <p className="text-xs text-slate-400">
+                  Google OAuth neaktyvus — naudokite admin telefoną{" "}
+                  <span className="font-mono text-teal-300">{ADMIN_PHONE}</span>{" "}
+                  ir demo OTP{" "}
+                  <span className="font-mono text-teal-300">123456</span>.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (adminEmail.trim().toLowerCase() !== ADMIN_EMAIL) return;
+                    setPhone(formatLtPhoneInput(ADMIN_PHONE));
+                    setRole("admin");
+                    setPendingProvider("phone");
+                    setStep("phone");
+                  }}
+                  disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
+                  className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
+                >
+                  Tęsti su admin telefonu
+                </button>
+              </>
+            )}
             <button
               type="button"
               onClick={() => setStep("methods")}

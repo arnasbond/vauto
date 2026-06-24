@@ -72,3 +72,6 @@ export const URGENCY_META: Record<
 };
 
 export const ADMIN_EMAIL = "admin@vauto.com";
+
+/** Demo/staging admin OTP phone (must match server ADMIN_PHONE). */
+export const ADMIN_PHONE = "+37060000099";

@@ -68,6 +68,9 @@ export function EscrowActionBlock({
           <div>
             <p className="text-xs font-bold uppercase tracking-wide text-[#1167b1]">
               {statusLabel}
+              <span className="ml-2 rounded-full bg-amber-100 px-1.5 py-0.5 text-[9px] font-bold text-amber-800">
+                Demo
+              </span>
             </p>
             <p className="mt-1 text-sm text-[#374151]">
               {inProgress ? (

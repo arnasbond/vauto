@@ -1,3 +1,5 @@
+import { getRuntimeGoogleClientId } from "@/lib/api/config";
+
 declare global {
   interface Window {
     google?: {
@@ -22,7 +24,7 @@ declare global {
 const SCRIPT_ID = "google-gsi-script";
 
 export function getGoogleClientId(): string | null {
-  return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? null;
+  return getRuntimeGoogleClientId();
 }
 
 export function isGoogleAuthConfigured(): boolean {

@@ -1,42 +1,60 @@
 /** Express + PostgreSQL backend (optional). */
 let resolvedApiUrl: string | null = null;
+let resolvedGoogleClientId: string | null = null;
 let resolvePromise: Promise<string | null> | null = null;
 
 function envApiUrl(): string | null {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || null;
 }
 
-/** Load API URL from build env or /runtime-config.json (no rebuild needed). */
+function envGoogleClientId(): string | null {
+  return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? null;
+}
+
+/** Load API URL and optional Google client id from build env or /runtime-config.json. */
 export async function initDataApiConfig(): Promise<string | null> {
   if (resolvedApiUrl) return resolvedApiUrl;
   if (resolvePromise) return resolvePromise;
 
   resolvePromise = (async () => {
     const fromEnv = envApiUrl();
+    const googleFromEnv = envGoogleClientId();
+    if (googleFromEnv) resolvedGoogleClientId = googleFromEnv;
+
+    if (typeof window !== "undefined") {
+      try {
+        const res = await fetch("/runtime-config.json", { cache: "no-store" });
+        if (res.ok) {
+          const json = (await res.json()) as {
+            apiUrl?: string;
+            googleClientId?: string;
+          };
+          if (!resolvedApiUrl) {
+            const url = json.apiUrl?.replace(/\/$/, "");
+            if (url) resolvedApiUrl = url;
+          }
+          if (!resolvedGoogleClientId && json.googleClientId) {
+            resolvedGoogleClientId = json.googleClientId;
+          }
+        }
+      } catch {
+        /* offline or missing file */
+      }
+    }
+
     if (fromEnv) {
       resolvedApiUrl = fromEnv;
       return fromEnv;
     }
 
-    if (typeof window === "undefined") return null;
-
-    try {
-      const res = await fetch("/runtime-config.json", { cache: "no-store" });
-      if (res.ok) {
-        const json = (await res.json()) as { apiUrl?: string };
-        const url = json.apiUrl?.replace(/\/$/, "");
-        if (url) {
-          resolvedApiUrl = url;
-          return url;
-        }
-      }
-    } catch {
-      /* offline or missing file */
-    }
-    return null;
+    return resolvedApiUrl;
   })();
 
   return resolvePromise;
+}
+
+export function getRuntimeGoogleClientId(): string | null {
+  return resolvedGoogleClientId || envGoogleClientId();
 }
 
 export function getDataApiBaseUrl(): string | null {

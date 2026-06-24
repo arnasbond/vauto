@@ -34,11 +34,26 @@ function resolveAdminEmail(): string {
   return (process.env.ADMIN_EMAIL ?? "admin@vauto.com").toLowerCase();
 }
 
+function normalizePhoneDigits(phone?: string | null): string {
+  return (phone ?? "").replace(/\D/g, "");
+}
+
+function resolveAdminPhone(): string {
+  return normalizePhoneDigits(process.env.ADMIN_PHONE ?? "+37060000099");
+}
+
 function resolveRole(
   metaRole: string,
-  email?: string | null
+  email?: string | null,
+  phone?: string | null
 ): string {
   if (email?.toLowerCase() === resolveAdminEmail()) return "admin";
+  if (
+    metaRole === "admin" &&
+    normalizePhoneDigits(phone) === resolveAdminPhone()
+  ) {
+    return "admin";
+  }
   return metaRole;
 }
 
@@ -60,7 +75,8 @@ async function buildSession(
 ) {
   const existing = await getUser(userId);
   const email = profile.email ?? existing?.email;
-  const role = resolveRole(meta.role, email);
+  const phone = profile.phone ?? existing?.phone;
+  const role = resolveRole(meta.role, email, phone);
   const user: ApiUser = {
     id: userId,
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
