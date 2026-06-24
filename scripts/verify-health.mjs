@@ -61,6 +61,45 @@ async function main() {
   if (strictReadiness) {
     console.log(`Strict check passed — readiness ${body.readiness?.score ?? "?"}/100`);
   }
+
+  await checkAiEndpoints(base);
+}
+
+async function checkAiEndpoints(base) {
+  const checks = [
+    { path: "/api/ai/health", expectOk: true },
+    { path: "/api/vauto-server", method: "POST", body: {}, expectStatus: 400 },
+    { path: "/api/vauto-agent", method: "POST", body: {}, expectStatus: 400 },
+  ];
+
+  for (const c of checks) {
+    const url = `${base}${c.path}`;
+    try {
+      const res = await fetch(url, {
+        method: c.method ?? "GET",
+        headers: c.body ? { "Content-Type": "application/json" } : undefined,
+        body: c.body ? JSON.stringify(c.body) : undefined,
+        signal: AbortSignal.timeout(30_000),
+      });
+      const status = res.status;
+      if (c.expectStatus && status !== c.expectStatus) {
+        console.warn(`AI route ${c.path}: expected HTTP ${c.expectStatus}, got ${status}`);
+        continue;
+      }
+      if (c.expectOk && !res.ok) {
+        console.warn(`AI route ${c.path}: HTTP ${status}`);
+        continue;
+      }
+      if (c.path.endsWith("/health")) {
+        const ai = await res.json().catch(() => ({}));
+        console.log(`AI health (${c.path}):`, JSON.stringify(ai));
+      } else {
+        console.log(`AI route ${c.path}: HTTP ${status} (reachable)`);
+      }
+    } catch (e) {
+      console.warn(`AI route ${c.path} unreachable:`, e.message ?? e);
+    }
+  }
 }
 
 main().catch((e) => {

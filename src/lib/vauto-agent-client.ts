@@ -106,3 +106,16 @@ export function resolveAgentUserRole(user: {
   if (user.role === "pro") return "business";
   return "buyer";
 }
+
+/** Optional bridge so seller/upload flows can notify the agent proactively */
+let agentErrorReporter: ((code: string, message?: string) => void) | null = null;
+
+export function registerAgentErrorReporter(
+  fn: ((code: string, message?: string) => void) | null
+): void {
+  agentErrorReporter = fn;
+}
+
+export function notifyAgentError(code: string, message?: string): void {
+  agentErrorReporter?.(code, message);
+}

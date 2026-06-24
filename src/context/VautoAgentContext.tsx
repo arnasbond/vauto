@@ -5,6 +5,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -14,6 +15,7 @@ import { apiVautoAgent } from "@/lib/api/client";
 import {
   compactListingsForAgent,
   mapAgentDraftToListing,
+  registerAgentErrorReporter,
   resolveAgentUserRole,
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
@@ -140,6 +142,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       );
     }
   }, [open, sendAgentMessage]);
+
+  useEffect(() => {
+    registerAgentErrorReporter(reportAgentError);
+    return () => registerAgentErrorReporter(null);
+  }, [reportAgentError]);
 
   const value = useMemo(
     () => ({
@@ -273,6 +280,7 @@ function VautoAgentFab() {
       onClick={() => setOpen(true)}
       className="fixed bottom-24 right-4 z-[200] flex h-14 w-14 items-center justify-center rounded-full bg-[#1167b1] text-white shadow-lg shadow-[#1167b1]/30 hover:bg-[#0d5a9a]"
       aria-label="Atidaryti VAUTO asistentą"
+      data-testid="vauto-agent-fab"
     >
       <Sparkles className="h-6 w-6" />
     </button>

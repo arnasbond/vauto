@@ -107,6 +107,13 @@ test.describe("Vauto smoke", () => {
     await expect(page.getByRole("button", { name: /Visi/i })).toBeVisible();
   });
 
+  test("AI agent FAB opens assistant dialog", async ({ page }) => {
+    await page.goto("/");
+    await page.getByRole("button", { name: "Atidaryti VAUTO asistentą" }).click();
+    await expect(page.getByRole("dialog", { name: "VAUTO AI asistentas" })).toBeVisible();
+    await expect(page.getByText(/Sveiki! Aš esu VAUTO asistentas/i)).toBeVisible();
+  });
+
   test("mobile bottom nav loads HTML pages not RSC txt", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");

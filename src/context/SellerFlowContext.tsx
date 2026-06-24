@@ -74,6 +74,7 @@ import {
 } from "@/lib/service-catalog";
 import { runAutoShareOnPublish } from "@/lib/social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
+import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
 import type {
   AiExtractedListing,
@@ -202,6 +203,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
 
       const enterManualFallback = (reason: string, error?: unknown) => {
+        if (reason === "timeout") {
+          notifyAgentError("ai_timeout", "AI analizė užtruko per ilgai");
+        } else if (reason === "invalid_extraction") {
+          notifyAgentError("ai_invalid", "Nepavyko automatiškai atpažinti turinio");
+        }
         showToast(MANUAL_FALLBACK_TOAST, "info");
         setAiManualFallback(true);
         setAiDraft(
