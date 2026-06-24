@@ -49,7 +49,7 @@ jobs:
         continue-on-error: true
 
       - name: Install Vercel CLI
-        run: npm install -g vercel@39
+        run: npm install -g vercel@latest
 
       - name: Link Vercel project
         run: |
