@@ -1,5 +1,6 @@
 "use client";
 
+import { usePathname } from "next/navigation";
 import { Loader2, Mic, Send, Sparkles, X } from "lucide-react";
 import {
   createContext,
@@ -24,6 +25,8 @@ import {
 import { registerWanted } from "@/lib/matching-service";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
+import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
+import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 
@@ -60,7 +63,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     rankedListings,
     searchQuery,
   } = useVauto();
-  const { currentView, navigateTo } = useNavigation();
+  const { navigateTo } = useNavigation();
+  const { currentView: zeroUiScreen, setScreen, goToMarketplace } = useZeroUiScreen();
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AgentChatMessage[]>([
@@ -76,27 +80,33 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     { code: string; message?: string } | undefined
   >();
 
+  const routeZeroUiScreen = useCallback(
+    (screen: ZeroUiScreen) => {
+      if (typeof window !== "undefined" && window.location.pathname.replace(/\/$/, "") !== "") {
+        window.location.assign("/");
+      }
+      setScreen(screen, "agent");
+    },
+    [setScreen]
+  );
+
   const applyActions = useCallback(
     (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
       if (actions.type === "search") {
+        goToMarketplace("agent");
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
-        navigateTo("search_results", { query: actions.searchQuery }, { source: "agent" });
         showToast(`Radau ${actions.listingIds.length} skelbimų`, "success");
-        if (!document.getElementById("zero-ui-view-host")) {
+        window.setTimeout(() => {
           document
             .getElementById("listing-results")
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        }, 120);
       }
       if (actions.type === "listing_draft") {
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
-        navigateTo(
-          "seller_wizard",
-          { category: actions.listingDraft.category },
-          { source: "agent" }
-        );
+        routeZeroUiScreen("listing_preview");
         setOpen(false);
       }
       if (actions.type === "block_listing" && actions.listingId) {
@@ -109,14 +119,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         );
       }
       if (actions.type === "empty_search") {
+        goToMarketplace("agent");
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
-        navigateTo("search_results", { query: actions.searchQuery }, { source: "agent" });
-        if (!document.getElementById("zero-ui-view-host")) {
+        window.setTimeout(() => {
           document
             .getElementById("listing-results")
             ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }
+        }, 120);
       }
       if (actions.type === "register_wanted") {
         void registerWanted({
@@ -128,20 +138,39 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           onError: (msg) => showToast(msg, "error"),
         });
       }
+      if (actions.type === "zero_ui_screen") {
+        routeZeroUiScreen(actions.screen);
+        showToast(`Zero-UI: ${actions.screen.replace(/_/g, " ")}`, "info");
+      }
       if (actions.type === "navigate") {
-        navigateTo(actions.view, actions.params ?? {}, { source: "agent" });
+        const view = actions.view;
+        if (view === "add_listing" || view === "seller_wizard") {
+          routeZeroUiScreen("listing_preview");
+        } else if (view === "profile") {
+          routeZeroUiScreen("business_dashboard");
+        } else if (view === "admin_ai") {
+          routeZeroUiScreen("admin_panel");
+        } else if (view === "search_results" || view === "home" || view === "discover") {
+          goToMarketplace("agent");
+        } else {
+          navigateTo(view, actions.params ?? {}, { source: "agent", zeroUi: false });
+        }
         if (actions.params?.query) {
           setSearchInputMode("text");
           setSearchQuery(actions.params.query);
         }
-        showToast(`Atidaromas: ${viewTitle(actions.view)}`, "info");
+        if (view !== "search_results" && view !== "home" && view !== "discover") {
+          showToast(`Atidaromas: ${viewTitle(view)}`, "info");
+        }
       }
     },
     [
       applyAgentListingDraft,
+      goToMarketplace,
       isAuthenticated,
       navigateTo,
       openAuthModal,
+      routeZeroUiScreen,
       setListingBanned,
       setSearchInputMode,
       setSearchQuery,
@@ -178,7 +207,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             isAuthenticated,
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
-            currentView,
+            currentView: zeroUiScreen,
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
@@ -246,7 +275,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       rankedListings,
       searchQuery,
       includeAdminContext,
-      currentView,
+      zeroUiScreen,
       open,
     ]
   );
@@ -431,9 +460,11 @@ function VautoAgentSheet() {
 }
 
 function VautoAgentFab() {
+  const pathname = usePathname();
   const { open, setOpen } = useVautoAgent();
+  const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
 
-  if (open) return null;
+  if (open || onHome) return null;
 
   return (
     <button

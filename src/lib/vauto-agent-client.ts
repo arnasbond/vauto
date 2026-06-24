@@ -27,7 +27,7 @@ export interface VautoAgentContext {
   isAuthenticated?: boolean;
   searchResultCount?: number;
   lastSearchQuery?: string;
-  currentView?: AppView;
+  currentView?: AppView | import("@/lib/zero-ui-screens").ZeroUiScreen;
 }
 
 export interface AgentListingSnapshot {
@@ -74,6 +74,10 @@ export type VautoAgentAction =
       type: "navigate";
       view: AppView;
       params?: Record<string, string>;
+    }
+  | {
+      type: "zero_ui_screen";
+      screen: import("@/lib/zero-ui-screens").ZeroUiScreen;
     };
 
 export interface VautoAgentResponse {

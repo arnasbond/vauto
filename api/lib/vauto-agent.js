@@ -1,7 +1,12 @@
 const { resolveGeminiApiKey } = require("./gemini-config");
+const {
+  mergeVehicleToolArgs,
+  enrichVehicleListingDraftFromArgs,
+} = require("./vehicle-attribute-extract");
 
 const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
 Vesk vartotoją pokalbiu lietuviškai. Pardavimui — postNewListing + analyzeMarketPrice, klausk trūkstamų duomenų.
+AUTOMOBILIAMS: iš balso/teksto VISADA ištrauk make, model, year (atskirais laukais arba attributes) ir perduok postNewListing su category=vehicles.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
 Paieškai — searchListings; jei 0 rezultatų — registerWanted.
 Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
@@ -26,7 +31,8 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
   {
     name: "postNewListing",
-    description: "Paruošia naują skelbimo juodraštį patvirtinimui.",
+    description:
+      "Paruošia skelbimo juodraštį. Automobiliams (vehicles) PRIVALOMA ištraukti make, model, year iš balso/teksto.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -35,6 +41,9 @@ const AGENT_FUNCTION_DECLARATIONS = [
         price: { type: "NUMBER" },
         city: { type: "STRING" },
         category: { type: "STRING" },
+        make: { type: "STRING", description: "Automobilio markė (vehicles)" },
+        model: { type: "STRING", description: "Automobilio modelis (vehicles)" },
+        year: { type: "INTEGER", description: "Metai (vehicles)" },
         imageUrls: { type: "ARRAY", items: { type: "STRING" } },
         attributes: { type: "OBJECT" },
       },
@@ -90,6 +99,18 @@ const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "showZeroUiScreen",
+    description:
+      "Zero-UI ekranas: marketplace | listing_preview | business_dashboard | admin_panel",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        screen: { type: "STRING" },
+      },
+      required: ["screen"],
+    },
+  },
+  {
     name: "navigate_view",
     description:
       "Perjungia programėlės vaizdą be puslapio perkrovimo (Zero-UI).",
@@ -109,6 +130,12 @@ const AGENT_FUNCTION_DECLARATIONS = [
 ];
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+const VALID_ZERO_UI_SCREENS = [
+  "marketplace",
+  "listing_preview",
+  "business_dashboard",
+  "admin_panel",
+];
 const VALID_APP_VIEWS = [
   "home",
   "discover",
@@ -193,15 +220,24 @@ function executeAgentTool(name, args, ctx) {
   }
 
   if (name === "postNewListing") {
+    const title = String(args.title ?? "Skelbimas");
+    const description = String(args.description ?? "");
+    const mergedAttrs = mergeVehicleToolArgs(args);
+    const enriched = enrichVehicleListingDraftFromArgs(
+      title,
+      description,
+      String(args.category ?? "other"),
+      mergedAttrs
+    );
     const draft = {
-      title: String(args.title ?? "Skelbimas"),
-      description: String(args.description ?? ""),
+      title: enriched.title,
+      description: enriched.description,
       price: Number(args.price) || 0,
       location: String(args.city ?? ctx.userCity),
       contact: ctx.contact,
-      category: String(args.category ?? "other"),
+      category: enriched.category,
       confidence: 0.9,
-      attributes: args.attributes && typeof args.attributes === "object" ? args.attributes : {},
+      attributes: enriched.attributes,
     };
     const imageUrls = Array.isArray(args.imageUrls) ? args.imageUrls.map(String) : [];
     return {
@@ -300,6 +336,19 @@ function executeAgentTool(name, args, ctx) {
             : "Per trumpa paieška.",
       },
       sideEffect: query.length >= 3 ? { type: "register_wanted", query } : undefined,
+    };
+  }
+
+  if (name === "showZeroUiScreen") {
+    const screen = String(args.screen ?? "").trim();
+    if (!VALID_ZERO_UI_SCREENS.includes(screen)) {
+      return {
+        result: { ok: false, message: `Nežinomas Zero-UI ekranas: ${screen}` },
+      };
+    }
+    return {
+      result: { ok: true, screen },
+      sideEffect: { type: "zero_ui_screen", screen },
     };
   }
 

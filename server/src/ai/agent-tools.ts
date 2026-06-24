@@ -1,4 +1,21 @@
 import { adminPatchListing, getListings } from "../repository.js";
+import {
+  enrichVehicleListingDraftFromArgs,
+  mergeVehicleToolArgs,
+} from "./vehicle-attribute-extract.js";
+
+const ZERO_UI_SCREENS = [
+  "marketplace",
+  "listing_preview",
+  "business_dashboard",
+  "admin_panel",
+] as const;
+
+type ZeroUiScreen = (typeof ZERO_UI_SCREENS)[number];
+
+function isZeroUiScreen(value: string): value is ZeroUiScreen {
+  return (ZERO_UI_SCREENS as readonly string[]).includes(value);
+}
 
 const VALID_APP_VIEWS = [
   "home",
@@ -67,7 +84,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "postNewListing",
     description:
-      "Paruošia naują skelbimo juodraštį patvirtinimui. Naudok kai vartotojas nori parduoti / įdėti skelbimą. Sugeneruok profesionalų aprašymą lietuviškai.",
+      "Paruošia naują skelbimo juodraštį patvirtinimui. Naudok kai vartotojas nori parduoti / įdėti skelbimą. Sugeneruok profesionalų aprašymą lietuviškai. AUTOMOBILIAMS (category=vehicles): PRIVALOMA iš balso ar teksto ištraukti markę (make), modelį (model) ir metus (year) — per atskirus laukus arba attributes.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -79,6 +96,19 @@ export const AGENT_FUNCTION_DECLARATIONS = [
           type: "STRING",
           description: "vehicles | electronics | real_estate | clothing | services | jobs | home | other",
         },
+        make: {
+          type: "STRING",
+          description:
+            "Automobilio markė (vehicles): BMW, Volkswagen, Toyota, Citroën, Mercedes-Benz ir pan.",
+        },
+        model: {
+          type: "STRING",
+          description: "Automobilio modelis (vehicles): Golf, 520, Corolla, DS5 ir pan.",
+        },
+        year: {
+          type: "INTEGER",
+          description: "Pirmos registracijos / pagaminimo metai (vehicles), pvz. 2018",
+        },
         imageUrls: {
           type: "ARRAY",
           items: { type: "STRING" },
@@ -86,7 +116,8 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         },
         attributes: {
           type: "OBJECT",
-          description: "Techniniai laukai: make, model, year, fuelType, mileage ir pan.",
+          description:
+            "Papildomi techniniai laukai. Automobiliams čia taip pat gali būti make, model, year, mileage, fuelType, vin.",
         },
       },
       required: ["title", "description", "category", "city"],
@@ -144,6 +175,22 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         query: { type: "STRING", description: "Paieškos užklausa lietuviškai" },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "showZeroUiScreen",
+    description:
+      "Perjungia pagrindinį Zero-UI ekraną be tradicinės navigacijos. marketplace=paieška/srautas; listing_preview=skelbimo juodraštis; business_dashboard=verslo statistika; admin_panel=moderavimas.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        screen: {
+          type: "STRING",
+          description:
+            "marketplace | listing_preview | business_dashboard | admin_panel",
+        },
+      },
+      required: ["screen"],
     },
   },
   {
@@ -270,28 +317,35 @@ export async function executeAgentTool(
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String)
         : [];
-      const attributes =
-        args.attributes && typeof args.attributes === "object"
-          ? (args.attributes as Record<string, string>)
-          : {};
+      const mergedAttrs = mergeVehicleToolArgs(args);
+      const enriched = enrichVehicleListingDraftFromArgs(
+        title,
+        description,
+        category,
+        mergedAttrs
+      );
 
       const missingFields: string[] = [];
       if (!city?.trim() || city.toLowerCase() === "miestas") missingFields.push("city");
       if (price <= 0) missingFields.push("price");
       if (!description.trim()) missingFields.push("description");
+      const attributes = enriched.attributes;
       const sellerType = String(attributes.sellerType ?? "").trim();
       if (!sellerType) missingFields.push("sellerType");
-      if (category === "vehicles" && !String(attributes.vin ?? "").trim()) {
-        missingFields.push("vin");
+      if (enriched.category === "vehicles") {
+        if (!String(attributes.make ?? "").trim()) missingFields.push("make");
+        if (!String(attributes.model ?? "").trim()) missingFields.push("model");
+        if (!String(attributes.year ?? "").trim()) missingFields.push("year");
+        if (!String(attributes.vin ?? "").trim()) missingFields.push("vin");
       }
 
       const draft = {
-        title,
-        description,
+        title: enriched.title,
+        description: enriched.description,
         price,
         location: city,
         contact: ctx.contact,
-        category,
+        category: enriched.category,
         confidence: 0.9,
         attributes,
       };
@@ -305,10 +359,19 @@ export async function executeAgentTool(
       if (missingFields.includes("price")) {
         suggestedQuestions.push("Kokios kainos tikitės? Galiu patarti pagal rinką.");
       }
-      if (category === "vehicles" && missingFields.includes("vin")) {
+      if (enriched.category === "vehicles" && missingFields.includes("vin")) {
         suggestedQuestions.push(
           "Ar norėtumėte įvesti VIN kodą, kad Regitra duomenys užsipildytų automatiškai?"
         );
+      }
+      if (enriched.category === "vehicles" && missingFields.includes("make")) {
+        suggestedQuestions.push("Kokia automobilio markė? Pvz. BMW, Volkswagen, Toyota.");
+      }
+      if (enriched.category === "vehicles" && missingFields.includes("model")) {
+        suggestedQuestions.push("Koks modelis? Pvz. Golf, 520, Corolla.");
+      }
+      if (enriched.category === "vehicles" && missingFields.includes("year")) {
+        suggestedQuestions.push("Kokie pagaminimo ar registracijos metai?");
       }
       if (missingFields.includes("sellerType")) {
         suggestedQuestions.push(
@@ -479,6 +542,22 @@ export async function executeAgentTool(
       };
     }
 
+    case "showZeroUiScreen": {
+      const screenRaw = String(args.screen ?? "").trim();
+      if (!isZeroUiScreen(screenRaw)) {
+        return {
+          result: {
+            ok: false,
+            message: `Nežinomas Zero-UI ekranas „${screenRaw}". Galimi: ${ZERO_UI_SCREENS.join(", ")}.`,
+          },
+        };
+      }
+      return {
+        result: { ok: true, screen: screenRaw, message: `Zero-UI → ${screenRaw}` },
+        sideEffect: { type: "zero_ui_screen", screen: screenRaw },
+      };
+    }
+
     case "navigate_view": {
       const viewRaw = String(args.view ?? "").trim();
       if (!isAppView(viewRaw)) {
@@ -556,4 +635,8 @@ export type AgentSideEffect =
       type: "navigate";
       view: AppView;
       params?: Record<string, string>;
+    }
+  | {
+      type: "zero_ui_screen";
+      screen: ZeroUiScreen;
     };

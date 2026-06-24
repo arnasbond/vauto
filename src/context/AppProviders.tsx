@@ -3,20 +3,22 @@
 import type { ReactNode } from "react";
 import { AuthProvider } from "@/context/AuthContext";
 import { NavigationProvider } from "@/context/NavigationContext";
+import { ZeroUiScreenProvider } from "@/context/ZeroUiScreenContext";
 import { ReviewsProvider } from "@/context/ReviewsContext";
 import { VautoProvider } from "@/context/VautoContext";
 
 /**
  * Application provider tree (Phase 5):
- * AuthProvider → ReviewsProvider → NavigationProvider → VautoProvider
- *   └─ Moderation → PushAlerts → WakeWord → VautoBridge → Chat → SellerFlow → VautoFacade
+ * AuthProvider → ReviewsProvider → NavigationProvider → ZeroUiScreenProvider → VautoProvider
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <ReviewsProvider>
         <NavigationProvider>
-          <VautoProvider>{children}</VautoProvider>
+          <ZeroUiScreenProvider>
+            <VautoProvider>{children}</VautoProvider>
+          </ZeroUiScreenProvider>
         </NavigationProvider>
       </ReviewsProvider>
     </AuthProvider>

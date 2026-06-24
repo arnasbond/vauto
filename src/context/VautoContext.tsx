@@ -107,9 +107,9 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
-import { ZeroUiViewHost } from "@/components/navigation/ZeroUiViewHost";
-import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
+import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
+import { ZeroUiSellerBridge } from "@/components/zero-ui/ZeroUiSellerBridge";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
 import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
 import type { ListingEditPatch } from "@/lib/listing-edit";
@@ -523,8 +523,8 @@ function VautoFacade({
           {children}
         </VautoAgentProvider>
       </AdminProjectContextProvider>
-      <ZeroUiViewHost />
       <SellerFlowOverlays />
+      <ZeroUiSellerBridge />
       <ChameleonThemeHost />
       <ReviewPromptHost />
       <WakeWordHost />

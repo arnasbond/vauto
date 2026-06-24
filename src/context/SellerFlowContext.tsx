@@ -43,6 +43,10 @@ import {
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { detectVehicleMake } from "@/lib/vehicle-keywords";
 import {
+  enrichVehicleListingDraft,
+  looksLikeVehicleListingText,
+} from "@/lib/vehicle-attribute-extract";
+import {
   detectPropertyTypeFromText,
   detectTransactionFromText,
   defaultTransactionForType,
@@ -265,27 +269,24 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           next = { ...next, location: locationHint };
         }
 
-        const title = next.title ?? "";
-        const detectedMake = detectVehicleMake(title);
-        const looksLikeVehicle =
-          next.category === "vehicles" ||
-          Boolean(detectedMake) ||
-          Boolean(next.attributes?.make) ||
-          /\b(vin|automobili|mašin|kebulo|varikli)\b/i.test(title);
+        const sourceBlob = [
+          next.title,
+          next.description,
+          opts?.transcript,
+          opts?.extraContext,
+        ]
+          .filter(Boolean)
+          .join(" ");
 
-        if (looksLikeVehicle) {
-          const attrs = { ...(next.attributes ?? {}) };
-          if (!attrs.make && detectedMake) attrs.make = detectedMake;
-          const yearMatch = title.match(/\b(19|20)\d{2}\b/);
-          if (!attrs.year && yearMatch) attrs.year = yearMatch[0];
-          const modelMatch = title.match(
-            /\b(C[1-5]|DS[3-7]|Golf|Passat|A[346]|320|520|Corolla|Focus)\b/i
-          );
-          if (!attrs.model && modelMatch) attrs.model = modelMatch[0];
-          if (!attrs.defects) attrs.defects = "Be defektų";
-          if (!attrs.steering) attrs.steering = "Kairėje";
-          next = { ...next, category: "vehicles", attributes: attrs };
+        if (
+          next.category === "vehicles" ||
+          looksLikeVehicleListingText(sourceBlob) ||
+          Boolean(next.attributes?.make) ||
+          Boolean(detectVehicleMake(next.title ?? ""))
+        ) {
+          next = enrichVehicleListingDraft(next, [sourceBlob]);
         } else {
+          const title = next.title ?? "";
           const detectedProperty = detectPropertyTypeFromText(title);
           const looksLikeRealEstate =
             next.category === "real_estate" ||
@@ -472,14 +473,29 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     (draft: AiExtractedListing, imageUrl?: string) => {
       if (!requireAuthForListing("/add")) return;
       setAiManualFallback(false);
-      setAiDraft(draft);
+      const enriched = enrichVehicleListingDraft(draft, [
+        draft.title,
+        draft.description ?? "",
+      ]);
+      setAiDraft(enriched);
       setSellerInputMode("text");
-      setSellerUserPrompt(draft.description ?? draft.title);
+      setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
-      const key = listingToAdaptiveKey(draft.category);
+      const key = listingToAdaptiveKey(enriched.category);
       setChameleonTheme(adaptiveKeyToTheme(key));
       setSellerStep("confirmation");
-      showToast("AI paruošė skelbimą — patvirtinkite arba pataisykite.", "success");
+      const vehicleAttrs = enriched.attributes;
+      const prefilled =
+        enriched.category === "vehicles" &&
+        vehicleAttrs?.make &&
+        vehicleAttrs?.model &&
+        vehicleAttrs?.year;
+      showToast(
+        prefilled
+          ? `AI užpildė ${vehicleAttrs.make} ${vehicleAttrs.model} ${vehicleAttrs.year} — patvirtinkite arba pataisykite.`
+          : "AI paruošė skelbimą — patvirtinkite arba pataisykite.",
+        "success"
+      );
     },
     [requireAuthForListing, setChameleonTheme, showToast]
   );

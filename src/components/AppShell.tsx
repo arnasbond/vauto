@@ -4,7 +4,6 @@ import type { ReactNode } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { SyncErrorBanner } from "@/components/SyncErrorBanner";
-import { useNavigation } from "@/context/NavigationContext";
 
 interface AppShellProps {
   children: ReactNode;
@@ -18,8 +17,6 @@ export function AppShell({
   hideNav = false,
   variant = "home",
 }: AppShellProps) {
-  const { zeroUiActive } = useNavigation();
-  const effectiveHideNav = hideNav || zeroUiActive;
   if (variant === "plain") {
     return (
       <div className="vauto-light-page flex min-h-dvh flex-col bg-white text-slate-900">
@@ -27,8 +24,8 @@ export function AppShell({
           <SyncErrorBanner />
           {children}
         </div>
-        {!effectiveHideNav && <BottomNav />}
-        {!effectiveHideNav && <InstallAppBanner />}
+        {!hideNav && <BottomNav />}
+        {!hideNav && <InstallAppBanner />}
       </div>
     );
   }
@@ -41,8 +38,8 @@ export function AppShell({
         </div>
         {children}
       </div>
-      {!effectiveHideNav && <BottomNav />}
-      {!effectiveHideNav && <InstallAppBanner />}
+      {!hideNav && <BottomNav />}
+      {!hideNav && <InstallAppBanner />}
     </div>
   );
 }

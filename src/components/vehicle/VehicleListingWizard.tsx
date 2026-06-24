@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, ChevronLeft, Plus, X } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import {
   BODY_TYPES,
@@ -58,6 +58,7 @@ interface VehicleListingWizardProps {
   requestMediaConsent: (onGranted: () => void) => void;
   onCancel: () => void;
   onPublish: () => void;
+  embedded?: boolean;
 }
 
 function attr(attrs: Record<string, string | string[] | undefined>, key: string): string {
@@ -196,14 +197,22 @@ export function VehicleListingWizard({
   requestMediaConsent,
   onCancel,
   onPublish,
+  embedded = false,
 }: VehicleListingWizardProps) {
   const [step, setStep] = useState(1);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const make = attr(attrs, "make");
   const model = attr(attrs, "model");
+  const year = attr(attrs, "year");
   const summary = vehicleSummaryLabel(attrs);
 
-  const models = useMemo(() => modelsForMake(make), [make]);
+  const models = useMemo(() => {
+    const base = modelsForMake(make);
+    if (model && !base.includes(model)) {
+      return [...base.filter((m) => m !== "Kita"), model, "Kita"];
+    }
+    return base;
+  }, [make, model]);
   const modifications = useMemo(
     () => modificationsFor(make, model),
     [make, model]
@@ -243,7 +252,7 @@ export function VehicleListingWizard({
     [attrs, make, model, onUpdate]
   );
 
-  const canNextStep1 = Boolean(make && model && attr(attrs, "year"));
+  const canNextStep1 = Boolean(make && model && year);
   const canNextStep2 = Boolean(previewImage);
   const canNextStep3 =
     Boolean(attr(attrs, "bodyType") && attr(attrs, "fuelType") && attr(attrs, "gearbox") && attr(attrs, "doors"));
@@ -283,15 +292,20 @@ export function VehicleListingWizard({
     if (step > 1) setStep((s) => s - 1);
   };
 
-  const syncTitle = () => {
+  const syncTitle = useCallback(() => {
     if (make && model) {
-      const y = attr(attrs, "year");
       onUpdate({
-        title: `${make} ${model}${y ? ` ${y}` : ""}`.trim(),
+        title: `${make} ${model}${year ? ` ${year}` : ""}`.trim(),
         category: "vehicles",
       });
     }
-  };
+  }, [make, model, onUpdate, year]);
+
+  useEffect(() => {
+    if (make && model && year) syncTitle();
+  }, [make, model, year, syncTitle]);
+
+  const aiPrefilledStep1 = Boolean(make && model && year && userPrompt?.trim());
 
   const { analysis, buddyMessage, thread, handleWizardReply } = useListingWizard({
     draft,
@@ -303,8 +317,20 @@ export function VehicleListingWizard({
   });
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]">
-      <div className="mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm">
+    <div
+      className={
+        embedded
+          ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] shadow-sm"
+          : "fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]"
+      }
+    >
+      <div
+        className={
+          embedded
+            ? "px-4 py-5"
+            : "mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm"
+        }
+      >
         <ProgressHeader
           step={step}
           summary={step > 1 ? summary : make || ""}
@@ -330,6 +356,11 @@ export function VehicleListingWizard({
 
         {step === 1 && (
           <>
+            {aiPrefilledStep1 && (
+              <p className="mb-4 rounded-lg border border-[#bfdbfe] bg-[#eef6ff] px-3 py-2 text-xs text-[#1e40af]">
+                AI iš balso užpildė markę, modelį ir metus — patikrinkite ir tęskite.
+              </p>
+            )}
             <SelectField
               label="Markė"
               required
@@ -352,7 +383,7 @@ export function VehicleListingWizard({
               <SelectField
                 label="Pirmos registracijos metai"
                 required
-                value={attr(attrs, "year")}
+                value={year}
                 onChange={(v) => onAttributeChange("year", v)}
                 options={REGISTRATION_YEARS}
                 placeholder="Metai"

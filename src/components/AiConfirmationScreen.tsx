@@ -12,11 +12,17 @@ import { JobListingWizard } from "@/components/jobs/JobListingWizard";
 import { ServiceListingWizard } from "@/components/services/ServiceListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 
+export type AiConfirmationMode = "overlay" | "inline-preview" | "inline-full";
+
 /**
  * AI patvirtinimo ekranas — naudoja `sellerStep` + `aiDraft` iš VautoContext
  * (atitinka Gemini `detectedCategory` / `aiExtractedData` / `publishGeneratedListing`).
  */
-export function AiConfirmationScreen() {
+export function AiConfirmationScreen({
+  mode = "overlay",
+}: {
+  mode?: AiConfirmationMode;
+}) {
   const {
     sellerStep,
     aiDraft,
@@ -49,6 +55,29 @@ export function AiConfirmationScreen() {
   };
 
   const isVehicle = listingToAdaptiveKey(aiDraft.category) === "vehicles";
+  const usePreviewCard =
+    mode === "inline-preview" && isVehicle;
+  const embedded = mode === "inline-preview" || mode === "inline-full";
+
+  if (usePreviewCard) {
+    return (
+      <AdaptiveConfirmation
+        draft={aiDraft}
+        previewImage={sellerPreviewImage}
+        videoUrl={sellerVideoUrl}
+        userPrompt={sellerUserPrompt}
+        speakEnabled={sellerInputMode === "voice" || sellerInputMode === "combined"}
+        manualFallback={aiManualFallback}
+        onUpdate={updateAiDraft}
+        onAttributeChange={handleAttributeChange}
+        onMediaChange={updateSellerMedia}
+        requestMediaConsent={requestMediaConsent}
+        onCancel={cancelSellerFlow}
+        onPublish={publishListing}
+      />
+    );
+  }
+
   const isRealEstate = listingToAdaptiveKey(aiDraft.category) === "real_estate";
   const isClothing = listingToAdaptiveKey(aiDraft.category) === "clothing";
   const isUniversal = listingToAdaptiveKey(aiDraft.category) === "universal";
@@ -69,6 +98,7 @@ export function AiConfirmationScreen() {
         requestMediaConsent={requestMediaConsent}
         onCancel={cancelSellerFlow}
         onPublish={publishListing}
+        embedded={embedded}
       />
     );
   }
