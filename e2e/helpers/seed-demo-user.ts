@@ -41,6 +41,18 @@ export async function seedDemoUser(page: Page) {
   });
 }
 
+/** Seed demo admin session for Control Center smoke tests. */
+export async function seedAdminUser(page: Page) {
+  await seedAuthSession(page, {
+    id: "admin-1",
+    name: "Vauto Admin",
+    phone: "+37060000099",
+    city: "Vilnius",
+    role: "admin",
+    walletBalance: 0,
+  });
+}
+
 /** Seed demo pro business session for dashboard smoke tests. */
 export async function seedProUser(page: Page) {
   await seedAuthSession(page, {

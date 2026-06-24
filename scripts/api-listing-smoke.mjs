@@ -124,7 +124,10 @@ async function main() {
     if (!create.res.ok) {
       fail(`create ${sample.category}`, create.body);
     }
-  console.log(`  ✓ created ${sample.category}: ${listing.id}`);
+    if (!create.body?.id || create.body.id !== listing.id) {
+      fail(`create ${sample.category} missing listing body`, create.body);
+    }
+    console.log(`  ✓ created ${sample.category}: ${listing.id}`);
     createdIds.push(listing.id);
   }
 

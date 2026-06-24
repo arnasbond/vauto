@@ -1,5 +1,5 @@
 import { test, expect } from "@playwright/test";
-import { seedDemoUser, seedProUser } from "./helpers/seed-demo-user";
+import { seedAdminUser, seedDemoUser, seedProUser } from "./helpers/seed-demo-user";
 
 test.describe("Vauto smoke", () => {
   test("home page loads with listings", async ({ page }) => {
@@ -92,5 +92,18 @@ test.describe("Vauto smoke", () => {
   test("discover page loads", async ({ page }) => {
     await page.goto("/discover/");
     await expect(page.locator("body")).toContainText(/atrask|iešk|skelbim/i);
+  });
+
+  test("profile shows admin listing moderation for admin user", async ({ page }) => {
+    await seedAdminUser(page);
+    await page.goto("/profile/");
+    await expect(page.getByRole("heading", { name: "Administratorius" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await page.getByRole("button", { name: "Skelbimai" }).click();
+    await expect(
+      page.getByPlaceholder(/Ieškoti pagal pavadinimą, miestą, pardavėją/i)
+    ).toBeVisible();
+    await expect(page.getByRole("button", { name: /Visi/i })).toBeVisible();
   });
 });

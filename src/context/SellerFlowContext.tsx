@@ -623,9 +623,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         return;
       }
       published = withDefaultExpiry(createRes.data);
-      showToast("Skelbimas publikuotas!", "success");
     }
 
+    showToast("Skelbimas publikuotas!", "success");
     setListings((prev) => [published, ...prev]);
     setLastPublishedListing(published);
     setSellerStep("published");
