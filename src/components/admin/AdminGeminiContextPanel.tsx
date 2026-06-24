@@ -9,9 +9,13 @@ export function AdminGeminiContextPanel() {
   const { showToast } = useVauto();
   const adminCtx = useAdminProjectContext();
 
-  if (!adminCtx) return null;
-
-  const { contextText, setContextText, saveContext, hydrated, saving } = adminCtx;
+  const { contextText, setContextText, saveContext, hydrated, saving } = adminCtx ?? {
+    contextText: "",
+    setContextText: () => {},
+    saveContext: async () => false,
+    hydrated: true,
+    saving: false,
+  };
   const chars = contextText.length;
   const nearLimit = chars > MAX_ADMIN_PROJECT_CONTEXT_CHARS * 0.9;
 
