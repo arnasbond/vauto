@@ -2,6 +2,7 @@ import "../load-env.js";
 import cors from "cors";
 import express from "express";
 import { pool } from "./db.js";
+import { hasAgentAiKey, resolveGeminiApiKey, resolveOpenAiApiKey } from "./load-env.js";
 import { runMigrations } from "./migrate.js";
 import { seedIfEmpty } from "./seed-runtime.js";
 import { apiRouter } from "./routes/api.js";
@@ -75,7 +76,11 @@ app.listen(port, async () => {
     });
     const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");
     void runStripeBootstrap();
-    console.log(`Vauto API http://localhost:${port} (PostgreSQL OK)`);
+    const gemini = Boolean(resolveGeminiApiKey());
+    const openai = Boolean(resolveOpenAiApiKey());
+    console.log(
+      `Vauto API http://localhost:${port} (PostgreSQL OK) — agent keys: gemini=${gemini} openai=${openai} hasAgent=${hasAgentAiKey()}`
+    );
   } catch {
     console.warn(
       `Vauto API http://localhost:${port} — PostgreSQL nepasiekiamas. Paleiskite: docker compose up -d`

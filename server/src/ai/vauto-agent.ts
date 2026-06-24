@@ -369,7 +369,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
 
   if (!finalText) {
     if (lastGeminiError && !hasOpenAi) {
-      throw lastGeminiError;
+      throw new AgentRouteError(
+        lastGeminiError.code,
+        `Gemini API klaida: ${lastGeminiError.message}. Patikrinkite GEMINI_API_KEY Render aplinkoje.`,
+        lastGeminiError.status
+      );
     }
     if (!hasOpenAi) {
       throw new AgentRouteError(

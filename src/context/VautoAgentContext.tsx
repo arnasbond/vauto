@@ -176,12 +176,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               : res.code === "timeout"
               ? "AI užklausa užtruko. Sumažinkite Gemini kontekstą arba bandykite vėliau."
               : res.error || "AI agentas laikinai nepasiekiamas";
-          showToast(message, "error");
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: `${message} Galite toliau naudoti paiešką viršuje — skelbimai filtruojami vietoje.`,
+            },
+          ]);
+          if (open) showToast(message, "error");
           return;
         }
 
         if (!res.reply) {
-          showToast("AI agentas laikinai nepasiekiamas", "error");
+          const fallback = "AI agentas laikinai nepasiekiamas";
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: `${fallback} Paieška portale vis tiek veikia.`,
+            },
+          ]);
+          if (open) showToast(fallback, "error");
           return;
         }
 
@@ -196,10 +211,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ]);
         applyActions(res.actions);
       } catch (e) {
-        showToast(
-          e instanceof Error ? e.message : "Nepavyko susisiekti su AI agentu",
-          "error"
-        );
+        const message =
+          e instanceof Error ? e.message : "Nepavyko susisiekti su AI agentu";
+        if (open) showToast(message, "error");
       } finally {
         setBusy(false);
       }
@@ -217,6 +231,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       searchQuery,
       includeAdminContext,
       currentView,
+      open,
     ]
   );
 

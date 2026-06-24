@@ -100,6 +100,40 @@ async function checkAiEndpoints(base) {
       console.warn(`AI route ${c.path} unreachable:`, e.message ?? e);
     }
   }
+
+  await smokeTestVautoAgent(base);
+}
+
+async function smokeTestVautoAgent(base) {
+  const url = `${base}/api/vauto-agent`;
+  const body = {
+    messages: [{ role: "user", text: "Sveiki" }],
+    context: {
+      userCity: "Vilnius",
+      userRole: "buyer",
+      contact: "+37060000000",
+      listings: [],
+    },
+  };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(45_000),
+    });
+    const payload = await res.json().catch(() => ({}));
+    if (res.ok && payload?.reply) {
+      console.log("vauto-agent smoke: OK");
+      return;
+    }
+    console.warn(
+      `vauto-agent smoke: HTTP ${res.status}`,
+      payload?.error || payload?.code || ""
+    );
+  } catch (e) {
+    console.warn("vauto-agent smoke failed:", e.message ?? e);
+  }
 }
 
 main().catch((e) => {

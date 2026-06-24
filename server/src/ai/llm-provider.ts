@@ -1,5 +1,6 @@
 /** OpenAI + Gemini fallback for vision, chat JSON, and embeddings. */
 
+import "../load-env.js";
 import { resolveGeminiApiKey, resolveOpenAiApiKey } from "../load-env.js";
 
 export type AiProvider = "openai" | "gemini" | null;

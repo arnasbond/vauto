@@ -68,10 +68,22 @@ export function SearchBar() {
     }
 
     setSearchInputMode("text");
-    setAgentOpen(true);
-    void sendAgentMessage(q);
     scrollToResults();
     inputRef.current?.blur();
+  };
+
+  const handleGeminiSend = () => {
+    const q = sanitizeSearchQuery(searchQuery, "final");
+    if (!q || agentBusy) return;
+
+    if (startListingFromQuery(q)) {
+      setSearchQuery("");
+      return;
+    }
+
+    setSearchInputMode("text");
+    setAgentOpen(true);
+    void sendAgentMessage(q);
   };
 
   const handleVoiceSearch = () => {
@@ -193,6 +205,21 @@ export function SearchBar() {
         />
         <button
           type="button"
+          onClick={handleGeminiSend}
+          disabled={agentBusy || !searchQuery.trim()}
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition disabled:opacity-60"
+          style={{ backgroundColor: ui.accent }}
+          aria-label="Siųsti Gemini asistentui"
+          title="Siųsti Gemini asistentui"
+        >
+          {agentBusy ? (
+            <Loader2 className="h-5 w-5 animate-spin" />
+          ) : (
+            <Sparkles className="h-5 w-5" />
+          )}
+        </button>
+        <button
+          type="button"
           onClick={handlePhotoSearch}
           disabled={isPhotoSearching || isVoiceFlowBusy || voiceFlowOpen}
           className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border transition disabled:opacity-60"
@@ -224,7 +251,7 @@ export function SearchBar() {
         </button>
       </form>
       <p className="mt-2 text-center text-[11px] text-[#6b7280]">
-        Vienas Gemini laukas — rašykite, kalbėkite arba nufotografuokite. Enter siunčia asistentui.
+        Vienas laukas — Enter ieško skelbimų, ✨ siunčia Gemini. Balsas ir nuotrauka — šalia.
       </p>
       <div className="mt-1.5 flex justify-center">
         <AiModeBadge compact />
