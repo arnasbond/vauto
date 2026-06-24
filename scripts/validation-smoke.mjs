@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /** Smoke tests for compiled server validation + VIN utils (no DB). */
-import { validateAmount, validateServiceLeadCreate } from "../server/dist/validation.js";
+import { validateAmount, validateListingPatch, validateServiceLeadCreate } from "../server/dist/validation.js";
 import { isValidVin, normalizeVin } from "../server/dist/vehicle/vin-utils.js";
 
 function assert(cond, msg) {
@@ -25,6 +25,12 @@ const lead = validateServiceLeadCreate({
   contactPhone: "+370 612 34567",
 });
 assert(lead.ok, "validateServiceLeadCreate accepts minimal lead");
+
+const banPatch = validateListingPatch({ banned: true });
+assert(banPatch.ok && banPatch.value.banned === true, "validateListingPatch accepts banned");
+
+const badPatch = validateListingPatch({ hacker: true });
+assert(!badPatch.ok, "validateListingPatch rejects unknown fields");
 
 assert(!isValidVin("NOT_A_VIN"), "isValidVin rejects invalid VIN");
 assert(normalizeVin(" wvw-zzz ") === "WVWZZZ", "normalizeVin strips noise");

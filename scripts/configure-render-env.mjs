@@ -135,6 +135,7 @@ async function main() {
     "STRIPE_WEBHOOK_SECRET",
     "OPENAI_API_KEY",
     "GEMINI_API_KEY",
+    "GOOGLE_CLIENT_ID",
     "REGITRA_PLATE_API_USERNAME",
     "REGITRA_PLATE_API_PASSWORD",
   ]) {

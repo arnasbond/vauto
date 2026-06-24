@@ -26,6 +26,7 @@
     "render:configure-env": "node scripts/configure-render-env.mjs",
     "verify:health": "node scripts/verify-health.mjs",
     "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness",
+    "sync:runtime-config": "node scripts/write-runtime-config.mjs",
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs"
   },
   "dependencies": {

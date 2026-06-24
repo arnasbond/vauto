@@ -1,4 +1,5 @@
 import { test, expect } from "@playwright/test";
+import { seedDemoUser } from "./helpers/seed-demo-user";
 
 test.describe("Vauto smoke", () => {
   test("home page loads with listings", async ({ page }) => {
@@ -28,9 +29,27 @@ test.describe("Vauto smoke", () => {
     await expect(page.getByText(/įdiegti|Įdiegti/i).first()).toBeVisible();
   });
 
-  test("add listing page loads upload UI", async ({ page }) => {
+  test("add listing page shows guest gate for visitors", async ({ page }) => {
     await page.goto("/add/");
-    await expect(page.getByText(/įkelti|nuotrauk|skelbim/i).first()).toBeVisible();
+    await expect(
+      page.getByText(/Prisijunkite|Prisijungti prie Vauto/i).first()
+    ).toBeVisible({ timeout: 15_000 });
+  });
+
+  test("add page shows category chips for signed-in user", async ({ page }) => {
+    await seedDemoUser(page);
+    await page.goto("/add/");
+    await expect(page.getByRole("button", { name: "Auto" })).toBeVisible({
+      timeout: 15_000,
+    });
+    await expect(page.getByRole("button", { name: "Technika" })).toBeVisible();
+    await expect(page.getByText(/Skelbti su AI/i).first()).toBeVisible();
+  });
+
+  test("add listing page loads upload UI", async ({ page }) => {
+    await seedDemoUser(page);
+    await page.goto("/add/");
+    await expect(page.getByText(/Skelbti su AI/i).first()).toBeVisible();
   });
 
   test("home search accepts input", async ({ page }) => {

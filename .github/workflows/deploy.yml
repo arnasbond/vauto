@@ -25,6 +25,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync runtime config from secrets
+        run: npm run sync:runtime-config
+        env:
+          NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+
       - name: Lint
         run: npm run lint
 
