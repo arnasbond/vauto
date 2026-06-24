@@ -137,7 +137,7 @@ export interface SellerFlowContextValue {
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
 
 export function SellerFlowContextProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated, openAuthModal, requireAuthForListing } = useAuth();
+  const { user, isAuthenticated, authHydrated, openAuthModal, requireAuthForListing } = useAuth();
   const {
     listings,
     setListings,
@@ -508,6 +508,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const publishListing = useCallback(async () => {
     if (!aiDraft) return;
+    if (!authHydrated) return;
     if (!isAuthenticated) {
       openAuthModal("/add");
       return;
@@ -637,6 +638,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     user,
     listings,
     buyerCoords,
+    authHydrated,
     isAuthenticated,
     openAuthModal,
     scheduleSellerEngagementPush,

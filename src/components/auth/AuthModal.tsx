@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from "react";
 import { Apple, Phone, Shield, X } from "lucide-react";
 import type { AuthProvider, ProBusinessType, UserRole } from "@/lib/types";
-import { ADMIN_EMAIL, ADMIN_PHONE } from "@/lib/reports";
+import { ADMIN_EMAIL, ADMIN_PHONE, PRO_DEMO_PHONE } from "@/lib/reports";
 import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 import {
   isGoogleAuthConfigured,
@@ -197,6 +197,12 @@ export function AuthModal({
   };
 
   const displayError = error ?? otpError;
+
+  const proFormValid =
+    role !== "pro" ||
+    (companyName.trim().length >= 2 &&
+      companyCode.trim().length >= 2 &&
+      (businessType !== "services" || serviceBaseCity.trim().length > 0));
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
@@ -480,6 +486,10 @@ export function AuthModal({
                     className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
                   />
                 </div>
+                <p className="text-[10px] text-slate-500">
+                  Verslo testavimui galite registruotis telefonu{" "}
+                  <span className="font-mono text-slate-400">{PRO_DEMO_PHONE}</span>.
+                </p>
                 {businessType === "services" && (
                   <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
                     <p className="text-xs font-semibold text-slate-300">
@@ -562,10 +572,14 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => finish(pendingProvider)}
-              disabled={loading}
+              disabled={loading || !proFormValid}
               className="w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {loading ? "Jungiamasi…" : "Pradėti naudoti Vauto"}
+              {loading
+                ? "Jungiamasi…"
+                : proFormValid
+                  ? "Pradėti naudoti Vauto"
+                  : "Užpildykite įmonės duomenis"}
             </button>
           </div>
         )}

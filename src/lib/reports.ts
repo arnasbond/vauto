@@ -75,3 +75,6 @@ export const ADMIN_EMAIL = "admin@vauto.com";
 
 /** Demo/staging admin OTP phone (must match server ADMIN_PHONE). */
 export const ADMIN_PHONE = "+37060000099";
+
+/** Suggested phone for Pro business registration smoke tests. */
+export const PRO_DEMO_PHONE = "+37060000002";

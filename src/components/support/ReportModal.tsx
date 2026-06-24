@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Flag, Mic, X } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { REPORT_CATEGORIES } from "@/lib/reports";
+import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { ReportCategory } from "@/lib/types";
 
 interface ReportModalProps {
@@ -29,20 +30,50 @@ export function ReportModal({
   const [category, setCategory] = useState<ReportCategory | null>(null);
   const [comment, setComment] = useState("");
   const [recording, setRecording] = useState(false);
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
+  const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
+
+  useEffect(() => {
+    return () => {
+      voiceSessionRef.current?.cancel();
+      voiceSessionRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (!open) {
+      voiceSessionRef.current?.cancel();
+      voiceSessionRef.current = null;
+      setRecording(false);
+      setVoiceError(null);
+    }
+  }, [open]);
 
   if (!open) return null;
 
   const handleVoice = () => {
+    if (recording) {
+      voiceSessionRef.current?.stop();
+      return;
+    }
+    if (!isVoiceSearchSupported()) {
+      setVoiceError("Ši naršyklė nepalaiko balso įvedimo.");
+      return;
+    }
+    setVoiceError(null);
     setRecording(true);
-    setTimeout(() => {
-      setComment((c) =>
-        c
-          ? c
-          : "Balso komentaras: įtariu neteisingą informaciją apie prekę."
-      );
+    const session = startVoiceSearch({
+      onInterim: (text) => {
+        if (text.trim()) setComment(text.trim());
+      },
+    });
+    voiceSessionRef.current = session;
+    void session.promise.then((text) => {
       setRecording(false);
-    }, 1500);
+      voiceSessionRef.current = null;
+      if (text?.trim()) setComment(text.trim());
+    });
   };
 
   const handleSubmit = () => {
@@ -119,14 +150,18 @@ export function ReportModal({
               className="mb-3 w-full rounded-xl bg-white/10 px-4 py-3 text-sm text-white outline-none placeholder:text-slate-500"
             />
 
+            {voiceError && (
+              <p className="mb-2 text-xs text-red-300">{voiceError}</p>
+            )}
+
             <button
               type="button"
               onClick={handleVoice}
-              disabled={recording}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-2.5 text-xs text-slate-400"
+              disabled={!isVoiceSearchSupported() && !recording}
+              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-white/20 py-2.5 text-xs text-slate-400 disabled:opacity-50"
             >
               <Mic className={`h-4 w-4 ${recording ? "animate-pulse text-[var(--vauto-teal)]" : ""}`} />
-              {recording ? "Klausomasi…" : "Palikti balso komentarą (demo)"}
+              {recording ? "Kalbate… (spauskite sustabdyti)" : "Įrašyti balso komentarą"}
             </button>
 
             <button

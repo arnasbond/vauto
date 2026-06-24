@@ -3,6 +3,7 @@
 import { ArrowRight, Camera, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
+import { SELLER_CATEGORY_PROMPTS } from "@/lib/seller-category-prompts";
 import { useVauto } from "@/context/VautoContext";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import {
@@ -131,6 +132,23 @@ export function SellerUploadPanel({
       <p className="mb-4 text-center text-sm text-[#6b7280]">
         Arba įvesk trumpą aprašymą tekstu.
       </p>
+
+      <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {SELLER_CATEGORY_PROMPTS.map((item) => (
+          <button
+            key={item.category}
+            type="button"
+            disabled={busy || processing}
+            onClick={() => {
+              setQuery(item.prompt);
+              void submitSellerContent({ text: item.prompt });
+            }}
+            className="shrink-0 rounded-full border border-[#cfd8e3] bg-white px-3 py-1.5 text-xs font-medium text-[#374151] shadow-sm hover:border-[#1167b1] hover:text-[#1167b1] disabled:opacity-50"
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
 
       <form
         className="flex items-center gap-2 rounded-xl border border-[#cfd8e3] bg-white py-1.5 pl-4 pr-1.5 shadow-sm"
