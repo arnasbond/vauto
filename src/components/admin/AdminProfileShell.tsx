@@ -1,12 +1,17 @@
 "use client";
 
 import { Suspense, useEffect, useState } from "react";
+import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { AdminReportInbox } from "@/components/admin/AdminReportInbox";
 import { AdminListingModeration } from "@/components/admin/AdminListingModeration";
 import { AdminAccountPanel } from "@/components/admin/AdminAccountPanel";
 import { AdminGeminiContextPanel } from "@/components/admin/AdminGeminiContextPanel";
+import {
+  ADMIN_GEMINI_BUILD,
+  AdminGeminiUploadPanel,
+} from "@/components/admin/AdminGeminiUploadPanel";
 import { useAuth } from "@/context/AuthContext";
 
 type AdminTab = "moderation" | "listings" | "agent" | "account";
@@ -39,6 +44,24 @@ export function AdminProfileShell() {
 
   return (
     <div className="vauto-dashboard min-h-dvh pb-24">
+      <div className="border-b border-indigo-100 bg-indigo-50/80 px-4 py-4">
+        <div className="mb-3 flex items-center justify-between gap-2">
+          <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
+            Gemini AI kontekstas
+          </p>
+          <span className="rounded-full bg-indigo-100 px-2 py-0.5 font-mono text-[10px] text-indigo-700">
+            {ADMIN_GEMINI_BUILD}
+          </span>
+        </div>
+        <AdminGeminiUploadPanel compact />
+        <Link
+          href="/admin/ai/"
+          className="mt-3 block text-center text-xs font-semibold text-indigo-700 underline"
+        >
+          Atidaryti pilną Gemini puslapį →
+        </Link>
+      </div>
+
       <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
         <h1 className="text-lg font-bold text-slate-900">Administratorius</h1>
         <p className="mt-0.5 text-xs text-slate-500">

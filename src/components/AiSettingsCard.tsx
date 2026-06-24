@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Loader2, Save, Sparkles, Trash2, Zap } from "lucide-react";
+import { KeyRound, Loader2, Sparkles, Trash2, Zap } from "lucide-react";
 import { apiAiHealthCheck, apiExtractText } from "@/lib/api/client";
 import {
   clearOpenAiKey,
@@ -10,15 +10,11 @@ import {
   setOpenAiKey,
 } from "@/lib/openai-settings";
 import { clearAllData } from "@/lib/storage";
-import { useAdminProjectContext } from "@/context/AdminProjectContext";
-import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "@/lib/admin-agent-context";
-import { useVauto } from "@/context/VautoContext";
+import { AdminGeminiUploadPanel } from "@/components/admin/AdminGeminiUploadPanel";
 
 type AiMode = "checking" | "server" | "personal" | "demo";
 
 export function AiSettingsCard() {
-  const { showToast } = useVauto();
-  const adminCtx = useAdminProjectContext();
   const [input, setInput] = useState("");
   const [personalKey, setPersonalKey] = useState(false);
   const [mode, setMode] = useState<AiMode>("checking");
@@ -97,23 +93,6 @@ export function AiSettingsCard() {
   };
 
   const masked = personalKey ? getOpenAiKey()?.slice(0, 7) + "••••••••" : null;
-  const contextText = adminCtx?.contextText ?? "";
-  const setContextText = adminCtx?.setContextText ?? (() => {});
-  const saveContext = adminCtx?.saveContext ?? (async () => false);
-  const contextHydrated = adminCtx?.hydrated ?? true;
-  const contextSaving = adminCtx?.saving ?? false;
-  const contextChars = contextText.length;
-  const nearContextLimit = contextChars > MAX_ADMIN_PROJECT_CONTEXT_CHARS * 0.9;
-
-  const handleSaveContext = async () => {
-    const ok = await saveContext();
-    showToast(
-      ok
-        ? "Gemini kontekstas išsaugotas — bus siunčiamas su jūsų žinutėmis."
-        : "Nepavyko išsaugoti konteksto.",
-      ok ? "success" : "error"
-    );
-  };
 
   const badge =
     mode === "checking"
@@ -157,53 +136,9 @@ export function AiSettingsCard() {
         </p>
       )}
 
-      <section className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
-        <h3 className="text-sm font-semibold text-slate-900">
-          Gemini pokalbių istorijos sinchronizavimas
-        </h3>
-        <p className="mt-1 text-xs leading-relaxed text-slate-600">
-          Įklijuokite Gemini pokalbio transkriptą ar projekto medžiagą. Ji bus įterpta į
-          VAUTO agento kontekstą tik jūsų (admin) žinutėms.
-        </p>
-        {!contextHydrated ? (
-          <div className="flex items-center gap-2 py-4 text-sm text-slate-500">
-            <Loader2 className="h-4 w-4 animate-spin" />
-            Kraunama…
-          </div>
-        ) : (
-          <>
-            <textarea
-              value={contextText}
-              onChange={(e) => setContextText(e.target.value)}
-              rows={8}
-              placeholder="Įklijuokite čia Gemini pokalbių istoriją…"
-              className="mt-3 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs leading-relaxed text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
-              maxLength={MAX_ADMIN_PROJECT_CONTEXT_CHARS}
-            />
-            <div className="mt-2 flex items-center justify-between gap-3">
-              <p
-                className={`text-[11px] ${nearContextLimit ? "font-medium text-amber-700" : "text-slate-500"}`}
-              >
-                {contextChars.toLocaleString("lt-LT")} /{" "}
-                {MAX_ADMIN_PROJECT_CONTEXT_CHARS.toLocaleString("lt-LT")} simbolių
-              </p>
-              <button
-                type="button"
-                onClick={() => void handleSaveContext()}
-                disabled={contextSaving}
-                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
-              >
-                {contextSaving ? (
-                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Save className="h-3.5 w-3.5" />
-                )}
-                Išsaugoti kontekstą
-              </button>
-            </div>
-          </>
-        )}
-      </section>
+      <div className="mb-4">
+        <AdminGeminiUploadPanel compact />
+      </div>
 
       <button
         type="button"

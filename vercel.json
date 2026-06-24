@@ -23,6 +23,14 @@
   ],
   "headers": [
     {
+      "source": "/profile/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    },
+    {
+      "source": "/admin/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    },
+    {
       "source": "/(.*)index.txt",
       "headers": [
         {
