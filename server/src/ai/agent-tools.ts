@@ -10,6 +10,11 @@ import {
 } from "./lithuanian-location-normalize.js";
 import { buildSellerContextualVoiceFollowUp } from "./seller-voice-prompt.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
+import { runMarketPriceAnalysis } from "./market-price-analysis.js";
+import {
+  buildProactivePricingMessage,
+  buildProactiveSearchResetMessage,
+} from "./proactive-agent.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -65,6 +70,7 @@ export interface AgentToolContext {
   userRole: "buyer" | "seller" | "business" | "admin";
   contact: string;
   listingsSnapshot?: AgentListingSummary[];
+  searchSessionReset?: boolean;
 }
 
 export const AGENT_FUNCTION_DECLARATIONS = [
@@ -308,14 +314,27 @@ export async function executeAgentTool(
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
       };
 
+      const summary =
+        results.length === 0
+          ? "Nerasta atitinkančių skelbimų."
+          : `Rasta ${results.length} skelbimų.`;
+
+      const proactiveMessage = ctx.searchSessionReset
+        ? buildProactiveSearchResetMessage(
+            results.length > 0
+              ? undefined
+              : "Rezultatų su naujais kriterijais nerasta.",
+            searchQuery || query || undefined
+          )
+        : undefined;
+
       return {
         result: {
           count: results.length,
           listings: results,
-          summary:
-            results.length === 0
-              ? "Nerasta atitinkančių skelbimų."
-              : `Rasta ${results.length} skelbimų.`,
+          summary,
+          filtersReset: Boolean(ctx.searchSessionReset),
+          proactiveMessage,
         },
         sideEffect:
           results.length > 0
@@ -324,6 +343,8 @@ export async function executeAgentTool(
                 searchQuery: searchQuery || results[0]!.title,
                 listingIds: results.map((r) => r.id),
                 filters: searchFilters,
+                filtersReset: Boolean(ctx.searchSessionReset),
+                proactiveMessage,
               }
             : {
                 type: "empty_search",
@@ -411,6 +432,24 @@ export async function executeAgentTool(
         missingFields
       );
 
+      let marketAnalysis = null;
+      let proactivePricingMessage: string | null = null;
+      if (price > 0) {
+        marketAnalysis = runMarketPriceAnalysis(listings, {
+          title: enriched.title,
+          category: enriched.category,
+          city: normalizedCity,
+          make: String(attributes.make ?? ""),
+          model: String(attributes.model ?? ""),
+          year: String(attributes.year ?? ""),
+        });
+        proactivePricingMessage = buildProactivePricingMessage(
+          price,
+          marketAnalysis,
+          enriched.title
+        );
+      }
+
       return {
         result: {
           ok: true,
@@ -419,6 +458,8 @@ export async function executeAgentTool(
           missingFields,
           suggestedQuestions,
           voiceFollowUp,
+          marketAnalysis,
+          proactivePricingMessage,
         },
         sideEffect: {
           type: "listing_draft",
@@ -433,52 +474,27 @@ export async function executeAgentTool(
       const model = String(args.model ?? "").toLowerCase();
       const year = args.year != null ? String(args.year) : "";
       const category = args.category ? String(args.category) : undefined;
-      const cityRaw = args.city ? String(args.city) : undefined;
-      const city = cityRaw ? normCity(resolveLtCityNominative(cityRaw)) : undefined;
+      const cityRaw = args.city ? String(args.city).trim() : "";
+      const cityNominative = cityRaw
+        ? resolveLtCityNominative(cityRaw)
+        : resolveAgentDefaultCity(ctx.userCity);
 
-      let peers = listings.filter((l) => l.price > 0);
-      if (category) peers = peers.filter((l) => l.category === category);
-      if (city) {
-        peers = peers.filter(
-          (l) =>
-            normCity(l.location) === city ||
-            l.location.toLowerCase().includes(city)
-        );
-      }
-      const hay = `${brand} ${model} ${year}`.trim();
-      if (hay) {
-        peers = peers.filter((l) => {
-          const t = `${l.title} ${l.description ?? ""}`.toLowerCase();
-          if (brand && !t.includes(brand)) return false;
-          if (model && !t.includes(model)) return false;
-          if (year && !t.includes(year)) return false;
-          return true;
-        });
-      }
-
-      if (peers.length < 2) {
-        return {
-          result: {
-            sampleSize: peers.length,
-            message:
-              "Nepakanka panašių skelbimų rinkos analizei — stebėkite dominančią kainą rankiniu būdu.",
-            medianPrice: peers[0]?.price ?? null,
-          },
-        };
-      }
-
-      const prices = peers.map((p) => p.price).sort((a, b) => a - b);
-      const minPrice = prices[0]!;
-      const maxPrice = prices[prices.length - 1]!;
-      const medianPrice = prices[Math.floor(prices.length / 2)]!;
+      const analysis = runMarketPriceAnalysis(listings, {
+        title: `${brand} ${model} ${year}`.trim(),
+        category,
+        city: cityNominative,
+        make: brand,
+        model,
+        year,
+      });
 
       return {
         result: {
-          sampleSize: peers.length,
-          minPrice,
-          maxPrice,
-          medianPrice,
-          message: `Rinkoje rasta ${peers.length} panašių skelbimų: ${minPrice}–${maxPrice} €, vidurkis ~${medianPrice} €.`,
+          sampleSize: analysis.sampleSize,
+          minPrice: analysis.minPrice,
+          maxPrice: analysis.maxPrice,
+          medianPrice: analysis.medianPrice,
+          message: analysis.message,
         },
       };
     }
@@ -646,6 +662,8 @@ export type AgentSideEffect =
       searchQuery: string;
       listingIds: string[];
       filters?: AgentSearchFilters;
+      filtersReset?: boolean;
+      proactiveMessage?: string;
     }
   | {
       type: "listing_draft";

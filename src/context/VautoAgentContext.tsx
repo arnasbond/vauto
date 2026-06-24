@@ -31,7 +31,9 @@ import { useZeroUiMemory } from "@/context/ZeroUiMemoryContext";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import {
   filtersFromSearchAction,
+  parseSearchFiltersFromUserText,
   selectAgentSessionMessages,
+  shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
@@ -75,6 +77,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     buildAgentContext,
     noteUserMessage,
     recordSearchFilters,
+    clearSearchFilters,
+    activeSearchFilters,
   } = useZeroUiMemory();
 
   const [open, setOpen] = useState(false);
@@ -108,8 +112,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
         const nextFilters = filtersFromSearchAction(actions);
+        if (actions.filtersReset) {
+          clearSearchFilters();
+        }
         if (nextFilters) recordSearchFilters(nextFilters);
-        showToast(`Radau ${actions.listingIds.length} skelbimų`, "success");
+        if (!actions.proactiveMessage) {
+          showToast(`Radau ${actions.listingIds.length} skelbimų`, "success");
+        }
         window.setTimeout(() => {
           document
             .getElementById("listing-results")
@@ -190,6 +199,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       showToast,
       subscribeWishlist,
       recordSearchFilters,
+      clearSearchFilters,
     ]
   );
 
@@ -212,12 +222,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       const sessionMessages = selectAgentSessionMessages(nextMessages);
       const memoryContext = buildAgentContext(user);
+      const searchSessionReset = shouldResetSearchSession(
+        trimmed,
+        activeSearchFilters
+      );
+      const resetFilters = searchSessionReset
+        ? parseSearchFiltersFromUserText(trimmed)
+        : null;
+
+      if (searchSessionReset) {
+        clearSearchFilters();
+      }
 
       try {
         const res = await apiVautoAgent({
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
           context: {
             ...memoryContext,
+            activeSearchFilters: searchSessionReset
+              ? resetFilters
+              : memoryContext.activeSearchFilters,
+            searchSessionReset,
             userRole: resolveAgentUserRole(user),
             contact: user.phone || "+370 612 34567",
             listings: compactListingsForAgent(listings),
@@ -291,6 +316,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       noteUserMessage,
       zeroUiScreen,
       open,
+      activeSearchFilters,
+      clearSearchFilters,
     ]
   );
 

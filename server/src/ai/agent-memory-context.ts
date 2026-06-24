@@ -23,7 +23,8 @@ export interface AgentMemoryPayload {
 export const AGENT_MEMORY_SYSTEM_HINT = `ATMINTIS IR KONTEKSTAS (PRIVALOMA):
 - Numatytoji vartotojo lokacija: ${DEFAULT_USER_REGION}. Jei miestas neįvardytas balsu ar tekste — naudok ją postNewListing.city ir searchListings.city (location: "${DEFAULT_USER_REGION}").
 - Vartotojo automobilis (Fleet): ${formatPrimaryVehicleLabel(DEFAULT_PRIMARY_VEHICLE)}. Jei užklausa neaiški (pvz. „rask priekinį bamperį“, „kiek kainuoja generatoriaus keitimas?“) — searchListings.query ir category filtruok TIK šiam modeliui; query turi apimti make, model, year.
-- SESIJOS TĘSTINUMAS: Jei vartotojas refine'ina ankstesnę paiešką (pvz. „O dabar rodyk tik pilkos spalvos“), SULIET activeSearchFilters su nauju filtru — nepradėk paieškos iš naujo be senų kriterijų (miestas, kaina, kategorija, query).`;
+- SESIJOS TĘSTINUMAS: Jei vartotojas refine'ina ankstesnę paiešką (pvz. „O dabar rodyk tik pilkos spalvos“), SULIET activeSearchFilters su nauju filtru — nepradėk paieškos iš naujo be senų kriterijų (miestas, kaina, kategorija, query).
+- PROAKTYVUS FILTRŲ IŠVALYMAS: Jei vartotojas pateikia kardinaliai naują paiešką (kitas miestas, kita markė, „nauji BMW nuo 2018“ ir pan.) — NENAUDOK senų activeSearchFilters; searchListings turi naudoti tik naują užklausą. Klientas jau pažymėjo searchSessionReset=true.`;
 
 export function buildAgentMemoryContextBlock(
   memory: AgentMemoryPayload | undefined

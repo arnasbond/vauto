@@ -14,6 +14,11 @@ const {
   buildAgentMemoryContextBlock,
 } = require("./agent-memory-context");
 const { resolveAgentDefaultCity } = require("./zero-ui-defaults");
+const { runMarketPriceAnalysis } = require("./market-price-analysis");
+const {
+  buildProactivePricingMessage,
+  buildProactiveSearchResetMessage,
+} = require("./proactive-agent");
 
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
@@ -236,8 +241,24 @@ function executeAgentTool(name, args, ctx) {
       maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
       minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
     };
+    const summary =
+      results.length === 0
+        ? "Nerasta atitinkančių skelbimų."
+        : `Rasta ${results.length} skelbimų.`;
+    const proactiveMessage = ctx.searchSessionReset
+      ? buildProactiveSearchResetMessage(
+          results.length > 0 ? undefined : "Rezultatų su naujais kriterijais nerasta.",
+          searchQuery || query || undefined
+        )
+      : undefined;
     return {
-      result: { count: results.length, listings: results },
+      result: {
+        count: results.length,
+        listings: results,
+        summary,
+        filtersReset: Boolean(ctx.searchSessionReset),
+        proactiveMessage,
+      },
       sideEffect:
         results.length > 0
           ? {
@@ -245,6 +266,8 @@ function executeAgentTool(name, args, ctx) {
               searchQuery: searchQuery || results[0].title,
               listingIds: results.map((r) => r.id),
               filters: searchFilters,
+              filtersReset: Boolean(ctx.searchSessionReset),
+              proactiveMessage,
             }
           : { type: "empty_search", searchQuery: searchQuery || query || "paieška" },
     };
@@ -291,8 +314,32 @@ function executeAgentTool(name, args, ctx) {
       missingFields
     );
     const imageUrls = Array.isArray(args.imageUrls) ? args.imageUrls.map(String) : [];
+    let marketAnalysis = null;
+    let proactivePricingMessage = null;
+    if (price > 0) {
+      marketAnalysis = runMarketPriceAnalysis(listings, {
+        title: enriched.title,
+        category: enriched.category,
+        city: normalizedCity,
+        make: String(attributes.make ?? ""),
+        model: String(attributes.model ?? ""),
+        year: String(attributes.year ?? ""),
+      });
+      proactivePricingMessage = buildProactivePricingMessage(
+        price,
+        marketAnalysis,
+        enriched.title
+      );
+    }
     return {
-      result: { ok: true, draft, missingFields, voiceFollowUp },
+      result: {
+        ok: true,
+        draft,
+        missingFields,
+        voiceFollowUp,
+        marketAnalysis,
+        proactivePricingMessage,
+      },
       sideEffect: { type: "listing_draft", listingDraft: draft, imageUrl: imageUrls[0] },
     };
   }
@@ -301,42 +348,28 @@ function executeAgentTool(name, args, ctx) {
     const brand = String(args.brand ?? "").toLowerCase();
     const model = String(args.model ?? "").toLowerCase();
     const year = args.year != null ? String(args.year) : "";
-    let peers = listings.filter((l) => l.price > 0);
-    if (args.category) peers = peers.filter((l) => l.category === String(args.category));
-    if (args.city) {
-      const city = normCity(resolveLtCityNominative(String(args.city)));
-      peers = peers.filter(
-        (l) => normCity(l.location) === city || l.location.toLowerCase().includes(city)
-      );
-    }
-    const hay = `${brand} ${model} ${year}`.trim();
-    if (hay) {
-      peers = peers.filter((l) => {
-        const t = `${l.title} ${l.description ?? ""}`.toLowerCase();
-        if (brand && !t.includes(brand)) return false;
-        if (model && !t.includes(model)) return false;
-        if (year && !t.includes(year)) return false;
-        return true;
-      });
-    }
-    if (peers.length < 2) {
-      return {
-        result: {
-          sampleSize: peers.length,
-          message: "Nepakanka panašių skelbimų rinkos analizei.",
-          medianPrice: peers[0]?.price ?? null,
-        },
-      };
-    }
-    const prices = peers.map((p) => p.price).sort((a, b) => a - b);
-    const medianPrice = prices[Math.floor(prices.length / 2)];
+    const category = args.category ? String(args.category) : undefined;
+    const cityRaw = args.city ? String(args.city).trim() : "";
+    const cityNominative = cityRaw
+      ? resolveLtCityNominative(cityRaw)
+      : resolveAgentDefaultCity(ctx.userCity);
+
+    const analysis = runMarketPriceAnalysis(listings, {
+      title: `${brand} ${model} ${year}`.trim(),
+      category,
+      city: cityNominative,
+      make: brand,
+      model,
+      year,
+    });
+
     return {
       result: {
-        sampleSize: peers.length,
-        minPrice: prices[0],
-        maxPrice: prices[prices.length - 1],
-        medianPrice,
-        message: `Vidutinė kaina ~${medianPrice} € (${peers.length} skelbimai).`,
+        sampleSize: analysis.sampleSize,
+        minPrice: analysis.minPrice,
+        maxPrice: analysis.maxPrice,
+        medianPrice: analysis.medianPrice,
+        message: analysis.message,
       },
     };
   }
@@ -502,6 +535,7 @@ async function runVautoAgentInner(req) {
     userRole: req.context?.userRole ?? "buyer",
     contact: req.context?.contact?.trim() || "+370 612 34567",
     listingsSnapshot: req.context?.listings ?? [],
+    searchSessionReset: Boolean(req.context?.searchSessionReset),
   };
 
   const memoryBlock = buildAgentMemoryContextBlock({
@@ -601,9 +635,16 @@ async function runVautoAgentInner(req) {
 
   if (!finalText) {
     const listingCall = [...toolCalls].reverse().find((t) => t.name === "postNewListing");
-    if (listingCall?.result?.voiceFollowUp) {
-      finalText = listingCall.result.voiceFollowUp;
+    const listingResult = listingCall?.result;
+    if (listingResult?.proactivePricingMessage) {
+      finalText = listingResult.proactivePricingMessage;
+    } else if (listingResult?.voiceFollowUp) {
+      finalText = listingResult.voiceFollowUp;
     }
+  }
+
+  if (sideEffect?.type === "search" && sideEffect.proactiveMessage) {
+    finalText = sideEffect.proactiveMessage;
   }
 
   if (!finalText || !finalText.trim()) {
@@ -611,7 +652,9 @@ async function runVautoAgentInner(req) {
   }
 
   const listingCall = toolCalls.find((t) => t.name === "postNewListing");
-  if (
+  if (listingCall?.result?.proactivePricingMessage) {
+    finalText = listingCall.result.proactivePricingMessage;
+  } else if (
     listingCall?.result?.voiceFollowUp &&
     listingCall.result.missingFields?.length &&
     !finalText.includes(String(listingCall.result.voiceFollowUp).slice(0, 24))

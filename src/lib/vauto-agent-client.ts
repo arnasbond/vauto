@@ -25,6 +25,7 @@ export interface VautoAgentContext {
     year: number;
   };
   activeSearchFilters?: AgentSearchFilters | null;
+  searchSessionReset?: boolean;
   userRole?: "buyer" | "seller" | "business" | "admin";
   contact?: string;
   listings?: AgentListingSnapshot[];
@@ -62,6 +63,8 @@ export type VautoAgentAction =
       searchQuery: string;
       listingIds: string[];
       filters?: AgentSearchFilters;
+      filtersReset?: boolean;
+      proactiveMessage?: string;
     }
   | {
       type: "listing_draft";

@@ -12,6 +12,8 @@ import type { VautoAgentContext } from "@/lib/vauto-agent-client";
 import {
   extractSearchRefinement,
   mergeSearchFilters,
+  shouldResetSearchSession,
+  parseSearchFiltersFromUserText,
   type AgentSearchFilters,
 } from "@/lib/agent-session-memory";
 import {
@@ -45,11 +47,14 @@ export function ZeroUiMemoryProvider({ children }: { children: ReactNode }) {
     useState<AgentSearchFilters | null>(null);
 
   const noteUserMessage = useCallback((text: string) => {
-    const refinement = extractSearchRefinement(text);
-    if (!refinement) return;
-    setActiveSearchFilters((prev) =>
-      mergeSearchFilters(prev, { refinements: [refinement] })
-    );
+    setActiveSearchFilters((prev) => {
+      if (shouldResetSearchSession(text, prev)) {
+        return parseSearchFiltersFromUserText(text);
+      }
+      const refinement = extractSearchRefinement(text);
+      if (!refinement) return prev;
+      return mergeSearchFilters(prev, { refinements: [refinement] });
+    });
   }, []);
 
   const recordSearchFilters = useCallback((filters: Partial<AgentSearchFilters>) => {

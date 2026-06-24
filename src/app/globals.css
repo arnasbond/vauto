@@ -748,3 +748,21 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
     transform: none;
   }
 }
+
+@keyframes buddyPulse {
+  0%,
+  100% {
+    opacity: 1;
+    box-shadow: 0 10px 25px rgba(17, 103, 177, 0.2);
+  }
+  50% {
+    opacity: 0.88;
+    box-shadow: 0 10px 32px rgba(17, 103, 177, 0.45);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-\[buddyPulse_2\.4s_ease-in-out_infinite\] {
+    animation: none !important;
+  }
+}

@@ -64,6 +64,7 @@ export interface VautoAgentRequest {
       year: number;
     };
     activeSearchFilters?: AgentSearchFilters | null;
+    searchSessionReset?: boolean;
   };
   /** Server-verified admin only — injected into Gemini systemInstruction */
   adminProjectContext?: string;
@@ -225,6 +226,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     userRole: req.context.userRole ?? "buyer",
     contact: req.context.contact?.trim() || "+370 612 34567",
     listingsSnapshot: req.context.listings,
+    searchSessionReset: Boolean(req.context.searchSessionReset),
   };
 
   const memoryBlock = buildAgentMemoryContextBlock({
@@ -353,10 +355,21 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
 
   if (!finalText) {
     const listingCall = [...toolCalls].reverse().find((t) => t.name === "postNewListing");
-    const listingResult = listingCall?.result as { voiceFollowUp?: string } | undefined;
-    if (listingResult?.voiceFollowUp) {
+    const listingResult = listingCall?.result as {
+      voiceFollowUp?: string;
+      proactivePricingMessage?: string | null;
+    } | undefined;
+    if (listingResult?.proactivePricingMessage) {
+      finalText = listingResult.proactivePricingMessage;
+    } else if (listingResult?.voiceFollowUp) {
       finalText = listingResult.voiceFollowUp;
     }
+  }
+
+  const searchSideEffect =
+    sideEffect?.type === "search" ? sideEffect : undefined;
+  if (searchSideEffect?.proactiveMessage) {
+    finalText = searchSideEffect.proactiveMessage;
   }
 
   if (!finalText) {
@@ -389,8 +402,14 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   const listingResult = listingCall?.result as {
     voiceFollowUp?: string;
     missingFields?: string[];
+    proactivePricingMessage?: string | null;
   } | undefined;
   if (
+    listingResult?.proactivePricingMessage &&
+    !finalText.includes(listingResult.proactivePricingMessage.slice(0, 24))
+  ) {
+    finalText = listingResult.proactivePricingMessage;
+  } else if (
     listingResult?.voiceFollowUp &&
     listingResult.missingFields?.length &&
     !finalText.includes(listingResult.voiceFollowUp.slice(0, 24))

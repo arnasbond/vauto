@@ -108,6 +108,7 @@ import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
 import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
+import { FleetMatchBuddyHost } from "@/components/buddy/FleetMatchBuddyHost";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
 import { ZeroUiSellerBridge } from "@/components/zero-ui/ZeroUiSellerBridge";
@@ -271,7 +272,7 @@ interface VautoContextValue {
   unreadUserReportCount: number;
   reportStreamConnected: boolean;
   toast: { message: string; type: "success" | "error" | "info" | "buddy" } | null;
-  showToast: (message: string, type?: "success" | "error" | "info") => void;
+  showToast: (message: string, type?: "success" | "error" | "info" | "buddy") => void;
   clearToast: () => void;
 
   buyerCoords: UserCoords | null;
@@ -522,6 +523,7 @@ function VautoFacade({
         <ZeroUiMemoryProvider>
           <VautoAgentProvider>
             <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
+            <FleetMatchBuddyHost />
             {children}
           </VautoAgentProvider>
         </ZeroUiMemoryProvider>
