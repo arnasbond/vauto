@@ -14,16 +14,35 @@ import {
 
 export { isListingActive } from "@/lib/listing-expiry";
 
+const MIN_QUERY_RELEVANCE = 0.18;
+
+function tokenizeQuery(query: string): string[] {
+  return query
+    .toLowerCase()
+    .split(/[\s,.!?]+/)
+    .filter((t) => t.length >= 2);
+}
+
+function clothingSubtypeSignals(query: string): {
+  wantsShoes: boolean;
+  wantsCoat: boolean;
+  wantsDress: boolean;
+} {
+  const q = query.toLowerCase();
+  return {
+    wantsShoes: /bat|keden|aulis|sportin.*bat|nike|adidas|dydis/i.test(q),
+    wantsCoat: /palt|striuk|vilnon/i.test(q),
+    wantsDress: /suknel/i.test(q),
+  };
+}
+
 export function computeSemanticRelevance(
   query: string,
   listing: Listing
 ): number {
   if (!query.trim()) return 0.5;
 
-  const tokens = query
-    .toLowerCase()
-    .split(/[\s,.!?]+/)
-    .filter((t) => t.length > 2);
+  const tokens = tokenizeQuery(query);
 
   const haystack = [
     listing.title,
@@ -44,7 +63,32 @@ export function computeSemanticRelevance(
   if (tokens.length === 0) return 0.5;
 
   const matches = tokens.filter((t) => haystack.includes(t)).length;
-  let score = matches / tokens.length;
+  let score = tokens.length > 0 ? matches / tokens.length : 0.5;
+
+  const sizeMatch = query.match(/\b(\d{2})\b/);
+  const listingSize = String(
+    listing.attributes?.size ?? listing.attributes?.dydis ?? ""
+  );
+  if (sizeMatch && listingSize.includes(sizeMatch[1])) {
+    score = Math.min(1, score + 0.35);
+  }
+
+  if (listing.category === "clothing") {
+    const subtype = clothingSubtypeSignals(query);
+    const isShoe = /bat|keden|aulis|nike|air force/i.test(haystack);
+    const isCoat = /palt|striuk|vilnon/i.test(haystack);
+    const isDress = /suknel/i.test(haystack);
+
+    if (subtype.wantsShoes) {
+      if (isShoe) score = Math.min(1, score + 0.45);
+      if (isCoat || isDress) score = Math.max(0, score - 0.55);
+    }
+    if (subtype.wantsCoat && isCoat) score = Math.min(1, score + 0.4);
+    if (subtype.wantsDress && isDress) score = Math.min(1, score + 0.4);
+    if (/bat/i.test(query) && listing.category === "clothing" && isShoe) {
+      score = Math.min(1, score + 0.25);
+    }
+  }
 
   const plate = extractPlateFromQuery(query);
   const vin = extractVinFromQuery(query);
@@ -137,6 +181,15 @@ export function computeSemanticRelevance(
   }
   if (/bald|sofa|komod/i.test(query) && listing.category === "home") {
     score = Math.min(1, score + 0.3);
+  }
+  if (/bat|batai|drabu|striuk|suknel|palt/i.test(query) && listing.category === "clothing") {
+    score = Math.min(1, score + 0.3);
+  }
+  if (/laikrod|rolex|casio/i.test(query) && listing.category !== "clothing") {
+    score = Math.min(1, score + 0.25);
+  }
+  if (/laikrod|rolex|casio/i.test(query) && listing.category === "clothing") {
+    score = Math.max(0, score - 0.4);
   }
 
   return Math.min(1, Math.max(0, score));
@@ -255,6 +308,14 @@ export function rankListings(
     results = [...results].sort((a, b) => a.price - b.price);
   } else if (sortMode === "closest") {
     results = [...results].sort((a, b) => a.distanceKm - b.distanceKm);
+  }
+
+  const q = query.trim();
+  if (q) {
+    const relevant = results.filter(
+      (l) => l.semanticRelevance >= MIN_QUERY_RELEVANCE
+    );
+    if (relevant.length > 0) results = relevant;
   }
 
   return results;

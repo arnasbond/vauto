@@ -5,7 +5,7 @@ import { useMemo, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
 import { extractFromImage, extractFromText } from "@/lib/client-api";
-import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
+import { buildPhotoSearchQuery, buildPhotoSearchToast, buildVoiceSearchQuery } from "@/lib/photo-search";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
@@ -90,7 +90,7 @@ export function SearchBar() {
         userCity: user.city || "Lietuva",
         contact: user.phone || "+370 612 34567",
       });
-      const query = buildPhotoSearchQuery(extracted);
+      const query = buildVoiceSearchQuery(text, extracted);
       setSearchInputMode("voice");
       setSearchVoiceMode(true);
       setSearchQuery(query);

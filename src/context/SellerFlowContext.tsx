@@ -25,6 +25,7 @@ import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/g
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
+import { resolveListingCity } from "@/lib/city-resolve";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { attributesToTags } from "@/lib/listing-attributes";
@@ -586,12 +587,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     let distKm = 0.5;
     const coords = buyerCoords ?? (await getUserCoords());
-    const listingCoords = geocodeLocation(aiDraft.location);
+    const listingCity = resolveListingCity(aiDraft.location, user.city || "Vilnius");
+    const listingCoords = geocodeLocation(listingCity);
     if (coords) {
       const exact = distanceToListing(coords, {
         latitude: listingCoords.lat,
         longitude: listingCoords.lng,
-        location: aiDraft.location,
+        location: listingCity,
       });
       if (exact !== null) distKm = exact;
     }
@@ -616,9 +618,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       title: aiDraft.title,
       price: aiDraft.price,
       priceLabel: aiDraft.priceLabel,
-      location: aiDraft.location,
+      location: listingCity,
       distanceKm: distKm,
-      slug: generateListingSlug(aiDraft.title, aiDraft.location),
+      slug: generateListingSlug(aiDraft.title, listingCity),
       image: listingImage,
       category: aiDraft.category,
       tags: attributesToTags(aiDraft),

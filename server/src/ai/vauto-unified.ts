@@ -1,4 +1,5 @@
 import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
+import { resolveListingCity } from "../lib/city-resolve.js";
 import { unifiedLlmJson } from "./llm-provider.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
@@ -6,7 +7,7 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
   "title": "string — patrauklus lietuviškas skelbimo pavadinimas",
   "price": "number | null — kaina EUR; null jei nenurodyta",
-  "city": "string — Lietuvos miestas arba 'Lietuva'",
+  "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
   "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (2–5 sakiniai, be emoji)",
   "technicalFields": "object — kategorijai būdingi laukai (metai, kuroTipas, markė, modelis, mileage, dydis, būklė, kambariai ir pan.)",
   "confidence": "number 0-1"
@@ -16,7 +17,7 @@ const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo A
 Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
 Kategoriją parink tiksliai pagal objektą. Aprašymą sugeneruok profesionaliai lietuviškai.
-Jei kainos ar miesto nėra — price: null, city: numatytasis miestas arba "Lietuva".
+Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
 NT: propertyType, area, rooms, floor. Elektronikai: brand, model, condition.`;
 
@@ -80,10 +81,15 @@ function toListingPayload(
 
   const technicalFields = parseTechnicalFields(raw.technicalFields ?? raw.attributes);
 
+  const userCityResolved = resolveListingCity(userCity, "Vilnius");
+
   return {
     title: String(raw.title ?? "Skelbimas"),
     price,
-    location: String(raw.city ?? raw.location ?? userCity),
+    location: resolveListingCity(
+      String(raw.city ?? raw.location ?? ""),
+      userCityResolved
+    ),
     contact,
     category: internalCategory,
     description: raw.description ? String(raw.description) : undefined,
@@ -128,12 +134,13 @@ Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 
 export type VautoServerAction =
   | "parse_text"
+  | "analyze"
   | "analyze_image"
   | "parse_combined"
   | "upload_media";
 
 export interface VautoServerRequest {
-  action: VautoServerAction;
+  action: VautoServerAction | string;
   text?: string;
   imageDataUrl?: string;
   imageDataUrls?: string[];
@@ -143,8 +150,18 @@ export interface VautoServerRequest {
 }
 
 export async function handleVautoServerAction(body: VautoServerRequest) {
-  const action = body.action;
-  const city = body.userCity?.trim() || "Lietuva";
+  const imagesEarly =
+    Array.isArray(body.imageDataUrls) && body.imageDataUrls.length
+      ? body.imageDataUrls
+      : body.imageDataUrl
+        ? [body.imageDataUrl]
+        : [];
+
+  let action = body.action;
+  if (action === "analyze") {
+    action = imagesEarly.length ? "analyze_image" : "parse_text";
+  }
+  const city = resolveListingCity(body.userCity?.trim(), "Vilnius");
   const contact = body.contact?.trim() || "+370 612 34567";
 
   if (action === "upload_media") {

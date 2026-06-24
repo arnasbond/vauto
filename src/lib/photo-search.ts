@@ -1,5 +1,6 @@
 import type { AiExtractedListing } from "@/lib/types";
 import { formatPrice } from "@/data/mockListings";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 
 const CATEGORY_LABELS: Record<string, string> = {
   vehicles: "auto dalys / transportas",
@@ -58,9 +59,41 @@ export function buildPhotoSearchQuery(result: AiExtractedListing): string {
     .toLowerCase()
     .split(/[\s,.;:!?()[\]'"„“—–-]+/)
     .map((token) => token.trim())
-    .filter((token) => token.length >= 3 && token !== "undefined");
+    .filter((token) => token.length >= 2 && token !== "undefined");
 
-  return [...new Set(tokens)].slice(0, 8).join(" ");
+  return [...new Set(tokens)].slice(0, 10).join(" ");
+}
+
+/**
+ * Voice search — prefer the user's spoken words over AI title when buying/searching.
+ */
+export function buildVoiceSearchQuery(
+  transcript: string,
+  extracted?: AiExtractedListing
+): string {
+  const raw = sanitizeSpeechTranscript(transcript).trim();
+  if (!raw) return extracted ? buildPhotoSearchQuery(extracted) : "";
+
+  if (!extracted) return raw;
+
+  const spokenTokens = raw
+    .toLowerCase()
+    .split(/[\s,.;:!?()[\]'"„“—–-]+/)
+    .filter((t) => t.length >= 2);
+  const titleTokens = extracted.title
+    .toLowerCase()
+    .split(/[\s,.;:!?()[\]'"„“—–-]+/)
+    .filter((t) => t.length >= 2);
+
+  const overlap = spokenTokens.filter((t) => titleTokens.includes(t)).length;
+  const intent = String(extracted.attributes?._intent ?? "").toLowerCase();
+
+  if (intent === "search" || overlap < 1 || extracted.confidence < 0.65) {
+    return raw;
+  }
+
+  const fromAi = buildPhotoSearchQuery(extracted);
+  return [...new Set(`${raw} ${fromAi}`.split(/\s+/))].slice(0, 12).join(" ");
 }
 
 export function buildPhotoSearchToast(result: AiExtractedListing): string {

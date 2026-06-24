@@ -1,9 +1,28 @@
+const PLACEHOLDER_CITY =
+  /^(miestas|city|unknown|n\/?a|—|-+|\.*|xxx|placeholder|location|vieta)$/i;
+
+function isPlaceholderCity(value) {
+  const v = String(value ?? "").trim();
+  if (!v) return true;
+  if (PLACEHOLDER_CITY.test(v)) return true;
+  return v.toLowerCase() === "miestas";
+}
+
+function resolveListingCity(raw, fallback = "Vilnius") {
+  const fb = String(fallback ?? "").trim();
+  const fbResolved =
+    !fb || isPlaceholderCity(fb) || fb === "Lietuva" ? "Vilnius" : fb;
+  const val = String(raw ?? "").trim();
+  if (isPlaceholderCity(val)) return fbResolved;
+  return val;
+}
+
 const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
   "title": "string — patrauklus lietuviškas skelbimo pavadinimas",
   "price": "number | null — kaina EUR; null jei nenurodyta",
-  "city": "string — Lietuvos miestas arba 'Lietuva'",
+  "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas",
   "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (2–5 sakiniai, be emoji)",
   "technicalFields": "object — kategorijai būdingi laukai",
   "confidence": "number 0-1"
@@ -152,7 +171,7 @@ function toListingPayload(raw, userCity, contact) {
   return {
     title: String(raw.title ?? "Skelbimas"),
     price,
-    location: String(raw.city ?? raw.location ?? userCity),
+    location: resolveListingCity(raw.city ?? raw.location, userCity),
     contact,
     category: internalCategory,
     description: raw.description ? String(raw.description) : undefined,
@@ -229,8 +248,18 @@ function hasAiKey() {
 }
 
 async function handleVautoServerAction(body) {
-  const action = body.action;
-  const city = body.userCity?.trim() || "Lietuva";
+  const imagesEarly =
+    Array.isArray(body.imageDataUrls) && body.imageDataUrls.length
+      ? body.imageDataUrls
+      : body.imageDataUrl
+        ? [body.imageDataUrl]
+        : [];
+
+  let action = body.action;
+  if (action === "analyze") {
+    action = imagesEarly.length ? "analyze_image" : "parse_text";
+  }
+  const city = resolveListingCity(body.userCity?.trim(), "Vilnius");
   const contact = body.contact?.trim() || "+370 612 34567";
 
   if (action === "upload_media") {

@@ -1,5 +1,6 @@
 import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/types";
 import type { ListingEditPatch } from "@/lib/listing-edit";
+import { resolveListingCity } from "@/lib/city-resolve";
 import {
   AI_FETCH_TIMEOUT_MS,
   AI_VISION_FETCH_TIMEOUT_MS,
@@ -200,9 +201,13 @@ export async function apiCreateListing(
   listing: Listing,
   userId: string
 ): Promise<ApiResult<Listing>> {
+  const payload: Listing = {
+    ...listing,
+    location: resolveListingCity(listing.location, "Vilnius"),
+  };
   return dataFetch<Listing>("/api/listings", {
     method: "POST",
-    body: JSON.stringify(listing),
+    body: JSON.stringify(payload),
     userId,
   });
 }
@@ -325,9 +330,13 @@ export async function apiFetchUser(
 export async function apiUpdateUser(
   user: UserProfile
 ): Promise<ApiResult<null>> {
+  const payload = {
+    ...user,
+    city: resolveListingCity(user.city, "Vilnius"),
+  };
   return dataFetch<null>(`/api/users/${user.id}`, {
     method: "PUT",
-    body: JSON.stringify(user),
+    body: JSON.stringify(payload),
     userId: user.id,
   });
 }

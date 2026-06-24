@@ -1,5 +1,5 @@
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
-import type { Listing, ScoredListing } from "@/lib/types";
+import type { Listing, ListingCategory, ScoredListing } from "@/lib/types";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 
 /** Categories shown for each portal theme in search/buddy/broker. */
@@ -26,14 +26,47 @@ export function portalThemeForQuery(query: string): ChameleonThemeId {
   return portalExperienceForQuery(query).theme;
 }
 
+/** Strict category from query keywords (APRANGA → clothing, etc.). */
+export function inferStrictCategory(query: string): ListingCategory | null {
+  const q = query.toLowerCase();
+  if (/auto|automobil|ratlank|padang|vin\b|bmw|audi|golf|opel/i.test(q)) {
+    return "vehicles";
+  }
+  if (/bat|batai|keden|aulis|drabu|striuk|suknel|palt|dydis|zara|nike|vinted|aprang/i.test(q)) {
+    return "clothing";
+  }
+  if (/but|nam|nuom|sklyp|kamb|nt\b|nekilnoj|aruod/i.test(q)) {
+    return "real_estate";
+  }
+  if (/meistr|paslaug|elektrik|santechn|valym|remont/i.test(q)) {
+    return "services";
+  }
+  if (/darbas|atlygin|cv\b|vairuotoj|sand[eė]l/i.test(q)) {
+    return "jobs";
+  }
+  if (/telefon|iphone|samsung|laptop|kompiuter/i.test(q)) {
+    return "electronics";
+  }
+  if (/bald|sofa|komod|virtuv/i.test(q)) {
+    return "home";
+  }
+  return null;
+}
+
 export function filterListingsForPortal<T extends Listing>(
   query: string,
   listings: T[]
 ): T[] {
   const theme = portalThemeForQuery(query);
   const cats = categoriesForPortal(theme);
-  if (!cats) return listings;
-  return listings.filter((l) => cats.includes(l.category));
+  let filtered = cats ? listings.filter((l) => cats.includes(l.category)) : listings;
+
+  const strict = inferStrictCategory(query);
+  if (strict) {
+    filtered = filtered.filter((l) => l.category === strict);
+  }
+
+  return filtered;
 }
 
 export function portalRankedListings(

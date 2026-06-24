@@ -164,11 +164,15 @@ export async function executeAgentTool(
         );
       }
       if (query) {
-        filtered = filtered.filter(
-          (l) =>
-            l.title.toLowerCase().includes(query) ||
-            (l.description?.toLowerCase().includes(query) ?? false)
-        );
+        const tokens = query
+          .split(/[\s,.;:!?]+/)
+          .filter((t) => t.length >= 2);
+        filtered = filtered.filter((l) => {
+          const haystack = `${l.title} ${l.description ?? ""} ${l.category}`.toLowerCase();
+          if (!tokens.length) return haystack.includes(query);
+          const hits = tokens.filter((t) => haystack.includes(t)).length;
+          return hits >= Math.max(1, Math.ceil(tokens.length * 0.34));
+        });
       }
 
       const results = filtered.slice(0, limit);

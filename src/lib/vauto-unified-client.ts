@@ -1,4 +1,5 @@
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
+import { resolveListingCity } from "@/lib/city-resolve";
 
 export type VautoServerAction =
   | "parse_text"
@@ -55,7 +56,8 @@ const VALID_CATEGORIES: ListingCategory[] = [
 
 /** Map unified server listing → existing AiExtractedListing for confirmation UI */
 export function mapVautoServerListing(
-  listing: VautoServerListingPayload
+  listing: VautoServerListingPayload,
+  fallbackCity = "Vilnius"
 ): AiExtractedListing {
   const category = VALID_CATEGORIES.includes(listing.category as ListingCategory)
     ? (listing.category as ListingCategory)
@@ -68,7 +70,7 @@ export function mapVautoServerListing(
   return {
     title: listing.title,
     price: listing.price,
-    location: listing.location,
+    location: resolveListingCity(listing.location, fallbackCity),
     contact: listing.contact,
     category,
     description: listing.description,

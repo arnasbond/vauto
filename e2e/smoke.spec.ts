@@ -39,7 +39,9 @@ test.describe("Vauto smoke", () => {
   test("add page shows category chips for signed-in user", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
-    await expect(page.getByRole("button", { name: "Auto" })).toBeVisible({
+    await expect(
+      page.getByRole("button", { name: "Auto", exact: true })
+    ).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByRole("button", { name: "Technika" })).toBeVisible();
