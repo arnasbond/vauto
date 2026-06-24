@@ -19,6 +19,14 @@ const {
   buildProactivePricingMessage,
   buildProactiveSearchResetMessage,
 } = require("./proactive-agent");
+const {
+  resolveMonetizationState,
+  inferMicroPaymentProduct,
+  defaultPriceForProduct,
+  shouldOfferSmartBoost,
+  buildSmartBoostProactiveMessage,
+  buildMicroPaymentVoiceReply,
+} = require("./monetization-engine");
 
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
@@ -31,6 +39,7 @@ AUTOMOBILIAMS: iš balso/teksto VISADA ištrauk make, model, year (atskirais lau
 Kai postNewListing grąžina voiceFollowUp — ištark VERBATIM kaip TTS atsakymą.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
 Paieškai — searchListings; jei 0 rezultatų — registerWanted.
+triggerMicroPayment — Smart Boost (2.99 €) arba regiono statistika (4.99 €). Free + kaina virš medianos → pasiūlyk Smart Boost; vartotojui pasakius „Iškelti skelbimą“ — triggerMicroPayment(reason, 2.99).
 Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
 KETINIMO ATPAŽINIMAS: „noriu kelti skelbimą“ / parduoti → navigate_view(add_listing) arba postNewListing. NIEKADA searchListings. Paieškai → search_results.
 Klaidoms — trackUserError. Admin — blockListing. Būk glaustas, be emoji.`;
@@ -122,6 +131,19 @@ const AGENT_FUNCTION_DECLARATIONS = [
       type: "OBJECT",
       properties: { query: { type: "STRING" } },
       required: ["query"],
+    },
+  },
+  {
+    name: "triggerMicroPayment",
+    description:
+      "Zero-UI mikro-mokėjimas: Smart Boost arba regiono statistika. reason + price EUR.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reason: { type: "STRING" },
+        price: { type: "NUMBER" },
+      },
+      required: ["reason", "price"],
     },
   },
   {
@@ -316,6 +338,8 @@ function executeAgentTool(name, args, ctx) {
     const imageUrls = Array.isArray(args.imageUrls) ? args.imageUrls.map(String) : [];
     let marketAnalysis = null;
     let proactivePricingMessage = null;
+    const monState =
+      ctx.monetization ?? resolveMonetizationState({ userRole: ctx.userRole });
     if (price > 0) {
       marketAnalysis = runMarketPriceAnalysis(listings, {
         title: enriched.title,
@@ -325,11 +349,19 @@ function executeAgentTool(name, args, ctx) {
         model: String(attributes.model ?? ""),
         year: String(attributes.year ?? ""),
       });
-      proactivePricingMessage = buildProactivePricingMessage(
-        price,
-        marketAnalysis,
-        enriched.title
-      );
+      if (shouldOfferSmartBoost(monState, price, marketAnalysis.medianPrice)) {
+        proactivePricingMessage = buildSmartBoostProactiveMessage(
+          price,
+          marketAnalysis.medianPrice,
+          enriched.title
+        );
+      } else {
+        proactivePricingMessage = buildProactivePricingMessage(
+          price,
+          marketAnalysis,
+          enriched.title
+        );
+      }
     }
     return {
       result: {
@@ -370,6 +402,46 @@ function executeAgentTool(name, args, ctx) {
         maxPrice: analysis.maxPrice,
         medianPrice: analysis.medianPrice,
         message: analysis.message,
+      },
+    };
+  }
+
+  if (name === "triggerMicroPayment") {
+    const reason = String(args.reason ?? "").trim();
+    const product = inferMicroPaymentProduct(reason);
+    const price =
+      Number(args.price) > 0 ? Number(args.price) : defaultPriceForProduct(product);
+    const monState =
+      ctx.monetization ?? resolveMonetizationState({ userRole: ctx.userRole });
+    if (product === "region_stats" && monState.tier !== "business_pro") {
+      return {
+        result: {
+          ok: false,
+          message: "Gili regiono statistika prieinama tik Business Pro planui.",
+        },
+      };
+    }
+    if (product === "smart_boost" && monState.activeBoost) {
+      return {
+        result: { ok: true, alreadyActive: true, message: "Smart Boost jau aktyvus." },
+      };
+    }
+    const voiceReply = buildMicroPaymentVoiceReply(product, price);
+    return {
+      result: {
+        ok: true,
+        reason,
+        price,
+        product,
+        voiceConfirmPhrase: "Taip, apmokėti",
+        message: voiceReply,
+      },
+      sideEffect: {
+        type: "micro_payment",
+        reason,
+        price,
+        product,
+        voiceConfirmPhrase: "Taip, apmokėti",
       },
     };
   }
@@ -536,6 +608,12 @@ async function runVautoAgentInner(req) {
     contact: req.context?.contact?.trim() || "+370 612 34567",
     listingsSnapshot: req.context?.listings ?? [],
     searchSessionReset: Boolean(req.context?.searchSessionReset),
+    monetization: resolveMonetizationState({
+      userRole: req.context?.userRole,
+      billingPlan: req.context?.monetization?.billingPlan,
+      activeBoost: req.context?.monetization?.activeBoost,
+      walletBalance: req.context?.monetization?.walletBalance,
+    }),
   };
 
   const memoryBlock = buildAgentMemoryContextBlock({
@@ -592,6 +670,7 @@ async function runVautoAgentInner(req) {
   const toolCalls = [];
   let sideEffect;
   let navigateEffect;
+  let microPaymentEffect;
   let finalText = "";
 
   if (resolveGeminiApiKey()) {
@@ -623,7 +702,8 @@ async function runVautoAgentInner(req) {
         const { result, sideEffect: fx } = executeAgentTool(name, args ?? {}, ctx);
         toolCalls.push({ name, result });
         if (fx) {
-          if (fx.type === "navigate") navigateEffect = fx;
+          if (fx.type === "micro_payment") microPaymentEffect = fx;
+          else if (fx.type === "navigate") navigateEffect = fx;
           else if (!sideEffect) sideEffect = fx;
         }
         responseParts.push({ functionResponse: { name, response: result } });
@@ -641,6 +721,11 @@ async function runVautoAgentInner(req) {
     } else if (listingResult?.voiceFollowUp) {
       finalText = listingResult.voiceFollowUp;
     }
+  }
+
+  const paymentCall = toolCalls.find((t) => t.name === "triggerMicroPayment");
+  if (paymentCall?.result?.ok && paymentCall.result.message) {
+    finalText = paymentCall.result.message;
   }
 
   if (sideEffect?.type === "search" && sideEffect.proactiveMessage) {
@@ -666,7 +751,7 @@ async function runVautoAgentInner(req) {
     ok: true,
     reply: finalText,
     toolCalls,
-    actions: navigateEffect ?? sideEffect ?? { type: "none" },
+    actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
   };
 }
 

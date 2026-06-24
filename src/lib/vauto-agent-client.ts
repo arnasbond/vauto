@@ -45,6 +45,12 @@ export interface VautoAgentContext {
   searchResultCount?: number;
   lastSearchQuery?: string;
   currentView?: AppView | import("@/lib/zero-ui-screens").ZeroUiScreen;
+  monetization?: {
+    tier?: "free" | "business_pro";
+    activeBoost?: boolean;
+    billingPlan?: string;
+    walletBalance?: number;
+  };
 }
 
 export interface AgentListingSnapshot {
@@ -102,6 +108,13 @@ export type VautoAgentAction =
   | {
       type: "zero_ui_screen";
       screen: import("@/lib/zero-ui-screens").ZeroUiScreen;
+    }
+  | {
+      type: "micro_payment";
+      reason: string;
+      price: number;
+      product: "smart_boost" | "region_stats" | "generic";
+      voiceConfirmPhrase?: string;
     };
 
 export interface VautoAgentResponse {

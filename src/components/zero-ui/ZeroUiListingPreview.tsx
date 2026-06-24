@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { ZeroUiScreenChrome } from "@/components/zero-ui/ZeroUiScreenChrome";
+import { ZeroUiPaymentGate } from "@/components/zero-ui/ZeroUiPaymentGate";
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { vehicleSummaryLabel } from "@/lib/vehicle-catalog";
@@ -15,7 +16,8 @@ export function ZeroUiListingPreview() {
     cancelSellerFlow,
     sellerUserPrompt,
   } = useVauto();
-  const { goToMarketplace } = useZeroUiScreen();
+  const { goToMarketplace, pendingMicroPayment, clearMicroPayment, setActiveBoost } =
+    useZeroUiScreen();
   const [fullWizard, setFullWizard] = useState(false);
 
   useEffect(() => {
@@ -71,7 +73,19 @@ export function ZeroUiListingPreview() {
       )}
 
       <div className={fullWizard || !isVehicle ? "" : "max-h-[70vh] overflow-y-auto rounded-2xl border border-[#e5e7eb] bg-white shadow-sm"}>
-        <AiConfirmationScreen mode={fullWizard ? "inline-full" : "inline-preview"} />
+        {pendingMicroPayment ? (
+          <ZeroUiPaymentGate
+            embedded
+            intent={pendingMicroPayment}
+            onCancel={clearMicroPayment}
+            onSuccess={() => {
+              setActiveBoost(true);
+              clearMicroPayment();
+            }}
+          />
+        ) : (
+          <AiConfirmationScreen mode={fullWizard ? "inline-full" : "inline-preview"} />
+        )}
       </div>
     </ZeroUiScreenChrome>
   );

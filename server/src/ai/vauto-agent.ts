@@ -16,6 +16,7 @@ import {
   type AgentSearchFilters,
 } from "./agent-memory-context.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
+import { resolveMonetizationState } from "./monetization-engine.js";
 import {
   AgentRouteError,
   fetchWithTimeout,
@@ -65,6 +66,12 @@ export interface VautoAgentRequest {
     };
     activeSearchFilters?: AgentSearchFilters | null;
     searchSessionReset?: boolean;
+    monetization?: {
+      tier?: "free" | "business_pro";
+      activeBoost?: boolean;
+      billingPlan?: string;
+      walletBalance?: number;
+    };
   };
   /** Server-verified admin only — injected into Gemini systemInstruction */
   adminProjectContext?: string;
@@ -103,6 +110,7 @@ PARDAVIMO BALSO DIALOGAS:
 
 KITI ĮRANKIAI:
 - analyzeMarketPrice — rinkos kainos patarimas.
+- triggerMicroPayment — Smart Boost (2.99 €) arba regiono statistika (4.99 €). Kai free vartotojo kaina viršija rinkos medianą — postNewListing pasiūlys Smart Boost; vartotojui pasakius „Iškelti skelbimą“ — iškviesk triggerMicroPayment(reason, 2.99). B2B gili regiono paklausa — triggerMicroPayment su 4.99 € arba siūlyk Pro planą (showZeroUiScreen business_dashboard).
 - trackUserError — proaktyvus klaidų sprendimas.
 - blockListing — administratoriui.
 - showZeroUiScreen — pagrindinis Zero-UI ekranas (marketplace, listing_preview, business_dashboard, admin_panel).
@@ -227,6 +235,12 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     contact: req.context.contact?.trim() || "+370 612 34567",
     listingsSnapshot: req.context.listings,
     searchSessionReset: Boolean(req.context.searchSessionReset),
+    monetization: resolveMonetizationState({
+      userRole: req.context.userRole,
+      billingPlan: req.context.monetization?.billingPlan,
+      activeBoost: req.context.monetization?.activeBoost,
+      walletBalance: req.context.monetization?.walletBalance,
+    }),
   };
 
   const memoryBlock = buildAgentMemoryContextBlock({
@@ -283,6 +297,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   const toolCalls: { name: string; result: unknown }[] = [];
   let sideEffect: AgentSideEffect | undefined;
   let navigateEffect: AgentSideEffect | undefined;
+  let microPaymentEffect: AgentSideEffect | undefined;
   let finalText = "";
 
   const hasGemini = Boolean(resolveGeminiApiKey());
@@ -341,7 +356,8 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
         const { result, sideEffect: fx } = await executeAgentTool(name, args ?? {}, ctx);
         toolCalls.push({ name, result });
         if (fx) {
-          if (fx.type === "navigate") navigateEffect = fx;
+          if (fx.type === "micro_payment") microPaymentEffect = fx;
+          else if (fx.type === "navigate") navigateEffect = fx;
           else if (!sideEffect) sideEffect = fx;
         }
         responseParts.push({ functionResponse: { name, response: result } });
@@ -366,6 +382,12 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     }
   }
 
+  const paymentCall = toolCalls.find((t) => t.name === "triggerMicroPayment");
+  const paymentResult = paymentCall?.result as { message?: string; ok?: boolean } | undefined;
+  if (paymentResult?.ok && paymentResult.message) {
+    finalText = paymentResult.message;
+  }
+
   const searchSideEffect =
     sideEffect?.type === "search" ? sideEffect : undefined;
   if (searchSideEffect?.proactiveMessage) {
@@ -378,14 +400,14 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
         ok: true,
         reply: BUDDY_REPEAT_PROMPT,
         toolCalls,
-        actions: navigateEffect ?? sideEffect ?? { type: "none" },
+        actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
       };
     }
     return {
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
       toolCalls,
-      actions: navigateEffect ?? sideEffect ?? { type: "none" },
+      actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
     };
   }
 
@@ -394,7 +416,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
       toolCalls,
-      actions: navigateEffect ?? sideEffect ?? { type: "none" },
+      actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
     };
   }
 
@@ -421,6 +443,6 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     ok: true,
     reply: finalText,
     toolCalls,
-    actions: navigateEffect ?? sideEffect ?? { type: "none" },
+    actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
   };
 }

@@ -15,6 +15,16 @@ import {
   buildProactivePricingMessage,
   buildProactiveSearchResetMessage,
 } from "./proactive-agent.js";
+import {
+  buildMicroPaymentVoiceReply,
+  buildSmartBoostProactiveMessage,
+  defaultPriceForProduct,
+  inferMicroPaymentProduct,
+  resolveMonetizationState,
+  shouldOfferSmartBoost,
+  SMART_BOOST_PRICE_EUR,
+  type MonetizationState,
+} from "./monetization-engine.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -71,6 +81,7 @@ export interface AgentToolContext {
   contact: string;
   listingsSnapshot?: AgentListingSummary[];
   searchSessionReset?: boolean;
+  monetization?: MonetizationState;
 }
 
 export const AGENT_FUNCTION_DECLARATIONS = [
@@ -192,6 +203,25 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         query: { type: "STRING", description: "Paieškos užklausa lietuviškai" },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "triggerMicroPayment",
+    description:
+      "Atidaro Zero-UI mokėjimo patvirtinimo langą mikro-mokėjimui (Smart Boost, regiono statistika). Naudok kai free vartotojas nori iškelti skelbimą virš rinkos kainos, arba B2B vartotojas prašo gilios regiono paklausos statistikos.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        reason: {
+          type: "STRING",
+          description: "Trumpas mokėjimo paskirties aprašymas lietuviškai",
+        },
+        price: {
+          type: "NUMBER",
+          description: "Suma EUR — Smart Boost 2.99, regiono statistika 4.99",
+        },
+      },
+      required: ["reason", "price"],
     },
   },
   {
@@ -434,6 +464,9 @@ export async function executeAgentTool(
 
       let marketAnalysis = null;
       let proactivePricingMessage: string | null = null;
+      const monState =
+        ctx.monetization ??
+        resolveMonetizationState({ userRole: ctx.userRole });
       if (price > 0) {
         marketAnalysis = runMarketPriceAnalysis(listings, {
           title: enriched.title,
@@ -443,11 +476,21 @@ export async function executeAgentTool(
           model: String(attributes.model ?? ""),
           year: String(attributes.year ?? ""),
         });
-        proactivePricingMessage = buildProactivePricingMessage(
-          price,
-          marketAnalysis,
-          enriched.title
-        );
+        if (
+          shouldOfferSmartBoost(monState, price, marketAnalysis.medianPrice)
+        ) {
+          proactivePricingMessage = buildSmartBoostProactiveMessage(
+            price,
+            marketAnalysis.medianPrice!,
+            enriched.title
+          );
+        } else {
+          proactivePricingMessage = buildProactivePricingMessage(
+            price,
+            marketAnalysis,
+            enriched.title
+          );
+        }
       }
 
       return {
@@ -495,6 +538,57 @@ export async function executeAgentTool(
           maxPrice: analysis.maxPrice,
           medianPrice: analysis.medianPrice,
           message: analysis.message,
+        },
+      };
+    }
+
+    case "triggerMicroPayment": {
+      const reason = String(args.reason ?? "").trim();
+      const product = inferMicroPaymentProduct(reason);
+      const price =
+        Number(args.price) > 0
+          ? Number(args.price)
+          : defaultPriceForProduct(product);
+      const monState =
+        ctx.monetization ??
+        resolveMonetizationState({ userRole: ctx.userRole });
+
+      if (product === "region_stats" && monState.tier !== "business_pro") {
+        return {
+          result: {
+            ok: false,
+            message:
+              "Gili regiono statistika prieinama tik Business Pro planui. Perjunkite planą verslo skydelyje.",
+          },
+        };
+      }
+
+      if (product === "smart_boost" && monState.activeBoost) {
+        return {
+          result: {
+            ok: true,
+            alreadyActive: true,
+            message: "Smart Boost jau aktyvus šiam skelbimui.",
+          },
+        };
+      }
+
+      const voiceReply = buildMicroPaymentVoiceReply(product, price);
+      return {
+        result: {
+          ok: true,
+          reason,
+          price,
+          product,
+          voiceConfirmPhrase: "Taip, apmokėti",
+          message: voiceReply,
+        },
+        sideEffect: {
+          type: "micro_payment",
+          reason,
+          price,
+          product,
+          voiceConfirmPhrase: "Taip, apmokėti",
         },
       };
     }
@@ -701,4 +795,11 @@ export type AgentSideEffect =
   | {
       type: "zero_ui_screen";
       screen: ZeroUiScreen;
+    }
+  | {
+      type: "micro_payment";
+      reason: string;
+      price: number;
+      product: "smart_boost" | "region_stats" | "generic";
+      voiceConfirmPhrase?: string;
     };

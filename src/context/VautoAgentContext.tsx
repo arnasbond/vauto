@@ -28,6 +28,10 @@ import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { useZeroUiMemory } from "@/context/ZeroUiMemoryContext";
+import {
+  microPaymentFromToolResult,
+  resolveClientMonetizationState,
+} from "@/lib/monetization-engine";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import {
   filtersFromSearchAction,
@@ -72,7 +76,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     searchQuery,
   } = useVauto();
   const { navigateTo } = useNavigation();
-  const { currentView: zeroUiScreen, setScreen, goToMarketplace } = useZeroUiScreen();
+  const { currentView: zeroUiScreen, setScreen, goToMarketplace, openMicroPayment, activeBoost } = useZeroUiScreen();
   const {
     buildAgentContext,
     noteUserMessage,
@@ -160,6 +164,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           onError: (msg) => showToast(msg, "error"),
         });
       }
+      if (actions.type === "micro_payment") {
+        openMicroPayment({
+          reason: actions.reason,
+          price: actions.price,
+          product: actions.product,
+          voiceConfirmPhrase: actions.voiceConfirmPhrase,
+        });
+        routeZeroUiScreen("listing_preview");
+      }
       if (actions.type === "zero_ui_screen") {
         routeZeroUiScreen(actions.screen);
         showToast(`Zero-UI: ${actions.screen.replace(/_/g, " ")}`, "info");
@@ -200,6 +213,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       subscribeWishlist,
       recordSearchFilters,
       clearSearchFilters,
+      openMicroPayment,
     ]
   );
 
@@ -243,6 +257,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               ? resetFilters
               : memoryContext.activeSearchFilters,
             searchSessionReset,
+            monetization: resolveClientMonetizationState(user, activeBoost),
             userRole: resolveAgentUserRole(user),
             contact: user.phone || "+370 612 34567",
             listings: compactListingsForAgent(listings),
@@ -291,6 +306,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           },
         ]);
         applyActions(res.actions);
+        if (res.actions.type !== "micro_payment") {
+          const paymentIntent = microPaymentFromToolResult(
+            res.toolCalls.find((t) => t.name === "triggerMicroPayment")?.result
+          );
+          if (paymentIntent) {
+            openMicroPayment(paymentIntent);
+          }
+        }
         return { ok: true, reply: res.reply };
       } catch {
         const message = BUDDY_REPEAT_PROMPT;
@@ -318,6 +341,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       open,
       activeSearchFilters,
       clearSearchFilters,
+      activeBoost,
+      openMicroPayment,
     ]
   );
 

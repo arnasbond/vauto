@@ -33,6 +33,8 @@ import { ListingWizardStrip } from "@/components/wizard/ListingWizardStrip";
 import { useListingWizard } from "@/hooks/useListingWizard";
 import { isPlaceholderCity } from "@/lib/city-resolve";
 import { LT_CITIES } from "@/lib/general-catalog";
+import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
+import { ZeroUiPaymentGate } from "@/components/zero-ui/ZeroUiPaymentGate";
 
 const TOTAL_STEPS = 7;
 
@@ -307,6 +309,8 @@ export function VehicleListingWizard({
 
   const aiPrefilledStep1 = Boolean(make && model && year && userPrompt?.trim());
 
+  const { pendingMicroPayment, clearMicroPayment, setActiveBoost } = useZeroUiScreen();
+
   const { analysis, buddyMessage, thread, handleWizardReply } = useListingWizard({
     draft,
     userPrompt,
@@ -315,6 +319,28 @@ export function VehicleListingWizard({
     onAttributeChange,
     onFocusVin: () => setStep(1),
   });
+
+  if (pendingMicroPayment) {
+    return (
+      <div
+        className={
+          embedded
+            ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] p-4 shadow-sm"
+            : "fixed inset-0 z-[100] flex items-center justify-center bg-[var(--portal-wizard-bg,#f3f4f6)] p-4"
+        }
+      >
+        <ZeroUiPaymentGate
+          embedded
+          intent={pendingMicroPayment}
+          onCancel={clearMicroPayment}
+          onSuccess={() => {
+            setActiveBoost(true);
+            clearMicroPayment();
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div
