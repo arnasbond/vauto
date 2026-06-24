@@ -30,6 +30,14 @@ async function proxyToRenderApi(req, res) {
       };
     }
 
+    if (upstream.status >= 500) {
+      console.warn(
+        `[vauto-server] Render ${upstream.status} — local fallback:`,
+        body?.error || upstream.statusText
+      );
+      return false;
+    }
+
     return res.status(upstream.status).json(body);
   } catch (e) {
     console.warn("[vauto-server] Render proxy failed:", e.message);

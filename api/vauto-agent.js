@@ -72,6 +72,15 @@ async function proxyToRenderApi(req, res) {
       };
     }
 
+    /** Render can 503 on stale deploy — fall back to Vercel GEMINI_API_KEY. */
+    if (upstream.status >= 500 || body?.code === "agent_unavailable") {
+      console.warn(
+        `[vauto-agent] Render ${upstream.status} — local fallback:`,
+        body?.error || upstream.statusText
+      );
+      return false;
+    }
+
     return res.status(upstream.status).json(body);
   } catch (e) {
     console.warn("[vauto-agent] Render proxy failed:", e.message);

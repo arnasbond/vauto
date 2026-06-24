@@ -233,12 +233,24 @@ export async function apiVautoAgent(body: {
     bases.push(renderBase);
   }
 
-  const { data, error, code } = await aiFetchWithMeta<
-    import("@/lib/vauto-agent-client").VautoAgentApiResult
-  >("/api/vauto-agent", fetchOpts, timeoutMs, bases.length ? bases : undefined);
+  let lastError: { error?: string; code?: string } = {};
+  const urls = bases.length ? bases : getAiBaseUrls();
+  for (const base of urls) {
+    const result = await aiFetchOnce<
+      import("@/lib/vauto-agent-client").VautoAgentApiResult
+    >(base, "/api/vauto-agent", fetchOpts, timeoutMs);
+    if (result.data && "reply" in result.data && result.data.reply) {
+      return result.data;
+    }
+    if (result.data && "ok" in result.data && result.data.ok === false) {
+      lastError = { error: result.data.error, code: result.data.code };
+      if (result.data.code !== "agent_unavailable") return result.data;
+      continue;
+    }
+    lastError = { error: result.error, code: result.code };
+  }
 
-  if (data && "reply" in data && data.reply) return data;
-  if (data && "ok" in data && data.ok === false) return data;
+  const { error, code } = lastError;
 
   return {
     ok: false,
