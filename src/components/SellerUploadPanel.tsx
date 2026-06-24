@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Mic, Sparkles } from "lucide-react";
+import { ArrowRight, Camera, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
@@ -146,6 +146,14 @@ export function SellerUploadPanel({
           enterKeyHint="go"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] outline-none placeholder:text-[#6b7280]"
         />
+        <button
+          type="submit"
+          disabled={busy || processing || !query.trim()}
+          aria-label="AI analizuoti aprašymą"
+          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1167b1] text-white disabled:opacity-40"
+        >
+          <ArrowRight className="h-4 w-4" />
+        </button>
       </form>
 
       <p className="mt-2 text-center text-xs text-[#6b7280]">

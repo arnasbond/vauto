@@ -142,7 +142,11 @@ export function ProBusinessDashboard({
             onRenew={onRenew}
             onDismiss={dismissSoldPrompt}
           />
-          <VautoWallet balance={user.walletBalance ?? 0} onTopUp={onTopUp} />
+          <VautoWallet
+            balance={user.walletBalance ?? 0}
+            onTopUp={onTopUp}
+            demoTopUp={apiActive}
+          />
           {showCalendar && (
             <>
               <ServiceLeadInbox

@@ -6,9 +6,11 @@ import { Plus, Wallet } from "lucide-react";
 interface VautoWalletProps {
   balance: number;
   onTopUp: (amount: number) => void;
+  /** When true, top-up credits balance without card charge (staging/demo). */
+  demoTopUp?: boolean;
 }
 
-export function VautoWallet({ balance, onTopUp }: VautoWalletProps) {
+export function VautoWallet({ balance, onTopUp, demoTopUp }: VautoWalletProps) {
   const [topping, setTopping] = useState(false);
 
   const handleTopUp = () => {
@@ -48,7 +50,9 @@ export function VautoWallet({ balance, onTopUp }: VautoWalletProps) {
         </button>
       </div>
       <p className="mt-3 text-[10px] text-slate-500">
-        Naudokite PPC paspaudimams, skambučiams ir išmaniesiems reklamavimams.
+        {demoTopUp
+          ? "Demo papildymas — kreditas be kortelės (staging). Tikram mokėjimui bus Stripe."
+          : "Naudokite PPC paspaudimams, skambučiams ir išmaniesiems reklamavimams."}
       </p>
     </div>
   );
