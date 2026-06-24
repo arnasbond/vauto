@@ -1,15 +1,17 @@
 "use client";
 
-import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { Compass, Home, MessageCircle, Plus, Shield, User } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { useActivePortal } from "@/hooks/useActivePortal";
 import { countUnreadChats } from "@/lib/chat-helpers";
 
+/**
+ * Bottom tab bar for static-export PWA.
+ * Uses plain <a> + trailing slashes so mobile browsers never land on RSC index.txt.
+ */
 export function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
   const { chats, isAdmin, unreadAdminCount, unreadUserReportCount, user, requireAuthForListing } = useVauto();
   const { ui } = useActivePortal();
   const unreadChats = countUnreadChats(chats, user.id);
@@ -27,10 +29,10 @@ export function BottomNav() {
 
   const tabs = [
     { href: "/", label: "Pradžia", icon: Home },
-    { href: "/discover", label: "Atrasti", icon: Compass },
-    { href: "/chats", label: "Pokalbiai", icon: MessageCircle, badge: chatBadge },
+    { href: "/discover/", label: "Atrasti", icon: Compass },
+    { href: "/chats/", label: "Pokalbiai", icon: MessageCircle, badge: chatBadge },
     {
-      href: "/profile",
+      href: "/profile/",
       label: profileLabel,
       icon: ProfileIcon,
       badge: profileBadge,
@@ -38,30 +40,36 @@ export function BottomNav() {
   ];
 
   const handleAddClick = () => {
-    if (requireAuthForListing("/add")) {
-      router.push("/add");
+    if (requireAuthForListing("/add/")) {
+      window.location.assign("/add/");
     }
   };
 
   const linkClass = () =>
-    "flex min-w-0 flex-1 flex-col items-center gap-1 text-[10px] font-semibold transition-colors";
+    "flex min-w-0 flex-1 flex-col items-center gap-1 text-[10px] font-semibold transition-colors no-underline";
 
   const linkStyle = (path: string) => {
+    const normalized = path === "/" ? "/" : path.replace(/\/$/, "");
     const isActive =
-      pathname === path || (path !== "/" && pathname.startsWith(path));
+      pathname === path ||
+      pathname === normalized ||
+      (normalized !== "/" && pathname.startsWith(normalized));
     return { color: isActive ? ui.accent : ui.textMuted };
   };
 
   return (
-    <nav className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7dde5] bg-white/95 py-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl">
+    <nav
+      className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7dde5] bg-white/95 py-2 pb-6 shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+      translate="no"
+    >
       <div className="relative mx-auto flex max-w-lg items-end justify-around px-2">
         {tabs.slice(0, 2).map((tab) => {
           const Icon = tab.icon;
           return (
-            <Link key={tab.href} href={tab.href} className={linkClass()} style={linkStyle(tab.href)}>
+            <a key={tab.href} href={tab.href} className={linkClass()} style={linkStyle(tab.href)}>
               <Icon size={21} />
               <span className="truncate">{tab.label}</span>
-            </Link>
+            </a>
           );
         })}
 
@@ -84,7 +92,12 @@ export function BottomNav() {
         {tabs.slice(2).map((tab) => {
           const Icon = tab.icon;
           return (
-            <Link key={tab.href} href={tab.href} className={`relative ${linkClass()}`} style={linkStyle(tab.href)}>
+            <a
+              key={tab.href}
+              href={tab.href}
+              className={`relative ${linkClass()}`}
+              style={linkStyle(tab.href)}
+            >
               <div className="relative">
                 <Icon size={20} />
                 {tab.badge !== undefined && (
@@ -94,7 +107,7 @@ export function BottomNav() {
                 )}
               </div>
               <span className="truncate">{tab.label}</span>
-            </Link>
+            </a>
           );
         })}
       </div>

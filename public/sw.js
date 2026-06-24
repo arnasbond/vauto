@@ -1,4 +1,4 @@
-const CACHE = "vauto-shell-v2";
+const CACHE = "vauto-shell-v3";
 const PRECACHE = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 /** @type {{ listings: object[]; savedQueries: string[]; seenIds: Set<string> }} */
@@ -75,6 +75,17 @@ async function simulateBackgroundFetchCheck() {
   });
 }
 
+/** Next.js static export RSC payloads — never show as a full page. */
+function htmlUrlForRscPath(pathname) {
+  if (pathname.endsWith("/index.txt")) {
+    return pathname.slice(0, -"index.txt".length);
+  }
+  if (pathname.endsWith(".txt")) {
+    return `${pathname.slice(0, -4)}/`;
+  }
+  return null;
+}
+
 self.addEventListener("install", (event) => {
   event.waitUntil(
     caches
@@ -101,6 +112,28 @@ self.addEventListener("fetch", (event) => {
   const url = new URL(event.request.url);
   if (url.origin !== self.location.origin) return;
 
+  const rscHtmlPath = htmlUrlForRscPath(url.pathname);
+  if (event.request.mode === "navigate" && rscHtmlPath) {
+    event.respondWith(Response.redirect(new URL(rscHtmlPath, url.origin), 302));
+    return;
+  }
+
+  if (event.request.mode === "navigate") {
+    event.respondWith(
+      fetch(event.request).catch(async () => {
+        const cached = await caches.match(event.request);
+        if (cached) return cached;
+        const path = url.pathname.endsWith("/") ? url.pathname : `${url.pathname}/`;
+        return (
+          (await caches.match(`${path}index.html`)) ||
+          (await caches.match("/")) ||
+          fetch(event.request)
+        );
+      })
+    );
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request).then((cached) => {
       if (cached) return cached;
@@ -110,7 +143,7 @@ self.addEventListener("fetch", (event) => {
         if (
           url.pathname.startsWith("/_next/static/") ||
           url.pathname.endsWith(".html") ||
-          url.pathname.endsWith("/")
+          (url.pathname.endsWith("/") && !url.pathname.endsWith(".txt"))
         ) {
           caches.open(CACHE).then((cache) => cache.put(event.request, copy));
         }

@@ -106,4 +106,19 @@ test.describe("Vauto smoke", () => {
     ).toBeVisible();
     await expect(page.getByRole("button", { name: /Visi/i })).toBeVisible();
   });
+
+  test("mobile bottom nav loads HTML pages not RSC txt", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
+    await page.goto("/");
+    const nav = page.getByRole("navigation");
+    await nav.getByRole("link", { name: "Atrasti" }).click();
+    await page.waitForURL("**/discover/**");
+    await expect(page.locator("body")).not.toContainText(/"\$Sreact\.fragment"/);
+    await expect(page.getByRole("heading", { name: /Išmanioji paieška/i })).toBeVisible();
+
+    await nav.getByRole("link", { name: /Pokalbiai/ }).click();
+    await page.waitForURL("**/chats/**");
+    await expect(page.locator("body")).not.toContainText(/"\$Sreact\.fragment"/);
+    await expect(page.getByRole("heading", { name: "Pokalbiai" })).toBeVisible();
+  });
 });

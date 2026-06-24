@@ -27,6 +27,9 @@ export const metadata: Metadata = {
   description:
     "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
   manifest: "/manifest.json",
+  other: {
+    google: "notranslate",
+  },
   icons: {
     icon: [
       { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
@@ -55,7 +58,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="lt">
+    <html lang="lt" translate="no" suppressHydrationWarning>
       <body
         className={`${geistSans.variable} ${geistMono.variable} ${outfit.variable} antialiased`}
       >

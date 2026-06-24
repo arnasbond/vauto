@@ -22,7 +22,7 @@ export function Header() {
 
       <div className="flex items-center gap-3">
         <Link
-          href="/chats"
+          href="/chats/"
           className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border bg-white shadow-sm transition hover:opacity-90"
           style={{ borderColor: ui.border, color: ui.accent }}
           aria-label={
@@ -39,7 +39,7 @@ export function Header() {
           )}
         </Link>
         <Link
-          href="/profile"
+          href="/profile/"
           className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-[#d7dde5]"
           aria-label="Profilis"
         >

@@ -16,5 +16,20 @@
       "source": "/listing/:slug/",
       "destination": "/listing/?slug=:slug"
     }
+  ],
+  "headers": [
+    {
+      "source": "/(.*)index.txt",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        },
+        {
+          "key": "Cache-Control",
+          "value": "private, no-store"
+        }
+      ]
+    }
   ]
 }
