@@ -2,18 +2,24 @@
 
 import { usePathname } from "next/navigation";
 import { Compass, Home, MessageCircle, Plus, Shield, User } from "lucide-react";
+import { useNavigation } from "@/context/NavigationContext";
 import { useVauto } from "@/context/VautoContext";
 import { useActivePortal } from "@/hooks/useActivePortal";
 import { countUnreadChats } from "@/lib/chat-helpers";
 
 /**
  * Bottom tab bar for static-export PWA.
- * Uses plain <a> + trailing slashes so mobile browsers never land on RSC index.txt.
+ * Hidden during Zero-UI agent navigation.
  */
 export function BottomNav() {
   const pathname = usePathname();
-  const { chats, isAdmin, unreadAdminCount, unreadUserReportCount, user, requireAuthForListing } = useVauto();
+  const { zeroUiActive } = useNavigation();
+  const { chats, isAdmin, unreadAdminCount, unreadUserReportCount, user, requireAuthForListing } =
+    useVauto();
   const { ui } = useActivePortal();
+
+  if (zeroUiActive) return null;
+
   const unreadChats = countUnreadChats(chats, user.id);
   const chatBadge = unreadChats > 0 ? unreadChats : undefined;
   const profileBadge = isAdmin

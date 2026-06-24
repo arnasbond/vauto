@@ -107,6 +107,7 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
+import { ZeroUiViewHost } from "@/components/navigation/ZeroUiViewHost";
 import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
@@ -517,6 +518,7 @@ function VautoFacade({
           {children}
         </VautoAgentProvider>
       </AdminProjectContextProvider>
+      <ZeroUiViewHost />
       <SellerFlowOverlays />
       <ChameleonThemeHost />
       <ReviewPromptHost />

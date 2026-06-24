@@ -23,6 +23,7 @@ import {
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
+import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 
 interface VautoAgentContextValue {
@@ -51,6 +52,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     rankedListings,
     searchQuery,
   } = useVauto();
+  const { currentView, navigateTo } = useNavigation();
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AgentChatMessage[]>([
@@ -71,14 +73,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "search") {
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
+        navigateTo("search_results", { query: actions.searchQuery }, { source: "agent" });
         showToast(`Radau ${actions.listingIds.length} skelbimų`, "success");
-        document
-          .getElementById("listing-results")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        if (!document.getElementById("zero-ui-view-host")) {
+          document
+            .getElementById("listing-results")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }
       if (actions.type === "listing_draft") {
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
+        navigateTo(
+          "seller_wizard",
+          { category: actions.listingDraft.category },
+          { source: "agent" }
+        );
         setOpen(false);
       }
       if (actions.type === "block_listing" && actions.listingId) {
@@ -93,9 +103,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "empty_search") {
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
-        document
-          .getElementById("listing-results")
-          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        navigateTo("search_results", { query: actions.searchQuery }, { source: "agent" });
+        if (!document.getElementById("zero-ui-view-host")) {
+          document
+            .getElementById("listing-results")
+            ?.scrollIntoView({ behavior: "smooth", block: "start" });
+        }
       }
       if (actions.type === "register_wanted") {
         void registerWanted({
@@ -107,10 +120,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           onError: (msg) => showToast(msg, "error"),
         });
       }
+      if (actions.type === "navigate") {
+        navigateTo(actions.view, actions.params ?? {}, { source: "agent" });
+        if (actions.params?.query) {
+          setSearchInputMode("text");
+          setSearchQuery(actions.params.query);
+        }
+        showToast(`Atidaromas: ${viewTitle(actions.view)}`, "info");
+      }
     },
     [
       applyAgentListingDraft,
       isAuthenticated,
+      navigateTo,
       openAuthModal,
       setListingBanned,
       setSearchInputMode,
@@ -142,6 +164,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             isAuthenticated,
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
+            currentView,
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
@@ -193,6 +216,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       rankedListings,
       searchQuery,
       includeAdminContext,
+      currentView,
     ]
   );
 
@@ -352,8 +376,9 @@ function VautoAgentSheet() {
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Pvz. Ieškau šeimyninio auto iki 7000€ Kaune"
-              className="min-w-0 flex-1 rounded-xl border border-[#d1d5db] px-4 py-3 text-sm outline-none focus:border-[#1167b1]"
+              className="min-w-0 flex-1 rounded-xl border border-[#d1d5db] bg-white px-4 py-3 text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none focus:border-[#1167b1]"
               disabled={busy}
+              autoComplete="off"
             />
             <button
               type="submit"

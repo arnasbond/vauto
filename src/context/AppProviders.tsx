@@ -1,20 +1,23 @@
 "use client";
 
+import type { ReactNode } from "react";
 import { AuthProvider } from "@/context/AuthContext";
+import { NavigationProvider } from "@/context/NavigationContext";
 import { ReviewsProvider } from "@/context/ReviewsContext";
 import { VautoProvider } from "@/context/VautoContext";
-import type { ReactNode } from "react";
 
 /**
  * Application provider tree (Phase 5):
- * AuthProvider → ReviewsProvider → VautoProvider
+ * AuthProvider → ReviewsProvider → NavigationProvider → VautoProvider
  *   └─ Moderation → PushAlerts → WakeWord → VautoBridge → Chat → SellerFlow → VautoFacade
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <AuthProvider>
       <ReviewsProvider>
-        <VautoProvider>{children}</VautoProvider>
+        <NavigationProvider>
+          <VautoProvider>{children}</VautoProvider>
+        </NavigationProvider>
       </ReviewsProvider>
     </AuthProvider>
   );

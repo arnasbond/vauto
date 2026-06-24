@@ -28,8 +28,11 @@ import {
 import { capturePhoto } from "@/lib/native-media";
 import { parseVideoUrl } from "@/lib/video-url";
 import { isValidVin } from "@/lib/trust";
+import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
 import { ListingWizardStrip } from "@/components/wizard/ListingWizardStrip";
 import { useListingWizard } from "@/hooks/useListingWizard";
+import { isPlaceholderCity } from "@/lib/city-resolve";
+import { LT_CITIES } from "@/lib/general-catalog";
 
 const TOTAL_STEPS = 7;
 
@@ -247,6 +250,8 @@ export function VehicleListingWizard({
   const canNextStep4 =
     Boolean(attr(attrs, "defects") && attr(attrs, "color") && attr(attrs, "mileage"));
   const canNextStep5 = draft.price > 0;
+  const canNextStep6 =
+    !isPlaceholderCity(draft.location) && draft.location.trim().length >= 2;
 
   const canNext = [
     false,
@@ -255,7 +260,7 @@ export function VehicleListingWizard({
     canNextStep3,
     canNextStep4,
     canNextStep5,
-    true,
+    canNextStep6,
     true,
   ][step];
 
@@ -642,11 +647,12 @@ export function VehicleListingWizard({
           <>
             <div className="mb-4">
               <label className="mb-1.5 block text-sm font-medium text-[#374151]">Vieta</label>
-              <input
-                type="text"
-                value={draft.location}
-                onChange={(e) => onUpdate({ location: e.target.value })}
-                className="w-full rounded-lg border border-[#d1d5db] px-3 py-2.5 text-sm"
+              <LithuanianCityField
+                location={draft.location}
+                cityOptions={LT_CITIES}
+                onLocationChange={(city) => onUpdate({ location: city })}
+                selectClassName="w-full rounded-lg border border-[#d1d5db] px-3 py-2.5 text-sm"
+                inputClassName="mt-2 w-full rounded-lg border border-[#d1d5db] px-3 py-2.5 text-sm"
               />
             </div>
             <div className="mb-4">

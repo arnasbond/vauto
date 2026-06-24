@@ -1,4 +1,5 @@
 import type { AiExtractedListing, Listing, ListingCategory } from "@/lib/types";
+import type { AppView } from "@/lib/app-views";
 
 export interface AgentChatMessage {
   role: "user" | "assistant";
@@ -26,6 +27,7 @@ export interface VautoAgentContext {
   isAuthenticated?: boolean;
   searchResultCount?: number;
   lastSearchQuery?: string;
+  currentView?: AppView;
 }
 
 export interface AgentListingSnapshot {
@@ -67,6 +69,11 @@ export type VautoAgentAction =
   | {
       type: "register_wanted";
       query: string;
+    }
+  | {
+      type: "navigate";
+      view: AppView;
+      params?: Record<string, string>;
     };
 
 export interface VautoAgentResponse {

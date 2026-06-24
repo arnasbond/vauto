@@ -1,4 +1,5 @@
 import { Router } from "express";
+import { hasAgentAiKey } from "../load-env.js";
 import { hasAiKey } from "../ai/llm-provider.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { pool } from "../db.js";
@@ -164,7 +165,7 @@ apiRouter.get("/health", async (_req, res) => {
     fcm: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
     jwt: Boolean(process.env.JWT_SECRET),
     openai: hasAiKey(),
-    geminiAgent: Boolean(process.env.GEMINI_API_KEY?.trim()),
+    geminiAgent: hasAgentAiKey(),
     vautoUnified: hasAiKey(),
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),

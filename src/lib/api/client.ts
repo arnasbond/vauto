@@ -225,24 +225,18 @@ export async function apiVautoAgent(body: {
     body: JSON.stringify(trimmed),
   };
 
-  if (renderBase) {
-    const { data, error, code } = await aiFetchWithMeta<
-      import("@/lib/vauto-agent-client").VautoAgentApiResult
-    >("/api/vauto-agent", fetchOpts, timeoutMs, [renderBase]);
-
-    if (data && "reply" in data && data.reply) return data;
-    if (data && "ok" in data && data.ok === false) return data;
-
-    return {
-      ok: false,
-      error: error || "AI agentas laikinai nepasiekiamas",
-      code: code || "agent_unavailable",
-    };
+  /** Prefer same-origin /api/vauto-agent (Vercel proxy) — Render direct can 503 on stale deploys. */
+  const bases: string[] = [];
+  if (typeof window !== "undefined") {
+    bases.push(window.location.origin);
+  }
+  if (renderBase && !bases.includes(renderBase)) {
+    bases.push(renderBase);
   }
 
   const { data, error, code } = await aiFetchWithMeta<
     import("@/lib/vauto-agent-client").VautoAgentApiResult
-  >("/api/vauto-agent", fetchOpts, timeoutMs);
+  >("/api/vauto-agent", fetchOpts, timeoutMs, bases.length ? bases : undefined);
 
   if (data && "reply" in data && data.reply) return data;
   if (data && "ok" in data && data.ok === false) return data;

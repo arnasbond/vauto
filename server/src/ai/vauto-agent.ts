@@ -49,6 +49,7 @@ export interface VautoAgentRequest {
     isAuthenticated?: boolean;
     searchResultCount?: number;
     lastSearchQuery?: string;
+    currentView?: string;
   };
   /** Server-verified admin only — injected into Gemini systemInstruction */
   adminProjectContext?: string;
@@ -79,6 +80,7 @@ KITI ĮRANKIAI:
 - analyzeMarketPrice — rinkos kainos patarimas.
 - trackUserError — proaktyvus klaidų sprendimas.
 - blockListing — administratoriui.
+- navigate_view — perjunk programėlės vaizdą (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai) kai vartotojas prašo „eik į profilį“, „atidaryk pokalbius“, „noriu įdėti skelbimą“ ir pan.
 
 Būk glaustas, profesionalus, šiltas, be emoji. Visada atsakyk lietuviškai.`;
 
@@ -289,6 +291,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   if (req.context.searchResultCount === 0 && req.context.lastSearchQuery) {
     wizardBits.push(`emptySearchQuery=${req.context.lastSearchQuery}`);
   }
+  if (req.context.currentView) {
+    wizardBits.push(`currentView=${req.context.currentView}`);
+  }
   if (wizardBits.length) {
     contents.unshift({
       role: "user",
@@ -298,6 +303,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
 
   const toolCalls: { name: string; result: unknown }[] = [];
   let sideEffect: AgentSideEffect | undefined;
+  let navigateEffect: AgentSideEffect | undefined;
   let finalText = "";
 
   const hasGemini = Boolean(resolveGeminiApiKey());
@@ -348,7 +354,10 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
         const { name, args } = fc.functionCall;
         const { result, sideEffect: fx } = await executeAgentTool(name, args ?? {}, ctx);
         toolCalls.push({ name, result });
-        if (fx && !sideEffect) sideEffect = fx;
+        if (fx) {
+          if (fx.type === "navigate") navigateEffect = fx;
+          else if (!sideEffect) sideEffect = fx;
+        }
         responseParts.push({ functionResponse: { name, response: result } });
       }
 
@@ -387,6 +396,6 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     ok: true,
     reply: finalText,
     toolCalls,
-    actions: sideEffect ?? { type: "none" },
+    actions: navigateEffect ?? sideEffect ?? { type: "none" },
   };
 }

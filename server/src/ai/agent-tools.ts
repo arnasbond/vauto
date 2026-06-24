@@ -1,5 +1,32 @@
 import { adminPatchListing, getListings } from "../repository.js";
 
+const VALID_APP_VIEWS = [
+  "home",
+  "discover",
+  "search_results",
+  "add_listing",
+  "seller_wizard",
+  "chats",
+  "profile",
+  "admin_ai",
+] as const;
+
+type AppView = (typeof VALID_APP_VIEWS)[number];
+
+function isAppView(value: string): value is AppView {
+  return (VALID_APP_VIEWS as readonly string[]).includes(value);
+}
+
+function normalizeViewParams(args: Record<string, unknown>): Record<string, string> {
+  const raw = args.params;
+  if (!raw || typeof raw !== "object" || Array.isArray(raw)) return {};
+  const out: Record<string, string> = {};
+  for (const [key, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (value != null && String(value).trim()) out[key] = String(value).trim();
+  }
+  return out;
+}
+
 export interface AgentListingSummary {
   id: string;
   title: string;
@@ -117,6 +144,27 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         query: { type: "STRING", description: "Paieškos užklausa lietuviškai" },
       },
       required: ["query"],
+    },
+  },
+  {
+    name: "navigate_view",
+    description:
+      "Perjungia programėlės vaizdą (Zero-UI) be puslapio perkrovimo. Naudok kai vartotojas ar adminas nori eiti į konkretų ekraną: pradžią, paiešką, skelbimo įkėlimą, pokalbius, profilį ar admin AI zoną.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        view: {
+          type: "STRING",
+          description:
+            "home | discover | search_results | add_listing | seller_wizard | chats | profile | admin_ai",
+        },
+        params: {
+          type: "OBJECT",
+          description:
+            "Papildomi parametrai, pvz. { category: 'vehicles' }, { query: 'iPhone' }, { slug: 'listing-id' }",
+        },
+      },
+      required: ["view"],
     },
   },
 ];
@@ -431,6 +479,40 @@ export async function executeAgentTool(
       };
     }
 
+    case "navigate_view": {
+      const viewRaw = String(args.view ?? "").trim();
+      if (!isAppView(viewRaw)) {
+        return {
+          result: {
+            ok: false,
+            message: `Nežinomas vaizdas „${viewRaw}". Galimi: ${VALID_APP_VIEWS.join(", ")}.`,
+          },
+        };
+      }
+      if (viewRaw === "admin_ai" && ctx.userRole !== "admin") {
+        return {
+          result: {
+            ok: false,
+            message: "Admin AI zona prieinama tik administratoriui.",
+          },
+        };
+      }
+      const params = normalizeViewParams(args);
+      return {
+        result: {
+          ok: true,
+          view: viewRaw,
+          params,
+          message: `Naviguojama į „${viewRaw}".`,
+        },
+        sideEffect: {
+          type: "navigate",
+          view: viewRaw,
+          params,
+        },
+      };
+    }
+
     default:
       return { result: { error: `Unknown tool: ${name}` } };
   }
@@ -469,4 +551,9 @@ export type AgentSideEffect =
   | {
       type: "register_wanted";
       query: string;
+    }
+  | {
+      type: "navigate";
+      view: AppView;
+      params?: Record<string, string>;
     };

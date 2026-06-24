@@ -2,6 +2,7 @@ const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turga
 Vesk vartotoją pokalbiu lietuviškai. Pardavimui — postNewListing + analyzeMarketPrice, klausk trūkstamų duomenų.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
 Paieškai — searchListings; jei 0 rezultatų — registerWanted ir pasiūlyk pageidavimų sąrašą.
+Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
 Klaidoms — trackUserError. Admin — blockListing. Būk glaustas, be emoji.`;
 
 const AGENT_FUNCTION_DECLARATIONS = [
@@ -85,9 +86,36 @@ const AGENT_FUNCTION_DECLARATIONS = [
       required: ["query"],
     },
   },
+  {
+    name: "navigate_view",
+    description:
+      "Perjungia programėlės vaizdą be puslapio perkrovimo (Zero-UI).",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        view: {
+          type: "STRING",
+          description:
+            "home | discover | search_results | add_listing | seller_wizard | chats | profile | admin_ai",
+        },
+        params: { type: "OBJECT" },
+      },
+      required: ["view"],
+    },
+  },
 ];
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+const VALID_APP_VIEWS = [
+  "home",
+  "discover",
+  "search_results",
+  "add_listing",
+  "seller_wizard",
+  "chats",
+  "profile",
+  "admin_ai",
+];
 const MAX_ADMIN_PROJECT_CONTEXT_CHARS = 80_000;
 const GEMINI_AGENT_TIMEOUT_MS = 28_000;
 
@@ -272,6 +300,33 @@ function executeAgentTool(name, args, ctx) {
     };
   }
 
+  if (name === "navigate_view") {
+    const view = String(args.view ?? "").trim();
+    if (!VALID_APP_VIEWS.includes(view)) {
+      return {
+        result: {
+          ok: false,
+          message: `Nežinomas vaizdas: ${view}`,
+        },
+      };
+    }
+    if (view === "admin_ai" && ctx.userRole !== "admin") {
+      return {
+        result: { ok: false, message: "Admin AI zona tik administratoriui." },
+      };
+    }
+    const params = {};
+    if (args.params && typeof args.params === "object" && !Array.isArray(args.params)) {
+      for (const [key, value] of Object.entries(args.params)) {
+        if (value != null && String(value).trim()) params[key] = String(value).trim();
+      }
+    }
+    return {
+      result: { ok: true, view, params, message: `Naviguojama į ${view}.` },
+      sideEffect: { type: "navigate", view, params },
+    };
+  }
+
   return { result: { error: `Unknown tool: ${name}` } };
 }
 
@@ -411,6 +466,9 @@ async function runVautoAgentInner(req) {
   if (req.context?.searchResultCount === 0 && req.context?.lastSearchQuery) {
     wizardBits.push(`emptySearchQuery=${req.context.lastSearchQuery}`);
   }
+  if (req.context?.currentView) {
+    wizardBits.push(`currentView=${req.context.currentView}`);
+  }
   if (wizardBits.length) {
     contents.unshift({
       role: "user",
@@ -420,6 +478,7 @@ async function runVautoAgentInner(req) {
 
   const toolCalls = [];
   let sideEffect;
+  let navigateEffect;
   let finalText = "";
 
   if (process.env.GEMINI_API_KEY?.trim()) {
@@ -450,7 +509,10 @@ async function runVautoAgentInner(req) {
         const { name, args } = fc.functionCall;
         const { result, sideEffect: fx } = executeAgentTool(name, args ?? {}, ctx);
         toolCalls.push({ name, result });
-        if (fx && !sideEffect) sideEffect = fx;
+        if (fx) {
+          if (fx.type === "navigate") navigateEffect = fx;
+          else if (!sideEffect) sideEffect = fx;
+        }
         responseParts.push({ functionResponse: { name, response: result } });
       }
       contents.push({ role: "user", parts: responseParts });
@@ -475,7 +537,7 @@ async function runVautoAgentInner(req) {
     ok: true,
     reply: finalText,
     toolCalls,
-    actions: sideEffect ?? { type: "none" },
+    actions: navigateEffect ?? sideEffect ?? { type: "none" },
   };
 }
 
