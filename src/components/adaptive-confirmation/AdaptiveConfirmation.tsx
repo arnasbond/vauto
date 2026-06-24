@@ -8,7 +8,6 @@ import {
 } from "@/lib/adaptive-categories";
 import type { AiExtractedListing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
-import { getPriceAdvice } from "@/lib/price-advisor";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
 import { verifyVin } from "@/lib/trust";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
@@ -17,11 +16,8 @@ import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
 import { DraftMediaEditor } from "./DraftMediaEditor";
 import { ConversationalReport } from "@/components/conversational/ConversationalReport";
 import { VehicleLookupCard } from "@/components/vehicle/VehicleLookupCard";
-import {
-  buildSellerBuddyMessage,
-  buildSellerQuickActions,
-  type BuddyActionId,
-} from "@/lib/buddy-messages";
+import { useListingWizard } from "@/hooks/useListingWizard";
+import { buildSellerQuickActions, type BuddyActionId } from "@/lib/buddy-messages";
 import { capturePhoto } from "@/lib/native-media";
 import { logBuddyState } from "@/lib/buddy-voice";
 
@@ -54,7 +50,7 @@ export function AdaptiveConfirmation({
   onCancel,
   onPublish,
 }: AdaptiveConfirmationProps) {
-  const { listings, chameleonTheme } = useVauto();
+  const { chameleonTheme } = useVauto();
   const theme = getChameleonTheme(chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
@@ -68,11 +64,13 @@ export function AdaptiveConfirmation({
     description: draft.description,
   });
   const needsPhotoForPublish = adaptiveKey === "vehicles" && !hasPhoto;
+  const needsSellerType = !String(attributes.sellerType ?? "").trim();
   const canPublish =
     missingKeys.length === 0 &&
     !needsPrice &&
     draft.title.trim().length >= 2 &&
-    !needsPhotoForPublish;
+    !needsPhotoForPublish &&
+    !needsSellerType;
 
   const { aiFilledBase, aiFilledAttrs, showAiBadges } = useMemo(() => {
     if (manualFallback) {
@@ -109,12 +107,23 @@ export function AdaptiveConfirmation({
     return () => window.clearTimeout(t);
   }, [showAiBadges]);
 
-  const buddyMessage = buildSellerBuddyMessage({
+  const scrollToDetails = () => {
+    detailsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+
+  const {
+    analysis,
+    buddyMessage,
+    thread: wizardThread,
+    handleWizardReply,
+    priceAdvice,
+  } = useListingWizard({
     draft,
-    missingKeys,
-    hasPhoto,
     userPrompt,
     manualFallback,
+    onUpdate,
+    onAttributeChange,
+    onFocusVin: scrollToDetails,
   });
 
   const quickActions = buildSellerQuickActions({
@@ -124,21 +133,6 @@ export function AdaptiveConfirmation({
     needsPrice,
   });
 
-  const priceAdvice = getPriceAdvice(
-    {
-      id: "draft",
-      category: draft.category,
-      location: draft.location,
-      price: draft.price,
-      priceLabel: draft.priceLabel,
-      title: draft.title,
-      tags: [],
-      description: draft.description,
-      attributes,
-    },
-    listings
-  );
-
   const publishLabel = manualFallback
     ? !canPublish
       ? "Užpildykite privalomus laukus"
@@ -147,7 +141,9 @@ export function AdaptiveConfirmation({
       ? "Užpildykite privalomus laukus"
       : needsPrice
         ? "Įveskite kainą"
-        : "Viskas gerai, publikuoti skelbimą";
+        : needsSellerType
+          ? "Pasirinkite: privatus ar įmonė"
+          : "Viskas gerai, publikuoti skelbimą";
 
   const layoutMap = {
     "technical-grid": "grid" as const,
@@ -169,10 +165,6 @@ export function AdaptiveConfirmation({
     chameleonTheme === "skelbiu" || chameleonTheme === "aruodas"
       ? (["price", "title", "location", "contact", "description"] as const)
       : config.baseFields;
-
-  const scrollToDetails = () => {
-    detailsAnchorRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
-  };
 
   const handlePhotoCapture = useCallback(() => {
     requestMediaConsent(async () => {
@@ -314,6 +306,9 @@ export function AdaptiveConfirmation({
       onQuickAction={handleQuickAction}
       onCancel={onCancel}
       onPublish={onPublish}
+      wizardThread={wizardThread}
+      wizardQuickReplies={analysis.quickReplies}
+      onWizardReply={handleWizardReply}
     >
       <div ref={detailsAnchorRef}>
         {mediaBlock}

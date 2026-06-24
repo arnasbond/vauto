@@ -21,6 +21,7 @@ import {
   resolveAgentUserRole,
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
+import { registerWanted } from "@/lib/matching-service";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 
 interface VautoAgentContextValue {
@@ -43,6 +44,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     applyAgentListingDraft,
     setListingBanned,
     showToast,
+    isAuthenticated,
+    openAuthModal,
+    subscribeWishlist,
+    rankedListings,
+    searchQuery,
   } = useVauto();
 
   const [open, setOpen] = useState(false);
@@ -81,13 +87,33 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           "success"
         );
       }
+      if (actions.type === "empty_search") {
+        setSearchInputMode("text");
+        setSearchQuery(actions.searchQuery);
+        document
+          .getElementById("listing-results")
+          ?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+      if (actions.type === "register_wanted") {
+        void registerWanted({
+          query: actions.query,
+          isAuthenticated,
+          openAuthModal,
+          subscribeWishlist,
+          onSuccess: (msg) => showToast(msg, "success"),
+          onError: (msg) => showToast(msg, "error"),
+        });
+      }
     },
     [
       applyAgentListingDraft,
+      isAuthenticated,
+      openAuthModal,
       setListingBanned,
       setSearchInputMode,
       setSearchQuery,
       showToast,
+      subscribeWishlist,
     ]
   );
 
@@ -110,6 +136,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             contact: user.phone || "+370 612 34567",
             listings: compactListingsForAgent(listings),
             lastError,
+            isAuthenticated,
+            searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
+            lastSearchQuery: searchQuery.trim() || undefined,
           },
         });
 
@@ -145,6 +174,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       messages,
       showToast,
       user,
+      isAuthenticated,
+      rankedListings,
+      searchQuery,
     ]
   );
 

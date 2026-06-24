@@ -28,6 +28,8 @@ import {
 import { capturePhoto } from "@/lib/native-media";
 import { parseVideoUrl } from "@/lib/video-url";
 import { isValidVin } from "@/lib/trust";
+import { ListingWizardStrip } from "@/components/wizard/ListingWizardStrip";
+import { useListingWizard } from "@/hooks/useListingWizard";
 
 const TOTAL_STEPS = 7;
 
@@ -46,6 +48,7 @@ interface VehicleListingWizardProps {
   previewImage: string | null;
   videoUrl: string;
   manualFallback?: boolean;
+  userPrompt?: string | null;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null; videoUrl?: string }) => void;
@@ -183,6 +186,7 @@ export function VehicleListingWizard({
   previewImage,
   videoUrl,
   manualFallback,
+  userPrompt,
   onUpdate,
   onAttributeChange,
   onMediaChange,
@@ -284,6 +288,15 @@ export function VehicleListingWizard({
     }
   };
 
+  const { analysis, buddyMessage, thread, handleWizardReply } = useListingWizard({
+    draft,
+    userPrompt,
+    manualFallback,
+    onUpdate,
+    onAttributeChange,
+    onFocusVin: () => setStep(1),
+  });
+
   return (
     <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]">
       <div className="mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm">
@@ -293,6 +306,16 @@ export function VehicleListingWizard({
           title={STEP_TITLES[step - 1]}
           onClose={onCancel}
         />
+
+        {!manualFallback && step <= 2 && (
+          <ListingWizardStrip
+            intro={buddyMessage}
+            questions={analysis.questions}
+            thread={thread}
+            quickReplies={analysis.quickReplies}
+            onWizardReply={handleWizardReply}
+          />
+        )}
 
         {manualFallback && step === 1 && (
           <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">

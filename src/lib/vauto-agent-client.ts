@@ -12,6 +12,20 @@ export interface VautoAgentContext {
   contact?: string;
   listings?: AgentListingSnapshot[];
   lastError?: { code: string; message?: string };
+  wizardMode?: "listing_review" | "search" | "idle";
+  listingDraft?: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string | string[]>;
+  };
+  missingFields?: string[];
+  wizardPrompts?: string[];
+  isAuthenticated?: boolean;
+  searchResultCount?: number;
+  lastSearchQuery?: string;
 }
 
 export interface AgentListingSnapshot {
@@ -45,6 +59,14 @@ export type VautoAgentAction =
       listingId: string;
       reason: string;
       listingTitle?: string;
+    }
+  | {
+      type: "empty_search";
+      searchQuery: string;
+    }
+  | {
+      type: "register_wanted";
+      query: string;
     };
 
 export interface VautoAgentResponse {

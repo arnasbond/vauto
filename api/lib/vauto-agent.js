@@ -1,8 +1,8 @@
-const SYSTEM_INSTRUCTION = `Tu esi VAUTO – išmanusis Lietuvos skelbimų turgaus asistentas.
-Tavo tikslas – pilnai aptarnauti vartotoją, verslą ir administratorių lietuviškai.
-Jei vartotojas nori parduoti daiktą — iškviesk postNewListing. Jei ieško — searchListings.
-Verslui — analyzeMarketPrice. Klaidoms — trackUserError. Admin — blockListing.
-Būk glaustas, profesionalus, be emoji. Atsakyk lietuviškai.`;
+const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
+Vesk vartotoją pokalbiu lietuviškai. Pardavimui — postNewListing + analyzeMarketPrice, klausk trūkstamų duomenų.
+Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
+Paieškai — searchListings; jei 0 rezultatų — registerWanted ir pasiūlyk pageidavimų sąrašą.
+Klaidoms — trackUserError. Admin — blockListing. Būk glaustas, be emoji.`;
 
 const AGENT_FUNCTION_DECLARATIONS = [
   {
@@ -76,6 +76,15 @@ const AGENT_FUNCTION_DECLARATIONS = [
       required: ["listingId", "reason"],
     },
   },
+  {
+    name: "registerWanted",
+    description: "Registruoja pageidavimą, kai paieška grąžina 0 rezultatų.",
+    parameters: {
+      type: "OBJECT",
+      properties: { query: { type: "STRING" } },
+      required: ["query"],
+    },
+  },
 ];
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
@@ -122,7 +131,7 @@ function executeAgentTool(name, args, ctx) {
               searchQuery: searchQuery || results[0].title,
               listingIds: results.map((r) => r.id),
             }
-          : undefined,
+          : { type: "empty_search", searchQuery: searchQuery || query || "paieška" },
     };
   }
 
@@ -222,6 +231,21 @@ function executeAgentTool(name, args, ctx) {
     };
   }
 
+  if (name === "registerWanted") {
+    const query = String(args.query ?? "").trim();
+    return {
+      result: {
+        ok: query.length >= 3,
+        query,
+        message:
+          query.length >= 3
+            ? `Pageidavimas „${query}" paruoštas.`
+            : "Per trumpa paieška.",
+      },
+      sideEffect: query.length >= 3 ? { type: "register_wanted", query } : undefined,
+    };
+  }
+
   return { result: { error: `Unknown tool: ${name}` } };
 }
 
@@ -300,6 +324,25 @@ async function runVautoAgent(req) {
           text: `[Klaida: ${req.context.lastError.code}] ${req.context.lastError.message ?? ""}`,
         },
       ],
+    });
+  }
+
+  const wizardBits = [];
+  if (req.context?.wizardMode) wizardBits.push(`wizardMode=${req.context.wizardMode}`);
+  if (req.context?.isAuthenticated === false) wizardBits.push("isAuthenticated=false");
+  if (req.context?.missingFields?.length) {
+    wizardBits.push(`missingFields=${req.context.missingFields.join(",")}`);
+  }
+  if (req.context?.listingDraft) {
+    wizardBits.push(`listingDraft=${JSON.stringify(req.context.listingDraft)}`);
+  }
+  if (req.context?.searchResultCount === 0 && req.context?.lastSearchQuery) {
+    wizardBits.push(`emptySearchQuery=${req.context.lastSearchQuery}`);
+  }
+  if (wizardBits.length) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: `[Vedlio kontekstas: ${wizardBits.join("; ")}]` }],
     });
   }
 

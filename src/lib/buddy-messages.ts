@@ -1,4 +1,5 @@
 import type { AiExtractedListing, Listing, ScoredListing } from "@/lib/types";
+import { WANTED_EMPTY_MESSAGE } from "@/lib/matching-service";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
@@ -153,20 +154,10 @@ export function buildSearchBuddyMessage(
   const q = sanitizeSearchQuery(query);
   const matchStatus = getSearchMatchStatus(listings);
   const top = listings[0] ?? null;
-  const inputMode = opts?.inputMode ?? "text";
 
   if (matchStatus === "none") {
-    const clarify =
-      inputMode === "photo"
-        ? "Patikslinkite užklausą tekste (modelis, metai, būklė) arba bandykite kita kampu nufotografuoti."
-        : inputMode === "voice"
-          ? "Pasakykite tiksliau: modelis, metai, būklė ar miestas."
-          : "Patikslinkite užklausą — pridėkite modelį, metus ar būklę.";
-    const wishlist = opts?.subscribed
-      ? "Jau stebime pageidavimų sąraše — pranešime, kai atsiras."
-      : "Įtraukite į pageidavimų sąrašą — gausite realaus laiko pranešimą ir galėsite iškart atidaryti prekę.";
     return {
-      message: `Tokios prekės „${q}" (${city}) dar nėra. ${clarify} ${wishlist}`,
+      message: WANTED_EMPTY_MESSAGE,
       listing: null,
     };
   }
@@ -218,7 +209,7 @@ export function buildSearchQuickActions(
     if (!opts.subscribed) {
       actions.push({
         id: "wishlist",
-        label: "Į pageidavimų sąrašą",
+        label: "Įtraukti į pageidavimų sąrašą",
         emoji: "🔔",
         variant: "primary",
       });

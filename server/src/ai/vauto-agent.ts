@@ -25,6 +25,20 @@ export interface VautoAgentRequest {
       description?: string;
     }[];
     lastError?: { code: string; message?: string };
+    wizardMode?: "listing_review" | "search" | "idle";
+    listingDraft?: {
+      title?: string;
+      description?: string;
+      price?: number;
+      location?: string;
+      category?: string;
+      attributes?: Record<string, string>;
+    };
+    missingFields?: string[];
+    wizardPrompts?: string[];
+    isAuthenticated?: boolean;
+    searchResultCount?: number;
+    lastSearchQuery?: string;
   };
 }
 
@@ -35,14 +49,26 @@ export interface VautoAgentResponse {
   actions: AgentSideEffect | { type: "none" };
 }
 
-const SYSTEM_INSTRUCTION = `Tu esi VAUTO – išmanusis Lietuvos skelbimų turgaus asistentas.
-Tavo tikslas – pilnai aptarnauti vartotoją, verslą ir administratorių lietuviškai.
-Jei vartotojas nori parduoti daiktą — išklausyk, surink techninius duomenis, sugeneruok profesionalų skelbimo tekstą ir iškviesk postNewListing įrankį.
-Jei ieško prekės — iškviesk searchListings su tinkamais parametrais (kaina, miestas, kategorija).
-Jei verslo klientas klausia apie kainą ar peržiūras — naudok analyzeMarketPrice.
-Jei fone pastebi sistemos klaidą — trackUserError ir proaktyviai pasiūlyk sprendimą.
-Administratoriui — blockListing įtartiniams skelbimams.
-Būk glaustas, profesionalus, be emoji. Visada atsakyk lietuviškai.`;
+const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
+Tavo tikslas – vesti vartotoją pokalbiu per visą procesą lietuviškai, ne palikti sausų formų laukų.
+
+PARDAVIMO VEDLYS:
+- Kai vartotojas įkelia nuotrauką ar tekstą — iškart sugeneruok profesionalų aprašymą, nustatyk tikslią kategoriją, pasiūlyk rinkos kainą (analyzeMarketPrice) ir iškviesk postNewListing.
+- Jei trūksta privalomų duomenų (miestas, kaina, būklė) — užduok patariamuosius klausimus: „Matau, kad nenurodėte miesto. Ar skelbiame Kaune?", „Ar prekė nauja, ar naudota?"
+- Jei kategorija vehicles / AUTOMOBILIAI — paklausk: „Ar norėtumėte įvesti VIN kodą, kad Regitra duomenys užsipildytų automatiškai?"
+- Prieš publikavimą paklausk: „Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?"
+- Jei vartotojas neprisijungęs (isAuthenticated=false) — pasiūlyk: „Sukurkime nemokamą paskyrą vienu spustelėjimu, kad galėtumėte sekti peržiūras ir žinutes."
+
+PAIEŠKA:
+- Ieškant prekės — searchListings su tinkamais parametrais.
+- Jei rezultatų 0 — parašyk: „Šiuo metu tokios prekės neturime. Spustelkite žemiau esantį mygtuką 'Įtraukti į pageidavimų sąrašą' – aš stebėsiu rinką ir informuosiu jus tiesiogiai, kai tik atsiras toks skelbimas." ir iškviesk registerWanted.
+
+KITI ĮRANKIAI:
+- analyzeMarketPrice — rinkos kainos patarimas.
+- trackUserError — proaktyvus klaidų sprendimas.
+- blockListing — administratoriui.
+
+Būk glaustas, profesionalus, šiltas, be emoji. Visada atsakyk lietuviškai.`;
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 const MAX_TOOL_ROUNDS = 5;
@@ -154,6 +180,25 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
           text: `[Sistemos klaida: ${req.context.lastError.code}] ${req.context.lastError.message ?? ""}`,
         },
       ],
+    });
+  }
+
+  const wizardBits: string[] = [];
+  if (req.context.wizardMode) wizardBits.push(`wizardMode=${req.context.wizardMode}`);
+  if (req.context.isAuthenticated === false) wizardBits.push("isAuthenticated=false");
+  if (req.context.missingFields?.length) {
+    wizardBits.push(`missingFields=${req.context.missingFields.join(",")}`);
+  }
+  if (req.context.listingDraft) {
+    wizardBits.push(`listingDraft=${JSON.stringify(req.context.listingDraft)}`);
+  }
+  if (req.context.searchResultCount === 0 && req.context.lastSearchQuery) {
+    wizardBits.push(`emptySearchQuery=${req.context.lastSearchQuery}`);
+  }
+  if (wizardBits.length) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: `[Vedlio kontekstas: ${wizardBits.join("; ")}]` }],
     });
   }
 

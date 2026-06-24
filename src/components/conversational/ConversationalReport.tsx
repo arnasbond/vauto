@@ -6,6 +6,8 @@ import { BuddyAvatar } from "@/components/conversational/BuddyAvatar";
 import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions";
 import { BuddyFab } from "@/components/buddy/BuddyFab";
 import type { BuddyQuickAction, BuddyActionId } from "@/lib/buddy-messages";
+import type { WizardQuickReply } from "@/lib/listing-wizard";
+import type { WizardThreadMessage } from "@/hooks/useListingWizard";
 import {
   logBuddyState,
   speakBuddyMessage,
@@ -28,6 +30,9 @@ interface ConversationalReportProps {
   onQuickAction: (id: BuddyActionId) => void;
   onCancel: () => void;
   onPublish: () => void;
+  wizardThread?: WizardThreadMessage[];
+  wizardQuickReplies?: WizardQuickReply[];
+  onWizardReply?: (reply: WizardQuickReply) => void;
   children: ReactNode;
 }
 
@@ -45,6 +50,9 @@ export function ConversationalReport({
   onQuickAction,
   onCancel,
   onPublish,
+  wizardThread = [],
+  wizardQuickReplies = [],
+  onWizardReply,
   children,
 }: ConversationalReportProps) {
   const { chameleonTheme } = useVauto();
@@ -232,6 +240,39 @@ export function ConversationalReport({
                   </p>
                 )}
               </div>
+
+              {showMessage && wizardThread.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {wizardThread.map((m, i) => (
+                    <div
+                      key={`wiz-${i}`}
+                      className={cn(
+                        "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
+                        m.role === "user"
+                          ? "ml-8 rounded-tr-md bg-[#1a56db]/10 text-[#1e3a5f]"
+                          : cn("rounded-tl-md", t.aiBubble)
+                      )}
+                    >
+                      {m.text}
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {showMessage && wizardQuickReplies.length > 0 && onWizardReply && (
+                <div className="mt-3 flex flex-wrap gap-2">
+                  {wizardQuickReplies.map((r) => (
+                    <button
+                      key={r.id}
+                      type="button"
+                      onClick={() => onWizardReply(r)}
+                      className="min-h-[44px] rounded-full border border-[#93c5fd] bg-white px-4 py-2 text-sm font-medium text-[#1d4ed8] transition hover:bg-[#eff6ff]"
+                    >
+                      {r.label}
+                    </button>
+                  ))}
+                </div>
+              )}
 
               {showMessage && (
                 <BuddyQuickActions

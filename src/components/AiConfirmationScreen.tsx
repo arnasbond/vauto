@@ -62,6 +62,7 @@ export function AiConfirmationScreen() {
         previewImage={sellerPreviewImage}
         videoUrl={sellerVideoUrl}
         manualFallback={aiManualFallback}
+        userPrompt={sellerUserPrompt}
         onUpdate={updateAiDraft}
         onAttributeChange={handleAttributeChange}
         onMediaChange={updateSellerMedia}

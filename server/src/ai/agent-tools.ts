@@ -107,6 +107,18 @@ export const AGENT_FUNCTION_DECLARATIONS = [
       required: ["listingId", "reason"],
     },
   },
+  {
+    name: "registerWanted",
+    description:
+      "Registruoja pirkėjo pageidavimą pageidavimų sąraše, kai paieška grąžina 0 rezultatų. Naudok kartu su tuščios paieškos atsakymu.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        query: { type: "STRING", description: "Paieškos užklausa lietuviškai" },
+      },
+      required: ["query"],
+    },
+  },
 ];
 
 async function resolveListings(ctx: AgentToolContext): Promise<AgentListingSummary[]> {
@@ -194,7 +206,10 @@ export async function executeAgentTool(
                 searchQuery: searchQuery || results[0]!.title,
                 listingIds: results.map((r) => r.id),
               }
-            : undefined,
+            : {
+                type: "empty_search",
+                searchQuery: searchQuery || query || "paieška",
+              },
       };
     }
 
@@ -212,6 +227,16 @@ export async function executeAgentTool(
           ? (args.attributes as Record<string, string>)
           : {};
 
+      const missingFields: string[] = [];
+      if (!city?.trim() || city.toLowerCase() === "miestas") missingFields.push("city");
+      if (price <= 0) missingFields.push("price");
+      if (!description.trim()) missingFields.push("description");
+      const sellerType = String(attributes.sellerType ?? "").trim();
+      if (!sellerType) missingFields.push("sellerType");
+      if (category === "vehicles" && !String(attributes.vin ?? "").trim()) {
+        missingFields.push("vin");
+      }
+
       const draft = {
         title,
         description,
@@ -223,11 +248,33 @@ export async function executeAgentTool(
         attributes,
       };
 
+      const suggestedQuestions: string[] = [];
+      if (missingFields.includes("city")) {
+        suggestedQuestions.push(
+          `Matau, kad nenurodėte miesto. Ar skelbiame ${ctx.userCity}?`
+        );
+      }
+      if (missingFields.includes("price")) {
+        suggestedQuestions.push("Kokios kainos tikitės? Galiu patarti pagal rinką.");
+      }
+      if (category === "vehicles" && missingFields.includes("vin")) {
+        suggestedQuestions.push(
+          "Ar norėtumėte įvesti VIN kodą, kad Regitra duomenys užsipildytų automatiškai?"
+        );
+      }
+      if (missingFields.includes("sellerType")) {
+        suggestedQuestions.push(
+          "Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?"
+        );
+      }
+
       return {
         result: {
           ok: true,
           message: "Skelbimo juodraštis paruoštas patvirtinimui.",
           draft,
+          missingFields,
+          suggestedQuestions,
         },
         sideEffect: {
           type: "listing_draft",
@@ -366,6 +413,24 @@ export async function executeAgentTool(
       }
     }
 
+    case "registerWanted": {
+      const query = String(args.query ?? "").trim();
+      return {
+        result: {
+          ok: query.length >= 3,
+          message:
+            query.length >= 3
+              ? `Pageidavimas „${query}" paruoštas registracijai.`
+              : "Per trumpa paieška — reikia bent 3 simbolių.",
+          query,
+        },
+        sideEffect:
+          query.length >= 3
+            ? { type: "register_wanted", query }
+            : undefined,
+      };
+    }
+
     default:
       return { result: { error: `Unknown tool: ${name}` } };
   }
@@ -396,4 +461,12 @@ export type AgentSideEffect =
       listingId: string;
       reason: string;
       listingTitle?: string;
+    }
+  | {
+      type: "empty_search";
+      searchQuery: string;
+    }
+  | {
+      type: "register_wanted";
+      query: string;
     };
