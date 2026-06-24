@@ -35,13 +35,13 @@ export function WakeWordSettingsCard() {
         <h3 className="text-sm font-semibold text-slate-900">Balsinis asistentas</h3>
       </div>
 
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-xs leading-relaxed text-slate-600">
         Budintis režimas — pasakykite &ldquo;Vauto&rdquo; kompiuterio naršyklėje.
         Telefone naudokite balso mygtuką paieškoje arba push pranešimus.
       </p>
 
       {onPhone && (
-        <p className="mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
           Telefone nuolatinis mikrofonas fone nestabilus (mirksi indikatorius, lagina).
           Budintis režimas čia išjungtas — balso paieškai spauskite mikrofono ikoną pagrindiniame
           ekrane.
@@ -49,7 +49,7 @@ export function WakeWordSettingsCard() {
       )}
 
       {!onPhone && !isSpeechRecognitionSupported() && (
-        <p className="mt-2 rounded-xl bg-amber-500/10 px-3 py-2 text-xs text-amber-200">
+        <p className="mt-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-900">
           Ši naršyklė nepalaiko balso atpažinimo fone. Naudokite Chrome arba Edge kompiuteryje.
         </p>
       )}
@@ -70,7 +70,7 @@ export function WakeWordSettingsCard() {
           onClick={handleToggle}
           disabled={!supported}
           className={`relative h-8 w-14 rounded-full transition ${
-            wakeWordEnabled ? "bg-[var(--vauto-orange)]" : "bg-slate-600"
+            wakeWordEnabled ? "bg-[var(--vauto-orange)]" : "bg-slate-300"
           } disabled:opacity-40`}
           aria-label={
             wakeWordEnabled
@@ -90,7 +90,7 @@ export function WakeWordSettingsCard() {
         <button
           type="button"
           onClick={disableWakeWordInstantly}
-          className="mt-3 w-full rounded-xl border border-red-500/30 bg-red-500/10 py-2.5 text-xs font-semibold text-red-300"
+          className="mt-3 w-full rounded-xl border border-red-200 bg-red-50 py-2.5 text-xs font-semibold text-red-700"
         >
           Nedelsiant išjungti mikrofoną
         </button>

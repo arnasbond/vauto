@@ -34,8 +34,8 @@ const variantClass = (
   if (variant === "primary")
     return "bg-[var(--vauto-orange)] text-white shadow-lg shadow-[var(--vauto-orange)]/25 hover:brightness-110";
   if (variant === "danger")
-    return "bg-red-500/20 text-red-200 ring-1 ring-red-500/30 hover:bg-red-500/30";
-  return "bg-white/10 text-white ring-1 ring-white/15 hover:bg-white/15";
+    return "bg-red-50 text-red-700 ring-1 ring-red-200 hover:bg-red-100";
+  return "bg-white text-slate-800 ring-1 ring-slate-200 shadow-sm hover:bg-slate-50";
 };
 
 export function BuddyQuickActions({

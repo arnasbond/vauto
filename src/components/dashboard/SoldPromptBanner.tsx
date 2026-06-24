@@ -31,16 +31,16 @@ export function SoldPromptBanner({
   const listing = candidates[0];
 
   return (
-    <div className="vauto-dashboard-card mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
+    <div className="vauto-dashboard-card mb-4 rounded-2xl border border-amber-200 bg-amber-50 p-4">
       <p className="text-sm font-semibold text-slate-900">Ar jau pardavėte?</p>
-      <p className="mt-1 text-xs text-amber-200/70">
+      <p className="mt-1 text-xs text-amber-800">
         {listing.title} — skelbimas aktyvus 7+ dienas.
       </p>
       <div className="mt-3 flex flex-col gap-2">
         <button
           type="button"
           onClick={() => onMarkSold(listing.id)}
-          className="flex w-full items-center justify-center gap-1 rounded-xl bg-emerald-500/20 py-2.5 text-xs font-semibold text-emerald-300"
+          className="flex w-full items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 py-2.5 text-xs font-semibold text-emerald-800"
         >
           <CheckCircle className="h-3.5 w-3.5" />
           Pažymėti kaip parduotą
