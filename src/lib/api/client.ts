@@ -546,16 +546,6 @@ export async function apiExtractCombined(body: {
   );
 }
 
-export async function apiTranscribeAudio(body: {
-  audioBase64: string;
-  mimeType?: string;
-}): Promise<{ text: string } | null> {
-  return aiFetch("/api/ai/transcribe-audio", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-}
-
 export async function apiVisualRank(body: {
   profile: import("@/lib/visual-search").VisualSearchProfile;
   candidates: {

@@ -45,7 +45,7 @@ export interface VoiceSearchSession {
   cancel: () => void;
 }
 
-const DEFAULT_SILENCE_MS = 2_800;
+const DEFAULT_SILENCE_MS = 1_500;
 const DEFAULT_MAX_MS = 25_000;
 const RESTART_DELAY_MS = 350;
 
@@ -64,7 +64,21 @@ export function startVoiceSearch(
 
   const SpeechRecognition = getSpeechRecognition();
   if (!SpeechRecognition) {
-    return startWhisperVoiceSearch(options);
+    let resolved = false;
+    let resolvePromise: (value: string | null) => void = () => {};
+    const promise = new Promise<string | null>((resolve) => {
+      resolvePromise = resolve;
+    });
+    const finish = (value: string | null) => {
+      if (resolved) return;
+      resolved = true;
+      resolvePromise(value);
+    };
+    return {
+      promise,
+      stop: () => finish(null),
+      cancel: () => finish(null),
+    };
   }
 
   let active = true;
@@ -189,54 +203,6 @@ export function startVoiceSearch(
   };
 
   return { promise, stop, cancel };
-}
-
-async function blobToBase64(blob: Blob): Promise<string> {
-  const buffer = await blob.arrayBuffer();
-  const bytes = new Uint8Array(buffer);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i++) binary += String.fromCharCode(bytes[i]!);
-  return btoa(binary);
-}
-
-async function transcribeBlob(_blob: Blob): Promise<string | null> {
-  return null;
-}
-
-/** Whisper fallback when Web Speech API is unavailable */
-function startWhisperVoiceSearch(options: VoiceSearchOptions = {}): VoiceSearchSession {
-  const { onStart, maxMs = DEFAULT_MAX_MS } = options;
-  let cancelled = false;
-  let sessionRelease: (() => void) | null = null;
-
-  const promise = (async (): Promise<string | null> => {
-    const { createVoiceSession } = await import("@/lib/audio-session");
-    const session = await createVoiceSession();
-    if (!session || cancelled) {
-      session?.release();
-      return null;
-    }
-    sessionRelease = session.release;
-    onStart?.();
-    const blob = await session.record(maxMs);
-    session.release();
-    sessionRelease = null;
-    if (cancelled || !blob) return null;
-    return transcribeBlob(blob);
-  })();
-
-  return {
-    promise,
-    stop: () => {
-      sessionRelease?.();
-      sessionRelease = null;
-    },
-    cancel: () => {
-      cancelled = true;
-      sessionRelease?.();
-      sessionRelease = null;
-    },
-  };
 }
 
 export function isVoiceSearchSupported(): boolean {

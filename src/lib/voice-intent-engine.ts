@@ -214,3 +214,41 @@ export function executeVoiceIntent(
       "Supratau. Galite paklausti, ar atsirado naujų skelbimų Vilniuje, Kaune ar kitame Lietuvos mieste.",
   };
 }
+
+/** Result from Gemini agent after wake-word command */
+export interface WakeWordAgentResult {
+  ok: boolean;
+  reply?: string;
+  error?: string;
+}
+
+export interface WakeWordGeminiAgent {
+  sendAgentMessage: (
+    text: string,
+    options?: { skipBusyCheck?: boolean }
+  ) => Promise<WakeWordAgentResult>;
+  setAgentOpen: (open: boolean) => void;
+}
+
+/**
+ * Route wake-word transcript to Gemini agent (full listings + navigation context).
+ */
+export async function dispatchWakeWordToGeminiAgent(
+  transcript: string,
+  agent: WakeWordGeminiAgent | null | undefined
+): Promise<WakeWordAgentResult> {
+  const trimmed = transcript.trim();
+  if (!trimmed) {
+    return { ok: false, error: "Tuščia užklausa" };
+  }
+  if (!agent) {
+    return { ok: false, error: "AI agentas nepasiekiamas" };
+  }
+
+  logWakeEvent("wake_word_gemini_dispatch", {
+    transcript: trimmed.slice(0, 120),
+  });
+
+  agent.setAgentOpen(true);
+  return agent.sendAgentMessage(trimmed, { skipBusyCheck: true });
+}

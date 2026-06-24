@@ -10,7 +10,6 @@ import {
   useState,
   type MutableRefObject,
   type ReactNode,
-  type RefObject,
 } from "react";
 import {
   loadWakeWordEnabled,
@@ -28,11 +27,10 @@ import {
 import { subscribeAppVisibility, isAppForeground } from "@/lib/app-visibility";
 import type { WakeWordPhase } from "@/lib/wake-word-types";
 import {
-  executeVoiceIntent,
-  parseVoiceIntent,
+  dispatchWakeWordToGeminiAgent,
+  type WakeWordGeminiAgent,
 } from "@/lib/voice-intent-engine";
 import { requestNotificationPermission } from "@/lib/push-alerts";
-import type { Listing } from "@/lib/types";
 
 export interface WakeWordContextValue {
   wakeWordEnabled: boolean;
@@ -47,9 +45,7 @@ export interface WakeWordContextValue {
 export interface WakeWordDeps {
   hydrated: boolean;
   gdprConsent: boolean;
-  userCity: string;
-  listingsRef: RefObject<Listing[]>;
-  setSearchQuery: (q: string) => void;
+  agentRef: MutableRefObject<WakeWordGeminiAgent | null>;
   showToast: (
     message: string,
     type: "success" | "error" | "info" | "buddy"
@@ -142,44 +138,48 @@ export function WakeWordProvider({
   }, [setWakeWordEnabled]);
 
   const processWakeCommand = useCallback((transcript: string) => {
-    const { userCity, listingsRef, setSearchQuery, showToast } = depsRef.current;
     setWakeWordPhase("processing");
     setWakeWordTranscript(transcript);
     setWakeWordStatusText("Suprantu…");
     logWakeEvent("command_received", { transcript: transcript.slice(0, 120) });
+    logAnalytics("wake_word_detected", { source: "gemini_agent" });
 
-    const intent = parseVoiceIntent(transcript, userCity || "Lietuva");
-    const result = executeVoiceIntent(intent, listingsRef.current ?? []);
+    const resumeListening = () => {
+      setWakeWordTranscript(undefined);
+      setWakeWordStatusText(undefined);
+      const session = wakeWordSessionRef.current;
+      if (session?.isRunning() && isAppForeground()) {
+        resumePassivePhase(session, setWakeWordPhase);
+      } else if (session?.isRunning()) {
+        setWakeWordPhase("suspended");
+      } else {
+        setWakeWordPhase("passive");
+      }
+    };
 
-    setWakeWordStatusText(result.response);
-    logAnalytics("wake_word_detected", {
-      intent: intent.type,
-      matches: result.matchCount,
+    void dispatchWakeWordToGeminiAgent(
+      transcript,
+      depsRef.current.agentRef.current
+    ).then((result) => {
+      if (result.ok && result.reply) {
+        setWakeWordStatusText(result.reply);
+        depsRef.current.showToast(result.reply.slice(0, 120), "buddy");
+        speakBuddyMessage(result.reply, {
+          enabled: true,
+          onEnd: resumeListening,
+        });
+        return;
+      }
+
+      const message =
+        result.error ?? "AI agentas laikinai nepasiekiamas. Bandykite dar kartą.";
+      setWakeWordStatusText(message);
+      depsRef.current.showToast(message, "error");
+      speakBuddyMessage(message, {
+        enabled: true,
+        onEnd: resumeListening,
+      });
     });
-
-    if (result.topListing && intent.type === "check_new_ads") {
-      setSearchQuery(intent.topic);
-    }
-
-    speakBuddyMessage(result.response, {
-      enabled: true,
-      onEnd: () => {
-        setWakeWordTranscript(undefined);
-        setWakeWordStatusText(undefined);
-        const session = wakeWordSessionRef.current;
-        if (session?.isRunning() && isAppForeground()) {
-          resumePassivePhase(session, setWakeWordPhase);
-        } else if (session?.isRunning()) {
-          setWakeWordPhase("suspended");
-        } else {
-          setWakeWordPhase("passive");
-        }
-      },
-    });
-
-    if (result.topListing) {
-      showToast(result.response, "buddy");
-    }
   }, []);
 
   useEffect(() => {

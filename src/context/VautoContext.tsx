@@ -124,6 +124,8 @@ import {
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import { WakeWordHost } from "@/components/voice/WakeWordHost";
+import { WakeWordAgentBridge } from "@/components/voice/WakeWordAgentBridge";
+import type { WakeWordGeminiAgent } from "@/lib/voice-intent-engine";
 import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
 import type { WakeWordPhase } from "@/lib/wake-word-types";
 import {
@@ -415,12 +417,14 @@ function VautoFacade({
   gdprModalOpen,
   acceptGdprConsent,
   declineGdprConsent,
+  wakeWordAgentRef,
 }: {
   catalog: VautoCatalogSlice;
   children: ReactNode;
   gdprModalOpen: boolean;
   acceptGdprConsent: () => void;
   declineGdprConsent: () => void;
+  wakeWordAgentRef: React.MutableRefObject<WakeWordGeminiAgent | null>;
 }) {
   const chat = useChat();
   const seller = useSellerFlow();
@@ -515,6 +519,7 @@ function VautoFacade({
     <VautoContext.Provider value={value}>
       <AdminProjectContextProvider>
         <VautoAgentProvider>
+          <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
           {children}
         </VautoAgentProvider>
       </AdminProjectContextProvider>
@@ -592,6 +597,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const gdprPendingAction = useRef<(() => void) | null>(null);
   const gdprWakeWordPending = useRef(false);
   const wakeWordActionsRef = useRef<WakeWordActions | null>(null);
+  const wakeWordAgentRef = useRef<WakeWordGeminiAgent | null>(null);
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
 
@@ -1698,20 +1704,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     () => ({
       hydrated,
       gdprConsent,
-      userCity: user.city,
-      listingsRef,
-      setSearchQuery: handleSearchQuery,
+      agentRef: wakeWordAgentRef,
       showToast,
       requestGdprModalForWake,
     }),
-    [
-      hydrated,
-      gdprConsent,
-      user.city,
-      handleSearchQuery,
-      showToast,
-      requestGdprModalForWake,
-    ]
+    [hydrated, gdprConsent, showToast, requestGdprModalForWake]
   );
 
   return (
@@ -1726,6 +1723,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
                   gdprModalOpen={gdprModalOpen}
                   acceptGdprConsent={acceptGdprConsent}
                   declineGdprConsent={declineGdprConsent}
+                  wakeWordAgentRef={wakeWordAgentRef}
                 >
                   {children}
                 </VautoFacade>

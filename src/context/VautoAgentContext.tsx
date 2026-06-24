@@ -25,13 +25,21 @@ import { registerWanted } from "@/lib/matching-service";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
+import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
+
+export interface AgentSendOptions {
+  skipBusyCheck?: boolean;
+}
 
 interface VautoAgentContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
   messages: AgentChatMessage[];
   busy: boolean;
-  sendAgentMessage: (text: string) => Promise<void>;
+  sendAgentMessage: (
+    text: string,
+    options?: AgentSendOptions
+  ) => Promise<WakeWordAgentResult>;
   reportAgentError: (code: string, message?: string) => void;
 }
 
@@ -143,9 +151,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   );
 
   const sendAgentMessage = useCallback(
-    async (text: string) => {
+    async (
+      text: string,
+      options?: AgentSendOptions
+    ): Promise<WakeWordAgentResult> => {
       const trimmed = text.trim();
-      if (!trimmed || busy) return;
+      if (!trimmed) return { ok: false, error: "Tuščia užklausa" };
+      if (busy && !options?.skipBusyCheck) {
+        return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
+      }
 
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
       const nextMessages = [...messages, userMsg];
@@ -184,7 +198,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             },
           ]);
           if (open) showToast(message, "error");
-          return;
+          return { ok: false, error: message };
         }
 
         if (!res.reply) {
@@ -197,7 +211,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             },
           ]);
           if (open) showToast(fallback, "error");
-          return;
+          return { ok: false, error: fallback };
         }
 
         setLastError(undefined);
@@ -210,10 +224,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           },
         ]);
         applyActions(res.actions);
+        return { ok: true, reply: res.reply };
       } catch (e) {
         const message =
           e instanceof Error ? e.message : "Nepavyko susisiekti su AI agentu";
         if (open) showToast(message, "error");
+        return { ok: false, error: message };
       } finally {
         setBusy(false);
       }

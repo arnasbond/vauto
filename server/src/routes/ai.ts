@@ -266,13 +266,6 @@ aiRouter.post("/extract-combined", async (req, res) => {
   }
 });
 
-aiRouter.post("/transcribe-audio", async (_req, res) => {
-  return res.status(501).json({
-    error:
-      "Whisper transkripcija pašalinta. Naudokite naršyklės balso atpažinimą (Web Speech API).",
-  });
-});
-
 aiRouter.post("/extract-text", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
