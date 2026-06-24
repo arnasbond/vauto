@@ -18,6 +18,14 @@ import {
   saveGeneralListingDraft,
 } from "@/lib/listing-draft-storage";
 import { capturePhoto } from "@/lib/native-media";
+import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
+import {
+  firstValidationMessage,
+  isValidListingPhone,
+  sanitizeListingPhoneInput,
+  validateGeneralListingDraft,
+} from "@/lib/listing-form-validation";
+import { isPlaceholderCity } from "@/lib/city-resolve";
 
 const ACCENT = "#43a047";
 
@@ -122,22 +130,23 @@ export function GeneralListingWizard({
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
   const categoryValue = attr(attrs, "skelbiuCategory");
-  const phone = draft.contact?.trim() || user.phone || "+370";
+  const phone = draft.contact?.trim() || user.phone || "+370 ";
   const email = user.email ?? "";
 
   const titleValid = draft.title.trim().length >= 3;
   const categoryValid = Boolean(categoryValue);
   const priceValid = draft.price > 0;
-  const cityValid = draft.location.trim().length >= 2;
+  const cityValid =
+    !isPlaceholderCity(draft.location) && draft.location.trim().length >= 2;
 
   const canPublish =
     titleValid &&
     categoryValid &&
-    draft.description?.trim() &&
+    Boolean(draft.description?.trim()) &&
     priceValid &&
-    attr(attrs, "condition") &&
+    Boolean(attr(attrs, "condition")) &&
     cityValid &&
-    phone &&
+    isValidListingPhone(phone) &&
     termsAccepted;
 
   const pickerNodes = nodesAtPath(categoryPath);
@@ -160,7 +169,17 @@ export function GeneralListingWizard({
   };
 
   const handlePublish = () => {
-    if (!draft.contact) onUpdate({ contact: phone });
+    const phoneValue = draft.contact?.trim() || phone;
+    const issues = validateGeneralListingDraft(draft, attrs, {
+      phone: phoneValue,
+      termsAccepted,
+    });
+    const errorMsg = firstValidationMessage(issues);
+    if (errorMsg) {
+      onToast?.(errorMsg, "error");
+      return;
+    }
+    if (!draft.contact?.trim()) onUpdate({ contact: phoneValue });
     clearGeneralListingDraft();
     onPublish();
   };
@@ -329,25 +348,31 @@ export function GeneralListingWizard({
           />
 
           <SkelbiuField label="Miestas" valid={cityValid}>
-            <select
-              value={draft.location.split(",")[0]?.trim() || ""}
-              onChange={(e) => onUpdate({ location: e.target.value })}
-              className="w-full max-w-xs border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#43a047]"
-            >
-              <option value="">Pasirinkite</option>
-              {LT_CITIES.map((c) => (
-                <option key={c} value={c}>
-                  {c}
-                </option>
-              ))}
-            </select>
+            <LithuanianCityField
+              location={draft.location}
+              cityOptions={LT_CITIES}
+              onLocationChange={(city) => onUpdate({ location: city })}
+            />
           </SkelbiuField>
 
           <div className="mb-4 flex gap-3">
-            <FieldStatus valid={Boolean(phone)} />
+            <FieldStatus valid={isValidListingPhone(phone)} />
             <div className="flex-1">
-              <p className="text-sm text-[#78909c]">Telefonas</p>
-              <p className="text-sm font-medium text-[#263238]">{phone}</p>
+              <label className="mb-1 block text-sm text-[#78909c]" htmlFor="listing-phone">
+                Telefonas
+              </label>
+              <input
+                id="listing-phone"
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={draft.contact?.trim() ? draft.contact : phone}
+                onChange={(e) =>
+                  onUpdate({ contact: sanitizeListingPhoneInput(e.target.value) })
+                }
+                placeholder="+370 600 00000"
+                className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#43a047]"
+              />
               <label className="mt-2 flex items-center gap-2 text-sm text-[#546e7a]">
                 <input
                   type="checkbox"
@@ -388,9 +413,10 @@ export function GeneralListingWizard({
 
           <button
             type="button"
-            disabled={!canPublish}
             onClick={handlePublish}
-            className="mb-3 w-full rounded-full py-3.5 text-lg font-bold text-white disabled:opacity-40"
+            className={`mb-3 w-full rounded-full py-3.5 text-lg font-bold text-white ${
+              canPublish ? "" : "opacity-80"
+            }`}
             style={{ backgroundColor: ACCENT }}
           >
             Įdėti skelbimą

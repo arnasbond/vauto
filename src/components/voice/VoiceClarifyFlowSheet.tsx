@@ -21,6 +21,7 @@ export interface VoiceClarifyResult {
   mergedTranscript: string;
   referenceImages: string[];
   analysis: VoiceIntentAnalysis;
+  history: VoiceIntentTurn[];
 }
 
 type FlowStep = "listen" | "analyze" | "clarify" | "images" | "confirm";
@@ -201,6 +202,7 @@ export function VoiceClarifyFlowSheet({
       mergedTranscript: analysis.mergedTranscript,
       referenceImages,
       analysis,
+      history,
     });
     reset();
   };

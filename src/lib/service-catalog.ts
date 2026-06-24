@@ -25,6 +25,7 @@ export const SERVICE_CITIES = [
   "Alytus",
   "Marijampolė",
   "Visoje Lietuvoje",
+  "Kita",
 ] as const;
 
 export const SERVICE_RADIUS_OPTIONS = ["10 km", "25 km", "50 km", "Visoje Lietuvoje"] as const;

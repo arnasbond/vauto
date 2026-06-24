@@ -12,6 +12,12 @@ import {
 } from "@/lib/service-catalog";
 import { clearServiceListingDraft, saveServiceListingDraft } from "@/lib/listing-draft-storage";
 import { capturePhoto } from "@/lib/native-media";
+import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
+import {
+  isValidListingPhone,
+  sanitizeListingPhoneInput,
+} from "@/lib/listing-form-validation";
+import { isPlaceholderCity } from "@/lib/city-resolve";
 
 const ACCENT = "#0f766e";
 const TOTAL_STEPS = 4;
@@ -75,10 +81,32 @@ export function ServiceListingWizard({
   const canNext = [false, can1, can2, can3, can4][step];
 
   const handlePublish = () => {
+    const phoneValue = draft.contact?.trim() || user.phone || "";
+    if (!attr(attrs, "serviceSpecialty")) {
+      onToast?.("Klaida: Pasirinkite paslaugos tipą.", "error");
+      return;
+    }
+    if (!isValidListingPhone(phoneValue)) {
+      onToast?.("Klaida: Įveskite telefono numerį.", "error");
+      return;
+    }
+    if (isPlaceholderCity(draft.location) || draft.location.trim().length < 2) {
+      onToast?.("Klaida: Pasirinkite miestą arba įrašykite gyvenvietę.", "error");
+      return;
+    }
+    if (!draft.description?.trim()) {
+      onToast?.("Klaida: Įveskite aprašymą.", "error");
+      return;
+    }
+    if (!termsAccepted) {
+      onToast?.("Klaida: Sutikite su portalo taisyklėmis.", "error");
+      return;
+    }
     const specialty = attr(attrs, "serviceSpecialty");
     onUpdate({
       category: "services",
       title: draft.title || specialty || "Paslaugos skelbimas",
+      contact: phoneValue,
       priceLabel: `${draft.price}€/val`,
       attributes: { ...attrs, serviceSpecialty: specialty },
     });
@@ -136,8 +164,14 @@ export function ServiceListingWizard({
               />
               <label className="mb-1 block text-sm text-[#64748b]">Telefonas</label>
               <input
-                value={draft.contact || user.phone || ""}
-                onChange={(e) => onUpdate({ contact: e.target.value })}
+                type="tel"
+                inputMode="tel"
+                autoComplete="tel"
+                value={draft.contact || user.phone || "+370 "}
+                onChange={(e) =>
+                  onUpdate({ contact: sanitizeListingPhoneInput(e.target.value) })
+                }
+                placeholder="+370 600 00000"
                 className="w-full rounded-xl border border-[#cfe3ff] px-3 py-3 text-sm"
               />
             </>
@@ -146,18 +180,15 @@ export function ServiceListingWizard({
           {step === 2 && (
             <>
               <label className="mb-1 block text-sm text-[#64748b]">Miestas</label>
-              <select
-                value={draft.location?.split(",")[0] ?? ""}
-                onChange={(e) => onUpdate({ location: e.target.value })}
-                className="mb-4 w-full rounded-xl border border-[#cfe3ff] px-3 py-3 text-sm"
-              >
-                <option value="">Pasirinkite...</option>
-                {SERVICE_CITIES.filter((c) => c !== "Visoje Lietuvoje").map((c) => (
-                  <option key={c} value={c}>
-                    {c}
-                  </option>
-                ))}
-              </select>
+              <div className="mb-4">
+                <LithuanianCityField
+                  location={draft.location ?? ""}
+                  cityOptions={SERVICE_CITIES.filter((c) => c !== "Visoje Lietuvoje")}
+                  onLocationChange={(city) => onUpdate({ location: city })}
+                  selectClassName="w-full rounded-xl border border-[#cfe3ff] px-3 py-3 text-sm"
+                  inputClassName="mt-2 w-full rounded-xl border border-[#cfe3ff] px-3 py-3 text-sm"
+                />
+              </div>
               <label className="mb-1 block text-sm text-[#64748b]">Darbo spindulys</label>
               <select
                 value={attr(attrs, "serviceRadius") || "25 km"}
@@ -277,7 +308,6 @@ export function ServiceListingWizard({
           ) : (
             <button
               type="button"
-              disabled={!can4}
               onClick={handlePublish}
               className="w-full rounded-xl py-3.5 text-sm font-bold text-white disabled:opacity-50"
               style={{ backgroundColor: ACCENT }}

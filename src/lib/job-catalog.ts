@@ -27,6 +27,7 @@ export const JOB_CITIES = [
   "Alytus",
   "Utena",
   "Visa Lietuva",
+  "Kita",
 ] as const;
 
 export const SALARY_DISPLAY_TYPES = ["Į rankas", "Neatskaičius mokesčių"] as const;

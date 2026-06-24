@@ -154,7 +154,12 @@ export async function extractFromVoice(
   if (unified) return unified;
 
   if (isAiProxyAvailable() && transcript.trim()) {
-    const remote = await apiExtractText({ text: transcript, userCity: city, contact });
+    const remote = await apiExtractText({
+      text: transcript,
+      userCity: city,
+      contact,
+      extraContext: ctx.extraContext,
+    });
     if (remote) return remote;
   }
 

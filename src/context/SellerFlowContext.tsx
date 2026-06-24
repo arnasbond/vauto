@@ -531,8 +531,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   }, []);
 
   const publishListing = useCallback(async () => {
-    if (!aiDraft) return;
-    if (!authHydrated) return;
+    if (!aiDraft) {
+      showToast("Klaida: nėra skelbimo duomenų. Bandykite iš naujo.", "error");
+      return;
+    }
+    if (!authHydrated) {
+      showToast("Palaukite — kraunama paskyra…", "info");
+      return;
+    }
     if (!isAuthenticated) {
       openAuthModal("/add");
       return;
@@ -641,12 +647,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     if (isDataApiEnabled()) {
       const userRes = await apiUpdateUser(user);
       if (!userRes.ok) {
-        setSyncError(`Profilis neišsaugotas: ${userRes.error}`);
+        const msg = `Profilis neišsaugotas: ${userRes.error}`;
+        setSyncError(msg);
+        showToast(msg, "error");
         return;
       }
       const createRes = await apiCreateListing(newListing, user.id);
       if (!createRes.ok) {
-        setSyncError(`Nepavyko publikuoti: ${createRes.error}`);
+        const msg = `Nepavyko publikuoti: ${createRes.error}`;
+        setSyncError(msg);
+        showToast(msg, "error");
         return;
       }
       published = withDefaultExpiry(createRes.data);

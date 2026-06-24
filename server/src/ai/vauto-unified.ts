@@ -8,7 +8,7 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "title": "string — patrauklus lietuviškas skelbimo pavadinimas",
   "price": "number | null — kaina EUR; null jei nenurodyta",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (2–5 sakiniai, be emoji)",
+  "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (4–8 sakiniai, be emoji, pirkėjus traukiantis tonas)",
   "technicalFields": "object — kategorijai būdingi laukai (metai, kuroTipas, markė, modelis, mileage, dydis, būklė, kambariai ir pan.)",
   "confidence": "number 0-1"
 }`;
@@ -16,7 +16,7 @@ export const VAUTO_UNIFIED_SCHEMA = `{
 const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
 Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
-Kategoriją parink tiksliai pagal objektą. Aprašymą sugeneruok profesionaliai lietuviškai.
+Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė, o pilnas skelbimo tekstas su nauda pirkėjui, būkle, komplektacija ir kita svarbia informacija iš vartotojo žinutės.
 Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
 NT: propertyType, area, rooms, floor. Elektronikai: brand, model, condition.`;
@@ -111,6 +111,7 @@ function buildTextPrompt(text: string, userCity: string, extraContext?: string):
 
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
+Svarbu: lauką description užpildyk pilnu, profesionaliu skelbimo aprašymu lietuviškai (mažiausiai 4 sakiniai).
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
 

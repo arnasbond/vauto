@@ -14,6 +14,7 @@ import {
   VoiceClarifyFlowSheet,
   type VoiceClarifyResult,
 } from "@/components/voice/VoiceClarifyFlowSheet";
+import { buildVoiceListingExtraContext } from "@/lib/voice-listing-context";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -92,8 +93,14 @@ export function SellerUploadPanel({
     setVoiceSubmitting(true);
     try {
       const userPhoto = result.referenceImages.find((src) => src.startsWith("data:"));
+      const extraContext = buildVoiceListingExtraContext({
+        mergedTranscript: result.mergedTranscript,
+        analysis: result.analysis,
+        history: result.history,
+      });
       await submitSellerContent({
         text: result.mergedTranscript,
+        extraContext,
         imageDataUrl: userPhoto ?? null,
         voiceCapture: true,
       });

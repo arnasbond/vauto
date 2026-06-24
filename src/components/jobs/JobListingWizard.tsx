@@ -18,6 +18,8 @@ import {
 } from "@/lib/job-catalog";
 import { JOB_TYPE_OFFER } from "@/lib/jobs";
 import { clearJobListingDraft, saveJobListingDraft } from "@/lib/listing-draft-storage";
+import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
+import { isPlaceholderCity } from "@/lib/city-resolve";
 
 const ACCENT = "#1f4b99";
 const TOTAL_STEPS = 6;
@@ -126,6 +128,14 @@ export function JobListingWizard({
   const canNext = [false, can1, can2, can3, true, can5, can6][step];
 
   const handlePublish = () => {
+    if (isPlaceholderCity(draft.location) || draft.location.trim().length < 2) {
+      onToast?.("Klaida: Pasirinkite miestą arba įrašykite gyvenvietę.", "error");
+      return;
+    }
+    if (!termsAccepted) {
+      onToast?.("Klaida: Sutikite su portalo taisyklėmis.", "error");
+      return;
+    }
     const salaryLabel = buildSalaryLabel(attrs);
     if (salaryLabel) {
       const num = parseFloat(attr(attrs, "salaryFixed") || attr(attrs, "salaryFrom") || "0");
@@ -228,18 +238,13 @@ export function JobListingWizard({
               />
               <div className="mt-4">
                 <label className="mb-1 block text-sm text-[#475569]">Miestas *</label>
-                <select
-                  value={draft.location.split(",")[0]?.trim() || ""}
-                  onChange={(e) => onUpdate({ location: e.target.value })}
-                  className="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
-                >
-                  <option value="">Pasirinkite</option>
-                  {JOB_CITIES.map((c) => (
-                    <option key={c} value={c}>
-                      {c}
-                    </option>
-                  ))}
-                </select>
+                <LithuanianCityField
+                  location={draft.location}
+                  cityOptions={JOB_CITIES}
+                  onLocationChange={(city) => onUpdate({ location: city })}
+                  selectClassName="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+                  inputClassName="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+                />
               </div>
               <label className="mb-1 block text-sm text-[#475569]">Darbo vietos adresas</label>
               <input

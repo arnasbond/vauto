@@ -438,6 +438,7 @@ export async function apiExtractText(body: {
   text: string;
   userCity: string;
   contact: string;
+  extraContext?: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {
   return aiFetch("/api/ai/extract-text", {
     method: "POST",

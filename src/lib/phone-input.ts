@@ -1,8 +1,12 @@
 /** Normalize LT phone input — single +370 prefix, no duplication. */
 export function formatLtPhoneInput(raw: string): string {
-  const digits = raw.replace(/\D/g, "").replace(/^370/, "").replace(/^8(?=\d{8}$)/, "");
-  if (!digits) return "+370 ";
-  return `+370 ${digits}`;
+  if (!raw.trim()) return "+370 ";
+
+  let digits = raw.replace(/\D/g, "");
+  if (digits.startsWith("370")) digits = digits.slice(3);
+  else if (digits.startsWith("8") && digits.length <= 9) digits = digits.slice(1);
+
+  return digits ? `+370 ${digits}` : "+370 ";
 }
 
 export function normalizeLtPhoneForApi(raw: string): string {
