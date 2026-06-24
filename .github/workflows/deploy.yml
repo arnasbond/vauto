@@ -36,25 +36,42 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
 
-      - name: Verify runtime config
+      - name: Verify build output
         run: |
           test -f public/runtime-config.json
           grep -q vauto-api.onrender.com public/runtime-config.json
           test -f out/admin/ai/index.html
-          echo "Build OK — out/admin/ai/index.html exists"
+          test -f out/profile/index.html
+          echo "Build OK"
 
       - name: Verify Render API health
         run: npm run verify:health
         continue-on-error: true
 
+      - name: Install Vercel CLI
+        run: npm install -g vercel@39
+
+      - name: Link Vercel project
+        run: |
+          mkdir -p .vercel
+          printf '%s\n' \
+            '{' \
+            "  \"projectId\": \"${{ secrets.VERCEL_PROJECT_ID }}\"," \
+            "  \"orgId\": \"${{ secrets.VERCEL_ORG_ID }}\"," \
+            '  "settings": {' \
+            '    "framework": null,' \
+            '    "buildCommand": "npm run build",' \
+            '    "outputDirectory": "out"' \
+            '  }' \
+            '}' > .vercel/project.json
+          cat .vercel/project.json
+
       - name: Deploy to Vercel Production
-        uses: amondnet/vercel-action@v25
-        with:
-          vercel-token: ${{ secrets.VERCEL_TOKEN }}
-          vercel-org-id: ${{ secrets.VERCEL_ORG_ID }}
-          vercel-project-id: ${{ secrets.VERCEL_PROJECT_ID }}
-          vercel-args: "--prod"
-          github-comment: false
+        run: vercel deploy --prod --yes --token="$VERCEL_TOKEN"
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Deployment URL
-        run: echo "Live at https://vauto-chi.vercel.app"
+        run: echo "Deployed to https://vauto-chi.vercel.app"
