@@ -5,6 +5,11 @@ import {
   type AgentToolContext,
 } from "./agent-tools.js";
 import { buildAgentSystemInstruction } from "./agent-system-instruction.js";
+import {
+  AgentRouteError,
+  fetchWithTimeout,
+  isAbortError,
+} from "./agent-errors.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -75,6 +80,7 @@ Būk glaustas, profesionalus, šiltas, be emoji. Visada atsakyk lietuviškai.`;
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 const MAX_TOOL_ROUNDS = 5;
+const GEMINI_AGENT_TIMEOUT_MS = 28_000;
 
 type GeminiPart =
   | { text: string }
@@ -92,38 +98,66 @@ async function geminiAgentTurn(
   systemInstruction: string
 ): Promise<{ parts: GeminiPart[]; text: string }> {
   const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key) throw new Error("GEMINI_API_KEY not set");
-
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
-        toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-        generationConfig: { temperature: 0.35 },
-      }),
-    }
-  );
-
-  if (!res.ok) {
-    throw new Error(`Gemini agent ${model} ${res.status}: ${await res.text()}`);
+  if (!key) {
+    throw new AgentRouteError(
+      "agent_unavailable",
+      "GEMINI_API_KEY not configured",
+      503
+    );
   }
 
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: GeminiPart[] } }[];
-  };
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const text = parts
-    .filter((p): p is { text: string } => "text" in p && Boolean(p.text))
-    .map((p) => p.text)
-    .join("\n")
-    .trim();
+  try {
+    const res = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents,
+          tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
+          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+          generationConfig: { temperature: 0.35 },
+        }),
+      },
+      GEMINI_AGENT_TIMEOUT_MS
+    );
 
-  return { parts, text };
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw new AgentRouteError(
+        "gemini_error",
+        `Gemini ${model} returned ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+        res.status >= 500 ? 502 : 503
+      );
+    }
+
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: GeminiPart[] } }[];
+    };
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+      .filter((p): p is { text: string } => "text" in p && Boolean(p.text))
+      .map((p) => p.text)
+      .join("\n")
+      .trim();
+
+    return { parts, text };
+  } catch (e) {
+    if (e instanceof AgentRouteError) throw e;
+    if (isAbortError(e)) {
+      throw new AgentRouteError(
+        "timeout",
+        "Gemini API užklausa užtruko. Sumažinkite admin kontekstą arba bandykite vėliau.",
+        504
+      );
+    }
+    throw new AgentRouteError(
+      "gemini_error",
+      e instanceof Error ? e.message : "Gemini API klaida",
+      502
+    );
+  }
 }
 
 async function openaiAgentFallback(
@@ -132,39 +166,85 @@ async function openaiAgentFallback(
   systemInstruction: string
 ): Promise<string> {
   const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) throw new Error("No AI key for agent");
+  if (!key) {
+    throw new AgentRouteError(
+      "agent_unavailable",
+      "AI agentas laikinai nepasiekiamas (nėra API rakto)",
+      503
+    );
+  }
 
   const history = messages
     .map((m) => `${m.role === "user" ? "Vartotojas" : "VAUTO"}: ${m.text}`)
     .join("\n");
 
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      temperature: 0.35,
-      messages: [
-        { role: "system", content: systemInstruction },
-        {
-          role: "user",
-          content: `${history}\n\n${toolResults ? `Įrankių rezultatai:\n${toolResults}` : ""}\n\nAtsakyk vartotojui lietuviškai.`,
+  try {
+    const res = await fetchWithTimeout(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${key}`,
+          "Content-Type": "application/json",
         },
-      ],
-    }),
-  });
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          temperature: 0.35,
+          messages: [
+            { role: "system", content: systemInstruction },
+            {
+              role: "user",
+              content: `${history}\n\n${toolResults ? `Įrankių rezultatai:\n${toolResults}` : ""}\n\nAtsakyk vartotojui lietuviškai.`,
+            },
+          ],
+        }),
+      },
+      GEMINI_AGENT_TIMEOUT_MS
+    );
 
-  if (!res.ok) throw new Error(`OpenAI agent ${res.status}`);
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  return data.choices?.[0]?.message?.content?.trim() ?? "Supratau. Kuo dar galiu padėti?";
+    if (!res.ok) {
+      throw new AgentRouteError(
+        "openai_error",
+        `OpenAI agent returned ${res.status}`,
+        502
+      );
+    }
+
+    const data = (await res.json()) as {
+      choices?: { message?: { content?: string } }[];
+    };
+    return data.choices?.[0]?.message?.content?.trim() ?? "Supratau. Kuo dar galiu padėti?";
+  } catch (e) {
+    if (e instanceof AgentRouteError) throw e;
+    if (isAbortError(e)) {
+      throw new AgentRouteError(
+        "timeout",
+        "OpenAI atsakymas užtruko per ilgai.",
+        504
+      );
+    }
+    throw new AgentRouteError(
+      "openai_error",
+      e instanceof Error ? e.message : "OpenAI klaida",
+      502
+    );
+  }
 }
 
 export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentResponse> {
+  try {
+    return await runVautoAgentInner(req);
+  } catch (e) {
+    if (e instanceof AgentRouteError) throw e;
+    throw new AgentRouteError(
+      "agent_unavailable",
+      e instanceof Error ? e.message : "AI agentas laikinai nepasiekiamas",
+      503
+    );
+  }
+}
+
+async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentResponse> {
   const systemInstruction = buildAgentSystemInstruction(
     SYSTEM_INSTRUCTION,
     req.adminProjectContext
@@ -268,6 +348,14 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
       .map((t) => `${t.name}: ${JSON.stringify(t.result).slice(0, 400)}`)
       .join("\n");
     finalText = await openaiAgentFallback(req.messages, toolSummary, systemInstruction);
+  }
+
+  if (!finalText.trim()) {
+    throw new AgentRouteError(
+      "agent_unavailable",
+      "AI agentas negalėjo sugeneruoti atsakymo. Bandykite dar kartą.",
+      503
+    );
   }
 
   return {

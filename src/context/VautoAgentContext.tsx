@@ -61,6 +61,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   ]);
   const [busy, setBusy] = useState(false);
   const adminProjectContext = useAdminProjectContextForAgent();
+  const includeAdminContext = Boolean(adminProjectContext);
   const [lastError, setLastError] = useState<
     { code: string; message?: string } | undefined
   >();
@@ -142,10 +143,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
           },
-          ...(adminProjectContext ? { adminProjectContext } : {}),
+          ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
 
-        if (!res?.reply) {
+        if (!res.ok) {
+          const message =
+            res.code === "timeout"
+              ? "AI užklausa užtruko. Sumažinkite Gemini kontekstą arba bandykite vėliau."
+              : res.error || "AI agentas laikinai nepasiekiamas";
+          showToast(message, "error");
+          return;
+        }
+
+        if (!res.reply) {
           showToast("AI agentas laikinai nepasiekiamas", "error");
           return;
         }
@@ -180,7 +190,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       rankedListings,
       searchQuery,
-      adminProjectContext,
+      includeAdminContext,
     ]
   );
 

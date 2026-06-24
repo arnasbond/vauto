@@ -89,6 +89,24 @@ const AGENT_FUNCTION_DECLARATIONS = [
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
 const MAX_ADMIN_PROJECT_CONTEXT_CHARS = 80_000;
+const GEMINI_AGENT_TIMEOUT_MS = 28_000;
+
+function agentError(code, message, status = 503) {
+  const err = new Error(message);
+  err.code = code;
+  err.status = status;
+  return err;
+}
+
+async function fetchWithTimeout(url, init, timeoutMs) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { ...init, signal: controller.signal });
+  } finally {
+    clearTimeout(timer);
+  }
+}
 
 function buildAgentSystemInstruction(baseInstruction, adminProjectContext) {
   const trimmed = adminProjectContext?.trim();
@@ -259,59 +277,100 @@ function executeAgentTool(name, args, ctx) {
 
 async function geminiAgentTurn(contents, model, systemInstruction) {
   const key = process.env.GEMINI_API_KEY?.trim();
-  if (!key) throw new Error("GEMINI_API_KEY not set");
+  if (!key) throw agentError("agent_unavailable", "GEMINI_API_KEY not set", 503);
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        systemInstruction: { parts: [{ text: systemInstruction }] },
-        contents,
-        tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
-        toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-        generationConfig: { temperature: 0.35 },
-      }),
+  try {
+    const res = await fetchWithTimeout(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          systemInstruction: { parts: [{ text: systemInstruction }] },
+          contents,
+          tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
+          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
+          generationConfig: { temperature: 0.35 },
+        }),
+      },
+      GEMINI_AGENT_TIMEOUT_MS
+    );
+    if (!res.ok) {
+      const detail = await res.text().catch(() => "");
+      throw agentError(
+        "gemini_error",
+        `Gemini ${model} ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
+        res.status >= 500 ? 502 : 503
+      );
     }
-  );
-  if (!res.ok) throw new Error(`Gemini ${model} ${res.status}`);
-  const data = await res.json();
-  const parts = data.candidates?.[0]?.content?.parts ?? [];
-  const text = parts
-    .filter((p) => p.text)
-    .map((p) => p.text)
-    .join("\n")
-    .trim();
-  return { parts, text };
+    const data = await res.json();
+    const parts = data.candidates?.[0]?.content?.parts ?? [];
+    const text = parts
+      .filter((p) => p.text)
+      .map((p) => p.text)
+      .join("\n")
+      .trim();
+    return { parts, text };
+  } catch (e) {
+    if (e.code) throw e;
+    if (e.name === "AbortError") {
+      throw agentError(
+        "timeout",
+        "Gemini API užklausa užtruko. Sumažinkite admin kontekstą arba bandykite vėliau.",
+        504
+      );
+    }
+    throw agentError("gemini_error", e.message || "Gemini API klaida", 502);
+  }
 }
 
 async function openaiAgentFallback(messages, toolSummary, systemInstruction) {
   const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) throw new Error("No AI key");
+  if (!key) throw agentError("agent_unavailable", "No AI key", 503);
   const history = messages
     .map((m) => `${m.role === "user" ? "Vartotojas" : "VAUTO"}: ${m.text}`)
     .join("\n");
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      messages: [
-        { role: "system", content: systemInstruction },
-        {
-          role: "user",
-          content: `${history}\n\n${toolSummary}\n\nAtsakyk lietuviškai.`,
-        },
-      ],
-    }),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}`);
-  const data = await res.json();
-  return data.choices?.[0]?.message?.content?.trim() ?? "Supratau.";
+  try {
+    const res = await fetchWithTimeout(
+      "https://api.openai.com/v1/chat/completions",
+      {
+        method: "POST",
+        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
+        body: JSON.stringify({
+          model: "gpt-4o-mini",
+          messages: [
+            { role: "system", content: systemInstruction },
+            {
+              role: "user",
+              content: `${history}\n\n${toolSummary}\n\nAtsakyk lietuviškai.`,
+            },
+          ],
+        }),
+      },
+      GEMINI_AGENT_TIMEOUT_MS
+    );
+    if (!res.ok) throw agentError("openai_error", `OpenAI ${res.status}`, 502);
+    const data = await res.json();
+    return data.choices?.[0]?.message?.content?.trim() ?? "Supratau.";
+  } catch (e) {
+    if (e.code) throw e;
+    if (e.name === "AbortError") {
+      throw agentError("timeout", "OpenAI atsakymas užtruko per ilgai.", 504);
+    }
+    throw agentError("openai_error", e.message || "OpenAI klaida", 502);
+  }
 }
 
 async function runVautoAgent(req) {
+  try {
+    return await runVautoAgentInner(req);
+  } catch (e) {
+    if (e.code) throw e;
+    throw agentError("agent_unavailable", e.message || "AI agentas laikinai nepasiekiamas", 503);
+  }
+}
+
+async function runVautoAgentInner(req) {
   const systemInstruction = buildAgentSystemInstruction(
     SYSTEM_INSTRUCTION,
     req.adminProjectContext
@@ -402,6 +461,14 @@ async function runVautoAgent(req) {
   if (!finalText) {
     const toolSummary = toolCalls.map((t) => `${t.name}: ${JSON.stringify(t.result)}`).join("\n");
     finalText = await openaiAgentFallback(req.messages ?? [], toolSummary, systemInstruction);
+  }
+
+  if (!finalText?.trim()) {
+    throw agentError(
+      "agent_unavailable",
+      "AI agentas negalėjo sugeneruoti atsakymo. Bandykite dar kartą.",
+      503
+    );
   }
 
   return {

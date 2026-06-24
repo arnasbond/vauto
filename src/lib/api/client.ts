@@ -62,7 +62,7 @@ async function aiFetchOnce<T>(
   path: string,
   opts: RequestInit | undefined,
   timeoutMs: number
-): Promise<T | null> {
+): Promise<{ data: T | null; error?: string; code?: string }> {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -75,10 +75,29 @@ async function aiFetchOnce<T>(
         ...(opts?.headers as Record<string, string>),
       },
     });
-    if (!res.ok) return null;
-    return (await res.json()) as T;
-  } catch {
-    return null;
+    const text = await res.text().catch(() => "");
+    let payload: unknown = null;
+    if (text) {
+      try {
+        payload = JSON.parse(text);
+      } catch {
+        payload = null;
+      }
+    }
+    if (!res.ok) {
+      const errBody = payload as { error?: string; code?: string } | null;
+      return {
+        data: null,
+        error: errBody?.error || text || res.statusText || `HTTP ${res.status}`,
+        code: errBody?.code,
+      };
+    }
+    return { data: payload as T };
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    const code =
+      e instanceof Error && e.name === "AbortError" ? "timeout" : "network_error";
+    return { data: null, error: message, code };
   } finally {
     clearTimeout(timer);
   }
@@ -90,10 +109,24 @@ async function aiFetch<T>(
   timeoutMs = AI_FETCH_TIMEOUT_MS
 ): Promise<T | null> {
   for (const base of getAiBaseUrls()) {
-    const data = await aiFetchOnce<T>(base, path, opts, timeoutMs);
+    const { data } = await aiFetchOnce<T>(base, path, opts, timeoutMs);
     if (data !== null) return data;
   }
   return null;
+}
+
+async function aiFetchWithMeta<T>(
+  path: string,
+  opts?: RequestInit,
+  timeoutMs = AI_FETCH_TIMEOUT_MS
+): Promise<{ data: T | null; error?: string; code?: string }> {
+  let lastError: { error?: string; code?: string } = {};
+  for (const base of getAiBaseUrls()) {
+    const result = await aiFetchOnce<T>(base, path, opts, timeoutMs);
+    if (result.data !== null) return result;
+    lastError = { error: result.error, code: result.code };
+  }
+  return { data: null, ...lastError };
 }
 
 export interface ApiHealthDetails {
@@ -168,13 +201,36 @@ export async function apiUploadMedia(imageDataUrl: string): Promise<string | nul
 export async function apiVautoAgent(body: {
   messages: { role: "user" | "assistant"; text: string }[];
   context?: import("@/lib/vauto-agent-client").VautoAgentContext;
-  adminProjectContext?: string;
-}): Promise<import("@/lib/vauto-agent-client").VautoAgentResponse | null> {
-  return aiFetch("/api/vauto-agent", {
-    method: "POST",
-    headers: getAuthHeaders(),
-    body: JSON.stringify(body),
-  }, AI_VISION_FETCH_TIMEOUT_MS);
+  /** Server loads admin Gemini context from DB — avoids huge POST bodies */
+  includeAdminContext?: boolean;
+}): Promise<import("@/lib/vauto-agent-client").VautoAgentApiResult> {
+  const timeoutMs = body.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
+
+  const { data, error, code } = await aiFetchWithMeta<
+    import("@/lib/vauto-agent-client").VautoAgentApiResult
+  >(
+    "/api/vauto-agent",
+    {
+      method: "POST",
+      headers: getAuthHeaders(),
+      body: JSON.stringify(body),
+    },
+    timeoutMs
+  );
+
+  if (data && "reply" in data && data.reply) {
+    return data;
+  }
+
+  if (data && "ok" in data && data.ok === false) {
+    return data;
+  }
+
+  return {
+    ok: false,
+    error: error || "AI agentas laikinai nepasiekiamas",
+    code: code || "agent_unavailable",
+  };
 }
 
 export async function apiFetchAdminProjectContext(): Promise<

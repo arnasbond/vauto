@@ -76,6 +76,14 @@ export interface VautoAgentResponse {
   actions: VautoAgentAction;
 }
 
+export interface VautoAgentErrorResponse {
+  ok: false;
+  error: string;
+  code?: string;
+}
+
+export type VautoAgentApiResult = VautoAgentResponse | VautoAgentErrorResponse;
+
 const VALID: ListingCategory[] = [
   "electronics",
   "vehicles",
