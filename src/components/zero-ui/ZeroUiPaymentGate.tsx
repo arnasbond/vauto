@@ -5,7 +5,8 @@ import { useCallback, useEffect, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
-  SMART_BOOST_PRICE_EUR,
+  SMART_BOOST_C2C,
+  SMART_BOOST_B2B,
   VOICE_PAY_CONFIRM_PHRASE,
   type ZeroUiMicroPaymentIntent,
 } from "@/lib/monetization-engine";
@@ -23,6 +24,7 @@ interface ZeroUiPaymentGateProps {
 
 function productTitle(product: ZeroUiMicroPaymentIntent["product"]): string {
   if (product === "region_stats") return "Regiono paklausos statistika";
+  if (product === "b2b_lead") return "Tikslinis klientas (Lead Gen)";
   if (product === "smart_boost") return "Smart Boost";
   return "Mikro-mokėjimas";
 }
@@ -120,9 +122,13 @@ export function ZeroUiPaymentGate({
               <p className="font-display text-2xl font-bold text-[#1167b1]">
                 {intent.price.toFixed(2)} €
               </p>
-              {intent.product === "smart_boost" && intent.price === SMART_BOOST_PRICE_EUR && (
+              {(intent.product === "smart_boost" &&
+                (intent.price === SMART_BOOST_C2C ||
+                  intent.price === SMART_BOOST_B2B)) && (
                 <p className="mt-1 text-xs text-[#6b7280]">
-                  Padidina skelbimo matomumą 7 dienoms
+                  {intent.price === SMART_BOOST_B2B
+                    ? "Verslo Smart Boost — apgalvotas matomumas, apsauga nuo dirbtinės konkurencijos (7 d.)"
+                    : "Padidina skelbimo matomumą 7 dienoms"}
                 </p>
               )}
             </div>

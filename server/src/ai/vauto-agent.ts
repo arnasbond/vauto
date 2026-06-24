@@ -16,7 +16,13 @@ import {
   type AgentSearchFilters,
 } from "./agent-memory-context.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
-import { resolveMonetizationState } from "./monetization-engine.js";
+import {
+  resolveMonetizationState,
+  B2B_LEAD_PRICE,
+  BUSINESS_MONTHLY_PRO,
+  SMART_BOOST_B2B,
+  SMART_BOOST_C2C,
+} from "./monetization-engine.js";
 import {
   AgentRouteError,
   fetchWithTimeout,
@@ -110,7 +116,7 @@ PARDAVIMO BALSO DIALOGAS:
 
 KITI ĮRANKIAI:
 - analyzeMarketPrice — rinkos kainos patarimas.
-- triggerMicroPayment — Smart Boost (2.99 €) arba regiono statistika (4.99 €). Kai free vartotojo kaina viršija rinkos medianą — postNewListing pasiūlys Smart Boost; vartotojui pasakius „Iškelti skelbimą“ — iškviesk triggerMicroPayment(reason, 2.99). B2B gili regiono paklausa — triggerMicroPayment su 4.99 € arba siūlyk Pro planą (showZeroUiScreen business_dashboard).
+- triggerMicroPayment — diferencijuota kainodara: C2C Smart Boost ${SMART_BOOST_C2C} €, B2B Smart Boost ${SMART_BOOST_B2B} € (apsauga nuo dirbtinės konkurencijos), B2B Lead Gen ${B2B_LEAD_PRICE} €. Kai kaina viršija medianą — postNewListing pasiūlys Smart Boost atitinkama kaina; vartotojui pasakius „Iškelti skelbimą“ — triggerMicroPayment su price=0 (sistema pritaikys). B2B nemokamam verslui gili regiono paklausa — NIEKADA triggerMicroPayment; siūlyk Business Pro ${BUSINESS_MONTHLY_PRO} €/mėn ir showZeroUiScreen(business_dashboard).
 - trackUserError — proaktyvus klaidų sprendimas.
 - blockListing — administratoriui.
 - showZeroUiScreen — pagrindinis Zero-UI ekranas (marketplace, listing_preview, business_dashboard, admin_panel).
@@ -383,8 +389,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   }
 
   const paymentCall = toolCalls.find((t) => t.name === "triggerMicroPayment");
-  const paymentResult = paymentCall?.result as { message?: string; ok?: boolean } | undefined;
-  if (paymentResult?.ok && paymentResult.message) {
+  const paymentResult = paymentCall?.result as {
+    message?: string;
+    ok?: boolean;
+  } | undefined;
+  if (paymentResult?.message && (paymentResult.ok || paymentResult.message.includes("Business Pro"))) {
     finalText = paymentResult.message;
   }
 

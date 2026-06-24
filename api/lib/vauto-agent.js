@@ -26,6 +26,12 @@ const {
   shouldOfferSmartBoost,
   buildSmartBoostProactiveMessage,
   buildMicroPaymentVoiceReply,
+  buildBusinessProUpsellMessage,
+  requiresBusinessProForRegionStats,
+  SMART_BOOST_C2C,
+  SMART_BOOST_B2B,
+  B2B_LEAD_PRICE,
+  BUSINESS_MONTHLY_PRO,
 } = require("./monetization-engine");
 
 const BUDDY_REPEAT_PROMPT =
@@ -39,7 +45,7 @@ AUTOMOBILIAMS: iš balso/teksto VISADA ištrauk make, model, year (atskirais lau
 Kai postNewListing grąžina voiceFollowUp — ištark VERBATIM kaip TTS atsakymą.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
 Paieškai — searchListings; jei 0 rezultatų — registerWanted.
-triggerMicroPayment — Smart Boost (2.99 €) arba regiono statistika (4.99 €). Free + kaina virš medianos → pasiūlyk Smart Boost; vartotojui pasakius „Iškelti skelbimą“ — triggerMicroPayment(reason, 2.99).
+triggerMicroPayment — C2C Smart Boost ${SMART_BOOST_C2C} €, B2B Smart Boost ${SMART_BOOST_B2B} €, Lead Gen ${B2B_LEAD_PRICE} €. B2B nemokamam verslui gili regiono paklausa — siūlyk Business Pro ${BUSINESS_MONTHLY_PRO} €/mėn (showZeroUiScreen business_dashboard), ne triggerMicroPayment.
 Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
 KETINIMO ATPAŽINIMAS: „noriu kelti skelbimą“ / parduoti → navigate_view(add_listing) arba postNewListing. NIEKADA searchListings. Paieškai → search_results.
 Klaidoms — trackUserError. Admin — blockListing. Būk glaustas, be emoji.`;
@@ -136,7 +142,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "triggerMicroPayment",
     description:
-      "Zero-UI mikro-mokėjimas: Smart Boost arba regiono statistika. reason + price EUR.",
+      "Zero-UI mikro-mokėjimas. C2C boost 2.99 €, B2B boost 29.99 €, lead 14.99 €. Regiono statistika — tik Business Pro 199 €/mėn.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -353,6 +359,7 @@ function executeAgentTool(name, args, ctx) {
         proactivePricingMessage = buildSmartBoostProactiveMessage(
           price,
           marketAnalysis.medianPrice,
+          monState,
           enriched.title
         );
       } else {
@@ -409,16 +416,26 @@ function executeAgentTool(name, args, ctx) {
   if (name === "triggerMicroPayment") {
     const reason = String(args.reason ?? "").trim();
     const product = inferMicroPaymentProduct(reason);
-    const price =
-      Number(args.price) > 0 ? Number(args.price) : defaultPriceForProduct(product);
     const monState =
       ctx.monetization ?? resolveMonetizationState({ userRole: ctx.userRole });
-    if (product === "region_stats" && monState.tier !== "business_pro") {
+    const price =
+      Number(args.price) > 0
+        ? Number(args.price)
+        : defaultPriceForProduct(product, monState);
+    if (product === "region_stats" && requiresBusinessProForRegionStats(monState)) {
+      const upsellMessage = buildBusinessProUpsellMessage();
       return {
         result: {
           ok: false,
-          message: "Gili regiono statistika prieinama tik Business Pro planui.",
+          upsell: "business_pro",
+          message: upsellMessage,
         },
+        sideEffect: { type: "zero_ui_screen", screen: "business_dashboard" },
+      };
+    }
+    if (product === "region_stats" && monState.tier !== "business_pro") {
+      return {
+        result: { ok: false, message: buildBusinessProUpsellMessage() },
       };
     }
     if (product === "smart_boost" && monState.activeBoost) {
@@ -426,7 +443,7 @@ function executeAgentTool(name, args, ctx) {
         result: { ok: true, alreadyActive: true, message: "Smart Boost jau aktyvus." },
       };
     }
-    const voiceReply = buildMicroPaymentVoiceReply(product, price);
+    const voiceReply = buildMicroPaymentVoiceReply(product, price, monState);
     return {
       result: {
         ok: true,
@@ -724,7 +741,10 @@ async function runVautoAgentInner(req) {
   }
 
   const paymentCall = toolCalls.find((t) => t.name === "triggerMicroPayment");
-  if (paymentCall?.result?.ok && paymentCall.result.message) {
+  if (
+    paymentCall?.result?.message &&
+    (paymentCall.result.ok || String(paymentCall.result.message).includes("Business Pro"))
+  ) {
     finalText = paymentCall.result.message;
   }
 

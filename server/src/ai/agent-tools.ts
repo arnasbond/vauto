@@ -16,13 +16,18 @@ import {
   buildProactiveSearchResetMessage,
 } from "./proactive-agent.js";
 import {
+  buildBusinessProUpsellMessage,
   buildMicroPaymentVoiceReply,
   buildSmartBoostProactiveMessage,
   defaultPriceForProduct,
   inferMicroPaymentProduct,
+  requiresBusinessProForRegionStats,
   resolveMonetizationState,
   shouldOfferSmartBoost,
-  SMART_BOOST_PRICE_EUR,
+  SMART_BOOST_B2B,
+  SMART_BOOST_C2C,
+  B2B_LEAD_PRICE,
+  BUSINESS_MONTHLY_PRO,
   type MonetizationState,
 } from "./monetization-engine.js";
 
@@ -208,7 +213,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "triggerMicroPayment",
     description:
-      "Atidaro Zero-UI mokėjimo patvirtinimo langą mikro-mokėjimui (Smart Boost, regiono statistika). Naudok kai free vartotojas nori iškelti skelbimą virš rinkos kainos, arba B2B vartotojas prašo gilios regiono paklausos statistikos.",
+      "Zero-UI mikro-mokėjimas. Smart Boost: C2C 2.99 €, B2B 29.99 €. Lead Gen verslui: 14.99 €. Gili regiono statistika — tik Business Pro (199 €/mėn.), nemokamam B2B triggerMicroPayment NENAUDOK — siūlyk Pro planą.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -218,7 +223,8 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         },
         price: {
           type: "NUMBER",
-          description: "Suma EUR — Smart Boost 2.99, regiono statistika 4.99",
+          description:
+            "Suma EUR — palik 0 kad sistema pritaikytų: C2C boost 2.99, B2B boost 29.99, lead 14.99",
         },
       },
       required: ["reason", "price"],
@@ -482,6 +488,7 @@ export async function executeAgentTool(
           proactivePricingMessage = buildSmartBoostProactiveMessage(
             price,
             marketAnalysis.medianPrice!,
+            monState,
             enriched.title
           );
         } else {
@@ -545,20 +552,34 @@ export async function executeAgentTool(
     case "triggerMicroPayment": {
       const reason = String(args.reason ?? "").trim();
       const product = inferMicroPaymentProduct(reason);
-      const price =
-        Number(args.price) > 0
-          ? Number(args.price)
-          : defaultPriceForProduct(product);
       const monState =
         ctx.monetization ??
         resolveMonetizationState({ userRole: ctx.userRole });
+      const price =
+        Number(args.price) > 0
+          ? Number(args.price)
+          : defaultPriceForProduct(product, monState);
+
+      if (product === "region_stats" && requiresBusinessProForRegionStats(monState)) {
+        const upsellMessage = buildBusinessProUpsellMessage();
+        return {
+          result: {
+            ok: false,
+            upsell: "business_pro",
+            message: upsellMessage,
+          },
+          sideEffect: {
+            type: "zero_ui_screen",
+            screen: "business_dashboard",
+          },
+        };
+      }
 
       if (product === "region_stats" && monState.tier !== "business_pro") {
         return {
           result: {
             ok: false,
-            message:
-              "Gili regiono statistika prieinama tik Business Pro planui. Perjunkite planą verslo skydelyje.",
+            message: buildBusinessProUpsellMessage(),
           },
         };
       }
@@ -573,7 +594,7 @@ export async function executeAgentTool(
         };
       }
 
-      const voiceReply = buildMicroPaymentVoiceReply(product, price);
+      const voiceReply = buildMicroPaymentVoiceReply(product, price, monState);
       return {
         result: {
           ok: true,
@@ -800,6 +821,6 @@ export type AgentSideEffect =
       type: "micro_payment";
       reason: string;
       price: number;
-      product: "smart_boost" | "region_stats" | "generic";
+      product: "smart_boost" | "region_stats" | "b2b_lead" | "generic";
       voiceConfirmPhrase?: string;
     };

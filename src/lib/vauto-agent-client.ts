@@ -113,7 +113,7 @@ export type VautoAgentAction =
       type: "micro_payment";
       reason: string;
       price: number;
-      product: "smart_boost" | "region_stats" | "generic";
+      product: "smart_boost" | "region_stats" | "b2b_lead" | "generic";
       voiceConfirmPhrase?: string;
     };
 
