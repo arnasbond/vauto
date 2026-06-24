@@ -129,6 +129,7 @@ export interface SellerFlowContextValue {
     videoUrl?: string;
     voiceCapture?: boolean;
   }) => Promise<void>;
+  applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
@@ -460,6 +461,22 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     [runAiProcessing, requireAuthForListing]
   );
 
+  const applyAgentListingDraft = useCallback(
+    (draft: AiExtractedListing, imageUrl?: string) => {
+      if (!requireAuthForListing("/add")) return;
+      setAiManualFallback(false);
+      setAiDraft(draft);
+      setSellerInputMode("text");
+      setSellerUserPrompt(draft.description ?? draft.title);
+      if (imageUrl) setSellerPreviewImage(imageUrl);
+      const key = listingToAdaptiveKey(draft.category);
+      setChameleonTheme(adaptiveKeyToTheme(key));
+      setSellerStep("confirmation");
+      showToast("AI paruošė skelbimą — patvirtinkite arba pataisykite.", "success");
+    },
+    [requireAuthForListing, setChameleonTheme, showToast]
+  );
+
   const startListingFromQuery = useCallback(
     (text: string) => {
       const trimmed = text.trim();
@@ -740,6 +757,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       lastPublishedListing,
       finishPublishedFlow,
       submitSellerContent,
+      applyAgentListingDraft,
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
@@ -763,6 +781,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       lastPublishedListing,
       finishPublishedFlow,
       submitSellerContent,
+      applyAgentListingDraft,
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,

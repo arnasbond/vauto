@@ -7,6 +7,7 @@ import { seedIfEmpty } from "./seed-runtime.js";
 import { apiRouter } from "./routes/api.js";
 import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
+import { vautoAgentRouter } from "./routes/vauto-agent.js";
 import { billingRouter, handleStripeWebhook } from "./routes/billing.js";
 import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
@@ -32,6 +33,7 @@ app.use("/api/push", pushRouter);
 app.use("/api", apiRouter);
 app.use("/api/ai", aiRouter);
 app.use("/api/vauto-server", vautoServerRouter);
+app.use("/api/vauto-agent", vautoAgentRouter);
 app.use("/api/billing", billingRouter);
 
 app.listen(port, async () => {

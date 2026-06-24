@@ -106,6 +106,7 @@ import { useAuth, type LoginPayload } from "@/context/AuthContext";
 import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
+import { VautoAgentProvider } from "@/context/VautoAgentContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
 import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
@@ -209,6 +210,7 @@ interface VautoContextValue {
     /** Set when input came from microphone — preserves voice mode + TTS */
     voiceCapture?: boolean;
   }) => Promise<void>;
+  applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
   /** Voice/text on home search that expresses sell/post intent → listing flow */
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
@@ -509,7 +511,9 @@ function VautoFacade({
 
   return (
     <VautoContext.Provider value={value}>
-      {children}
+      <VautoAgentProvider>
+        {children}
+      </VautoAgentProvider>
       <SellerFlowOverlays />
       <ChameleonThemeHost />
       <ReviewPromptHost />

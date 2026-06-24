@@ -164,6 +164,16 @@ export async function apiUploadMedia(imageDataUrl: string): Promise<string | nul
   return null;
 }
 
+export async function apiVautoAgent(body: {
+  messages: { role: "user" | "assistant"; text: string }[];
+  context?: import("@/lib/vauto-agent-client").VautoAgentContext;
+}): Promise<import("@/lib/vauto-agent-client").VautoAgentResponse | null> {
+  return aiFetch("/api/vauto-agent", {
+    method: "POST",
+    body: JSON.stringify(body),
+  }, AI_VISION_FETCH_TIMEOUT_MS);
+}
+
 export async function apiAiHealthCheck(): Promise<{
   ok: boolean;
   openai: boolean;
