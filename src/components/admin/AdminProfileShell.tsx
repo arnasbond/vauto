@@ -4,9 +4,10 @@ import { Suspense, useState } from "react";
 import { AdminReportInbox } from "@/components/admin/AdminReportInbox";
 import { AdminListingModeration } from "@/components/admin/AdminListingModeration";
 import { AdminAccountPanel } from "@/components/admin/AdminAccountPanel";
+import { AdminGeminiContextPanel } from "@/components/admin/AdminGeminiContextPanel";
 import { useAuth } from "@/context/AuthContext";
 
-type AdminTab = "moderation" | "listings" | "account";
+type AdminTab = "moderation" | "listings" | "agent" | "account";
 
 export function AdminProfileShell() {
   const [tab, setTab] = useState<AdminTab>("moderation");
@@ -21,6 +22,7 @@ export function AdminProfileShell() {
             [
               { id: "moderation" as const, label: "Pranešimai" },
               { id: "listings" as const, label: "Skelbimai" },
+              { id: "agent" as const, label: "AI kontekstas" },
               { id: "account" as const, label: "Mano paskyra" },
             ] as const
           ).map((item) => (
@@ -52,6 +54,10 @@ export function AdminProfileShell() {
         </Suspense>
       ) : tab === "listings" ? (
         <AdminListingModeration />
+      ) : tab === "agent" ? (
+        <div className="pb-8">
+          <AdminGeminiContextPanel />
+        </div>
       ) : (
         <AdminAccountPanel onLogout={logout} />
       )}

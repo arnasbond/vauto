@@ -22,6 +22,7 @@ import {
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
+import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 
 interface VautoAgentContextValue {
@@ -59,6 +60,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     },
   ]);
   const [busy, setBusy] = useState(false);
+  const adminProjectContext = useAdminProjectContextForAgent();
   const [lastError, setLastError] = useState<
     { code: string; message?: string } | undefined
   >();
@@ -140,6 +142,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
           },
+          ...(adminProjectContext ? { adminProjectContext } : {}),
         });
 
         if (!res?.reply) {
@@ -177,6 +180,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       rankedListings,
       searchQuery,
+      adminProjectContext,
     ]
   );
 

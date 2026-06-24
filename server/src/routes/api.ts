@@ -6,6 +6,7 @@ import type { AuthedRequest } from "../middleware/auth.js";
 import {
   adminPatchListing,
   deleteListing,
+  getAdminAgentContext,
   getBannedUserIds,
   getChats,
   getEscrowForThread,
@@ -25,6 +26,7 @@ import {
   openServiceLeadWallet,
   promoteListingWallet,
   renewListing,
+  setAdminAgentContext,
   setBannedUserIds,
   setSavedIds,
   topUpWallet,
@@ -500,6 +502,34 @@ apiRouter.post("/users/:id/warn", requireAdmin, async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+apiRouter.get(
+  "/admin/agent-project-context",
+  requireAdmin,
+  async (req: AuthedRequest, res) => {
+    try {
+      const context = await getAdminAgentContext(req.authUserId!);
+      res.json({ context });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  }
+);
+
+apiRouter.put(
+  "/admin/agent-project-context",
+  requireAdmin,
+  async (req: AuthedRequest, res) => {
+    try {
+      const context =
+        typeof req.body?.context === "string" ? req.body.context : "";
+      const saved = await setAdminAgentContext(req.authUserId!, context);
+      res.json({ ok: true, context: saved });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  }
+);
 
 apiRouter.get("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {

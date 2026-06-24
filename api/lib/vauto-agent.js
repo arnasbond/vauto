@@ -88,6 +88,14 @@ const AGENT_FUNCTION_DECLARATIONS = [
 ];
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+const MAX_ADMIN_PROJECT_CONTEXT_CHARS = 80_000;
+
+function buildAgentSystemInstruction(baseInstruction, adminProjectContext) {
+  const trimmed = adminProjectContext?.trim();
+  if (!trimmed) return baseInstruction;
+  const capped = trimmed.slice(0, MAX_ADMIN_PROJECT_CONTEXT_CHARS);
+  return `${baseInstruction}\n\nTu privalai atsižvelgti į šią istorinę projekto vystymo medžiagą: ${capped}`;
+}
 
 function normCity(loc) {
   return String(loc).toLowerCase().trim().split(/[,\s]/)[0] ?? loc;
@@ -249,7 +257,7 @@ function executeAgentTool(name, args, ctx) {
   return { result: { error: `Unknown tool: ${name}` } };
 }
 
-async function geminiAgentTurn(contents, model) {
+async function geminiAgentTurn(contents, model, systemInstruction) {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
@@ -259,7 +267,7 @@ async function geminiAgentTurn(contents, model) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+        systemInstruction: { parts: [{ text: systemInstruction }] },
         contents,
         tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
         toolConfig: { functionCallingConfig: { mode: "AUTO" } },
@@ -278,7 +286,7 @@ async function geminiAgentTurn(contents, model) {
   return { parts, text };
 }
 
-async function openaiAgentFallback(messages, toolSummary) {
+async function openaiAgentFallback(messages, toolSummary, systemInstruction) {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new Error("No AI key");
   const history = messages
@@ -290,7 +298,7 @@ async function openaiAgentFallback(messages, toolSummary) {
     body: JSON.stringify({
       model: "gpt-4o-mini",
       messages: [
-        { role: "system", content: SYSTEM_INSTRUCTION },
+        { role: "system", content: systemInstruction },
         {
           role: "user",
           content: `${history}\n\n${toolSummary}\n\nAtsakyk lietuviškai.`,
@@ -304,6 +312,11 @@ async function openaiAgentFallback(messages, toolSummary) {
 }
 
 async function runVautoAgent(req) {
+  const systemInstruction = buildAgentSystemInstruction(
+    SYSTEM_INSTRUCTION,
+    req.adminProjectContext
+  );
+
   const ctx = {
     userCity: req.context?.userCity?.trim() || "Lietuva",
     userRole: req.context?.userRole ?? "buyer",
@@ -356,7 +369,7 @@ async function runVautoAgent(req) {
       let text = "";
       for (const model of GEMINI_MODELS) {
         try {
-          const turn = await geminiAgentTurn(contents, model);
+          const turn = await geminiAgentTurn(contents, model, systemInstruction);
           parts = turn.parts;
           text = turn.text;
           break;
@@ -388,7 +401,7 @@ async function runVautoAgent(req) {
 
   if (!finalText) {
     const toolSummary = toolCalls.map((t) => `${t.name}: ${JSON.stringify(t.result)}`).join("\n");
-    finalText = await openaiAgentFallback(req.messages ?? [], toolSummary);
+    finalText = await openaiAgentFallback(req.messages ?? [], toolSummary, systemInstruction);
   }
 
   return {

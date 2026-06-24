@@ -168,11 +168,31 @@ export async function apiUploadMedia(imageDataUrl: string): Promise<string | nul
 export async function apiVautoAgent(body: {
   messages: { role: "user" | "assistant"; text: string }[];
   context?: import("@/lib/vauto-agent-client").VautoAgentContext;
+  adminProjectContext?: string;
 }): Promise<import("@/lib/vauto-agent-client").VautoAgentResponse | null> {
   return aiFetch("/api/vauto-agent", {
     method: "POST",
+    headers: getAuthHeaders(),
     body: JSON.stringify(body),
   }, AI_VISION_FETCH_TIMEOUT_MS);
+}
+
+export async function apiFetchAdminProjectContext(): Promise<
+  ApiResult<{ context: string }>
+> {
+  return dataFetch<{ context: string }>("/api/admin/agent-project-context");
+}
+
+export async function apiSaveAdminProjectContext(
+  context: string
+): Promise<ApiResult<{ ok: true; context: string }>> {
+  return dataFetch<{ ok: true; context: string }>(
+    "/api/admin/agent-project-context",
+    {
+      method: "PUT",
+      body: JSON.stringify({ context }),
+    }
+  );
 }
 
 export async function apiAiHealthCheck(): Promise<{

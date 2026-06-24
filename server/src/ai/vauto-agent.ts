@@ -4,6 +4,7 @@ import {
   type AgentSideEffect,
   type AgentToolContext,
 } from "./agent-tools.js";
+import { buildAgentSystemInstruction } from "./agent-system-instruction.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -40,6 +41,8 @@ export interface VautoAgentRequest {
     searchResultCount?: number;
     lastSearchQuery?: string;
   };
+  /** Server-verified admin only — injected into Gemini systemInstruction */
+  adminProjectContext?: string;
 }
 
 export interface VautoAgentResponse {
@@ -85,7 +88,8 @@ interface GeminiContent {
 
 async function geminiAgentTurn(
   contents: GeminiContent[],
-  model: string
+  model: string,
+  systemInstruction: string
 ): Promise<{ parts: GeminiPart[]; text: string }> {
   const key = process.env.GEMINI_API_KEY?.trim();
   if (!key) throw new Error("GEMINI_API_KEY not set");
@@ -96,7 +100,7 @@ async function geminiAgentTurn(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        systemInstruction: { parts: [{ text: SYSTEM_INSTRUCTION }] },
+        systemInstruction: { parts: [{ text: systemInstruction }] },
         contents,
         tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
         toolConfig: { functionCallingConfig: { mode: "AUTO" } },
@@ -124,7 +128,8 @@ async function geminiAgentTurn(
 
 async function openaiAgentFallback(
   messages: AgentMessage[],
-  toolResults: string
+  toolResults: string,
+  systemInstruction: string
 ): Promise<string> {
   const key = process.env.OPENAI_API_KEY?.trim();
   if (!key) throw new Error("No AI key for agent");
@@ -143,7 +148,7 @@ async function openaiAgentFallback(
       model: "gpt-4o-mini",
       temperature: 0.35,
       messages: [
-        { role: "system", content: SYSTEM_INSTRUCTION },
+        { role: "system", content: systemInstruction },
         {
           role: "user",
           content: `${history}\n\n${toolResults ? `Įrankių rezultatai:\n${toolResults}` : ""}\n\nAtsakyk vartotojui lietuviškai.`,
@@ -160,6 +165,11 @@ async function openaiAgentFallback(
 }
 
 export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentResponse> {
+  const systemInstruction = buildAgentSystemInstruction(
+    SYSTEM_INSTRUCTION,
+    req.adminProjectContext
+  );
+
   const ctx: AgentToolContext = {
     userCity: req.context.userCity?.trim() || "Lietuva",
     userRole: req.context.userRole ?? "buyer",
@@ -215,7 +225,7 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
 
       for (const model of GEMINI_MODELS) {
         try {
-          const turn = await geminiAgentTurn(contents, model);
+          const turn = await geminiAgentTurn(contents, model, systemInstruction);
           parts = turn.parts;
           text = turn.text;
           break;
@@ -257,7 +267,7 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
     const toolSummary = toolCalls
       .map((t) => `${t.name}: ${JSON.stringify(t.result).slice(0, 400)}`)
       .join("\n");
-    finalText = await openaiAgentFallback(req.messages, toolSummary);
+    finalText = await openaiAgentFallback(req.messages, toolSummary, systemInstruction);
   }
 
   return {

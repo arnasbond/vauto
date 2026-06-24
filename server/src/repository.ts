@@ -1506,3 +1506,27 @@ export async function openServiceLeadWallet(
     client.release();
   }
 }
+
+export async function getAdminAgentContext(adminUserId: string): Promise<string> {
+  const rows = await query<{ context_text: string }>(
+    `SELECT context_text FROM admin_agent_context WHERE admin_user_id = $1`,
+    [adminUserId]
+  );
+  return rows[0]?.context_text ?? "";
+}
+
+export async function setAdminAgentContext(
+  adminUserId: string,
+  contextText: string
+): Promise<string> {
+  const trimmed = contextText.slice(0, 80_000);
+  await query(
+    `INSERT INTO admin_agent_context (admin_user_id, context_text, updated_at)
+     VALUES ($1, $2, NOW())
+     ON CONFLICT (admin_user_id) DO UPDATE SET
+       context_text = EXCLUDED.context_text,
+       updated_at = NOW()`,
+    [adminUserId, trimmed]
+  );
+  return trimmed;
+}

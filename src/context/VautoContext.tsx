@@ -107,6 +107,7 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
+import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
 import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
@@ -511,9 +512,11 @@ function VautoFacade({
 
   return (
     <VautoContext.Provider value={value}>
-      <VautoAgentProvider>
-        {children}
-      </VautoAgentProvider>
+      <AdminProjectContextProvider>
+        <VautoAgentProvider>
+          {children}
+        </VautoAgentProvider>
+      </AdminProjectContextProvider>
       <SellerFlowOverlays />
       <ChameleonThemeHost />
       <ReviewPromptHost />
