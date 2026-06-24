@@ -21,6 +21,18 @@
       "destination": "https://vauto-api.onrender.com/api/vauto-agent"
     },
     {
+      "source": "/api/vauto-server",
+      "destination": "https://vauto-api.onrender.com/api/vauto-server"
+    },
+    {
+      "source": "/api/vauto-server/",
+      "destination": "https://vauto-api.onrender.com/api/vauto-server"
+    },
+    {
+      "source": "/api/ai/:path*",
+      "destination": "https://vauto-api.onrender.com/api/ai/:path*"
+    },
+    {
       "source": "/listing/:slug",
       "destination": "/listing/index.html?slug=:slug"
     },

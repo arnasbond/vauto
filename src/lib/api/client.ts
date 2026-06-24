@@ -47,12 +47,11 @@ async function dataFetch<T>(
 
 function getAiBaseUrls(): string[] {
   const urls: string[] = [];
-  const dataApi = getDataApiBaseUrl();
-  if (dataApi) urls.push(dataApi);
   if (typeof window !== "undefined") {
-    const origin = window.location.origin;
-    if (!urls.includes(origin)) urls.push(origin);
+    urls.push(window.location.origin);
   }
+  const dataApi = getDataApiBaseUrl();
+  if (dataApi && !urls.includes(dataApi)) urls.push(dataApi);
   const legacy = getAiBaseUrl();
   if (legacy && !urls.includes(legacy)) urls.push(legacy);
   return urls;

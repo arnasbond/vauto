@@ -245,7 +245,10 @@ async function uploadImageToCloudinary(imageDataUrl, folder = "vauto") {
 
 function hasAiKey() {
   return Boolean(
-    process.env.GEMINI_API_KEY?.trim() || process.env.OPENAI_API_KEY?.trim()
+    process.env.GEMINI_API_KEY?.trim() ||
+      process.env.AI_KEY?.trim() ||
+      process.env.GOOGLE_AI_API_KEY?.trim() ||
+      process.env.OPENAI_API_KEY?.trim()
   );
 }
 

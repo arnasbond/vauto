@@ -1,10 +1,12 @@
 /** OpenAI + Gemini fallback for vision, chat JSON, and embeddings. */
 
+import { resolveGeminiApiKey, resolveOpenAiApiKey } from "../load-env.js";
+
 export type AiProvider = "openai" | "gemini" | null;
 
 export function resolveAiProvider(): AiProvider {
-  if (process.env.GEMINI_API_KEY?.trim()) return "gemini";
-  if (process.env.OPENAI_API_KEY?.trim()) return "openai";
+  if (resolveGeminiApiKey()) return "gemini";
+  if (resolveOpenAiApiKey()) return "openai";
   return null;
 }
 
@@ -45,7 +47,8 @@ async function openaiChatJson(
   messages: object[],
   model = "gpt-4o-mini"
 ): Promise<Record<string, unknown>> {
-  const key = process.env.OPENAI_API_KEY!.trim();
+  const key = resolveOpenAiApiKey();
+  if (!key) throw new Error("OPENAI_API_KEY not configured");
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
     headers: {
@@ -73,7 +76,8 @@ async function geminiChatJson(
   imageDataUrls: string[] = [],
   model = "gemini-2.0-flash"
 ): Promise<Record<string, unknown>> {
-  const key = process.env.GEMINI_API_KEY!.trim();
+  const key = resolveGeminiApiKey();
+  if (!key) throw new Error("GEMINI_API_KEY not configured");
   const parts: object[] = [{ text: prompt }];
   for (const url of imageDataUrls) {
     const inline = await imageUrlToInlinePart(url);
@@ -110,7 +114,7 @@ export async function unifiedLlmJson(
   prompt: string,
   imageDataUrls: string[] = []
 ): Promise<Record<string, unknown>> {
-  const geminiKey = process.env.GEMINI_API_KEY?.trim();
+  const geminiKey = resolveGeminiApiKey();
   if (geminiKey) {
     for (const model of UNIFIED_GEMINI_MODELS) {
       try {
@@ -121,7 +125,7 @@ export async function unifiedLlmJson(
     }
   }
 
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
+  const openaiKey = resolveOpenAiApiKey();
   if (openaiKey) {
     if (imageDataUrls.length) {
       return openaiChatJson([
@@ -140,7 +144,11 @@ export async function unifiedLlmJson(
     return openaiChatJson([{ role: "user", content: prompt }]);
   }
 
-  throw new Error("No AI API key (GEMINI_API_KEY or OPENAI_API_KEY)");
+  throw new Error(
+    geminiKey
+      ? "Gemini API nepavyko — patikrinkite GEMINI_API_KEY arba nustatykite OPENAI_API_KEY atsarginiam režimui"
+      : "No AI API key (GEMINI_API_KEY or OPENAI_API_KEY)"
+  );
 }
 
 export async function chatJson(
@@ -195,7 +203,8 @@ async function geminiGeneratePlainText(
   prompt: string,
   imageDataUrls: string[] = []
 ): Promise<string> {
-  const key = process.env.GEMINI_API_KEY!.trim();
+  const key = resolveGeminiApiKey();
+  if (!key) throw new Error("GEMINI_API_KEY not configured");
   const parts: object[] = [{ text: prompt }];
   for (const url of imageDataUrls) {
     const inline = await imageUrlToInlinePart(url);
@@ -231,7 +240,8 @@ export async function visionDescribe(
 
   try {
     if (provider === "openai") {
-      const key = process.env.OPENAI_API_KEY!.trim();
+      const key = resolveOpenAiApiKey();
+  if (!key) throw new Error("OPENAI_API_KEY not configured");
       const res = await fetch("https://api.openai.com/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -274,7 +284,8 @@ export async function embedText(text: string): Promise<number[] | null> {
 
   const provider = resolveAiProvider();
   if (provider === "openai") {
-    const key = process.env.OPENAI_API_KEY!.trim();
+    const key = resolveOpenAiApiKey();
+  if (!key) throw new Error("OPENAI_API_KEY not configured");
     const res = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
@@ -295,7 +306,8 @@ export async function embedText(text: string): Promise<number[] | null> {
   }
 
   if (provider === "gemini") {
-    const key = process.env.GEMINI_API_KEY!.trim();
+    const key = resolveGeminiApiKey();
+  if (!key) throw new Error("GEMINI_API_KEY not configured");
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${key}`,
       {

@@ -222,11 +222,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const reportAgentError = useCallback((code: string, message?: string) => {
     setLastError({ code, message });
-    if (open) {
-      void sendAgentMessage(
-        `Sistema praneša apie klaidą: ${code}. ${message ?? ""}`
-      );
-    }
+    if (!open) return;
+    void sendAgentMessage(
+      `Sistema praneša apie klaidą: ${code}. ${message ?? ""}`
+    ).catch(() => {
+      /* avoid duplicate error toast when agent itself is unavailable */
+    });
   }, [open, sendAgentMessage]);
 
   useEffect(() => {
