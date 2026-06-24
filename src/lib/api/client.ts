@@ -258,7 +258,7 @@ export async function apiAiHealthCheck(): Promise<{
   mode: string;
 } | null> {
   for (const base of getAiBaseUrls()) {
-    const health = await aiFetchOnce<{
+    const { data: health } = await aiFetchOnce<{
       ok: boolean;
       openai: boolean;
       provider?: string | null;

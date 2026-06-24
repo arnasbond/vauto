@@ -117,7 +117,7 @@ export function useListingWizard({
       },
     })
       .then((res) => {
-        if (res?.reply?.trim()) setAgentEnhancement(res.reply.trim());
+        if (res.ok && res.reply?.trim()) setAgentEnhancement(res.reply.trim());
       })
       .catch(() => {
         /* lokali analizė pakanka */
