@@ -145,7 +145,8 @@ export function ProBusinessDashboard({
           <VautoWallet
             balance={user.walletBalance ?? 0}
             onTopUp={onTopUp}
-            demoTopUp={apiActive}
+            demoTopUp={apiActive && !stripeEnabled}
+            topUpDisabled={apiActive && stripeEnabled}
           />
           {showCalendar && (
             <>

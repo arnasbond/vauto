@@ -6,9 +6,26 @@ import { sendSmsOtp } from "../auth/sms.js";
 import { verifyGoogleIdToken } from "../auth/google-verify.js";
 import { getUser, upsertUser } from "../repository.js";
 import type { ApiUser } from "../types.js";
+import { exposeOtpDevHint } from "../demo-guards.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 
 export const authRouter = Router();
+
+const OTP_SEND_WINDOW_MS = 60_000;
+const OTP_SEND_MAX_PER_WINDOW = 5;
+const otpSendBuckets = new Map<string, { count: number; resetAt: number }>();
+
+function otpSendRateLimited(phone: string): boolean {
+  const key = phone.replace(/\D/g, "");
+  const now = Date.now();
+  const bucket = otpSendBuckets.get(key);
+  if (!bucket || bucket.resetAt <= now) {
+    otpSendBuckets.set(key, { count: 1, resetAt: now + OTP_SEND_WINDOW_MS });
+    return false;
+  }
+  bucket.count += 1;
+  return bucket.count > OTP_SEND_MAX_PER_WINDOW;
+}
 
 function stableUserId(seed: string): string {
   let hash = 0;
@@ -124,6 +141,10 @@ authRouter.post("/otp/send", (req, res) => {
     res.status(400).json({ error: "Invalid phone number" });
     return;
   }
+  if (otpSendRateLimited(phone)) {
+    res.status(429).json({ error: "Per daug OTP užklausų. Bandykite vėliau." });
+    return;
+  }
   const { code, expiresAt } = issueOtp(phone);
   void sendSmsOtp(phone, code);
   if (usesDemoOtp()) {
@@ -132,7 +153,7 @@ authRouter.post("/otp/send", (req, res) => {
   res.json({
     ok: true,
     expiresAt: new Date(expiresAt).toISOString(),
-    ...(usesDemoOtp()
+    ...(usesDemoOtp() && exposeOtpDevHint()
       ? { devHint: `Demo OTP: ${process.env.VAUTO_DEMO_OTP ?? "123456"}` }
       : {}),
   });

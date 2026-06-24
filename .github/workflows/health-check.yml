@@ -16,3 +16,7 @@ jobs:
 
       - name: Live API listing smoke (OTP + all categories)
         run: node scripts/api-listing-smoke.mjs
+
+      - name: Security audit (post-deploy checks)
+        run: node scripts/audit-security.mjs
+        continue-on-error: true

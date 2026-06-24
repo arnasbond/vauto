@@ -8,9 +8,16 @@ interface VautoWalletProps {
   onTopUp: (amount: number) => void;
   /** When true, top-up credits balance without card charge (staging/demo). */
   demoTopUp?: boolean;
+  /** Hide top-up when live Stripe billing is active but wallet checkout is not wired. */
+  topUpDisabled?: boolean;
 }
 
-export function VautoWallet({ balance, onTopUp, demoTopUp }: VautoWalletProps) {
+export function VautoWallet({
+  balance,
+  onTopUp,
+  demoTopUp,
+  topUpDisabled,
+}: VautoWalletProps) {
   const [topping, setTopping] = useState(false);
 
   const handleTopUp = () => {
@@ -38,7 +45,7 @@ export function VautoWallet({ balance, onTopUp, demoTopUp }: VautoWalletProps) {
         <button
           type="button"
           onClick={handleTopUp}
-          disabled={topping}
+          disabled={topping || topUpDisabled}
           className="flex items-center gap-1.5 rounded-xl bg-[var(--vauto-teal)] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-60"
         >
           {topping ? (
@@ -50,9 +57,11 @@ export function VautoWallet({ balance, onTopUp, demoTopUp }: VautoWalletProps) {
         </button>
       </div>
       <p className="mt-3 text-[10px] text-slate-500">
-        {demoTopUp
-          ? "Demo papildymas — kreditas be kortelės (staging). Tikram mokėjimui bus Stripe."
-          : "Naudokite PPC paspaudimams, skambučiams ir išmaniesiems reklamavimams."}
+        {topUpDisabled
+          ? "PPC balansas — papildymas per Stripe bus prieinamas netrukus."
+          : demoTopUp
+            ? "Demo papildymas — kreditas be kortelės (staging). Tikram mokėjimui bus Stripe."
+            : "Naudokite PPC paspaudimams, skambučiams ir išmaniesiems reklamavimams."}
       </p>
     </div>
   );

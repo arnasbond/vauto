@@ -1,5 +1,6 @@
 import { Router } from "express";
 import { hasAiKey } from "../ai/llm-provider.js";
+import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
@@ -651,6 +652,13 @@ apiRouter.post("/reviews", requireAuth, async (req: AuthedRequest, res) => {
 
 apiRouter.post("/wallet/top-up", requireAuth, async (req: AuthedRequest, res) => {
   try {
+    if (!demoWalletTopUpAllowed()) {
+      res.status(503).json({
+        error:
+          "Demo piniginės papildymas išjungtas gamyboje. Naudokite Stripe kainodarą.",
+      });
+      return;
+    }
     const amount = validateAmount(req.body, "amount", 1, 500);
     if (badRequest(res, amount)) return;
     const result = await topUpWallet(req.authUserId!, amount.value);
