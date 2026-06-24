@@ -15,6 +15,7 @@ const {
 } = require("./agent-memory-context");
 const { resolveAgentDefaultCity } = require("./zero-ui-defaults");
 const { runMarketPriceAnalysis } = require("./market-price-analysis");
+const { scheduleDeferredListingMarketAnalysis } = require("./background-market-analysis");
 const {
   buildProactivePricingMessage,
   buildProactiveSearchResetMessage,
@@ -350,30 +351,23 @@ function executeAgentTool(name, args, ctx) {
     let proactivePricingMessage = null;
     const monState =
       ctx.monetization ?? resolveMonetizationState({ userRole: ctx.userRole });
-    if (price > 0) {
-      marketAnalysis = runMarketPriceAnalysis(listings, {
+    const marketAnalysisDeferred = price > 0;
+
+    if (marketAnalysisDeferred) {
+      void scheduleDeferredListingMarketAnalysis({
+        listings,
         title: enriched.title,
         category: enriched.category,
         city: normalizedCity,
         make: String(attributes.make ?? ""),
         model: String(attributes.model ?? ""),
         year: String(attributes.year ?? ""),
+        price,
+        userRole: ctx.userRole,
+        monetization: monState,
       });
-      if (shouldOfferSmartBoost(monState, price, marketAnalysis.medianPrice)) {
-        proactivePricingMessage = buildSmartBoostProactiveMessage(
-          price,
-          marketAnalysis.medianPrice,
-          monState,
-          enriched.title
-        );
-      } else {
-        proactivePricingMessage = buildProactivePricingMessage(
-          price,
-          marketAnalysis,
-          enriched.title
-        );
-      }
     }
+
     return {
       result: {
         ok: true,
@@ -382,6 +376,7 @@ function executeAgentTool(name, args, ctx) {
         voiceFollowUp,
         marketAnalysis,
         proactivePricingMessage,
+        marketAnalysisDeferred,
       },
       sideEffect: { type: "listing_draft", listingDraft: draft, imageUrl: imageUrls[0] },
     };
@@ -735,7 +730,9 @@ async function runVautoAgentInner(req) {
   if (!finalText) {
     const listingCall = [...toolCalls].reverse().find((t) => t.name === "postNewListing");
     const listingResult = listingCall?.result;
-    if (listingResult?.proactivePricingMessage) {
+    if (listingResult?.marketAnalysisDeferred && listingResult?.voiceFollowUp) {
+      finalText = listingResult.voiceFollowUp;
+    } else if (listingResult?.proactivePricingMessage) {
       finalText = listingResult.proactivePricingMessage;
     } else if (listingResult?.voiceFollowUp) {
       finalText = listingResult.voiceFollowUp;

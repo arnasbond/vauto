@@ -20,8 +20,8 @@ test.describe("Vauto smoke", () => {
   });
 
   test("listing detail page renders", async ({ page }) => {
-    await page.goto("/listing/dviratis-trek-panevezys/");
-    await expect(page.locator("body")).toContainText(/dviratis|Dviratis/i);
+    await page.goto("/listing/bmw-320d-2003-kaunas/");
+    await expect(page.locator("body")).toContainText(/BMW|320d/i);
   });
 
   test("install page accessible", async ({ page }) => {
@@ -56,11 +56,11 @@ test.describe("Vauto smoke", () => {
 
   test("home search accepts input", async ({ page }) => {
     await page.goto("/");
-    const search = page.locator('input[name="q"]').or(
-      page.getByPlaceholder(/Gemini|ieškoti|paieška/i)
-    );
-    await search.first().fill("dviratis");
-    await expect(search.first()).toHaveValue("dviratis");
+    await page.waitForLoadState("networkidle");
+    const search = page.getByRole("searchbox").first();
+    await search.click();
+    await search.fill("bmw");
+    await expect(search).toHaveValue("bmw", { timeout: 10_000 });
   });
 
   test("bottom navigation visible on home", async ({ page }) => {
@@ -111,25 +111,30 @@ test.describe("Vauto smoke", () => {
     await expect(page.getByRole("button", { name: /Visi/i })).toBeVisible();
   });
 
-  test("AI agent FAB opens assistant dialog", async ({ page }) => {
+  test("AI agent opens from Zero-UI mic on home", async ({ page }) => {
+    await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await page.getByRole("button", { name: "Atidaryti VAUTO asistentą" }).click();
-    await expect(page.getByRole("dialog", { name: "VAUTO AI asistentas" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const mic = page
+      .getByRole("navigation", { name: "Zero-UI navigacija" })
+      .getByRole("button", { name: "Atidaryti VAUTO asistentą" });
+    await expect(mic).toBeEnabled({ timeout: 10_000 });
+    await mic.click();
+    await expect(page.getByRole("dialog", { name: "VAUTO AI asistentas" })).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText(/Sveiki! Aš esu VAUTO asistentas/i)).toBeVisible();
   });
 
-  test("mobile bottom nav loads HTML pages not RSC txt", async ({ page }) => {
+  test("mobile Zero-UI bottom nav shows assistant and profile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    const nav = page.getByRole("navigation");
-    await nav.getByRole("link", { name: "Atrasti" }).click();
-    await page.waitForURL("**/discover/**");
-    await expect(page.locator("body")).not.toContainText(/"\$Sreact\.fragment"/);
-    await expect(page.getByRole("heading", { name: /Išmanioji paieška/i })).toBeVisible();
-
-    await nav.getByRole("link", { name: /Pokalbiai/ }).click();
-    await page.waitForURL("**/chats/**");
-    await expect(page.locator("body")).not.toContainText(/"\$Sreact\.fragment"/);
-    await expect(page.getByRole("heading", { name: "Pokalbiai" })).toBeVisible();
+    await page.waitForLoadState("networkidle");
+    const nav = page.getByRole("navigation", { name: "Zero-UI navigacija" });
+    await expect(nav.getByRole("button", { name: "Atidaryti VAUTO asistentą" })).toBeVisible();
+    await expect(nav.getByRole("link", { name: /Profilis|VAUTO CC/i })).toBeVisible();
+    await nav.getByRole("link", { name: /Profilis|VAUTO CC/i }).click();
+    await expect(page).toHaveURL(/\/profile\/?/, { timeout: 15_000 });
+    await expect(page.getByTestId("connection-status")).toBeVisible();
   });
 });

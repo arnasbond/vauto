@@ -33,8 +33,10 @@ export function listingHasVerifiedProvider(listing: Listing): boolean {
 
 /** Mock verified service providers (demo sellers) */
 export const VERIFIED_SERVICE_SELLERS = new Set([
-  "seller-handyman",
-  "seller-3",
+  "seller-svc-1",
+  "seller-svc-2",
+  "seller-svc-3",
+  "seller-svc-4",
 ]);
 
 export function isVerifiedServiceSeller(sellerId: string): boolean {

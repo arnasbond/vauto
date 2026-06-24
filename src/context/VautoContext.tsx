@@ -379,9 +379,9 @@ type VautoCatalogSlice = Omit<
 >;
 
 const DEMO_SOLD_STORIES = [
-  { id: "story-1", title: "Dviratis", location: "Panevėžys", timeAgo: "prieš 2 d." },
-  { id: "story-2", title: "iPhone 13", location: "Vilnius", timeAgo: "prieš 3 d." },
-  { id: "story-3", title: "Žolės pjovimas", location: "Panevėžys", timeAgo: "šiandien" },
+  { id: "story-1", title: "BMW 320d", location: "Kaunas", timeAgo: "prieš 2 d." },
+  { id: "story-2", title: "iPhone 15 Pro", location: "Vilnius", timeAgo: "prieš 3 d." },
+  { id: "story-3", title: "VW Golf", location: "Klaipėda", timeAgo: "šiandien" },
 ];
 
 function formatTimeAgo(iso: string): string {
