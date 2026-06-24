@@ -43,7 +43,7 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Paslaugų lead’ai
           </p>
-          <h2 className="text-base font-bold text-white">
+          <h2 className="text-base font-bold text-slate-900">
             Užsakymai tavo rajone
           </h2>
           <p className="mt-1 text-xs text-slate-500">
@@ -79,12 +79,12 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
           return (
             <article
               key={lead.id}
-              className="rounded-2xl border border-white/10 bg-white/5 p-3"
+              className="rounded-2xl border border-slate-200 bg-slate-50 p-3"
             >
               <div className="flex items-start justify-between gap-2">
                 <div>
                   <div className="flex items-center gap-2">
-                    <p className="text-sm font-semibold text-white">{lead.title}</p>
+                    <p className="text-sm font-semibold text-slate-900">{lead.title}</p>
                     {lead.source === "buyer" && (
                       <span className="rounded-full bg-[var(--vauto-teal)]/20 px-2 py-0.5 text-[9px] font-bold uppercase text-[var(--vauto-teal)]">
                         Live
@@ -127,7 +127,7 @@ export function ServiceLeadInbox({ balance, user, rating }: ServiceLeadInboxProp
           );
         })}
         {leads.length === 0 && (
-          <p className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-400">
+          <p className="rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-400">
             Šiuo metu nėra lead’ų, atitinkančių jūsų miestą ir specializacijas.
           </p>
         )}

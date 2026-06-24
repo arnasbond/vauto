@@ -14,8 +14,8 @@ export function AdminProfileShell() {
 
   return (
     <div className="vauto-dashboard min-h-dvh pb-24">
-      <div className="sticky top-0 z-10 border-b border-white/10 bg-[#0b1220]/95 px-4 py-3 backdrop-blur">
-        <h1 className="text-lg font-bold text-white">Administratorius</h1>
+      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
+        <h1 className="text-lg font-bold text-slate-900">Administratorius</h1>
         <div className="mt-3 flex gap-2">
           {(
             [
@@ -31,7 +31,7 @@ export function AdminProfileShell() {
               className={`rounded-full px-4 py-1.5 text-xs font-semibold ${
                 tab === item.id
                   ? "bg-[var(--vauto-teal)] text-white"
-                  : "bg-white/10 text-slate-300"
+                  : "bg-slate-100 text-slate-600"
               }`}
             >
               {item.label}
@@ -43,7 +43,7 @@ export function AdminProfileShell() {
       {tab === "moderation" ? (
         <Suspense
           fallback={
-            <div className="flex min-h-[40vh] items-center justify-center text-slate-400">
+            <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
               Kraunama moderacija…
             </div>
           }

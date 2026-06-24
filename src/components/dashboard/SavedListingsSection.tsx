@@ -38,7 +38,7 @@ export function SavedListingsSection() {
               />
             </Link>
             <Link href={listingPath(listing)} className="min-w-0 flex-1">
-              <p className="truncate text-sm font-medium text-white">
+              <p className="truncate text-sm font-medium text-slate-900">
                 {listing.title}
               </p>
               <p className="text-xs text-[var(--flux-teal)]">

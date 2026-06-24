@@ -39,7 +39,7 @@ function roleStyles(role: ReportMessage["role"]) {
     case "ai":
       return "bg-violet-500/10 border-violet-500/25";
     default:
-      return "bg-white/5 border-white/10 mr-6";
+      return "bg-slate-50 border-slate-200 mr-6";
   }
 }
 
@@ -162,7 +162,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
             <Shield className="h-6 w-6 text-red-400" />
           </div>
           <div className="flex-1">
-            <h1 className="text-lg font-bold text-white">Administratoriaus kabinetas</h1>
+            <h1 className="text-lg font-bold text-slate-900">Administratoriaus kabinetas</h1>
             <p className="flex items-center gap-2 text-xs text-slate-400">
               <span
                 className={cn(
@@ -185,7 +185,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
           <button
             type="button"
             onClick={() => void refreshReports()}
-            className="rounded-lg bg-white/10 px-3 py-1.5 text-xs text-white"
+            className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-900"
           >
             Atnaujinti dabar
           </button>
@@ -205,10 +205,10 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                 type="button"
                 onClick={() => setFilter(filter === u ? "all" : u)}
                 className={`rounded-xl p-2.5 text-center transition ${
-                  filter === u ? URGENCY_META[u].className : "bg-white/5"
+                  filter === u ? URGENCY_META[u].className : "bg-slate-50"
                 }`}
               >
-                <p className="text-lg font-bold text-white">{counts[u]}</p>
+                <p className="text-lg font-bold text-slate-900">{counts[u]}</p>
                 <p className="text-[9px] uppercase tracking-wide text-slate-400">
                   {URGENCY_META[u].label}
                 </p>
@@ -265,7 +265,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
             <div className="vauto-dashboard-card rounded-2xl p-4">
               <div className="mb-2 flex flex-wrap items-center gap-2">
                 <Bot className="h-4 w-4 text-violet-400" />
-                <h3 className="text-sm font-semibold text-white">AI pagalba administratoriui</h3>
+                <h3 className="text-sm font-semibold text-slate-900">AI pagalba administratoriui</h3>
                 {ai.aiPowered && (
                   <span className="rounded-full bg-violet-500/20 px-2 py-0.5 text-[10px] font-medium text-violet-200">
                     GPT-4o-mini
@@ -275,7 +275,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                   type="button"
                   onClick={() => void handleReanalyze()}
                   disabled={reanalyzing}
-                  className="ml-auto flex items-center gap-1 rounded-lg bg-white/10 px-2 py-1 text-[10px] text-slate-300"
+                  className="ml-auto flex items-center gap-1 rounded-lg bg-slate-100 px-2 py-1 text-[10px] text-slate-600"
                 >
                   <RefreshCw className={`h-3 w-3 ${reanalyzing ? "animate-spin" : ""}`} />
                   Peranalizuoti
@@ -302,14 +302,14 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
           )}
 
           <div className="vauto-dashboard-card rounded-2xl p-4">
-            <h3 className="mb-3 text-sm font-semibold text-white">Pokalbio gija</h3>
+            <h3 className="mb-3 text-sm font-semibold text-slate-900">Pokalbio gija</h3>
             <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
               {(selected.messages ?? []).map((msg) => (
                 <div
                   key={msg.id}
                   className={cn("rounded-xl border p-2.5 text-xs", roleStyles(msg.role))}
                 >
-                  <p className="mb-1 font-semibold text-slate-300">
+                  <p className="mb-1 font-semibold text-slate-600">
                     {msg.senderName}
                     {msg.auto && (
                       <span className="ml-1 text-[10px] text-slate-500">(automatinis)</span>
@@ -330,7 +330,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                   onChange={(e) => setReplyText(e.target.value)}
                   rows={3}
                   placeholder="Atsakymas vartotojui toje pačioje gijoje…"
-                  className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-slate-600"
+                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button
@@ -441,7 +441,7 @@ function ReportListSummary({ report }: { report: SupportReport }) {
           <span className="text-[10px] font-bold text-red-400">NAUJAS</span>
         )}
       </div>
-      <p className="mt-1 text-sm font-semibold text-white">{catLabel}</p>
+      <p className="mt-1 text-sm font-semibold text-slate-900">{catLabel}</p>
       <p className="text-xs text-slate-400">{report.reporterName}</p>
       <p className="mt-1 line-clamp-2 text-xs text-slate-500">{report.comment}</p>
     </>
@@ -459,7 +459,7 @@ function ReportDetailHeader({ report }: { report: SupportReport }) {
       >
         {meta.label}
       </span>
-      <h2 className="mt-2 text-lg font-bold text-white">{catLabel}</h2>
+      <h2 className="mt-2 text-lg font-bold text-slate-900">{catLabel}</h2>
       <p className="text-xs text-slate-500">
         {new Date(report.createdAt).toLocaleString("lt-LT")}
       </p>
@@ -472,9 +472,9 @@ function ContactCard({ report }: { report: SupportReport }) {
     <div className="vauto-dashboard-card rounded-2xl p-4">
       <div className="mb-2 flex items-center gap-2">
         <User className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-white">Vartotojas ir kontaktai</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Vartotojas ir kontaktai</h3>
       </div>
-      <p className="text-sm font-medium text-white">{report.reporterName}</p>
+      <p className="text-sm font-medium text-slate-900">{report.reporterName}</p>
       <p className="text-[11px] text-slate-500">ID: {report.reporterId}</p>
       <div className="mt-3 space-y-1.5 text-xs">
         {report.reporterPhone && (

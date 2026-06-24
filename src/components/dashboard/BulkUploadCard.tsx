@@ -22,14 +22,14 @@ export function BulkUploadCard() {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Bulk Upload / API XML
           </p>
-          <h2 className="mt-1 text-base font-bold text-white">
+          <h2 className="mt-1 text-base font-bold text-slate-900">
             Įkelkite 100+ skelbimų vienu veiksmu
           </h2>
           <p className="mt-1 text-xs leading-relaxed text-slate-400">
             Demo importas imituoja XML/CSV feed iš auto aikštelės, sandėlio ar
             e-shop sistemos. Realus API ingestion gali naudoti tą patį kontraktą.
           </p>
-          <pre className="mt-3 max-h-24 overflow-auto rounded-xl bg-black/30 p-3 text-[10px] text-slate-300">
+          <pre className="mt-3 max-h-24 overflow-auto rounded-xl bg-black/30 p-3 text-[10px] text-slate-600">
             {SAMPLE_XML}
           </pre>
           <button

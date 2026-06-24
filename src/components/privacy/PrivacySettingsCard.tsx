@@ -10,14 +10,14 @@ export function PrivacySettingsCard() {
     <div className="vauto-dashboard-card rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Shield className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-white">Privatumas (BDAR)</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Privatumas (BDAR)</h3>
       </div>
       <p className="text-xs text-slate-400">
         Balsas ir vaizdas naudojami tik skelbimo AI analizei. Sutikimą galite
         bet kada atšaukti.
       </p>
-      <div className="mt-4 flex items-center justify-between rounded-xl bg-black/20 px-3 py-2.5">
-        <span className="text-xs text-slate-300">Medijos analizės sutikimas</span>
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-white px-3 py-2.5">
+        <span className="text-xs text-slate-600">Medijos analizės sutikimas</span>
         <button
           type="button"
           onClick={() => {
@@ -25,7 +25,7 @@ export function PrivacySettingsCard() {
             else requestMediaConsent(() => undefined);
           }}
           className={`relative h-7 w-12 rounded-full transition ${
-            gdprConsent ? "bg-[var(--vauto-teal)]" : "bg-slate-600"
+            gdprConsent ? "bg-[var(--vauto-teal)]" : "bg-slate-300"
           }`}
           aria-label={gdprConsent ? "Atšaukti sutikimą" : "Sutikti"}
         >
@@ -50,19 +50,19 @@ export function PushAlertsSettingsCard() {
     <div className="vauto-dashboard-card mt-4 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Bell className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-white">Paieškos pranešimai</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Paieškos pranešimai</h3>
       </div>
       <p className="text-xs text-slate-400">
         Pranešimai apie naujus skelbimus pagal jūsų paieškas ir interesus. Veikia
         nepriklausomai nuo budinčio režimo.
       </p>
-      <div className="mt-4 flex items-center justify-between rounded-xl bg-black/20 px-3 py-2.5">
-        <span className="text-xs text-slate-300">Naujų skelbimų pranešimai</span>
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-white px-3 py-2.5">
+        <span className="text-xs text-slate-600">Naujų skelbimų pranešimai</span>
         <button
           type="button"
           onClick={() => setPushAlertsEnabled(!pushAlertsEnabled)}
           className={`relative h-7 w-12 rounded-full transition ${
-            pushAlertsEnabled ? "bg-[var(--vauto-teal)]" : "bg-slate-600"
+            pushAlertsEnabled ? "bg-[var(--vauto-teal)]" : "bg-slate-300"
           }`}
           aria-label={pushAlertsEnabled ? "Išjungti pranešimus" : "Įjungti pranešimus"}
         >

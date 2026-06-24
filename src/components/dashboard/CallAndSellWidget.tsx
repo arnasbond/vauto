@@ -25,7 +25,7 @@ export function CallAndSellWidget({
   return (
     <div className="vauto-dashboard-card mb-4 rounded-2xl border border-[var(--vauto-orange)]/20 p-4">
       <div className="mb-3">
-        <h3 className="font-display text-sm font-bold text-white">
+        <h3 className="font-display text-sm font-bold text-slate-900">
           Paskambink ir parduok
         </h3>
         <p className="mt-0.5 text-[10px] text-slate-500">
@@ -36,10 +36,10 @@ export function CallAndSellWidget({
         {stats.map((s) => (
           <div
             key={s.label}
-            className="rounded-xl bg-white/5 p-2.5 text-center"
+            className="rounded-xl bg-slate-50 p-2.5 text-center"
           >
             <s.icon className={`mx-auto mb-1 h-3.5 w-3.5 ${s.color}`} />
-            <p className="text-base font-bold text-white">{s.value}</p>
+            <p className="text-base font-bold text-slate-900">{s.value}</p>
             <p className="text-[9px] text-slate-500">{s.label}</p>
           </div>
         ))}

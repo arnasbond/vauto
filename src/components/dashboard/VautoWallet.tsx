@@ -37,7 +37,7 @@ export function VautoWallet({
           </div>
           <div>
             <p className="text-xs text-slate-400">VAUTO Pro balansas</p>
-            <p className="text-2xl font-bold text-white">
+            <p className="text-2xl font-bold text-slate-900">
               {balance.toFixed(2)} <span className="text-sm font-normal text-slate-400">€</span>
             </p>
           </div>

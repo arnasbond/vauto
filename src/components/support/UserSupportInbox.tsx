@@ -25,7 +25,7 @@ function roleStyles(role: ReportMessage["role"]) {
     case "ai":
       return "bg-violet-500/10 border-violet-500/25 ml-4";
     default:
-      return "bg-white/5 border-white/10 mr-4";
+      return "bg-slate-50 border-slate-200 mr-4";
   }
 }
 
@@ -127,7 +127,7 @@ export function UserSupportInbox() {
             <p className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
               {category}
             </p>
-            <h2 className="text-sm font-bold text-white">{selected.listingTitle ?? "Bendras pranešimas"}</h2>
+            <h2 className="text-sm font-bold text-slate-900">{selected.listingTitle ?? "Bendras pranešimas"}</h2>
           </div>
           <span className={cn("text-xs font-medium", status.className)}>{status.text}</span>
         </div>
@@ -138,7 +138,7 @@ export function UserSupportInbox() {
               key={msg.id}
               className={cn("rounded-xl border p-2.5 text-xs", roleStyles(msg.role))}
             >
-              <p className="mb-1 font-semibold text-slate-300">
+              <p className="mb-1 font-semibold text-slate-600">
                 {msg.role === "admin" ? "Vauto komanda" : msg.senderName}
                 {msg.auto && (
                   <span className="ml-1 text-[10px] text-slate-500">(automatinis)</span>
@@ -159,7 +159,7 @@ export function UserSupportInbox() {
               onChange={(e) => setReplyText(e.target.value)}
               rows={2}
               placeholder="Papildoma informacija ar klausimas…"
-              className="w-full rounded-xl border border-white/10 bg-black/20 px-3 py-2 text-sm text-white placeholder:text-slate-600"
+              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600"
             />
             <button
               type="button"
@@ -190,7 +190,7 @@ export function UserSupportInbox() {
           <MessageSquare className="h-5 w-5 text-amber-400" />
         </div>
         <div className="flex-1">
-          <h2 className="text-sm font-bold text-white">Mano pranešimai</h2>
+          <h2 className="text-sm font-bold text-slate-900">Mano pranešimai</h2>
           <p className="flex items-center gap-2 text-[11px] text-slate-400">
             <span
               className={cn(
@@ -213,7 +213,7 @@ export function UserSupportInbox() {
       <button
         type="button"
         onClick={() => void refreshMyReports()}
-        className="mb-3 rounded-lg bg-white/10 px-3 py-1.5 text-[11px] text-white"
+        className="mb-3 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] text-slate-900"
       >
         Atnaujinti dabar
       </button>
@@ -235,12 +235,12 @@ export function UserSupportInbox() {
                 type="button"
                 onClick={() => openReport(r.id)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl bg-white/5 p-3 text-left transition hover:bg-white/10",
+                  "flex w-full items-center gap-3 rounded-xl bg-slate-50 p-3 text-left transition hover:bg-slate-100",
                   r.unreadByReporter && "ring-1 ring-amber-400/40"
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-white">
+                  <p className="truncate text-xs font-semibold text-slate-900">
                     {r.listingTitle ?? cat}
                   </p>
                   <p className="mt-0.5 truncate text-[11px] text-slate-500">

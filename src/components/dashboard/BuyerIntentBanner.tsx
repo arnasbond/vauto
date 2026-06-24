@@ -13,7 +13,7 @@ export function BuyerIntentBanner({ intentCount }: BuyerIntentBannerProps) {
     <div className="vauto-dashboard-card mb-4 flex items-start gap-3 rounded-2xl border border-[var(--flux-teal)]/20 p-4">
       <Search className="mt-0.5 h-5 w-5 shrink-0 text-[var(--flux-teal)]" />
       <div>
-        <p className="text-sm font-semibold text-white">
+        <p className="text-sm font-semibold text-slate-900">
           VAUTO brokeris rado {intentCount} pirkėj
           {intentCount === 1 ? "ą" : "us"} jūsų skelbimų kategorijoms
         </p>

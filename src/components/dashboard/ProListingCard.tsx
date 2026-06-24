@@ -91,7 +91,7 @@ export function ProListingCard({
             {visibilityActive && activeTier > 0 && (
               <span
                 className={cn(
-                  "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-white",
+                  "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-900",
                   promoteTheme === "autoplius" && "bg-[#1a56db]",
                   promoteTheme === "vinted" && "bg-[#09b1a8]",
                   promoteTheme === "skelbiu" && "bg-[#1565c0]",
@@ -105,7 +105,7 @@ export function ProListingCard({
           </Link>
           <div className="min-w-0 flex-1">
             <Link href={listingPath(listing)} className="block">
-              <p className="truncate font-semibold text-white">{listing.title}</p>
+              <p className="truncate font-semibold text-slate-900">{listing.title}</p>
             </Link>
             <p className="text-lg font-bold text-[var(--vauto-orange)]">
               {formatPrice(listing.price, listing.priceLabel)}
@@ -183,7 +183,7 @@ export function ProListingCard({
               >
                 {suggestion.reason}
               </p>
-              <p className="mt-0.5 text-[11px] leading-snug text-slate-300">
+              <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
                 {suggestion.message}
               </p>
               <p className="mt-0.5 text-[10px] text-slate-400">
@@ -210,7 +210,7 @@ export function ProListingCard({
           <button
             type="button"
             onClick={onEdit}
-            className="flex-1 rounded-xl bg-white/10 py-2 text-xs text-white"
+            className="flex-1 rounded-xl bg-slate-100 py-2 text-xs text-slate-900"
           >
             Redaguoti
           </button>

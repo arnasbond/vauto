@@ -32,7 +32,7 @@ export function SoldPromptBanner({
 
   return (
     <div className="vauto-dashboard-card mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 p-4">
-      <p className="text-sm font-semibold text-white">Ar jau pardavėte?</p>
+      <p className="text-sm font-semibold text-slate-900">Ar jau pardavėte?</p>
       <p className="mt-1 text-xs text-amber-200/70">
         {listing.title} — skelbimas aktyvus 7+ dienas.
       </p>
@@ -57,7 +57,7 @@ export function SoldPromptBanner({
           <button
             type="button"
             onClick={() => onDismiss(listing.id)}
-            className="flex items-center justify-center gap-1 rounded-xl bg-white/10 px-4 py-2 text-xs text-slate-400"
+            className="flex items-center justify-center gap-1 rounded-xl bg-slate-100 px-4 py-2 text-xs text-slate-400"
           >
             <X className="h-3.5 w-3.5" />
             Vėliau

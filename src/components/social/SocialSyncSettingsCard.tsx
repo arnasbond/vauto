@@ -27,7 +27,7 @@ export function SocialSyncSettingsCard() {
     <div className="vauto-dashboard-card rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Share2 className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-white">Socialinių tinklų sinchronizacija</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Socialinių tinklų sinchronizacija</h3>
       </div>
       <p className="text-xs leading-relaxed text-slate-400">
         Papildoma reklama jūsų prekei ar paslaugai — dalinkitės Vauto skelbimu ten, kur jau
@@ -59,10 +59,10 @@ export function SocialSyncSettingsCard() {
             {SOCIAL_PLATFORMS.map((platform) => (
               <div
                 key={platform.id}
-                className="flex items-center justify-between rounded-xl bg-black/20 px-3 py-2.5"
+                className="flex items-center justify-between rounded-xl bg-white px-3 py-2.5"
               >
                 <div>
-                  <span className="text-xs text-slate-300">{platform.label}</span>
+                  <span className="text-xs text-slate-600">{platform.label}</span>
                   {platform.hint && (
                     <p className="mt-0.5 text-[10px] text-slate-500">{platform.hint}</p>
                   )}
@@ -111,12 +111,12 @@ function ToggleRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between rounded-xl bg-black/20 px-3 py-2.5 ${
+      className={`flex items-center justify-between rounded-xl bg-white px-3 py-2.5 ${
         disabled ? "opacity-50" : ""
       }`}
     >
       <div>
-        <span className="text-xs text-slate-300">{label}</span>
+        <span className="text-xs text-slate-600">{label}</span>
         {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
       </div>
       <button

@@ -32,7 +32,7 @@ export function WakeWordSettingsCard() {
     <div className="vauto-dashboard-card rounded-2xl border border-[var(--vauto-orange)]/20 p-4">
       <div className="mb-3 flex items-center gap-2">
         <Radio className="h-4 w-4 text-[var(--vauto-orange)]" />
-        <h3 className="text-sm font-semibold text-white">Balsinis asistentas</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Balsinis asistentas</h3>
       </div>
 
       <p className="text-xs leading-relaxed text-slate-400">
@@ -54,14 +54,14 @@ export function WakeWordSettingsCard() {
         </p>
       )}
 
-      <div className="mt-4 flex items-center justify-between rounded-xl bg-black/20 px-3 py-2.5">
+      <div className="mt-4 flex items-center justify-between rounded-xl bg-white px-3 py-2.5">
         <div className="flex items-center gap-2">
           {wakeWordEnabled ? (
             <Mic className="h-4 w-4 text-[var(--vauto-orange)]" />
           ) : (
             <MicOff className="h-4 w-4 text-slate-500" />
           )}
-          <span className="text-xs text-slate-300">
+          <span className="text-xs text-slate-600">
             Budintis režimas (tik desktop)
           </span>
         </div>

@@ -105,7 +105,7 @@ export function ProBusinessDashboard({
             className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold ${
               tab === item.id
                 ? "bg-[var(--vauto-teal)] text-white"
-                : "bg-white/10 text-slate-300"
+                : "bg-slate-100 text-slate-600"
             }`}
           >
             {item.label}

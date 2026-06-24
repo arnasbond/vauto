@@ -30,7 +30,7 @@ function urgencyStyles(urgency: BoostTip["urgency"]) {
     case "medium":
       return "border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10";
     default:
-      return "border-white/10 bg-white/5";
+      return "border-slate-200 bg-slate-50";
   }
 }
 
@@ -51,7 +51,7 @@ export function BusinessMarketInsights({
       <div className="vauto-dashboard-card mb-4 rounded-2xl p-4">
         <div className="mb-2 flex items-center gap-2">
           <BarChart3 className="h-4 w-4 text-[var(--vauto-teal)]" />
-          <h3 className="text-sm font-semibold text-white">Rinkos statistika</h3>
+          <h3 className="text-sm font-semibold text-slate-900">Rinkos statistika</h3>
         </div>
         <p className="text-xs leading-relaxed text-slate-400">
           Pridėkite skelbimą — parodysime konkurentų skaičių, kainų diapazoną ir
@@ -65,28 +65,28 @@ export function BusinessMarketInsights({
     <div className="vauto-dashboard-card mb-4 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <BarChart3 className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-white">Rinkos statistika</h3>
-        <span className="ml-auto rounded-full bg-white/10 px-2 py-0.5 text-[10px] text-slate-400">
+        <h3 className="text-sm font-semibold text-slate-900">Rinkos statistika</h3>
+        <span className="ml-auto rounded-full bg-slate-100 px-2 py-0.5 text-[10px] text-slate-400">
           {precisionLabel(overview.avgPrecision)}
         </span>
       </div>
 
       <div className="mb-4 grid grid-cols-3 gap-2">
-        <div className="rounded-xl bg-white/5 p-2.5 text-center">
+        <div className="rounded-xl bg-slate-50 p-2.5 text-center">
           <Users className="mx-auto mb-1 h-3.5 w-3.5 text-sky-400" />
-          <p className="text-base font-bold text-white">{overview.totalCompetitors}</p>
+          <p className="text-base font-bold text-slate-900">{overview.totalCompetitors}</p>
           <p className="text-[9px] text-slate-500">Konkurentų skelbimų</p>
         </div>
-        <div className="rounded-xl bg-white/5 p-2.5 text-center">
+        <div className="rounded-xl bg-slate-50 p-2.5 text-center">
           <Target className="mx-auto mb-1 h-3.5 w-3.5 text-[var(--vauto-teal)]" />
-          <p className="text-base font-bold text-white">
+          <p className="text-base font-bold text-slate-900">
             {overview.listingsWithData}/{overview.activeListings}
           </p>
           <p className="text-[9px] text-slate-500">Su rinkos duomenimis</p>
         </div>
-        <div className="rounded-xl bg-white/5 p-2.5 text-center">
+        <div className="rounded-xl bg-slate-50 p-2.5 text-center">
           <TrendingUp className="mx-auto mb-1 h-3.5 w-3.5 text-emerald-400" />
-          <p className="text-xs font-bold leading-tight text-white">
+          <p className="text-xs font-bold leading-tight text-slate-900">
             {overview.priceRange.min != null && overview.priceRange.max != null
               ? `${formatPrice(overview.priceRange.min)}–${formatPrice(overview.priceRange.max)}`
               : "—"}
@@ -103,9 +103,9 @@ export function BusinessMarketInsights({
           {overview.listingInsights.map(({ listingId, title, insights }) => (
             <div
               key={listingId}
-              className="rounded-xl border border-white/10 bg-white/[0.03] p-3"
+              className="rounded-xl border border-slate-200 bg-white/[0.03] p-3"
             >
-              <p className="truncate text-xs font-medium text-white">{title}</p>
+              <p className="truncate text-xs font-medium text-slate-900">{title}</p>
               <div className="mt-1.5 flex flex-wrap gap-2 text-[10px] text-slate-400">
                 <span>{insights.competitorCount} konkurentai</span>
                 <span>·</span>
@@ -154,8 +154,8 @@ export function BusinessMarketInsights({
                     clickable && "hover:brightness-110 active:scale-[0.99]"
                   )}
                 >
-                  <p className="text-xs font-semibold text-white">{tip.title}</p>
-                  <p className="mt-0.5 text-[11px] leading-snug text-slate-300">
+                  <p className="text-xs font-semibold text-slate-900">{tip.title}</p>
+                  <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
                     {tip.detail}
                   </p>
                 </button>

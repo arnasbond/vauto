@@ -42,7 +42,7 @@ export function ConnectionStatusCard() {
 
   return (
     <section
-      className="rounded-2xl border border-white/10 bg-white/5 p-4"
+      className="rounded-2xl border border-slate-200 bg-slate-50 p-4"
       aria-label="Ryšio būsena"
       data-testid="connection-status"
     >
@@ -59,7 +59,7 @@ export function ConnectionStatusCard() {
           )}
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">
+          <p className="text-sm font-semibold text-slate-900">
             {live ? "Live API" : "Demo režimas"}
           </p>
           <p className="text-xs text-slate-400">
@@ -67,7 +67,7 @@ export function ConnectionStatusCard() {
               ? "Duomenys sinchronizuojami su serveriu"
               : "Duomenys saugomi šiame įrenginyje"}
             {health?.readiness && live && (
-              <span className="ml-1 text-emerald-400">
+              <span className="ml-1 font-medium text-emerald-700">
                 · {health.readiness.score}/100
                 {health.readiness.regitraMode === "demo" ? " (Regitra demo)" : ""}
               </span>
@@ -83,8 +83,8 @@ export function ConnectionStatusCard() {
               key={key}
               className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-medium ${
                 enabled
-                  ? "bg-emerald-500/15 text-emerald-300"
-                  : "bg-slate-700/50 text-slate-500"
+                  ? "bg-emerald-100 text-emerald-700"
+                  : "bg-slate-100 text-slate-500"
               }`}
             >
               <Shield className="h-3 w-3" />
@@ -99,7 +99,7 @@ export function ConnectionStatusCard() {
           className={`mt-3 text-[10px] ${
             health.embeddings.imageIndexed >= health.embeddings.textIndexed &&
             health.embeddings.textIndexed > 0
-              ? "text-emerald-400"
+              ? "text-emerald-700"
               : "text-slate-500"
           }`}
         >

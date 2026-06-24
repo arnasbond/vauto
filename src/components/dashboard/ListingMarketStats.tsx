@@ -35,13 +35,13 @@ export function ListingMarketStats({
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
         {insights.competitorCount > 0 && (
-          <span className="flex items-center gap-0.5 rounded-md bg-white/5 px-1.5 py-0.5 text-sky-300">
+          <span className="flex items-center gap-0.5 rounded-md bg-slate-50 px-1.5 py-0.5 text-sky-300">
             <Users className="h-3 w-3" />
             {insights.competitorCount} konkurentai
           </span>
         )}
         {insights.priceAdvice.minPrice != null && insights.priceAdvice.maxPrice != null && (
-          <span className="rounded-md bg-white/5 px-1.5 py-0.5 text-[var(--vauto-teal)]">
+          <span className="rounded-md bg-slate-50 px-1.5 py-0.5 text-[var(--vauto-teal)]">
             {formatPrice(insights.priceAdvice.minPrice)}–
             {formatPrice(insights.priceAdvice.maxPrice)}
           </span>
@@ -52,7 +52,7 @@ export function ListingMarketStats({
   }
 
   return (
-    <div className="mt-2 rounded-xl border border-white/10 bg-white/[0.03] p-2.5">
+    <div className="mt-2 rounded-xl border border-slate-200 bg-white/[0.03] p-2.5">
       <div className="flex flex-wrap gap-2 text-[10px]">
         <span className="font-medium text-sky-300">
           {insights.competitorCount} panašūs skelbimai

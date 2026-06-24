@@ -79,7 +79,7 @@ export default function ProfilePage() {
 
   if (!authHydrated) {
     return (
-      <div className="vauto-dashboard flex min-h-dvh items-center justify-center px-6 pb-24 text-sm text-slate-400">
+      <div className="flex min-h-dvh items-center justify-center bg-[var(--portal-bg,#f3f5f8)] px-6 pb-24 text-sm text-slate-500">
         Kraunama…
       </div>
     );
@@ -87,13 +87,13 @@ export default function ProfilePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="vauto-dashboard flex min-h-dvh flex-col items-center justify-center px-6 pb-24">
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--portal-bg,#f3f5f8)] px-6 pb-24">
         <div className="vauto-dashboard-card max-w-sm rounded-3xl p-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--vauto-teal)]/20">
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--vauto-teal)]/15">
             <LayoutDashboard className="h-8 w-8 text-[var(--vauto-teal)]" />
           </div>
-          <h1 className="text-xl font-bold text-white">Valdymo skydelis</h1>
-          <p className="mt-2 text-sm text-slate-400">
+          <h1 className="text-xl font-bold text-slate-900">Valdymo skydelis</h1>
+          <p className="mt-2 text-sm text-slate-600">
             Prisijunkite, kad valdytumėte skelbimus, analitiką ir mokamas
             paslaugas.
           </p>
@@ -107,7 +107,7 @@ export default function ProfilePage() {
           </button>
           <Link
             href="/install/"
-            className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500 hover:text-teal-400"
+            className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500 hover:text-[var(--vauto-teal)]"
           >
             <Smartphone className="h-3.5 w-3.5" />
             Įdiegti programėlę
@@ -124,7 +124,7 @@ export default function ProfilePage() {
     return (
       <Suspense
         fallback={
-          <div className="vauto-dashboard flex min-h-dvh items-center justify-center text-slate-400">
+          <div className="flex min-h-dvh items-center justify-center bg-[var(--portal-bg,#f3f5f8)] text-slate-500">
             Kraunamas administratoriaus kabinetas…
           </div>
         }

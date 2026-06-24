@@ -14,26 +14,26 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
           <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Mano VAUTO Pro
           </p>
-          <h2 className="mt-1 text-base font-bold text-white">
+          <h2 className="mt-1 text-base font-bold text-slate-900">
             {user.companyName || "Verslo paskyra"}
           </h2>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
-            <div className="rounded-xl bg-white/5 p-2">
+            <div className="rounded-xl bg-slate-50 p-2">
               <p className="text-slate-500">Įmonės kodas</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-700">
                 {user.companyCode || "Neįvestas"}
               </p>
             </div>
-            <div className="rounded-xl bg-white/5 p-2">
+            <div className="rounded-xl bg-slate-50 p-2">
               <p className="text-slate-500">PVM kodas</p>
-              <p className="font-semibold text-slate-200">
+              <p className="font-semibold text-slate-700">
                 {user.vatCode || "Nebūtina"}
               </p>
             </div>
           </div>
           {user.businessType === "services" && (
-            <div className="mt-3 rounded-xl bg-white/5 p-3">
-              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-300">
+            <div className="mt-3 rounded-xl bg-slate-50 p-3">
+              <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-slate-600">
                 <MapPin className="h-3.5 w-3.5 text-[var(--vauto-orange)]" />
                 Darbo teritorija
               </p>
@@ -52,7 +52,7 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
                   </span>
                 ))}
               </div>
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-300">
+              <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-700">
                 <Award className="h-3.5 w-3.5" />
                 Top Rated Plus suteikiamas nuo 4.8 ★ ir atsakymo iki 15 min.
               </p>

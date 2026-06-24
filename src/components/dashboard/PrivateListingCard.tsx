@@ -20,7 +20,7 @@ interface PrivateListingCardProps {
 
 function statusLabel(listing: Listing): { text: string; className: string } {
   if (listing.status === "sold")
-    return { text: "Parduota", className: "bg-slate-500/30 text-slate-300" };
+    return { text: "Parduota", className: "bg-slate-500/30 text-slate-600" };
   if (!isListingActive(listing))
     return { text: "Pasibaigęs", className: "bg-red-500/20 text-red-300" };
   return { text: "Aktyvus", className: "bg-emerald-500/20 text-emerald-300" };
@@ -55,7 +55,7 @@ export function PrivateListingCard({
         </Link>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <p className="truncate font-semibold text-sm text-white">
+            <p className="truncate font-semibold text-sm text-slate-900">
               {listing.title}
             </p>
             <span
@@ -109,7 +109,7 @@ export function PrivateListingCard({
         <button
           type="button"
           onClick={onEdit}
-          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-white/10 py-2 text-xs font-medium text-white"
+          className="flex flex-1 items-center justify-center gap-1 rounded-xl bg-slate-100 py-2 text-xs font-medium text-slate-900"
         >
           <Pencil className="h-3 w-3" />
           Redaguoti

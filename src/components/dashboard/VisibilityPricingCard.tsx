@@ -28,7 +28,7 @@ export function VisibilityPricingCard({
     <section className="vauto-dashboard-card mb-4 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Shield className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-white">Matomumo kainodara</h3>
+        <h3 className="text-sm font-semibold text-slate-900">Matomumo kainodara</h3>
       </div>
       <p className="mb-3 text-xs leading-relaxed text-slate-400">
         {VISIBILITY_POLICY_SUMMARY.join(" ")}
@@ -48,13 +48,13 @@ export function VisibilityPricingCard({
                     key={`${category}-${plan.id}`}
                     className={`rounded-xl border p-3 ${
                       plan.available
-                        ? "border-white/10 bg-white/[0.03]"
+                        ? "border-slate-200 bg-white/[0.03]"
                         : "border-white/5 bg-white/[0.02] opacity-70"
                     }`}
                   >
                     <div className="flex items-center justify-between gap-2">
                       <div>
-                        <p className="text-xs font-semibold text-white">
+                        <p className="text-xs font-semibold text-slate-900">
                           {plan.label}
                           {plan.recommended && (
                             <span className="ml-1.5 text-[9px] font-normal text-[var(--vauto-orange)]">
