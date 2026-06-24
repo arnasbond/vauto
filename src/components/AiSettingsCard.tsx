@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Loader2, Sparkles, Trash2, Zap } from "lucide-react";
+import { KeyRound, Loader2, Save, Sparkles, Trash2, Zap } from "lucide-react";
 import { apiAiHealthCheck, apiExtractText } from "@/lib/api/client";
 import {
   clearOpenAiKey,
@@ -10,10 +10,15 @@ import {
   setOpenAiKey,
 } from "@/lib/openai-settings";
 import { clearAllData } from "@/lib/storage";
+import { useAdminProjectContext } from "@/context/AdminProjectContext";
+import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "@/lib/admin-agent-context";
+import { useVauto } from "@/context/VautoContext";
 
 type AiMode = "checking" | "server" | "personal" | "demo";
 
 export function AiSettingsCard() {
+  const { showToast } = useVauto();
+  const adminCtx = useAdminProjectContext();
   const [input, setInput] = useState("");
   const [personalKey, setPersonalKey] = useState(false);
   const [mode, setMode] = useState<AiMode>("checking");
@@ -92,6 +97,23 @@ export function AiSettingsCard() {
   };
 
   const masked = personalKey ? getOpenAiKey()?.slice(0, 7) + "••••••••" : null;
+  const contextText = adminCtx?.contextText ?? "";
+  const setContextText = adminCtx?.setContextText ?? (() => {});
+  const saveContext = adminCtx?.saveContext ?? (async () => false);
+  const contextHydrated = adminCtx?.hydrated ?? true;
+  const contextSaving = adminCtx?.saving ?? false;
+  const contextChars = contextText.length;
+  const nearContextLimit = contextChars > MAX_ADMIN_PROJECT_CONTEXT_CHARS * 0.9;
+
+  const handleSaveContext = async () => {
+    const ok = await saveContext();
+    showToast(
+      ok
+        ? "Gemini kontekstas išsaugotas — bus siunčiamas su jūsų žinutėmis."
+        : "Nepavyko išsaugoti konteksto.",
+      ok ? "success" : "error"
+    );
+  };
 
   const badge =
     mode === "checking"
@@ -103,10 +125,10 @@ export function AiSettingsCard() {
           : { label: "Demo režimas", className: "bg-amber-100 text-amber-700" };
 
   return (
-    <div className="card-shadow mt-6 rounded-2xl bg-white p-4">
+    <div className="card-shadow mt-6 rounded-2xl bg-white p-4 text-slate-900">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[var(--vauto-orange)]" />
-        <h2 className="font-semibold text-[var(--vauto-text)]">AI nustatymai</h2>
+        <h2 className="font-semibold text-slate-900">AI nustatymai</h2>
         <span
           className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}
         >
@@ -129,11 +151,59 @@ export function AiSettingsCard() {
       )}
 
       {masked && (
-        <p className="mb-2 flex items-center gap-1.5 text-xs text-[var(--vauto-text-muted)]">
+        <p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
           <KeyRound className="h-3.5 w-3.5" />
           Asmeninis raktas: {masked}
         </p>
       )}
+
+      <section className="mb-4 rounded-xl border border-indigo-200 bg-indigo-50/60 p-3">
+        <h3 className="text-sm font-semibold text-slate-900">
+          Gemini pokalbių istorijos sinchronizavimas
+        </h3>
+        <p className="mt-1 text-xs leading-relaxed text-slate-600">
+          Įklijuokite Gemini pokalbio transkriptą ar projekto medžiagą. Ji bus įterpta į
+          VAUTO agento kontekstą tik jūsų (admin) žinutėms.
+        </p>
+        {!contextHydrated ? (
+          <div className="flex items-center gap-2 py-4 text-sm text-slate-500">
+            <Loader2 className="h-4 w-4 animate-spin" />
+            Kraunama…
+          </div>
+        ) : (
+          <>
+            <textarea
+              value={contextText}
+              onChange={(e) => setContextText(e.target.value)}
+              rows={8}
+              placeholder="Įklijuokite čia Gemini pokalbių istoriją…"
+              className="mt-3 w-full resize-y rounded-lg border border-slate-200 bg-white px-3 py-2 font-mono text-xs leading-relaxed text-slate-800 focus:border-indigo-400 focus:outline-none focus:ring-2 focus:ring-indigo-200"
+              maxLength={MAX_ADMIN_PROJECT_CONTEXT_CHARS}
+            />
+            <div className="mt-2 flex items-center justify-between gap-3">
+              <p
+                className={`text-[11px] ${nearContextLimit ? "font-medium text-amber-700" : "text-slate-500"}`}
+              >
+                {contextChars.toLocaleString("lt-LT")} /{" "}
+                {MAX_ADMIN_PROJECT_CONTEXT_CHARS.toLocaleString("lt-LT")} simbolių
+              </p>
+              <button
+                type="button"
+                onClick={() => void handleSaveContext()}
+                disabled={contextSaving}
+                className="inline-flex items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-indigo-700 disabled:opacity-60"
+              >
+                {contextSaving ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                ) : (
+                  <Save className="h-3.5 w-3.5" />
+                )}
+                Išsaugoti kontekstą
+              </button>
+            </div>
+          </>
+        )}
+      </section>
 
       <button
         type="button"
@@ -150,11 +220,11 @@ export function AiSettingsCard() {
       </button>
 
       {testResult && (
-        <p className="mb-3 text-xs text-[var(--vauto-text-muted)]">{testResult}</p>
+        <p className="mb-3 text-xs text-slate-600">{testResult}</p>
       )}
 
       <details className="group">
-        <summary className="cursor-pointer text-xs font-medium text-[var(--vauto-text-muted)]">
+        <summary className="cursor-pointer text-xs font-medium text-slate-500">
           Naudoti savo OpenAI raktą (nebūtina)
         </summary>
         <div className="mt-3">
@@ -163,7 +233,7 @@ export function AiSettingsCard() {
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder={personalKey ? "Įveskite naują raktą..." : "sk-..."}
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm outline-none focus:border-[var(--vauto-blue)] focus:ring-2 focus:ring-[var(--vauto-blue)]/20"
+            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--vauto-blue)] focus:ring-2 focus:ring-[var(--vauto-blue)]/20"
           />
           <div className="mt-3 flex gap-2">
             <button
@@ -177,7 +247,7 @@ export function AiSettingsCard() {
               <button
                 type="button"
                 onClick={handleClearKey}
-                className="flex items-center justify-center rounded-xl border border-gray-200 px-3 text-[var(--vauto-text-muted)]"
+                className="flex items-center justify-center rounded-xl border border-gray-200 px-3 text-slate-500"
                 aria-label="Pašalinti raktą"
               >
                 <Trash2 className="h-4 w-4" />
