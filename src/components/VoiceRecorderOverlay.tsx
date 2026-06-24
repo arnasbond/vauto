@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useRef, useState } from "react";
-import { hasOpenAiKey } from "@/lib/openai-settings";
 import { BuddyVoicePulse } from "@/components/buddy/BuddyVoicePulse";
 import { createVoiceSession, recordWithSession } from "@/lib/native-media";
 import { startLiveTranscript } from "@/lib/live-transcript";
@@ -69,11 +68,7 @@ export function VoiceRecorderOverlay({
       variant="fullscreen"
       subtitle={liveSubtitle}
       statusText="Klausausi…"
-      hint={
-        hasOpenAiKey()
-          ? "Whisper klauso — papasakokite ką parduodate"
-          : "Papasakokite ką parduodate — AI ištrauks duomenis"
-      }
+      hint="Papasakokite ką norite — Gemini padės suprasti"
       levelSource={session ? levelSource : undefined}
       onCancel={onCancel}
     />

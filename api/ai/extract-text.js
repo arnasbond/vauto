@@ -1,18 +1,13 @@
-const {
-  EXTRACTION_SCHEMA,
-  getServerOpenAiKey,
-  chatJson,
-  toListing,
-} = require("../lib/openai");
+const { handleVautoServerAction, hasAiKey } = require("../lib/vauto-unified");
+const { toLegacyListing } = require("../lib/gemini-config");
 
 module.exports = async function handler(req, res) {
   if (req.method !== "POST") {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const key = getServerOpenAiKey();
-  if (!key) {
-    return res.status(503).json({ error: "OPENAI_API_KEY not configured on server" });
+  if (!hasAiKey()) {
+    return res.status(503).json({ error: "GEMINI_API_KEY not configured on server" });
   }
 
   const { text, userCity, contact } = req.body || {};
@@ -21,20 +16,13 @@ module.exports = async function handler(req, res) {
   }
 
   try {
-    const raw = await chatJson(key, [
-      {
-        role: "system",
-        content:
-          "Ištrauk skelbimo duomenis iš lietuviško teksto. Nustatyk kategoriją (vehicles, clothing, services, real_estate, other) ir užpildyk attributes. Jei kainos nėra — price: 0.",
-      },
-      {
-        role: "user",
-        content: `Tekstas: "${text}"\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${userCity ?? "Lietuva"}`,
-      },
-    ]);
-    return res
-      .status(200)
-      .json(toListing(raw, userCity ?? "Lietuva", contact ?? "+370 612 34567"));
+    const result = await handleVautoServerAction({
+      action: "parse_text",
+      text,
+      userCity,
+      contact,
+    });
+    return res.status(200).json(toLegacyListing(result.listing));
   } catch (e) {
     return res.status(500).json({ error: String(e) });
   }

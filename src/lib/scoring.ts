@@ -479,6 +479,10 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bnoriu\s+įdėti\b/i,
     /\bnoriu\s+ideti\b/i,
     /\bnoriu\s+parduoti\b/i,
+    /\bnoriu\s+kelti\s+skelb/i,
+    /\bkeliu\s+skelb/i,
+    /\bnoriu\s+skelbt/i,
+    /\bkelti\s+skelb/i,
   ];
 
   return sellerPatterns.some((re) => re.test(q));

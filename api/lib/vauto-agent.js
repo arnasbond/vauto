@@ -1,8 +1,11 @@
+const { resolveGeminiApiKey } = require("./gemini-config");
+
 const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
 Vesk vartotoją pokalbiu lietuviškai. Pardavimui — postNewListing + analyzeMarketPrice, klausk trūkstamų duomenų.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
-Paieškai — searchListings; jei 0 rezultatų — registerWanted ir pasiūlyk pageidavimų sąrašą.
+Paieškai — searchListings; jei 0 rezultatų — registerWanted.
 Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
+KETINIMO ATPAŽINIMAS: „noriu kelti skelbimą“ / parduoti → navigate_view(add_listing) arba postNewListing. NIEKADA searchListings. Paieškai → search_results.
 Klaidoms — trackUserError. Admin — blockListing. Būk glaustas, be emoji.`;
 
 const AGENT_FUNCTION_DECLARATIONS = [
@@ -331,7 +334,7 @@ function executeAgentTool(name, args, ctx) {
 }
 
 async function geminiAgentTurn(contents, model, systemInstruction) {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key = resolveGeminiApiKey();
   if (!key) throw agentError("agent_unavailable", "GEMINI_API_KEY not set", 503);
 
   try {
@@ -376,43 +379,6 @@ async function geminiAgentTurn(contents, model, systemInstruction) {
       );
     }
     throw agentError("gemini_error", e.message || "Gemini API klaida", 502);
-  }
-}
-
-async function openaiAgentFallback(messages, toolSummary, systemInstruction) {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) throw agentError("agent_unavailable", "No AI key", 503);
-  const history = messages
-    .map((m) => `${m.role === "user" ? "Vartotojas" : "VAUTO"}: ${m.text}`)
-    .join("\n");
-  try {
-    const res = await fetchWithTimeout(
-      "https://api.openai.com/v1/chat/completions",
-      {
-        method: "POST",
-        headers: { Authorization: `Bearer ${key}`, "Content-Type": "application/json" },
-        body: JSON.stringify({
-          model: "gpt-4o-mini",
-          messages: [
-            { role: "system", content: systemInstruction },
-            {
-              role: "user",
-              content: `${history}\n\n${toolSummary}\n\nAtsakyk lietuviškai.`,
-            },
-          ],
-        }),
-      },
-      GEMINI_AGENT_TIMEOUT_MS
-    );
-    if (!res.ok) throw agentError("openai_error", `OpenAI ${res.status}`, 502);
-    const data = await res.json();
-    return data.choices?.[0]?.message?.content?.trim() ?? "Supratau.";
-  } catch (e) {
-    if (e.code) throw e;
-    if (e.name === "AbortError") {
-      throw agentError("timeout", "OpenAI atsakymas užtruko per ilgai.", 504);
-    }
-    throw agentError("openai_error", e.message || "OpenAI klaida", 502);
   }
 }
 
@@ -481,7 +447,7 @@ async function runVautoAgentInner(req) {
   let navigateEffect;
   let finalText = "";
 
-  if (process.env.GEMINI_API_KEY?.trim()) {
+  if (resolveGeminiApiKey()) {
     for (let round = 0; round < 5; round++) {
       let parts = [];
       let text = "";
@@ -521,8 +487,11 @@ async function runVautoAgentInner(req) {
   }
 
   if (!finalText) {
-    const toolSummary = toolCalls.map((t) => `${t.name}: ${JSON.stringify(t.result)}`).join("\n");
-    finalText = await openaiAgentFallback(req.messages ?? [], toolSummary, systemInstruction);
+    throw agentError(
+      "agent_unavailable",
+      "Gemini agentas negalėjo sugeneruoti atsakymo. Patikrinkite GEMINI_API_KEY.",
+      503
+    );
   }
 
   if (!finalText?.trim()) {
@@ -542,12 +511,7 @@ async function runVautoAgentInner(req) {
 }
 
 function hasAgentKey() {
-  return Boolean(
-    process.env.GEMINI_API_KEY?.trim() ||
-      process.env.AI_KEY?.trim() ||
-      process.env.GOOGLE_AI_API_KEY?.trim() ||
-      process.env.OPENAI_API_KEY?.trim()
-  );
+  return Boolean(resolveGeminiApiKey());
 }
 
 module.exports = { runVautoAgent, hasAgentKey };

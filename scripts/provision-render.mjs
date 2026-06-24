@@ -1,12 +1,12 @@
 #!/usr/bin/env node
 /**
  * Provision vauto-api + PostgreSQL on Render via API.
- * Requires: RENDER_API_KEY, optional OPENAI_API_KEY
+ * Requires: RENDER_API_KEY, optional GEMINI_API_KEY
  *
  * Usage:
  *   RENDER_API_KEY=rnd_xxx node scripts/provision-render.mjs
  *
- * GitHub: add RENDER_API_KEY (+ OPENAI_API_KEY) as repo secrets, then
+ * GitHub: add RENDER_API_KEY (+ GEMINI_API_KEY) as repo secrets, then
  * Actions → Provision Render API → Run workflow
  */
 
@@ -122,8 +122,10 @@ async function createWebService(ownerId, databaseUrl) {
     { key: "DATABASE_URL", value: databaseUrl },
     { key: "PORT", value: "4000" },
   ];
-  if (process.env.OPENAI_API_KEY) {
-    envVars.push({ key: "OPENAI_API_KEY", value: process.env.OPENAI_API_KEY });
+  const geminiKey =
+    process.env.GEMINI_API_KEY?.trim() || process.env.AI_KEY?.trim();
+  if (geminiKey) {
+    envVars.push({ key: "GEMINI_API_KEY", value: geminiKey });
   }
 
   const res = await api("/services", {

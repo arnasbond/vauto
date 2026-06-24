@@ -2,7 +2,7 @@ import "../load-env.js";
 import cors from "cors";
 import express from "express";
 import { pool } from "./db.js";
-import { hasAgentAiKey, resolveGeminiApiKey, resolveOpenAiApiKey } from "./load-env.js";
+import { hasAgentAiKey, resolveGeminiApiKey } from "./load-env.js";
 import { runMigrations } from "./migrate.js";
 import { seedIfEmpty } from "./seed-runtime.js";
 import { apiRouter } from "./routes/api.js";
@@ -77,9 +77,8 @@ app.listen(port, async () => {
     const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");
     void runStripeBootstrap();
     const gemini = Boolean(resolveGeminiApiKey());
-    const openai = Boolean(resolveOpenAiApiKey());
     console.log(
-      `Vauto API http://localhost:${port} (PostgreSQL OK) — agent keys: gemini=${gemini} openai=${openai} hasAgent=${hasAgentAiKey()}`
+      `Vauto API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
     );
   } catch {
     console.warn(

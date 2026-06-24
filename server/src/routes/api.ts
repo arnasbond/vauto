@@ -135,7 +135,7 @@ function computeReadiness(
   );
   const checks = [
     features.jwt,
-    features.openai,
+    features.gemini,
     features.stripe,
     features.stripeWebhook,
     features.vehicleLookup,
@@ -164,7 +164,7 @@ apiRouter.get("/health", async (_req, res) => {
     ),
     fcm: Boolean(process.env.FIREBASE_SERVICE_ACCOUNT_JSON),
     jwt: Boolean(process.env.JWT_SECRET),
-    openai: hasAiKey(),
+    gemini: hasAiKey(),
     geminiAgent: hasAgentAiKey(),
     vautoUnified: hasAiKey(),
     reportEmail: Boolean(process.env.RESEND_API_KEY?.trim()),

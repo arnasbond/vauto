@@ -115,7 +115,14 @@ export function VoiceClarifyFlowSheet({
         setHistory(nextHistory);
         setAnalysis(result);
 
-        if (mode === "listing") {
+        const isListing =
+          result.intent === "sell" ||
+          mode === "listing" ||
+          /\bparduod|įdėti\s+skelb|kelti\s+skelb|skelbt/i.test(
+            result.mergedTranscript
+          );
+
+        if (isListing) {
           setStep("confirm");
           const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
           speakBuddyMessage(confirmMsg, { enabled: true });
@@ -123,6 +130,13 @@ export function VoiceClarifyFlowSheet({
         }
 
         setStep("images");
+
+        if (!result.imageSearchQuery?.trim()) {
+          setStep("confirm");
+          const confirmMsg = `${result.understoodSummary}. Ar teisingai supratau?`;
+          speakBuddyMessage(confirmMsg, { enabled: true });
+          return;
+        }
 
         const images = await searchReferenceImages(
           result.imageSearchQuery,

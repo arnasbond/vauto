@@ -95,17 +95,9 @@ export async function createVoiceSession(): Promise<VoiceSession | null> {
   };
 }
 
-/** Transcribe using an existing voice session (Whisper path) */
+/** Transcribe using browser speech only (Whisper removed). */
 export async function transcribeFromSession(
-  session: VoiceSession
+  _session: VoiceSession
 ): Promise<string | null> {
-  const blob = await session.record();
-  if (!blob || blob.size === 0) return null;
-
-  const { hasOpenAiKey } = await import("@/lib/openai-settings");
-  if (!hasOpenAiKey()) return null;
-
-  const { transcribeAudioOpenAI } = await import("@/lib/openai");
-  const text = await transcribeAudioOpenAI(blob);
-  return text.trim() || null;
+  return null;
 }

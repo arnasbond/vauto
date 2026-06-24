@@ -199,26 +199,7 @@ async function blobToBase64(blob: Blob): Promise<string> {
   return btoa(binary);
 }
 
-async function transcribeBlob(blob: Blob): Promise<string | null> {
-  const { isAiProxyAvailable } = await import("@/lib/api/config");
-  const { apiTranscribeAudio } = await import("@/lib/api/client");
-  const { hasOpenAiKey } = await import("@/lib/openai-settings");
-
-  if (isAiProxyAvailable()) {
-    const audioBase64 = await blobToBase64(blob);
-    const remote = await apiTranscribeAudio({
-      audioBase64,
-      mimeType: blob.type || "audio/webm",
-    });
-    if (remote?.text) return remote.text;
-  }
-
-  if (hasOpenAiKey()) {
-    const { transcribeAudioOpenAI } = await import("@/lib/openai");
-    const text = await transcribeAudioOpenAI(blob);
-    return text.trim() || null;
-  }
-
+async function transcribeBlob(_blob: Blob): Promise<string | null> {
   return null;
 }
 

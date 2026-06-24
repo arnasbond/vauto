@@ -1,4 +1,5 @@
 import type { ApiSupportReport } from "../types.js";
+import { chatJson as geminiChatJson, hasAiKey } from "./llm-provider.js";
 
 const REPORT_CATEGORIES = new Set([
   "fraud",
@@ -101,43 +102,13 @@ function analyzeWithRules(input: {
   };
 }
 
-async function chatJson(
-  key: string,
-  messages: object[]
-): Promise<Record<string, unknown>> {
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      messages,
-      temperature: 0.2,
-    }),
-  });
-
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const content = data.choices?.[0]?.message?.content;
-  if (!content) throw new Error("Empty OpenAI response");
-  return JSON.parse(content) as Record<string, unknown>;
-}
-
-async function analyzeWithOpenAI(
-  key: string,
-  input: {
-    comment: string;
-    category: string;
-    listingTitle?: string;
-    chatPreview?: string;
-  }
-): Promise<ReportAiAnalysis> {
-  const raw = await chatJson(key, [
+async function analyzeWithGemini(input: {
+  comment: string;
+  category: string;
+  listingTitle?: string;
+  chatPreview?: string;
+}): Promise<ReportAiAnalysis> {
+  const raw = await geminiChatJson([
     {
       role: "system",
       content: `Tu esi Vauto moderacijos asistentas. Analizuok vartotojo pranešimą lietuviškai.
@@ -182,10 +153,9 @@ export async function analyzeReportWithAi(input: {
   listingTitle?: string;
   chatPreview?: string;
 }): Promise<ReportAiAnalysis> {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (key) {
+  if (hasAiKey()) {
     try {
-      return await analyzeWithOpenAI(key, input);
+      return await analyzeWithGemini(input);
     } catch {
       /* rule fallback */
     }

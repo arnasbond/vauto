@@ -1,7 +1,6 @@
 import { apiAnalyzeVoice } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
-import { hasOpenAiKey } from "@/lib/openai-settings";
-import { analyzeVoiceIntentOpenAI } from "@/lib/openai";
+import { detectSellerListingIntent } from "@/lib/scoring";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
 
@@ -19,15 +18,17 @@ export interface VoiceIntentAnalysis {
   mergedTranscript: string;
   category: string;
   confidence: number;
+  intent?: "sell" | "search" | "service" | "general";
 }
 
 const VOICE_INTENT_SCHEMA = `{
-  "understoodSummary": "string — lietuviškai, trumpai ką supratai (pvz. Supratau: iPhone, naudotas, Vilnius)",
-  "needsClarification": "boolean — true jei trūksta svarbios info",
-  "followUpQuestion": "string | null — vienas konkretus klausimas lietuviškai (modelis, metai, būklė ir pan.)",
+  "understoodSummary": "string — lietuviškai, trumpai ką supratai",
+  "needsClarification": "boolean",
+  "followUpQuestion": "string | null",
   "missingFields": ["string"],
-  "imageSearchQuery": "string — 2-5 žodžių paieška nuotraukoms anglų arba neutralia kalba",
-  "mergedTranscript": "string — visas vartotojo ketinimas vienu sakiniu",
+  "imageSearchQuery": "string — tik paieškai",
+  "mergedTranscript": "string",
+  "intent": "sell | search | service | general",
   "category": "electronics | vehicles | services | home | clothing | real_estate | other",
   "confidence": "number 0-1"
 }`;
@@ -41,6 +42,8 @@ function mockAnalyzeVoiceIntent(
     .map((h) => h.text)
     .join(". ");
   const lower = merged.toLowerCase();
+  const isListing =
+    mode === "listing" || detectSellerListingIntent(merged);
 
   const isPhone = /telefon|iphone|samsung|xiaomi|huawei|mobilus/i.test(lower);
   const isCar = isVehicleQuery(lower);
@@ -54,14 +57,15 @@ function mockAnalyzeVoiceIntent(
       needsClarification: false,
       followUpQuestion: null,
       missingFields: [],
-      imageSearchQuery: isPhone ? "smartphone" : isCar ? "car" : merged.slice(0, 40),
+      imageSearchQuery: isListing ? "" : isPhone ? "smartphone" : isCar ? "car" : merged.slice(0, 40),
       mergedTranscript: merged,
       category: isPhone ? "electronics" : isCar ? "vehicles" : "other",
       confidence: 0.72,
+      intent: isListing ? "sell" : "search",
     };
   }
 
-  if (isPhone && !hasModel) {
+  if (!isListing && isPhone && !hasModel) {
     return {
       understoodSummary: "Supratau: mobilus telefonas",
       needsClarification: true,
@@ -71,10 +75,11 @@ function mockAnalyzeVoiceIntent(
       mergedTranscript: merged,
       category: "electronics",
       confidence: 0.55,
+      intent: "search",
     };
   }
 
-  if (isCar && !hasYear) {
+  if (!isListing && isCar && !hasYear) {
     return {
       understoodSummary: "Supratau: automobilis",
       needsClarification: true,
@@ -84,23 +89,22 @@ function mockAnalyzeVoiceIntent(
       mergedTranscript: merged,
       category: "vehicles",
       confidence: 0.55,
+      intent: "search",
     };
   }
 
-  const action =
-    mode === "listing" || /\bparduod|siūlau|nuomoj/i.test(lower)
-      ? "parduoti / įdėti skelbimą"
-      : "ieškoti";
-
   return {
-    understoodSummary: `Supratau: ${merged.slice(0, 100)} (${action})`,
+    understoodSummary: isListing
+      ? `Supratau: norite įkelti skelbimą — ${merged.slice(0, 100)}`
+      : `Supratau: ${merged.slice(0, 100)}`,
     needsClarification: false,
     followUpQuestion: null,
     missingFields: [],
-    imageSearchQuery: merged.split(/\s+/).slice(0, 4).join(" "),
+    imageSearchQuery: isListing ? "" : merged.split(/\s+/).slice(0, 4).join(" "),
     mergedTranscript: merged,
     category: isPhone ? "electronics" : isCar ? "vehicles" : "other",
     confidence: 0.78,
+    intent: isListing ? "sell" : "search",
   };
 }
 
@@ -121,22 +125,22 @@ export async function analyzeVoiceIntent(params: {
       history,
       userCity: city,
     });
-    if (remote) return remote;
-  }
-
-  if (hasOpenAiKey()) {
-    try {
-      return await analyzeVoiceIntentOpenAI({
-        transcript,
-        mode: params.mode,
-        history,
-        userCity: city,
-        schema: VOICE_INTENT_SCHEMA,
-      });
-    } catch (e) {
-      console.warn("[Vauto] Voice intent OpenAI failed:", e);
+    if (remote) {
+      const intent =
+        (remote as VoiceIntentAnalysis).intent ??
+        (detectSellerListingIntent(transcript) || params.mode === "listing"
+          ? "sell"
+          : "search");
+      return {
+        ...remote,
+        intent,
+        imageSearchQuery: intent === "sell" ? "" : remote.imageSearchQuery,
+        understoodSummary: remote.understoodSummary.replace(/\s*\(ieškoti\)\s*$/i, ""),
+      };
     }
   }
 
   return mockAnalyzeVoiceIntent(transcript, params.mode, history);
 }
+
+export { VOICE_INTENT_SCHEMA };

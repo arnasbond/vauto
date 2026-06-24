@@ -84,6 +84,23 @@ async function setEnvVar(key, value) {
   console.log(`✓ ${key}`);
 }
 
+async function deleteEnvVar(key) {
+  try {
+    await api(
+      `/services/${SERVICE_ID}/env-vars/${encodeURIComponent(key)}`,
+      { method: "DELETE" }
+    );
+    console.log(`✓ removed ${key}`);
+  } catch (e) {
+    const msg = String(e?.message || e);
+    if (msg.includes("404")) {
+      console.log(`· ${key} not present (skip)`);
+      return;
+    }
+    throw e;
+  }
+}
+
 function generateJwtSecret() {
   return randomBytes(48).toString("base64url");
 }
@@ -133,7 +150,6 @@ async function main() {
   for (const key of [
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
-    "OPENAI_API_KEY",
     "GEMINI_API_KEY",
     "AI_KEY",
     "GOOGLE_CLIENT_ID",
@@ -154,6 +170,8 @@ async function main() {
   } else {
     console.warn("⚠ GEMINI_API_KEY / AI_KEY not set — agent will fail on Render");
   }
+
+  await deleteEnvVar("OPENAI_API_KEY");
 
   const deploy = await api(`/services/${SERVICE_ID}/deploys`, {
     method: "POST",

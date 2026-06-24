@@ -149,7 +149,7 @@ export interface ApiHealthDetails {
     webPush: boolean;
     fcm: boolean;
     jwt: boolean;
-    openai?: boolean;
+    gemini?: boolean;
     reportEmail?: boolean;
     stripe?: boolean;
     stripeWebhook?: boolean;
@@ -279,18 +279,18 @@ export async function apiSaveAdminProjectContext(
 
 export async function apiAiHealthCheck(): Promise<{
   ok: boolean;
-  openai: boolean;
+  gemini: boolean;
   provider?: string | null;
   mode: string;
 } | null> {
   for (const base of getAiBaseUrls()) {
     const { data: health } = await aiFetchOnce<{
       ok: boolean;
-      openai: boolean;
+      gemini: boolean;
       provider?: string | null;
       mode: string;
     }>(base, "/api/ai/health", undefined, 8_000);
-    if (health?.openai) return health;
+    if (health?.gemini) return health;
   }
   return aiFetch("/api/ai/health", undefined, 8_000);
 }

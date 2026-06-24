@@ -8,13 +8,13 @@ import {
 
 export const aiRouter = Router();
 
-const AI_UNAVAILABLE = { error: "AI API key not set (OPENAI_API_KEY or GEMINI_API_KEY)" };
+const AI_UNAVAILABLE = { error: "GEMINI_API_KEY not set" };
 
 aiRouter.get("/health", (_req, res) => {
   const provider = resolveAiProvider();
   res.json({
     ok: true,
-    openai: provider !== null,
+    gemini: provider !== null,
     provider,
     mode: provider ?? "demo",
   });
@@ -142,14 +142,14 @@ aiRouter.post("/analyze-voice", async (req, res) => {
     .join("\n");
   const modeHint =
     mode === "listing"
-      ? "Vartotojas nori įdėti / parduoti skelbimą."
-      : "Vartotojas ieško prekės ar paslaugos.";
+      ? "Vartotojas nori įdėti / parduoti skelbimą — NE paieška."
+      : "Nustatyk ar vartotojas IEŠKO prekės, ar nori KELTI skelbimą. Jei kelia skelbimą — needsClarification tik dėl trūkstamų laukų, ne imageSearchQuery.";
 
   try {
     const raw = await chatJson([
       {
         role: "system",
-        content: `Esi Vauto balso asistentas Lietuvoje. ${modeHint} Jei trūksta kritinės info — užduok VIENĮ klausimą lietuviškai. imageSearchQuery angliškai.`,
+        content: `Esi Vauto balso asistentas Lietuvoje (tik Gemini). ${modeHint} understoodSummary — lietuviškai, BE žodžių „ieškoti“ jei vartotojas kelia skelbimą. imageSearchQuery — tik kai vartotojas IEŠKO, angliški raktažodžiai.`,
       },
       {
         role: "user",
@@ -266,46 +266,11 @@ aiRouter.post("/extract-combined", async (req, res) => {
   }
 });
 
-aiRouter.post("/transcribe-audio", async (req, res) => {
-  const openaiKey = process.env.OPENAI_API_KEY?.trim();
-  if (!openaiKey) {
-    return res.status(503).json({
-      error: "Whisper requires OPENAI_API_KEY — use browser speech or add OpenAI key",
-    });
-  }
-
-  const { audioBase64, mimeType = "audio/webm" } = req.body as {
-    audioBase64?: string;
-    mimeType?: string;
-  };
-
-  if (!audioBase64?.trim()) {
-    return res.status(400).json({ error: "audioBase64 is required" });
-  }
-
-  try {
-    const buffer = Buffer.from(audioBase64, "base64");
-    const form = new FormData();
-    form.append("file", new Blob([buffer], { type: mimeType }), "recording.webm");
-    form.append("model", "whisper-1");
-    form.append("language", "lt");
-
-    const whisperRes = await fetch("https://api.openai.com/v1/audio/transcriptions", {
-      method: "POST",
-      headers: { Authorization: `Bearer ${openaiKey}` },
-      body: form,
-    });
-
-    if (!whisperRes.ok) {
-      const err = await whisperRes.text();
-      return res.status(500).json({ error: `Whisper: ${whisperRes.status} ${err}` });
-    }
-
-    const data = (await whisperRes.json()) as { text?: string };
-    res.json({ text: String(data.text ?? "").trim() });
-  } catch (e) {
-    res.status(500).json({ error: String(e) });
-  }
+aiRouter.post("/transcribe-audio", async (_req, res) => {
+  return res.status(501).json({
+    error:
+      "Whisper transkripcija pašalinta. Naudokite naršyklės balso atpažinimą (Web Speech API).",
+  });
 });
 
 aiRouter.post("/extract-text", async (req, res) => {

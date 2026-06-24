@@ -72,7 +72,10 @@ async function imageUrlToInlinePart(url) {
 }
 
 async function geminiJson(prompt, imageDataUrls = [], model) {
-  const key = process.env.GEMINI_API_KEY?.trim();
+  const key =
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.AI_KEY?.trim() ||
+    process.env.GOOGLE_AI_API_KEY?.trim();
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
   const parts = [{ text: prompt }];
@@ -102,52 +105,28 @@ async function geminiJson(prompt, imageDataUrls = [], model) {
   return JSON.parse(text);
 }
 
-async function openaiJson(prompt, imageDataUrls = []) {
-  const key = process.env.OPENAI_API_KEY?.trim();
-  if (!key) throw new Error("OPENAI_API_KEY not set");
-
-  const content = imageDataUrls.length
-    ? [
-        { type: "text", text: prompt },
-        ...imageDataUrls.map((url) => ({
-          type: "image_url",
-          image_url: { url, detail: "high" },
-        })),
-      ]
-    : prompt;
-
-  const res = await fetch("https://api.openai.com/v1/chat/completions", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${key}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      model: "gpt-4o-mini",
-      response_format: { type: "json_object" },
-      messages: [{ role: "user", content }],
-      temperature: 0.2,
-    }),
-  });
-  if (!res.ok) throw new Error(`OpenAI ${res.status}: ${await res.text()}`);
-  const data = await res.json();
-  const text = data.choices?.[0]?.message?.content;
-  if (!text) throw new Error("Empty OpenAI response");
-  return JSON.parse(text);
-}
-
 async function unifiedLlmJson(prompt, imageDataUrls = []) {
-  const geminiKey = process.env.GEMINI_API_KEY?.trim();
-  if (geminiKey) {
-    for (const model of UNIFIED_GEMINI_MODELS) {
-      try {
-        return await geminiJson(prompt, imageDataUrls, model);
-      } catch (e) {
-        console.warn(`[vauto-unified] ${model}:`, e.message);
-      }
+  const geminiKey =
+    process.env.GEMINI_API_KEY?.trim() ||
+    process.env.AI_KEY?.trim() ||
+    process.env.GOOGLE_AI_API_KEY?.trim();
+  if (!geminiKey) {
+    throw new Error("GEMINI_API_KEY not configured on server");
+  }
+
+  let lastError;
+  for (const model of UNIFIED_GEMINI_MODELS) {
+    try {
+      return await geminiJson(prompt, imageDataUrls, model);
+    } catch (e) {
+      lastError = e;
+      console.warn(`[vauto-unified] ${model}:`, e.message);
     }
   }
-  return openaiJson(prompt, imageDataUrls);
+
+  throw new Error(
+    lastError?.message ? `Gemini API nepavyko: ${lastError.message}` : "Gemini API nepavyko"
+  );
 }
 
 function parseTechnicalFields(raw) {
@@ -247,8 +226,7 @@ function hasAiKey() {
   return Boolean(
     process.env.GEMINI_API_KEY?.trim() ||
       process.env.AI_KEY?.trim() ||
-      process.env.GOOGLE_AI_API_KEY?.trim() ||
-      process.env.OPENAI_API_KEY?.trim()
+      process.env.GOOGLE_AI_API_KEY?.trim()
   );
 }
 
@@ -322,4 +300,5 @@ async function handleVautoServerAction(body) {
 module.exports = {
   handleVautoServerAction,
   hasAiKey,
+  unifiedLlmJson,
 };

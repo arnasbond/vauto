@@ -5,7 +5,7 @@ import { handleVautoServerAction } from "../ai/vauto-unified.js";
 export const vautoServerRouter = Router();
 
 const AI_UNAVAILABLE = {
-  error: "AI API key not set (GEMINI_API_KEY or OPENAI_API_KEY)",
+  error: "AI API key not set (GEMINI_API_KEY required)",
 };
 
 vautoServerRouter.post("/", async (req, res) => {

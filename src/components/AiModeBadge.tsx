@@ -3,14 +3,12 @@
 import { useEffect, useState } from "react";
 import { resolveAiModeLabel } from "@/lib/ai-mode";
 import { apiAiHealthCheck } from "@/lib/api/client";
-import { hasOpenAiKey } from "@/lib/openai-settings";
 
-export type AiModeKind = "live" | "personal" | "demo" | "checking";
+export type AiModeKind = "live" | "demo" | "checking";
 
 export async function resolveAiModeKind(): Promise<AiModeKind> {
   const health = await apiAiHealthCheck();
-  if (health?.openai) return "live";
-  if (hasOpenAiKey()) return "personal";
+  if (health?.gemini) return "live";
   return "demo";
 }
 
@@ -19,12 +17,8 @@ const MODE_STYLES: Record<
   { label: string; className: string }
 > = {
   live: {
-    label: "AI gyvas",
+    label: "Gemini AI",
     className: "border-emerald-200 bg-emerald-50 text-emerald-800",
-  },
-  personal: {
-    label: "AI asmeninis",
-    className: "border-sky-200 bg-sky-50 text-sky-800",
   },
   demo: {
     label: "Demo AI",

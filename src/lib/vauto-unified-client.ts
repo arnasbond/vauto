@@ -64,7 +64,6 @@ export function mapVautoServerListing(
     : "other";
 
   const attrs = { ...(listing.attributes ?? {}) };
-  delete attrs._intent;
   delete attrs._vautoCategory;
 
   return {

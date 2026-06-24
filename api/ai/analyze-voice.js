@@ -1,12 +1,13 @@
-const { getServerOpenAiKey, chatJson } = require("../lib/openai");
+const { unifiedLlmJson, hasAiKey } = require("../lib/vauto-unified");
 
 const VOICE_INTENT_SCHEMA = `{
-  "understoodSummary": "string",
+  "understoodSummary": "string — lietuviškai, be žodžio ieškoti jei vartotojas kelia skelbimą",
   "needsClarification": "boolean",
   "followUpQuestion": "string | null",
   "missingFields": ["string"],
-  "imageSearchQuery": "string",
+  "imageSearchQuery": "string — tik paieškai, angliški raktažodžiai",
   "mergedTranscript": "string",
+  "intent": "sell | search | service | general",
   "category": "electronics | vehicles | services | home | clothing | real_estate | other",
   "confidence": "number 0-1"
 }`;
@@ -16,9 +17,8 @@ module.exports = async function handler(req, res) {
     return res.status(405).json({ error: "Method not allowed" });
   }
 
-  const key = getServerOpenAiKey();
-  if (!key) {
-    return res.status(503).json({ error: "OPENAI_API_KEY not configured on server" });
+  if (!hasAiKey()) {
+    return res.status(503).json({ error: "GEMINI_API_KEY not configured on server" });
   }
 
   const { transcript, mode, history, userCity } = req.body || {};
@@ -32,23 +32,19 @@ module.exports = async function handler(req, res) {
 
   const modeHint =
     mode === "listing"
-      ? "Vartotojas nori įdėti / parduoti skelbimą."
-      : "Vartotojas ieško prekės ar paslaugos.";
+      ? "Vartotojas nori įdėti / parduoti skelbimą — NE paieška."
+      : "Nustatyk ar vartotojas IEŠKO, ar KELIA skelbimą.";
 
   try {
-    const raw = await chatJson(
-      key,
-      [
-        {
-          role: "system",
-          content: `Esi Vauto balso asistentas Lietuvoje. ${modeHint} Jei trūksta kritinės info (modelis, metai, būklė) — užduok VIENĄ trumpą klausimą lietuviškai. Po 2 klausimų tęsk su tuo, ką turi. imageSearchQuery — angliški raktažodžiai nuotraukų paieškai.`,
-        },
-        {
-          role: "user",
-          content: `Pokalbio istorija:\n${historyText || "(tuščia)"}\n\nNaujas įrašas: "${transcript}"\n\nJSON: ${VOICE_INTENT_SCHEMA}\nMiestas: ${userCity ?? "Lietuva"}`,
-        },
-      ],
-      "gpt-4o-mini"
+    const raw = await unifiedLlmJson(
+      `Esi Vauto balso asistentas (Gemini). ${modeHint}
+Pokalbio istorija:
+${historyText || "(tuščia)"}
+
+Naujas įrašas: "${transcript}"
+Miestas: ${userCity ?? "Lietuva"}
+
+Grąžink JSON: ${VOICE_INTENT_SCHEMA}`
     );
 
     return res.status(200).json({
@@ -62,6 +58,7 @@ module.exports = async function handler(req, res) {
       mergedTranscript: String(raw.mergedTranscript ?? transcript),
       category: String(raw.category ?? "other"),
       confidence: Number(raw.confidence) || 0.75,
+      intent: String(raw.intent ?? (mode === "listing" ? "sell" : "search")),
     });
   } catch (e) {
     return res.status(500).json({ error: String(e) });

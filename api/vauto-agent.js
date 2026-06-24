@@ -112,7 +112,7 @@ module.exports = async function handler(req, res) {
       res,
       503,
       "agent_unavailable",
-      "AI agent unavailable (GEMINI_API_KEY or OPENAI_API_KEY required)"
+      "AI agent unavailable (GEMINI_API_KEY required)"
     );
   }
 

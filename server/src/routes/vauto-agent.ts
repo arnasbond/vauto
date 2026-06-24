@@ -30,8 +30,7 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
     return res.status(503).json({
       ok: false,
       code: "agent_unavailable",
-      error:
-        "AI agent unavailable (set GEMINI_API_KEY or OPENAI_API_KEY on the server)",
+      error: "AI agent unavailable (set GEMINI_API_KEY on the server)",
     });
   }
 

@@ -1,85 +1,52 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { KeyRound, Loader2, Sparkles, Trash2, Zap } from "lucide-react";
-import { apiAiHealthCheck, apiExtractText } from "@/lib/api/client";
-import {
-  clearOpenAiKey,
-  getOpenAiKey,
-  hasOpenAiKey,
-  setOpenAiKey,
-} from "@/lib/openai-settings";
+import { Loader2, Sparkles, Zap } from "lucide-react";
+import { apiAiHealthCheck, apiVautoServer } from "@/lib/api/client";
 import { clearAllData } from "@/lib/storage";
 import { AdminGeminiUploadPanel } from "@/components/admin/AdminGeminiUploadPanel";
+import { mapVautoServerListing } from "@/lib/vauto-unified-client";
 
-type AiMode = "checking" | "server" | "personal" | "demo";
+type AiMode = "checking" | "server" | "demo";
 
 export function AiSettingsCard() {
-  const [input, setInput] = useState("");
-  const [personalKey, setPersonalKey] = useState(false);
   const [mode, setMode] = useState<AiMode>("checking");
-  const [saved, setSaved] = useState(false);
   const [testing, setTesting] = useState(false);
   const [testResult, setTestResult] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
     setMode("checking");
     const health = await apiAiHealthCheck();
-    if (health?.openai) {
+    if (health?.gemini) {
       setMode("server");
-      return;
-    }
-    if (hasOpenAiKey()) {
-      setMode("personal");
       return;
     }
     setMode("demo");
   }, []);
 
   useEffect(() => {
-    setPersonalKey(hasOpenAiKey());
     void refreshStatus();
   }, [refreshStatus]);
-
-  const handleSave = () => {
-    if (!input.startsWith("sk-") || input.length < 20) {
-      alert("Įveskite galiojantį OpenAI raktą (prasideda sk-)");
-      return;
-    }
-    setOpenAiKey(input);
-    setPersonalKey(true);
-    setInput("");
-    setSaved(true);
-    setMode("personal");
-    setTimeout(() => setSaved(false), 2000);
-  };
-
-  const handleClearKey = () => {
-    clearOpenAiKey();
-    setPersonalKey(false);
-    setInput("");
-    void refreshStatus();
-  };
 
   const handleTest = async () => {
     setTesting(true);
     setTestResult(null);
     try {
-      const result = await apiExtractText({
+      const res = await apiVautoServer({
+        action: "parse_text",
         text: "Parduodu iPhone 13, 320 eurų, puiki būklė, Vilnius",
         userCity: "Vilnius",
         contact: "+370 600 00000",
       });
-      if (result?.title) {
-        setTestResult(`✓ AI veikia: „${result.title}" — ${result.price}€`);
-        if (mode === "demo") setMode("server");
-      } else if (hasOpenAiKey()) {
-        setTestResult("✓ Asmeninis raktas išsaugotas (serverio AI nepasiekiamas)");
+      if (res && "listing" in res) {
+        const listing = mapVautoServerListing(res.listing, "Vilnius");
+        setTestResult(`✓ Gemini veikia: „${listing.title}" — ${listing.price}€`);
+        setMode("server");
       } else {
-        setTestResult("✗ Demo režimas — serverio AI raktas dar nesukonfigūruotas");
+        setTestResult("✗ Gemini nepasiekiamas — patikrinkite GEMINI_API_KEY serveryje");
       }
     } catch {
-      setTestResult("✗ Testas nepavyko — patikrinkite raktą");
+      setTestResult("✗ Gemini testas nepavyko");
     } finally {
       setTesting(false);
     }
@@ -92,22 +59,18 @@ export function AiSettingsCard() {
     }
   };
 
-  const masked = personalKey ? getOpenAiKey()?.slice(0, 7) + "••••••••" : null;
-
   const badge =
     mode === "checking"
       ? { label: "Tikrinama…", className: "bg-gray-100 text-gray-500" }
       : mode === "server"
-        ? { label: "Serverio AI", className: "bg-green-100 text-green-700" }
-        : mode === "personal"
-          ? { label: "Asmeninis raktas", className: "bg-blue-100 text-blue-700" }
-          : { label: "Demo režimas", className: "bg-amber-100 text-amber-700" };
+        ? { label: "Gemini AI", className: "bg-green-100 text-green-700" }
+        : { label: "Demo režimas", className: "bg-amber-100 text-amber-700" };
 
   return (
     <div className="card-shadow mt-6 rounded-2xl bg-white p-4 text-slate-900">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[var(--vauto-orange)]" />
-        <h2 className="font-semibold text-slate-900">AI nustatymai</h2>
+        <h2 className="font-semibold text-slate-900">Gemini AI</h2>
         <span
           className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}
         >
@@ -117,22 +80,13 @@ export function AiSettingsCard() {
 
       {mode === "server" && (
         <p className="mb-3 rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
-          AI veikia per Vauto serverį — nereikia įvesti savo rakto. Tinka visiems
-          testuotojams.
+          Visos AI funkcijos veikia per Vauto serverį (Gemini).
         </p>
       )}
 
       {mode === "demo" && (
         <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
-          Dabar naudojami demo duomenys. Serverio AI raktas dar neįdiegtas Vercel
-          aplinkoje.
-        </p>
-      )}
-
-      {masked && (
-        <p className="mb-2 flex items-center gap-1.5 text-xs text-slate-500">
-          <KeyRound className="h-3.5 w-3.5" />
-          Asmeninis raktas: {masked}
+          Gemini serveris nepasiekiamas — naudojami demo duomenys.
         </p>
       )}
 
@@ -151,46 +105,10 @@ export function AiSettingsCard() {
         ) : (
           <Zap className="h-4 w-4" />
         )}
-        {testing ? "Testuojama…" : "Testuoti AI"}
+        {testing ? "Testuojama…" : "Testuoti Gemini"}
       </button>
 
-      {testResult && (
-        <p className="mb-3 text-xs text-slate-600">{testResult}</p>
-      )}
-
-      <details className="group">
-        <summary className="cursor-pointer text-xs font-medium text-slate-500">
-          Naudoti savo OpenAI raktą (nebūtina)
-        </summary>
-        <div className="mt-3">
-          <input
-            type="password"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={personalKey ? "Įveskite naują raktą..." : "sk-..."}
-            className="w-full rounded-xl border border-gray-200 px-4 py-3 text-sm text-slate-900 outline-none focus:border-[var(--vauto-blue)] focus:ring-2 focus:ring-[var(--vauto-blue)]/20"
-          />
-          <div className="mt-3 flex gap-2">
-            <button
-              type="button"
-              onClick={handleSave}
-              className="flex-1 rounded-xl bg-[var(--vauto-blue)] py-2.5 text-sm font-medium text-white"
-            >
-              {saved ? "Išsaugota!" : "Išsaugoti raktą"}
-            </button>
-            {personalKey && (
-              <button
-                type="button"
-                onClick={handleClearKey}
-                className="flex items-center justify-center rounded-xl border border-gray-200 px-3 text-slate-500"
-                aria-label="Pašalinti raktą"
-              >
-                <Trash2 className="h-4 w-4" />
-              </button>
-            )}
-          </div>
-        </div>
-      </details>
+      {testResult && <p className="mb-3 text-xs text-slate-600">{testResult}</p>}
 
       <button
         type="button"

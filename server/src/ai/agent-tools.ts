@@ -149,7 +149,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "navigate_view",
     description:
-      "Perjungia programėlės vaizdą (Zero-UI) be puslapio perkrovimo. Naudok kai vartotojas ar adminas nori eiti į konkretų ekraną: pradžią, paiešką, skelbimo įkėlimą, pokalbius, profilį ar admin AI zoną.",
+      "Perjungia programėlės vaizdą (Zero-UI). Pardavimui / skelbimo kėlimui → add_listing arba seller_wizard. Paieškai → search_results su params.query. Nenaudok search_results jei vartotojas nori kelti skelbimą.",
     parameters: {
       type: "OBJECT",
       properties: {

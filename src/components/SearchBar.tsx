@@ -5,10 +5,11 @@ import { useMemo, useRef, useState } from "react";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { extractFromImage, extractFromText } from "@/lib/client-api";
-import { buildPhotoSearchQuery, buildPhotoSearchToast, buildVoiceSearchQuery } from "@/lib/photo-search";
+import { extractFromImage } from "@/lib/client-api";
+import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { isSellIntent } from "@/lib/gemini-intent";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
@@ -76,12 +77,16 @@ export function SearchBar() {
     const q = sanitizeSearchQuery(searchQuery, "final");
     if (!q || agentBusy) return;
 
-    if (startListingFromQuery(q)) {
-      setSearchQuery("");
-      return;
-    }
-
     setSearchInputMode("text");
+    setSearchQuery(q);
+    setAgentOpen(true);
+    void sendAgentMessage(q);
+  };
+
+  const routeToGeminiAgent = (text: string) => {
+    const q = sanitizeSearchQuery(text, "final");
+    if (!q) return;
+    setSearchQuery(q);
     setAgentOpen(true);
     void sendAgentMessage(q);
   };
@@ -101,24 +106,24 @@ export function SearchBar() {
     setIsVoiceFlowBusy(true);
     try {
       const text = result.mergedTranscript;
-      if (detectSellerListingIntent(text)) {
-        setVoiceFlowOpen(false);
-        if (startListingFromQuery(text)) return;
+      const listingIntent =
+        result.analysis.intent === "sell" ||
+        detectSellerListingIntent(text);
+
+      setVoiceFlowOpen(false);
+
+      if (listingIntent) {
+        setSearchInputMode("voice");
+        setSearchVoiceMode(false);
+        routeToGeminiAgent(text);
+        return;
       }
 
-      const extracted = await extractFromText({
-        transcript: text,
-        userCity: user.city || "Lietuva",
-        contact: user.phone || "+370 612 34567",
-      });
-      const query = buildVoiceSearchQuery(text, extracted);
       setSearchInputMode("voice");
       setSearchVoiceMode(true);
-      setSearchQuery(query);
-      void applyVisualSearch(buildVisualSearchProfile(extracted, "voice"));
-      showToast(buildPhotoSearchToast(extracted), "success");
-      setVoiceFlowOpen(false);
+      setSearchQuery(text);
       scrollToResults();
+      routeToGeminiAgent(text);
     } catch (error) {
       showToast(
         error instanceof Error
@@ -147,6 +152,20 @@ export function SearchBar() {
         userCity: user.city || "Lietuva",
         contact: user.phone || "+370 612 34567",
       });
+
+      setPhotoFlowOpen(false);
+
+      const contextText = [result.extraContext, extracted.title].filter(Boolean).join(" ");
+      if (isSellIntent(contextText, extracted)) {
+        setSearchInputMode("photo");
+        setSearchVoiceMode(false);
+        routeToGeminiAgent(
+          result.extraContext?.trim() ||
+            `Noriu įkelti skelbimą: ${extracted.title}`
+        );
+        return;
+      }
+
       if (extracted.confidence < 0.4) {
         showToast(
           "AI nepavyko tiksliai atpažinti nuotraukoje. Bandykite dar kartą arba įveskite paiešką ranka.",
@@ -154,6 +173,7 @@ export function SearchBar() {
         );
         return;
       }
+
       const query = buildPhotoSearchQuery(extracted);
       setSearchInputMode("photo");
       setSearchVoiceMode(false);
@@ -162,7 +182,6 @@ export function SearchBar() {
         buildVisualSearchProfile(extracted, "photo", result.photos[0])
       );
       showToast(buildPhotoSearchToast(extracted), "success");
-      setPhotoFlowOpen(false);
       scrollToResults();
     } catch (error) {
       showToast(
@@ -267,7 +286,7 @@ export function SearchBar() {
 
       <VoiceClarifyFlowSheet
         open={voiceFlowOpen}
-        mode="search"
+        mode={detectSellerListingIntent(searchQuery) ? "listing" : "search"}
         userCity={user.city || "Lietuva"}
         busy={isVoiceFlowBusy}
         onClose={() => setVoiceFlowOpen(false)}

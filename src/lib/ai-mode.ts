@@ -1,17 +1,8 @@
 import { apiAiHealthCheck } from "@/lib/api/client";
-import { hasOpenAiKey } from "@/lib/openai-settings";
 
 export async function resolveAiModeLabel(): Promise<string> {
   const health = await apiAiHealthCheck();
-  if (health?.openai) {
-    const label =
-      health.mode === "gemini"
-        ? "Gemini Flash · Vauto serveris"
-        : health.provider === "gemini"
-          ? "Gemini Flash · Vauto serveris"
-          : "GPT-4o-mini · Vauto serveris";
-    return label;
-  }
-  if (hasOpenAiKey()) return "GPT-4o-mini · asmeninis raktas";
-  return "Demo režimas";
+  if (health?.provider === "gemini") return "Gemini Flash · Vauto serveris";
+  if (health?.gemini) return "Gemini · Vauto serveris";
+  return "Demo režimas (GEMINI_API_KEY)";
 }

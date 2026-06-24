@@ -1,7 +1,6 @@
 export type AgentErrorCode =
   | "timeout"
   | "gemini_error"
-  | "openai_error"
   | "agent_unavailable"
   | "invalid_request";
 

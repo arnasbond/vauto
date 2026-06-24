@@ -60,7 +60,7 @@ module.exports = async function handler(req, res) {
 
   if (action !== "upload_media" && !hasAiKey()) {
     return res.status(503).json({
-      error: "AI API key not set (GEMINI_API_KEY or OPENAI_API_KEY)",
+      error: "AI API key not set (GEMINI_API_KEY required)",
     });
   }
 

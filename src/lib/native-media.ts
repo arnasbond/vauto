@@ -1,8 +1,6 @@
 import { Capacitor } from "@capacitor/core";
-import { hasOpenAiKey } from "@/lib/openai-settings";
 import {
   createVoiceSession,
-  transcribeFromSession,
   type VoiceSession,
 } from "@/lib/audio-session";
 import { rebuildSpeechTranscript, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
@@ -364,19 +362,9 @@ export const VAUTO_DEMO_VOICE_TRANSCRIPT = DEMO_TRANSCRIPT;
 export async function recordWithSession(
   session: VoiceSession
 ): Promise<string | null> {
-  if (hasOpenAiKey()) {
-    try {
-      const text = await transcribeFromSession(session);
-      if (text) return text;
-    } catch (e) {
-      console.warn("[Vauto] Whisper failed:", e);
-    }
-  }
-
   session.release();
   const speech = await speechRecognitionTranscript();
   if (speech) return speech;
-
   return null;
 }
 

@@ -1,10 +1,11 @@
-const { getServerOpenAiKey } = require("../lib/openai");
+const { hasAiKey, resolveGeminiProvider } = require("../lib/gemini-config");
 
 module.exports = function handler(_req, res) {
-  const hasKey = Boolean(getServerOpenAiKey());
+  const provider = resolveGeminiProvider();
   res.status(200).json({
     ok: true,
-    openai: hasKey,
-    mode: hasKey ? "server" : "demo",
+    gemini: provider !== null,
+    provider,
+    mode: provider ?? "demo",
   });
 };

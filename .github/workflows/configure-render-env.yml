@@ -19,7 +19,6 @@ jobs:
           RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
           STRIPE_SECRET_KEY: ${{ secrets.STRIPE_SECRET_KEY }}
           STRIPE_WEBHOOK_SECRET: ${{ secrets.STRIPE_WEBHOOK_SECRET }}
-          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           REGITRA_PLATE_API_USERNAME: ${{ secrets.REGITRA_PLATE_API_USERNAME }}
           REGITRA_PLATE_API_PASSWORD: ${{ secrets.REGITRA_PLATE_API_PASSWORD }}
@@ -29,6 +28,14 @@ jobs:
             exit 1
           fi
           node scripts/configure-render-env.mjs
+
+      - name: Sync Vercel env (Gemini only)
+        env:
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+        run: node scripts/configure-vercel-env.mjs
 
       - name: Wait for API health
         run: |
@@ -40,8 +47,8 @@ jobs:
               echo "API healthy with Gemini agent"
               exit 0
             fi
-            if echo "$BODY" | grep -q '"openai":true'; then
-              echo "API healthy with AI"
+            if echo "$BODY" | grep -q '"gemini":true'; then
+              echo "API healthy with Gemini"
               exit 0
             fi
             if echo "$BODY" | grep -q '"db":"connected"'; then

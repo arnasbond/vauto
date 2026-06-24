@@ -24,10 +24,10 @@ export function resolveGeminiApiKey(): string | undefined {
   return key || undefined;
 }
 
-export function resolveOpenAiApiKey(): string | undefined {
-  return process.env.OPENAI_API_KEY?.trim() || undefined;
+export function hasAgentAiKey(): boolean {
+  return Boolean(resolveGeminiApiKey());
 }
 
-export function hasAgentAiKey(): boolean {
-  return Boolean(resolveGeminiApiKey() || resolveOpenAiApiKey());
+export function hasAiKey(): boolean {
+  return hasAgentAiKey();
 }

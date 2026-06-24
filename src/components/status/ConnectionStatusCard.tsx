@@ -14,7 +14,7 @@ const FEATURE_LABELS: Record<string, string> = {
   webPush: "Web Push",
   fcm: "Android FCM",
   jwt: "JWT sesijos",
-  openai: "OpenAI AI",
+  gemini: "Gemini AI",
   reportEmail: "El. paštas admin",
   stripe: "Stripe mokėjimai",
   stripeWebhook: "Stripe webhook",
