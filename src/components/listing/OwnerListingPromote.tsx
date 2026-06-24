@@ -41,7 +41,7 @@ export function OwnerListingPromote({ listing }: OwnerListingPromoteProps) {
       />
       <p className="mt-2 text-xs text-slate-400">
         Rekomenduojamas planas:{" "}
-        <span className="font-medium text-white">{selectedPlan.label}</span> ·{" "}
+        <span className="font-medium text-slate-800">{selectedPlan.label}</span> ·{" "}
         {formatPrice(selectedPlan.price)}
       </p>
       <button

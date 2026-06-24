@@ -20,7 +20,7 @@ export function SellerRatingBadge({
 
   if (compact) {
     return (
-      <span className="inline-flex items-center gap-1 rounded-full bg-amber-500/15 px-2 py-0.5 text-[10px] font-medium text-amber-300">
+      <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[10px] font-medium text-amber-800 ring-1 ring-amber-200">
         <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
         {avg} ({count})
       </span>
@@ -36,14 +36,14 @@ export function SellerRatingBadge({
             className={`h-3.5 w-3.5 ${
               i < Math.round(avg)
                 ? "fill-amber-400 text-amber-400"
-                : "text-white/20"
+                : "text-slate-200"
             }`}
           />
         ))}
       </div>
-      <span className="text-sm text-white">
+      <span className="text-sm text-slate-800">
         {avg}{" "}
-        <span className="text-[var(--vauto-text-muted)]">
+        <span className="text-slate-500">
           ({count} atsiliepim{count === 1 ? "as" : count < 10 ? "ai" : "ų"})
         </span>
       </span>

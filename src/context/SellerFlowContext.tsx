@@ -659,7 +659,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast(msg, "error");
         return;
       }
-      published = withDefaultExpiry(createRes.data);
+      published = withDefaultExpiry({
+        ...createRes.data,
+        slug: createRes.data.slug ?? newListing.slug,
+      });
     }
 
     showToast("Skelbimas publikuotas!", "success");

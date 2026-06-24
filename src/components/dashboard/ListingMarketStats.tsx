@@ -35,7 +35,7 @@ export function ListingMarketStats({
     return (
       <div className="mt-2 flex flex-wrap items-center gap-2 text-[10px]">
         {insights.competitorCount > 0 && (
-          <span className="flex items-center gap-0.5 rounded-md bg-slate-50 px-1.5 py-0.5 text-sky-300">
+          <span className="flex items-center gap-0.5 rounded-md bg-slate-50 px-1.5 py-0.5 text-sky-700">
             <Users className="h-3 w-3" />
             {insights.competitorCount} konkurentai
           </span>

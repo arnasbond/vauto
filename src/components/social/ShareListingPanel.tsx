@@ -99,7 +99,7 @@ export function ShareListingPanel({
         <button
           type="button"
           onClick={() => void handleCopy()}
-          className="flex items-center gap-1.5 rounded-xl border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-slate-300"
+          className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-100"
         >
           {copied ? (
             <>
@@ -139,7 +139,7 @@ export function ShareListingPanel({
       )}
 
       {captionPlatform === "instagram" && (
-        <p className="rounded-lg bg-white/5 p-2 text-[10px] text-slate-400">
+        <p className="rounded-lg bg-slate-50 p-2 text-[10px] text-slate-600">
           Instagram: nuoroda nukopijuota. Įklijuokite į Stories, postą ar bio. Tekstas:{" "}
           {shareCaptionForPlatform("instagram", listing)}
         </p>

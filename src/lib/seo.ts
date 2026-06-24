@@ -56,7 +56,6 @@ export interface ListingSeoMetadata {
 const SITE_URL = "https://vauto-chi.vercel.app";
 
 export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
-  const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
   const priceText = listing.priceLabel ?? `${listing.price}€`;
   const regionalTitle = regionalizeTitle(listing.title, listing.location);
   const title = `${regionalTitle} — ${priceText} | VAUTO`;
@@ -72,7 +71,7 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
       title: `${regionalTitle} — ${priceText}`,
       description: `${description} ${city} regionas.`,
       image: listing.image,
-      url: `${SITE_URL}/listing/${slug}/`,
+      url: `${SITE_URL}${listingPath(listing)}`,
       type: "product",
       siteName: "Vauto",
     },
@@ -80,6 +79,13 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
 }
 
 export function listingPath(listing: Listing): string {
+  const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
+  // Query-based path works for statically exported app (no per-slug HTML file required).
+  return `/listing/?slug=${encodeURIComponent(slug)}`;
+}
+
+/** Pretty path for legacy/static slugs — requires Vercel rewrite to /listing/?slug= */
+export function listingPrettyPath(listing: Listing): string {
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
   return `/listing/${slug}/`;
 }

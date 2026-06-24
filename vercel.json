@@ -13,8 +13,12 @@
   },
   "rewrites": [
     {
+      "source": "/listing/:slug",
+      "destination": "/listing/index.html?slug=:slug"
+    },
+    {
       "source": "/listing/:slug/",
-      "destination": "/listing/?slug=:slug"
+      "destination": "/listing/index.html?slug=:slug"
     }
   ],
   "headers": [

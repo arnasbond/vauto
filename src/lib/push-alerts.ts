@@ -1,4 +1,5 @@
 import type { Listing } from "@/lib/types";
+import { listingPath } from "@/lib/seo";
 import { logWakeEvent } from "@/lib/wake-word-engine";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 
@@ -68,7 +69,7 @@ export function findHighScoreAlertMatch(
       return {
         title: "VAUTO: pageidavimas įvykdytas!",
         body: `${match.title} — ${match.location}. Atitinka „${query}". Spauskite — atidarysite prekę.`,
-        url: `/listing/${match.slug ?? match.id}/`,
+        url: listingPath(match),
         listingId: match.id,
         voiceText: `Sveiki! Radau naują skelbimą: ${match.title} ${match.location}.`,
       };

@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect } from "react";
 import {
   ArrowLeft,
@@ -50,8 +50,20 @@ function formatPostedDate(iso: string): string {
 
 export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {}) {
   const searchParams = useSearchParams();
+  const pathname = usePathname();
   const id = searchParams.get("id");
-  const slug = slugProp ?? searchParams.get("slug") ?? undefined;
+  const slugFromQuery = searchParams.get("slug") ?? undefined;
+  const slugFromPath = (() => {
+    const m = pathname.match(/\/listing\/([^/]+)\/?$/);
+    const segment = m?.[1];
+    if (!segment || segment === "listing") return undefined;
+    try {
+      return decodeURIComponent(segment);
+    } catch {
+      return segment;
+    }
+  })();
+  const slug = slugProp ?? slugFromQuery ?? slugFromPath ?? undefined;
   const router = useRouter();
   const {
     findListing,
