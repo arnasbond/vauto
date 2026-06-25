@@ -86,7 +86,7 @@ jobs:
           test -f .vercel/output/static/admin/ai/index.html
 
       - name: Deploy prebuilt static site to Vercel Production
-        run: vercel deploy --prebuilt --prod --yes --token="$VERCEL_TOKEN"
+        run: vercel deploy --prebuilt --prod --yes --archive=tgz --token="$VERCEL_TOKEN"
         env:
           VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
           VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
