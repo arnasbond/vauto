@@ -1,5 +1,4 @@
-import { detectCityFuzzy, LT_CITY_NAMES, LT_CITY_PATTERNS } from "@/lib/lt-cities";
-import { VEHICLE_BRAND_PATTERN } from "@/lib/vehicle-keywords";
+import { detectCityFuzzy, LT_CITY_NAMES } from "@/lib/lt-cities";
 
 export type ParsedConditionFilter = "used" | "new";
 
@@ -18,75 +17,6 @@ function normalizeBrandAliases(text: string): string {
   }
   return t;
 }
-
-const NORM = (s: string) =>
-  s
-    .toLowerCase()
-    .normalize("NFD")
-    .replace(/\p{M}/gu, "")
-    .trim();
-
-const SEARCH_PREFIX =
-  /^(?:ieškau|ieskau|i\s*eškau|i\s*eskau|rask|surask|parodyk(?:\s+visus)?|norėčiau|noreciau|ieškoti|ieskoti|find|search|show|kas\s+parduod\w*|kur\s+(?:nusipirkti|isigyti|įsigyti|rasti|pirkti|galima\s+pirkti))\s+/i;
-
-const BUYER_INLINE =
-  /\b(kas|parduoda|parduodami|parduodama|nusipirkti|isigyti|įsigyti|kur|kaip|ar)\b/gi;
-
-const SEARCH_STOP_WORDS = new Set([
-  "rask",
-  "surask",
-  "ieskau",
-  "ieskoti",
-  "parodyk",
-  "rodyti",
-  "noreciau",
-  "norečiau",
-  "aplink",
-  "apie",
-  "salia",
-  "šalia",
-  "arti",
-  "mieste",
-  "miestas",
-  "miesto",
-  "naudotas",
-  "naudota",
-  "naujas",
-  "nauja",
-  "used",
-  "new",
-  "skelbimus",
-  "skelbima",
-  "skelbimai",
-  "automobili",
-  "automobilis",
-  "auto",
-  "masina",
-  "masina",
-  "km",
-  "kilometr",
-  "kilometru",
-  "spinduliu",
-  "spindulys",
-  "man",
-  "mano",
-  "visus",
-  "viso",
-  "find",
-  "search",
-  "show",
-  "lietuvoje",
-  "lietuvos",
-  "kas",
-  "parduoda",
-  "parduodami",
-  "parduodama",
-  "nusipirkti",
-  "isigyti",
-  "igyti",
-  "kur",
-  "kaip",
-]);
 
 export interface ParsedSearchIntent {
   cleanQuery: string;
@@ -116,71 +46,11 @@ function detectCondition(text: string): ParsedConditionFilter | undefined {
   return undefined;
 }
 
-function detectCategory(query: string): string | undefined {
-  const q = query.toLowerCase();
-  if (
-    VEHICLE_BRAND_PATTERN.test(q) ||
-    /\b(auto|automob|transporto|ratlank|padang|vin)\b/i.test(q)
-  ) {
-    return "vehicles";
-  }
-  if (/\b(butas|namas|sklypas|nt\b|nekilnojam|nuomoju)\b/i.test(q)) {
-    return "real_estate";
-  }
-  if (/\b(darbas|etat|atlyginim|cv\b)\b/i.test(q)) return "jobs";
-  if (
-    /\b(drabuž|drabuz|rub|batai|striuk|megzt|keln|maršk|marsk|suknel|aprang)/i.test(
-      q
-    )
-  ) {
-    return "clothing";
-  }
-  if (/\b(meistr|paslaug|remont)\b/i.test(q)) return "services";
-  return undefined;
-}
-
-/** Map spoken shorthand to catalog search terms */
-function expandProductSynonyms(query: string): string {
-  const q = query.toLowerCase();
-  if (/\brub\w*\b/.test(q)) {
-    return query.replace(/\brub\w*\b/gi, "drabužiai");
-  }
-  return query;
-}
-
-function stripSearchPrefixes(raw: string): string {
-  let q = raw.trim();
-  q = q.replace(SEARCH_PREFIX, "");
-  q = q.replace(/\b(skelbimus?|skelbimus|visus|viso)\b/gi, " ");
-  return q.replace(/\s+/g, " ").trim();
-}
-
-function isCityWord(word: string, city: string): boolean {
-  const nw = NORM(word);
-  if (nw.length < 4) return false;
-  const cn = NORM(city);
-  const overlap = Math.min(5, nw.length, cn.length);
-  return overlap >= 4 && nw.slice(0, overlap) === cn.slice(0, overlap);
-}
-
-function stripCityFromText(text: string, city: string): string {
-  let working = text;
-  for (const [pattern] of LT_CITY_PATTERNS) {
-    working = working.replace(pattern, " ");
-  }
-  working = working
-    .split(/[\s,.;:!?'"-]+/)
-    .filter((w) => w.length > 0 && !isCityWord(w, city))
-    .join(" ");
-  return working;
-}
-
 /**
- * Parse natural-language LT search into clean product query + filter hints.
- * „Rask volvo v70 aplink Panevėžy naudotas“ → cleanQuery: volvo v70, city, +20 km, used.
+ * Offline fallback — geo/condition hints only. Semantic category/product parsing is Gemini-only.
  */
-export function parseSearchIntent(text: string): ParsedSearchIntent {
-  const normalized = normalizeBrandAliases(text);
+export function parseSearchIntentFallback(text: string): ParsedSearchIntent {
+  const normalized = normalizeBrandAliases(text.trim());
   const cityNominative = detectCityFuzzy(normalized);
   const condition = detectCondition(normalized);
   let radiusKm = detectRadiusKm(normalized);
@@ -191,32 +61,17 @@ export function parseSearchIntent(text: string): ParsedSearchIntent {
     radiusKm = 20;
   }
 
-  let working = normalized;
-  if (cityNominative) {
-    working = stripCityFromText(working, cityNominative);
-  }
-  working = working.replace(/\d{1,3}\s*km/gi, " ");
-  working = working.replace(/\bspindul(?:iu|yje|ys)\b/gi, " ");
-  working = stripSearchPrefixes(working);
-  working = working.replace(BUYER_INLINE, " ");
-
-  const tokens = working
-    .split(/[\s,.;:!?]+/)
-    .map((t) => t.trim())
-    .filter((t) => t.length >= 2)
-    .map((t) => NORM(t))
-    .filter((t) => !SEARCH_STOP_WORDS.has(t));
-
-  const cleanQuery = expandProductSynonyms(tokens.join(" ").trim());
-  const category = detectCategory(cleanQuery) ?? detectCategory(normalized);
-
   return {
-    cleanQuery,
+    cleanQuery: normalized,
     cityNominative,
     radiusKm,
     condition,
-    category,
   };
+}
+
+/** @deprecated Use resolveSearchIntent (Gemini). Kept for tests / legacy imports. */
+export function parseSearchIntent(text: string): ParsedSearchIntent {
+  return parseSearchIntentFallback(text);
 }
 
 export { LT_CITY_NAMES };

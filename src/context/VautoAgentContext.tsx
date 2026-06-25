@@ -300,7 +300,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      const fast = runFastAgentSearch(trimmed, listings);
+      const fast = await runFastAgentSearch(trimmed, listings, {
+        userCity: user.city,
+      });
       if (fast) {
         setLastError(undefined);
         const isStateSearch =

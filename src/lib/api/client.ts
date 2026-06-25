@@ -630,6 +630,16 @@ export async function apiBillingPortal(): Promise<
   });
 }
 
+export async function apiAnalyzeSearchIntent(body: {
+  query: string;
+  userCity?: string;
+}): Promise<import("@/lib/gemini-search-intent").GeminiSearchIntent | null> {
+  return aiFetch("/api/ai/analyze-search", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiAnalyzeVoice(body: {
   transcript: string;
   mode: "search" | "listing";

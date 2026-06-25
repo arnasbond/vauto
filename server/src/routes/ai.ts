@@ -182,6 +182,80 @@ Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarif
   }
 });
 
+const SEARCH_INTENT_SCHEMA = `{
+  "category": "Auto | Elektronika | Namai | Drabužiai | Paslaugos | NT | Darbas | null",
+  "cleanQuery": "string",
+  "location": "string",
+  "radiusKm": "number | null",
+  "condition": "used | new | null"
+}`;
+
+const SEARCH_CATEGORIES = new Set([
+  "Auto",
+  "Elektronika",
+  "Namai",
+  "Drabužiai",
+  "Paslaugos",
+  "NT",
+  "Darbas",
+]);
+
+function snapSearchRadius(km: unknown): number | null {
+  const n = Number(km);
+  if (!Number.isFinite(n) || n <= 0) return null;
+  if (n <= 5) return 5;
+  if (n <= 10) return 10;
+  if (n <= 20) return 20;
+  return 50;
+}
+
+aiRouter.post("/analyze-search", async (req, res) => {
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+
+  const { query, userCity } = req.body as {
+    query?: string;
+    userCity?: string;
+  };
+
+  if (!query?.trim()) {
+    return res.status(400).json({ error: "query is required" });
+  }
+
+  try {
+    const raw = await chatJson([
+      {
+        role: "system",
+        content: `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
+Vartotojas IEŠKO skelbimų. Grąžink tik JSON: ${SEARCH_INTENT_SCHEMA}`,
+      },
+      {
+        role: "user",
+        content: `Užklausa: "${query.trim()}"
+Miestas: ${userCity ?? "Lietuva"}`,
+      },
+    ]);
+
+    const categoryRaw = raw.category;
+    const category =
+      categoryRaw == null || categoryRaw === "null"
+        ? null
+        : SEARCH_CATEGORIES.has(String(categoryRaw))
+          ? String(categoryRaw)
+          : null;
+
+    res.json({
+      category,
+      cleanQuery: String(raw.cleanQuery ?? "").trim(),
+      location: String(raw.location ?? "").trim(),
+      radiusKm: snapSearchRadius(raw.radiusKm),
+      condition:
+        raw.condition === "used" || raw.condition === "new" ? raw.condition : null,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/reference-images", async (req, res) => {
   const { query, category, limit = 4 } = req.body as {
     query: string;

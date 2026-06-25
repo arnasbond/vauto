@@ -39,41 +39,43 @@ function applyFastSearchToGrid(
   setMarketplaceFilters: (
     filters: import("@/lib/marketplace-view").MarketplaceFilterState
   ) => void,
-  marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState
-): string | false {
-  const fast = runFastAgentSearch(query, listings);
-  if (!fast) {
-    setAgentPinnedListings(null);
-    return false;
-  }
+  marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState,
+  userCity?: string
+): Promise<string | false> {
+  return runFastAgentSearch(query, listings, { userCity }).then((fast) => {
+    if (!fast) {
+      setAgentPinnedListings(null);
+      return false;
+    }
 
-  if (fast.actions.type === "search") {
-    setAgentPinnedListings(fast.actions.listingIds);
-    if (fast.actions.filters) {
-      setMarketplaceFilters(
-        mergeAgentIntoMarketplaceFilters(
-          marketplaceFilters,
-          fast.actions.filters,
-          { resetAbsentGeo: true, resetAbsentCondition: true }
-        )
-      );
+    if (fast.actions.type === "search") {
+      setAgentPinnedListings(fast.actions.listingIds);
+      if (fast.actions.filters) {
+        setMarketplaceFilters(
+          mergeAgentIntoMarketplaceFilters(
+            marketplaceFilters,
+            fast.actions.filters,
+            { resetAbsentGeo: true, resetAbsentCondition: true }
+          )
+        );
+      }
+      return fast.actions.searchQuery;
     }
-    return fast.actions.searchQuery;
-  }
-  if (fast.actions.type === "empty_search") {
-    setAgentPinnedListings(null);
-    if (fast.actions.filters) {
-      setMarketplaceFilters(
-        mergeAgentIntoMarketplaceFilters(
-          marketplaceFilters,
-          fast.actions.filters,
-          { resetAbsentGeo: true, resetAbsentCondition: true }
-        )
-      );
+    if (fast.actions.type === "empty_search") {
+      setAgentPinnedListings(null);
+      if (fast.actions.filters) {
+        setMarketplaceFilters(
+          mergeAgentIntoMarketplaceFilters(
+            marketplaceFilters,
+            fast.actions.filters,
+            { resetAbsentGeo: true, resetAbsentCondition: true }
+          )
+        );
+      }
+      return fast.actions.searchQuery;
     }
-    return fast.actions.searchQuery;
-  }
-  return false;
+    return false;
+  });
 }
 
 export function SearchBar() {
@@ -90,6 +92,7 @@ export function SearchBar() {
     user,
     sellerStep,
     chameleonTheme,
+    setSearchLoading,
     searchLoading,
     listings,
     setAgentPinnedListings,
@@ -132,7 +135,7 @@ export function SearchBar() {
   };
 
   const commitSearch = useCallback(
-    (raw: string, opts?: { voice?: boolean }) => {
+    async (raw: string, opts?: { voice?: boolean }) => {
       const q = sanitizeSearchQuery(raw, "final");
       if (!q) return;
 
@@ -157,17 +160,23 @@ export function SearchBar() {
         return;
       }
 
-      const cleanQuery = applyFastSearchToGrid(
-        q,
-        listings,
-        setAgentPinnedListings,
-        setMarketplaceFilters,
-        marketplaceFilters
-      );
-      const committed = typeof cleanQuery === "string" ? cleanQuery : q;
-      setDraftQuery(committed);
-      setSearchQuery(committed);
-      scrollToResults();
+      setSearchLoading(true);
+      try {
+        const cleanQuery = await applyFastSearchToGrid(
+          q,
+          listings,
+          setAgentPinnedListings,
+          setMarketplaceFilters,
+          marketplaceFilters,
+          user.city
+        );
+        const committed = typeof cleanQuery === "string" ? cleanQuery : q;
+        setDraftQuery(committed);
+        setSearchQuery(committed);
+        scrollToResults();
+      } finally {
+        setSearchLoading(false);
+      }
     },
     [
       clearVisualSearch,
@@ -177,14 +186,16 @@ export function SearchBar() {
       setMarketplaceFilters,
       setSearchInputMode,
       setSearchQuery,
+      setSearchLoading,
       setViewMode,
       startListingFromQuery,
+      user.city,
     ]
   );
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    commitSearch(draftQuery);
+    void commitSearch(draftQuery);
     inputRef.current?.blur();
   };
 
@@ -222,7 +233,7 @@ export function SearchBar() {
         .then((text) => {
           const clean = sanitizeSpeechTranscript(text ?? "");
           if (!clean) return;
-          commitSearch(clean, { voice: true });
+          return commitSearch(clean, { voice: true });
         })
         .finally(() => {
           setRecording(false);
@@ -281,7 +292,8 @@ export function SearchBar() {
         listings,
         setAgentPinnedListings,
         setMarketplaceFilters,
-        marketplaceFilters
+        marketplaceFilters,
+        user.city
       );
 
       void applyVisualSearch(
