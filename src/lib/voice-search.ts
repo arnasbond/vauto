@@ -48,7 +48,7 @@ export interface VoiceSearchSession {
   cancel: () => void;
 }
 
-const DEFAULT_SILENCE_MS = 1_500;
+const DEFAULT_SILENCE_MS = 2_400;
 const DEFAULT_MAX_MS = 25_000;
 const RESTART_DELAY_MS = 350;
 
@@ -89,6 +89,7 @@ export function startVoiceSearch(
   let resolved = false;
   let rec: InstanceType<SpeechRecognitionCtor> | null = null;
   let committedFinal = "";
+  let lastDisplay = "";
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let maxTimer: ReturnType<typeof setTimeout> | null = null;
   let restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -122,14 +123,31 @@ export function startVoiceSearch(
     resolvePromise = resolve;
   });
 
+  const bestTranscript = () => {
+    const merged = sanitizeSpeechTranscript(
+      (lastDisplay || committedFinal).trim()
+    );
+    if (!merged) return null;
+    if (
+      committedFinal.trim() &&
+      merged.length < committedFinal.trim().length
+    ) {
+      return sanitizeSpeechTranscript(committedFinal.trim()) || null;
+    }
+    return merged;
+  };
+
   const scheduleSilenceStop = () => {
-    if (!committedFinal.trim()) return;
+    const candidate = bestTranscript();
+    if (!candidate) return;
     if (silenceTimer) clearTimeout(silenceTimer);
     silenceTimer = setTimeout(() => {
-      if (active && committedFinal.trim())
-        finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
+      if (active) finish(bestTranscript());
     }, silenceMs);
   };
+
+  let restartCount = 0;
+  const MAX_RESTARTS = 4;
 
   const bindRecognition = () => {
     const instance = new SpeechRecognition();
@@ -156,7 +174,10 @@ export function startVoiceSearch(
       const display = sanitizeSpeechTranscript(
         interim ? `${committedFinal} ${interim}`.trim() : committedFinal
       );
-      if (display) onInterim?.(display);
+      if (display) {
+        lastDisplay = display;
+        onInterim?.(display);
+      }
       if (hadFinal) scheduleSilenceStop();
     };
 
@@ -167,10 +188,15 @@ export function startVoiceSearch(
 
     instance.onend = () => {
       if (!active || resolved) return;
-      if (committedFinal.trim()) {
+      if (bestTranscript()) {
         scheduleSilenceStop();
         return;
       }
+      if (restartCount >= MAX_RESTARTS) {
+        finish(null);
+        return;
+      }
+      restartCount += 1;
       restartTimer = setTimeout(() => {
         if (!active || resolved || !rec) return;
         try {
@@ -186,7 +212,7 @@ export function startVoiceSearch(
 
   rec = bindRecognition();
   maxTimer = setTimeout(() => {
-    finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
+    finish(bestTranscript());
   }, maxMs);
 
   try {
@@ -197,7 +223,7 @@ export function startVoiceSearch(
 
   const stop = () => {
     if (resolved) return;
-    finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
+    finish(bestTranscript());
   };
 
   const cancel = () => {

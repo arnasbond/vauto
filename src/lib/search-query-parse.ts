@@ -27,7 +27,10 @@ const NORM = (s: string) =>
     .trim();
 
 const SEARCH_PREFIX =
-  /^(?:ieškau|ieskau|i\s*eškau|i\s*eskau|rask|surask|parodyk(?:\s+visus)?|norėčiau|noreciau|ieškoti|ieskoti|find|search|show)\s+/i;
+  /^(?:ieškau|ieskau|i\s*eškau|i\s*eskau|rask|surask|parodyk(?:\s+visus)?|norėčiau|noreciau|ieškoti|ieskoti|find|search|show|kas\s+parduod\w*|kur\s+(?:nusipirkti|isigyti|įsigyti|rasti|pirkti|galima\s+pirkti))\s+/i;
+
+const BUYER_INLINE =
+  /\b(kas|parduoda|parduodami|parduodama|nusipirkti|isigyti|įsigyti|kur|kaip|ar)\b/gi;
 
 const SEARCH_STOP_WORDS = new Set([
   "rask",
@@ -74,6 +77,15 @@ const SEARCH_STOP_WORDS = new Set([
   "show",
   "lietuvoje",
   "lietuvos",
+  "kas",
+  "parduoda",
+  "parduodami",
+  "parduodama",
+  "nusipirkti",
+  "isigyti",
+  "igyti",
+  "kur",
+  "kaip",
 ]);
 
 export interface ParsedSearchIntent {
@@ -116,9 +128,24 @@ function detectCategory(query: string): string | undefined {
     return "real_estate";
   }
   if (/\b(darbas|etat|atlyginim|cv\b)\b/i.test(q)) return "jobs";
-  if (/\b(drabuž|batai|striuk|dydis)\b/i.test(q)) return "clothing";
+  if (
+    /\b(drabuž|drabuz|rub|batai|striuk|megzt|keln|maršk|marsk|suknel|aprang)/i.test(
+      q
+    )
+  ) {
+    return "clothing";
+  }
   if (/\b(meistr|paslaug|remont)\b/i.test(q)) return "services";
   return undefined;
+}
+
+/** Map spoken shorthand to catalog search terms */
+function expandProductSynonyms(query: string): string {
+  const q = query.toLowerCase();
+  if (/\brub\w*\b/.test(q)) {
+    return query.replace(/\brub\w*\b/gi, "drabužiai");
+  }
+  return query;
 }
 
 function stripSearchPrefixes(raw: string): string {
@@ -171,6 +198,7 @@ export function parseSearchIntent(text: string): ParsedSearchIntent {
   working = working.replace(/\d{1,3}\s*km/gi, " ");
   working = working.replace(/\bspindul(?:iu|yje|ys)\b/gi, " ");
   working = stripSearchPrefixes(working);
+  working = working.replace(BUYER_INLINE, " ");
 
   const tokens = working
     .split(/[\s,.;:!?]+/)
@@ -179,8 +207,8 @@ export function parseSearchIntent(text: string): ParsedSearchIntent {
     .map((t) => NORM(t))
     .filter((t) => !SEARCH_STOP_WORDS.has(t));
 
-  const cleanQuery = tokens.join(" ").trim();
-  const category = detectCategory(cleanQuery);
+  const cleanQuery = expandProductSynonyms(tokens.join(" ").trim());
+  const category = detectCategory(cleanQuery) ?? detectCategory(normalized);
 
   return {
     cleanQuery,

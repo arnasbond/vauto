@@ -207,6 +207,7 @@ export function SearchBar() {
       clearVisualSearch({ keepInputMode: true });
 
       const session = startVoiceSearch({
+        silenceMs: 2_800,
         onInterim: (text) => {
           const clean = sanitizeSpeechTranscript(text);
           if (clean) setVoiceCaption(clean);
@@ -217,14 +218,17 @@ export function SearchBar() {
         },
       });
       voiceSessionRef.current = session;
-      void session.promise.then((text) => {
-        setRecording(false);
-        voiceSessionRef.current = null;
-        setVoiceCaption("");
-        const clean = sanitizeSpeechTranscript(text ?? "");
-        if (!clean) return;
-        commitSearch(clean, { voice: true });
-      });
+      void session.promise
+        .then((text) => {
+          const clean = sanitizeSpeechTranscript(text ?? "");
+          if (!clean) return;
+          commitSearch(clean, { voice: true });
+        })
+        .finally(() => {
+          setRecording(false);
+          voiceSessionRef.current = null;
+          setVoiceCaption("");
+        });
     });
   };
 
