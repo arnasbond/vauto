@@ -86,44 +86,38 @@ function parseJsonFromText(text) {
   throw new Error("Could not parse JSON from Gemini response");
 }
 
-async function geminiJson({ prompt, imageDataUrls = [], model }) {
+const DEFAULT_JSON_SYSTEM =
+  "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų.";
+
+async function geminiJson({
+  prompt,
+  imageDataUrls = [],
+  model,
+  systemInstruction = DEFAULT_JSON_SYSTEM,
+}) {
   const key =
     process.env.GEMINI_API_KEY?.trim() ||
     process.env.AI_KEY?.trim() ||
     process.env.GOOGLE_AI_API_KEY?.trim();
   if (!key) throw new Error("GEMINI_API_KEY not set");
 
-  const parts = [{ text: prompt }];
+  const userParts = [{ text: prompt }];
   for (const url of imageDataUrls) {
     const inline = await imageUrlToInlinePart(url);
-    if (inline) parts.push(inline);
+    if (inline) userParts.push(inline);
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-  const contents = [{ parts }];
 
-  let res = await fetch(url, {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents,
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ role: "user", parts: userParts }],
       generationConfig: { temperature: 0.2 },
     }),
   });
-
-  if (!res.ok) {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
-      }),
-    });
-  }
 
   if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
   const data = await res.json();
@@ -134,6 +128,7 @@ async function geminiJson({ prompt, imageDataUrls = [], model }) {
 
 async function unifiedLlmJson(input) {
   const prompt = input?.prompt;
+  const systemInstruction = input?.systemInstruction ?? DEFAULT_JSON_SYSTEM;
   const imageDataUrls = input?.imageDataUrls ?? [];
   if (!prompt?.trim()) throw new Error("prompt is required");
 
@@ -148,7 +143,7 @@ async function unifiedLlmJson(input) {
   let lastError;
   for (const model of UNIFIED_GEMINI_MODELS) {
     try {
-      return await geminiJson({ prompt, imageDataUrls, model });
+      return await geminiJson({ prompt, imageDataUrls, model, systemInstruction });
     } catch (e) {
       lastError = e;
       console.warn(`[vauto-unified] ${model}:`, e.message);

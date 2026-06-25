@@ -45,15 +45,17 @@ export async function analyzeSearchIntent(
   input: AnalyzeSearchInput
 ): Promise<AnalyzeSearchResult> {
   const query = input.query.trim();
-  const prompt = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
-Vartotojas IEŠKO skelbimų.
+  const systemInstruction = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
+Vartotojas IEŠKO skelbimų — nekelia skelbimo.
+Grąžink tik JSON pagal schemą: ${SEARCH_INTENT_SCHEMA}`;
 
-Užklausa: "${query}"
-Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}
+  const userPrompt = `Užklausa: "${query}"
+Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
 
-Grąžink TIK vieną JSON objektą: ${SEARCH_INTENT_SCHEMA}`;
-
-  const raw = await unifiedLlmJson({ prompt });
+  const raw = await unifiedLlmJson({
+    prompt: userPrompt,
+    systemInstruction,
+  });
 
   const categoryRaw = raw.category;
   const category =

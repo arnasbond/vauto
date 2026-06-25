@@ -64,41 +64,29 @@ function parseJsonFromText(text: string): Record<string, unknown> {
 async function geminiChatJson(
   prompt: string,
   imageDataUrls: string[] = [],
-  model = "gemini-2.0-flash"
+  model = "gemini-2.5-flash",
+  systemInstruction = "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų."
 ): Promise<Record<string, unknown>> {
   const key = resolveGeminiApiKey();
   if (!key) throw new Error("GEMINI_API_KEY not configured");
-  const parts: object[] = [{ text: prompt }];
+
+  const userParts: object[] = [{ text: prompt }];
   for (const url of imageDataUrls) {
     const inline = await imageUrlToInlinePart(url);
-    if (inline) parts.push(inline);
+    if (inline) userParts.push(inline);
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
-  const contents = [{ parts }];
 
-  let res = await fetch(url, {
+  const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents,
+      systemInstruction: { parts: [{ text: systemInstruction }] },
+      contents: [{ role: "user", parts: userParts }],
       generationConfig: { temperature: 0.2 },
     }),
   });
-
-  if (!res.ok) {
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents,
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
-      }),
-    });
-  }
 
   if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as {
@@ -111,16 +99,24 @@ async function geminiChatJson(
 
 export interface UnifiedLlmJsonInput {
   prompt: string;
+  systemInstruction?: string;
   imageDataUrls?: string[];
 }
 
 const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 
+const DEFAULT_JSON_SYSTEM =
+  "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų.";
+
 /** VAUTO unified parser — Gemini 2.5 Flash, then 2.0 Flash. */
 export async function unifiedLlmJson(
   input: UnifiedLlmJsonInput
 ): Promise<Record<string, unknown>> {
-  const { prompt, imageDataUrls = [] } = input;
+  const {
+    prompt,
+    systemInstruction = DEFAULT_JSON_SYSTEM,
+    imageDataUrls = [],
+  } = input;
   const geminiKey = resolveGeminiApiKey();
   if (!geminiKey) {
     throw new Error("GEMINI_API_KEY not configured on server");
@@ -129,7 +125,12 @@ export async function unifiedLlmJson(
   let lastError: unknown;
   for (const model of UNIFIED_GEMINI_MODELS) {
     try {
-      return await geminiChatJson(prompt, imageDataUrls, model);
+      return await geminiChatJson(
+        prompt,
+        imageDataUrls,
+        model,
+        systemInstruction
+      );
     } catch (e) {
       lastError = e;
       console.warn(`[vauto-unified] ${model} failed:`, e);
@@ -163,7 +164,7 @@ export async function chatJson(
   let lastError: unknown;
   for (const model of UNIFIED_GEMINI_MODELS) {
     try {
-      return await geminiChatJson(prompt, [], model);
+      return await geminiChatJson(prompt, [], model, DEFAULT_JSON_SYSTEM);
     } catch (e) {
       lastError = e;
       console.warn(`[chatJson] ${model} failed:`, e);
