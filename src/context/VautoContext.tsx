@@ -26,6 +26,7 @@ import {
   applyMarketplaceFilters,
   applyMarketplaceSort,
   DEFAULT_MARKETPLACE_FILTERS,
+  normalizeMarketplaceFilters,
   type MarketplaceFilterState,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
@@ -514,6 +515,8 @@ function VautoFacade({
   const displayListings = useMemo(() => {
     let results = rankedListings;
 
+    const filters = normalizeMarketplaceFilters(catalog.marketplaceFilters);
+
     if (catalog.agentPinnedListingIds !== null) {
       if (catalog.agentPinnedListingIds.length === 0) {
         results = [];
@@ -531,7 +534,7 @@ function VautoFacade({
             visualRankScores: catalog.visualRankScores,
           }
         );
-        if (catalog.marketplaceFilters.sort === "relevance") {
+        if (filters.sort === "relevance") {
           results = [...results].sort(
             (a, b) => order.get(a.id)! - order.get(b.id)!
           );
@@ -539,8 +542,8 @@ function VautoFacade({
       }
     }
 
-    const filtered = applyMarketplaceFilters(results, catalog.marketplaceFilters);
-    return applyMarketplaceSort(filtered, catalog.marketplaceFilters.sort);
+    const filtered = applyMarketplaceFilters(results, filters);
+    return applyMarketplaceSort(filtered, filters.sort);
   }, [
     rankedListings,
     visibleListings,
@@ -1006,6 +1009,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const resetMarketplaceFilters = useCallback(() => {
     setMarketplaceFilters(DEFAULT_MARKETPLACE_FILTERS);
   }, []);
+
+  const setMarketplaceFiltersNormalized = useCallback(
+    (next: MarketplaceFilterState) => {
+      setMarketplaceFilters(normalizeMarketplaceFilters(next));
+    },
+    []
+  );
 
   const handleSearchQuery = useCallback(
     (q: string) => {
@@ -1571,7 +1581,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       viewMode,
       setViewMode,
       marketplaceFilters,
-      setMarketplaceFilters,
+      setMarketplaceFilters: setMarketplaceFiltersNormalized,
       resetMarketplaceFilters,
       activeFilterIds,
       toggleFilter,
@@ -1653,6 +1663,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       clearAgentPinnedListings,
       viewMode,
       marketplaceFilters,
+      setMarketplaceFiltersNormalized,
       resetMarketplaceFilters,
       activeFilterIds,
       toggleFilter,

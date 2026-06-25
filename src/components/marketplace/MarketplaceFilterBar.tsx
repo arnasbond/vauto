@@ -1,14 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState, type ReactNode } from "react";
+import {
+  useCallback,
+  useLayoutEffect,
+  useRef,
+  useState,
+  type ReactNode,
+} from "react";
 import { createPortal } from "react-dom";
 import { ChevronDown, LayoutGrid, List, Map } from "lucide-react";
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   formatResultsLabel,
   MARKETPLACE_SORT_OPTIONS,
+  normalizeMarketplaceFilters,
   type MarketplaceFilterState,
-  type MarketplaceSortMode,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
 import type { ListingCategory } from "@/lib/types";
@@ -37,6 +43,20 @@ const LOCATIONS = [
   "Palanga",
 ];
 
+function measureDropdownPosition(btn: HTMLButtonElement) {
+  const rect = btn.getBoundingClientRect();
+  const minWidth = Math.max(rect.width, 188);
+  const margin = 8;
+  let left = rect.left;
+  left = Math.max(margin, Math.min(left, window.innerWidth - minWidth - margin));
+  let top = rect.bottom + 6;
+  const maxTop = window.innerHeight - margin - 220;
+  if (top > maxTop) {
+    top = Math.max(margin, rect.top - 220);
+  }
+  return { top, left, minWidth };
+}
+
 function FilterDropdown({
   label,
   valueLabel,
@@ -54,46 +74,23 @@ function FilterDropdown({
 }) {
   const btnRef = useRef<HTMLButtonElement>(null);
   const panelRef = useRef<HTMLDivElement>(null);
-  const [pos, setPos] = useState({ top: 0, left: 0, minWidth: 160 });
+  const [pos, setPos] = useState({ top: 0, left: 0, minWidth: 188 });
 
-  useEffect(() => {
-    if (!open || !btnRef.current) return;
+  const updatePosition = useCallback(() => {
+    if (!btnRef.current) return;
+    setPos(measureDropdownPosition(btnRef.current));
+  }, []);
 
-    const update = () => {
-      const rect = btnRef.current!.getBoundingClientRect();
-      setPos({
-        top: rect.bottom + 6,
-        left: rect.left,
-        minWidth: Math.max(rect.width, 160),
-      });
-    };
-
-    update();
-    window.addEventListener("resize", update);
-    window.addEventListener("scroll", update, true);
-    return () => {
-      window.removeEventListener("resize", update);
-      window.removeEventListener("scroll", update, true);
-    };
-  }, [open]);
-
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!open) return;
-
-    const onPointerDown = (e: MouseEvent | TouchEvent) => {
-      const target = e.target as Node;
-      if (btnRef.current?.contains(target)) return;
-      if (panelRef.current?.contains(target)) return;
-      onClose();
-    };
-
-    document.addEventListener("mousedown", onPointerDown);
-    document.addEventListener("touchstart", onPointerDown);
+    updatePosition();
+    window.addEventListener("resize", updatePosition);
+    window.addEventListener("scroll", updatePosition, true);
     return () => {
-      document.removeEventListener("mousedown", onPointerDown);
-      document.removeEventListener("touchstart", onPointerDown);
+      window.removeEventListener("resize", updatePosition);
+      window.removeEventListener("scroll", updatePosition, true);
     };
-  }, [open, onClose]);
+  }, [open, updatePosition]);
 
   return (
     <div className="relative shrink-0">
@@ -112,32 +109,42 @@ function FilterDropdown({
         <span className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">
           {label}
         </span>
-        <span>{valueLabel}</span>
+        <span className="text-[#111827]">{valueLabel}</span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition", open && "rotate-180")} />
       </button>
 
       {open &&
         typeof document !== "undefined" &&
         createPortal(
-          <div
-            ref={panelRef}
-            role="menu"
-            className="rounded-xl border border-[#dde5ef] bg-white p-2 shadow-xl"
-            style={{
-              position: "fixed",
-              top: pos.top,
-              left: pos.left,
-              minWidth: pos.minWidth,
-              zIndex: 9999,
-            }}
-          >
-            {children}
-          </div>,
+          <>
+            <button
+              type="button"
+              className="fixed inset-0 z-[9998] cursor-default border-0 bg-black/10 p-0"
+              aria-label="Uždaryti meniu"
+              onClick={onClose}
+            />
+            <div
+              ref={panelRef}
+              role="menu"
+              className="fixed z-[9999] max-h-[min(70dvh,320px)] overflow-y-auto rounded-xl border border-[#dde5ef] bg-white p-2 text-[#111827] shadow-2xl"
+              style={{
+                top: pos.top,
+                left: pos.left,
+                minWidth: pos.minWidth,
+              }}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {children}
+            </div>
+          </>,
           document.body
         )}
     </div>
   );
 }
+
+const MENU_ITEM_CLASS =
+  "block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[#111827] hover:bg-[#f1f5f9] active:bg-[#e8ecf3]";
 
 export function MarketplaceFilterBar({
   searchQuery,
@@ -155,26 +162,31 @@ export function MarketplaceFilterBar({
   onViewModeChange: (mode: MarketplaceViewMode) => void;
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const safeFilters = normalizeMarketplaceFilters(filters);
 
   const toggle = (key: string) =>
     setOpenKey((prev) => (prev === key ? null : key));
   const close = () => setOpenKey(null);
 
+  const patchFilters = (patch: Partial<MarketplaceFilterState>) => {
+    onFiltersChange(normalizeMarketplaceFilters({ ...safeFilters, ...patch }));
+  };
+
   const categoryLabel =
-    CATEGORIES.find((c) => c.id === filters.category)?.label ?? "Visos";
-  const locationLabel = filters.location || "Visur";
+    CATEGORIES.find((c) => c.id === safeFilters.category)?.label ?? "Visos";
+  const locationLabel = safeFilters.location || "Visur";
   const priceLabel =
-    filters.priceMin != null || filters.priceMax != null
-      ? `${filters.priceMin ?? 0}–${filters.priceMax ?? "∞"}€`
+    safeFilters.priceMin != null || safeFilters.priceMax != null
+      ? `${safeFilters.priceMin ?? 0}–${safeFilters.priceMax ?? "∞"}€`
       : "Bet kokia";
   const conditionLabel =
-    filters.condition === "all"
+    safeFilters.condition === "all"
       ? "Visos"
-      : filters.condition === "new"
+      : safeFilters.condition === "new"
         ? "Naujos"
         : "Naudotos";
   const sortLabel =
-    MARKETPLACE_SORT_OPTIONS.find((o) => o.id === filters.sort)?.label ??
+    MARKETPLACE_SORT_OPTIONS.find((o) => o.id === safeFilters.sort)?.label ??
     "Rūšiuoti";
 
   return (
@@ -183,39 +195,7 @@ export function MarketplaceFilterBar({
         <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">
           {formatResultsLabel(searchQuery, resultCount)}
         </p>
-        <div className="flex shrink-0 items-center gap-1.5">
-          <FilterDropdown
-            label="Rūšiuoti"
-            valueLabel={sortLabel}
-            open={openKey === "sort"}
-            onToggle={() => toggle("sort")}
-            onClose={close}
-          >
-            {MARKETPLACE_SORT_OPTIONS.filter((o) => o.id !== "relevance").map(
-              (option) => (
-                <button
-                  key={option.id}
-                  type="button"
-                  role="menuitem"
-                  className={cn(
-                    "block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]",
-                    filters.sort === option.id && "font-semibold text-[#1167b1]"
-                  )}
-                  onClick={() => {
-                    onFiltersChange({
-                      ...filters,
-                      sort: option.id as MarketplaceSortMode,
-                    });
-                    close();
-                  }}
-                >
-                  {option.label}
-                </button>
-              )
-            )}
-          </FilterDropdown>
-
-          <div className="flex items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
+        <div className="flex shrink-0 items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
           {(
             [
               ["list", List, "Sąrašas"],
@@ -240,11 +220,36 @@ export function MarketplaceFilterBar({
               <Icon className="h-4 w-4" />
             </button>
           ))}
-          </div>
         </div>
       </div>
 
       <div className="flex gap-2 overflow-x-auto overflow-y-visible pb-0.5 scrollbar-hide">
+        <FilterDropdown
+          label="Rūšiuoti"
+          valueLabel={sortLabel}
+          open={openKey === "sort"}
+          onToggle={() => toggle("sort")}
+          onClose={close}
+        >
+          {MARKETPLACE_SORT_OPTIONS.map((option) => (
+            <button
+              key={option.id}
+              type="button"
+              role="menuitem"
+              className={cn(
+                MENU_ITEM_CLASS,
+                safeFilters.sort === option.id && "bg-[#eef6ff] font-semibold text-[#1167b1]"
+              )}
+              onClick={() => {
+                patchFilters({ sort: option.id });
+                close();
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </FilterDropdown>
+
         <FilterDropdown
           label="Kategorija"
           valueLabel={categoryLabel}
@@ -257,9 +262,12 @@ export function MarketplaceFilterBar({
               key={c.id}
               type="button"
               role="menuitem"
-              className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]"
+              className={cn(
+                MENU_ITEM_CLASS,
+                safeFilters.category === c.id && "bg-[#eef6ff] font-semibold text-[#1167b1]"
+              )}
               onClick={() => {
-                onFiltersChange({ ...filters, category: c.id });
+                patchFilters({ category: c.id });
                 close();
               }}
             >
@@ -280,9 +288,12 @@ export function MarketplaceFilterBar({
               key={loc || "all"}
               type="button"
               role="menuitem"
-              className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]"
+              className={cn(
+                MENU_ITEM_CLASS,
+                safeFilters.location === loc && "bg-[#eef6ff] font-semibold text-[#1167b1]"
+              )}
               onClick={() => {
-                onFiltersChange({ ...filters, location: loc });
+                patchFilters({ location: loc });
                 close();
               }}
             >
@@ -298,33 +309,38 @@ export function MarketplaceFilterBar({
           onToggle={() => toggle("price")}
           onClose={close}
         >
-          <div className="space-y-2 p-1">
-            <label className="block text-[10px] font-semibold text-[#6b7280]">Nuo €</label>
+          <div className="space-y-2 p-1 text-[#111827]">
+            <label className="block text-xs font-semibold text-[#6b7280]">Nuo €</label>
             <input
               type="number"
               min={0}
-              value={filters.priceMin ?? ""}
+              value={safeFilters.priceMin ?? ""}
               onChange={(e) =>
-                onFiltersChange({
-                  ...filters,
+                patchFilters({
                   priceMin: e.target.value ? Number(e.target.value) : null,
                 })
               }
-              className="w-full rounded-lg border border-[#dde5ef] px-2 py-1.5 text-xs"
+              className="w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm text-[#111827]"
             />
-            <label className="block text-[10px] font-semibold text-[#6b7280]">Iki €</label>
+            <label className="block text-xs font-semibold text-[#6b7280]">Iki €</label>
             <input
               type="number"
               min={0}
-              value={filters.priceMax ?? ""}
+              value={safeFilters.priceMax ?? ""}
               onChange={(e) =>
-                onFiltersChange({
-                  ...filters,
+                patchFilters({
                   priceMax: e.target.value ? Number(e.target.value) : null,
                 })
               }
-              className="w-full rounded-lg border border-[#dde5ef] px-2 py-1.5 text-xs"
+              className="w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm text-[#111827]"
             />
+            <button
+              type="button"
+              className="mt-1 w-full rounded-lg bg-[#1167b1] py-2 text-xs font-semibold text-white"
+              onClick={close}
+            >
+              Taikyti
+            </button>
           </div>
         </FilterDropdown>
 
@@ -346,9 +362,12 @@ export function MarketplaceFilterBar({
               key={id}
               type="button"
               role="menuitem"
-              className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]"
+              className={cn(
+                MENU_ITEM_CLASS,
+                safeFilters.condition === id && "bg-[#eef6ff] font-semibold text-[#1167b1]"
+              )}
               onClick={() => {
-                onFiltersChange({ ...filters, condition: id });
+                patchFilters({ condition: id });
                 close();
               }}
             >
@@ -357,11 +376,12 @@ export function MarketplaceFilterBar({
           ))}
         </FilterDropdown>
 
-        {(filters.category !== "all" ||
-          filters.location ||
-          filters.priceMin != null ||
-          filters.priceMax != null ||
-          filters.condition !== "all") && (
+        {(safeFilters.category !== "all" ||
+          safeFilters.location ||
+          safeFilters.priceMin != null ||
+          safeFilters.priceMax != null ||
+          safeFilters.condition !== "all" ||
+          safeFilters.sort !== "relevance") && (
           <button
             type="button"
             onClick={() => onFiltersChange({ ...DEFAULT_MARKETPLACE_FILTERS })}

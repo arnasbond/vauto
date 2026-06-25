@@ -36,6 +36,29 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   sort: "relevance",
 };
 
+/** Ensure persisted/partial filter objects always include sort and valid fields */
+export function normalizeMarketplaceFilters(
+  filters: Partial<MarketplaceFilterState> | MarketplaceFilterState
+): MarketplaceFilterState {
+  const sort = filters.sort;
+  const validSort =
+    sort === "cheapest" ||
+    sort === "newest" ||
+    sort === "closest" ||
+    sort === "relevance"
+      ? sort
+      : "relevance";
+
+  return {
+    category: filters.category ?? "all",
+    location: filters.location ?? "",
+    priceMin: filters.priceMin ?? null,
+    priceMax: filters.priceMax ?? null,
+    condition: filters.condition ?? "all",
+    sort: validSort,
+  };
+}
+
 const VIEW_MODE_MAP: Array<[RegExp, MarketplaceViewMode]> = [
   [/\b(žem[eė]lapyje|zemelapyje|ant\s+žem[eė]lapio|map\s*view|show\s+map)\b/i, "map"],
   [/\b(parodyk|rodyti|perjunk)\s+.*žem[eė]lap/i, "map"],
