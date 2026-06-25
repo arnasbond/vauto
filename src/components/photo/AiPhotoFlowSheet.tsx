@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, ImageIcon, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { Camera, ImageIcon, Loader2, Sparkles, Trash2, X } from "lucide-react";
 import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Capacitor } from "@capacitor/core";
@@ -155,12 +155,9 @@ export function AiPhotoFlowSheet({
   };
 
   const handleSourceSelect = (source: "camera" | "gallery") => {
+    if (source === "camera") triggerCamera();
+    else triggerGallery();
     setSourceOpen(false);
-    if (source === "camera") {
-      triggerCamera();
-      return;
-    }
-    triggerGallery();
   };
 
   const removePhoto = (index: number) => {
@@ -182,8 +179,11 @@ export function AiPhotoFlowSheet({
   const ctaLabel =
     mode === "search" ? "Ieškoti panašių" : "Sukurti skelbimą";
 
-  const showInlineSourcePickers = photos.length < MAX_AI_PHOTOS;
-  const showSearchTiles = mode === "search" && photos.length === 0;
+  const showInlineSourcePickers =
+    mode === "search"
+      ? photos.length === 0
+      : photos.length < MAX_AI_PHOTOS;
+  const showSearchReplacePickers = mode === "search" && photos.length > 0;
 
   const sheet = (
     <>
@@ -235,7 +235,7 @@ export function AiPhotoFlowSheet({
               </div>
             ))}
 
-            {showInlineSourcePickers && showSearchTiles && (
+            {showInlineSourcePickers && (
               <>
                 <PhotoSourceTile
                   label="Fotografuoti"
@@ -252,45 +252,33 @@ export function AiPhotoFlowSheet({
                   variant="secondary"
                 />
               </>
-            )}
-
-            {showInlineSourcePickers && !showSearchTiles && mode === "listing" && (
-              <>
-                <PhotoSourceTile
-                  label="Fotografuoti"
-                  icon={<Camera className="h-7 w-7" />}
-                  onClick={triggerCamera}
-                  disabled={busy}
-                  variant="primary"
-                />
-                <PhotoSourceTile
-                  label="Galerija"
-                  icon={<ImageIcon className="h-6 w-6" />}
-                  onClick={triggerGallery}
-                  disabled={busy}
-                  variant="secondary"
-                />
-              </>
-            )}
-
-            {showInlineSourcePickers && !showSearchTiles && mode === "search" && (
-              <button
-                type="button"
-                onClick={() => setSourceOpen(true)}
-                disabled={busy}
-                className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff] disabled:opacity-50"
-              >
-                <Plus className="h-7 w-7" />
-                <span className="text-xs font-semibold">Pridėti</span>
-              </button>
             )}
           </div>
+
+          {showSearchReplacePickers && (
+            <div className="mt-3 grid grid-cols-2 gap-3">
+              <PhotoSourceTile
+                label="Fotografuoti iš naujo"
+                icon={<Camera className="h-6 w-6" />}
+                onClick={triggerCamera}
+                disabled={busy}
+                variant="primary"
+              />
+              <PhotoSourceTile
+                label="Kita iš galerijos"
+                icon={<ImageIcon className="h-5 w-5" />}
+                onClick={triggerGallery}
+                disabled={busy}
+                variant="secondary"
+              />
+            </div>
+          )}
 
           <p className="mt-3 text-xs leading-relaxed text-[#6b7280]">
             {mode === "search" && photos.length === 0
               ? "Pasirinkite „Fotografuoti“ (kamera) arba „Galerija“ — nuotrauka bus iš karto naudojama paieškai."
               : mode === "search"
-                ? "Galite pridėti kitą nuotrauką per meniu „Pridėti“."
+                ? "Norėdami pakeisti nuotrauką, pasirinkite „Fotografuoti iš naujo“ arba „Kita iš galerijos“."
                 : "Pridėkite nuotraukas iš skirtingų kampų — fotografuokite arba pasirinkite iš galerijos."}
           </p>
 

@@ -92,6 +92,7 @@ function DiscoverZeroView() {
       </div>
       <div className="mt-4">
         <MarketplaceCategoryGrid />
+        <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />
         <ListingGrid />

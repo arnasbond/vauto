@@ -72,10 +72,10 @@ function MarketplaceView() {
       </HeroSection>
 
       <ContentSection>
+        <ServiceRequestCard />
         {!emptySearchMode && (
           <>
             <MarketplaceCategoryGrid />
-            <ServiceRequestCard />
             <HotKeywordsGrid />
             <SocialProofStrip />
             <PopularTodaySection />

@@ -281,12 +281,54 @@ async function pickFilesAsDataUrls(
 
 /** Web: open rear camera inside the current tap gesture. */
 export async function pickCameraPhotoWeb(): Promise<CapturedPhoto | null> {
-  return pickFileAsDataUrl("image/*", "environment");
+  return pickFileInUserGesture("environment");
 }
 
 /** Web: open gallery picker (no capture attribute). */
 export async function pickGalleryPhotoWeb(): Promise<CapturedPhoto | null> {
-  return pickFileAsDataUrl("image/*");
+  return pickFileInUserGesture();
+}
+
+/** Open file input synchronously inside the current tap (required for mobile camera). */
+function pickFileInUserGesture(
+  capture?: "user" | "environment"
+): Promise<CapturedPhoto | null> {
+  if (typeof document === "undefined") return Promise.resolve(null);
+
+  return new Promise((resolve) => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    styleTransientFileInput(input);
+    if (capture) input.setAttribute("capture", capture);
+
+    let settled = false;
+    const finish = (file: File | null) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("focus", onWindowFocus);
+      window.setTimeout(() => input.remove(), 300);
+      if (!file) {
+        resolve(null);
+        return;
+      }
+      void fileToCapturedPhoto(file).then(resolve);
+    };
+
+    const onWindowFocus = () => {
+      window.setTimeout(() => {
+        if (!input.files?.length) finish(null);
+      }, 400);
+    };
+
+    input.addEventListener("change", () => {
+      finish(input.files?.[0] ?? null);
+    });
+
+    document.body.appendChild(input);
+    window.addEventListener("focus", onWindowFocus, { once: true });
+    input.click();
+  });
 }
 
 /** Web-only sheet: Fotografuoti arba Galerija — file input starts inside button tap. */
@@ -335,12 +377,10 @@ function pickPhotoSourceOnWeb(): Promise<CapturedPhoto | null> {
     };
 
     cameraBtn.onclick = () => {
-      overlay.remove();
-      void pickFileAsDataUrl("image/*", "environment").then(finish);
+      void pickFileInUserGesture("environment").then(finish);
     };
     galleryBtn.onclick = () => {
-      overlay.remove();
-      void pickFileAsDataUrl("image/*").then(finish);
+      void pickFileInUserGesture().then(finish);
     };
     cancelBtn.onclick = () => finish(null);
     overlay.onclick = (e) => {

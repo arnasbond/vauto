@@ -782,7 +782,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const startUploadFlow = useCallback(async () => {
     if (!requireAuthForListing("/add")) return;
     requestMediaConsent(async () => {
-      const photo = await capturePhoto();
+      const photo = await capturePhoto("prompt");
       if (!photo) return;
       setSellerPreviewImage(photo.dataUrl);
       setSellerInputMode("upload");
