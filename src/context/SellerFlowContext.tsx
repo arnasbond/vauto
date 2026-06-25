@@ -143,6 +143,11 @@ export interface SellerFlowContextValue {
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
+  openManualListingWizard: (opts?: {
+    previewImage?: string | null;
+    toastMessage?: string;
+    inputMode?: SellerInputMode;
+  }) => void;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -189,6 +194,36 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     resetSellerFlow();
   }, [resetSellerFlow]);
 
+  const openManualListingWizard = useCallback(
+    (opts?: {
+      previewImage?: string | null;
+      toastMessage?: string;
+      inputMode?: SellerInputMode;
+    }) => {
+      setAiManualFallback(true);
+      setAiDraft(
+        createManualFallbackDraft({
+          location: user.city,
+          contact: user.phone,
+        })
+      );
+      if (opts?.previewImage) {
+        setSellerPreviewImage(opts.previewImage);
+      }
+      if (opts?.inputMode) {
+        setSellerInputMode(opts.inputMode);
+      } else {
+        setSellerInputMode((prev) => prev ?? "upload");
+      }
+      setSellerStep("confirmation");
+      showToast(
+        opts?.toastMessage ?? VISION_RECOGNITION_FAILED_MESSAGE,
+        "info"
+      );
+    },
+    [user.city, user.phone, showToast]
+  );
+
   const runAiProcessing = useCallback(
     async (
       mode: SellerInputMode,
@@ -221,15 +256,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           mode === "upload"
             ? VISION_RECOGNITION_FAILED_MESSAGE
             : MANUAL_FALLBACK_TOAST;
-        showToast(fallbackToast, "info");
-        setAiManualFallback(true);
-        setAiDraft(
-          createManualFallbackDraft({
-            location: user.city,
-            contact: user.phone,
-          })
-        );
-        setSellerStep("confirmation");
+        openManualListingWizard({
+          previewImage: opts?.previewImage ?? sellerPreviewImage,
+          toastMessage: fallbackToast,
+          inputMode: mode ?? undefined,
+        });
         logAiSafeguard("fallback_triggered", {
           mode,
           reason,
@@ -427,7 +458,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, user.email, showToast]
+    [user.city, user.phone, user.email, showToast, openManualListingWizard, sellerPreviewImage]
   );
 
   const submitSellerContent = useCallback(
@@ -818,6 +849,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
+      openManualListingWizard,
     }),
     [
       sellerStep,
@@ -842,6 +874,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
+      openManualListingWizard,
     ]
   );
 
