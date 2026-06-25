@@ -2,6 +2,11 @@ import { AI_VISION_FETCH_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import { getAiBaseUrl, isAiProxyAvailable } from "@/lib/api/config";
 import { buildPhotoSearchQuery } from "@/lib/photo-search";
 import { mockExtractFromImage } from "@/lib/ai-mocks";
+import {
+  clientExtractListingFromImage,
+  isClientGeminiAvailable,
+} from "@/lib/gemini-browser";
+import { compressForAiVision } from "@/lib/native-media";
 import type { AiExtractedListing } from "@/lib/types";
 
 export const PHOTO_SEARCH_FALLBACK_MESSAGE =
@@ -71,21 +76,40 @@ function keywordsFromExtracted(extracted: AiExtractedListing): PhotoVisionSearch
   };
 }
 
-/** Vision search for photo picker — POST /api/search/vision with mock fallback. */
+/** Vision search — browser Gemini first, then API proxy, then mock. */
 export async function runPhotoVisionSearch(
   imageBase64: string,
   extraContext?: string
 ): Promise<PhotoVisionSearchResult | null> {
+  const compressed = await compressForAiVision(imageBase64);
+
+  if (isClientGeminiAvailable()) {
+    try {
+      const extracted = await clientExtractListingFromImage({
+        imageDataUrl: compressed,
+        extraContext,
+        userCity: "Lietuva",
+      });
+      return keywordsFromExtracted(extracted);
+    } catch (e) {
+      console.warn("[runPhotoVisionSearch] client Gemini failed:", e);
+    }
+  }
+
   if (isAiProxyAvailable()) {
-    const fromApi = await postVisionApi(imageBase64, extraContext);
+    const fromApi = await postVisionApi(compressed, extraContext);
     if (fromApi) return fromApi;
   }
 
-  try {
-    const extracted = await mockExtractFromImage(undefined, imageBase64);
-    if (!extracted) return null;
-    return keywordsFromExtracted(extracted);
-  } catch {
-    return null;
+  if (!isClientGeminiAvailable()) {
+    try {
+      const extracted = await mockExtractFromImage(undefined, compressed);
+      if (!extracted) return null;
+      return keywordsFromExtracted(extracted);
+    } catch {
+      return null;
+    }
   }
+
+  return null;
 }

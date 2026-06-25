@@ -1,6 +1,8 @@
 "use client";
 
 import { Camera, ChevronRight, ImageIcon, X } from "lucide-react";
+import { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 
 interface PhotoSourceSheetProps {
   open: boolean;
@@ -13,18 +15,24 @@ export function PhotoSourceSheet({
   onClose,
   onSelect,
 }: PhotoSourceSheetProps) {
-  if (!open) return null;
+  const [mounted, setMounted] = useState(false);
 
-  return (
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  if (!mounted || !open) return null;
+
+  return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-end justify-center bg-black/60 p-0"
+      className="fixed inset-0 z-[10001] flex items-end justify-center bg-black/60 p-0"
       role="dialog"
       aria-modal="true"
       aria-label="Pridėti nuotraukas"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg rounded-t-2xl bg-white px-4 pb-6 pt-3 shadow-xl animate-in slide-in-from-bottom"
+        className="w-full max-w-lg rounded-t-2xl bg-white px-4 pb-[max(1.5rem,env(safe-area-inset-bottom))] pt-3 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
@@ -69,6 +77,7 @@ export function PhotoSourceSheet({
           <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
         </button>
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

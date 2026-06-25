@@ -1,7 +1,7 @@
 "use client";
 
-import { Camera, Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Camera, ImageIcon, Loader2, Plus, Sparkles, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 import { Capacitor } from "@capacitor/core";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
@@ -25,6 +25,37 @@ interface AiPhotoFlowSheetProps {
   onClose: () => void;
   onSubmit: (result: AiPhotoFlowResult) => void | Promise<void>;
   busy?: boolean;
+}
+
+function PhotoSourceTile({
+  label,
+  icon,
+  onClick,
+  disabled,
+  variant = "primary",
+}: {
+  label: string;
+  icon: ReactNode;
+  onClick: () => void;
+  disabled?: boolean;
+  variant?: "primary" | "secondary";
+}) {
+  const primary =
+    variant === "primary"
+      ? "border-2 border-dashed border-[#1167b1] bg-[#eef6ff] text-[#1167b1] hover:bg-[#dbeafe]"
+      : "border border-[#e5e7eb] bg-white text-[#374151] hover:bg-[#f9fafb]";
+
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      disabled={disabled}
+      className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 transition disabled:opacity-50 ${primary}`}
+    >
+      {icon}
+      <span className="text-center text-xs font-semibold leading-tight">{label}</span>
+    </button>
+  );
 }
 
 export function AiPhotoFlowSheet({
@@ -76,11 +107,6 @@ export function AiPhotoFlowSheet({
     reset();
   };
 
-  const openPhotoPicker = () => {
-    if (busy) return;
-    setSourceOpen(true);
-  };
-
   const applyCapturedPhoto = async (shot: CapturedPhoto) => {
     if (mode === "search") {
       setPhotos([shot]);
@@ -91,16 +117,15 @@ export function AiPhotoFlowSheet({
   };
 
   const handleSourceSelect = (source: "camera" | "gallery") => {
+    setSourceOpen(false);
+
     if (source === "camera") {
       const pending = capturePhotoFromSource("camera");
-      setSourceOpen(false);
       void pending.then((shot) => {
         if (shot) void applyCapturedPhoto(shot);
       });
       return;
     }
-
-    setSourceOpen(false);
 
     if (Capacitor.isNativePlatform()) {
       void (async () => {
@@ -147,6 +172,9 @@ export function AiPhotoFlowSheet({
 
   const ctaLabel =
     mode === "search" ? "Ieškoti panašių" : "Sukurti skelbimą";
+
+  const showInlineSourcePickers = photos.length < MAX_AI_PHOTOS;
+  const showSearchTiles = mode === "search" && photos.length === 0;
 
   const sheet = (
     <>
@@ -198,24 +226,63 @@ export function AiPhotoFlowSheet({
               </div>
             ))}
 
-            {photos.length < MAX_AI_PHOTOS && (
+            {showInlineSourcePickers && showSearchTiles && (
+              <>
+                <PhotoSourceTile
+                  label="Fotografuoti"
+                  icon={<Camera className="h-7 w-7" />}
+                  onClick={() => handleSourceSelect("camera")}
+                  disabled={busy}
+                  variant="primary"
+                />
+                <PhotoSourceTile
+                  label="Galerija"
+                  icon={<ImageIcon className="h-6 w-6" />}
+                  onClick={() => handleSourceSelect("gallery")}
+                  disabled={busy}
+                  variant="secondary"
+                />
+              </>
+            )}
+
+            {showInlineSourcePickers && !showSearchTiles && mode === "listing" && (
+              <>
+                <PhotoSourceTile
+                  label="Fotografuoti"
+                  icon={<Camera className="h-7 w-7" />}
+                  onClick={() => handleSourceSelect("camera")}
+                  disabled={busy}
+                  variant="primary"
+                />
+                <PhotoSourceTile
+                  label="Galerija"
+                  icon={<ImageIcon className="h-6 w-6" />}
+                  onClick={() => handleSourceSelect("gallery")}
+                  disabled={busy}
+                  variant="secondary"
+                />
+              </>
+            )}
+
+            {showInlineSourcePickers && !showSearchTiles && mode === "search" && (
               <button
                 type="button"
-                onClick={openPhotoPicker}
+                onClick={() => setSourceOpen(true)}
                 disabled={busy}
                 className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff] disabled:opacity-50"
               >
-                <Camera className="h-7 w-7" />
+                <Plus className="h-7 w-7" />
                 <span className="text-xs font-semibold">Pridėti</span>
               </button>
             )}
           </div>
 
           <p className="mt-3 text-xs leading-relaxed text-[#6b7280]">
-            Paspauskite „Pridėti“ — pasirinkite „Fotografuoti“ (kamera) arba „Galerija“.
-            {mode === "search"
-              ? " Po nuotraukos galite iškart ieškoti panašių skelbimų."
-              : " Pridėkite nuotraukas iš skirtingų kampų ant paprasto fono."}
+            {mode === "search" && photos.length === 0
+              ? "Pasirinkite „Fotografuoti“ (kamera) arba „Galerija“ — nuotrauka bus iš karto naudojama paieškai."
+              : mode === "search"
+                ? "Galite pridėti kitą nuotrauką per meniu „Pridėti“."
+                : "Pridėkite nuotraukas iš skirtingų kampų — fotografuokite arba pasirinkite iš galerijos."}
           </p>
 
           {photos.length > 0 && photos.length < 4 && mode === "listing" && (
@@ -255,15 +322,11 @@ export function AiPhotoFlowSheet({
         </div>
       </div>
 
-      {sourceOpen &&
-        createPortal(
-          <PhotoSourceSheet
-            open={sourceOpen}
-            onClose={() => setSourceOpen(false)}
-            onSelect={(source) => handleSourceSelect(source)}
-          />,
-          document.body
-        )}
+      <PhotoSourceSheet
+        open={sourceOpen}
+        onClose={() => setSourceOpen(false)}
+        onSelect={(source) => handleSourceSelect(source)}
+      />
     </>
   );
 
