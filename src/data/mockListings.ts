@@ -1,6 +1,7 @@
 import type { Listing, UserProfile, ChatThread } from "@/lib/types";
 import { enrichListingCoords } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
+import { resolveListingImage } from "@/lib/listing-image";
 import { isVerifiedServiceSeller, verifyVin } from "@/lib/trust";
 import { LITHUANIA_MOCK_CATALOG } from "@/data/lithuania-mock-catalog";
 
@@ -43,6 +44,7 @@ function prepareListing(listing: Listing): Listing {
   return {
     ...withCoords,
     slug,
+    image: resolveListingImage(listing),
     contact: listing.contact ?? "+370 612 34567",
     description:
       listing.description ??

@@ -1,4 +1,5 @@
 import type { Listing } from "@/lib/types";
+import { coalesceListingImage } from "@/lib/listing-image";
 
 function sortByNewest(items: Listing[]): Listing[] {
   return [...items].sort(
@@ -27,7 +28,11 @@ export function mergeApiWithDemoCatalog(
     }
 
     const existing = byId.get(item.id);
-    byId.set(item.id, existing ? { ...existing, ...item } : item);
+    const merged = existing ? { ...existing, ...item } : item;
+    byId.set(item.id, {
+      ...merged,
+      image: coalesceListingImage(item.image, existing?.image, merged),
+    });
     if (item.slug) seenSlugs.add(item.slug);
   }
 

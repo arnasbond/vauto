@@ -76,7 +76,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     subscribeWishlist,
     rankedListings,
     searchQuery,
-    setAgentPinnedListings,
     clearAgentPinnedListings,
     clearVisualSearch,
   } = useVauto();

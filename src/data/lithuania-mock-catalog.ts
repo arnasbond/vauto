@@ -10,7 +10,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kaunas",
     "distanceKm": 1,
     "contact": "Tel. +370 61000000",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -44,7 +44,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Panevėžys",
     "distanceKm": 2.3,
     "contact": "Tel. +370 61007919",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -78,7 +78,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 3.6,
     "contact": "Tel. +370 61015838",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -112,7 +112,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kupiškis",
     "distanceKm": 4.9,
     "contact": "Tel. +370 61023757",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -146,7 +146,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Ukmergė",
     "distanceKm": 6.2,
     "contact": "Tel. +370 61031676",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -180,7 +180,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kėdainiai",
     "distanceKm": 7.5,
     "contact": "Tel. +370 61039595",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -214,7 +214,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Pasvalys",
     "distanceKm": 8.8,
     "contact": "Tel. +370 61047514",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -248,7 +248,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Klaipėda",
     "distanceKm": 10.1,
     "contact": "Tel. +370 61055433",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -282,7 +282,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Alytus",
     "distanceKm": 11.4,
     "contact": "Tel. +370 61063352",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -316,7 +316,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Biržai",
     "distanceKm": 12.7,
     "contact": "Tel. +370 61071271",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -350,7 +350,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Telšiai",
     "distanceKm": 11,
     "contact": "Tel. +370 61079190",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -384,7 +384,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Palanga",
     "distanceKm": 12.3,
     "contact": "Tel. +370 61087109",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -418,7 +418,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Druskininkai",
     "distanceKm": 13.6,
     "contact": "Tel. +370 61095028",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -452,7 +452,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Vilnius",
     "distanceKm": 14.9,
     "contact": "Tel. +370 61102947",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -486,7 +486,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Šiauliai",
     "distanceKm": 16.2,
     "contact": "Tel. +370 61110866",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -520,7 +520,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Marijampolė",
     "distanceKm": 17.5,
     "contact": "Tel. +370 61118785",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -554,7 +554,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Utena",
     "distanceKm": 18.8,
     "contact": "Tel. +370 61126704",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -588,7 +588,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Tauragė",
     "distanceKm": 20.1,
     "contact": "Tel. +370 61134623",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -622,7 +622,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Jonava",
     "distanceKm": 21.4,
     "contact": "Tel. +370 61142542",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -656,7 +656,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Rokiškis",
     "distanceKm": 22.7,
     "contact": "Tel. +370 61150461",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -690,7 +690,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kaunas",
     "distanceKm": 21,
     "contact": "Tel. +370 61158380",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -724,7 +724,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Panevėžys",
     "distanceKm": 22.3,
     "contact": "Tel. +370 61166299",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -758,7 +758,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 23.6,
     "contact": "Tel. +370 61174218",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -792,7 +792,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kupiškis",
     "distanceKm": 24.9,
     "contact": "Tel. +370 61182137",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -826,7 +826,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Ukmergė",
     "distanceKm": 26.2,
     "contact": "Tel. +370 61190056",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -860,7 +860,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kėdainiai",
     "distanceKm": 27.5,
     "contact": "Tel. +370 61197975",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -894,7 +894,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Pasvalys",
     "distanceKm": 28.8,
     "contact": "Tel. +370 61205894",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -928,7 +928,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Klaipėda",
     "distanceKm": 30.1,
     "contact": "Tel. +370 61213813",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "skoda",
@@ -962,7 +962,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Alytus",
     "distanceKm": 31.4,
     "contact": "Tel. +370 61221732",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "ford",
@@ -996,7 +996,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Biržai",
     "distanceKm": 32.7,
     "contact": "Tel. +370 61229651",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "opel",
@@ -1030,7 +1030,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Telšiai",
     "distanceKm": 31,
     "contact": "Tel. +370 61237570",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1064,7 +1064,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Palanga",
     "distanceKm": 32.3,
     "contact": "Tel. +370 61245489",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1098,7 +1098,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Druskininkai",
     "distanceKm": 33.6,
     "contact": "Tel. +370 61253408",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1132,7 +1132,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Vilnius",
     "distanceKm": 34.9,
     "contact": "Tel. +370 61261327",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1166,7 +1166,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Šiauliai",
     "distanceKm": 36.2,
     "contact": "Tel. +370 61269246",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1200,7 +1200,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Marijampolė",
     "distanceKm": 37.5,
     "contact": "Tel. +370 61277165",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1234,7 +1234,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Utena",
     "distanceKm": 38.8,
     "contact": "Tel. +370 61285084",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1268,7 +1268,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Tauragė",
     "distanceKm": 40.1,
     "contact": "Tel. +370 61293003",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1302,7 +1302,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Jonava",
     "distanceKm": 41.4,
     "contact": "Tel. +370 61300922",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1336,7 +1336,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Rokiškis",
     "distanceKm": 42.7,
     "contact": "Tel. +370 61308841",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1370,7 +1370,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kaunas",
     "distanceKm": 1,
     "contact": "Tel. +370 61316760",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1404,7 +1404,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Panevėžys",
     "distanceKm": 2.3,
     "contact": "Tel. +370 61324679",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1438,7 +1438,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 3.6,
     "contact": "Tel. +370 61332598",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1472,7 +1472,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kupiškis",
     "distanceKm": 4.9,
     "contact": "Tel. +370 61340517",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1506,7 +1506,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Ukmergė",
     "distanceKm": 6.2,
     "contact": "Tel. +370 61348436",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1540,7 +1540,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kėdainiai",
     "distanceKm": 7.5,
     "contact": "Tel. +370 61356355",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1574,7 +1574,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Pasvalys",
     "distanceKm": 8.8,
     "contact": "Tel. +370 61364274",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1608,7 +1608,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Klaipėda",
     "distanceKm": 10.1,
     "contact": "Tel. +370 61372193",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1642,7 +1642,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Alytus",
     "distanceKm": 11.4,
     "contact": "Tel. +370 61380112",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1676,7 +1676,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Biržai",
     "distanceKm": 12.7,
     "contact": "Tel. +370 61388031",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1710,7 +1710,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Telšiai",
     "distanceKm": 11,
     "contact": "Tel. +370 61395950",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1744,7 +1744,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Palanga",
     "distanceKm": 12.3,
     "contact": "Tel. +370 61403869",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1778,7 +1778,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Druskininkai",
     "distanceKm": 13.6,
     "contact": "Tel. +370 61411788",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1812,7 +1812,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Vilnius",
     "distanceKm": 14.9,
     "contact": "Tel. +370 61419707",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1846,7 +1846,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Šiauliai",
     "distanceKm": 16.2,
     "contact": "Tel. +370 61427626",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1880,7 +1880,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Marijampolė",
     "distanceKm": 17.5,
     "contact": "Tel. +370 61435545",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1914,7 +1914,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Utena",
     "distanceKm": 18.8,
     "contact": "Tel. +370 61443464",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1948,7 +1948,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Tauragė",
     "distanceKm": 20.1,
     "contact": "Tel. +370 61451383",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "skoda",
@@ -1982,7 +1982,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Jonava",
     "distanceKm": 21.4,
     "contact": "Tel. +370 61459302",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "ford",
@@ -2016,7 +2016,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Rokiškis",
     "distanceKm": 22.7,
     "contact": "Tel. +370 61467221",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "opel",
@@ -2050,7 +2050,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kaunas",
     "distanceKm": 21,
     "contact": "Tel. +370 61475140",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2084,7 +2084,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Panevėžys",
     "distanceKm": 22.3,
     "contact": "Tel. +370 61483059",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2118,7 +2118,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 23.6,
     "contact": "Tel. +370 61490978",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2152,7 +2152,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kupiškis",
     "distanceKm": 24.9,
     "contact": "Tel. +370 61498897",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2186,7 +2186,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Ukmergė",
     "distanceKm": 26.2,
     "contact": "Tel. +370 61506816",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2220,7 +2220,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kėdainiai",
     "distanceKm": 27.5,
     "contact": "Tel. +370 61514735",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2254,7 +2254,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Pasvalys",
     "distanceKm": 28.8,
     "contact": "Tel. +370 61522654",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2288,7 +2288,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Klaipėda",
     "distanceKm": 30.1,
     "contact": "Tel. +370 61530573",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2322,7 +2322,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Alytus",
     "distanceKm": 31.4,
     "contact": "Tel. +370 61538492",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2356,7 +2356,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Biržai",
     "distanceKm": 32.7,
     "contact": "Tel. +370 61546411",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2390,7 +2390,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Telšiai",
     "distanceKm": 31,
     "contact": "Tel. +370 61554330",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2424,7 +2424,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Palanga",
     "distanceKm": 32.3,
     "contact": "Tel. +370 61562249",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2458,7 +2458,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Druskininkai",
     "distanceKm": 33.6,
     "contact": "Tel. +370 61570168",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2492,7 +2492,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Vilnius",
     "distanceKm": 34.9,
     "contact": "Tel. +370 61578087",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2526,7 +2526,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Šiauliai",
     "distanceKm": 36.2,
     "contact": "Tel. +370 61586006",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2560,7 +2560,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Marijampolė",
     "distanceKm": 37.5,
     "contact": "Tel. +370 61593925",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2594,7 +2594,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Utena",
     "distanceKm": 38.8,
     "contact": "Tel. +370 61601844",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2628,7 +2628,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Tauragė",
     "distanceKm": 40.1,
     "contact": "Tel. +370 61609763",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2662,7 +2662,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Jonava",
     "distanceKm": 41.4,
     "contact": "Tel. +370 61617682",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2696,7 +2696,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Rokiškis",
     "distanceKm": 42.7,
     "contact": "Tel. +370 61625601",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2730,7 +2730,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kaunas",
     "distanceKm": 1,
     "contact": "Tel. +370 61633520",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2764,7 +2764,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Panevėžys",
     "distanceKm": 2.3,
     "contact": "Tel. +370 61641439",
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2798,7 +2798,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 3.6,
     "contact": "Tel. +370 61649358",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2832,7 +2832,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Kupiškis",
     "distanceKm": 4.9,
     "contact": "Tel. +370 61657277",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -2866,7 +2866,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Ukmergė",
     "distanceKm": 6.2,
     "contact": "Tel. +370 61665196",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -2900,7 +2900,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Klaipėda",
     "distanceKm": 2,
     "contact": "Tel. +370 62000000",
-    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "iphone",
@@ -2919,7 +2919,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 3.7,
     "contact": "Tel. +370 62012345",
-    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "iphone",
@@ -2937,7 +2937,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Tauragė",
     "distanceKm": 5.4,
     "contact": "Tel. +370 62024690",
-    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "samsung",
@@ -2956,7 +2956,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Druskininkai",
     "distanceKm": 7.1,
     "contact": "Tel. +370 62037035",
-    "image": "https://images.unsplash.com/photo-1606144042614-b2417e99c4ee?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "macbook",
@@ -2975,7 +2975,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Klaipėda",
     "distanceKm": 8.8,
     "contact": "Tel. +370 62049380",
-    "image": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606144042614-b2417e99c4ee?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "ipad",
@@ -2993,7 +2993,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 10.5,
     "contact": "Tel. +370 62061725",
-    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606813907291-d86efa9b397e?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "ps5",
@@ -3012,7 +3012,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Tauragė",
     "distanceKm": 12.2,
     "contact": "Tel. +370 62074070",
-    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "dyson",
@@ -3031,7 +3031,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Druskininkai",
     "distanceKm": 13.9,
     "contact": "Tel. +370 62086415",
-    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "sony",
@@ -3051,7 +3051,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Šiauliai",
     "distanceKm": 1.5,
     "contact": "Tel. +370 63000000",
-    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "detailing",
@@ -3073,7 +3073,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 3.6,
     "contact": "Tel. +370 63009876",
-    "image": "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "padangos",
@@ -3095,7 +3095,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Telšiai",
     "distanceKm": 5.7,
     "contact": "Tel. +370 63019752",
-    "image": "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "ta",
@@ -3117,7 +3117,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Jonava",
     "distanceKm": 7.8,
     "contact": "Tel. +370 63029628",
-    "image": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "diagnostika",
@@ -3139,7 +3139,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Pasvalys",
     "distanceKm": 9.9,
     "contact": "Tel. +370 63039504",
-    "image": "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "supirkimas",
@@ -3160,7 +3160,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Šiauliai",
     "distanceKm": 12,
     "contact": "Tel. +370 63049380",
-    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "dažymas",
@@ -3182,7 +3182,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "location": "Mažeikiai",
     "distanceKm": 14.1,
     "contact": "Tel. +370 63059256",
-    "image": "https://images.unsplash.com/photo-1621939514649-280e2ee02577?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "evakuatorius",

@@ -9,7 +9,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4250,
     "location": "Kaunas",
     "distance_km": 1,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -43,7 +43,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15000,
     "location": "Panevėžys",
     "distance_km": 2.3,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -77,7 +77,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 22000,
     "location": "Mažeikiai",
     "distance_km": 3.6,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -111,7 +111,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 29150,
     "location": "Kupiškis",
     "distance_km": 4.9,
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -145,7 +145,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 7400,
     "location": "Ukmergė",
     "distance_km": 6.2,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -179,7 +179,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 17750,
     "location": "Kėdainiai",
     "distance_km": 7.5,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -213,7 +213,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 23950,
     "location": "Pasvalys",
     "distance_km": 8.8,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -247,7 +247,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 5550,
     "location": "Klaipėda",
     "distance_km": 10.1,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -281,7 +281,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 12550,
     "location": "Alytus",
     "distance_km": 11.4,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -315,7 +315,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 19900,
     "location": "Biržai",
     "distance_km": 12.7,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -349,7 +349,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 26700,
     "location": "Telšiai",
     "distance_km": 11,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -383,7 +383,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 8200,
     "location": "Palanga",
     "distance_km": 12.3,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -417,7 +417,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15250,
     "location": "Druskininkai",
     "distance_km": 13.6,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -451,7 +451,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 22650,
     "location": "Vilnius",
     "distance_km": 14.9,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -485,7 +485,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 1750,
     "location": "Šiauliai",
     "distance_km": 16.2,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -519,7 +519,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 11050,
     "location": "Marijampolė",
     "distance_km": 17.5,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -553,7 +553,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 19600,
     "location": "Utena",
     "distance_km": 18.8,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -587,7 +587,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 35000,
     "location": "Tauragė",
     "distance_km": 20.1,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -621,7 +621,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 2800,
     "location": "Jonava",
     "distance_km": 21.4,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -655,7 +655,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15000,
     "location": "Rokiškis",
     "distance_km": 22.7,
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -689,7 +689,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 20750,
     "location": "Kaunas",
     "distance_km": 21,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -723,7 +723,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3100,
     "location": "Panevėžys",
     "distance_km": 22.3,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -757,7 +757,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 12700,
     "location": "Mažeikiai",
     "distance_km": 23.6,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -791,7 +791,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 19950,
     "location": "Kupiškis",
     "distance_km": 24.9,
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -825,7 +825,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 27100,
     "location": "Ukmergė",
     "distance_km": 26.2,
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -859,7 +859,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3600,
     "location": "Kėdainiai",
     "distance_km": 27.5,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -893,7 +893,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15700,
     "location": "Pasvalys",
     "distance_km": 28.8,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -927,7 +927,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 20500,
     "location": "Klaipėda",
     "distance_km": 30.1,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "skoda",
@@ -961,7 +961,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 27650,
     "location": "Alytus",
     "distance_km": 31.4,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "ford",
@@ -995,7 +995,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4550,
     "location": "Biržai",
     "distance_km": 32.7,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "opel",
@@ -1029,7 +1029,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 18450,
     "location": "Telšiai",
     "distance_km": 31,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1063,7 +1063,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 26800,
     "location": "Palanga",
     "distance_km": 32.3,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1097,7 +1097,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3150,
     "location": "Druskininkai",
     "distance_km": 33.6,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1131,7 +1131,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 14050,
     "location": "Vilnius",
     "distance_km": 34.9,
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1165,7 +1165,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 28450,
     "location": "Šiauliai",
     "distance_km": 36.2,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1199,7 +1199,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 29550,
     "location": "Marijampolė",
     "distance_km": 37.5,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -1233,7 +1233,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4150,
     "location": "Utena",
     "distance_km": 38.8,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1267,7 +1267,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15950,
     "location": "Tauragė",
     "distance_km": 40.1,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1301,7 +1301,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 21700,
     "location": "Jonava",
     "distance_km": 41.4,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1335,7 +1335,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3900,
     "location": "Rokiškis",
     "distance_km": 42.7,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1369,7 +1369,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 11700,
     "location": "Kaunas",
     "distance_km": 1,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -1403,7 +1403,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 18700,
     "location": "Panevėžys",
     "distance_km": 2.3,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1437,7 +1437,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 25850,
     "location": "Mažeikiai",
     "distance_km": 3.6,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1471,7 +1471,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3500,
     "location": "Kupiškis",
     "distance_km": 4.9,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1505,7 +1505,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 14350,
     "location": "Ukmergė",
     "distance_km": 6.2,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -1539,7 +1539,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 21450,
     "location": "Kėdainiai",
     "distance_km": 7.5,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1573,7 +1573,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3800,
     "location": "Pasvalys",
     "distance_km": 8.8,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1607,7 +1607,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 9550,
     "location": "Klaipėda",
     "distance_km": 10.1,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1641,7 +1641,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 14900,
     "location": "Alytus",
     "distance_km": 11.4,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -1675,7 +1675,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 25600,
     "location": "Biržai",
     "distance_km": 12.7,
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1709,7 +1709,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4250,
     "location": "Telšiai",
     "distance_km": 11,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1743,7 +1743,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15350,
     "location": "Palanga",
     "distance_km": 12.3,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1777,7 +1777,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 21150,
     "location": "Druskininkai",
     "distance_km": 13.6,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -1811,7 +1811,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 30550,
     "location": "Vilnius",
     "distance_km": 14.9,
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1845,7 +1845,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 5250,
     "location": "Šiauliai",
     "distance_km": 16.2,
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1879,7 +1879,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 24450,
     "location": "Marijampolė",
     "distance_km": 17.5,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1913,7 +1913,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 27500,
     "location": "Utena",
     "distance_km": 18.8,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -1947,7 +1947,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 3400,
     "location": "Tauragė",
     "distance_km": 20.1,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "skoda",
@@ -1981,7 +1981,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 10400,
     "location": "Jonava",
     "distance_km": 21.4,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "ford",
@@ -2015,7 +2015,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 19650,
     "location": "Rokiškis",
     "distance_km": 22.7,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "opel",
@@ -2049,7 +2049,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 30250,
     "location": "Kaunas",
     "distance_km": 21,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2083,7 +2083,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4800,
     "location": "Panevėžys",
     "distance_km": 22.3,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2117,7 +2117,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 15350,
     "location": "Mažeikiai",
     "distance_km": 23.6,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2151,7 +2151,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 24600,
     "location": "Kupiškis",
     "distance_km": 24.9,
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2185,7 +2185,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4600,
     "location": "Ukmergė",
     "distance_km": 26.2,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2219,7 +2219,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 11100,
     "location": "Kėdainiai",
     "distance_km": 27.5,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "bmw",
@@ -2253,7 +2253,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 18750,
     "location": "Pasvalys",
     "distance_km": 28.8,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2287,7 +2287,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 26550,
     "location": "Klaipėda",
     "distance_km": 30.1,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2321,7 +2321,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 5250,
     "location": "Alytus",
     "distance_km": 31.4,
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2355,7 +2355,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 16750,
     "location": "Biržai",
     "distance_km": 32.7,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2389,7 +2389,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 22150,
     "location": "Telšiai",
     "distance_km": 31,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "audi",
@@ -2423,7 +2423,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 2850,
     "location": "Palanga",
     "distance_km": 32.3,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2457,7 +2457,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 8600,
     "location": "Druskininkai",
     "distance_km": 33.6,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2491,7 +2491,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 17200,
     "location": "Vilnius",
     "distance_km": 34.9,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2525,7 +2525,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 26250,
     "location": "Šiauliai",
     "distance_km": 36.2,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volkswagen",
@@ -2559,7 +2559,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4950,
     "location": "Marijampolė",
     "distance_km": 37.5,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2593,7 +2593,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 12950,
     "location": "Utena",
     "distance_km": 38.8,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2627,7 +2627,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 23550,
     "location": "Tauragė",
     "distance_km": 40.1,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2661,7 +2661,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 29000,
     "location": "Jonava",
     "distance_km": 41.4,
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "volvo",
@@ -2695,7 +2695,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 5950,
     "location": "Rokiškis",
     "distance_km": 42.7,
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2729,7 +2729,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 14100,
     "location": "Kaunas",
     "distance_km": 1,
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2763,7 +2763,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 27600,
     "location": "Panevėžys",
     "distance_km": 2.3,
-    "image": "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2797,7 +2797,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 4100,
     "location": "Mažeikiai",
     "distance_km": 3.6,
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "toyota",
@@ -2831,7 +2831,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 13300,
     "location": "Kupiškis",
     "distance_km": 4.9,
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -2865,7 +2865,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 22550,
     "location": "Ukmergė",
     "distance_km": 6.2,
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
     "category": "vehicles",
     "tags": [
       "mercedes-benz",
@@ -2899,7 +2899,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 980,
     "location": "Klaipėda",
     "distance_km": 2,
-    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "iphone",
@@ -2918,7 +2918,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 650,
     "location": "Mažeikiai",
     "distance_km": 3.7,
-    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "iphone",
@@ -2936,7 +2936,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 950,
     "location": "Tauragė",
     "distance_km": 5.4,
-    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "samsung",
@@ -2955,7 +2955,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 1050,
     "location": "Druskininkai",
     "distance_km": 7.1,
-    "image": "https://images.unsplash.com/photo-1606144042614-b2417e99c4ee?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "macbook",
@@ -2974,7 +2974,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 810,
     "location": "Klaipėda",
     "distance_km": 8.8,
-    "image": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606144042614-b2417e99c4ee?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "ipad",
@@ -2992,7 +2992,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 480,
     "location": "Mažeikiai",
     "distance_km": 10.5,
-    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1606813907291-d86efa9b397e?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "ps5",
@@ -3011,7 +3011,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 480,
     "location": "Tauragė",
     "distance_km": 12.2,
-    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "dyson",
@@ -3030,7 +3030,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price": 290,
     "location": "Druskininkai",
     "distance_km": 13.9,
-    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "sony",
@@ -3050,7 +3050,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "nuo 120€",
     "location": "Šiauliai",
     "distance_km": 1.5,
-    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "detailing",
@@ -3072,7 +3072,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "nuo 35€",
     "location": "Mažeikiai",
     "distance_km": 3.6,
-    "image": "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "padangos",
@@ -3094,7 +3094,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "nuo 45€",
     "location": "Telšiai",
     "distance_km": 5.7,
-    "image": "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "ta",
@@ -3116,7 +3116,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "25€",
     "location": "Jonava",
     "distance_km": 7.8,
-    "image": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "diagnostika",
@@ -3138,7 +3138,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "Kaina pagal auto",
     "location": "Pasvalys",
     "distance_km": 9.9,
-    "image": "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "supirkimas",
@@ -3159,7 +3159,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "nuo 350€",
     "location": "Šiauliai",
     "distance_km": 12,
-    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "dažymas",
@@ -3181,7 +3181,7 @@ export const GENERATED_DEMO_LISTINGS: DemoListingRow[] = [
     "price_label": "nuo 40€",
     "location": "Mažeikiai",
     "distance_km": 14.1,
-    "image": "https://images.unsplash.com/photo-1621939514649-280e2ee02577?w=800&h=600&fit=crop",
+    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "evakuatorius",

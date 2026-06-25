@@ -16,34 +16,55 @@ const CITIES = [
   "Rokiškis", "Pasvalys",
 ];
 
+const unsplash = (id) =>
+  `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
+
 const CAR_IMAGES = {
-  sedan: "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop",
-  wagon: "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop",
-  suv: "https://images.unsplash.com/photo-1519641471654-76cead78234a?w=800&h=600&fit=crop",
-  luxury: "https://images.unsplash.com/photo-1618843479311-63f341a8f327?w=800&h=600&fit=crop",
-  compact: "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop",
-  hybrid: "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop",
-  audi: "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop",
-  mercedes: "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop",
+  sedan: unsplash("photo-1555215695-3004980ad54e"),
+  wagon: unsplash("photo-1609521263040-82f9f49b7c65"),
+  suv: unsplash("photo-1519641471654-76cead78234a"),
+  luxury: unsplash("photo-1618843479311-63f341a8f327"),
+  compact: unsplash("photo-1552519507-da3b142c6e3d"),
+  hybrid: unsplash("photo-1542362567-b07e54358753"),
+  audi: unsplash("photo-1606664515524-ed2f786a0bd6"),
+  mercedes: unsplash("photo-1617531653332-bd46c24f2068"),
+  bmw: unsplash("photo-1555215695-3004980ad54e"),
+  volvo: unsplash("photo-1619760133404-416b4bef3979"),
+  toyota: unsplash("photo-1621007940902-bb6befaef932"),
+  volkswagen: unsplash("photo-1542362567-b07e54358753"),
 };
 
-const ELECTRONICS_IMAGES = [
-  "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1606144042614-b2417e99c4ee?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=600&fit=crop",
-];
+const MAKE_IMAGES = {
+  BMW: CAR_IMAGES.bmw,
+  Audi: CAR_IMAGES.audi,
+  "Mercedes-Benz": CAR_IMAGES.mercedes,
+  Volvo: CAR_IMAGES.volvo,
+  Toyota: CAR_IMAGES.toyota,
+  Volkswagen: CAR_IMAGES.volkswagen,
+  Skoda: CAR_IMAGES.audi,
+  Ford: CAR_IMAGES.compact,
+  Opel: CAR_IMAGES.wagon,
+};
 
-const SERVICE_IMAGES = [
-  "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop",
-  "https://images.unsplash.com/photo-1621939514649-280e2ee02577?w=800&h=600&fit=crop",
-];
+const ELECTRONICS_IMAGES = {
+  iphone: unsplash("photo-1592899677977-9c10ca588bbd"),
+  samsung: unsplash("photo-1511707171634-5f897ff02aa9"),
+  macbook: unsplash("photo-1496181133206-80ce9b88a853"),
+  ipad: unsplash("photo-1606144042614-b2417e99c4ee"),
+  playstation: unsplash("photo-1606813907291-d86efa9b397e"),
+  dyson: unsplash("photo-1558618666-fcd25c85cd64"),
+  sony: unsplash("photo-1585060544812-6b45742d762f"),
+};
+
+const SERVICE_IMAGES = {
+  detailing: unsplash("photo-1486262715619-67b85e0b08d3"),
+  tires: unsplash("photo-1504148455328-c376907d081c"),
+  diagnostic: unsplash("photo-1625047509248-ec889cbff097"),
+  buyout: unsplash("photo-1487754180451-c456f719a1fc"),
+  paint: unsplash("photo-1619642751034-765df69d01c9"),
+  tow: unsplash("photo-1621939514649-280e2ee02577"),
+  ta: unsplash("photo-1486262715619-67b85e0b08d3"),
+};
 
 const BODY_TYPES = ["Sedanas", "Universalas", "Visureigis", "Hečbekas", "Kupė"];
 const FUEL_TYPES = ["Dyzelinas", "Benzinas", "Hibridas", "Plug-in hibridas"];
@@ -192,6 +213,39 @@ function buildServiceDescription(title, city, index) {
   return variants[index % variants.length];
 }
 
+function vehicleImage(spec) {
+  if (MAKE_IMAGES[spec.make]) return MAKE_IMAGES[spec.make];
+  if (spec.body === "Visureigis") return CAR_IMAGES.suv;
+  if (spec.body === "Universalas") return CAR_IMAGES.wagon;
+  if (spec.body === "Hečbekas" || spec.body === "Kupė") return CAR_IMAGES.compact;
+  if (spec.fuel === "Plug-in hibridas" || spec.fuel === "Hibridas") return CAR_IMAGES.hybrid;
+  return CAR_IMAGES[spec.img] ?? CAR_IMAGES.sedan;
+}
+
+function electronicsImage(title) {
+  const lower = title.toLowerCase();
+  if (lower.includes("iphone")) return ELECTRONICS_IMAGES.iphone;
+  if (lower.includes("samsung") || lower.includes("galaxy")) return ELECTRONICS_IMAGES.samsung;
+  if (lower.includes("macbook")) return ELECTRONICS_IMAGES.macbook;
+  if (lower.includes("ipad")) return ELECTRONICS_IMAGES.ipad;
+  if (lower.includes("playstation") || lower.includes("ps5")) return ELECTRONICS_IMAGES.playstation;
+  if (lower.includes("dyson")) return ELECTRONICS_IMAGES.dyson;
+  if (lower.includes("sony")) return ELECTRONICS_IMAGES.sony;
+  return ELECTRONICS_IMAGES.iphone;
+}
+
+function serviceImage(title) {
+  const lower = title.toLowerCase();
+  if (lower.includes("detailing") || lower.includes("plovimas")) return SERVICE_IMAGES.detailing;
+  if (lower.includes("padang")) return SERVICE_IMAGES.tires;
+  if (lower.includes("diagnost")) return SERVICE_IMAGES.diagnostic;
+  if (lower.includes("supirkim")) return SERVICE_IMAGES.buyout;
+  if (lower.includes("dažym") || lower.includes("kėbul")) return SERVICE_IMAGES.paint;
+  if (lower.includes("evakuator")) return SERVICE_IMAGES.tow;
+  if (lower.includes("technin")) return SERVICE_IMAGES.ta;
+  return SERVICE_IMAGES.detailing;
+}
+
 function vinFor(index) {
   const chars = "0123456789ABCDEFGHJKLMNPRSTUVWXYZ";
   let v = "WBA";
@@ -218,7 +272,7 @@ for (let v = 0; v < 85; v++) {
     location: city,
     distanceKm: Math.round((1 + (v % 40) + (v % 10) * 0.3) * 10) / 10,
     contact: `Tel. +370 6${String(1000000 + v * 7919).slice(0, 7)}`,
-    image: CAR_IMAGES[spec.img] ?? CAR_IMAGES.sedan,
+    image: vehicleImage(spec),
     category: "vehicles",
     tags: [spec.make.toLowerCase(), spec.model.split(" ")[0].toLowerCase(), "automobilis", spec.fuel.toLowerCase(), city.toLowerCase()],
     attributes: {
@@ -253,7 +307,7 @@ for (let e = 0; e < 8; e++) {
     location: city,
     distanceKm: Math.round((2 + e * 1.7) * 10) / 10,
     contact: `Tel. +370 6${String(2000000 + e * 12345).slice(0, 7)}`,
-    image: ELECTRONICS_IMAGES[e % ELECTRONICS_IMAGES.length],
+    image: electronicsImage(spec.title),
     category: "electronics",
     tags: [...spec.tags, city.toLowerCase()],
     description: buildElectronicsDescription(spec.title, city, e),
@@ -275,7 +329,7 @@ for (let s = 0; s < 7; s++) {
     location: city,
     distanceKm: Math.round((1.5 + s * 2.1) * 10) / 10,
     contact: `Tel. +370 6${String(3000000 + s * 9876).slice(0, 7)}`,
-    image: SERVICE_IMAGES[s % SERVICE_IMAGES.length],
+    image: serviceImage(spec.title),
     category: "services",
     tags: [...spec.tags, city.toLowerCase(), "paslauga"],
     description: buildServiceDescription(spec.title, city, s),
