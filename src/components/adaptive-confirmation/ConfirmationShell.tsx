@@ -37,8 +37,7 @@ export function ConfirmationShell({
   const t = theme.confirmation;
 
   return (
-    <div className={cn("listing-wizard-overlay transition-colors duration-300", t.shell)}>
-      <div className="listing-wizard-scroll p-6">
+    <div className={cn("listing-wizard-overlay p-6 transition-colors duration-300", t.shell)}>
         <div
           className={cn(
             "mx-auto max-w-md rounded-3xl p-6 transition-colors duration-300",
@@ -81,8 +80,7 @@ export function ConfirmationShell({
         >
           {canPublish ? "Viskas gerai, publikuoti skelbimą" : publishLabel}
         </button>
-      </div>
-      </div>
+        </div>
     </div>
   );
 }
@@ -100,7 +98,7 @@ export function PublishedOverlay() {
         p.shell
       )}
     >
-      <div className="listing-wizard-scroll flex items-center justify-center">
+      <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={cn(
             "mx-4 my-6 w-full max-w-md rounded-3xl p-6 text-left transition-colors duration-300 sm:p-8",
@@ -161,7 +159,7 @@ export function PublishedOverlay() {
         >
           Baigti
         </button>
-      </div>
+        </div>
       </div>
     </div>
   );

@@ -129,8 +129,7 @@ export function ServiceListingWizard({
 
   return (
     <div className="listing-wizard-overlay chameleon-wizard-shell bg-[#f4f9ff]">
-      <div className="listing-wizard-scroll">
-        <div className="mx-auto min-h-full max-w-2xl bg-white shadow-sm">
+        <div className="mx-auto w-full max-w-2xl bg-white shadow-sm">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#cfe3ff] bg-white px-4 py-3">
           <button type="button" onClick={step > 1 ? () => setStep(step - 1) : onCancel} className="rounded-full p-2">
             {step > 1 ? <ChevronLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
@@ -321,7 +320,6 @@ export function ServiceListingWizard({
             </button>
           )}
         </footer>
-      </div>
       </div>
     </div>
   );

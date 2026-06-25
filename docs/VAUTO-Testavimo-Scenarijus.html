@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+  <meta charset="UTF-8">
+  <title>VAUTO — Pre-Release Auditas & Testavimo Scenarijus</title>
+  <style>
+    @page { size: A4; margin: 0; }
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    html, body {
+      font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+      font-size: 9.5pt;
+      line-height: 1.45;
+      color: #1e293b;
+      background: #fff;
+      -webkit-print-color-adjust: exact;
+      print-color-adjust: exact;
+    }
+
+    .cover {
+      min-height: 260mm;
+      padding: 28mm 22mm;
+      background: linear-gradient(145deg, #0f172a 0%, #1167b1 48%, #0d9488 100%);
+      color: #f8fafc;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      page-break-after: always;
+      break-after: page;
+      position: relative;
+      overflow: hidden;
+    }
+
+    .cover-glow {
+      position: absolute;
+      top: -20mm; right: -15mm;
+      width: 90mm; height: 90mm;
+      background: radial-gradient(circle, rgba(45,212,191,.25) 0%, transparent 70%);
+    }
+
+    .cover-badge {
+      display: inline-block;
+      background: rgba(255,255,255,.12);
+      border: 1px solid rgba(255,255,255,.25);
+      border-radius: 999px;
+      padding: 4px 14px;
+      font-size: 8pt;
+      font-weight: 600;
+      letter-spacing: .06em;
+      text-transform: uppercase;
+      color: #99f6e4;
+    }
+
+    .cover h1 {
+      font-size: 32pt;
+      font-weight: 800;
+      letter-spacing: -.02em;
+      line-height: 1.1;
+      margin-top: 8mm;
+    }
+
+    .cover h1 span { color: #2dd4bf; }
+
+    .cover-sub {
+      font-size: 13pt;
+      color: #cbd5e1;
+      margin-top: 5mm;
+      max-width: 130mm;
+    }
+
+    .cover-meta {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 4mm;
+      margin-top: 12mm;
+    }
+
+    .meta-card {
+      background: rgba(255,255,255,.08);
+      border: 1px solid rgba(255,255,255,.15);
+      border-radius: 8px;
+      padding: 5mm 6mm;
+    }
+
+    .meta-card .label {
+      font-size: 7pt;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      color: #94a3b8;
+      margin-bottom: 2mm;
+    }
+
+    .meta-card .value {
+      font-size: 11pt;
+      font-weight: 700;
+      color: #f1f5f9;
+    }
+
+    .cover-footer {
+      font-size: 8pt;
+      color: #94a3b8;
+      border-top: 1px solid rgba(255,255,255,.15);
+      padding-top: 5mm;
+    }
+
+    .page { padding: 0 2mm; page-break-after: always; break-after: page; }
+    .page:last-child { page-break-after: auto; break-after: auto; }
+
+    h2 {
+      font-size: 14pt;
+      font-weight: 800;
+      color: #1167b1;
+      margin: 0 0 4mm;
+      padding-bottom: 2mm;
+      border-bottom: 2.5px solid #1167b1;
+      display: flex;
+      align-items: center;
+      gap: 3mm;
+    }
+
+    h2 .num {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 8mm;
+      height: 8mm;
+      background: #1167b1;
+      color: #fff;
+      border-radius: 6px;
+      font-size: 9pt;
+    }
+
+    h3 {
+      font-size: 10pt;
+      font-weight: 700;
+      color: #334155;
+      margin: 4mm 0 2mm;
+    }
+
+    p, li { color: #475569; }
+    p { margin-bottom: 2mm; }
+
+    .goal {
+      background: #f0f9ff;
+      border-left: 3px solid #1167b1;
+      padding: 3mm 4mm;
+      margin-bottom: 4mm;
+      font-size: 9pt;
+      color: #334155;
+    }
+
+    .stats {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 3mm;
+      margin-bottom: 5mm;
+    }
+
+    .stat {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 4mm;
+      text-align: center;
+    }
+
+    .stat .n { font-size: 16pt; font-weight: 800; color: #1167b1; line-height: 1; }
+    .stat .l { font-size: 7.5pt; color: #64748b; margin-top: 1.5mm; }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-bottom: 4mm;
+      font-size: 8.5pt;
+    }
+
+    thead th {
+      background: #1167b1;
+      color: #fff;
+      font-weight: 600;
+      text-align: left;
+      padding: 2.5mm 3mm;
+    }
+
+    thead th:first-child { border-radius: 6px 0 0 0; width: 9mm; }
+    thead th:last-child { border-radius: 0 6px 0 0; width: 10mm; text-align: center; }
+
+    tbody td {
+      padding: 2.5mm 3mm;
+      border-bottom: 1px solid #e2e8f0;
+      vertical-align: top;
+    }
+
+    tbody tr:nth-child(even) td { background: #f8fafc; }
+    tbody tr:last-child td:first-child { border-radius: 0 0 0 6px; }
+    tbody tr:last-child td:last-child { border-radius: 0 0 6px 0; }
+
+    td.check { text-align: center; font-size: 12pt; color: #cbd5e1; }
+
+    .summary-table thead th { background: #0d9488; }
+    .summary-table tbody td:last-child { font-weight: 600; color: #0f766e; }
+
+    .bullets {
+      columns: 2;
+      column-gap: 6mm;
+      margin-bottom: 4mm;
+      padding-left: 5mm;
+    }
+
+    .bullets li { margin-bottom: 1.5mm; break-inside: avoid; }
+
+    code, .code-block {
+      font-family: Consolas, "Courier New", monospace;
+      font-size: 8pt;
+      background: #1e293b;
+      color: #e2e8f0;
+      border-radius: 6px;
+    }
+
+    .code-block {
+      display: block;
+      padding: 4mm 5mm;
+      white-space: pre-wrap;
+      line-height: 1.55;
+      margin-bottom: 4mm;
+    }
+
+    .arch {
+      background: #f1f5f9;
+      border: 1px solid #cbd5e1;
+      border-radius: 8px;
+      padding: 4mm 5mm;
+      font-family: Consolas, monospace;
+      font-size: 8pt;
+      line-height: 1.6;
+      margin-bottom: 3mm;
+    }
+
+    .note-table thead th { background: #64748b; }
+
+    .footer-block {
+      margin-top: 5mm;
+      padding-top: 3mm;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8pt;
+      color: #64748b;
+    }
+
+    .tag {
+      display: inline-block;
+      background: #dbeafe;
+      color: #1d4ed8;
+      font-size: 7.5pt;
+      font-weight: 600;
+      padding: 1px 6px;
+      border-radius: 4px;
+    }
+
+    .section-intro { margin-bottom: 4mm; }
+  </style>
+</head>
+<body>
+
+<!-- COVER -->
+<section class="cover">
+  <div class="cover-glow"></div>
+  <div>
+    <div class="cover-badge">Pre-Release QA · 2026</div>
+    <h1><span>VAUTO</span><br>Testavimo Scenarijus</h1>
+    <p class="cover-sub">Pilnas audito ir rankinio testavimo vadovas — paieška visoje Lietuvoje, sesijos atmintis, monetizacija, wake word ir 100 demo skelbimų.</p>
+    <div class="cover-meta">
+      <div class="meta-card"><div class="label">Versija</div><div class="value">2026-06-24</div></div>
+      <div class="meta-card"><div class="label">Git commit</div><div class="value">0828018</div></div>
+      <div class="meta-card"><div class="label">Būsena</div><div class="value">Paruošta ✓</div></div>
+    </div>
+  </div>
+  <div class="cover-footer">
+    github.com/arnasbond/vauto · branch master · Spausdinimui paruošta A4 formatu
+  </div>
+</section>
+
+<!-- PAGE 2: SANTRAUKA -->
+<section class="page">
+  <h2><span class="num">✓</span> Audito santrauka</h2>
+  <table class="summary-table">
+    <thead><tr><th>Patikra</th><th>Rezultatas</th></tr></thead>
+    <tbody>
+      <tr><td>Next.js build</td><td>0 TS klaidų · 113 puslapiai · 100 SSG listing</td></tr>
+      <tr><td>Server build</td><td>0 TS klaidų</td></tr>
+      <tr><td>E2E simuliacija (npm run sim:e2e)</td><td>OK</td></tr>
+      <tr><td>Katalogo audit (npm run audit:catalog)</td><td>100 skelbimų · 20 miestų</td></tr>
+      <tr><td>Playwright smoke</td><td>17 / 17 testų</td></tr>
+      <tr><td>Server validation smoke</td><td>OK</td></tr>
+    </tbody>
+  </table>
+
+  <h3>Testiniai duomenys</h3>
+  <div class="stats">
+    <div class="stat"><div class="n">100</div><div class="l">Unikalūs skelbimai</div></div>
+    <div class="stat"><div class="n">85</div><div class="l">Automobiliai</div></div>
+    <div class="stat"><div class="n">20</div><div class="l">Lietuvos miestai</div></div>
+    <div class="stat"><div class="n">30</div><div class="l">Virš 20 000 €</div></div>
+  </div>
+  <ul class="bullets">
+    <li><strong>Elektronika:</strong> 8 · <strong>Paslaugos:</strong> 7</li>
+    <li><strong>Kainos:</strong> 1 750 € – 35 000 €</li>
+    <li><strong>Metai:</strong> 2000–2024</li>
+    <li><strong>Markės:</strong> BMW, Audi, VW, Volvo, Toyota, Mercedes-Benz…</li>
+    <li><strong>Pavyzdys:</strong> /listing/bmw-320d-2003-kaunas/</li>
+    <li><strong>Miestai:</strong> Vilnius, Kaunas, Klaipėda, Šiauliai, Panevėžys, Alytus, Marijampolė, Mažeikiai, Biržai, Utena, Kupiškis, Telšiai, Tauragė, Ukmergė, Palanga, Jonava, Kėdainiai, Druskininkai, Rokiškis, Pasvalys</li>
+  </ul>
+</section>
+
+<!-- PAGE 3: PAIEŠKA -->
+<section class="page">
+  <h2><span class="num">1</span> Paieška — Visa Lietuva</h2>
+  <div class="goal"><strong>Tikslas:</strong> be miesto nepritempiama jokia lokacija — numatyta aprėptis „Visa Lietuva“.</div>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>1.1</td><td>Įrašykite: „ieškau universalo“</td><td>Rezultatai iš visos Lietuvos</td><td class="check">☐</td></tr>
+      <tr><td>1.2</td><td>Įrašykite: „BMW 320d“</td><td>BMW skelbimai iš skirtingų miestų</td><td class="check">☐</td></tr>
+      <tr><td>1.3</td><td>Įrašykite: „iPhone“</td><td>Elektronikos skelbimai</td><td class="check">☐</td></tr>
+      <tr><td>1.4</td><td>Tuščia paieška — scroll grid</td><td>100 skelbimų, įvairūs miestai</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">2</span> Paieška — Miesto filtras</h2>
+  <div class="goal"><strong>Tikslas:</strong> lokacija taikoma tik kai vartotojas ją įvardina.</div>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>2.1</td><td>„BMW Vilniuje“</td><td>Tik Vilniaus regiono BMW</td><td class="check">☐</td></tr>
+      <tr><td>2.2</td><td>„ieškau dalių Pasvalyje“</td><td>Pasvalio regiono dalys</td><td class="check">☐</td></tr>
+      <tr><td>2.3</td><td>„Audi Kaune“</td><td>Tik Kauno Audi</td><td class="check">☐</td></tr>
+      <tr><td>2.4</td><td>„Volvo Klaipėdoje“</td><td>Tik Klaipėdos Volvo</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- PAGE 4: AGENTAS & WAKE WORD -->
+<section class="page">
+  <h2><span class="num">3</span> Sesijos atmintis (Gemini)</h2>
+  <div class="goal"><strong>Tikslas:</strong> antras sakinys tęsia pirmą, ne pradeda iš naujo.</div>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>3.1</td><td>„ieškau dalių Pasvalyje“</td><td>Filtras: Pasvalys + dalys</td><td class="check">☐</td></tr>
+      <tr><td>3.2</td><td>„o dabar tik pilkos spalvos“</td><td>Pasvalys išlieka + spalva</td><td class="check">☐</td></tr>
+      <tr><td>3.3</td><td>„nauji BMW nuo 2018“</td><td>Sesijos reset — seni filtrai išvalomi</td><td class="check">☐</td></tr>
+      <tr><td>3.4</td><td>CLI: npm run sim:e2e</td><td>JSON ok: true, abu žingsniai</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">4</span> Balso sužadinimas (Wake Word)</h2>
+  <p class="section-intro"><span class="tag">Desktop Chrome/Edge</span> · budintis režimas · GDPR sutikimas</p>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>4.1</td><td>Profilis → Budintis režimas</td><td>Mikrofonas klauso fone</td><td class="check">☐</td></tr>
+      <tr><td>4.2</td><td>„Vauto, surask BMW Vilniuje“</td><td>Paieška + agentas be mygtuko</td><td class="check">☐</td></tr>
+      <tr><td>4.3</td><td>Marketplace lieka aktyvus</td><td>Neatsidaro atskiras sheet</td><td class="check">☐</td></tr>
+      <tr><td>4.4</td><td>Mobile / telefonas</td><td>Wake word nepalaikomas — info pranešimas</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">5</span> Gemini AI agentas (tekstas)</h2>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>5.1</td><td>Zero-UI mikrofono mygtukas</td><td>Atidaromas VAUTO AI dialogas</td><td class="check">☐</td></tr>
+      <tr><td>5.2</td><td>„surask pigų Golf Kaune“</td><td>Sinchronizacija su paieškos lauku</td><td class="check">☐</td></tr>
+      <tr><td>5.3</td><td>„noriu parduoti automobilį“</td><td>Skelbimo juodraščio flow</td><td class="check">☐</td></tr>
+      <tr><td>5.4</td><td>Be GEMINI_API_KEY</td><td>Demo režimas / graceful fallback</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- PAGE 5: MONETIZACIJA -->
+<section class="page">
+  <h2><span class="num">6</span> Monetizacija — C2C Smart Boost</h2>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>6.1</td><td>Skelbimas virš medianos</td><td>Smart Boost pasiūlymas (2,99 €)</td><td class="check">☐</td></tr>
+      <tr><td>6.2</td><td>Patvirtinti mokėjimą</td><td>ZeroUiPaymentGate langas</td><td class="check">☐</td></tr>
+      <tr><td>6.3</td><td>Skelbimas žemiau medianos</td><td>Kainos patarimas, ne Smart Boost</td><td class="check">☐</td></tr>
+      <tr><td>6.4</td><td>Juodraštis su kaina</td><td>Atsakymas akimirksniu · analizė fone</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">7</span> Monetizacija — B2B</h2>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>7.1</td><td>Business Pro → regiono statistika</td><td>Prieiga be papildomo mokesčio</td><td class="check">☐</td></tr>
+      <tr><td>7.2</td><td>B2B free → regiono statistika</td><td>Business Pro upsell (199 €/mėn.)</td><td class="check">☐</td></tr>
+      <tr><td>7.3</td><td>B2B Smart Boost</td><td>29,99 € (ne 2,99 €)</td><td class="check">☐</td></tr>
+      <tr><td>7.4</td><td>B2B lead</td><td>14,99 € už lead</td><td class="check">☐</td></tr>
+      <tr><td>7.5</td><td>Analitika be miesto</td><td>Visos Lietuvos duomenys</td><td class="check">☐</td></tr>
+      <tr><td>7.6</td><td>„Kokia BMW paklausa Kaune?“</td><td>Filtruota pagal Kauną</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- PAGE 6: UI & ADMIN -->
+<section class="page">
+  <h2><span class="num">8</span> UI / UX smoke</h2>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>8.1</td><td>/listing/bmw-320d-2003-kaunas/</td><td>Detalės, nuotrauka, LT aprašymas</td><td class="check">☐</td></tr>
+      <tr><td>8.2</td><td>Scroll — 100 skelbimų</td><td>Grid sklandus</td><td class="check">☐</td></tr>
+      <tr><td>8.3</td><td>Profilis (svečias)</td><td>„Prisijungti“ CTA</td><td class="check">☐</td></tr>
+      <tr><td>8.4</td><td>Pokalbiai (svečias)</td><td>Login gate</td><td class="check">☐</td></tr>
+      <tr><td>8.5</td><td>/discover/</td><td>Atrasti puslapis</td><td class="check">☐</td></tr>
+      <tr><td>8.6</td><td>/install/</td><td>PWA instrukcijos</td><td class="check">☐</td></tr>
+      <tr><td>8.7</td><td>Mobile 390px</td><td>Zero-UI: Asistentas + Profilis</td><td class="check">☐</td></tr>
+      <tr><td>8.8</td><td>Unsplash nuotraukos</td><td>Kraunasi, atitinka kategoriją</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:6mm"><span class="num">9</span> Admin & moderacija</h2>
+  <table>
+    <thead><tr><th>#</th><th>Veiksmas</th><th>Tikėtinas rezultatas</th><th>✓</th></tr></thead>
+    <tbody>
+      <tr><td>9.1</td><td>Admin → Profilis</td><td>Administratoriaus skydelis</td><td class="check">☐</td></tr>
+      <tr><td>9.2</td><td>Skelbimai tab</td><td>Moderavimo sąrašas</td><td class="check">☐</td></tr>
+      <tr><td>9.3</td><td>Demo reports</td><td>Teisingi listing ID</td><td class="check">☐</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<!-- PAGE 7: TECH & ARCH -->
+<section class="page">
+  <h2><span class="num">⚙</span> Techninės komandos (QA)</h2>
+  <div class="code-block">npm run build              # Next.js build
+npm run server:build       # Server TS build
+npm run sim:e2e            # E2E simuliacija
+npm run audit:catalog      # 100 skelbimų audit
+npm run test:server-smoke  # Validation smoke
+npm run test:e2e           # Playwright (17 testų)
+npm run audit:security     # Saugumo audit
+npm run generate:mock-catalog</div>
+
+  <h2 style="margin-top:5mm"><span class="num">!</span> Žinomos neblokuojančios pastabos</h2>
+  <table class="note-table">
+    <thead><tr><th>Pastaba</th><th>Poveikis</th><th>Veiksmas</th></tr></thead>
+    <tbody>
+      <tr><td>OTP SMS išjungtas</td><td>Demo OTP staging/test</td><td>Twilio prieš go-live</td></tr>
+      <tr><td>2 ESLint warnings</td><td>Netrukdo buildui</td><td>Galima vėliau</td></tr>
+      <tr><td>Wake word tik desktop</td><td>Mobile — mygtukas</td><td>Numatyta</td></tr>
+      <tr><td>Gemini API key</td><td>Pilnas AI offline neveiks</td><td>GEMINI_API_KEY</td></tr>
+    </tbody>
+  </table>
+
+  <h2 style="margin-top:5mm"><span class="num">→</span> Architektūros santrauka</h2>
+  <div class="arch">Vartotojas (balsas/tekstas)
+    ↓
+SearchBar / WakeWord / Gemini Agent
+    ↓
+VautoAgentContext → API
+    ↓
+searchListings | postNewListing | analyzeMarketPrice | triggerMicroPayment
+    ↓
+Side effects: paieška · juodraštis · mikro-mokėjimas · Zero-UI</div>
+  <p><strong>Lokacijos logika:</strong> tuščias city = Visa Lietuva. Miestas tik kai vartotojas ištaria.</p>
+  <p><strong>Fono analizė:</strong> postNewListing grąžina juodraštį akimirksniu; rinkos analizė fone.</p>
+
+  <div class="footer-block">
+    <strong>Repo:</strong> github.com/arnasbond/vauto · <strong>Branch:</strong> master<br>
+    Commits: 0828018 (audit) · ff22f4c (100 skelbimų) · 858b9d1 (premium architektūra)<br>
+    <em>Sugeneruota 2026-06-24 · VAUTO pre-release QA</em>
+  </div>
+</section>
+
+</body>
+</html>

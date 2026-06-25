@@ -190,8 +190,7 @@ export function GeneralListingWizard({
 
   return (
     <div className="listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]">
-      <div className="listing-wizard-scroll">
-        <div className="mx-auto min-h-full max-w-2xl bg-[var(--portal-wizard-surface,#fff)] pb-10 shadow-sm">
+        <div className="mx-auto w-full max-w-2xl bg-[var(--portal-wizard-surface,#fff)] pb-10 shadow-sm">
         <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
           <div className="flex items-center gap-2">
             <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1167b1] text-white">
@@ -436,7 +435,6 @@ export function GeneralListingWizard({
             Išsaugoti ruošinį
           </button>
         </div>
-      </div>
       </div>
     </div>
   );

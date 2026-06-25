@@ -1,7 +1,8 @@
 "use client";
 
-import { Camera, Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { Camera, ImageIcon, Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { Capacitor } from "@capacitor/core";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import {
@@ -53,11 +54,16 @@ export function AiPhotoFlowSheet({
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [extraContext, setExtraContext] = useState("");
   const [sourceOpen, setSourceOpen] = useState(false);
+  const [mounted, setMounted] = useState(false);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const title =
     mode === "search" ? "Ieškoti pagal nuotrauką" : "Skelbti su AI";
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   const reset = useCallback(() => {
     setPhotos([]);
@@ -91,7 +97,7 @@ export function AiPhotoFlowSheet({
     reset();
   };
 
-  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleCameraFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = "";
     if (!file || busy) return;
@@ -128,15 +134,19 @@ export function AiPhotoFlowSheet({
     addPhotos(captured);
   };
 
-  const openPhotoPicker = () => {
+  /** Direct camera activation — must stay synchronous inside user gesture on mobile. */
+  const triggerNativeCameraInput = () => {
     if (busy) return;
-    if (mode === "search") {
-      void capturePhotoFromSource("camera").then((shot) => {
-        if (shot) void applyCapturedPhoto(shot);
-      });
+    cameraInputRef.current?.click();
+  };
+
+  const openListingPhotoPicker = () => {
+    if (busy) return;
+    if (Capacitor.isNativePlatform()) {
+      setSourceOpen(true);
       return;
     }
-    setSourceOpen(true);
+    triggerNativeCameraInput();
   };
 
   const applyCapturedPhoto = async (shot: CapturedPhoto) => {
@@ -151,9 +161,13 @@ export function AiPhotoFlowSheet({
   const handleSourceSelect = (source: "camera" | "gallery") => {
     setSourceOpen(false);
     if (source === "camera") {
-      void capturePhotoFromSource("camera").then((shot) => {
-        if (shot) void applyCapturedPhoto(shot);
-      });
+      if (Capacitor.isNativePlatform()) {
+        void capturePhotoFromSource("camera").then((shot) => {
+          if (shot) void applyCapturedPhoto(shot);
+        });
+        return;
+      }
+      triggerNativeCameraInput();
       return;
     }
 
@@ -161,11 +175,6 @@ export function AiPhotoFlowSheet({
       void (async () => {
         const remaining = MAX_AI_PHOTOS - photos.length;
         const picked = await pickMultipleFromGallery(remaining);
-        if (mode === "search" && picked[0]) {
-          setPhotos([picked[0]]);
-          await runSearchWithPhoto(picked[0]);
-          return;
-        }
         addPhotos(picked);
       })();
       return;
@@ -188,12 +197,12 @@ export function AiPhotoFlowSheet({
     reset();
   };
 
-  if (!open) return null;
+  if (!open || !mounted) return null;
 
   const ctaLabel =
     mode === "search" ? "Ieškoti panašių" : "Sukurti skelbimą";
 
-  return (
+  const sheet = (
     <>
       <input
         ref={cameraInputRef}
@@ -203,8 +212,7 @@ export function AiPhotoFlowSheet({
         capture="environment"
         className={NATIVE_FILE_INPUT_CLASS}
         tabIndex={-1}
-        aria-hidden
-        onChange={(e) => void handleFileChange(e)}
+        onChange={(e) => void handleCameraFileChange(e)}
       />
       <input
         ref={galleryInputRef}
@@ -214,17 +222,16 @@ export function AiPhotoFlowSheet({
         multiple={mode === "listing"}
         className={NATIVE_FILE_INPUT_CLASS}
         tabIndex={-1}
-        aria-hidden
         onChange={(e) => void handleGalleryFileChange(e)}
       />
 
       <div
-        className="fixed inset-0 z-[220] flex flex-col bg-white"
+        className="fixed inset-0 z-[9998] flex h-full min-h-screen w-full flex-col overflow-y-auto bg-white"
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <header className="flex shrink-0 items-center gap-3 border-b border-[#e5e7eb] px-4 py-3">
+        <header className="sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b border-[#e5e7eb] bg-white px-4 py-3">
           <button
             type="button"
             onClick={handleClose}
@@ -239,7 +246,7 @@ export function AiPhotoFlowSheet({
           </h2>
         </header>
 
-        <div className="flex-1 overflow-y-auto px-4 py-5 pb-28">
+        <div className="flex-1 px-4 py-5 pb-28">
           <p className="mb-3 text-sm font-medium text-[#374151]">Nuotraukos</p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -267,31 +274,33 @@ export function AiPhotoFlowSheet({
             ))}
 
             {photos.length < MAX_AI_PHOTOS && (
-              mode === "search" ? (
+              <>
                 <label
                   htmlFor="photo-search-input"
                   className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff]"
                 >
                   <Camera className="h-7 w-7" />
-                  <span className="text-xs font-semibold">Fotografuoti</span>
-                </label>
-              ) : (
-                <button
-                  type="button"
-                  onClick={openPhotoPicker}
-                  disabled={busy}
-                  className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff] disabled:opacity-50"
-                >
-                  <Camera className="h-7 w-7" />
                   <span className="text-xs font-semibold">Pridėti</span>
-                </button>
-              )
+                </label>
+                {mode === "listing" && (
+                  <button
+                    type="button"
+                    onClick={openListingPhotoPicker}
+                    disabled={busy}
+                    className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-[#e5e7eb] bg-white text-[#6b7280] transition hover:bg-[#f9fafb] disabled:opacity-50"
+                  >
+                    <ImageIcon className="h-6 w-6" />
+                    <span className="text-xs font-medium">Galerija</span>
+                  </button>
+                )}
+              </>
             )}
           </div>
 
           <p className="mt-3 text-xs leading-relaxed text-[#6b7280]">
-            Pridėkite nuotraukas iš skirtingų kampų ant paprasto fono, įskaitant
-            prekės ženklą ar etiketę.
+            {mode === "search"
+              ? "Paspauskite „Pridėti“ — atsidarys kamera. Galite fotografuoti daiktą ir iškart ieškoti panašių skelbimų."
+              : "Pridėkite nuotraukas iš skirtingų kampų ant paprasto fono, įskaitant prekės ženklą ar etiketę."}
           </p>
 
           {photos.length > 0 && photos.length < 4 && mode === "listing" && (
@@ -314,7 +323,7 @@ export function AiPhotoFlowSheet({
           />
         </div>
 
-        <div className="fixed bottom-0 left-0 right-0 border-t border-[#e5e7eb] bg-white p-4">
+        <div className="sticky bottom-0 border-t border-[#e5e7eb] bg-white p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
           <button
             type="button"
             onClick={() => void handleSubmit()}
@@ -334,8 +343,10 @@ export function AiPhotoFlowSheet({
       <PhotoSourceSheet
         open={sourceOpen}
         onClose={() => setSourceOpen(false)}
-        onSelect={(source) => void handleSourceSelect(source)}
+        onSelect={(source) => handleSourceSelect(source)}
       />
     </>
   );
+
+  return createPortal(sheet, document.body);
 }

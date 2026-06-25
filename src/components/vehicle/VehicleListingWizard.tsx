@@ -2,7 +2,6 @@
 
 import { Camera, ChevronLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { cn } from "@/lib/cn";
 import type { AiExtractedListing } from "@/lib/types";
 import { VISION_RECOGNITION_FAILED_MESSAGE } from "@/lib/ai-safeguards";
 import {
@@ -358,14 +357,13 @@ export function VehicleListingWizard({
           : "listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]"
       }
     >
-      <div className={cn(!embedded && "listing-wizard-scroll")}>
-        <div
-          className={
-            embedded
-              ? "px-4 py-5"
-              : "mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm"
-          }
-        >
+      <div
+        className={
+          embedded
+            ? "px-4 py-5"
+            : "mx-auto w-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm"
+        }
+      >
         <ProgressHeader
           step={step}
           summary={step > 1 ? summary : make || ""}
@@ -806,7 +804,6 @@ export function VehicleListingWizard({
             {step === TOTAL_STEPS ? "Publikuoti skelbimą" : "Toliau"}
           </button>
         </div>
-      </div>
       </div>
     </div>
   );

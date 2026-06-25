@@ -11,6 +11,7 @@ import { GeneralListingWizard } from "@/components/general/GeneralListingWizard"
 import { JobListingWizard } from "@/components/jobs/JobListingWizard";
 import { ServiceListingWizard } from "@/components/services/ServiceListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import { ListingWizardPortal } from "@/components/listing/ListingWizardPortal";
 
 export type AiConfirmationMode = "overlay" | "inline-preview" | "inline-full";
 
@@ -43,7 +44,7 @@ export function AiConfirmationScreen({
   useEffect(() => {
     if (sellerStep === "confirmation") {
       window.scrollTo(0, 0);
-      document.querySelectorAll(".listing-wizard-scroll").forEach((el) => {
+      document.querySelectorAll(".listing-wizard-overlay").forEach((el) => {
         (el as HTMLElement).scrollTop = 0;
       });
     }
@@ -55,7 +56,10 @@ export function AiConfirmationScreen({
     }
   }, [sellerStep, aiDraft, updateAiDraft]);
 
-  if (sellerStep === "published") return <PublishedOverlay />;
+  const portalWrap = (node: React.ReactNode) =>
+    mode === "overlay" ? <ListingWizardPortal>{node}</ListingWizardPortal> : node;
+
+  if (sellerStep === "published") return portalWrap(<PublishedOverlay />);
   if (sellerStep !== "confirmation" || !aiDraft) return null;
 
   const handleAttributeChange = (key: string, value: string | string[]) => {
@@ -70,7 +74,7 @@ export function AiConfirmationScreen({
   const embedded = mode === "inline-preview" || mode === "inline-full";
 
   if (usePreviewCard) {
-    return (
+    return portalWrap(
       <AdaptiveConfirmation
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -95,7 +99,7 @@ export function AiConfirmationScreen({
   const isServices = listingToAdaptiveKey(aiDraft.category) === "services";
 
   if (isVehicle) {
-    return (
+    return portalWrap(
       <VehicleListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -115,7 +119,7 @@ export function AiConfirmationScreen({
   }
 
   if (isRealEstate) {
-    return (
+    return portalWrap(
       <RealEstateListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -132,7 +136,7 @@ export function AiConfirmationScreen({
   }
 
   if (isClothing) {
-    return (
+    return portalWrap(
       <ClothingListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -149,7 +153,7 @@ export function AiConfirmationScreen({
   }
 
   if (isUniversal) {
-    return (
+    return portalWrap(
       <GeneralListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -166,7 +170,7 @@ export function AiConfirmationScreen({
   }
 
   if (isJobs) {
-    return (
+    return portalWrap(
       <JobListingWizard
         draft={aiDraft}
         manualFallback={aiManualFallback}
@@ -180,7 +184,7 @@ export function AiConfirmationScreen({
   }
 
   if (isServices) {
-    return (
+    return portalWrap(
       <ServiceListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -196,7 +200,7 @@ export function AiConfirmationScreen({
     );
   }
 
-  return (
+  return portalWrap(
     <AdaptiveConfirmation
       draft={aiDraft}
       previewImage={sellerPreviewImage}
