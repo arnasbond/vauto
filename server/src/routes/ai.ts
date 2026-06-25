@@ -3,6 +3,7 @@ import {
   chatJson,
   hasAiKey,
   resolveAiProvider,
+  unifiedLlmJson,
   visionExtractJson,
 } from "../ai/llm-provider.js";
 
@@ -222,18 +223,15 @@ aiRouter.post("/analyze-search", async (req, res) => {
   }
 
   try {
-    const raw = await chatJson([
-      {
-        role: "system",
-        content: `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
-Vartotojas IEŠKO skelbimų. Grąžink tik JSON: ${SEARCH_INTENT_SCHEMA}`,
-      },
-      {
-        role: "user",
-        content: `Užklausa: "${query.trim()}"
-Miestas: ${userCity ?? "Lietuva"}`,
-      },
-    ]);
+    const prompt = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
+Vartotojas IEŠKO skelbimų.
+
+Užklausa: "${query.trim()}"
+Numatytas vartotojo miestas: ${userCity ?? "Lietuva"}
+
+Grąžink TIK vieną JSON objektą: ${SEARCH_INTENT_SCHEMA}`;
+
+    const raw = await unifiedLlmJson(prompt);
 
     const categoryRaw = raw.category;
     const category =
