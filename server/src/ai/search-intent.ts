@@ -38,6 +38,48 @@ export interface AnalyzeSearchResult {
   location: string;
   radiusKm: number | null;
   condition: "used" | "new" | null;
+  source?: "gemini" | "fallback";
+}
+
+const CATEGORY_HINTS: Array<[RegExp, string]> = [
+  [/\b(rub|drabuž|marškin|keln|batai)\w*/i, "Drabužiai"],
+  [/\b(iphone|telefon|kompiuter|nešiojam|macbook|samsung|elektron)\w*/i, "Elektronika"],
+  [/\b(auto|automob|bmw|audi|volvo|toyota|mercedes)\w*/i, "Auto"],
+  [/\b(but|butas|nam|nt|sklyp)\w*/i, "NT"],
+  [/\b(darbas|alg|cv|hiring)\w*/i, "Darbas"],
+  [/\b(paslaug|remont|valym)\w*/i, "Paslaugos"],
+  [/\b(sofa|bald|virtuv|indap)\w*/i, "Namai"],
+];
+
+function analyzeSearchIntentFallback(
+  input: AnalyzeSearchInput
+): AnalyzeSearchResult {
+  const query = input.query.trim();
+  const cleanQuery =
+    query
+      .replace(
+        /\b(kas|kur|ka|ko|ar|rask|iešk\w*|iesk\w*|parduoda|noriu|reikia|man)\b/gi,
+        " "
+      )
+      .replace(/\s+/g, " ")
+      .trim() || query;
+
+  let category: string | null = null;
+  for (const [pattern, label] of CATEGORY_HINTS) {
+    if (pattern.test(query)) {
+      category = label;
+      break;
+    }
+  }
+
+  return {
+    category,
+    cleanQuery,
+    location: input.userCity?.trim() ?? "",
+    radiusKm: null,
+    condition: null,
+    source: "fallback",
+  };
 }
 
 /** Gemini structured buyer search intent — single input object, no positional args. */
@@ -52,25 +94,31 @@ Grąžink tik JSON pagal schemą: ${SEARCH_INTENT_SCHEMA}`;
   const userPrompt = `Užklausa: "${query}"
 Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
 
-  const raw = await unifiedLlmJson({
-    prompt: userPrompt,
-    systemInstruction,
-  });
+  try {
+    const raw = await unifiedLlmJson({
+      prompt: userPrompt,
+      systemInstruction,
+    });
 
-  const categoryRaw = raw.category;
-  const category =
-    categoryRaw == null || categoryRaw === "null"
-      ? null
-      : SEARCH_CATEGORIES.has(String(categoryRaw))
-        ? String(categoryRaw)
-        : null;
+    const categoryRaw = raw.category;
+    const category =
+      categoryRaw == null || categoryRaw === "null"
+        ? null
+        : SEARCH_CATEGORIES.has(String(categoryRaw))
+          ? String(categoryRaw)
+          : null;
 
-  return {
-    category,
-    cleanQuery: String(raw.cleanQuery ?? "").trim(),
-    location: String(raw.location ?? "").trim(),
-    radiusKm: snapSearchRadius(raw.radiusKm),
-    condition:
-      raw.condition === "used" || raw.condition === "new" ? raw.condition : null,
-  };
+    return {
+      category,
+      cleanQuery: String(raw.cleanQuery ?? "").trim(),
+      location: String(raw.location ?? "").trim(),
+      radiusKm: snapSearchRadius(raw.radiusKm),
+      condition:
+        raw.condition === "used" || raw.condition === "new" ? raw.condition : null,
+      source: "gemini",
+    };
+  } catch (e) {
+    console.warn("[analyze-search] Gemini unavailable, using fallback:", e);
+    return analyzeSearchIntentFallback(input);
+  }
 }
