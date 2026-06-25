@@ -7,6 +7,8 @@ import { Capacitor } from "@capacitor/core";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import {
   capturePhotoFromSource,
+  pickCameraPhotoWeb,
+  pickGalleryPhotoWeb,
   pickMultipleFromGallery,
   type CapturedPhoto,
 } from "@/lib/native-media";
@@ -22,6 +24,7 @@ export interface AiPhotoFlowResult {
 interface AiPhotoFlowSheetProps {
   open: boolean;
   mode: "search" | "listing";
+  prefillPhoto?: CapturedPhoto | null;
   onClose: () => void;
   onSubmit: (result: AiPhotoFlowResult) => void | Promise<void>;
   busy?: boolean;
@@ -61,6 +64,7 @@ function PhotoSourceTile({
 export function AiPhotoFlowSheet({
   open,
   mode,
+  prefillPhoto = null,
   onClose,
   onSubmit,
   busy = false,
@@ -76,6 +80,12 @@ export function AiPhotoFlowSheet({
   useEffect(() => {
     setMounted(true);
   }, []);
+
+  useEffect(() => {
+    if (open && prefillPhoto) {
+      setPhotos([prefillPhoto]);
+    }
+  }, [open, prefillPhoto]);
 
   const reset = useCallback(() => {
     setPhotos([]);
@@ -98,35 +108,27 @@ export function AiPhotoFlowSheet({
     });
   };
 
-  const runSearchWithPhoto = async (photo: CapturedPhoto) => {
-    await onSubmit({
-      photos: [photo.dataUrl],
-      extraContext: extraContext.trim(),
-      fileName: photo.fileName,
-    });
-    reset();
-  };
-
   const applyCapturedPhoto = async (shot: CapturedPhoto) => {
     if (mode === "search") {
       setPhotos([shot]);
-      await runSearchWithPhoto(shot);
       return;
     }
     addPhotos([shot]);
   };
 
-  const handleSourceSelect = (source: "camera" | "gallery") => {
-    setSourceOpen(false);
+  /** Must not setState before opening camera — mobile browsers require sync gesture. */
+  const triggerCamera = () => {
+    if (busy) return;
+    const pending = Capacitor.isNativePlatform()
+      ? capturePhotoFromSource("camera")
+      : pickCameraPhotoWeb();
+    void pending.then((shot) => {
+      if (shot) void applyCapturedPhoto(shot);
+    });
+  };
 
-    if (source === "camera") {
-      const pending = capturePhotoFromSource("camera");
-      void pending.then((shot) => {
-        if (shot) void applyCapturedPhoto(shot);
-      });
-      return;
-    }
-
+  const triggerGallery = () => {
+    if (busy) return;
     if (Capacitor.isNativePlatform()) {
       void (async () => {
         const remaining = MAX_AI_PHOTOS - photos.length;
@@ -139,19 +141,26 @@ export function AiPhotoFlowSheet({
       })();
       return;
     }
-
     if (mode === "search") {
-      void capturePhotoFromSource("gallery").then((shot) => {
+      void pickGalleryPhotoWeb().then((shot) => {
         if (shot) void applyCapturedPhoto(shot);
       });
       return;
     }
-
     void (async () => {
       const remaining = MAX_AI_PHOTOS - photos.length;
       const picked = await pickMultipleFromGallery(remaining);
       addPhotos(picked);
     })();
+  };
+
+  const handleSourceSelect = (source: "camera" | "gallery") => {
+    setSourceOpen(false);
+    if (source === "camera") {
+      triggerCamera();
+      return;
+    }
+    triggerGallery();
   };
 
   const removePhoto = (index: number) => {
@@ -231,14 +240,14 @@ export function AiPhotoFlowSheet({
                 <PhotoSourceTile
                   label="Fotografuoti"
                   icon={<Camera className="h-7 w-7" />}
-                  onClick={() => handleSourceSelect("camera")}
+                  onClick={triggerCamera}
                   disabled={busy}
                   variant="primary"
                 />
                 <PhotoSourceTile
                   label="Galerija"
                   icon={<ImageIcon className="h-6 w-6" />}
-                  onClick={() => handleSourceSelect("gallery")}
+                  onClick={triggerGallery}
                   disabled={busy}
                   variant="secondary"
                 />
@@ -250,14 +259,14 @@ export function AiPhotoFlowSheet({
                 <PhotoSourceTile
                   label="Fotografuoti"
                   icon={<Camera className="h-7 w-7" />}
-                  onClick={() => handleSourceSelect("camera")}
+                  onClick={triggerCamera}
                   disabled={busy}
                   variant="primary"
                 />
                 <PhotoSourceTile
                   label="Galerija"
                   icon={<ImageIcon className="h-6 w-6" />}
-                  onClick={() => handleSourceSelect("gallery")}
+                  onClick={triggerGallery}
                   disabled={busy}
                   variant="secondary"
                 />

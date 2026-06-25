@@ -26,6 +26,7 @@ import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
+import { capturePhoto, type CapturedPhoto } from "@/lib/native-media";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { ListingCategory } from "@/lib/types";
@@ -106,6 +107,9 @@ export function SearchBar() {
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
+  const [prefillSearchPhoto, setPrefillSearchPhoto] = useState<CapturedPhoto | null>(
+    null
+  );
   const [recording, setRecording] = useState(false);
   const [voiceCaption, setVoiceCaption] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
@@ -250,7 +254,12 @@ export function SearchBar() {
 
   const handlePhotoSearch = () => {
     if (isPhotoSearching || photoFlowOpen || recording) return;
-    requestMediaConsent(() => setPhotoFlowOpen(true));
+    requestMediaConsent(async () => {
+      const photo = await capturePhoto("prompt");
+      if (!photo) return;
+      setPrefillSearchPhoto(photo);
+      setPhotoFlowOpen(true);
+    });
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
@@ -262,6 +271,7 @@ export function SearchBar() {
       );
 
       setPhotoFlowOpen(false);
+      setPrefillSearchPhoto(null);
 
       if (!vision || vision.confidence < 0.4 || !vision.keywords.trim()) {
         showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
@@ -410,8 +420,12 @@ export function SearchBar() {
       <AiPhotoFlowSheet
         open={photoFlowOpen}
         mode="search"
+        prefillPhoto={prefillSearchPhoto}
         busy={isPhotoSearching}
-        onClose={() => setPhotoFlowOpen(false)}
+        onClose={() => {
+          setPhotoFlowOpen(false);
+          setPrefillSearchPhoto(null);
+        }}
         onSubmit={handlePhotoFlowSubmit}
       />
     </>

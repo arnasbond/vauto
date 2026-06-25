@@ -240,11 +240,9 @@ export async function capturePhoto(
     }
   }
 
-  let pick = source;
+  const pick = source;
   if (pick === "prompt") {
-    const chosen = await pickPhotoSourceOnWeb();
-    if (!chosen) return null;
-    pick = chosen;
+    return pickPhotoSourceOnWeb();
   }
 
   return pickFileAsDataUrl(
@@ -281,8 +279,18 @@ async function pickFilesAsDataUrls(
   return captured.filter((x): x is CapturedPhoto => x !== null);
 }
 
-/** Web-only sheet: fotografuoti arba galerija */
-function pickPhotoSourceOnWeb(): Promise<"camera" | "gallery" | null> {
+/** Web: open rear camera inside the current tap gesture. */
+export async function pickCameraPhotoWeb(): Promise<CapturedPhoto | null> {
+  return pickFileAsDataUrl("image/*", "environment");
+}
+
+/** Web: open gallery picker (no capture attribute). */
+export async function pickGalleryPhotoWeb(): Promise<CapturedPhoto | null> {
+  return pickFileAsDataUrl("image/*");
+}
+
+/** Web-only sheet: Fotografuoti arba Galerija — file input starts inside button tap. */
+function pickPhotoSourceOnWeb(): Promise<CapturedPhoto | null> {
   return new Promise((resolve) => {
     if (typeof document === "undefined") {
       resolve(null);
@@ -293,11 +301,11 @@ function pickPhotoSourceOnWeb(): Promise<"camera" | "gallery" | null> {
     overlay.setAttribute("role", "dialog");
     overlay.setAttribute("aria-modal", "true");
     overlay.className =
-      "fixed inset-0 z-[300] flex items-end justify-center bg-black/60 p-4";
+      "fixed inset-0 z-[10002] flex items-end justify-center bg-black/60 p-4";
 
     const panel = document.createElement("div");
     panel.className =
-      "w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl animate-in";
+      "w-full max-w-sm rounded-2xl bg-white p-4 shadow-xl";
 
     const title = document.createElement("p");
     title.className =
@@ -321,16 +329,22 @@ function pickPhotoSourceOnWeb(): Promise<"camera" | "gallery" | null> {
     cancelBtn.className = "w-full py-2 text-sm text-[#6b7280]";
     cancelBtn.textContent = "Atšaukti";
 
-    const cleanup = (value: "camera" | "gallery" | null) => {
+    const finish = (photo: CapturedPhoto | null) => {
       overlay.remove();
-      resolve(value);
+      resolve(photo);
     };
 
-    cameraBtn.onclick = () => cleanup("camera");
-    galleryBtn.onclick = () => cleanup("gallery");
-    cancelBtn.onclick = () => cleanup(null);
+    cameraBtn.onclick = () => {
+      overlay.remove();
+      void pickFileAsDataUrl("image/*", "environment").then(finish);
+    };
+    galleryBtn.onclick = () => {
+      overlay.remove();
+      void pickFileAsDataUrl("image/*").then(finish);
+    };
+    cancelBtn.onclick = () => finish(null);
     overlay.onclick = (e) => {
-      if (e.target === overlay) cleanup(null);
+      if (e.target === overlay) finish(null);
     };
 
     panel.append(title, cameraBtn, galleryBtn, cancelBtn);
