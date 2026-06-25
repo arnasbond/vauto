@@ -6,7 +6,10 @@ import {
 } from "@/lib/lt-cities";
 
 /** Mock geocoding — resolves Lithuanian city/neighborhood text to coordinates */
-export function geocodeLocation(locationText: string): UserCoords {
+export function geocodeLocation(
+  locationText: string,
+  uniqueSeed = ""
+): UserCoords {
   const normalized = locationText.trim();
   const matchedCity = detectCityInText(normalized);
 
@@ -19,7 +22,7 @@ export function geocodeLocation(locationText: string): UserCoords {
   }
 
   const neighborhoodJitter = hashJitter(
-    normalized.replace(matchedCity ?? "", "").trim()
+    `${uniqueSeed}|${normalized.replace(matchedCity ?? "", "").trim()}`
   );
   return {
     lat: roundCoord(base.lat + neighborhoodJitter.lat),
@@ -57,9 +60,12 @@ export function distanceToListing(
   return null;
 }
 
-export function enrichListingCoords<T extends { location: string }>(
+export function enrichListingCoords<T extends { location: string; id?: string }>(
   listing: T
 ): T & { latitude: number; longitude: number } {
-  const coords = geocodeLocation(listing.location);
+  const coords = geocodeLocation(
+    listing.location,
+    listing.id ?? listing.location
+  );
   return { ...listing, latitude: coords.lat, longitude: coords.lng };
 }

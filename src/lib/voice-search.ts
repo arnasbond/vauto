@@ -32,7 +32,10 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 }
 
 export interface VoiceSearchOptions {
+  /** Live caption while speaking — interim + committed text */
   onInterim?: (text: string) => void;
+  /** Fired only when a speech segment is finalized (isFinal) */
+  onFinal?: (text: string) => void;
   onStart?: () => void;
   /** Stop after this much silence once we have text */
   silenceMs?: number;
@@ -57,6 +60,7 @@ export function startVoiceSearch(
 ): VoiceSearchSession {
   const {
     onInterim,
+    onFinal,
     onStart,
     silenceMs = DEFAULT_SILENCE_MS,
     maxMs = DEFAULT_MAX_MS,
@@ -142,17 +146,18 @@ export function startVoiceSearch(
     };
 
     instance.onresult = (event) => {
-      const { final, interim } = rebuildSpeechTranscript(event);
-      if (final) {
+      const { finalDelta, interim, hadFinal } = rebuildSpeechTranscript(event);
+      if (finalDelta) {
         committedFinal = sanitizeSpeechTranscript(
-          `${committedFinal} ${final}`.trim()
+          `${committedFinal} ${finalDelta}`.trim()
         );
+        onFinal?.(committedFinal);
       }
       const display = sanitizeSpeechTranscript(
         interim ? `${committedFinal} ${interim}`.trim() : committedFinal
       );
       if (display) onInterim?.(display);
-      if (final) scheduleSilenceStop();
+      if (hadFinal) scheduleSilenceStop();
     };
 
     instance.onerror = (ev) => {

@@ -54,6 +54,7 @@ function MarketplaceView() {
       <SearchResultsFocus />
       <HeroSection>
         <PortalPageChrome
+          minimal={portalActive}
           header={
             <>
               <Header />

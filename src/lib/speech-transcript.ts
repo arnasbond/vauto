@@ -1,19 +1,30 @@
-/** Web Speech API result — rebuild final + interim text without duplication. */
+/** Web Speech API result — incremental final + interim text without duplication. */
 export function rebuildSpeechTranscript(event: {
+  resultIndex: number;
   results: {
     length: number;
     [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
   };
-}): { final: string; interim: string; combined: string } {
-  let final = "";
+}): { finalDelta: string; interim: string; hadFinal: boolean } {
+  let finalDelta = "";
   let interim = "";
-  for (let i = 0; i < event.results.length; i++) {
+  let hadFinal = false;
+
+  for (let i = event.resultIndex; i < event.results.length; i++) {
     const part = event.results[i]?.[0]?.transcript ?? "";
-    if (event.results[i]?.isFinal) final += part;
-    else interim += part;
+    if (event.results[i]?.isFinal) {
+      finalDelta += part;
+      hadFinal = true;
+    } else {
+      interim += part;
+    }
   }
-  const combined = `${final}${interim}`.replace(/\s+/g, " ").trim();
-  return { final: final.trim(), interim: interim.trim(), combined };
+
+  return {
+    finalDelta: finalDelta.trim(),
+    interim: interim.trim(),
+    hadFinal,
+  };
 }
 
 /** Clean garbled STT output before AI analysis. */
@@ -29,6 +40,9 @@ export function sanitizeSpeechTranscript(text: string): string {
 
   // Collapse glued duplicate syllables: "norinorinori" → "nori" (heuristic)
   t = t.replace(/(\p{L}{3,}?)\1{2,}/giu, "$1");
+
+  // "Surask SuraskSurask" → "Surask"
+  t = t.replace(/\b(\p{L}{3,})(\1)+\b/giu, "$1");
 
   return t.replace(/\s+/g, " ").trim();
 }

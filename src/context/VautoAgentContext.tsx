@@ -476,6 +476,7 @@ function VautoAgentSheet() {
   const pathname = usePathname();
   const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
   const [recording, setRecording] = useState(false);
+  const [voiceCaption, setVoiceCaption] = useState("");
   const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
   const lastVoiceDisplayRef = useRef("");
 
@@ -490,12 +491,19 @@ function VautoAgentSheet() {
     }
     if (!isVoiceSearchSupported()) return;
     setRecording(true);
+    setVoiceCaption("");
     lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
       onInterim: (text) => {
         const clean = sanitizeSpeechTranscript(text);
-        if (!clean || clean === lastVoiceDisplayRef.current) return;
+        if (!clean) return;
+        setVoiceCaption(clean);
+      },
+      onFinal: (text) => {
+        const clean = sanitizeSpeechTranscript(text);
+        if (!clean) return;
         lastVoiceDisplayRef.current = clean;
+        setVoiceCaption(clean);
         setSearchQuery(clean);
       },
     });
@@ -504,6 +512,7 @@ function VautoAgentSheet() {
       setRecording(false);
       voiceSessionRef.current = null;
       const clean = sanitizeSpeechTranscript(text ?? "");
+      setVoiceCaption("");
       if (!clean) return;
       lastVoiceDisplayRef.current = clean;
       setSearchQuery(clean);
@@ -598,8 +607,11 @@ function VautoAgentSheet() {
               </button>
             )}
             <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              value={recording && voiceCaption ? voiceCaption : searchQuery}
+              onChange={(e) => {
+                setVoiceCaption("");
+                setSearchQuery(e.target.value);
+              }}
               placeholder="Paklauskite Gemini — paieška, skelbimas, patarimai…"
               className="min-w-0 flex-1 rounded-xl border border-[#d1d5db] bg-white px-4 py-3 text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none focus:border-[#1167b1]"
               disabled={busy}

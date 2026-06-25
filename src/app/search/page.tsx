@@ -26,6 +26,7 @@ export default function SearchPage() {
       <SearchResultsFocus />
       <HeroSection>
         <PortalPageChrome
+          minimal
           header={
             <>
               <Header />

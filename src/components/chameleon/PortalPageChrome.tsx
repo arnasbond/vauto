@@ -9,10 +9,16 @@ interface PortalPageChromeProps {
   children: ReactNode;
   /** Sticky header block (search bar area) */
   header?: ReactNode;
+  /** Skip Skelbiu/autoplius hero card — use on dedicated search page */
+  minimal?: boolean;
 }
 
 /** Adapts hero/header chrome to active portal (autoplius, aruodas, etc.) */
-export function PortalPageChrome({ children, header }: PortalPageChromeProps) {
+export function PortalPageChrome({
+  children,
+  header,
+  minimal = false,
+}: PortalPageChromeProps) {
   const { searchQuery, sellerStep, chameleonTheme } = useVauto();
   const inSellerFlow = sellerStep !== "idle";
   const activeTheme = inSellerFlow
@@ -21,7 +27,7 @@ export function PortalPageChrome({ children, header }: PortalPageChromeProps) {
   const ui = getPortalUi(activeTheme);
   const isFlux = activeTheme === "flux" && !searchQuery.trim() && !inSellerFlow;
 
-  if (isFlux) {
+  if (isFlux || minimal) {
     return (
       <>
         {header}

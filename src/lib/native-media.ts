@@ -330,9 +330,11 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     }, 20_000);
 
     rec.onresult = (event) => {
-      const { final, combined } = rebuildSpeechTranscript(event);
-      committed = final;
-      if (combined) scheduleSilence();
+      const { finalDelta, hadFinal } = rebuildSpeechTranscript(event);
+      if (finalDelta) {
+        committed = sanitizeSpeechTranscript(`${committed} ${finalDelta}`.trim());
+      }
+      if (hadFinal && committed) scheduleSilence();
     };
     rec.onerror = (ev: { error: string }) => {
       if (ev.error === "no-speech" || ev.error === "aborted") return;
