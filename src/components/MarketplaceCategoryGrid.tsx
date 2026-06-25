@@ -27,7 +27,7 @@ export function MarketplaceCategoryGrid() {
   const { setSearchQuery } = useVauto();
 
   return (
-    <section className="mb-5 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
+    <section className="mb-6 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
       <div className="mb-3 flex items-center justify-between">
         <h2 className="text-sm font-bold text-[#1f2937]">Kategorijos</h2>
         <span className="text-[11px] font-semibold text-[#1167b1]">

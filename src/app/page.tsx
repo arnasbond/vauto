@@ -23,7 +23,7 @@ import { useCallback } from "react";
 
 function DefaultHero() {
   return (
-    <div className="mt-5 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
+    <div className="mb-5 mt-1 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
       <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1167b1]">
         VAUTO Zero-UI
       </p>
@@ -31,7 +31,7 @@ function DefaultHero() {
         Ieškok. Rask. Įdėk.
       </h1>
       <p className="mt-2 text-[13px] leading-snug text-[#6b7280]">
-        Kalbėkite su Gemini — ekranas persijungs automatiškai pagal jūsų ketinimą.
+        Rašykite paiešką viršuje arba spauskite + apačioje, kad įkeltumėte skelbimą.
       </p>
     </div>
   );
