@@ -7,6 +7,11 @@ import { apiVautoServer } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { compressForAiVision } from "@/lib/native-media";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import {
+  clientExtractListingCombined,
+  clientExtractListingFromImage,
+  isClientGeminiAvailable,
+} from "@/lib/gemini-browser";
 import { mapVautoServerListing } from "@/lib/vauto-unified-client";
 import type { AiExtractedListing } from "@/lib/types";
 
@@ -95,10 +100,35 @@ async function tryUnifiedExtract(
 export async function extractFromImage(
   ctx: ExtractContext = {}
 ): Promise<AiExtractedListing> {
-  const primary = (await prepareImagesForAi(resolveImages(ctx)))[0];
-  const unified = await tryUnifiedExtract(ctx, "image");
+  const images = await prepareImagesForAi(resolveImages(ctx));
+  const enriched = {
+    ...ctx,
+    imageDataUrl: images[0],
+    imageDataUrls: images.length > 1 ? images : undefined,
+  };
+
+  if (isClientGeminiAvailable() && images[0]) {
+    try {
+      return await clientExtractListingFromImage({
+        imageDataUrl: images[0],
+        imageDataUrls: images.length > 1 ? images : undefined,
+        extraContext: ctx.extraContext,
+        userCity: ctx.userCity,
+        contact: ctx.contact,
+      });
+    } catch (e) {
+      console.warn("[extractFromImage] client Gemini failed:", e);
+    }
+  }
+
+  const unified = await tryUnifiedExtract(enriched, "image");
   if (unified) return unified;
-  return mockExtractFromImage(ctx.fileName, primary);
+
+  if (!isClientGeminiAvailable() && !isAiProxyAvailable()) {
+    return mockExtractFromImage(ctx.fileName, images[0]);
+  }
+
+  throw new Error("Gemini vaizdo atpažinimas nepasiekiamas");
 }
 
 export async function extractFromVoice(
@@ -127,6 +157,21 @@ export async function extractCombined(
   const images = await prepareImagesForAi(resolveImages(ctx));
   const transcript = mergeTranscript(ctx);
   const merged: ExtractContext = { ...ctx, transcript, imageDataUrl: images[0] };
+
+  if (isClientGeminiAvailable() && images[0]) {
+    try {
+      return await clientExtractListingCombined({
+        imageDataUrl: images[0],
+        imageDataUrls: images.length > 1 ? images : undefined,
+        transcript,
+        extraContext: ctx.extraContext,
+        userCity: ctx.userCity,
+        contact: ctx.contact,
+      });
+    } catch (e) {
+      console.warn("[extractCombined] client Gemini failed:", e);
+    }
+  }
 
   const unified = await tryUnifiedExtract(merged, "combined");
   if (unified) return unified;
