@@ -123,7 +123,20 @@ export async function chatJson(
       return `${role}: ${content}`;
     })
     .join("\n\n");
-  return geminiChatJson(prompt);
+
+  let lastError: unknown;
+  for (const model of UNIFIED_GEMINI_MODELS) {
+    try {
+      return await geminiChatJson(prompt, [], model);
+    } catch (e) {
+      lastError = e;
+      console.warn(`[chatJson] ${model} failed:`, e);
+    }
+  }
+
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Gemini API nepavyko");
 }
 
 export async function visionExtractJson(

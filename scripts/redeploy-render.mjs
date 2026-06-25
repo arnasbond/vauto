@@ -127,7 +127,16 @@ async function main() {
     method: "POST",
     body: JSON.stringify({ clearCache: "clear" }),
   });
-  const d = deploy.deploy || deploy;
+  const d = deploy?.deploy || deploy;
+  if (!d?.id) {
+    console.log("Deploy already in progress or queued — waiting for latest…");
+    const rows = await list(`/services/${svc.id}/deploys`);
+    const latest = rows.map((r) => r?.deploy || r).find((x) => x?.id);
+    if (!latest?.id) throw new Error("No deploy found");
+    await waitForDeploy(svc.id, latest.id);
+    console.log("Deploy is live");
+    return;
+  }
   console.log(`Deploy triggered: ${d.id} status=${d.status}`);
   if (d?.id) {
     await waitForDeploy(svc.id, d.id);
