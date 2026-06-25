@@ -42,6 +42,25 @@ async function imageUrlToInlinePart(
   }
 }
 
+function parseJsonFromText(text: string): Record<string, unknown> {
+  const trimmed = text.trim();
+  try {
+    return JSON.parse(trimmed) as Record<string, unknown>;
+  } catch {
+    /* fall through */
+  }
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) {
+    return JSON.parse(fence[1].trim()) as Record<string, unknown>;
+  }
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) {
+    return JSON.parse(trimmed.slice(start, end + 1)) as Record<string, unknown>;
+  }
+  throw new Error("Could not parse JSON from Gemini response");
+}
+
 async function geminiChatJson(
   prompt: string,
   imageDataUrls: string[] = [],
@@ -55,27 +74,39 @@ async function geminiChatJson(
     if (inline) parts.push(inline);
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const contents = [{ parts }];
+
+  let res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      },
+    }),
+  });
+
+  if (!res.ok && (res.status === 403 || res.status === 400)) {
+    res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
+        contents,
+        generationConfig: { temperature: 0.2 },
       }),
-    }
-  );
+    });
+  }
+
   if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
   const data = (await res.json()) as {
     candidates?: { content?: { parts?: { text?: string }[] } }[];
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Empty Gemini response");
-  return JSON.parse(text);
+  return parseJsonFromText(text);
 }
 
 const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
