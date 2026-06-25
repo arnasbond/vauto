@@ -17,7 +17,7 @@ export function PhotoSourceSheet({
 
   return (
     <div
-      className="fixed inset-0 z-[230] flex items-end justify-center bg-black/60 p-0"
+      className="fixed inset-0 z-[10000] flex items-end justify-center bg-black/60 p-0"
       role="dialog"
       aria-modal="true"
       aria-label="Pridėti nuotraukas"
