@@ -63,6 +63,50 @@ test.describe("Vauto smoke", () => {
     await expect(search).toHaveValue("bmw", { timeout: 10_000 });
   });
 
+  test("volvo v70 search shows marketplace results", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const search = page.getByRole("searchbox").first();
+    await search.fill("ieskau volvo v70");
+    await search.press("Enter");
+    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    await expect(results).toBeVisible({ timeout: 10_000 });
+    await expect(results.getByText(/volvo v70.*rezultat/i)).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(results.getByText(/0 rezultat/i)).not.toBeVisible();
+  });
+
+  test("marketplace view mode toggles list grid map", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    const search = page.getByRole("searchbox").first();
+    await search.fill("bmw");
+    await search.press("Enter");
+    await expect(results.getByRole("button", { name: "Sąrašas" })).toBeVisible({
+      timeout: 10_000,
+    });
+    await results.getByRole("button", { name: "Žemėlapis" }).click();
+    await expect(results.getByText(/skelbimų žemėlapyje/i)).toBeVisible({
+      timeout: 15_000,
+    });
+    await results.getByRole("button", { name: "Sąrašas" }).click();
+    await expect(results.locator("article").first()).toBeVisible();
+    await results.getByRole("button", { name: "Tinklelis" }).click();
+    await expect(results.locator(".grid").first()).toBeVisible();
+  });
+
+  test("marketplace sticky filter bar shows category dropdown", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    await results.getByRole("button", { name: /Kategorija/i }).click();
+    await expect(
+      results.getByRole("button", { name: "Auto", exact: true })
+    ).toBeVisible();
+  });
+
   test("bottom navigation visible on home", async ({ page }) => {
     await page.goto("/");
     await expect(page.getByRole("navigation")).toBeVisible();

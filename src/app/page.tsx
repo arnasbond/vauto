@@ -81,7 +81,7 @@ function MarketplaceView() {
             <FilterBubbles />
           </>
         )}
-        <div id="listing-results">
+        <div>
           <ListingGrid hideEmptyAssistant={emptySearchMode} />
         </div>
       </ContentSection>

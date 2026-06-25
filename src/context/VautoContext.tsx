@@ -520,16 +520,28 @@ function VautoFacade({
         const order = new Map(
           catalog.agentPinnedListingIds.map((id, index) => [id, index])
         );
-        results = results
-          .filter((r) => order.has(r.id))
-          .sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+        const pinnedPool = visibleListings.filter((l) => order.has(l.id));
+        results = rankListings(
+          pinnedPool,
+          catalog.searchQuery,
+          resolveSortMode(catalog.activeFilterIds),
+          {
+            visualProfile: catalog.visualSearchProfile,
+            visualRankScores: catalog.visualRankScores,
+          }
+        ).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
       }
     }
 
     return applyMarketplaceFilters(results, catalog.marketplaceFilters);
   }, [
     rankedListings,
+    visibleListings,
     catalog.agentPinnedListingIds,
+    catalog.searchQuery,
+    catalog.activeFilterIds,
+    catalog.visualSearchProfile,
+    catalog.visualRankScores,
     catalog.marketplaceFilters,
   ]);
 
