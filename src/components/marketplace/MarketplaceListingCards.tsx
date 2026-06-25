@@ -6,7 +6,8 @@ import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { ListingImage } from "@/components/listing/ListingImage";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
-import type { ScoredListing } from "@/lib/types";
+import type { Listing } from "@/lib/types";
+import { FeedTierBadge, feedTierCardClass } from "@/components/marketplace/FeedTierBadge";
 
 function formatDate(iso: string): string {
   try {
@@ -20,7 +21,7 @@ export function MarketplaceListRow({
   listing,
   priceColor,
 }: {
-  listing: ScoredListing;
+  listing: Listing;
   priceColor: string;
 }) {
   const { savedIds, toggleSave } = useVauto();
@@ -28,7 +29,9 @@ export function MarketplaceListRow({
   const href = listingPath(listing);
 
   return (
-    <article className="flex gap-3 border-b border-[#e8ecf3] bg-white py-3 last:border-0">
+    <article
+      className={`flex gap-3 border-b py-3 last:border-0 ${feedTierCardClass(listing)} px-2 -mx-2 rounded-xl`}
+    >
       <Link href={href} className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl bg-[#e5e7eb]">
         <ListingImage
           listing={listing}
@@ -37,6 +40,9 @@ export function MarketplaceListRow({
           sizes="112px"
           className="object-cover"
         />
+        <div className="absolute left-1 top-1">
+          <FeedTierBadge listing={listing} />
+        </div>
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={href}>
@@ -72,7 +78,7 @@ export function MarketplaceGridCard({
   listing,
   priceColor,
 }: {
-  listing: ScoredListing;
+  listing: Listing;
   priceColor: string;
 }) {
   const { savedIds, toggleSave } = useVauto();
@@ -80,7 +86,9 @@ export function MarketplaceGridCard({
   const href = listingPath(listing);
 
   return (
-    <article className="overflow-hidden rounded-2xl border border-[#dde5ef] bg-white shadow-sm transition hover:border-[#1167b1]/40">
+    <article
+      className={`overflow-hidden rounded-2xl border transition hover:border-[#1167b1]/40 ${feedTierCardClass(listing)}`}
+    >
       <div className="relative aspect-[4/3] bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
           <ListingImage
@@ -91,6 +99,9 @@ export function MarketplaceGridCard({
             className="object-cover"
           />
         </Link>
+        <div className="absolute left-2 top-2">
+          <FeedTierBadge listing={listing} />
+        </div>
         <button
           type="button"
           onClick={() => toggleSave(listing.id)}

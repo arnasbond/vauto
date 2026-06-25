@@ -6,6 +6,7 @@ import {
   resolveListingImages,
 } from "@/lib/listing-image";
 import { isVerifiedServiceSeller, verifyVin } from "@/lib/trust";
+import type { FeedVisibilityTier } from "@/lib/feed-tier";
 import { LITHUANIA_MOCK_CATALOG } from "@/data/lithuania-mock-catalog";
 
 export const MOCK_USER: UserProfile = {
@@ -36,6 +37,15 @@ export const ANONYMOUS_USER: UserProfile = {
   },
 };
 
+function mockFeedTier(id: string): FeedVisibilityTier {
+  let h = 0;
+  for (let i = 0; i < id.length; i++) h = (h * 31 + id.charCodeAt(i)) >>> 0;
+  const bucket = h % 100;
+  if (bucket < 8) return "top";
+  if (bucket < 22) return "plus";
+  return "free";
+}
+
 function prepareListing(raw: LegacyListingInput): Listing {
   const withCoords = enrichListingCoords({
     ...raw,
@@ -48,6 +58,7 @@ function prepareListing(raw: LegacyListingInput): Listing {
   let h = 0;
   for (let i = 0; i < withCoords.id.length; i++) h += withCoords.id.charCodeAt(i);
   const seedViews = 15 + (h % 120);
+  const feedTier = withCoords.visibilityTier ?? mockFeedTier(withCoords.id);
   return {
     ...withCoords,
     slug,
@@ -63,6 +74,8 @@ function prepareListing(raw: LegacyListingInput): Listing {
     vinVerified: withCoords.vinVerified ?? (vin ? verifyVin(vin) : false),
     providerVerified:
       withCoords.providerVerified ?? isVerifiedServiceSeller(withCoords.sellerId),
+    visibilityTier: feedTier,
+    promoted: withCoords.promoted ?? feedTier === "top",
   };
 }
 

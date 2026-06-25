@@ -39,6 +39,14 @@
     {
       "source": "/listing/:slug/",
       "destination": "/listing/index.html?slug=:slug"
+    },
+    {
+      "source": "/seller/:id",
+      "destination": "/seller/index.html?id=:id"
+    },
+    {
+      "source": "/seller/:id/",
+      "destination": "/seller/index.html?id=:id"
     }
   ],
   "redirects": [

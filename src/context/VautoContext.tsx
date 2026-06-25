@@ -1439,7 +1439,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             return {
               ...l,
               promoted: true,
-              visibilityTier: tierId,
+              visibilityPlanTier: tierId,
+              visibilityTier: tierId >= 2 ? "top" : "plus",
               visibilityExpiresAt: expiresAt,
               attributes: attrs,
               views: m.views + 50 * tierId,

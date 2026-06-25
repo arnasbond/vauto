@@ -22,8 +22,12 @@ import { SafeMeetingTips } from "@/components/listing/SafeMeetingTips";
 import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { OwnerListingPromote } from "@/components/listing/OwnerListingPromote";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
+import { SimilarListingsSection } from "@/components/listing/SimilarListingsSection";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
+import { getSimilarListings } from "@/lib/similar-listings";
+import { sellerDisplayName } from "@/lib/seller-display";
+import { sellerPath } from "@/lib/seo";
 import {
   formatListingPhoneDisplay,
   getCategoryLabel,
@@ -76,6 +80,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     trackListingView,
     trackListingCall,
     reviews,
+    listings,
   } = useVauto();
 
   const listing = slug
@@ -108,6 +113,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const demoPhone = isDemoListingPhone(listing);
   const detailRows = getListingDetailRows(listing);
   const categoryLabel = getCategoryLabel(listing);
+  const similarListings = getSimilarListings(listing, listings);
 
   const handleChat = () => {
     if (isOwn) {
@@ -180,6 +186,12 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             sellerId={listing.sellerId}
             reviews={reviews}
           />
+          <Link
+            href={sellerPath(listing.sellerId)}
+            className="mt-2 inline-flex text-sm font-medium text-[var(--vauto-teal)] hover:underline"
+          >
+            {sellerDisplayName(listing.sellerId)} →
+          </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
             <span className="inline-flex items-center gap-1">
               <MapPin className="h-4 w-4 shrink-0" />
@@ -263,6 +275,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         )}
 
         {!isOwn && <SafeMeetingTips />}
+
+        <SimilarListingsSection listings={similarListings} />
 
         <div className="mt-6 flex flex-col gap-3">
           {isOwn && listing.status !== "sold" && (

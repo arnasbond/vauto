@@ -128,7 +128,7 @@ export function planPriceForCategory(basePrice: number, category: ListingCategor
 }
 
 export function readVisibilityTier(listing: Listing): VisibilityTierId | undefined {
-  if (listing.visibilityTier) return listing.visibilityTier;
+  if (listing.visibilityPlanTier) return listing.visibilityPlanTier;
   const raw = listing.attributes?.[VISIBILITY_TIER_ATTR];
   const n = typeof raw === "string" ? parseInt(raw, 10) : typeof raw === "number" ? raw : 0;
   if (n >= 1 && n <= 5) return n as VisibilityTierId;

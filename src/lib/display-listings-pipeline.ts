@@ -30,6 +30,8 @@ import {
 
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 
+import { prioritizeFeedTiers } from "@/lib/feed-tier";
+
 import type { VisualSearchProfile } from "@/lib/visual-search";
 
 
@@ -226,7 +228,7 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
 
 
 
-  return applyMarketplaceSort(results, effectiveSort);
+  return prioritizeFeedTiers(applyMarketplaceSort(results, effectiveSort));
 
 }
 

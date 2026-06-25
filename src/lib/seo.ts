@@ -89,3 +89,11 @@ export function listingPrettyPath(listing: Listing): string {
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
   return `/listing/${slug}/`;
 }
+
+export function sellerPath(sellerId: string): string {
+  return `/seller/?id=${encodeURIComponent(sellerId)}`;
+}
+
+export function sellerPrettyPath(sellerId: string): string {
+  return `/seller/${encodeURIComponent(sellerId)}/`;
+}
