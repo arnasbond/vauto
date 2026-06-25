@@ -1,13 +1,12 @@
 "use client";
 
 import { Camera, Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { Capacitor } from "@capacitor/core";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import {
   capturePhotoFromSource,
-  NATIVE_FILE_INPUT_CLASS,
   pickMultipleFromGallery,
   type CapturedPhoto,
 } from "@/lib/native-media";
@@ -28,22 +27,6 @@ interface AiPhotoFlowSheetProps {
   busy?: boolean;
 }
 
-function readFileAsDataUrl(file: File): Promise<CapturedPhoto | null> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      const dataUrl = reader.result;
-      if (typeof dataUrl !== "string") {
-        resolve(null);
-        return;
-      }
-      resolve({ dataUrl, fileName: file.name });
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
-}
-
 export function AiPhotoFlowSheet({
   open,
   mode,
@@ -55,8 +38,6 @@ export function AiPhotoFlowSheet({
   const [extraContext, setExtraContext] = useState("");
   const [sourceOpen, setSourceOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const title =
     mode === "search" ? "Ieškoti pagal nuotrauką" : "Skelbti su AI";
@@ -69,8 +50,6 @@ export function AiPhotoFlowSheet({
     setPhotos([]);
     setExtraContext("");
     setSourceOpen(false);
-    if (cameraInputRef.current) cameraInputRef.current.value = "";
-    if (galleryInputRef.current) galleryInputRef.current.value = "";
   }, []);
 
   const handleClose = () => {
@@ -97,43 +76,6 @@ export function AiPhotoFlowSheet({
     reset();
   };
 
-  const handleCameraFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file || busy) return;
-
-    const captured = await readFileAsDataUrl(file);
-    if (!captured) return;
-
-    if (mode === "search") {
-      setPhotos([captured]);
-      await runSearchWithPhoto(captured);
-      return;
-    }
-
-    addPhotos([captured]);
-  };
-
-  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files ?? []);
-    e.target.value = "";
-    if (!files.length || busy) return;
-
-    const captured = (
-      await Promise.all(files.map((file) => readFileAsDataUrl(file)))
-    ).filter((item): item is CapturedPhoto => item !== null);
-
-    if (!captured.length) return;
-
-    if (mode === "search") {
-      setPhotos([captured[0]!]);
-      await runSearchWithPhoto(captured[0]!);
-      return;
-    }
-
-    addPhotos(captured);
-  };
-
   const openPhotoPicker = () => {
     if (busy) return;
     setSourceOpen(true);
@@ -150,16 +92,11 @@ export function AiPhotoFlowSheet({
 
   const handleSourceSelect = (source: "camera" | "gallery") => {
     if (source === "camera") {
-      if (!Capacitor.isNativePlatform()) {
-        // Sync click while still inside the Fotografuoti tap gesture (mobile browsers).
-        cameraInputRef.current?.click();
-      }
+      const pending = capturePhotoFromSource("camera");
       setSourceOpen(false);
-      if (Capacitor.isNativePlatform()) {
-        void capturePhotoFromSource("camera").then((shot) => {
-          if (shot) void applyCapturedPhoto(shot);
-        });
-      }
+      void pending.then((shot) => {
+        if (shot) void applyCapturedPhoto(shot);
+      });
       return;
     }
 
@@ -178,7 +115,18 @@ export function AiPhotoFlowSheet({
       return;
     }
 
-    galleryInputRef.current?.click();
+    if (mode === "search") {
+      void capturePhotoFromSource("gallery").then((shot) => {
+        if (shot) void applyCapturedPhoto(shot);
+      });
+      return;
+    }
+
+    void (async () => {
+      const remaining = MAX_AI_PHOTOS - photos.length;
+      const picked = await pickMultipleFromGallery(remaining);
+      addPhotos(picked);
+    })();
   };
 
   const removePhoto = (index: number) => {
@@ -202,27 +150,6 @@ export function AiPhotoFlowSheet({
 
   const sheet = (
     <>
-      <input
-        ref={cameraInputRef}
-        id="photo-search-input"
-        type="file"
-        accept="image/*"
-        capture="environment"
-        className={NATIVE_FILE_INPUT_CLASS}
-        tabIndex={-1}
-        onChange={(e) => void handleCameraFileChange(e)}
-      />
-      <input
-        ref={galleryInputRef}
-        id="photo-search-gallery-input"
-        type="file"
-        accept="image/*"
-        multiple={mode === "listing"}
-        className={NATIVE_FILE_INPUT_CLASS}
-        tabIndex={-1}
-        onChange={(e) => void handleGalleryFileChange(e)}
-      />
-
       <div
         className="fixed inset-0 z-[9998] flex h-full min-h-screen w-full flex-col overflow-y-auto bg-white"
         role="dialog"
@@ -328,11 +255,15 @@ export function AiPhotoFlowSheet({
         </div>
       </div>
 
-      <PhotoSourceSheet
-        open={sourceOpen}
-        onClose={() => setSourceOpen(false)}
-        onSelect={(source) => handleSourceSelect(source)}
-      />
+      {sourceOpen &&
+        createPortal(
+          <PhotoSourceSheet
+            open={sourceOpen}
+            onClose={() => setSourceOpen(false)}
+            onSelect={(source) => handleSourceSelect(source)}
+          />,
+          document.body
+        )}
     </>
   );
 
