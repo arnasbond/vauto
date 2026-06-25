@@ -66,8 +66,105 @@ function prepareListing(raw: LegacyListingInput): Listing {
   };
 }
 
-/** 100 listings — vehicles, electronics and services across all Lithuania */
-export const INITIAL_LISTINGS: Listing[] = LITHUANIA_MOCK_CATALOG.map(prepareListing);
+/** Panevėžio regiono Volvo V70 — radius filter QA (Panevėžys, Pasvalys, Biržai) */
+const PANEVEZYS_REGION_VOLVO_V70: LegacyListingInput[] = [
+  {
+    id: "lt-auto-v70-pnv",
+    title: "Volvo V70 2004",
+    price: 4800,
+    location: "Panevėžys",
+    distanceKm: 2.1,
+    contact: "Tel. +370 612 88001",
+    image:
+      "https://images.unsplash.com/photo-1605559425923-87f9a81ba9ba?w=800&h=600&fit=crop&auto=format",
+    category: "vehicles",
+    tags: ["volvo", "v70", "automobilis", "dyzelinas", "panevėžys"],
+    description:
+      "Volvo V70 2004 m. iš Panevėžys. Rida 245 600 km, dyzelinas, mechaninė. Tvarkinga techninė, vasarinės padangos. Vienas savininkas Lietuvoje.",
+    sellerId: "seller-auto-pnv",
+    createdAt: "2026-06-20T10:00:00.000Z",
+    attributes: {
+      make: "Volvo",
+      model: "V70",
+      year: "2004",
+      mileage: "245 600 km",
+      fuelType: "Dyzelinas",
+      bodyType: "Universalas",
+      transmission: "Mechaninė",
+      taExpiry: "2026-08",
+      vin: "YV1MW485241234567",
+      defects: "Smulkūs kosmetiniai defektai",
+    },
+    vinVerified: true,
+    providerVerified: false,
+  },
+  {
+    id: "lt-auto-v70-psv",
+    title: "Volvo V70 2006",
+    price: 6750,
+    location: "Pasvalys",
+    distanceKm: 34.2,
+    contact: "Tel. +370 612 88002",
+    image:
+      "https://images.unsplash.com/photo-1609521263040-d20fde4d0beb?w=800&h=600&fit=crop&auto=format",
+    category: "vehicles",
+    tags: ["volvo", "v70", "automobilis", "dyzelinas", "pasvalys"],
+    description:
+      "Volvo V70 2006 m. iš Pasvalys. Rida 198 400 km, dyzelinas, automatinė. Šildomos sėdynės, klimato kontrolė, xenon žibintai.",
+    sellerId: "seller-auto-psv",
+    createdAt: "2026-06-21T11:30:00.000Z",
+    attributes: {
+      make: "Volvo",
+      model: "V70",
+      year: "2006",
+      mileage: "198 400 km",
+      fuelType: "Dyzelinas",
+      bodyType: "Universalas",
+      transmission: "Automatinė",
+      taExpiry: "2026-09",
+      vin: "YV1MW485261234568",
+      defects: "Nėra",
+    },
+    vinVerified: false,
+    providerVerified: true,
+  },
+  {
+    id: "lt-auto-v70-brz",
+    title: "Volvo V70 2012",
+    price: 9850,
+    location: "Biržai",
+    distanceKm: 48.5,
+    contact: "Tel. +370 612 88003",
+    image:
+      "https://images.unsplash.com/photo-1618843479313-40f8afb4b4d8?w=800&h=600&fit=crop&auto=format",
+    category: "vehicles",
+    tags: ["volvo", "v70", "automobilis", "dyzelinas", "biržai"],
+    description:
+      "Volvo V70 2012 m. iš Biržai. Rida 156 200 km, dyzelinas, automatinė. Pilna serviso istorija, navigacija, parkavimo jutikliai.",
+    sellerId: "seller-auto-brz",
+    createdAt: "2026-06-22T14:15:00.000Z",
+    attributes: {
+      make: "Volvo",
+      model: "V70",
+      year: "2012",
+      mileage: "156 200 km",
+      fuelType: "Dyzelinas",
+      bodyType: "Universalas",
+      transmission: "Automatinė",
+      taExpiry: "2026-11",
+      vin: "YV1MW4852C1234569",
+      defects: "Nėra",
+    },
+    vinVerified: true,
+    providerVerified: false,
+  },
+];
+
+/** 100+ listings — vehicles, electronics and services across all Lithuania */
+export const INITIAL_LISTINGS: Listing[] = [
+  ...LITHUANIA_MOCK_CATALOG.map(prepareListing),
+  ...PANEVEZYS_REGION_VOLVO_V70.map(prepareListing),
+];
 
 export const INITIAL_CHATS: ChatThread[] = [
   {

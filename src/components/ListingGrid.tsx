@@ -44,6 +44,7 @@ function emptyMessage(theme: ChameleonThemeId): string {
 export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant?: boolean }) {
   const {
     displayListings,
+    fallbackListings,
     searchQuery,
     listings,
     viewMode,
@@ -56,6 +57,40 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const portal = portalExperienceForQuery(searchQuery);
   const theme = portal.theme;
   const ui = getPortalUi(theme);
+
+  const renderListingCards = (items: typeof displayListings) => {
+    if (viewMode === "map") {
+      return (
+        <div className="mt-3">
+          <ListingMapView listings={items} />
+        </div>
+      );
+    }
+    if (viewMode === "list") {
+      return (
+        <div className="mt-1 divide-y divide-[#e8ecf3] rounded-2xl border border-[#dde5ef] bg-white px-3">
+          {items.map((listing) => (
+            <MarketplaceListRow
+              key={listing.id}
+              listing={listing}
+              priceColor={ui.price}
+            />
+          ))}
+        </div>
+      );
+    }
+    return (
+      <div className="mt-3 grid grid-cols-2 gap-3">
+        {items.map((listing) => (
+          <MarketplaceGridCard
+            key={listing.id}
+            listing={listing}
+            priceColor={ui.price}
+          />
+        ))}
+      </div>
+    );
+  };
 
   return (
     <section id="listing-results" aria-labelledby="listing-results-heading" className="py-2">
@@ -84,53 +119,42 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       />
 
       {displayListings.length === 0 ? (
-        searchQuery.trim().length >= 3 && !hideEmptyAssistant ? (
-          isAbsurdSearchQuery(searchQuery, listings) ? (
-            <WantedEmptyState
-              searchQuery={searchQuery}
-              borderColor={ui.border}
-              textMuted={ui.textMuted}
-            />
-          ) : (
+        <>
+          {searchQuery.trim().length >= 3 && !hideEmptyAssistant ? (
+            isAbsurdSearchQuery(searchQuery, listings) ? (
+              <WantedEmptyState
+                searchQuery={searchQuery}
+                borderColor={ui.border}
+                textMuted={ui.textMuted}
+              />
+            ) : (
+              <p
+                className="mt-4 rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
+                style={{ borderColor: ui.border, color: ui.textMuted }}
+              >
+                Rezultatų nerasta. Pabandykite kitą paieškos frazę arba pašalinkite filtrus.
+              </p>
+            )
+          ) : searchQuery.trim().length < 3 ? (
             <p
               className="mt-4 rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
               style={{ borderColor: ui.border, color: ui.textMuted }}
             >
-              Rezultatų nerasta. Pabandykite kitą paieškos frazę arba pašalinkite filtrus.
+              {emptyMessage(theme)}
             </p>
-          )
-        ) : searchQuery.trim().length < 3 ? (
-          <p
-            className="mt-4 rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
-            style={{ borderColor: ui.border, color: ui.textMuted }}
-          >
-            {emptyMessage(theme)}
-          </p>
-        ) : null
-      ) : viewMode === "map" ? (
-        <div className="mt-3">
-          <ListingMapView listings={displayListings} />
-        </div>
-      ) : viewMode === "list" ? (
-        <div className="mt-1 divide-y divide-[#e8ecf3] rounded-2xl border border-[#dde5ef] bg-white px-3">
-          {displayListings.map((listing) => (
-            <MarketplaceListRow
-              key={listing.id}
-              listing={listing}
-              priceColor={ui.price}
-            />
-          ))}
-        </div>
+          ) : null}
+
+          {fallbackListings.length > 0 && (
+            <div className="mt-6">
+              <h3 className="mb-3 text-sm font-semibold text-[#111827]">
+                Šių prekių yra kituose Lietuvos miestuose:
+              </h3>
+              {renderListingCards(fallbackListings)}
+            </div>
+          )}
+        </>
       ) : (
-        <div className="mt-3 grid grid-cols-2 gap-3">
-          {displayListings.map((listing) => (
-            <MarketplaceGridCard
-              key={listing.id}
-              listing={listing}
-              priceColor={ui.price}
-            />
-          ))}
-        </div>
+        renderListingCards(displayListings)
       )}
     </section>
   );

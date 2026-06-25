@@ -180,6 +180,8 @@ interface VautoContextValue {
   ) => void;
   resetMarketplaceFilters: () => void;
   displayListings: import("@/lib/types").ScoredListing[];
+  /** Nationwide matches when local geo filter is empty (Marktplaats smart fallback) */
+  fallbackListings: import("@/lib/types").ScoredListing[];
   activeFilterIds: Set<string>;
   toggleFilter: (id: string) => void;
   rankedListings: import("@/lib/types").ScoredListing[];
@@ -389,6 +391,7 @@ type VautoCatalogSlice = Omit<
   | "isWishlistSubscribed"
   | "rankedListings"
   | "displayListings"
+  | "fallbackListings"
   | "popularListingIds"
 >;
 
@@ -456,7 +459,7 @@ function VautoFacade({
     [catalog.listings, moderation.bannedUserIds]
   );
 
-  const displayListings = useMemo(
+  const displayResult = useMemo(
     () =>
       buildDisplayListings({
         visibleListings,
@@ -482,6 +485,8 @@ function VautoFacade({
     ]
   );
 
+  const displayListings = displayResult.listings;
+  const fallbackListings = displayResult.fallbackListings;
   const rankedListings = displayListings;
 
   const popularListingIds = useMemo(
@@ -499,6 +504,7 @@ function VautoFacade({
       ...pushAlerts,
       rankedListings,
       displayListings,
+      fallbackListings,
       popularListingIds,
     }),
     [
@@ -510,6 +516,7 @@ function VautoFacade({
       pushAlerts,
       rankedListings,
       displayListings,
+      fallbackListings,
       popularListingIds,
     ]
   );

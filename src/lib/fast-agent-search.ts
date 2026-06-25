@@ -145,7 +145,7 @@ function filterListings(
     filtered = filtered.filter((l) => l.category === params.category);
   }
 
-  if (city) {
+  if (city && !params.radiusKm) {
     filtered = filtered.filter(
       (l) =>
         normCity(l.location) === city ||
