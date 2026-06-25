@@ -27,6 +27,7 @@ import {
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { capturePhotoFromSource } from "@/lib/native-media";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { ListingCategory } from "@/lib/types";
 
@@ -250,7 +251,16 @@ export function SearchBar() {
 
   const handlePhotoSearch = () => {
     if (isPhotoSearching || photoFlowOpen || recording) return;
-    requestMediaConsent(() => setPhotoFlowOpen(true));
+    requestMediaConsent(() => {
+      void capturePhotoFromSource("camera").then((shot) => {
+        if (!shot) return;
+        void handlePhotoFlowSubmit({
+          photos: [shot.dataUrl],
+          extraContext: "",
+          fileName: shot.fileName,
+        });
+      });
+    });
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {

@@ -61,6 +61,114 @@ export async function compressDataUrl(
   });
 }
 
+/** Visually hidden but still activatable on iOS/Android (never display:none). */
+export const NATIVE_FILE_INPUT_CLASS = "native-file-input";
+
+function styleTransientFileInput(input: HTMLInputElement) {
+  input.style.position = "fixed";
+  input.style.top = "0";
+  input.style.left = "0";
+  input.style.width = "1px";
+  input.style.height = "1px";
+  input.style.opacity = "0.01";
+  input.style.overflow = "hidden";
+}
+
+function mountTransientMultiFileInput(
+  configure: (input: HTMLInputElement) => void
+): Promise<File[]> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") {
+      resolve([]);
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    styleTransientFileInput(input);
+    configure(input);
+
+    let settled = false;
+    const finish = (files: File[]) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("focus", onWindowFocus);
+      window.setTimeout(() => input.remove(), 300);
+      resolve(files);
+    };
+
+    const onWindowFocus = () => {
+      window.setTimeout(() => {
+        if (!input.files?.length) finish([]);
+      }, 400);
+    };
+
+    input.addEventListener("change", () => {
+      finish(Array.from(input.files ?? []));
+    });
+
+    document.body.appendChild(input);
+    window.addEventListener("focus", onWindowFocus, { once: true });
+    input.click();
+  });
+}
+
+function mountTransientFileInput(
+  configure: (input: HTMLInputElement) => void
+): Promise<File | null> {
+  return new Promise((resolve) => {
+    if (typeof document === "undefined") {
+      resolve(null);
+      return;
+    }
+
+    const input = document.createElement("input");
+    input.type = "file";
+    styleTransientFileInput(input);
+    configure(input);
+
+    let settled = false;
+    const finish = (file: File | null) => {
+      if (settled) return;
+      settled = true;
+      window.removeEventListener("focus", onWindowFocus);
+      window.setTimeout(() => input.remove(), 300);
+      resolve(file);
+    };
+
+    const onWindowFocus = () => {
+      window.setTimeout(() => {
+        if (!input.files?.length) finish(null);
+      }, 400);
+    };
+
+    input.addEventListener("change", () => {
+      finish(input.files?.[0] ?? null);
+    });
+
+    document.body.appendChild(input);
+    window.addEventListener("focus", onWindowFocus, { once: true });
+    input.click();
+  });
+}
+
+async function fileToCapturedPhoto(file: File): Promise<CapturedPhoto | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result !== "string") {
+        resolve(null);
+        return;
+      }
+      void normalizeCapturedPhoto({
+        dataUrl: reader.result,
+        fileName: file.name,
+      }).then(resolve);
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
 async function normalizeCapturedPhoto(photo: CapturedPhoto): Promise<CapturedPhoto> {
   if (Capacitor.isNativePlatform()) return photo;
   const dataUrl = await compressDataUrl(photo.dataUrl);
@@ -111,21 +219,25 @@ export async function capturePhoto(
           ? CameraSource.Photos
           : CameraSource.Prompt;
 
-    const photo = await Camera.getPhoto({
-      quality: 85,
-      allowEditing: false,
-      resultType: CameraResultType.DataUrl,
-      source: cameraSource,
-      promptLabelHeader: "Nuotrauka",
-      promptLabelPhoto: "Galerija",
-      promptLabelPicture: "Fotografuoti",
-    });
+    try {
+      const photo = await Camera.getPhoto({
+        quality: 85,
+        allowEditing: false,
+        resultType: CameraResultType.DataUrl,
+        source: cameraSource,
+        promptLabelHeader: "Nuotrauka",
+        promptLabelPhoto: "Galerija",
+        promptLabelPicture: "Fotografuoti",
+      });
 
-    if (!photo.dataUrl) return null;
-    return normalizeCapturedPhoto({
-      dataUrl: photo.dataUrl,
-      fileName: photo.path?.split("/").pop(),
-    });
+      if (!photo.dataUrl) return null;
+      return normalizeCapturedPhoto({
+        dataUrl: photo.dataUrl,
+        fileName: photo.path?.split("/").pop(),
+      });
+    } catch {
+      return null;
+    }
   }
 
   let pick = source;
@@ -141,69 +253,32 @@ export async function capturePhoto(
   );
 }
 
-function pickFileAsDataUrl(
+async function pickFileAsDataUrl(
   accept: string,
   capture?: "user" | "environment"
 ): Promise<CapturedPhoto | null> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
+  const file = await mountTransientFileInput((input) => {
     input.accept = accept;
     if (capture) input.setAttribute("capture", capture);
-    input.onchange = () => {
-      const file = input.files?.[0];
-      if (!file) {
-        resolve(null);
-        return;
-      }
-      const reader = new FileReader();
-      reader.onload = () => {
-        void normalizeCapturedPhoto({
-          dataUrl: reader.result as string,
-          fileName: file.name,
-        }).then(resolve);
-      };
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(file);
-    };
-    input.click();
   });
+  if (!file) return null;
+  return fileToCapturedPhoto(file);
 }
 
-function pickFilesAsDataUrls(
+async function pickFilesAsDataUrls(
   accept: string,
   maxCount: number
 ): Promise<CapturedPhoto[]> {
-  return new Promise((resolve) => {
-    const input = document.createElement("input");
-    input.type = "file";
+  const files = await mountTransientMultiFileInput((input) => {
     input.accept = accept;
     input.multiple = true;
-    input.onchange = () => {
-      const files = Array.from(input.files ?? []).slice(0, maxCount);
-      if (!files.length) {
-        resolve([]);
-        return;
-      }
-      Promise.all(
-        files.map(
-          (file) =>
-            new Promise<CapturedPhoto | null>((res) => {
-              const reader = new FileReader();
-              reader.onload = () => {
-                void normalizeCapturedPhoto({
-                  dataUrl: reader.result as string,
-                  fileName: file.name,
-                }).then(res);
-              };
-              reader.onerror = () => res(null);
-              reader.readAsDataURL(file);
-            })
-        )
-      ).then((items) => resolve(items.filter((x): x is CapturedPhoto => x !== null)));
-    };
-    input.click();
   });
+  if (!files.length) return [];
+
+  const captured = await Promise.all(
+    files.slice(0, maxCount).map((file) => fileToCapturedPhoto(file))
+  );
+  return captured.filter((x): x is CapturedPhoto => x !== null);
 }
 
 /** Web-only sheet: fotografuoti arba galerija */

@@ -6,6 +6,7 @@ import { Capacitor } from "@capacitor/core";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import {
   capturePhotoFromSource,
+  NATIVE_FILE_INPUT_CLASS,
   pickMultipleFromGallery,
   type CapturedPhoto,
 } from "@/lib/native-media";
@@ -129,6 +130,12 @@ export function AiPhotoFlowSheet({
 
   const openPhotoPicker = () => {
     if (busy) return;
+    if (mode === "search") {
+      void capturePhotoFromSource("camera").then((shot) => {
+        if (shot) void applyCapturedPhoto(shot);
+      });
+      return;
+    }
     setSourceOpen(true);
   };
 
@@ -141,10 +148,17 @@ export function AiPhotoFlowSheet({
     addPhotos([shot]);
   };
 
-  const handleSourceSelect = async (source: "camera" | "gallery") => {
+  const handleSourceSelect = (source: "camera" | "gallery") => {
     setSourceOpen(false);
-    if (source === "gallery") {
-      if (Capacitor.isNativePlatform()) {
+    if (source === "camera") {
+      void capturePhotoFromSource("camera").then((shot) => {
+        if (shot) void applyCapturedPhoto(shot);
+      });
+      return;
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      void (async () => {
         const remaining = MAX_AI_PHOTOS - photos.length;
         const picked = await pickMultipleFromGallery(remaining);
         if (mode === "search" && picked[0]) {
@@ -153,20 +167,11 @@ export function AiPhotoFlowSheet({
           return;
         }
         addPhotos(picked);
-        return;
-      }
-      galleryInputRef.current?.click();
+      })();
       return;
     }
 
-    if (Capacitor.isNativePlatform()) {
-      const shot = await capturePhotoFromSource("camera");
-      if (!shot) return;
-      await applyCapturedPhoto(shot);
-      return;
-    }
-
-    cameraInputRef.current?.click();
+    galleryInputRef.current?.click();
   };
 
   const removePhoto = (index: number) => {
@@ -196,7 +201,8 @@ export function AiPhotoFlowSheet({
         type="file"
         accept="image/*"
         capture="environment"
-        className="hidden"
+        className={NATIVE_FILE_INPUT_CLASS}
+        tabIndex={-1}
         aria-hidden
         onChange={(e) => void handleFileChange(e)}
       />
@@ -206,7 +212,8 @@ export function AiPhotoFlowSheet({
         type="file"
         accept="image/*"
         multiple={mode === "listing"}
-        className="hidden"
+        className={NATIVE_FILE_INPUT_CLASS}
+        tabIndex={-1}
         aria-hidden
         onChange={(e) => void handleGalleryFileChange(e)}
       />
@@ -260,15 +267,25 @@ export function AiPhotoFlowSheet({
             ))}
 
             {photos.length < MAX_AI_PHOTOS && (
-              <button
-                type="button"
-                onClick={openPhotoPicker}
-                disabled={busy}
-                className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff] disabled:opacity-50"
-              >
-                <Camera className="h-7 w-7" />
-                <span className="text-xs font-semibold">Pridėti</span>
-              </button>
+              mode === "search" ? (
+                <label
+                  htmlFor="photo-search-input"
+                  className="flex aspect-square cursor-pointer flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff]"
+                >
+                  <Camera className="h-7 w-7" />
+                  <span className="text-xs font-semibold">Fotografuoti</span>
+                </label>
+              ) : (
+                <button
+                  type="button"
+                  onClick={openPhotoPicker}
+                  disabled={busy}
+                  className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff] disabled:opacity-50"
+                >
+                  <Camera className="h-7 w-7" />
+                  <span className="text-xs font-semibold">Pridėti</span>
+                </button>
+              )
             )}
           </div>
 

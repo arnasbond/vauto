@@ -609,6 +609,17 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   -webkit-overflow-scrolling: touch;
 }
 
+/** File inputs must stay out of display:none for mobile camera capture */
+.native-file-input {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  overflow: hidden;
+}
+
 body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[\#1167b1\] {
   border-color: var(--portal-accent);
   background: var(--portal-accent);
