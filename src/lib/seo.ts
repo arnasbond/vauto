@@ -70,7 +70,7 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
     og: {
       title: `${regionalTitle} — ${priceText}`,
       description: `${description} ${city} regionas.`,
-      image: listing.image,
+      image: listing.images[0] ?? "",
       url: `${SITE_URL}${listingPath(listing)}`,
       type: "product",
       siteName: "Vauto",

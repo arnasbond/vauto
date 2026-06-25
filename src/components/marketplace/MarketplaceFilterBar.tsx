@@ -6,7 +6,9 @@ import { ChevronDown, LayoutGrid, List, Map } from "lucide-react";
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   formatResultsLabel,
+  MARKETPLACE_SORT_OPTIONS,
   type MarketplaceFilterState,
+  type MarketplaceSortMode,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
 import type { ListingCategory } from "@/lib/types";
@@ -171,6 +173,9 @@ export function MarketplaceFilterBar({
       : filters.condition === "new"
         ? "Naujos"
         : "Naudotos";
+  const sortLabel =
+    MARKETPLACE_SORT_OPTIONS.find((o) => o.id === filters.sort)?.label ??
+    "Rūšiuoti";
 
   return (
     <div className="sticky top-0 z-20 -mx-4 border-b border-[#e8ecf3] bg-[#f8fafc]/95 px-4 py-3 backdrop-blur">
@@ -178,7 +183,39 @@ export function MarketplaceFilterBar({
         <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">
           {formatResultsLabel(searchQuery, resultCount)}
         </p>
-        <div className="flex shrink-0 items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
+        <div className="flex shrink-0 items-center gap-1.5">
+          <FilterDropdown
+            label="Rūšiuoti"
+            valueLabel={sortLabel}
+            open={openKey === "sort"}
+            onToggle={() => toggle("sort")}
+            onClose={close}
+          >
+            {MARKETPLACE_SORT_OPTIONS.filter((o) => o.id !== "relevance").map(
+              (option) => (
+                <button
+                  key={option.id}
+                  type="button"
+                  role="menuitem"
+                  className={cn(
+                    "block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]",
+                    filters.sort === option.id && "font-semibold text-[#1167b1]"
+                  )}
+                  onClick={() => {
+                    onFiltersChange({
+                      ...filters,
+                      sort: option.id as MarketplaceSortMode,
+                    });
+                    close();
+                  }}
+                >
+                  {option.label}
+                </button>
+              )
+            )}
+          </FilterDropdown>
+
+          <div className="flex items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
           {(
             [
               ["list", List, "Sąrašas"],
@@ -203,6 +240,7 @@ export function MarketplaceFilterBar({
               <Icon className="h-4 w-4" />
             </button>
           ))}
+          </div>
         </div>
       </div>
 

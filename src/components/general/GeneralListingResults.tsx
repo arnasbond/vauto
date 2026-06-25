@@ -1,5 +1,6 @@
 "use client";
 
+import { getListingCoverImage } from "@/lib/listing-image";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -26,7 +27,7 @@ function SkelbiuRow({ listing }: { listing: ScoredListing }) {
         href={listingPath(listing)}
         className="relative h-[72px] w-[96px] shrink-0 overflow-hidden rounded bg-[#eceff1]"
       >
-        <Image src={listing.image} alt={listing.title} fill sizes="96px" className="object-cover" />
+        <Image src={getListingCoverImage(listing)} alt={listing.title} fill sizes="96px" className="object-cover" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={listingPath(listing)}>

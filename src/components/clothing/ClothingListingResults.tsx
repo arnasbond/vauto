@@ -1,5 +1,6 @@
 "use client";
 
+import { getListingCoverImage } from "@/lib/listing-image";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -24,7 +25,7 @@ function VintedCard({ listing }: { listing: ScoredListing }) {
       <div className="relative aspect-[3/4] overflow-hidden rounded-xl bg-[#eceae6]">
         <Link href={listingPath(listing)} className="block h-full w-full">
           <Image
-            src={listing.image}
+            src={getListingCoverImage(listing)}
             alt={listing.title}
             fill
             sizes="(max-width: 512px) 50vw"

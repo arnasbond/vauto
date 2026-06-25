@@ -14,7 +14,8 @@ export interface Listing {
   longitude?: number;
   /** SEO-friendly URL segment */
   slug?: string;
-  image: string;
+  /** Gallery URLs — first image is the cover/thumbnail */
+  images: string[];
   category: ListingCategory;
   tags: string[];
   sellerId: string;
@@ -44,6 +45,12 @@ export interface Listing {
   /** Services: verified provider badge */
   providerVerified?: boolean;
 }
+
+/** Catalog/API rows that may still ship a legacy single `image` field */
+export type LegacyListingInput = Omit<Listing, "images"> & {
+  image?: string;
+  images?: string[];
+};
 
 export type ListingCategory =
   | "electronics"

@@ -1,5 +1,6 @@
 "use client";
 
+import { getListingCoverImage } from "@/lib/listing-image";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
@@ -41,7 +42,7 @@ function VehicleRow({ listing }: { listing: ScoredListing }) {
       style={{ borderColor: ui.border }}
     >
       <Link href={listingPath(listing)} className="relative h-[72px] w-[96px] shrink-0 overflow-hidden rounded-md bg-[#e5e7eb]">
-        <Image src={listing.image} alt={listing.title} fill sizes="96px" className="object-cover" />
+        <Image src={getListingCoverImage(listing)} alt={listing.title} fill sizes="96px" className="object-cover" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={listingPath(listing)}>

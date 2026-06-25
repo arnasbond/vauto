@@ -6,7 +6,7 @@ import { resolveListingImage } from "@/lib/listing-image";
 import type { Listing } from "@/lib/types";
 
 type ListingImageProps = {
-  listing: Pick<Listing, "id" | "title" | "category" | "image" | "description">;
+  listing: Pick<Listing, "id" | "title" | "category" | "images" | "description">;
   alt: string;
   fill?: boolean;
   sizes?: string;
@@ -28,7 +28,7 @@ export function ListingImage({
   const [src, setSrc] = useState(primary);
 
   const handleError = () => {
-    const fallback = resolveListingImage({ ...listing, image: "" });
+    const fallback = resolveListingImage({ ...listing, images: [] });
     if (src !== fallback) setSrc(fallback);
   };
 

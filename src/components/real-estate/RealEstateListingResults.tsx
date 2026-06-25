@@ -1,6 +1,7 @@
 "use client";
 
 import Image from "next/image";
+import { getListingCoverImage } from "@/lib/listing-image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
@@ -29,7 +30,7 @@ function RealEstateRow({ listing }: { listing: ScoredListing }) {
         href={listingPath(listing)}
         className="relative h-[80px] w-[112px] shrink-0 overflow-hidden rounded-md bg-[#eee]"
       >
-        <Image src={listing.image} alt={listing.title} fill sizes="112px" className="object-cover" />
+        <Image src={getListingCoverImage(listing)} alt={listing.title} fill sizes="112px" className="object-cover" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={listingPath(listing)}>

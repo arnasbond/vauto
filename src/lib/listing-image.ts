@@ -1,4 +1,4 @@
-import type { Listing, ListingCategory } from "@/lib/types";
+import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
 
 const UNSPLASH = (id: string) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -13,6 +13,25 @@ const CATEGORY_FALLBACK: Record<ListingCategory, string> = {
   clothing: UNSPLASH("photo-1551028719-00167b16eac5"),
   real_estate: UNSPLASH("photo-1560518883-ce09059eeffa"),
   other: UNSPLASH("photo-1571068316344-75bc76f77890"),
+};
+
+const CATEGORY_GALLERY_EXTRAS: Partial<Record<ListingCategory, string[]>> = {
+  vehicles: [
+    UNSPLASH("photo-1606664515524-ed2f786a0bd6"),
+    UNSPLASH("photo-1617531653332-bd46c24f2068"),
+  ],
+  electronics: [
+    UNSPLASH("photo-1592899677977-9c10ca588bbd"),
+    UNSPLASH("photo-1496181133206-80ce9b88a853"),
+  ],
+  real_estate: [
+    UNSPLASH("photo-1502672260266-1c1ef2d93688"),
+    UNSPLASH("photo-1560518883-ce09059eeffa"),
+  ],
+  clothing: [
+    UNSPLASH("photo-1551028719-00167b16eac5"),
+    UNSPLASH("photo-1434389677669-e08b4cac3105"),
+  ],
 };
 
 /** Keyword → Unsplash photo matched to listing content */
@@ -52,10 +71,23 @@ export function isValidListingImageUrl(url: unknown): url is string {
   return typeof url === "string" && /^https?:\/\/.+/i.test(url.trim());
 }
 
-export function resolveListingImage(
-  listing: Pick<Listing, "title" | "category" | "image" | "description">
-): string {
-  if (isValidListingImageUrl(listing.image)) return listing.image.trim();
+type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images">;
+
+function uniqueUrls(urls: string[]): string[] {
+  const seen = new Set<string>();
+  const out: string[] = [];
+  for (const url of urls) {
+    const trimmed = url.trim();
+    if (!isValidListingImageUrl(trimmed) || seen.has(trimmed)) continue;
+    seen.add(trimmed);
+    out.push(trimmed);
+  }
+  return out;
+}
+
+export function resolveListingImage(listing: ListingImageFields): string {
+  const valid = listing.images?.filter(isValidListingImageUrl);
+  if (valid?.length) return valid[0]!.trim();
 
   const haystack = `${listing.title} ${listing.description ?? ""}`;
   for (const [pattern, url] of CONTENT_IMAGES) {
@@ -65,6 +97,51 @@ export function resolveListingImage(
   return CATEGORY_FALLBACK[listing.category] ?? CATEGORY_FALLBACK.other;
 }
 
+/** Full gallery for detail swipe — expands single cover into 2–4 demo angles when needed */
+export function resolveListingImages(listing: ListingImageFields): string[] {
+  const fromListing = uniqueUrls(listing.images ?? []);
+  if (fromListing.length > 1) return fromListing.slice(0, 6);
+
+  const cover = fromListing[0] ?? resolveListingImage({ ...listing, images: [] });
+  const extras: string[] = [];
+
+  const haystack = `${listing.title} ${listing.description ?? ""}`;
+  for (const [pattern, url] of CONTENT_IMAGES) {
+    if (pattern.test(haystack) && url !== cover) extras.push(url);
+    if (extras.length >= 2) break;
+  }
+
+  for (const url of CATEGORY_GALLERY_EXTRAS[listing.category] ?? []) {
+    if (url !== cover && !extras.includes(url)) extras.push(url);
+    if (extras.length >= 3) break;
+  }
+
+  return uniqueUrls([cover, ...extras]).slice(0, 4);
+}
+
+export function getListingCoverImage(listing: ListingImageFields): string {
+  return resolveListingImage(listing);
+}
+
+export function coalesceListingImages(
+  incoming: string[] | undefined,
+  fallback: string[] | undefined,
+  listing: Pick<Listing, "title" | "category" | "description">
+): string[] {
+  const inc = uniqueUrls(incoming ?? []);
+  if (inc.length) return inc;
+  const fb = uniqueUrls(fallback ?? []);
+  if (fb.length) return fb;
+  return resolveListingImages({ ...listing, images: [] });
+}
+
+export function listingImagesFromLegacy(raw: LegacyListingInput): string[] {
+  const fromArray = uniqueUrls(raw.images ?? []);
+  if (fromArray.length) return fromArray;
+  if (isValidListingImageUrl(raw.image)) return [raw.image.trim()];
+  return [];
+}
+
 export function coalesceListingImage(
   incoming: string | undefined,
   fallback: string | undefined,
@@ -72,5 +149,5 @@ export function coalesceListingImage(
 ): string {
   if (isValidListingImageUrl(incoming)) return incoming.trim();
   if (isValidListingImageUrl(fallback)) return fallback.trim();
-  return resolveListingImage({ ...listing, image: fallback ?? "" });
+  return resolveListingImage({ ...listing, images: [] });
 }

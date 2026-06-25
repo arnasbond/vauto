@@ -5,6 +5,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { Sparkles, TrendingUp, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
+import { getListingCoverImage } from "@/lib/listing-image";
 import { getListingMetrics } from "@/lib/listing-analytics";
 import { getPromoteSuggestion, resolveSelectedPlan } from "@/lib/smart-promote";
 import { categoryToTheme } from "@/lib/chameleon-themes";
@@ -82,7 +83,7 @@ export function ProListingCard({
             className="relative h-20 w-20 shrink-0 overflow-hidden rounded-xl"
           >
             <Image
-              src={listing.image}
+              src={getListingCoverImage(listing)}
               alt={listing.title}
               fill
               sizes="80px"

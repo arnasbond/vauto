@@ -1,7 +1,10 @@
-import type { Listing, UserProfile, ChatThread } from "@/lib/types";
+import type { LegacyListingInput, Listing, UserProfile, ChatThread } from "@/lib/types";
 import { enrichListingCoords } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
-import { resolveListingImage } from "@/lib/listing-image";
+import {
+  listingImagesFromLegacy,
+  resolveListingImages,
+} from "@/lib/listing-image";
 import { isVerifiedServiceSeller, verifyVin } from "@/lib/trust";
 import { LITHUANIA_MOCK_CATALOG } from "@/data/lithuania-mock-catalog";
 
@@ -33,29 +36,33 @@ export const ANONYMOUS_USER: UserProfile = {
   },
 };
 
-function prepareListing(listing: Listing): Listing {
-  const withCoords = enrichListingCoords(listing);
-  const slug = generateListingSlug(listing.title, listing.location);
+function prepareListing(raw: LegacyListingInput): Listing {
+  const withCoords = enrichListingCoords({
+    ...raw,
+    images: listingImagesFromLegacy(raw),
+  } as Listing);
+  const slug = generateListingSlug(withCoords.title, withCoords.location);
+  const images = resolveListingImages(withCoords);
   const vin =
-    typeof listing.attributes?.vin === "string" ? listing.attributes.vin : undefined;
+    typeof withCoords.attributes?.vin === "string" ? withCoords.attributes.vin : undefined;
   let h = 0;
-  for (let i = 0; i < listing.id.length; i++) h += listing.id.charCodeAt(i);
+  for (let i = 0; i < withCoords.id.length; i++) h += withCoords.id.charCodeAt(i);
   const seedViews = 15 + (h % 120);
   return {
     ...withCoords,
     slug,
-    image: resolveListingImage(listing),
-    contact: listing.contact ?? "+370 612 34567",
+    images,
+    contact: withCoords.contact ?? "+370 612 34567",
     description:
-      listing.description ??
-      `${listing.title} — ${listing.location}. Susisiekite dėl detalių.`,
-    views: listing.views ?? seedViews,
-    callClicks: listing.callClicks ?? Math.max(1, Math.floor(seedViews * 0.08)),
-    chatStarts: listing.chatStarts ?? Math.max(0, Math.floor(seedViews * 0.04)),
-    saveCount: listing.saveCount ?? Math.max(0, Math.floor(seedViews * 0.03)),
-    vinVerified: listing.vinVerified ?? (vin ? verifyVin(vin) : false),
+      withCoords.description ??
+      `${withCoords.title} — ${withCoords.location}. Susisiekite dėl detalių.`,
+    views: withCoords.views ?? seedViews,
+    callClicks: withCoords.callClicks ?? Math.max(1, Math.floor(seedViews * 0.08)),
+    chatStarts: withCoords.chatStarts ?? Math.max(0, Math.floor(seedViews * 0.04)),
+    saveCount: withCoords.saveCount ?? Math.max(0, Math.floor(seedViews * 0.03)),
+    vinVerified: withCoords.vinVerified ?? (vin ? verifyVin(vin) : false),
     providerVerified:
-      listing.providerVerified ?? isVerifiedServiceSeller(listing.sellerId),
+      withCoords.providerVerified ?? isVerifiedServiceSeller(withCoords.sellerId),
   };
 }
 

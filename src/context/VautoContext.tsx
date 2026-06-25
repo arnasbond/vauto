@@ -24,6 +24,7 @@ import {
 } from "@/lib/scoring";
 import {
   applyMarketplaceFilters,
+  applyMarketplaceSort,
   DEFAULT_MARKETPLACE_FILTERS,
   type MarketplaceFilterState,
   type MarketplaceViewMode,
@@ -529,11 +530,17 @@ function VautoFacade({
             visualProfile: catalog.visualSearchProfile,
             visualRankScores: catalog.visualRankScores,
           }
-        ).sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+        );
+        if (catalog.marketplaceFilters.sort === "relevance") {
+          results = [...results].sort(
+            (a, b) => order.get(a.id)! - order.get(b.id)!
+          );
+        }
       }
     }
 
-    return applyMarketplaceFilters(results, catalog.marketplaceFilters);
+    const filtered = applyMarketplaceFilters(results, catalog.marketplaceFilters);
+    return applyMarketplaceSort(filtered, catalog.marketplaceFilters.sort);
   }, [
     rankedListings,
     visibleListings,
@@ -1049,11 +1056,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const hasPhoto = Boolean(profile.previewImage);
         const imageCandidates = hasPhoto
           ? listings
-              .filter((l) => !l.banned && isListingActive(l) && l.image)
+              .filter((l) => !l.banned && isListingActive(l) && l.images?.length)
               .slice(0, 40)
               .map((l) => ({
                 id: l.id,
-                image: l.image,
+                image: l.images[0]!,
               }))
           : [];
 

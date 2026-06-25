@@ -13,7 +13,7 @@ export type ListingEditPatch = Partial<
     | "category"
     | "tags"
     | "attributes"
-    | "image"
+    | "images"
     | "status"
   >
 >;

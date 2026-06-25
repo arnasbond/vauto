@@ -663,7 +663,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       location: listingCity,
       distanceKm: distKm,
       slug: generateListingSlug(aiDraft.title, listingCity),
-      image: listingImage,
+      images: [listingImage],
       category: aiDraft.category,
       tags: attributesToTags(aiDraft),
       description: aiDraft.description,

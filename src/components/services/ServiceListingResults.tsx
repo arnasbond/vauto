@@ -1,5 +1,6 @@
 "use client";
 
+import { getListingCoverImage } from "@/lib/listing-image";
 import Image from "next/image";
 import Link from "next/link";
 import { BadgeCheck, Heart } from "lucide-react";
@@ -23,7 +24,7 @@ function ServiceRow({ listing }: { listing: ScoredListing }) {
         href={listingPath(listing)}
         className="relative h-[64px] w-[64px] shrink-0 overflow-hidden rounded-full bg-[#e6fffb]"
       >
-        <Image src={listing.image} alt={listing.title} fill sizes="64px" className="object-cover" />
+        <Image src={getListingCoverImage(listing)} alt={listing.title} fill sizes="64px" className="object-cover" />
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={listingPath(listing)}>

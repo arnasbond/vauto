@@ -5,6 +5,7 @@ import { MapContainer, TileLayer, useMap, useMapEvents } from "react-leaflet";
 import L from "leaflet";
 import Supercluster from "supercluster";
 import { listingPath } from "@/lib/seo";
+import { getListingCoverImage } from "@/lib/listing-image";
 import type { ScoredListing } from "@/lib/types";
 import "leaflet/dist/leaflet.css";
 
@@ -93,7 +94,7 @@ function ClusterMarkers({
       } else if (props.listing) {
         const listing = props.listing;
         marker = L.marker([lat, lng], {
-          icon: photoIcon(listing.image, listing.title),
+          icon: photoIcon(getListingCoverImage(listing), listing.title),
         });
         marker.on("click", () => {
           window.location.href = listingPath(listing);

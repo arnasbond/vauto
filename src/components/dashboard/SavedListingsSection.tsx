@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
+import { getListingCoverImage } from "@/lib/listing-image";
 import { formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { listingPath } from "@/lib/seo";
@@ -30,7 +31,7 @@ export function SavedListingsSection() {
               className="relative h-14 w-14 shrink-0 overflow-hidden rounded-xl"
             >
               <Image
-                src={listing.image}
+                src={getListingCoverImage(listing)}
                 alt={listing.title}
                 fill
                 sizes="56px"

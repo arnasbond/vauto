@@ -3,6 +3,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { CheckCircle, Eye, MessageCircle, Pencil, Phone, RefreshCw, Trash2 } from "lucide-react";
+import { getListingCoverImage } from "@/lib/listing-image";
 import { formatPrice } from "@/data/mockListings";
 import { formatExpiryLabel, isListingActive } from "@/lib/listing-expiry";
 import { getListingMetrics } from "@/lib/listing-analytics";
@@ -46,7 +47,7 @@ export function PrivateListingCard({
           className="relative h-16 w-16 shrink-0 overflow-hidden rounded-xl"
         >
           <Image
-            src={listing.image}
+            src={getListingCoverImage(listing)}
             alt={listing.title}
             fill
             sizes="64px"

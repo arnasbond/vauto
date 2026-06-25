@@ -1,7 +1,10 @@
 import type { Listing } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { isViewModeOnlyCommand } from "@/lib/marketplace-view";
+import {
+  isViewModeOnlyCommand,
+  type MarketplaceSortMode,
+} from "@/lib/marketplace-view";
 import { VEHICLE_BRAND_PATTERN } from "@/lib/vehicle-keywords";
 
 /** 0 = no slice — process full catalog dynamically */
@@ -162,6 +165,24 @@ function filterListings(
     return filtered.slice(0, params.limit);
   }
   return filtered;
+}
+
+/** Instant client-side sort for marketplace grid (<1ms on demo catalog). */
+export function sortListingsFast<T extends Listing>(
+  listings: T[],
+  mode: Exclude<MarketplaceSortMode, "relevance">
+): T[] {
+  const copy = [...listings];
+  if (mode === "cheapest") {
+    return copy.sort((a, b) => a.price - b.price);
+  }
+  if (mode === "newest") {
+    return copy.sort(
+      (a, b) =>
+        new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+  return copy.sort((a, b) => a.distanceKm - b.distanceKm);
 }
 
 export function runFastAgentSearch(

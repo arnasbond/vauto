@@ -1,7 +1,20 @@
 import type { Listing, ListingCategory } from "@/lib/types";
 import type { ScoredListing } from "@/lib/types";
+import { sortListingsFast } from "@/lib/fast-agent-search";
 
 export type MarketplaceViewMode = "list" | "grid" | "map";
+
+export type MarketplaceSortMode = "relevance" | "cheapest" | "newest" | "closest";
+
+export const MARKETPLACE_SORT_OPTIONS: Array<{
+  id: MarketplaceSortMode;
+  label: string;
+}> = [
+  { id: "relevance", label: "Relevantiškiausi" },
+  { id: "cheapest", label: "Pigiausi viršuje" },
+  { id: "newest", label: "Naujausi viršuje" },
+  { id: "closest", label: "Arti manęs" },
+];
 
 export type MarketplaceConditionFilter = "all" | "new" | "used";
 
@@ -11,6 +24,7 @@ export interface MarketplaceFilterState {
   priceMin: number | null;
   priceMax: number | null;
   condition: MarketplaceConditionFilter;
+  sort: MarketplaceSortMode;
 }
 
 export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
@@ -19,6 +33,7 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   priceMin: null,
   priceMax: null,
   condition: "all",
+  sort: "relevance",
 };
 
 const VIEW_MODE_MAP: Array<[RegExp, MarketplaceViewMode]> = [
@@ -99,6 +114,14 @@ export function applyMarketplaceFilters(
   }
 
   return results;
+}
+
+export function applyMarketplaceSort<T extends Listing>(
+  listings: T[],
+  sort: MarketplaceSortMode
+): T[] {
+  if (sort === "relevance") return listings;
+  return sortListingsFast(listings, sort);
 }
 
 export function formatResultsLabel(searchQuery: string, count: number): string {
