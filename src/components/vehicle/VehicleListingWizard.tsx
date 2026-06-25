@@ -3,6 +3,7 @@
 import { Camera, ChevronLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
+import { VISION_RECOGNITION_FAILED_MESSAGE } from "@/lib/ai-safeguards";
 import {
   BODY_TYPES,
   COLOR_OPTIONS,
@@ -57,6 +58,7 @@ interface VehicleListingWizardProps {
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null; videoUrl?: string }) => void;
+  onPhotoCaptured?: (dataUrl: string) => void | Promise<void>;
   requestMediaConsent: (onGranted: () => void) => void;
   onCancel: () => void;
   onPublish: () => void;
@@ -196,6 +198,7 @@ export function VehicleListingWizard({
   onUpdate,
   onAttributeChange,
   onMediaChange,
+  onPhotoCaptured,
   requestMediaConsent,
   onCancel,
   onPublish,
@@ -374,9 +377,10 @@ export function VehicleListingWizard({
           />
         )}
 
-        {manualFallback && step === 1 && (
+        {manualFallback && (step === 1 || step === 2) && (
           <p className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-900">
-            AI nepavyko pilnai atpažinti — pasirinkite markę ir modelį ranka arba įveskite VIN.
+            {VISION_RECOGNITION_FAILED_MESSAGE}. Pasirinkite markę, kategoriją ir kitus laukus
+            žemiau.
           </p>
         )}
 
@@ -469,7 +473,10 @@ export function VehicleListingWizard({
               onClick={() =>
                 requestMediaConsent(async () => {
                   const photo = await capturePhoto();
-                  if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
+                  if (photo) {
+                    onMediaChange({ imageDataUrl: photo.dataUrl });
+                    await onPhotoCaptured?.(photo.dataUrl);
+                  }
                 })
               }
               className="mb-4 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#1167b1] bg-[#f0f7ff] py-10"

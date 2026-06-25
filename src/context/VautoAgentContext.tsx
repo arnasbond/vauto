@@ -74,6 +74,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     subscribeWishlist,
     rankedListings,
     searchQuery,
+    setAgentPinnedListings,
+    clearAgentPinnedListings,
+    clearVisualSearch,
   } = useVauto();
   const { navigateTo } = useNavigation();
   const { currentView: zeroUiScreen, setScreen, goToMarketplace, openMicroPayment, activeBoost } = useZeroUiScreen();
@@ -113,16 +116,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
       if (actions.type === "search") {
         goToMarketplace("agent");
+        setOpen(false);
+        clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
+        setAgentPinnedListings(actions.listingIds);
         const nextFilters = filtersFromSearchAction(actions);
         if (actions.filtersReset) {
           clearSearchFilters();
         }
         if (nextFilters) recordSearchFilters(nextFilters);
-        if (!actions.proactiveMessage) {
-          showToast(`Radau ${actions.listingIds.length} skelbimų`, "success");
-        }
+        showToast(
+          actions.listingIds.length
+            ? `Atidarau ${actions.listingIds.length} skelbimų`
+            : "Rezultatų nerasta",
+          actions.listingIds.length ? "success" : "info"
+        );
         window.setTimeout(() => {
           document
             .getElementById("listing-results")
@@ -146,6 +155,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       if (actions.type === "empty_search") {
         goToMarketplace("agent");
+        setOpen(false);
+        clearAgentPinnedListings();
+        clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
         window.setTimeout(() => {
@@ -214,6 +226,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       recordSearchFilters,
       clearSearchFilters,
       openMicroPayment,
+      setAgentPinnedListings,
+      clearAgentPinnedListings,
+      clearVisualSearch,
     ]
   );
 
@@ -297,11 +312,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         setLastError(undefined);
+        const isStateSearch =
+          res.actions.type === "search" || res.actions.type === "empty_search";
+        const assistantText = isStateSearch
+          ? res.actions.type === "search"
+            ? "Atidarau skelbimus ekrane."
+            : "Rezultatų nerasta."
+          : res.reply;
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
-            text: res.reply,
+            text: assistantText,
             toolCalls: res.toolCalls,
           },
         ]);
@@ -390,8 +412,11 @@ export function useVautoAgent(): VautoAgentContextValue {
 function VautoAgentSheet() {
   const { open, setOpen, messages, busy, sendAgentMessage } = useVautoAgent();
   const { searchQuery, setSearchQuery } = useVauto();
+  const pathname = usePathname();
+  const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
   const [recording, setRecording] = useState(false);
   const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
+  const lastVoiceDisplayRef = useRef("");
 
   useEffect(() => {
     return () => voiceSessionRef.current?.cancel();
@@ -404,20 +429,29 @@ function VautoAgentSheet() {
     }
     if (!isVoiceSearchSupported()) return;
     setRecording(true);
+    lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
       onInterim: (text) => {
-        if (text.trim()) setSearchQuery(sanitizeSpeechTranscript(text));
+        const clean = sanitizeSpeechTranscript(text);
+        if (!clean || clean === lastVoiceDisplayRef.current) return;
+        lastVoiceDisplayRef.current = clean;
+        setSearchQuery(clean);
       },
     });
     voiceSessionRef.current = session;
     void session.promise.then((text) => {
       setRecording(false);
       voiceSessionRef.current = null;
-      if (text?.trim()) setSearchQuery(sanitizeSpeechTranscript(text));
+      const clean = sanitizeSpeechTranscript(text ?? "");
+      if (!clean) return;
+      lastVoiceDisplayRef.current = clean;
+      setSearchQuery(clean);
+      void sendAgentMessage(clean);
+      setOpen(false);
     });
   };
 
-  if (!open) return <VautoAgentFab />;
+  if (!open || onHome) return <VautoAgentFab />;
 
   return (
     <>

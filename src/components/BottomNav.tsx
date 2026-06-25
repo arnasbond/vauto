@@ -2,7 +2,6 @@
 
 import { Mic, Shield, User } from "lucide-react";
 import { usePathname } from "next/navigation";
-import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useVauto } from "@/context/VautoContext";
 import { useActivePortal } from "@/hooks/useActivePortal";
 import { isVoiceSearchSupported } from "@/lib/voice-search";
@@ -12,7 +11,6 @@ import { isVoiceSearchSupported } from "@/lib/voice-search";
  */
 export function BottomNav() {
   const pathname = usePathname();
-  const { setOpen: setAgentOpen, busy: agentBusy } = useVautoAgent();
   const {
     isAdmin,
     unreadAdminCount,
@@ -36,13 +34,15 @@ export function BottomNav() {
     pathname === "/profile" || pathname.startsWith("/profile/");
 
   const handleMicClick = () => {
-    if (pathname === "/") {
-      setAgentOpen(true);
+    if (pathname === "/" || pathname === "") {
+      window.dispatchEvent(new CustomEvent("vauto:open-home-voice"));
       return;
     }
     if (requireAuthForListing("/")) {
       window.location.assign("/");
-      window.setTimeout(() => setAgentOpen(true), 300);
+      window.setTimeout(() => {
+        window.dispatchEvent(new CustomEvent("vauto:open-home-voice"));
+      }, 300);
     }
   };
 
@@ -58,15 +58,12 @@ export function BottomNav() {
         <button
           type="button"
           onClick={handleMicClick}
-          disabled={agentBusy}
-          className="relative -mt-8 flex min-w-[72px] flex-col items-center gap-1 text-[10px] font-bold disabled:opacity-60"
+          className="relative -mt-8 flex min-w-[72px] flex-col items-center gap-1 text-[10px] font-bold"
           style={{ color: ui.cta }}
           aria-label="Atidaryti VAUTO asistentą"
         >
           <span
-            className={`flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white text-white shadow-lg ${
-              agentBusy ? "zero-ui-glow-gemini animate-pulse" : ""
-            }`}
+            className="flex h-16 w-16 items-center justify-center rounded-full border-[5px] border-white text-white shadow-lg"
             style={{
               backgroundColor: ui.cta,
               boxShadow: `0 10px 28px ${ui.cta}59`,

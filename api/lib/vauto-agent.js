@@ -38,6 +38,9 @@ const {
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
 
+const STATE_SEARCH_REPLY = "Atidarau skelbimus ekrane.";
+const STATE_EMPTY_SEARCH_REPLY = "Rezultatų nerasta.";
+
 const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
 Vesk vartotoją pokalbiu lietuviškai. Pardavimui — postNewListing + analyzeMarketPrice, klausk trūkstamų duomenų.
 ${LT_LOCATION_AGENT_HINT}
@@ -45,7 +48,7 @@ ${AGENT_MEMORY_SYSTEM_HINT}
 AUTOMOBILIAMS: iš balso/teksto VISADA ištrauk make, model, year (atskirais laukais arba attributes) ir perduok postNewListing su category=vehicles.
 Kai postNewListing grąžina voiceFollowUp — ištark VERBATIM kaip TTS atsakymą.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
-Paieškai — searchListings; jei 0 rezultatų — registerWanted.
+Paieškai — searchListings + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu — tik „Atidarau skelbimus ekrane." arba „Rezultatų nerasta."; jei 0 rezultatų — registerWanted.
 triggerMicroPayment — C2C Smart Boost ${SMART_BOOST_C2C} €, B2B Smart Boost ${SMART_BOOST_B2B} €, Lead Gen ${B2B_LEAD_PRICE} €. B2B nemokamam verslui gili regiono paklausa — siūlyk Business Pro ${BUSINESS_MONTHLY_PRO} €/mėn (showZeroUiScreen business_dashboard), ne triggerMicroPayment.
 Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
 KETINIMO ATPAŽINIMAS: „noriu kelti skelbimą“ / parduoti → navigate_view(add_listing) arba postNewListing. NIEKADA searchListings. Paieškai → search_results.
@@ -747,8 +750,22 @@ async function runVautoAgentInner(req) {
     finalText = paymentCall.result.message;
   }
 
-  if (sideEffect?.type === "search" && sideEffect.proactiveMessage) {
-    finalText = sideEffect.proactiveMessage;
+  const searchSideEffect = sideEffect?.type === "search" ? sideEffect : undefined;
+  const emptySearchSideEffect =
+    sideEffect?.type === "empty_search" ? sideEffect : undefined;
+  const searchToolCall = toolCalls.find((t) => t.name === "searchListings");
+  const searchToolCount =
+    searchToolCall?.result &&
+    typeof searchToolCall.result === "object" &&
+    "count" in searchToolCall.result
+      ? Number(searchToolCall.result.count)
+      : searchSideEffect?.listingIds?.length ?? 0;
+
+  if (searchToolCall || searchSideEffect || emptySearchSideEffect) {
+    finalText =
+      searchToolCount > 0 || searchSideEffect
+        ? STATE_SEARCH_REPLY
+        : STATE_EMPTY_SEARCH_REPLY;
   }
 
   if (!finalText || !finalText.trim()) {

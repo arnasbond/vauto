@@ -38,6 +38,7 @@ import {
   isValidAiExtracted,
   logAiSafeguard,
   MANUAL_FALLBACK_TOAST,
+  VISION_RECOGNITION_FAILED_MESSAGE,
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
@@ -216,7 +217,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         } else if (reason === "invalid_extraction") {
           notifyAgentError("ai_invalid", "Nepavyko automatiškai atpažinti turinio");
         }
-        showToast(MANUAL_FALLBACK_TOAST, "info");
+        const fallbackToast =
+          mode === "upload"
+            ? VISION_RECOGNITION_FAILED_MESSAGE
+            : MANUAL_FALLBACK_TOAST;
+        showToast(fallbackToast, "info");
         setAiManualFallback(true);
         setAiDraft(
           createManualFallbackDraft({

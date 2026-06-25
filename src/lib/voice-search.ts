@@ -84,7 +84,7 @@ export function startVoiceSearch(
   let active = true;
   let resolved = false;
   let rec: InstanceType<SpeechRecognitionCtor> | null = null;
-  let committed = "";
+  let committedFinal = "";
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let maxTimer: ReturnType<typeof setTimeout> | null = null;
   let restartTimer: ReturnType<typeof setTimeout> | null = null;
@@ -119,11 +119,11 @@ export function startVoiceSearch(
   });
 
   const scheduleSilenceStop = () => {
-    if (!committed.trim()) return;
+    if (!committedFinal.trim()) return;
     if (silenceTimer) clearTimeout(silenceTimer);
     silenceTimer = setTimeout(() => {
-      if (active && committed.trim())
-        finish(sanitizeSpeechTranscript(committed.trim()) || null);
+      if (active && committedFinal.trim())
+        finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
     }, silenceMs);
   };
 
@@ -142,10 +142,17 @@ export function startVoiceSearch(
     };
 
     instance.onresult = (event) => {
-      const { final, combined } = rebuildSpeechTranscript(event);
-      committed = final;
-      if (combined) onInterim?.(combined);
-      if (final || combined) scheduleSilenceStop();
+      const { final, interim } = rebuildSpeechTranscript(event);
+      if (final) {
+        committedFinal = sanitizeSpeechTranscript(
+          `${committedFinal} ${final}`.trim()
+        );
+      }
+      const display = sanitizeSpeechTranscript(
+        interim ? `${committedFinal} ${interim}`.trim() : committedFinal
+      );
+      if (display) onInterim?.(display);
+      if (final) scheduleSilenceStop();
     };
 
     instance.onerror = (ev) => {
@@ -155,7 +162,7 @@ export function startVoiceSearch(
 
     instance.onend = () => {
       if (!active || resolved) return;
-      if (committed.trim()) {
+      if (committedFinal.trim()) {
         scheduleSilenceStop();
         return;
       }
@@ -174,7 +181,7 @@ export function startVoiceSearch(
 
   rec = bindRecognition();
   maxTimer = setTimeout(() => {
-    finish(sanitizeSpeechTranscript(committed.trim()) || null);
+    finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
   }, maxMs);
 
   try {
@@ -185,7 +192,7 @@ export function startVoiceSearch(
 
   const stop = () => {
     if (resolved) return;
-    finish(sanitizeSpeechTranscript(committed.trim()) || null);
+    finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
   };
 
   const cancel = () => {

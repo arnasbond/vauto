@@ -105,10 +105,12 @@ PARDAVIMO VEDLYS:
 - Prieš publikavimą paklausk: „Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?"
 - Jei vartotojas neprisijungęs (isAuthenticated=false) — pasiūlyk: „Sukurkime nemokamą paskyrą vienu spustelėjimu, kad galėtumėte sekti peržiūras ir žinutes."
 
-PAIEŠKA:
-- Ieškant prekės — searchListings su tinkamais parametrais.
+PAIEŠKA (MARKTPLAATS UX — PRIVALOMA):
+- Kai vartotojas ieško („parodyk visus skelbimus“, „ieškau Volvo“ ir pan.) — VISADA iškviesk searchListings ir showZeroUiScreen(marketplace).
+- NIEKADA neišvardink skelbimų tekstu pokalbyje: jokių pavadinimų, kainų, numeruotų sąrašų ar aprašymų. Rezultatai rodomi TIK UI tinklelyje su nuotraukomis.
+- Atsakyme naudok tik vieną trumpą frazę: „Atidarau skelbimus ekrane." arba „Rezultatų nerasta."
 - ${LT_LOCATION_AGENT_HINT}
-- Jei rezultatų 0 — parašyk: „Šiuo metu tokios prekės neturime. Spustelkite žemiau esantį mygtuką 'Įtraukti į pageidavimų sąrašą' – aš stebėsiu rinką ir informuosiu jus tiesiogiai, kai tik atsiras toks skelbimas." ir iškviesk registerWanted.
+- Jei rezultatų 0 — iškviesk registerWanted ir trumpai pasiūlyk pageidavimų sąrašą (be sąrašo teksto).
 
 PARDAVIMO BALSO DIALOGAS:
 - Kai postNewListing grąžina voiceFollowUp — ištark jį VERBATIM kaip TTS atsakymą (pvz. „AI užpildė markę ir modelį. Kokiais metais pagamintas jūsų automobilis ir kokia būtų kaina?").
@@ -133,6 +135,9 @@ Būk glaustas, profesionalus, šiltas, be emoji. Visada atsakyk lietuviškai.`;
 
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
+
+const STATE_SEARCH_REPLY = "Atidarau skelbimus ekrane.";
+const STATE_EMPTY_SEARCH_REPLY = "Rezultatų nerasta.";
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 const MAX_TOOL_ROUNDS = 5;
@@ -402,8 +407,21 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
 
   const searchSideEffect =
     sideEffect?.type === "search" ? sideEffect : undefined;
-  if (searchSideEffect?.proactiveMessage) {
-    finalText = searchSideEffect.proactiveMessage;
+  const emptySearchSideEffect =
+    sideEffect?.type === "empty_search" ? sideEffect : undefined;
+  const searchToolCall = toolCalls.find((t) => t.name === "searchListings");
+  const searchToolCount =
+    searchToolCall?.result &&
+    typeof searchToolCall.result === "object" &&
+    "count" in searchToolCall.result
+      ? Number((searchToolCall.result as { count?: number }).count)
+      : searchSideEffect?.listingIds?.length ?? 0;
+
+  if (searchToolCall || searchSideEffect || emptySearchSideEffect) {
+    finalText =
+      searchToolCount > 0 || searchSideEffect
+        ? STATE_SEARCH_REPLY
+        : STATE_EMPTY_SEARCH_REPLY;
   }
 
   if (!finalText) {

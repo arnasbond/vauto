@@ -5,9 +5,9 @@ import { useCallback, useEffect, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
-  SMART_BOOST_C2C,
   SMART_BOOST_B2B,
   VOICE_PAY_CONFIRM_PHRASE,
+  normalizeMicroPaymentIntent,
   type ZeroUiMicroPaymentIntent,
 } from "@/lib/monetization-engine";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
@@ -38,32 +38,35 @@ export function ZeroUiPaymentGate({
   const { user, updateUser, showToast } = useVauto();
   const [step, setStep] = useState<GateStep>("confirm");
   const [recording, setRecording] = useState(false);
+  const resolvedIntent = normalizeMicroPaymentIntent(intent, user);
   const walletBalance = user.walletBalance ?? 0;
-  const canUseWallet = walletBalance >= intent.price;
-  const confirmPhrase = intent.voiceConfirmPhrase ?? VOICE_PAY_CONFIRM_PHRASE;
+  const canUseWallet = walletBalance >= resolvedIntent.price;
+  const confirmPhrase = resolvedIntent.voiceConfirmPhrase ?? VOICE_PAY_CONFIRM_PHRASE;
+  const isSmartBoost = resolvedIntent.product === "smart_boost";
+  const isB2bBoost = isSmartBoost && resolvedIntent.price === SMART_BOOST_B2B;
 
   useEffect(() => {
     speakBuddyMessage(
-      `${productTitle(intent.product)} — ${intent.price.toFixed(2)} €. Pasakykite „${confirmPhrase}“ arba patvirtinkite ekrane.`,
+      `${productTitle(resolvedIntent.product)} — ${resolvedIntent.price.toFixed(2)} €. Pasakykite „${confirmPhrase}“ arba patvirtinkite ekrane.`,
       { enabled: true }
     );
     return () => stopBuddySpeech();
-  }, [intent.price, intent.product, confirmPhrase]);
+  }, [resolvedIntent.price, resolvedIntent.product, confirmPhrase]);
 
   const completePayment = useCallback(() => {
     setStep("paying");
     window.setTimeout(() => {
       const balance = user.walletBalance ?? 0;
       if (canUseWallet) {
-        updateUser({ walletBalance: balance - intent.price });
+        updateUser({ walletBalance: balance - resolvedIntent.price });
       }
       setStep("success");
-      showToast(`${productTitle(intent.product)} aktyvuotas`, "success");
+      showToast(`${productTitle(resolvedIntent.product)} aktyvuotas`, "success");
       window.setTimeout(() => {
         onSuccess();
       }, 1200);
     }, 900);
-  }, [canUseWallet, intent.price, intent.product, onSuccess, showToast, updateUser, user.walletBalance]);
+  }, [canUseWallet, resolvedIntent.price, resolvedIntent.product, onSuccess, showToast, updateUser, user.walletBalance]);
 
   const handleVoiceConfirm = () => {
     if (!isVoiceSearchSupported() || recording) return;
@@ -102,7 +105,7 @@ export function ZeroUiPaymentGate({
               <div className="flex items-center gap-2">
                 <Sparkles className="h-5 w-5 text-[var(--vauto-teal)]" />
                 <h3 className="font-display text-lg font-bold text-[#111827]">
-                  {productTitle(intent.product)}
+                  {productTitle(resolvedIntent.product)}
                 </h3>
               </div>
               <button
@@ -115,18 +118,16 @@ export function ZeroUiPaymentGate({
               </button>
             </div>
 
-            <p className="text-sm leading-relaxed text-[#374151]">{intent.reason}</p>
+            <p className="text-sm leading-relaxed text-[#374151]">{resolvedIntent.reason}</p>
 
             <div className="mt-4 rounded-xl border border-[#dbeafe] bg-[#f8fafc] px-4 py-3">
               <p className="text-xs uppercase tracking-wide text-[#6b7280]">Suma</p>
               <p className="font-display text-2xl font-bold text-[#1167b1]">
-                {intent.price.toFixed(2)} €
+                {resolvedIntent.price.toFixed(2)} €
               </p>
-              {(intent.product === "smart_boost" &&
-                (intent.price === SMART_BOOST_C2C ||
-                  intent.price === SMART_BOOST_B2B)) && (
+              {isSmartBoost && (
                 <p className="mt-1 text-xs text-[#6b7280]">
-                  {intent.price === SMART_BOOST_B2B
+                  {isB2bBoost
                     ? "Verslo Smart Boost — apgalvotas matomumas, apsauga nuo dirbtinės konkurencijos (7 d.)"
                     : "Padidina skelbimo matomumą 7 dienoms"}
                 </p>
@@ -182,7 +183,7 @@ export function ZeroUiPaymentGate({
         {step === "success" && (
           <div className="py-10 text-center">
             <p className="font-display text-lg font-bold text-emerald-600">Mokėjimas patvirtintas</p>
-            <p className="mt-2 text-sm text-[#6b7280]">{productTitle(intent.product)} aktyvuotas</p>
+            <p className="mt-2 text-sm text-[#6b7280]">{productTitle(resolvedIntent.product)} aktyvuotas</p>
           </div>
         )}
       </div>

@@ -62,6 +62,20 @@ export function resolveClientMonetizationState(
   };
 }
 
+export function resolveSmartBoostPrice(user: UserProfile): number {
+  return resolveMonetizationAudience(user) === "b2b"
+    ? SMART_BOOST_B2B
+    : SMART_BOOST_C2C;
+}
+
+export function normalizeMicroPaymentIntent(
+  intent: ZeroUiMicroPaymentIntent,
+  user: UserProfile
+): ZeroUiMicroPaymentIntent {
+  if (intent.product !== "smart_boost") return intent;
+  return { ...intent, price: resolveSmartBoostPrice(user) };
+}
+
 export function microPaymentFromToolResult(result: unknown): ZeroUiMicroPaymentIntent | null {
   if (!result || typeof result !== "object") return null;
   const r = result as Record<string, unknown>;

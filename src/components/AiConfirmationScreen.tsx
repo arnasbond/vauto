@@ -37,6 +37,7 @@ export function AiConfirmationScreen({
     cancelSellerFlow,
     requestMediaConsent,
     showToast,
+    submitSellerContent,
   } = useVauto();
 
   useEffect(() => {
@@ -95,6 +96,7 @@ export function AiConfirmationScreen({
         onUpdate={updateAiDraft}
         onAttributeChange={handleAttributeChange}
         onMediaChange={updateSellerMedia}
+        onPhotoCaptured={(dataUrl) => submitSellerContent({ imageDataUrl: dataUrl })}
         requestMediaConsent={requestMediaConsent}
         onCancel={cancelSellerFlow}
         onPublish={publishListing}

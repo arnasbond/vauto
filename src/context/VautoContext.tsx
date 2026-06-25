@@ -167,6 +167,10 @@ interface VautoContextValue {
   savedIds: Set<string>;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
+  /** Agent searchListings() result order — drives listing grid without chat text */
+  agentPinnedListingIds: string[] | null;
+  setAgentPinnedListings: (ids: string[] | null) => void;
+  clearAgentPinnedListings: () => void;
   activeFilterIds: Set<string>;
   toggleFilter: (id: string) => void;
   rankedListings: ReturnType<typeof rankListings>;
@@ -479,10 +483,19 @@ function VautoFacade({
       results = portalRankedListings(q, results);
     }
 
+    if (catalog.agentPinnedListingIds?.length) {
+      const byId = new Map(results.map((l) => [l.id, l]));
+      const pinned = catalog.agentPinnedListingIds
+        .map((id) => byId.get(id))
+        .filter((l): l is (typeof results)[number] => Boolean(l));
+      if (pinned.length) results = pinned;
+    }
+
     return results;
   }, [
     visibleListings,
     catalog.searchQuery,
+    catalog.agentPinnedListingIds,
     catalog.activeFilterIds,
     catalog.dynamicFilters,
     catalog.visualSearchProfile,
@@ -567,6 +580,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [agentPinnedListingIds, setAgentPinnedListingIds] = useState<
+    string[] | null
+  >(null);
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set()
   );
@@ -905,10 +921,19 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     ]
   );
 
+  const setAgentPinnedListings = useCallback((ids: string[] | null) => {
+    setAgentPinnedListingIds(ids?.length ? ids : null);
+  }, []);
+
+  const clearAgentPinnedListings = useCallback(() => {
+    setAgentPinnedListingIds(null);
+  }, []);
+
   const handleSearchQuery = useCallback(
     (q: string) => {
       const clean = sanitizeSearchQuery(q);
       setSearchQuery(clean);
+      setAgentPinnedListingIds(null);
       if (clean.length >= 2) {
         setSearchIntentEvents((prev) => recordSearchIntent(prev, clean));
       }
@@ -1460,6 +1485,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       savedIds,
       searchQuery,
       setSearchQuery: handleSearchQuery,
+      agentPinnedListingIds,
+      setAgentPinnedListings,
+      clearAgentPinnedListings,
       activeFilterIds,
       toggleFilter,
       dynamicFilters,
@@ -1534,6 +1562,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       savedIds,
       searchQuery,
       handleSearchQuery,
+      agentPinnedListingIds,
+      setAgentPinnedListings,
+      clearAgentPinnedListings,
       activeFilterIds,
       toggleFilter,
       dynamicFilters,

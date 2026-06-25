@@ -16,6 +16,10 @@ export const AI_MOCK_TIMEOUT_MS = 5000;
 export const MANUAL_FALLBACK_TOAST =
   "Atsiprašome, nepavyko automatiškai suprasti įrašo. Užpildykime trumpą formą rankiniu būdu.";
 
+/** Marktplaats-style vision failure — shown before manual category/brand fields */
+export const VISION_RECOGNITION_FAILED_MESSAGE =
+  "Nepavyko automatiškai atpažinti nuotraukos";
+
 /** Titles returned when vision AI is unavailable — must not pass as valid extraction */
 export const DEMO_AI_PLACEHOLDER_TITLES = new Set([
   "prekė nuotraukoje",
