@@ -70,7 +70,7 @@ function parseFastSearchParams(text: string) {
   if (/\b(volvo|bmw|audi|vw|toyota|mercedes|ford|opel|auto|automob)\b/i.test(q)) {
     category = "vehicles";
   }
-  return { query: q, category, cityNominative, limit: 12 };
+  return { query: q, category, cityNominative, limit: 100 };
 }
 
 export async function tryFastAgentSearchPath(

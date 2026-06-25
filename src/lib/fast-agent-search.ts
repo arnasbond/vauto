@@ -3,6 +3,8 @@ import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { VEHICLE_BRAND_PATTERN } from "@/lib/vehicle-keywords";
 
+export const DEMO_CATALOG_LIMIT = 100;
+
 export interface FastSearchParams {
   query: string;
   category?: string;
@@ -21,6 +23,9 @@ const SEARCH_PREFIX =
 
 const SKIP_FAST =
   /\b(admin|moderuoti|blokiruoti|boost|apmokėti|apmoketi|iškel|iskel|trigger|business\s+pro|dashboard|statistika)\b/i;
+
+const BROWSE_ALL =
+  /\b(visus?\s+skelbimus?|visi\s+skelbimai|parodyk\s+viską|parodyk\s+viska|rodyti\s+visus|show\s+all)\b/i;
 
 const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
   [/vilniuje|vilnius/i, "Vilnius"],
@@ -92,6 +97,15 @@ export function parseFastSearchParams(text: string): FastSearchParams | null {
     }
   }
 
+  if (BROWSE_ALL.test(text)) {
+    return {
+      query: "",
+      category: detectCategory(working),
+      cityNominative,
+      limit: DEMO_CATALOG_LIMIT,
+    };
+  }
+
   const query = stripSearchPrefixes(working);
   if (query.length < 2) return null;
 
@@ -99,7 +113,7 @@ export function parseFastSearchParams(text: string): FastSearchParams | null {
     query: query.toLowerCase(),
     category: detectCategory(query),
     cityNominative,
-    limit: 12,
+    limit: DEMO_CATALOG_LIMIT,
   };
 }
 

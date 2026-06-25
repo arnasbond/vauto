@@ -485,19 +485,10 @@ function VautoFacade({
       results = portalRankedListings(q, results);
     }
 
-    if (catalog.agentPinnedListingIds?.length) {
-      const byId = new Map(results.map((l) => [l.id, l]));
-      const pinned = catalog.agentPinnedListingIds
-        .map((id) => byId.get(id))
-        .filter((l): l is (typeof results)[number] => Boolean(l));
-      if (pinned.length) results = pinned;
-    }
-
     return results;
   }, [
     visibleListings,
     catalog.searchQuery,
-    catalog.agentPinnedListingIds,
     catalog.activeFilterIds,
     catalog.dynamicFilters,
     catalog.visualSearchProfile,
@@ -730,6 +721,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       if (clean) setSearchQuery(clean);
     }
   }, [hydrated]);
+
+  useEffect(() => {
+    if (!searchQuery.trim()) {
+      setAgentPinnedListingIds(null);
+    }
+  }, [searchQuery]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;

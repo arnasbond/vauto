@@ -122,7 +122,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
-        setAgentPinnedListings(actions.listingIds);
+        clearAgentPinnedListings();
         const nextFilters = filtersFromSearchAction(actions);
         if (actions.filtersReset) {
           clearSearchFilters();
@@ -130,7 +130,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (nextFilters) recordSearchFilters(nextFilters);
         showToast(
           actions.listingIds.length
-            ? `Atidarau ${actions.listingIds.length} skelbimų`
+            ? `Rasta ${actions.listingIds.length} skelbimų`
             : "Rezultatų nerasta",
           actions.listingIds.length ? "success" : "info"
         );
@@ -220,7 +220,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       recordSearchFilters,
       clearSearchFilters,
       openMicroPayment,
-      setAgentPinnedListings,
       clearAgentPinnedListings,
       clearVisualSearch,
     ]

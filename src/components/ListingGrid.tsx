@@ -286,7 +286,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         {searchQuery ? (
           <>{portal.portalName}: {rankedListings.length} rezultatų</>
         ) : (
-          <>Populiariausi Lietuvoje</>
+          <>Skelbimai Lietuvoje ({rankedListings.length})</>
         )}
       </h2>
 
