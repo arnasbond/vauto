@@ -175,7 +175,7 @@ async function main() {
 
   const deploy = await api(`/services/${SERVICE_ID}/deploys`, {
     method: "POST",
-    body: JSON.stringify({ clearCache: "do_not_clear" }),
+    body: JSON.stringify({ clearCache: "clear" }),
   });
   const d = deploy?.deploy || deploy;
   if (d?.id) {

@@ -59,13 +59,18 @@ jobs:
 
       - name: Smoke test analyze-search
         run: |
-          RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/ai/analyze-search" \
-            -H "Content-Type: application/json" \
-            -d '{"query":"kas parduoda rubus","userCity":"Vilnius"}')
-          CODE=$(echo "$RESP" | tail -1)
-          BODY=$(echo "$RESP" | sed '$d')
-          echo "analyze-search HTTP $CODE: $BODY"
-          if [ "$CODE" != "200" ]; then
-            echo "analyze-search failed"
-            exit 1
-          fi
+          for i in $(seq 1 30); do
+            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/ai/analyze-search" \
+              -H "Content-Type: application/json" \
+              -d '{"query":"kas parduoda rubus","userCity":"Vilnius"}')
+            CODE=$(echo "$RESP" | tail -1)
+            BODY=$(echo "$RESP" | sed '$d')
+            echo "analyze-search HTTP $CODE: ${BODY:0:200}"
+            if [ "$CODE" = "200" ]; then
+              exit 0
+            fi
+            echo "Attempt $i/30 — waiting for deploy…"
+            sleep 20
+          done
+          echo "analyze-search failed after retries"
+          exit 1

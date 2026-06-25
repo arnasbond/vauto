@@ -11,6 +11,9 @@ const args = process.argv.slice(2).filter((a) => !a.startsWith("--"));
 const strictReadiness =
   process.argv.includes("--strict-readiness") ||
   process.env.STRICT_READINESS === "1";
+const strictAnalyzeSearch =
+  process.argv.includes("--strict-analyze-search") ||
+  process.env.STRICT_ANALYZE_SEARCH === "1";
 
 const base =
   args[0]?.replace(/\/$/, "") ||
@@ -63,10 +66,14 @@ async function main() {
   }
 
   await checkAiEndpoints(base);
-  await checkAnalyzeSearch(base);
+  const analyzeOk = await checkAnalyzeSearch(base);
+  if (strictAnalyzeSearch && !analyzeOk) {
+    console.error("analyze-search check FAILED (strict mode)");
+    process.exit(1);
+  }
 }
 
-async function checkAnalyzeSearch(base: string) {
+async function checkAnalyzeSearch(base) {
   const url = `${base}/api/ai/analyze-search`;
   try {
     const res = await fetch(url, {
@@ -78,11 +85,13 @@ async function checkAnalyzeSearch(base: string) {
     const body = await res.json().catch(() => ({}));
     if (res.ok && body?.cleanQuery) {
       console.log(`analyze-search OK: category=${body.category} cleanQuery=${body.cleanQuery}`);
-      return;
+      return true;
     }
     console.warn(`analyze-search: HTTP ${res.status}`, JSON.stringify(body).slice(0, 200));
+    return false;
   } catch (e) {
     console.warn("analyze-search unreachable:", e.message ?? e);
+    return false;
   }
 }
 

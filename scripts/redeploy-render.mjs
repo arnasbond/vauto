@@ -86,15 +86,39 @@ async function findService() {
   );
 }
 
+async function waitForDeploy(serviceId, deployId, maxMinutes = 18) {
+  const deadline = Date.now() + maxMinutes * 60_000;
+  while (Date.now() < deadline) {
+    const row = await api(`/services/${serviceId}/deploys/${deployId}`);
+    const d = row?.deploy || row;
+    const status = d?.status ?? "unknown";
+    console.log(`Deploy ${deployId}: ${status}`);
+    if (status === "live") return d;
+    if (
+      ["build_failed", "update_failed", "canceled", "deactivated"].includes(
+        status
+      )
+    ) {
+      throw new Error(`Deploy failed: ${status}`);
+    }
+    await new Promise((r) => setTimeout(r, 15_000));
+  }
+  throw new Error(`Deploy ${deployId} timed out after ${maxMinutes}m`);
+}
+
 async function main() {
   const svc = await findService();
   console.log(`Deploying ${svc.name} (${svc.id})…`);
   const deploy = await api(`/services/${svc.id}/deploys`, {
     method: "POST",
-    body: JSON.stringify({ clearCache: "do_not_clear" }),
+    body: JSON.stringify({ clearCache: "clear" }),
   });
   const d = deploy.deploy || deploy;
   console.log(`Deploy triggered: ${d.id} status=${d.status}`);
+  if (d?.id) {
+    await waitForDeploy(svc.id, d.id);
+    console.log("Deploy is live");
+  }
 }
 
 main().catch((e) => {
