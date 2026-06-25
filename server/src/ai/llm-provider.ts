@@ -82,20 +82,20 @@ async function geminiChatJson(
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       contents,
-      generationConfig: {
-        responseMimeType: "application/json",
-        temperature: 0.2,
-      },
+      generationConfig: { temperature: 0.2 },
     }),
   });
 
-  if (!res.ok && (res.status === 403 || res.status === 400)) {
+  if (!res.ok) {
     res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         contents,
-        generationConfig: { temperature: 0.2 },
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.2,
+        },
       }),
     });
   }
