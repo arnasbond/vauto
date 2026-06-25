@@ -37,6 +37,17 @@ export function parseViewModeIntent(text: string): MarketplaceViewMode | null {
   return null;
 }
 
+/** Pure view switch without a product search (e.g. „parodyk žemėlapyje“). */
+export function isViewModeOnlyCommand(text: string): boolean {
+  const viewIntent = parseViewModeIntent(text);
+  if (!viewIntent) return false;
+  const t = text.trim();
+  if (!/^(parodyk|rodyti|perjunk)\b/i.test(t)) return false;
+  return !/\b(ieškau|ieskau|rask|surask|volvo|bmw|audi|vw|toyota|mercedes|iphone|butas|darbas)\b/i.test(
+    t
+  );
+}
+
 function normLoc(value: string): string {
   return value
     .toLowerCase()

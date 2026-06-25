@@ -191,4 +191,21 @@ test.describe("Vauto smoke", () => {
       timeout: 10_000,
     });
   });
+
+  test("voice-style view mode switches to map", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    const search = page.getByRole("searchbox").first();
+    await search.fill("parodyk žemėlapyje");
+    await search.press("Enter");
+    await expect(results.getByRole("button", { name: "Žemėlapis" })).toHaveAttribute(
+      "aria-pressed",
+      "true",
+      { timeout: 10_000 }
+    );
+    await expect(results.getByText(/skelbimų žemėlapyje/i)).toBeVisible({
+      timeout: 15_000,
+    });
+  });
 });

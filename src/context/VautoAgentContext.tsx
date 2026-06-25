@@ -42,7 +42,7 @@ import {
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
-import { parseViewModeIntent } from "@/lib/marketplace-view";
+import { parseViewModeIntent, isViewModeOnlyCommand } from "@/lib/marketplace-view";
 import type { ListingCategory } from "@/lib/types";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 
@@ -277,7 +277,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const viewIntent = parseViewModeIntent(trimmed);
       if (viewIntent) {
         setViewMode(viewIntent);
-        if (/^(parodyk|rodyti|perjunk)\b/i.test(trimmed) && !/\b(ieškau|ieskau|rask|volvo|bmw|audi)\b/i.test(trimmed)) {
+        if (isViewModeOnlyCommand(trimmed)) {
           setMessages((prev) => [
             ...prev,
             {

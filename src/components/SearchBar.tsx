@@ -14,7 +14,7 @@ import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
-import { parseViewModeIntent } from "@/lib/marketplace-view";
+import { parseViewModeIntent, isViewModeOnlyCommand } from "@/lib/marketplace-view";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -81,6 +81,13 @@ export function SearchBar() {
 
     const viewIntent = parseViewModeIntent(q);
     if (viewIntent) setViewMode(viewIntent);
+
+    if (isViewModeOnlyCommand(q)) {
+      setAgentPinnedListings(null);
+      scrollToResults();
+      inputRef.current?.blur();
+      return;
+    }
 
     const fast = runFastAgentSearch(q, listings);
     if (fast) {

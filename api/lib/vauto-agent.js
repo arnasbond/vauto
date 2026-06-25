@@ -257,7 +257,6 @@ function executeAgentTool(name, args, ctx) {
     const cityRaw = args.city ? String(args.city).trim() : "";
     const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
     const city = cityNominative ? normCity(cityNominative) : "";
-    const limit = Math.min(Number(args.limit) || 100, 100);
 
     let filtered = listings.filter((l) => l.price > 0);
     if (category) filtered = filtered.filter((l) => l.category === category);
@@ -277,6 +276,9 @@ function executeAgentTool(name, args, ctx) {
         return hits >= Math.max(1, Math.ceil(tokens.length * 0.34));
       });
     }
+    const limitRaw = Number(args.limit);
+    const limit =
+      Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : filtered.length;
     const results = filtered.slice(0, limit);
     const searchQuery = [query, category, cityNominative].filter(Boolean).join(" ").trim();
     const searchFilters = {
@@ -651,7 +653,7 @@ function tryFastAgentSearchPath(text, ctx) {
 
   const { result, sideEffect } = executeAgentTool(
     "searchListings",
-    { query, category, city: cityNominative, limit: 100 },
+    { query, category, city: cityNominative },
     ctx
   );
   const count = result?.count ?? 0;

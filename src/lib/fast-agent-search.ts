@@ -1,6 +1,7 @@
 import type { Listing } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { isViewModeOnlyCommand } from "@/lib/marketplace-view";
 import { VEHICLE_BRAND_PATTERN } from "@/lib/vehicle-keywords";
 
 /** 0 = no slice — process full catalog dynamically */
@@ -83,6 +84,7 @@ function detectCategory(query: string): string | undefined {
 export function canUseFastSearch(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 140) return false;
+  if (isViewModeOnlyCommand(t)) return false;
   if (detectSellerListingIntent(t)) return false;
   if (SKIP_FAST.test(t)) return false;
   if ((t.match(/\?/g) ?? []).length > 1) return false;
