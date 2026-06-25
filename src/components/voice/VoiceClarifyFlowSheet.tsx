@@ -12,6 +12,7 @@ import {
   type VoiceIntentTurn,
 } from "@/lib/voice-intent";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
+import { detectSellerListingIntent, isBuyerSearchIntent } from "@/lib/scoring";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import {
   isVoiceSearchSupported,
@@ -63,10 +64,11 @@ function resolveIntentKind(
   mode: "search" | "listing"
 ): ZeroUiIntentKind {
   if (result.needsClarification) return "clarify";
+  if (isBuyerSearchIntent(result.mergedTranscript)) return "search";
   if (
     result.intent === "sell" ||
     mode === "listing" ||
-    /\bparduod|įdėti\s+skelb|kelti\s+skelb|skelbt/i.test(result.mergedTranscript)
+    detectSellerListingIntent(result.mergedTranscript)
   ) {
     return "listing";
   }
@@ -197,11 +199,10 @@ export function VoiceClarifyFlowSheet({
       setAnalysis(result);
 
       const isListing =
-        result.intent === "sell" ||
-        mode === "listing" ||
-        /\bparduod|įdėti\s+skelb|kelti\s+skelb|skelbt/i.test(
-          result.mergedTranscript
-        );
+        !isBuyerSearchIntent(result.mergedTranscript) &&
+        (result.intent === "sell" ||
+          mode === "listing" ||
+          detectSellerListingIntent(result.mergedTranscript));
 
       if (isListing) {
         setStep("confirm");

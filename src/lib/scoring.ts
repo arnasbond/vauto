@@ -454,14 +454,39 @@ export function detectPurchaseIntent(text: string): boolean {
   return keywords.some((kw) => lower.includes(kw));
 }
 
+/** Buyer wants to find listings — must never open seller upload flow */
+export function isBuyerSearchIntent(text: string): boolean {
+  const q = text.toLowerCase().trim();
+  if (!q) return false;
+
+  const buyerPatterns = [
+    /\bkas\s+parduod/i,
+    /\bgal\s+kas\s+parduod/i,
+    /\bkur\s+(nusipirkti|įsigyti|isigyti|rasti|galima\s+pirkti|pirkti|gauti)/i,
+    /\b(rask|surask|ieškau|ieskau|ieškot|ieskot)\b/i,
+    /\bnoriu\s+pirkti\b/i,
+    /\bnorėčiau\s+pirkti\b/i,
+    /\bnoreciau\s+pirkti\b/i,
+    /\bkas\s+turi\b/i,
+    /\bar\s+(yra|turite|galite\s+parduoti)\b/i,
+    /\bparodyk\b/i,
+    /\brodyti\b/i,
+    /\bpaiešk\w*/i,
+    /\bpaiesk\w*/i,
+  ];
+
+  return buyerPatterns.some((re) => re.test(q));
+}
+
 /** User wants to post a listing (sell, offer job, offer services) — not browse */
 export function detectSellerListingIntent(text: string): boolean {
   const q = text.toLowerCase().trim();
   if (!q) return false;
+  if (isBuyerSearchIntent(q)) return false;
 
   const sellerPatterns = [
-    /\bparduod\w*\b/,
-    /\bparduot\w*\b/,
+    /\bparduodu\b/,
+    /\bparduosiu\b/,
     /\bnoriu\s+parduot/i,
     /\bįdėti\s+skelb/i,
     /\bideti\s+skelb/i,
@@ -483,6 +508,8 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bkeliu\s+skelb/i,
     /\bnoriu\s+skelbt/i,
     /\bkelti\s+skelb/i,
+    /\bnoriu\s+įkelti\s+skelb/i,
+    /\bnoriu\s+ikelti\s+skelb/i,
   ];
 
   return sellerPatterns.some((re) => re.test(q));

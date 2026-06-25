@@ -1,10 +1,13 @@
 import type { AiExtractedListing } from "@/lib/types";
-import { detectSellerListingIntent } from "@/lib/scoring";
+import { detectSellerListingIntent, isBuyerSearchIntent } from "@/lib/scoring";
+
+export { isBuyerSearchIntent, detectSellerListingIntent } from "@/lib/scoring";
 
 export function isSellIntent(
   text: string,
   extracted?: Pick<AiExtractedListing, "attributes"> | null
 ): boolean {
+  if (isBuyerSearchIntent(text)) return false;
   if (detectSellerListingIntent(text)) return true;
   const intent = String(extracted?.attributes?._intent ?? "").toLowerCase();
   return intent === "sell" || intent === "service";
@@ -14,6 +17,7 @@ export function isSearchIntent(
   text: string,
   extracted?: Pick<AiExtractedListing, "attributes"> | null
 ): boolean {
+  if (isBuyerSearchIntent(text)) return true;
   if (isSellIntent(text, extracted)) return false;
   const intent = String(extracted?.attributes?._intent ?? "").toLowerCase();
   if (intent === "search") return true;

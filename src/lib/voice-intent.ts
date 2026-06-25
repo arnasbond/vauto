@@ -1,6 +1,6 @@
 import { apiAnalyzeVoice } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
-import { detectSellerListingIntent } from "@/lib/scoring";
+import { detectSellerListingIntent, isBuyerSearchIntent } from "@/lib/scoring";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { extractVehicleAttributesFromText } from "@/lib/vehicle-attribute-extract";
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
@@ -51,7 +51,8 @@ function mockAnalyzeVoiceIntent(
     .join(". ");
   const lower = merged.toLowerCase();
   const isListing =
-    mode === "listing" || detectSellerListingIntent(merged);
+    !isBuyerSearchIntent(merged) &&
+    (mode === "listing" || detectSellerListingIntent(merged));
 
   const isPhone = /telefon|iphone|samsung|xiaomi|huawei|mobilus/i.test(lower);
   const isCar = isVehicleQuery(lower);
@@ -175,9 +176,11 @@ export async function analyzeVoiceIntent(params: {
       if (remote && isValidVoiceIntentPayload(remote)) {
         const intent =
           (remote as VoiceIntentAnalysis).intent ??
-          (detectSellerListingIntent(transcript) || params.mode === "listing"
-            ? "sell"
-            : "search");
+          (isBuyerSearchIntent(transcript)
+            ? "search"
+            : detectSellerListingIntent(transcript) || params.mode === "listing"
+              ? "sell"
+              : "search");
         return {
           ...remote,
           intent,

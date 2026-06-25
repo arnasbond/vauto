@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, CheckCircle2, ChevronRight, Circle, Plus, X } from "lucide-react";
+import { Camera, CheckCircle2, ChevronRight, Circle, Plus, Sparkles, X } from "lucide-react";
 import { useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import type { AiExtractedListing } from "@/lib/types";
@@ -27,7 +27,7 @@ import {
 } from "@/lib/listing-form-validation";
 import { isPlaceholderCity } from "@/lib/city-resolve";
 
-const ACCENT = "#43a047";
+const ACCENT = "#1167b1";
 
 interface GeneralListingWizardProps {
   draft: AiExtractedListing;
@@ -49,7 +49,7 @@ function attr(attrs: Record<string, string | string[] | undefined>, key: string)
 
 function FieldStatus({ valid }: { valid: boolean }) {
   return valid ? (
-    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#43a047]" aria-hidden />
+    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
   ) : (
     <Circle className="h-4 w-4 shrink-0 text-[#bdbdbd]" aria-hidden />
   );
@@ -77,7 +77,7 @@ function TogglePair({
             onClick={() => onChange(opt)}
             className={`px-3 py-2 text-sm transition ${
               value === opt
-                ? "bg-[#e8f5e9] font-medium text-[#2e7d32]"
+                ? "bg-[#eef6ff] font-medium text-[#1167b1]"
                 : "bg-white text-[#546e7a] hover:bg-[#f5f5f5]"
             }`}
           >
@@ -185,14 +185,19 @@ export function GeneralListingWizard({
   };
 
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#eceff1)]">
-      <div className="mx-auto min-h-full max-w-2xl pb-10">
-        <div className="flex items-center justify-between border-b border-[#e0e0e0] px-4 py-3">
-          <span className="text-lg font-bold text-[#43a047]">skelbiu.lt</span>
+    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]">
+      <div className="mx-auto min-h-full max-w-2xl bg-[var(--portal-wizard-surface,#fff)] pb-10 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
+          <div className="flex items-center gap-2">
+            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1167b1] text-white">
+              <Sparkles className="h-4 w-4" />
+            </div>
+            <span className="font-display text-lg font-bold text-[#111827]">VAUTO</span>
+          </div>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded p-1 text-[#757575] hover:bg-[#f5f5f5]"
+            className="rounded-lg p-1.5 text-[#6b7280] hover:bg-[#f3f4f6]"
             aria-label="Atšaukti"
           >
             <X className="h-5 w-5" />
@@ -201,7 +206,7 @@ export function GeneralListingWizard({
 
         <div className="px-4 py-5">
           {manualFallback && (
-            <p className="mb-4 rounded border border-[#c8e6c9] bg-[#e8f5e9] px-3 py-2 text-xs text-[#2e7d32]">
+            <p className="mb-4 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2 text-xs text-[#1e40af]">
               AI nepavyko pilnai atpažinti — užpildykite skelbimą ranka.
             </p>
           )}
@@ -215,36 +220,33 @@ export function GeneralListingWizard({
                   if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
                 })
               }
-              className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded border border-[#e0e0e0] bg-[#fafafa] text-xs text-[#757575] hover:border-[#43a047]"
+              className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#d1d5db] bg-[#f9fafb] text-xs text-[#6b7280] transition hover:border-[#1167b1] hover:bg-[#eef6ff]"
             >
               {previewImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewImage} alt="" className="h-full w-full rounded object-cover" />
+                <img src={previewImage} alt="" className="h-full w-full rounded-lg object-cover" />
               ) : (
                 <>
-                  <Camera className="h-8 w-8 text-[#9e9e9e]" />
-                  ĮKELK NUOTRAUKŲ
+                  <Camera className="h-8 w-8 text-[#9ca3af]" />
+                  Pridėti nuotrauką
                 </>
               )}
             </button>
-            <button
-              type="button"
-              onClick={() =>
-                requestMediaConsent(async () => {
-                  const photo = await capturePhoto();
-                  if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-                })
-              }
-              className="flex h-28 w-28 items-center justify-center rounded border border-[#e0e0e0] bg-[#fafafa] hover:border-[#43a047]"
-            >
-              <Plus className="h-10 w-10 text-[#bdbdbd]" />
-            </button>
-            <div className="min-w-[140px] flex-1 text-sm">
-              <button type="button" className="font-medium text-[#43a047] hover:underline">
-                Tvarkyti nuotraukas »
+            {previewImage && (
+              <button
+                type="button"
+                onClick={() =>
+                  requestMediaConsent(async () => {
+                    const photo = await capturePhoto();
+                    if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
+                  })
+                }
+                className="flex h-28 w-28 items-center justify-center rounded-xl border border-[#e5e7eb] bg-[#f9fafb] transition hover:border-[#1167b1]"
+                aria-label="Pridėti dar vieną nuotrauką"
+              >
+                <Plus className="h-10 w-10 text-[#9ca3af]" />
               </button>
-              <p className="mt-1 text-xs text-[#9e9e9e]">Trinti | Keisti vietą | Pasukti</p>
-            </div>
+            )}
           </div>
 
           <SkelbiuField label="Skelbimo antraštė" valid={titleValid}>
@@ -253,7 +255,7 @@ export function GeneralListingWizard({
               value={draft.title}
               onChange={(e) => onUpdate({ title: e.target.value })}
               placeholder="Parduodu…"
-              className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#43a047]"
+              className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]"
             />
           </SkelbiuField>
 
@@ -283,7 +285,7 @@ export function GeneralListingWizard({
                   <button
                     type="button"
                     onClick={() => setCategoryPath((p) => p.slice(0, -1))}
-                    className="text-[#43a047] hover:underline"
+                    className="text-[#1167b1] hover:underline"
                   >
                     ← Atgal
                   </button>
@@ -312,7 +314,7 @@ export function GeneralListingWizard({
               value={draft.description ?? ""}
               onChange={(e) => onUpdate({ description: e.target.value })}
               placeholder="Viskas komplekte"
-              className="w-full resize-none border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#43a047]"
+              className="w-full resize-none border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]"
             />
           </SkelbiuField>
 
@@ -329,7 +331,7 @@ export function GeneralListingWizard({
               min={0}
               value={draft.price > 0 ? draft.price : ""}
               onChange={(e) => onUpdate({ price: Number(e.target.value) || 0 })}
-              className="w-full max-w-xs border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#43a047]"
+              className="w-full max-w-xs border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]"
             />
           </SkelbiuField>
 
@@ -371,7 +373,7 @@ export function GeneralListingWizard({
                   onUpdate({ contact: sanitizeListingPhoneInput(e.target.value) })
                 }
                 placeholder="+370 600 00000"
-                className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#43a047]"
+                className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]"
               />
               <label className="mt-2 flex items-center gap-2 text-sm text-[#546e7a]">
                 <input
@@ -380,7 +382,7 @@ export function GeneralListingWizard({
                   onChange={(e) =>
                     onAttributeChange("hidePhone", e.target.checked ? "true" : "false")
                   }
-                  className="accent-[#43a047]"
+                  className="accent-[#1167b1]"
                 />
                 Nerodyti telefono numerio skelbime
               </label>
@@ -402,12 +404,12 @@ export function GeneralListingWizard({
               type="checkbox"
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
-              className="mt-0.5 accent-[#43a047]"
+              className="mt-0.5 accent-[#1167b1]"
             />
             <span>
               Sutinku su{" "}
-              <span className="text-[#43a047]">Skelbiu.lt taisyklėmis</span> ir{" "}
-              <span className="text-[#43a047]">privatumo politika</span>.
+              <span className="text-[#1167b1]">VAUTO taisyklėmis</span> ir{" "}
+              <span className="text-[#1167b1]">privatumo politika</span>.
             </span>
           </label>
 
@@ -424,7 +426,7 @@ export function GeneralListingWizard({
           <button
             type="button"
             onClick={handleSaveDraft}
-            className="w-full rounded-full border-2 border-[#43a047] py-3 text-base font-semibold text-[#43a047]"
+            className="w-full rounded-full border-2 border-[#1167b1] py-3 text-base font-semibold text-[#1167b1]"
           >
             Išsaugoti ruošinį
           </button>
