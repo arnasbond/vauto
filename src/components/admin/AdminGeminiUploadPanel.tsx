@@ -5,9 +5,17 @@ import { MAX_ADMIN_PROJECT_CONTEXT_CHARS } from "@/lib/admin-agent-context";
 import { useAdminProjectContext } from "@/context/AdminProjectContext";
 import { useVauto } from "@/context/VautoContext";
 
-export const ADMIN_GEMINI_BUILD = "2026-06-24-gemini-v2";
+export const ADMIN_GEMINI_BUILD = "2026-06-24-gemini-v3";
 
-export function AdminGeminiUploadPanel({ compact = false }: { compact?: boolean }) {
+const GEMINI_COLLAPSED_STORAGE_KEY = "vauto_admin_gemini_collapsed_v1";
+
+export function AdminGeminiUploadPanel({
+  compact = false,
+  onSaved,
+}: {
+  compact?: boolean;
+  onSaved?: () => void;
+}) {
   const { showToast, isAdmin } = useVauto();
   const ctx = useAdminProjectContext();
 
@@ -17,6 +25,12 @@ export function AdminGeminiUploadPanel({ compact = false }: { compact?: boolean 
   const handleSave = async () => {
     if (!ctx) return;
     const ok = await ctx.saveContext();
+    if (ok) {
+      onSaved?.();
+      if (typeof window !== "undefined") {
+        sessionStorage.setItem(GEMINI_COLLAPSED_STORAGE_KEY, "1");
+      }
+    }
     showToast(
       ok
         ? "Gemini kontekstas išsaugotas — bus siunčiamas su jūsų žinutėmis."

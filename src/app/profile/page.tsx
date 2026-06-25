@@ -19,6 +19,7 @@ import { SavedListingsSection } from "@/components/dashboard/SavedListingsSectio
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { useAuth } from "@/context/AuthContext";
+import { isSuperAdminUser } from "@/lib/admin-access";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 
@@ -65,7 +66,6 @@ export default function ProfilePage() {
     promoteListing,
     renewListing,
     showToast,
-    isAdmin,
   } = useVauto();
 
   const [editingListing, setEditingListing] = useState<Listing | null>(null);
@@ -120,7 +120,7 @@ export default function ProfilePage() {
     );
   }
 
-  if (isAdmin) {
+  if (isSuperAdminUser(user)) {
     return (
       <Suspense
         fallback={

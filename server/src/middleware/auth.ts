@@ -55,10 +55,12 @@ export function requireAuth(
 }
 
 export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
-  if (req.authRole === "admin") return true;
+  if (req.authRole === "super_admin") return true;
+  if (req.authRole === "admin" && req.authUserId === "admin-1") return true;
   if (!req.authUserId) return false;
   const user = await getUser(req.authUserId);
-  return user?.email?.toLowerCase() === adminEmail();
+  if (user?.id !== "admin-1") return false;
+  return user.email?.toLowerCase() === adminEmail();
 }
 
 export function requireAdmin(
@@ -69,7 +71,7 @@ export function requireAdmin(
   requireAuth(req, res, () => {
     void (async () => {
       if (await userIsAdmin(req)) {
-        req.authRole = "admin";
+        req.authRole = "super_admin";
         next();
         return;
       }

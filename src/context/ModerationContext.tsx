@@ -13,7 +13,7 @@ import {
 } from "react";
 import { DEMO_REPORTS } from "@/data/mockReports";
 import { useAuth } from "@/context/AuthContext";
-import { ADMIN_EMAIL } from "@/lib/reports";
+import { isSuperAdminUser } from "@/lib/admin-access";
 import {
   appendAdminReply,
   appendUserReply,
@@ -145,14 +145,14 @@ export function ModerationProvider({
   const [hydrated, setHydrated] = useState(false);
   const [reportStreamConnected, setReportStreamConnected] = useState(false);
   const apiActive = isDataApiEnabled();
-  const isAdminUser =
-    user.role === "admin" ||
-    user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase();
+  const isAdminUser = isSuperAdminUser(user);
   const canUseAdminApi = apiActive && isAdminUser;
   const canUseReporterApi = apiActive && !!user.id && !canUseAdminApi;
   const depsRef = useRef(deps);
   depsRef.current = deps;
   const knownReportIdsRef = useRef<Set<string>>(new Set());
+  const adminReportsReadyRef = useRef(false);
+  const adminToastKeysRef = useRef<Set<string>>(new Set());
   const userReportSnapshotRef = useRef<Map<string, { count: number; updatedAt?: string }>>(
     new Map()
   );
@@ -165,6 +165,41 @@ export function ModerationProvider({
       ])
     );
   }, []);
+
+  const reportToastKey = useCallback((report: SupportReport) => {
+    return `${report.id}:${messageCount(report)}`;
+  }, []);
+
+  const seedAdminToastKeys = useCallback(
+    (items: SupportReport[]) => {
+      for (const report of items) {
+        adminToastKeysRef.current.add(reportToastKey(report));
+      }
+      knownReportIdsRef.current = new Set(items.map((r) => r.id));
+      adminReportsReadyRef.current = true;
+    },
+    [reportToastKey]
+  );
+
+  const notifyAdminReport = useCallback(
+    (report: SupportReport, options?: { force?: boolean }) => {
+      if (!depsRef.current.isAdmin) return;
+      if (!adminReportsReadyRef.current && !options?.force) return;
+      const key = reportToastKey(report);
+      if (adminToastKeysRef.current.has(key)) return;
+      adminToastKeysRef.current.add(key);
+      depsRef.current.onNewAdminReport?.(report);
+    },
+    [reportToastKey]
+  );
+
+  useEffect(() => {
+    if (!isAdminUser) {
+      adminReportsReadyRef.current = false;
+      adminToastKeysRef.current.clear();
+      knownReportIdsRef.current.clear();
+    }
+  }, [isAdminUser]);
 
   const detectUserReplyUpdates = useCallback(
     (next: SupportReport[]) => {
@@ -202,7 +237,7 @@ export function ModerationProvider({
         if (event.type === "report_created" && depsRef.current.isAdmin) {
           if (!knownReportIdsRef.current.has(report.id)) {
             knownReportIdsRef.current.add(report.id);
-            queueMicrotask(() => depsRef.current.onNewAdminReport?.(report));
+            queueMicrotask(() => notifyAdminReport(report, { force: true }));
           }
         }
 
@@ -213,7 +248,7 @@ export function ModerationProvider({
             old &&
             messageCount(report) > messageCount(old)
           ) {
-            queueMicrotask(() => depsRef.current.onNewAdminReport?.(report));
+            queueMicrotask(() => notifyAdminReport(report));
           }
           if (
             !depsRef.current.isAdmin &&
@@ -238,7 +273,7 @@ export function ModerationProvider({
         return next;
       });
     },
-    [user.id, snapshotUserReports]
+    [user.id, snapshotUserReports, notifyAdminReport]
   );
 
   useEffect(() => {
@@ -307,7 +342,7 @@ export function ModerationProvider({
             reportsRes.data.length ? reportsRes.data : DEMO_REPORTS
           );
           setReports(next);
-          knownReportIdsRef.current = new Set(next.map((r) => r.id));
+          seedAdminToastKeys(next);
         }
         if (bannedRes.ok) setBannedUserIds(new Set(bannedRes.data));
       } else if (depsRef.current.isAdmin) {
@@ -316,7 +351,7 @@ export function ModerationProvider({
           storedReports?.length ? storedReports : DEMO_REPORTS
         );
         setReports(next);
-        knownReportIdsRef.current = new Set(next.map((r) => r.id));
+        seedAdminToastKeys(next);
         const storedBanned = loadBannedUserIds();
         if (storedBanned?.length) setBannedUserIds(new Set(storedBanned));
       } else if (canUseReporterApi) {
@@ -341,7 +376,7 @@ export function ModerationProvider({
       setHydrated(true);
     }
     void load();
-  }, [apiActive, canUseAdminApi, canUseReporterApi, user.id, snapshotUserReports]);
+  }, [apiActive, canUseAdminApi, canUseReporterApi, user.id, snapshotUserReports, seedAdminToastKeys]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -358,15 +393,7 @@ export function ModerationProvider({
     if (reportStreamConnected) return;
 
     const poll = async () => {
-      const prevIds = knownReportIdsRef.current;
-      const next = await refreshReports();
-      const newOnes = next.filter(
-        (r) => r.status === "open" && !prevIds.has(r.id)
-      );
-      knownReportIdsRef.current = new Set(next.map((r) => r.id));
-      for (const report of newOnes) {
-        depsRef.current.onNewAdminReport?.(report);
-      }
+      await refreshReports();
     };
 
     void poll();
@@ -461,15 +488,15 @@ export function ModerationProvider({
       });
       knownReportIdsRef.current.add(report.id);
       persistReport(report);
-      if (depsRef.current.isAdmin) {
-        depsRef.current.onNewAdminReport?.(report);
+      if (depsRef.current.isAdmin && report.reporterId !== user.id) {
+        notifyAdminReport(report, { force: true });
       }
       depsRef.current.showToast(
         "Pranešimas išsiųstas. Atsakymą rasite profilyje — Mano pranešimai.",
         "success"
       );
     },
-    [user, persistReport, snapshotUserReports]
+    [user, persistReport, snapshotUserReports, notifyAdminReport]
   );
 
   const replyToReport = useCallback(

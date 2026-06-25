@@ -25,10 +25,16 @@ import { analyzeReportText } from "@/lib/admin-report-ai";
 import { apiAnalyzeReport } from "@/lib/api/client";
 import { REPORT_CATEGORIES, URGENCY_META } from "@/lib/reports";
 import { listingPath } from "@/lib/seo";
-import type { Listing, ReportMessage, ReportUrgency, SupportReport } from "@/lib/types";
+import type { Listing, ReportCategory, ReportMessage, ReportUrgency, SupportReport } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 const URGENCY_ORDER: ReportUrgency[] = ["critical", "feedback", "general"];
+
+const AUDIT_CATEGORIES = new Set<ReportCategory>(["fraud", "chat_abuse"]);
+
+function isAuditReport(report: SupportReport): boolean {
+  return AUDIT_CATEGORIES.has(report.category) || report.urgency === "critical";
+}
 
 function roleStyles(role: ReportMessage["role"]) {
   switch (role) {
@@ -153,6 +159,27 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
     setReplyText("");
   };
 
+  const handleAcceptAudit = () => {
+    if (!selected) return;
+    if (selected.aiSuggestedReply) {
+      replyToReport(selected.id, selected.aiSuggestedReply, { auto: true });
+    }
+    resolveReport(selected.id, "resolved");
+    closeDetail();
+  };
+
+  const handleDismissAudit = () => {
+    if (!selected) return;
+    resolveReport(selected.id, "dismissed");
+    closeDetail();
+  };
+
+  const handleBanAudit = () => {
+    if (!selected) return;
+    banFromReport(selected.id);
+    closeDetail();
+  };
+
   const body = (
     <>
       {!embedded && (
@@ -254,6 +281,40 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
           </button>
 
           <ReportDetailHeader report={selected} />
+
+          {selected.status === "open" && isAuditReport(selected) && (
+            <div className="rounded-2xl border-2 border-red-200 bg-red-50 p-4">
+              <p className="mb-1 text-sm font-bold text-red-900">Įtartinos veiklos sprendimas</p>
+              <p className="mb-3 text-xs text-red-800">
+                Pasirinkite veiksmą — gija bus pašalinta iš aktyvių pranešimų.
+              </p>
+              <div className="grid grid-cols-3 gap-2">
+                <button
+                  type="button"
+                  onClick={handleAcceptAudit}
+                  className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl bg-emerald-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-emerald-700"
+                >
+                  <CheckCircle className="h-4 w-4" />
+                  Accept
+                </button>
+                <button
+                  type="button"
+                  onClick={handleDismissAudit}
+                  className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl bg-slate-200 px-2 py-2 text-[11px] font-bold text-slate-800 hover:bg-slate-300"
+                >
+                  Dismiss
+                </button>
+                <button
+                  type="button"
+                  onClick={handleBanAudit}
+                  className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl bg-red-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-red-700"
+                >
+                  <Ban className="h-4 w-4" />
+                  Ban
+                </button>
+              </div>
+            </div>
+          )}
 
           <ContactCard report={selected} />
 

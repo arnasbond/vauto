@@ -186,7 +186,7 @@ export function mapAgentDraftToListing(draft: {
 export function resolveAgentUserRole(user: {
   role?: string;
 }): VautoAgentContext["userRole"] {
-  if (user.role === "admin") return "admin";
+  if (user.role === "admin" || user.role === "super_admin") return "admin";
   if (user.role === "pro") return "business";
   return "buyer";
 }

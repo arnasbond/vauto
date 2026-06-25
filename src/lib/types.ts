@@ -89,7 +89,7 @@ export interface DynamicFilter {
   apply: (listing: Listing) => boolean;
 }
 
-export type UserRole = "private" | "pro" | "admin";
+export type UserRole = "private" | "pro" | "admin" | "super_admin";
 export type AuthProvider = "google" | "apple" | "phone";
 export type ProBusinessType = "dealer" | "services" | "general";
 

@@ -64,12 +64,12 @@ function resolveRole(
   email?: string | null,
   phone?: string | null
 ): string {
-  if (email?.toLowerCase() === resolveAdminEmail()) return "admin";
+  if (email?.toLowerCase() === resolveAdminEmail()) return "super_admin";
   if (
     metaRole === "admin" &&
     normalizePhoneDigits(phone) === resolveAdminPhone()
   ) {
-    return "admin";
+    return "super_admin";
   }
   return metaRole;
 }
@@ -288,7 +288,7 @@ authRouter.post("/social", async (req, res) => {
             "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
         },
         {
-          role: "admin",
+          role: "super_admin",
           provider,
           businessType,
           companyName,

@@ -3,9 +3,10 @@ import type { Page } from "@playwright/test";
 export interface SeedAuthProfile {
   id: string;
   name: string;
+  email?: string;
   phone?: string;
   city?: string;
-  role?: "private" | "pro" | "admin";
+  role?: "private" | "pro" | "admin" | "super_admin";
   businessType?: "dealer" | "services" | "general";
   companyName?: string;
   companyCode?: string;
@@ -46,9 +47,10 @@ export async function seedAdminUser(page: Page) {
   await seedAuthSession(page, {
     id: "admin-1",
     name: "Vauto Admin",
+    email: "admin@vauto.com",
     phone: "+37060000099",
     city: "Vilnius",
-    role: "admin",
+    role: "super_admin",
     walletBalance: 0,
   });
 }

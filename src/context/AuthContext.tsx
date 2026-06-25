@@ -11,6 +11,7 @@ import {
 } from "react";
 import { ANONYMOUS_USER } from "@/data/mockListings";
 import { ADMIN_EMAIL } from "@/lib/reports";
+import { isSuperAdminUser } from "@/lib/admin-access";
 import {
   apiFetchAuthSession,
   apiSocialLogin,
@@ -87,8 +88,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
   const [hydrated, setHydrated] = useState(false);
 
-  const isAdmin =
-    user.role === "admin" || user.email?.toLowerCase() === ADMIN_EMAIL;
+  const isAdmin = isSuperAdminUser(user);
 
   useEffect(() => {
     async function restore() {
@@ -151,7 +151,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loginLocal = useCallback((data: LoginPayload): UserProfile => {
-    if (data.email === ADMIN_EMAIL || data.role === "admin") {
+    if (data.email === ADMIN_EMAIL || data.role === "admin" || data.role === "super_admin") {
       return {
         id: "admin-1",
         name: "Vauto Admin",
@@ -161,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         phone: "+370 600 00001",
         city: "Vilnius",
         authProvider: data.provider,
-        role: "admin",
+        role: "super_admin",
         walletBalance: 0,
       };
     }
