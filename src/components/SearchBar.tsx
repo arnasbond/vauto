@@ -38,12 +38,13 @@ function applyFastSearchToGrid(
     filters: import("@/lib/marketplace-view").MarketplaceFilterState
   ) => void,
   marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState
-) {
+): string | false {
   const fast = runFastAgentSearch(query, listings);
   if (!fast) {
     setAgentPinnedListings(null);
     return false;
   }
+
   if (fast.actions.type === "search") {
     setAgentPinnedListings(fast.actions.listingIds);
     if (fast.actions.filters) {
@@ -51,10 +52,16 @@ function applyFastSearchToGrid(
         mergeAgentIntoMarketplaceFilters(marketplaceFilters, fast.actions.filters)
       );
     }
-    return true;
+    return fast.actions.searchQuery;
   }
   if (fast.actions.type === "empty_search") {
     setAgentPinnedListings([]);
+    if (fast.actions.filters) {
+      setMarketplaceFilters(
+        mergeAgentIntoMarketplaceFilters(marketplaceFilters, fast.actions.filters)
+      );
+    }
+    return fast.actions.searchQuery;
   }
   return false;
 }
@@ -121,25 +128,28 @@ export function SearchBar() {
 
       setSearchInputMode("text");
       clearVisualSearch({ keepInputMode: true });
-      setDraftQuery(q);
-      setSearchQuery(q);
 
       const viewIntent = parseViewModeIntent(q);
       if (viewIntent) setViewMode(viewIntent);
 
       if (isViewModeOnlyCommand(q)) {
+        setDraftQuery(q);
+        setSearchQuery(q);
         setAgentPinnedListings(null);
         scrollToResults();
         return;
       }
 
-      applyFastSearchToGrid(
+      const cleanQuery = applyFastSearchToGrid(
         q,
         listings,
         setAgentPinnedListings,
         setMarketplaceFilters,
         marketplaceFilters
       );
+      const committed = typeof cleanQuery === "string" ? cleanQuery : q;
+      setDraftQuery(committed);
+      setSearchQuery(committed);
       scrollToResults();
     },
     [

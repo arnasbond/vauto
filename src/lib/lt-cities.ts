@@ -55,11 +55,11 @@ export function detectCityInText(text: string): string | undefined {
 }
 
 export const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
-  [/vilniuje|vilnius/i, "Vilnius"],
-  [/kaune|kaunas/i, "Kaunas"],
-  [/klaip[eė]doje|klaip[eė]da/i, "Klaipėda"],
-  [/[šs]iauliuose|[šs]iauliai/i, "Šiauliai"],
-  [/panev[eė][žz]yje|panev[eė][žz]ys/i, "Panevėžys"],
+  [/vilniuje|vilniui|vilnyje|vilnius/i, "Vilnius"],
+  [/kaune|kauno|kaunas/i, "Kaunas"],
+  [/klaip[eė]doje|klaip[eė]dos|klaip[eė]da/i, "Klaipėda"],
+  [/[šs]iauliuose|[šs]iauli[uų]|[šs]iauliai/i, "Šiauliai"],
+  [/panev[eė][žz]y(?:je|s|je)?|panev[eė][žz]io|panev[eė][žz]ys/i, "Panevėžys"],
   [/alytuje|alytus/i, "Alytus"],
   [/marijampol[eė]je|marijampol[eė]/i, "Marijampolė"],
   [/utenoje|utena/i, "Utena"],
@@ -67,21 +67,59 @@ export const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
   [/taurag[eė]je|taurag[eė]/i, "Tauragė"],
   [/k[eė]dainiuose|k[eė]dainiai/i, "Kėdainiai"],
   [/jonavoje|jonava/i, "Jonava"],
-  [/pasvalyje|pasvalys/i, "Pasvalys"],
-  [/mažeikiuose|mažeikiai|mazeikiuose|mazeikiai/i, "Mažeikiai"],
-  [/telšiuose|telšiai|telsiuose|telsiai/i, "Telšiai"],
-  [/biržuose|biržai|birzuose|birzai/i, "Biržai"],
-  [/rokiškyje|rokiškis|rokiskyje|rokiskis/i, "Rokiškis"],
-  [/kupiškyje|kupiškis|kupiskyje|kupiskis/i, "Kupiškis"],
+  [/pasvalyje|pasvalio|pasvalys/i, "Pasvalys"],
+  [/mažeikiuose|mažeiki[uų]|mažeikiai|mazeikiuose|mazeikiai/i, "Mažeikiai"],
+  [/telšiuose|telši[uų]|telšiai|telsiuose|telsiai/i, "Telšiai"],
+  [/biržuose|birž[uų]|biržai|birzuose|birzai/i, "Biržai"],
+  [/rokiškyje|rokiškio|rokiškis|rokiskyje|rokiskis/i, "Rokiškis"],
+  [/kupiškyje|kupiškio|kupiškis|kupiskyje|kupiskis/i, "Kupiškis"],
   [/raseiniuose|raseiniai/i, "Raseiniai"],
   [/ukmerg[eė]je|ukmerg[eė]/i, "Ukmergė"],
   [/plung[eė]je|plung[eė]/i, "Plungė"],
   [/druskininkuose|druskininkai/i, "Druskininkai"],
+  [/visagine|visagino|visaginas/i, "Visaginas"],
 ];
 
-export function detectCityFromPatterns(text: string): string | undefined {
+/** Fuzzy stem length for declension-tolerant city match (e.g. „panevežy“ → Panevėžys) */
+function cityStem(city: string): string {
+  const norm = NORM(city);
+  const len = Math.min(7, Math.max(4, norm.length - 1));
+  return norm.slice(0, len);
+}
+
+function tokenMatchesCity(token: string, city: string): boolean {
+  const nw = NORM(token);
+  if (nw.length < 4) return false;
+  const cn = NORM(city);
+  const overlap = Math.min(5, nw.length, cn.length);
+  if (overlap >= 4 && nw.slice(0, overlap) === cn.slice(0, overlap)) return true;
+  const stem = cityStem(city);
+  return nw.startsWith(stem.slice(0, 4)) && stem.startsWith(nw.slice(0, Math.min(nw.length, stem.length)));
+}
+
+/** Declension + root fuzzy match — „Panevėžy“, „vilni“, „pasval“ */
+export function detectCityFuzzy(text: string): string | undefined {
   for (const [pattern, city] of LT_CITY_PATTERNS) {
     if (pattern.test(text)) return city;
   }
+
+  const norm = NORM(text);
+  const words = norm.split(/[\s,.;:!?'"-]+/).filter((w) => w.length >= 3);
+  const sorted = [...LT_CITY_NAMES].sort(
+    (a, b) => NORM(b).length - NORM(a).length
+  );
+
+  for (const city of sorted) {
+    const stem = cityStem(city);
+    if (stem.length >= 5 && norm.includes(stem)) return city;
+    for (const word of words) {
+      if (tokenMatchesCity(word, city)) return city;
+    }
+  }
+
   return detectCityInText(text);
+}
+
+export function detectCityFromPatterns(text: string): string | undefined {
+  return detectCityFuzzy(text);
 }

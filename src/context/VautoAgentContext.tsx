@@ -166,6 +166,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
+        if (actions.filters) {
+          setMarketplaceFilters(
+            mergeAgentIntoMarketplaceFilters(marketplaceFilters, actions.filters)
+          );
+        }
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
       if (actions.type === "register_wanted") {

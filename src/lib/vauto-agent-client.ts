@@ -14,6 +14,7 @@ export interface AgentSearchFilters {
   radiusKm?: number;
   maxPrice?: number;
   minPrice?: number;
+  condition?: "used" | "new";
   refinements?: string[];
 }
 
@@ -96,6 +97,7 @@ export type VautoAgentAction =
   | {
       type: "empty_search";
       searchQuery: string;
+      filters?: AgentSearchFilters;
     }
   | {
       type: "register_wanted";

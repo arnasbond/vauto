@@ -106,6 +106,7 @@ export function mergeAgentIntoMarketplaceFilters(
     ...(agent.minPrice != null ? { priceMin: agent.minPrice } : {}),
     ...(agent.maxPrice != null ? { priceMax: agent.maxPrice } : {}),
     ...(agent.radiusKm != null ? { radiusKm: snapRadiusKm(agent.radiusKm) } : {}),
+    ...(agent.condition ? { condition: agent.condition } : {}),
   });
 }
 
