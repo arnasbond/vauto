@@ -71,7 +71,22 @@ async function imageUrlToInlinePart(url) {
   }
 }
 
-async function geminiJson(prompt, imageDataUrls = [], model) {
+function parseJsonFromText(text) {
+  const trimmed = String(text).trim();
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    /* fall through */
+  }
+  const fence = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
+  if (fence) return JSON.parse(fence[1].trim());
+  const start = trimmed.indexOf("{");
+  const end = trimmed.lastIndexOf("}");
+  if (start >= 0 && end > start) return JSON.parse(trimmed.slice(start, end + 1));
+  throw new Error("Could not parse JSON from Gemini response");
+}
+
+async function geminiJson({ prompt, imageDataUrls = [], model }) {
   const key =
     process.env.GEMINI_API_KEY?.trim() ||
     process.env.AI_KEY?.trim() ||
@@ -84,28 +99,44 @@ async function geminiJson(prompt, imageDataUrls = [], model) {
     if (inline) parts.push(inline);
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
-    {
+  const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`;
+  const contents = [{ parts }];
+
+  let res = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents,
+      generationConfig: {
+        responseMimeType: "application/json",
+        temperature: 0.2,
+      },
+    }),
+  });
+
+  if (!res.ok && (res.status === 403 || res.status === 400)) {
+    res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: {
-          responseMimeType: "application/json",
-          temperature: 0.2,
-        },
+        contents,
+        generationConfig: { temperature: 0.2 },
       }),
-    }
-  );
+    });
+  }
+
   if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
   const data = await res.json();
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
   if (!text) throw new Error("Empty Gemini response");
-  return JSON.parse(text);
+  return parseJsonFromText(text);
 }
 
-async function unifiedLlmJson(prompt, imageDataUrls = []) {
+async function unifiedLlmJson(input) {
+  const prompt = input?.prompt;
+  const imageDataUrls = input?.imageDataUrls ?? [];
+  if (!prompt?.trim()) throw new Error("prompt is required");
+
   const geminiKey =
     process.env.GEMINI_API_KEY?.trim() ||
     process.env.AI_KEY?.trim() ||
@@ -117,7 +148,7 @@ async function unifiedLlmJson(prompt, imageDataUrls = []) {
   let lastError;
   for (const model of UNIFIED_GEMINI_MODELS) {
     try {
-      return await geminiJson(prompt, imageDataUrls, model);
+      return await geminiJson({ prompt, imageDataUrls, model });
     } catch (e) {
       lastError = e;
       console.warn(`[vauto-unified] ${model}:`, e.message);
@@ -275,7 +306,9 @@ async function handleVautoServerAction(body) {
       err.status = 400;
       throw err;
     }
-    const raw = await unifiedLlmJson(buildTextPrompt(text, city, body.extraContext));
+    const raw = await unifiedLlmJson({
+      prompt: buildTextPrompt(text, city, body.extraContext),
+    });
     return { ok: true, action, parsed: raw, listing: toListingPayload(raw, city, contact) };
   }
 
@@ -285,10 +318,10 @@ async function handleVautoServerAction(body) {
       err.status = 400;
       throw err;
     }
-    const raw = await unifiedLlmJson(
-      buildImagePrompt(city, body.text, body.extraContext),
-      images
-    );
+    const raw = await unifiedLlmJson({
+      prompt: buildImagePrompt(city, body.text, body.extraContext),
+      imageDataUrls: images,
+    });
     return { ok: true, action, parsed: raw, listing: toListingPayload(raw, city, contact) };
   }
 

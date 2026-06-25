@@ -57,7 +57,7 @@ Numatytas vartotojo miestas: ${userCity ?? "Lietuva"}
 Grąžink TIK vieną JSON objektą: ${SEARCH_INTENT_SCHEMA}`;
 
   try {
-    const raw = await unifiedLlmJson(prompt);
+    const raw = await unifiedLlmJson({ prompt });
     const categoryRaw = raw.category;
     const category =
       categoryRaw == null || categoryRaw === "null"

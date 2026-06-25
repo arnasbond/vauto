@@ -194,10 +194,9 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     if (!text) {
       throw Object.assign(new Error("text is required for parse_text"), { status: 400 });
     }
-    const raw = await unifiedLlmJson(
-      buildTextPrompt(text, city, body.extraContext),
-      []
-    );
+    const raw = await unifiedLlmJson({
+      prompt: buildTextPrompt(text, city, body.extraContext),
+    });
     const listing = toListingPayload(raw, city, contact);
     return { ok: true, action, parsed: raw, listing };
   }
@@ -206,10 +205,10 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     if (!images.length) {
       throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
     }
-    const raw = await unifiedLlmJson(
-      buildImagePrompt(city, body.text, body.extraContext),
-      images
-    );
+    const raw = await unifiedLlmJson({
+      prompt: buildImagePrompt(city, body.text, body.extraContext),
+      imageDataUrls: images,
+    });
     const listing = toListingPayload(raw, city, contact);
     return { ok: true, action, parsed: raw, listing };
   }

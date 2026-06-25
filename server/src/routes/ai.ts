@@ -3,9 +3,9 @@ import {
   chatJson,
   hasAiKey,
   resolveAiProvider,
-  unifiedLlmJson,
   visionExtractJson,
 } from "../ai/llm-provider.js";
+import { analyzeSearchIntent } from "../ai/search-intent.js";
 
 export const aiRouter = Router();
 
@@ -183,33 +183,6 @@ Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarif
   }
 });
 
-const SEARCH_INTENT_SCHEMA = `{
-  "category": "Auto | Elektronika | Namai | Drabužiai | Paslaugos | NT | Darbas | null",
-  "cleanQuery": "string",
-  "location": "string",
-  "radiusKm": "number | null",
-  "condition": "used | new | null"
-}`;
-
-const SEARCH_CATEGORIES = new Set([
-  "Auto",
-  "Elektronika",
-  "Namai",
-  "Drabužiai",
-  "Paslaugos",
-  "NT",
-  "Darbas",
-]);
-
-function snapSearchRadius(km: unknown): number | null {
-  const n = Number(km);
-  if (!Number.isFinite(n) || n <= 0) return null;
-  if (n <= 5) return 5;
-  if (n <= 10) return 10;
-  if (n <= 20) return 20;
-  return 50;
-}
-
 aiRouter.post("/analyze-search", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
@@ -223,32 +196,8 @@ aiRouter.post("/analyze-search", async (req, res) => {
   }
 
   try {
-    const prompt = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
-Vartotojas IEŠKO skelbimų.
-
-Užklausa: "${query.trim()}"
-Numatytas vartotojo miestas: ${userCity ?? "Lietuva"}
-
-Grąžink TIK vieną JSON objektą: ${SEARCH_INTENT_SCHEMA}`;
-
-    const raw = await unifiedLlmJson(prompt);
-
-    const categoryRaw = raw.category;
-    const category =
-      categoryRaw == null || categoryRaw === "null"
-        ? null
-        : SEARCH_CATEGORIES.has(String(categoryRaw))
-          ? String(categoryRaw)
-          : null;
-
-    res.json({
-      category,
-      cleanQuery: String(raw.cleanQuery ?? "").trim(),
-      location: String(raw.location ?? "").trim(),
-      radiusKm: snapSearchRadius(raw.radiusKm),
-      condition:
-        raw.condition === "used" || raw.condition === "new" ? raw.condition : null,
-    });
+    const result = await analyzeSearchIntent({ query: query.trim(), userCity });
+    res.json(result);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

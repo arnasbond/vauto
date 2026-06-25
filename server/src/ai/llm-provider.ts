@@ -109,13 +109,18 @@ async function geminiChatJson(
   return parseJsonFromText(text);
 }
 
+export interface UnifiedLlmJsonInput {
+  prompt: string;
+  imageDataUrls?: string[];
+}
+
 const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
 
 /** VAUTO unified parser — Gemini 2.5 Flash, then 2.0 Flash. */
 export async function unifiedLlmJson(
-  prompt: string,
-  imageDataUrls: string[] = []
+  input: UnifiedLlmJsonInput
 ): Promise<Record<string, unknown>> {
+  const { prompt, imageDataUrls = [] } = input;
   const geminiKey = resolveGeminiApiKey();
   if (!geminiKey) {
     throw new Error("GEMINI_API_KEY not configured on server");
@@ -175,7 +180,7 @@ export async function visionExtractJson(
   imageDataUrls: string[]
 ): Promise<Record<string, unknown>> {
   if (!hasAiKey()) throw new Error("GEMINI_API_KEY not configured");
-  return unifiedLlmJson(prompt, imageDataUrls);
+  return unifiedLlmJson({ prompt, imageDataUrls });
 }
 
 async function geminiGeneratePlainText(

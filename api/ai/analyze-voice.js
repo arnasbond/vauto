@@ -39,8 +39,8 @@ module.exports = async function handler(req, res) {
       : "Nustatyk ar vartotojas IEŠKO, ar KELIA skelbimą.";
 
   try {
-    const raw = await unifiedLlmJson(
-      `Esi Vauto balso asistentas (Gemini). ${modeHint}
+    const raw = await unifiedLlmJson({
+      prompt: `Esi Vauto balso asistentas (Gemini). ${modeHint}
 Pokalbio istorija:
 ${historyText || "(tuščia)"}
 
@@ -49,8 +49,8 @@ Miestas: ${userCity ?? "Lietuva"}
 
 Jei kelia skelbimą ir trūksta laukų — needsClarification=true, followUpQuestion vienu šiltu klausimu.
 
-Grąžink JSON: ${VOICE_INTENT_SCHEMA}`
-    );
+Grąžink JSON: ${VOICE_INTENT_SCHEMA}`,
+    });
 
     return res.status(200).json({
       understoodSummary: String(raw.understoodSummary ?? "Supratau jūsų užklausą"),
