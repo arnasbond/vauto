@@ -1,11 +1,14 @@
 "use client";
 
 import { Camera, Loader2, Sparkles } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { extractFromImage } from "@/lib/client-api";
-import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
+import { buildPhotoSearchToast } from "@/lib/photo-search";
+import {
+  PHOTO_SEARCH_FALLBACK_MESSAGE,
+  runPhotoVisionSearch,
+} from "@/lib/photo-vision-search";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { isSellIntent } from "@/lib/gemini-intent";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
@@ -19,8 +22,45 @@ import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
+import type { ListingCategory } from "@/lib/types";
 
 const GEMINI_BLUE = "#1167b1";
+
+function applyFastSearchToGrid(
+  query: string,
+  listings: ReturnType<typeof useVauto>["listings"],
+  setAgentPinnedListings: (ids: string[] | null) => void,
+  setMarketplaceFilters: (
+    filters: import("@/lib/marketplace-view").MarketplaceFilterState
+  ) => void,
+  marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState
+) {
+  const fast = runFastAgentSearch(query, listings);
+  if (!fast) {
+    setAgentPinnedListings(null);
+    return false;
+  }
+  if (fast.actions.type === "search") {
+    setAgentPinnedListings(fast.actions.listingIds);
+    if (fast.actions.filters?.category) {
+      setMarketplaceFilters({
+        ...marketplaceFilters,
+        category: fast.actions.filters.category as ListingCategory,
+      });
+    }
+    if (fast.actions.filters?.city) {
+      setMarketplaceFilters({
+        ...marketplaceFilters,
+        location: fast.actions.filters.city ?? marketplaceFilters.location,
+      });
+    }
+    return true;
+  }
+  if (fast.actions.type === "empty_search") {
+    setAgentPinnedListings([]);
+  }
+  return false;
+}
 
 export function SearchBar() {
   const {
@@ -47,9 +87,14 @@ export function SearchBar() {
 
   const { sendAgentMessage, busy: agentBusy } = useVautoAgent();
 
+  const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setDraftQuery(searchQuery);
+  }, [searchQuery]);
 
   const activeTheme =
     sellerStep !== "idle"
@@ -65,62 +110,66 @@ export function SearchBar() {
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const commitSearch = useCallback(
+    (raw: string) => {
+      const q = sanitizeSearchQuery(raw, "final");
+      if (!q) return;
+
+      if (startListingFromQuery(q)) {
+        setDraftQuery("");
+        setSearchQuery("");
+        inputRef.current?.blur();
+        return;
+      }
+
+      setSearchInputMode("text");
+      clearVisualSearch({ keepInputMode: true });
+      setDraftQuery(q);
+      setSearchQuery(q);
+
+      const viewIntent = parseViewModeIntent(q);
+      if (viewIntent) setViewMode(viewIntent);
+
+      if (isViewModeOnlyCommand(q)) {
+        setAgentPinnedListings(null);
+        scrollToResults();
+        return;
+      }
+
+      applyFastSearchToGrid(
+        q,
+        listings,
+        setAgentPinnedListings,
+        setMarketplaceFilters,
+        marketplaceFilters
+      );
+      scrollToResults();
+    },
+    [
+      clearVisualSearch,
+      listings,
+      marketplaceFilters,
+      setAgentPinnedListings,
+      setMarketplaceFilters,
+      setSearchInputMode,
+      setSearchQuery,
+      setViewMode,
+      startListingFromQuery,
+    ]
+  );
+
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const q = sanitizeSearchQuery(searchQuery, "final");
-    if (!q) return;
-
-    if (startListingFromQuery(q)) {
-      setSearchQuery("");
-      inputRef.current?.blur();
-      return;
-    }
-
-    setSearchInputMode("text");
-    setSearchQuery(q);
-
-    const viewIntent = parseViewModeIntent(q);
-    if (viewIntent) setViewMode(viewIntent);
-
-    if (isViewModeOnlyCommand(q)) {
-      setAgentPinnedListings(null);
-      scrollToResults();
-      inputRef.current?.blur();
-      return;
-    }
-
-    const fast = runFastAgentSearch(q, listings);
-    if (fast) {
-      if (fast.actions.type === "search") {
-        setAgentPinnedListings(fast.actions.listingIds);
-        if (fast.actions.filters?.category) {
-          setMarketplaceFilters({
-            ...marketplaceFilters,
-            category: fast.actions.filters.category as import("@/lib/types").ListingCategory,
-          });
-        }
-        if (fast.actions.filters?.city) {
-          setMarketplaceFilters({
-            ...marketplaceFilters,
-            location: fast.actions.filters.city ?? marketplaceFilters.location,
-          });
-        }
-      } else if (fast.actions.type === "empty_search") {
-        setAgentPinnedListings([]);
-      }
-    } else {
-      setAgentPinnedListings(null);
-    }
-
-    scrollToResults();
+    commitSearch(draftQuery);
     inputRef.current?.blur();
   };
 
   const handleGeminiSend = () => {
-    const q = sanitizeSearchQuery(searchQuery, "final");
+    const q = sanitizeSearchQuery(draftQuery, "final");
     if (!q || agentBusy || searchLoading) return;
 
     setSearchInputMode("text");
+    setDraftQuery(q);
     setSearchQuery(q);
     setSearchLoading(true);
     void sendAgentMessage(q).finally(() => setSearchLoading(false));
@@ -129,6 +178,7 @@ export function SearchBar() {
   const routeToGeminiAgent = (text: string) => {
     const q = sanitizeSearchQuery(text, "final");
     if (!q) return;
+    setDraftQuery(q);
     setSearchQuery(q);
     void sendAgentMessage(q);
   };
@@ -141,51 +191,71 @@ export function SearchBar() {
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
     setIsPhotoSearching(true);
     try {
-      const extracted = await extractFromImage({
-        imageDataUrl: result.photos[0],
-        imageDataUrls: result.photos,
-        extraContext: result.extraContext || undefined,
-        fileName: result.fileName,
-        userCity: user.city || "Lietuva",
-        contact: user.phone || "+370 612 34567",
-      });
+      const vision = await runPhotoVisionSearch(
+        result.photos[0]!,
+        result.extraContext || undefined
+      );
 
       setPhotoFlowOpen(false);
 
-      const contextText = [result.extraContext, extracted.title].filter(Boolean).join(" ");
-      if (isSellIntent(contextText, extracted)) {
+      if (!vision || vision.confidence < 0.4 || !vision.keywords.trim()) {
+        showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
+        return;
+      }
+
+      const contextText = [result.extraContext, vision.title].filter(Boolean).join(" ");
+      if (contextText && isSellIntent(contextText)) {
         setSearchInputMode("photo");
         setSearchVoiceMode(false);
         routeToGeminiAgent(
-          result.extraContext?.trim() || `Noriu įkelti skelbimą: ${extracted.title}`
+          result.extraContext?.trim() || `Noriu įkelti skelbimą: ${vision.title}`
         );
         return;
       }
 
-      if (extracted.confidence < 0.4) {
-        showToast(
-          "AI nepavyko tiksliai atpažinti nuotraukoje. Bandykite dar kartą arba įveskite paiešką ranka.",
-          "error"
-        );
-        return;
-      }
-
-      const query = buildPhotoSearchQuery(extracted);
+      const query = vision.keywords;
       setSearchInputMode("photo");
       setSearchVoiceMode(false);
+      setDraftQuery(query);
       setSearchQuery(query);
+
+      applyFastSearchToGrid(
+        query,
+        listings,
+        setAgentPinnedListings,
+        setMarketplaceFilters,
+        marketplaceFilters
+      );
+
       void applyVisualSearch(
-        buildVisualSearchProfile(extracted, "photo", result.photos[0])
+        buildVisualSearchProfile(
+          {
+            title: vision.title ?? query,
+            price: 0,
+            location: user.city || "Lietuva",
+            contact: user.phone || "+370 612 34567",
+            category: (vision.category as ListingCategory) ?? "other",
+            confidence: vision.confidence,
+          },
+          "photo",
+          result.photos[0]
+        )
       );
-      showToast(buildPhotoSearchToast(extracted), "success");
-      scrollToResults();
-    } catch (error) {
+
       showToast(
-        error instanceof Error
-          ? `Nuotraukos paieška nepavyko: ${error.message}`
-          : "Nuotraukos paieška nepavyko",
-        "error"
+        buildPhotoSearchToast({
+          title: vision.title ?? query,
+          price: 0,
+          location: user.city || "Lietuva",
+          contact: user.phone || "+370 612 34567",
+          category: (vision.category as ListingCategory) ?? "other",
+          confidence: vision.confidence,
+        }),
+        "success"
       );
+      scrollToResults();
+    } catch {
+      showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
     } finally {
       setIsPhotoSearching(false);
     }
@@ -217,24 +287,19 @@ export function SearchBar() {
           type="search"
           name="q"
           role="searchbox"
-          value={searchQuery}
-          onChange={(e) => {
-            setSearchVoiceMode(false);
-            setSearchInputMode("text");
-            clearVisualSearch({ keepInputMode: true });
-            setSearchQuery(e.target.value);
-          }}
+          value={draftQuery}
+          onChange={(e) => setDraftQuery(e.target.value)}
           placeholder="Paklauskite Gemini — pvz. iPhone 13 arba Volvo Kaune"
           enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none"
-          disabled={agentBusy || searchLoading}
+          disabled={agentBusy || searchLoading || isPhotoSearching}
           autoComplete="off"
         />
 
         <button
           type="button"
           onClick={handleGeminiSend}
-          disabled={agentBusy || searchLoading || !searchQuery.trim()}
+          disabled={agentBusy || searchLoading || isPhotoSearching || !draftQuery.trim()}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#1167b1] transition hover:bg-[#eef6ff] disabled:opacity-40"
           aria-label="Siųsti Gemini asistentui"
           title="Siųsti Gemini"

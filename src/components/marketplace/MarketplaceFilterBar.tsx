@@ -1,6 +1,7 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState, type ReactNode } from "react";
+import { createPortal } from "react-dom";
 import { ChevronDown, LayoutGrid, List, Map } from "lucide-react";
 import {
   DEFAULT_MARKETPLACE_FILTERS,
@@ -39,19 +40,66 @@ function FilterDropdown({
   valueLabel,
   open,
   onToggle,
+  onClose,
   children,
 }: {
   label: string;
   valueLabel: string;
   open: boolean;
   onToggle: () => void;
-  children: React.ReactNode;
+  onClose: () => void;
+  children: ReactNode;
 }) {
+  const btnRef = useRef<HTMLButtonElement>(null);
+  const panelRef = useRef<HTMLDivElement>(null);
+  const [pos, setPos] = useState({ top: 0, left: 0, minWidth: 160 });
+
+  useEffect(() => {
+    if (!open || !btnRef.current) return;
+
+    const update = () => {
+      const rect = btnRef.current!.getBoundingClientRect();
+      setPos({
+        top: rect.bottom + 6,
+        left: rect.left,
+        minWidth: Math.max(rect.width, 160),
+      });
+    };
+
+    update();
+    window.addEventListener("resize", update);
+    window.addEventListener("scroll", update, true);
+    return () => {
+      window.removeEventListener("resize", update);
+      window.removeEventListener("scroll", update, true);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    const onPointerDown = (e: MouseEvent | TouchEvent) => {
+      const target = e.target as Node;
+      if (btnRef.current?.contains(target)) return;
+      if (panelRef.current?.contains(target)) return;
+      onClose();
+    };
+
+    document.addEventListener("mousedown", onPointerDown);
+    document.addEventListener("touchstart", onPointerDown);
+    return () => {
+      document.removeEventListener("mousedown", onPointerDown);
+      document.removeEventListener("touchstart", onPointerDown);
+    };
+  }, [open, onClose]);
+
   return (
     <div className="relative shrink-0">
       <button
+        ref={btnRef}
         type="button"
         onClick={onToggle}
+        aria-expanded={open}
         className={cn(
           "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
           open
@@ -65,11 +113,26 @@ function FilterDropdown({
         <span>{valueLabel}</span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition", open && "rotate-180")} />
       </button>
-      {open && (
-        <div className="absolute left-0 top-full z-30 mt-1 min-w-[10rem] rounded-xl border border-[#dde5ef] bg-white p-2 shadow-lg">
-          {children}
-        </div>
-      )}
+
+      {open &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div
+            ref={panelRef}
+            role="menu"
+            className="rounded-xl border border-[#dde5ef] bg-white p-2 shadow-xl"
+            style={{
+              position: "fixed",
+              top: pos.top,
+              left: pos.left,
+              minWidth: pos.minWidth,
+              zIndex: 9999,
+            }}
+          >
+            {children}
+          </div>,
+          document.body
+        )}
     </div>
   );
 }
@@ -91,7 +154,9 @@ export function MarketplaceFilterBar({
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
 
-  const toggle = (key: string) => setOpenKey((prev) => (prev === key ? null : key));
+  const toggle = (key: string) =>
+    setOpenKey((prev) => (prev === key ? null : key));
+  const close = () => setOpenKey(null);
 
   const categoryLabel =
     CATEGORIES.find((c) => c.id === filters.category)?.label ?? "Visos";
@@ -141,21 +206,23 @@ export function MarketplaceFilterBar({
         </div>
       </div>
 
-      <div className="flex gap-2 overflow-x-auto pb-0.5 scrollbar-hide">
+      <div className="flex gap-2 overflow-x-auto overflow-y-visible pb-0.5 scrollbar-hide">
         <FilterDropdown
           label="Kategorija"
           valueLabel={categoryLabel}
           open={openKey === "category"}
           onToggle={() => toggle("category")}
+          onClose={close}
         >
           {CATEGORIES.map((c) => (
             <button
               key={c.id}
               type="button"
+              role="menuitem"
               className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]"
               onClick={() => {
                 onFiltersChange({ ...filters, category: c.id });
-                setOpenKey(null);
+                close();
               }}
             >
               {c.label}
@@ -168,15 +235,17 @@ export function MarketplaceFilterBar({
           valueLabel={locationLabel}
           open={openKey === "location"}
           onToggle={() => toggle("location")}
+          onClose={close}
         >
           {LOCATIONS.map((loc) => (
             <button
               key={loc || "all"}
               type="button"
+              role="menuitem"
               className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]"
               onClick={() => {
                 onFiltersChange({ ...filters, location: loc });
-                setOpenKey(null);
+                close();
               }}
             >
               {loc || "Visur"}
@@ -189,6 +258,7 @@ export function MarketplaceFilterBar({
           valueLabel={priceLabel}
           open={openKey === "price"}
           onToggle={() => toggle("price")}
+          onClose={close}
         >
           <div className="space-y-2 p-1">
             <label className="block text-[10px] font-semibold text-[#6b7280]">Nuo €</label>
@@ -225,6 +295,7 @@ export function MarketplaceFilterBar({
           valueLabel={conditionLabel}
           open={openKey === "condition"}
           onToggle={() => toggle("condition")}
+          onClose={close}
         >
           {(
             [
@@ -236,10 +307,11 @@ export function MarketplaceFilterBar({
             <button
               key={id}
               type="button"
+              role="menuitem"
               className="block w-full rounded-lg px-3 py-2 text-left text-xs hover:bg-[#f1f5f9]"
               onClick={() => {
                 onFiltersChange({ ...filters, condition: id });
-                setOpenKey(null);
+                close();
               }}
             >
               {label}

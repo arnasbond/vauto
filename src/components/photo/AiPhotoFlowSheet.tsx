@@ -1,7 +1,8 @@
 "use client";
 
 import { Camera, Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import {
   capturePhotoFromSource,
@@ -25,6 +26,22 @@ interface AiPhotoFlowSheetProps {
   busy?: boolean;
 }
 
+function readFileAsDataUrl(file: File): Promise<CapturedPhoto | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      if (typeof dataUrl !== "string") {
+        resolve(null);
+        return;
+      }
+      resolve({ dataUrl, fileName: file.name });
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(file);
+  });
+}
+
 export function AiPhotoFlowSheet({
   open,
   mode,
@@ -35,6 +52,7 @@ export function AiPhotoFlowSheet({
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [extraContext, setExtraContext] = useState("");
   const [sourceOpen, setSourceOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const title =
     mode === "search" ? "Ieškoti pagal nuotrauką" : "Skelbti su AI";
@@ -43,6 +61,7 @@ export function AiPhotoFlowSheet({
     setPhotos([]);
     setExtraContext("");
     setSourceOpen(false);
+    if (fileInputRef.current) fileInputRef.current.value = "";
   }, []);
 
   const handleClose = () => {
@@ -60,16 +79,62 @@ export function AiPhotoFlowSheet({
     });
   };
 
+  const runSearchWithPhoto = async (photo: CapturedPhoto) => {
+    await onSubmit({
+      photos: [photo.dataUrl],
+      extraContext: extraContext.trim(),
+      fileName: photo.fileName,
+    });
+    reset();
+  };
+
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file || busy) return;
+
+    const captured = await readFileAsDataUrl(file);
+    if (!captured) return;
+
+    if (mode === "search") {
+      setPhotos([captured]);
+      await runSearchWithPhoto(captured);
+      return;
+    }
+
+    addPhotos([captured]);
+  };
+
+  const openPhotoPicker = () => {
+    if (busy) return;
+    if (Capacitor.isNativePlatform()) {
+      setSourceOpen(true);
+      return;
+    }
+    fileInputRef.current?.click();
+  };
+
   const handleSourceSelect = async (source: "camera" | "gallery") => {
     setSourceOpen(false);
     if (source === "gallery") {
       const remaining = MAX_AI_PHOTOS - photos.length;
       const picked = await pickMultipleFromGallery(remaining);
+      if (mode === "search" && picked[0]) {
+        setPhotos([picked[0]]);
+        await runSearchWithPhoto(picked[0]);
+        return;
+      }
       addPhotos(picked);
       return;
     }
     const shot = await capturePhotoFromSource("camera");
-    if (shot) addPhotos([shot]);
+    if (!shot) return;
+    if (mode === "search") {
+      setPhotos([shot]);
+      await runSearchWithPhoto(shot);
+      return;
+    }
+    addPhotos([shot]);
   };
 
   const removePhoto = (index: number) => {
@@ -93,6 +158,16 @@ export function AiPhotoFlowSheet({
 
   return (
     <>
+      <input
+        ref={fileInputRef}
+        id="photo-search-input"
+        type="file"
+        accept="image/*"
+        className="hidden"
+        aria-hidden
+        onChange={(e) => void handleFileChange(e)}
+      />
+
       <div
         className="fixed inset-0 z-[220] flex flex-col bg-white"
         role="dialog"
@@ -144,7 +219,7 @@ export function AiPhotoFlowSheet({
             {photos.length < MAX_AI_PHOTOS && (
               <button
                 type="button"
-                onClick={() => setSourceOpen(true)}
+                onClick={openPhotoPicker}
                 disabled={busy}
                 className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border-2 border-dashed border-[#d1d5db] bg-[#fafafa] text-[#1167b1] transition hover:border-[#1167b1] hover:bg-[#eef6ff] disabled:opacity-50"
               >
@@ -159,7 +234,7 @@ export function AiPhotoFlowSheet({
             prekės ženklą ar etiketę.
           </p>
 
-          {photos.length > 0 && photos.length < 4 && (
+          {photos.length > 0 && photos.length < 4 && mode === "listing" && (
             <p className="mt-1 text-xs text-[#1167b1]">
               Sėkmingi skelbimai dažnai turi 4 ar daugiau nuotraukų.
             </p>
