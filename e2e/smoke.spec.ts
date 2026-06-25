@@ -155,30 +155,40 @@ test.describe("Vauto smoke", () => {
     await expect(page.getByRole("button", { name: /Visi/i })).toBeVisible();
   });
 
-  test("AI agent opens from Zero-UI mic on home", async ({ page }) => {
+  test("AI agent opens from FAB on profile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/");
+    await page.goto("/profile/");
     await page.waitForLoadState("networkidle");
-    const mic = page
-      .getByRole("navigation", { name: "Zero-UI navigacija" })
-      .getByRole("button", { name: "Atidaryti VAUTO asistentą" });
-    await expect(mic).toBeEnabled({ timeout: 10_000 });
-    await mic.click();
+    const fab = page.getByTestId("vauto-agent-fab");
+    await expect(fab).toBeVisible({ timeout: 10_000 });
+    await fab.click();
     await expect(page.getByRole("dialog", { name: "VAUTO AI asistentas" })).toBeVisible({
       timeout: 15_000,
     });
     await expect(page.getByText(/Sveiki! Aš esu VAUTO asistentas/i)).toBeVisible();
   });
 
-  test("mobile Zero-UI bottom nav shows assistant and profile", async ({ page }) => {
+  test("mobile bottom nav shows place ad and profile", async ({ page }) => {
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
     await page.waitForLoadState("networkidle");
-    const nav = page.getByRole("navigation", { name: "Zero-UI navigacija" });
-    await expect(nav.getByRole("button", { name: "Atidaryti VAUTO asistentą" })).toBeVisible();
+    const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
+    await expect(nav.getByRole("button", { name: "Įdėti naują skelbimą" })).toBeVisible();
     await expect(nav.getByRole("link", { name: /Profilis|VAUTO CC/i })).toBeVisible();
     await nav.getByRole("link", { name: /Profilis|VAUTO CC/i }).click();
     await expect(page).toHaveURL(/\/profile\/?/, { timeout: 15_000 });
     await expect(page.getByTestId("connection-status")).toBeVisible();
+  });
+
+  test("Gemini send on home runs state-driven search", async ({ page }) => {
+    await page.goto("/");
+    await page.waitForLoadState("networkidle");
+    const search = page.getByRole("searchbox").first();
+    await search.fill("bmw kaunas");
+    await page.getByRole("button", { name: "Siųsti Gemini asistentui" }).click();
+    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    await expect(results.getByText(/bmw kaunas.*rezultat/i)).toBeVisible({
+      timeout: 10_000,
+    });
   });
 });
