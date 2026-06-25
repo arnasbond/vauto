@@ -34,6 +34,7 @@ const {
   B2B_LEAD_PRICE,
   BUSINESS_MONTHLY_PRO,
 } = require("./monetization-engine");
+const { DEMO_LISTINGS_SNAPSHOT } = require("./demo-listings-snapshot.js");
 
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
@@ -48,7 +49,7 @@ ${AGENT_MEMORY_SYSTEM_HINT}
 AUTOMOBILIAMS: iš balso/teksto VISADA ištrauk make, model, year (atskirais laukais arba attributes) ir perduok postNewListing su category=vehicles.
 Kai postNewListing grąžina voiceFollowUp — ištark VERBATIM kaip TTS atsakymą.
 Automobiliams — paklausk VIN. Prieš publikavimą — privatus ar įmonė. Neprisijungusiam — pasiūlyk paskyrą.
-Paieškai — searchListings + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu — tik „Atidarau skelbimus ekrane." arba „Rezultatų nerasta."; jei 0 rezultatų — registerWanted.
+Paieškai — searchListings + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu — tik „Atidarau skelbimus ekrane." arba „Rezultatų nerasta."; registerWanted kviesk TIK kai užklausa visiškai nesusieta su katalogu (pvz. „kosminis laivas“).
 triggerMicroPayment — C2C Smart Boost ${SMART_BOOST_C2C} €, B2B Smart Boost ${SMART_BOOST_B2B} €, Lead Gen ${B2B_LEAD_PRICE} €. B2B nemokamam verslui gili regiono paklausa — siūlyk Business Pro ${BUSINESS_MONTHLY_PRO} €/mėn (showZeroUiScreen business_dashboard), ne triggerMicroPayment.
 Navigacijai — navigate_view (home, discover, search_results, add_listing, seller_wizard, chats, profile, admin_ai).
 KETINIMO ATPAŽINIMAS: „noriu kelti skelbimą“ / parduoti → navigate_view(add_listing) arba postNewListing. NIEKADA searchListings. Paieškai → search_results.
@@ -235,8 +236,18 @@ function normCity(loc) {
   return normCityForFilter(loc);
 }
 
+function resolveAgentListings(ctx) {
+  const fromClient = Array.isArray(ctx.listingsSnapshot) ? ctx.listingsSnapshot : [];
+  const byId = new Map(DEMO_LISTINGS_SNAPSHOT.map((listing) => [listing.id, listing]));
+  for (const item of fromClient) {
+    const existing = byId.get(item.id);
+    byId.set(item.id, existing ? { ...existing, ...item } : item);
+  }
+  return Array.from(byId.values());
+}
+
 function executeAgentTool(name, args, ctx) {
-  const listings = ctx.listingsSnapshot ?? [];
+  const listings = resolveAgentListings(ctx);
 
   if (name === "searchListings") {
     const query = String(args.query ?? "").toLowerCase();

@@ -22,6 +22,7 @@ import { GeneralListingResults } from "@/components/general/GeneralListingResult
 import { ServiceSearchPanel } from "@/components/services/ServiceSearchPanel";
 import { ServiceListingResults } from "@/components/services/ServiceListingResults";
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
+import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -266,7 +267,7 @@ function PortalResults({
 }
 
 export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant?: boolean }) {
-  const { rankedListings, searchQuery } = useVauto();
+  const { rankedListings, searchQuery, listings } = useVauto();
   const carouselListings = rankedListings.slice(0, 3);
   const gridListings = rankedListings.slice(3);
   const brokerSignal = buildSmartBrokerSignal(searchQuery, rankedListings);
@@ -302,11 +303,20 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
 
       {rankedListings.length === 0 ? (
         searchQuery.trim().length >= 3 && !hideEmptyAssistant ? (
-          <WantedEmptyState
-            searchQuery={searchQuery}
-            borderColor={ui.border}
-            textMuted={ui.textMuted}
-          />
+          isAbsurdSearchQuery(searchQuery, listings) ? (
+            <WantedEmptyState
+              searchQuery={searchQuery}
+              borderColor={ui.border}
+              textMuted={ui.textMuted}
+            />
+          ) : (
+            <p
+              className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
+              style={{ borderColor: ui.border, color: ui.textMuted }}
+            >
+              Rezultatų nerasta. Pabandykite kitą paieškos frazę arba pašalinkite filtrus.
+            </p>
+          )
         ) : searchQuery.trim().length < 3 ? (
           <p
             className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm"

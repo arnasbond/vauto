@@ -7,15 +7,11 @@ function sortByNewest(items: Listing[]): Listing[] {
   );
 }
 
-/** API wins on ID conflict; demo catalog fills gaps when API seed is incomplete. */
+/** API wins on ID conflict; demo catalog always fills gaps when API seed is incomplete. */
 export function mergeApiWithDemoCatalog(
   fromApi: Listing[],
-  demos: Listing[],
-  options?: { apiActive?: boolean }
+  demos: Listing[]
 ): Listing[] {
-  if (options?.apiActive && fromApi.length > 0) {
-    return sortByNewest(fromApi);
-  }
   const byId = new Map(demos.map((d) => [d.id, d]));
   const seenSlugs = new Set(
     demos.map((d) => d.slug).filter((s): s is string => Boolean(s))
@@ -36,4 +32,14 @@ export function mergeApiWithDemoCatalog(
   }
 
   return sortByNewest(Array.from(byId.values()));
+}
+
+/** Never return an empty feed when the bundled demo catalog exists. */
+export function ensureDemoCatalogListings(
+  listings: Listing[],
+  demos: Listing[]
+): Listing[] {
+  const merged = mergeApiWithDemoCatalog(listings, demos);
+  if (merged.length > 0) return merged;
+  return demos.length > 0 ? sortByNewest(demos) : listings;
 }

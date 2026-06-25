@@ -1,4 +1,8 @@
 import { pool, query } from "./db.js";
+import {
+  getDemoApiListings,
+  mergeDbListingsWithDemoCatalog,
+} from "./demo-catalog-api.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -159,10 +163,14 @@ export async function upsertUser(user: ApiUser): Promise<void> {
 }
 
 export async function getListings(): Promise<ApiListing[]> {
-  const rows = await query<ListingRow>(
-    `${LISTING_SELECT} ORDER BY created_at DESC`
-  );
-  return rows.map(mapListingRow);
+  try {
+    const rows = await query<ListingRow>(
+      `${LISTING_SELECT} ORDER BY created_at DESC`
+    );
+    return mergeDbListingsWithDemoCatalog(rows.map(mapListingRow));
+  } catch {
+    return getDemoApiListings();
+  }
 }
 
 export async function insertListing(listing: ApiListing): Promise<void> {

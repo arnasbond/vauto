@@ -1,5 +1,9 @@
 import { adminPatchListing, getListings } from "../repository.js";
 import {
+  getDemoApiListings,
+  toAgentListingSummary,
+} from "../demo-catalog-api.js";
+import {
   enrichVehicleListingDraftFromArgs,
   mergeVehicleToolArgs,
 } from "./vehicle-attribute-extract.js";
@@ -268,19 +272,16 @@ async function resolveListings(ctx: AgentToolContext): Promise<AgentListingSumma
   if (ctx.listingsSnapshot?.length) return ctx.listingsSnapshot;
   try {
     const rows = await getListings();
-    return rows
+    const summaries = rows
       .filter((l) => l.status !== "sold" && !l.banned)
-      .map((l) => ({
-        id: l.id,
-        title: l.title,
-        price: l.price,
-        category: l.category,
-        location: l.location,
-        description: l.description,
-      }));
+      .map((l) => toAgentListingSummary(l));
+    if (summaries.length > 0) return summaries;
   } catch {
-    return ctx.listingsSnapshot ?? [];
+    /* fall through to bundled demo */
   }
+  return getDemoApiListings()
+    .filter((l) => l.status !== "sold" && !l.banned)
+    .map((l) => toAgentListingSummary(l));
 }
 
 function normCity(loc: string): string {

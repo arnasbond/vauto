@@ -11,7 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { INITIAL_LISTINGS } from "@/data/mockListings";
-import { mergeApiWithDemoCatalog } from "@/lib/merge-listings";
+import { ensureDemoCatalogListings } from "@/lib/merge-listings";
 import {
   portalRankedListings,
   portalThemeForQuery,
@@ -627,71 +627,83 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     async function load() {
-      await initDataApiConfig();
-      if (isDataApiEnabled() && (await apiHealthCheck())) {
-        setApiActive(true);
-        const storedUser = loadUser();
-        const auth = loadAuthSession();
-        const hasAuthUser = Boolean(storedUser?.id && auth?.isAuthenticated);
-        const listingsRes = await apiFetchListings();
-        const [savedRes, userRes] = hasAuthUser
-          ? await Promise.all([
-              apiFetchSaved(storedUser!.id),
-              apiFetchUser(storedUser!.id),
-            ])
-          : [null, null];
+      try {
+        await initDataApiConfig();
+        if (isDataApiEnabled() && (await apiHealthCheck())) {
+          setApiActive(true);
+          const storedUser = loadUser();
+          const auth = loadAuthSession();
+          const hasAuthUser = Boolean(storedUser?.id && auth?.isAuthenticated);
+          const listingsRes = await apiFetchListings();
+          const [savedRes, userRes] = hasAuthUser
+            ? await Promise.all([
+                apiFetchSaved(storedUser!.id),
+                apiFetchUser(storedUser!.id),
+              ])
+            : [null, null];
 
-        const errors: string[] = [];
-        if (listingsRes.ok) {
-          const fromApi = listingsRes.data.map(withDefaultExpiry);
-          setListings(
-            normalizeListings(
-              mergeApiWithDemoCatalog(fromApi, INITIAL_LISTINGS, {
-                apiActive: true,
-              })
-            )
-          );
-        } else errors.push(listingsRes.error);
-        if (savedRes?.ok) setSavedIds(new Set(savedRes.data));
-        else if (savedRes) errors.push(savedRes.error);
-        if (userRes?.ok && auth?.isAuthenticated) {
-          patchAuthUser(userRes.data);
-        } else if (storedUser && auth?.isAuthenticated) {
-          patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
+          const errors: string[] = [];
+          if (listingsRes.ok && Array.isArray(listingsRes.data)) {
+            const fromApi = listingsRes.data.map(withDefaultExpiry);
+            setListings(
+              normalizeListings(
+                ensureDemoCatalogListings(fromApi, INITIAL_LISTINGS)
+              )
+            );
+          } else {
+            if (!listingsRes.ok) errors.push(listingsRes.error);
+            setListings(normalizeListings(INITIAL_LISTINGS));
+          }
+          if (savedRes?.ok) setSavedIds(new Set(savedRes.data));
+          else if (savedRes) errors.push(savedRes.error);
+          if (userRes?.ok && auth?.isAuthenticated) {
+            patchAuthUser(userRes.data);
+          } else if (storedUser && auth?.isAuthenticated) {
+            patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
+          }
+
+          if (errors.length) setSyncError(errors[0]);
+          const storedIntent = loadSearchIntent();
+          if (storedIntent) setSearchIntentEvents(storedIntent);
+          const storedDismissed = loadSoldPromptDismissed();
+          if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
+          setGdprConsent(loadGdprConsent());
+          return;
         }
 
-        if (errors.length) setSyncError(errors[0]);
+        setApiActive(false);
+        const storedUser = loadUser();
+        const auth = loadAuthSession();
+        const storedListings = loadListings();
+        const storedSaved = loadSavedIds();
+        if (auth?.isAuthenticated && storedUser) {
+          patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
+        }
+        const offlineBase = storedListings?.length
+          ? normalizeListings(storedListings)
+          : [];
+        setListings(
+          normalizeListings(
+            ensureDemoCatalogListings(offlineBase, INITIAL_LISTINGS)
+          )
+        );
+        if (storedSaved) setSavedIds(new Set(storedSaved));
         const storedIntent = loadSearchIntent();
         if (storedIntent) setSearchIntentEvents(storedIntent);
         const storedDismissed = loadSoldPromptDismissed();
         if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
+        const storedLeads = loadServiceLeads();
+        if (storedLeads?.length) setLiveServiceLeads(storedLeads);
+        const storedOpened = loadOpenedServiceLeads();
+        if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
         setGdprConsent(loadGdprConsent());
+      } catch (e) {
+        console.error("[vauto] listing catalog load failed", e);
+        setListings(normalizeListings(INITIAL_LISTINGS));
+        setSyncError("Nepavyko įkelti skelbimų — rodomas demonstracinis katalogas.");
+      } finally {
         setHydrated(true);
-        return;
       }
-
-      setApiActive(false);
-      const storedUser = loadUser();
-      const auth = loadAuthSession();
-      const storedListings = loadListings();
-      const storedSaved = loadSavedIds();
-      if (auth?.isAuthenticated && storedUser) {
-        patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
-      }
-      if (storedListings?.length) {
-        setListings(normalizeListings(storedListings));
-      }
-      if (storedSaved) setSavedIds(new Set(storedSaved));
-      const storedIntent = loadSearchIntent();
-      if (storedIntent) setSearchIntentEvents(storedIntent);
-      const storedDismissed = loadSoldPromptDismissed();
-      if (storedDismissed) setSoldPromptDismissed(new Set(storedDismissed));
-      const storedLeads = loadServiceLeads();
-      if (storedLeads?.length) setLiveServiceLeads(storedLeads);
-      const storedOpened = loadOpenedServiceLeads();
-      if (storedOpened?.length) setOpenedServiceLeadIds(new Set(storedOpened));
-      setGdprConsent(loadGdprConsent());
-      setHydrated(true);
     }
     void load();
   }, [patchAuthUser]);

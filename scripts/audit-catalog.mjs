@@ -17,7 +17,9 @@ function ok(msg) {
 
 const catalogPath = join(root, "src/data/lithuania-mock-catalog.ts");
 const catalogSrc = readFileSync(catalogPath, "utf8");
-const jsonMatch = catalogSrc.match(/export const LITHUANIA_MOCK_CATALOG[^=]*=\s*(\[[\s\S]*\])\s*as Listing/);
+const jsonMatch = catalogSrc.match(
+  /export const LITHUANIA_MOCK_CATALOG[^=]*=\s*(\[[\s\S]*\])\s*as Listing\[\]/
+);
 if (!jsonMatch) fail("Could not parse LITHUANIA_MOCK_CATALOG");
 
 const listings = JSON.parse(jsonMatch[1]);
