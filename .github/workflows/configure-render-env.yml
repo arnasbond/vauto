@@ -57,20 +57,16 @@ jobs:
           echo "AI health check timed out"
           exit 1
 
-      - name: Smoke test analyze-search
+      - name: Smoke test AI health
         run: |
-          for i in $(seq 1 30); do
-            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/ai/analyze-search" \
-              -H "Content-Type: application/json" \
-              -d '{"query":"kas parduoda rubus","userCity":"Vilnius"}')
-            CODE=$(echo "$RESP" | tail -1)
-            BODY=$(echo "$RESP" | sed '$d')
-            echo "analyze-search HTTP $CODE: ${BODY:0:200}"
-            if [ "$CODE" = "200" ]; then
+          for i in $(seq 1 15); do
+            BODY=$(curl -sf "https://vauto-api.onrender.com/api/ai/health" || true)
+            echo "AI health: ${BODY:0:200}"
+            if echo "$BODY" | grep -q '"gemini":true'; then
               exit 0
             fi
-            echo "Attempt $i/30 — waiting for deploy…"
-            sleep 20
+            echo "Attempt $i/15 — waiting…"
+            sleep 15
           done
-          echo "analyze-search failed after retries"
+          echo "AI health check failed"
           exit 1

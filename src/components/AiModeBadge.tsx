@@ -2,11 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { resolveAiModeLabel } from "@/lib/ai-mode";
+import { isClientGeminiAvailable } from "@/lib/gemini-browser";
 import { apiAiHealthCheck } from "@/lib/api/client";
 
 export type AiModeKind = "live" | "demo" | "checking";
 
 export async function resolveAiModeKind(): Promise<AiModeKind> {
+  if (isClientGeminiAvailable()) return "live";
   const health = await apiAiHealthCheck();
   if (health?.gemini) return "live";
   return "demo";
