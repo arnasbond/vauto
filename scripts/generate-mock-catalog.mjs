@@ -33,16 +33,16 @@ const unsplash = (id) =>
 
 const CAR_IMAGES = {
   sedan: unsplash("photo-1555215695-3004980ad54e"),
-  wagon: unsplash("photo-1609521263040-82f9f49b7c65"),
-  suv: unsplash("photo-1519641471654-76cead78234a"),
-  luxury: unsplash("photo-1618843479311-63f341a8f327"),
+  wagon: unsplash("photo-1617531653332-bd46c24f2068"),
+  suv: unsplash("photo-1606664515524-ed2f786a0bd6"),
+  luxury: unsplash("photo-1617531653332-bd46c24f2068"),
   compact: unsplash("photo-1552519507-da3b142c6e3d"),
   hybrid: unsplash("photo-1542362567-b07e54358753"),
   audi: unsplash("photo-1606664515524-ed2f786a0bd6"),
   mercedes: unsplash("photo-1617531653332-bd46c24f2068"),
   bmw: unsplash("photo-1555215695-3004980ad54e"),
-  volvo: unsplash("photo-1619760133404-416b4bef3979"),
-  toyota: unsplash("photo-1621007940902-bb6befaef932"),
+  volvo: unsplash("photo-1617531653332-bd46c24f2068"),
+  toyota: unsplash("photo-1542362567-b07e54358753"),
   volkswagen: unsplash("photo-1542362567-b07e54358753"),
 };
 
@@ -62,8 +62,8 @@ const ELECTRONICS_IMAGES = {
   iphone: unsplash("photo-1592899677977-9c10ca588bbd"),
   samsung: unsplash("photo-1511707171634-5f897ff02aa9"),
   macbook: unsplash("photo-1496181133206-80ce9b88a853"),
-  ipad: unsplash("photo-1606144042614-b2417e99c4ee"),
-  playstation: unsplash("photo-1606813907291-d86efa9b397e"),
+  ipad: unsplash("photo-1544244015-0df4b3ffc6b0"),
+  playstation: unsplash("photo-1585060544812-6b45742d762f"),
   dyson: unsplash("photo-1558618666-fcd25c85cd64"),
   sony: unsplash("photo-1585060544812-6b45742d762f"),
 };
@@ -71,21 +71,21 @@ const ELECTRONICS_IMAGES = {
 const SERVICE_IMAGES = {
   detailing: unsplash("photo-1486262715619-67b85e0b08d3"),
   tires: unsplash("photo-1504148455328-c376907d081c"),
-  diagnostic: unsplash("photo-1625047509248-ec889cbff097"),
+  diagnostic: unsplash("photo-1486262715619-67b85e0b08d3"),
   buyout: unsplash("photo-1487754180451-c456f719a1fc"),
-  paint: unsplash("photo-1619642751034-765df69d01c9"),
-  tow: unsplash("photo-1621939514649-280e2ee02577"),
+  paint: unsplash("photo-1492144534655-ae79c964c9d7"),
+  tow: unsplash("photo-1487754180451-c456f719a1fc"),
   ta: unsplash("photo-1486262715619-67b85e0b08d3"),
-  plumber: unsplash("photo-1585704032915-e241ff423e8f"),
+  plumber: unsplash("photo-1621905251189-08b45d6a269e"),
   electrician: unsplash("photo-1621905251189-08b45d6a269e"),
-  cleaning: unsplash("photo-1581578731548-86083659925c"),
+  cleaning: unsplash("photo-1486262715619-67b85e0b08d3"),
 };
 
 const REAL_ESTATE_IMAGES = {
   apartment: unsplash("photo-1502672260266-1c1ef2d93688"),
   house: unsplash("photo-1560518883-ce09059eeffa"),
   room: unsplash("photo-1522708323590-d24dbb6b0267"),
-  land: unsplash("photo-1500382017468-90403fed94c1"),
+  land: unsplash("photo-1560518883-ce09059eeffa"),
   commercial: unsplash("photo-1497366216548-37526070297c"),
 };
 
@@ -101,26 +101,26 @@ const JOB_IMAGES = {
 const CLOTHING_IMAGES = {
   jacket: unsplash("photo-1551028719-00167b16eac5"),
   shoes: unsplash("photo-1542291026-7eec264c27ff"),
-  dress: unsplash("photo-1595777457583-95e0591d1b72"),
+  dress: unsplash("photo-1542272604-787c3835535d"),
   jeans: unsplash("photo-1542272604-787c3835535d"),
-  bag: unsplash("photo-1584917865442-de89a76edc7b"),
-  kids: unsplash("photo-1519236762933-8a98c0a5d393"),
+  bag: unsplash("photo-1551028719-00167b16eac5"),
+  kids: unsplash("photo-1551028719-00167b16eac5"),
 };
 
 const HOME_IMAGES = {
-  sofa: unsplash("photo-1555041469-a586c61e9bc7"),
+  sofa: unsplash("photo-1617806118233-18e1de247200"),
   table: unsplash("photo-1617806118233-18e1de247200"),
-  kitchen: unsplash("photo-1556909114-f6e7ad7d4046"),
+  kitchen: unsplash("photo-1617806118233-18e1de247200"),
   bed: unsplash("photo-1505693416388-ac5ce068fe85"),
-  wardrobe: unsplash("photo-1595428774223-ef52624120ce"),
+  wardrobe: unsplash("photo-1615529328331-f8917597711f"),
 };
 
 const OTHER_IMAGES = {
-  bike: unsplash("photo-1485965120188-e430f974807a"),
-  stroller: unsplash("photo-1515488042361-ee00e3170fab"),
-  tools: unsplash("photo-1504141418495-c86464f4ed7c"),
-  books: unsplash("photo-1512820790802-52f98f7dc0b2"),
-  garden: unsplash("photo-1416879595882-3373a0488b5b"),
+  bike: unsplash("photo-1571068316344-75bc76f77890"),
+  stroller: unsplash("photo-1586281380349-632531db7ed4"),
+  tools: unsplash("photo-1621905251189-08b45d6a269e"),
+  books: unsplash("photo-1495446815901-a7297e633e8d"),
+  garden: unsplash("photo-1469474968028-56623f02e42e"),
 };
 
 const BODY_TYPES = ["Sedanas", "Universalas", "Visureigis", "Hečbekas", "Kupė"];

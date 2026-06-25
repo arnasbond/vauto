@@ -1,12 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { Heart, MapPin, Play } from "lucide-react";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { listingPath } from "@/lib/seo";
 import { TrustBadges } from "@/components/trust/TrustBadges";
+import { ListingImage } from "@/components/listing/ListingImage";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
 import { JobSearchPanel } from "@/components/jobs/JobSearchPanel";
@@ -78,8 +78,8 @@ function ListingCard({ listing, priceColor }: { listing: ScoredListing; priceCol
     <article className="portal-listing-card w-[156px] shrink-0 overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[var(--portal-accent,#1167b1)]/30 sm:w-[160px]">
       <div className="relative aspect-[4/3] overflow-hidden rounded-xl bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
-          <Image
-            src={listing.image}
+          <ListingImage
+            listing={listing}
             alt={listing.title}
             fill
             sizes="160px"
@@ -129,8 +129,8 @@ function WideListingCard({ listing, priceColor }: { listing: ScoredListing; pric
     <article className="portal-listing-card overflow-hidden rounded-2xl border border-[#dde5ef] bg-white p-2.5 shadow-sm transition-all hover:border-[var(--portal-accent,#1167b1)]/30">
       <div className="relative aspect-[16/10] overflow-hidden rounded-xl bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
-          <Image
-            src={listing.image}
+          <ListingImage
+            listing={listing}
             alt={listing.title}
             fill
             sizes="(max-width: 512px) 50vw"

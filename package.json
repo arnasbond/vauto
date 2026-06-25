@@ -32,7 +32,8 @@
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs",
     "sim:e2e": "npm run e2e:simulate --prefix server",
     "generate:mock-catalog": "node scripts/generate-mock-catalog.mjs",
-    "audit:catalog": "node scripts/audit-catalog.mjs"
+    "audit:catalog": "node scripts/audit-catalog.mjs",
+    "audit:images": "node scripts/check-unsplash-urls.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

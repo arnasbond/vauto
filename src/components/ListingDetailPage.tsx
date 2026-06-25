@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
 import { useEffect } from "react";
@@ -18,6 +17,7 @@ import { AppShell } from "@/components/AppShell";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
 import { ReportButton } from "@/components/support/ReportButton";
 import { TrustBadges } from "@/components/trust/TrustBadges";
+import { ListingImage } from "@/components/listing/ListingImage";
 import { SafeMeetingTips } from "@/components/listing/SafeMeetingTips";
 import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { OwnerListingPromote } from "@/components/listing/OwnerListingPromote";
@@ -139,13 +139,12 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       <ListingSeoHead listing={listing} />
       <div className="flex flex-col px-4 pb-8 pt-2">
         <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl bg-black/20">
-          <Image
-            src={listing.image}
+          <ListingImage
+            listing={listing}
             alt={listing.title}
             fill
             sizes="100vw"
             className="object-cover"
-            priority
           />
           <Link
             href="/"
