@@ -11,6 +11,7 @@ export interface AgentSearchFilters {
   query?: string;
   category?: string;
   city?: string;
+  radiusKm?: number;
   maxPrice?: number;
   minPrice?: number;
   refinements?: string[];

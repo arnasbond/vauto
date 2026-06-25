@@ -14,6 +14,7 @@ export interface FastSearchParams {
   query: string;
   category?: string;
   cityNominative?: string;
+  radiusKm?: number;
   limit: number;
 }
 
@@ -32,23 +33,7 @@ const SKIP_FAST =
 const BROWSE_ALL =
   /\b(visus?\s+skelbimus?|visi\s+skelbimai|parodyk\s+viską|parodyk\s+viska|rodyti\s+visus|show\s+all)\b/i;
 
-const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
-  [/vilniuje|vilnius/i, "Vilnius"],
-  [/kaune|kaunas/i, "Kaunas"],
-  [/klaip[eė]doje|klaip[eė]da/i, "Klaipėda"],
-  [/[šs]iauliuose|[šs]iauliai/i, "Šiauliai"],
-  [/panev[eė][žz]yje|panev[eė][žz]ys/i, "Panevėžys"],
-  [/alytuje|alytus/i, "Alytus"],
-  [/marijampol[eė]je|marijampol[eė]/i, "Marijampolė"],
-  [/utenoje|utena/i, "Utena"],
-  [/palangoje|palanga/i, "Palanga"],
-  [/taurag[eė]je|taurag[eė]/i, "Tauragė"],
-  [/k[eė]dainiuose|k[eė]dainiai/i, "Kėdainiai"],
-  [/jonavoje|jonava/i, "Jonava"],
-  [/pasvalyje|pasvalys/i, "Pasvalys"],
-  [/mažeikiuose|mažeikiai|mazeikiuose|mazeikiai/i, "Mažeikiai"],
-  [/telšiuose|telšiai|telsiuose|telsiai/i, "Telšiai"],
-];
+import { detectCityFromPatterns, LT_CITY_PATTERNS } from "@/lib/lt-cities";
 
 function normCity(loc: string): string {
   return loc
@@ -66,9 +51,21 @@ function stripSearchPrefixes(raw: string): string {
 }
 
 function detectCity(raw: string): string | undefined {
-  for (const [pattern, city] of LT_CITY_PATTERNS) {
-    if (pattern.test(raw)) return city;
+  return detectCityFromPatterns(raw);
+}
+
+/** Parse radius from voice/text: „20 km spinduliu aplink Panevėžį“ */
+export function detectRadiusKm(text: string): number | undefined {
+  const kmMatch = text.match(/(\d{1,3})\s*(?:km|kilometr)/i);
+  if (kmMatch) {
+    const n = Number(kmMatch[1]);
+    if (n === 5 || n === 10 || n === 20 || n === 50) return n;
+    if (n > 0 && n <= 50) return n <= 7 ? 5 : n <= 15 ? 10 : n <= 35 ? 20 : 50;
   }
+  if (/\+\s*5\s*km|5\s*km\s*spindul/i.test(text)) return 5;
+  if (/\+\s*10\s*km|10\s*km\s*spindul/i.test(text)) return 10;
+  if (/\+\s*20\s*km|20\s*km\s*spindul/i.test(text)) return 20;
+  if (/\+\s*50\s*km|50\s*km\s*spindul/i.test(text)) return 50;
   return undefined;
 }
 
@@ -101,12 +98,15 @@ export function parseFastSearchParams(
   if (!canUseFastSearch(text)) return null;
 
   const cityNominative = detectCity(text);
+  const radiusKm = detectRadiusKm(text);
   let working = text;
   if (cityNominative) {
     for (const [pattern] of LT_CITY_PATTERNS) {
       working = working.replace(pattern, " ");
     }
   }
+  working = working.replace(/\d{1,3}\s*km/gi, " ");
+  working = working.replace(/\bspindul(?:iu|yje|ys)\b/gi, " ");
 
   const limit = catalogSize > 0 ? catalogSize : UNLIMITED_SEARCH;
 
@@ -115,6 +115,7 @@ export function parseFastSearchParams(
       query: "",
       category: detectCategory(working),
       cityNominative,
+      radiusKm,
       limit,
     };
   }
@@ -126,6 +127,7 @@ export function parseFastSearchParams(
     query: query.toLowerCase(),
     category: detectCategory(query),
     cityNominative,
+    radiusKm,
     limit,
   };
 }
@@ -209,6 +211,7 @@ export function runFastAgentSearch(
           query: params.query || undefined,
           category: params.category,
           city: params.cityNominative,
+          radiusKm: params.radiusKm,
         },
       },
       toolCalls: [

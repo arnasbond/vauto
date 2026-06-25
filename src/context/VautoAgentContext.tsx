@@ -42,8 +42,7 @@ import {
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
-import { parseViewModeIntent, isViewModeOnlyCommand } from "@/lib/marketplace-view";
-import type { ListingCategory } from "@/lib/types";
+import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 
 export interface AgentSendOptions {
@@ -127,17 +126,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
         setAgentPinnedListings(actions.listingIds);
-        if (actions.filters?.category) {
-          setMarketplaceFilters({
-            ...marketplaceFilters,
-            category: actions.filters.category as ListingCategory,
-          });
-        }
-        if (actions.filters?.city) {
-          setMarketplaceFilters({
-            ...marketplaceFilters,
-            location: actions.filters.city ?? marketplaceFilters.location,
-          });
+        if (actions.filters) {
+          setMarketplaceFilters(
+            mergeAgentIntoMarketplaceFilters(marketplaceFilters, actions.filters)
+          );
         }
         const nextFilters = filtersFromSearchAction(actions);
         if (actions.filtersReset) {

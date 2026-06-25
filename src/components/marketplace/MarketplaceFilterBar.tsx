@@ -12,11 +12,13 @@ import { ChevronDown, LayoutGrid, List, Map } from "lucide-react";
 import {
   DEFAULT_MARKETPLACE_FILTERS,
   formatResultsLabel,
+  MARKETPLACE_RADIUS_OPTIONS,
   MARKETPLACE_SORT_OPTIONS,
   normalizeMarketplaceFilters,
   type MarketplaceFilterState,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
+import { LT_CITY_NAMES } from "@/lib/lt-cities";
 import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -32,16 +34,7 @@ const CATEGORIES: { id: ListingCategory | "all"; label: string }[] = [
   { id: "other", label: "Kita" },
 ];
 
-const LOCATIONS = [
-  "",
-  "Vilnius",
-  "Kaunas",
-  "Klaipėda",
-  "Šiauliai",
-  "Panevėžys",
-  "Alytus",
-  "Palanga",
-];
+const LOCATIONS = ["", ...LT_CITY_NAMES];
 
 function measureDropdownPosition(btn: HTMLButtonElement) {
   const rect = btn.getBoundingClientRect();
@@ -188,6 +181,9 @@ export function MarketplaceFilterBar({
   const sortLabel =
     MARKETPLACE_SORT_OPTIONS.find((o) => o.id === safeFilters.sort)?.label ??
     "Rūšiuoti";
+  const radiusLabel =
+    MARKETPLACE_RADIUS_OPTIONS.find((o) => o.km === safeFilters.radiusKm)
+      ?.label ?? "Visa Lietuva";
 
   return (
     <div className="sticky top-0 z-20 -mx-4 border-b border-[#e8ecf3] bg-[#f8fafc]/95 px-4 py-3 backdrop-blur">
@@ -303,6 +299,33 @@ export function MarketplaceFilterBar({
         </FilterDropdown>
 
         <FilterDropdown
+          label="Atstumas"
+          valueLabel={radiusLabel}
+          open={openKey === "radius"}
+          onToggle={() => toggle("radius")}
+          onClose={close}
+        >
+          {MARKETPLACE_RADIUS_OPTIONS.map((option) => (
+            <button
+              key={option.label}
+              type="button"
+              role="menuitem"
+              className={cn(
+                MENU_ITEM_CLASS,
+                safeFilters.radiusKm === option.km &&
+                  "bg-[#eef6ff] font-semibold text-[#1167b1]"
+              )}
+              onClick={() => {
+                patchFilters({ radiusKm: option.km });
+                close();
+              }}
+            >
+              {option.label}
+            </button>
+          ))}
+        </FilterDropdown>
+
+        <FilterDropdown
           label="Kaina"
           valueLabel={priceLabel}
           open={openKey === "price"}
@@ -378,6 +401,7 @@ export function MarketplaceFilterBar({
 
         {(safeFilters.category !== "all" ||
           safeFilters.location ||
+          safeFilters.radiusKm != null ||
           safeFilters.priceMin != null ||
           safeFilters.priceMax != null ||
           safeFilters.condition !== "all" ||

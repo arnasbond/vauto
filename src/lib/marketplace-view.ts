@@ -1,6 +1,9 @@
 import type { Listing, ListingCategory } from "@/lib/types";
 import type { ScoredListing } from "@/lib/types";
+import { distanceKm, type UserCoords } from "@/lib/geolocation";
+import { coordsForLtCity, detectCityInText } from "@/lib/lt-cities";
 import { sortListingsFast } from "@/lib/fast-agent-search";
+import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
 
 export type MarketplaceViewMode = "list" | "grid" | "map";
 
@@ -18,6 +21,19 @@ export const MARKETPLACE_SORT_OPTIONS: Array<{
 
 export type MarketplaceConditionFilter = "all" | "new" | "used";
 
+export type MarketplaceRadiusKm = 5 | 10 | 20 | 50;
+
+export const MARKETPLACE_RADIUS_OPTIONS: Array<{
+  km: MarketplaceRadiusKm | null;
+  label: string;
+}> = [
+  { km: null, label: "Visa Lietuva" },
+  { km: 5, label: "+5 km" },
+  { km: 10, label: "+10 km" },
+  { km: 20, label: "+20 km" },
+  { km: 50, label: "+50 km" },
+];
+
 export interface MarketplaceFilterState {
   category: ListingCategory | "all";
   location: string;
@@ -25,6 +41,8 @@ export interface MarketplaceFilterState {
   priceMax: number | null;
   condition: MarketplaceConditionFilter;
   sort: MarketplaceSortMode;
+  /** Haversine radius from location city center or buyer GPS */
+  radiusKm: MarketplaceRadiusKm | null;
 }
 
 export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
@@ -34,6 +52,7 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   priceMax: null,
   condition: "all",
   sort: "relevance",
+  radiusKm: null,
 };
 
 /** Ensure persisted/partial filter objects always include sort and valid fields */
@@ -49,6 +68,12 @@ export function normalizeMarketplaceFilters(
       ? sort
       : "relevance";
 
+  const radius = filters.radiusKm;
+  const validRadius =
+    radius === 5 || radius === 10 || radius === 20 || radius === 50
+      ? radius
+      : null;
+
   return {
     category: filters.category ?? "all",
     location: filters.location ?? "",
@@ -56,7 +81,54 @@ export function normalizeMarketplaceFilters(
     priceMax: filters.priceMax ?? null,
     condition: filters.condition ?? "all",
     sort: validSort,
+    radiusKm: validRadius,
   };
+}
+
+/** Snap agent/voice radius to nearest Marktplaats-style option */
+export function snapRadiusKm(km: number): MarketplaceRadiusKm {
+  if (km <= 5) return 5;
+  if (km <= 10) return 10;
+  if (km <= 20) return 20;
+  return 50;
+}
+
+/** Merge Gemini/fast-agent filters into FilterBar state (AND — never overwrite unrelated fields) */
+export function mergeAgentIntoMarketplaceFilters(
+  current: MarketplaceFilterState,
+  agent?: AgentSearchFilters | null
+): MarketplaceFilterState {
+  if (!agent) return normalizeMarketplaceFilters(current);
+  return normalizeMarketplaceFilters({
+    ...current,
+    ...(agent.category ? { category: agent.category as ListingCategory } : {}),
+    ...(agent.city ? { location: agent.city } : {}),
+    ...(agent.minPrice != null ? { priceMin: agent.minPrice } : {}),
+    ...(agent.maxPrice != null ? { priceMax: agent.maxPrice } : {}),
+    ...(agent.radiusKm != null ? { radiusKm: snapRadiusKm(agent.radiusKm) } : {}),
+  });
+}
+
+/** Center for radius filter: selected city, else buyer GPS */
+export function resolveRadiusCenter(
+  filters: MarketplaceFilterState,
+  buyerCoords: UserCoords | null
+): UserCoords | null {
+  if (filters.location.trim()) {
+    const city = coordsForLtCity(filters.location.trim());
+    if (city) return city;
+  }
+  return buyerCoords;
+}
+
+function listingCoords(listing: Listing): UserCoords | null {
+  if (listing.latitude != null && listing.longitude != null) {
+    return { lat: listing.latitude, lng: listing.longitude };
+  }
+  const direct = coordsForLtCity(listing.location);
+  if (direct) return direct;
+  const city = detectCityInText(listing.location);
+  return city ? coordsForLtCity(city) : null;
 }
 
 const VIEW_MODE_MAP: Array<[RegExp, MarketplaceViewMode]> = [
@@ -107,7 +179,8 @@ function listingCondition(listing: Listing): "new" | "used" | "unknown" {
 
 export function applyMarketplaceFilters(
   listings: ScoredListing[],
-  filters: MarketplaceFilterState
+  filters: MarketplaceFilterState,
+  buyerCoords: UserCoords | null = null
 ): ScoredListing[] {
   let results = listings;
 
@@ -134,6 +207,18 @@ export function applyMarketplaceFilters(
       const c = listingCondition(l);
       return c === "used" || c === "unknown";
     });
+  }
+
+  if (filters.radiusKm != null) {
+    const center = resolveRadiusCenter(filters, buyerCoords);
+    if (center) {
+      const maxKm = filters.radiusKm;
+      results = results.filter((l) => {
+        const coords = listingCoords(l);
+        if (!coords) return false;
+        return distanceKm(center, coords) <= maxKm;
+      });
+    }
   }
 
   return results;

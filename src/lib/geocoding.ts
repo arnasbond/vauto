@@ -1,53 +1,26 @@
+import { distanceKm, type UserCoords } from "@/lib/geolocation";
 import {
-  coordsForCity,
-  distanceKm,
-  type UserCoords,
-} from "@/lib/geolocation";
+  coordsForLtCity,
+  detectCityInText,
+  LT_CITY_COORDS,
+} from "@/lib/lt-cities";
 
 /** Mock geocoding — resolves Lithuanian city/neighborhood text to coordinates */
 export function geocodeLocation(locationText: string): UserCoords {
   const normalized = locationText.trim();
-  const lower = normalized.toLowerCase();
+  const matchedCity = detectCityInText(normalized);
 
-  const cities = [
-    "Vilnius",
-    "Kaunas",
-    "Panevėžys",
-    "Klaipėda",
-    "Šiauliai",
-    "Alytus",
-    "Marijampolė",
-    "Mažeikiai",
-    "Jonava",
-    "Utena",
-    "Telšiai",
-    "Tauragė",
-    "Ukmergė",
-    "Plungė",
-    "Kėdainiai",
-    "Raseiniai",
-    "Druskininkai",
-    "Palanga",
-    "Biržai",
-  ];
-
-  let base: UserCoords | null = null;
-  let matchedCity = "";
-
-  for (const city of cities) {
-    if (lower.includes(city.toLowerCase())) {
-      base = coordsForCity(city);
-      matchedCity = city;
-      break;
-    }
+  let base: UserCoords;
+  if (matchedCity) {
+    base = LT_CITY_COORDS[matchedCity]!;
+  } else {
+    const direct = coordsForLtCity(normalized);
+    base = direct ?? { lat: 55.1694, lng: 23.8813 };
   }
 
-  if (!base) {
-    base = { lat: 55.1694, lng: 23.8813 };
-    matchedCity = "Lietuva";
-  }
-
-  const neighborhoodJitter = hashJitter(normalized.replace(matchedCity, "").trim());
+  const neighborhoodJitter = hashJitter(
+    normalized.replace(matchedCity ?? "", "").trim()
+  );
   return {
     lat: roundCoord(base.lat + neighborhoodJitter.lat),
     lng: roundCoord(base.lng + neighborhoodJitter.lng),
@@ -75,7 +48,11 @@ export function distanceToListing(
   listing: { latitude?: number; longitude?: number; location: string }
 ): number | null {
   if (listing.latitude != null && listing.longitude != null) {
-    return Math.round(distanceKm(buyer, { lat: listing.latitude, lng: listing.longitude }) * 10) / 10;
+    return (
+      Math.round(
+        distanceKm(buyer, { lat: listing.latitude, lng: listing.longitude }) * 10
+      ) / 10
+    );
   }
   return null;
 }

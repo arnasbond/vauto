@@ -17,7 +17,11 @@ import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
-import { parseViewModeIntent, isViewModeOnlyCommand } from "@/lib/marketplace-view";
+import {
+  mergeAgentIntoMarketplaceFilters,
+  parseViewModeIntent,
+  isViewModeOnlyCommand,
+} from "@/lib/marketplace-view";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -42,17 +46,10 @@ function applyFastSearchToGrid(
   }
   if (fast.actions.type === "search") {
     setAgentPinnedListings(fast.actions.listingIds);
-    if (fast.actions.filters?.category) {
-      setMarketplaceFilters({
-        ...marketplaceFilters,
-        category: fast.actions.filters.category as ListingCategory,
-      });
-    }
-    if (fast.actions.filters?.city) {
-      setMarketplaceFilters({
-        ...marketplaceFilters,
-        location: fast.actions.filters.city ?? marketplaceFilters.location,
-      });
+    if (fast.actions.filters) {
+      setMarketplaceFilters(
+        mergeAgentIntoMarketplaceFilters(marketplaceFilters, fast.actions.filters)
+      );
     }
     return true;
   }

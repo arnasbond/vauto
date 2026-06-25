@@ -12,24 +12,15 @@ import {
 } from "react";
 import { INITIAL_LISTINGS } from "@/data/mockListings";
 import { ensureDemoCatalogListings } from "@/lib/merge-listings";
+import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { generateDynamicFilters } from "@/lib/scoring";
 import {
-  portalRankedListings,
-  portalThemeForQuery,
-  sanitizeSearchQuery,
-} from "@/lib/portal-listing-filter";
-import {
-  generateDynamicFilters,
-  rankListings,
-  resolveSortMode,
-} from "@/lib/scoring";
-import {
-  applyMarketplaceFilters,
-  applyMarketplaceSort,
   DEFAULT_MARKETPLACE_FILTERS,
   normalizeMarketplaceFilters,
   type MarketplaceFilterState,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
+import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
 import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan, apiBillingPortal } from "@/lib/api/client";
 import {
@@ -188,10 +179,10 @@ interface VautoContextValue {
     filters: import("@/lib/marketplace-view").MarketplaceFilterState
   ) => void;
   resetMarketplaceFilters: () => void;
-  displayListings: ReturnType<typeof rankListings>;
+  displayListings: import("@/lib/types").ScoredListing[];
   activeFilterIds: Set<string>;
   toggleFilter: (id: string) => void;
-  rankedListings: ReturnType<typeof rankListings>;
+  rankedListings: import("@/lib/types").ScoredListing[];
   dynamicFilters: ReturnType<typeof generateDynamicFilters>;
   toggleSave: (id: string) => void;
   deleteListing: (id: string) => void;
@@ -465,95 +456,33 @@ function VautoFacade({
     [catalog.listings, moderation.bannedUserIds]
   );
 
-  const rankedListings = useMemo(() => {
-    let results = rankListings(
+  const displayListings = useMemo(
+    () =>
+      buildDisplayListings({
+        visibleListings,
+        searchQuery: catalog.searchQuery,
+        agentPinnedListingIds: catalog.agentPinnedListingIds,
+        marketplaceFilters: catalog.marketplaceFilters,
+        activeFilterIds: catalog.activeFilterIds,
+        dynamicFilters: catalog.dynamicFilters,
+        visualSearchProfile: catalog.visualSearchProfile,
+        visualRankScores: catalog.visualRankScores,
+        buyerCoords: catalog.buyerCoords,
+      }),
+    [
       visibleListings,
       catalog.searchQuery,
-      resolveSortMode(catalog.activeFilterIds),
-      {
-        visualProfile: catalog.visualSearchProfile,
-        visualRankScores: catalog.visualRankScores,
-      }
-    );
+      catalog.agentPinnedListingIds,
+      catalog.marketplaceFilters,
+      catalog.activeFilterIds,
+      catalog.dynamicFilters,
+      catalog.visualSearchProfile,
+      catalog.visualRankScores,
+      catalog.buyerCoords,
+    ]
+  );
 
-    if (catalog.activeFilterIds.size > 0) {
-      const activeFilters = catalog.dynamicFilters.filter((f) =>
-        catalog.activeFilterIds.has(f.id)
-      );
-      const sortOnly = new Set([
-        "newest",
-        "cheapest",
-        "closest",
-        "budget",
-        "cheap-service",
-      ]);
-      const predicateFilters = activeFilters.filter(
-        (f) => !sortOnly.has(f.id)
-      );
-      if (predicateFilters.length > 0) {
-        results = results.filter((l) =>
-          predicateFilters.every((f) => f.apply(l))
-        );
-      }
-    }
-
-    const q = catalog.searchQuery.trim();
-    if (q && portalThemeForQuery(q) !== "flux") {
-      results = portalRankedListings(q, results);
-    }
-
-    return results;
-  }, [
-    visibleListings,
-    catalog.searchQuery,
-    catalog.activeFilterIds,
-    catalog.dynamicFilters,
-    catalog.visualSearchProfile,
-    catalog.visualRankScores,
-  ]);
-
-  const displayListings = useMemo(() => {
-    let results = rankedListings;
-
-    const filters = normalizeMarketplaceFilters(catalog.marketplaceFilters);
-
-    if (catalog.agentPinnedListingIds !== null) {
-      if (catalog.agentPinnedListingIds.length === 0) {
-        results = [];
-      } else {
-        const order = new Map(
-          catalog.agentPinnedListingIds.map((id, index) => [id, index])
-        );
-        const pinnedPool = visibleListings.filter((l) => order.has(l.id));
-        results = rankListings(
-          pinnedPool,
-          catalog.searchQuery,
-          resolveSortMode(catalog.activeFilterIds),
-          {
-            visualProfile: catalog.visualSearchProfile,
-            visualRankScores: catalog.visualRankScores,
-          }
-        );
-        if (filters.sort === "relevance") {
-          results = [...results].sort(
-            (a, b) => order.get(a.id)! - order.get(b.id)!
-          );
-        }
-      }
-    }
-
-    const filtered = applyMarketplaceFilters(results, filters);
-    return applyMarketplaceSort(filtered, filters.sort);
-  }, [
-    rankedListings,
-    visibleListings,
-    catalog.agentPinnedListingIds,
-    catalog.searchQuery,
-    catalog.activeFilterIds,
-    catalog.visualSearchProfile,
-    catalog.visualRankScores,
-    catalog.marketplaceFilters,
-  ]);
+  const rankedListings = displayListings;
 
   const popularListingIds = useMemo(
     () => getPopularListingIds(visibleListings, 4),
