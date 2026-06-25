@@ -63,6 +63,27 @@ async function main() {
   }
 
   await checkAiEndpoints(base);
+  await checkAnalyzeSearch(base);
+}
+
+async function checkAnalyzeSearch(base: string) {
+  const url = `${base}/api/ai/analyze-search`;
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: "kas parduoda rubus", userCity: "Vilnius" }),
+      signal: AbortSignal.timeout(45_000),
+    });
+    const body = await res.json().catch(() => ({}));
+    if (res.ok && body?.cleanQuery) {
+      console.log(`analyze-search OK: category=${body.category} cleanQuery=${body.cleanQuery}`);
+      return;
+    }
+    console.warn(`analyze-search: HTTP ${res.status}`, JSON.stringify(body).slice(0, 200));
+  } catch (e) {
+    console.warn("analyze-search unreachable:", e.message ?? e);
+  }
 }
 
 async function checkAiEndpoints(base) {
@@ -92,7 +113,15 @@ async function checkAiEndpoints(base) {
       }
       if (c.path.endsWith("/health")) {
         const ai = await res.json().catch(() => ({}));
-        console.log(`AI health (${c.path}):`, JSON.stringify(ai));
+        const geminiLive =
+          ai.gemini === true ||
+          ai.provider === "gemini" ||
+          (ai.mode === "gemini" && ai.openai === true);
+        console.log(
+          `AI health (${c.path}):`,
+          JSON.stringify(ai),
+          geminiLive ? "→ Gemini LIVE" : "→ Demo/fallback"
+        );
       } else {
         console.log(`AI route ${c.path}: HTTP ${status} (reachable)`);
       }

@@ -47,14 +47,51 @@ async function dataFetch<T>(
 
 function getAiBaseUrls(): string[] {
   const urls: string[] = [];
-  if (typeof window !== "undefined") {
-    urls.push(window.location.origin);
-  }
   const dataApi = getDataApiBaseUrl();
-  if (dataApi && !urls.includes(dataApi)) urls.push(dataApi);
+  if (dataApi) urls.push(dataApi);
+  if (typeof window !== "undefined") {
+    const origin = window.location.origin;
+    if (!urls.includes(origin)) urls.push(origin);
+  }
   const legacy = getAiBaseUrl();
   if (legacy && !urls.includes(legacy)) urls.push(legacy);
   return urls;
+}
+
+type RawAiHealth = {
+  ok?: boolean;
+  gemini?: boolean;
+  openai?: boolean;
+  provider?: string | null;
+  mode?: string;
+};
+
+/** Normalize legacy Render health (`openai` + `provider: gemini`) to `gemini: true`. */
+export function normalizeAiHealth(raw: RawAiHealth | null): {
+  ok: boolean;
+  gemini: boolean;
+  provider?: string | null;
+  mode: string;
+} | null {
+  if (!raw?.ok) return null;
+  const geminiLive =
+    raw.gemini === true ||
+    raw.provider === "gemini" ||
+    (raw.mode === "gemini" && raw.openai === true);
+  if (!geminiLive) {
+    return {
+      ok: true,
+      gemini: false,
+      provider: raw.provider ?? null,
+      mode: raw.mode ?? "demo",
+    };
+  }
+  return {
+    ok: true,
+    gemini: true,
+    provider: raw.provider ?? "gemini",
+    mode: raw.mode ?? "gemini",
+  };
 }
 
 async function aiFetchOnce<T>(
@@ -284,15 +321,17 @@ export async function apiAiHealthCheck(): Promise<{
   mode: string;
 } | null> {
   for (const base of getAiBaseUrls()) {
-    const { data: health } = await aiFetchOnce<{
-      ok: boolean;
-      gemini: boolean;
-      provider?: string | null;
-      mode: string;
-    }>(base, "/api/ai/health", undefined, 8_000);
-    if (health?.gemini) return health;
+    const { data: health } = await aiFetchOnce<RawAiHealth>(
+      base,
+      "/api/ai/health",
+      undefined,
+      8_000
+    );
+    const normalized = normalizeAiHealth(health);
+    if (normalized?.gemini) return normalized;
   }
-  return aiFetch("/api/ai/health", undefined, 8_000);
+  const fallback = await aiFetch<RawAiHealth>("/api/ai/health", undefined, 8_000);
+  return normalizeAiHealth(fallback);
 }
 
 export async function apiFetchListings(): Promise<ApiResult<Listing[]>> {

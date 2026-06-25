@@ -5,8 +5,11 @@ on:
     branches: [master]
     paths:
       - "server/**"
+      - "api/ai/**"
       - "render.yaml"
       - "scripts/redeploy-render.mjs"
+      - "scripts/configure-render-env.mjs"
+      - "scripts/verify-health.mjs"
   workflow_dispatch:
 
 jobs:

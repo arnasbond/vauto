@@ -39,24 +39,33 @@ jobs:
 
       - name: Wait for API health
         run: |
-          URL="https://vauto-api.onrender.com/api/health"
+          URL="https://vauto-api.onrender.com/api/ai/health"
           for i in $(seq 1 30); do
             BODY=$(curl -sf "$URL" || true)
             echo "$BODY"
-            if echo "$BODY" | grep -q '"geminiAgent":true'; then
-              echo "API healthy with Gemini agent"
-              exit 0
-            fi
             if echo "$BODY" | grep -q '"gemini":true'; then
-              echo "API healthy with Gemini"
+              echo "AI health: gemini=true"
               exit 0
             fi
-            if echo "$BODY" | grep -q '"db":"connected"'; then
-              echo "API healthy"
+            if echo "$BODY" | grep -q '"provider":"gemini"'; then
+              echo "AI health: provider=gemini (legacy schema)"
               exit 0
             fi
             echo "Attempt $i/30 — waiting…"
             sleep 20
           done
-          echo "Health check timed out"
+          echo "AI health check timed out"
           exit 1
+
+      - name: Smoke test analyze-search
+        run: |
+          RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/ai/analyze-search" \
+            -H "Content-Type: application/json" \
+            -d '{"query":"kas parduoda rubus","userCity":"Vilnius"}')
+          CODE=$(echo "$RESP" | tail -1)
+          BODY=$(echo "$RESP" | sed '$d')
+          echo "analyze-search HTTP $CODE: $BODY"
+          if [ "$CODE" != "200" ]; then
+            echo "analyze-search failed"
+            exit 1
+          fi
