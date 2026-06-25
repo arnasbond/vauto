@@ -3,6 +3,22 @@ import { VEHICLE_BRAND_PATTERN } from "@/lib/vehicle-keywords";
 
 export type ParsedConditionFilter = "used" | "new";
 
+/** Collapse split brand tokens: „vol vo“ → „volvo“ */
+const BRAND_ALIASES: Array<[RegExp, string]> = [
+  [/\bvol\s+vo\b/gi, "volvo"],
+  [/\bmerc(?:edes)?\s+benz\b/gi, "mercedes benz"],
+  [/\bmerc\b/gi, "mercedes"],
+  [/\bvw\b/gi, "volkswagen"],
+];
+
+function normalizeBrandAliases(text: string): string {
+  let t = text;
+  for (const [pattern, replacement] of BRAND_ALIASES) {
+    t = t.replace(pattern, replacement);
+  }
+  return t;
+}
+
 const NORM = (s: string) =>
   s
     .toLowerCase()
@@ -137,17 +153,18 @@ function stripCityFromText(text: string, city: string): string {
  * „Rask volvo v70 aplink Panevėžy naudotas“ → cleanQuery: volvo v70, city, +20 km, used.
  */
 export function parseSearchIntent(text: string): ParsedSearchIntent {
-  const cityNominative = detectCityFuzzy(text);
-  const condition = detectCondition(text);
-  let radiusKm = detectRadiusKm(text);
+  const normalized = normalizeBrandAliases(text);
+  const cityNominative = detectCityFuzzy(normalized);
+  const condition = detectCondition(normalized);
+  let radiusKm = detectRadiusKm(normalized);
   const hasProximity =
-    /\b(aplink|apie|šalia|salia|arti)\b/i.test(text) || radiusKm != null;
+    /\b(aplink|apie|šalia|salia|arti)\b/i.test(normalized) || radiusKm != null;
 
   if (radiusKm == null && hasProximity && cityNominative) {
     radiusKm = 20;
   }
 
-  let working = text;
+  let working = normalized;
   if (cityNominative) {
     working = stripCityFromText(working, cityNominative);
   }

@@ -1,4 +1,5 @@
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
+import { isVehicleQuery } from "@/lib/vehicle-keywords";
 
 export interface PortalExperience {
   theme: ChameleonThemeId;
@@ -101,7 +102,7 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
 
 export function portalExperienceForQuery(query: string): PortalExperience {
   const q = query.toLowerCase();
-  if (/auto|automobil|ratlank|padang|vin|valst|numer|golf|bmw|audi|ta\b/.test(q)) {
+  if (isVehicleQuery(q)) {
     return EXPERIENCES.autoplius;
   }
   if (/suknel|batai|drabu|striuk|dydis|brand|zara|nike|vinted/.test(q)) {

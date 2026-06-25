@@ -96,11 +96,31 @@ export function snapRadiusKm(km: number): MarketplaceRadiusKm {
 /** Merge Gemini/fast-agent filters into FilterBar state (AND — never overwrite unrelated fields) */
 export function mergeAgentIntoMarketplaceFilters(
   current: MarketplaceFilterState,
-  agent?: AgentSearchFilters | null
+  agent?: AgentSearchFilters | null,
+  options?: {
+    /** Clear geo/condition when the new query omits them (fresh product search) */
+    resetAbsentGeo?: boolean;
+    resetAbsentCondition?: boolean;
+  }
 ): MarketplaceFilterState {
   if (!agent) return normalizeMarketplaceFilters(current);
+
+  let base: MarketplaceFilterState = { ...current };
+
+  if (options?.resetAbsentGeo) {
+    if (!agent.city) {
+      base = { ...base, location: "", radiusKm: null };
+    } else if (agent.radiusKm == null) {
+      base = { ...base, radiusKm: null };
+    }
+  }
+
+  if (options?.resetAbsentCondition && !agent.condition) {
+    base = { ...base, condition: "all" };
+  }
+
   return normalizeMarketplaceFilters({
-    ...current,
+    ...base,
     ...(agent.category ? { category: agent.category as ListingCategory } : {}),
     ...(agent.city ? { location: agent.city } : {}),
     ...(agent.minPrice != null ? { priceMin: agent.minPrice } : {}),

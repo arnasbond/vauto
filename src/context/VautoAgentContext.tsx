@@ -128,7 +128,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setAgentPinnedListings(actions.listingIds);
         if (actions.filters) {
           setMarketplaceFilters(
-            mergeAgentIntoMarketplaceFilters(marketplaceFilters, actions.filters)
+            mergeAgentIntoMarketplaceFilters(
+              marketplaceFilters,
+              actions.filters,
+              { resetAbsentGeo: true, resetAbsentCondition: true }
+            )
           );
         }
         const nextFilters = filtersFromSearchAction(actions);
@@ -162,13 +166,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "empty_search") {
         goToMarketplace("agent");
         setOpen(false);
-        setAgentPinnedListings([]);
+        setAgentPinnedListings(null);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
         if (actions.filters) {
           setMarketplaceFilters(
-            mergeAgentIntoMarketplaceFilters(marketplaceFilters, actions.filters)
+            mergeAgentIntoMarketplaceFilters(
+              marketplaceFilters,
+              actions.filters,
+              { resetAbsentGeo: true, resetAbsentCondition: true }
+            )
           );
         }
         window.setTimeout(() => focusSearchOutcome(0), 120);

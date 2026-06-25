@@ -49,16 +49,24 @@ function applyFastSearchToGrid(
     setAgentPinnedListings(fast.actions.listingIds);
     if (fast.actions.filters) {
       setMarketplaceFilters(
-        mergeAgentIntoMarketplaceFilters(marketplaceFilters, fast.actions.filters)
+        mergeAgentIntoMarketplaceFilters(
+          marketplaceFilters,
+          fast.actions.filters,
+          { resetAbsentGeo: true, resetAbsentCondition: true }
+        )
       );
     }
     return fast.actions.searchQuery;
   }
   if (fast.actions.type === "empty_search") {
-    setAgentPinnedListings([]);
+    setAgentPinnedListings(null);
     if (fast.actions.filters) {
       setMarketplaceFilters(
-        mergeAgentIntoMarketplaceFilters(marketplaceFilters, fast.actions.filters)
+        mergeAgentIntoMarketplaceFilters(
+          marketplaceFilters,
+          fast.actions.filters,
+          { resetAbsentGeo: true, resetAbsentCondition: true }
+        )
       );
     }
     return fast.actions.searchQuery;

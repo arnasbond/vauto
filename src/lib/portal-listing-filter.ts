@@ -1,6 +1,7 @@
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 import type { Listing, ListingCategory, ScoredListing } from "@/lib/types";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { isVehicleQuery } from "@/lib/vehicle-keywords";
 
 /** Categories shown for each portal theme in search/buddy/broker. */
 export function categoriesForPortal(theme: ChameleonThemeId): string[] | null {
@@ -29,7 +30,7 @@ export function portalThemeForQuery(query: string): ChameleonThemeId {
 /** Strict category from query keywords (APRANGA → clothing, etc.). */
 export function inferStrictCategory(query: string): ListingCategory | null {
   const q = query.toLowerCase();
-  if (/auto|automobil|ratlank|padang|vin\b|bmw|audi|golf|opel/i.test(q)) {
+  if (isVehicleQuery(q)) {
     return "vehicles";
   }
   if (/bat|batai|keden|aulis|drabu|striuk|suknel|palt|dydis|zara|nike|vinted|aprang/i.test(q)) {
