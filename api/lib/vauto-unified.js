@@ -46,7 +46,7 @@ const CATEGORY_TO_INTERNAL = {
   GYVUNAI: "other",
 };
 
-const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 
 function parseDataUrl(url) {
   const m = String(url).match(/^data:([^;]+);base64,(.+)$/);

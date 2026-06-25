@@ -103,12 +103,12 @@ export interface UnifiedLlmJsonInput {
   imageDataUrls?: string[];
 }
 
-const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
+const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 
 const DEFAULT_JSON_SYSTEM =
   "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų.";
 
-/** VAUTO unified parser — Gemini 2.5 Flash, then 2.0 Flash. */
+/** VAUTO unified parser — Gemini 2.5 Flash, then 2.5 Flash Lite. */
 export async function unifiedLlmJson(
   input: UnifiedLlmJsonInput
 ): Promise<Record<string, unknown>> {
@@ -196,24 +196,35 @@ async function geminiGeneratePlainText(
     if (inline) parts.push(inline);
   }
 
-  const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${key}`,
-    {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts }],
-        generationConfig: { temperature: 0.1 },
-      }),
+  let lastError: unknown;
+  for (const model of UNIFIED_GEMINI_MODELS) {
+    const res = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${key}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts }],
+          generationConfig: { temperature: 0.1 },
+        }),
+      }
+    );
+    if (!res.ok) {
+      lastError = new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
+      continue;
     }
-  );
-  if (!res.ok) throw new Error(`Gemini ${res.status}: ${await res.text()}`);
-  const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
-  };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-  if (!text) throw new Error("Empty Gemini response");
-  return text;
+    const data = (await res.json()) as {
+      candidates?: { content?: { parts?: { text?: string }[] } }[];
+    };
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
+    if (!text) {
+      lastError = new Error("Empty Gemini response");
+      continue;
+    }
+    return text;
+  }
+
+  throw lastError instanceof Error ? lastError : new Error("Gemini API nepavyko");
 }
 
 export async function visionDescribe(

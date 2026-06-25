@@ -140,7 +140,7 @@ const BUDDY_REPEAT_PROMPT =
 const STATE_SEARCH_REPLY = "Atidarau skelbimus ekrane.";
 const STATE_EMPTY_SEARCH_REPLY = "Rezultatų nerasta.";
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"] as const;
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 const MAX_TOOL_ROUNDS = 5;
 const GEMINI_AGENT_TIMEOUT_MS = 28_000;
 

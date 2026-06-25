@@ -188,7 +188,7 @@ const AGENT_FUNCTION_DECLARATIONS = [
   },
 ];
 
-const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.0-flash"];
+const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"];
 const VALID_ZERO_UI_SCREENS = [
   "marketplace",
   "listing_preview",
