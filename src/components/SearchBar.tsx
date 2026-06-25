@@ -13,6 +13,8 @@ import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
+import { runFastAgentSearch } from "@/lib/fast-agent-search";
+import { parseViewModeIntent } from "@/lib/marketplace-view";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -36,6 +38,11 @@ export function SearchBar() {
     chameleonTheme,
     setSearchLoading,
     searchLoading,
+    listings,
+    setAgentPinnedListings,
+    setViewMode,
+    setMarketplaceFilters,
+    marketplaceFilters,
   } = useVauto();
 
   const { sendAgentMessage, busy: agentBusy } = useVautoAgent();
@@ -70,6 +77,34 @@ export function SearchBar() {
     }
 
     setSearchInputMode("text");
+    setSearchQuery(q);
+
+    const viewIntent = parseViewModeIntent(q);
+    if (viewIntent) setViewMode(viewIntent);
+
+    const fast = runFastAgentSearch(q, listings);
+    if (fast) {
+      if (fast.actions.type === "search") {
+        setAgentPinnedListings(fast.actions.listingIds);
+        if (fast.actions.filters?.category) {
+          setMarketplaceFilters({
+            ...marketplaceFilters,
+            category: fast.actions.filters.category as import("@/lib/types").ListingCategory,
+          });
+        }
+        if (fast.actions.filters?.city) {
+          setMarketplaceFilters({
+            ...marketplaceFilters,
+            location: fast.actions.filters.city ?? marketplaceFilters.location,
+          });
+        }
+      } else if (fast.actions.type === "empty_search") {
+        setAgentPinnedListings([]);
+      }
+    } else {
+      setAgentPinnedListings(null);
+    }
+
     scrollToResults();
     inputRef.current?.blur();
   };

@@ -22,6 +22,12 @@ import {
   rankListings,
   resolveSortMode,
 } from "@/lib/scoring";
+import {
+  applyMarketplaceFilters,
+  DEFAULT_MARKETPLACE_FILTERS,
+  type MarketplaceFilterState,
+  type MarketplaceViewMode,
+} from "@/lib/marketplace-view";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
 import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan, apiBillingPortal } from "@/lib/api/client";
 import {
@@ -173,6 +179,14 @@ interface VautoContextValue {
   agentPinnedListingIds: string[] | null;
   setAgentPinnedListings: (ids: string[] | null) => void;
   clearAgentPinnedListings: () => void;
+  viewMode: import("@/lib/marketplace-view").MarketplaceViewMode;
+  setViewMode: (mode: import("@/lib/marketplace-view").MarketplaceViewMode) => void;
+  marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState;
+  setMarketplaceFilters: (
+    filters: import("@/lib/marketplace-view").MarketplaceFilterState
+  ) => void;
+  resetMarketplaceFilters: () => void;
+  displayListings: ReturnType<typeof rankListings>;
   activeFilterIds: Set<string>;
   toggleFilter: (id: string) => void;
   rankedListings: ReturnType<typeof rankListings>;
@@ -381,6 +395,7 @@ type VautoCatalogSlice = Omit<
   | "unsubscribeWishlist"
   | "isWishlistSubscribed"
   | "rankedListings"
+  | "displayListings"
   | "popularListingIds"
 >;
 
@@ -495,6 +510,29 @@ function VautoFacade({
     catalog.visualRankScores,
   ]);
 
+  const displayListings = useMemo(() => {
+    let results = rankedListings;
+
+    if (catalog.agentPinnedListingIds !== null) {
+      if (catalog.agentPinnedListingIds.length === 0) {
+        results = [];
+      } else {
+        const order = new Map(
+          catalog.agentPinnedListingIds.map((id, index) => [id, index])
+        );
+        results = results
+          .filter((r) => order.has(r.id))
+          .sort((a, b) => order.get(a.id)! - order.get(b.id)!);
+      }
+    }
+
+    return applyMarketplaceFilters(results, catalog.marketplaceFilters);
+  }, [
+    rankedListings,
+    catalog.agentPinnedListingIds,
+    catalog.marketplaceFilters,
+  ]);
+
   const popularListingIds = useMemo(
     () => getPopularListingIds(visibleListings, 4),
     [visibleListings]
@@ -509,6 +547,7 @@ function VautoFacade({
       ...moderation,
       ...pushAlerts,
       rankedListings,
+      displayListings,
       popularListingIds,
     }),
     [
@@ -519,6 +558,7 @@ function VautoFacade({
       moderation,
       pushAlerts,
       rankedListings,
+      displayListings,
       popularListingIds,
     ]
   );
@@ -577,6 +617,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [agentPinnedListingIds, setAgentPinnedListingIds] = useState<
     string[] | null
   >(null);
+  const [viewMode, setViewMode] = useState<MarketplaceViewMode>("grid");
+  const [marketplaceFilters, setMarketplaceFilters] =
+    useState<MarketplaceFilterState>(DEFAULT_MARKETPLACE_FILTERS);
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set()
   );
@@ -934,11 +977,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const setAgentPinnedListings = useCallback((ids: string[] | null) => {
-    setAgentPinnedListingIds(ids?.length ? ids : null);
+    setAgentPinnedListingIds(ids);
   }, []);
 
   const clearAgentPinnedListings = useCallback(() => {
     setAgentPinnedListingIds(null);
+  }, []);
+
+  const resetMarketplaceFilters = useCallback(() => {
+    setMarketplaceFilters(DEFAULT_MARKETPLACE_FILTERS);
   }, []);
 
   const handleSearchQuery = useCallback(
@@ -1502,6 +1549,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       agentPinnedListingIds,
       setAgentPinnedListings,
       clearAgentPinnedListings,
+      viewMode,
+      setViewMode,
+      marketplaceFilters,
+      setMarketplaceFilters,
+      resetMarketplaceFilters,
       activeFilterIds,
       toggleFilter,
       dynamicFilters,
@@ -1580,6 +1632,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       agentPinnedListingIds,
       setAgentPinnedListings,
       clearAgentPinnedListings,
+      viewMode,
+      marketplaceFilters,
+      resetMarketplaceFilters,
       activeFilterIds,
       toggleFilter,
       dynamicFilters,

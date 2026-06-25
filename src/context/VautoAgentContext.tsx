@@ -42,6 +42,8 @@ import {
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
+import { parseViewModeIntent } from "@/lib/marketplace-view";
+import type { ListingCategory } from "@/lib/types";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 
 export interface AgentSendOptions {
@@ -76,7 +78,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     subscribeWishlist,
     rankedListings,
     searchQuery,
-    clearAgentPinnedListings,
+    setAgentPinnedListings,
+    setViewMode,
+    setMarketplaceFilters,
+    marketplaceFilters,
     clearVisualSearch,
   } = useVauto();
   const { navigateTo } = useNavigation();
@@ -121,7 +126,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
-        clearAgentPinnedListings();
+        setAgentPinnedListings(actions.listingIds);
+        if (actions.filters?.category) {
+          setMarketplaceFilters({
+            ...marketplaceFilters,
+            category: actions.filters.category as ListingCategory,
+          });
+        }
+        if (actions.filters?.city) {
+          setMarketplaceFilters({
+            ...marketplaceFilters,
+            location: actions.filters.city ?? marketplaceFilters.location,
+          });
+        }
         const nextFilters = filtersFromSearchAction(actions);
         if (actions.filtersReset) {
           clearSearchFilters();
@@ -153,7 +170,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "empty_search") {
         goToMarketplace("agent");
         setOpen(false);
-        clearAgentPinnedListings();
+        setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
@@ -219,7 +236,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       recordSearchFilters,
       clearSearchFilters,
       openMicroPayment,
-      clearAgentPinnedListings,
+      setAgentPinnedListings,
+      setMarketplaceFilters,
+      marketplaceFilters,
       clearVisualSearch,
     ]
   );
@@ -253,6 +272,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       if (searchSessionReset) {
         clearSearchFilters();
+      }
+
+      const viewIntent = parseViewModeIntent(trimmed);
+      if (viewIntent) {
+        setViewMode(viewIntent);
+        if (/^(parodyk|rodyti|perjunk)\b/i.test(trimmed) && !/\b(ieškau|ieskau|rask|volvo|bmw|audi)\b/i.test(trimmed)) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text:
+                viewIntent === "map"
+                  ? "Perjungiu į žemėlapio vaizdą."
+                  : viewIntent === "list"
+                    ? "Perjungiu į sąrašo vaizdą."
+                    : "Perjungiu į tinklelio vaizdą.",
+            },
+          ]);
+          setBusy(false);
+          return { ok: true, reply: "Vaizdas perjungtas." };
+        }
       }
 
       const fast = runFastAgentSearch(trimmed, listings);
@@ -367,6 +407,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       listings,
       messages,
       showToast,
+      setViewMode,
       user,
       isAuthenticated,
       rankedListings,

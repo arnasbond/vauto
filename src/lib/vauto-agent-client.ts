@@ -146,7 +146,6 @@ const VALID: ListingCategory[] = [
 export function compactListingsForAgent(listings: Listing[]): AgentListingSnapshot[] {
   return listings
     .filter((l) => l.status !== "sold" && !l.banned)
-    .slice(0, 100)
     .map((l) => ({
       id: l.id,
       title: l.title,

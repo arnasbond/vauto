@@ -24,12 +24,21 @@ const SELLER_RE =
 const SKIP_FAST =
   /\b(admin|moderuoti|blokiruoti|boost|apmokėti|apmoketi|iškel|iskel|business\s+pro|dashboard)\b/i;
 
+const BROWSE_ALL =
+  /\b(visus?\s+skelbimus?|visi\s+skelbimai|parodyk\s+viską|parodyk\s+viska|rodyti\s+visus|show\s+all)\b/i;
+
 const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
   [/vilniuje|vilnius/i, "Vilnius"],
   [/kaune|kaunas/i, "Kaunas"],
   [/klaip[eė]doje|klaip[eė]da/i, "Klaipėda"],
   [/[šs]iauliuose|[šs]iauliai/i, "Šiauliai"],
   [/panev[eė][žz]yje|panev[eė][žz]ys/i, "Panevėžys"],
+  [/alytuje|alytus/i, "Alytus"],
+  [/marijampol[eė]je|marijampol[eė]/i, "Marijampolė"],
+  [/utenoje|utena/i, "Utena"],
+  [/palangoje|palanga/i, "Palanga"],
+  [/mažeikiuose|mažeikiai|mazeikiuose|mazeikiai/i, "Mažeikiai"],
+  [/telšiuose|telšiai|telsiuose|telsiai/i, "Telšiai"],
 ];
 
 function stripSearchPrefixes(raw: string): string {
@@ -46,6 +55,18 @@ function detectCity(raw: string): string | undefined {
   return undefined;
 }
 
+function detectCategory(query: string): string | undefined {
+  const q = query.toLowerCase();
+  if (/\b(volvo|bmw|audi|vw|toyota|mercedes|ford|opel|auto|automob)\b/i.test(q)) {
+    return "vehicles";
+  }
+  if (/\b(butas|namas|sklypas|nt\b|nekilnojam|nuomoju)\b/i.test(q)) return "real_estate";
+  if (/\b(darbas|etat|atlyginim|cv\b)\b/i.test(q)) return "jobs";
+  if (/\b(drabuž|batai|striuk|dydis)\b/i.test(q)) return "clothing";
+  if (/\b(meistr|paslaug|remont)\b/i.test(q)) return "services";
+  return undefined;
+}
+
 function canUseFastSearch(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 140) return false;
@@ -54,8 +75,9 @@ function canUseFastSearch(text: string): boolean {
   return true;
 }
 
-function parseFastSearchParams(text: string) {
+function parseFastSearchParams(text: string, catalogSize: number) {
   if (!canUseFastSearch(text)) return null;
+
   const cityNominative = detectCity(text);
   let working = text;
   if (cityNominative) {
@@ -63,14 +85,27 @@ function parseFastSearchParams(text: string) {
       working = working.replace(pattern, " ");
     }
   }
+
+  const limit = catalogSize > 0 ? catalogSize : 0;
+
+  if (BROWSE_ALL.test(text)) {
+    return {
+      query: "",
+      category: detectCategory(working),
+      cityNominative,
+      limit,
+    };
+  }
+
   const query = stripSearchPrefixes(working);
   if (query.length < 2) return null;
-  const q = query.toLowerCase();
-  let category: string | undefined;
-  if (/\b(volvo|bmw|audi|vw|toyota|mercedes|ford|opel|auto|automob)\b/i.test(q)) {
-    category = "vehicles";
-  }
-  return { query: q, category, cityNominative, limit: 100 };
+
+  return {
+    query: query.toLowerCase(),
+    category: detectCategory(query),
+    cityNominative,
+    limit,
+  };
 }
 
 export async function tryFastAgentSearchPath(
@@ -80,7 +115,8 @@ export async function tryFastAgentSearchPath(
   const lastUser = [...req.messages].reverse().find((m) => m.role === "user");
   if (!lastUser) return null;
 
-  const params = parseFastSearchParams(lastUser.text);
+  const listings = ctx.listingsSnapshot ?? [];
+  const params = parseFastSearchParams(lastUser.text, listings.length);
   if (!params) return null;
 
   const { result, sideEffect } = await executeAgentTool(
@@ -89,7 +125,7 @@ export async function tryFastAgentSearchPath(
       query: params.query,
       category: params.category,
       city: params.cityNominative,
-      limit: params.limit,
+      limit: params.limit > 0 ? params.limit : undefined,
     },
     ctx
   );

@@ -3,7 +3,8 @@ import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { VEHICLE_BRAND_PATTERN } from "@/lib/vehicle-keywords";
 
-export const DEMO_CATALOG_LIMIT = 100;
+/** 0 = no slice — process full catalog dynamically */
+export const UNLIMITED_SEARCH = 0;
 
 export interface FastSearchParams {
   query: string;
@@ -41,6 +42,8 @@ const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
   [/k[eė]dainiuose|k[eė]dainiai/i, "Kėdainiai"],
   [/jonavoje|jonava/i, "Jonava"],
   [/pasvalyje|pasvalys/i, "Pasvalys"],
+  [/mažeikiuose|mažeikiai|mazeikiuose|mazeikiai/i, "Mažeikiai"],
+  [/telšiuose|telšiai|telsiuose|telsiai/i, "Telšiai"],
 ];
 
 function normCity(loc: string): string {
@@ -86,7 +89,10 @@ export function canUseFastSearch(text: string): boolean {
   return true;
 }
 
-export function parseFastSearchParams(text: string): FastSearchParams | null {
+export function parseFastSearchParams(
+  text: string,
+  catalogSize = UNLIMITED_SEARCH
+): FastSearchParams | null {
   if (!canUseFastSearch(text)) return null;
 
   const cityNominative = detectCity(text);
@@ -97,12 +103,14 @@ export function parseFastSearchParams(text: string): FastSearchParams | null {
     }
   }
 
+  const limit = catalogSize > 0 ? catalogSize : UNLIMITED_SEARCH;
+
   if (BROWSE_ALL.test(text)) {
     return {
       query: "",
       category: detectCategory(working),
       cityNominative,
-      limit: DEMO_CATALOG_LIMIT,
+      limit,
     };
   }
 
@@ -113,7 +121,7 @@ export function parseFastSearchParams(text: string): FastSearchParams | null {
     query: query.toLowerCase(),
     category: detectCategory(query),
     cityNominative,
-    limit: DEMO_CATALOG_LIMIT,
+    limit,
   };
 }
 
@@ -148,14 +156,17 @@ function filterListings(
     });
   }
 
-  return filtered.slice(0, params.limit);
+  if (params.limit > 0) {
+    return filtered.slice(0, params.limit);
+  }
+  return filtered;
 }
 
 export function runFastAgentSearch(
   text: string,
   listings: Listing[]
 ): FastSearchResult | null {
-  const params = parseFastSearchParams(text);
+  const params = parseFastSearchParams(text, listings.length);
   if (!params) return null;
 
   const results = filterListings(listings, params);
