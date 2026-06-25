@@ -591,6 +591,24 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   transition: border-color 0.15s, background-color 0.15s;
 }
 
+/** Full-screen listing wizard overlay — above AI processing (z-200) */
+.listing-wizard-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 250;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  overscroll-behavior: contain;
+}
+
+.listing-wizard-scroll {
+  min-height: 0;
+  flex: 1 1 auto;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[\#1167b1\] {
   border-color: var(--portal-accent);
   background: var(--portal-accent);

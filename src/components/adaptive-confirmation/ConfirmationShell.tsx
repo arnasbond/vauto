@@ -37,13 +37,14 @@ export function ConfirmationShell({
   const t = theme.confirmation;
 
   return (
-    <div className={cn("fixed inset-0 z-[100] overflow-y-auto p-6 transition-colors duration-300", t.shell)}>
-      <div
-        className={cn(
-          "mx-auto max-w-md rounded-3xl p-6 transition-colors duration-300",
-          theme.classicLayout ? theme.panel : "border border-white/10 bg-white/5 backdrop-blur-xl"
-        )}
-      >
+    <div className={cn("listing-wizard-overlay transition-colors duration-300", t.shell)}>
+      <div className="listing-wizard-scroll p-6">
+        <div
+          className={cn(
+            "mx-auto max-w-md rounded-3xl p-6 transition-colors duration-300",
+            theme.classicLayout ? theme.panel : "border border-white/10 bg-white/5 backdrop-blur-xl"
+          )}
+        >
         <div className="mb-4 flex items-start justify-between gap-3">
           <span className={cn("rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider", t.title)}>
             Atpažinta: {config.label} skelbimas
@@ -81,6 +82,7 @@ export function ConfirmationShell({
           {canPublish ? "Viskas gerai, publikuoti skelbimą" : publishLabel}
         </button>
       </div>
+      </div>
     </div>
   );
 }
@@ -94,16 +96,17 @@ export function PublishedOverlay() {
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex items-center justify-center overflow-y-auto backdrop-blur-lg transition-colors duration-300",
+        "listing-wizard-overlay backdrop-blur-lg transition-colors duration-300",
         p.shell
       )}
     >
-      <div
-        className={cn(
-          "mx-4 my-6 w-full max-w-md rounded-3xl p-6 text-left transition-colors duration-300 sm:p-8",
-          p.card
-        )}
-      >
+      <div className="listing-wizard-scroll flex items-center justify-center">
+        <div
+          className={cn(
+            "mx-4 my-6 w-full max-w-md rounded-3xl p-6 text-left transition-colors duration-300 sm:p-8",
+            p.card
+          )}
+        >
         <div className="mb-4 flex items-center gap-3">
           <div
             className={cn(
@@ -158,6 +161,7 @@ export function PublishedOverlay() {
         >
           Baigti
         </button>
+      </div>
       </div>
     </div>
   );

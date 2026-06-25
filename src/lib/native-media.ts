@@ -92,7 +92,7 @@ export async function pickMultipleFromGallery(
 
 /** Pick or capture a photo — Capacitor Camera on native, camera/gallery choice on web */
 export async function capturePhoto(
-  source: PhotoPickSource = "prompt"
+  source: PhotoPickSource = "camera"
 ): Promise<CapturedPhoto | null> {
   if (Capacitor.isNativePlatform()) {
     const { Camera, CameraResultType, CameraSource } = await import(

@@ -219,11 +219,8 @@ export function SearchBar() {
 
       const session = startVoiceSearch({
         silenceMs: 2_800,
+        stopOnFinal: true,
         onInterim: (text) => {
-          const clean = sanitizeSpeechTranscript(text);
-          if (clean) setVoiceCaption(clean);
-        },
-        onFinal: (text) => {
           const clean = sanitizeSpeechTranscript(text);
           if (clean) setVoiceCaption(clean);
         },

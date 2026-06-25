@@ -52,7 +52,8 @@ export function AiPhotoFlowSheet({
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [extraContext, setExtraContext] = useState("");
   const [sourceOpen, setSourceOpen] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
 
   const title =
     mode === "search" ? "Ieškoti pagal nuotrauką" : "Skelbti su AI";
@@ -61,7 +62,8 @@ export function AiPhotoFlowSheet({
     setPhotos([]);
     setExtraContext("");
     setSourceOpen(false);
-    if (fileInputRef.current) fileInputRef.current.value = "";
+    if (cameraInputRef.current) cameraInputRef.current.value = "";
+    if (galleryInputRef.current) galleryInputRef.current.value = "";
   }, []);
 
   const handleClose = () => {
@@ -105,36 +107,66 @@ export function AiPhotoFlowSheet({
     addPhotos([captured]);
   };
 
-  const openPhotoPicker = () => {
-    if (busy) return;
-    if (Capacitor.isNativePlatform()) {
-      setSourceOpen(true);
+  const handleGalleryFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = "";
+    if (!files.length || busy) return;
+
+    const captured = (
+      await Promise.all(files.map((file) => readFileAsDataUrl(file)))
+    ).filter((item): item is CapturedPhoto => item !== null);
+
+    if (!captured.length) return;
+
+    if (mode === "search") {
+      setPhotos([captured[0]!]);
+      await runSearchWithPhoto(captured[0]!);
       return;
     }
-    fileInputRef.current?.click();
+
+    addPhotos(captured);
   };
 
-  const handleSourceSelect = async (source: "camera" | "gallery") => {
-    setSourceOpen(false);
-    if (source === "gallery") {
-      const remaining = MAX_AI_PHOTOS - photos.length;
-      const picked = await pickMultipleFromGallery(remaining);
-      if (mode === "search" && picked[0]) {
-        setPhotos([picked[0]]);
-        await runSearchWithPhoto(picked[0]);
-        return;
-      }
-      addPhotos(picked);
-      return;
-    }
-    const shot = await capturePhotoFromSource("camera");
-    if (!shot) return;
+  const openPhotoPicker = () => {
+    if (busy) return;
+    setSourceOpen(true);
+  };
+
+  const applyCapturedPhoto = async (shot: CapturedPhoto) => {
     if (mode === "search") {
       setPhotos([shot]);
       await runSearchWithPhoto(shot);
       return;
     }
     addPhotos([shot]);
+  };
+
+  const handleSourceSelect = async (source: "camera" | "gallery") => {
+    setSourceOpen(false);
+    if (source === "gallery") {
+      if (Capacitor.isNativePlatform()) {
+        const remaining = MAX_AI_PHOTOS - photos.length;
+        const picked = await pickMultipleFromGallery(remaining);
+        if (mode === "search" && picked[0]) {
+          setPhotos([picked[0]]);
+          await runSearchWithPhoto(picked[0]);
+          return;
+        }
+        addPhotos(picked);
+        return;
+      }
+      galleryInputRef.current?.click();
+      return;
+    }
+
+    if (Capacitor.isNativePlatform()) {
+      const shot = await capturePhotoFromSource("camera");
+      if (!shot) return;
+      await applyCapturedPhoto(shot);
+      return;
+    }
+
+    cameraInputRef.current?.click();
   };
 
   const removePhoto = (index: number) => {
@@ -159,13 +191,24 @@ export function AiPhotoFlowSheet({
   return (
     <>
       <input
-        ref={fileInputRef}
+        ref={cameraInputRef}
         id="photo-search-input"
         type="file"
         accept="image/*"
+        capture="environment"
         className="hidden"
         aria-hidden
         onChange={(e) => void handleFileChange(e)}
+      />
+      <input
+        ref={galleryInputRef}
+        id="photo-search-gallery-input"
+        type="file"
+        accept="image/*"
+        multiple={mode === "listing"}
+        className="hidden"
+        aria-hidden
+        onChange={(e) => void handleGalleryFileChange(e)}
       />
 
       <div

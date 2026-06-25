@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronLeft, X } from "lucide-react";
-import { useCallback, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import type { AiExtractedListing } from "@/lib/types";
 import {
@@ -155,9 +155,14 @@ export function JobListingWizard({
     onPublish();
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f5f7fb)]">
-      <div className="mx-auto min-h-full max-w-2xl bg-[var(--portal-wizard-surface,#fff)] shadow-sm">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f5f7fb)]">
+      <div className="listing-wizard-scroll">
+        <div className="mx-auto min-h-full max-w-2xl bg-[var(--portal-wizard-surface,#fff)] shadow-sm">
         <div className="border-b border-[#d9e2f1] bg-[#eaf1ff] px-4 py-2 text-center text-xs font-bold uppercase text-[#1f4b99]">
           Nr.1 lankomiausias darbo portalas
         </div>
@@ -511,6 +516,7 @@ export function JobListingWizard({
             </div>
           </div>
         </div>
+      </div>
       </div>
     </div>
   );

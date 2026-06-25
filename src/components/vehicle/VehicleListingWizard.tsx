@@ -2,6 +2,7 @@
 
 import { Camera, ChevronLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { cn } from "@/lib/cn";
 import type { AiExtractedListing } from "@/lib/types";
 import { VISION_RECOGNITION_FAILED_MESSAGE } from "@/lib/ai-safeguards";
 import {
@@ -323,13 +324,17 @@ export function VehicleListingWizard({
     onFocusVin: () => setStep(1),
   });
 
+  useEffect(() => {
+    if (!embedded) window.scrollTo(0, 0);
+  }, [embedded]);
+
   if (pendingMicroPayment) {
     return (
       <div
         className={
           embedded
             ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] p-4 shadow-sm"
-            : "fixed inset-0 z-[100] flex items-center justify-center bg-[var(--portal-wizard-bg,#f3f4f6)] p-4"
+            : "listing-wizard-overlay flex items-center justify-center bg-[var(--portal-wizard-bg,#f3f4f6)] p-4"
         }
       >
         <ZeroUiPaymentGate
@@ -350,16 +355,17 @@ export function VehicleListingWizard({
       className={
         embedded
           ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] shadow-sm"
-          : "fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]"
+          : "listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f3f4f6)]"
       }
     >
-      <div
-        className={
-          embedded
-            ? "px-4 py-5"
-            : "mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm"
-        }
-      >
+      <div className={cn(!embedded && "listing-wizard-scroll")}>
+        <div
+          className={
+            embedded
+              ? "px-4 py-5"
+              : "mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-5 shadow-sm"
+          }
+        >
         <ProgressHeader
           step={step}
           summary={step > 1 ? summary : make || ""}
@@ -800,6 +806,7 @@ export function VehicleListingWizard({
             {step === TOTAL_STEPS ? "Publikuoti skelbimą" : "Toliau"}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

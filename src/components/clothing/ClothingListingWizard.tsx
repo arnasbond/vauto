@@ -1,7 +1,7 @@
 "use client";
 
 import { ChevronRight, X } from "lucide-react";
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import {
   CLOTHING_COLORS,
@@ -131,9 +131,14 @@ export function ClothingListingWizard({
     setShowCategoryPicker(false);
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#faf8f5)]">
-      <div className="mx-auto min-h-full max-w-lg bg-[#faf8f5] pb-8">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#faf8f5)]">
+      <div className="listing-wizard-scroll">
+        <div className="mx-auto min-h-full max-w-lg bg-[#faf8f5] pb-8">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e8e4df] bg-[#fffdf9] px-4 py-3">
           <div className="flex items-center gap-2">
             <span
@@ -388,6 +393,7 @@ export function ClothingListingWizard({
             Išsaugoti ruošinį
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

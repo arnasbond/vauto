@@ -64,7 +64,6 @@ export function LithuanianCityField({
           }}
           placeholder={placeholder}
           className={inputClassName}
-          autoFocus
         />
       )}
     </div>

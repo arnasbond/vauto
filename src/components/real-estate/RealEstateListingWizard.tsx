@@ -16,7 +16,7 @@ import {
   Search,
   X,
 } from "lucide-react";
-import { useCallback, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import {
   BUILDING_TYPES,
@@ -353,9 +353,14 @@ export function RealEstateListingWizard({
 
   const stepTitle = STEP_TITLES[step - 1];
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f5f5f5)]">
-      <div className="mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-4 shadow-sm">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f5f5f5)]">
+      <div className="listing-wizard-scroll">
+        <div className="mx-auto min-h-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-4 shadow-sm">
         <ProgressHeader
           step={progressStep}
           breadcrumb={step > 1 ? breadcrumb : ""}
@@ -895,6 +900,7 @@ export function RealEstateListingWizard({
             {step >= TOTAL_STEPS ? "Įvesti" : "Toliau"}
           </button>
         </div>
+      </div>
       </div>
     </div>
   );

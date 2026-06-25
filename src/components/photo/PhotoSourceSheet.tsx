@@ -43,28 +43,28 @@ export function PhotoSourceSheet({
 
         <button
           type="button"
-          onClick={() => onSelect("gallery")}
-          className="mb-2 flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
-        >
-          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef6ff] text-[#1167b1]">
-            <ImageIcon className="h-5 w-5" />
-          </span>
-          <span className="flex-1 text-sm font-medium text-[#111827]">
-            Pasirinkti iš galerijos
-          </span>
-          <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
-        </button>
-
-        <button
-          type="button"
           onClick={() => onSelect("camera")}
-          className="flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
+          className="mb-2 flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef6ff] text-[#1167b1]">
             <Camera className="h-5 w-5" />
           </span>
           <span className="flex-1 text-sm font-medium text-[#111827]">
             Fotografuoti
+          </span>
+          <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
+        </button>
+
+        <button
+          type="button"
+          onClick={() => onSelect("gallery")}
+          className="flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
+        >
+          <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef6ff] text-[#1167b1]">
+            <ImageIcon className="h-5 w-5" />
+          </span>
+          <span className="flex-1 text-sm font-medium text-[#111827]">
+            Pasirinkti iš galerijos
           </span>
           <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
         </button>

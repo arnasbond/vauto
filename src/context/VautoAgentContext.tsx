@@ -496,17 +496,11 @@ function VautoAgentSheet() {
     setVoiceCaption("");
     lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
+      stopOnFinal: true,
       onInterim: (text) => {
         const clean = sanitizeSpeechTranscript(text);
         if (!clean) return;
         setVoiceCaption(clean);
-      },
-      onFinal: (text) => {
-        const clean = sanitizeSpeechTranscript(text);
-        if (!clean) return;
-        lastVoiceDisplayRef.current = clean;
-        setVoiceCaption(clean);
-        setSearchQuery(clean);
       },
     });
     voiceSessionRef.current = session;

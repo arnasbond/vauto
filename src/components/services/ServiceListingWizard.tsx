@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, ChevronLeft, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import type { AiExtractedListing } from "@/lib/types";
 import { ADAPTIVE_CATEGORIES } from "@/lib/adaptive-categories/config";
@@ -123,9 +123,14 @@ export function ServiceListingWizard({
     });
   };
 
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, []);
+
   return (
-    <div className="fixed inset-0 z-[100] overflow-y-auto chameleon-wizard-shell bg-[#f4f9ff]">
-      <div className="mx-auto min-h-full max-w-2xl bg-white shadow-sm">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[#f4f9ff]">
+      <div className="listing-wizard-scroll">
+        <div className="mx-auto min-h-full max-w-2xl bg-white shadow-sm">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#cfe3ff] bg-white px-4 py-3">
           <button type="button" onClick={step > 1 ? () => setStep(step - 1) : onCancel} className="rounded-full p-2">
             {step > 1 ? <ChevronLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
@@ -316,6 +321,7 @@ export function ServiceListingWizard({
             </button>
           )}
         </footer>
+      </div>
       </div>
     </div>
   );

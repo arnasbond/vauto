@@ -41,6 +41,15 @@ export function AiConfirmationScreen({
   } = useVauto();
 
   useEffect(() => {
+    if (sellerStep === "confirmation") {
+      window.scrollTo(0, 0);
+      document.querySelectorAll(".listing-wizard-scroll").forEach((el) => {
+        (el as HTMLElement).scrollTop = 0;
+      });
+    }
+  }, [sellerStep]);
+
+  useEffect(() => {
     if (sellerStep === "confirmation" && aiDraft && !aiDraft.attributes) {
       updateAiDraft({ attributes: {} });
     }
