@@ -1,12 +1,15 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { VEHICLE_MAKES } from "@/lib/vehicle-catalog";
+import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 
 export function VehicleSearchPanel() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery } = useVauto();
+  const { submitSearch, busy } = usePortalSearchSubmit();
   const ui = getPortalUi("autoplius");
   const [keyword, setKeyword] = useState(searchQuery);
   const [make, setMake] = useState("");
@@ -15,10 +18,14 @@ export function VehicleSearchPanel() {
   const [priceTo, setPriceTo] = useState("");
 
   const runSearch = () => {
-    const parts = [keyword.trim(), make, city, priceFrom && `nuo ${priceFrom}`, priceTo && `iki ${priceTo}`].filter(
-      Boolean
-    );
-    setSearchQuery(parts.join(" ").trim() || "automobiliai");
+    const parts = [
+      keyword.trim(),
+      make,
+      city,
+      priceFrom && `nuo ${priceFrom}`,
+      priceTo && `iki ${priceTo}`,
+    ].filter(Boolean);
+    void submitSearch(parts.join(" ").trim() || "automobiliai");
   };
 
   return (
@@ -108,10 +115,18 @@ export function VehicleSearchPanel() {
       <button
         type="button"
         onClick={runSearch}
-        className="w-full rounded py-3 text-base font-bold text-white shadow-sm transition hover:opacity-95"
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded py-3 text-base font-bold text-white shadow-sm transition hover:opacity-95 disabled:opacity-70"
         style={{ backgroundColor: ui.cta }}
       >
-        Ieškoti
+        {busy ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Ieškoma…
+          </>
+        ) : (
+          "Ieškoti"
+        )}
       </button>
     </div>
   );

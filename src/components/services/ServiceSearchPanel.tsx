@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import {
@@ -8,9 +9,11 @@ import {
   SERVICE_SPECIALTIES,
   SERVICE_URGENCY_OPTIONS,
 } from "@/lib/service-catalog";
+import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 
 export function ServiceSearchPanel() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery } = useVauto();
+  const { submitSearch, busy } = usePortalSearchSubmit();
   const ui = getPortalUi("paslaugos");
   const [keyword, setKeyword] = useState(searchQuery);
   const [specialty, setSpecialty] = useState("");
@@ -24,7 +27,7 @@ export function ServiceSearchPanel() {
       city,
       urgency,
     ].filter(Boolean);
-    setSearchQuery(parts.join(" ").trim());
+    void submitSearch(parts.join(" ").trim());
   };
 
   return (
@@ -97,10 +100,18 @@ export function ServiceSearchPanel() {
       <button
         type="button"
         onClick={runSearch}
-        className="w-full rounded-xl py-3 text-base font-bold text-white"
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-xl py-3 text-base font-bold text-white disabled:opacity-70"
         style={{ backgroundColor: ui.cta }}
       >
-        Rasti meistrą
+        {busy ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Ieškoma…
+          </>
+        ) : (
+          "Rasti meistrą"
+        )}
       </button>
     </div>
   );

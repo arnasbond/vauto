@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import {
@@ -8,9 +9,11 @@ import {
   LT_CITIES,
   nodesAtPath,
 } from "@/lib/general-catalog";
+import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 
 export function GeneralSearchPanel() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery } = useVauto();
+  const { submitSearch, busy } = usePortalSearchSubmit();
   const ui = getPortalUi("skelbiu");
   const [keyword, setKeyword] = useState(searchQuery);
   const [path, setPath] = useState<string[]>([]);
@@ -25,7 +28,7 @@ export function GeneralSearchPanel() {
     const parts = [keyword.trim(), categoryLabel, city, condition, priceTo && `iki ${priceTo}`].filter(
       Boolean
     );
-    setSearchQuery(parts.join(" ").trim() || "skelbimai");
+    void submitSearch(parts.join(" ").trim() || "skelbimai");
   };
 
   return (
@@ -132,10 +135,18 @@ export function GeneralSearchPanel() {
       <button
         type="button"
         onClick={runSearch}
-        className="w-full rounded py-3 text-base font-semibold text-white"
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded py-3 text-base font-semibold text-white disabled:opacity-70"
         style={{ backgroundColor: ui.cta }}
       >
-        Ieškoti
+        {busy ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Ieškoma…
+          </>
+        ) : (
+          "Ieškoti"
+        )}
       </button>
     </div>
   );

@@ -20,6 +20,8 @@ import { useVauto } from "@/context/VautoContext";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import { useCallback } from "react";
+import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
+import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 
 function DefaultHero() {
   return (
@@ -38,13 +40,18 @@ function DefaultHero() {
 }
 
 function MarketplaceView() {
-  const { searchQuery, sellerStep } = useVauto();
+  const { searchQuery, sellerStep, rankedListings, searchLoading } = useVauto();
   const inSellerFlow = sellerStep !== "idle";
   const portalActive = Boolean(searchQuery.trim()) || inSellerFlow;
   const isFluxHome = !portalActive || portalExperienceForQuery(searchQuery).theme === "flux";
+  const emptySearchMode =
+    Boolean(searchQuery.trim().length >= 3) &&
+    rankedListings.length === 0 &&
+    !searchLoading;
 
   return (
     <>
+      <SearchResultsFocus />
       <HeroSection>
         <PortalPageChrome
           header={
@@ -53,22 +60,29 @@ function MarketplaceView() {
               <div className="mt-3">
                 <SearchBar />
               </div>
+              {emptySearchMode && (
+                <SearchEmptyAssistantBanner searchQuery={searchQuery.trim()} />
+              )}
             </>
           }
         >
-          {isFluxHome && <DefaultHero />}
+          {isFluxHome && !emptySearchMode && <DefaultHero />}
         </PortalPageChrome>
       </HeroSection>
 
       <ContentSection>
-        <MarketplaceCategoryGrid />
-        <ServiceRequestCard />
-        <HotKeywordsGrid />
-        <SocialProofStrip />
-        <PopularTodaySection />
-        <FilterBubbles />
+        {!emptySearchMode && (
+          <>
+            <MarketplaceCategoryGrid />
+            <ServiceRequestCard />
+            <HotKeywordsGrid />
+            <SocialProofStrip />
+            <PopularTodaySection />
+            <FilterBubbles />
+          </>
+        )}
         <div id="listing-results">
-          <ListingGrid />
+          <ListingGrid hideEmptyAssistant={emptySearchMode} />
         </div>
       </ContentSection>
     </>

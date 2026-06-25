@@ -28,6 +28,7 @@ import {
   fetchWithTimeout,
   isAbortError,
 } from "./agent-errors.js";
+import { tryFastAgentSearchPath } from "./fast-agent-search.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -259,6 +260,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     primaryVehicle: req.context.primaryVehicle,
     activeSearchFilters: req.context.activeSearchFilters ?? null,
   } satisfies AgentMemoryPayload);
+
+  const fastPath = await tryFastAgentSearchPath(req, ctx);
+  if (fastPath) return fastPath;
 
   const contents: GeminiContent[] = req.messages.map((m) => ({
     role: m.role === "user" ? "user" : "model",

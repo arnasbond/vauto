@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { CV_PERIODS, EXPERIENCE_AREAS, JOB_CITIES } from "@/lib/job-catalog";
+import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 
 const ACCENT = "#1f4b99";
 
 export function JobSearchPanel() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery } = useVauto();
+  const { submitSearch, busy } = usePortalSearchSubmit();
   const [keyword, setKeyword] = useState(searchQuery);
   const [city, setCity] = useState("");
   const [area, setArea] = useState("");
@@ -16,7 +19,7 @@ export function JobSearchPanel() {
 
   const runSearch = () => {
     const parts = [keyword.trim(), city, area].filter(Boolean);
-    setSearchQuery(parts.join(" ").trim() || "darbas");
+    void submitSearch(parts.join(" ").trim() || "darbas");
   };
 
   return (
@@ -99,10 +102,18 @@ export function JobSearchPanel() {
         <button
           type="button"
           onClick={runSearch}
-          className="w-full rounded py-3 text-base font-semibold text-white"
+          disabled={busy}
+          className="inline-flex w-full items-center justify-center gap-2 rounded py-3 text-base font-semibold text-white disabled:opacity-70"
           style={{ backgroundColor: ACCENT }}
         >
-          ieškoti
+          {busy ? (
+            <>
+              <Loader2 className="h-5 w-5 animate-spin" />
+              Ieškoma…
+            </>
+          ) : (
+            "ieškoti"
+          )}
         </button>
       </div>
     </div>

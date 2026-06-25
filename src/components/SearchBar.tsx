@@ -34,6 +34,8 @@ export function SearchBar() {
     user,
     sellerStep,
     chameleonTheme,
+    setSearchLoading,
+    searchLoading,
   } = useVauto();
 
   const { sendAgentMessage, busy: agentBusy } = useVautoAgent();
@@ -48,7 +50,7 @@ export function SearchBar() {
       : portalExperienceForQuery(searchQuery).theme;
   const ui = useMemo(() => getPortalUi(activeTheme), [activeTheme]);
 
-  const zeroUiActive = agentBusy || isPhotoSearching || photoFlowOpen;
+  const zeroUiActive = agentBusy || searchLoading || isPhotoSearching || photoFlowOpen;
 
   const scrollToResults = () => {
     document
@@ -74,11 +76,12 @@ export function SearchBar() {
 
   const handleGeminiSend = () => {
     const q = sanitizeSearchQuery(searchQuery, "final");
-    if (!q || agentBusy) return;
+    if (!q || agentBusy || searchLoading) return;
 
     setSearchInputMode("text");
     setSearchQuery(q);
-    void sendAgentMessage(q);
+    setSearchLoading(true);
+    void sendAgentMessage(q).finally(() => setSearchLoading(false));
   };
 
   const routeToGeminiAgent = (text: string) => {
@@ -182,19 +185,19 @@ export function SearchBar() {
           placeholder="Paklauskite Gemini — pvz. iPhone 13 arba Volvo Kaune"
           enterKeyHint="search"
           className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none"
-          disabled={agentBusy}
+          disabled={agentBusy || searchLoading}
           autoComplete="off"
         />
 
         <button
           type="button"
           onClick={handleGeminiSend}
-          disabled={agentBusy || !searchQuery.trim()}
+          disabled={agentBusy || searchLoading || !searchQuery.trim()}
           className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#1167b1] transition hover:bg-[#eef6ff] disabled:opacity-40"
           aria-label="Siųsti Gemini asistentui"
           title="Siųsti Gemini"
         >
-          {agentBusy ? (
+          {agentBusy || searchLoading ? (
             <Loader2 className="h-5 w-5 animate-spin" />
           ) : (
             <Sparkles className="h-5 w-5" />

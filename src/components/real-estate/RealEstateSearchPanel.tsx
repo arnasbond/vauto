@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import {
@@ -8,11 +9,13 @@ import {
   PROPERTY_TYPES,
   TRANSACTION_TYPES,
 } from "@/lib/real-estate-catalog";
+import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 
 const ROOM_OPTIONS = ["1", "2", "3", "4", "5+"] as const;
 
 export function RealEstateSearchPanel() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery } = useVauto();
+  const { submitSearch, busy } = usePortalSearchSubmit();
   const ui = getPortalUi("aruodas");
   const [keyword, setKeyword] = useState(searchQuery);
   const [propertyType, setPropertyType] = useState("");
@@ -32,7 +35,7 @@ export function RealEstateSearchPanel() {
       priceTo && `iki ${priceTo}`,
       "nt",
     ].filter(Boolean);
-    setSearchQuery(parts.join(" ").trim() || "butai nuoma");
+    void submitSearch(parts.join(" ").trim() || "butai nuoma");
   };
 
   return (
@@ -152,10 +155,18 @@ export function RealEstateSearchPanel() {
       <button
         type="button"
         onClick={runSearch}
-        className="w-full rounded py-3 text-base font-bold text-white shadow-sm"
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded py-3 text-base font-bold text-white shadow-sm disabled:opacity-70"
         style={{ backgroundColor: ui.cta }}
       >
-        Ieškoti
+        {busy ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Ieškoma…
+          </>
+        ) : (
+          "Ieškoti"
+        )}
       </button>
     </div>
   );

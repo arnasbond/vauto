@@ -41,6 +41,8 @@ import {
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
+import { runFastAgentSearch } from "@/lib/fast-agent-search";
+import { focusSearchOutcome } from "@/lib/search-results-focus";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -132,11 +134,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             : "Rezultatų nerasta",
           actions.listingIds.length ? "success" : "info"
         );
-        window.setTimeout(() => {
-          document
-            .getElementById("listing-results")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 120);
+        window.setTimeout(() => focusSearchOutcome(actions.listingIds.length), 120);
       }
       if (actions.type === "listing_draft") {
         const draft = mapAgentDraftToListing(actions.listingDraft);
@@ -160,11 +158,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
-        window.setTimeout(() => {
-          document
-            .getElementById("listing-results")
-            ?.scrollIntoView({ behavior: "smooth", block: "start" });
-        }, 120);
+        window.setTimeout(() => focusSearchOutcome(0), 120);
       }
       if (actions.type === "register_wanted") {
         void registerWanted({
@@ -261,6 +255,29 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       if (searchSessionReset) {
         clearSearchFilters();
+      }
+
+      const fast = runFastAgentSearch(trimmed, listings);
+      if (fast) {
+        setLastError(undefined);
+        const isStateSearch =
+          fast.actions.type === "search" || fast.actions.type === "empty_search";
+        const assistantText = isStateSearch
+          ? fast.actions.type === "search"
+            ? "Atidarau skelbimus ekrane."
+            : "Rezultatų nerasta."
+          : fast.reply;
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: assistantText,
+            toolCalls: fast.toolCalls,
+          },
+        ]);
+        applyActions(fast.actions);
+        setBusy(false);
+        return { ok: true, reply: fast.reply };
       }
 
       try {

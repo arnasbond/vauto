@@ -265,7 +265,7 @@ function PortalResults({
   }
 }
 
-export function ListingGrid() {
+export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant?: boolean }) {
   const { rankedListings, searchQuery } = useVauto();
   const carouselListings = rankedListings.slice(0, 3);
   const gridListings = rankedListings.slice(3);
@@ -289,32 +289,32 @@ export function ListingGrid() {
         )}
       </h2>
 
-      {theme === "autoplius" && <VehicleSearchPanel />}
-      {theme === "cvbankas" && <JobSearchPanel />}
-      {theme === "aruodas" && <RealEstateSearchPanel />}
-      {theme === "vinted" && <ClothingSearchPanel />}
-      {theme === "skelbiu" && <GeneralSearchPanel />}
-      {theme === "paslaugos" && <ServiceSearchPanel />}
+      {theme === "autoplius" && rankedListings.length > 0 && <VehicleSearchPanel />}
+      {theme === "cvbankas" && rankedListings.length > 0 && <JobSearchPanel />}
+      {theme === "aruodas" && rankedListings.length > 0 && <RealEstateSearchPanel />}
+      {theme === "vinted" && rankedListings.length > 0 && <ClothingSearchPanel />}
+      {theme === "skelbiu" && rankedListings.length > 0 && <GeneralSearchPanel />}
+      {theme === "paslaugos" && rankedListings.length > 0 && <ServiceSearchPanel />}
 
       <VisualSearchStrip />
 
       {brokerSignal && !isDedicated && <SmartBrokerCard signal={brokerSignal} />}
 
       {rankedListings.length === 0 ? (
-        searchQuery.trim().length >= 3 ? (
+        searchQuery.trim().length >= 3 && !hideEmptyAssistant ? (
           <WantedEmptyState
             searchQuery={searchQuery}
             borderColor={ui.border}
             textMuted={ui.textMuted}
           />
-        ) : (
+        ) : searchQuery.trim().length < 3 ? (
           <p
             className="rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
             style={{ borderColor: ui.border, color: ui.textMuted }}
           >
             {emptyMessage(theme)}
           </p>
-        )
+        ) : null
       ) : isDedicated ? (
         <PortalResults theme={theme} listings={rankedListings} />
       ) : (

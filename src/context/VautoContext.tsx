@@ -167,6 +167,8 @@ interface VautoContextValue {
   savedIds: Set<string>;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
+  searchLoading: boolean;
+  setSearchLoading: (loading: boolean) => void;
   /** Agent searchListings() result order — drives listing grid without chat text */
   agentPinnedListingIds: string[] | null;
   setAgentPinnedListings: (ids: string[] | null) => void;
@@ -580,6 +582,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
+  const [searchLoading, setSearchLoading] = useState(false);
   const [agentPinnedListingIds, setAgentPinnedListingIds] = useState<
     string[] | null
   >(null);
@@ -1485,6 +1488,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       savedIds,
       searchQuery,
       setSearchQuery: handleSearchQuery,
+      searchLoading,
+      setSearchLoading,
       agentPinnedListingIds,
       setAgentPinnedListings,
       clearAgentPinnedListings,
@@ -1562,6 +1567,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       savedIds,
       searchQuery,
       handleSearchQuery,
+      searchLoading,
       agentPinnedListingIds,
       setAgentPinnedListings,
       clearAgentPinnedListings,

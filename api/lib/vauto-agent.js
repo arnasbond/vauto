@@ -258,11 +258,13 @@ function executeAgentTool(name, args, ctx) {
       );
     }
     if (query) {
-      filtered = filtered.filter(
-        (l) =>
-          l.title.toLowerCase().includes(query) ||
-          (l.description?.toLowerCase().includes(query) ?? false)
-      );
+      const tokens = query.split(/[\s,.;:!?]+/).filter((t) => t.length >= 2);
+      filtered = filtered.filter((l) => {
+        const haystack = `${l.title} ${l.description ?? ""} ${l.category}`.toLowerCase();
+        if (!tokens.length) return haystack.includes(query);
+        const hits = tokens.filter((t) => haystack.includes(t)).length;
+        return hits >= Math.max(1, Math.ceil(tokens.length * 0.34));
+      });
     }
     const results = filtered.slice(0, limit);
     const searchQuery = [query, category, cityNominative].filter(Boolean).join(" ").trim();
@@ -604,6 +606,52 @@ async function geminiAgentTurn(contents, model, systemInstruction) {
   }
 }
 
+const SEARCH_PREFIX_FAST =
+  /^(?:ieškau|ieskau|i\s*eškau|i\s*eskau|rask|surask|parodyk(?:\s+visus)?|norėčiau|noreciau|ieškoti|ieskoti|find|search|show)\s+/i;
+
+function tryFastAgentSearchPath(text, ctx) {
+  const t = String(text ?? "").trim();
+  if (!t || t.length > 140) return null;
+  if (/\b(parduod|įdėti\s+skelb|noriu\s+parduot)\b/i.test(t)) return null;
+  if (/\b(admin|moderuoti|boost|apmokėti|iškel)\b/i.test(t)) return null;
+
+  let working = t;
+  let cityNominative;
+  const cityPatterns = [
+    [/vilniuje|vilnius/i, "Vilnius"],
+    [/kaune|kaunas/i, "Kaunas"],
+    [/klaip[eė]doje|klaip[eė]da/i, "Klaipėda"],
+  ];
+  for (const [pattern, city] of cityPatterns) {
+    if (pattern.test(working)) {
+      cityNominative = city;
+      working = working.replace(pattern, " ");
+    }
+  }
+
+  let query = working.replace(SEARCH_PREFIX_FAST, "").replace(/\b(skelbimus?|visus)\b/gi, " ").trim();
+  if (query.length < 2) return null;
+  query = query.toLowerCase();
+
+  let category;
+  if (/\b(volvo|bmw|audi|vw|toyota|mercedes|auto|automob)\b/i.test(query)) {
+    category = "vehicles";
+  }
+
+  const { result, sideEffect } = executeAgentTool(
+    "searchListings",
+    { query, category, city: cityNominative, limit: 12 },
+    ctx
+  );
+  const count = result?.count ?? 0;
+  return {
+    ok: true,
+    reply: count > 0 ? STATE_SEARCH_REPLY : STATE_EMPTY_SEARCH_REPLY,
+    toolCalls: [{ name: "searchListings", result: { ...result, fastPath: true } }],
+    actions: sideEffect ?? { type: "none" },
+  };
+}
+
 async function runVautoAgent(req) {
   try {
     return await runVautoAgentInner(req);
@@ -638,6 +686,12 @@ async function runVautoAgentInner(req) {
     primaryVehicle: req.context?.primaryVehicle,
     activeSearchFilters: req.context?.activeSearchFilters ?? null,
   });
+
+  const lastUser = [...(req.messages ?? [])].reverse().find((m) => m.role === "user");
+  if (lastUser) {
+    const fast = tryFastAgentSearchPath(lastUser.text, ctx);
+    if (fast) return fast;
+  }
 
   const contents = (req.messages ?? []).map((m) => ({
     role: m.role === "user" ? "user" : "model",

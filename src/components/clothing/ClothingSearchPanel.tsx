@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import {
@@ -9,9 +10,11 @@ import {
   VINTED_CATEGORIES,
   subcategoriesFor,
 } from "@/lib/clothing-catalog";
+import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 
 export function ClothingSearchPanel() {
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery } = useVauto();
+  const { submitSearch, busy } = usePortalSearchSubmit();
   const ui = getPortalUi("vinted");
   const [keyword, setKeyword] = useState(searchQuery);
   const [group, setGroup] = useState("Moterims");
@@ -25,7 +28,7 @@ export function ClothingSearchPanel() {
     const parts = [keyword.trim(), group, subcategory, size && `dydis ${size}`, brand].filter(
       Boolean
     );
-    setSearchQuery(parts.join(" ").trim() || "drabužiai");
+    void submitSearch(parts.join(" ").trim() || "drabužiai");
   };
 
   return (
@@ -116,10 +119,18 @@ export function ClothingSearchPanel() {
       <button
         type="button"
         onClick={runSearch}
-        className="w-full rounded-full py-3 text-sm font-semibold text-white"
+        disabled={busy}
+        className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold text-white disabled:opacity-70"
         style={{ backgroundColor: ui.cta }}
       >
-        Ieškoti
+        {busy ? (
+          <>
+            <Loader2 className="h-5 w-5 animate-spin" />
+            Ieškoma…
+          </>
+        ) : (
+          "Ieškoti"
+        )}
       </button>
     </div>
   );
