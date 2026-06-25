@@ -40,6 +40,11 @@ const CONTENT_IMAGES: Array<[RegExp, string]> = [
   [/\bsupirkim\b/i, UNSPLASH("photo-1487754180451-c456f719a1fc")],
   [/\bdažym|dazym|kėbul|kebul\b/i, UNSPLASH("photo-1619642751034-765df69d01c9")],
   [/\bevakuator|kelyje\b/i, UNSPLASH("photo-1621939514649-280e2ee02577")],
+  [/\bbutas|kambar|nt\b|nekilnojam|nuomoju|sklyp|namas\b/i, UNSPLASH("photo-1502672260266-1c1ef2d93688")],
+  [/\bdarbas|etat|atlyginim|vairuotoj|programuotoj|buhalter/i, UNSPLASH("photo-1497366811353-6870744d04b2")],
+  [/\bdrabu|batai|striuk|suknel|džins|nike|zara|adidas\b/i, UNSPLASH("photo-1551028719-00167b16eac5")],
+  [/\bsofa|bald|virtuv|lova|spinta\b/i, UNSPLASH("photo-1555041469-a586c61e9bc7")],
+  [/\bdvirat|vežimėl|įrank|sodas\b/i, UNSPLASH("photo-1485965120188-e430f974807a")],
 ];
 
 export function isValidListingImageUrl(url: unknown): url is string {

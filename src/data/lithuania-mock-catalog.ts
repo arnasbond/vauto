@@ -19,6 +19,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "dyzelinas",
       "kaunas"
     ],
+    "description": "BMW 320d 2003 m. iš Kaunas. Rida 220 898 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2025-01. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
+    "sellerId": "seller-auto-1",
+    "createdAt": "2026-06-01T08:00:00.000Z",
     "attributes": {
       "make": "BMW",
       "model": "320d",
@@ -31,9 +34,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA0YWUSPMKHFDB97",
       "defects": "Smulkūs kosmetiniai defektai"
     },
-    "description": "BMW 320d 2003 m. iš Kaunas. Rida 220 898 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2025-01. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
-    "sellerId": "seller-auto-1",
-    "createdAt": "2026-06-01T08:00:00.000Z",
     "vinVerified": false,
     "providerVerified": true
   },
@@ -53,6 +53,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "dyzelinas",
       "panevėžys"
     ],
+    "description": "BMW 320d Touring 2010 m. iš Panevėžys. Rida 142 985 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
+    "sellerId": "seller-auto-2",
+    "createdAt": "2026-06-02T09:13:00.000Z",
     "attributes": {
       "make": "BMW",
       "model": "320d Touring",
@@ -65,9 +68,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAHFDB97531ZXVTR",
       "defects": "Nėra"
     },
-    "description": "BMW 320d Touring 2010 m. iš Panevėžys. Rida 142 985 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
-    "sellerId": "seller-auto-2",
-    "createdAt": "2026-06-02T09:13:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -87,6 +87,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "dyzelinas",
       "mažeikiai"
     ],
+    "description": "BMW 520d 2017 m. iš Mažeikiai. Rida 103 574 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
+    "sellerId": "seller-auto-3",
+    "createdAt": "2026-06-03T10:26:00.000Z",
     "attributes": {
       "make": "BMW",
       "model": "520d",
@@ -99,9 +102,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA1ZXVTRNLJGECA8",
       "defects": "Nėra"
     },
-    "description": "BMW 520d 2017 m. iš Mažeikiai. Rida 103 574 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
-    "sellerId": "seller-auto-3",
-    "createdAt": "2026-06-03T10:26:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -121,6 +121,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "plug-in hibridas",
       "kupiškis"
     ],
+    "description": "BMW 530e 2024 m. iš Kupiškis. Rida 22 665 km, plug-in hibridas, mechaninė. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
+    "sellerId": "seller-auto-4",
+    "createdAt": "2026-06-04T11:39:00.000Z",
     "attributes": {
       "make": "BMW",
       "model": "530e",
@@ -133,9 +136,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAJGECA86420YWUS",
       "defects": "Nėra"
     },
-    "description": "BMW 530e 2024 m. iš Kupiškis. Rida 22 665 km, plug-in hibridas, mechaninė. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
-    "sellerId": "seller-auto-4",
-    "createdAt": "2026-06-04T11:39:00.000Z",
     "vinVerified": false,
     "providerVerified": false
   },
@@ -155,6 +155,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "dyzelinas",
       "ukmergė"
     ],
+    "description": "BMW X5 xDrive30d 2006 m. iš Ukmergė. Rida 245 793 km, dyzelinas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros.",
+    "sellerId": "seller-auto-5",
+    "createdAt": "2026-06-05T12:52:00.000Z",
     "attributes": {
       "make": "BMW",
       "model": "X5 xDrive30d",
@@ -167,9 +170,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA20YWUSPMKHFDB9",
       "defects": "Nėra"
     },
-    "description": "BMW X5 xDrive30d 2006 m. iš Ukmergė. Rida 245 793 km, dyzelinas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros.",
-    "sellerId": "seller-auto-5",
-    "createdAt": "2026-06-05T12:52:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -189,6 +189,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "benzinas",
       "kėdainiai"
     ],
+    "description": "BMW 318i 2013 m. iš Kėdainiai. Rida 147 238 km, benzinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis.",
+    "sellerId": "seller-auto-6",
+    "createdAt": "2026-06-06T13:05:00.000Z",
     "attributes": {
       "make": "BMW",
       "model": "318i",
@@ -201,9 +204,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAKHFDB97531ZXVT",
       "defects": "Nėra"
     },
-    "description": "BMW 318i 2013 m. iš Kėdainiai. Rida 147 238 km, benzinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis.",
-    "sellerId": "seller-auto-6",
-    "createdAt": "2026-06-06T13:05:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -223,6 +223,9 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "dyzelinas",
       "pasvalys"
     ],
+    "description": "Audi A4 Avant 2020 m. iš Pasvalys. Rida 80 465 km, dyzelinas, mechaninė. Be eismo įvykių, originali dažų spalva. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2025-07. Be dūmų, be rūdžių.",
+    "sellerId": "seller-auto-7",
+    "createdAt": "2026-06-07T14:18:00.000Z",
     "attributes": {
       "make": "Audi",
       "model": "A4 Avant",
@@ -235,9 +238,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA31ZXVTRNLJGECA",
       "defects": "Nėra"
     },
-    "description": "Audi A4 Avant 2020 m. iš Pasvalys. Rida 80 465 km, dyzelinas, mechaninė. Be eismo įvykių, originali dažų spalva. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2025-07. Be dūmų, be rūdžių.",
-    "sellerId": "seller-auto-7",
-    "createdAt": "2026-06-07T14:18:00.000Z",
     "vinVerified": false,
     "providerVerified": false
   },
@@ -245,7 +245,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-008",
     "title": "Audi A4 2002",
     "price": 5550,
-    "location": "Klaipėda",
+    "location": "Visaginas",
     "distanceKm": 10.1,
     "contact": "Tel. +370 61055433",
     "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
@@ -255,8 +255,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "a4",
       "automobilis",
       "dyzelinas",
-      "klaipėda"
+      "visaginas"
     ],
+    "description": "Audi A4 2002 m. iš Visaginas. Rida 254 249 km, dyzelinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje.",
+    "sellerId": "seller-auto-8",
+    "createdAt": "2026-06-08T15:31:00.000Z",
     "attributes": {
       "make": "Audi",
       "model": "A4",
@@ -269,9 +272,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBALJGECA86420YWU",
       "defects": "Nėra"
     },
-    "description": "Audi A4 2002 m. iš Klaipėda. Rida 254 249 km, dyzelinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje.",
-    "sellerId": "seller-auto-8",
-    "createdAt": "2026-06-08T15:31:00.000Z",
     "vinVerified": true,
     "providerVerified": true
   },
@@ -279,7 +279,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-009",
     "title": "Audi A6 2009",
     "price": 12550,
-    "location": "Alytus",
+    "location": "Kaunas",
     "distanceKm": 11.4,
     "contact": "Tel. +370 61063352",
     "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
@@ -289,8 +289,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "a6",
       "automobilis",
       "dyzelinas",
-      "alytus"
+      "kaunas"
     ],
+    "description": "Audi A6 2009 m. iš Kaunas. Rida 171 550 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija.",
+    "sellerId": "seller-auto-9",
+    "createdAt": "2026-06-09T16:44:00.000Z",
     "attributes": {
       "make": "Audi",
       "model": "A6",
@@ -303,9 +306,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA420YWUSPMKHFDB",
       "defects": "Smulkūs kosmetiniai defektai"
     },
-    "description": "Audi A6 2009 m. iš Alytus. Rida 171 550 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija.",
-    "sellerId": "seller-auto-9",
-    "createdAt": "2026-06-09T16:44:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -313,7 +313,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-010",
     "title": "Audi Q5 2016",
     "price": 19900,
-    "location": "Biržai",
+    "location": "Panevėžys",
     "distanceKm": 12.7,
     "contact": "Tel. +370 61071271",
     "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
@@ -323,8 +323,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "q5",
       "automobilis",
       "dyzelinas",
-      "biržai"
+      "panevėžys"
     ],
+    "description": "Audi Q5 2016 m. iš Panevėžys. Rida 87 353 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO.",
+    "sellerId": "seller-auto-10",
+    "createdAt": "2026-06-10T17:57:00.000Z",
     "attributes": {
       "make": "Audi",
       "model": "Q5",
@@ -337,9 +340,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAMKHFDB97531ZXV",
       "defects": "Nėra"
     },
-    "description": "Audi Q5 2016 m. iš Biržai. Rida 87 353 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO.",
-    "sellerId": "seller-auto-10",
-    "createdAt": "2026-06-10T17:57:00.000Z",
     "vinVerified": false,
     "providerVerified": false
   },
@@ -347,7 +347,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-011",
     "title": "Audi A3 Sportback 2023",
     "price": 26700,
-    "location": "Telšiai",
+    "location": "Mažeikiai",
     "distanceKm": 11,
     "contact": "Tel. +370 61079190",
     "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
@@ -357,8 +357,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "a3",
       "automobilis",
       "benzinas",
-      "telšiai"
+      "mažeikiai"
     ],
+    "description": "Audi A3 Sportback 2023 m. iš Mažeikiai. Rida 41 658 km, benzinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai.",
+    "sellerId": "seller-auto-11",
+    "createdAt": "2026-06-11T08:10:00.000Z",
     "attributes": {
       "make": "Audi",
       "model": "A3 Sportback",
@@ -371,9 +374,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA531ZXVTRNLJGEC",
       "defects": "Nėra"
     },
-    "description": "Audi A3 Sportback 2023 m. iš Telšiai. Rida 41 658 km, benzinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai.",
-    "sellerId": "seller-auto-11",
-    "createdAt": "2026-06-11T08:10:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -381,7 +381,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-012",
     "title": "Volkswagen Golf 2005",
     "price": 8200,
-    "location": "Palanga",
+    "location": "Kupiškis",
     "distanceKm": 12.3,
     "contact": "Tel. +370 61087109",
     "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
@@ -391,8 +391,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "golf",
       "automobilis",
       "dyzelinas",
-      "palanga"
+      "kupiškis"
     ],
+    "description": "Volkswagen Golf 2005 m. iš Kupiškis. Rida 184 950 km, dyzelinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas.",
+    "sellerId": "seller-auto-12",
+    "createdAt": "2026-06-12T09:23:00.000Z",
     "attributes": {
       "make": "Volkswagen",
       "model": "Golf",
@@ -405,9 +408,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBANLJGECA86420YW",
       "defects": "Nėra"
     },
-    "description": "Volkswagen Golf 2005 m. iš Palanga. Rida 184 950 km, dyzelinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas.",
-    "sellerId": "seller-auto-12",
-    "createdAt": "2026-06-12T09:23:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -415,7 +415,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-013",
     "title": "Volkswagen Passat 2012",
     "price": 15250,
-    "location": "Druskininkai",
+    "location": "Ukmergė",
     "distanceKm": 13.6,
     "contact": "Tel. +370 61095028",
     "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
@@ -425,8 +425,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "passat",
       "automobilis",
       "dyzelinas",
-      "druskininkai"
+      "ukmergė"
     ],
+    "description": "Volkswagen Passat 2012 m. iš Ukmergė. Rida 116 609 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto.",
+    "sellerId": "seller-auto-1",
+    "createdAt": "2026-06-13T10:36:00.000Z",
     "attributes": {
       "make": "Volkswagen",
       "model": "Passat",
@@ -439,9 +442,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA6420YWUSPMKHFD",
       "defects": "Nėra"
     },
-    "description": "Volkswagen Passat 2012 m. iš Druskininkai. Rida 116 609 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto.",
-    "sellerId": "seller-auto-13",
-    "createdAt": "2026-06-13T10:36:00.000Z",
     "vinVerified": false,
     "providerVerified": false
   },
@@ -449,7 +449,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-014",
     "title": "Volkswagen Tiguan 2019",
     "price": 22650,
-    "location": "Vilnius",
+    "location": "Kėdainiai",
     "distanceKm": 14.9,
     "contact": "Tel. +370 61102947",
     "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
@@ -459,8 +459,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "tiguan",
       "automobilis",
       "dyzelinas",
-      "vilnius"
+      "kėdainiai"
     ],
+    "description": "Volkswagen Tiguan 2019 m. iš Kėdainiai. Rida 46 770 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-02. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale.",
+    "sellerId": "seller-auto-2",
+    "createdAt": "2026-06-14T11:49:00.000Z",
     "attributes": {
       "make": "Volkswagen",
       "model": "Tiguan",
@@ -473,9 +476,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAPMKHFDB97531ZX",
       "defects": "Nėra"
     },
-    "description": "Volkswagen Tiguan 2019 m. iš Vilnius. Rida 46 770 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-02. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale.",
-    "sellerId": "seller-auto-14",
-    "createdAt": "2026-06-14T11:49:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -483,7 +483,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-015",
     "title": "Volkswagen Touran 2001",
     "price": 1750,
-    "location": "Šiauliai",
+    "location": "Pasvalys",
     "distanceKm": 16.2,
     "contact": "Tel. +370 61110866",
     "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
@@ -493,8 +493,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "touran",
       "automobilis",
       "dyzelinas",
-      "šiauliai"
+      "pasvalys"
     ],
+    "description": "Volkswagen Touran 2001 m. iš Pasvalys. Rida 256 158 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas.",
+    "sellerId": "seller-auto-3",
+    "createdAt": "2026-06-15T12:02:00.000Z",
     "attributes": {
       "make": "Volkswagen",
       "model": "Touran",
@@ -507,9 +510,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA7531ZXVTRNLJGE",
       "defects": "Nėra"
     },
-    "description": "Volkswagen Touran 2001 m. iš Šiauliai. Rida 256 158 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas.",
-    "sellerId": "seller-auto-15",
-    "createdAt": "2026-06-15T12:02:00.000Z",
     "vinVerified": true,
     "providerVerified": true
   },
@@ -517,7 +517,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-016",
     "title": "Volvo V70 2008",
     "price": 11050,
-    "location": "Marijampolė",
+    "location": "Visaginas",
     "distanceKm": 17.5,
     "contact": "Tel. +370 61118785",
     "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
@@ -527,8 +527,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "v70",
       "automobilis",
       "dyzelinas",
-      "marijampolė"
+      "visaginas"
     ],
+    "description": "Volvo V70 2008 m. iš Visaginas. Rida 208 233 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai.",
+    "sellerId": "seller-auto-4",
+    "createdAt": "2026-06-16T13:15:00.000Z",
     "attributes": {
       "make": "Volvo",
       "model": "V70",
@@ -541,9 +544,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBARNLJGECA86420Y",
       "defects": "Nėra"
     },
-    "description": "Volvo V70 2008 m. iš Marijampolė. Rida 208 233 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai.",
-    "sellerId": "seller-auto-16",
-    "createdAt": "2026-06-16T13:15:00.000Z",
     "vinVerified": false,
     "providerVerified": false
   },
@@ -551,7 +551,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-017",
     "title": "Volvo XC60 2015",
     "price": 19600,
-    "location": "Utena",
+    "location": "Kaunas",
     "distanceKm": 18.8,
     "contact": "Tel. +370 61126704",
     "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
@@ -561,8 +561,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "xc60",
       "automobilis",
       "dyzelinas",
-      "utena"
+      "kaunas"
     ],
+    "description": "Volvo XC60 2015 m. iš Kaunas. Rida 119 250 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos.",
+    "sellerId": "seller-auto-5",
+    "createdAt": "2026-06-17T14:28:00.000Z",
     "attributes": {
       "make": "Volvo",
       "model": "XC60",
@@ -575,9 +578,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA86420YWUSPMKHF",
       "defects": "Smulkūs kosmetiniai defektai"
     },
-    "description": "Volvo XC60 2015 m. iš Utena. Rida 119 250 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos.",
-    "sellerId": "seller-auto-17",
-    "createdAt": "2026-06-17T14:28:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -585,7 +585,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-018",
     "title": "Volvo XC90 2022",
     "price": 35000,
-    "location": "Tauragė",
+    "location": "Panevėžys",
     "distanceKm": 20.1,
     "contact": "Tel. +370 61134623",
     "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
@@ -595,8 +595,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "xc90",
       "automobilis",
       "dyzelinas",
-      "tauragė"
+      "panevėžys"
     ],
+    "description": "Volvo XC90 2022 m. iš Panevėžys. Rida 28 769 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara.",
+    "sellerId": "seller-auto-6",
+    "createdAt": "2026-06-18T15:41:00.000Z",
     "attributes": {
       "make": "Volvo",
       "model": "XC90",
@@ -609,9 +612,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBASPMKHFDB97531Z",
       "defects": "Nėra"
     },
-    "description": "Volvo XC90 2022 m. iš Tauragė. Rida 28 769 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara.",
-    "sellerId": "seller-auto-18",
-    "createdAt": "2026-06-18T15:41:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -619,7 +619,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-019",
     "title": "Volvo S60 2004",
     "price": 2800,
-    "location": "Jonava",
+    "location": "Mažeikiai",
     "distanceKm": 21.4,
     "contact": "Tel. +370 61142542",
     "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
@@ -629,8 +629,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "s60",
       "automobilis",
       "benzinas",
-      "jonava"
+      "mažeikiai"
     ],
+    "description": "Volvo S60 2004 m. iš Mažeikiai. Rida 182 225 km, benzinas, mechaninė. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis.",
+    "sellerId": "seller-auto-7",
+    "createdAt": "2026-06-19T16:54:00.000Z",
     "attributes": {
       "make": "Volvo",
       "model": "S60",
@@ -643,9 +646,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBA97531ZXVTRNLJG",
       "defects": "Nėra"
     },
-    "description": "Volvo S60 2004 m. iš Jonava. Rida 182 225 km, benzinas, mechaninė. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis.",
-    "sellerId": "seller-auto-19",
-    "createdAt": "2026-06-19T16:54:00.000Z",
     "vinVerified": false,
     "providerVerified": false
   },
@@ -653,7 +653,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-020",
     "title": "Toyota Corolla 2011",
     "price": 15000,
-    "location": "Rokiškis",
+    "location": "Kupiškis",
     "distanceKm": 22.7,
     "contact": "Tel. +370 61150461",
     "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
@@ -663,8 +663,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "corolla",
       "automobilis",
       "hibridas",
-      "rokiškis"
+      "kupiškis"
     ],
+    "description": "Toyota Corolla 2011 m. iš Kupiškis. Rida 149 098 km, hibridas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-08.",
+    "sellerId": "seller-auto-8",
+    "createdAt": "2026-06-20T17:07:00.000Z",
     "attributes": {
       "make": "Toyota",
       "model": "Corolla",
@@ -677,9 +680,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBATRNLJGECA86420",
       "defects": "Nėra"
     },
-    "description": "Toyota Corolla 2011 m. iš Rokiškis. Rida 149 098 km, hibridas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-08.",
-    "sellerId": "seller-auto-20",
-    "createdAt": "2026-06-20T17:07:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -687,7 +687,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-021",
     "title": "Toyota Avensis 2018",
     "price": 20750,
-    "location": "Kaunas",
+    "location": "Ukmergė",
     "distanceKm": 21,
     "contact": "Tel. +370 61158380",
     "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
@@ -697,8 +697,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "avensis",
       "automobilis",
       "dyzelinas",
-      "kaunas"
+      "ukmergė"
     ],
+    "description": "Toyota Avensis 2018 m. iš Ukmergė. Rida 74 473 km, dyzelinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2027-09. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
+    "sellerId": "seller-auto-9",
+    "createdAt": "2026-06-21T08:20:00.000Z",
     "attributes": {
       "make": "Toyota",
       "model": "Avensis",
@@ -711,9 +714,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAA86420YWUSPMKH",
       "defects": "Nėra"
     },
-    "description": "Toyota Avensis 2018 m. iš Kaunas. Rida 74 473 km, dyzelinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2027-09. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
-    "sellerId": "seller-auto-1",
-    "createdAt": "2026-06-21T08:20:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -721,7 +721,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-022",
     "title": "Toyota RAV4 2000",
     "price": 3100,
-    "location": "Panevėžys",
+    "location": "Kėdainiai",
     "distanceKm": 22.3,
     "contact": "Tel. +370 61166299",
     "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
@@ -731,8 +731,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "rav4",
       "automobilis",
       "hibridas",
-      "panevėžys"
+      "kėdainiai"
     ],
+    "description": "Toyota RAV4 2000 m. iš Kėdainiai. Rida 257 305 km, hibridas, mechaninė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
+    "sellerId": "seller-auto-10",
+    "createdAt": "2026-06-22T09:33:00.000Z",
     "attributes": {
       "make": "Toyota",
       "model": "RAV4",
@@ -745,9 +748,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAUSPMKHFDB97531",
       "defects": "Nėra"
     },
-    "description": "Toyota RAV4 2000 m. iš Panevėžys. Rida 257 305 km, hibridas, mechaninė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
-    "sellerId": "seller-auto-2",
-    "createdAt": "2026-06-22T09:33:00.000Z",
     "vinVerified": false,
     "providerVerified": true
   },
@@ -755,7 +755,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-023",
     "title": "Toyota Yaris 2007",
     "price": 12700,
-    "location": "Mažeikiai",
+    "location": "Pasvalys",
     "distanceKm": 23.6,
     "contact": "Tel. +370 61174218",
     "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
@@ -765,8 +765,11 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "yaris",
       "automobilis",
       "benzinas",
-      "mažeikiai"
+      "pasvalys"
     ],
+    "description": "Toyota Yaris 2007 m. iš Pasvalys. Rida 206 314 km, benzinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
+    "sellerId": "seller-auto-11",
+    "createdAt": "2026-06-23T10:46:00.000Z",
     "attributes": {
       "make": "Toyota",
       "model": "Yaris",
@@ -779,9 +782,6 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "vin": "WBAB97531ZXVTRNLJ",
       "defects": "Nėra"
     },
-    "description": "Toyota Yaris 2007 m. iš Mažeikiai. Rida 206 314 km, benzinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
-    "sellerId": "seller-auto-3",
-    "createdAt": "2026-06-23T10:46:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
@@ -789,7 +789,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "id": "lt-auto-024",
     "title": "Mercedes-Benz C220 d 2014",
     "price": 19950,
-    "location": "Kupiškis",
+    "location": "Visaginas",
     "distanceKm": 24.9,
     "contact": "Tel. +370 61182137",
     "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
@@ -799,2106 +799,995 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "c220",
       "automobilis",
       "dyzelinas",
-      "kupiškis"
+      "visaginas"
     ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "C220 d",
-      "year": "2014",
-      "mileage": "152 545 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-12",
-      "vin": "WBAVTRNLJGECA8642",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz C220 d 2014 m. iš Kupiškis. Rida 152 545 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
-    "sellerId": "seller-auto-4",
+    "description": "Mercedes-Benz C220 d 2014 m. iš Visaginas. Rida 152 545 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
+    "sellerId": "seller-auto-12",
     "createdAt": "2026-06-24T11:59:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-025",
-    "title": "Mercedes-Benz E220 d 2021",
-    "price": 27100,
-    "location": "Ukmergė",
-    "distanceKm": 26.2,
-    "contact": "Tel. +370 61190056",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "e220",
-      "automobilis",
-      "dyzelinas",
-      "ukmergė"
-    ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "E220 d",
-      "year": "2021",
-      "mileage": "57 278 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-01",
-      "vin": "WBACA86420YWUSPMK",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "Mercedes-Benz E220 d 2021 m. iš Ukmergė. Rida 57 278 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros.",
-    "sellerId": "seller-auto-5",
-    "createdAt": "2026-06-25T12:12:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-026",
-    "title": "Mercedes-Benz GLC 220 d 2003",
-    "price": 3600,
-    "location": "Kėdainiai",
-    "distanceKm": 27.5,
-    "contact": "Tel. +370 61197975",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "glc",
-      "automobilis",
-      "dyzelinas",
-      "kėdainiai"
-    ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "GLC 220 d",
-      "year": "2003",
-      "mileage": "220 898 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-02",
-      "vin": "WBAWUSPMKHFDB9753",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz GLC 220 d 2003 m. iš Kėdainiai. Rida 220 898 km, dyzelinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis.",
-    "sellerId": "seller-auto-6",
-    "createdAt": "2026-06-26T13:25:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-027",
-    "title": "Mercedes-Benz A180 2010",
-    "price": 15700,
-    "location": "Pasvalys",
-    "distanceKm": 28.8,
-    "contact": "Tel. +370 61205894",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "a180",
-      "automobilis",
-      "benzinas",
-      "pasvalys"
-    ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "A180",
-      "year": "2010",
-      "mileage": "142 985 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-03",
-      "vin": "WBADB97531ZXVTRNL",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz A180 2010 m. iš Pasvalys. Rida 142 985 km, benzinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2027-03. Be dūmų, be rūdžių.",
-    "sellerId": "seller-auto-7",
-    "createdAt": "2026-06-27T14:38:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-028",
-    "title": "Skoda Octavia 2017",
-    "price": 20500,
-    "location": "Klaipėda",
-    "distanceKm": 30.1,
-    "contact": "Tel. +370 61213813",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "skoda",
-      "octavia",
-      "automobilis",
-      "dyzelinas",
-      "klaipėda"
-    ],
-    "attributes": {
-      "make": "Skoda",
-      "model": "Octavia",
-      "year": "2017",
-      "mileage": "103 574 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-04",
-      "vin": "WBAXVTRNLJGECA864",
-      "defects": "Nėra"
-    },
-    "description": "Skoda Octavia 2017 m. iš Klaipėda. Rida 103 574 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje.",
-    "sellerId": "seller-auto-8",
-    "createdAt": "2026-06-28T15:51:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-029",
-    "title": "Ford Focus 2024",
-    "price": 27650,
-    "location": "Alytus",
-    "distanceKm": 31.4,
-    "contact": "Tel. +370 61221732",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "ford",
-      "focus",
-      "automobilis",
-      "dyzelinas",
-      "alytus"
-    ],
-    "attributes": {
-      "make": "Ford",
-      "model": "Focus",
-      "year": "2024",
-      "mileage": "22 665 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-05",
-      "vin": "WBAECA86420YWUSPM",
-      "defects": "Nėra"
-    },
-    "description": "Ford Focus 2024 m. iš Alytus. Rida 22 665 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija.",
-    "sellerId": "seller-auto-9",
-    "createdAt": "2026-06-01T16:04:00.000Z",
-    "vinVerified": true,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-030",
-    "title": "Opel Insignia 2006",
-    "price": 4550,
-    "location": "Biržai",
-    "distanceKm": 32.7,
-    "contact": "Tel. +370 61229651",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "opel",
-      "insignia",
-      "automobilis",
-      "dyzelinas",
-      "biržai"
-    ],
-    "attributes": {
-      "make": "Opel",
-      "model": "Insignia",
-      "year": "2006",
-      "mileage": "245 793 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-06",
-      "vin": "WBAYWUSPMKHFDB975",
-      "defects": "Nėra"
-    },
-    "description": "Opel Insignia 2006 m. iš Biržai. Rida 245 793 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO.",
-    "sellerId": "seller-auto-10",
-    "createdAt": "2026-06-02T17:17:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-031",
-    "title": "BMW 320d 2013",
-    "price": 18450,
-    "location": "Telšiai",
-    "distanceKm": 31,
-    "contact": "Tel. +370 61237570",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "320d",
-      "automobilis",
-      "dyzelinas",
-      "telšiai"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "320d",
-      "year": "2013",
-      "mileage": "147 238 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-07",
-      "vin": "WBAFDB97531ZXVTRN",
-      "defects": "Nėra"
-    },
-    "description": "BMW 320d 2013 m. iš Telšiai. Rida 147 238 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai.",
-    "sellerId": "seller-auto-11",
-    "createdAt": "2026-06-03T08:30:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-032",
-    "title": "BMW 320d Touring 2020",
-    "price": 26800,
-    "location": "Palanga",
-    "distanceKm": 32.3,
-    "contact": "Tel. +370 61245489",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "320d",
-      "automobilis",
-      "dyzelinas",
-      "palanga"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "320d Touring",
-      "year": "2020",
-      "mileage": "80 465 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-08",
-      "vin": "WBAZXVTRNLJGECA86",
-      "defects": "Nėra"
-    },
-    "description": "BMW 320d Touring 2020 m. iš Palanga. Rida 80 465 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas.",
-    "sellerId": "seller-auto-12",
-    "createdAt": "2026-06-04T09:43:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-033",
-    "title": "BMW 520d 2002",
-    "price": 3150,
-    "location": "Druskininkai",
-    "distanceKm": 33.6,
-    "contact": "Tel. +370 61253408",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "520d",
-      "automobilis",
-      "dyzelinas",
-      "druskininkai"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "520d",
-      "year": "2002",
-      "mileage": "254 249 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-09",
-      "vin": "WBAGECA86420YWUSP",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "BMW 520d 2002 m. iš Druskininkai. Rida 254 249 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto.",
-    "sellerId": "seller-auto-13",
-    "createdAt": "2026-06-05T10:56:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-034",
-    "title": "BMW 530e 2009",
-    "price": 14050,
-    "location": "Vilnius",
-    "distanceKm": 34.9,
-    "contact": "Tel. +370 61261327",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "530e",
-      "automobilis",
-      "plug-in hibridas",
-      "vilnius"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "530e",
-      "year": "2009",
-      "mileage": "171 550 km",
-      "fuelType": "Plug-in hibridas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-10",
-      "vin": "WBA0YWUSPMKHFDB97",
-      "defects": "Nėra"
-    },
-    "description": "BMW 530e 2009 m. iš Vilnius. Rida 171 550 km, plug-in hibridas, mechaninė. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2025-10. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale.",
-    "sellerId": "seller-auto-14",
-    "createdAt": "2026-06-06T11:09:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-035",
-    "title": "BMW X5 xDrive30d 2016",
-    "price": 28450,
-    "location": "Šiauliai",
-    "distanceKm": 36.2,
-    "contact": "Tel. +370 61269246",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "x5",
-      "automobilis",
-      "dyzelinas",
-      "šiauliai"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "X5 xDrive30d",
-      "year": "2016",
-      "mileage": "87 353 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-11",
-      "vin": "WBAHFDB97531ZXVTR",
-      "defects": "Nėra"
-    },
-    "description": "BMW X5 xDrive30d 2016 m. iš Šiauliai. Rida 87 353 km, dyzelinas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas.",
-    "sellerId": "seller-auto-15",
-    "createdAt": "2026-06-07T12:22:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-036",
-    "title": "BMW 318i 2023",
-    "price": 29550,
-    "location": "Marijampolė",
-    "distanceKm": 37.5,
-    "contact": "Tel. +370 61277165",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "318i",
-      "automobilis",
-      "benzinas",
-      "marijampolė"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "318i",
-      "year": "2023",
-      "mileage": "41 658 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-12",
-      "vin": "WBA1ZXVTRNLJGECA8",
-      "defects": "Nėra"
-    },
-    "description": "BMW 318i 2023 m. iš Marijampolė. Rida 41 658 km, benzinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai.",
-    "sellerId": "seller-auto-16",
-    "createdAt": "2026-06-08T13:35:00.000Z",
-    "vinVerified": true,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-037",
-    "title": "Audi A4 Avant 2005",
-    "price": 4150,
-    "location": "Utena",
-    "distanceKm": 38.8,
-    "contact": "Tel. +370 61285084",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a4",
-      "automobilis",
-      "dyzelinas",
-      "utena"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A4 Avant",
-      "year": "2005",
-      "mileage": "184 950 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-01",
-      "vin": "WBAJGECA86420YWUS",
-      "defects": "Nėra"
-    },
-    "description": "Audi A4 Avant 2005 m. iš Utena. Rida 184 950 km, dyzelinas, mechaninė. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos.",
-    "sellerId": "seller-auto-17",
-    "createdAt": "2026-06-09T14:48:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-038",
-    "title": "Audi A4 2012",
-    "price": 15950,
-    "location": "Tauragė",
-    "distanceKm": 40.1,
-    "contact": "Tel. +370 61293003",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a4",
-      "automobilis",
-      "dyzelinas",
-      "tauragė"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A4",
-      "year": "2012",
-      "mileage": "116 609 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-02",
-      "vin": "WBA20YWUSPMKHFDB9",
-      "defects": "Nėra"
-    },
-    "description": "Audi A4 2012 m. iš Tauragė. Rida 116 609 km, dyzelinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara.",
-    "sellerId": "seller-auto-18",
-    "createdAt": "2026-06-10T15:01:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-039",
-    "title": "Audi A6 2019",
-    "price": 21700,
-    "location": "Jonava",
-    "distanceKm": 41.4,
-    "contact": "Tel. +370 61300922",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a6",
-      "automobilis",
-      "dyzelinas",
-      "jonava"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A6",
-      "year": "2019",
-      "mileage": "46 770 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-03",
-      "vin": "WBAKHFDB97531ZXVT",
-      "defects": "Nėra"
-    },
-    "description": "Audi A6 2019 m. iš Jonava. Rida 46 770 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis.",
-    "sellerId": "seller-auto-19",
-    "createdAt": "2026-06-11T16:14:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-040",
-    "title": "Audi Q5 2001",
-    "price": 3900,
-    "location": "Rokiškis",
-    "distanceKm": 42.7,
-    "contact": "Tel. +370 61308841",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "q5",
-      "automobilis",
-      "dyzelinas",
-      "rokiškis"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "Q5",
-      "year": "2001",
-      "mileage": "256 158 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-04",
-      "vin": "WBA31ZXVTRNLJGECA",
-      "defects": "Nėra"
-    },
-    "description": "Audi Q5 2001 m. iš Rokiškis. Rida 256 158 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2025-04.",
-    "sellerId": "seller-auto-20",
-    "createdAt": "2026-06-12T17:27:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-041",
-    "title": "Audi A3 Sportback 2008",
-    "price": 11700,
-    "location": "Kaunas",
-    "distanceKm": 1,
-    "contact": "Tel. +370 61316760",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a3",
-      "automobilis",
-      "benzinas",
-      "kaunas"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A3 Sportback",
-      "year": "2008",
-      "mileage": "208 233 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-05",
-      "vin": "WBALJGECA86420YWU",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "Audi A3 Sportback 2008 m. iš Kaunas. Rida 208 233 km, benzinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2026-05. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
-    "sellerId": "seller-auto-1",
-    "createdAt": "2026-06-13T08:40:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-042",
-    "title": "Volkswagen Golf 2015",
-    "price": 18700,
-    "location": "Panevėžys",
-    "distanceKm": 2.3,
-    "contact": "Tel. +370 61324679",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "golf",
-      "automobilis",
-      "dyzelinas",
-      "panevėžys"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Golf",
-      "year": "2015",
-      "mileage": "119 250 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-06",
-      "vin": "WBA420YWUSPMKHFDB",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Golf 2015 m. iš Panevėžys. Rida 119 250 km, dyzelinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
-    "sellerId": "seller-auto-2",
-    "createdAt": "2026-06-14T09:53:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-043",
-    "title": "Volkswagen Passat 2022",
-    "price": 25850,
-    "location": "Mažeikiai",
-    "distanceKm": 3.6,
-    "contact": "Tel. +370 61332598",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "passat",
-      "automobilis",
-      "dyzelinas",
-      "mažeikiai"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Passat",
-      "year": "2022",
-      "mileage": "28 769 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-07",
-      "vin": "WBAMKHFDB97531ZXV",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Passat 2022 m. iš Mažeikiai. Rida 28 769 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
-    "sellerId": "seller-auto-3",
-    "createdAt": "2026-06-15T10:06:00.000Z",
-    "vinVerified": false,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-044",
-    "title": "Volkswagen Tiguan 2004",
-    "price": 3500,
-    "location": "Kupiškis",
-    "distanceKm": 4.9,
-    "contact": "Tel. +370 61340517",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "tiguan",
-      "automobilis",
-      "dyzelinas",
-      "kupiškis"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Tiguan",
-      "year": "2004",
-      "mileage": "182 225 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-08",
-      "vin": "WBA531ZXVTRNLJGEC",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Tiguan 2004 m. iš Kupiškis. Rida 182 225 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
-    "sellerId": "seller-auto-4",
-    "createdAt": "2026-06-16T11:19:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-045",
-    "title": "Volkswagen Touran 2011",
-    "price": 14350,
-    "location": "Ukmergė",
-    "distanceKm": 6.2,
-    "contact": "Tel. +370 61348436",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "touran",
-      "automobilis",
-      "dyzelinas",
-      "ukmergė"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Touran",
-      "year": "2011",
-      "mileage": "149 098 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-09",
-      "vin": "WBANLJGECA86420YW",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Touran 2011 m. iš Ukmergė. Rida 149 098 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros.",
-    "sellerId": "seller-auto-5",
-    "createdAt": "2026-06-17T12:32:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-046",
-    "title": "Volvo V70 2018",
-    "price": 21450,
-    "location": "Kėdainiai",
-    "distanceKm": 7.5,
-    "contact": "Tel. +370 61356355",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "v70",
-      "automobilis",
-      "dyzelinas",
-      "kėdainiai"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "V70",
-      "year": "2018",
-      "mileage": "74 473 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-10",
-      "vin": "WBA6420YWUSPMKHFD",
-      "defects": "Nėra"
-    },
-    "description": "Volvo V70 2018 m. iš Kėdainiai. Rida 74 473 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis.",
-    "sellerId": "seller-auto-6",
-    "createdAt": "2026-06-18T13:45:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-047",
-    "title": "Volvo XC60 2000",
-    "price": 3800,
-    "location": "Pasvalys",
-    "distanceKm": 8.8,
-    "contact": "Tel. +370 61364274",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "xc60",
-      "automobilis",
-      "dyzelinas",
-      "pasvalys"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "XC60",
-      "year": "2000",
-      "mileage": "257 305 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-11",
-      "vin": "WBAPMKHFDB97531ZX",
-      "defects": "Nėra"
-    },
-    "description": "Volvo XC60 2000 m. iš Pasvalys. Rida 257 305 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-11. Be dūmų, be rūdžių.",
-    "sellerId": "seller-auto-7",
-    "createdAt": "2026-06-19T14:58:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-048",
-    "title": "Volvo XC90 2007",
-    "price": 9550,
-    "location": "Klaipėda",
-    "distanceKm": 10.1,
-    "contact": "Tel. +370 61372193",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "xc90",
-      "automobilis",
-      "dyzelinas",
-      "klaipėda"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "XC90",
-      "year": "2007",
-      "mileage": "206 314 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-12",
-      "vin": "WBA7531ZXVTRNLJGE",
-      "defects": "Nėra"
-    },
-    "description": "Volvo XC90 2007 m. iš Klaipėda. Rida 206 314 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje.",
-    "sellerId": "seller-auto-8",
-    "createdAt": "2026-06-20T15:11:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-049",
-    "title": "Volvo S60 2014",
-    "price": 14900,
-    "location": "Alytus",
-    "distanceKm": 11.4,
-    "contact": "Tel. +370 61380112",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "s60",
-      "automobilis",
-      "benzinas",
-      "alytus"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "S60",
-      "year": "2014",
-      "mileage": "152 545 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-01",
-      "vin": "WBARNLJGECA86420Y",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "Volvo S60 2014 m. iš Alytus. Rida 152 545 km, benzinas, mechaninė. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija.",
-    "sellerId": "seller-auto-9",
-    "createdAt": "2026-06-21T16:24:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-050",
-    "title": "Toyota Corolla 2021",
-    "price": 25600,
-    "location": "Biržai",
-    "distanceKm": 12.7,
-    "contact": "Tel. +370 61388031",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "corolla",
-      "automobilis",
-      "hibridas",
-      "biržai"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "Corolla",
-      "year": "2021",
-      "mileage": "57 278 km",
-      "fuelType": "Hibridas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-02",
-      "vin": "WBA86420YWUSPMKHF",
-      "defects": "Nėra"
-    },
-    "description": "Toyota Corolla 2021 m. iš Biržai. Rida 57 278 km, hibridas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO.",
-    "sellerId": "seller-auto-10",
-    "createdAt": "2026-06-22T17:37:00.000Z",
-    "vinVerified": true,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-051",
-    "title": "Toyota Avensis 2003",
-    "price": 4250,
-    "location": "Telšiai",
-    "distanceKm": 11,
-    "contact": "Tel. +370 61395950",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "avensis",
-      "automobilis",
-      "dyzelinas",
-      "telšiai"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "Avensis",
-      "year": "2003",
-      "mileage": "220 898 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-03",
-      "vin": "WBASPMKHFDB97531Z",
-      "defects": "Nėra"
-    },
-    "description": "Toyota Avensis 2003 m. iš Telšiai. Rida 220 898 km, dyzelinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai.",
-    "sellerId": "seller-auto-11",
-    "createdAt": "2026-06-23T08:50:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-052",
-    "title": "Toyota RAV4 2010",
-    "price": 15350,
-    "location": "Palanga",
-    "distanceKm": 12.3,
-    "contact": "Tel. +370 61403869",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "rav4",
-      "automobilis",
-      "hibridas",
-      "palanga"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "RAV4",
-      "year": "2010",
-      "mileage": "142 985 km",
-      "fuelType": "Hibridas",
-      "bodyType": "Visureigis",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-04",
-      "vin": "WBA97531ZXVTRNLJG",
-      "defects": "Nėra"
-    },
-    "description": "Toyota RAV4 2010 m. iš Palanga. Rida 142 985 km, hibridas, mechaninė. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas.",
-    "sellerId": "seller-auto-12",
-    "createdAt": "2026-06-24T09:03:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-053",
-    "title": "Toyota Yaris 2017",
-    "price": 21150,
-    "location": "Druskininkai",
-    "distanceKm": 13.6,
-    "contact": "Tel. +370 61411788",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "yaris",
-      "automobilis",
-      "benzinas",
-      "druskininkai"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "Yaris",
-      "year": "2017",
-      "mileage": "103 574 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-05",
-      "vin": "WBATRNLJGECA86420",
-      "defects": "Nėra"
-    },
-    "description": "Toyota Yaris 2017 m. iš Druskininkai. Rida 103 574 km, benzinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto.",
-    "sellerId": "seller-auto-13",
-    "createdAt": "2026-06-25T10:16:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-054",
-    "title": "Mercedes-Benz C220 d 2024",
-    "price": 30550,
-    "location": "Vilnius",
-    "distanceKm": 14.9,
-    "contact": "Tel. +370 61419707",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "c220",
-      "automobilis",
-      "dyzelinas",
-      "vilnius"
-    ],
     "attributes": {
       "make": "Mercedes-Benz",
       "model": "C220 d",
-      "year": "2024",
-      "mileage": "22 665 km",
+      "year": "2014",
+      "mileage": "152 545 km",
       "fuelType": "Dyzelinas",
       "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-06",
-      "vin": "WBAA86420YWUSPMKH",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz C220 d 2024 m. iš Vilnius. Rida 22 665 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2027-06. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale.",
-    "sellerId": "seller-auto-14",
-    "createdAt": "2026-06-26T11:29:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-055",
-    "title": "Mercedes-Benz E220 d 2006",
-    "price": 5250,
-    "location": "Šiauliai",
-    "distanceKm": 16.2,
-    "contact": "Tel. +370 61427626",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "e220",
-      "automobilis",
-      "dyzelinas",
-      "šiauliai"
-    ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "E220 d",
-      "year": "2006",
-      "mileage": "245 793 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-07",
-      "vin": "WBAUSPMKHFDB97531",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz E220 d 2006 m. iš Šiauliai. Rida 245 793 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas.",
-    "sellerId": "seller-auto-15",
-    "createdAt": "2026-06-27T12:42:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-056",
-    "title": "Mercedes-Benz GLC 220 d 2013",
-    "price": 24450,
-    "location": "Marijampolė",
-    "distanceKm": 17.5,
-    "contact": "Tel. +370 61435545",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "glc",
-      "automobilis",
-      "dyzelinas",
-      "marijampolė"
-    ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "GLC 220 d",
-      "year": "2013",
-      "mileage": "147 238 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-08",
-      "vin": "WBAB97531ZXVTRNLJ",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz GLC 220 d 2013 m. iš Marijampolė. Rida 147 238 km, dyzelinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai.",
-    "sellerId": "seller-auto-16",
-    "createdAt": "2026-06-28T13:55:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-057",
-    "title": "Mercedes-Benz A180 2020",
-    "price": 27500,
-    "location": "Utena",
-    "distanceKm": 18.8,
-    "contact": "Tel. +370 61443464",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "mercedes-benz",
-      "a180",
-      "automobilis",
-      "benzinas",
-      "utena"
-    ],
-    "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "A180",
-      "year": "2020",
-      "mileage": "80 465 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-09",
-      "vin": "WBAVTRNLJGECA8642",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "Mercedes-Benz A180 2020 m. iš Utena. Rida 80 465 km, benzinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos.",
-    "sellerId": "seller-auto-17",
-    "createdAt": "2026-06-01T14:08:00.000Z",
-    "vinVerified": true,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-058",
-    "title": "Skoda Octavia 2002",
-    "price": 3400,
-    "location": "Tauragė",
-    "distanceKm": 20.1,
-    "contact": "Tel. +370 61451383",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "skoda",
-      "octavia",
-      "automobilis",
-      "dyzelinas",
-      "tauragė"
-    ],
-    "attributes": {
-      "make": "Skoda",
-      "model": "Octavia",
-      "year": "2002",
-      "mileage": "254 249 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-10",
-      "vin": "WBACA86420YWUSPMK",
-      "defects": "Nėra"
-    },
-    "description": "Skoda Octavia 2002 m. iš Tauragė. Rida 254 249 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara.",
-    "sellerId": "seller-auto-18",
-    "createdAt": "2026-06-02T15:21:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-059",
-    "title": "Ford Focus 2009",
-    "price": 10400,
-    "location": "Jonava",
-    "distanceKm": 21.4,
-    "contact": "Tel. +370 61459302",
-    "image": "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "ford",
-      "focus",
-      "automobilis",
-      "dyzelinas",
-      "jonava"
-    ],
-    "attributes": {
-      "make": "Ford",
-      "model": "Focus",
-      "year": "2009",
-      "mileage": "171 550 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-11",
-      "vin": "WBAWUSPMKHFDB9753",
-      "defects": "Nėra"
-    },
-    "description": "Ford Focus 2009 m. iš Jonava. Rida 171 550 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis.",
-    "sellerId": "seller-auto-19",
-    "createdAt": "2026-06-03T16:34:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-060",
-    "title": "Opel Insignia 2016",
-    "price": 19650,
-    "location": "Rokiškis",
-    "distanceKm": 22.7,
-    "contact": "Tel. +370 61467221",
-    "image": "https://images.unsplash.com/photo-1609521263040-82f9f49b7c65?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "opel",
-      "insignia",
-      "automobilis",
-      "dyzelinas",
-      "rokiškis"
-    ],
-    "attributes": {
-      "make": "Opel",
-      "model": "Insignia",
-      "year": "2016",
-      "mileage": "87 353 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
       "transmission": "Automatinė su padėtimis",
       "taExpiry": "2026-12",
-      "vin": "WBADB97531ZXVTRNL",
+      "vin": "WBAVTRNLJGECA8642",
       "defects": "Nėra"
     },
-    "description": "Opel Insignia 2016 m. iš Rokiškis. Rida 87 353 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2027-12.",
-    "sellerId": "seller-auto-20",
-    "createdAt": "2026-06-04T17:47:00.000Z",
     "vinVerified": true,
     "providerVerified": false
   },
   {
-    "id": "lt-auto-061",
-    "title": "BMW 320d 2023",
-    "price": 30250,
+    "id": "lt-nt-001",
+    "title": "2 kambarių butas su balkonu",
+    "price": 145000,
+    "location": "Alytus",
+    "distanceKm": 11,
+    "contact": "Tel. +370 64000000",
+    "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "butas",
+      "nt",
+      "nuomai",
+      "alytus",
+      "nekilnojamasis"
+    ],
+    "description": "2 kambarių butas su balkonu — Alytus. Plotas 54 m², 2 kamb. Butas. Puiki vieta, šalia infrastruktūra, transportas.",
+    "sellerId": "seller-nt-1",
+    "createdAt": "2026-06-04T11:00:00.000Z",
+    "attributes": {
+      "propertyType": "Butas",
+      "rooms": "2",
+      "area": "54 m²"
+    }
+  },
+  {
+    "id": "lt-nt-002",
+    "title": "3 kambarių butas naujame name",
+    "price": 198000,
+    "location": "Mažeikiai",
+    "distanceKm": 12.3,
+    "contact": "Tel. +370 64007919",
+    "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "butas",
+      "nt",
+      "naujas",
+      "mažeikiai",
+      "nekilnojamasis"
+    ],
+    "description": "Parduodamas butas Mažeikiai mieste. 3 kamb., 72 m². Tvarkinga būklė, galima apžiūrėti sutartu laiku.",
+    "sellerId": "seller-nt-2",
+    "createdAt": "2026-06-05T11:05:00.000Z",
+    "attributes": {
+      "propertyType": "Butas",
+      "rooms": "3",
+      "area": "72 m²"
+    }
+  },
+  {
+    "id": "lt-nt-003",
+    "title": "Šiuolaikiškas loftas centre",
+    "price": 235000,
+    "location": "Utena",
+    "distanceKm": 13.6,
+    "contact": "Tel. +370 64015838",
+    "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "loftas",
+      "nt",
+      "centras",
+      "utena",
+      "nekilnojamasis"
+    ],
+    "description": "Šiuolaikiškas loftas centre Utena rajone. 68 m², Butas. Skaidri dokumentacija, padėsime su paskola.",
+    "sellerId": "seller-nt-3",
+    "createdAt": "2026-06-06T11:10:00.000Z",
+    "attributes": {
+      "propertyType": "Butas",
+      "rooms": "2",
+      "area": "68 m²"
+    }
+  },
+  {
+    "id": "lt-nt-004",
+    "title": "1 kambario butas studentams",
+    "price": 89000,
+    "location": "Telšiai",
+    "distanceKm": 14.9,
+    "contact": "Tel. +370 64023757",
+    "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "butas",
+      "nt",
+      "nuomai",
+      "telšiai",
+      "nekilnojamasis"
+    ],
+    "description": "NT pasiūlymas Telšiai: 1 kambario butas studentams. 1 kamb., 32 m². Tinka gyvenimui ar investicijai.",
+    "sellerId": "seller-nt-4",
+    "createdAt": "2026-06-07T11:15:00.000Z",
+    "attributes": {
+      "propertyType": "Butas",
+      "rooms": "1",
+      "area": "32 m²"
+    }
+  },
+  {
+    "id": "lt-nt-005",
+    "title": "Individualus namas su garažu",
+    "price": 285000,
+    "location": "Ukmergė",
+    "distanceKm": 16.2,
+    "contact": "Tel. +370 64031676",
+    "image": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "namas",
+      "nt",
+      "sklypas",
+      "ukmergė",
+      "nekilnojamasis"
+    ],
+    "description": "Individualus namas su garažu — Ukmergė. Plotas 145 m², 4 kamb. Namas. Puiki vieta, šalia infrastruktūra, transportas.",
+    "sellerId": "seller-nt-5",
+    "createdAt": "2026-06-08T11:20:00.000Z",
+    "attributes": {
+      "propertyType": "Namas",
+      "rooms": "4",
+      "area": "145 m²"
+    }
+  },
+  {
+    "id": "lt-nt-006",
+    "title": "Namas Priemiestyje su terasa",
+    "price": 320000,
+    "location": "Jonava",
+    "distanceKm": 17.5,
+    "contact": "Tel. +370 64039595",
+    "image": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "namas",
+      "nt",
+      "terasa",
+      "jonava",
+      "nekilnojamasis"
+    ],
+    "description": "Parduodamas namas Jonava mieste. 5 kamb., 168 m². Tvarkinga būklė, galima apžiūrėti sutartu laiku.",
+    "sellerId": "seller-nt-6",
+    "createdAt": "2026-06-09T11:25:00.000Z",
+    "attributes": {
+      "propertyType": "Namas",
+      "rooms": "5",
+      "area": "168 m²"
+    }
+  },
+  {
+    "id": "lt-nt-007",
+    "title": "Kotedžas dviems šeimoms",
+    "price": 265000,
+    "location": "Druskininkai",
+    "distanceKm": 18.8,
+    "contact": "Tel. +370 64047514",
+    "image": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "kotedžas",
+      "nt",
+      "druskininkai",
+      "nekilnojamasis"
+    ],
+    "description": "Kotedžas dviems šeimoms Druskininkai rajone. 190 m², Namas. Skaidri dokumentacija, padėsime su paskola.",
+    "sellerId": "seller-nt-1",
+    "createdAt": "2026-06-10T11:30:00.000Z",
+    "attributes": {
+      "propertyType": "Namas",
+      "rooms": "6",
+      "area": "190 m²"
+    }
+  },
+  {
+    "id": "lt-nt-008",
+    "title": "Sklypas statybai 12 a",
+    "price": 42000,
+    "location": "Pasvalys",
+    "distanceKm": 20.1,
+    "contact": "Tel. +370 64055433",
+    "image": "https://images.unsplash.com/photo-1500382017468-90403fed94c1?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "sklypas",
+      "nt",
+      "statyba",
+      "pasvalys",
+      "nekilnojamasis"
+    ],
+    "description": "NT pasiūlymas Pasvalys: Sklypas statybai 12 a. — kamb., 12 a. Tinka gyvenimui ar investicijai.",
+    "sellerId": "seller-nt-2",
+    "createdAt": "2026-06-11T11:35:00.000Z",
+    "attributes": {
+      "propertyType": "Sklypas",
+      "rooms": "—",
+      "area": "12 a"
+    }
+  },
+  {
+    "id": "lt-nt-009",
+    "title": "Komercinės patalpos centre",
+    "price": 175000,
+    "location": "Kretinga",
+    "distanceKm": 21.4,
+    "contact": "Tel. +370 64063352",
+    "image": "https://images.unsplash.com/photo-1497366216548-37526070297c?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "komercinis",
+      "nt",
+      "biuras",
+      "kretinga",
+      "nekilnojamasis"
+    ],
+    "description": "Komercinės patalpos centre — Kretinga. Plotas 110 m², — kamb. Komercinis. Puiki vieta, šalia infrastruktūra, transportas.",
+    "sellerId": "seller-nt-3",
+    "createdAt": "2026-06-12T11:40:00.000Z",
+    "attributes": {
+      "propertyType": "Komercinis",
+      "rooms": "—",
+      "area": "110 m²"
+    }
+  },
+  {
+    "id": "lt-nt-010",
+    "title": "Butas nuomai — įrengtas",
+    "price": 650,
+    "priceLabel": "650€/mėn.",
+    "location": "Šilutė",
+    "distanceKm": 22.7,
+    "contact": "Tel. +370 64071271",
+    "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
+    "tags": [
+      "nuoma",
+      "nt",
+      "butas",
+      "šilutė",
+      "nekilnojamasis"
+    ],
+    "description": "Parduodamas nuoma Šilutė mieste. 2 kamb., 48 m². Tvarkinga būklė, galima apžiūrėti sutartu laiku.",
+    "sellerId": "seller-nt-4",
+    "createdAt": "2026-06-13T11:45:00.000Z",
+    "attributes": {
+      "propertyType": "Nuoma",
+      "rooms": "2",
+      "area": "48 m²"
+    }
+  },
+  {
+    "id": "lt-nt-011",
+    "title": "Kambarys bendrame bute",
+    "price": 220,
+    "priceLabel": "220€/mėn.",
     "location": "Kaunas",
     "distanceKm": 21,
-    "contact": "Tel. +370 61475140",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
+    "contact": "Tel. +370 64079190",
+    "image": "https://images.unsplash.com/photo-1522708323590-d24dbb6b0267?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
     "tags": [
-      "bmw",
-      "320d",
-      "automobilis",
-      "dyzelinas",
-      "kaunas"
+      "nuoma",
+      "kambarys",
+      "nt",
+      "kaunas",
+      "nekilnojamasis"
     ],
+    "description": "Kambarys bendrame bute Kaunas rajone. 14 m², Nuoma. Skaidri dokumentacija, padėsime su paskola.",
+    "sellerId": "seller-nt-5",
+    "createdAt": "2026-06-14T11:50:00.000Z",
     "attributes": {
-      "make": "BMW",
-      "model": "320d",
-      "year": "2023",
-      "mileage": "41 658 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-01",
-      "vin": "WBAXVTRNLJGECA864",
-      "defects": "Nėra"
-    },
-    "description": "BMW 320d 2023 m. iš Kaunas. Rida 41 658 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2025-01. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
-    "sellerId": "seller-auto-1",
-    "createdAt": "2026-06-05T08:00:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
+      "propertyType": "Nuoma",
+      "rooms": "1",
+      "area": "14 m²"
+    }
   },
   {
-    "id": "lt-auto-062",
-    "title": "BMW 320d Touring 2005",
-    "price": 4800,
-    "location": "Panevėžys",
-    "distanceKm": 22.3,
-    "contact": "Tel. +370 61483059",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "320d",
-      "automobilis",
-      "dyzelinas",
-      "panevėžys"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "320d Touring",
-      "year": "2005",
-      "mileage": "184 950 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-02",
-      "vin": "WBAECA86420YWUSPM",
-      "defects": "Nėra"
-    },
-    "description": "BMW 320d Touring 2005 m. iš Panevėžys. Rida 184 950 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
-    "sellerId": "seller-auto-2",
-    "createdAt": "2026-06-06T09:13:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-063",
-    "title": "BMW 520d 2012",
-    "price": 15350,
-    "location": "Mažeikiai",
-    "distanceKm": 23.6,
-    "contact": "Tel. +370 61490978",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "520d",
-      "automobilis",
-      "dyzelinas",
-      "mažeikiai"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "520d",
-      "year": "2012",
-      "mileage": "116 609 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-03",
-      "vin": "WBAYWUSPMKHFDB975",
-      "defects": "Nėra"
-    },
-    "description": "BMW 520d 2012 m. iš Mažeikiai. Rida 116 609 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
-    "sellerId": "seller-auto-3",
-    "createdAt": "2026-06-07T10:26:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-064",
-    "title": "BMW 530e 2019",
-    "price": 24600,
-    "location": "Kupiškis",
-    "distanceKm": 24.9,
-    "contact": "Tel. +370 61498897",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "530e",
-      "automobilis",
-      "plug-in hibridas",
-      "kupiškis"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "530e",
-      "year": "2019",
-      "mileage": "46 770 km",
-      "fuelType": "Plug-in hibridas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-04",
-      "vin": "WBAFDB97531ZXVTRN",
-      "defects": "Nėra"
-    },
-    "description": "BMW 530e 2019 m. iš Kupiškis. Rida 46 770 km, plug-in hibridas, mechaninė. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
-    "sellerId": "seller-auto-4",
-    "createdAt": "2026-06-08T11:39:00.000Z",
-    "vinVerified": false,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-065",
-    "title": "BMW X5 xDrive30d 2001",
-    "price": 4600,
-    "location": "Ukmergė",
-    "distanceKm": 26.2,
-    "contact": "Tel. +370 61506816",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "x5",
-      "automobilis",
-      "dyzelinas",
-      "ukmergė"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "X5 xDrive30d",
-      "year": "2001",
-      "mileage": "256 158 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-05",
-      "vin": "WBAZXVTRNLJGECA86",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "BMW X5 xDrive30d 2001 m. iš Ukmergė. Rida 256 158 km, dyzelinas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros.",
-    "sellerId": "seller-auto-5",
-    "createdAt": "2026-06-09T12:52:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-066",
-    "title": "BMW 318i 2008",
-    "price": 11100,
-    "location": "Kėdainiai",
-    "distanceKm": 27.5,
-    "contact": "Tel. +370 61514735",
-    "image": "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "bmw",
-      "318i",
-      "automobilis",
-      "benzinas",
-      "kėdainiai"
-    ],
-    "attributes": {
-      "make": "BMW",
-      "model": "318i",
-      "year": "2008",
-      "mileage": "208 233 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-06",
-      "vin": "WBAGECA86420YWUSP",
-      "defects": "Nėra"
-    },
-    "description": "BMW 318i 2008 m. iš Kėdainiai. Rida 208 233 km, benzinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis.",
-    "sellerId": "seller-auto-6",
-    "createdAt": "2026-06-10T13:05:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-067",
-    "title": "Audi A4 Avant 2015",
-    "price": 18750,
-    "location": "Pasvalys",
-    "distanceKm": 28.8,
-    "contact": "Tel. +370 61522654",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a4",
-      "automobilis",
-      "dyzelinas",
-      "pasvalys"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A4 Avant",
-      "year": "2015",
-      "mileage": "119 250 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-07",
-      "vin": "WBA0YWUSPMKHFDB97",
-      "defects": "Nėra"
-    },
-    "description": "Audi A4 Avant 2015 m. iš Pasvalys. Rida 119 250 km, dyzelinas, mechaninė. Be eismo įvykių, originali dažų spalva. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2025-07. Be dūmų, be rūdžių.",
-    "sellerId": "seller-auto-7",
-    "createdAt": "2026-06-11T14:18:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-068",
-    "title": "Audi A4 2022",
-    "price": 26550,
-    "location": "Klaipėda",
-    "distanceKm": 30.1,
-    "contact": "Tel. +370 61530573",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a4",
-      "automobilis",
-      "dyzelinas",
-      "klaipėda"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A4",
-      "year": "2022",
-      "mileage": "28 769 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-08",
-      "vin": "WBAHFDB97531ZXVTR",
-      "defects": "Nėra"
-    },
-    "description": "Audi A4 2022 m. iš Klaipėda. Rida 28 769 km, dyzelinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje.",
-    "sellerId": "seller-auto-8",
-    "createdAt": "2026-06-12T15:31:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-069",
-    "title": "Audi A6 2004",
-    "price": 5250,
-    "location": "Alytus",
-    "distanceKm": 31.4,
-    "contact": "Tel. +370 61538492",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a6",
-      "automobilis",
-      "dyzelinas",
-      "alytus"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A6",
-      "year": "2004",
-      "mileage": "182 225 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-09",
-      "vin": "WBA1ZXVTRNLJGECA8",
-      "defects": "Nėra"
-    },
-    "description": "Audi A6 2004 m. iš Alytus. Rida 182 225 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija.",
-    "sellerId": "seller-auto-9",
-    "createdAt": "2026-06-13T16:44:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-070",
-    "title": "Audi Q5 2011",
-    "price": 16750,
-    "location": "Biržai",
-    "distanceKm": 32.7,
-    "contact": "Tel. +370 61546411",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "q5",
-      "automobilis",
-      "dyzelinas",
-      "biržai"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "Q5",
-      "year": "2011",
-      "mileage": "149 098 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-10",
-      "vin": "WBAJGECA86420YWUS",
-      "defects": "Nėra"
-    },
-    "description": "Audi Q5 2011 m. iš Biržai. Rida 149 098 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO.",
-    "sellerId": "seller-auto-10",
-    "createdAt": "2026-06-14T17:57:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-071",
-    "title": "Audi A3 Sportback 2018",
-    "price": 22150,
-    "location": "Telšiai",
-    "distanceKm": 31,
-    "contact": "Tel. +370 61554330",
-    "image": "https://images.unsplash.com/photo-1606664515524-ed2f786a0bd6?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "audi",
-      "a3",
-      "automobilis",
-      "benzinas",
-      "telšiai"
-    ],
-    "attributes": {
-      "make": "Audi",
-      "model": "A3 Sportback",
-      "year": "2018",
-      "mileage": "74 473 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-11",
-      "vin": "WBA20YWUSPMKHFDB9",
-      "defects": "Nėra"
-    },
-    "description": "Audi A3 Sportback 2018 m. iš Telšiai. Rida 74 473 km, benzinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai.",
-    "sellerId": "seller-auto-11",
-    "createdAt": "2026-06-15T08:10:00.000Z",
-    "vinVerified": true,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-072",
-    "title": "Volkswagen Golf 2000",
-    "price": 2850,
-    "location": "Palanga",
-    "distanceKm": 32.3,
-    "contact": "Tel. +370 61562249",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "golf",
-      "automobilis",
-      "dyzelinas",
-      "palanga"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Golf",
-      "year": "2000",
-      "mileage": "257 305 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-12",
-      "vin": "WBAKHFDB97531ZXVT",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Golf 2000 m. iš Palanga. Rida 257 305 km, dyzelinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas.",
-    "sellerId": "seller-auto-12",
-    "createdAt": "2026-06-16T09:23:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-073",
-    "title": "Volkswagen Passat 2007",
-    "price": 8600,
-    "location": "Druskininkai",
-    "distanceKm": 33.6,
-    "contact": "Tel. +370 61570168",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "passat",
-      "automobilis",
-      "dyzelinas",
-      "druskininkai"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Passat",
-      "year": "2007",
-      "mileage": "206 314 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-01",
-      "vin": "WBA31ZXVTRNLJGECA",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "Volkswagen Passat 2007 m. iš Druskininkai. Rida 206 314 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto.",
-    "sellerId": "seller-auto-13",
-    "createdAt": "2026-06-17T10:36:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-074",
-    "title": "Volkswagen Tiguan 2014",
-    "price": 17200,
-    "location": "Vilnius",
-    "distanceKm": 34.9,
-    "contact": "Tel. +370 61578087",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volkswagen",
-      "tiguan",
-      "automobilis",
-      "dyzelinas",
-      "vilnius"
-    ],
-    "attributes": {
-      "make": "Volkswagen",
-      "model": "Tiguan",
-      "year": "2014",
-      "mileage": "152 545 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-02",
-      "vin": "WBALJGECA86420YWU",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Tiguan 2014 m. iš Vilnius. Rida 152 545 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-02. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale.",
-    "sellerId": "seller-auto-14",
-    "createdAt": "2026-06-18T11:49:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-075",
-    "title": "Volkswagen Touran 2021",
-    "price": 26250,
+    "id": "lt-nt-012",
+    "title": "Sodyba su pirtimi ir sodu",
+    "price": 155000,
     "location": "Šiauliai",
-    "distanceKm": 36.2,
-    "contact": "Tel. +370 61586006",
-    "image": "https://images.unsplash.com/photo-1542362567-b07e54358753?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
+    "distanceKm": 22.3,
+    "contact": "Tel. +370 64087109",
+    "image": "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
     "tags": [
-      "volkswagen",
-      "touran",
-      "automobilis",
-      "dyzelinas",
-      "šiauliai"
+      "sodyba",
+      "nt",
+      "pirtis",
+      "šiauliai",
+      "nekilnojamasis"
     ],
+    "description": "NT pasiūlymas Šiauliai: Sodyba su pirtimi ir sodu. 3 kamb., 95 m². Tinka gyvenimui ar investicijai.",
+    "sellerId": "seller-nt-6",
+    "createdAt": "2026-06-15T11:55:00.000Z",
     "attributes": {
-      "make": "Volkswagen",
-      "model": "Touran",
-      "year": "2021",
-      "mileage": "57 278 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-03",
-      "vin": "WBA420YWUSPMKHFDB",
-      "defects": "Nėra"
-    },
-    "description": "Volkswagen Touran 2021 m. iš Šiauliai. Rida 57 278 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas.",
-    "sellerId": "seller-auto-15",
-    "createdAt": "2026-06-19T12:02:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
+      "propertyType": "Namas",
+      "rooms": "3",
+      "area": "95 m²"
+    }
   },
   {
-    "id": "lt-auto-076",
-    "title": "Volvo V70 2003",
-    "price": 4950,
-    "location": "Marijampolė",
-    "distanceKm": 37.5,
-    "contact": "Tel. +370 61593925",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
+    "id": "lt-nt-013",
+    "title": "4 kambarių butas su parkingu",
+    "price": 215000,
+    "location": "Alytus",
+    "distanceKm": 23.6,
+    "contact": "Tel. +370 64095028",
+    "image": "https://images.unsplash.com/photo-1502672260266-1c1ef2d93688?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
     "tags": [
-      "volvo",
-      "v70",
-      "automobilis",
-      "dyzelinas",
-      "marijampolė"
+      "butas",
+      "nt",
+      "parkingas",
+      "alytus",
+      "nekilnojamasis"
     ],
+    "description": "4 kambarių butas su parkingu — Alytus. Plotas 88 m², 4 kamb. Butas. Puiki vieta, šalia infrastruktūra, transportas.",
+    "sellerId": "seller-nt-1",
+    "createdAt": "2026-06-16T12:00:00.000Z",
     "attributes": {
-      "make": "Volvo",
-      "model": "V70",
-      "year": "2003",
-      "mileage": "220 898 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-04",
-      "vin": "WBAMKHFDB97531ZXV",
-      "defects": "Nėra"
-    },
-    "description": "Volvo V70 2003 m. iš Marijampolė. Rida 220 898 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai.",
-    "sellerId": "seller-auto-16",
-    "createdAt": "2026-06-20T13:15:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
+      "propertyType": "Butas",
+      "rooms": "4",
+      "area": "88 m²"
+    }
   },
   {
-    "id": "lt-auto-077",
-    "title": "Volvo XC60 2010",
-    "price": 12950,
-    "location": "Utena",
-    "distanceKm": 38.8,
-    "contact": "Tel. +370 61601844",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "xc60",
-      "automobilis",
-      "dyzelinas",
-      "utena"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "XC60",
-      "year": "2010",
-      "mileage": "142 985 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-05",
-      "vin": "WBA531ZXVTRNLJGEC",
-      "defects": "Nėra"
-    },
-    "description": "Volvo XC60 2010 m. iš Utena. Rida 142 985 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos.",
-    "sellerId": "seller-auto-17",
-    "createdAt": "2026-06-21T14:28:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-078",
-    "title": "Volvo XC90 2017",
-    "price": 23550,
-    "location": "Tauragė",
-    "distanceKm": 40.1,
-    "contact": "Tel. +370 61609763",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "xc90",
-      "automobilis",
-      "dyzelinas",
-      "tauragė"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "XC90",
-      "year": "2017",
-      "mileage": "103 574 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Visureigis",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-06",
-      "vin": "WBANLJGECA86420YW",
-      "defects": "Nėra"
-    },
-    "description": "Volvo XC90 2017 m. iš Tauragė. Rida 103 574 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara.",
-    "sellerId": "seller-auto-18",
-    "createdAt": "2026-06-22T15:41:00.000Z",
-    "vinVerified": true,
-    "providerVerified": true
-  },
-  {
-    "id": "lt-auto-079",
-    "title": "Volvo S60 2024",
-    "price": 29000,
-    "location": "Jonava",
-    "distanceKm": 41.4,
-    "contact": "Tel. +370 61617682",
-    "image": "https://images.unsplash.com/photo-1619760133404-416b4bef3979?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "volvo",
-      "s60",
-      "automobilis",
-      "benzinas",
-      "jonava"
-    ],
-    "attributes": {
-      "make": "Volvo",
-      "model": "S60",
-      "year": "2024",
-      "mileage": "22 665 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-07",
-      "vin": "WBA6420YWUSPMKHFD",
-      "defects": "Nėra"
-    },
-    "description": "Volvo S60 2024 m. iš Jonava. Rida 22 665 km, benzinas, mechaninė. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odinis salonas, panoraminis stogas. Automatinė bagažinės dangtis.",
-    "sellerId": "seller-auto-19",
-    "createdAt": "2026-06-23T16:54:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-080",
-    "title": "Toyota Corolla 2006",
-    "price": 5950,
-    "location": "Rokiškis",
-    "distanceKm": 42.7,
-    "contact": "Tel. +370 61625601",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "corolla",
-      "automobilis",
-      "hibridas",
-      "rokiškis"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "Corolla",
-      "year": "2006",
-      "mileage": "245 793 km",
-      "fuelType": "Hibridas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2026-08",
-      "vin": "WBAPMKHFDB97531ZX",
-      "defects": "Nėra"
-    },
-    "description": "Toyota Corolla 2006 m. iš Rokiškis. Rida 245 793 km, hibridas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis. LED žibintai, lietaus jutiklis. Apple CarPlay / Android Auto. Techninė apžiūra galioja iki 2026-08.",
-    "sellerId": "seller-auto-20",
-    "createdAt": "2026-06-24T17:07:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-081",
-    "title": "Toyota Avensis 2013",
-    "price": 14100,
-    "location": "Kaunas",
-    "distanceKm": 1,
-    "contact": "Tel. +370 61633520",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "avensis",
-      "automobilis",
-      "dyzelinas",
-      "kaunas"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "Avensis",
-      "year": "2013",
-      "mileage": "147 238 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Universalas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2025-09",
-      "vin": "WBA7531ZXVTRNLJGE",
-      "defects": "Smulkūs kosmetiniai defektai"
-    },
-    "description": "Toyota Avensis 2013 m. iš Kaunas. Rida 147 238 km, dyzelinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioja iki 2027-09. Be dūmų, be rūdžių. Parkavimo jutikliai priekyje ir gale. Serviso knygelė su visais įrašais.",
-    "sellerId": "seller-auto-1",
-    "createdAt": "2026-06-25T08:20:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-082",
-    "title": "Toyota RAV4 2020",
-    "price": 27600,
-    "location": "Panevėžys",
-    "distanceKm": 2.3,
-    "contact": "Tel. +370 61641439",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
-    "tags": [
-      "toyota",
-      "rav4",
-      "automobilis",
-      "hibridas",
-      "panevėžys"
-    ],
-    "attributes": {
-      "make": "Toyota",
-      "model": "RAV4",
-      "year": "2020",
-      "mileage": "80 465 km",
-      "fuelType": "Hibridas",
-      "bodyType": "Visureigis",
-      "transmission": "Mechaninė",
-      "taExpiry": "2026-10",
-      "vin": "WBARNLJGECA86420Y",
-      "defects": "Nėra"
-    },
-    "description": "Toyota RAV4 2020 m. iš Panevėžys. Rida 80 465 km, hibridas, mechaninė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savininkas Lietuvoje. Automatinis parkavimas. Du raktelių komplektas.",
-    "sellerId": "seller-auto-2",
-    "createdAt": "2026-06-26T09:33:00.000Z",
-    "vinVerified": false,
-    "providerVerified": false
-  },
-  {
-    "id": "lt-auto-083",
-    "title": "Toyota Yaris 2002",
-    "price": 4100,
+    "id": "lt-nt-014",
+    "title": "Žemės sklypas ūkio paskirčiai",
+    "price": 28000,
     "location": "Mažeikiai",
-    "distanceKm": 3.6,
-    "contact": "Tel. +370 61649358",
-    "image": "https://images.unsplash.com/photo-1621007940902-bb6befaef932?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
+    "distanceKm": 24.9,
+    "contact": "Tel. +370 64102947",
+    "image": "https://images.unsplash.com/photo-1500382017468-90403fed94c1?w=800&h=600&fit=crop&auto=format",
+    "category": "real_estate",
     "tags": [
-      "toyota",
-      "yaris",
-      "automobilis",
-      "benzinas",
-      "mažeikiai"
+      "žemė",
+      "nt",
+      "sklypas",
+      "mažeikiai",
+      "nekilnojamasis"
     ],
+    "description": "Parduodamas sklypas Mažeikiai mieste. — kamb., 30 a. Tvarkinga būklė, galima apžiūrėti sutartu laiku.",
+    "sellerId": "seller-nt-2",
+    "createdAt": "2026-06-17T12:05:00.000Z",
     "attributes": {
-      "make": "Toyota",
-      "model": "Yaris",
-      "year": "2002",
-      "mileage": "254 249 km",
-      "fuelType": "Benzinas",
-      "bodyType": "Hečbekas",
-      "transmission": "Automatinė",
-      "taExpiry": "2025-11",
-      "vin": "WBA86420YWUSPMKHF",
-      "defects": "Nėra"
-    },
-    "description": "Toyota Yaris 2002 m. iš Mažeikiai. Rida 254 249 km, benzinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš Vokietijos, tvarkinga istorija. Xenon/LED priekiniai žibintai. Naujos vasarinės padangos.",
-    "sellerId": "seller-auto-3",
-    "createdAt": "2026-06-27T10:46:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
+      "propertyType": "Sklypas",
+      "rooms": "—",
+      "area": "30 a"
+    }
   },
   {
-    "id": "lt-auto-084",
-    "title": "Mercedes-Benz C220 d 2009",
-    "price": 13300,
+    "id": "lt-job-001",
+    "title": "Vairuotojas CE — tarptautiniai reisai",
+    "price": 0,
+    "priceLabel": "nuo 1800€/mėn.",
+    "location": "Mažeikiai",
+    "distanceKm": 21,
+    "contact": "Tel. +370 65000000",
+    "image": "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "vairuotojas",
+      "darbas",
+      "ce",
+      "mažeikiai",
+      "karjera"
+    ],
+    "description": "Vairuotojas CE — tarptautiniai reisai — Mažeikiai ir apylinkės. Etatas: Pamainos. Patirtis: 2+ m..",
+    "sellerId": "seller-job-1",
+    "createdAt": "2026-06-06T09:00:00.000Z",
+    "attributes": {
+      "position": "Vairuotojas",
+      "schedule": "Pamainos",
+      "experience": "2+ m."
+    }
+  },
+  {
+    "id": "lt-job-002",
+    "title": "Sandėlininkas — naktinės pamainos",
+    "price": 0,
+    "priceLabel": "nuo 1200€/mėn.",
     "location": "Kupiškis",
-    "distanceKm": 4.9,
-    "contact": "Tel. +370 61657277",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
+    "distanceKm": 22.3,
+    "contact": "Tel. +370 65007919",
+    "image": "https://images.unsplash.com/photo-1586528116311-ad8dd3c8310d?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
     "tags": [
-      "mercedes-benz",
-      "c220",
-      "automobilis",
-      "dyzelinas",
-      "kupiškis"
+      "sandėlis",
+      "darbas",
+      "logistika",
+      "kupiškis",
+      "karjera"
     ],
+    "description": "Ieškome Sandėlininkas Kupiškis. nuo 1200€/mėn.. Suteikiame apmokymą.",
+    "sellerId": "seller-job-2",
+    "createdAt": "2026-06-07T09:09:00.000Z",
     "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "C220 d",
-      "year": "2009",
-      "mileage": "171 550 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Automatinė su padėtimis",
-      "taExpiry": "2026-12",
-      "vin": "WBASPMKHFDB97531Z",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz C220 d 2009 m. iš Kupiškis. Rida 171 550 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. Neseniai atlikta didžioji TO. Start-stop sistema, mažos sąnaudos. Klimato kontrolė, šildomos sėdynės.",
-    "sellerId": "seller-auto-4",
-    "createdAt": "2026-06-28T11:59:00.000Z",
-    "vinVerified": true,
-    "providerVerified": false
+      "position": "Sandėlininkas",
+      "schedule": "Naktinis",
+      "experience": "Be patirties"
+    }
   },
   {
-    "id": "lt-auto-085",
-    "title": "Mercedes-Benz E220 d 2016",
-    "price": 22550,
+    "id": "lt-job-003",
+    "title": "PHP programuotojas (Symfony)",
+    "price": 0,
+    "priceLabel": "2500–4000€/mėn.",
     "location": "Ukmergė",
-    "distanceKm": 6.2,
-    "contact": "Tel. +370 61665196",
-    "image": "https://images.unsplash.com/photo-1617531653332-bd46c24f2068?w=800&h=600&fit=crop&auto=format",
-    "category": "vehicles",
+    "distanceKm": 23.6,
+    "contact": "Tel. +370 65015838",
+    "image": "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
     "tags": [
-      "mercedes-benz",
-      "e220",
-      "automobilis",
-      "dyzelinas",
-      "ukmergė"
+      "programuotojas",
+      "it",
+      "darbas",
+      "ukmergė",
+      "karjera"
     ],
+    "description": "Darbo pasiūlymas: PHP programuotojas (Symfony). Vieta: Ukmergė. Grafikas: Hibridas. Kreipkitės su CV.",
+    "sellerId": "seller-job-3",
+    "createdAt": "2026-06-08T09:18:00.000Z",
     "attributes": {
-      "make": "Mercedes-Benz",
-      "model": "E220 d",
-      "year": "2016",
-      "mileage": "87 353 km",
-      "fuelType": "Dyzelinas",
-      "bodyType": "Sedanas",
-      "transmission": "Mechaninė",
-      "taExpiry": "2025-01",
-      "vin": "WBA97531ZXVTRNLJG",
-      "defects": "Nėra"
-    },
-    "description": "Mercedes-Benz E220 d 2016 m. iš Ukmergė. Rida 87 353 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Klimato kontrolė, šildomos sėdynės. Nauja vairo traukė, stabdžių diskai. 4×4 visų ratų pavara. Navigacija, atbulinės kameros.",
-    "sellerId": "seller-auto-5",
-    "createdAt": "2026-06-01T12:12:00.000Z",
-    "vinVerified": false,
-    "providerVerified": true
+      "position": "Programuotojas",
+      "schedule": "Hibridas",
+      "experience": "3+ m."
+    }
+  },
+  {
+    "id": "lt-job-004",
+    "title": "Virėjas — restoranas centre",
+    "price": 0,
+    "priceLabel": "nuo 1400€/mėn.",
+    "location": "Kėdainiai",
+    "distanceKm": 24.9,
+    "contact": "Tel. +370 65023757",
+    "image": "https://images.unsplash.com/photo-1556910103-1c02745aae4d?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "virėjas",
+      "maistas",
+      "darbas",
+      "kėdainiai",
+      "karjera"
+    ],
+    "description": "Virėjas pozicija Kėdainiai. Virėjas — restoranas centre. Oficialus įdarbinimas, socialinės garantijos.",
+    "sellerId": "seller-job-4",
+    "createdAt": "2026-06-09T09:27:00.000Z",
+    "attributes": {
+      "position": "Virėjas",
+      "schedule": "Pilnas etatas",
+      "experience": "1+ m."
+    }
+  },
+  {
+    "id": "lt-job-005",
+    "title": "Medicinos seselė — slaugos skyrius",
+    "price": 0,
+    "priceLabel": "nuo 1600€/mėn.",
+    "location": "Pasvalys",
+    "distanceKm": 26.2,
+    "contact": "Tel. +370 65031676",
+    "image": "https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "slauga",
+      "medicina",
+      "darbas",
+      "pasvalys",
+      "karjera"
+    ],
+    "description": "Medicinos seselė — slaugos skyrius — Pasvalys ir apylinkės. Etatas: Pamainos. Patirtis: 2+ m..",
+    "sellerId": "seller-job-5",
+    "createdAt": "2026-06-10T09:36:00.000Z",
+    "attributes": {
+      "position": "Seselė",
+      "schedule": "Pamainos",
+      "experience": "2+ m."
+    }
+  },
+  {
+    "id": "lt-job-006",
+    "title": "Statybų darbų vadovas",
+    "price": 0,
+    "priceLabel": "nuo 2200€/mėn.",
+    "location": "Visaginas",
+    "distanceKm": 27.5,
+    "contact": "Tel. +370 65039595",
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "statyba",
+      "vadovas",
+      "darbas",
+      "visaginas",
+      "karjera"
+    ],
+    "description": "Ieškome Vadovas Visaginas. nuo 2200€/mėn.. Suteikiame apmokymą.",
+    "sellerId": "seller-job-1",
+    "createdAt": "2026-06-11T09:45:00.000Z",
+    "attributes": {
+      "position": "Vadovas",
+      "schedule": "Pilnas etatas",
+      "experience": "5+ m."
+    }
+  },
+  {
+    "id": "lt-job-007",
+    "title": "Pardavėjas-consultant elektronikos salėje",
+    "price": 0,
+    "priceLabel": "nuo 1100€/mėn.",
+    "location": "Kaunas",
+    "distanceKm": 28.8,
+    "contact": "Tel. +370 65047514",
+    "image": "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "pardavimas",
+      "darbas",
+      "retail",
+      "kaunas",
+      "karjera"
+    ],
+    "description": "Darbo pasiūlymas: Pardavėjas-consultant elektronikos salėje. Vieta: Kaunas. Grafikas: Pamainos. Kreipkitės su CV.",
+    "sellerId": "seller-job-2",
+    "createdAt": "2026-06-12T09:54:00.000Z",
+    "attributes": {
+      "position": "Pardavėjas",
+      "schedule": "Pamainos",
+      "experience": "Be patirties"
+    }
+  },
+  {
+    "id": "lt-job-008",
+    "title": "Buhalterė — maža įmonė",
+    "price": 0,
+    "priceLabel": "nuo 1500€/mėn.",
+    "location": "Panevėžys",
+    "distanceKm": 30.1,
+    "contact": "Tel. +370 65055433",
+    "image": "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "buhalterija",
+      "darbas",
+      "finansai",
+      "panevėžys",
+      "karjera"
+    ],
+    "description": "Buhalterė pozicija Panevėžys. Buhalterė — maža įmonė. Oficialus įdarbinimas, socialinės garantijos.",
+    "sellerId": "seller-job-3",
+    "createdAt": "2026-06-13T10:03:00.000Z",
+    "attributes": {
+      "position": "Buhalterė",
+      "schedule": "Pilnas etatas",
+      "experience": "3+ m."
+    }
+  },
+  {
+    "id": "lt-job-009",
+    "title": "Kurjeris — nuosavas automobilis",
+    "price": 0,
+    "priceLabel": "nuo 1000€/mėn.",
+    "location": "Mažeikiai",
+    "distanceKm": 31.4,
+    "contact": "Tel. +370 65063352",
+    "image": "https://images.unsplash.com/photo-1449965408869-eaa3f722e40d?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "kurjeris",
+      "logistika",
+      "darbas",
+      "mažeikiai",
+      "karjera"
+    ],
+    "description": "Kurjeris — nuosavas automobilis — Mažeikiai ir apylinkės. Etatas: Lankstus. Patirtis: Be patirties.",
+    "sellerId": "seller-job-4",
+    "createdAt": "2026-06-14T10:12:00.000Z",
+    "attributes": {
+      "position": "Kurjeris",
+      "schedule": "Lankstus",
+      "experience": "Be patirties"
+    }
+  },
+  {
+    "id": "lt-job-010",
+    "title": "Suvirintojas TIG/MIG",
+    "price": 0,
+    "priceLabel": "nuo 1700€/mėn.",
+    "location": "Kupiškis",
+    "distanceKm": 32.7,
+    "contact": "Tel. +370 65071271",
+    "image": "https://images.unsplash.com/photo-1504307651254-35680f356dfd?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "suvirintojas",
+      "gamykla",
+      "darbas",
+      "kupiškis",
+      "karjera"
+    ],
+    "description": "Ieškome Suvirintojas Kupiškis. nuo 1700€/mėn.. Suteikiame apmokymą.",
+    "sellerId": "seller-job-5",
+    "createdAt": "2026-06-15T10:21:00.000Z",
+    "attributes": {
+      "position": "Suvirintojas",
+      "schedule": "Pamainos",
+      "experience": "2+ m."
+    }
+  },
+  {
+    "id": "lt-job-011",
+    "title": "Klientų aptarnavimo specialistas",
+    "price": 0,
+    "priceLabel": "nuo 1150€/mėn.",
+    "location": "Ukmergė",
+    "distanceKm": 31,
+    "contact": "Tel. +370 65079190",
+    "image": "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "support",
+      "darbas",
+      "biuras",
+      "ukmergė",
+      "karjera"
+    ],
+    "description": "Darbo pasiūlymas: Klientų aptarnavimo specialistas. Vieta: Ukmergė. Grafikas: Pamainos. Kreipkitės su CV.",
+    "sellerId": "seller-job-1",
+    "createdAt": "2026-06-16T10:30:00.000Z",
+    "attributes": {
+      "position": "Specialistas",
+      "schedule": "Pamainos",
+      "experience": "1+ m."
+    }
+  },
+  {
+    "id": "lt-job-012",
+    "title": "Auklė / babysitter — nuolatinė",
+    "price": 0,
+    "priceLabel": "nuo 900€/mėn.",
+    "location": "Kėdainiai",
+    "distanceKm": 32.3,
+    "contact": "Tel. +370 65087109",
+    "image": "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format",
+    "category": "jobs",
+    "tags": [
+      "auklė",
+      "darbas",
+      "vaikai",
+      "kėdainiai",
+      "karjera"
+    ],
+    "description": "Auklė pozicija Kėdainiai. Auklė / babysitter — nuolatinė. Oficialus įdarbinimas, socialinės garantijos.",
+    "sellerId": "seller-job-2",
+    "createdAt": "2026-06-17T10:39:00.000Z",
+    "attributes": {
+      "position": "Auklė",
+      "schedule": "Pilnas etatas",
+      "experience": "2+ m."
+    }
+  },
+  {
+    "id": "lt-clo-001",
+    "title": "Nike Air Max 270 batai 43 d.",
+    "price": 85,
+    "location": "Kaunas",
+    "distanceKm": 31,
+    "contact": "Tel. +370 66000000",
+    "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "nike",
+      "batai",
+      "sportas",
+      "kaunas",
+      "drabužiai"
+    ],
+    "description": "Parduodu Nike Air Max 270 batai 43 d.. Dydis 43, būklė: Gera. Kaunas, galiu siųsti LP Express.",
+    "sellerId": "seller-clo-1",
+    "createdAt": "2026-06-09T14:00:00.000Z",
+    "attributes": {
+      "brand": "Nike",
+      "size": "43",
+      "condition": "Gera"
+    }
+  },
+  {
+    "id": "lt-clo-002",
+    "title": "Zara vilnonė striukė M",
+    "price": 45,
+    "location": "Alytus",
+    "distanceKm": 32.3,
+    "contact": "Tel. +370 66007919",
+    "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "zara",
+      "striukė",
+      "drabužiai",
+      "alytus",
+      "drabužiai"
+    ],
+    "description": "Zara vilnonė striukė M — Zara prekė. Dydis M. Naudota kelis kartus, be defektų. Alytus.",
+    "sellerId": "seller-clo-2",
+    "createdAt": "2026-06-10T14:06:00.000Z",
+    "attributes": {
+      "brand": "Zara",
+      "size": "M",
+      "condition": "Kaip nauja"
+    }
+  },
+  {
+    "id": "lt-clo-003",
+    "title": "Mango suknelė vakariniam renginiui",
+    "price": 38,
+    "location": "Utena",
+    "distanceKm": 33.6,
+    "contact": "Tel. +370 66015838",
+    "image": "https://images.unsplash.com/photo-1595777457583-95e0591d1b72?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "mango",
+      "suknelė",
+      "drabužiai",
+      "utena",
+      "drabužiai"
+    ],
+    "description": "Tvarkingas mango suknelė vakariniam renginiui, dydis S. Originalus, ne fake. Perduodu Utena centre.",
+    "sellerId": "seller-clo-3",
+    "createdAt": "2026-06-11T14:12:00.000Z",
+    "attributes": {
+      "brand": "Mango",
+      "size": "S",
+      "condition": "Nauja"
+    }
+  },
+  {
+    "id": "lt-clo-004",
+    "title": "Levi's 501 džinsai W32 L32",
+    "price": 42,
+    "location": "Ukmergė",
+    "distanceKm": 34.9,
+    "contact": "Tel. +370 66023757",
+    "image": "https://images.unsplash.com/photo-1542272604-787c3835535d?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "levis",
+      "džinsai",
+      "drabužiai",
+      "ukmergė",
+      "drabužiai"
+    ],
+    "description": "Levi's 501 džinsai W32 L32. Būklė: Gera. Dydis W32 L32. Ukmergė, galimas siuntimas.",
+    "sellerId": "seller-clo-4",
+    "createdAt": "2026-06-12T14:18:00.000Z",
+    "attributes": {
+      "brand": "Levi's",
+      "size": "W32 L32",
+      "condition": "Gera"
+    }
+  },
+  {
+    "id": "lt-clo-005",
+    "title": "North Face žieminė striukė L",
+    "price": 120,
+    "location": "Druskininkai",
+    "distanceKm": 36.2,
+    "contact": "Tel. +370 66031676",
+    "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "north face",
+      "striukė",
+      "žiemą",
+      "druskininkai",
+      "drabužiai"
+    ],
+    "description": "Parduodu North Face žieminė striukė L. Dydis L, būklė: Labai gera. Druskininkai, galiu siųsti LP Express.",
+    "sellerId": "seller-clo-5",
+    "createdAt": "2026-06-13T14:24:00.000Z",
+    "attributes": {
+      "brand": "The North Face",
+      "size": "L",
+      "condition": "Labai gera"
+    }
+  },
+  {
+    "id": "lt-clo-006",
+    "title": "Adidas Ultraboost batai 42 d.",
+    "price": 95,
+    "location": "Kretinga",
+    "distanceKm": 37.5,
+    "contact": "Tel. +370 66039595",
+    "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "adidas",
+      "batai",
+      "bėgimas",
+      "kretinga",
+      "drabužiai"
+    ],
+    "description": "Adidas Ultraboost batai 42 d. — Adidas prekė. Dydis 42. Naudota kelis kartus, be defektų. Kretinga.",
+    "sellerId": "seller-clo-1",
+    "createdAt": "2026-06-14T14:30:00.000Z",
+    "attributes": {
+      "brand": "Adidas",
+      "size": "42",
+      "condition": "Gera"
+    }
+  },
+  {
+    "id": "lt-clo-007",
+    "title": "Michael Kors rankinė",
+    "price": 75,
+    "location": "Kaunas",
+    "distanceKm": 38.8,
+    "contact": "Tel. +370 66047514",
+    "image": "https://images.unsplash.com/photo-1584917865442-de89a76edc7b?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "rankinė",
+      "moteriška",
+      "aksesuaras",
+      "kaunas",
+      "drabužiai"
+    ],
+    "description": "Tvarkingas michael kors rankinė, dydis —. Originalus, ne fake. Perduodu Kaunas centre.",
+    "sellerId": "seller-clo-2",
+    "createdAt": "2026-06-15T14:36:00.000Z",
+    "attributes": {
+      "brand": "Michael Kors",
+      "size": "—",
+      "condition": "Kaip nauja"
+    }
+  },
+  {
+    "id": "lt-clo-008",
+    "title": "H&M vaikiška striukė 128 cm",
+    "price": 18,
+    "location": "Alytus",
+    "distanceKm": 40.1,
+    "contact": "Tel. +370 66055433",
+    "image": "https://images.unsplash.com/photo-1519236762933-8a98c0a5d393?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "vaikai",
+      "striukė",
+      "drabužiai",
+      "alytus",
+      "drabužiai"
+    ],
+    "description": "H&M vaikiška striukė 128 cm. Būklė: Gera. Dydis 128. Alytus, galimas siuntimas.",
+    "sellerId": "seller-clo-3",
+    "createdAt": "2026-06-16T14:42:00.000Z",
+    "attributes": {
+      "brand": "H&M",
+      "size": "128",
+      "condition": "Gera"
+    }
+  },
+  {
+    "id": "lt-clo-009",
+    "title": "Tommy Hilfiger polo marškinėliai",
+    "price": 28,
+    "location": "Utena",
+    "distanceKm": 41.4,
+    "contact": "Tel. +370 66063352",
+    "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "tommy",
+      "marškinėliai",
+      "drabužiai",
+      "utena",
+      "drabužiai"
+    ],
+    "description": "Parduodu Tommy Hilfiger polo marškinėliai. Dydis L, būklė: Nauja. Utena, galiu siųsti LP Express.",
+    "sellerId": "seller-clo-4",
+    "createdAt": "2026-06-17T14:48:00.000Z",
+    "attributes": {
+      "brand": "Tommy Hilfiger",
+      "size": "L",
+      "condition": "Nauja"
+    }
+  },
+  {
+    "id": "lt-clo-010",
+    "title": "Puma sportiniai kostiumai",
+    "price": 55,
+    "location": "Ukmergė",
+    "distanceKm": 42.7,
+    "contact": "Tel. +370 66071271",
+    "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "puma",
+      "sportas",
+      "drabužiai",
+      "ukmergė",
+      "drabužiai"
+    ],
+    "description": "Puma sportiniai kostiumai — Puma prekė. Dydis M. Naudota kelis kartus, be defektų. Ukmergė.",
+    "sellerId": "seller-clo-5",
+    "createdAt": "2026-06-18T14:54:00.000Z",
+    "attributes": {
+      "brand": "Puma",
+      "size": "M",
+      "condition": "Gera"
+    }
+  },
+  {
+    "id": "lt-clo-011",
+    "title": "Timberland aulinukai 44 d.",
+    "price": 110,
+    "location": "Druskininkai",
+    "distanceKm": 1,
+    "contact": "Tel. +370 66079190",
+    "image": "https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "timberland",
+      "batai",
+      "žiemą",
+      "druskininkai",
+      "drabužiai"
+    ],
+    "description": "Tvarkingas timberland aulinukai 44 d., dydis 44. Originalus, ne fake. Perduodu Druskininkai centre.",
+    "sellerId": "seller-clo-1",
+    "createdAt": "2026-06-19T15:00:00.000Z",
+    "attributes": {
+      "brand": "Timberland",
+      "size": "44",
+      "condition": "Labai gera"
+    }
+  },
+  {
+    "id": "lt-clo-012",
+    "title": "Reserved palto modelis moterims",
+    "price": 68,
+    "location": "Kretinga",
+    "distanceKm": 2.3,
+    "contact": "Tel. +370 66087109",
+    "image": "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format",
+    "category": "clothing",
+    "tags": [
+      "reserved",
+      "paltas",
+      "drabužiai",
+      "kretinga",
+      "drabužiai"
+    ],
+    "description": "Reserved palto modelis moterims. Būklė: Gera. Dydis M. Kretinga, galimas siuntimas.",
+    "sellerId": "seller-clo-2",
+    "createdAt": "2026-06-20T15:06:00.000Z",
+    "attributes": {
+      "brand": "Reserved",
+      "size": "M",
+      "condition": "Gera"
+    }
   },
   {
     "id": "lt-el-001",
     "title": "iPhone 15 Pro 256 GB",
     "price": 980,
     "location": "Klaipėda",
-    "distanceKm": 2,
+    "distanceKm": 1,
     "contact": "Tel. +370 62000000",
     "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
@@ -2906,142 +1795,449 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
       "iphone",
       "telefonas",
       "apple",
-      "klaipėda"
+      "klaipėda",
+      "elektronika"
     ],
     "description": "Parduodu iPhone 15 Pro 256 GB — naudotas, bet be defektų. Ekranas be įbrėžimų, baterija laiko puikiai. Komplektas su dėklu ir įkrovikliu. Galima apžiūrėti Klaipėda.",
     "sellerId": "seller-el-1",
-    "createdAt": "2026-06-10T10:00:00.000Z"
+    "createdAt": "2026-06-11T10:00:00.000Z"
   },
   {
     "id": "lt-el-002",
     "title": "iPhone 14 128 GB",
     "price": 650,
     "location": "Mažeikiai",
-    "distanceKm": 3.7,
-    "contact": "Tel. +370 62012345",
+    "distanceKm": 2.3,
+    "contact": "Tel. +370 62007919",
     "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "iphone",
       "telefonas",
-      "mažeikiai"
+      "mažeikiai",
+      "elektronika"
     ],
     "description": "iPhone 14 128 GB — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Mažeikiai centre.",
     "sellerId": "seller-el-2",
-    "createdAt": "2026-06-11T10:07:00.000Z"
+    "createdAt": "2026-06-12T10:07:00.000Z"
   },
   {
     "id": "lt-el-003",
     "title": "Samsung Galaxy S24 Ultra",
     "price": 950,
     "location": "Tauragė",
-    "distanceKm": 5.4,
-    "contact": "Tel. +370 62024690",
+    "distanceKm": 3.6,
+    "contact": "Tel. +370 62015838",
     "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "samsung",
       "telefonas",
       "android",
-      "tauragė"
+      "tauragė",
+      "elektronika"
     ],
     "description": "Tvarkingas Samsung Galaxy S24 Ultra, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Tauragė.",
     "sellerId": "seller-el-3",
-    "createdAt": "2026-06-12T10:14:00.000Z"
+    "createdAt": "2026-06-13T10:14:00.000Z"
   },
   {
     "id": "lt-el-004",
     "title": "MacBook Air M2 13\"",
     "price": 1050,
     "location": "Druskininkai",
-    "distanceKm": 7.1,
-    "contact": "Tel. +370 62037035",
+    "distanceKm": 4.9,
+    "contact": "Tel. +370 62023757",
     "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "macbook",
       "apple",
       "kompiuteris",
-      "druskininkai"
+      "druskininkai",
+      "elektronika"
     ],
     "description": "MacBook Air M2 13\" — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Druskininkai, galiu atvežti.",
     "sellerId": "seller-el-4",
-    "createdAt": "2026-06-13T10:21:00.000Z"
+    "createdAt": "2026-06-14T10:21:00.000Z"
   },
   {
     "id": "lt-el-005",
     "title": "iPad Pro 11\" M2",
     "price": 810,
-    "location": "Klaipėda",
-    "distanceKm": 8.8,
-    "contact": "Tel. +370 62049380",
+    "location": "Visaginas",
+    "distanceKm": 6.2,
+    "contact": "Tel. +370 62031676",
     "image": "https://images.unsplash.com/photo-1606144042614-b2417e99c4ee?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "ipad",
       "planšetė",
-      "klaipėda"
+      "visaginas",
+      "elektronika"
     ],
-    "description": "Parduodu iPad Pro 11\" M2 — naudotas, bet be defektų. Ekranas be įbrėžimų, baterija laiko puikiai. Komplektas su dėklu ir įkrovikliu. Galima apžiūrėti Klaipėda.",
+    "description": "Parduodu iPad Pro 11\" M2 — naudotas, bet be defektų. Ekranas be įbrėžimų, baterija laiko puikiai. Komplektas su dėklu ir įkrovikliu. Galima apžiūrėti Visaginas.",
     "sellerId": "seller-el-5",
-    "createdAt": "2026-06-14T10:28:00.000Z"
+    "createdAt": "2026-06-15T10:28:00.000Z"
   },
   {
     "id": "lt-el-006",
     "title": "PlayStation 5 + 2 pultai",
     "price": 480,
-    "location": "Mažeikiai",
-    "distanceKm": 10.5,
-    "contact": "Tel. +370 62061725",
+    "location": "Šiauliai",
+    "distanceKm": 7.5,
+    "contact": "Tel. +370 62039595",
     "image": "https://images.unsplash.com/photo-1606813907291-d86efa9b397e?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "ps5",
       "žaidimai",
       "konsolė",
-      "mažeikiai"
+      "šiauliai",
+      "elektronika"
     ],
-    "description": "PlayStation 5 + 2 pultai — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Mažeikiai centre.",
+    "description": "PlayStation 5 + 2 pultai — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Šiauliai centre.",
     "sellerId": "seller-el-1",
-    "createdAt": "2026-06-15T10:35:00.000Z"
+    "createdAt": "2026-06-16T10:35:00.000Z"
   },
   {
     "id": "lt-el-007",
     "title": "Dyson V15 Detect",
     "price": 480,
-    "location": "Tauragė",
-    "distanceKm": 12.2,
-    "contact": "Tel. +370 62074070",
+    "location": "Biržai",
+    "distanceKm": 8.8,
+    "contact": "Tel. +370 62047514",
     "image": "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "dyson",
       "siurblys",
       "namams",
-      "tauragė"
+      "biržai",
+      "elektronika"
     ],
-    "description": "Tvarkingas Dyson V15 Detect, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Tauragė.",
+    "description": "Tvarkingas Dyson V15 Detect, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Biržai.",
     "sellerId": "seller-el-2",
-    "createdAt": "2026-06-16T10:42:00.000Z"
+    "createdAt": "2026-06-17T10:42:00.000Z"
   },
   {
     "id": "lt-el-008",
     "title": "Sony WH-1000XM5 ausinės",
     "price": 290,
-    "location": "Druskininkai",
-    "distanceKm": 13.9,
-    "contact": "Tel. +370 62086415",
+    "location": "Ukmergė",
+    "distanceKm": 10.1,
+    "contact": "Tel. +370 62055433",
     "image": "https://images.unsplash.com/photo-1585060544812-6b45742d762f?w=800&h=600&fit=crop&auto=format",
     "category": "electronics",
     "tags": [
       "sony",
       "ausinės",
       "bluetooth",
-      "druskininkai"
+      "ukmergė",
+      "elektronika"
     ],
-    "description": "Sony WH-1000XM5 ausinės — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Druskininkai, galiu atvežti.",
+    "description": "Sony WH-1000XM5 ausinės — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Ukmergė, galiu atvežti.",
     "sellerId": "seller-el-3",
-    "createdAt": "2026-06-17T10:49:00.000Z"
+    "createdAt": "2026-06-18T10:49:00.000Z"
+  },
+  {
+    "id": "lt-el-009",
+    "title": "iPhone 15 Pro 256 GB",
+    "price": 1040,
+    "location": "Rokiškis",
+    "distanceKm": 11.4,
+    "contact": "Tel. +370 62063352",
+    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
+    "category": "electronics",
+    "tags": [
+      "iphone",
+      "telefonas",
+      "apple",
+      "rokiškis",
+      "elektronika"
+    ],
+    "description": "Parduodu iPhone 15 Pro 256 GB — naudotas, bet be defektų. Ekranas be įbrėžimų, baterija laiko puikiai. Komplektas su dėklu ir įkrovikliu. Galima apžiūrėti Rokiškis.",
+    "sellerId": "seller-el-4",
+    "createdAt": "2026-06-19T10:56:00.000Z"
+  },
+  {
+    "id": "lt-el-010",
+    "title": "iPhone 14 128 GB",
+    "price": 620,
+    "location": "Šilutė",
+    "distanceKm": 12.7,
+    "contact": "Tel. +370 62071271",
+    "image": "https://images.unsplash.com/photo-1592899677977-9c10ca588bbd?w=800&h=600&fit=crop&auto=format",
+    "category": "electronics",
+    "tags": [
+      "iphone",
+      "telefonas",
+      "šilutė",
+      "elektronika"
+    ],
+    "description": "iPhone 14 128 GB — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Šilutė centre.",
+    "sellerId": "seller-el-5",
+    "createdAt": "2026-06-20T11:03:00.000Z"
+  },
+  {
+    "id": "lt-el-011",
+    "title": "Samsung Galaxy S24 Ultra",
+    "price": 920,
+    "location": "Panevėžys",
+    "distanceKm": 11,
+    "contact": "Tel. +370 62079190",
+    "image": "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop&auto=format",
+    "category": "electronics",
+    "tags": [
+      "samsung",
+      "telefonas",
+      "android",
+      "panevėžys",
+      "elektronika"
+    ],
+    "description": "Tvarkingas Samsung Galaxy S24 Ultra, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Panevėžys.",
+    "sellerId": "seller-el-1",
+    "createdAt": "2026-06-21T11:10:00.000Z"
+  },
+  {
+    "id": "lt-el-012",
+    "title": "MacBook Air M2 13\"",
+    "price": 1110,
+    "location": "Utena",
+    "distanceKm": 12.3,
+    "contact": "Tel. +370 62087109",
+    "image": "https://images.unsplash.com/photo-1496181133206-80ce9b88a853?w=800&h=600&fit=crop&auto=format",
+    "category": "electronics",
+    "tags": [
+      "macbook",
+      "apple",
+      "kompiuteris",
+      "utena",
+      "elektronika"
+    ],
+    "description": "MacBook Air M2 13\" — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Utena, galiu atvežti.",
+    "sellerId": "seller-el-2",
+    "createdAt": "2026-06-22T11:17:00.000Z"
+  },
+  {
+    "id": "lt-home-001",
+    "title": "Sofa-lova su daiktų saugykla",
+    "price": 420,
+    "location": "Utena",
+    "distanceKm": 11,
+    "contact": "Tel. +370 67000000",
+    "image": "https://images.unsplash.com/photo-1555041469-a586c61e9bc7?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "sofa",
+      "baldai",
+      "svetainė",
+      "utena",
+      "baldai"
+    ],
+    "description": "Parduodu sofa-lova su daiktų saugykla — Utena. Tvarkinga būklė, be įbrėžimų. Galimas pristatymas mieste.",
+    "sellerId": "seller-home-1",
+    "createdAt": "2026-06-13T13:00:00.000Z"
+  },
+  {
+    "id": "lt-home-002",
+    "title": "Stiklo valgomojo stalas su 6 kėdėmis",
+    "price": 380,
+    "location": "Tauragė",
+    "distanceKm": 12.3,
+    "contact": "Tel. +370 67007919",
+    "image": "https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "stalas",
+      "baldai",
+      "virtuvė",
+      "tauragė",
+      "baldai"
+    ],
+    "description": "Stiklo valgomojo stalas su 6 kėdėmis iš Tauragė. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai.",
+    "sellerId": "seller-home-2",
+    "createdAt": "2026-06-14T13:08:00.000Z"
+  },
+  {
+    "id": "lt-home-003",
+    "title": "Virtuvės komplektas — matinė balta",
+    "price": 1850,
+    "location": "Jonava",
+    "distanceKm": 13.6,
+    "contact": "Tel. +370 67015838",
+    "image": "https://images.unsplash.com/photo-1556909114-f6e7ad7d4046?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "virtuvė",
+      "baldai",
+      "komplektas",
+      "jonava",
+      "baldai"
+    ],
+    "description": "Virtuvės komplektas — matinė balta — kokybiškas, funkcionalus. Jonava. Greitas atsiėmimas arba pristatymas.",
+    "sellerId": "seller-home-3",
+    "createdAt": "2026-06-15T13:16:00.000Z"
+  },
+  {
+    "id": "lt-home-004",
+    "title": "King size lova su čiužiniu",
+    "price": 650,
+    "location": "Rokiškis",
+    "distanceKm": 14.9,
+    "contact": "Tel. +370 67023757",
+    "image": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "lova",
+      "miegamasis",
+      "baldai",
+      "rokiškis",
+      "baldai"
+    ],
+    "description": "Baldų pasiūlymas: King size lova su čiužiniu. Vieta: Rokiškis. Be rūdžių, defektų ar stipresnio nusidėvėjimo.",
+    "sellerId": "seller-home-4",
+    "createdAt": "2026-06-16T13:24:00.000Z"
+  },
+  {
+    "id": "lt-home-005",
+    "title": "Spinta-sliding 3 durų",
+    "price": 520,
+    "location": "Kretinga",
+    "distanceKm": 16.2,
+    "contact": "Tel. +370 67031676",
+    "image": "https://images.unsplash.com/photo-1595428774223-ef52624120ce?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "spinta",
+      "baldai",
+      "miegamasis",
+      "kretinga",
+      "baldai"
+    ],
+    "description": "Parduodu spinta-sliding 3 durų — Kretinga. Tvarkinga būklė, be įbrėžimų. Galimas pristatymas mieste.",
+    "sellerId": "seller-home-1",
+    "createdAt": "2026-06-17T13:32:00.000Z"
+  },
+  {
+    "id": "lt-home-006",
+    "title": "Ergonominė darbo kėdė",
+    "price": 145,
+    "location": "Vilnius",
+    "distanceKm": 17.5,
+    "contact": "Tel. +370 67039595",
+    "image": "https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "kėdė",
+      "biuras",
+      "baldai",
+      "vilnius",
+      "baldai"
+    ],
+    "description": "Ergonominė darbo kėdė iš Vilnius. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai.",
+    "sellerId": "seller-home-2",
+    "createdAt": "2026-06-18T13:40:00.000Z"
+  },
+  {
+    "id": "lt-home-007",
+    "title": "TV komoda su LED apšvietimu",
+    "price": 210,
+    "location": "Šiauliai",
+    "distanceKm": 18.8,
+    "contact": "Tel. +370 67047514",
+    "image": "https://images.unsplash.com/photo-1555041469-a586c61e9bc7?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "komoda",
+      "baldai",
+      "svetainė",
+      "šiauliai",
+      "baldai"
+    ],
+    "description": "TV komoda su LED apšvietimu — kokybiškas, funkcionalus. Šiauliai. Greitas atsiėmimas arba pristatymas.",
+    "sellerId": "seller-home-3",
+    "createdAt": "2026-06-19T13:48:00.000Z"
+  },
+  {
+    "id": "lt-home-008",
+    "title": "Knygų lentyna 5 skyrių",
+    "price": 95,
+    "location": "Marijampolė",
+    "distanceKm": 20.1,
+    "contact": "Tel. +370 67055433",
+    "image": "https://images.unsplash.com/photo-1595428774223-ef52624120ce?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "lentyna",
+      "baldai",
+      "namai",
+      "marijampolė",
+      "baldai"
+    ],
+    "description": "Baldų pasiūlymas: Knygų lentyna 5 skyrių. Vieta: Marijampolė. Be rūdžių, defektų ar stipresnio nusidėvėjimo.",
+    "sellerId": "seller-home-4",
+    "createdAt": "2026-06-20T13:56:00.000Z"
+  },
+  {
+    "id": "lt-home-009",
+    "title": "Baro kėdės 2 vnt. metalinės",
+    "price": 120,
+    "location": "Utena",
+    "distanceKm": 21.4,
+    "contact": "Tel. +370 67063352",
+    "image": "https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "kėdės",
+      "baldai",
+      "virtuvė",
+      "utena",
+      "baldai"
+    ],
+    "description": "Parduodu baro kėdės 2 vnt. metalinės — Utena. Tvarkinga būklė, be įbrėžimų. Galimas pristatymas mieste.",
+    "sellerId": "seller-home-1",
+    "createdAt": "2026-06-21T14:04:00.000Z"
+  },
+  {
+    "id": "lt-home-010",
+    "title": "Vaiko kambario komplektas",
+    "price": 480,
+    "location": "Tauragė",
+    "distanceKm": 22.7,
+    "contact": "Tel. +370 67071271",
+    "image": "https://images.unsplash.com/photo-1505693416388-ac5ce068fe85?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "vaikams",
+      "baldai",
+      "kambarys",
+      "tauragė",
+      "baldai"
+    ],
+    "description": "Vaiko kambario komplektas iš Tauragė. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai.",
+    "sellerId": "seller-home-2",
+    "createdAt": "2026-06-22T14:12:00.000Z"
+  },
+  {
+    "id": "lt-home-011",
+    "title": "Šviestuvas + staliukas komplektas",
+    "price": 165,
+    "location": "Jonava",
+    "distanceKm": 21,
+    "contact": "Tel. +370 67079190",
+    "image": "https://images.unsplash.com/photo-1555041469-a586c61e9bc7?w=800&h=600&fit=crop&auto=format",
+    "category": "home",
+    "tags": [
+      "šviestuvas",
+      "baldai",
+      "svetainė",
+      "jonava",
+      "baldai"
+    ],
+    "description": "Šviestuvas + staliukas komplektas — kokybiškas, funkcionalus. Jonava. Greitas atsiėmimas arba pristatymas.",
+    "sellerId": "seller-home-3",
+    "createdAt": "2026-06-23T14:20:00.000Z"
   },
   {
     "id": "lt-svc-001",
@@ -3049,7 +2245,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "price": 120,
     "priceLabel": "nuo 120€",
     "location": "Šiauliai",
-    "distanceKm": 1.5,
+    "distanceKm": 21,
     "contact": "Tel. +370 63000000",
     "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
@@ -3062,7 +2258,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     ],
     "description": "Automobilio detailing — pilnas paketas — dirbame Šiauliai ir apylinkėse. Profesionali įranga, sąskaitos faktūros. Skambinkite dėl laiko.",
     "sellerId": "seller-svc-1",
-    "createdAt": "2026-06-15T09:00:00.000Z",
+    "createdAt": "2026-06-16T09:00:00.000Z",
     "providerVerified": true
   },
   {
@@ -3071,8 +2267,8 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "price": 35,
     "priceLabel": "nuo 35€",
     "location": "Mažeikiai",
-    "distanceKm": 3.6,
-    "contact": "Tel. +370 63009876",
+    "distanceKm": 22.3,
+    "contact": "Tel. +370 63007919",
     "image": "https://images.unsplash.com/photo-1504148455328-c376907d081c?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
@@ -3084,7 +2280,7 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     ],
     "description": "Siūlome padangų montavimas ir balansavimas Mažeikiai regione. Greitas aptarnavimas, patyrę meistrai, garantija darbams.",
     "sellerId": "seller-svc-2",
-    "createdAt": "2026-06-16T09:11:00.000Z",
+    "createdAt": "2026-06-17T09:11:00.000Z",
     "providerVerified": true
   },
   {
@@ -3093,8 +2289,8 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "price": 45,
     "priceLabel": "nuo 45€",
     "location": "Telšiai",
-    "distanceKm": 5.7,
-    "contact": "Tel. +370 63019752",
+    "distanceKm": 23.6,
+    "contact": "Tel. +370 63015838",
     "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
@@ -3106,72 +2302,72 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     ],
     "description": "Paruošimas techninei apžiūrai. Atvykstame į vietą Telšiai mieste. Skaidri kainodara, be paslėptų mokesčių.",
     "sellerId": "seller-svc-3",
-    "createdAt": "2026-06-17T09:22:00.000Z",
+    "createdAt": "2026-06-18T09:22:00.000Z",
     "providerVerified": true
   },
   {
     "id": "lt-svc-004",
-    "title": "Variklio diagnostika OBD",
-    "price": 25,
-    "priceLabel": "25€",
+    "title": "Santechnikas — avarinis iškvietimas",
+    "price": 50,
+    "priceLabel": "nuo 50€",
     "location": "Jonava",
-    "distanceKm": 7.8,
-    "contact": "Tel. +370 63029628",
-    "image": "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop&auto=format",
+    "distanceKm": 24.9,
+    "contact": "Tel. +370 63023757",
+    "image": "https://images.unsplash.com/photo-1585704032915-e241ff423e8f?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
-      "diagnostika",
-      "obd",
-      "autoservisas",
+      "santechnikas",
+      "remontas",
+      "paslauga",
       "jonava",
       "paslauga"
     ],
-    "description": "Variklio diagnostika OBD — ilgametė patirtis, rekomendacijos klientų. Jonava ir visa Lietuva.",
+    "description": "Santechnikas — avarinis iškvietimas — ilgametė patirtis, rekomendacijos klientų. Jonava ir visa Lietuva.",
     "sellerId": "seller-svc-4",
-    "createdAt": "2026-06-18T09:33:00.000Z",
+    "createdAt": "2026-06-19T09:33:00.000Z",
     "providerVerified": true
   },
   {
     "id": "lt-svc-005",
-    "title": "Automobilio supirkimas — greitas atsiskaitymas",
-    "price": 0,
-    "priceLabel": "Kaina pagal auto",
+    "title": "Elektrikas — rozetės, apšvietimas",
+    "price": 40,
+    "priceLabel": "nuo 40€",
     "location": "Pasvalys",
-    "distanceKm": 9.9,
-    "contact": "Tel. +370 63039504",
-    "image": "https://images.unsplash.com/photo-1487754180451-c456f719a1fc?w=800&h=600&fit=crop&auto=format",
+    "distanceKm": 26.2,
+    "contact": "Tel. +370 63031676",
+    "image": "https://images.unsplash.com/photo-1621905251189-08b45d6a269e?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
-      "supirkimas",
-      "automobilis",
+      "elektrikas",
+      "montavimas",
       "pasvalys",
       "paslauga"
     ],
-    "description": "Automobilio supirkimas — greitas atsiskaitymas — dirbame Pasvalys ir apylinkėse. Profesionali įranga, sąskaitos faktūros. Skambinkite dėl laiko.",
+    "description": "Elektrikas — rozetės, apšvietimas — dirbame Pasvalys ir apylinkėse. Profesionali įranga, sąskaitos faktūros. Skambinkite dėl laiko.",
     "sellerId": "seller-svc-1",
-    "createdAt": "2026-06-19T09:44:00.000Z",
+    "createdAt": "2026-06-20T09:44:00.000Z",
     "providerVerified": true
   },
   {
     "id": "lt-svc-006",
-    "title": "Kėbulų dažymas — profesionaliai",
-    "price": 350,
-    "priceLabel": "nuo 350€",
-    "location": "Šiauliai",
-    "distanceKm": 12,
-    "contact": "Tel. +370 63049380",
-    "image": "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop&auto=format",
+    "title": "Buto valymas po remonto",
+    "price": 80,
+    "priceLabel": "nuo 80€",
+    "location": "Šilutė",
+    "distanceKm": 27.5,
+    "contact": "Tel. +370 63039595",
+    "image": "https://images.unsplash.com/photo-1581578731548-86083659925c?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
-      "dažymas",
-      "kėbulas",
-      "autoservisas",
-      "šiauliai",
+      "valymas",
+      "butas",
+      "paslauga",
+      "šilutė",
       "paslauga"
     ],
-    "description": "Siūlome kėbulų dažymas — profesionaliai Šiauliai regione. Greitas aptarnavimas, patyrę meistrai, garantija darbams.",
+    "description": "Siūlome buto valymas po remonto Šilutė regione. Greitas aptarnavimas, patyrę meistrai, garantija darbams.",
     "sellerId": "seller-svc-2",
-    "createdAt": "2026-06-20T09:55:00.000Z",
+    "createdAt": "2026-06-21T09:55:00.000Z",
     "providerVerified": true
   },
   {
@@ -3179,21 +2375,187 @@ export const LITHUANIA_MOCK_CATALOG: Listing[] = [
     "title": "Evacuatorius 24/7 visoje Lietuvoje",
     "price": 40,
     "priceLabel": "nuo 40€",
-    "location": "Mažeikiai",
-    "distanceKm": 14.1,
-    "contact": "Tel. +370 63059256",
-    "image": "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format",
+    "location": "Šiauliai",
+    "distanceKm": 28.8,
+    "contact": "Tel. +370 63047514",
+    "image": "https://images.unsplash.com/photo-1621939514649-280e2ee02577?w=800&h=600&fit=crop&auto=format",
     "category": "services",
     "tags": [
       "evakuatorius",
       "pagalba",
       "kelyje",
+      "šiauliai",
+      "paslauga"
+    ],
+    "description": "Evacuatorius 24/7 visoje Lietuvoje. Atvykstame į vietą Šiauliai mieste. Skaidri kainodara, be paslėptų mokesčių.",
+    "sellerId": "seller-svc-3",
+    "createdAt": "2026-06-22T10:06:00.000Z",
+    "providerVerified": true
+  },
+  {
+    "id": "lt-svc-008",
+    "title": "Kėbulų dažymas — profesionaliai",
+    "price": 350,
+    "priceLabel": "nuo 350€",
+    "location": "Mažeikiai",
+    "distanceKm": 30.1,
+    "contact": "Tel. +370 63055433",
+    "image": "https://images.unsplash.com/photo-1619642751034-765df69d01c9?w=800&h=600&fit=crop&auto=format",
+    "category": "services",
+    "tags": [
+      "dažymas",
+      "kėbulas",
+      "autoservisas",
       "mažeikiai",
       "paslauga"
     ],
-    "description": "Evacuatorius 24/7 visoje Lietuvoje. Atvykstame į vietą Mažeikiai mieste. Skaidri kainodara, be paslėptų mokesčių.",
-    "sellerId": "seller-svc-3",
-    "createdAt": "2026-06-21T10:06:00.000Z",
+    "description": "Kėbulų dažymas — profesionaliai — ilgametė patirtis, rekomendacijos klientų. Mažeikiai ir visa Lietuva.",
+    "sellerId": "seller-svc-4",
+    "createdAt": "2026-06-23T10:17:00.000Z",
     "providerVerified": true
+  },
+  {
+    "id": "lt-svc-009",
+    "title": "Variklio diagnostika OBD",
+    "price": 25,
+    "priceLabel": "25€",
+    "location": "Telšiai",
+    "distanceKm": 31.4,
+    "contact": "Tel. +370 63063352",
+    "image": "https://images.unsplash.com/photo-1625047509248-ec889cbff097?w=800&h=600&fit=crop&auto=format",
+    "category": "services",
+    "tags": [
+      "diagnostika",
+      "obd",
+      "autoservisas",
+      "telšiai",
+      "paslauga"
+    ],
+    "description": "Variklio diagnostika OBD — dirbame Telšiai ir apylinkėse. Profesionali įranga, sąskaitos faktūros. Skambinkite dėl laiko.",
+    "sellerId": "seller-svc-1",
+    "createdAt": "2026-06-24T10:28:00.000Z",
+    "providerVerified": true
+  },
+  {
+    "id": "lt-svc-010",
+    "title": "Vėdinimo ir kondicionavimo aptarnavimas",
+    "price": 60,
+    "priceLabel": "nuo 60€",
+    "location": "Jonava",
+    "distanceKm": 32.7,
+    "contact": "Tel. +370 63071271",
+    "image": "https://images.unsplash.com/photo-1581578731548-86083659925c?w=800&h=600&fit=crop&auto=format",
+    "category": "services",
+    "tags": [
+      "kondicionierius",
+      "klimate",
+      "paslauga",
+      "jonava",
+      "paslauga"
+    ],
+    "description": "Siūlome vėdinimo ir kondicionavimo aptarnavimas Jonava regione. Greitas aptarnavimas, patyrę meistrai, garantija darbams.",
+    "sellerId": "seller-svc-2",
+    "createdAt": "2026-06-25T10:39:00.000Z",
+    "providerVerified": true
+  },
+  {
+    "id": "lt-oth-001",
+    "title": "Kalnų dviratis 29\" ratais",
+    "price": 380,
+    "location": "Telšiai",
+    "distanceKm": 31,
+    "contact": "Tel. +370 68000000",
+    "image": "https://images.unsplash.com/photo-1485965120188-e430f974807a?w=800&h=600&fit=crop&auto=format",
+    "category": "other",
+    "tags": [
+      "dviratis",
+      "sportas",
+      "laukas",
+      "telšiai",
+      "kita"
+    ],
+    "description": "Parduodu kalnų dviratis 29\" ratais — Telšiai. Tvarkinga, veikianti, paruošta naudojimui.",
+    "sellerId": "seller-oth-1",
+    "createdAt": "2026-06-19T16:00:00.000Z"
+  },
+  {
+    "id": "lt-oth-002",
+    "title": "Vaikiškas vežimėlis 3in1",
+    "price": 220,
+    "location": "Druskininkai",
+    "distanceKm": 32.3,
+    "contact": "Tel. +370 68007919",
+    "image": "https://images.unsplash.com/photo-1515488042361-ee00e3170fab?w=800&h=600&fit=crop&auto=format",
+    "category": "other",
+    "tags": [
+      "vežimėlis",
+      "vaikai",
+      "kūdikis",
+      "druskininkai",
+      "kita"
+    ],
+    "description": "Vaikiškas vežimėlis 3in1 iš Druskininkai. Gera būklė, sąžiningas pardavėjas. Galima apžiūrėti.",
+    "sellerId": "seller-oth-2",
+    "createdAt": "2026-06-20T16:12:00.000Z"
+  },
+  {
+    "id": "lt-oth-003",
+    "title": "Bosch elektrinių įrankių komplektas",
+    "price": 195,
+    "location": "Šilutė",
+    "distanceKm": 33.6,
+    "contact": "Tel. +370 68015838",
+    "image": "https://images.unsplash.com/photo-1504141418495-c86464f4ed7c?w=800&h=600&fit=crop&auto=format",
+    "category": "other",
+    "tags": [
+      "įrankiai",
+      "bosch",
+      "remontas",
+      "šilutė",
+      "kita"
+    ],
+    "description": "Bosch elektrinių įrankių komplektas — Šilutė. Visi komplektai vietoje, be paslėptų defektų.",
+    "sellerId": "seller-oth-3",
+    "createdAt": "2026-06-21T16:24:00.000Z"
+  },
+  {
+    "id": "lt-oth-004",
+    "title": "Universitetų vadovėlių rinkinys",
+    "price": 45,
+    "location": "Alytus",
+    "distanceKm": 34.9,
+    "contact": "Tel. +370 68023757",
+    "image": "https://images.unsplash.com/photo-1512820790802-52f98f7dc0b2?w=800&h=600&fit=crop&auto=format",
+    "category": "other",
+    "tags": [
+      "knygos",
+      "studijos",
+      "vadovėliai",
+      "alytus",
+      "kita"
+    ],
+    "description": "Pasiūlymas Alytus: Universitetų vadovėlių rinkinys. Skambinkite dėl detalių ir apžiūros laiko.",
+    "sellerId": "seller-oth-1",
+    "createdAt": "2026-06-22T16:36:00.000Z"
+  },
+  {
+    "id": "lt-oth-005",
+    "title": "Sodo žoliapjovė + trimeris",
+    "price": 160,
+    "location": "Telšiai",
+    "distanceKm": 36.2,
+    "contact": "Tel. +370 68031676",
+    "image": "https://images.unsplash.com/photo-1416879595882-3373a0488b5b?w=800&h=600&fit=crop&auto=format",
+    "category": "other",
+    "tags": [
+      "sodas",
+      "technika",
+      "žolė",
+      "telšiai",
+      "kita"
+    ],
+    "description": "Parduodu sodo žoliapjovė + trimeris — Telšiai. Tvarkinga, veikianti, paruošta naudojimui.",
+    "sellerId": "seller-oth-2",
+    "createdAt": "2026-06-23T16:48:00.000Z"
   }
 ] as Listing[];

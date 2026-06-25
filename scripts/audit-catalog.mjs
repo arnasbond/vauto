@@ -49,6 +49,22 @@ const vehicles = listings.filter((l) => l.category === "vehicles");
 const above20k = vehicles.filter((l) => l.price > 20000).length;
 ok(`Vehicles: ${vehicles.length}, above 20k€: ${above20k}`);
 
+const requiredCategories = [
+  "vehicles",
+  "real_estate",
+  "jobs",
+  "clothing",
+  "electronics",
+  "home",
+  "services",
+  "other",
+];
+for (const cat of requiredCategories) {
+  const count = listings.filter((l) => l.category === cat).length;
+  if (count < 3) fail(`Category ${cat} has only ${count} listings — need diverse catalog`);
+  ok(`Category ${cat}: ${count}`);
+}
+
 const refs = [
   ["src/data/mockReviews.ts", ["lt-svc-001", "lt-el-001", "seller-svc-1", "seller-el-1"]],
   ["src/data/mockReports.ts", ["lt-el-001", "lt-el-002", "seller-el-1", "seller-el-2"]],

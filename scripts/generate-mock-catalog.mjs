@@ -13,8 +13,20 @@ const CITIES = [
   "Vilnius", "Kaunas", "Klaipėda", "Šiauliai", "Panevėžys", "Alytus",
   "Marijampolė", "Mažeikiai", "Biržai", "Utena", "Kupiškis", "Telšiai",
   "Tauragė", "Ukmergė", "Palanga", "Jonava", "Kėdainiai", "Druskininkai",
-  "Rokiškis", "Pasvalys",
+  "Rokiškis", "Pasvalys", "Plungė", "Kretinga", "Visaginas", "Šilutė",
 ];
+
+/** Balanced 100-listing mix across all VAUTO categories */
+const CATEGORY_PLAN = {
+  vehicles: 24,
+  real_estate: 14,
+  jobs: 12,
+  clothing: 12,
+  electronics: 12,
+  home: 11,
+  services: 10,
+  other: 5,
+};
 
 const unsplash = (id) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -64,6 +76,51 @@ const SERVICE_IMAGES = {
   paint: unsplash("photo-1619642751034-765df69d01c9"),
   tow: unsplash("photo-1621939514649-280e2ee02577"),
   ta: unsplash("photo-1486262715619-67b85e0b08d3"),
+  plumber: unsplash("photo-1585704032915-e241ff423e8f"),
+  electrician: unsplash("photo-1621905251189-08b45d6a269e"),
+  cleaning: unsplash("photo-1581578731548-86083659925c"),
+};
+
+const REAL_ESTATE_IMAGES = {
+  apartment: unsplash("photo-1502672260266-1c1ef2d93688"),
+  house: unsplash("photo-1560518883-ce09059eeffa"),
+  room: unsplash("photo-1522708323590-d24dbb6b0267"),
+  land: unsplash("photo-1500382017468-90403fed94c1"),
+  commercial: unsplash("photo-1497366216548-37526070297c"),
+};
+
+const JOB_IMAGES = {
+  driver: unsplash("photo-1449965408869-eaa3f722e40d"),
+  warehouse: unsplash("photo-1586528116311-ad8dd3c8310d"),
+  office: unsplash("photo-1497366811353-6870744d04b2"),
+  chef: unsplash("photo-1556910103-1c02745aae4d"),
+  nurse: unsplash("photo-1576091160399-112ba8d25d1d"),
+  builder: unsplash("photo-1504307651254-35680f356dfd"),
+};
+
+const CLOTHING_IMAGES = {
+  jacket: unsplash("photo-1551028719-00167b16eac5"),
+  shoes: unsplash("photo-1542291026-7eec264c27ff"),
+  dress: unsplash("photo-1595777457583-95e0591d1b72"),
+  jeans: unsplash("photo-1542272604-787c3835535d"),
+  bag: unsplash("photo-1584917865442-de89a76edc7b"),
+  kids: unsplash("photo-1519236762933-8a98c0a5d393"),
+};
+
+const HOME_IMAGES = {
+  sofa: unsplash("photo-1555041469-a586c61e9bc7"),
+  table: unsplash("photo-1617806118233-18e1de247200"),
+  kitchen: unsplash("photo-1556909114-f6e7ad7d4046"),
+  bed: unsplash("photo-1505693416388-ac5ce068fe85"),
+  wardrobe: unsplash("photo-1595428774223-ef52624120ce"),
+};
+
+const OTHER_IMAGES = {
+  bike: unsplash("photo-1485965120188-e430f974807a"),
+  stroller: unsplash("photo-1515488042361-ee00e3170fab"),
+  tools: unsplash("photo-1504141418495-c86464f4ed7c"),
+  books: unsplash("photo-1512820790802-52f98f7dc0b2"),
+  garden: unsplash("photo-1416879595882-3373a0488b5b"),
 };
 
 const BODY_TYPES = ["Sedanas", "Universalas", "Visureigis", "Hečbekas", "Kupė"];
@@ -138,13 +195,85 @@ const ELECTRONICS_SPECS = [
 ];
 
 const SERVICE_SPECS = [
-  { title: "Automobilio detailing — pilnas paketas", price: 120, priceLabel: "nuo 120€", tags: ["detailing", "plovimas", "automobilis"] },
-  { title: "Padangų montavimas ir balansavimas", price: 35, priceLabel: "nuo 35€", tags: ["padangos", "montavimas", "autoservisas"] },
-  { title: "Paruošimas techninei apžiūrai", price: 45, priceLabel: "nuo 45€", tags: ["ta", "techninė", "autoservisas"] },
-  { title: "Variklio diagnostika OBD", price: 25, priceLabel: "25€", tags: ["diagnostika", "obd", "autoservisas"] },
-  { title: "Automobilio supirkimas — greitas atsiskaitymas", price: 0, priceLabel: "Kaina pagal auto", tags: ["supirkimas", "automobilis"] },
-  { title: "Kėbulų dažymas — profesionaliai", price: 350, priceLabel: "nuo 350€", tags: ["dažymas", "kėbulas", "autoservisas"] },
-  { title: "Evacuatorius 24/7 visoje Lietuvoje", price: 40, priceLabel: "nuo 40€", tags: ["evakuatorius", "pagalba", "kelyje"] },
+  { title: "Automobilio detailing — pilnas paketas", price: 120, priceLabel: "nuo 120€", tags: ["detailing", "plovimas", "automobilis"], imageKey: "detailing" },
+  { title: "Padangų montavimas ir balansavimas", price: 35, priceLabel: "nuo 35€", tags: ["padangos", "montavimas", "autoservisas"], imageKey: "tires" },
+  { title: "Paruošimas techninei apžiūrai", price: 45, priceLabel: "nuo 45€", tags: ["ta", "techninė", "autoservisas"], imageKey: "ta" },
+  { title: "Santechnikas — avarinis iškvietimas", price: 50, priceLabel: "nuo 50€", tags: ["santechnikas", "remontas", "paslauga"], imageKey: "plumber" },
+  { title: "Elektrikas — rozetės, apšvietimas", price: 40, priceLabel: "nuo 40€", tags: ["elektrikas", "montavimas"], imageKey: "electrician" },
+  { title: "Buto valymas po remonto", price: 80, priceLabel: "nuo 80€", tags: ["valymas", "butas", "paslauga"], imageKey: "cleaning" },
+  { title: "Evacuatorius 24/7 visoje Lietuvoje", price: 40, priceLabel: "nuo 40€", tags: ["evakuatorius", "pagalba", "kelyje"], imageKey: "tow" },
+  { title: "Kėbulų dažymas — profesionaliai", price: 350, priceLabel: "nuo 350€", tags: ["dažymas", "kėbulas", "autoservisas"], imageKey: "paint" },
+  { title: "Variklio diagnostika OBD", price: 25, priceLabel: "25€", tags: ["diagnostika", "obd", "autoservisas"], imageKey: "diagnostic" },
+  { title: "Vėdinimo ir kondicionavimo aptarnavimas", price: 60, priceLabel: "nuo 60€", tags: ["kondicionierius", "klimate", "paslauga"], imageKey: "cleaning" },
+];
+
+const REAL_ESTATE_SPECS = [
+  { title: "2 kambarių butas su balkonu", price: 145000, priceLabel: undefined, type: "Butas", rooms: "2", area: "54 m²", imageKey: "apartment", tags: ["butas", "nt", "nuomai"] },
+  { title: "3 kambarių butas naujame name", price: 198000, type: "Butas", rooms: "3", area: "72 m²", imageKey: "apartment", tags: ["butas", "nt", "naujas"] },
+  { title: "Šiuolaikiškas loftas centre", price: 235000, type: "Butas", rooms: "2", area: "68 m²", imageKey: "room", tags: ["loftas", "nt", "centras"] },
+  { title: "1 kambario butas studentams", price: 89000, type: "Butas", rooms: "1", area: "32 m²", imageKey: "room", tags: ["butas", "nt", "nuomai"] },
+  { title: "Individualus namas su garažu", price: 285000, type: "Namas", rooms: "4", area: "145 m²", imageKey: "house", tags: ["namas", "nt", "sklypas"] },
+  { title: "Namas Priemiestyje su terasa", price: 320000, type: "Namas", rooms: "5", area: "168 m²", imageKey: "house", tags: ["namas", "nt", "terasa"] },
+  { title: "Kotedžas dviems šeimoms", price: 265000, type: "Namas", rooms: "6", area: "190 m²", imageKey: "house", tags: ["kotedžas", "nt"] },
+  { title: "Sklypas statybai 12 a", price: 42000, type: "Sklypas", rooms: "—", area: "12 a", imageKey: "land", tags: ["sklypas", "nt", "statyba"] },
+  { title: "Komercinės patalpos centre", price: 175000, type: "Komercinis", rooms: "—", area: "110 m²", imageKey: "commercial", tags: ["komercinis", "nt", "biuras"] },
+  { title: "Butas nuomai — įrengtas", price: 650, priceLabel: "650€/mėn.", type: "Nuoma", rooms: "2", area: "48 m²", imageKey: "apartment", tags: ["nuoma", "nt", "butas"] },
+  { title: "Kambarys bendrame bute", price: 220, priceLabel: "220€/mėn.", type: "Nuoma", rooms: "1", area: "14 m²", imageKey: "room", tags: ["nuoma", "kambarys", "nt"] },
+  { title: "Sodyba su pirtimi ir sodu", price: 155000, type: "Namas", rooms: "3", area: "95 m²", imageKey: "house", tags: ["sodyba", "nt", "pirtis"] },
+  { title: "4 kambarių butas su parkingu", price: 215000, type: "Butas", rooms: "4", area: "88 m²", imageKey: "apartment", tags: ["butas", "nt", "parkingas"] },
+  { title: "Žemės sklypas ūkio paskirčiai", price: 28000, type: "Sklypas", rooms: "—", area: "30 a", imageKey: "land", tags: ["žemė", "nt", "sklypas"] },
+];
+
+const JOB_SPECS = [
+  { title: "Vairuotojas CE — tarptautiniai reisai", price: 0, priceLabel: "nuo 1800€/mėn.", tags: ["vairuotojas", "darbas", "ce"], imageKey: "driver", attrs: { position: "Vairuotojas", schedule: "Pamainos", experience: "2+ m." } },
+  { title: "Sandėlininkas — naktinės pamainos", price: 0, priceLabel: "nuo 1200€/mėn.", tags: ["sandėlis", "darbas", "logistika"], imageKey: "warehouse", attrs: { position: "Sandėlininkas", schedule: "Naktinis", experience: "Be patirties" } },
+  { title: "PHP programuotojas (Symfony)", price: 0, priceLabel: "2500–4000€/mėn.", tags: ["programuotojas", "it", "darbas"], imageKey: "office", attrs: { position: "Programuotojas", schedule: "Hibridas", experience: "3+ m." } },
+  { title: "Virėjas — restoranas centre", price: 0, priceLabel: "nuo 1400€/mėn.", tags: ["virėjas", "maistas", "darbas"], imageKey: "chef", attrs: { position: "Virėjas", schedule: "Pilnas etatas", experience: "1+ m." } },
+  { title: "Medicinos seselė — slaugos skyrius", price: 0, priceLabel: "nuo 1600€/mėn.", tags: ["slauga", "medicina", "darbas"], imageKey: "nurse", attrs: { position: "Seselė", schedule: "Pamainos", experience: "2+ m." } },
+  { title: "Statybų darbų vadovas", price: 0, priceLabel: "nuo 2200€/mėn.", tags: ["statyba", "vadovas", "darbas"], imageKey: "builder", attrs: { position: "Vadovas", schedule: "Pilnas etatas", experience: "5+ m." } },
+  { title: "Pardavėjas-consultant elektronikos salėje", price: 0, priceLabel: "nuo 1100€/mėn.", tags: ["pardavimas", "darbas", "retail"], imageKey: "office", attrs: { position: "Pardavėjas", schedule: "Pamainos", experience: "Be patirties" } },
+  { title: "Buhalterė — maža įmonė", price: 0, priceLabel: "nuo 1500€/mėn.", tags: ["buhalterija", "darbas", "finansai"], imageKey: "office", attrs: { position: "Buhalterė", schedule: "Pilnas etatas", experience: "3+ m." } },
+  { title: "Kurjeris — nuosavas automobilis", price: 0, priceLabel: "nuo 1000€/mėn.", tags: ["kurjeris", "logistika", "darbas"], imageKey: "driver", attrs: { position: "Kurjeris", schedule: "Lankstus", experience: "Be patirties" } },
+  { title: "Suvirintojas TIG/MIG", price: 0, priceLabel: "nuo 1700€/mėn.", tags: ["suvirintojas", "gamykla", "darbas"], imageKey: "builder", attrs: { position: "Suvirintojas", schedule: "Pamainos", experience: "2+ m." } },
+  { title: "Klientų aptarnavimo specialistas", price: 0, priceLabel: "nuo 1150€/mėn.", tags: ["support", "darbas", "biuras"], imageKey: "office", attrs: { position: "Specialistas", schedule: "Pamainos", experience: "1+ m." } },
+  { title: "Auklė / babysitter — nuolatinė", price: 0, priceLabel: "nuo 900€/mėn.", tags: ["auklė", "darbas", "vaikai"], imageKey: "office", attrs: { position: "Auklė", schedule: "Pilnas etatas", experience: "2+ m." } },
+];
+
+const CLOTHING_SPECS = [
+  { title: "Nike Air Max 270 batai 43 d.", price: 85, tags: ["nike", "batai", "sportas"], imageKey: "shoes", attrs: { brand: "Nike", size: "43", condition: "Gera" } },
+  { title: "Zara vilnonė striukė M", price: 45, tags: ["zara", "striukė", "drabužiai"], imageKey: "jacket", attrs: { brand: "Zara", size: "M", condition: "Kaip nauja" } },
+  { title: "Mango suknelė vakariniam renginiui", price: 38, tags: ["mango", "suknelė", "drabužiai"], imageKey: "dress", attrs: { brand: "Mango", size: "S", condition: "Nauja" } },
+  { title: "Levi's 501 džinsai W32 L32", price: 42, tags: ["levis", "džinsai", "drabužiai"], imageKey: "jeans", attrs: { brand: "Levi's", size: "W32 L32", condition: "Gera" } },
+  { title: "North Face žieminė striukė L", price: 120, tags: ["north face", "striukė", "žiemą"], imageKey: "jacket", attrs: { brand: "The North Face", size: "L", condition: "Labai gera" } },
+  { title: "Adidas Ultraboost batai 42 d.", price: 95, tags: ["adidas", "batai", "bėgimas"], imageKey: "shoes", attrs: { brand: "Adidas", size: "42", condition: "Gera" } },
+  { title: "Michael Kors rankinė", price: 75, tags: ["rankinė", "moteriška", "aksesuaras"], imageKey: "bag", attrs: { brand: "Michael Kors", size: "—", condition: "Kaip nauja" } },
+  { title: "H&M vaikiška striukė 128 cm", price: 18, tags: ["vaikai", "striukė", "drabužiai"], imageKey: "kids", attrs: { brand: "H&M", size: "128", condition: "Gera" } },
+  { title: "Tommy Hilfiger polo marškinėliai", price: 28, tags: ["tommy", "marškinėliai", "drabužiai"], imageKey: "jacket", attrs: { brand: "Tommy Hilfiger", size: "L", condition: "Nauja" } },
+  { title: "Puma sportiniai kostiumai", price: 55, tags: ["puma", "sportas", "drabužiai"], imageKey: "jacket", attrs: { brand: "Puma", size: "M", condition: "Gera" } },
+  { title: "Timberland aulinukai 44 d.", price: 110, tags: ["timberland", "batai", "žiemą"], imageKey: "shoes", attrs: { brand: "Timberland", size: "44", condition: "Labai gera" } },
+  { title: "Reserved palto modelis moterims", price: 68, tags: ["reserved", "paltas", "drabužiai"], imageKey: "jacket", attrs: { brand: "Reserved", size: "M", condition: "Gera" } },
+];
+
+const HOME_SPECS = [
+  { title: "Sofa-lova su daiktų saugykla", price: 420, tags: ["sofa", "baldai", "svetainė"], imageKey: "sofa" },
+  { title: "Stiklo valgomojo stalas su 6 kėdėmis", price: 380, tags: ["stalas", "baldai", "virtuvė"], imageKey: "table" },
+  { title: "Virtuvės komplektas — matinė balta", price: 1850, tags: ["virtuvė", "baldai", "komplektas"], imageKey: "kitchen" },
+  { title: "King size lova su čiužiniu", price: 650, tags: ["lova", "miegamasis", "baldai"], imageKey: "bed" },
+  { title: "Spinta-sliding 3 durų", price: 520, tags: ["spinta", "baldai", "miegamasis"], imageKey: "wardrobe" },
+  { title: "Ergonominė darbo kėdė", price: 145, tags: ["kėdė", "biuras", "baldai"], imageKey: "table" },
+  { title: "TV komoda su LED apšvietimu", price: 210, tags: ["komoda", "baldai", "svetainė"], imageKey: "sofa" },
+  { title: "Knygų lentyna 5 skyrių", price: 95, tags: ["lentyna", "baldai", "namai"], imageKey: "wardrobe" },
+  { title: "Baro kėdės 2 vnt. metalinės", price: 120, tags: ["kėdės", "baldai", "virtuvė"], imageKey: "table" },
+  { title: "Vaiko kambario komplektas", price: 480, tags: ["vaikams", "baldai", "kambarys"], imageKey: "bed" },
+  { title: "Šviestuvas + staliukas komplektas", price: 165, tags: ["šviestuvas", "baldai", "svetainė"], imageKey: "sofa" },
+];
+
+const OTHER_SPECS = [
+  { title: "Kalnų dviratis 29\" ratais", price: 380, tags: ["dviratis", "sportas", "laukas"], imageKey: "bike" },
+  { title: "Vaikiškas vežimėlis 3in1", price: 220, tags: ["vežimėlis", "vaikai", "kūdikis"], imageKey: "stroller" },
+  { title: "Bosch elektrinių įrankių komplektas", price: 195, tags: ["įrankiai", "bosch", "remontas"], imageKey: "tools" },
+  { title: "Universitetų vadovėlių rinkinys", price: 45, tags: ["knygos", "studijos", "vadovėliai"], imageKey: "books" },
+  { title: "Sodo žoliapjovė + trimeris", price: 160, tags: ["sodas", "technika", "žolė"], imageKey: "garden" },
 ];
 
 function pick(arr, i) {
@@ -234,16 +363,102 @@ function electronicsImage(title) {
   return ELECTRONICS_IMAGES.iphone;
 }
 
-function serviceImage(title) {
+function serviceImage(title, imageKey) {
+  if (imageKey && SERVICE_IMAGES[imageKey]) return SERVICE_IMAGES[imageKey];
   const lower = title.toLowerCase();
   if (lower.includes("detailing") || lower.includes("plovimas")) return SERVICE_IMAGES.detailing;
   if (lower.includes("padang")) return SERVICE_IMAGES.tires;
   if (lower.includes("diagnost")) return SERVICE_IMAGES.diagnostic;
-  if (lower.includes("supirkim")) return SERVICE_IMAGES.buyout;
   if (lower.includes("dažym") || lower.includes("kėbul")) return SERVICE_IMAGES.paint;
   if (lower.includes("evakuator")) return SERVICE_IMAGES.tow;
   if (lower.includes("technin")) return SERVICE_IMAGES.ta;
-  return SERVICE_IMAGES.detailing;
+  if (lower.includes("santechn")) return SERVICE_IMAGES.plumber;
+  if (lower.includes("elektrik")) return SERVICE_IMAGES.electrician;
+  return SERVICE_IMAGES.cleaning;
+}
+
+function categoryImage(map, imageKey, fallback) {
+  return (imageKey && map[imageKey]) || map[fallback] || Object.values(map)[0];
+}
+
+function buildRealEstateDescription(spec, city, index) {
+  const variants = [
+    `${spec.title} — ${city}. Plotas ${spec.area}, ${spec.rooms} kamb. ${spec.type}. Puiki vieta, šalia infrastruktūra, transportas.`,
+    `Parduodamas ${spec.type.toLowerCase()} ${city} mieste. ${spec.rooms} kamb., ${spec.area}. Tvarkinga būklė, galima apžiūrėti sutartu laiku.`,
+    `${spec.title} ${city} rajone. ${spec.area}, ${spec.type}. Skaidri dokumentacija, padėsime su paskola.`,
+    `NT pasiūlymas ${city}: ${spec.title}. ${spec.rooms} kamb., ${spec.area}. Tinka gyvenimui ar investicijai.`,
+  ];
+  return variants[index % variants.length];
+}
+
+function buildJobDescription(spec, city, index) {
+  const a = spec.attrs ?? {};
+  return [
+    `${spec.title} — ${city} ir apylinkės. Etatas: ${a.schedule ?? "Pilnas etatas"}. Patirtis: ${a.experience ?? "Nebūtina"}.`,
+    `Ieškome ${a.position ?? "specialisto"} ${city}. ${spec.priceLabel ?? "Konkurencingas atlyginimas"}. Suteikiame apmokymą.`,
+    `Darbo pasiūlymas: ${spec.title}. Vieta: ${city}. Grafikas: ${a.schedule ?? "Lankstus"}. Kreipkitės su CV.`,
+    `${a.position ?? "Darbuotojas"} pozicija ${city}. ${spec.title}. Oficialus įdarbinimas, socialinės garantijos.`,
+  ][index % 4];
+}
+
+function buildClothingDescription(spec, city, index) {
+  const a = spec.attrs ?? {};
+  return [
+    `Parduodu ${spec.title}. Dydis ${a.size ?? "—"}, būklė: ${a.condition ?? "Gera"}. ${city}, galiu siųsti LP Express.`,
+    `${spec.title} — ${a.brand ?? "Prekės ženklas"} prekė. Dydis ${a.size ?? "—"}. Naudota kelis kartus, be defektų. ${city}.`,
+    `Tvarkingas ${spec.title.toLowerCase()}, dydis ${a.size ?? "—"}. Originalus, ne fake. Perduodu ${city} centre.`,
+    `${spec.title}. Būklė: ${a.condition ?? "Gera"}. Dydis ${a.size ?? "—"}. ${city}, galimas siuntimas.`,
+  ][index % 4];
+}
+
+function buildHomeDescription(spec, city, index) {
+  return [
+    `Parduodu ${spec.title.toLowerCase()} — ${city}. Tvarkinga būklė, be įbrėžimų. Galimas pristatymas mieste.`,
+    `${spec.title} iš ${city}. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai.`,
+    `${spec.title} — kokybiškas, funkcionalus. ${city}. Greitas atsiėmimas arba pristatymas.`,
+    `Baldų pasiūlymas: ${spec.title}. Vieta: ${city}. Be rūdžių, defektų ar stipresnio nusidėvėjimo.`,
+  ][index % 4];
+}
+
+function buildOtherDescription(spec, city, index) {
+  return [
+    `Parduodu ${spec.title.toLowerCase()} — ${city}. Tvarkinga, veikianti, paruošta naudojimui.`,
+    `${spec.title} iš ${city}. Gera būklė, sąžiningas pardavėjas. Galima apžiūrėti.`,
+    `${spec.title} — ${city}. Visi komplektai vietoje, be paslėptų defektų.`,
+    `Pasiūlymas ${city}: ${spec.title}. Skambinkite dėl detalių ir apžiūros laiko.`,
+  ][index % 4];
+}
+
+function baseListing({ id, title, price, priceLabel, location, distanceKm, contact, image, category, tags, description, sellerId, createdAt, attributes, extra = {} }) {
+  return {
+    id,
+    title,
+    price,
+    ...(priceLabel ? { priceLabel } : {}),
+    location,
+    distanceKm,
+    contact,
+    image,
+    category,
+    tags,
+    description,
+    sellerId,
+    createdAt,
+    ...(attributes ? { attributes } : {}),
+    ...extra,
+  };
+}
+
+function contactFor(prefix, n) {
+  return `Tel. +370 6${String(prefix + n * 7919).slice(0, 7)}`;
+}
+
+function distanceFor(i) {
+  return Math.round((1 + (i % 40) + (i % 10) * 0.3) * 10) / 10;
+}
+
+function createdAtFor(dayOffset, hour = 8, minute = 0) {
+  return new Date(Date.UTC(2026, 5, 1 + (dayOffset % 28), hour, minute)).toISOString();
 }
 
 function vinFor(index) {
@@ -254,24 +469,24 @@ function vinFor(index) {
 }
 
 const listings = [];
-let idx = 0;
+let globalIdx = 0;
 
-for (let v = 0; v < 85; v++) {
+// —— Automobiliai (24) ——
+for (let v = 0; v < CATEGORY_PLAN.vehicles; v++) {
   const spec = pick(VEHICLE_SPECS, v);
-  const year = 2000 + (v * 7 + 3) % 25;
-  const city = pick(CITIES, v * 3 + 1);
+  const year = v === 0 ? 2003 : 2000 + (v * 7 + 3) % 25;
+  const city = v === 0 ? "Kaunas" : pick(CITIES, v * 3 + 1);
   const price = priceForVehicle(year, spec, v);
   const km = mileageForYear(year);
-  const id = `lt-auto-${String(v + 1).padStart(3, "0")}`;
   const ta = `${2025 + (v % 2)}-${String((v % 12) + 1).padStart(2, "0")}`;
 
-  listings.push({
-    id,
+  listings.push(baseListing({
+    id: `lt-auto-${String(v + 1).padStart(3, "0")}`,
     title: `${spec.make} ${spec.model} ${year}`,
     price,
     location: city,
-    distanceKm: Math.round((1 + (v % 40) + (v % 10) * 0.3) * 10) / 10,
-    contact: `Tel. +370 6${String(1000000 + v * 7919).slice(0, 7)}`,
+    distanceKm: distanceFor(v),
+    contact: contactFor(1000000, v),
     image: vehicleImage(spec),
     category: "vehicles",
     tags: [spec.make.toLowerCase(), spec.model.split(" ")[0].toLowerCase(), "automobilis", spec.fuel.toLowerCase(), city.toLowerCase()],
@@ -288,56 +503,165 @@ for (let v = 0; v < 85; v++) {
       defects: v % 8 === 0 ? "Smulkūs kosmetiniai defektai" : "Nėra",
     },
     description: buildVehicleDescription(spec, year, city, v),
-    sellerId: `seller-auto-${(v % 20) + 1}`,
-    createdAt: new Date(Date.UTC(2026, 5, 1 + (v % 28), 8 + (v % 10), (v * 13) % 60)).toISOString(),
-    vinVerified: v % 3 !== 0,
-    providerVerified: v % 7 === 0,
-  });
-  idx++;
+    sellerId: `seller-auto-${(v % 12) + 1}`,
+    createdAt: createdAtFor(v, 8 + (v % 10), (v * 13) % 60),
+    extra: { vinVerified: v % 3 !== 0, providerVerified: v % 7 === 0 },
+  }));
+  globalIdx++;
 }
 
-for (let e = 0; e < 8; e++) {
-  const spec = ELECTRONICS_SPECS[e];
-  const city = pick(CITIES, e * 5 + 2);
-  const id = `lt-el-${String(e + 1).padStart(3, "0")}`;
-  listings.push({
-    id,
-    title: spec.title,
-    price: spec.price + (e % 3) * 30,
-    location: city,
-    distanceKm: Math.round((2 + e * 1.7) * 10) / 10,
-    contact: `Tel. +370 6${String(2000000 + e * 12345).slice(0, 7)}`,
-    image: electronicsImage(spec.title),
-    category: "electronics",
-    tags: [...spec.tags, city.toLowerCase()],
-    description: buildElectronicsDescription(spec.title, city, e),
-    sellerId: `seller-el-${(e % 5) + 1}`,
-    createdAt: new Date(Date.UTC(2026, 5, 10 + e, 10, e * 7)).toISOString(),
-  });
-  idx++;
-}
-
-for (let s = 0; s < 7; s++) {
-  const spec = SERVICE_SPECS[s];
-  const city = pick(CITIES, s * 4 + 3);
-  const id = `lt-svc-${String(s + 1).padStart(3, "0")}`;
-  listings.push({
-    id,
+// —— NT (14) ——
+for (let n = 0; n < CATEGORY_PLAN.real_estate; n++) {
+  const spec = REAL_ESTATE_SPECS[n];
+  const city = pick(CITIES, n * 2 + 5);
+  listings.push(baseListing({
+    id: `lt-nt-${String(n + 1).padStart(3, "0")}`,
     title: spec.title,
     price: spec.price,
     priceLabel: spec.priceLabel,
     location: city,
-    distanceKm: Math.round((1.5 + s * 2.1) * 10) / 10,
-    contact: `Tel. +370 6${String(3000000 + s * 9876).slice(0, 7)}`,
-    image: serviceImage(spec.title),
+    distanceKm: distanceFor(n + 10),
+    contact: contactFor(4000000, n),
+    image: categoryImage(REAL_ESTATE_IMAGES, spec.imageKey, "apartment"),
+    category: "real_estate",
+    tags: [...spec.tags, city.toLowerCase(), "nekilnojamasis"],
+    attributes: { propertyType: spec.type, rooms: spec.rooms, area: spec.area },
+    description: buildRealEstateDescription(spec, city, n),
+    sellerId: `seller-nt-${(n % 6) + 1}`,
+    createdAt: createdAtFor(n + 3, 11, n * 5),
+  }));
+  globalIdx++;
+}
+
+// —— Darbas (12) ——
+for (let j = 0; j < CATEGORY_PLAN.jobs; j++) {
+  const spec = JOB_SPECS[j];
+  const city = pick(CITIES, j * 3 + 7);
+  listings.push(baseListing({
+    id: `lt-job-${String(j + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price,
+    priceLabel: spec.priceLabel,
+    location: city,
+    distanceKm: distanceFor(j + 20),
+    contact: contactFor(5000000, j),
+    image: categoryImage(JOB_IMAGES, spec.imageKey, "office"),
+    category: "jobs",
+    tags: [...spec.tags, city.toLowerCase(), "karjera"],
+    attributes: spec.attrs,
+    description: buildJobDescription(spec, city, j),
+    sellerId: `seller-job-${(j % 5) + 1}`,
+    createdAt: createdAtFor(j + 5, 9, j * 9),
+  }));
+  globalIdx++;
+}
+
+// —— Drabužiai (12) ——
+for (let c = 0; c < CATEGORY_PLAN.clothing; c++) {
+  const spec = CLOTHING_SPECS[c];
+  const city = pick(CITIES, c * 4 + 1);
+  listings.push(baseListing({
+    id: `lt-clo-${String(c + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price,
+    location: city,
+    distanceKm: distanceFor(c + 30),
+    contact: contactFor(6000000, c),
+    image: categoryImage(CLOTHING_IMAGES, spec.imageKey, "jacket"),
+    category: "clothing",
+    tags: [...spec.tags, city.toLowerCase(), "drabužiai"],
+    attributes: spec.attrs,
+    description: buildClothingDescription(spec, city, c),
+    sellerId: `seller-clo-${(c % 5) + 1}`,
+    createdAt: createdAtFor(c + 8, 14, c * 6),
+  }));
+  globalIdx++;
+}
+
+// —— Elektronika (12) ——
+for (let e = 0; e < CATEGORY_PLAN.electronics; e++) {
+  const spec = ELECTRONICS_SPECS[e % ELECTRONICS_SPECS.length];
+  const city = pick(CITIES, e * 5 + 2);
+  listings.push(baseListing({
+    id: `lt-el-${String(e + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price + (e % 3) * 30,
+    location: city,
+    distanceKm: distanceFor(e + 40),
+    contact: contactFor(2000000, e),
+    image: electronicsImage(spec.title),
+    category: "electronics",
+    tags: [...spec.tags, city.toLowerCase(), "elektronika"],
+    description: buildElectronicsDescription(spec.title, city, e),
+    sellerId: `seller-el-${(e % 5) + 1}`,
+    createdAt: createdAtFor(e + 10, 10, e * 7),
+  }));
+  globalIdx++;
+}
+
+// —— Namai / baldai (11) ——
+for (let h = 0; h < CATEGORY_PLAN.home; h++) {
+  const spec = HOME_SPECS[h];
+  const city = pick(CITIES, h * 3 + 9);
+  listings.push(baseListing({
+    id: `lt-home-${String(h + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price,
+    location: city,
+    distanceKm: distanceFor(h + 50),
+    contact: contactFor(7000000, h),
+    image: categoryImage(HOME_IMAGES, spec.imageKey, "sofa"),
+    category: "home",
+    tags: [...spec.tags, city.toLowerCase(), "baldai"],
+    description: buildHomeDescription(spec, city, h),
+    sellerId: `seller-home-${(h % 4) + 1}`,
+    createdAt: createdAtFor(h + 12, 13, h * 8),
+  }));
+  globalIdx++;
+}
+
+// —— Paslaugos (10) ——
+for (let s = 0; s < CATEGORY_PLAN.services; s++) {
+  const spec = SERVICE_SPECS[s];
+  const city = pick(CITIES, s * 4 + 3);
+  listings.push(baseListing({
+    id: `lt-svc-${String(s + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price,
+    priceLabel: spec.priceLabel,
+    location: city,
+    distanceKm: distanceFor(s + 60),
+    contact: contactFor(3000000, s),
+    image: serviceImage(spec.title, spec.imageKey),
     category: "services",
     tags: [...spec.tags, city.toLowerCase(), "paslauga"],
     description: buildServiceDescription(spec.title, city, s),
     sellerId: `seller-svc-${(s % 4) + 1}`,
-    createdAt: new Date(Date.UTC(2026, 5, 15 + s, 9, s * 11)).toISOString(),
-    providerVerified: true,
-  });
-  idx++;
+    createdAt: createdAtFor(s + 15, 9, s * 11),
+    extra: { providerVerified: true },
+  }));
+  globalIdx++;
+}
+
+// —— Kita (5) ——
+for (let o = 0; o < CATEGORY_PLAN.other; o++) {
+  const spec = OTHER_SPECS[o];
+  const city = pick(CITIES, o * 6 + 11);
+  listings.push(baseListing({
+    id: `lt-oth-${String(o + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price,
+    location: city,
+    distanceKm: distanceFor(o + 70),
+    contact: contactFor(8000000, o),
+    image: categoryImage(OTHER_IMAGES, spec.imageKey, "bike"),
+    category: "other",
+    tags: [...spec.tags, city.toLowerCase(), "kita"],
+    description: buildOtherDescription(spec, city, o),
+    sellerId: `seller-oth-${(o % 3) + 1}`,
+    createdAt: createdAtFor(o + 18, 16, o * 12),
+  }));
+  globalIdx++;
 }
 
 if (listings.length !== 100) {
@@ -394,7 +718,8 @@ writeFileSync(join(root, "server/src/generated-demo-listings.ts"), serverContent
 writeFileSync(join(root, "api/lib/demo-listings-snapshot.js"), apiAgentContent, "utf8");
 
 console.log(`Generated ${listings.length} listings:`);
-console.log(`  vehicles: ${listings.filter((l) => l.category === "vehicles").length}`);
-console.log(`  electronics: ${listings.filter((l) => l.category === "electronics").length}`);
-console.log(`  services: ${listings.filter((l) => l.category === "services").length}`);
+for (const [cat, count] of Object.entries(CATEGORY_PLAN)) {
+  const actual = listings.filter((l) => l.category === cat).length;
+  console.log(`  ${cat}: ${actual}`);
+}
 console.log(`  cities: ${new Set(listings.map((l) => l.location)).size} unique`);
