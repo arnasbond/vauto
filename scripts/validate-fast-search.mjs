@@ -12,7 +12,7 @@ function loadCatalog() {
     "utf8"
   );
   const jsonMatch = catalogSrc.match(
-    /export const LITHUANIA_MOCK_CATALOG[^=]*=\s*(\[[\s\S]*\])\s*as Listing\[\]/
+    /export const LITHUANIA_MOCK_CATALOG[^=]*=\s*(\[[\s\S]*\])\s*as (?:Listing|LegacyListingInput)\[\]/
   );
   if (!jsonMatch) throw new Error("Could not parse LITHUANIA_MOCK_CATALOG");
   return JSON.parse(jsonMatch[1]);
