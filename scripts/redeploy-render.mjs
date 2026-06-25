@@ -86,6 +86,19 @@ async function findService() {
   );
 }
 
+async function logDeployEvents(serviceId, deployId) {
+  try {
+    const rows = await list(`/services/${serviceId}/deploys/${deployId}/events`);
+    for (const row of rows.slice(-40)) {
+      const ev = row?.event || row;
+      const msg = ev?.details ?? ev?.text ?? JSON.stringify(ev);
+      if (msg) console.error(msg);
+    }
+  } catch (e) {
+    console.error("Could not fetch deploy events:", e.message || e);
+  }
+}
+
 async function waitForDeploy(serviceId, deployId, maxMinutes = 18) {
   const deadline = Date.now() + maxMinutes * 60_000;
   while (Date.now() < deadline) {
@@ -99,6 +112,7 @@ async function waitForDeploy(serviceId, deployId, maxMinutes = 18) {
         status
       )
     ) {
+      await logDeployEvents(serviceId, deployId);
       throw new Error(`Deploy failed: ${status}`);
     }
     await new Promise((r) => setTimeout(r, 15_000));
