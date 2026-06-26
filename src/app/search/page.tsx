@@ -36,14 +36,14 @@ export default function SearchPage() {
             </>
           }
         >
-          <div className="mt-4 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
-            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1167b1]">
+          <div className="search-hero-card mt-4 rounded-2xl p-4 shadow-sm">
+            <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-primary)]">
               Paieška
             </p>
-            <h1 className="mt-1 text-xl font-extrabold text-[#111827]">
+            <h1 className="search-hero-title mt-1 text-xl font-extrabold">
               Raskite tai, ko ieškote
             </h1>
-            <p className="mt-2 text-sm text-[#6b7280]">
+            <p className="search-hero-subtitle mt-2 text-sm">
               Rašykite paiešką, filtruokite ir perjunkite tinklelį, sąrašą ar žemėlapį.
             </p>
           </div>

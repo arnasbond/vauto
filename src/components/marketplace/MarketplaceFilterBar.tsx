@@ -100,16 +100,14 @@ function FilterDropdown({
         onClick={onToggle}
         aria-expanded={open}
         className={cn(
-          "inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
-          open
-            ? "border-[#1167b1] bg-[#1167b1]/10 text-[#1167b1]"
-            : "border-[#dde5ef] bg-white text-[#374151] hover:border-[#1167b1]/40"
+          "marketplace-filter-chip inline-flex items-center gap-1 rounded-full border px-3 py-1.5 text-xs font-semibold transition",
+          open && "is-active"
         )}
       >
-        <span className="text-[10px] font-bold uppercase tracking-wide text-[#9ca3af]">
+        <span className="marketplace-filter-chip-label text-[10px] font-bold uppercase tracking-wide">
           {label}
         </span>
-        <span className="text-[#111827]">{valueLabel}</span>
+        <span className="marketplace-filter-chip-value">{valueLabel}</span>
         <ChevronDown className={cn("h-3.5 w-3.5 transition", open && "rotate-180")} />
       </button>
 
@@ -126,7 +124,7 @@ function FilterDropdown({
             <div
               ref={panelRef}
               role="menu"
-              className="fixed z-[9999] max-h-[min(70dvh,320px)] overflow-y-auto rounded-xl border border-[#dde5ef] bg-white p-2 text-[#111827] shadow-2xl"
+              className="marketplace-filter-menu fixed z-[9999] max-h-[min(70dvh,320px)] overflow-y-auto rounded-xl border p-2 shadow-2xl"
               style={{
                 top: pos.top,
                 left: pos.left,
@@ -144,7 +142,7 @@ function FilterDropdown({
 }
 
 const MENU_ITEM_CLASS =
-  "block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium text-[#111827] hover:bg-[#f1f5f9] active:bg-[#e8ecf3]";
+  "marketplace-filter-menu-item block w-full rounded-lg px-3 py-2.5 text-left text-sm font-medium";
 
 export function MarketplaceFilterBar({
   searchQuery,
@@ -219,9 +217,9 @@ export function MarketplaceFilterBar({
       ?.label ?? "Visa Lietuva";
 
   return (
-    <div className="sticky top-0 z-20 -mx-4 border-b border-[#e8ecf3] bg-[#f8fafc]/95 px-4 py-3 backdrop-blur">
+    <div className="marketplace-filter-bar sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur">
       <div className="mb-2 flex items-center justify-between gap-2">
-        <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">
+        <p className="marketplace-filter-title min-w-0 truncate text-sm font-semibold">
           {formatResultsLabel(searchQuery, resultCount)}
         </p>
         <div className="flex shrink-0 items-center gap-1.5">
@@ -231,10 +229,8 @@ export function MarketplaceFilterBar({
               onClick={toggleChameleon}
               aria-expanded={chameleonOpen}
               className={cn(
-                "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition",
-                chameleonOpen || chameleonActiveCount > 0
-                  ? "border-[#1167b1] bg-[#1167b1]/10 text-[#1167b1]"
-                  : "border-[#dde5ef] bg-white text-[#374151] hover:border-[#1167b1]/40"
+                "marketplace-filter-chip inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition",
+                (chameleonOpen || chameleonActiveCount > 0) && "is-active"
               )}
             >
               <SlidersHorizontal className="h-3.5 w-3.5" />
@@ -246,7 +242,7 @@ export function MarketplaceFilterBar({
               )}
             </button>
           )}
-          <div className="flex items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
+          <div className="marketplace-filter-view-toggle flex items-center gap-1 rounded-xl border p-0.5">
           {(
             [
               ["list", List, "Sąrašas"],
@@ -264,8 +260,8 @@ export function MarketplaceFilterBar({
               className={cn(
                 "rounded-lg p-2 transition",
                 viewMode === mode
-                  ? "bg-[#1167b1] text-white"
-                  : "text-[#6b7280] hover:bg-[#f1f5f9]"
+                  ? "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
+                  : "vauto-text-subtle hover:bg-[var(--vauto-surface-muted)]"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -388,8 +384,8 @@ export function MarketplaceFilterBar({
           onToggle={() => toggle("price")}
           onClose={close}
         >
-          <div className="space-y-2 p-1 text-[#111827]">
-            <label className="block text-xs font-semibold text-[#6b7280]">Nuo €</label>
+          <div className="marketplace-filter-menu space-y-2 p-1">
+            <label className="vauto-text-subtle block text-xs font-semibold">Nuo €</label>
             <input
               type="number"
               min={0}
@@ -401,7 +397,7 @@ export function MarketplaceFilterBar({
               }
               className="marketplace-filter-input w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm"
             />
-            <label className="block text-xs font-semibold text-[#6b7280]">Iki €</label>
+            <label className="vauto-text-subtle block text-xs font-semibold">Iki €</label>
             <input
               type="number"
               min={0}
@@ -466,7 +462,7 @@ export function MarketplaceFilterBar({
           <button
             type="button"
             onClick={() => onFiltersChange({ ...DEFAULT_MARKETPLACE_FILTERS })}
-            className="shrink-0 rounded-full border border-[#dde5ef] bg-white px-3 py-1.5 text-xs font-semibold text-[#1167b1]"
+            className="marketplace-filter-chip shrink-0 rounded-full border px-3 py-1.5 text-xs font-semibold text-[var(--vauto-primary)]"
           >
             Išvalyti
           </button>
@@ -475,13 +471,13 @@ export function MarketplaceFilterBar({
 
       {/* Desktop: expandable panel */}
       {hasChameleonFilters && chameleonOpen && (
-        <div className="mt-2 hidden max-h-[min(40vh,280px)] overflow-y-auto rounded-2xl border border-[#dde5ef] bg-white p-2 shadow-sm md:block">
+        <div className="marketplace-filter-panel mt-2 hidden max-h-[min(40vh,280px)] overflow-y-auto rounded-2xl border p-2 shadow-sm md:block">
           <div className="mb-1 flex items-center justify-between px-1">
-            <p className="text-xs font-semibold text-slate-700">Chameleon filtrai</p>
+            <p className="vauto-text-body text-xs font-semibold">Chameleon filtrai</p>
             <button
               type="button"
               onClick={() => setChameleonOpen(false)}
-              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              className="vauto-text-subtle rounded-lg p-1 hover:bg-[var(--vauto-surface-muted)]"
               aria-label="Suskleisti filtrus"
             >
               <X className="h-4 w-4" />
@@ -509,16 +505,16 @@ export function MarketplaceFilterBar({
               onClick={() => setChameleonOpen(false)}
             />
             <div
-              className="fixed inset-x-0 bottom-0 z-[9999] max-h-[min(75dvh,520px)] overflow-hidden rounded-t-3xl border border-[#dde5ef] bg-white shadow-2xl transition-transform duration-200 ease-out"
+              className="marketplace-filter-panel fixed inset-x-0 bottom-0 z-[9999] max-h-[min(75dvh,520px)] overflow-hidden rounded-t-3xl border shadow-2xl transition-transform duration-200 ease-out"
               role="dialog"
               aria-label="Chameleon filtrai"
             >
-              <div className="flex items-center justify-between border-b border-[#e8ecf3] px-4 py-3">
-                <p className="text-sm font-bold text-[#111827]">Chameleon filtrai</p>
+              <div className="flex items-center justify-between border-b border-[var(--vauto-border)] px-4 py-3">
+                <p className="vauto-text-heading text-sm font-bold">Chameleon filtrai</p>
                 <button
                   type="button"
                   onClick={() => setChameleonOpen(false)}
-                  className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+                  className="vauto-text-subtle rounded-full p-2 hover:bg-[var(--vauto-surface-muted)]"
                   aria-label="Uždaryti"
                 >
                   <X className="h-5 w-5" />
@@ -535,7 +531,7 @@ export function MarketplaceFilterBar({
                   <button
                     type="button"
                     onClick={() => handleChameleonChange({})}
-                    className="mt-3 w-full rounded-xl border border-[#dde5ef] py-2.5 text-sm font-semibold text-[#1167b1]"
+                    className="mt-3 w-full rounded-xl border border-[var(--vauto-border)] py-2.5 text-sm font-semibold text-[var(--vauto-primary)]"
                   >
                     Išvalyti filtrus ({chameleonActiveCount})
                   </button>

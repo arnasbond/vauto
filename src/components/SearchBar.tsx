@@ -353,7 +353,7 @@ export function SearchBar({
           "flex items-center gap-2 border shadow-sm transition-colors",
           isHero
             ? "home-ai-hero-search rounded-[1.35rem] py-2.5 pl-4 pr-2"
-            : "rounded-xl bg-white py-1.5 pl-3.5 pr-1.5",
+            : "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
           zeroUiActive && "zero-ui-search-active"
         )}
         style={{ borderColor: isHero ? "var(--vauto-border)" : ui.searchBorder }}

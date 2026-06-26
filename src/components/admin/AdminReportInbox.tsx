@@ -212,7 +212,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
           <button
             type="button"
             onClick={() => void refreshReports()}
-            className="rounded-lg bg-slate-100 px-3 py-1.5 text-xs text-slate-900"
+            className="vauto-btn-secondary rounded-lg px-3 py-1.5 text-xs"
           >
             Atnaujinti dabar
           </button>

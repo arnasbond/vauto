@@ -61,16 +61,16 @@ export function AiSettingsCard() {
 
   const badge =
     mode === "checking"
-      ? { label: "Tikrinama…", className: "bg-gray-100 text-gray-500" }
+      ? { label: "Tikrinama…", className: "vauto-badge-muted" }
       : mode === "server"
-        ? { label: "Gemini AI", className: "bg-green-100 text-green-700" }
-        : { label: "Demo režimas", className: "bg-amber-100 text-amber-700" };
+        ? { label: "Gemini AI", className: "vauto-badge-success" }
+        : { label: "Demo režimas", className: "vauto-badge-warning" };
 
   return (
-    <div className="card-shadow mt-6 rounded-2xl bg-white p-4 text-slate-900">
+    <div className="vauto-settings-card mt-6 rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
         <Sparkles className="h-5 w-5 text-[var(--vauto-orange)]" />
-        <h2 className="font-semibold text-slate-900">Gemini AI</h2>
+        <h2 className="vauto-text-heading font-semibold">Gemini AI</h2>
         <span
           className={`ml-auto rounded-full px-2 py-0.5 text-[10px] font-medium ${badge.className}`}
         >
@@ -79,13 +79,13 @@ export function AiSettingsCard() {
       </div>
 
       {mode === "server" && (
-        <p className="mb-3 rounded-xl bg-green-50 px-3 py-2 text-xs text-green-800">
+        <p className="vauto-badge-success mb-3 rounded-xl px-3 py-2 text-xs">
           Visos AI funkcijos veikia per Vauto serverį (Gemini).
         </p>
       )}
 
       {mode === "demo" && (
-        <p className="mb-3 rounded-xl bg-amber-50 px-3 py-2 text-xs text-amber-900">
+        <p className="vauto-badge-warning mb-3 rounded-xl px-3 py-2 text-xs">
           Gemini serveris nepasiekiamas — naudojami demo duomenys.
         </p>
       )}
@@ -98,7 +98,7 @@ export function AiSettingsCard() {
         type="button"
         onClick={handleTest}
         disabled={testing}
-        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--vauto-blue)]/30 bg-[var(--vauto-blue)]/5 py-2.5 text-sm font-medium text-[var(--vauto-blue)] disabled:opacity-60"
+        className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/30 bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-2.5 text-sm font-medium text-[var(--vauto-primary)] disabled:opacity-60"
       >
         {testing ? (
           <Loader2 className="h-4 w-4 animate-spin" />
@@ -108,12 +108,12 @@ export function AiSettingsCard() {
         {testing ? "Testuojama…" : "Testuoti Gemini"}
       </button>
 
-      {testResult && <p className="mb-3 text-xs text-slate-600">{testResult}</p>}
+      {testResult && <p className="vauto-text-subtle mb-3 text-xs">{testResult}</p>}
 
       <button
         type="button"
         onClick={handleClearData}
-        className="mt-4 w-full rounded-xl border border-red-200 py-2 text-xs text-red-500"
+        className="mt-4 w-full rounded-xl border border-red-400/40 py-2 text-xs text-red-400"
       >
         Išvalyti visus duomenis
       </button>

@@ -30,7 +30,7 @@ export function MarketplaceListRow({
 
   return (
     <article
-      className={`flex gap-3 border-b py-3 last:border-0 ${feedTierCardClass(listing)} px-2 -mx-2 rounded-xl`}
+      className={`listing-card-row flex gap-3 border-b py-3 last:border-0 ${feedTierCardClass(listing)} px-2 -mx-2 rounded-xl`}
     >
       <Link href={href} className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl bg-[#e5e7eb]">
         <ListingImage
@@ -46,24 +46,24 @@ export function MarketplaceListRow({
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={href}>
-          <h3 className="line-clamp-2 text-sm font-semibold text-[#111827] hover:text-[#1167b1]">
+          <h3 className="listing-card-title line-clamp-2 text-sm font-semibold hover:text-[var(--vauto-primary)]">
             {listing.title}
           </h3>
         </Link>
         <p className="mt-1 text-lg font-extrabold" style={{ color: priceColor }}>
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
-        <p className="mt-1 flex items-center gap-1 text-xs text-[#6b7280]">
+        <p className="listing-card-meta mt-1 flex items-center gap-1 text-xs">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
           {listing.location}
-          <span className="text-[#9ca3af]">· {formatDistanceBadge(listing.distanceKm)}</span>
+          <span>· {formatDistanceBadge(listing.distanceKm)}</span>
         </p>
-        <p className="mt-0.5 text-[11px] text-[#9ca3af]">{formatDate(listing.createdAt)}</p>
+        <p className="listing-card-meta mt-0.5 text-[11px]">{formatDate(listing.createdAt)}</p>
       </div>
       <button
         type="button"
         onClick={() => toggleSave(listing.id)}
-        className="shrink-0 self-start rounded-full p-2 hover:bg-[#f1f5f9]"
+        className="shrink-0 self-start rounded-full p-2 hover:bg-[var(--vauto-surface-muted)]"
         aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
       >
         <Heart
@@ -87,7 +87,7 @@ export function MarketplaceGridCard({
 
   return (
     <article
-      className={`overflow-hidden rounded-2xl border transition hover:border-[#1167b1]/40 ${feedTierCardClass(listing)}`}
+      className={`listing-card overflow-hidden rounded-2xl border transition hover:border-[var(--vauto-primary)]/40 ${feedTierCardClass(listing)}`}
     >
       <div className="relative aspect-[4/3] bg-[#e5e7eb]">
         <Link href={href} className="block h-full w-full">
@@ -115,13 +115,13 @@ export function MarketplaceGridCard({
         </button>
       </div>
       <Link href={href} className="block p-3">
-        <h3 className="line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-[#111827]">
+        <h3 className="listing-card-title line-clamp-2 min-h-[2.5rem] text-sm font-semibold">
           {listing.title}
         </h3>
         <p className="mt-1 text-base font-extrabold" style={{ color: priceColor }}>
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
-        <p className="mt-1 truncate text-xs text-[#6b7280]">{listing.location}</p>
+        <p className="listing-card-meta mt-1 truncate text-xs">{listing.location}</p>
       </Link>
     </article>
   );

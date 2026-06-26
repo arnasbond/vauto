@@ -213,7 +213,7 @@ export function UserSupportInbox() {
       <button
         type="button"
         onClick={() => void refreshMyReports()}
-        className="mb-3 rounded-lg bg-slate-100 px-3 py-1.5 text-[11px] text-slate-900"
+        className="vauto-btn-secondary mb-3 rounded-lg px-3 py-1.5 text-[11px]"
       >
         Atnaujinti dabar
       </button>
@@ -235,19 +235,19 @@ export function UserSupportInbox() {
                 type="button"
                 onClick={() => openReport(r.id)}
                 className={cn(
-                  "flex w-full items-center gap-3 rounded-xl bg-slate-50 p-3 text-left transition hover:bg-slate-100",
+                  "vauto-surface-muted flex w-full items-center gap-3 rounded-xl p-3 text-left transition hover:opacity-90",
                   r.unreadByReporter && "ring-1 ring-amber-400/40"
                 )}
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-xs font-semibold text-slate-900">
+                  <p className="vauto-text-heading truncate text-xs font-semibold">
                     {r.listingTitle ?? cat}
                   </p>
-                  <p className="mt-0.5 truncate text-[11px] text-slate-500">
+                  <p className="vauto-text-subtle mt-0.5 truncate text-[11px]">
                     {r.comment.slice(0, 72)}
                     {r.comment.length > 72 ? "…" : ""}
                   </p>
-                  <p className="mt-1 text-[10px] text-slate-600">
+                  <p className="vauto-text-subtle mt-1 text-[10px]">
                     {new Date(r.updatedAt ?? r.createdAt).toLocaleString("lt-LT")}
                   </p>
                 </div>

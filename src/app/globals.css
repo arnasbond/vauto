@@ -1253,3 +1253,245 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   background: rgba(255, 255, 255, 0.1);
   border-color: rgba(255, 255, 255, 0.18);
 }
+
+/* ── Theme-safe surfaces (fix white-on-white in dark mode) ── */
+[data-app-theme="vauto-original"],
+[data-app-theme="light-minimal"] {
+  --vauto-surface-muted: #f1f5f9;
+  --vauto-surface-chip: #f8fafc;
+  --vauto-surface-input: #ffffff;
+  --vauto-text-heading: #0f172a;
+  --vauto-text-body: #1e293b;
+  --vauto-text-subtle: #64748b;
+  --vauto-btn-secondary-bg: #f1f5f9;
+  --vauto-btn-secondary-text: #0f172a;
+  --vauto-btn-secondary-hover: #e2e8f0;
+  --vauto-badge-success-bg: #dcfce7;
+  --vauto-badge-success-text: #15803d;
+  --vauto-badge-muted-bg: #f1f5f9;
+  --vauto-badge-muted-text: #64748b;
+  --vauto-badge-warning-bg: #fef3c7;
+  --vauto-badge-warning-text: #92400e;
+  --vauto-badge-info-bg: #dbeafe;
+  --vauto-badge-info-text: #1d4ed8;
+  --vauto-hero-panel-bg: #ffffff;
+}
+
+[data-app-theme="dark"],
+[data-theme="dark"] {
+  --vauto-surface-muted: #131b2e;
+  --vauto-surface-chip: #1e293b;
+  --vauto-surface-input: #1e293b;
+  --vauto-text-heading: #f8fafc;
+  --vauto-text-body: #e2e8f0;
+  --vauto-text-subtle: #94a3b8;
+  --vauto-btn-secondary-bg: #1e293b;
+  --vauto-btn-secondary-text: #f1f5f9;
+  --vauto-btn-secondary-hover: #334155;
+  --vauto-badge-success-bg: rgba(16, 185, 129, 0.18);
+  --vauto-badge-success-text: #6ee7b7;
+  --vauto-badge-muted-bg: rgba(148, 163, 184, 0.15);
+  --vauto-badge-muted-text: #cbd5e1;
+  --vauto-badge-warning-bg: rgba(245, 158, 11, 0.18);
+  --vauto-badge-warning-text: #fcd34d;
+  --vauto-badge-info-bg: rgba(56, 189, 248, 0.15);
+  --vauto-badge-info-text: #7dd3fc;
+  --vauto-hero-panel-bg: #131b2e;
+}
+
+.vauto-surface-panel {
+  background: var(--vauto-card-bg);
+  border: 1px solid var(--vauto-border);
+  color: var(--vauto-text-main);
+}
+
+.vauto-surface-muted {
+  background: var(--vauto-surface-muted);
+  border: 1px solid var(--vauto-border);
+  color: var(--vauto-text-main);
+}
+
+.vauto-text-heading {
+  color: var(--vauto-text-heading);
+}
+
+.vauto-text-body {
+  color: var(--vauto-text-body);
+}
+
+.vauto-text-subtle {
+  color: var(--vauto-text-subtle);
+}
+
+.vauto-btn-secondary {
+  background: var(--vauto-btn-secondary-bg);
+  color: var(--vauto-btn-secondary-text);
+  transition: background-color 0.15s ease;
+}
+
+.vauto-btn-secondary:hover {
+  background: var(--vauto-btn-secondary-hover);
+}
+
+.vauto-badge-success {
+  background: var(--vauto-badge-success-bg);
+  color: var(--vauto-badge-success-text);
+}
+
+.vauto-badge-muted {
+  background: var(--vauto-badge-muted-bg);
+  color: var(--vauto-badge-muted-text);
+}
+
+.vauto-badge-warning {
+  background: var(--vauto-badge-warning-bg);
+  color: var(--vauto-badge-warning-text);
+}
+
+.vauto-badge-info {
+  background: var(--vauto-badge-info-bg);
+  color: var(--vauto-badge-info-text);
+}
+
+.vauto-status-card {
+  background: var(--vauto-surface-muted);
+  border: 1px solid var(--vauto-border);
+  color: var(--vauto-text-main);
+}
+
+.vauto-settings-card {
+  background: var(--vauto-card-bg);
+  border: 1px solid var(--vauto-border);
+  color: var(--vauto-text-main);
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+}
+
+[data-app-theme="dark"] .vauto-settings-card,
+[data-theme="dark"] .vauto-settings-card {
+  box-shadow: 0 4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.search-hero-card {
+  background: var(--vauto-hero-panel-bg);
+  border: 1px solid var(--vauto-border);
+  color: var(--vauto-text-main);
+}
+
+.search-hero-card .search-hero-title {
+  color: var(--vauto-text-heading);
+}
+
+.search-hero-card .search-hero-subtitle {
+  color: var(--vauto-text-subtle);
+}
+
+.marketplace-filter-bar {
+  background: color-mix(in srgb, var(--vauto-bg) 95%, transparent);
+  border-color: var(--vauto-border);
+}
+
+[data-app-theme="dark"] .marketplace-filter-bar,
+[data-theme="dark"] .marketplace-filter-bar {
+  background: color-mix(in srgb, var(--vauto-surface-muted) 96%, transparent);
+}
+
+.marketplace-filter-chip:hover:not(.is-active) {
+  border-color: color-mix(in srgb, var(--vauto-primary) 35%, var(--vauto-border));
+}
+
+.marketplace-filter-bar .marketplace-filter-title {
+  color: var(--vauto-text-heading);
+}
+
+.marketplace-filter-chip {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-body);
+}
+
+.marketplace-filter-chip .marketplace-filter-chip-label {
+  color: var(--vauto-text-subtle);
+}
+
+.marketplace-filter-chip .marketplace-filter-chip-value {
+  color: var(--vauto-text-heading);
+}
+
+.marketplace-filter-chip.is-active {
+  border-color: var(--vauto-primary);
+  background: color-mix(in srgb, var(--vauto-primary) 12%, transparent);
+  color: var(--vauto-primary);
+}
+
+.marketplace-filter-view-toggle {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+}
+
+.marketplace-filter-menu {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-heading);
+}
+
+.marketplace-filter-menu-item {
+  color: var(--vauto-text-heading);
+}
+
+.marketplace-filter-menu-item:hover,
+.marketplace-filter-menu-item:active {
+  background: var(--vauto-surface-muted);
+}
+
+.marketplace-filter-panel {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-body);
+}
+
+.listing-card {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+}
+
+.listing-card-title {
+  color: var(--vauto-text-heading);
+}
+
+.listing-card-title:hover {
+  color: var(--vauto-primary);
+}
+
+.listing-card-meta {
+  color: var(--vauto-text-subtle);
+}
+
+.listing-card-row {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+}
+
+[data-app-theme="dark"] .listing-card-tier-top,
+[data-theme="dark"] .listing-card-tier-top {
+  border-color: rgba(251, 191, 36, 0.45);
+  background: linear-gradient(to bottom, rgba(251, 191, 36, 0.12), var(--vauto-card-bg));
+}
+
+[data-app-theme="dark"] .listing-card-tier-plus,
+[data-theme="dark"] .listing-card-tier-plus {
+  border-color: rgba(56, 189, 248, 0.35);
+  background: linear-gradient(to bottom, rgba(56, 189, 248, 0.1), var(--vauto-card-bg));
+}
+
+[data-app-theme="vauto-original"] .listing-card-tier-top,
+[data-app-theme="light-minimal"] .listing-card-tier-top {
+  border-color: rgba(251, 191, 36, 0.55);
+  background: linear-gradient(to bottom, rgba(254, 243, 199, 0.9), #ffffff);
+}
+
+[data-app-theme="vauto-original"] .listing-card-tier-plus,
+[data-app-theme="light-minimal"] .listing-card-tier-plus {
+  border-color: rgba(125, 211, 252, 0.55);
+  background: linear-gradient(to bottom, rgba(224, 242, 254, 0.7), #ffffff);
+}

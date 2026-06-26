@@ -34,10 +34,10 @@ export function FeedTierBadge({
 export function feedTierCardClass(listing: import("@/lib/types").Listing): string {
   const tier = resolveFeedVisibilityTier(listing);
   if (tier === "top") {
-    return "border-amber-300/80 bg-gradient-to-b from-amber-50/90 to-white shadow-md ring-1 ring-amber-200/70";
+    return "listing-card listing-card-tier-top shadow-md ring-1 ring-amber-200/70";
   }
   if (tier === "plus") {
-    return "border-sky-200/80 bg-gradient-to-b from-sky-50/50 to-white ring-1 ring-sky-100";
+    return "listing-card listing-card-tier-plus ring-1 ring-sky-100";
   }
-  return "border-[#dde5ef] bg-white shadow-sm";
+  return "listing-card shadow-sm";
 }

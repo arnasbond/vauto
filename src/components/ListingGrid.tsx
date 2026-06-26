@@ -68,7 +68,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     }
     if (viewMode === "list") {
       return (
-        <div className="mt-1 divide-y divide-[#e8ecf3] rounded-2xl border border-[#dde5ef] bg-white px-3">
+        <div className="listing-card-row mt-1 divide-y divide-[var(--vauto-border)] rounded-2xl border border-[var(--vauto-border)] px-3">
           {items.map((listing) => (
             <MarketplaceListRow
               key={listing.id}
@@ -118,7 +118,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
               />
             ) : (
               <p
-                className="mt-4 rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
+                className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
                 style={{ borderColor: ui.border, color: ui.textMuted }}
               >
                 Rezultatų nerasta. Pabandykite kitą paieškos frazę arba pašalinkite filtrus.
@@ -126,7 +126,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
             )
           ) : searchQuery.trim().length < 3 ? (
             <p
-              className="mt-4 rounded-2xl border border-dashed bg-white p-6 text-center text-sm"
+              className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
               style={{ borderColor: ui.border, color: ui.textMuted }}
             >
               {emptyMessage(theme)}
@@ -147,7 +147,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       )}
 
       {theme === "autoplius" && displayListings.length > 0 && (
-        <details className="mt-6 rounded-lg border bg-white p-3 shadow-sm" style={{ borderColor: ui.border }}>
+        <details className="vauto-surface-panel mt-6 rounded-lg border p-3 shadow-sm" style={{ borderColor: ui.border }}>
           <summary className="cursor-pointer text-sm font-semibold" style={{ color: ui.accent }}>
             Išplėstinė automobilių paieška
           </summary>

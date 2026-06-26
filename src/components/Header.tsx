@@ -45,7 +45,7 @@ export function Header() {
         <Link
           href="/chats/"
           onClick={handleChats}
-          className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border bg-white shadow-sm transition hover:opacity-90"
+          className="vauto-surface-panel relative flex h-10 w-10 items-center justify-center rounded-[14px] border shadow-sm transition hover:opacity-90"
           style={{ borderColor: ui.border, color: ui.accent }}
           aria-label={
             isAuthenticated && unreadChats > 0
