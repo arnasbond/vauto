@@ -1,0 +1,47 @@
+═══════════════════════════════════════════════════════════════
+  VAUTO — iOS TestFlight paketas (2 etapas, kol kas neaktyvus)
+═══════════════════════════════════════════════════════════════
+
+DABAR NAUDOKITE (1 etapas — paprasčiausias kelias):
+  • Android → APK: https://vauto-chi.vercel.app/install/
+  • iPhone  → Safari → „Pridėti į pradžios ekraną“ (instrukcijos /install/)
+
+───────────────────────────────────────────────────────────────
+KADA AKTYVUOTI ŠĮ PAKETĄ
+───────────────────────────────────────────────────────────────
+Kai turite Apple Developer paskyrą ($99/m.) ir norite tikros
+iPhone programėlės per TestFlight (viena nuoroda artimiesiems).
+
+───────────────────────────────────────────────────────────────
+5 ŽINGSNIAI AKTYVUOTI
+───────────────────────────────────────────────────────────────
+
+1. Nukopijuokite failus atgal į projektą:
+   • ios-build.yml        → .github/workflows/ios-build.yml
+   • Gemfile              → ios/App/Gemfile
+   • fastlane/            → ios/App/fastlane/
+   • setup-ios-testflight.mjs → scripts/setup-ios-testflight.mjs
+   • public-ios/          → public/ios/
+
+2. Vienkartinis Apple setup (detaliau — paleiskite setup skriptą):
+   node scripts/setup-ios-testflight.mjs --check
+
+3. Į GitHub Secrets (arnasbond/vauto) įdėkite 8 reikšmes:
+   APPSTORE_KEY_ID, APPSTORE_ISSUER_ID, APPSTORE_PRIVATE_KEY,
+   APPLE_TEAM_ID, BUILD_CERTIFICATE_BASE64, P12_PASSWORD,
+   BUILD_PROVISION_PROFILE_BASE64, IOS_PROVISIONING_PROFILE_NAME
+
+4. Push į master — CI automatiškai įkelia į TestFlight.
+
+5. App Store Connect → TestFlight → Public Link → Vercel env:
+   NEXT_PUBLIC_IOS_TESTFLIGHT_URL=https://testflight.apple.com/join/XXXXXX
+
+───────────────────────────────────────────────────────────────
+ŠIO PAKETO FAILAI
+───────────────────────────────────────────────────────────────
+  ios-build.yml              — pilnas GitHub Actions CI (TestFlight/ad-hoc)
+  setup-ios-testflight.mjs   — secrets tikrinimas ir base64 encode
+  Gemfile + fastlane/        — automatinis build + TestFlight upload
+  public-ios/                — ad-hoc OTA įdiegimo puslapiai (pasirenkama)
+
+═══════════════════════════════════════════════════════════════

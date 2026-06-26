@@ -4,7 +4,6 @@ import Link from "next/link";
 import { ArrowLeft } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import {
-  ADMIN_GEMINI_BUILD,
   AdminGeminiUploadPanel,
 } from "@/components/admin/AdminGeminiUploadPanel";
 
@@ -28,7 +27,7 @@ export default function AdminAiPage() {
           >
             vauto-chi.vercel.app/install
           </a>{" "}
-          (Android APK arba iPhone IPA) arba atidarykite naršyklėje. Build: {ADMIN_GEMINI_BUILD}
+          (Android APK arba iPhone — instrukcijos /install/).
         </p>
       </div>
     </AppShell>

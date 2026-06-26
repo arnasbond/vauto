@@ -205,7 +205,7 @@ export default function ApiePage() {
             Atsisiųskite programėlę
           </h2>
           <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
-            Android APK arba iPhone IPA — ta pati VAUTO patirtis telefone
+            Android — APK atsisiuntimas. iPhone — instrukcija pridėti į pradžios ekraną.
           </p>
           <div className="mt-4">
             <InstallDownloadButtons />

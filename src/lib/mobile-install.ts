@@ -4,6 +4,7 @@ import {
   shareViaCapacitor,
   type NativeSharePayload,
 } from "@/lib/native-share";
+import { SITE_URL } from "@/lib/social-share";
 
 /** Stable URL for the latest Android APK (GitHub Releases). */
 export const APK_DOWNLOAD_URL =
@@ -12,28 +13,10 @@ export const APK_DOWNLOAD_URL =
 export const APK_RELEASE_PAGE =
   "https://github.com/arnasbond/vauto/releases/tag/android-latest";
 
-/** Stable URL for the latest iOS IPA (GitHub Releases, unsigned fallback). */
-export const IOS_DOWNLOAD_URL =
-  "https://github.com/arnasbond/vauto/releases/download/ios-latest/vauto.ipa";
+/** iPhone PWA — atidaryti svetainę ir pridėti į pradžios ekraną. */
+export const IOS_PWA_URL = SITE_URL;
 
-/** Ad-hoc OTA install page (signed IPA, registered UDIDs only). */
-export const IOS_OTA_INSTALL_URL = "https://vauto-chi.vercel.app/ios/install.html";
-
-/** Ad-hoc signed IPA direct download. */
-export const IOS_ADHOC_DOWNLOAD_URL =
-  "https://github.com/arnasbond/vauto/releases/download/ios-adhoc-latest/vauto-adhoc.ipa";
-
-export const IOS_RELEASE_PAGE =
-  "https://github.com/arnasbond/vauto/releases/tag/ios-latest";
-
-/**
- * TestFlight public invite link — set in Vercel after first external test group.
- * Example: https://testflight.apple.com/join/AbCdEfGh
- */
-export const IOS_TESTFLIGHT_URL =
-  (typeof process !== "undefined" &&
-    process.env.NEXT_PUBLIC_IOS_TESTFLIGHT_URL?.trim()) ||
-  "";
+export const INSTALL_PAGE_URL = `${SITE_URL}/install/`;
 
 export type MobileInstallPlatform = "android" | "ios" | "other";
 
@@ -73,31 +56,15 @@ export function getPreferredInstallPlatform(): MobileInstallPlatform {
 
 export function getPrimaryDownloadUrl(): string {
   const platform = getPreferredInstallPlatform();
-  if (platform === "ios") return getIosInstallUrl();
   if (platform === "android") return APK_DOWNLOAD_URL;
-  return "/install/";
-}
-
-/** Best iOS install URL: TestFlight → OTA → unsigned IPA. */
-export function getIosInstallUrl(): string {
-  if (IOS_TESTFLIGHT_URL) return IOS_TESTFLIGHT_URL;
-  return IOS_OTA_INSTALL_URL;
-}
-
-export function getIosDirectDownloadUrl(): string {
-  if (IOS_TESTFLIGHT_URL) return IOS_TESTFLIGHT_URL;
-  return IOS_ADHOC_DOWNLOAD_URL;
-}
-
-export function hasTestFlightLink(): boolean {
-  return IOS_TESTFLIGHT_URL.length > 0;
+  if (platform === "ios") return INSTALL_PAGE_URL;
+  return INSTALL_PAGE_URL;
 }
 
 export function getPrimaryReleasePage(): string {
   const platform = getPreferredInstallPlatform();
-  if (platform === "ios") return IOS_RELEASE_PAGE;
   if (platform === "android") return APK_RELEASE_PAGE;
-  return "/install/";
+  return INSTALL_PAGE_URL;
 }
 
 export function shouldShowInstallPrompt(): boolean {
@@ -136,22 +103,18 @@ export async function shareAndroidApk(): Promise<boolean> {
   });
 }
 
-export async function shareIosApp(): Promise<boolean> {
-  const url = getIosInstallUrl();
-  const viaTestFlight = hasTestFlightLink();
+export async function shareIosPwa(): Promise<boolean> {
   return shareInstallPackage({
-    title: viaTestFlight ? "Vauto TestFlight (iPhone)" : "Vauto iOS programėlė (iPhone)",
-    text: viaTestFlight
-      ? "Prisijunk prie Vauto per TestFlight — lietuviška išmani skelbimų ekosistema."
-      : "Atsisiųsk Vauto iPhone programėlę — lietuviška išmani skelbimų ekosistema.",
-    url,
-    dialogTitle: viaTestFlight ? "Dalintis TestFlight" : "Dalintis iOS programėle",
+    title: "Vauto iPhone",
+    text: "Atidaryk Safari → Pridėti į pradžios ekraną. VAUTO — skelbimai visoje Lietuvoje.",
+    url: INSTALL_PAGE_URL,
+    dialogTitle: "Dalintis su iPhone vartotoju",
   });
 }
 
 export async function sharePreferredInstallPackage(): Promise<boolean> {
   const platform = getPreferredInstallPlatform();
-  if (platform === "ios") return shareIosApp();
+  if (platform === "ios") return shareIosPwa();
   if (platform === "android") return shareAndroidApk();
   return shareAndroidApk();
 }

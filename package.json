@@ -15,7 +15,7 @@
     "cap:open": "npx cap open android",
     "cap:open:ios": "npx cap open ios",
     "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
-    "ios:setup": "node scripts/setup-ios-testflight.mjs --check",
+    "ios:stage2": "node _later/ios-testflight/setup-ios-testflight.mjs --check",
     "server:install": "npm install --prefix server",
     "server:dev": "npm run dev --prefix server",
     "server:build": "npm run build --prefix server",

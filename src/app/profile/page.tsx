@@ -126,8 +126,7 @@ export default function ProfilePage() {
               Mobilioji programėlė
             </h3>
             <p className="text-[10px] text-[var(--vauto-text-muted)]">
-              Atsisiųskite APK (Android) arba IPA (iPhone) — arba dalinkitės su
-              artimaisiais
+              Android — APK. iPhone — pridėti į pradžios ekraną per Safari.
             </p>
           </div>
         </div>

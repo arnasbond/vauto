@@ -25,10 +25,10 @@ export function InstallAppBanner() {
 
   const subtitle =
     platform === "ios"
-      ? "Tikra iPhone programėlė — vienu paspaudimu"
+      ? "iPhone: Safari → Pridėti į pradžios ekraną"
       : platform === "android"
-        ? "Tikra Android programėlė — vienu paspaudimu"
-        : "Tikra mobilioji programėlė — vienu paspaudimu";
+        ? "Android: atsisiųskite APK vienu paspaudimu"
+        : "Įdiekite Vauto į telefoną";
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 mx-3">
@@ -46,7 +46,7 @@ export function InstallAppBanner() {
           href="/install/"
           className="shrink-0 rounded-xl bg-[var(--vauto-blue)] px-3 py-2 text-xs font-semibold text-white"
         >
-          Įdiegti
+          Kaip?
         </Link>
         <button
           type="button"
