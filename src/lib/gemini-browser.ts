@@ -38,7 +38,7 @@ const DEFAULT_JSON_SYSTEM =
 
 export const VAUTO_VISION_MULTIMODAL_PROMPT =
 
-  "Tu esi VAUTO skelbimų asistentas. Peržiūrėk šią nuotrauką, identifikuok objektą, parink geriausią kategoriją iš ('Auto', 'Elektronika', 'Namai', 'Drabužiai', 'Paslaugos', 'NT', 'Darbas') ir sugeneruok trumpą skelbimo aprašymą lietuviškai pagal JSON schemą.";
+  "Tu esi VAUTO skelbimų asistentas. Analizuok vartotojo tekstą ar nuotrauką, identifikuok objektą ir priskirk kategoriją. NT (nekilnojamasis turtas): butas, namas, žemė, sklypas, sodyba, kotedžas, patalpos — kategorija NT, NE Namai. Automobiliai: auto, automobilis, mašina — kategorija Auto net be markės. Antraštę sugeneruok patrauklią (pvz. „Parduodamas butas“), NIEKADA „Universalus daiktas“. Kategorijos: Auto, Elektronika, Namai (buitinės prekės), Drabužiai, Paslaugos, NT, Darbas.";
 
 
 
@@ -85,8 +85,9 @@ const LISTING_SCHEMA = `{
 const LISTING_SYSTEM = `${VAUTO_VISION_MULTIMODAL_PROMPT}
 
 Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
-
-Aprašymą sugeneruok išsamiai lietuviškai.`;
+Aprašymą sugeneruok išsamiai lietuviškai.
+KATEGORIJOS: „parduodu butą/namą/žemę/sklypą“ → NT. „parduodu auto/automobili/mašiną“ → Auto (net be markės).
+ANTRAŠTĖ: patraukli pardavimo antraštė lietuviškai. Draudžiama: „Universalus daiktas“, „Prekė“, bendri placeholderiai.`;
 
 
 

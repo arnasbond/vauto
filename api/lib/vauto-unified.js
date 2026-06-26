@@ -31,7 +31,10 @@ const VAUTO_UNIFIED_SCHEMA = `{
 const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
 Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
-Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė, o pilnas skelbimo tekstas su nauda pirkėjui, būkle, komplektacija ir kita svarbia informacija iš vartotojo žinutės.`;
+Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai.
+
+KATEGORIJŲ TAISYKLĖS: NT — butas/namas/žemė/sklypas/sodyba/kotedžas/patalpos (NE NAMAI). AUTOMOBILIAI — auto/automobilis/mašina net be markės.
+ANTRAŠTĖ: patraukli lietuviška antraštė. NIEKADA „Universalus daiktas“ ar bendri placeholderiai.`;
 
 const CATEGORY_TO_INTERNAL = {
   AUTOMOBILIAI: "vehicles",

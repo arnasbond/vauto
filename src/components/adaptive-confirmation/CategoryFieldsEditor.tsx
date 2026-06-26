@@ -4,6 +4,11 @@ import { Pencil } from "lucide-react";
 import { useState } from "react";
 import { AiFilledBadge } from "@/components/buddy/AiFilledBadge";
 import type { CategoryFieldDef } from "@/lib/adaptive-categories";
+import {
+  modelsForMake,
+  REGISTRATION_YEARS,
+  VEHICLE_MAKES,
+} from "@/lib/vehicle-catalog";
 
 interface CategoryFieldsEditorProps {
   fields: CategoryFieldDef[];
@@ -77,6 +82,91 @@ export function CategoryFieldsEditor({
           : String(value ?? "");
 
         if (variant === "inline" && field.inputType !== "checklist") {
+          if (field.key === "make") {
+            const currentMake = display;
+            const modelList = modelsForMake(currentMake);
+            const currentModel = String(attributes.model ?? "");
+            const modelOptions =
+              currentModel && !modelList.includes(currentModel)
+                ? [...modelList.filter((m) => m !== "Kita"), currentModel, "Kita"]
+                : modelList;
+
+            return (
+              <div key={field.key} className={field.gridSpan === 2 ? "col-span-2" : ""}>
+                <label className="text-xs text-white/40">
+                  {field.label}
+                  {showAiFilled && aiFilledKeys?.has(field.key) && (
+                    <AiFilledBadge visible />
+                  )}
+                </label>
+                <select
+                  value={currentMake}
+                  onChange={(e) => {
+                    onChange("make", e.target.value);
+                    onChange("model", "");
+                  }}
+                  className={inlineInputClass}
+                >
+                  <option value="" className="bg-slate-800">
+                    Pasirinkite markę…
+                  </option>
+                  {VEHICLE_MAKES.map((o) => (
+                    <option key={o} value={o} className="bg-slate-800">
+                      {o}
+                    </option>
+                  ))}
+                </select>
+                <label className="mt-2 block text-xs text-white/40">Modelis</label>
+                <select
+                  value={currentModel}
+                  onChange={(e) => onChange("model", e.target.value)}
+                  className={inlineInputClass}
+                  disabled={!currentMake}
+                >
+                  <option value="" className="bg-slate-800">
+                    {currentMake ? "Pasirinkite modelį…" : "Pirma pasirinkite markę"}
+                  </option>
+                  {modelOptions.map((o) => (
+                    <option key={o} value={o} className="bg-slate-800">
+                      {o}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          }
+
+          if (field.key === "model" && attributes.make) {
+            return null;
+          }
+
+          if (field.key === "year") {
+            return (
+              <div key={field.key} className={field.gridSpan === 2 ? "col-span-2" : ""}>
+                <label className="text-xs text-white/40">
+                  {field.label}
+                  {showAiFilled && aiFilledKeys?.has(field.key) && (
+                    <AiFilledBadge visible />
+                  )}
+                </label>
+                <select
+                  value={display}
+                  onChange={(e) => onChange(field.key, e.target.value)}
+                  className={inlineInputClass}
+                >
+                  <option value="" className="bg-slate-800">
+                    Metai…
+                  </option>
+                  {REGISTRATION_YEARS.map((y) => (
+                    <option key={y} value={y} className="bg-slate-800">
+                      {y}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            );
+          }
+
           if (field.inputType === "select" && field.options) {
             return (
               <div

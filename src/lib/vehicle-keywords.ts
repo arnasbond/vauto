@@ -4,7 +4,7 @@ export const VEHICLE_BRAND_PATTERN =
   /\b(bmw|audi|vw|volkswagen|mercedes|benz|toyota|opel|ford|peugeot|citroen|citroën|renault|skoda|škoda|seat|nissan|honda|mazda|volvo|kia|hyundai|mitsubishi|subaru|lexus|porsche|fiat|alfa|jeep|dodge|chevrolet|tesla|suzuki|dacia|lada|saab|mini|land rover|range rover)\b/i;
 
 export const VEHICLE_GENERIC_PATTERN =
-  /\b(auto|automob|mašin|masin|vairas|rida|dyzel|benzin|varik|sedan|universal|hečbek|hatchback|visureig|suv|coupe|kabrio|ratlank|padang|felg|disk)\b/i;
+  /\b(auto|automob|automobil|mašin|masin|vairas|rida|dyzel|benzin|varik|sedan|universal|hečbek|hatchback|visureig|suv|coupe|kabrio|ratlank|padang|felg|disk|noriu parduot.*auto|parduod.*auto|parduod.*masin|parduod.*automobil|parduod.*mašin)\b/i;
 
 export const LT_PLATE_PATTERN = /\b[A-Z]{3}\s?\d{3}\b/i;
 

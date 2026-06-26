@@ -51,6 +51,11 @@ import {
   looksLikeVehicleListingText,
 } from "@/lib/vehicle-attribute-extract";
 import {
+  inferRealEstateTitle,
+  isRealEstateQuery,
+  NT_KEYWORD_PATTERN,
+} from "@/lib/nt-keywords";
+import {
   detectPropertyTypeFromText,
   detectTransactionFromText,
   defaultTransactionForType,
@@ -337,39 +342,53 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           .filter(Boolean)
           .join(" ");
 
-        if (
-          next.category === "vehicles" ||
-          looksLikeVehicleListingText(sourceBlob) ||
-          Boolean(next.attributes?.make) ||
-          Boolean(detectVehicleMake(next.title ?? ""))
-        ) {
-          next = enrichVehicleListingDraft(next, [sourceBlob]);
+        const textForHeuristics = sourceBlob || next.title || "";
+        const detectedProperty = detectPropertyTypeFromText(textForHeuristics);
+        const looksLikeRealEstate =
+          next.category === "real_estate" ||
+          isRealEstateQuery(textForHeuristics) ||
+          Boolean(detectedProperty) ||
+          Boolean(next.attributes?.propertyType) ||
+          NT_KEYWORD_PATTERN.test(textForHeuristics);
+
+        const looksLikeVehicle =
+          !looksLikeRealEstate &&
+          (next.category === "vehicles" ||
+            looksLikeVehicleListingText(textForHeuristics) ||
+            Boolean(next.attributes?.make) ||
+            Boolean(detectVehicleMake(next.title ?? "")));
+
+        if (looksLikeRealEstate) {
+          const attrs = { ...(next.attributes ?? {}) };
+          const propertyType =
+            (attrs.propertyType as string) || detectedProperty || "butas";
+          if (!attrs.propertyType) attrs.propertyType = propertyType;
+          if (!attrs.transactionType) {
+            attrs.transactionType =
+              detectTransactionFromText(textForHeuristics) ??
+              defaultTransactionForType(propertyType);
+          }
+          const roomsMatch = textForHeuristics.match(/(\d+)\s*kamb/i);
+          if (!attrs.rooms && roomsMatch) attrs.rooms = roomsMatch[1];
+          const areaMatch = textForHeuristics.match(/(\d+(?:[.,]\d+)?)\s*(?:kv\.?m|m²|m2)/i);
+          if (!attrs.area && areaMatch) attrs.area = areaMatch[1].replace(",", ".");
+          if (!attrs.sellerRole) attrs.sellerRole = "Privatus asmuo";
+          const smartTitle =
+            next.title &&
+            !/universalus daiktas|prekė nuotraukoje|skelbimas/i.test(next.title)
+              ? next.title
+              : inferRealEstateTitle(textForHeuristics);
+          next = {
+            ...next,
+            category: "real_estate",
+            title: smartTitle,
+            attributes: attrs,
+          };
+        } else if (looksLikeVehicle) {
+          next = enrichVehicleListingDraft(next, [textForHeuristics]);
         } else {
           const title = next.title ?? "";
-          const detectedProperty = detectPropertyTypeFromText(title);
-          const looksLikeRealEstate =
-            next.category === "real_estate" ||
-            Boolean(detectedProperty) ||
-            Boolean(next.attributes?.propertyType) ||
-            /\b(butas|namas|sklypas|nuomoju|kambar|kv\.?m|aukštas|nt\b|nekilnojam|patalp|garaž)/i.test(title);
-
-          if (looksLikeRealEstate) {
-            const attrs = { ...(next.attributes ?? {}) };
-            const propertyType =
-              (attrs.propertyType as string) || detectedProperty || "butas";
-            if (!attrs.propertyType) attrs.propertyType = propertyType;
-            if (!attrs.transactionType) {
-              attrs.transactionType =
-                detectTransactionFromText(title) ??
-                defaultTransactionForType(propertyType);
-            }
-            const roomsMatch = title.match(/(\d+)\s*kamb/i);
-            if (!attrs.rooms && roomsMatch) attrs.rooms = roomsMatch[1];
-            const areaMatch = title.match(/(\d+(?:[.,]\d+)?)\s*(?:kv\.?m|m²|m2)/i);
-            if (!attrs.area && areaMatch) attrs.area = areaMatch[1].replace(",", ".");
-            if (!attrs.sellerRole) attrs.sellerRole = "Privatus asmuo";
-            next = { ...next, category: "real_estate", attributes: attrs };
-          } else if (looksLikeClothingListing(title, next.category)) {
+          if (looksLikeClothingListing(title, next.category)) {
             const attrs = { ...(next.attributes ?? {}) };
             const group = detectClothingGroupFromText(title) ?? "Moterims";
             const sub = detectSubcategoryFromText(title, group) ?? "Kita";

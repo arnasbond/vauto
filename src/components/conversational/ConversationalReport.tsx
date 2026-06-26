@@ -62,9 +62,7 @@ export function ConversationalReport({
 
   const [buddyState, setBuddyState] = useState<BuddyState>(manualFallback ? "idle" : "typing");
   const [showMessage, setShowMessage] = useState(manualFallback);
-  const [detailsOpen, setDetailsOpen] = useState(
-    manualFallback || !canPublish
-  );
+  const [detailsOpen, setDetailsOpen] = useState(true);
   const spokenRef = useRef(false);
 
   useEffect(() => {

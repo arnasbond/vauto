@@ -886,6 +886,23 @@ export function RealEstateListingWizard({
               onChange={(v) => onAttributeChange("sellerRole", v)}
             />
 
+            {/versl|tarpinink|vystytoj|statytoj/i.test(attr(attrs, "sellerRole")) && (
+              <div className="mb-4">
+                <label className="mb-1.5 block text-sm font-medium text-[#424242]">
+                  Įmonės / verslo pavadinimas
+                </label>
+                <input
+                  type="text"
+                  name="organization"
+                  autoComplete="organization"
+                  value={attr(attrs, "companyName")}
+                  onChange={(e) => onAttributeChange("companyName", e.target.value)}
+                  placeholder="UAB Pavadinimas"
+                  className="w-full rounded-md border border-[#e0e0e0] px-3 py-3 text-sm"
+                />
+              </div>
+            )}
+
             <label className="mb-4 flex items-start gap-3 text-sm text-[#424242]">
               <input
                 type="checkbox"

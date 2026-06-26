@@ -9,6 +9,7 @@ import {
 import type { AiExtractedListing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
+import { SELLER_TYPES } from "@/lib/general-catalog";
 import { verifyVin } from "@/lib/trust";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
@@ -251,6 +252,42 @@ export function AdaptiveConfirmation({
 
   const fieldsBlock = (
     <>
+      <div className="mb-4 rounded-xl border border-[#d0d7de] bg-[#f9fafb] p-3 dark:border-white/10 dark:bg-white/5">
+        <p className="mb-2 text-xs font-medium text-[#374151] dark:text-white/70">Jūs esate:</p>
+        <div className="flex flex-wrap gap-2">
+          {SELLER_TYPES.map((opt) => (
+            <button
+              key={opt}
+              type="button"
+              onClick={() => onAttributeChange("sellerType", opt)}
+              className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
+                (attributes.sellerType || "Privatus asmuo") === opt
+                  ? "bg-[#1167b1] text-white"
+                  : "bg-white text-[#374151] ring-1 ring-[#d0d7de] dark:bg-white/10 dark:text-white/80"
+              }`}
+            >
+              {opt}
+            </button>
+          ))}
+        </div>
+        {(attributes.sellerType || "").includes("Įmonė") && (
+          <div className="mt-3">
+            <label className="mb-1 block text-xs text-[#6b7280] dark:text-white/50">
+              Įmonės pavadinimas
+            </label>
+            <input
+              type="text"
+              name="organization"
+              autoComplete="organization"
+              value={String(attributes.companyName ?? "")}
+              onChange={(e) => onAttributeChange("companyName", e.target.value)}
+              placeholder="UAB Pavadinimas"
+              className="w-full rounded-lg border border-[#d0d7de] bg-white px-3 py-2 text-sm outline-none focus:border-[#1167b1] dark:border-white/10 dark:bg-white/5 dark:text-white"
+            />
+          </div>
+        )}
+      </div>
+
       {adaptiveKey === "vehicles" && chameleonTheme === "autoplius" ? (
         <>
           {categorySection}

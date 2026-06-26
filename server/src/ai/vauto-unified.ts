@@ -18,8 +18,14 @@ Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
 Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė, o pilnas skelbimo tekstas su nauda pirkėjui, būkle, komplektacija ir kita svarbia informacija iš vartotojo žinutės.
 Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
+
+KATEGORIJŲ TAISYKLĖS (griežtai):
+- NT (nekilnojamasis turtas): jei tekste yra butas/butą/butai, namas/namą/namai, žemė/žeme, sklypas, sodyba, kotedžas, patalpos, garažas, nekilnojamasis — category PRIVALO būti „NT“, NE „NAMAI“ (NAMAI = buitinės prekės).
+- AUTOMOBILIAI: jei tekste yra auto/automobilis/automobili, mašina/masina, transportas, rida, markė — category „AUTOMOBILIAI“, net be konkretaus modelio.
+- ANTRAŠTĖ (title): sugeneruok patrauklią lietuvišką pardavimo antraštę (pvz. „Parduodamas butas“, „Parduodamas gyvenamasis namas“, „Parduodamas automobilis“). NIEKADA nenaudok „Universalus daiktas“, „Prekė“ ar kitų bendrinių placeholderių.
+
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
-NT: propertyType, area, rooms, floor. Elektronikai: brand, model, condition.`;
+NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",

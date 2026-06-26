@@ -4,6 +4,12 @@ import {
   isVehicleQuery,
   VEHICLE_GENERIC_PATTERN,
 } from "@/lib/vehicle-keywords";
+import {
+  inferListingTitleFromText,
+  inferRealEstateTitle,
+  isRealEstateQuery,
+  NT_KEYWORD_PATTERN,
+} from "@/lib/nt-keywords";
 
 const AI_MOCK_DELAY_MS = 1500;
 
@@ -152,7 +158,7 @@ function detectCategory(text: string): ListingCategory {
   if (/suknel|batai|zara|rubas|drabuž|marškin|striuk|nike|dydis|būklė/i.test(t)) {
     return "clothing";
   }
-  if (/butas|namas|sklypas|nuomoju|kambar|kv\.?m|aukštas|nt\b|nekilnojam/i.test(t)) {
+  if (isRealEstateQuery(text) || NT_KEYWORD_PATTERN.test(t)) {
     return "real_estate";
   }
   if (/darbas|darbo|atlygin|etat|ieškau darbo|siūlau darb/i.test(t)) {
@@ -249,12 +255,16 @@ function extractTitle(text: string, category: ListingCategory): string {
   switch (category) {
     case "vehicles": {
       const make = detectVehicleMake(text);
-      return make ? `${make} automobilis` : "Automobilis (atpažintas iš AI)";
+      if (make) return `${make} automobilis`;
+      if (/\bautomobil|masin|mašin|\bauto\b/i.test(text)) {
+        return "Parduodamas automobilis";
+      }
+      return "Parduodamas automobilis";
     }
     case "clothing":
       return "Drabužis / Apranga";
     case "real_estate":
-      return /nuom/i.test(text) ? "Nuomojamas būstas" : "Nekilnojamas turtas";
+      return inferRealEstateTitle(text);
     case "services":
       return /žol|pjov/i.test(text)
         ? "Žolės pjovimo paslauga"
@@ -276,8 +286,13 @@ function extractTitle(text: string, category: ListingCategory): string {
     }
     case "home":
       return /obuol/i.test(text) ? "Maišas obuolių — švieži" : "Buitinė prekė";
-    default:
-      return text.length > 60 ? text.slice(0, 60) : "Universalus daiktas";
+    default: {
+      const inferred = inferListingTitleFromText(text);
+      if (inferred) return inferred;
+      const cleaned = text.trim();
+      if (cleaned.length > 8) return cleaned.slice(0, 60);
+      return "Skelbimas";
+    }
   }
 }
 

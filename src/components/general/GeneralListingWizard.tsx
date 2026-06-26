@@ -536,6 +536,23 @@ export function GeneralListingWizard({
             onChange={(v) => onAttributeChange("sellerType", v)}
           />
 
+          {(attr(attrs, "sellerType") || "").includes("Įmonė") && (
+            <SkelbiuField
+              label="Įmonės pavadinimas"
+              valid={Boolean(attr(attrs, "companyName")?.trim())}
+            >
+              <input
+                type="text"
+                name="organization"
+                autoComplete="organization"
+                value={attr(attrs, "companyName")}
+                onChange={(e) => onAttributeChange("companyName", e.target.value)}
+                placeholder="UAB Pavadinimas"
+                className={inputCls}
+              />
+            </SkelbiuField>
+          )}
+
           <SkelbiuField label="Miestas" valid={cityValid}>
             <LithuanianCityField
               location={draft.location}

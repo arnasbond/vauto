@@ -219,11 +219,12 @@ export function realEstateSummaryLabel(attrs: Record<string, string | string[] |
 
 export function detectPropertyTypeFromText(text: string): PropertyTypeId | null {
   const t = text.toLowerCase();
-  if (/\bbutas?\b/i.test(t)) return "butas";
-  if (/\bnamas|sodyb|sodo nam/i.test(t)) return "namas";
-  if (/\bsklyp/i.test(t)) return "sklypas";
+  if (/\bbut/i.test(t)) return "butas";
+  if (/\bnam|sodyb|sodo nam/i.test(t)) return "namas";
+  if (/\bžem|zem|sklyp/i.test(t)) return "sklypas";
+  if (/\bkotedž|kotedz/i.test(t)) return "namas";
   if (/\bpatalp|komercin|biur/i.test(t)) return "patalpos";
-  if (/\bgaraž|parkavimo viet/i.test(t)) return "garazas";
+  if (/\bgaraž|garaz|parkavimo viet/i.test(t)) return "garazas";
   if (/\btrumpalai/i.test(t)) return "trumpalaike";
   if (/\bieškau nt|ieskau nt/i.test(t)) return "ieskau";
   if (/\bužsien|uzsien/i.test(t)) return "uzsienis";
