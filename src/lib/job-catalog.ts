@@ -2,23 +2,29 @@
 
 import type { Listing } from "@/lib/types";
 import { JOB_TYPE_OFFER, JOB_TYPE_SEEK } from "@/lib/jobs";
+import { allSettlements } from "@/data/lithuania-locations";
 
 export const JOB_LOCATION_TYPES = ["Lietuva", "Užsienis", "Darbas namuose"] as const;
 export const JOB_GROUPS = ["Vadovai", "Specialistai", "Darbininkai"] as const;
 export const EXPERIENCE_AREAS = [
   "IT",
+  "IT / inžinerija",
   "Pardavimai",
+  "Prekyba",
   "Transportas",
+  "Logistika / sandėliavimas",
   "Finansai",
+  "Administravimas / apskaita",
   "Gamyba",
   "Klientų aptarnavimas",
-  "IT / inžinerija",
-  "Logistika / sandėliavimas",
-  "Prekyba",
-  "Administravimas / apskaita",
   "Sveikatos apsauga",
   "Statyba",
   "Maisto gamyba / restoranai",
+  "Grožis / kirpimas",
+  "Švietimas",
+  "Teisė",
+  "Marketingas",
+  "Žemės ūkis",
   "Kita",
 ] as const;
 
@@ -47,17 +53,7 @@ export const SALARY_GROSS_NET = ["Bruto", "Neto"] as const;
 
 export const WORK_LOCATION_MODES = ["Nuotolinis", "Ofise", "Hibridinis"] as const;
 
-export const JOB_CITIES = [
-  "Vilnius",
-  "Kaunas",
-  "Klaipėda",
-  "Šiauliai",
-  "Panevėžys",
-  "Alytus",
-  "Utena",
-  "Visa Lietuva",
-  "Kita",
-] as const;
+export const JOB_CITIES = [...allSettlements(), "Visa Lietuva", "Kita"] as const;
 
 export const SALARY_DISPLAY_TYPES = ["Į rankas", "Neatskaičius mokesčių"] as const;
 export const SALARY_PERIODS = ["€/mėn.", "€/d.", "€/val."] as const;

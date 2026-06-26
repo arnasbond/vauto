@@ -1,0 +1,69 @@
+/** Generates expanded vehicle makes/models catalog. */
+import { writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
+const out = join(__dirname, "../src/data/vehicle-makes-models.ts");
+
+const MODELS_BY_MAKE = {
+  Abarth: ["Kita", "500", "595", "695", "124 Spider"],
+  "Alfa Romeo": ["Kita", "Giulia", "Giulietta", "MiTo", "Stelvio", "Tonale", "159", "Brera"],
+  Audi: ["Kita", "A1", "A3", "A4", "A5", "A6", "A7", "A8", "Q2", "Q3", "Q5", "Q7", "Q8", "TT", "e-tron"],
+  BMW: ["Kita", "116", "118", "120", "218", "220", "320", "330", "520", "530", "X1", "X2", "X3", "X4", "X5", "X6", "X7", "i3", "i4", "iX"],
+  Cadillac: ["Kita", "CTS", "Escalade", "SRX", "XT4", "XT5"],
+  Chevrolet: ["Kita", "Aveo", "Captiva", "Cruze", "Lacetti", "Malibu", "Orlando", "Spark", "Trax"],
+  Chrysler: ["Kita", "300C", "Grand Voyager", "Pacifica", "PT Cruiser", "Voyager"],
+  Citroën: ["Kita", "C1", "C3", "C4", "C5", "Berlingo", "C-Elysée", "C4 Picasso", "C5 Aircross", "DS3", "DS4", "DS5", "DS7", "Xsara"],
+  Cupra: ["Kita", "Ateca", "Born", "Formentor", "Leon"],
+  Dacia: ["Kita", "Duster", "Logan", "Lodgy", "Sandero", "Spring", "Jogger"],
+  Dodge: ["Kita", "Caliber", "Journey", "Nitro", "RAM"],
+  DS: ["Kita", "DS3", "DS4", "DS5", "DS7", "DS9"],
+  Fiat: ["Kita", "500", "500X", "500L", "Doblo", "Panda", "Punto", "Tipo", "Scudo"],
+  Ford: ["Kita", "C-Max", "EcoSport", "Edge", "Fiesta", "Focus", "Galaxy", "Ka", "Kuga", "Mondeo", "Mustang", "Puma", "Ranger", "S-Max", "Transit", "Tourneo"],
+  Honda: ["Kita", "Accord", "Civic", "CR-V", "FR-V", "HR-V", "Insight", "Jazz", "Pilot", "e"],
+  Hyundai: ["Kita", "Accent", "Bayon", "Elantra", "Getz", "i10", "i20", "i30", "i40", "Ioniq", "Ioniq 5", "Ioniq 6", "Kona", "Santa Fe", "Sonata", "Tucson", "ix35"],
+  Infiniti: ["Kita", "EX", "FX", "G", "M", "Q30", "Q50", "Q60", "QX30", "QX50", "QX70"],
+  Isuzu: ["Kita", "D-Max", "MU-X"],
+  Jaguar: ["Kita", "E-Pace", "F-Pace", "F-Type", "I-Pace", "S-Type", "XE", "XF", "XJ", "X-Type"],
+  Jeep: ["Kita", "Cherokee", "Compass", "Grand Cherokee", "Patriot", "Renegade", "Wrangler"],
+  Kia: ["Kita", "Ceed", "Cerato", "EV6", "Niro", "Optima", "Picanto", "Rio", "Sorento", "Soul", "Sportage", "Stinger", "Stonic", "Venga", "XCeed"],
+  "Land Rover": ["Kita", "Defender", "Discovery", "Discovery Sport", "Freelander", "Range Rover", "Range Rover Evoque", "Range Rover Sport", "Range Rover Velar"],
+  Lexus: ["Kita", "CT", "ES", "GS", "IS", "LC", "LS", "NX", "RC", "RX", "UX"],
+  Mazda: ["Kita", "2", "3", "5", "6", "CX-3", "CX-30", "CX-5", "CX-60", "MX-5", "MX-30"],
+  "Mercedes-Benz": ["Kita", "A-Klasė", "B-Klasė", "C-Klasė", "CLA", "CLS", "E-Klasė", "G-Klasė", "GLA", "GLB", "GLC", "GLE", "GLK", "GLS", "ML", "S-Klasė", "SLK", "Sprinter", "Vito", "V-Klasė", "EQA", "EQB", "EQC", "EQE", "EQS"],
+  MG: ["Kita", "3", "4", "5", "HS", "ZS", "Marvel R"],
+  Mini: ["Kita", "Clubman", "Cooper", "Countryman", "Paceman", "One"],
+  Mitsubishi: ["Kita", "ASX", "Colt", "Eclipse Cross", "Galant", "L200", "Lancer", "Outlander", "Pajero", "Space Star"],
+  Nissan: ["Kita", "350Z", "370Z", "Almera", "Juke", "Leaf", "Micra", "Navara", "Note", "NV200", "Pathfinder", "Primastar", "Pulsar", "Qashqai", "Terrano", "X-Trail", "Ariya"],
+  Opel: ["Kita", "Adam", "Agila", "Ampera", "Antara", "Astra", "Combo", "Corsa", "Crossland", "Grandland", "Insignia", "Meriva", "Mokka", "Signum", "Vectra", "Vivaro", "Zafira"],
+  Peugeot: ["Kita", "107", "108", "2008", "206", "207", "208", "3008", "301", "307", "308", "4007", "4008", "406", "407", "5008", "508", "607", "807", "Bipper", "Boxer", "Expert", "Partner", "Rifter", "Traveller"],
+  Porsche: ["Kita", "911", "Boxster", "Cayenne", "Cayman", "Macan", "Panamera", "Taycan"],
+  Renault: ["Kita", "Arkana", "Austral", "Captur", "Clio", "Espace", "Fluence", "Grand Scenic", "Kadjar", "Kangoo", "Koleos", "Laguna", "Master", "Megane", "Modus", "Scenic", "Talisman", "Trafic", "Twingo", "Zoe"],
+  Seat: ["Kita", "Alhambra", "Altea", "Arona", "Ateca", "Cordoba", "Exeo", "Ibiza", "Leon", "Mii", "Tarraco", "Toledo"],
+  Škoda: ["Kita", "Citigo", "Enyaq", "Fabia", "Felicia", "Kamiq", "Karoq", "Kodiaq", "Octavia", "Rapid", "Roomster", "Scala", "Superb", "Yeti"],
+  Smart: ["Kita", "Forfour", "Fortwo", "Roadster"],
+  Subaru: ["Kita", "Forester", "Impreza", "Legacy", "Levorg", "Outback", "Solterra", "XV"],
+  Suzuki: ["Kita", "Alto", "Baleno", "Grand Vitara", "Ignis", "Jimny", "S-Cross", "Splash", "Swift", "SX4", "Vitara", "Across"],
+  Tesla: ["Kita", "Model 3", "Model S", "Model X", "Model Y"],
+  Toyota: ["Kita", "Auris", "Avensis", "Aygo", "C-HR", "Camry", "Corolla", "GR86", "Highlander", "Hilux", "Land Cruiser", "Prius", "Proace", "RAV4", "Supra", "Verso", "Yaris", "bZ4X"],
+  Volkswagen: ["Kita", "Amarok", "Arteon", "Beetle", "Bora", "Caddy", "Caravelle", "CC", "Crafter", "Eos", "Golf", "ID.3", "ID.4", "ID.5", "Jetta", "Passat", "Phaeton", "Polo", "Scirocco", "Sharan", "T-Cross", "T-Roc", "Taigo", "Tiguan", "Touareg", "Touran", "Transporter", "Up!"],
+  Volvo: ["Kita", "C30", "C40", "C70", "EX30", "EX90", "S40", "S60", "S80", "S90", "V40", "V50", "V60", "V70", "V90", "XC40", "XC60", "XC70", "XC90"],
+  Kita: ["Kita"],
+};
+
+const VEHICLE_MAKES = [...Object.keys(MODELS_BY_MAKE).filter((m) => m !== "Kita"), "Kita"];
+
+const body = `/** Expanded LT vehicle catalog — ${VEHICLE_MAKES.length} marks. Auto-generated. */
+
+export const VEHICLE_MAKES = ${JSON.stringify(VEHICLE_MAKES, null, 2)} as const;
+
+export const MODELS_BY_MAKE: Record<string, string[]> = ${JSON.stringify(MODELS_BY_MAKE, null, 2)};
+
+export function modelsForMake(make: string): string[] {
+  return MODELS_BY_MAKE[make] ?? ["Kita"];
+}
+`;
+
+writeFileSync(out, body, "utf8");
+console.log(`Wrote ${out} — ${VEHICLE_MAKES.length} makes`);

@@ -20,6 +20,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { AiExtractedListing } from "@/lib/types";
 import { getRealEstateStepMissingKeys } from "@/lib/listing-field-validation";
 import { WizardFooter } from "@/components/wizard/WizardFieldKit";
+import { CreatableCombobox } from "@/components/wizard/CreatableCombobox";
 import {
   BUILDING_TYPES,
   defaultTransactionForType,
@@ -130,50 +131,6 @@ function ChipRow({
             {opt}
           </button>
         ))}
-      </div>
-    </div>
-  );
-}
-
-function SelectField({
-  label,
-  required,
-  value,
-  onChange,
-  options,
-  placeholder = "Pasirinkite",
-  highlight,
-}: {
-  label: string;
-  required?: boolean;
-  value: string;
-  onChange: (v: string) => void;
-  options: string[];
-  placeholder?: string;
-  highlight?: boolean;
-}) {
-  return (
-    <div className="mb-3">
-      <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
-        {label}
-        {required && <span className="text-red-600"> *</span>}
-      </label>
-      <div className="relative">
-        <select
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          className={`nt-wizard-input w-full appearance-none rounded-md border px-3 py-3 pr-10 text-sm outline-none focus:border-[#c62828] focus:ring-1 focus:ring-[#c62828] ${
-            highlight && !value ? "border-[#ffe082] bg-[#fffde7]" : ""
-          }`}
-        >
-          <option value="">{placeholder}</option>
-          {options.map((o) => (
-            <option key={o} value={o}>
-              {o}
-            </option>
-          ))}
-        </select>
-        <ChevronRight className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 rotate-90 text-[#9e9e9e]" />
       </div>
     </div>
   );
@@ -507,7 +464,7 @@ export function RealEstateListingWizard({
 
         {step === 3 && (
           <>
-            <SelectField
+            <CreatableCombobox
               label="Savivaldybė"
               required
               value={municipality}
@@ -519,8 +476,9 @@ export function RealEstateListingWizard({
               }}
               options={[...MUNICIPALITIES]}
               highlight
+              invalid={stepMissingKeys.includes("municipality")}
             />
-            <SelectField
+            <CreatableCombobox
               label="Gyvenvietė"
               required
               value={settlement}
@@ -531,23 +489,22 @@ export function RealEstateListingWizard({
               }}
               options={settlements}
               highlight
+              invalid={stepMissingKeys.includes("settlement")}
             />
-            {microdistricts.length > 0 && (
-              <SelectField
-                label="Mikrorajonas"
-                value={attr(attrs, "microdistrict")}
-                onChange={(v) => onAttributeChange("microdistrict", v)}
-                options={microdistricts}
-              />
-            )}
-            {streets.length > 0 && (
-              <SelectField
-                label="Gatvė"
-                value={attr(attrs, "street")}
-                onChange={(v) => onAttributeChange("street", v)}
-                options={streets}
-              />
-            )}
+            <CreatableCombobox
+              label="Mikrorajonas"
+              value={attr(attrs, "microdistrict")}
+              onChange={(v) => onAttributeChange("microdistrict", v)}
+              options={microdistricts}
+              placeholder="Pasirinkite arba įrašykite mikrorajoną…"
+            />
+            <CreatableCombobox
+              label="Gatvė"
+              value={attr(attrs, "street")}
+              onChange={(v) => onAttributeChange("street", v)}
+              options={streets}
+              placeholder="Pasirinkite arba įrašykite gatvę…"
+            />
             <div className="mb-3 flex items-end gap-3">
               <div className="w-24">
                 <label className="mb-1.5 block text-sm font-medium text-[#424242]">Namo numeris</label>

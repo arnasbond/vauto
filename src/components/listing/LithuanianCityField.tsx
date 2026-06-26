@@ -9,6 +9,7 @@ interface LithuanianCityFieldProps {
   selectClassName?: string;
   inputClassName?: string;
   placeholder?: string;
+  createLabel?: (query: string) => string;
 }
 
 function normalizeCityInput(value: string): string {
@@ -22,6 +23,7 @@ export function LithuanianCityField({
   selectClassName,
   inputClassName,
   placeholder = "Pradėkite rašyti miestą ar gyvenvietę…",
+  createLabel = (q) => `Sukurti / įrašyti naują: „${q}"`,
 }: LithuanianCityFieldProps) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
@@ -30,15 +32,27 @@ export function LithuanianCityField({
   const [activeIndex, setActiveIndex] = useState(-1);
 
   const presetCities = useMemo(
-    () => cityOptions.filter((c) => c !== "Kita"),
+    () => cityOptions.filter((c) => c !== "Kita" && c !== "Visoje Lietuvoje" && c !== "Visa Lietuva"),
     [cityOptions]
   );
 
-  const suggestions = useMemo(() => {
+  const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    if (!q) return presetCities.slice(0, 12);
-    return presetCities.filter((c) => c.toLowerCase().includes(q)).slice(0, 12);
+    if (!q) return presetCities.slice(0, 20);
+    return presetCities.filter((c) => c.toLowerCase().includes(q)).slice(0, 20);
   }, [presetCities, query]);
+
+  const exactMatch = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return false;
+    return presetCities.some((c) => c.toLowerCase() === q);
+  }, [presetCities, query]);
+
+  const showCreate = query.trim().length > 0 && !exactMatch;
+
+  const listItems = showCreate
+    ? [{ type: "create" as const, label: createLabel(query.trim()) }, ...filtered.map((o) => ({ type: "option" as const, label: o }))]
+    : filtered.map((o) => ({ type: "option" as const, label: o }));
 
   useEffect(() => {
     setQuery(normalizeCityInput(location));
@@ -100,7 +114,7 @@ export function LithuanianCityField({
           if (e.key === "ArrowDown") {
             e.preventDefault();
             setOpen(true);
-            setActiveIndex((i) => Math.min(i + 1, suggestions.length - 1));
+            setActiveIndex((i) => Math.min(i + 1, listItems.length - 1));
             return;
           }
           if (e.key === "ArrowUp") {
@@ -108,9 +122,14 @@ export function LithuanianCityField({
             setActiveIndex((i) => Math.max(i - 1, 0));
             return;
           }
-          if (e.key === "Enter" && open && activeIndex >= 0 && suggestions[activeIndex]) {
+          if (e.key === "Enter") {
             e.preventDefault();
-            pickSuggestion(suggestions[activeIndex]!);
+            if (open && activeIndex >= 0 && listItems[activeIndex]) {
+              const item = listItems[activeIndex]!;
+              pickSuggestion(item.type === "create" ? query.trim() : item.label);
+              return;
+            }
+            commitQuery(query);
             return;
           }
           if (e.key === "Escape") {
@@ -119,23 +138,23 @@ export function LithuanianCityField({
           }
         }}
       />
-      {open && suggestions.length > 0 && (
+      {open && listItems.length > 0 && (
         <ul
           id={listId}
           role="listbox"
           className="listing-form-suggestions absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-md border shadow-md"
         >
-          {suggestions.map((city, index) => (
-            <li key={city} role="option" aria-selected={index === activeIndex}>
+          {listItems.map((item, index) => (
+            <li key={`${item.type}-${item.label}`} role="option" aria-selected={index === activeIndex}>
               <button
                 type="button"
                 className={`listing-form-suggestion w-full px-3 py-2 text-left text-sm ${
-                  index === activeIndex ? "is-active" : ""
-                }`}
+                  item.type === "create" ? "font-semibold text-[var(--vauto-primary,#0f766e)]" : ""
+                } ${index === activeIndex ? "is-active" : ""}`}
                 onMouseDown={(e) => e.preventDefault()}
-                onClick={() => pickSuggestion(city)}
+                onClick={() => pickSuggestion(item.type === "create" ? query.trim() : item.label)}
               >
-                {city}
+                {item.label}
               </button>
             </li>
           ))}

@@ -1,5 +1,17 @@
 /** LT real estate catalog for aruodas-style listing wizard. */
 
+export {
+  MUNICIPALITIES,
+  SETTLEMENTS_BY_MUNICIPALITY,
+  MICRODISTRICTS_BY_SETTLEMENT,
+  STREETS_BY_SETTLEMENT,
+  settlementsFor,
+  microdistrictsFor,
+  streetsFor,
+  allSettlements,
+  type MunicipalityName,
+} from "@/data/lithuania-locations";
+
 export const PROPERTY_TYPES = [
   { id: "butas", label: "Butas", icon: "building" },
   { id: "namas", label: "Namas, sodyba, sodo namas", icon: "home" },
@@ -34,46 +46,6 @@ export function defaultTransactionForType(type: string): string {
   if (type === "trumpalaike" || type === "ieskau") return "Nuomai";
   return "Pardavimui";
 }
-
-export const MUNICIPALITIES = [
-  "Vilniaus miesto",
-  "Vilniaus rajono",
-  "Kauno miesto",
-  "Kauno rajono",
-  "Klaipėdos miesto",
-  "Klaipėdos rajono",
-  "Šiaulių miesto",
-  "Panevėžio miesto",
-  "Alytaus miesto",
-] as const;
-
-export const SETTLEMENTS_BY_MUNICIPALITY: Record<string, string[]> = {
-  "Vilniaus miesto": ["Vilnius", "Naujamiestis", "Senamiestis", "Žirmūnai", "Antakalnis"],
-  "Vilniaus rajono": ["Trakai", "Nemenčinė", "Mickūnai", "Rudamina"],
-  "Kauno miesto": ["Kaunas", "Šilainiai", "Centras", "Aleksotas", "Dainava"],
-  "Kauno rajono": ["Garliava", "Birštonas", "Kulautuva"],
-  "Klaipėdos miesto": ["Klaipėda", "Melnragė", "Giruliai"],
-  "Klaipėdos rajono": ["Gargždai", "Priekulė", "Dovilai"],
-  "Šiaulių miesto": ["Šiauliai", "Centras", "Dainiai"],
-  "Panevėžio miesto": ["Panevėžys", "Centras", "Rožynas"],
-  "Alytaus miesto": ["Alytus", "Dainava", "Senamiestis"],
-};
-
-export const MICRODISTRICTS_BY_SETTLEMENT: Record<string, string[]> = {
-  Vilnius: ["Antakalnis", "Fabijoniškės", "Justiniškės", "Karoliniškės", "Lazdynai", "Naujininkai", "Pašilaičiai", "Pilaitė", "Šeškinė", "Žirmūnai"],
-  Kaunas: ["Aleksotas", "Centras", "Dainava", "Eiguliai", "Gričiupis", "Šančiai", "Šilainiai", "Žaliakalnis"],
-  Klaipėda: ["Centras", "Melnragė", "Smiltynė", "Vingis"],
-  Panevėžys: ["Centras", "Rožynas", "Stetiškės"],
-  Šiauliai: ["Centras", "Dainiai", "Gytariai"],
-};
-
-export const STREETS_BY_SETTLEMENT: Record<string, string[]> = {
-  Vilnius: ["Gedimino pr.", "Konstitucijos pr.", "Ukmergės g.", "Ozo g.", "Kalvarijų g.", "Savanorių pr."],
-  Kaunas: ["Laisvės al.", "Savanorių pr.", "Vytauto pr.", "Pramonės pr.", "Kovo 11-osios g."],
-  Klaipėda: ["Tiltų g.", "H. Manto g.", "Taikos pr.", "Minijos g."],
-  Panevėžys: ["Respublikos g.", "Klaipėdos g.", "S. Dariaus ir S. Girėno g."],
-  Šiauliai: ["Vilniaus g.", "Tilžės g.", "Pramonės g."],
-};
 
 export const HOUSE_TYPES = [
   "Namas (gyvenamasis)",
@@ -194,18 +166,6 @@ export const SELLER_ROLES = [
 ] as const;
 
 export const ROOM_QUICK = ["1", "2", "3", "4"] as const;
-
-export function settlementsFor(municipality: string): string[] {
-  return SETTLEMENTS_BY_MUNICIPALITY[municipality] ?? [];
-}
-
-export function microdistrictsFor(settlement: string): string[] {
-  return MICRODISTRICTS_BY_SETTLEMENT[settlement] ?? [];
-}
-
-export function streetsFor(settlement: string): string[] {
-  return STREETS_BY_SETTLEMENT[settlement] ?? [];
-}
 
 export function formatRealEstateArea(value: string | string[] | undefined): string {
   const s = String(Array.isArray(value) ? value[0] : value ?? "").trim();

@@ -28,6 +28,7 @@
     "render:stripe-env": "node scripts/set-render-stripe-env.mjs",
     "render:configure-env": "node scripts/configure-render-env.mjs",
     "verify:health": "node scripts/verify-health.mjs",
+    "validate:catalogs": "node scripts/validate-catalogs.mjs",
     "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness",
     "sync:runtime-config": "node scripts/write-runtime-config.mjs",
     "test:api-smoke": "node scripts/api-listing-smoke.mjs",

@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import { getVehicleStepMissingKeys } from "@/lib/listing-field-validation";
 import { WizardFooter } from "@/components/wizard/WizardFieldKit";
+import { CreatableCombobox } from "@/components/wizard/CreatableCombobox";
 import { VISION_RECOGNITION_FAILED_MESSAGE } from "@/lib/ai-safeguards";
 import {
   BODY_TYPES,
@@ -429,7 +430,7 @@ export function VehicleListingWizard({
                 AI iš balso užpildė markę, modelį ir metus — patikrinkite ir tęskite.
               </p>
             )}
-            <SelectField
+            <CreatableCombobox
               label="Markė"
               required
               value={make}
@@ -440,13 +441,14 @@ export function VehicleListingWizard({
               options={[...VEHICLE_MAKES]}
               invalid={fieldInvalid("make")}
             />
-            <SelectField
+            <CreatableCombobox
               label="Modelis"
               required
               value={model}
               onChange={(v) => onAttributeChange("model", v)}
               options={models}
-              placeholder={make ? "Pasirinkite modelį" : "Pirma pasirinkite markę"}
+              placeholder={make ? "Ieškoti arba įrašyti modelį…" : "Pirma pasirinkite markę"}
+              disabled={!make}
               invalid={fieldInvalid("model")}
             />
             <div className="mb-4 grid grid-cols-2 gap-3">

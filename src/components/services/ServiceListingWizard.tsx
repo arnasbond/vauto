@@ -14,6 +14,7 @@ import {
 import { clearServiceListingDraft, saveServiceListingDraft } from "@/lib/listing-draft-storage";
 import { capturePhoto } from "@/lib/native-media";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
+import { CreatableCombobox } from "@/components/wizard/CreatableCombobox";
 import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import {
   hasListingPhoto,
@@ -155,18 +156,14 @@ export function ServiceListingWizard({
           {step === 1 && (
             <>
               <label className="mb-1 block text-sm text-[#64748b]">Paslaugos tipas</label>
-              <select
+              <CreatableCombobox
+                hideLabel
                 value={attr(attrs, "serviceSpecialty")}
-                onChange={(e) => onAttributeChange("serviceSpecialty", e.target.value)}
-                className="mb-4 w-full rounded-xl border border-[#cfe3ff] px-3 py-3 text-sm"
-              >
-                <option value="">Pasirinkite...</option>
-                {SERVICE_SPECIALTIES.map((s) => (
-                  <option key={s} value={s}>
-                    {s}
-                  </option>
-                ))}
-              </select>
+                onChange={(v) => onAttributeChange("serviceSpecialty", v)}
+                options={[...SERVICE_SPECIALTIES]}
+                placeholder="Pasirinkite arba įrašykite paslaugos tipą…"
+                className="mb-4"
+              />
               <label className="mb-1 block text-sm text-[#64748b]">Skelbimo pavadinimas</label>
               <input
                 value={draft.title}
