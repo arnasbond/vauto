@@ -69,34 +69,7 @@ export function AiConfirmationScreen({
   };
 
   const isVehicle = listingToAdaptiveKey(aiDraft.category) === "vehicles";
-  const usePreviewCard =
-    mode === "inline-preview" && isVehicle;
   const embedded = mode === "inline-preview" || mode === "inline-full";
-
-  if (usePreviewCard) {
-    return portalWrap(
-      <AdaptiveConfirmation
-        draft={aiDraft}
-        previewImage={sellerPreviewImage}
-        videoUrl={sellerVideoUrl}
-        userPrompt={sellerUserPrompt}
-        speakEnabled={sellerInputMode === "voice" || sellerInputMode === "combined"}
-        manualFallback={aiManualFallback}
-        onUpdate={updateAiDraft}
-        onAttributeChange={handleAttributeChange}
-        onMediaChange={updateSellerMedia}
-        requestMediaConsent={requestMediaConsent}
-        onCancel={cancelSellerFlow}
-        onPublish={publishListing}
-      />
-    );
-  }
-
-  const isRealEstate = listingToAdaptiveKey(aiDraft.category) === "real_estate";
-  const isClothing = listingToAdaptiveKey(aiDraft.category) === "clothing";
-  const isUniversal = listingToAdaptiveKey(aiDraft.category) === "universal";
-  const isJobs = listingToAdaptiveKey(aiDraft.category) === "jobs";
-  const isServices = listingToAdaptiveKey(aiDraft.category) === "services";
 
   if (isVehicle) {
     return portalWrap(
@@ -117,6 +90,12 @@ export function AiConfirmationScreen({
       />
     );
   }
+
+  const isRealEstate = listingToAdaptiveKey(aiDraft.category) === "real_estate";
+  const isClothing = listingToAdaptiveKey(aiDraft.category) === "clothing";
+  const isUniversal = listingToAdaptiveKey(aiDraft.category) === "universal";
+  const isJobs = listingToAdaptiveKey(aiDraft.category) === "jobs";
+  const isServices = listingToAdaptiveKey(aiDraft.category) === "services";
 
   if (isRealEstate) {
     return portalWrap(

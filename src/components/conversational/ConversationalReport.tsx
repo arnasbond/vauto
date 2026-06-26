@@ -62,14 +62,19 @@ export function ConversationalReport({
 
   const [buddyState, setBuddyState] = useState<BuddyState>(manualFallback ? "idle" : "typing");
   const [showMessage, setShowMessage] = useState(manualFallback);
-  const [detailsOpen, setDetailsOpen] = useState(manualFallback);
+  const [detailsOpen, setDetailsOpen] = useState(
+    manualFallback || !canPublish
+  );
   const spokenRef = useRef(false);
 
   useEffect(() => {
-    if (manualFallback) return;
+    if (manualFallback || !canPublish) {
+      setDetailsOpen(true);
+      return;
+    }
     const t = window.setTimeout(() => setDetailsOpen(true), 550);
     return () => window.clearTimeout(t);
-  }, [manualFallback]);
+  }, [manualFallback, canPublish]);
 
   useEffect(() => {
     if (manualFallback) {
