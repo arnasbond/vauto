@@ -32,7 +32,7 @@ export function ServiceSearchPanel() {
 
   return (
     <div
-      className="mb-6 rounded-2xl border bg-white p-4 shadow-sm"
+      className="vauto-dashboard-card mb-6 rounded-2xl border p-4 shadow-sm"
       style={{ borderColor: ui.border }}
     >
       <h3 className="mb-1 text-base font-semibold" style={{ color: ui.accent }}>

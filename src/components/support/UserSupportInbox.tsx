@@ -159,7 +159,7 @@ export function UserSupportInbox() {
               onChange={(e) => setReplyText(e.target.value)}
               rows={2}
               placeholder="Papildoma informacija ar klausimas…"
-              className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600"
+              className="vauto-support-input w-full rounded-xl border px-3 py-2 text-sm"
             />
             <button
               type="button"

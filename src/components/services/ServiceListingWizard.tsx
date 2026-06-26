@@ -136,9 +136,9 @@ export function ServiceListingWizard({
   }, []);
 
   return (
-    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[#f4f9ff]">
-        <div className="mx-auto w-full max-w-2xl bg-white shadow-sm">
-        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[#cfe3ff] bg-white px-4 py-3">
+    <div className="listing-wizard-overlay chameleon-wizard-shell">
+        <div className="mx-auto w-full max-w-2xl shadow-sm">
+        <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--vauto-border,#cfe3ff)] bg-[var(--portal-wizard-surface,#fff)] px-4 py-3">
           <button type="button" onClick={step > 1 ? () => setStep(step - 1) : onCancel} className="rounded-full p-2">
             {step > 1 ? <ChevronLeft className="h-5 w-5" /> : <X className="h-5 w-5" />}
           </button>
@@ -305,7 +305,7 @@ export function ServiceListingWizard({
           )}
         </div>
 
-        <footer className="sticky bottom-0 border-t border-[#cfe3ff] bg-white px-4 py-4">
+        <footer className="nt-wizard-footer sticky bottom-0 z-30 border-t border-[var(--vauto-border,#cfe3ff)] px-4">
           {step < TOTAL_STEPS ? (
             <button
               type="button"

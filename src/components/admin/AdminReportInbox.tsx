@@ -391,7 +391,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                   onChange={(e) => setReplyText(e.target.value)}
                   rows={3}
                   placeholder="Atsakymas vartotojui toje pačioje gijoje…"
-                  className="w-full rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 placeholder:text-slate-600"
+                  className="vauto-admin-input w-full rounded-xl border px-3 py-2 text-sm"
                 />
                 <div className="flex flex-wrap gap-2">
                   <button

@@ -6,7 +6,6 @@ import {
   Building2,
   Camera,
   Car,
-  ChevronLeft,
   ChevronRight,
   ClipboardList,
   Clock,
@@ -19,6 +18,8 @@ import {
 } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AiExtractedListing } from "@/lib/types";
+import { getRealEstateStepMissingKeys } from "@/lib/listing-field-validation";
+import { WizardFooter } from "@/components/wizard/WizardFieldKit";
 import {
   BUILDING_TYPES,
   defaultTransactionForType,
@@ -101,15 +102,17 @@ function ChipRow({
   options,
   value,
   onChange,
+  invalid,
 }: {
   label: string;
   required?: boolean;
   options: readonly string[];
   value: string;
   onChange: (v: string) => void;
+  invalid?: boolean;
 }) {
   return (
-    <div className="mb-4">
+    <div className={`mb-4 ${invalid ? "nt-wizard-field-invalid rounded-md p-1" : ""}`}>
       <label className="nt-wizard-label mb-2 block text-sm font-medium">
         {label}
         {required && <span className="text-red-600"> *</span>}
@@ -254,6 +257,7 @@ export function RealEstateListingWizard({
   const [step, setStep] = useState(1);
   const [showFeatures, setShowFeatures] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
+  const [showStepErrors, setShowStepErrors] = useState(false);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
   const propertyType = attr(attrs, "propertyType") as PropertyTypeId | "";
@@ -337,7 +341,10 @@ export function RealEstateListingWizard({
             attr(attrs, "plotArea")
         )
       : Boolean(attr(attrs, "area") && (attr(attrs, "furnishing") || attr(attrs, "condition")));
-  const canNextStep5 = Boolean(attr(attrs, "rooms") && heating.length > 0);
+  const canNextStep5 =
+    isLandPropertyType(propertyType)
+      ? true
+      : Boolean(attr(attrs, "rooms") && heating.length > 0);
   const canNextStep6 = Boolean(previewImage || draft.description?.trim());
   const canNextStep7 = draft.price > 0 && draft.contact?.trim() && termsAccepted;
 
@@ -406,11 +413,36 @@ export function RealEstateListingWizard({
   const isHouse = propertyType === "namas";
   const isLandPlot = isLandPropertyType(propertyType);
 
+  const stepMissingKeys = useMemo(
+    () =>
+      getRealEstateStepMissingKeys(step, attrs, {
+        previewImage,
+        description: draft.description,
+        price: draft.price,
+        contact: draft.contact,
+        termsAccepted,
+      }),
+    [step, attrs, previewImage, draft.description, draft.price, draft.contact, termsAccepted]
+  );
+
+  const fieldInvalid = (key: string) =>
+    showStepErrors && stepMissingKeys.includes(key);
+
+  const handleNext = () => {
+    if (!canNext && step < TOTAL_STEPS) {
+      setShowStepErrors(true);
+      return;
+    }
+    setShowStepErrors(false);
+    goNext();
+  };
+
   const stepTitle = STEP_TITLES[step - 1];
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    setShowStepErrors(false);
+  }, [step]);
 
   return (
     <div className="listing-wizard-overlay chameleon-wizard-shell">
@@ -769,6 +801,7 @@ export function RealEstateListingWizard({
                 options={FURNISHING_OPTIONS}
                 value={furnishingValue}
                 onChange={selectFurnishing}
+                invalid={fieldInvalid("furnishing")}
               />
             )}
           </>
@@ -1021,28 +1054,13 @@ export function RealEstateListingWizard({
           </>
         )}
 
-        <div className="nt-wizard-footer mt-6 flex items-center justify-between gap-3">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={goBack}
-              className="nt-wizard-muted inline-flex items-center gap-1 text-sm font-medium hover:opacity-80"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Grįžti
-            </button>
-          ) : (
-            <span />
-          )}
-          <button
-            type="button"
-            disabled={!canNext && step < TOTAL_STEPS}
-            onClick={goNext}
-            className="rounded-md bg-[#ffc107] px-8 py-3 text-sm font-bold text-[#212121] shadow-md hover:bg-[#ffb300] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {step >= TOTAL_STEPS ? "Įvesti" : "Toliau"}
-          </button>
-        </div>
+        <WizardFooter
+          showBack={step > 1}
+          onBack={goBack}
+          onNext={handleNext}
+          nextDisabled={!canNext && step < TOTAL_STEPS}
+          nextLabel={step >= TOTAL_STEPS ? "Įvesti" : "Toliau"}
+        />
       </div>
     </div>
   );

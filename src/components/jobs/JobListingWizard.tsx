@@ -686,7 +686,7 @@ export function JobListingWizard({
             </>
           )}
 
-          <div className="mt-8 flex items-center justify-between gap-3 border-t border-[#e8ecf3] pt-4">
+          <div className="nt-wizard-footer mt-8 flex items-center justify-between gap-3">
             {step > 1 ? (
               <button
                 type="button"

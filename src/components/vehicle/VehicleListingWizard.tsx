@@ -1,9 +1,11 @@
 "use client";
 
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
-import { Camera, ChevronLeft, Plus, X } from "lucide-react";
+import { Camera, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
+import { getVehicleStepMissingKeys } from "@/lib/listing-field-validation";
+import { WizardFooter } from "@/components/wizard/WizardFieldKit";
 import { VISION_RECOGNITION_FAILED_MESSAGE } from "@/lib/ai-safeguards";
 import {
   BODY_TYPES,
@@ -86,16 +88,18 @@ function ChipRow({
   options,
   value,
   onChange,
+  invalid,
 }: {
   label: string;
   required?: boolean;
   options: readonly string[];
   value: string;
   onChange: (v: string) => void;
+  invalid?: boolean;
 }) {
   return (
-    <div className="mb-4">
-      <label className="mb-2 block text-sm font-medium text-[#374151]">
+    <div className={`mb-4 ${invalid ? "nt-wizard-field-invalid rounded-md p-1" : ""}`}>
+      <label className="nt-wizard-label mb-2 block text-sm font-medium">
         {label}
         {required && <span className="text-red-500"> *</span>}
       </label>
@@ -105,10 +109,8 @@ function ChipRow({
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition ${
-              value === opt
-                ? "border-[#1167b1] bg-[#1167b1] text-white"
-                : "border-[#d1d5db] bg-white text-[#374151] hover:border-[#1167b1]"
+            className={`nt-wizard-chip shrink-0 rounded-lg border px-3 py-2 text-sm font-medium transition ${
+              value === opt ? "nt-wizard-chip-active" : ""
             }`}
           >
             {opt}
@@ -126,6 +128,7 @@ function SelectField({
   onChange,
   options,
   placeholder = "Pasirinkite",
+  invalid,
 }: {
   label: string;
   required?: boolean;
@@ -133,17 +136,18 @@ function SelectField({
   onChange: (v: string) => void;
   options: string[];
   placeholder?: string;
+  invalid?: boolean;
 }) {
   return (
-    <div className="mb-4">
-      <label className="mb-1.5 block text-sm font-medium text-[#374151]">
+    <div className={`mb-4 ${invalid ? "nt-wizard-field-invalid rounded-md p-1" : ""}`}>
+      <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
         {label}
         {required && <span className="text-red-500"> *</span>}
       </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full rounded-lg border border-[#d1d5db] bg-white px-3 py-2.5 text-sm text-[#111827] outline-none focus:border-[#1167b1] focus:ring-1 focus:ring-[#1167b1]"
+        className="nt-wizard-input w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:border-[#1167b1] focus:ring-1 focus:ring-[#1167b1]"
       >
         <option value="">{placeholder}</option>
         {options.map((o) => (
@@ -215,6 +219,7 @@ export function VehicleListingWizard({
   embedded = false,
 }: VehicleListingWizardProps) {
   const [step, setStep] = useState(1);
+  const [showStepErrors, setShowStepErrors] = useState(false);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const make = attr(attrs, "make");
   const model = attr(attrs, "model");
@@ -288,6 +293,13 @@ export function VehicleListingWizard({
   const canNextStep6 =
     !isPlaceholderCity(draft.location) && draft.location.trim().length >= 2;
 
+  const stepMissingKeys = useMemo(
+    () => getVehicleStepMissingKeys(step, attrs),
+    [step, attrs]
+  );
+  const fieldInvalid = (key: string) =>
+    showStepErrors && stepMissingKeys.includes(key);
+
   const canNext = [
     false,
     canNextStep1,
@@ -346,7 +358,8 @@ export function VehicleListingWizard({
 
   useEffect(() => {
     if (!embedded) window.scrollTo(0, 0);
-  }, [embedded]);
+    setShowStepErrors(false);
+  }, [embedded, step]);
 
   if (pendingMicroPayment) {
     return (
@@ -354,7 +367,7 @@ export function VehicleListingWizard({
         className={
           embedded
             ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] p-4 shadow-sm"
-            : "listing-wizard-overlay flex items-center justify-center bg-white p-4"
+            : "listing-wizard-overlay chameleon-wizard-shell flex items-center justify-center p-4"
         }
       >
         <ZeroUiPaymentGate
@@ -374,15 +387,15 @@ export function VehicleListingWizard({
     <div
       className={
         embedded
-          ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] shadow-sm"
-          : "listing-wizard-overlay bg-white"
+          ? "chameleon-wizard-shell rounded-2xl border border-[var(--vauto-border,#e5e7eb)] bg-[var(--portal-wizard-surface,#fff)] shadow-sm"
+          : "listing-wizard-overlay chameleon-wizard-shell"
       }
     >
       <div
         className={
           embedded
             ? "px-4 py-5"
-            : "mx-auto min-h-full w-full max-w-lg bg-white px-4 py-5 pb-28 shadow-sm"
+            : "mx-auto min-h-full w-full max-w-lg px-4 py-5 pb-6 shadow-sm"
         }
       >
         <ProgressHeader
@@ -425,6 +438,7 @@ export function VehicleListingWizard({
                 onAttributeChange("model", "");
               }}
               options={[...VEHICLE_MAKES]}
+              invalid={fieldInvalid("make")}
             />
             <SelectField
               label="Modelis"
@@ -433,6 +447,7 @@ export function VehicleListingWizard({
               onChange={(v) => onAttributeChange("model", v)}
               options={models}
               placeholder={make ? "Pasirinkite modelį" : "Pirma pasirinkite markę"}
+              invalid={fieldInvalid("model")}
             />
             <div className="mb-4 grid grid-cols-2 gap-3">
               <SelectField
@@ -442,6 +457,7 @@ export function VehicleListingWizard({
                 onChange={(v) => onAttributeChange("year", v)}
                 options={REGISTRATION_YEARS}
                 placeholder="Metai"
+                invalid={fieldInvalid("year")}
               />
               <div>
                 <label className="mb-1.5 block text-sm font-medium text-[#374151]">
@@ -555,6 +571,7 @@ export function VehicleListingWizard({
               options={BODY_TYPES}
               value={attr(attrs, "bodyType")}
               onChange={(v) => onAttributeChange("bodyType", v)}
+              invalid={fieldInvalid("bodyType")}
             />
             <ChipRow
               label="Kuro tipas"
@@ -562,6 +579,7 @@ export function VehicleListingWizard({
               options={FUEL_TYPES}
               value={attr(attrs, "fuelType")}
               onChange={(v) => onAttributeChange("fuelType", v)}
+              invalid={fieldInvalid("fuelType")}
             />
             <ChipRow
               label="Pavarų dėžė"
@@ -569,6 +587,7 @@ export function VehicleListingWizard({
               options={GEARBOX_TYPES}
               value={attr(attrs, "gearbox")}
               onChange={(v) => onAttributeChange("gearbox", v)}
+              invalid={fieldInvalid("gearbox")}
             />
             <ChipRow
               label="Varantieji ratai"
@@ -582,6 +601,7 @@ export function VehicleListingWizard({
               options={DOOR_COUNTS}
               value={attr(attrs, "doors")}
               onChange={(v) => onAttributeChange("doors", v)}
+              invalid={fieldInvalid("doors")}
             />
           </>
         )}
@@ -625,6 +645,7 @@ export function VehicleListingWizard({
               value={attr(attrs, "defects")}
               onChange={(v) => onAttributeChange("defects", v)}
               options={[...DEFECT_OPTIONS]}
+              invalid={fieldInvalid("defects")}
             />
             <SelectField
               label="Spalva"
@@ -632,9 +653,10 @@ export function VehicleListingWizard({
               value={attr(attrs, "color")}
               onChange={(v) => onAttributeChange("color", v)}
               options={[...COLOR_OPTIONS]}
+              invalid={fieldInvalid("color")}
             />
-            <div className="mb-4">
-              <label className="mb-1.5 block text-sm font-medium text-[#374151]">
+            <div className={`mb-4 ${fieldInvalid("mileage") ? "nt-wizard-field-invalid rounded-md p-1" : ""}`}>
+              <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
                 Rida <span className="text-red-500">*</span>
               </label>
               <div className="flex">
@@ -646,9 +668,9 @@ export function VehicleListingWizard({
                     onAttributeChange("mileage", e.target.value ? `${e.target.value} km` : "")
                   }
                   placeholder="185000"
-                  className="min-w-0 flex-1 rounded-l-lg border border-[#d1d5db] px-3 py-2.5 text-sm"
+                  className="nt-wizard-input min-w-0 flex-1 rounded-l-lg border px-3 py-2.5 text-sm"
                 />
-                <span className="flex items-center rounded-r-lg border border-l-0 border-[#d1d5db] bg-[#f9fafb] px-3 text-sm text-[#6b7280]">
+                <span className="nt-wizard-muted flex items-center rounded-r-lg border border-l-0 px-3 text-sm">
                   km
                 </span>
               </div>
@@ -849,31 +871,22 @@ export function VehicleListingWizard({
           </div>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-3 border-t border-[#e5e7eb] pt-4">
-          {step > 1 ? (
-            <button
-              type="button"
-              onClick={goBack}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#6b7280] hover:text-[#111827]"
-            >
-              <ChevronLeft className="h-4 w-4" />
-              Grįžti
-            </button>
-          ) : (
-            <span />
-          )}
-          <button
-            type="button"
-            disabled={!canNext && step < TOTAL_STEPS}
-            onClick={() => {
-              if (step === 1) syncTitle();
-              goNext();
-            }}
-            className="rounded-lg bg-[#1167b1] px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#0d5a9a] disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {step === TOTAL_STEPS ? "Publikuoti skelbimą" : "Toliau"}
-          </button>
-        </div>
+        <WizardFooter
+          showBack={step > 1}
+          onBack={goBack}
+          onNext={() => {
+            if (!canNext && step < TOTAL_STEPS) {
+              setShowStepErrors(true);
+              return;
+            }
+            setShowStepErrors(false);
+            if (step === 1) syncTitle();
+            goNext();
+          }}
+          nextDisabled={!canNext && step < TOTAL_STEPS}
+          nextLabel={step === TOTAL_STEPS ? "Publikuoti skelbimą" : "Toliau"}
+          nextClassName="!bg-[#1167b1] !text-white hover:!bg-[#0d5a9a]"
+        />
       </div>
     </div>
   );

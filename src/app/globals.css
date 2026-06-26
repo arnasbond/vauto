@@ -728,8 +728,74 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
 }
 
+.nt-wizard-next-btn {
+  background: #ffc107;
+  color: #212121;
+}
+
+body.chameleon-autoplius .nt-wizard-chip-active {
+  border-color: #1167b1 !important;
+  background: #1167b1 !important;
+  color: #fff !important;
+}
+
+.nt-wizard-field-invalid {
+  border-color: #dc2626 !important;
+  box-shadow: 0 0 0 1px #dc2626;
+}
+
+.nt-wizard-field-invalid .nt-wizard-label {
+  color: #dc2626;
+}
+
 [data-app-theme="dark"] .nt-wizard-footer {
   box-shadow: 0 -8px 24px rgba(0, 0, 0, 0.35);
+}
+
+[data-app-theme="dark"] .chameleon-wizard-shell .bg-white,
+[data-app-theme="dark"] .listing-wizard-overlay .bg-white {
+  background-color: var(--portal-wizard-surface, #1e293b) !important;
+  color: var(--vauto-text-main, #f8fafc);
+}
+
+[data-app-theme="dark"] .chameleon-wizard-shell .bg-\[\#f9fafb\],
+[data-app-theme="dark"] .listing-wizard-overlay .bg-\[\#f9fafb\],
+[data-app-theme="dark"] .chameleon-wizard-shell .bg-\[\#fafafa\],
+[data-app-theme="dark"] .listing-wizard-overlay .bg-\[\#fafafa\] {
+  background-color: color-mix(in srgb, var(--portal-wizard-surface, #1e293b) 88%, #ffffff 12%) !important;
+}
+
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#374151\],
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#424242\],
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#111827\],
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#212121\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#374151\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#424242\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#111827\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#212121\] {
+  color: var(--vauto-text-main, #f1f5f9) !important;
+}
+
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#6b7280\],
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#757575\],
+[data-app-theme="dark"] .chameleon-wizard-shell .text-\[\#9ca3af\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#6b7280\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#757575\],
+[data-app-theme="dark"] .listing-wizard-overlay .text-\[\#9ca3af\] {
+  color: var(--vauto-text-muted, #94a3b8) !important;
+}
+
+.vauto-support-input,
+.vauto-admin-input {
+  color: var(--vauto-text-main);
+  background-color: var(--vauto-card-bg);
+  border-color: var(--vauto-border);
+  -webkit-text-fill-color: var(--vauto-text-main);
+}
+
+.vauto-support-input::placeholder,
+.vauto-admin-input::placeholder {
+  color: var(--vauto-text-muted);
 }
 
 .listing-form-shell {
