@@ -48,7 +48,7 @@ const TIER_DEFINITIONS: Array<{
   maxSlotsPerRegion: number | "unlimited";
   expectedLift: string;
   feedPosition: string;
-  minBillingPlan?: "starter" | "pro";
+  minBillingPlan?: "start" | "growth" | "enterprise" | "starter" | "pro";
   minWalletBalance?: number;
   cooldownDaysAfterExpiry?: number;
 }> = [
@@ -186,8 +186,9 @@ function readCooldownUntil(listing: Listing): string | undefined {
 }
 
 function billingPlanRank(plan?: UserProfile["billingPlan"]): number {
-  if (plan === "pro") return 2;
-  if (plan === "starter") return 1;
+  if (plan === "enterprise") return 3;
+  if (plan === "pro" || plan === "growth") return 2;
+  if (plan === "starter" || plan === "start") return 1;
   return 0;
 }
 

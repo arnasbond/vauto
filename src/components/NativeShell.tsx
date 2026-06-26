@@ -90,6 +90,16 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
         const payload = storeOAuthCallbackPayload(url);
         if (payload?.idToken) {
           router.replace("/");
+          return;
+        }
+        try {
+          const parsed = new URL(url);
+          const chatId = parsed.searchParams.get("id");
+          if (parsed.pathname.includes("pokalbiai") && chatId) {
+            router.push(`/pokalbiai/?id=${encodeURIComponent(chatId)}`);
+          }
+        } catch {
+          /* ignore malformed urls */
         }
       }).then((handle) => {
         removeListener = () => void handle.remove();

@@ -119,8 +119,16 @@ export interface UserProfile {
   companyName?: string;
   companyCode?: string;
   vatCode?: string;
-  billingPlan?: "free" | "starter" | "pro";
+  billingPlan?:
+    | "free"
+    | "start"
+    | "growth"
+    | "enterprise"
+    | "starter"
+    | "pro";
   billingModel?: "ppc" | "subscription";
+  /** Likę aktyvūs darbo skelbimų kreditai šį mėnesį (B2B) */
+  jobListingCredits?: number | "unlimited";
   serviceBaseCity?: string;
   serviceRadiusKm?: number;
   serviceNationwide?: boolean;
@@ -219,11 +227,15 @@ export interface PromoteOffer {
   durationDays: number;
 }
 
+export type ChatMessageStatus = "sent" | "delivered" | "read";
+
 export interface ChatMessage {
   id: string;
   senderId: string;
   text: string;
   timestamp: string;
+  status?: ChatMessageStatus;
+  deliveredAt?: string;
   readAt?: string;
 }
 

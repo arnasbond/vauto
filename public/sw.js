@@ -171,10 +171,29 @@ self.addEventListener("message", (event) => {
   if (data.type === "VAUTO_SIMULATE_PUSH") {
     void self.registration.showNotification(data.title || "VAUTO", {
       body: data.body || "Naujas skelbimas atitinka jūsų paiešką.",
-      icon: "/icon-192.png",
+      icon: data.icon || "/icon-192.png",
+      image: data.image,
       data: { voiceText: data.voiceText, url: data.url || "/" },
       requireInteraction: true,
       vibrate: [200, 100, 200],
+    });
+  }
+
+  if (data.type === "VAUTO_CHAT_PUSH") {
+    void self.registration.showNotification(data.title || "Nauja žinutė", {
+      body: data.body || "",
+      icon: data.icon || "/icon-192.png",
+      image: data.image,
+      badge: "/icon-192.png",
+      tag: data.tag || "vauto-chat",
+      renotify: true,
+      vibrate: [120, 60, 120],
+      data: {
+        type: "VAUTO_CHAT_MESSAGE",
+        url: data.url,
+        chatId: data.chatId,
+        listingId: data.listingId,
+      },
     });
   }
 });
@@ -202,11 +221,12 @@ self.addEventListener("push", (event) => {
   event.waitUntil(
     self.registration.showNotification(payload.title, {
       body: payload.body,
-      icon: "/icon-192.png",
+      icon: payload.icon || "/icon-192.png",
+      image: payload.image,
       badge: "/icon-192.png",
-      tag: "vauto-push-alert",
+      tag: payload.tag || "vauto-push-alert",
       renotify: true,
-      requireInteraction: true,
+      requireInteraction: payload.type === "VAUTO_CHAT_MESSAGE" ? false : true,
       vibrate: [300, 100, 300],
       data: payload,
     })
@@ -216,7 +236,9 @@ self.addEventListener("push", (event) => {
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
   const data = event.notification.data || {};
-  const url = data.url || "/";
+  const url =
+    data.url ||
+    (data.chatId ? `/pokalbiai/?id=${encodeURIComponent(data.chatId)}` : "/");
 
   event.waitUntil(
     self.clients
@@ -224,12 +246,14 @@ self.addEventListener("notificationclick", (event) => {
       .then((clients) => {
         for (const client of clients) {
           client.postMessage({
-            type: "VAUTO_PLAY_VOICE",
+            type: data.type === "VAUTO_CHAT_MESSAGE" ? "VAUTO_NAVIGATE" : "VAUTO_PLAY_VOICE",
             voiceText: data.voiceText,
             url,
           });
           if ("focus" in client) {
-            client.navigate(url);
+            if ("navigate" in client && typeof client.navigate === "function") {
+              client.navigate(url);
+            }
             return client.focus();
           }
         }

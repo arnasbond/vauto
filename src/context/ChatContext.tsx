@@ -20,6 +20,20 @@ import { loadChats, saveChats } from "@/lib/storage";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import { logAnalytics } from "@/lib/analytics";
 import { listingPath } from "@/lib/seo";
+import {
+  applyViewerReadState,
+  markIncomingRead,
+  markSenderMessagesRead,
+  mergeThreadUpdate,
+  patchMessageStatus,
+  publishChatEvent,
+  subscribeChatEvents,
+} from "@/lib/chat-realtime";
+import {
+  buildChatPushPayload,
+  dispatchChatPushNotification,
+  requestChatPushPermission,
+} from "@/lib/chat-push";
 import type { ChatMessage, ChatThread, EscrowTransaction, Listing } from "@/lib/types";
 
 interface ChatContextValue {
@@ -33,6 +47,9 @@ interface ChatContextValue {
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
+
+const DELIVER_MS = 420;
+const READ_SIM_MS = 2400;
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, openAuthModal } = useAuth();
@@ -50,6 +67,35 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const smsCancelRef = useRef<Map<string, () => void>>(new Map());
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
+  const userRef = useRef(user);
+  userRef.current = user;
+  const listingsRef = useRef(listings);
+  listingsRef.current = listings;
+
+  const persistChat = useCallback(
+    (thread: ChatThread) => {
+      if (isDataApiEnabled()) {
+        void apiUpsertChat(thread, user.id).then((r) => {
+          if (!r.ok) setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
+        });
+      }
+    },
+    [user.id, setSyncError]
+  );
+
+  const upsertChats = useCallback(
+    (updater: (prev: ChatThread[]) => ChatThread[]) => {
+      setChats((prev) => {
+        const next = updater(prev);
+        const changed = next.find(
+          (t, i) => t !== prev[i] || t.messages.length !== prev[i]?.messages.length
+        );
+        if (changed) publishChatEvent({ type: "CHAT_UPSERT", thread: changed });
+        return next;
+      });
+    },
+    []
+  );
 
   useEffect(() => {
     if (!hydrated) return;
@@ -61,6 +107,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const stored = loadChats();
         if (stored?.length) setChats(stored);
       }
+      void requestChatPushPermission();
     }
     void load();
   }, [hydrated, apiActive, user.id]);
@@ -69,6 +116,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     if (!hydrated || apiActive) return;
     saveChats(chats);
   }, [chats, hydrated, apiActive]);
+
+  useEffect(() => {
+    return subscribeChatEvents((event) => {
+      if (event.type === "CHAT_UPSERT") {
+        setChats((prev) => mergeThreadUpdate(prev, event.thread));
+      }
+      if (event.type === "MESSAGE_STATUS") {
+        setChats((prev) =>
+          patchMessageStatus(prev, event.chatId, event.messageId, event.status ?? "sent")
+        );
+      }
+      if (event.type === "CHAT_READ") {
+        if (event.viewerId === userRef.current.id) {
+          setChats((prev) => markIncomingRead(prev, event.chatId, event.viewerId));
+        } else {
+          setChats((prev) =>
+            markSenderMessagesRead(prev, event.chatId, event.viewerId)
+          );
+        }
+      }
+    });
+  }, []);
 
   const scheduleIncomingSms = useCallback(
     (
@@ -90,7 +159,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           return msg.senderId !== recipientId;
         },
         (text) => {
-          setChats((prev) =>
+          upsertChats((prev) =>
             prev.map((c) =>
               c.id === chatId ? { ...c, smsFallbackSentFor: messageId } : c
             )
@@ -100,7 +169,69 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       );
       smsCancelRef.current.set(chatId, cancel);
     },
-    [showToast]
+    [showToast, upsertChats]
+  );
+
+  const advanceMessageStatus = useCallback(
+    (chatId: string, messageId: string, senderId: string, recipientId: string) => {
+      window.setTimeout(() => {
+        upsertChats((prev) => {
+          const next = patchMessageStatus(prev, chatId, messageId, "delivered");
+          publishChatEvent({
+            type: "MESSAGE_STATUS",
+            chatId,
+            messageId,
+            status: "delivered",
+          });
+          const thread = next.find((c) => c.id === chatId);
+          if (thread) persistChat(thread);
+          return next;
+        });
+      }, DELIVER_MS);
+
+      window.setTimeout(() => {
+        if (activeChatIdRef.current === chatId) {
+          upsertChats((prev) => {
+            const next = markSenderMessagesRead(prev, chatId, senderId);
+            publishChatEvent({
+              type: "CHAT_READ",
+              chatId,
+              viewerId: recipientId,
+              at: new Date().toISOString(),
+            });
+            const thread = next.find((c) => c.id === chatId);
+            if (thread) persistChat(thread);
+            return next;
+          });
+        }
+      }, READ_SIM_MS);
+    },
+    [persistChat, upsertChats]
+  );
+
+  const notifyRecipient = useCallback(
+    (chat: ChatThread, message: ChatMessage, recipientId: string) => {
+      if (activeChatIdRef.current === chat.id) return;
+      if (message.senderId === recipientId) return;
+
+      const listing = listingsRef.current.find((l) => l.id === chat.listingId);
+      const sender =
+        message.senderId === chat.buyerId
+          ? { name: userRef.current.name, companyName: userRef.current.companyName }
+          : {
+              name: listing?.title ? "Pardavėjas" : "VAUTO",
+              companyName: undefined,
+            };
+
+      const payload = buildChatPushPayload({
+        chat,
+        listing,
+        sender,
+        messageText: message.text,
+      });
+      void dispatchChatPushNotification(payload);
+    },
+    []
   );
 
   const markChatRead = useCallback(
@@ -108,30 +239,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const now = new Date().toISOString();
       smsCancelRef.current.get(chatId)?.();
       smsCancelRef.current.delete(chatId);
-      setChats((prev) => {
-        const next = prev.map((c) =>
-          c.id === chatId
-            ? {
-                ...c,
-                lastReadAt: now,
-                messages: c.messages.map((m) =>
-                  m.readAt ? m : { ...m, readAt: now }
-                ),
-              }
-            : c
-        );
-        if (isDataApiEnabled()) {
-          const updated = next.find((c) => c.id === chatId);
-          if (updated) {
-            void apiUpsertChat(updated, user.id).then((r) => {
-              if (!r.ok) setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
-            });
-          }
-        }
+
+      upsertChats((prev) => {
+        const next = applyViewerReadState(prev, chatId, user.id);
+        publishChatEvent({ type: "CHAT_READ", chatId, viewerId: user.id, at: now });
+        const thread = next.find((c) => c.id === chatId);
+        if (thread) persistChat(thread);
         return next;
       });
     },
-    [user.id, setSyncError]
+    [user.id, persistChat, upsertChats]
   );
 
   const setActiveChatId = useCallback(
@@ -155,13 +272,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         senderId: user.id,
         text,
         timestamp: new Date().toISOString(),
+        status: "sent",
       };
 
       let buyerId = "";
       let sellerId = "";
       let listingTitle = "";
+      let updatedThread: ChatThread | null = null;
 
-      setChats((prev) =>
+      upsertChats((prev) =>
         prev.map((chat) => {
           if (chat.id !== chatId) return chat;
           buyerId = chat.buyerId;
@@ -174,14 +293,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           if (!chat.escrowOffered && detectPurchaseIntent(text)) {
             updated.escrowOffered = true;
           }
-          if (isDataApiEnabled()) {
-            void apiUpsertChat(updated, user.id).then((r) => {
-              if (!r.ok) setSyncError(`Žinutė neišsaugota: ${r.error}`);
-            });
-          }
+          updatedThread = updated;
           return updated;
         })
       );
+
+      if (updatedThread) {
+        persistChat(updatedThread);
+        const recipientId = user.id === buyerId ? sellerId : buyerId;
+        if (recipientId) {
+          advanceMessageStatus(chatId, msg.id, user.id, recipientId);
+          notifyRecipient(updatedThread, msg, recipientId);
+        }
+      }
 
       window.setTimeout(() => {
         if (user.id !== buyerId) return;
@@ -192,7 +316,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           text: "Žinutė išsiųsta pardavėjui. Atsakymą matysite šiame pokalbyje.",
           timestamp: new Date().toISOString(),
         };
-        setChats((prev) =>
+        upsertChats((prev) =>
           prev.map((c) =>
             c.id === chatId ? { ...c, messages: [...c.messages, reply] } : c
           )
@@ -200,7 +324,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (sellerId) scheduleIncomingSms(chatId, replyId, sellerId, listingTitle);
       }, 1500);
     },
-    [user.id, scheduleIncomingSms, setSyncError]
+    [
+      user.id,
+      scheduleIncomingSms,
+      persistChat,
+      upsertChats,
+      advanceMessageStatus,
+      notifyRecipient,
+    ]
   );
 
   const startChat = useCallback(
@@ -230,22 +361,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             senderId: user.id,
             text: `Labas! Dominu „${listing.title}".`,
             timestamp: new Date().toISOString(),
+            status: "sent",
           },
         ],
         escrowOffered: false,
       };
       setChats((prev) => [newChat, ...prev]);
+      publishChatEvent({ type: "CHAT_UPSERT", thread: newChat });
       bumpListingById(listingId, "chatStarts");
       logAnalytics("listing_chat_start", {
         listingId,
         title: listing.title,
         sellerId: listing.sellerId,
       });
-      if (isDataApiEnabled()) {
-        void apiUpsertChat(newChat, user.id).then((r) => {
-          if (!r.ok) setSyncError(`Pokalbis neišsaugotas: ${r.error}`);
-        });
-      }
+      persistChat(newChat);
       return chatId;
     },
     [
@@ -255,13 +384,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       openAuthModal,
       bumpListingById,
-      setSyncError,
+      persistChat,
     ]
   );
 
   const updateEscrow = useCallback(
     (chatId: string, escrow: EscrowTransaction) => {
-      setChats((prev) =>
+      upsertChats((prev) =>
         prev.map((chat) => (chat.id === chatId ? { ...chat, escrow } : chat))
       );
       if (isDataApiEnabled()) {
@@ -270,7 +399,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         });
       }
     },
-    [setSyncError]
+    [setSyncError, upsertChats]
   );
 
   const value = useMemo<ChatContextValue>(

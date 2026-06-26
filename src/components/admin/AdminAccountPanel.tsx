@@ -46,7 +46,6 @@ export function AdminAccountPanel({ onLogout }: AdminAccountPanelProps = {}) {
     deleteListing,
     markListingSold,
     topUpWallet,
-    promoteListing,
     renewListing,
     showToast,
   } = useVauto();
@@ -75,7 +74,6 @@ export function AdminAccountPanel({ onLogout }: AdminAccountPanelProps = {}) {
           }}
           onMarkSold={markListingSold}
           onTopUp={topUpWallet}
-          onPromote={promoteListing}
           onRenew={handleRenew}
         />
       ) : (

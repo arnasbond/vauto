@@ -7,7 +7,7 @@ import { Sparkles, TrendingUp, RefreshCw } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { getListingCoverImage } from "@/lib/listing-image";
 import { getListingMetrics } from "@/lib/listing-analytics";
-import { getPromoteSuggestion, resolveSelectedPlan } from "@/lib/smart-promote";
+import { B2C_PROMOTE_PRODUCTS } from "@/lib/monetization-catalog";
 import { categoryToTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 import { listingPath } from "@/lib/seo";
@@ -19,46 +19,37 @@ import {
   formatVisibilityExpiry,
   isVisibilityActive,
 } from "@/lib/visibility-plans";
-import type { VisibilityTierId } from "@/lib/visibility-plans";
 import { ListingMarketStats } from "./ListingMarketStats";
 import { ShareListingButton } from "@/components/social/ShareListingButton";
 import { SmartPromoteModal } from "./SmartPromoteModal";
+import { useVauto } from "@/context/VautoContext";
 
 interface ProListingCardProps {
   listing: Listing;
   allListings: Listing[];
   user: UserProfile;
   buyerIntentCount?: number;
-  walletBalance: number;
   autoOpenPromote?: boolean;
   onPromoteOpened?: () => void;
   onEdit: () => void;
   onDelete: () => void;
-  onPromote: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   onRenew: () => void;
 }
 
 export function ProListingCard({
   listing,
   allListings,
-  user,
   buyerIntentCount = 0,
-  walletBalance,
   autoOpenPromote = false,
   onPromoteOpened,
   onEdit,
   onDelete,
-  onPromote,
   onRenew,
 }: ProListingCardProps) {
+  const { openCheckout } = useVauto();
   const [promoteOpen, setPromoteOpen] = useState(false);
   const metrics = getListingMetrics(listing);
-  const suggestion = getPromoteSuggestion(listing, {
-    allListings,
-    buyerIntentCount,
-    user,
-  });
-  const selectedPlan = resolveSelectedPlan(suggestion);
+  const featuredProduct = B2C_PROMOTE_PRODUCTS[1];
   const promoteTheme = categoryToTheme(listing.category);
   const isSold = listing.status === "sold";
   const expiryLabel = formatExpiryLabel(listing);
@@ -100,7 +91,7 @@ export function ProListingCard({
                   promoteTheme === "flux" && "bg-[var(--vauto-orange)]"
                 )}
               >
-                {suggestion.plans.find((p) => p.id === activeTier)?.shortLabel ?? "TOP"}
+                {activeTier >= 4 ? "TOP" : activeTier >= 2 ? "PLUS" : "VIP"}
               </span>
             )}
           </Link>
@@ -182,13 +173,13 @@ export function ProListingCard({
                   promoteTheme === "flux" && "text-[var(--vauto-teal)]"
                 )}
               >
-                {suggestion.reason}
+                Iškelti skelbimą
               </p>
               <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
-                {suggestion.message}
+                {featuredProduct.description}
               </p>
               <p className="mt-0.5 text-[10px] text-slate-400">
-                Nuo {selectedPlan.price.toFixed(2)} € · 5 fiksuoti planai
+                Nuo {featuredProduct.priceEur.toFixed(2)} € · 3 paketai
               </p>
             </div>
           </button>
@@ -228,14 +219,8 @@ export function ProListingCard({
       <SmartPromoteModal
         open={promoteOpen}
         listing={listing}
-        suggestion={suggestion}
-        walletBalance={walletBalance}
         onClose={() => setPromoteOpen(false)}
-        onConfirm={(tierId, cost) => {
-          const ok = onPromote(listing.id, cost, tierId);
-          if (ok) setPromoteOpen(false);
-          return ok;
-        }}
+        onOpenCheckout={openCheckout}
       />
     </>
   );

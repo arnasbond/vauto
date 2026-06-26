@@ -8,7 +8,10 @@ export type AnalyticsEvent =
   | "seller_engagement_push"
   | "buddy_speech"
   | "buddy_follow_up"
-  | "wake_word_detected";
+  | "wake_word_detected"
+  | "checkout_b2c_promote"
+  | "checkout_b2b_plan"
+  | "chat_message_sent";
 
 export function logAnalytics(
   event: AnalyticsEvent,

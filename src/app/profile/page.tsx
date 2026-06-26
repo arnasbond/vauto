@@ -15,6 +15,7 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
+import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
@@ -32,6 +33,7 @@ export default function ProfilePage() {
     logout,
     renewListing,
     showToast,
+    paymentHistoryVersion,
   } = useVauto();
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
@@ -119,6 +121,10 @@ export default function ProfilePage() {
         allListings={listings}
         onRenew={handleRenew}
       />
+
+      <div className="mt-6">
+        <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
+      </div>
 
       <div className="mt-8 space-y-4">
         <Suspense

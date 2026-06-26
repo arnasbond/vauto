@@ -9,6 +9,7 @@ import type {
 import type { SearchIntentEvent } from "@/lib/search-intent";
 import type { ServiceLead } from "@/lib/service-leads";
 import type { SocialSyncPrefs } from "@/lib/social-share";
+import type { VautoInvoice } from "@/lib/invoices";
 
 const KEYS = {
   listings: "vauto_listings_v1",
@@ -30,6 +31,8 @@ const KEYS = {
   appTheme: "vauto_app_theme_v1",
   serviceLeads: "vauto_service_leads_v1",
   openedServiceLeads: "vauto_opened_service_leads_v1",
+  invoices: "vauto_invoices_v1",
+  invoiceSeries: "vauto_invoice_series_v1",
 } as const;
 
 function read<T>(key: string): T | null {
@@ -209,6 +212,22 @@ export function loadOpenedServiceLeads(): string[] | null {
 
 export function saveOpenedServiceLeads(ids: string[]): void {
   write(KEYS.openedServiceLeads, ids);
+}
+
+export function loadInvoices(): VautoInvoice[] | null {
+  return read<VautoInvoice[]>(KEYS.invoices);
+}
+
+export function saveInvoices(invoices: VautoInvoice[]): void {
+  write(KEYS.invoices, invoices);
+}
+
+export function loadInvoiceSeries(): { year: number; seq: number } | null {
+  return read<{ year: number; seq: number }>(KEYS.invoiceSeries);
+}
+
+export function saveInvoiceSeries(series: { year: number; seq: number }): void {
+  write(KEYS.invoiceSeries, series);
 }
 
 export function clearAllData(): void {

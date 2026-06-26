@@ -34,7 +34,6 @@ export function ZeroUiBusinessDashboard() {
     markListingSold,
     renewListing,
     topUpWallet,
-    promoteListing,
     showToast,
   } = useVauto();
   const { goToMarketplace } = useZeroUiScreen();
@@ -84,7 +83,6 @@ export function ZeroUiBusinessDashboard() {
           onDelete={(id) => void deleteListing(id)}
           onMarkSold={(id) => void markListingSold(id)}
           onTopUp={topUpWallet}
-          onPromote={promoteListing}
           onRenew={(id) => void renewListing(id)}
         />
       ) : (

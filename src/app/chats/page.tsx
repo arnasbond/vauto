@@ -68,7 +68,7 @@ export default function ChatsPage() {
           return (
             <Link
               key={chat.id}
-              href={`/chats/thread/?id=${chat.id}`}
+              href={`/pokalbiai/?id=${chat.id}`}
               className={`vauto-glass-card block rounded-2xl p-4 transition hover:border-slate-300 ${
                 unread ? "ring-2 ring-[var(--vauto-teal)]/30" : ""
               }`}

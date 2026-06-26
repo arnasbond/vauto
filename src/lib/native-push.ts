@@ -75,8 +75,14 @@ export function attachNativePushNavigation(navigate: NavigateFn): void {
         const data = action.notification.data as {
           url?: string;
           listingId?: string;
+          chatId?: string;
+          type?: string;
         };
-        const url = data?.url;
+        const url =
+          data?.url ||
+          (data?.chatId
+            ? `/pokalbiai/?id=${encodeURIComponent(data.chatId)}`
+            : undefined);
         if (url) {
           logWakeEvent("fcm_notification_open", { url });
           navigate(url.startsWith("/") ? url : `/${url}`);

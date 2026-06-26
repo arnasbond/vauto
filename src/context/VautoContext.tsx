@@ -116,6 +116,17 @@ import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridg
 import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { logAnalytics } from "@/lib/analytics";
+import { VautoCheckoutModal } from "@/components/checkout/VautoCheckoutModal";
+import {
+  getB2CPromoteProduct,
+  type B2CPromoteProductId,
+  type CheckoutSession,
+} from "@/lib/monetization-catalog";
+import {
+  jobCreditsForPlan,
+  type B2BBillingPlanId,
+} from "@/lib/b2b-plans";
+import { createInvoiceFromCheckout } from "@/lib/invoices";
 import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
 import {
   buildBuddySoldFollowUp,
@@ -254,9 +265,14 @@ interface VautoContextValue {
   login: (data: LoginPayload) => Promise<void>;
   logout: () => void;
   topUpWallet: (amount: number) => void;
-  subscribeB2BPlan: (planId: "starter" | "pro") => Promise<boolean>;
+  subscribeB2BPlan: (planId: B2BBillingPlanId) => Promise<boolean>;
   openBillingPortal: () => Promise<boolean>;
   promoteListing: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
+  checkoutSession: CheckoutSession | null;
+  openCheckout: (session: CheckoutSession) => void;
+  closeCheckout: () => void;
+  completeCheckout: (session: CheckoutSession, paymentMethod: string) => void;
+  paymentHistoryVersion: number;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
   startEditListingFlow: (listing: Listing) => void;
@@ -545,7 +561,19 @@ function VautoFacade({
         onDecline={declineGdprConsent}
       />
       <ConfirmDialog />
+      <CheckoutHost />
     </VautoContext.Provider>
+  );
+}
+
+function CheckoutHost() {
+  const { checkoutSession, closeCheckout, completeCheckout } = useVauto();
+  return (
+    <VautoCheckoutModal
+      session={checkoutSession}
+      onClose={closeCheckout}
+      onComplete={completeCheckout}
+    />
   );
 }
 
@@ -607,6 +635,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
   const [detectedAdaptiveKey, setDetectedAdaptiveKey] =
     useState<AdaptiveCategoryKey | null>(null);
+  const [checkoutSession, setCheckoutSession] = useState<CheckoutSession | null>(null);
+  const [paymentHistoryVersion, setPaymentHistoryVersion] = useState(0);
   const reviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const engagementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buddyFollowUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1299,9 +1329,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const subscribeB2BPlan = useCallback(
-    async (planId: "starter" | "pro") => {
+    async (planId: B2BBillingPlanId) => {
+      const legacyId = planId === "start" ? "starter" : planId === "growth" ? "pro" : "pro";
       if (apiActive) {
-        const r = await apiSubscribeB2BPlan(planId);
+        const r = await apiSubscribeB2BPlan(legacyId);
         if (r.ok) {
           if (r.data.checkoutUrl) {
             window.location.href = r.data.checkoutUrl;
@@ -1312,8 +1343,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             patchAuthUser({
               billingPlan:
                 (u.billingPlan as UserProfile["billingPlan"]) ?? planId,
-              role:
-                u.role === "pro" || planId === "pro" ? "pro" : user.role,
+              role: u.role === "pro" || planId !== "start" ? "pro" : user.role,
+              jobListingCredits: jobCreditsForPlan(planId),
+              billingModel: "subscription",
             });
           }
           if (r.data.message) showToast(r.data.message, "success");
@@ -1324,14 +1356,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       patchAuthUser({
         billingPlan: planId,
-        role: planId === "pro" ? "pro" : user.role,
+        role: "pro",
+        billingModel: "subscription",
+        jobListingCredits: jobCreditsForPlan(planId),
       });
-      showToast(
-        planId === "pro"
-          ? "Pro planas aktyvuotas (demo)"
-          : "Starto planas užregistruotas (demo)",
-        "success"
-      );
+      showToast(`${planId.toUpperCase()} planas aktyvuotas (demo)`, "success");
       return true;
     },
     [apiActive, patchAuthUser, showToast, user.role]
@@ -1410,6 +1439,100 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const dismissSoldPrompt = useCallback((listingId: string) => {
     setSoldPromptDismissed((prev) => new Set([...prev, listingId]));
   }, []);
+
+  const applyB2CPromote = useCallback(
+    (listingId: string, productId: B2CPromoteProductId) => {
+      const product = getB2CPromoteProduct(productId);
+      const now = new Date();
+      const expiresAt = product.durationDays
+        ? new Date(now.getTime() + product.durationDays * 86_400_000).toISOString()
+        : undefined;
+
+      setListings((prev) =>
+        prev.map((l) => {
+          if (l.id !== listingId) return l;
+          const m = mockListingMetrics(l);
+          const next: Listing = {
+            ...l,
+            promoted: true,
+            createdAt: now.toISOString(),
+            views: m.views + (product.bumpOnly ? 25 : 50),
+            callClicks: m.callClicks + 3,
+            interestScore: Math.min(99, m.interestScore + 5),
+          };
+          if (product.visibilityTier) {
+            next.visibilityTier = product.visibilityTier;
+            next.visibilityExpiresAt = expiresAt;
+            if (product.visibilityTier === "top") {
+              next.visibilityPlanTier = 5;
+            } else if (product.visibilityTier === "plus") {
+              next.visibilityPlanTier = 2;
+            }
+          }
+          return next;
+        })
+      );
+
+      if (isDataApiEnabled()) {
+        const tierId: VisibilityTierId =
+          product.visibilityTier === "top" ? 5 : product.visibilityTier === "plus" ? 2 : 1;
+        void apiPromoteListing(listingId, product.priceEur, tierId).catch(() => undefined);
+      }
+    },
+    []
+  );
+
+  const openCheckout = useCallback((session: CheckoutSession) => {
+    setCheckoutSession(session);
+  }, []);
+
+  const closeCheckout = useCallback(() => {
+    setCheckoutSession(null);
+  }, []);
+
+  const completeCheckout = useCallback(
+    (session: CheckoutSession, paymentMethod: string) => {
+      createInvoiceFromCheckout({
+        user,
+        serviceTitle: session.lineTitle,
+        serviceDescription: session.lineDescription,
+        amountGross: session.amountEur,
+        vatRate: session.vatRate,
+        paymentMethod,
+        checkoutKind: session.kind,
+        productId: session.productId,
+        listingId: session.listingId,
+      });
+      setPaymentHistoryVersion((v) => v + 1);
+
+      if (session.kind === "b2c_promote" && session.listingId) {
+        applyB2CPromote(session.listingId, session.productId as B2CPromoteProductId);
+        const product = getB2CPromoteProduct(session.productId as B2CPromoteProductId);
+        showToast(`„${product.title}“ aktyvuota! Skelbimas atnaujintas.`, "success");
+        logAnalytics("checkout_b2c_promote", {
+          listingId: session.listingId,
+          productId: session.productId,
+          amount: session.amountEur,
+        });
+      } else if (session.kind === "b2b_subscription") {
+        const planId = session.productId as B2BBillingPlanId;
+        patchAuthUser({
+          billingPlan: planId,
+          role: "pro",
+          billingModel: "subscription",
+          jobListingCredits: jobCreditsForPlan(planId),
+        });
+        showToast(
+          `${planId.toUpperCase()} prenumerata aktyvuota — kreditai priskirti!`,
+          "success"
+        );
+        logAnalytics("checkout_b2b_plan", { planId, amount: session.amountEur });
+      }
+
+      setCheckoutSession(null);
+    },
+    [user, applyB2CPromote, patchAuthUser, showToast]
+  );
 
   const promoteListing = useCallback(
     (listingId: string, cost: number, tierId: VisibilityTierId): boolean => {
@@ -1554,6 +1677,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       subscribeB2BPlan,
       openBillingPortal,
       promoteListing,
+      checkoutSession,
+      openCheckout,
+      closeCheckout,
+      completeCheckout,
+      paymentHistoryVersion,
       updateListing,
       markListingSold,
       isAdmin,
@@ -1634,6 +1762,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       subscribeB2BPlan,
       openBillingPortal,
       promoteListing,
+      checkoutSession,
+      openCheckout,
+      closeCheckout,
+      completeCheckout,
+      paymentHistoryVersion,
       updateListing,
       markListingSold,
       isAdmin,

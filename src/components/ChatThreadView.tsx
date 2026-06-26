@@ -3,8 +3,8 @@
 import { ArrowLeft, Send } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useState } from "react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
+import { MessageStatusTicks } from "@/components/chat/MessageStatusTicks";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
 import { ReportButton } from "@/components/support/ReportButton";
 import { useVauto } from "@/context/VautoContext";
@@ -12,7 +12,8 @@ import { getQuickQuestions } from "@/lib/chat-helpers";
 import { canReviewListing } from "@/lib/reviews";
 
 function ChatThreadContent({ chatId }: { chatId: string }) {
-  const { chats, sendMessage, user, listings, setActiveChatId, reviews, queueReviewPrompt } = useVauto();
+  const { chats, sendMessage, user, listings, setActiveChatId, reviews, queueReviewPrompt } =
+    useVauto();
   const [draft, setDraft] = useState("");
   const chat = chats.find((c) => c.id === chatId);
   const listing = listings.find((l) => l.id === chat?.listingId);
@@ -49,17 +50,19 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
 
   return (
     <div className="flex h-[calc(100dvh-2rem)] flex-col px-4">
-      <div className="mb-4 flex items-center gap-3 border-b border-slate-200 pb-3">
+      <div className="mb-4 flex items-center gap-3 border-b border-[var(--vauto-border)] pb-3">
         <Link
-          href="/chats"
-          className="rounded-full p-2 text-slate-600 hover:bg-slate-100"
+          href="/pokalbiai/"
+          className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
-        <div className="flex-1">
-          <h1 className="font-semibold text-slate-900">{chat.listingTitle}</h1>
-          <p className="text-xs text-slate-500">
-            {isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis"}
+        <div className="flex-1 min-w-0">
+          <h1 className="truncate font-semibold text-[var(--vauto-text)]">
+            {chat.listingTitle}
+          </h1>
+          <p className="text-xs text-[var(--vauto-text-muted)]">
+            {isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis"} · realiu laiku
           </p>
         </div>
         <ReportButton
@@ -82,15 +85,22 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
               className={`flex ${isMe ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[80%] rounded-2xl px-4 py-2.5 text-sm ${
+                className={`max-w-[85%] rounded-2xl px-4 py-2.5 text-sm ${
                   isSystem
-                    ? "rounded-md border border-slate-200 bg-slate-50 text-xs italic text-slate-600"
+                    ? "rounded-md border border-[var(--vauto-border)] bg-[var(--vauto-bg)]/60 text-xs italic text-[var(--vauto-text-muted)]"
                     : isMe
                       ? "rounded-br-md bg-[var(--vauto-teal)] text-white"
-                      : "rounded-bl-md bg-slate-100 text-slate-900"
+                      : "rounded-bl-md bg-[var(--vauto-surface)] text-[var(--vauto-text)] border border-[var(--vauto-border)]"
                 }`}
               >
-                {msg.text}
+                <span>{msg.text}</span>
+                <span className="mt-1 flex items-center justify-end gap-0.5 text-[10px] opacity-80">
+                  {new Date(msg.timestamp).toLocaleTimeString("lt-LT", {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })}
+                  <MessageStatusTicks message={msg} isOwn={isMe} />
+                </span>
               </div>
             </div>
           );
@@ -108,7 +118,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
               key={q}
               type="button"
               onClick={() => sendMessage(chatId, q)}
-              className="rounded-full border border-[var(--flux-teal)]/30 bg-[var(--flux-teal)]/10 px-3 py-1.5 text-xs font-medium text-[var(--flux-teal)]"
+              className="rounded-full border border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10 px-3 py-1.5 text-xs font-medium text-[var(--vauto-teal)]"
             >
               {q}
             </button>
@@ -117,8 +127,8 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
       )}
 
       {showReviewPrompt && (
-        <div className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3">
-          <p className="text-xs text-amber-900">
+        <div className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+          <p className="text-xs text-amber-900 dark:text-amber-100">
             Ar pavyko susitarti dėl {chat.listingTitle}?
           </p>
           <button
@@ -130,16 +140,16 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
                 sellerId: chat.sellerId,
               })
             }
-            className="mt-2 text-xs font-semibold text-amber-800 underline"
+            className="mt-2 text-xs font-semibold text-amber-800 underline dark:text-amber-200"
           >
             Palikti atsiliepimą
           </button>
         </div>
       )}
 
-      <div className="flex gap-2 border-t border-slate-200 pt-3">
+      <div className="flex gap-2 border-t border-[var(--vauto-border)] pt-3">
         <label htmlFor="chat-message-input" className="sr-only">
-          Žinutė pardavėjui
+          Žinutė
         </label>
         <input
           id="chat-message-input"
@@ -147,12 +157,12 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder='Parašykite... (bandykite "perku" arba "tinka")'
-          className="flex-1 rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
+          className="flex-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] px-4 py-3 text-sm text-[var(--vauto-text)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
         />
         <button
           type="button"
           onClick={handleSend}
-          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--flux-coral)] text-white transition hover:opacity-90"
+          className="flex h-12 w-12 items-center justify-center rounded-xl bg-[var(--vauto-orange)] text-white transition hover:opacity-90"
           aria-label="Siųsti"
         >
           <Send className="h-5 w-5" />

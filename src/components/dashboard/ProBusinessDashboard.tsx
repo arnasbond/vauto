@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
+import { B2BPlanCreditsCard } from "@/components/dashboard/B2BPlanCreditsCard";
 import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
 import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { BusinessMarketInsights } from "@/components/dashboard/BusinessMarketInsights";
@@ -19,7 +20,6 @@ import { useVauto } from "@/context/VautoContext";
 import { apiFetchHealthDetails } from "@/lib/api/client";
 import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
-import type { VisibilityTierId } from "@/lib/visibility-plans";
 
 type DashboardTab = "overview" | "listings" | "pricing";
 
@@ -27,11 +27,11 @@ interface ProBusinessDashboardProps {
   user: UserProfile;
   listings: Listing[];
   allListings: Listing[];
+  activeJobListings?: number;
   onEdit: (listing: Listing) => void;
   onDelete: (id: string) => void;
   onMarkSold: (id: string) => void;
   onTopUp: (amount: number) => void;
-  onPromote: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   onRenew: (id: string) => void;
 }
 
@@ -45,11 +45,11 @@ export function ProBusinessDashboard({
   user,
   listings,
   allListings,
+  activeJobListings = 0,
   onEdit,
   onDelete,
   onMarkSold,
   onTopUp,
-  onPromote,
   onRenew,
 }: ProBusinessDashboardProps) {
   const {
@@ -58,8 +58,7 @@ export function ProBusinessDashboard({
     dismissSoldPrompt,
     reviews,
     sellerAnalytics,
-    subscribeB2BPlan,
-    openBillingPortal,
+    openCheckout,
     apiActive,
   } = useVauto();
   const [stripeEnabled, setStripeEnabled] = useState(false);
@@ -96,6 +95,14 @@ export function ProBusinessDashboard({
     <div>
       <BusinessIdentityCard user={user} />
 
+      {user.role === "pro" && (
+        <B2BPlanCreditsCard
+          user={user}
+          activeJobListings={activeJobListings}
+          onOpenCheckout={openCheckout}
+        />
+      )}
+
       <div className="mb-4 flex gap-2 overflow-x-auto">
         {TABS.map((item) => (
           <button
@@ -105,7 +112,7 @@ export function ProBusinessDashboard({
             className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold ${
               tab === item.id
                 ? "bg-[var(--vauto-teal)] text-white"
-                : "bg-slate-100 text-slate-600"
+                : "bg-[var(--vauto-bg)] text-[var(--vauto-text-muted)]"
             }`}
           >
             {item.label}
@@ -169,8 +176,7 @@ export function ProBusinessDashboard({
             callClicks={sellerAnalytics.callClicks}
             activeListings={listings.length}
             currentPlan={user.billingPlan}
-            onSubscribe={subscribeB2BPlan}
-            onManageBilling={openBillingPortal}
+            onOpenCheckout={openCheckout}
             stripeEnabled={stripeEnabled}
           />
           <VisibilityPricingCard
@@ -184,12 +190,12 @@ export function ProBusinessDashboard({
 
       {tab === "listings" && (
         <section className="mt-2">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
+          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
             Mano skelbimai
           </h2>
           <div className="space-y-3">
             {listings.length === 0 ? (
-              <p className="vauto-dashboard-card rounded-2xl py-8 text-center text-sm text-slate-500">
+              <p className="vauto-dashboard-card rounded-2xl py-8 text-center text-sm text-[var(--vauto-text-muted)]">
                 Pridėkite skelbimus ir stebėkite analitiką realiu laiku.
               </p>
             ) : (
@@ -200,12 +206,10 @@ export function ProBusinessDashboard({
                     allListings={allListings}
                     user={user}
                     buyerIntentCount={buyerIntentCount}
-                    walletBalance={user.walletBalance ?? 0}
                     autoOpenPromote={promoteTargetId === l.id}
                     onPromoteOpened={() => setPromoteTargetId(null)}
                     onEdit={() => onEdit(l)}
                     onDelete={() => onDelete(l.id)}
-                    onPromote={onPromote}
                     onRenew={() => onRenew(l.id)}
                   />
                 </div>
