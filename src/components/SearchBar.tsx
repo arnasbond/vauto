@@ -352,7 +352,7 @@ export function SearchBar({
         className={cn(
           "flex items-center gap-2 border shadow-sm transition-colors",
           isHero
-            ? "vauto-flux-glass rounded-[1.35rem] py-2.5 pl-4 pr-2"
+            ? "home-ai-hero-search rounded-[1.35rem] py-2.5 pl-4 pr-2"
             : "rounded-xl bg-white py-1.5 pl-3.5 pr-1.5",
           zeroUiActive && "zero-ui-search-active"
         )}
@@ -388,8 +388,8 @@ export function SearchBar({
           }
           enterKeyHint="search"
           className={cn(
-            "min-w-0 flex-1 border-none bg-transparent text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)] outline-none",
-            isHero ? "text-[15px]" : "text-sm"
+            "min-w-0 flex-1 border-none bg-transparent outline-none",
+            isHero ? "text-[15px]" : "text-sm text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)]"
           )}
           disabled={agentBusy || searchLoading || isPhotoSearching || recording}
           autoComplete="off"

@@ -1106,3 +1106,150 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.25);
   border-color: #fafafa;
 }
+
+/* ── Home AI Hero: WCAG-safe contrast (light vs dark) ── */
+[data-app-theme="vauto-original"],
+[data-app-theme="light-minimal"] {
+  --home-ai-input-text: #1e293b;
+  --home-ai-input-placeholder: #64748b;
+  --home-ai-input-caret: var(--vauto-primary);
+  --home-ai-heading: #0f172a;
+  --home-ai-body: #0f172a;
+  --home-ai-muted: #475569;
+  --home-ai-glass-bg: #ffffff;
+  --home-ai-glass-border: rgba(15, 23, 42, 0.14);
+  --home-ai-chip-bg: #f1f5f9;
+  --home-ai-chip-text: #0f172a;
+  --home-ai-panel-bg: #ffffff;
+}
+
+[data-app-theme="vauto-original"] .vauto-dashboard-card,
+[data-app-theme="vauto-original"] .vauto-glass-card,
+[data-app-theme="vauto-original"] .vauto-flux-glass {
+  border: 1px solid rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.08);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+}
+
+[data-app-theme="dark"],
+[data-theme="dark"] {
+  --home-ai-input-text: #ffffff;
+  --home-ai-input-placeholder: #94a3b8;
+  --home-ai-input-caret: var(--vauto-primary);
+  --home-ai-heading: #e2e8f0;
+  --home-ai-body: #e2e8f0;
+  --home-ai-muted: #94a3b8;
+  --home-ai-glass-bg: rgba(255, 255, 255, 0.07);
+  --home-ai-glass-border: rgba(255, 255, 255, 0.12);
+  --home-ai-chip-bg: var(--vauto-card-bg);
+  --home-ai-chip-text: #e2e8f0;
+  --home-ai-panel-bg: var(--vauto-card-bg);
+}
+
+.home-ai-hero-greeting {
+  color: var(--home-ai-heading);
+}
+
+.home-ai-hero-search {
+  background: var(--home-ai-glass-bg) !important;
+  border-color: var(--home-ai-glass-border) !important;
+  color: var(--home-ai-body);
+}
+
+.home-ai-hero-search input[type="search"],
+.home-ai-hero-search input[type="text"] {
+  color: var(--home-ai-input-text) !important;
+  -webkit-text-fill-color: var(--home-ai-input-text) !important;
+  caret-color: var(--home-ai-input-caret);
+}
+
+.home-ai-hero-search input[type="search"]::placeholder,
+.home-ai-hero-search input[type="text"]::placeholder {
+  color: var(--home-ai-input-placeholder) !important;
+  -webkit-text-fill-color: var(--home-ai-input-placeholder) !important;
+  opacity: 1;
+}
+
+.home-ai-insight-panel {
+  color: var(--home-ai-body);
+}
+
+.home-ai-insight-panel .home-ai-insight-summary {
+  color: var(--home-ai-body);
+}
+
+.home-ai-insight-panel .home-ai-insight-muted {
+  color: var(--home-ai-muted);
+}
+
+.home-ai-insight-panel .home-ai-insight-label {
+  color: var(--home-ai-muted);
+}
+
+.home-ai-insight-panel .home-ai-insight-chip {
+  background: var(--home-ai-chip-bg);
+  color: var(--home-ai-chip-text);
+  border-color: var(--home-ai-glass-border);
+}
+
+.home-ai-insight-panel .home-ai-insight-loading {
+  color: var(--home-ai-muted);
+  background: var(--home-ai-panel-bg);
+  border-color: var(--home-ai-glass-border);
+}
+
+.home-ai-insight-panel .home-ai-chat-assistant {
+  color: var(--home-ai-body);
+  background: var(--home-ai-panel-bg);
+  border-color: var(--home-ai-glass-border);
+}
+
+.home-ai-insight-panel .home-ai-followup-input {
+  color: var(--home-ai-input-text) !important;
+  -webkit-text-fill-color: var(--home-ai-input-text) !important;
+  caret-color: var(--home-ai-input-caret);
+}
+
+.home-ai-insight-panel .home-ai-followup-input::placeholder {
+  color: var(--home-ai-input-placeholder) !important;
+  -webkit-text-fill-color: var(--home-ai-input-placeholder) !important;
+  opacity: 1;
+}
+
+.home-ai-insight-panel .home-ai-followup-shell {
+  background: var(--home-ai-panel-bg);
+  border-color: var(--home-ai-glass-border);
+}
+
+.home-quick-action-btn {
+  background: var(--home-ai-glass-bg);
+  border: 1px solid var(--home-ai-glass-border);
+  color: var(--home-ai-body);
+  box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.08);
+}
+
+[data-app-theme="dark"] .home-quick-action-btn,
+[data-theme="dark"] .home-quick-action-btn {
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06);
+}
+
+.home-quick-action-btn .home-quick-action-label {
+  color: var(--home-ai-heading);
+}
+
+.home-quick-action-btn .home-quick-action-sublabel {
+  color: var(--home-ai-muted);
+}
+
+[data-app-theme="vauto-original"] .home-quick-action-btn:hover,
+[data-app-theme="light-minimal"] .home-quick-action-btn:hover {
+  background: #f8fafc;
+  border-color: rgba(15, 23, 42, 0.2);
+}
+
+[data-app-theme="dark"] .home-quick-action-btn:hover,
+[data-theme="dark"] .home-quick-action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  border-color: rgba(255, 255, 255, 0.18);
+}

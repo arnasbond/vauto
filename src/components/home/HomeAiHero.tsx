@@ -61,7 +61,7 @@ export function HomeAiHero({
             className="h-4 w-4 shrink-0 text-[var(--vauto-primary)]"
             aria-hidden
           />
-          <p className="font-display text-[15px] font-medium leading-snug text-[var(--vauto-text-main)] sm:text-base">
+          <p className="home-ai-hero-greeting font-display text-[15px] font-medium leading-snug sm:text-base">
             Sveiki, aš esu VAUTO asistentas. Ko ieškote šiandien?
           </p>
         </div>

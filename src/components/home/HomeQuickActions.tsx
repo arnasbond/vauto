@@ -84,15 +84,15 @@ export function HomeQuickActions({
           key={action.id}
           type="button"
           onClick={() => handleAction(action.id)}
-          className="group vauto-flux-glass flex flex-col items-start rounded-2xl px-3.5 py-3 text-left transition hover:border-[var(--vauto-primary)]/40 hover:bg-white/[0.09] active:scale-[0.98]"
+          className="group home-quick-action-btn flex flex-col items-start rounded-2xl px-3.5 py-3 text-left transition hover:border-[var(--vauto-primary)]/40 active:scale-[0.98]"
         >
           <span className="text-lg leading-none" aria-hidden>
             {action.emoji}
           </span>
-          <span className="mt-2 text-[13px] font-semibold leading-tight text-[var(--vauto-text-main)]">
+          <span className="home-quick-action-label mt-2 text-[13px] font-semibold leading-tight">
             {action.label}
           </span>
-          <span className="mt-0.5 text-[10px] text-[var(--vauto-text-muted)]">
+          <span className="home-quick-action-sublabel mt-0.5 text-[10px]">
             {action.sublabel}
           </span>
         </button>
