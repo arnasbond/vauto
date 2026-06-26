@@ -13,6 +13,7 @@
     "cap:sync": "npx cap sync android",
     "cap:open": "npx cap open android",
     "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
+    "apk:release": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1 -Release",
     "server:install": "npm install --prefix server",
     "server:dev": "npm run dev --prefix server",
     "server:build": "npm run build --prefix server",

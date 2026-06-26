@@ -39,6 +39,8 @@ import {
   loadSoldPromptDismissed,
   loadUser,
   saveGdprConsent,
+  saveChats,
+  saveInvoices,
   saveListings,
   saveOpenedServiceLeads,
   saveSavedIds,
@@ -127,6 +129,9 @@ import {
   type B2BBillingPlanId,
 } from "@/lib/b2b-plans";
 import { createInvoiceFromCheckout } from "@/lib/invoices";
+import { buildInvestorDemoBundle } from "@/lib/investor-demo";
+import { saveJobApplications } from "@/lib/job-applications";
+import { dispatchChatPushNotification } from "@/lib/chat-push";
 import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
 import {
   buildBuddySoldFollowUp,
@@ -273,6 +278,8 @@ interface VautoContextValue {
   closeCheckout: () => void;
   completeCheckout: (session: CheckoutSession, paymentMethod: string) => void;
   paymentHistoryVersion: number;
+  activateInvestorDemo: () => Promise<void>;
+  investorDemoActive: boolean;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
   startEditListingFlow: (listing: Listing) => void;
@@ -590,6 +597,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     requireAuthForListing,
     login,
     logout,
+    restoreDemoSession,
     authModalOpen,
     authRedirectPath,
   } = useAuth();
@@ -637,6 +645,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     useState<AdaptiveCategoryKey | null>(null);
   const [checkoutSession, setCheckoutSession] = useState<CheckoutSession | null>(null);
   const [paymentHistoryVersion, setPaymentHistoryVersion] = useState(0);
+  const [investorDemoActive, setInvestorDemoActive] = useState(false);
   const reviewTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const engagementTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const buddyFollowUpTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1534,6 +1543,36 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [user, applyB2CPromote, patchAuthUser, showToast]
   );
 
+  const activateInvestorDemo = useCallback(async () => {
+    const bundle = buildInvestorDemoBundle(listings);
+    restoreDemoSession(bundle.profile);
+    const mergedListings = [
+      ...bundle.jobListings,
+      ...listings.filter(
+        (l) => !bundle.jobListings.some((j) => j.id === l.id)
+      ),
+    ];
+    setListings(mergedListings);
+    saveListings(mergedListings);
+    saveChats(bundle.chats);
+    saveInvoices(bundle.invoices);
+    saveJobApplications(bundle.applications);
+    setPaymentHistoryVersion((v) => v + 1);
+    setInvestorDemoActive(true);
+    if (typeof window !== "undefined") {
+      localStorage.setItem("vauto_investor_demo_unlocked_v1", "1");
+      window.dispatchEvent(new Event("vauto-chats-reload"));
+    }
+    showToast("Investuotojų demo aktyvuota — B2B kabinetas paruoštas!", "success");
+    logAnalytics("seller_engagement_push", { demo: "investor" });
+
+    bundle.pushPayloads.forEach((payload, i) => {
+      window.setTimeout(() => {
+        void dispatchChatPushNotification(payload);
+      }, 1200 + i * 1800);
+    });
+  }, [listings, restoreDemoSession, showToast]);
+
   const promoteListing = useCallback(
     (listingId: string, cost: number, tierId: VisibilityTierId): boolean => {
       const balance = user.walletBalance ?? 0;
@@ -1682,6 +1721,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       closeCheckout,
       completeCheckout,
       paymentHistoryVersion,
+      activateInvestorDemo,
+      investorDemoActive,
       updateListing,
       markListingSold,
       isAdmin,
@@ -1767,6 +1808,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       closeCheckout,
       completeCheckout,
       paymentHistoryVersion,
+      activateInvestorDemo,
+      investorDemoActive,
       updateListing,
       markListingSold,
       isAdmin,

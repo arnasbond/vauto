@@ -96,8 +96,6 @@ export async function createVoiceSession(): Promise<VoiceSession | null> {
 }
 
 /** Transcribe using browser speech only (Whisper removed). */
-export async function transcribeFromSession(
-  _session: VoiceSession
-): Promise<string | null> {
+export async function transcribeFromSession(): Promise<string | null> {
   return null;
 }

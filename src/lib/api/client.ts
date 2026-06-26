@@ -160,22 +160,6 @@ async function aiFetch<T>(
   return null;
 }
 
-async function aiFetchWithMeta<T>(
-  path: string,
-  opts?: RequestInit,
-  timeoutMs = AI_FETCH_TIMEOUT_MS,
-  bases?: string[]
-): Promise<{ data: T | null; error?: string; code?: string }> {
-  let lastError: { error?: string; code?: string } = {};
-  const urls = bases?.length ? bases : getAiBaseUrls();
-  for (const base of urls) {
-    const result = await aiFetchOnce<T>(base, path, opts, timeoutMs);
-    if (result.data !== null) return result;
-    lastError = { error: result.error, code: result.code };
-  }
-  return { data: null, ...lastError };
-}
-
 export interface ApiHealthDetails {
   ok: boolean;
   service: string;

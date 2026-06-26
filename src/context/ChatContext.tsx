@@ -118,6 +118,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [chats, hydrated, apiActive]);
 
   useEffect(() => {
+    if (typeof window === "undefined") return;
+    const reload = () => {
+      const stored = loadChats();
+      if (stored?.length) setChats(stored);
+    };
+    window.addEventListener("vauto-chats-reload", reload);
+    return () => window.removeEventListener("vauto-chats-reload", reload);
+  }, []);
+
+  useEffect(() => {
     return subscribeChatEvents((event) => {
       if (event.type === "CHAT_UPSERT") {
         setChats((prev) => mergeThreadUpdate(prev, event.thread));

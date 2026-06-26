@@ -1,34 +1,49 @@
-# Build Vauto debug APK for Android testing
+# Build Vauto Android APK (debug by default, release with -Release)
+param(
+    [switch]$Release
+)
+
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $PSScriptRoot
 Set-Location $root
 
+$variant = if ($Release) { "Release" } else { "Debug" }
+$gradleTask = if ($Release) { "assembleRelease" } else { "assembleDebug" }
+$apkName = if ($Release) { "app-release-unsigned.apk" } else { "app-debug.apk" }
+$outName = if ($Release) { "vauto-release-unsigned.apk" } else { "vauto-debug.apk" }
+
 Write-Host "==> Building Next.js static export..." -ForegroundColor Cyan
 npm run build
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> Syncing Capacitor Android..." -ForegroundColor Cyan
+Write-Host "==> Syncing Capacitor Android (webDir: out)..." -ForegroundColor Cyan
 npx cap sync android
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> Building debug APK..." -ForegroundColor Cyan
+Write-Host "==> Building $variant APK..." -ForegroundColor Cyan
 Set-Location android
 if (Test-Path ".\gradlew.bat") {
-    .\gradlew.bat assembleDebug
+    .\gradlew.bat $gradleTask
 } else {
-    .\gradlew assembleDebug
+    .\gradlew $gradleTask
 }
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 Set-Location $root
 
-$apk = Join-Path $root "android\app\build\outputs\apk\debug\app-debug.apk"
+$apk = Join-Path $root "android\app\build\outputs\apk\$($variant.ToLower())\$apkName"
 $dist = Join-Path $root "dist"
 if (-not (Test-Path $dist)) { New-Item -ItemType Directory -Path $dist | Out-Null }
 if (Test-Path $apk) {
-    Copy-Item $apk (Join-Path $dist "vauto-debug.apk") -Force
+    Copy-Item $apk (Join-Path $dist $outName) -Force
     Write-Host ""
-    Write-Host "APK sukurta:" -ForegroundColor Green
+    Write-Host "APK sukurta ($variant):" -ForegroundColor Green
     Write-Host $apk
     Write-Host "Kopija:" -ForegroundColor Green
-    Write-Host (Join-Path $dist "vauto-debug.apk")
+    Write-Host (Join-Path $dist $outName)
     Write-Host ""
+    if ($Release) {
+        Write-Host "Release APK nepasirasyta — pasirasykite Android Studio arba jarsigner pries platinima." -ForegroundColor Yellow
+    }
     Write-Host "Idiekite i telefona:" -ForegroundColor Yellow
     Write-Host "  adb install -r `"$apk`""
 } else {

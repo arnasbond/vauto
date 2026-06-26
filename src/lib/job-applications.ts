@@ -77,6 +77,10 @@ export function updateApplicationStatus(
 }
 
 /** Demo paraiškos darbdaviui — rodoma tik jei nėra realių */
+export function saveJobApplications(apps: JobApplication[]): void {
+  saveAll(apps);
+}
+
 export function seedDemoApplicationsIfEmpty(
   employerId: string,
   jobListings: Listing[]

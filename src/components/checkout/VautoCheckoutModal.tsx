@@ -47,7 +47,7 @@ export function VautoCheckoutModal({
       setCardNumber("");
       completedRef.current = false;
     }
-  }, [session?.id]);
+  }, [session]);
 
   if (!session) return null;
 

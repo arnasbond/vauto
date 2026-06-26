@@ -18,27 +18,32 @@ export function BottomNav() {
   const pathname = usePathname();
   const {
     isAdmin,
+    isAuthenticated,
     unreadAdminCount,
     unreadUserReportCount,
     startUploadFlow,
     sellerStep,
     chats,
     user,
+    openAuthModal,
+    requireAuthForListing,
   } = useVauto();
   const { ui } = useActivePortal();
 
   const profileHref = "/profile/";
   const profileLabel = isAdmin ? "VAUTO CC" : "Profilis";
   const ProfileIcon = isAdmin ? Shield : User;
-  const profileBadge = isAdmin
-    ? unreadAdminCount > 0
-      ? unreadAdminCount
-      : undefined
-    : unreadUserReportCount > 0
-      ? unreadUserReportCount
-      : undefined;
+  const profileBadge =
+    isAuthenticated &&
+    (isAdmin
+      ? unreadAdminCount > 0
+        ? unreadAdminCount
+        : undefined
+      : unreadUserReportCount > 0
+        ? unreadUserReportCount
+        : undefined);
 
-  const unreadChats = countUnreadChats(chats, user.id);
+  const unreadChats = isAuthenticated ? countUnreadChats(chats, user.id) : 0;
 
   const homeActive = pathname === "/" || pathname === "";
   const searchActive =
@@ -50,7 +55,9 @@ export function BottomNav() {
     pathname === "/messages" ||
     pathname.startsWith("/messages/") ||
     pathname === "/chats" ||
-    pathname.startsWith("/chats/");
+    pathname.startsWith("/chats/") ||
+    pathname === "/pokalbiai" ||
+    pathname.startsWith("/pokalbiai/");
   const profileActive =
     pathname === "/profile" || pathname.startsWith("/profile/");
 
@@ -59,7 +66,15 @@ export function BottomNav() {
 
   const handlePlaceAd = () => {
     if (placeAdBusy) return;
+    if (!requireAuthForListing("/add/")) return;
     void startUploadFlow();
+  };
+
+  const handleMessages = (e: React.MouseEvent) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      openAuthModal("/chats/");
+    }
   };
 
   const tabColor = (active: boolean) =>
@@ -114,13 +129,14 @@ export function BottomNav() {
 
         <Link
           href="/messages/"
+          onClick={handleMessages}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(messagesActive) }}
           aria-current={messagesActive ? "page" : undefined}
         >
           <div className="relative">
             <MessageCircle size={22} strokeWidth={messagesActive ? 2.5 : 2} />
-            {unreadChats > 0 && (
+            {isAuthenticated && unreadChats > 0 && (
               <span className="absolute -right-2 -top-1.5 flex h-4 min-w-4 items-center justify-center rounded-full bg-[#ef4444] px-1 text-[9px] font-bold text-white">
                 {unreadChats > 9 ? "9+" : unreadChats}
               </span>
@@ -131,6 +147,12 @@ export function BottomNav() {
 
         <Link
           href={profileHref}
+          onClick={(e) => {
+            if (!isAuthenticated) {
+              e.preventDefault();
+              openAuthModal("/profile/");
+            }
+          }}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(profileActive) }}
           aria-current={profileActive ? "page" : undefined}

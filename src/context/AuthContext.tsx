@@ -76,6 +76,7 @@ interface AuthContextValue {
   closeAuthModal: () => void;
   clearAuthRedirect: () => void;
   requireAuthForListing: (redirectPath?: string) => boolean;
+  restoreDemoSession: (profile: UserProfile) => void;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);
@@ -265,6 +266,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           setUser(profile);
           setIsAuthenticated(true);
+          saveUser(profile);
           return;
         }
 
@@ -276,6 +278,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         });
         setUser(profile);
         setIsAuthenticated(true);
+        saveUser(profile);
       } finally {
         setAuthLoading(false);
       }
@@ -293,6 +296,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       idToken: pending.idToken,
     });
   }, [hydrated, isAuthenticated, login]);
+
+  const restoreDemoSession = useCallback((profile: UserProfile) => {
+    persistAuthSession({
+      isAuthenticated: true,
+      provider: profile.authProvider ?? "phone",
+      loggedInAt: new Date().toISOString(),
+    });
+    saveUser(profile);
+    setUser(profile);
+    setIsAuthenticated(true);
+  }, []);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);
@@ -319,6 +333,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       closeAuthModal,
       clearAuthRedirect,
       requireAuthForListing,
+      restoreDemoSession,
     }),
     [
       user,
@@ -337,6 +352,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       closeAuthModal,
       clearAuthRedirect,
       requireAuthForListing,
+      restoreDemoSession,
     ]
   );
 

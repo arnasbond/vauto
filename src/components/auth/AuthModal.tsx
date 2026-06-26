@@ -320,6 +320,8 @@ export function AuthModal({
           <div className="space-y-4">
             <input
               type="email"
+              name="username"
+              autoComplete="username"
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
               className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-red-400"
@@ -388,6 +390,8 @@ export function AuthModal({
           <div className="space-y-4">
             <input
               type="tel"
+              name="phone"
+              autoComplete="tel"
               value={phone}
               onChange={(e) => setPhone(formatLtPhoneInput(e.target.value))}
               className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-teal)]"
@@ -408,7 +412,9 @@ export function AuthModal({
           <div className="space-y-4">
             <input
               type="text"
+              name="one-time-code"
               inputMode="numeric"
+              autoComplete="one-time-code"
               maxLength={6}
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
@@ -480,6 +486,8 @@ export function AuthModal({
                 <div className="grid gap-2">
                   <input
                     type="text"
+                    name="organization"
+                    autoComplete="organization"
                     value={companyName}
                     onChange={(e) => setCompanyName(e.target.value)}
                     placeholder="Įmonės pavadinimas"

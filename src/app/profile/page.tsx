@@ -16,6 +16,7 @@ import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
+import { InvestorDemoCard } from "@/components/settings/InvestorDemoCard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
@@ -77,8 +78,9 @@ export default function ProfilePage() {
             <Smartphone className="h-3.5 w-3.5" />
             Įdiegti programėlę
           </Link>
-          <div className="mt-6 text-left">
+          <div className="mt-6 text-left space-y-4">
             <ConnectionStatusCard />
+            <InvestorDemoCard />
           </div>
         </div>
       </div>
@@ -137,6 +139,7 @@ export default function ProfilePage() {
           <UserSupportInbox />
         </Suspense>
         <ConnectionStatusCard />
+        <InvestorDemoCard />
         <ThemeSettingsCard />
         <WakeWordSettingsCard />
         <PrivacySettingsCard />
