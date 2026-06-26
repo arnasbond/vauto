@@ -148,8 +148,10 @@ export function ConversationalReport({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[100] flex flex-col transition-colors duration-500 ease-in-out",
-        t.shell
+        manualFallback
+          ? "listing-wizard-overlay flex flex-col bg-white"
+          : "fixed inset-0 z-[100] flex flex-col transition-colors duration-500 ease-in-out",
+        !manualFallback && t.shell
       )}
     >
       {!manualFallback && (
