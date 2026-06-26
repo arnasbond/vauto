@@ -98,17 +98,6 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         Paieškos rezultatai
       </h2>
 
-      {theme === "autoplius" && displayListings.length > 0 && <VehicleSearchPanel />}
-      {theme === "cvbankas" && displayListings.length > 0 && <JobSearchPanel />}
-      {theme === "aruodas" && displayListings.length > 0 && <RealEstateSearchPanel />}
-      {theme === "vinted" && displayListings.length > 0 && <ClothingSearchPanel />}
-      {theme === "skelbiu" && displayListings.length > 0 && <GeneralSearchPanel />}
-      {theme === "paslaugos" && displayListings.length > 0 && <ServiceSearchPanel />}
-
-      <VisualSearchStrip />
-
-      {brokerSignal && <SmartBrokerCard signal={brokerSignal} />}
-
       <MarketplaceFilterBar
         searchQuery={searchQuery}
         resultCount={displayListings.length}
@@ -156,6 +145,26 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       ) : (
         renderListingCards(displayListings)
       )}
+
+      {theme === "autoplius" && displayListings.length > 0 && (
+        <details className="mt-6 rounded-lg border bg-white p-3 shadow-sm" style={{ borderColor: ui.border }}>
+          <summary className="cursor-pointer text-sm font-semibold" style={{ color: ui.accent }}>
+            Išplėstinė automobilių paieška
+          </summary>
+          <div className="mt-3 [&>div]:mb-0">
+            <VehicleSearchPanel />
+          </div>
+        </details>
+      )}
+      {theme === "cvbankas" && displayListings.length > 0 && <JobSearchPanel />}
+      {theme === "aruodas" && displayListings.length > 0 && <RealEstateSearchPanel />}
+      {theme === "vinted" && displayListings.length > 0 && <ClothingSearchPanel />}
+      {theme === "skelbiu" && displayListings.length > 0 && <GeneralSearchPanel />}
+      {theme === "paslaugos" && displayListings.length > 0 && <ServiceSearchPanel />}
+
+      <VisualSearchStrip />
+
+      {brokerSignal && <SmartBrokerCard signal={brokerSignal} />}
     </section>
   );
 }

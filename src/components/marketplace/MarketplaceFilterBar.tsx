@@ -2,15 +2,17 @@
 
 import {
   useCallback,
+  useEffect,
   useLayoutEffect,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
-import { ChevronDown, LayoutGrid, List, Map } from "lucide-react";
+import { ChevronDown, LayoutGrid, List, Map, SlidersHorizontal, X } from "lucide-react";
 import {
   DEFAULT_MARKETPLACE_FILTERS,
+  effectiveChameleonCategory,
   formatResultsLabel,
   MARKETPLACE_RADIUS_OPTIONS,
   MARKETPLACE_SORT_OPTIONS,
@@ -22,7 +24,10 @@ import { LT_CITY_NAMES } from "@/lib/lt-cities";
 import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
 import { CategoryAttributeFilterPanel } from "@/components/marketplace/CategoryAttributeFilterPanel";
-import { countActiveCategoryFilters } from "@/lib/category-attribute-filters";
+import {
+  categoryFilterFieldsFor,
+  countActiveCategoryFilters,
+} from "@/lib/category-attribute-filters";
 
 const CATEGORIES: { id: ListingCategory | "all"; label: string }[] = [
   { id: "all", label: "Visos" },
@@ -157,15 +162,41 @@ export function MarketplaceFilterBar({
   onViewModeChange: (mode: MarketplaceViewMode) => void;
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
+  const [chameleonOpen, setChameleonOpen] = useState(false);
   const safeFilters = normalizeMarketplaceFilters(filters);
 
-  const toggle = (key: string) =>
+  const chameleonCategory = effectiveChameleonCategory(safeFilters.category, searchQuery);
+  const chameleonFieldCount = categoryFilterFieldsFor(chameleonCategory).length;
+  const chameleonActiveCount = countActiveCategoryFilters(safeFilters.categoryAttributes);
+  const hasChameleonFilters = chameleonFieldCount > 0;
+
+  const toggle = (key: string) => {
+    setChameleonOpen(false);
     setOpenKey((prev) => (prev === key ? null : key));
+  };
   const close = () => setOpenKey(null);
 
   const patchFilters = (patch: Partial<MarketplaceFilterState>) => {
     onFiltersChange(normalizeMarketplaceFilters({ ...safeFilters, ...patch }));
   };
+
+  const handleChameleonChange = (categoryAttributes: MarketplaceFilterState["categoryAttributes"]) => {
+    const patch: Partial<MarketplaceFilterState> = { categoryAttributes };
+    if (safeFilters.category === "all" && chameleonCategory !== "all") {
+      patch.category = chameleonCategory;
+    }
+    patchFilters(patch);
+    setChameleonOpen(false);
+  };
+
+  const toggleChameleon = () => {
+    setOpenKey(null);
+    setChameleonOpen((prev) => !prev);
+  };
+
+  useEffect(() => {
+    setChameleonOpen(false);
+  }, [searchQuery, safeFilters.category]);
 
   const categoryLabel =
     CATEGORIES.find((c) => c.id === safeFilters.category)?.label ?? "Visos";
@@ -193,7 +224,29 @@ export function MarketplaceFilterBar({
         <p className="min-w-0 truncate text-sm font-semibold text-[#111827]">
           {formatResultsLabel(searchQuery, resultCount)}
         </p>
-        <div className="flex shrink-0 items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
+        <div className="flex shrink-0 items-center gap-1.5">
+          {hasChameleonFilters && (
+            <button
+              type="button"
+              onClick={toggleChameleon}
+              aria-expanded={chameleonOpen}
+              className={cn(
+                "inline-flex items-center gap-1 rounded-xl border px-2.5 py-1.5 text-xs font-semibold transition",
+                chameleonOpen || chameleonActiveCount > 0
+                  ? "border-[#1167b1] bg-[#1167b1]/10 text-[#1167b1]"
+                  : "border-[#dde5ef] bg-white text-[#374151] hover:border-[#1167b1]/40"
+              )}
+            >
+              <SlidersHorizontal className="h-3.5 w-3.5" />
+              <span>Filtrai</span>
+              {chameleonActiveCount > 0 && (
+                <span className="rounded-full bg-[#1167b1] px-1.5 py-0.5 text-[10px] font-bold text-white">
+                  {chameleonActiveCount}
+                </span>
+              )}
+            </button>
+          )}
+          <div className="flex items-center gap-1 rounded-xl border border-[#dde5ef] bg-white p-0.5">
           {(
             [
               ["list", List, "Sąrašas"],
@@ -218,6 +271,7 @@ export function MarketplaceFilterBar({
               <Icon className="h-4 w-4" />
             </button>
           ))}
+          </div>
         </div>
       </div>
 
@@ -419,12 +473,78 @@ export function MarketplaceFilterBar({
         )}
       </div>
 
-      <CategoryAttributeFilterPanel
-        category={safeFilters.category}
-        filters={safeFilters.categoryAttributes}
-        onChange={(categoryAttributes) => patchFilters({ categoryAttributes })}
-        className="mt-3"
-      />
+      {/* Desktop: expandable panel */}
+      {hasChameleonFilters && chameleonOpen && (
+        <div className="mt-2 hidden max-h-[min(40vh,280px)] overflow-y-auto rounded-2xl border border-[#dde5ef] bg-white p-2 shadow-sm md:block">
+          <div className="mb-1 flex items-center justify-between px-1">
+            <p className="text-xs font-semibold text-slate-700">Chameleon filtrai</p>
+            <button
+              type="button"
+              onClick={() => setChameleonOpen(false)}
+              className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+              aria-label="Suskleisti filtrus"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          </div>
+          <CategoryAttributeFilterPanel
+            category={chameleonCategory}
+            filters={safeFilters.categoryAttributes}
+            onChange={handleChameleonChange}
+            showTitle={false}
+          />
+        </div>
+      )}
+
+      {/* Mobile: bottom sheet */}
+      {hasChameleonFilters &&
+        chameleonOpen &&
+        typeof document !== "undefined" &&
+        createPortal(
+          <div className="md:hidden">
+            <button
+              type="button"
+              className="fixed inset-0 z-[9998] border-0 bg-black/40 p-0"
+              aria-label="Uždaryti filtrus"
+              onClick={() => setChameleonOpen(false)}
+            />
+            <div
+              className="fixed inset-x-0 bottom-0 z-[9999] max-h-[min(75dvh,520px)] overflow-hidden rounded-t-3xl border border-[#dde5ef] bg-white shadow-2xl transition-transform duration-200 ease-out"
+              role="dialog"
+              aria-label="Chameleon filtrai"
+            >
+              <div className="flex items-center justify-between border-b border-[#e8ecf3] px-4 py-3">
+                <p className="text-sm font-bold text-[#111827]">Chameleon filtrai</p>
+                <button
+                  type="button"
+                  onClick={() => setChameleonOpen(false)}
+                  className="rounded-full p-2 text-slate-500 hover:bg-slate-100"
+                  aria-label="Uždaryti"
+                >
+                  <X className="h-5 w-5" />
+                </button>
+              </div>
+              <div className="overflow-y-auto px-3 py-3 pb-[max(1rem,env(safe-area-inset-bottom))]">
+                <CategoryAttributeFilterPanel
+                  category={chameleonCategory}
+                  filters={safeFilters.categoryAttributes}
+                  onChange={handleChameleonChange}
+                  showTitle={false}
+                />
+                {chameleonActiveCount > 0 && (
+                  <button
+                    type="button"
+                    onClick={() => handleChameleonChange({})}
+                    className="mt-3 w-full rounded-xl border border-[#dde5ef] py-2.5 text-sm font-semibold text-[#1167b1]"
+                  >
+                    Išvalyti filtrus ({chameleonActiveCount})
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

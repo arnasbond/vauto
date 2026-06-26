@@ -9,6 +9,7 @@ import { distanceKm, type UserCoords } from "@/lib/geolocation";
 import { coordsForLtCity, detectCityInText } from "@/lib/lt-cities";
 import { sortListingsFast } from "@/lib/fast-agent-search";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
+import { portalExperienceForQuery } from "@/lib/portal-experience";
 
 export type MarketplaceViewMode = "list" | "grid" | "map";
 
@@ -62,6 +63,29 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   radiusKm: null,
   categoryAttributes: { ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS },
 };
+
+/** When category is „all“, infer Chameleon attribute filters from active portal/search. */
+export function effectiveChameleonCategory(
+  category: ListingCategory | "all",
+  searchQuery: string
+): ListingCategory | "all" {
+  if (category !== "all") return category;
+  const theme = portalExperienceForQuery(searchQuery).theme;
+  switch (theme) {
+    case "autoplius":
+      return "vehicles";
+    case "aruodas":
+      return "real_estate";
+    case "vinted":
+      return "clothing";
+    case "cvbankas":
+      return "jobs";
+    case "paslaugos":
+      return "services";
+    default:
+      return "all";
+  }
+}
 
 /** Ensure persisted/partial filter objects always include sort and valid fields */
 export function normalizeMarketplaceFilters(
