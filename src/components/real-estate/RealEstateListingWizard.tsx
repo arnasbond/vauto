@@ -25,6 +25,9 @@ import {
   FEATURE_OPTIONS,
   HEATING_OPTIONS,
   HOUSE_TYPES,
+  isLandPropertyType,
+  LAND_PURPOSE_OPTIONS,
+  LAND_UTILITY_OPTIONS,
   microdistrictsFor,
   MUNICIPALITIES,
   PROPERTY_TYPE_LABELS,
@@ -266,6 +269,17 @@ export function RealEstateListingWizard({
   const streets = useMemo(() => streetsFor(settlement), [settlement]);
   const heating = attrArray(attrs, "heating");
   const features = attrArray(attrs, "features");
+  const landUtilities = attrArray(attrs, "landUtilities");
+
+  const toggleLandUtility = useCallback(
+    (opt: string) => {
+      const next = landUtilities.includes(opt)
+        ? landUtilities.filter((u) => u !== opt)
+        : [...landUtilities, opt];
+      onAttributeChange("landUtilities", next);
+    },
+    [landUtilities, onAttributeChange]
+  );
 
   const breadcrumb = useMemo(() => {
     if (!propertyType) return "";
@@ -292,6 +306,7 @@ export function RealEstateListingWizard({
         ? features.filter((f) => f !== opt)
         : [...features, opt];
       onAttributeChange("features", next);
+      onAttributeChange("ntFeatures", next);
     },
     [features, onAttributeChange]
   );
@@ -533,6 +548,48 @@ export function RealEstateListingWizard({
                 </span>
               </div>
             </div>
+
+            {isLandPropertyType(propertyType) && (
+              <>
+                <div className="mb-4">
+                  <label className="mb-1.5 block text-sm font-medium text-[#424242]">
+                    Sklypo plotas (a / ha)
+                  </label>
+                  <input
+                    type="text"
+                    value={attr(attrs, "landArea") || attr(attrs, "plotArea")}
+                    onChange={(e) => {
+                      onAttributeChange("landArea", e.target.value);
+                      onAttributeChange("plotArea", e.target.value);
+                    }}
+                    placeholder="12 a"
+                    className="w-full rounded-md border border-[#e0e0e0] px-3 py-2.5 text-sm"
+                  />
+                </div>
+                <ChipRow
+                  label="Sklypo paskirtis"
+                  options={LAND_PURPOSE_OPTIONS}
+                  value={attr(attrs, "landPurpose")}
+                  onChange={(v) => onAttributeChange("landPurpose", v)}
+                />
+                <div className="mb-4">
+                  <p className="mb-2 text-sm font-medium text-[#424242]">Komunikacijos</p>
+                  <div className="space-y-2 rounded-md border border-[#e0e0e0] bg-white p-3">
+                    {LAND_UTILITY_OPTIONS.map((opt) => (
+                      <label key={opt} className="flex cursor-pointer items-center gap-3 text-sm text-[#424242]">
+                        <input
+                          type="checkbox"
+                          checked={landUtilities.includes(opt)}
+                          onChange={() => toggleLandUtility(opt)}
+                          className="h-4 w-4 accent-[#c62828]"
+                        />
+                        {opt}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              </>
+            )}
 
             {(propertyType === "namas" || propertyType === "sklypas") && (
               <div className="mb-4">

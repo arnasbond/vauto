@@ -118,9 +118,13 @@ export const HEATING_OPTIONS = [
 ] as const;
 
 export const FEATURE_OPTIONS = [
+  "Balkonas / Terasa",
+  "Sandėliukas",
+  "Parkavimo vieta",
+  "Aptverta teritorija",
+  "Parduodama su baldais",
   "Balkonas",
   "Terasa",
-  "Parkavimo vieta",
   "Garažas",
   "Rūsys",
   "Liftas",
@@ -129,9 +133,51 @@ export const FEATURE_OPTIONS = [
   "Židinys",
   "Sauna",
   "Baseinas",
-  "Su baldais",
   "Su buitine technika",
 ] as const;
+
+/** Aruodas griežti objekto tipai */
+export const ARUODAS_PROPERTY_TYPES = [
+  { id: "butas", label: "Butas" },
+  { id: "namas", label: "Namas" },
+  { id: "sodyba", label: "Sodyba" },
+  { id: "sodo_namelis", label: "Sodo namelis" },
+  { id: "zemes_sklypas", label: "Žemės sklypas" },
+  { id: "misko_sklypas", label: "Miško sklypas" },
+  { id: "patalpos", label: "Patalpos / Komercija" },
+  { id: "garazas", label: "Garažas" },
+] as const;
+
+export const ARUODAS_TRANSACTION_TYPES = [
+  "Parduoda",
+  "Nuomoja",
+  "Trumpalaikė nuoma",
+] as const;
+
+export const LAND_PURPOSE_OPTIONS = [
+  "Namų valda",
+  "Žemės ūkio",
+  "Komercinė",
+  "Miškų ūkio",
+  "Sodų",
+  "Rekreacinė",
+] as const;
+
+export const LAND_UTILITY_OPTIONS = [
+  "Elektra",
+  "Dujos",
+  "Vandentiekis",
+] as const;
+
+export const LAND_AREA_UNITS = ["a", "ha"] as const;
+
+export function isLandPropertyType(type: string): boolean {
+  return type === "zemes_sklypas" || type === "misko_sklypas" || type === "sklypas";
+}
+
+export function isBuildingPropertyType(type: string): boolean {
+  return ["butas", "namas", "sodyba", "sodo_namelis", "patalpos", "garazas"].includes(type);
+}
 
 export const SELLER_ROLES = [
   "Privatus asmuo",

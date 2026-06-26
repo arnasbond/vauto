@@ -9,11 +9,17 @@ import {
   AD_VALIDITY_OPTIONS,
   BENEFIT_CATEGORIES,
   buildSalaryLabel,
+  EDUCATION_LEVELS,
+  EMPLOYMENT_TYPES_FULL,
   EXPERIENCE_AREAS,
+  EXPERIENCE_YEARS,
   JOB_CITIES,
   JOB_GROUPS,
   JOB_LOCATION_TYPES,
+  LANGUAGE_LEVELS,
+  LANGUAGE_OPTIONS,
   SALARY_DISPLAY_TYPES,
+  SALARY_GROSS_NET,
   SALARY_PERIODS,
 } from "@/lib/job-catalog";
 import { JOB_TYPE_OFFER, JOB_TYPE_SEEK } from "@/lib/jobs";
@@ -99,8 +105,19 @@ export function JobListingWizard({
   const [openBenefit, setOpenBenefit] = useState<string | null>("Darbo ir laisvalaikio balansas");
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const benefits = attrArray(attrs, "benefits");
+  const languages = attrArray(attrs, "languages");
   const jobMode = attr(attrs, "jobType") || JOB_TYPE_OFFER;
   const isJobSeeker = jobMode === JOB_TYPE_SEEK;
+
+  const toggleLanguage = useCallback(
+    (lang: string) => {
+      const next = languages.includes(lang)
+        ? languages.filter((l) => l !== lang)
+        : [...languages, lang];
+      onAttributeChange("languages", next);
+    },
+    [languages, onAttributeChange]
+  );
 
   const toggleBenefit = useCallback(
     (item: string) => {
@@ -257,6 +274,61 @@ export function JobListingWizard({
                 value={attr(attrs, "locationType")}
                 onChange={(v) => onAttributeChange("locationType", v)}
               />
+              <label className="mb-1 mt-4 block text-sm font-medium text-[#334155]">
+                Išsilavinimas
+              </label>
+              <select
+                value={attr(attrs, "education")}
+                onChange={(e) => onAttributeChange("education", e.target.value)}
+                className="mb-4 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              >
+                <option value="">Pasirinkite</option>
+                {EDUCATION_LEVELS.map((e) => (
+                  <option key={e} value={e}>
+                    {e}
+                  </option>
+                ))}
+              </select>
+              <p className="mb-2 text-sm font-medium text-[#334155]">Kalbos</p>
+              <div className="mb-3 flex flex-wrap gap-2">
+                {LANGUAGE_OPTIONS.map((lang) => (
+                  <button
+                    key={lang}
+                    type="button"
+                    onClick={() => toggleLanguage(lang)}
+                    className={`rounded-full border px-3 py-1 text-xs ${
+                      languages.includes(lang)
+                        ? "border-[#1f4b99] bg-[#1f4b99] text-white"
+                        : "border-[#d9e2f1] text-[#475569]"
+                    }`}
+                  >
+                    {lang}
+                  </button>
+                ))}
+              </div>
+              <label className="mb-1 block text-sm font-medium text-[#334155]">Kalbos lygis</label>
+              <select
+                value={attr(attrs, "languageLevel")}
+                onChange={(e) => onAttributeChange("languageLevel", e.target.value)}
+                className="mb-4 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              >
+                <option value="">—</option>
+                {LANGUAGE_LEVELS.map((l) => (
+                  <option key={l} value={l}>
+                    {l}
+                  </option>
+                ))}
+              </select>
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                CV failo nuoroda (PDF / Word)
+              </label>
+              <input
+                type="url"
+                value={attr(attrs, "cvFile")}
+                onChange={(e) => onAttributeChange("cvFile", e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
             </>
           )}
 
@@ -304,6 +376,26 @@ export function JobListingWizard({
                   Ne visa darbo diena
                 </label>
               </div>
+              <label className="mb-1 mt-4 block text-sm font-medium text-[#334155]">
+                Įmonės juridinis kodas
+              </label>
+              <input
+                type="text"
+                value={attr(attrs, "companyLegalCode")}
+                onChange={(e) => onAttributeChange("companyLegalCode", e.target.value)}
+                placeholder="123456789"
+                className="mb-4 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                Įmonės logotipo nuoroda
+              </label>
+              <input
+                type="url"
+                value={attr(attrs, "companyLogo")}
+                onChange={(e) => onAttributeChange("companyLogo", e.target.value)}
+                placeholder="https://…"
+                className="w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
             </>
           )}
 
@@ -417,6 +509,37 @@ export function JobListingWizard({
                 placeholder="Atlyginimas, bonusai, karjeros galimybės…"
                 className="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
               />
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                Kompetencijos / programos
+              </label>
+              <input
+                type="text"
+                value={attr(attrs, "competencies")}
+                onChange={(e) => onAttributeChange("competencies", e.target.value)}
+                placeholder="Excel, SAP, AutoCAD…"
+                className="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
+              <p className="mb-2 text-sm font-medium text-[#334155]">Etatas</p>
+              <Segmented
+                options={EMPLOYMENT_TYPES_FULL}
+                value={attr(attrs, "employmentType")}
+                onChange={(v) => onAttributeChange("employmentType", v)}
+              />
+              <label className="mb-1 mt-4 block text-sm font-medium text-[#334155]">
+                Reikalaujama patirtis
+              </label>
+              <select
+                value={attr(attrs, "experienceRequired")}
+                onChange={(e) => onAttributeChange("experienceRequired", e.target.value)}
+                className="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              >
+                <option value="">—</option>
+                {EXPERIENCE_YEARS.map((y) => (
+                  <option key={y} value={y}>
+                    {y}
+                  </option>
+                ))}
+              </select>
               <label className="mb-1 block text-sm text-[#475569]">Darbdavys (rodomas skelbime)</label>
               <input
                 type="text"
@@ -509,6 +632,12 @@ export function JobListingWizard({
                 options={SALARY_PERIODS}
                 value={attr(attrs, "salaryPeriod") || "€/mėn."}
                 onChange={(v) => onAttributeChange("salaryPeriod", v)}
+              />
+              <p className="mb-2 mt-4 text-sm font-medium text-[#334155]">Bruto / Neto</p>
+              <Segmented
+                options={SALARY_GROSS_NET}
+                value={attr(attrs, "salaryGrossNet") || "Bruto"}
+                onChange={(v) => onAttributeChange("salaryGrossNet", v)}
               />
             </>
           )}

@@ -21,6 +21,7 @@ import {
   STEERING_OPTIONS,
   vehicleSummaryLabel,
   VEHICLE_MAKES,
+  VEHICLE_EQUIPMENT_OPTIONS,
   type VehicleModification,
 } from "@/lib/vehicle-catalog";
 import {
@@ -69,6 +70,13 @@ interface VehicleListingWizardProps {
 function attr(attrs: Record<string, string | string[] | undefined>, key: string): string {
   const v = attrs[key];
   return Array.isArray(v) ? v.join(", ") : String(v ?? "");
+}
+
+function attrArray(attrs: Record<string, string | string[] | undefined>, key: string): string[] {
+  const v = attrs[key];
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string" && v.trim()) return v.split(",").map((s) => s.trim());
+  return [];
 }
 
 function ChipRow({
@@ -230,6 +238,17 @@ export function VehicleListingWizard({
   const kwSuggestions = useMemo(
     () => powerKwSuggestions(make, model),
     [make, model]
+  );
+  const vehicleOptions = attrArray(attrs, "vehicleOptions");
+
+  const toggleVehicleOption = useCallback(
+    (opt: string) => {
+      const next = vehicleOptions.includes(opt)
+        ? vehicleOptions.filter((o) => o !== opt)
+        : [...vehicleOptions, opt];
+      onAttributeChange("vehicleOptions", next);
+    },
+    [vehicleOptions, onAttributeChange]
   );
 
   const applyModification = useCallback(
@@ -686,6 +705,48 @@ export function VehicleListingWizard({
                   ))}
                 </div>
               )}
+            </div>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-[#374151]">Galia (AG)</label>
+              <div className="flex">
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  value={attr(attrs, "powerHp")}
+                  onChange={(e) => onAttributeChange("powerHp", e.target.value)}
+                  placeholder="105"
+                  className="min-w-0 flex-1 rounded-l-lg border border-[#d1d5db] px-3 py-2.5 text-sm"
+                />
+                <span className="flex items-center rounded-r-lg border border-l-0 border-[#d1d5db] bg-[#f9fafb] px-3 text-sm text-[#6b7280]">
+                  AG
+                </span>
+              </div>
+            </div>
+            <div className="mb-4">
+              <label className="mb-1.5 block text-sm font-medium text-[#374151]">SDK kodas</label>
+              <input
+                type="text"
+                value={attr(attrs, "sdkCode")}
+                onChange={(e) => onAttributeChange("sdkCode", e.target.value)}
+                placeholder="SDK-123456"
+                className="w-full rounded-lg border border-[#d1d5db] px-3 py-2.5 text-sm"
+              />
+            </div>
+            <div className="mb-4">
+              <p className="mb-2 text-sm font-medium text-[#374151]">Papildomos opcijos (Autoplius)</p>
+              <div className="space-y-2 rounded-lg border border-[#e5e7eb] bg-[#f9fafb] p-3">
+                {VEHICLE_EQUIPMENT_OPTIONS.map((opt) => (
+                  <label key={opt} className="flex cursor-pointer items-center gap-3 text-sm text-[#374151]">
+                    <input
+                      type="checkbox"
+                      checked={vehicleOptions.includes(opt)}
+                      onChange={() => toggleVehicleOption(opt)}
+                      className="h-4 w-4 accent-[#1167b1]"
+                    />
+                    {opt}
+                  </label>
+                ))}
+              </div>
             </div>
             <ChipRow
               label="Vairo padėtis"

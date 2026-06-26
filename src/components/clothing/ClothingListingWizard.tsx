@@ -5,13 +5,14 @@ import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import {
   CLOTHING_COLORS,
-  CLOTHING_SIZES,
   formatVintedCategory,
   parseVintedCategory,
   POPULAR_BRANDS,
+  sizesForVintedListing,
   subcategoriesFor,
-  VINTED_CATEGORIES,
+  VINTED_CATEGORY_TREE,
   VINTED_CONDITIONS,
+  VINTED_SHIPPING_OPTIONS,
 } from "@/lib/clothing-catalog";
 import {
   clearClothingListingDraft,
@@ -37,6 +38,13 @@ interface ClothingListingWizardProps {
 function attr(attrs: Record<string, string | string[] | undefined>, key: string): string {
   const v = attrs[key];
   return Array.isArray(v) ? v.join(", ") : String(v ?? "");
+}
+
+function attrArray(attrs: Record<string, string | string[] | undefined>, key: string): string[] {
+  const v = attrs[key];
+  if (Array.isArray(v)) return v;
+  if (typeof v === "string" && v.trim()) return v.split(",").map((s) => s.trim());
+  return [];
 }
 
 function VintedField({
@@ -101,6 +109,31 @@ export function ClothingListingWizard({
 
   const categoryValue = attr(attrs, "vintedCategory");
   const { group: categoryGroup, sub: categorySub } = parseVintedCategory(categoryValue);
+  const sizeOptions = useMemo(
+    () => (categoryGroup && categorySub ? sizesForVintedListing(categoryGroup, categorySub) : []),
+    [categoryGroup, categorySub]
+  );
+  const selectedColors = attrArray(attrs, "colors").length
+    ? attrArray(attrs, "colors")
+    : attr(attrs, "color")
+      ? [attr(attrs, "color")]
+      : [];
+  const shippingOptions = attrArray(attrs, "shipping");
+
+  const toggleColor = (color: string) => {
+    const next = selectedColors.includes(color)
+      ? selectedColors.filter((c) => c !== color)
+      : [...selectedColors, color];
+    onAttributeChange("colors", next);
+    onAttributeChange("color", next[0] ?? "");
+  };
+
+  const toggleShipping = (opt: string) => {
+    const next = shippingOptions.includes(opt)
+      ? shippingOptions.filter((s) => s !== opt)
+      : [...shippingOptions, opt];
+    onAttributeChange("shipping", next);
+  };
 
   const canPublish =
     Boolean(previewImage) &&
@@ -109,7 +142,7 @@ export function ClothingListingWizard({
     Boolean(attr(attrs, "size")) &&
     Boolean(attr(attrs, "brand")) &&
     Boolean(attr(attrs, "condition")) &&
-    Boolean(attr(attrs, "color")) &&
+    selectedColors.length > 0 &&
     draft.price > 0;
 
   const handleSaveDraft = () => {
@@ -248,7 +281,7 @@ export function ClothingListingWizard({
 
           {showCategoryPicker && (
             <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
-              {Object.keys(VINTED_CATEGORIES).map((group) => (
+              {Object.keys(VINTED_CATEGORY_TREE).map((group) => (
                 <div key={group} className="border-b border-[#f3f4f6] last:border-0">
                   <p className="bg-[#faf8f5] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                     {group}
@@ -278,7 +311,7 @@ export function ClothingListingWizard({
               <div>
                 <label className="mb-1.5 block text-xs text-[#9ca3af]">Dydis *</label>
                 <div className="flex flex-wrap gap-2">
-                  {CLOTHING_SIZES.map((size) => (
+                  {(sizeOptions.length ? sizeOptions : ["XS", "S", "M", "L", "XL"]).map((size) => (
                     <button
                       key={size}
                       type="button"
@@ -329,21 +362,38 @@ export function ClothingListingWizard({
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs text-[#9ca3af]">Spalva *</label>
+                <label className="mb-1.5 block text-xs text-[#9ca3af]">Spalva * (galima kelios)</label>
                 <div className="flex flex-wrap gap-2">
                   {CLOTHING_COLORS.map((color) => (
                     <button
                       key={color}
                       type="button"
-                      onClick={() => onAttributeChange("color", color)}
+                      onClick={() => toggleColor(color)}
                       className={`rounded-full border px-3 py-1.5 text-xs ${
-                        attr(attrs, "color") === color
+                        selectedColors.includes(color)
                           ? "border-[#09b1a8] bg-[#09b1a8] text-white"
                           : "border-[#e8e4df] text-[#374151]"
                       }`}
                     >
                       {color}
                     </button>
+                  ))}
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-1.5 block text-xs text-[#9ca3af]">Siuntimo būdai</label>
+                <div className="space-y-2">
+                  {VINTED_SHIPPING_OPTIONS.map((opt) => (
+                    <label key={opt} className="flex items-center gap-2 text-sm text-[#374151]">
+                      <input
+                        type="checkbox"
+                        checked={shippingOptions.includes(opt)}
+                        onChange={() => toggleShipping(opt)}
+                        className="accent-[#09b1a8]"
+                      />
+                      {opt}
+                    </label>
                   ))}
                 </div>
               </div>

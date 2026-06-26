@@ -62,7 +62,7 @@ export const SKELBIU_CATEGORY_TREE: SkelbiuCategoryNode[] = [
     label: "Elektronika",
     children: [
       {
-        label: "Mobilieji telefonai",
+        label: "Telefonai",
         children: [
           { label: "Apple" },
           { label: "Samsung" },
@@ -77,8 +77,33 @@ export const SKELBIU_CATEGORY_TREE: SkelbiuCategoryNode[] = [
           { label: "Kita" },
         ],
       },
+      { label: "Buitinė technika" },
       { label: "Televizoriai" },
       { label: "Garso įranga" },
+    ],
+  },
+  {
+    label: "Statyba",
+    children: [
+      { label: "Statybos įrankiai" },
+      { label: "Statybinės medžiagos" },
+      { label: "Sodo technika" },
+    ],
+  },
+  {
+    label: "Grožis / Sveikata",
+    children: [
+      { label: "Kosmetika" },
+      { label: "Sveikatos prekės" },
+      { label: "Kita" },
+    ],
+  },
+  {
+    label: "Paslaugos",
+    children: [
+      { label: "Remontas" },
+      { label: "Transportas" },
+      { label: "Kita" },
     ],
   },
   {

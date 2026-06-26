@@ -1,6 +1,24 @@
 import type { Listing, ListingCategory } from "@/lib/types";
-import { BODY_TYPES, DRIVE_TYPES, FUEL_TYPES, GEARBOX_TYPES } from "@/lib/vehicle-catalog";
+import {
+  BODY_TYPES,
+  DEFECT_OPTIONS,
+  DRIVE_TYPES,
+  FUEL_TYPES,
+  GEARBOX_TYPES,
+  VEHICLE_EQUIPMENT_OPTIONS,
+} from "@/lib/vehicle-catalog";
 import { VINTED_CONDITIONS } from "@/lib/clothing-catalog";
+import {
+  EDUCATION_LEVELS,
+  EMPLOYMENT_TYPES_FULL,
+  EXPERIENCE_YEARS,
+  LANGUAGE_OPTIONS,
+} from "@/lib/job-catalog";
+import {
+  FEATURE_OPTIONS,
+  LAND_PURPOSE_OPTIONS,
+  LAND_UTILITY_OPTIONS,
+} from "@/lib/real-estate-catalog";
 import { JOB_TYPE_OFFER, JOB_TYPE_SEEK } from "@/lib/jobs";
 
 export type CategoryAttributeFilters = Record<string, string>;
@@ -13,6 +31,8 @@ export interface CategoryFilterFieldDef {
   options: readonly string[];
   /** Match listing.attributes[key] or aliases */
   attributeKeys?: string[];
+  /** When true, filter value must appear in a string[] attribute */
+  checklist?: boolean;
 }
 
 function attrValue(listing: Listing, keys: string[]): string {
@@ -26,6 +46,19 @@ function attrValue(listing: Listing, keys: string[]): string {
   return "";
 }
 
+function attrChecklist(listing: Listing, keys: string[]): string[] {
+  const attrs = listing.attributes ?? {};
+  const out: string[] = [];
+  for (const key of keys) {
+    const raw = attrs[key];
+    if (Array.isArray(raw)) out.push(...raw.map(String));
+    else if (typeof raw === "string" && raw.trim()) {
+      out.push(...raw.split(/,|\|\|/).map((s) => s.trim()).filter(Boolean));
+    }
+  }
+  return out;
+}
+
 function norm(value: string): string {
   return value
     .toLowerCase()
@@ -34,14 +67,28 @@ function norm(value: string): string {
     .trim();
 }
 
+function matchesChecklist(listing: Listing, field: CategoryFilterFieldDef, filterValue: string): boolean {
+  const keys = field.attributeKeys ?? [field.key];
+  const items = attrChecklist(listing, keys);
+  if (items.length === 0) return false;
+  const nFilter = norm(filterValue);
+  return items.some((item) => {
+    const nItem = norm(item);
+    return nItem === nFilter || nItem.includes(nFilter) || nFilter.includes(nItem);
+  });
+}
+
 function matchesOption(listing: Listing, field: CategoryFilterFieldDef, filterValue: string): boolean {
   if (!filterValue) return true;
+  if (field.checklist) return matchesChecklist(listing, field, filterValue);
+
   const keys = field.attributeKeys ?? [field.key];
   const listingVal = attrValue(listing, keys);
   if (!listingVal) return false;
   const nListing = norm(listingVal);
   const nFilter = norm(filterValue);
   if (nListing === nFilter || nListing.includes(nFilter)) return true;
+
   if (field.key === "yearFrom" || field.key === "yearTo") {
     const year = parseInt(listingVal.replace(/\D/g, "").slice(0, 4), 10);
     const bound = parseInt(filterValue, 10);
@@ -58,6 +105,12 @@ function matchesOption(listing: Listing, field: CategoryFilterFieldDef, filterVa
     const min = parseFloat(filterValue);
     return Number.isFinite(area) && Number.isFinite(min) ? area >= min : false;
   }
+  if (field.key === "landAreaMin") {
+    const land = attrValue(listing, ["landArea", "plotArea"]);
+    const num = parseFloat(land.replace(/[^\d.]/g, ""));
+    const min = parseFloat(filterValue);
+    return Number.isFinite(num) && Number.isFinite(min) ? num >= min : false;
+  }
   return false;
 }
 
@@ -73,6 +126,19 @@ export function categoryFilterFieldsFor(
         { key: "bodyType", label: "Kėbulas", options: BODY_TYPES, attributeKeys: ["bodyType", "kebulas"] },
         { key: "gearbox", label: "Pavarų dėžė", options: GEARBOX_TYPES, attributeKeys: ["gearbox", "transmission"] },
         { key: "driveType", label: "Varantieji ratai", options: DRIVE_TYPES },
+        {
+          key: "defects",
+          label: "Defektai",
+          options: DEFECT_OPTIONS,
+          attributeKeys: ["defects"],
+        },
+        {
+          key: "vehicleOptions",
+          label: "Opcija",
+          options: VEHICLE_EQUIPMENT_OPTIONS,
+          attributeKeys: ["vehicleOptions"],
+          checklist: true,
+        },
         { key: "mileageMax", label: "Rida iki (km)", options: ["50000", "100000", "150000", "200000", "300000"] },
       ];
     case "real_estate":
@@ -80,12 +146,13 @@ export function categoryFilterFieldsFor(
         {
           key: "transactionType",
           label: "Sandoris",
-          options: ["Parduoda", "Nuomoja", "Trumpalaikė nuoma"],
+          options: ["Parduoda", "Nuomoja", "Trumpalaikė nuoma", "Pardavimui", "Nuomai"],
+          attributeKeys: ["transactionType"],
         },
         {
           key: "propertyType",
           label: "Objektas",
-          options: ["butas", "namas", "sklypas", "patalpos"],
+          options: ["butas", "namas", "sklypas", "patalpos", "garazas", "sodyba"],
           attributeKeys: ["propertyType", "property_type"],
         },
         { key: "rooms", label: "Kambariai", options: ["1", "2", "3", "4", "5+"] },
@@ -100,21 +167,55 @@ export function categoryFilterFieldsFor(
           label: "Šildymas",
           options: ["Centrinis", "Autonominis/Dujinis", "Aeroterminis", "Kietu kuru"],
           attributeKeys: ["heating", "sildymas"],
+          checklist: true,
+        },
+        {
+          key: "landPurpose",
+          label: "Sklypo paskirtis",
+          options: LAND_PURPOSE_OPTIONS,
+        },
+        {
+          key: "landUtilities",
+          label: "Komunikacijos",
+          options: LAND_UTILITY_OPTIONS,
+          attributeKeys: ["landUtilities", "utilities"],
+          checklist: true,
+        },
+        {
+          key: "ntFeatures",
+          label: "Ypatumai",
+          options: FEATURE_OPTIONS.slice(0, 8),
+          attributeKeys: ["ntFeatures", "features"],
+          checklist: true,
         },
         { key: "areaMin", label: "Plotas nuo (m²)", options: ["30", "50", "70", "100", "150"] },
+        { key: "landAreaMin", label: "Sklypas nuo (a)", options: ["3", "6", "10", "15", "20"] },
       ];
     case "clothing":
       return [
         {
           key: "clothingType",
           label: "Tipas",
-          options: ["Moterims", "Vyrams", "Vaikams"],
+          options: ["Moterims", "Vyrams", "Vaikams", "Namams / Interjerui", "Augintiniams"],
           attributeKeys: ["clothingType", "vintedCategory"],
         },
-        { key: "size", label: "Dydis", options: ["XS", "S", "M", "L", "XL", "XXL"] },
+        { key: "size", label: "Dydis", options: ["XS", "S", "M", "L", "XL", "XXL", "38", "40", "42"] },
         { key: "condition", label: "Būklė", options: VINTED_CONDITIONS },
         { key: "brand", label: "Prekės ženklas", options: ["Nike", "Zara", "H&M", "Adidas", "Kita"] },
-        { key: "color", label: "Spalva", options: ["Juoda", "Balta", "Mėlyna", "Raudona", "Pilka"] },
+        {
+          key: "color",
+          label: "Spalva",
+          options: ["Juoda", "Balta", "Mėlyna", "Raudona", "Pilka"],
+          attributeKeys: ["color", "colors"],
+          checklist: true,
+        },
+        {
+          key: "shipping",
+          label: "Siuntimas",
+          options: ["LP Express / Omniva terminalas", "Paštas", "Atsiėmimas gyvai"],
+          attributeKeys: ["shipping", "shippingOptions"],
+          checklist: true,
+        },
       ];
     case "jobs":
       return [
@@ -122,18 +223,32 @@ export function categoryFilterFieldsFor(
         {
           key: "employmentType",
           label: "Etatas",
-          options: ["Pilnas etatas", "Pusė etato", "Projektinis", "Praktika"],
+          options: EMPLOYMENT_TYPES_FULL,
+          attributeKeys: ["employmentType"],
         },
         {
           key: "locationType",
           label: "Darbo vieta",
-          options: ["Nuotolinis", "Ofise", "Hibridinis", "Lietuva"],
+          options: ["Nuotolinis", "Ofise", "Hibridinis", "Lietuva", "Darbas namuose"],
         },
         {
           key: "experienceRequired",
           label: "Patirtis",
-          options: ["Nereikia", "1-3 metai", "3-5 metai", "5+ metų"],
+          options: EXPERIENCE_YEARS,
           attributeKeys: ["experienceRequired", "requirements"],
+        },
+        {
+          key: "education",
+          label: "Išsilavinimas",
+          options: EDUCATION_LEVELS,
+          attributeKeys: ["education", "educationLevel"],
+        },
+        {
+          key: "languages",
+          label: "Kalbos",
+          options: LANGUAGE_OPTIONS,
+          attributeKeys: ["languages"],
+          checklist: true,
         },
       ];
     default:

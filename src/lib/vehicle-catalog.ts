@@ -106,31 +106,57 @@ export const BODY_TYPES = [
   "Sedanas",
   "Hečbekas",
   "Universalas",
+  "Visureigis / SUV",
   "Vienatūris",
-  "Visureigis / Krosoveris",
-  "Kupė",
+  "Kupė (Coupe)",
   "Kabrioletas",
-  "Furgonas",
+  "Pikapas",
+  "Komercinis",
 ] as const;
 
 export const FUEL_TYPES = [
-  "Dyzelinas",
   "Benzinas",
+  "Dyzelinas",
+  "Elektra",
   "Benzinas / dujos",
   "Benzinas / elektra",
-  "Elektra",
-  "Hibridas",
+  "Dyzelinas / elektra",
+  "Dujos",
 ] as const;
 
-export const GEARBOX_TYPES = ["Automatinė", "Mechaninė"] as const;
+export const GEARBOX_TYPES = ["Mechaninė", "Automatinė"] as const;
 
-export const DRIVE_TYPES = ["Priekiniai", "Galiniai", "Visi varantieji"] as const;
+export const DRIVE_TYPES = [
+  "Priekiniai (FWD)",
+  "Galiniai (RWD)",
+  "Visi varantys (AWD / 4x4)",
+] as const;
 
 export const DOOR_COUNTS = ["2/3", "4/5", "Kita"] as const;
 
-export const DEFECT_OPTIONS = ["Be defektų", "Smulkūs įbrėžimai", "Yra defektų"] as const;
+export const DEFECT_OPTIONS = [
+  "Be defektų",
+  "Daužtas",
+  "Su variklio defektu",
+  "Su pavarų dėžės defektu",
+  "Kitas defektas",
+] as const;
 
-export const STEERING_OPTIONS = ["Kairėje", "Dešinėje (Anglija)"] as const;
+export const STEERING_OPTIONS = ["Kairėje", "Dešinėje"] as const;
+
+/** Autoplius papildomos opcijos (checkbox masyvas → vehicleOptions) */
+export const VEHICLE_EQUIPMENT_OPTIONS = [
+  "Kondicionierius / Klimato kontrolė",
+  "Odinis salonas",
+  "Panoraminis stogas",
+  "LED / Xenon žibintai",
+  "Navigacija / GPS",
+  "Atstumo jutikliai",
+  "Atbulinės eigos kamera",
+  "Kruizo kontrolė (Autopilotas)",
+  "Šildomos sėdynės",
+  "Lengvojo lydinio ratlankiai",
+] as const;
 
 export const COLOR_OPTIONS = [
   "Juoda",

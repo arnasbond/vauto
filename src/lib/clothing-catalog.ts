@@ -1,33 +1,74 @@
-/** Vinted-style clothing catalog for listing wizard. */
+/** Pilna Vinted kategorijų, dydžių ir siuntimo struktūra. */
 
-export const VINTED_CATEGORIES: Record<string, string[]> = {
+export const VINTED_MAIN_GROUPS = [
+  "Moterims",
+  "Vyrams",
+  "Vaikams",
+  "Namams / Interjerui",
+  "Augintiniams",
+] as const;
+
+/** Grupė → subkategorijos (Autoplius/Vinted meniu struktūra) */
+export const VINTED_CATEGORY_TREE: Record<string, readonly string[]> = {
   Moterims: [
-    "Suknelės",
     "Striukės ir paltai",
-    "Megztiniai",
+    "Suknelės",
     "Kelnės ir džinsai",
-    "Batai",
-    "Krepšiai",
+    "Megztiniai",
+    "Apatinis trikotažas",
     "Sportinė apranga",
+    "Sportbačiai",
+    "Bateliai",
+    "Ilgaauliai",
+    "Šlepetės",
+    "Sandalai",
+    "Krepšiai",
     "Kita",
   ],
   Vyrams: [
     "Marškinėliai",
     "Striukės ir paltai",
     "Kelnės ir džinsai",
-    "Batai",
+    "Megztiniai",
     "Sportinė apranga",
+    "Sportbačiai",
+    "Bateliai",
+    "Šlepetės",
     "Kita",
   ],
-  Vaikams: ["Mergaitėms", "Berniukams", "Kūdikiams", "Kita"],
-  Aksesuarai: ["Akiniai", "Juvelyrika", "Šalikai", "Diržai", "Kita"],
-  Namams: ["Namų tekstilė", "Dekoras", "Kita"],
-  Kita: ["Kita"],
+  Vaikams: [
+    "Drabužiai pagal amžių/ūgį",
+    "Žaislai",
+    "Vežimėliai / Kėdutės",
+    "Mokyklinės prekės",
+    "Sportbačiai",
+    "Kita",
+  ],
+  "Namams / Interjerui": [
+    "Tekstilė — Patalynė",
+    "Tekstilė — Rankšluosčiai",
+    "Dekoras — Žvakės",
+    "Dekoras — Veidrodžiai",
+    "Indai / Virtuvė",
+    "Kita",
+  ],
+  Augintiniams: ["Apranga", "Guoliai", "Transportas", "Kita"],
 };
 
-export const VINTED_CONDITIONS = ["Nauja su etiketėmis", "Nauja be etiketės", "Labai gera", "Gera", "Patenkinama"] as const;
+/** @deprecated use VINTED_CATEGORY_TREE */
+export const VINTED_CATEGORIES: Record<string, string[]> = Object.fromEntries(
+  Object.entries(VINTED_CATEGORY_TREE).map(([k, v]) => [k, [...v]])
+);
 
-export const CLOTHING_SIZES = [
+export const VINTED_CONDITIONS = [
+  "Nauja su etiketėmis",
+  "Nauja be etiketės",
+  "Labai gera",
+  "Gera",
+  "Patenkinama",
+] as const;
+
+export const VINTED_CLOTHING_SIZES = [
   "XXS",
   "XS",
   "S",
@@ -35,15 +76,59 @@ export const CLOTHING_SIZES = [
   "L",
   "XL",
   "XXL",
-  "34",
+  "Plus Size",
+] as const;
+
+export const VINTED_SHOE_SIZES = [
+  "35",
   "36",
+  "37",
   "38",
+  "39",
   "40",
+  "41",
   "42",
+  "43",
   "44",
+  "45",
   "46",
-  "48",
-  "50",
+  "46+",
+] as const;
+
+export const VINTED_CHILD_HEIGHTS = [
+  "50 cm",
+  "56 cm",
+  "62 cm",
+  "68 cm",
+  "74 cm",
+  "80 cm",
+  "86 cm",
+  "92 cm",
+  "98 cm",
+  "104 cm",
+  "110 cm",
+  "116 cm",
+  "122 cm",
+  "128 cm",
+  "134 cm",
+  "140 cm",
+  "146 cm",
+  "152 cm",
+  "158 cm",
+  "164 cm",
+  "170 cm",
+  "176 cm",
+] as const;
+
+export const VINTED_SHIPPING_OPTIONS = [
+  "LP Express / Omniva terminalas",
+  "Paštas",
+  "Atsiėmimas gyvai",
+] as const;
+
+export const CLOTHING_SIZES = [
+  ...VINTED_CLOTHING_SIZES,
+  ...VINTED_SHOE_SIZES,
   "Vienas dydis",
 ] as const;
 
@@ -80,6 +165,8 @@ export const CLOTHING_COLORS = [
   "Geltona",
   "Ruda",
   "Smėlio",
+  "Violetinė",
+  "Oranžinė",
   "Daugiaspalvė",
   "Kita",
 ] as const;
@@ -97,8 +184,24 @@ const BRAND_ALIASES: Record<string, string> = {
   converse: "Converse",
 };
 
+const SHOE_SUB_RE = /bat|auli|šlepet|sandal|sportbač/i;
+
 export function subcategoriesFor(group: string): string[] {
-  return VINTED_CATEGORIES[group] ?? [];
+  return [...(VINTED_CATEGORY_TREE[group] ?? [])];
+}
+
+export function isShoeSubcategory(sub: string): boolean {
+  return SHOE_SUB_RE.test(sub);
+}
+
+export function isChildHeightSubcategory(group: string, sub: string): boolean {
+  return group === "Vaikams" && /drabuž|amži|ūg/i.test(sub);
+}
+
+export function sizesForVintedListing(group: string, sub: string): readonly string[] {
+  if (isShoeSubcategory(sub)) return VINTED_SHOE_SIZES;
+  if (isChildHeightSubcategory(group, sub)) return VINTED_CHILD_HEIGHTS;
+  return VINTED_CLOTHING_SIZES;
 }
 
 export function formatVintedCategory(group: string, sub: string): string {
@@ -128,9 +231,10 @@ export function detectSizeFromText(text: string): string | null {
 
 export function detectClothingGroupFromText(text: string): string | null {
   const t = text.toLowerCase();
+  if (/\b(augintin|šun|kat)/i.test(t)) return "Augintiniams";
+  if (/\b(nam|interjer|tekstil|dekor)/i.test(t)) return "Namams / Interjerui";
   if (/\b(vaik|kūdik|mergait|berniuk)/i.test(t)) return "Vaikams";
   if (/\b(vyr|vyrišk)/i.test(t)) return "Vyrams";
-  if (/\b(aksesuar|rankin|krepš|dirž|šalik)/i.test(t)) return "Aksesuarai";
   if (/\b(moter|moterišk|suknel|palto)/i.test(t)) return "Moterims";
   return null;
 }
@@ -140,7 +244,7 @@ export function detectSubcategoryFromText(text: string, group: string): string |
   const subs = subcategoriesFor(group);
   if (/\bsuknel/i.test(t)) return subs.find((s) => /suknel/i.test(s)) ?? null;
   if (/\bstriuk|palt|švark/i.test(t)) return subs.find((s) => /striuk|palt/i.test(s)) ?? null;
-  if (/\bbat|batų|nike air|adidas/i.test(t)) return subs.find((s) => /bat/i.test(s)) ?? null;
+  if (/\bbat|batų|nike air|adidas/i.test(t)) return subs.find((s) => SHOE_SUB_RE.test(s)) ?? null;
   if (/\bkeln|džins/i.test(t)) return subs.find((s) => /keln/i.test(s)) ?? null;
   if (/\bkrepš|rankin/i.test(t)) return subs.find((s) => /krepš/i.test(s)) ?? null;
   return null;

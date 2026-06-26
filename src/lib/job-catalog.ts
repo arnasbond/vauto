@@ -6,17 +6,46 @@ import { JOB_TYPE_OFFER, JOB_TYPE_SEEK } from "@/lib/jobs";
 export const JOB_LOCATION_TYPES = ["Lietuva", "Užsienis", "Darbas namuose"] as const;
 export const JOB_GROUPS = ["Vadovai", "Specialistai", "Darbininkai"] as const;
 export const EXPERIENCE_AREAS = [
+  "IT",
+  "Pardavimai",
+  "Transportas",
+  "Finansai",
+  "Gamyba",
+  "Klientų aptarnavimas",
   "IT / inžinerija",
   "Logistika / sandėliavimas",
-  "Transportas",
   "Prekyba",
-  "Gamyba",
   "Administravimas / apskaita",
   "Sveikatos apsauga",
   "Statyba",
   "Maisto gamyba / restoranai",
   "Kita",
 ] as const;
+
+export const EDUCATION_LEVELS = [
+  "Vidurinis",
+  "Profesinis",
+  "Aukštasis koleginis",
+  "Aukštasis universitetinis",
+] as const;
+
+export const LANGUAGE_OPTIONS = ["Lietuvių", "Anglų", "Rusų", "Vokiečių", "Lenkų"] as const;
+
+export const LANGUAGE_LEVELS = ["A1", "A2", "B1", "B2", "C1", "C2"] as const;
+
+export const EMPLOYMENT_TYPES_FULL = [
+  "Pilnas etatas",
+  "Pusė etato",
+  "Projektinis",
+  "Praktika",
+  "Pamaininis darbas",
+] as const;
+
+export const EXPERIENCE_YEARS = ["Nereikia", "1-2 metai", "3-5 metai", "5+ metų"] as const;
+
+export const SALARY_GROSS_NET = ["Bruto", "Neto"] as const;
+
+export const WORK_LOCATION_MODES = ["Nuotolinis", "Ofise", "Hibridinis"] as const;
 
 export const JOB_CITIES = [
   "Vilnius",

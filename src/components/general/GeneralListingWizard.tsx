@@ -14,6 +14,17 @@ import {
   SELLER_TYPES,
 } from "@/lib/general-catalog";
 import {
+  CONSTRUCTION_TOOL_TYPES,
+  DEVICE_OS,
+  ELECTRONICS_MANUFACTURERS,
+  FURNITURE_MATERIALS,
+  FURNITURE_TYPES,
+  getSkelbiuFieldProfile,
+  POWER_SOURCE_TYPES,
+  STORAGE_CAPACITIES,
+  WARRANTY_OPTIONS,
+} from "@/lib/skelbiu-catalog";
+import {
   clearGeneralListingDraft,
   saveGeneralListingDraft,
 } from "@/lib/listing-draft-storage";
@@ -45,6 +56,162 @@ interface GeneralListingWizardProps {
 function attr(attrs: Record<string, string | string[] | undefined>, key: string): string {
   const v = attrs[key];
   return Array.isArray(v) ? v.join(", ") : String(v ?? "");
+}
+
+function SkelbiuDeepFields({
+  categoryPath,
+  attrs,
+  onAttributeChange,
+}: {
+  categoryPath: string;
+  attrs: Record<string, string | string[] | undefined>;
+  onAttributeChange: (key: string, value: string | string[]) => void;
+}) {
+  const profile = getSkelbiuFieldProfile(categoryPath);
+  if (profile === "generic") return null;
+
+  const selectCls =
+    "w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]";
+
+  if (profile === "electronics") {
+    return (
+      <div className="mb-5 rounded-lg border border-[#e0e0e0] bg-[#fafafa] p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#1167b1]">
+          Elektronika (Skelbiu.lt)
+        </p>
+        <label className="mb-2 block text-sm text-[#78909c]">Gamintojas</label>
+        <select
+          value={attr(attrs, "manufacturer")}
+          onChange={(e) => onAttributeChange("manufacturer", e.target.value)}
+          className={`mb-3 ${selectCls}`}
+        >
+          <option value="">Pasirinkite</option>
+          {ELECTRONICS_MANUFACTURERS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+        <label className="mb-2 block text-sm text-[#78909c]">Modelis</label>
+        <input
+          type="text"
+          value={attr(attrs, "deviceModel")}
+          onChange={(e) => onAttributeChange("deviceModel", e.target.value)}
+          placeholder="iPhone 15 Pro"
+          className={`mb-3 ${selectCls}`}
+        />
+        <label className="mb-2 block text-sm text-[#78909c]">Atmintis</label>
+        <select
+          value={attr(attrs, "storageCapacity")}
+          onChange={(e) => onAttributeChange("storageCapacity", e.target.value)}
+          className={`mb-3 ${selectCls}`}
+        >
+          <option value="">—</option>
+          {STORAGE_CAPACITIES.map((s) => (
+            <option key={s} value={s}>
+              {s}
+            </option>
+          ))}
+        </select>
+        <label className="mb-2 block text-sm text-[#78909c]">OS</label>
+        <select
+          value={attr(attrs, "deviceOs")}
+          onChange={(e) => onAttributeChange("deviceOs", e.target.value)}
+          className={`mb-3 ${selectCls}`}
+        >
+          <option value="">—</option>
+          {DEVICE_OS.map((o) => (
+            <option key={o} value={o}>
+              {o}
+            </option>
+          ))}
+        </select>
+        <label className="mb-2 block text-sm text-[#78909c]">Garantija</label>
+        <select
+          value={attr(attrs, "warranty")}
+          onChange={(e) => onAttributeChange("warranty", e.target.value)}
+          className={selectCls}
+        >
+          <option value="">—</option>
+          {WARRANTY_OPTIONS.map((w) => (
+            <option key={w} value={w}>
+              {w}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  if (profile === "furniture") {
+    return (
+      <div className="mb-5 rounded-lg border border-[#e0e0e0] bg-[#fafafa] p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#1167b1]">
+          Baldai (Skelbiu.lt)
+        </p>
+        <label className="mb-2 block text-sm text-[#78909c]">Baldų tipas</label>
+        <select
+          value={attr(attrs, "furnitureType")}
+          onChange={(e) => onAttributeChange("furnitureType", e.target.value)}
+          className={`mb-3 ${selectCls}`}
+        >
+          <option value="">—</option>
+          {FURNITURE_TYPES.map((t) => (
+            <option key={t} value={t}>
+              {t}
+            </option>
+          ))}
+        </select>
+        <label className="mb-2 block text-sm text-[#78909c]">Medžiaga</label>
+        <select
+          value={attr(attrs, "material")}
+          onChange={(e) => onAttributeChange("material", e.target.value)}
+          className={selectCls}
+        >
+          <option value="">—</option>
+          {FURNITURE_MATERIALS.map((m) => (
+            <option key={m} value={m}>
+              {m}
+            </option>
+          ))}
+        </select>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-5 rounded-lg border border-[#e0e0e0] bg-[#fafafa] p-4">
+      <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#1167b1]">
+        Statyba / įrankiai (Skelbiu.lt)
+      </p>
+      <label className="mb-2 block text-sm text-[#78909c]">Tipas</label>
+      <select
+        value={attr(attrs, "toolType")}
+        onChange={(e) => onAttributeChange("toolType", e.target.value)}
+        className={`mb-3 ${selectCls}`}
+      >
+        <option value="">—</option>
+        {CONSTRUCTION_TOOL_TYPES.map((t) => (
+          <option key={t} value={t}>
+            {t}
+          </option>
+        ))}
+      </select>
+      <label className="mb-2 block text-sm text-[#78909c]">Maitinimas</label>
+      <select
+        value={attr(attrs, "powerSource")}
+        onChange={(e) => onAttributeChange("powerSource", e.target.value)}
+        className={selectCls}
+      >
+        <option value="">—</option>
+        {POWER_SOURCE_TYPES.map((p) => (
+          <option key={p} value={p}>
+            {p}
+          </option>
+        ))}
+      </select>
+    </div>
+  );
 }
 
 function FieldStatus({ valid }: { valid: boolean }) {
@@ -310,6 +477,14 @@ export function GeneralListingWizard({
                 </button>
               ))}
             </div>
+          )}
+
+          {categoryValue && (
+            <SkelbiuDeepFields
+              categoryPath={categoryValue}
+              attrs={attrs}
+              onAttributeChange={onAttributeChange}
+            />
           )}
 
           <SkelbiuField label="Aprašymas" valid={Boolean(draft.description?.trim())}>
