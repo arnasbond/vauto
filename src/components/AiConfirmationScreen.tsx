@@ -78,7 +78,7 @@ export function AiConfirmationScreen({
 
   const handleAttributeChange = (key: string, value: string | string[]) => {
     updateAiDraft({
-      attributes: { ...aiDraft.attributes, [key]: value },
+      attributes: { [key]: value },
     });
   };
 

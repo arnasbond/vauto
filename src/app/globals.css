@@ -288,6 +288,30 @@ body {
   }
 }
 
+.buddy-pulse-status-text {
+  color: var(--buddy-pulse-status, #1e293b);
+}
+
+.buddy-pulse-subtitle-text {
+  color: var(--buddy-pulse-subtitle, #0f172a);
+}
+
+.buddy-pulse-subtitle-placeholder {
+  color: color-mix(in srgb, var(--buddy-pulse-subtitle, #0f172a) 30%, transparent);
+}
+
+[data-app-theme="dark"] .buddy-pulse-status-text {
+  color: #ffffff;
+}
+
+[data-app-theme="dark"] .buddy-pulse-subtitle-text {
+  color: #ffffff;
+}
+
+[data-app-theme="dark"] .buddy-pulse-subtitle-placeholder {
+  color: rgba(255, 255, 255, 0.3);
+}
+
 @keyframes buddy-ring-pulse {
   0% {
     transform: scale(0.85);

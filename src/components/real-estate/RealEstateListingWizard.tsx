@@ -367,6 +367,23 @@ export function RealEstateListingWizard({
     }
   };
 
+  const selectPropertyType = (typeId: PropertyTypeId) => {
+    const tx = defaultTransactionForType(typeId);
+    onUpdate({
+      attributes: {
+        ...attrs,
+        propertyType: typeId,
+        transactionType: tx,
+      },
+    });
+    setStep(propertyTypeNeedsAction(typeId) ? 2 : 3);
+  };
+
+  const selectTransactionType = (tx: (typeof TRANSACTION_TYPES)[number]) => {
+    onAttributeChange("transactionType", tx);
+    setStep(3);
+  };
+
   const stepTitle = STEP_TITLES[step - 1];
 
   useEffect(() => {
@@ -391,16 +408,13 @@ export function RealEstateListingWizard({
         )}
 
         {step === 1 && (
-          <ul className="divide-y divide-[#e0e0e0] border border-[#e0e0e0] rounded-md overflow-hidden">
+          <ul className="relative z-10 divide-y divide-[#e0e0e0] border border-[#e0e0e0] rounded-md overflow-hidden">
             {PROPERTY_TYPES.map((pt) => (
               <li key={pt.id}>
                 <button
                   type="button"
-                  onClick={() => {
-                    onAttributeChange("propertyType", pt.id);
-                    onAttributeChange("transactionType", defaultTransactionForType(pt.id));
-                  }}
-                  className={`flex w-full items-center gap-4 px-4 py-4 text-left transition hover:bg-[#fafafa] ${
+                  onClick={() => selectPropertyType(pt.id)}
+                  className={`relative z-10 flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-left transition hover:bg-[#fafafa] ${
                     propertyType === pt.id ? "bg-[#ffebee]" : "bg-white"
                   }`}
                 >
@@ -414,13 +428,13 @@ export function RealEstateListingWizard({
         )}
 
         {step === 2 && (
-          <ul className="divide-y divide-[#e0e0e0] border border-[#e0e0e0] rounded-md overflow-hidden">
+          <ul className="relative z-10 divide-y divide-[#e0e0e0] border border-[#e0e0e0] rounded-md overflow-hidden">
             {TRANSACTION_TYPES.map((tx) => (
               <li key={tx}>
                 <button
                   type="button"
-                  onClick={() => onAttributeChange("transactionType", tx)}
-                  className={`flex w-full items-center gap-4 px-4 py-4 text-left transition hover:bg-[#fafafa] ${
+                  onClick={() => selectTransactionType(tx)}
+                  className={`relative z-10 flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-left transition hover:bg-[#fafafa] ${
                     transactionType === tx ? "bg-[#ffebee]" : "bg-white"
                   }`}
                 >

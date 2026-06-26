@@ -155,7 +155,7 @@ export function BuddyVoicePulse({
 
       <p
         className={cn(
-          "mt-6 font-display font-extrabold tracking-tight text-white transition-opacity duration-500 ease-in-out",
+          "buddy-pulse-status-text mt-6 font-display font-extrabold tracking-tight transition-opacity duration-500 ease-in-out",
           isCompact ? "text-lg" : "text-xl sm:text-2xl"
         )}
       >
@@ -164,7 +164,7 @@ export function BuddyVoicePulse({
 
       <p
         className={cn(
-          "mt-4 max-w-md px-4 font-display font-bold leading-snug text-white transition-all duration-300 ease-in-out",
+          "buddy-pulse-subtitle-text mt-4 max-w-md px-4 font-display font-bold leading-snug transition-all duration-300 ease-in-out",
           subtitle ? "opacity-100" : "opacity-40",
           isCompact ? "min-h-[2.5rem] text-xl" : "min-h-[3rem] text-2xl sm:text-3xl"
         )}
@@ -175,7 +175,7 @@ export function BuddyVoicePulse({
             &ldquo;{subtitle}&rdquo;
           </>
         ) : (
-          <span className="text-white/30">…</span>
+          <span className="buddy-pulse-subtitle-placeholder">…</span>
         )}
       </p>
 
