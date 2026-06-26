@@ -162,7 +162,7 @@ interface AuthContextValue {
 
   login: (data: LoginPayload) => Promise<void>;
 
-  upgradeToPro: (data: UpgradeToProPayload) => Promise<void>;
+  upgradeToPro: (data: UpgradeToProPayload) => Promise<boolean>;
 
   logout: () => void;
 
@@ -586,7 +586,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const upgradeToPro = useCallback(
 
-    async (data: UpgradeToProPayload) => {
+    async (data: UpgradeToProPayload): Promise<boolean> => {
 
       setAuthLoading(true);
 
@@ -594,33 +594,81 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
 
-        if (!isAuthApiAvailable()) {
+        if (isAuthApiAvailable()) {
 
-          setAuthError("Pro aktyvavimas reikalauja serverio ryšio.");
+          const result = await apiUpgradeToPro(data);
 
-          return;
+          if (!result.ok) {
+
+            setAuthError(result.error);
+
+            return false;
+
+          }
+
+          const profile = mapApiUserToProfile(result.data.user, {
+
+            role: "pro",
+
+            provider: result.data.provider as AuthProviderType,
+
+            businessType: data.businessType,
+
+          });
+
+          const session = {
+
+            isAuthenticated: true as const,
+
+            provider: user.authProvider ?? "phone",
+
+            loggedInAt: new Date().toISOString(),
+
+            accessToken: result.data.token,
+
+            expiresAt: result.data.expiresAt,
+
+          };
+
+          await persistAuthSessionFull(session, profile);
+
+          setUser(profile);
+
+          setIsAuthenticated(true);
+
+          return true;
 
         }
 
-        const result = await apiUpgradeToPro(data);
+        const profile: UserProfile = {
 
-        if (!result.ok) {
-
-          setAuthError(result.error);
-
-          return;
-
-        }
-
-        const profile = mapApiUserToProfile(result.data.user, {
+          ...user,
 
           role: "pro",
 
-          provider: result.data.provider as AuthProviderType,
-
           businessType: data.businessType,
 
-        });
+          companyName: data.companyName,
+
+          companyCode: data.companyCode,
+
+          vatCode: data.vatCode,
+
+          serviceBaseCity: data.serviceBaseCity,
+
+          serviceRadiusKm: data.serviceRadiusKm,
+
+          serviceNationwide: data.serviceNationwide,
+
+          serviceSpecialties: data.serviceSpecialties,
+
+          billingPlan: user.billingPlan ?? "starter",
+
+          billingModel: user.billingModel ?? "ppc",
+
+          walletBalance: user.walletBalance ?? 25,
+
+        };
 
         const session = {
 
@@ -630,17 +678,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           loggedInAt: new Date().toISOString(),
 
-          accessToken: result.data.token,
-
-          expiresAt: result.data.expiresAt,
-
         };
 
         await persistAuthSessionFull(session, profile);
 
+        saveUser(profile);
+
         setUser(profile);
 
         setIsAuthenticated(true);
+
+        return true;
 
       } finally {
 
@@ -650,7 +698,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     },
 
-    [user.authProvider]
+    [user]
 
   );
 

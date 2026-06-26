@@ -1,15 +1,19 @@
 "use client";
 
-import { useState } from "react";
+import { FormEvent, useState } from "react";
 import { Building2, UserRound } from "lucide-react";
 import type { ProBusinessType } from "@/lib/types";
 import { PRO_DEMO_PHONE } from "@/lib/reports";
 import { useAuth } from "@/context/AuthContext";
+import { useVauto } from "@/context/VautoContext";
 import { useProfileViewMode } from "@/lib/profile-view";
-import { isAuthApiAvailable } from "@/lib/auth/api";
+
+const INPUT_CLASS =
+  "profile-editable-input w-full rounded-xl px-3 py-2.5 text-sm outline-none ring-1 ring-[var(--vauto-border)] focus:ring-2 focus:ring-[var(--vauto-accent)]";
 
 export function ProfileAccountTypePanel() {
-  const { user, upgradeToPro, authLoading, authError } = useAuth();
+  const { user, upgradeToPro, authLoading, authError, clearAuthError } = useAuth();
+  const { showToast } = useVauto();
   const isPro = user.role === "pro";
   const { viewMode, setViewMode } = useProfileViewMode(isPro);
 
@@ -69,17 +73,17 @@ export function ProfileAccountTypePanel() {
     companyCode.trim().length >= 2 &&
     (businessType !== "services" || serviceBaseCity.trim().length > 0);
 
-  const handleUpgrade = async () => {
+  const handleUpgrade = async (e?: FormEvent) => {
+    e?.preventDefault();
     setLocalError(null);
+    clearAuthError();
+
     if (!proFormValid) {
       setLocalError("Užpildykite įmonės duomenis.");
       return;
     }
-    if (!isAuthApiAvailable()) {
-      setLocalError("Pro aktyvavimas reikalauja serverio ryšio.");
-      return;
-    }
-    await upgradeToPro({
+
+    const payload = {
       businessType,
       companyName: companyName.trim(),
       companyCode: companyCode.trim(),
@@ -95,7 +99,12 @@ export function ProfileAccountTypePanel() {
       serviceNationwide: businessType === "services" ? serviceNationwide : undefined,
       serviceSpecialties:
         businessType === "services" ? serviceSpecialties : undefined,
-    });
+    };
+
+    const ok = await upgradeToPro(payload);
+    if (ok) {
+      showToast("Pro paskyra sėkmingai aktyvuota!", "success");
+    }
   };
 
   const displayError = localError ?? authError;
@@ -116,7 +125,11 @@ export function ProfileAccountTypePanel() {
         </p>
       )}
 
-      <div className="mt-4 space-y-3">
+      <form
+        className="mt-4 space-y-3"
+        onSubmit={(e) => void handleUpgrade(e)}
+        noValidate
+      >
         <p className="text-xs font-medium text-[var(--vauto-text-muted)]">Verslo tipas</p>
         {(
           [
@@ -144,28 +157,54 @@ export function ProfileAccountTypePanel() {
           name="organization"
           autoComplete="organization"
           value={companyName}
-          onChange={(e) => setCompanyName(e.target.value)}
+          onChange={(e) => {
+            clearAuthError();
+            setLocalError(null);
+            setCompanyName(e.target.value);
+          }}
           placeholder="Įmonės pavadinimas"
-          className="w-full rounded-xl bg-[color-mix(in_srgb,var(--vauto-text-main)_6%,transparent)] px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none ring-1 ring-[var(--vauto-border)] focus:ring-[var(--vauto-accent)]"
+          readOnly={false}
+          disabled={false}
+          aria-readonly={false}
+          className={INPUT_CLASS}
         />
         <input
           type="text"
+          name="companyCode"
+          autoComplete="off"
           value={companyCode}
-          onChange={(e) => setCompanyCode(e.target.value)}
+          onChange={(e) => {
+            clearAuthError();
+            setLocalError(null);
+            setCompanyCode(e.target.value);
+          }}
           placeholder="Įmonės kodas"
-          className="w-full rounded-xl bg-[color-mix(in_srgb,var(--vauto-text-main)_6%,transparent)] px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none ring-1 ring-[var(--vauto-border)] focus:ring-[var(--vauto-accent)]"
+          readOnly={false}
+          disabled={false}
+          aria-readonly={false}
+          className={INPUT_CLASS}
         />
         <input
           type="text"
+          name="vatCode"
+          autoComplete="off"
           value={vatCode}
-          onChange={(e) => setVatCode(e.target.value)}
+          onChange={(e) => {
+            clearAuthError();
+            setLocalError(null);
+            setVatCode(e.target.value);
+          }}
           placeholder="PVM kodas (nebūtina)"
-          className="w-full rounded-xl bg-[color-mix(in_srgb,var(--vauto-text-main)_6%,transparent)] px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none ring-1 ring-[var(--vauto-border)] focus:ring-[var(--vauto-accent)]"
+          readOnly={false}
+          disabled={false}
+          aria-readonly={false}
+          className={INPUT_CLASS}
         />
 
         <p className="text-[10px] text-[var(--vauto-text-muted)]">
           Verslo testavimui: telefonas{" "}
-          <span className="font-mono">{PRO_DEMO_PHONE}</span>
+          <span className="font-mono">{PRO_DEMO_PHONE}</span> · OTP{" "}
+          <span className="font-mono">123456</span>
         </p>
 
         {businessType === "services" && (
@@ -178,7 +217,9 @@ export function ProfileAccountTypePanel() {
               value={serviceBaseCity}
               onChange={(e) => setServiceBaseCity(e.target.value)}
               placeholder="Bazinis miestas"
-              className="w-full rounded-xl bg-[color-mix(in_srgb,var(--vauto-text-main)_6%,transparent)] px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none ring-1 ring-[var(--vauto-border)]"
+              readOnly={false}
+              disabled={false}
+              className={INPUT_CLASS}
             />
             <div className="grid grid-cols-3 gap-2">
               {([10, 25, 50, 100] as const).map((radius) => (
@@ -245,14 +286,13 @@ export function ProfileAccountTypePanel() {
         )}
 
         <button
-          type="button"
-          onClick={() => void handleUpgrade()}
-          disabled={authLoading || !proFormValid}
+          type="submit"
+          disabled={authLoading}
           className="w-full rounded-2xl bg-[var(--vauto-accent)] py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
           {authLoading ? "Aktyvuojama…" : "Aktyvuoti Pro paskyrą"}
         </button>
-      </div>
+      </form>
     </div>
   );
 }

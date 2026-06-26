@@ -662,6 +662,33 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   outline: none;
 }
 
+.profile-editable-input {
+  color: var(--vauto-text-main);
+  background-color: var(--vauto-card-bg);
+  -webkit-text-fill-color: var(--vauto-text-main);
+  caret-color: var(--vauto-text-main);
+  opacity: 1;
+  pointer-events: auto;
+  cursor: text;
+}
+
+.profile-editable-input:disabled,
+.profile-editable-input[readonly] {
+  opacity: 1;
+  cursor: text;
+  pointer-events: auto;
+}
+
+.profile-editable-input::placeholder {
+  color: var(--vauto-text-muted);
+  opacity: 0.85;
+}
+
+.profile-editable-input:focus {
+  border-color: var(--vauto-accent);
+  outline: none;
+}
+
 .listing-wizard-overlay input[type="checkbox"],
 .listing-wizard-overlay input[type="radio"] {
   accent-color: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));

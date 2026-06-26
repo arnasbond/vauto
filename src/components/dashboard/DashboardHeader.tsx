@@ -1,8 +1,8 @@
 "use client";
 
-import Image from "next/image";
 import { Building2, LogOut } from "lucide-react";
 import type { UserProfile } from "@/lib/types";
+import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
 
 interface DashboardHeaderProps {
   user: UserProfile;
@@ -15,13 +15,7 @@ export function DashboardHeader({ user, onLogout }: DashboardHeaderProps) {
   return (
     <div className="vauto-dashboard-card mb-4 rounded-3xl p-5">
       <div className="flex items-start gap-4">
-        <Image
-          src={user.avatar}
-          alt={user.name}
-          width={64}
-          height={64}
-          className="h-16 w-16 rounded-2xl ring-2 ring-[color-mix(in_srgb,var(--vauto-primary)_40%,transparent)]"
-        />
+        <ProfileAvatarEditor avatar={user.avatar} name={user.name} />
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <h1 className="truncate text-lg font-bold text-[var(--vauto-text-main)]">

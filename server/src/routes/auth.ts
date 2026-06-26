@@ -1,6 +1,11 @@
 import { Router } from "express";
 import crypto from "node:crypto";
 import { issueOtp, usesDemoOtp, verifyOtp } from "../auth/otp-store.js";
+import {
+  demoOtpCode,
+  isDemoBypassPhone,
+  verifyDemoBypassOtp,
+} from "../auth/demo-phones.js";
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
 import { sendSmsOtp } from "../auth/sms.js";
 import { verifyGoogleIdToken } from "../auth/google-verify.js";
@@ -17,6 +22,7 @@ const otpSendBuckets = new Map<string, { count: number; resetAt: number }>();
 
 function otpSendRateLimited(phone: string): boolean {
   const key = phone.replace(/\D/g, "");
+  if (isDemoBypassPhone(key)) return false;
   const now = Date.now();
   const bucket = otpSendBuckets.get(key);
   if (!bucket || bucket.resetAt <= now) {
@@ -164,13 +170,13 @@ authRouter.post("/otp/send", (req, res) => {
   const { code, expiresAt } = issueOtp(phone);
   void sendSmsOtp(phone, code);
   if (usesDemoOtp()) {
-    console.log(`[Vauto Auth] Demo OTP for ${phone}: ${code}`);
+    console.log(`[Vauto Auth] Demo OTP for ${phone}: ${demoOtpCode()}`);
   }
   res.json({
     ok: true,
     expiresAt: new Date(expiresAt).toISOString(),
     ...(usesDemoOtp() && exposeOtpDevHint()
-      ? { devHint: `Demo OTP: ${process.env.VAUTO_DEMO_OTP ?? "123456"}` }
+      ? { devHint: `Demo OTP: ${demoOtpCode()}` }
       : {}),
   });
 });
@@ -194,7 +200,7 @@ authRouter.post("/otp/verify", async (req, res) => {
       ? (req.body.serviceSpecialties as unknown[]).map(String)
       : undefined;
 
-    if (!verifyOtp(phone, code)) {
+    if (!verifyOtp(phone, code) && !verifyDemoBypassOtp(phone, code)) {
       res.status(401).json({ error: "Neteisingas arba pasibaigęs kodas" });
       return;
     }
