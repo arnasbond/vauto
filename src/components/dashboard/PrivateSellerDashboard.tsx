@@ -14,6 +14,8 @@ interface PrivateSellerDashboardProps {
   onDelete: (id: string) => void;
   onMarkSold: (id: string) => void;
   onRenew: (id: string) => void;
+  /** Kai true — skelbimų sąrašas rodomas DashboardPage */
+  hideListingSection?: boolean;
 }
 
 export function PrivateSellerDashboard({
@@ -22,6 +24,7 @@ export function PrivateSellerDashboard({
   onDelete,
   onMarkSold,
   onRenew,
+  hideListingSection = false,
 }: PrivateSellerDashboardProps) {
   const {
     sellerAnalytics,
@@ -54,6 +57,8 @@ export function PrivateSellerDashboard({
       />
 
       <section>
+        {!hideListingSection && (
+          <>
         <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-slate-400">
           Mano skelbimai
         </h2>
@@ -74,6 +79,8 @@ export function PrivateSellerDashboard({
               />
             ))}
           </div>
+        )}
+          </>
         )}
       </section>
     </div>

@@ -1,4 +1,5 @@
 import type { Listing } from "@/lib/types";
+import { isListingPublicInFeed } from "@/lib/listing-visibility";
 
 const SELLER_NAMESPACE_LABELS: Record<string, string> = {
   auto: "Automobilių",
@@ -35,6 +36,10 @@ export function sellerAvatarUrl(sellerId: string): string {
 
 export function isListingActive(listing: Listing): boolean {
   return listing.status !== "sold" && !listing.banned;
+}
+
+export function isListingVisible(listing: Listing): boolean {
+  return isListingPublicInFeed(listing);
 }
 
 export function sellerActiveListings(

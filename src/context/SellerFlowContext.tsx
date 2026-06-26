@@ -24,7 +24,8 @@ import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
-import { apiCreateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
+import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
+import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
 import { resolveListingCity } from "@/lib/city-resolve";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
@@ -148,6 +149,7 @@ export interface SellerFlowContextValue {
     toastMessage?: string;
     inputMode?: SellerInputMode;
   }) => void;
+  startEditListingFlow: (listing: Listing) => void;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -177,6 +179,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [sellerHasVideo, setSellerHasVideo] = useState(false);
   const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(null);
   const [lastPublishedListing, setLastPublishedListing] = useState<Listing | null>(null);
+  const [editingListingId, setEditingListingId] = useState<string | null>(null);
 
   const resetSellerFlow = useCallback(() => {
     setSellerStep("idle");
@@ -188,6 +191,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerVideoUrl("");
     setSellerHasVideo(false);
     setLastPublishedListing(null);
+    setEditingListingId(null);
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -650,6 +654,46 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
+    if (editingListingId) {
+      const existing = listings.find((l) => l.id === editingListingId);
+      if (!existing || existing.sellerId !== user.id) {
+        showToast("Skelbimas nerastas arba neturite teisių.", "error");
+        return;
+      }
+      const patch = draftToListingPatch(aiDraft);
+      let listingImage =
+        sellerPreviewImage ?? existing.images[0] ?? PLACEHOLDER_IMAGES[aiDraft.category];
+      if (listingImage.startsWith("data:image")) {
+        listingImage = await compressDataUrl(listingImage);
+        const cloudUrl = await apiUploadMedia(listingImage);
+        if (cloudUrl) listingImage = cloudUrl;
+      }
+      const updated: Listing = enrichListingCoords({
+        ...existing,
+        ...patch,
+        images: listingImage ? [listingImage, ...existing.images.slice(1)] : existing.images,
+        slug: generateListingSlug(patch.title ?? existing.title, patch.location ?? existing.location),
+        hasVideo: sellerHasVideo,
+      });
+      setListings((prev) =>
+        prev.map((l) => (l.id === editingListingId ? updated : l))
+      );
+      if (isDataApiEnabled()) {
+        const res = await apiUpdateListing(editingListingId, user.id, {
+          ...patch,
+          images: updated.images,
+        });
+        if (!res.ok) {
+          setSyncError(`Nepavyko atnaujinti: ${res.error}`);
+          showToast(`Nepavyko atnaujinti: ${res.error}`, "error");
+          return;
+        }
+      }
+      showToast("Skelbimas atnaujintas!", "success");
+      resetSellerFlow();
+      return;
+    }
+
     if (isDuplicateListing(aiDraft.title, user.id, listings)) {
       showToast(
         "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.",
@@ -759,7 +803,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSyncError,
     showToast,
     showConfirm,
+    editingListingId,
+    resetSellerFlow,
   ]);
+
+  const startEditListingFlow = useCallback(
+    (listing: Listing) => {
+      if (listing.sellerId !== user.id) {
+        showToast("Neturite teisių redaguoti šio skelbimo.", "error");
+        return;
+      }
+      setEditingListingId(listing.id);
+      setAiDraft(listingToDraft(listing));
+      setSellerPreviewImage(listing.images[0] ?? null);
+      setSellerVideoUrl("");
+      setSellerHasVideo(Boolean(listing.hasVideo));
+      setAiManualFallback(true);
+      setSellerInputMode("upload");
+      setSellerStep("confirmation");
+    },
+    [user.id, showToast]
+  );
 
   const updateSellerMedia = useCallback(
     (patch: { imageDataUrl?: string | null; videoUrl?: string }) => {
@@ -850,6 +914,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       pendingSellerQuery,
       consumePendingSellerQuery,
       openManualListingWizard,
+      startEditListingFlow,
     }),
     [
       sellerStep,
@@ -875,6 +940,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       pendingSellerQuery,
       consumePendingSellerQuery,
       openManualListingWizard,
+      startEditListingFlow,
     ]
   );
 

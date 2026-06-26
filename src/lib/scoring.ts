@@ -1,5 +1,5 @@
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
-import { isListingActive } from "@/lib/listing-expiry";
+import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 import {
   extractPlateFromQuery,
@@ -13,6 +13,7 @@ import {
 } from "@/lib/visual-search";
 
 export { isListingActive } from "@/lib/listing-expiry";
+export { isListingPublicInFeed } from "@/lib/listing-visibility";
 
 const MIN_QUERY_RELEVANCE = 0.18;
 
@@ -256,7 +257,7 @@ export function rankListings(
     visualRankScores?: Record<string, number>;
   }
 ): ScoredListing[] {
-  const active = listings.filter(isListingActive);
+  const active = listings.filter(isListingPublicInFeed);
   const visualProfile = options?.visualProfile ?? null;
   const visualRankScores = options?.visualRankScores ?? {};
   const useVisual = Boolean(visualProfile);

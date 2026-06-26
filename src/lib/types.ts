@@ -1,4 +1,4 @@
-export type ListingStatus = "active" | "sold";
+export type ListingStatus = "active" | "sold" | "pending" | "paused";
 
 /** Core listing entity — extend when connecting to a real database */
 export interface Listing {

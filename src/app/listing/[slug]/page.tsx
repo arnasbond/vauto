@@ -1,6 +1,7 @@
 import type { Metadata } from "next";
 import { INITIAL_LISTINGS } from "@/data/mockListings";
-import { generateListingMetadata } from "@/lib/seo";
+import { findListingBySlug, generateListingMetadata } from "@/lib/seo";
+import { ListingJsonLd } from "@/components/seo/ListingJsonLd";
 import ListingSlugClient from "./ListingSlugClient";
 
 export function generateStaticParams() {
@@ -15,11 +16,9 @@ export function generateMetadata({
   params: Promise<{ slug: string }>;
 }): Promise<Metadata> {
   return params.then(({ slug }) => {
-    const listing = INITIAL_LISTINGS.find(
-      (l) => l.slug === slug || l.id === slug
-    );
+    const listing = findListingBySlug(INITIAL_LISTINGS, slug);
     if (!listing) {
-      return { title: "Skelbimas | Vauto" };
+      return { title: "Skelbimas | VAUTO" };
     }
     const meta = generateListingMetadata(listing);
     return {
@@ -28,7 +27,7 @@ export function generateMetadata({
       openGraph: {
         title: meta.og.title,
         description: meta.og.description,
-        images: [{ url: meta.og.image }],
+        images: meta.og.image ? [{ url: meta.og.image }] : undefined,
         url: meta.og.url,
         type: "website",
         siteName: meta.og.siteName,
@@ -37,7 +36,7 @@ export function generateMetadata({
         card: "summary_large_image",
         title: meta.og.title,
         description: meta.og.description,
-        images: [meta.og.image],
+        images: meta.og.image ? [meta.og.image] : undefined,
       },
     };
   });
@@ -49,5 +48,11 @@ export default async function ListingSlugPage({
   params: Promise<{ slug: string }>;
 }) {
   const { slug } = await params;
-  return <ListingSlugClient slug={slug} />;
+  const listing = findListingBySlug(INITIAL_LISTINGS, slug);
+  return (
+    <>
+      {listing && <ListingJsonLd listing={listing} />}
+      <ListingSlugClient slug={slug} />
+    </>
+  );
 }

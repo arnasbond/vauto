@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "node scripts/generate-sitemap.mjs && next build",
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "npm run build && playwright test",
@@ -32,6 +32,7 @@
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs",
     "sim:e2e": "npm run e2e:simulate --prefix server",
     "generate:mock-catalog": "node scripts/generate-mock-catalog.mjs",
+    "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "audit:catalog": "node scripts/audit-catalog.mjs",
     "audit:images": "node scripts/check-unsplash-urls.mjs",
     "validate:fast-search": "node scripts/validate-fast-search.mjs"

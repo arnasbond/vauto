@@ -1,8 +1,7 @@
 "use client";
 
-import dynamic from "next/dynamic";
 import Link from "next/link";
-import { Suspense, useState } from "react";
+import { Suspense } from "react";
 import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import { AdminProfileShell } from "@/components/admin/AdminProfileShell";
 import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
@@ -15,42 +14,13 @@ import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
-import { EditListingModal } from "@/components/dashboard/EditListingModal";
+import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { useVauto } from "@/context/VautoContext";
-import type { Listing } from "@/lib/types";
-
-const PrivateSellerDashboard = dynamic(
-  () =>
-    import("@/components/dashboard/PrivateSellerDashboard").then(
-      (m) => m.PrivateSellerDashboard
-    ),
-  {
-    loading: () => (
-      <div className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-slate-500">
-        Kraunamas valdymo skydelis…
-      </div>
-    ),
-  }
-);
-
-const ProBusinessDashboard = dynamic(
-  () =>
-    import("@/components/dashboard/ProBusinessDashboard").then(
-      (m) => m.ProBusinessDashboard
-    ),
-  {
-    loading: () => (
-      <div className="vauto-dashboard-card rounded-2xl py-10 text-center text-sm text-slate-500">
-        Kraunamas verslo skydelis…
-      </div>
-    ),
-  }
-);
 
 export default function ProfilePage() {
   const { openAuthModal } = useAuth();
@@ -60,16 +30,9 @@ export default function ProfilePage() {
     isAuthenticated,
     authHydrated,
     logout,
-    deleteListing,
-    updateListing,
-    markListingSold,
-    topUpWallet,
-    promoteListing,
     renewListing,
     showToast,
   } = useVauto();
-
-  const [editingListing, setEditingListing] = useState<Listing | null>(null);
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
 
@@ -95,8 +58,7 @@ export default function ProfilePage() {
           </div>
           <h1 className="text-xl font-bold text-slate-900">Valdymo skydelis</h1>
           <p className="mt-2 text-sm text-slate-600">
-            Prisijunkite, kad valdytumėte skelbimus, analitiką ir mokamas
-            paslaugas.
+            Prisijunkite, kad valdytumėte skelbimus, analitiką ir mokamas paslaugas.
           </p>
           <button
             type="button"
@@ -151,31 +113,12 @@ export default function ProfilePage() {
 
       <WishlistSection />
 
-      {user.role === "pro" ? (
-        <ProBusinessDashboard
-          user={user}
-          listings={myListings}
-          allListings={listings}
-          onEdit={setEditingListing}
-          onDelete={(id) => {
-            if (confirm("Ištrinti skelbimą?")) deleteListing(id);
-          }}
-          onMarkSold={markListingSold}
-          onTopUp={topUpWallet}
-          onPromote={promoteListing}
-          onRenew={handleRenew}
-        />
-      ) : (
-        <PrivateSellerDashboard
-          listings={myListings}
-          onEdit={setEditingListing}
-          onDelete={(id) => {
-            if (confirm("Ištrinti skelbimą?")) deleteListing(id);
-          }}
-          onMarkSold={markListingSold}
-          onRenew={handleRenew}
-        />
-      )}
+      <DashboardPage
+        user={user}
+        listings={myListings}
+        allListings={listings}
+        onRenew={handleRenew}
+      />
 
       <div className="mt-8 space-y-4">
         <Suspense
@@ -194,12 +137,6 @@ export default function ProfilePage() {
         <SocialSyncSettingsCard />
         <PushAlertsSettingsCard />
       </div>
-
-      <EditListingModal
-        listing={editingListing}
-        onClose={() => setEditingListing(null)}
-        onSave={(id, patch) => updateListing(id, patch)}
-      />
     </DashboardShell>
   );
 }

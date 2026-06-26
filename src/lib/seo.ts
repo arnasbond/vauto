@@ -53,16 +53,25 @@ export interface ListingSeoMetadata {
   };
 }
 
-const SITE_URL = "https://vauto-chi.vercel.app";
+export const SITE_URL = "https://vauto-chi.vercel.app";
+
+export function findListingBySlug(
+  listings: readonly Listing[],
+  slug: string
+): Listing | undefined {
+  return listings.find((l) => l.slug === slug || l.id === slug);
+}
 
 export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
-  const priceText = listing.priceLabel ?? `${listing.price}€`;
-  const regionalTitle = regionalizeTitle(listing.title, listing.location);
-  const title = `${regionalTitle} — ${priceText} | VAUTO`;
+  const priceText = listing.priceLabel ?? `${listing.price} €`;
   const city = listing.location.split(",")[0]?.trim() || "Lietuva";
+  const regionalTitle = regionalizeTitle(listing.title, listing.location);
+  const action =
+    listing.category === "jobs" ? "Siūloma" : "Parduodamas";
+  const title = `${action} ${regionalTitle} už ${priceText} | ${city} - VAUTO`;
   const description =
-    listing.description?.slice(0, 140) ??
-    `${regionalTitle} — skelbimas ${city}. Kaina ${priceText}. Peržiūrėkite ir skambinkite per Vauto.`;
+    listing.description?.slice(0, 155) ??
+    `${action} ${regionalTitle} ${city} už ${priceText}. Peržiūrėkite skelbimą ir susisiekite per VAUTO.`;
 
   return {
     title,
@@ -71,9 +80,9 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
       title: `${regionalTitle} — ${priceText}`,
       description: `${description} ${city} regionas.`,
       image: listing.images[0] ?? "",
-      url: `${SITE_URL}${listingPath(listing)}`,
-      type: "product",
-      siteName: "Vauto",
+      url: `${SITE_URL}${listingPrettyPath(listing)}`,
+      type: "website",
+      siteName: "VAUTO",
     },
   };
 }

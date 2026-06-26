@@ -22,6 +22,7 @@ import {
 } from "@/lib/marketplace-view";
 import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
+import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan, apiBillingPortal } from "@/lib/api/client";
 import {
   type VisualSearchProfile,
@@ -258,6 +259,7 @@ interface VautoContextValue {
   promoteListing: (listingId: string, cost: number, tierId: VisibilityTierId) => boolean;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
+  startEditListingFlow: (listing: Listing) => void;
 
   isAdmin: boolean;
   reports: SupportReport[];
@@ -982,7 +984,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setVisualSearchRefining(true);
       try {
         const candidates = listings
-          .filter((l) => !l.banned && isListingActive(l))
+          .filter((l) => isListingPublicInFeed(l))
           .sort((a, b) => {
             if (a.category === profile.category && b.category !== profile.category) return -1;
             if (b.category === profile.category && a.category !== profile.category) return 1;
