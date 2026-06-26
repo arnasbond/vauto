@@ -3,6 +3,7 @@
 import { ChevronRight, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AiExtractedListing } from "@/lib/types";
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import {
   CLOTHING_COLORS,
   formatVintedCategory,
@@ -427,6 +428,8 @@ export function ClothingListingWizard({
               Palikti atsiliepimą
             </button>
           </div>
+
+          <ListingPublishSocialOptions className="mb-4" />
 
           <button
             type="button"

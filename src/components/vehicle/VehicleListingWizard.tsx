@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import { Camera, ChevronLeft, Plus, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
@@ -844,6 +845,7 @@ export function VehicleListingWizard({
             {videoUrl && parseVideoUrl(videoUrl).hasVideo && (
               <p className="text-xs text-[#1167b1]">✓ YouTube video pridėta</p>
             )}
+            <ListingPublishSocialOptions className="mt-4" />
           </div>
         )}
 

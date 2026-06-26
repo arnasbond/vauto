@@ -86,7 +86,13 @@ import {
   detectServiceSpecialty,
   looksLikeServiceListing,
 } from "@/lib/service-catalog";
-import { runAutoShareOnPublish } from "@/lib/social-sync";
+import {
+  DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS,
+  mergeSocialPublishAttributes,
+  readSocialPublishFromAttributes,
+  type ListingSocialPublishOptions,
+} from "@/lib/listing-social-publish";
+import { runListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -171,6 +177,8 @@ export interface SellerFlowContextValue {
     inputMode?: SellerInputMode;
   }) => void;
   startEditListingFlow: (listing: Listing) => void;
+  listingSocialPublish: ListingSocialPublishOptions;
+  updateListingSocialPublish: (patch: Partial<ListingSocialPublishOptions>) => void;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -201,6 +209,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(null);
   const [lastPublishedListing, setLastPublishedListing] = useState<Listing | null>(null);
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
+  const [listingSocialPublish, setListingSocialPublish] =
+    useState<ListingSocialPublishOptions>(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
+
+  const updateListingSocialPublish = useCallback(
+    (patch: Partial<ListingSocialPublishOptions>) => {
+      setListingSocialPublish((prev) => ({ ...prev, ...patch }));
+    },
+    []
+  );
 
   const resetSellerFlow = useCallback(() => {
     setSellerStep("idle");
@@ -213,6 +230,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerHasVideo(false);
     setLastPublishedListing(null);
     setEditingListingId(null);
+    setListingSocialPublish(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -741,6 +759,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const updated: Listing = enrichListingCoords({
         ...existing,
         ...patch,
+        attributes: mergeSocialPublishAttributes(
+          { ...(existing.attributes ?? {}), ...(patch.attributes ?? aiDraft.attributes) },
+          listingSocialPublish
+        ),
         images: listingImage ? [listingImage, ...existing.images.slice(1)] : existing.images,
         slug: generateListingSlug(patch.title ?? existing.title, patch.location ?? existing.location),
         hasVideo: sellerHasVideo,
@@ -809,7 +831,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       category: aiDraft.category,
       tags: attributesToTags(aiDraft),
       description: aiDraft.description,
-      attributes: aiDraft.attributes,
+      attributes: mergeSocialPublishAttributes(aiDraft.attributes, listingSocialPublish),
       status: "active",
       sellerId: user.id,
       createdAt,
@@ -848,11 +870,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setLastPublishedListing(published);
     setSellerStep("published");
     scheduleSellerEngagementPush(published.id, published.location, published.title);
-    void runAutoShareOnPublish(published).then((result) => {
-      if (result.method === "native") {
-        showToast("Skelbimas pasidalintas per sisteminį dalijimosi meniu.", "success");
-      } else if (result.method === "platform" && result.platform) {
-        showToast(`Atidarytas ${result.platform} dalijimosi langas.`, "info");
+    void runListingSocialPublish(published, listingSocialPublish).then((result) => {
+      if (result.facebook === "opened") {
+        showToast("Facebook dalijimasis inicijuotas.", "info");
+      }
+      if (result.anonser === "queued") {
+        showToast("Anonser.lt sinchronizacija suplanuota.", "info");
       }
     });
   }, [
@@ -872,6 +895,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     showConfirm,
     editingListingId,
     resetSellerFlow,
+    listingSocialPublish,
   ]);
 
   const startEditListingFlow = useCallback(
@@ -887,6 +911,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerHasVideo(Boolean(listing.hasVideo));
       setAiManualFallback(true);
       setSellerInputMode("upload");
+      setListingSocialPublish(readSocialPublishFromAttributes(listing.attributes));
       setSellerStep("confirmation");
     },
     [user.id, showToast]
@@ -983,6 +1008,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       consumePendingSellerQuery,
       openManualListingWizard,
       startEditListingFlow,
+      listingSocialPublish,
+      updateListingSocialPublish,
     }),
     [
       sellerStep,
@@ -1010,6 +1037,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       consumePendingSellerQuery,
       openManualListingWizard,
       startEditListingFlow,
+      listingSocialPublish,
+      updateListingSocialPublish,
     ]
   );
 

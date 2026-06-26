@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import { ChevronLeft, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -681,6 +682,7 @@ export function JobListingWizard({
                   {buildSalaryLabel(attrs) || "Atlyginimas derinamas"}
                 </p>
               </div>
+              <ListingPublishSocialOptions className="mt-4" />
             </>
           )}
 

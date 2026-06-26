@@ -90,8 +90,9 @@ export default function AddPage() {
         <h2 className="font-display mt-6 text-center text-xl font-bold text-[#111827]">
           Naujas skelbimas
         </h2>
-        <p className="mt-2 text-center text-sm text-[#6b7280]">
-          Pridėkite nuotraukas — AI užpildys skelbimą ir pasiūlys kainą.
+        <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted,#6b7280)]">
+          Įklijuokite nuorodą iš Autoplius ar Skelbiu — arba pridėkite nuotraukas, AI
+          užpildys skelbimą.
         </p>
         <div className="mt-5">
           <SellerUploadPanel

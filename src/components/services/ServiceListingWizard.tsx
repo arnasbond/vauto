@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import { Camera, ChevronLeft, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
@@ -299,6 +300,7 @@ export function ServiceListingWizard({
                   Automatinis atpažinimas nepavyko — patikrinkite laukus prieš publikuojant.
                 </p>
               )}
+              <ListingPublishSocialOptions className="mt-4" />
             </>
           )}
         </div>

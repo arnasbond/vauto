@@ -2,6 +2,7 @@
 
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, MessageCircle, X } from "lucide-react";
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import { BuddyAvatar } from "@/components/conversational/BuddyAvatar";
 import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions";
 import { BuddyFab } from "@/components/buddy/BuddyFab";
@@ -321,6 +322,7 @@ export function ConversationalReport({
           t.headerBar
         )}
       >
+        <ListingPublishSocialOptions className="mb-3" />
         <button
           type="button"
           onClick={onPublish}

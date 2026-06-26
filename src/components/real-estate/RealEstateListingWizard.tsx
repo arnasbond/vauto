@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import {
   Briefcase,
   Building2,
@@ -948,6 +949,7 @@ export function RealEstateListingWizard({
                 <p className="mt-2 text-xs text-[#c62828]">✓ YouTube video pridėta</p>
               )}
             </div>
+            <ListingPublishSocialOptions className="mt-4" />
           </>
         )}
 

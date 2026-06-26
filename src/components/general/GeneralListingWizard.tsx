@@ -4,6 +4,7 @@ import { Camera, CheckCircle2, ChevronRight, Circle, Plus, Sparkles, X } from "l
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { useAuth } from "@/context/AuthContext";
 import type { AiExtractedListing } from "@/lib/types";
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import {
   formatSkelbiuCategory,
   ITEM_CONDITIONS,
@@ -616,6 +617,8 @@ export function GeneralListingWizard({
               <span className="listing-form-accent">privatumo politika</span>.
             </span>
           </label>
+
+          <ListingPublishSocialOptions className="mb-4" />
 
           <button
             type="button"

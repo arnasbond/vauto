@@ -1,5 +1,6 @@
 "use client";
 
+import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { AdaptiveCategoryConfig } from "@/lib/adaptive-categories";
@@ -67,6 +68,8 @@ export function ConfirmationShell({
         {assistantPrompt}
 
         <div className="flex flex-col gap-4">{children}</div>
+
+        <ListingPublishSocialOptions className="mt-4" />
 
         <button
           type="button"
