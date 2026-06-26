@@ -38,6 +38,7 @@ import type {
   UserRole,
 } from "@/lib/types";
 import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
+import { consumeOAuthPendingPayload } from "@/lib/auth/oauth-redirect";
 
 export interface LoginPayload {
   provider: AuthProviderType;
@@ -281,6 +282,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     },
     [loginLocal, user.city]
   );
+
+  useEffect(() => {
+    if (!hydrated || isAuthenticated) return;
+    const pending = consumeOAuthPendingPayload();
+    if (!pending?.idToken) return;
+    void login({
+      provider: pending.provider,
+      role: "private",
+      idToken: pending.idToken,
+    });
+  }, [hydrated, isAuthenticated, login]);
 
   const logout = useCallback(() => {
     setIsAuthenticated(false);

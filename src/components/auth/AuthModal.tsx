@@ -10,6 +10,7 @@ import {
   requestGoogleIdToken,
 } from "@/lib/auth/google-client";
 import { isAppleAuthConfigured } from "@/lib/auth/apple-client";
+import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
 import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
 
 type AuthStep = "methods" | "phone" | "otp" | "role" | "admin";
@@ -146,6 +147,10 @@ export function AuthModal({
       return;
     }
     if (isGoogleAuthConfigured()) {
+      if (isNativeAuthEnvironment()) {
+        googleBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
+        return;
+      }
       const token = await requestGoogleIdToken();
       if (token) {
         setGoogleIdToken(token);

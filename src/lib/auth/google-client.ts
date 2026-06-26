@@ -1,4 +1,10 @@
 import { getRuntimeGoogleClientId } from "@/lib/api/config";
+import {
+  getAuthOrigin,
+  getGoogleRedirectUris,
+  isAllowedAuthOrigin,
+  isNativeAuthEnvironment,
+} from "@/lib/auth/oauth-redirect";
 
 declare global {
   interface Window {
@@ -31,6 +37,21 @@ export function isGoogleAuthConfigured(): boolean {
   return Boolean(getGoogleClientId());
 }
 
+/** Redirect URIs to whitelist in Google Cloud Console (Web + Capacitor). */
+export function getConfiguredGoogleRedirectUris(): string[] {
+  return getGoogleRedirectUris();
+}
+
+function assertAuthOrigin(): void {
+  if (typeof window === "undefined") return;
+  if (!isAllowedAuthOrigin()) {
+    console.warn(
+      `[Vauto] Auth origin "${getAuthOrigin()}" is not in authorized list. ` +
+        `Add it to Google Cloud Console → Authorized JavaScript origins.`
+    );
+  }
+}
+
 function loadGoogleScript(): Promise<void> {
   return new Promise((resolve, reject) => {
     if (window.google?.accounts?.id) {
@@ -58,7 +79,12 @@ function loadGoogleScript(): Promise<void> {
 export async function requestGoogleIdToken(): Promise<string | null> {
   const clientId = getGoogleClientId();
   if (!clientId) return null;
+
+  // One Tap is unreliable inside Capacitor WebView — use renderGoogleButton instead.
+  if (isNativeAuthEnvironment()) return null;
+
   await loadGoogleScript();
+  assertAuthOrigin();
   return new Promise((resolve) => {
     let settled = false;
     const finish = (token: string | null) => {
@@ -84,6 +110,7 @@ export async function renderGoogleButton(
   const clientId = getGoogleClientId();
   if (!clientId) return;
   await loadGoogleScript();
+  assertAuthOrigin();
   window.google!.accounts.id.initialize({
     client_id: clientId,
     callback: (res) => {

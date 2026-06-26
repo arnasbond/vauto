@@ -1,5 +1,9 @@
 import type { Listing } from "@/lib/types";
 import { generateListingMetadata, listingPath } from "@/lib/seo";
+import {
+  canUseCapacitorShare,
+  shareViaCapacitor,
+} from "@/lib/native-share";
 
 export const SITE_URL = "https://vauto-chi.vercel.app";
 
@@ -96,22 +100,35 @@ export function buildListingSharePayload(listing: Listing): ListingSharePayload 
 }
 
 export function canUseNativeShare(): boolean {
-  return typeof navigator !== "undefined" && typeof navigator.share === "function";
+  if (typeof navigator === "undefined") return false;
+  if (canUseCapacitorShare()) return true;
+  return typeof navigator.share === "function";
 }
 
 export async function shareListingNative(listing: Listing): Promise<boolean> {
-  if (!canUseNativeShare()) return false;
   const payload = buildListingSharePayload(listing);
-  try {
-    await navigator.share({
-      title: payload.title,
-      text: payload.text,
-      url: payload.url,
-    });
-    return true;
-  } catch {
-    return false;
+  const sharePayload = {
+    title: payload.title,
+    text: payload.text,
+    url: payload.url,
+    dialogTitle: "Dalintis skelbimu",
+  };
+
+  if (canUseCapacitorShare()) {
+    const ok = await shareViaCapacitor(sharePayload);
+    if (ok) return true;
   }
+
+  if (typeof navigator !== "undefined" && typeof navigator.share === "function") {
+    try {
+      await navigator.share(sharePayload);
+      return true;
+    } catch {
+      /* user dismissed or WebView blocked */
+    }
+  }
+
+  return false;
 }
 
 export async function copyListingLink(listing: Listing): Promise<boolean> {

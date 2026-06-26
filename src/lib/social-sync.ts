@@ -1,4 +1,5 @@
 import type { Listing } from "@/lib/types";
+import { canUseCapacitorShare } from "@/lib/native-share";
 import {
   canUseNativeShare,
   DEFAULT_SOCIAL_SYNC_PREFS,
@@ -41,7 +42,8 @@ export async function runAutoShareOnPublish(
   const enabled = getEnabledNetworks(prefs);
   if (enabled.length === 0) return { method: "skipped" };
 
-  if (canUseNativeShare()) {
+  // Capacitor Share first — navigator.share is often blocked in WebView.
+  if (canUseCapacitorShare() || canUseNativeShare()) {
     const ok = await shareListingNative(listing);
     if (ok) return { method: "native" };
   }

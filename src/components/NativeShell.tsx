@@ -10,6 +10,7 @@ import {
   attachNativePushNavigation,
   registerNativePush,
 } from "@/lib/native-push";
+import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
@@ -78,6 +79,25 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
 
     initNative();
   }, []);
+
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+
+    let removeListener: (() => void) | undefined;
+
+    void import("@capacitor/app").then(({ App }) => {
+      void App.addListener("appUrlOpen", ({ url }) => {
+        const payload = storeOAuthCallbackPayload(url);
+        if (payload?.idToken) {
+          router.replace("/");
+        }
+      }).then((handle) => {
+        removeListener = () => void handle.remove();
+      });
+    });
+
+    return () => removeListener?.();
+  }, [router]);
 
   return <>{children}</>;
 }

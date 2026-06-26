@@ -1,4 +1,20 @@
 {
   "apiUrl": "https://vauto-api.onrender.com",
-  "googleClientId": "YOUR_CLIENT_ID.apps.googleusercontent.com"
+  "googleClientId": "YOUR_CLIENT_ID.apps.googleusercontent.com",
+  "_oauthNotes": {
+    "googleAuthorizedOrigins": [
+      "https://vauto-chi.vercel.app",
+      "http://localhost:3000",
+      "https://localhost",
+      "capacitor://localhost"
+    ],
+    "googleRedirectUris": [
+      "https://vauto-chi.vercel.app/auth/callback/",
+      "com.vauto.app://auth/callback"
+    ],
+    "appleRedirectUris": [
+      "https://vauto-chi.vercel.app/auth/callback/",
+      "com.vauto.app://auth/callback"
+    ]
+  }
 }
