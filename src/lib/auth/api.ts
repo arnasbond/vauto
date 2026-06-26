@@ -123,6 +123,24 @@ export async function apiFetchAuthSession(
   });
 }
 
+export async function apiUpgradeToPro(params: {
+  businessType: ProBusinessType;
+  companyName: string;
+  companyCode: string;
+  vatCode?: string;
+  serviceBaseCity?: string;
+  serviceRadiusKm?: number;
+  serviceNationwide?: boolean;
+  serviceSpecialties?: string[];
+}): Promise<ApiResult<AuthApiSession>> {
+  const { getAuthHeaders } = await import("@/lib/auth/session");
+  return authFetch<AuthApiSession>("/api/auth/upgrade", {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify(params),
+  });
+}
+
 export function mapApiUserToProfile(
   apiUser: AuthApiSession["user"],
   meta: {
@@ -140,7 +158,7 @@ export function mapApiUserToProfile(
     email: apiUser.email,
     avatar: apiUser.avatar,
     authProvider: meta.provider,
-    role: meta.role,
+    role: meta.role ?? apiUser.role ?? "private",
     businessType: meta.businessType ?? apiUser.businessType,
     companyName: apiUser.companyName,
     companyCode: apiUser.companyCode,

@@ -74,6 +74,22 @@ function resolveRole(
   return metaRole;
 }
 
+/** Login must never downgrade an established account or re-prompt for account type. */
+function resolveLoginRole(
+  metaRole: string,
+  existing: ApiUser | null,
+  email?: string | null,
+  phone?: string | null
+): string {
+  const adminRole = resolveRole(metaRole, email, phone);
+  if (adminRole === "super_admin") return "super_admin";
+  if (existing?.role === "pro" || existing?.role === "super_admin") {
+    return existing.role;
+  }
+  if (existing?.role) return existing.role;
+  return "private";
+}
+
 async function buildSession(
   userId: string,
   profile: Partial<ApiUser> & { id: string },
@@ -93,7 +109,7 @@ async function buildSession(
   const existing = await getUser(userId);
   const email = profile.email ?? existing?.email;
   const phone = profile.phone ?? existing?.phone;
-  const role = resolveRole(meta.role, email, phone);
+  const role = resolveLoginRole(meta.role, existing, email, phone);
   const user: ApiUser = {
     id: userId,
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
@@ -103,11 +119,11 @@ async function buildSession(
     email,
     warned: existing?.warned ?? false,
     role,
-    businessType: meta.businessType ?? existing?.businessType,
+    businessType: existing?.businessType ?? meta.businessType,
     authProvider: meta.provider,
-    companyName: meta.companyName ?? existing?.companyName,
-    companyCode: meta.companyCode ?? existing?.companyCode,
-    vatCode: meta.vatCode ?? existing?.vatCode,
+    companyName: existing?.companyName ?? meta.companyName,
+    companyCode: existing?.companyCode ?? meta.companyCode,
+    vatCode: existing?.vatCode ?? meta.vatCode,
     billingPlan: existing?.billingPlan ?? (role === "pro" ? "starter" : "free"),
     billingModel: existing?.billingModel ?? (role === "pro" ? "ppc" : undefined),
     serviceBaseCity: meta.serviceBaseCity ?? existing?.serviceBaseCity,
@@ -352,4 +368,81 @@ authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
 
 authRouter.post("/logout", (_req, res) => {
   res.json({ ok: true });
+});
+
+authRouter.post("/upgrade", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const userId = req.authUserId!;
+    const existing = await getUser(userId);
+    if (!existing) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (existing.role === "pro" || existing.role === "super_admin") {
+      res.status(400).json({ error: "Jūs jau turite Pro paskyrą." });
+      return;
+    }
+
+    const businessType = String(req.body?.businessType ?? "general");
+    const companyName = String(req.body?.companyName ?? "").trim();
+    const companyCode = String(req.body?.companyCode ?? "").trim();
+    const vatCode = req.body?.vatCode ? String(req.body.vatCode).trim() : undefined;
+    const serviceBaseCity = req.body?.serviceBaseCity
+      ? String(req.body.serviceBaseCity).trim()
+      : undefined;
+    const serviceRadiusKm = req.body?.serviceRadiusKm
+      ? Number(req.body.serviceRadiusKm)
+      : undefined;
+    const serviceNationwide = req.body?.serviceNationwide === true;
+    const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
+      ? (req.body.serviceSpecialties as unknown[]).map(String)
+      : undefined;
+
+    if (companyName.length < 2) {
+      res.status(400).json({ error: "Įveskite įmonės pavadinimą." });
+      return;
+    }
+    if (companyCode.length < 2) {
+      res.status(400).json({ error: "Įveskite įmonės kodą." });
+      return;
+    }
+    if (businessType === "services" && !serviceBaseCity) {
+      res.status(400).json({ error: "Nurodykite bazinį miestą paslaugoms." });
+      return;
+    }
+
+    const user: ApiUser = {
+      ...existing,
+      role: "pro",
+      businessType,
+      companyName,
+      companyCode,
+      vatCode,
+      serviceBaseCity,
+      serviceRadiusKm,
+      serviceNationwide,
+      serviceSpecialties,
+      billingPlan: existing.billingPlan ?? "starter",
+      billingModel: existing.billingModel ?? "ppc",
+      walletBalance: existing.walletBalance ?? 25,
+      averageResponseMinutes:
+        existing.averageResponseMinutes ??
+        (businessType === "services" ? 12 : undefined),
+    };
+    await upsertUser(user);
+    const token = signAccessToken({
+      sub: userId,
+      role: "pro",
+      provider: existing.authProvider ?? "phone",
+    });
+    res.json({
+      token,
+      expiresAt: new Date(Date.now() + getTokenTtlMs()).toISOString(),
+      user,
+      role: "pro",
+      provider: existing.authProvider ?? "phone",
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
 });

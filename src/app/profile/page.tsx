@@ -29,6 +29,8 @@ import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { ProfileAccordion } from "@/components/profile/ProfileAccordion";
 import { ProfileBusinessPanel } from "@/components/profile/ProfileBusinessPanel";
+import { ProfileAccountTypePanel } from "@/components/profile/ProfileAccountTypePanel";
+import { ProfileViewProvider } from "@/lib/profile-view";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
@@ -108,6 +110,7 @@ export default function ProfilePage() {
   }
 
   return (
+    <ProfileViewProvider>
     <DashboardShell>
       <Suspense fallback={null}>
         <BillingReturnToast />
@@ -118,6 +121,7 @@ export default function ProfilePage() {
 
       <DashboardHeader user={user} onLogout={logout} />
       <ReferralInviteCard />
+      <ProfileAccountTypePanel />
 
       <DashboardPage
         user={user}
@@ -175,5 +179,6 @@ export default function ProfilePage() {
         <InstallDownloadButtons showShare />
       </ProfileAccordion>
     </DashboardShell>
+    </ProfileViewProvider>
   );
 }

@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { PrivateSellerDashboard } from "@/components/dashboard/PrivateSellerDashboard";
 import { ProBusinessDashboard } from "@/components/dashboard/ProBusinessDashboard";
+import { useProfileViewMode } from "@/lib/profile-view";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing, UserProfile } from "@/lib/types";
 
@@ -20,13 +21,14 @@ export function ProfileBusinessPanel({
   onRenew,
 }: ProfileBusinessPanelProps) {
   const { deleteListing, markListingSold, topUpWallet, startEditListingFlow } = useVauto();
-  const isEmployer = user.role === "pro";
+  const isPro = user.role === "pro";
+  const { showBusinessUi } = useProfileViewMode(isPro);
   const activeJobListings = useMemo(
     () => listings.filter((l) => l.category === "jobs" && l.status !== "sold").length,
     [listings]
   );
 
-  if (isEmployer) {
+  if (showBusinessUi) {
     return (
       <ProBusinessDashboard
         user={user}

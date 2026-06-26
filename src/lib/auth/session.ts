@@ -1,5 +1,11 @@
 import type { AuthSession } from "@/lib/types";
+import type { UserProfile } from "@/lib/types";
 import { saveAuthSession } from "@/lib/storage";
+import {
+  clearPersistedAuth,
+  loadPersistedAuth,
+  persistAuthBundle,
+} from "@/lib/auth/persistence";
 
 const TOKEN_KEY = "vauto_access_token_v1";
 
@@ -27,9 +33,22 @@ export function persistAuthSession(session: AuthSession): void {
   saveAccessToken(session.accessToken ?? null);
 }
 
-export function clearAuthSessionFull(): void {
+export async function persistAuthSessionFull(
+  session: AuthSession,
+  user: UserProfile
+): Promise<void> {
+  persistAuthSession(session);
+  await persistAuthBundle(session, user, session.accessToken ?? null);
+}
+
+export async function clearAuthSessionFull(): Promise<void> {
   saveAuthSession({ isAuthenticated: false });
   saveAccessToken(null);
+  await clearPersistedAuth();
+}
+
+export async function restorePersistedAuth() {
+  return loadPersistedAuth();
 }
 
 export function getAuthHeaders(): Record<string, string> {

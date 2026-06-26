@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from "react";
 import { Apple, Phone, Shield, X } from "lucide-react";
-import type { AuthProvider, ProBusinessType, UserRole } from "@/lib/types";
-import { ADMIN_EMAIL, ADMIN_PHONE, PRO_DEMO_PHONE } from "@/lib/reports";
+import type { AuthProvider, UserRole } from "@/lib/types";
+import { ADMIN_EMAIL, ADMIN_PHONE } from "@/lib/reports";
 import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 import {
   isGoogleAuthConfigured,
@@ -13,7 +13,7 @@ import { isAppleAuthConfigured } from "@/lib/auth/apple-client";
 import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
 import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
 
-type AuthStep = "methods" | "phone" | "otp" | "role" | "admin";
+type AuthStep = "methods" | "phone" | "otp" | "admin";
 
 interface AuthModalProps {
   open: boolean;
@@ -25,17 +25,9 @@ interface AuthModalProps {
     provider: AuthProvider;
     phone?: string;
     role: UserRole;
-    businessType?: ProBusinessType;
     email?: string;
     otp?: string;
     idToken?: string;
-    companyName?: string;
-    companyCode?: string;
-    vatCode?: string;
-    serviceBaseCity?: string;
-    serviceRadiusKm?: number;
-    serviceNationwide?: boolean;
-    serviceSpecialties?: string[];
   }) => void;
 }
 
@@ -74,22 +66,23 @@ export function AuthModal({
   const [phone, setPhone] = useState("+370 ");
   const [otp, setOtp] = useState("");
   const [role, setRole] = useState<UserRole>("private");
-  const [businessType, setBusinessType] = useState<ProBusinessType>("general");
-  const [companyName, setCompanyName] = useState("");
-  const [companyCode, setCompanyCode] = useState("");
-  const [vatCode, setVatCode] = useState("");
-  const [serviceBaseCity, setServiceBaseCity] = useState("Vilnius");
-  const [serviceRadiusKm, setServiceRadiusKm] = useState(25);
-  const [serviceNationwide, setServiceNationwide] = useState(false);
-  const [serviceSpecialties, setServiceSpecialties] = useState<string[]>([
-    "Remontas",
-  ]);
-  const [pendingProvider, setPendingProvider] = useState<AuthProvider>("google");
   const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
   const [otpSending, setOtpSending] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
   const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) {
+      setStep("methods");
+      setPhone("+370 ");
+      setOtp("");
+      setRole("private");
+      setAdminEmail(ADMIN_EMAIL);
+      setOtpError(null);
+      setGoogleIdToken(null);
+    }
+  }, [open]);
 
   useEffect(() => {
     if (!open || step !== "methods" || !googleBtnRef.current) return;
@@ -98,44 +91,28 @@ export function AuthModal({
       if (!googleBtnRef.current) return;
       void renderGoogleButton(googleBtnRef.current, (credential) => {
         setGoogleIdToken(credential);
-        setPendingProvider("google");
-        setStep("role");
+        onClearError?.();
+        onComplete({
+          provider: "google",
+          role: "private",
+          idToken: credential,
+        });
       });
     });
-  }, [open, step]);
+  }, [open, step, onComplete, onClearError]);
 
   if (!open) return null;
 
   const finish = (provider: AuthProvider) => {
+    onClearError?.();
     onComplete({
       provider,
       phone: provider === "phone" ? normalizeLtPhoneForApi(phone) : undefined,
       otp: provider === "phone" ? otp : undefined,
       idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
-      role,
+      role: role === "admin" ? "admin" : "private",
       email: role === "admin" ? ADMIN_EMAIL : undefined,
-      businessType: role === "pro" ? businessType : undefined,
-      companyName: role === "pro" ? companyName.trim() || undefined : undefined,
-      companyCode: role === "pro" ? companyCode.trim() || undefined : undefined,
-      vatCode: role === "pro" ? vatCode.trim() || undefined : undefined,
-      serviceBaseCity:
-        role === "pro" && businessType === "services"
-          ? serviceBaseCity.trim() || "Vilnius"
-          : undefined,
-      serviceRadiusKm:
-        role === "pro" && businessType === "services"
-          ? serviceNationwide
-            ? 999
-            : serviceRadiusKm
-          : undefined,
-      serviceNationwide:
-        role === "pro" && businessType === "services" ? serviceNationwide : undefined,
-      serviceSpecialties:
-        role === "pro" && businessType === "services" ? serviceSpecialties : undefined,
     });
-    setStep("methods");
-    setOtp("");
-    setGoogleIdToken(null);
   };
 
   const handleGoogle = async () => {
@@ -153,9 +130,7 @@ export function AuthModal({
       }
       const token = await requestGoogleIdToken();
       if (token) {
-        setGoogleIdToken(token);
-        setPendingProvider("google");
-        setStep("role");
+        onComplete({ provider: "google", role: "private", idToken: token });
         return;
       }
       if (isAuthApiAvailable()) {
@@ -164,8 +139,7 @@ export function AuthModal({
       }
     }
     if (!isAuthApiAvailable()) {
-      setPendingProvider("google");
-      setStep("role");
+      onComplete({ provider: "google", role: "private" });
     }
   };
 
@@ -193,35 +167,21 @@ export function AuthModal({
       setOtpError("Įveskite 6 skaitmenų kodą");
       return;
     }
-    setPendingProvider("phone");
-    if (role === "admin") {
-      finish("phone");
-      return;
-    }
-    setStep("role");
+    finish("phone");
   };
 
   const displayError = error ?? otpError;
-
-  const proFormValid =
-    role !== "pro" ||
-    (companyName.trim().length >= 2 &&
-      companyCode.trim().length >= 2 &&
-      (businessType !== "services" || serviceBaseCity.trim().length > 0));
 
   return (
     <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
       <div className="vauto-auth-modal w-full max-w-md rounded-t-3xl p-6 shadow-2xl sm:rounded-3xl">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white">
-              {step === "role" ? "Pasirinkite paskyrą" : "Prisijungti prie Vauto"}
-            </h2>
+            <h2 className="text-xl font-bold text-white">Prisijungti prie Vauto</h2>
             <p className="mt-1 text-sm text-teal-200/70">
               {step === "methods" && "Saugus prisijungimas per 30 sek."}
               {step === "phone" && "Įveskite telefono numerį"}
               {step === "otp" && "Patvirtinkite SMS kodą"}
-              {step === "role" && "Privatus pardavėjas arba verslas"}
               {step === "admin" && "Vauto moderatorių prieiga"}
             </p>
           </div>
@@ -269,9 +229,9 @@ export function AuthModal({
                 type="button"
                 onClick={() => {
                   onClearError?.();
-                  setPendingProvider("apple");
-                  setStep("role");
+                  onComplete({ provider: "apple", role: "private" });
                 }}
+                disabled={loading}
                 className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"
               >
                 <Apple className="h-5 w-5" />
@@ -302,7 +262,8 @@ export function AuthModal({
               </p>
             ) : (
               <p className="pt-2 text-center text-xs text-slate-500">
-                Demo režimas: kodas <span className="font-mono text-teal-400">123456</span>
+                Demo režimas: kodas{" "}
+                <span className="font-mono text-teal-400">123456</span>
               </p>
             )}
             <button
@@ -343,9 +304,6 @@ export function AuthModal({
                     email: ADMIN_EMAIL,
                     idToken: token ?? undefined,
                   });
-                  if (!isAuthApiAvailable() || token) {
-                    setStep("methods");
-                  }
                 }}
                 disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
                 className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
@@ -366,7 +324,6 @@ export function AuthModal({
                     if (adminEmail.trim().toLowerCase() !== ADMIN_EMAIL) return;
                     setPhone(formatLtPhoneInput(ADMIN_PHONE));
                     setRole("admin");
-                    setPendingProvider("phone");
                     setStep("phone");
                   }}
                   disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
@@ -405,6 +362,13 @@ export function AuthModal({
             >
               {otpSending ? "Siunčiama…" : "Siųsti kodą"}
             </button>
+            <button
+              type="button"
+              onClick={() => setStep("methods")}
+              className="w-full text-center text-xs text-slate-500"
+            >
+              Grįžti
+            </button>
           </div>
         )}
 
@@ -424,184 +388,17 @@ export function AuthModal({
             <button
               type="button"
               onClick={verifyOtp}
-              className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white"
+              disabled={loading}
+              className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
             >
-              Patvirtinti
+              {loading ? "Jungiamasi…" : "Patvirtinti ir prisijungti"}
             </button>
-          </div>
-        )}
-
-        {step === "role" && (
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={() => setRole("private")}
-                className={`rounded-2xl p-4 text-left transition ${
-                  role === "private"
-                    ? "bg-[var(--vauto-teal)]/25 ring-2 ring-[var(--vauto-teal)]"
-                    : "bg-white/5 ring-1 ring-white/10"
-                }`}
-              >
-                <p className="text-sm font-semibold text-white">Privatus</p>
-                <p className="mt-1 text-xs text-slate-400">Paprasti skelbimai</p>
-              </button>
-              <button
-                type="button"
-                onClick={() => setRole("pro")}
-                className={`rounded-2xl p-4 text-left transition ${
-                  role === "pro"
-                    ? "bg-[var(--vauto-orange)]/25 ring-2 ring-[var(--vauto-orange)]"
-                    : "bg-white/5 ring-1 ring-white/10"
-                }`}
-              >
-                <p className="text-sm font-semibold text-white">Pro Verslas</p>
-                <p className="mt-1 text-xs text-slate-400">Analitika + piniginė</p>
-              </button>
-            </div>
-
-            {role === "pro" && (
-              <div className="space-y-3">
-                <p className="text-xs font-medium text-slate-400">Verslo tipas</p>
-                {(
-                  [
-                    ["dealer", "Auto salonas"],
-                    ["services", "Paslaugų teikėjas"],
-                    ["general", "Kitas verslas"],
-                  ] as const
-                ).map(([key, label]) => (
-                  <button
-                    key={key}
-                    type="button"
-                    onClick={() => setBusinessType(key)}
-                    className={`w-full rounded-xl px-4 py-2.5 text-left text-sm ${
-                      businessType === key
-                        ? "bg-white/15 text-white"
-                        : "bg-white/5 text-slate-400"
-                    }`}
-                  >
-                    {label}
-                  </button>
-                ))}
-                <div className="grid gap-2">
-                  <input
-                    type="text"
-                    name="organization"
-                    autoComplete="organization"
-                    value={companyName}
-                    onChange={(e) => setCompanyName(e.target.value)}
-                    placeholder="Įmonės pavadinimas"
-                    className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
-                  />
-                  <input
-                    type="text"
-                    value={companyCode}
-                    onChange={(e) => setCompanyCode(e.target.value)}
-                    placeholder="Įmonės kodas"
-                    className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
-                  />
-                  <input
-                    type="text"
-                    value={vatCode}
-                    onChange={(e) => setVatCode(e.target.value)}
-                    placeholder="PVM kodas (nebūtina)"
-                    className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
-                  />
-                </div>
-                <p className="text-[10px] text-slate-500">
-                  Verslo testavimui galite registruotis telefonu{" "}
-                  <span className="font-mono text-slate-400">{PRO_DEMO_PHONE}</span>.
-                </p>
-                {businessType === "services" && (
-                  <div className="space-y-3 rounded-xl border border-white/10 bg-white/5 p-3">
-                    <p className="text-xs font-semibold text-slate-300">
-                      Darbo teritorija ir paslaugos
-                    </p>
-                    <input
-                      type="text"
-                      value={serviceBaseCity}
-                      onChange={(e) => setServiceBaseCity(e.target.value)}
-                      placeholder="Bazinis miestas / adresas"
-                      className="w-full rounded-xl bg-white/10 px-3 py-2.5 text-sm text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-orange)]"
-                    />
-                    <div className="grid grid-cols-3 gap-2">
-                      {([10, 25, 50, 100] as const).map((radius) => (
-                        <button
-                          key={radius}
-                          type="button"
-                          onClick={() => {
-                            setServiceNationwide(false);
-                            setServiceRadiusKm(radius);
-                          }}
-                          className={`rounded-lg px-2 py-2 text-xs font-semibold ${
-                            !serviceNationwide && serviceRadiusKm === radius
-                              ? "bg-[var(--vauto-orange)] text-white"
-                              : "bg-white/10 text-slate-300"
-                          }`}
-                        >
-                          {radius} km
-                        </button>
-                      ))}
-                      <button
-                        type="button"
-                        onClick={() => setServiceNationwide(true)}
-                        className={`rounded-lg px-2 py-2 text-xs font-semibold ${
-                          serviceNationwide
-                            ? "bg-[var(--vauto-orange)] text-white"
-                            : "bg-white/10 text-slate-300"
-                        }`}
-                      >
-                        Visa LT
-                      </button>
-                    </div>
-                    <div className="flex flex-wrap gap-2">
-                      {[
-                        "Elektrika",
-                        "Santechnika",
-                        "Valymas",
-                        "Plytelių darbai",
-                        "Gipso montavimas",
-                        "Sienų glaistymas",
-                      ].map((specialty) => {
-                        const active = serviceSpecialties.includes(specialty);
-                        return (
-                          <button
-                            key={specialty}
-                            type="button"
-                            onClick={() =>
-                              setServiceSpecialties((prev) =>
-                                active
-                                  ? prev.filter((x) => x !== specialty)
-                                  : [...prev, specialty]
-                              )
-                            }
-                            className={`rounded-full px-3 py-1.5 text-xs font-semibold ${
-                              active
-                                ? "bg-[var(--vauto-teal)] text-white"
-                                : "bg-white/10 text-slate-300"
-                            }`}
-                          >
-                            {specialty}
-                          </button>
-                        );
-                      })}
-                    </div>
-                  </div>
-                )}
-              </div>
-            )}
-
             <button
               type="button"
-              onClick={() => finish(pendingProvider)}
-              disabled={loading || !proFormValid}
-              className="w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+              onClick={() => setStep("phone")}
+              className="w-full text-center text-xs text-slate-500"
             >
-              {loading
-                ? "Jungiamasi…"
-                : proFormValid
-                  ? "Pradėti naudoti Vauto"
-                  : "Užpildykite įmonės duomenis"}
+              Grįžti
             </button>
           </div>
         )}
