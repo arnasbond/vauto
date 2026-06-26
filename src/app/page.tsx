@@ -3,14 +3,10 @@
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
-import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
-import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
-import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
-import { PopularTodaySection, SocialProofStrip } from "@/components/home/HomeInsights";
-import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
+import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
 import { ZeroUiListingPreview } from "@/components/zero-ui/ZeroUiListingPreview";
 import { ZeroUiBusinessDashboard } from "@/components/zero-ui/ZeroUiBusinessDashboard";
 import { ZeroUiAdminPanel } from "@/components/zero-ui/ZeroUiAdminPanel";
@@ -72,16 +68,7 @@ function MarketplaceView() {
       </HeroSection>
 
       <ContentSection>
-        <ServiceRequestCard />
-        {!emptySearchMode && (
-          <>
-            <MarketplaceCategoryGrid />
-            <HotKeywordsGrid />
-            <SocialProofStrip />
-            <PopularTodaySection />
-            <FilterBubbles />
-          </>
-        )}
+        {!emptySearchMode && <MarketplaceCategoryGrid />}
         <div>
           <ListingGrid hideEmptyAssistant={emptySearchMode} />
         </div>

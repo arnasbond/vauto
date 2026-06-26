@@ -1,6 +1,7 @@
 import type { Listing } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { resolveSearchIntent } from "@/lib/gemini-search-intent";
+import { listingMatchesStrictBrandQuery } from "@/lib/strict-brand-search";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import {
   isViewModeOnlyCommand,
@@ -93,8 +94,9 @@ function filterListings(listings: Listing[], params: FastSearchParams): Listing[
 
   if (query) {
     filtered = filtered.filter((l) => {
+      if (!listingMatchesStrictBrandQuery(l, query)) return false;
       const haystack =
-        `${l.title} ${l.description ?? ""} ${l.category} ${(l.tags ?? []).join(" ")}`.toLowerCase();
+        `${l.title} ${l.description ?? ""} ${l.category} ${(l.tags ?? []).join(" ")} ${String(l.attributes?.make ?? "")}`.toLowerCase();
       return matchesProductTokens(haystack, query);
     });
   }

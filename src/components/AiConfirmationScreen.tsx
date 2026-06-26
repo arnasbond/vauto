@@ -12,6 +12,7 @@ import { JobListingWizard } from "@/components/jobs/JobListingWizard";
 import { ServiceListingWizard } from "@/components/services/ServiceListingWizard";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { ListingWizardPortal } from "@/components/listing/ListingWizardPortal";
+import { WizardCategoryPicker } from "@/components/listing/WizardCategoryPicker";
 
 export type AiConfirmationMode = "overlay" | "inline-preview" | "inline-full";
 
@@ -62,6 +63,19 @@ export function AiConfirmationScreen({
   if (sellerStep === "published") return portalWrap(<PublishedOverlay />);
   if (sellerStep !== "confirmation" || !aiDraft) return null;
 
+  const draft = aiDraft;
+
+  const wrapWithCategoryPicker = (node: React.ReactNode) =>
+    portalWrap(
+      <>
+        <WizardCategoryPicker
+          category={draft.category}
+          onChange={(cat) => updateAiDraft({ category: cat })}
+        />
+        {node}
+      </>
+    );
+
   const handleAttributeChange = (key: string, value: string | string[]) => {
     updateAiDraft({
       attributes: { ...aiDraft.attributes, [key]: value },
@@ -72,7 +86,7 @@ export function AiConfirmationScreen({
   const embedded = mode === "inline-preview" || mode === "inline-full";
 
   if (isVehicle) {
-    return portalWrap(
+    return wrapWithCategoryPicker(
       <VehicleListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -98,7 +112,7 @@ export function AiConfirmationScreen({
   const isServices = listingToAdaptiveKey(aiDraft.category) === "services";
 
   if (isRealEstate) {
-    return portalWrap(
+    return wrapWithCategoryPicker(
       <RealEstateListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -115,7 +129,7 @@ export function AiConfirmationScreen({
   }
 
   if (isClothing) {
-    return portalWrap(
+    return wrapWithCategoryPicker(
       <ClothingListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -132,7 +146,7 @@ export function AiConfirmationScreen({
   }
 
   if (isUniversal) {
-    return portalWrap(
+    return wrapWithCategoryPicker(
       <GeneralListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -149,7 +163,7 @@ export function AiConfirmationScreen({
   }
 
   if (isJobs) {
-    return portalWrap(
+    return wrapWithCategoryPicker(
       <JobListingWizard
         draft={aiDraft}
         manualFallback={aiManualFallback}
@@ -163,7 +177,7 @@ export function AiConfirmationScreen({
   }
 
   if (isServices) {
-    return portalWrap(
+    return wrapWithCategoryPicker(
       <ServiceListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -179,7 +193,7 @@ export function AiConfirmationScreen({
     );
   }
 
-  return portalWrap(
+  return wrapWithCategoryPicker(
     <AdaptiveConfirmation
       draft={aiDraft}
       previewImage={sellerPreviewImage}

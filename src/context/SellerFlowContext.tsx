@@ -843,7 +843,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       });
     }
 
-    showToast("Skelbimas publikuotas!", "success");
+    showToast("Skelbimas sėkmingai įkeltas!", "success");
     setListings((prev) => [published, ...prev]);
     setLastPublishedListing(published);
     setSellerStep("published");

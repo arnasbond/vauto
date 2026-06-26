@@ -8,6 +8,10 @@ import {
   VEHICLE_BRAND_PATTERN,
 } from "@/lib/vehicle-keywords";
 import {
+  listingMatchesStrictBrandQuery,
+  applyStrictBrandFilter,
+} from "@/lib/strict-brand-search";
+import {
   computeVisualRelevance,
   type VisualSearchProfile,
 } from "@/lib/visual-search";
@@ -42,6 +46,8 @@ export function computeSemanticRelevance(
   listing: Listing
 ): number {
   if (!query.trim()) return 0.5;
+
+  if (!listingMatchesStrictBrandQuery(listing, query)) return 0;
 
   const tokens = tokenizeQuery(query);
 
@@ -313,6 +319,7 @@ export function rankListings(
 
   const q = query.trim();
   if (q) {
+    results = applyStrictBrandFilter(results, q);
     const relevant = results.filter(
       (l) => l.semanticRelevance >= MIN_QUERY_RELEVANCE
     );

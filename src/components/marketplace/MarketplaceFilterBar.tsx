@@ -399,7 +399,7 @@ export function MarketplaceFilterBar({
                   priceMin: e.target.value ? Number(e.target.value) : null,
                 })
               }
-              className="w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm text-[#111827]"
+              className="marketplace-filter-input w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm"
             />
             <label className="block text-xs font-semibold text-[#6b7280]">Iki €</label>
             <input
@@ -411,7 +411,7 @@ export function MarketplaceFilterBar({
                   priceMax: e.target.value ? Number(e.target.value) : null,
                 })
               }
-              className="w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm text-[#111827]"
+              className="marketplace-filter-input w-full rounded-lg border border-[#dde5ef] px-2 py-2 text-sm"
             />
             <button
               type="button"

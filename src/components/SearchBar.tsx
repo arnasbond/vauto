@@ -362,7 +362,7 @@ export function SearchBar() {
           }}
           placeholder="Paklauskite balsu arba tekstu — pvz. Volvo Panevėžyje"
           enterKeyHint="search"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)] outline-none"
           disabled={agentBusy || searchLoading || isPhotoSearching || recording}
           autoComplete="off"
         />

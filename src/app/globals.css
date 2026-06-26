@@ -973,11 +973,14 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --vauto-bg: #0b0f19;
   --vauto-card-bg: #161c2a;
   --vauto-text-main: #ffffff;
-  --vauto-text-muted: #9a9ea9;
+  --vauto-text-muted: #e2e8f0;
   --vauto-primary: #00f2fe;
   --vauto-accent: #ff6b00;
   --vauto-primary-contrast: #0b0f19;
-  --vauto-border: rgba(154, 158, 169, 0.28);
+  --vauto-border: rgba(226, 232, 240, 0.22);
+  --portal-text: #ffffff;
+  --portal-wizard-surface: #1e293b;
+  --portal-wizard-bg: #0f172a;
 }
 
 [data-app-theme="dark"] body,
@@ -997,6 +1000,64 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 [data-app-theme="dark"] .vauto-flux-fab {
   background: linear-gradient(135deg, #00f2fe 0%, #6366f1 50%, #22d3ee 100%);
   box-shadow: 0 12px 36px -8px rgba(0, 242, 254, 0.45);
+}
+
+[data-app-theme="dark"] .text-xs,
+[data-app-theme="dark"] .text-sm,
+[data-app-theme="dark"] .text-\[10px\],
+[data-app-theme="dark"] .text-\[11px\],
+[data-app-theme="dark"] .text-\[13px\] {
+  color: inherit;
+}
+
+[data-app-theme="dark"] .listing-wizard-overlay,
+[data-app-theme="dark"] .listing-form-shell {
+  color: var(--vauto-text-main);
+}
+
+[data-app-theme="dark"] .listing-wizard-overlay input[type="text"],
+[data-app-theme="dark"] .listing-wizard-overlay input[type="tel"],
+[data-app-theme="dark"] .listing-wizard-overlay input[type="number"],
+[data-app-theme="dark"] .listing-wizard-overlay input[type="url"],
+[data-app-theme="dark"] .listing-wizard-overlay input[type="month"],
+[data-app-theme="dark"] .listing-wizard-overlay input[type="email"],
+[data-app-theme="dark"] .listing-wizard-overlay textarea,
+[data-app-theme="dark"] .listing-wizard-overlay select,
+[data-app-theme="dark"] .listing-form-input,
+[data-app-theme="dark"] .wizard-category-select {
+  color: #ffffff;
+  background-color: #1e293b;
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  border-color: rgba(226, 232, 240, 0.28);
+}
+
+[data-app-theme="dark"] .listing-wizard-overlay input::placeholder,
+[data-app-theme="dark"] .listing-wizard-overlay textarea::placeholder {
+  color: #94a3b8;
+  -webkit-text-fill-color: #94a3b8;
+  opacity: 1;
+}
+
+.marketplace-filter-input {
+  color: #000000;
+  background-color: #ffffff;
+  -webkit-text-fill-color: #000000;
+  caret-color: #000000;
+}
+
+[data-app-theme="dark"] .marketplace-filter-input {
+  color: #ffffff;
+  background-color: #1e293b;
+  -webkit-text-fill-color: #ffffff;
+  caret-color: #ffffff;
+  border-color: rgba(226, 232, 240, 0.28);
+}
+
+.wizard-category-select {
+  color: var(--vauto-text-main);
+  background-color: var(--vauto-card-bg);
+  -webkit-text-fill-color: var(--vauto-text-main);
 }
 
 [data-app-theme="light-minimal"] {

@@ -106,38 +106,14 @@ export function PublishedOverlay() {
           )}
         >
         <div className="mb-4 flex items-center gap-3">
-          <div
-            className={cn(
-              "flex h-12 w-12 shrink-0 items-center justify-center rounded-full",
-              chameleonTheme === "flux"
-                ? "bg-[var(--vauto-teal)]/20"
-                : chameleonTheme === "autoplius"
-                  ? "bg-[#e8f0fe]"
-                  : chameleonTheme === "vinted"
-                    ? "bg-[#e6f7f6]"
-                    : chameleonTheme === "aruodas"
-                      ? "bg-[#ffebee]"
-                      : "bg-[#e3f2fd]"
-            )}
-          >
-            <Check
-              className={cn(
-                "h-6 w-6",
-                chameleonTheme === "flux"
-                  ? "text-[var(--vauto-teal)]"
-                  : chameleonTheme === "autoplius"
-                    ? "text-[#1a56db]"
-                    : chameleonTheme === "vinted"
-                      ? "text-[#09b1a8]"
-                      : chameleonTheme === "aruodas"
-                        ? "text-[#c62828]"
-                        : "text-[#1565c0]"
-              )}
-            />
+          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+            <Check className="h-6 w-6 text-emerald-500" />
           </div>
           <div>
-            <h2 className={cn("text-lg font-semibold", p.title)}>Skelbimas paskelbtas!</h2>
-            <p className={cn("text-xs", p.title, "opacity-70")}>
+            <h2 className={cn("text-lg font-semibold text-emerald-600", p.title)}>
+              Skelbimas sėkmingai įkeltas!
+            </h2>
+            <p className={cn("text-xs text-[var(--vauto-text-muted)]")}>
               Pasidalykite socialiniuose tinkluose — papildoma reklama
             </p>
           </div>
