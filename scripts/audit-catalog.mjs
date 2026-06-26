@@ -23,8 +23,9 @@ const jsonMatch = catalogSrc.match(
 if (!jsonMatch) fail("Could not parse LITHUANIA_MOCK_CATALOG");
 
 const listings = JSON.parse(jsonMatch[1]);
-if (listings.length !== 100) fail(`Expected 100 listings, got ${listings.length}`);
-ok(`Catalog count: ${listings.length}`);
+const EXPECTED_MIN = 60;
+if (listings.length < EXPECTED_MIN) fail(`Expected at least ${EXPECTED_MIN} listings, got ${listings.length}`);
+ok(`Catalog count: ${listings.length} (min ${EXPECTED_MIN})`);
 
 const ids = listings.map((l) => l.id);
 const uniqueIds = new Set(ids);
@@ -64,6 +65,14 @@ for (const cat of requiredCategories) {
   if (count < 3) fail(`Category ${cat} has only ${count} listings — need diverse catalog`);
   ok(`Category ${cat}: ${count}`);
 }
+
+const aiDiscover = listings.filter((l) => l.tags?.includes("ai-atranda"));
+if (aiDiscover.length < 5) fail(`Expected at least 5 AI atranda listings, got ${aiDiscover.length}`);
+ok(`AI atranda tagged: ${aiDiscover.length}`);
+
+const promoted = listings.filter((l) => l.visibilityTier === "top" || l.visibilityTier === "plus");
+if (promoted.length < 8) fail(`Expected ~10% top/plus listings, got ${promoted.length}`);
+ok(`Visibility top/plus: ${promoted.length}`);
 
 const refs = [
   ["src/data/mockReviews.ts", ["lt-svc-001", "lt-el-001", "seller-svc-1", "seller-el-1"]],

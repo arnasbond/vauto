@@ -69,128 +69,128 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Audi A6 2009",
     "price": 12550,
     "category": "vehicles",
-    "location": "Kaunas",
-    "description": "Audi A6 2009 m. iš Kaunas. Rida 171 550 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatinis pa"
+    "location": "Radviliškis",
+    "description": "Audi A6 2009 m. iš Radviliškis. Rida 171 550 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Vienas savininkas Lietuvoje. Automatin"
   },
   {
     "id": "lt-auto-010",
     "title": "Audi Q5 2016",
     "price": 19900,
     "category": "vehicles",
-    "location": "Panevėžys",
-    "description": "Audi Q5 2016 m. iš Panevėžys. Rida 87 353 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga i"
+    "location": "Kaunas",
+    "description": "Audi Q5 2016 m. iš Kaunas. Rida 87 353 km, dyzelinas, mechaninė. Visi saugumo elementai veikia, paruošta registracijai. Importuota iš Vokietijos, tvarkinga isto"
   },
   {
     "id": "lt-auto-011",
     "title": "Audi A3 Sportback 2023",
     "price": 26700,
     "category": "vehicles",
-    "location": "Mažeikiai",
-    "description": "Audi A3 Sportback 2023 m. iš Mažeikiai. Rida 41 658 km, benzinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. St"
+    "location": "Panevėžys",
+    "description": "Audi A3 Sportback 2023 m. iš Panevėžys. Rida 41 658 km, benzinas, automatinė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Neseniai atlikta didžioji TO. St"
   },
   {
     "id": "lt-auto-012",
     "title": "Volkswagen Golf 2005",
     "price": 8200,
     "category": "vehicles",
-    "location": "Kupiškis",
-    "description": "Volkswagen Golf 2005 m. iš Kupiškis. Rida 184 950 km, dyzelinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių d"
+    "location": "Mažeikiai",
+    "description": "Volkswagen Golf 2005 m. iš Mažeikiai. Rida 184 950 km, dyzelinas, automatinė su padėtimis. Be eismo įvykių, originali dažų spalva. Nauja vairo traukė, stabdžių "
   },
   {
     "id": "lt-auto-013",
     "title": "Volkswagen Passat 2012",
     "price": 15250,
     "category": "vehicles",
-    "location": "Ukmergė",
-    "description": "Volkswagen Passat 2012 m. iš Ukmergė. Rida 116 609 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stogas"
+    "location": "Kupiškis",
+    "description": "Volkswagen Passat 2012 m. iš Kupiškis. Rida 116 609 km, dyzelinas, mechaninė. Priekinis buferis dažytas, techniškai tvarkinga. Odinis salonas, panoraminis stoga"
   },
   {
     "id": "lt-auto-014",
     "title": "Volkswagen Tiguan 2019",
     "price": 22650,
     "category": "vehicles",
-    "location": "Kėdainiai",
-    "description": "Volkswagen Tiguan 2019 m. iš Kėdainiai. Rida 46 770 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiū"
+    "location": "Ukmergė",
+    "description": "Volkswagen Tiguan 2019 m. iš Ukmergė. Rida 46 770 km, dyzelinas, automatinė. Salonas labai tvarkingas, nerūkytas. Apple CarPlay / Android Auto. Techninė apžiūra"
   },
   {
     "id": "lt-auto-015",
     "title": "Volkswagen Touran 2001",
     "price": 1750,
     "category": "vehicles",
-    "location": "Pasvalys",
-    "description": "Volkswagen Touran 2001 m. iš Pasvalys. Rida 256 158 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo jut"
+    "location": "Kėdainiai",
+    "description": "Volkswagen Touran 2001 m. iš Kėdainiai. Rida 256 158 km, dyzelinas, automatinė su padėtimis. Visi saugumo elementai veikia, paruošta registracijai. Parkavimo ju"
   },
   {
     "id": "lt-auto-016",
     "title": "Volvo V70 2008",
     "price": 11050,
     "category": "vehicles",
-    "location": "Visaginas",
-    "description": "Volvo V70 2008 m. iš Visaginas. Rida 208 233 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių kom"
+    "location": "Pasvalys",
+    "description": "Volvo V70 2008 m. iš Pasvalys. Rida 208 233 km, dyzelinas, mechaninė. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Automatinis parkavimas. Du raktelių komp"
   },
   {
     "id": "lt-auto-017",
     "title": "Volvo XC60 2015",
     "price": 19600,
     "category": "vehicles",
-    "location": "Kaunas",
-    "description": "Volvo XC60 2015 m. iš Kaunas. Rida 119 250 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės pa"
+    "location": "Visaginas",
+    "description": "Volvo XC60 2015 m. iš Visaginas. Rida 119 250 km, dyzelinas, automatinė. Be eismo įvykių, originali dažų spalva. Xenon/LED priekiniai žibintai. Naujos vasarinės"
   },
   {
     "id": "lt-auto-018",
     "title": "Volvo XC90 2022",
     "price": 35000,
     "category": "vehicles",
-    "location": "Panevėžys",
-    "description": "Volvo XC90 2022 m. iš Panevėžys. Rida 28 769 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažos "
+    "location": "Radviliškis",
+    "description": "Volvo XC90 2022 m. iš Radviliškis. Rida 28 769 km, dyzelinas, automatinė su padėtimis. Priekinis buferis dažytas, techniškai tvarkinga. Start-stop sistema, mažo"
   },
   {
     "id": "lt-auto-019",
     "title": "Volvo S60 2004",
     "price": 2800,
     "category": "vehicles",
-    "location": "Mažeikiai",
-    "description": "Volvo S60 2004 m. iš Mažeikiai. Rida 182 225 km, benzinas, mechaninė. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. "
+    "location": "Kaunas",
+    "description": "Volvo S60 2004 m. iš Kaunas. Rida 182 225 km, benzinas, mechaninė. Salonas labai tvarkingas, nerūkytas. 4×4 visų ratų pavara. Navigacija, atbulinės kameros. Odi"
   },
   {
     "id": "lt-auto-020",
     "title": "Toyota Corolla 2011",
     "price": 15000,
     "category": "vehicles",
-    "location": "Kupiškis",
-    "description": "Toyota Corolla 2011 m. iš Kupiškis. Rida 149 098 km, hibridas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis. "
+    "location": "Panevėžys",
+    "description": "Toyota Corolla 2011 m. iš Panevėžys. Rida 149 098 km, hibridas, automatinė. Visi saugumo elementai veikia, paruošta registracijai. Automatinė bagažinės dangtis."
   },
   {
     "id": "lt-auto-021",
     "title": "Toyota Avensis 2018",
     "price": 20750,
     "category": "vehicles",
-    "location": "Ukmergė",
-    "description": "Toyota Avensis 2018 m. iš Ukmergė. Rida 74 473 km, dyzelinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra galioj"
+    "location": "Mažeikiai",
+    "description": "Toyota Avensis 2018 m. iš Mažeikiai. Rida 74 473 km, dyzelinas, automatinė su padėtimis. Kėbulo būklė puiki, keli kosmetiniai pabraižymai. Techninė apžiūra gali"
   },
   {
     "id": "lt-auto-022",
     "title": "Toyota RAV4 2000",
     "price": 3100,
     "category": "vehicles",
-    "location": "Kėdainiai",
-    "description": "Toyota RAV4 2000 m. iš Kėdainiai. Rida 257 305 km, hibridas, mechaninė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savini"
+    "location": "Kupiškis",
+    "description": "Toyota RAV4 2000 m. iš Kupiškis. Rida 257 305 km, hibridas, mechaninė. Be eismo įvykių, originali dažų spalva. Serviso knygelė su visais įrašais. Vienas savinin"
   },
   {
     "id": "lt-auto-023",
     "title": "Toyota Yaris 2007",
     "price": 12700,
     "category": "vehicles",
-    "location": "Pasvalys",
-    "description": "Toyota Yaris 2007 m. iš Pasvalys. Rida 206 314 km, benzinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš "
+    "location": "Ukmergė",
+    "description": "Toyota Yaris 2007 m. iš Ukmergė. Rida 206 314 km, benzinas, automatinė. Priekinis buferis dažytas, techniškai tvarkinga. Du raktelių komplektas. Importuota iš V"
   },
   {
     "id": "lt-auto-024",
     "title": "Mercedes-Benz C220 d 2014",
     "price": 19950,
     "category": "vehicles",
-    "location": "Visaginas",
-    "description": "Mercedes-Benz C220 d 2014 m. iš Visaginas. Rida 152 545 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. "
+    "location": "Kėdainiai",
+    "description": "Mercedes-Benz C220 d 2014 m. iš Kėdainiai. Rida 152 545 km, dyzelinas, automatinė su padėtimis. Salonas labai tvarkingas, nerūkytas. Naujos vasarinės padangos. "
   },
   {
     "id": "lt-nt-001",
@@ -277,32 +277,32 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Kambarys bendrame bute",
     "price": 220,
     "category": "real_estate",
-    "location": "Kaunas",
-    "description": "Kambarys bendrame bute Kaunas rajone. 14 m², Nuoma. Skaidri dokumentacija, padėsime su paskola."
+    "location": "Radviliškis",
+    "description": "Kambarys bendrame bute Radviliškis rajone. 14 m², Nuoma. Skaidri dokumentacija, padėsime su paskola."
   },
   {
     "id": "lt-nt-012",
     "title": "Sodyba su pirtimi ir sodu",
     "price": 155000,
     "category": "real_estate",
-    "location": "Šiauliai",
-    "description": "NT pasiūlymas Šiauliai: Sodyba su pirtimi ir sodu. 3 kamb., 95 m². Tinka gyvenimui ar investicijai."
+    "location": "Vilnius",
+    "description": "NT pasiūlymas Vilnius: Sodyba su pirtimi ir sodu. 3 kamb., 95 m². Tinka gyvenimui ar investicijai."
   },
   {
     "id": "lt-nt-013",
     "title": "4 kambarių butas su parkingu",
     "price": 215000,
     "category": "real_estate",
-    "location": "Alytus",
-    "description": "4 kambarių butas su parkingu — Alytus. Plotas 88 m², 4 kamb. Butas. Puiki vieta, šalia infrastruktūra, transportas."
+    "location": "Klaipėda",
+    "description": "4 kambarių butas su parkingu — Klaipėda. Plotas 88 m², 4 kamb. Butas. Puiki vieta, šalia infrastruktūra, transportas."
   },
   {
     "id": "lt-nt-014",
     "title": "Žemės sklypas ūkio paskirčiai",
     "price": 28000,
     "category": "real_estate",
-    "location": "Mažeikiai",
-    "description": "Parduodamas sklypas Mažeikiai mieste. — kamb., 30 a. Tvarkinga būklė, galima apžiūrėti sutartu laiku."
+    "location": "Panevėžys",
+    "description": "Parduodamas sklypas Panevėžys mieste. — kamb., 30 a. Tvarkinga būklė, galima apžiūrėti sutartu laiku."
   },
   {
     "id": "lt-job-001",
@@ -357,48 +357,48 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Pardavėjas-consultant elektronikos salėje",
     "price": 0,
     "category": "jobs",
-    "location": "Kaunas",
-    "description": "Darbo pasiūlymas: Pardavėjas-consultant elektronikos salėje. Vieta: Kaunas. Grafikas: Pamainos. Kreipkitės su CV."
+    "location": "Radviliškis",
+    "description": "Darbo pasiūlymas: Pardavėjas-consultant elektronikos salėje. Vieta: Radviliškis. Grafikas: Pamainos. Kreipkitės su CV."
   },
   {
     "id": "lt-job-008",
     "title": "Buhalterė — maža įmonė",
     "price": 0,
     "category": "jobs",
-    "location": "Panevėžys",
-    "description": "Buhalterė pozicija Panevėžys. Buhalterė — maža įmonė. Oficialus įdarbinimas, socialinės garantijos."
+    "location": "Kaunas",
+    "description": "Buhalterė pozicija Kaunas. Buhalterė — maža įmonė. Oficialus įdarbinimas, socialinės garantijos."
   },
   {
     "id": "lt-job-009",
     "title": "Kurjeris — nuosavas automobilis",
     "price": 0,
     "category": "jobs",
-    "location": "Mažeikiai",
-    "description": "Kurjeris — nuosavas automobilis — Mažeikiai ir apylinkės. Etatas: Lankstus. Patirtis: Be patirties."
+    "location": "Panevėžys",
+    "description": "Kurjeris — nuosavas automobilis — Panevėžys ir apylinkės. Etatas: Lankstus. Patirtis: Be patirties."
   },
   {
     "id": "lt-job-010",
     "title": "Suvirintojas TIG/MIG",
     "price": 0,
     "category": "jobs",
-    "location": "Kupiškis",
-    "description": "Ieškome Suvirintojas Kupiškis. nuo 1700€/mėn.. Suteikiame apmokymą."
+    "location": "Mažeikiai",
+    "description": "Ieškome Suvirintojas Mažeikiai. nuo 1700€/mėn.. Suteikiame apmokymą."
   },
   {
     "id": "lt-job-011",
     "title": "Klientų aptarnavimo specialistas",
     "price": 0,
     "category": "jobs",
-    "location": "Ukmergė",
-    "description": "Darbo pasiūlymas: Klientų aptarnavimo specialistas. Vieta: Ukmergė. Grafikas: Pamainos. Kreipkitės su CV."
+    "location": "Kupiškis",
+    "description": "Darbo pasiūlymas: Klientų aptarnavimo specialistas. Vieta: Kupiškis. Grafikas: Pamainos. Kreipkitės su CV."
   },
   {
     "id": "lt-job-012",
     "title": "Auklė / babysitter — nuolatinė",
     "price": 0,
     "category": "jobs",
-    "location": "Kėdainiai",
-    "description": "Auklė pozicija Kėdainiai. Auklė / babysitter — nuolatinė. Oficialus įdarbinimas, socialinės garantijos."
+    "location": "Ukmergė",
+    "description": "Auklė pozicija Ukmergė. Auklė / babysitter — nuolatinė. Oficialus įdarbinimas, socialinės garantijos."
   },
   {
     "id": "lt-clo-001",
@@ -453,48 +453,48 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Michael Kors rankinė",
     "price": 75,
     "category": "clothing",
-    "location": "Kaunas",
-    "description": "Tvarkingas michael kors rankinė, dydis —. Originalus, ne fake. Perduodu Kaunas centre."
+    "location": "Radviliškis",
+    "description": "Tvarkingas michael kors rankinė, dydis —. Originalus, ne fake. Perduodu Radviliškis centre."
   },
   {
     "id": "lt-clo-008",
     "title": "H&M vaikiška striukė 128 cm",
     "price": 18,
     "category": "clothing",
-    "location": "Alytus",
-    "description": "H&M vaikiška striukė 128 cm. Būklė: Gera. Dydis 128. Alytus, galimas siuntimas."
+    "location": "Klaipėda",
+    "description": "H&M vaikiška striukė 128 cm. Būklė: Gera. Dydis 128. Klaipėda, galimas siuntimas."
   },
   {
     "id": "lt-clo-009",
     "title": "Tommy Hilfiger polo marškinėliai",
     "price": 28,
     "category": "clothing",
-    "location": "Utena",
-    "description": "Parduodu Tommy Hilfiger polo marškinėliai. Dydis L, būklė: Nauja. Utena, galiu siųsti LP Express."
+    "location": "Marijampolė",
+    "description": "Parduodu Tommy Hilfiger polo marškinėliai. Dydis L, būklė: Nauja. Marijampolė, galiu siųsti LP Express."
   },
   {
     "id": "lt-clo-010",
     "title": "Puma sportiniai kostiumai",
     "price": 55,
     "category": "clothing",
-    "location": "Ukmergė",
-    "description": "Puma sportiniai kostiumai — Puma prekė. Dydis M. Naudota kelis kartus, be defektų. Ukmergė."
+    "location": "Kupiškis",
+    "description": "Puma sportiniai kostiumai — Puma prekė. Dydis M. Naudota kelis kartus, be defektų. Kupiškis."
   },
   {
     "id": "lt-clo-011",
     "title": "Timberland aulinukai 44 d.",
     "price": 110,
     "category": "clothing",
-    "location": "Druskininkai",
-    "description": "Tvarkingas timberland aulinukai 44 d., dydis 44. Originalus, ne fake. Perduodu Druskininkai centre."
+    "location": "Palanga",
+    "description": "Tvarkingas timberland aulinukai 44 d., dydis 44. Originalus, ne fake. Perduodu Palanga centre."
   },
   {
     "id": "lt-clo-012",
     "title": "Reserved palto modelis moterims",
     "price": 68,
     "category": "clothing",
-    "location": "Kretinga",
-    "description": "Reserved palto modelis moterims. Būklė: Gera. Dydis M. Kretinga, galimas siuntimas."
+    "location": "Rokiškis",
+    "description": "Reserved palto modelis moterims. Būklė: Gera. Dydis M. Rokiškis, galimas siuntimas."
   },
   {
     "id": "lt-el-001",
@@ -541,56 +541,56 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "PlayStation 5 + 2 pultai",
     "price": 480,
     "category": "electronics",
-    "location": "Šiauliai",
-    "description": "PlayStation 5 + 2 pultai — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Šiauliai centre."
+    "location": "Vilnius",
+    "description": "PlayStation 5 + 2 pultai — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Vilnius centre."
   },
   {
     "id": "lt-el-007",
     "title": "Dyson V15 Detect",
     "price": 480,
     "category": "electronics",
-    "location": "Biržai",
-    "description": "Tvarkingas Dyson V15 Detect, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Biržai."
+    "location": "Alytus",
+    "description": "Tvarkingas Dyson V15 Detect, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Alytus."
   },
   {
     "id": "lt-el-008",
     "title": "Sony WH-1000XM5 ausinės",
     "price": 290,
     "category": "electronics",
-    "location": "Ukmergė",
-    "description": "Sony WH-1000XM5 ausinės — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Ukmergė, galiu atvežti."
+    "location": "Kupiškis",
+    "description": "Sony WH-1000XM5 ausinės — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Kupiškis, galiu atvežti."
   },
   {
     "id": "lt-el-009",
     "title": "iPhone 15 Pro 256 GB",
     "price": 1040,
     "category": "electronics",
-    "location": "Rokiškis",
-    "description": "Parduodu iPhone 15 Pro 256 GB — naudotas, bet be defektų. Ekranas be įbrėžimų, baterija laiko puikiai. Komplektas su dėklu ir įkrovikliu. Galima apžiūrėti Rokiš"
+    "location": "Jonava",
+    "description": "Parduodu iPhone 15 Pro 256 GB — naudotas, bet be defektų. Ekranas be įbrėžimų, baterija laiko puikiai. Komplektas su dėklu ir įkrovikliu. Galima apžiūrėti Jonav"
   },
   {
     "id": "lt-el-010",
     "title": "iPhone 14 128 GB",
     "price": 620,
     "category": "electronics",
-    "location": "Šilutė",
-    "description": "iPhone 14 128 GB — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Šilutė centre."
+    "location": "Plungė",
+    "description": "iPhone 14 128 GB — pirktas oficialioje parduotuvėje, liko garantija. Visi priedai, dėžutė ir kvitas. Perduodu Plungė centre."
   },
   {
     "id": "lt-el-011",
     "title": "Samsung Galaxy S24 Ultra",
     "price": 920,
     "category": "electronics",
-    "location": "Panevėžys",
-    "description": "Tvarkingas Samsung Galaxy S24 Ultra, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Panevėžys."
+    "location": "Radviliškis",
+    "description": "Tvarkingas Samsung Galaxy S24 Ultra, naudotas namuose. Be vandens pažeidimų, visos funkcijos veikia. Greitas susitikimas Radviliškis."
   },
   {
     "id": "lt-el-012",
     "title": "MacBook Air M2 13\"",
     "price": 1110,
     "category": "electronics",
-    "location": "Utena",
-    "description": "MacBook Air M2 13\" — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Utena, galiu atvežti."
+    "location": "Šiauliai",
+    "description": "MacBook Air M2 13\" — atnaujintas programinė įranga, Face ID/Touch ID veikia. Idealus kasdieniam naudojimui. Šiauliai, galiu atvežti."
   },
   {
     "id": "lt-home-001",
@@ -637,48 +637,48 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Ergonominė darbo kėdė",
     "price": 145,
     "category": "home",
-    "location": "Vilnius",
-    "description": "Ergonominė darbo kėdė iš Vilnius. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai."
+    "location": "Gargždai",
+    "description": "Ergonominė darbo kėdė iš Gargždai. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai."
   },
   {
     "id": "lt-home-007",
     "title": "TV komoda su LED apšvietimu",
     "price": 210,
     "category": "home",
-    "location": "Šiauliai",
-    "description": "TV komoda su LED apšvietimu — kokybiškas, funkcionalus. Šiauliai. Greitas atsiėmimas arba pristatymas."
+    "location": "Vilnius",
+    "description": "TV komoda su LED apšvietimu — kokybiškas, funkcionalus. Vilnius. Greitas atsiėmimas arba pristatymas."
   },
   {
     "id": "lt-home-008",
     "title": "Knygų lentyna 5 skyrių",
     "price": 95,
     "category": "home",
-    "location": "Marijampolė",
-    "description": "Baldų pasiūlymas: Knygų lentyna 5 skyrių. Vieta: Marijampolė. Be rūdžių, defektų ar stipresnio nusidėvėjimo."
+    "location": "Šiauliai",
+    "description": "Baldų pasiūlymas: Knygų lentyna 5 skyrių. Vieta: Šiauliai. Be rūdžių, defektų ar stipresnio nusidėvėjimo."
   },
   {
     "id": "lt-home-009",
     "title": "Baro kėdės 2 vnt. metalinės",
     "price": 120,
     "category": "home",
-    "location": "Utena",
-    "description": "Parduodu baro kėdės 2 vnt. metalinės — Utena. Tvarkinga būklė, be įbrėžimų. Galimas pristatymas mieste."
+    "location": "Marijampolė",
+    "description": "Parduodu baro kėdės 2 vnt. metalinės — Marijampolė. Tvarkinga būklė, be įbrėžimų. Galimas pristatymas mieste."
   },
   {
     "id": "lt-home-010",
     "title": "Vaiko kambario komplektas",
     "price": 480,
     "category": "home",
-    "location": "Tauragė",
-    "description": "Vaiko kambario komplektas iš Tauragė. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai."
+    "location": "Utena",
+    "description": "Vaiko kambario komplektas iš Utena. Naudotas namuose, rūpestingai prižiūrėtas. Galite apžiūrėti gyvai."
   },
   {
     "id": "lt-home-011",
     "title": "Šviestuvas + staliukas komplektas",
     "price": 165,
     "category": "home",
-    "location": "Jonava",
-    "description": "Šviestuvas + staliukas komplektas — kokybiškas, funkcionalus. Jonava. Greitas atsiėmimas arba pristatymas."
+    "location": "Tauragė",
+    "description": "Šviestuvas + staliukas komplektas — kokybiškas, funkcionalus. Tauragė. Greitas atsiėmimas arba pristatymas."
   },
   {
     "id": "lt-svc-001",
@@ -733,32 +733,32 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Evacuatorius 24/7 visoje Lietuvoje",
     "price": 40,
     "category": "services",
-    "location": "Šiauliai",
-    "description": "Evacuatorius 24/7 visoje Lietuvoje. Atvykstame į vietą Šiauliai mieste. Skaidri kainodara, be paslėptų mokesčių."
+    "location": "Vilnius",
+    "description": "Evacuatorius 24/7 visoje Lietuvoje. Atvykstame į vietą Vilnius mieste. Skaidri kainodara, be paslėptų mokesčių."
   },
   {
     "id": "lt-svc-008",
     "title": "Kėbulų dažymas — profesionaliai",
     "price": 350,
     "category": "services",
-    "location": "Mažeikiai",
-    "description": "Kėbulų dažymas — profesionaliai — ilgametė patirtis, rekomendacijos klientų. Mažeikiai ir visa Lietuva."
+    "location": "Panevėžys",
+    "description": "Kėbulų dažymas — profesionaliai — ilgametė patirtis, rekomendacijos klientų. Panevėžys ir visa Lietuva."
   },
   {
     "id": "lt-svc-009",
     "title": "Variklio diagnostika OBD",
     "price": 25,
     "category": "services",
-    "location": "Telšiai",
-    "description": "Variklio diagnostika OBD — dirbame Telšiai ir apylinkėse. Profesionali įranga, sąskaitos faktūros. Skambinkite dėl laiko."
+    "location": "Biržai",
+    "description": "Variklio diagnostika OBD — dirbame Biržai ir apylinkėse. Profesionali įranga, sąskaitos faktūros. Skambinkite dėl laiko."
   },
   {
     "id": "lt-svc-010",
     "title": "Vėdinimo ir kondicionavimo aptarnavimas",
     "price": 60,
     "category": "services",
-    "location": "Jonava",
-    "description": "Siūlome vėdinimo ir kondicionavimo aptarnavimas Jonava regione. Greitas aptarnavimas, patyrę meistrai, garantija darbams."
+    "location": "Tauragė",
+    "description": "Siūlome vėdinimo ir kondicionavimo aptarnavimas Tauragė regione. Greitas aptarnavimas, patyrę meistrai, garantija darbams."
   },
   {
     "id": "lt-oth-001",
@@ -789,15 +789,79 @@ module.exports.DEMO_LISTINGS_SNAPSHOT = [
     "title": "Universitetų vadovėlių rinkinys",
     "price": 45,
     "category": "other",
-    "location": "Alytus",
-    "description": "Pasiūlymas Alytus: Universitetų vadovėlių rinkinys. Skambinkite dėl detalių ir apžiūros laiko."
+    "location": "Klaipėda",
+    "description": "Pasiūlymas Klaipėda: Universitetų vadovėlių rinkinys. Skambinkite dėl detalių ir apžiūros laiko."
   },
   {
     "id": "lt-oth-005",
     "title": "Sodo žoliapjovė + trimeris",
     "price": 160,
     "category": "other",
-    "location": "Telšiai",
-    "description": "Parduodu sodo žoliapjovė + trimeris — Telšiai. Tvarkinga, veikianti, paruošta naudojimui."
+    "location": "Biržai",
+    "description": "Parduodu sodo žoliapjovė + trimeris — Biržai. Tvarkinga, veikianti, paruošta naudojimui."
+  },
+  {
+    "id": "lt-ai-001",
+    "title": "AI atranda: BMW 320d — karšta prekė Kaune",
+    "price": 8900,
+    "category": "vehicles",
+    "location": "Kaunas",
+    "description": "VAUTO AI atrado populiariausią automobilio pasiūlymą Kauno regione. BMW 320d, tvarkinga serviso istorija, didelis peržiūrų skaičius per 24 val."
+  },
+  {
+    "id": "lt-ai-002",
+    "title": "AI atranda: 2 k. butas Naujamiestyje",
+    "price": 178000,
+    "category": "real_estate",
+    "location": "Vilnius",
+    "description": "AI atrinko geriausią kainos ir vietos santykį Vilniuje: 2 kambarių butas Naujamiestyje, renovuotas, arti viešojo transporto."
+  },
+  {
+    "id": "lt-ai-003",
+    "title": "AI atranda: iPhone 15 Pro 256 GB",
+    "price": 920,
+    "category": "electronics",
+    "location": "Klaipėda",
+    "description": "Populiariausias elektronikos skelbimas Klaipėdoje — iPhone 15 Pro, pilna komplektacija, baterijos sveikata 94%."
+  },
+  {
+    "id": "lt-ai-004",
+    "title": "AI atranda: auto detailing premium",
+    "price": 120,
+    "category": "services",
+    "location": "Šiauliai",
+    "description": "AI rekomenduoja geriausiai vertinamą auto detailing paslaugą Šiauliuose — keraminių dangų aplikavimas, poliravimas, salono valymas."
+  },
+  {
+    "id": "lt-ai-005",
+    "title": "AI atranda: North Face striukė vyrams",
+    "price": 145,
+    "category": "clothing",
+    "location": "Panevėžys",
+    "description": "Dažniausiai saugomas drabužių skelbimas Panevėžio regione — The North Face striukė, dydis L, be defektų."
+  },
+  {
+    "id": "lt-ai-006",
+    "title": "AI atranda: skandinaviška sofa-lova",
+    "price": 420,
+    "category": "home",
+    "location": "Marijampolė",
+    "description": "AI atrado geriausią baldų pasiūlymą Marijampolėje — skandinaviško stiliaus sofa-lova, be dėmių, pristatymas galimas."
+  },
+  {
+    "id": "lt-ai-007",
+    "title": "AI atranda: sandėlio darbuotojas",
+    "price": 1450,
+    "category": "jobs",
+    "location": "Alytus",
+    "description": "Populiariausias darbo skelbimas Alytaus regione — sandėlio darbuotojas, pilnas etatas, oficialus darbo santykis, apmokamas mokymas."
+  },
+  {
+    "id": "lt-ai-008",
+    "title": "AI atranda: kalnų dviratis 29\"",
+    "price": 520,
+    "category": "other",
+    "location": "Mažeikiai",
+    "description": "AI atrinko geriausią laisvalaikio prekę Mažeikiuose — kalnų dviratis 29\" ratais, hidrauliniai stabdžiai, nedaug naudotas."
   }
 ];

@@ -1,4 +1,4 @@
-import type { LegacyListingInput, Listing, UserProfile, ChatThread } from "@/lib/types";
+import type { LegacyListingInput, Listing, UserProfile, ChatThread, ListingCategory } from "@/lib/types";
 import { enrichListingCoords } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import {
@@ -8,6 +8,23 @@ import {
 import { isVerifiedServiceSeller, verifyVin } from "@/lib/trust";
 import type { FeedVisibilityTier } from "@/lib/feed-tier";
 import { LITHUANIA_MOCK_CATALOG } from "@/data/lithuania-mock-catalog";
+
+/** VAUTO kategorijų etiketės UI (Auto, Elektronika, Namai, …) */
+export const MOCK_CATEGORY_LABELS: Record<ListingCategory, string> = {
+  vehicles: "Auto",
+  electronics: "Elektronika",
+  home: "Namai",
+  clothing: "Drabužiai",
+  services: "Paslaugos",
+  real_estate: "NT",
+  jobs: "Darbas",
+  other: "Kita",
+};
+
+/** Ar skelbimas rodomas „AI atranda“ tinklelyje */
+export function isAiDiscoverListing(listing: Pick<Listing, "tags">): boolean {
+  return listing.tags?.includes("ai-atranda") ?? false;
+}
 
 export const MOCK_USER: UserProfile = {
   id: "user-1",
@@ -173,7 +190,7 @@ const PANEVEZYS_REGION_VOLVO_V70: LegacyListingInput[] = [
   },
 ];
 
-/** 100+ listings — vehicles, electronics and services across all Lithuania */
+/** 108+ skelbimai — visos LT kategorijos ir miestai; imageUrl → `image` (Unsplash) */
 export const INITIAL_LISTINGS: Listing[] = [
   ...LITHUANIA_MOCK_CATALOG.map(prepareListing),
   ...PANEVEZYS_REGION_VOLVO_V70.map(prepareListing),

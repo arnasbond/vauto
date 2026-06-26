@@ -1,5 +1,5 @@
 /**
- * Generates 100 realistic Lithuanian marketplace listings for VAUTO demo/seed.
+ * Generates 108 realistic Lithuanian marketplace listings for VAUTO demo/seed.
  * Run: node scripts/generate-mock-catalog.mjs
  */
 import { writeFileSync } from "node:fs";
@@ -14,9 +14,10 @@ const CITIES = [
   "Marijampolė", "Mažeikiai", "Biržai", "Utena", "Kupiškis", "Telšiai",
   "Tauragė", "Ukmergė", "Palanga", "Jonava", "Kėdainiai", "Druskininkai",
   "Rokiškis", "Pasvalys", "Plungė", "Kretinga", "Visaginas", "Šilutė",
+  "Gargždai", "Radviliškis", "Šakiai",
 ];
 
-/** Balanced 100-listing mix across all VAUTO categories */
+/** Balanced 108-listing mix across all VAUTO categories (incl. AI atranda showcase) */
 const CATEGORY_PLAN = {
   vehicles: 24,
   real_estate: 14,
@@ -26,7 +27,23 @@ const CATEGORY_PLAN = {
   home: 11,
   services: 10,
   other: 5,
+  ai_discover: 8,
 };
+
+/** ~10% listings get explicit top/plus visibility for monetization grid QA */
+const VISIBILITY_SLOTS = [
+  { id: "lt-auto-001", tier: "top", promoted: true },
+  { id: "lt-el-001", tier: "top", promoted: true },
+  { id: "lt-nt-001", tier: "top" },
+  { id: "lt-svc-001", tier: "top" },
+  { id: "lt-auto-008", tier: "plus" },
+  { id: "lt-el-004", tier: "plus" },
+  { id: "lt-nt-005", tier: "plus" },
+  { id: "lt-job-003", tier: "plus" },
+  { id: "lt-clo-004", tier: "plus" },
+  { id: "lt-home-005", tier: "plus" },
+  { id: "lt-ai-002", tier: "plus" },
+];
 
 const unsplash = (id) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -276,6 +293,92 @@ const OTHER_SPECS = [
   { title: "Sodo žoliapjovė + trimeris", price: 160, tags: ["sodas", "technika", "žolė"], imageKey: "garden" },
 ];
 
+/** AI atranda — populiarūs pasiūlymai visoje Lietuvoje (rodomi kaip atskira kategorija tinklelyje) */
+const AI_DISCOVER_SPECS = [
+  {
+    title: "AI atranda: BMW 320d — karšta prekė Kaune",
+    category: "vehicles",
+    price: 8900,
+    city: "Kaunas",
+    image: CAR_IMAGES.bmw,
+    tags: ["ai-atranda", "automobilis", "bmw", "kaunas"],
+    description:
+      "VAUTO AI atrado populiariausią automobilio pasiūlymą Kauno regione. BMW 320d, tvarkinga serviso istorija, didelis peržiūrų skaičius per 24 val.",
+  },
+  {
+    title: "AI atranda: 2 k. butas Naujamiestyje",
+    category: "real_estate",
+    price: 178000,
+    city: "Vilnius",
+    image: REAL_ESTATE_IMAGES.apartment,
+    tags: ["ai-atranda", "butas", "vilnius", "nekilnojamasis"],
+    description:
+      "AI atrinko geriausią kainos ir vietos santykį Vilniuje: 2 kambarių butas Naujamiestyje, renovuotas, arti viešojo transporto.",
+  },
+  {
+    title: "AI atranda: iPhone 15 Pro 256 GB",
+    category: "electronics",
+    price: 920,
+    city: "Klaipėda",
+    image: ELECTRONICS_IMAGES.iphone,
+    tags: ["ai-atranda", "iphone", "telefonas", "klaipėda"],
+    description:
+      "Populiariausias elektronikos skelbimas Klaipėdoje — iPhone 15 Pro, pilna komplektacija, baterijos sveikata 94%.",
+  },
+  {
+    title: "AI atranda: auto detailing premium",
+    category: "services",
+    price: 120,
+    priceLabel: "Nuo 120€",
+    city: "Šiauliai",
+    image: SERVICE_IMAGES.detailing,
+    tags: ["ai-atranda", "detailing", "automobilis", "šiauliai"],
+    description:
+      "AI rekomenduoja geriausiai vertinamą auto detailing paslaugą Šiauliuose — keraminių dangų aplikavimas, poliravimas, salono valymas.",
+  },
+  {
+    title: "AI atranda: North Face striukė vyrams",
+    category: "clothing",
+    price: 145,
+    city: "Panevėžys",
+    image: CLOTHING_IMAGES.jacket,
+    tags: ["ai-atranda", "striukė", "drabužiai", "panevėžys"],
+    description:
+      "Dažniausiai saugomas drabužių skelbimas Panevėžio regione — The North Face striukė, dydis L, be defektų.",
+  },
+  {
+    title: "AI atranda: skandinaviška sofa-lova",
+    category: "home",
+    price: 420,
+    city: "Marijampolė",
+    image: HOME_IMAGES.sofa,
+    tags: ["ai-atranda", "baldai", "sofa", "marijampolė"],
+    description:
+      "AI atrado geriausią baldų pasiūlymą Marijampolėje — skandinaviško stiliaus sofa-lova, be dėmių, pristatymas galimas.",
+  },
+  {
+    title: "AI atranda: sandėlio darbuotojas",
+    category: "jobs",
+    price: 1450,
+    priceLabel: "Nuo 1450€/mėn.",
+    city: "Alytus",
+    image: JOB_IMAGES.warehouse,
+    tags: ["ai-atranda", "darbas", "sandėlis", "alytus"],
+    description:
+      "Populiariausias darbo skelbimas Alytaus regione — sandėlio darbuotojas, pilnas etatas, oficialus darbo santykis, apmokamas mokymas.",
+  },
+  {
+    title: "AI atranda: kalnų dviratis 29\"",
+    category: "other",
+    price: 520,
+    city: "Mažeikiai",
+    image: OTHER_IMAGES.bike,
+    tags: ["ai-atranda", "dviratis", "sportas", "mažeikiai"],
+    description:
+      "AI atrinko geriausią laisvalaikio prekę Mažeikiuose — kalnų dviratis 29\" ratais, hidrauliniai stabdžiai, nedaug naudotas.",
+  },
+];
+
 function pick(arr, i) {
   return arr[i % arr.length];
 }
@@ -447,6 +550,16 @@ function baseListing({ id, title, price, priceLabel, location, distanceKm, conta
     ...(attributes ? { attributes } : {}),
     ...extra,
   };
+}
+
+function assignVisibilityTiers(listings) {
+  const byId = new Map(listings.map((l) => [l.id, l]));
+  for (const slot of VISIBILITY_SLOTS) {
+    const listing = byId.get(slot.id);
+    if (!listing) continue;
+    listing.visibilityTier = slot.tier;
+    if (slot.promoted) listing.promoted = true;
+  }
 }
 
 function contactFor(prefix, n) {
@@ -664,15 +777,39 @@ for (let o = 0; o < CATEGORY_PLAN.other; o++) {
   globalIdx++;
 }
 
-if (listings.length !== 100) {
-  throw new Error(`Expected 100 listings, got ${listings.length}`);
+// —— AI atranda (8) — populiarūs pasiūlymai visoje Lietuvoje ——
+for (let a = 0; a < CATEGORY_PLAN.ai_discover; a++) {
+  const spec = AI_DISCOVER_SPECS[a];
+  listings.push(baseListing({
+    id: `lt-ai-${String(a + 1).padStart(3, "0")}`,
+    title: spec.title,
+    price: spec.price,
+    ...(spec.priceLabel ? { priceLabel: spec.priceLabel } : {}),
+    location: spec.city,
+    distanceKm: distanceFor(a + 80),
+    contact: contactFor(9000000, a),
+    image: spec.image,
+    category: spec.category,
+    tags: spec.tags,
+    description: spec.description,
+    sellerId: `seller-ai-${(a % 4) + 1}`,
+    createdAt: createdAtFor(a + 20, 12, a * 9),
+  }));
+  globalIdx++;
+}
+
+assignVisibilityTiers(listings);
+
+const EXPECTED_COUNT = Object.values(CATEGORY_PLAN).reduce((sum, n) => sum + n, 0);
+if (listings.length !== EXPECTED_COUNT) {
+  throw new Error(`Expected ${EXPECTED_COUNT} listings, got ${listings.length}`);
 }
 
 const tsContent = `/** Auto-generated by scripts/generate-mock-catalog.mjs — do not edit manually */
-import type { Listing } from "@/lib/types";
+import type { LegacyListingInput } from "@/lib/types";
 
-/** 100 realistic listings spread across Lithuania for demo, search and monetization QA. */
-export const LITHUANIA_MOCK_CATALOG: Listing[] = ${JSON.stringify(listings, null, 2)} as Listing[];
+/** ${EXPECTED_COUNT} realistic listings spread across Lithuania for demo, search and monetization QA. */
+export const LITHUANIA_MOCK_CATALOG: LegacyListingInput[] = ${JSON.stringify(listings, null, 2)} as LegacyListingInput[];
 `;
 
 const serverRows = listings.map((l) => ({
