@@ -13,8 +13,11 @@ import {
 import { clearServiceListingDraft, saveServiceListingDraft } from "@/lib/listing-draft-storage";
 import { capturePhoto } from "@/lib/native-media";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
+import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import {
+  hasListingPhoto,
   isValidListingPhone,
+  LISTING_PHOTO_REQUIRED_MESSAGE,
   sanitizeListingPhoneInput,
 } from "@/lib/listing-form-validation";
 import { isPlaceholderCity } from "@/lib/city-resolve";
@@ -76,7 +79,7 @@ export function ServiceListingWizard({
   const can1 = Boolean(attr(attrs, "serviceSpecialty") && (draft.contact || user.phone));
   const can2 = Boolean(draft.location && (draft.description || draft.title));
   const can3 = draft.price > 0 && Boolean(attr(attrs, "experience"));
-  const can4 = termsAccepted && Boolean(previewImage || manualFallback);
+  const can4 = termsAccepted && Boolean(previewImage);
 
   const canNext = [false, can1, can2, can3, can4][step];
 
@@ -100,6 +103,10 @@ export function ServiceListingWizard({
     }
     if (!termsAccepted) {
       onToast?.("Klaida: Sutikite su portalo taisyklėmis.", "error");
+      return;
+    }
+    if (!hasListingPhoto(previewImage)) {
+      onToast?.(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
       return;
     }
     const specialty = attr(attrs, "serviceSpecialty");
@@ -255,6 +262,7 @@ export function ServiceListingWizard({
 
           {step === 4 && (
             <>
+              <ListingPhotoRequiredBanner visible={!hasListingPhoto(previewImage)} />
               <div className="mb-4 flex items-center gap-4">
                 <button
                   type="button"

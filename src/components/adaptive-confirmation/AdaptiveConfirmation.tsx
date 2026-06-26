@@ -14,6 +14,7 @@ import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
 import { DraftMediaEditor } from "./DraftMediaEditor";
+import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import { ConversationalReport } from "@/components/conversational/ConversationalReport";
 import { VehicleLookupCard } from "@/components/vehicle/VehicleLookupCard";
 import { useListingWizard } from "@/hooks/useListingWizard";
@@ -63,7 +64,7 @@ export function AdaptiveConfirmation({
     price: draft.price,
     description: draft.description,
   });
-  const needsPhotoForPublish = adaptiveKey === "vehicles" && !hasPhoto;
+  const needsPhotoForPublish = !hasPhoto;
   const needsSellerType = !String(attributes.sellerType ?? "").trim();
   const canPublish =
     missingKeys.length === 0 &&
@@ -237,6 +238,7 @@ export function AdaptiveConfirmation({
 
   const mediaBlock = (
     <div className={chameleonTheme === "vinted" ? "chameleon-vinted-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
+      <ListingPhotoRequiredBanner visible={needsPhotoForPublish} />
       <DraftMediaEditor
         previewImage={previewImage}
         videoUrl={videoUrl}

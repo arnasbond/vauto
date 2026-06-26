@@ -19,7 +19,7 @@ import {
 } from "@/lib/client-api";
 import { isDuplicateListing } from "@/lib/dedup";
 import { moderateListing } from "@/lib/moderation";
-import { capturePhoto, compressDataUrl } from "@/lib/native-media";
+import { capturePhoto, compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
 import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
@@ -28,6 +28,7 @@ import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } fro
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
 import { importListingFromUrl as fetchListingFromPortal } from "@/lib/listing-url-import";
 import { resolveListingCity } from "@/lib/city-resolve";
+import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { attributesToTags } from "@/lib/listing-attributes";
@@ -111,6 +112,19 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
   other:
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
 };
+
+async function prepareListingImageForApi(src: string | null | undefined): Promise<string | null> {
+  if (!src?.trim()) return null;
+  let image = (await resolveImageForUpload(src)) ?? src.trim();
+  if (image.startsWith("data:image")) {
+    image = await compressDataUrl(image);
+    const cloudUrl = await apiUploadMedia(image);
+    if (cloudUrl) return cloudUrl;
+    return image;
+  }
+  if (/^https?:\/\//i.test(image)) return image;
+  return null;
+}
 
 export interface SellerFlowContextValue {
   sellerStep: SellerFlowStep;
@@ -688,6 +702,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
+    if (!editingListingId && !hasListingPhoto(sellerPreviewImage)) {
+      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+      return;
+    }
+
     if (editingListingId) {
       const existing = listings.find((l) => l.id === editingListingId);
       if (!existing || existing.sellerId !== user.id) {
@@ -695,13 +714,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         return;
       }
       const patch = draftToListingPatch(aiDraft);
-      let listingImage =
-        sellerPreviewImage ?? existing.images[0] ?? PLACEHOLDER_IMAGES[aiDraft.category];
-      if (listingImage.startsWith("data:image")) {
-        listingImage = await compressDataUrl(listingImage);
-        const cloudUrl = await apiUploadMedia(listingImage);
-        if (cloudUrl) listingImage = cloudUrl;
-      }
+      const imageSource = sellerPreviewImage ?? existing.images[0] ?? null;
+      const listingImage =
+        (await prepareListingImageForApi(imageSource)) ??
+        existing.images[0] ??
+        PLACEHOLDER_IMAGES[aiDraft.category];
       const updated: Listing = enrichListingCoords({
         ...existing,
         ...patch,
@@ -753,14 +770,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
     const vinOk = vin ? verifyVin(vin) : false;
 
-    let listingImage =
-      sellerPreviewImage ??
-      PLACEHOLDER_IMAGES[aiDraft.category] ??
-      PLACEHOLDER_IMAGES.other;
-    if (listingImage.startsWith("data:image")) {
-      listingImage = await compressDataUrl(listingImage);
-      const cloudUrl = await apiUploadMedia(listingImage);
-      if (cloudUrl) listingImage = cloudUrl;
+    const listingImage =
+      (await prepareListingImageForApi(sellerPreviewImage)) ?? null;
+    if (!listingImage) {
+      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+      return;
     }
 
     const createdAt = new Date().toISOString();

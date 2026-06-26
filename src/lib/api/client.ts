@@ -2,6 +2,12 @@ import type { ChatThread, Listing, SupportReport, UserProfile } from "@/lib/type
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import { resolveListingCity } from "@/lib/city-resolve";
 import {
+  listingPatchToApiPayload,
+  listingToApiPayload,
+} from "@/lib/listing-api-payload";
+import { normalizeListing } from "@/lib/listing-normalize";
+import type { LegacyListingInput } from "@/lib/types";
+import {
   AI_FETCH_TIMEOUT_MS,
   AI_VISION_FETCH_TIMEOUT_MS,
 } from "@/lib/ai-safeguards";
@@ -326,15 +332,14 @@ export async function apiCreateListing(
   listing: Listing,
   userId: string
 ): Promise<ApiResult<Listing>> {
-  const payload: Listing = {
-    ...listing,
-    location: resolveListingCity(listing.location, "Vilnius"),
-  };
-  return dataFetch<Listing>("/api/listings", {
+  const payload = listingToApiPayload(listing);
+  const res = await dataFetch<LegacyListingInput>("/api/listings", {
     method: "POST",
     body: JSON.stringify(payload),
     userId,
   });
+  if (!res.ok) return res;
+  return { ok: true, data: normalizeListing(res.data) };
 }
 
 export async function apiDeleteListing(
@@ -359,11 +364,14 @@ export async function apiUpdateListing(
   userId: string,
   patch: ListingEditPatch & Partial<Pick<Listing, "banned">>
 ): Promise<ApiResult<Listing>> {
-  return dataFetch<Listing>(`/api/listings/${id}`, {
+  const payload = listingPatchToApiPayload(patch);
+  const res = await dataFetch<LegacyListingInput>(`/api/listings/${id}`, {
     method: "PATCH",
-    body: JSON.stringify(patch),
+    body: JSON.stringify(payload),
     userId,
   });
+  if (!res.ok) return res;
+  return { ok: true, data: normalizeListing(res.data) };
 }
 
 export async function apiFetchReports(): Promise<ApiResult<SupportReport[]>> {

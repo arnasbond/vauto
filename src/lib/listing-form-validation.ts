@@ -15,6 +15,12 @@ export function isValidListingPhone(phone: string): boolean {
   return digits.length >= 8;
 }
 
+export function hasListingPhoto(previewImage: string | null | undefined): boolean {
+  return Boolean(previewImage?.trim());
+}
+
+export const LISTING_PHOTO_REQUIRED_MESSAGE = "Prašome įkelti bent vieną nuotrauką";
+
 const KNOWN_CITY_OPTION = "Kita";
 
 export function resolveCitySelectValue(
@@ -32,7 +38,7 @@ export function resolveCitySelectValue(
 export function validateGeneralListingDraft(
   draft: AiExtractedListing,
   attrs: Record<string, string | string[] | undefined>,
-  opts: { phone: string; termsAccepted: boolean }
+  opts: { phone: string; termsAccepted: boolean; previewImage?: string | null }
 ): ListingValidationIssue[] {
   const issues: ListingValidationIssue[] = [];
 
@@ -68,6 +74,10 @@ export function validateGeneralListingDraft(
 
   if (!opts.termsAccepted) {
     issues.push({ field: "terms", message: "Klaida: Sutikite su portalo taisyklėmis." });
+  }
+
+  if (!hasListingPhoto(opts.previewImage)) {
+    issues.push({ field: "photo", message: LISTING_PHOTO_REQUIRED_MESSAGE });
   }
 
   return issues;

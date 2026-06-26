@@ -18,7 +18,10 @@
   --vauto-text: #f8fafc;
   --vauto-text-muted: #94a3b8;
   --vauto-surface: var(--flux-bg);
+  --vauto-bg: var(--flux-bg);
+  --vauto-border: rgba(148, 163, 184, 0.35);
   --vauto-red: #ef4444;
+  --vauto-accent: var(--vauto-teal);
 }
 
 @theme inline {
@@ -596,7 +599,8 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   position: fixed;
   inset: 0;
   z-index: 9999;
-  background-color: #fff;
+  background-color: var(--portal-wizard-bg, var(--vauto-surface, #fff));
+  color: var(--portal-text, var(--vauto-text, #0f172a));
   overflow-y: auto;
   width: 100%;
   height: 100%;
@@ -604,6 +608,86 @@ body.chameleon-cvbankas .portal-listing-card:hover {
   min-height: 100dvh;
   -webkit-overflow-scrolling: touch;
   overscroll-behavior: contain;
+  font-family: var(--font-geist-sans), var(--font-sans), system-ui, sans-serif;
+}
+
+.listing-form-shell {
+  background: var(--portal-wizard-surface, var(--vauto-surface, #fff));
+  color: var(--portal-text, var(--vauto-text, #0f172a));
+}
+
+.listing-form-label {
+  color: var(--vauto-text-muted, var(--portal-text, #64748b));
+}
+
+.listing-form-input,
+.listing-wizard-overlay input[type="text"],
+.listing-wizard-overlay input[type="tel"],
+.listing-wizard-overlay input[type="number"],
+.listing-wizard-overlay input[type="url"],
+.listing-wizard-overlay input[type="month"],
+.listing-wizard-overlay input[type="email"],
+.listing-wizard-overlay textarea,
+.listing-wizard-overlay select {
+  color: var(--portal-text, var(--vauto-text, #0f172a));
+  background-color: transparent;
+  font-family: inherit;
+  border-color: var(--vauto-border, #cfd8dc);
+}
+
+.listing-form-input:focus,
+.listing-wizard-overlay input:focus,
+.listing-wizard-overlay textarea:focus,
+.listing-wizard-overlay select:focus {
+  border-color: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));
+  outline: none;
+}
+
+.listing-wizard-overlay input[type="checkbox"],
+.listing-wizard-overlay input[type="radio"] {
+  accent-color: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));
+}
+
+.listing-form-error {
+  color: var(--vauto-red, #ef4444);
+  border-color: color-mix(in srgb, var(--vauto-red, #ef4444) 45%, transparent);
+  background: color-mix(in srgb, var(--vauto-red, #ef4444) 8%, var(--portal-wizard-surface, #fff));
+}
+
+.listing-form-suggestions {
+  background: var(--portal-wizard-surface, var(--vauto-surface, #fff));
+  border-color: var(--vauto-border, #cfd8dc);
+  color: var(--portal-text, var(--vauto-text, #0f172a));
+}
+
+.listing-form-suggestion {
+  color: var(--portal-text, var(--vauto-text, #0f172a));
+}
+
+.listing-form-suggestion:hover,
+.listing-form-suggestion.is-active {
+  background: color-mix(in srgb, var(--portal-accent, var(--vauto-teal)) 12%, transparent);
+  color: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));
+}
+
+.listing-form-toggle-active {
+  background: color-mix(in srgb, var(--portal-accent, var(--vauto-teal)) 12%, transparent);
+  color: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));
+  font-weight: 500;
+}
+
+.listing-form-toggle-idle {
+  background: var(--portal-wizard-surface, #fff);
+  color: var(--vauto-text-muted, #546e7a);
+}
+
+.listing-form-accent {
+  color: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));
+}
+
+.listing-form-cta {
+  background: var(--portal-accent, var(--vauto-accent, var(--vauto-teal)));
+  color: #fff;
 }
 
 .listing-wizard-scroll {
@@ -809,6 +893,9 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --vauto-text: #0f172a;
   --vauto-text-muted: #64748b;
   --vauto-surface: #ffffff;
+  --vauto-bg: #ffffff;
+  --vauto-border: #cfd8dc;
+  --vauto-accent: #1167b1;
 }
 
 [data-app-theme="vauto-original"] body {
@@ -838,6 +925,9 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --vauto-text: #f8fafc;
   --vauto-text-muted: #94a3b8;
   --vauto-surface: #0b0f17;
+  --vauto-bg: #0b0f17;
+  --vauto-border: rgba(148, 163, 184, 0.35);
+  --vauto-accent: #38bdf8;
 }
 
 [data-app-theme="dark"] .vauto-flux-fab {
@@ -854,6 +944,9 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --vauto-text: #1e293b;
   --vauto-text-muted: #64748b;
   --vauto-surface: #f8fafc;
+  --vauto-bg: #f3f5f8;
+  --vauto-border: #cbd5e1;
+  --vauto-accent: #0d9488;
 }
 
 [data-app-theme="light-minimal"] body {

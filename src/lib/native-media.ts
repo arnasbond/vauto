@@ -169,9 +169,70 @@ async function fileToCapturedPhoto(file: File): Promise<CapturedPhoto | null> {
     reader.readAsDataURL(file);
   });
 }
+async function blobToDataUrl(blob: Blob): Promise<string | null> {
+  return new Promise((resolve) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      resolve(typeof reader.result === "string" ? reader.result : null);
+    };
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+
+function ensureDataUrlPrefix(dataUrl: string, format = "jpeg"): string {
+  const trimmed = dataUrl.trim();
+  if (trimmed.startsWith("data:image")) return trimmed;
+  if (/^[A-Za-z0-9+/=\s]+$/.test(trimmed.slice(0, 64))) {
+    return `data:image/${format};base64,${trimmed.replace(/\s/g, "")}`;
+  }
+  return trimmed;
+}
+
+/** Convert Capacitor/local URIs into uploadable data URLs. */
+export async function resolveImageForUpload(src: string): Promise<string | null> {
+  const trimmed = src.trim();
+  if (!trimmed) return null;
+  if (trimmed.startsWith("data:image")) return trimmed;
+  if (/^https?:\/\//i.test(trimmed)) return trimmed;
+
+  if (Capacitor.isNativePlatform()) {
+    try {
+      const { Capacitor: Cap } = await import("@capacitor/core");
+      const fetchUri = trimmed.startsWith("capacitor://") || trimmed.startsWith("file://")
+        ? trimmed
+        : Cap.convertFileSrc(trimmed);
+      const res = await fetch(fetchUri);
+      if (res.ok) {
+        const blob = await res.blob();
+        return blobToDataUrl(blob);
+      }
+    } catch {
+      /* fall through */
+    }
+  }
+
+  try {
+    const res = await fetch(trimmed);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    return blobToDataUrl(blob);
+  } catch {
+    return null;
+  }
+}
+
 async function normalizeCapturedPhoto(photo: CapturedPhoto): Promise<CapturedPhoto> {
-  if (Capacitor.isNativePlatform()) return photo;
-  const dataUrl = await compressDataUrl(photo.dataUrl);
+  let dataUrl = ensureDataUrlPrefix(photo.dataUrl);
+  if (!dataUrl.startsWith("data:image") && photo.fileName) {
+    const resolved = await resolveImageForUpload(photo.fileName);
+    if (resolved) dataUrl = resolved;
+  }
+  dataUrl = await compressDataUrl(dataUrl, {
+    maxDim: Capacitor.isNativePlatform() ? 1280 : 1280,
+    maxChars: 400_000,
+    force: Capacitor.isNativePlatform(),
+  });
   return { ...photo, dataUrl };
 }
 
@@ -230,10 +291,20 @@ export async function capturePhoto(
         promptLabelPicture: "Fotografuoti",
       });
 
+      if (!photo.dataUrl && photo.webPath) {
+        const fromWebPath = await resolveImageForUpload(photo.webPath);
+        if (fromWebPath) {
+          return normalizeCapturedPhoto({
+            dataUrl: fromWebPath,
+            fileName: photo.path?.split("/").pop(),
+          });
+        }
+      }
+
       if (!photo.dataUrl) return null;
       return normalizeCapturedPhoto({
         dataUrl: photo.dataUrl,
-        fileName: photo.path?.split("/").pop(),
+        fileName: photo.path?.split("/").pop() ?? photo.webPath,
       });
     } catch {
       return null;

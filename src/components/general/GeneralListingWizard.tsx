@@ -30,15 +30,20 @@ import {
 } from "@/lib/listing-draft-storage";
 import { capturePhoto } from "@/lib/native-media";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
+import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import {
   firstValidationMessage,
+  hasListingPhoto,
   isValidListingPhone,
   sanitizeListingPhoneInput,
   validateGeneralListingDraft,
 } from "@/lib/listing-form-validation";
 import { isPlaceholderCity } from "@/lib/city-resolve";
 
-const ACCENT = "#1167b1";
+const inputCls =
+  "listing-form-input w-full border-0 border-b py-2 text-sm outline-none";
+const deepSelectCls =
+  "listing-form-input mb-3 w-full border-0 border-b py-2 text-sm outline-none";
 
 interface GeneralListingWizardProps {
   draft: AiExtractedListing;
@@ -70,8 +75,7 @@ function SkelbiuDeepFields({
   const profile = getSkelbiuFieldProfile(categoryPath);
   if (profile === "generic") return null;
 
-  const selectCls =
-    "w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]";
+  const selectCls = deepSelectCls;
 
   if (profile === "electronics") {
     return (
@@ -216,9 +220,9 @@ function SkelbiuDeepFields({
 
 function FieldStatus({ valid }: { valid: boolean }) {
   return valid ? (
-    <CheckCircle2 className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
+    <CheckCircle2 className="listing-form-accent h-4 w-4 shrink-0" aria-hidden />
   ) : (
-    <Circle className="h-4 w-4 shrink-0 text-[#bdbdbd]" aria-hidden />
+    <Circle className="h-4 w-4 shrink-0 text-[var(--vauto-border)]" aria-hidden />
   );
 }
 
@@ -235,17 +239,15 @@ function TogglePair({
 }) {
   return (
     <div className="mb-5">
-      <p className="mb-2 text-sm text-[#455a64]">{label}</p>
-      <div className="flex flex-wrap gap-0 overflow-hidden rounded-md border border-[#cfd8dc]">
+      <p className="listing-form-label mb-2 text-sm">{label}</p>
+      <div className="flex flex-wrap gap-0 overflow-hidden rounded-md border border-[var(--vauto-border)]">
         {options.map((opt) => (
           <button
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
             className={`px-3 py-2 text-sm transition ${
-              value === opt
-                ? "bg-[#eef6ff] font-medium text-[#1167b1]"
-                : "bg-white text-[#546e7a] hover:bg-[#f5f5f5]"
+              value === opt ? "listing-form-toggle-active" : "listing-form-toggle-idle hover:opacity-90"
             }`}
           >
             {opt}
@@ -271,7 +273,7 @@ function SkelbiuField({
         <FieldStatus valid={Boolean(valid)} />
       </div>
       <div className="min-w-0 flex-1">
-        <label className="mb-1 block text-sm text-[#78909c]">{label}</label>
+        <label className="listing-form-label mb-1 block text-sm">{label}</label>
         {children}
       </div>
     </div>
@@ -314,7 +316,10 @@ export function GeneralListingWizard({
     Boolean(attr(attrs, "condition")) &&
     cityValid &&
     isValidListingPhone(phone) &&
-    termsAccepted;
+    termsAccepted &&
+    hasListingPhoto(previewImage);
+
+  const showPhotoError = !hasListingPhoto(previewImage);
 
   const pickerNodes = nodesAtPath(categoryPath);
 
@@ -344,6 +349,7 @@ export function GeneralListingWizard({
     const issues = validateGeneralListingDraft(draft, attrs, {
       phone: phoneValue,
       termsAccepted,
+      previewImage,
     });
     const errorMsg = firstValidationMessage(issues);
     if (errorMsg) {
@@ -356,19 +362,19 @@ export function GeneralListingWizard({
   };
 
   return (
-    <div className="listing-wizard-overlay bg-white">
-        <div className="mx-auto min-h-full w-full max-w-2xl bg-white pb-28 shadow-sm">
-        <div className="flex items-center justify-between border-b border-[#e5e7eb] px-4 py-3">
+    <div className="listing-wizard-overlay chameleon-wizard-shell">
+        <div className="listing-form-shell mx-auto min-h-full w-full max-w-2xl pb-28 shadow-sm">
+        <div className="flex items-center justify-between border-b border-[var(--vauto-border)] px-4 py-3">
           <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1167b1] text-white">
+            <div className="listing-form-cta flex h-8 w-8 items-center justify-center rounded-full">
               <Sparkles className="h-4 w-4" />
             </div>
-            <span className="font-display text-lg font-bold text-[#111827]">VAUTO</span>
+            <span className="font-display text-lg font-bold">VAUTO</span>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-lg p-1.5 text-[#6b7280] hover:bg-[#f3f4f6]"
+            className="rounded-lg p-1.5 text-[var(--vauto-text-muted)] hover:bg-[color-mix(in_srgb,var(--vauto-text)_6%,transparent)]"
             aria-label="Atšaukti"
           >
             <X className="h-5 w-5" />
@@ -377,10 +383,12 @@ export function GeneralListingWizard({
 
         <div className="px-4 py-5">
           {manualFallback && (
-            <p className="mb-4 rounded-lg border border-[#bfdbfe] bg-[#eff6ff] px-3 py-2 text-xs text-[#1e40af]">
+            <p className="mb-4 rounded-lg border border-[color-mix(in_srgb,var(--portal-accent,var(--vauto-accent))_35%,transparent)] bg-[color-mix(in_srgb,var(--portal-accent,var(--vauto-accent))_8%,transparent)] px-3 py-2 text-xs listing-form-accent">
               AI nepavyko pilnai atpažinti — užpildykite skelbimą ranka.
             </p>
           )}
+
+          <ListingPhotoRequiredBanner visible={showPhotoError} />
 
           <div className="mb-6 flex flex-wrap items-start gap-3">
             <button
@@ -391,14 +399,14 @@ export function GeneralListingWizard({
                   if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
                 })
               }
-              className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[#d1d5db] bg-[#f9fafb] text-xs text-[#6b7280] transition hover:border-[#1167b1] hover:bg-[#eef6ff]"
+              className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-text)_4%,transparent)] text-xs text-[var(--vauto-text-muted)] transition hover:border-[var(--portal-accent,var(--vauto-accent))] hover:bg-[color-mix(in_srgb,var(--portal-accent,var(--vauto-accent))_8%,transparent)]"
             >
               {previewImage ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img src={previewImage} alt="" className="h-full w-full rounded-lg object-cover" />
               ) : (
                 <>
-                  <Camera className="h-8 w-8 text-[#9ca3af]" />
+                  <Camera className="h-8 w-8 text-[var(--vauto-text-muted)]" />
                   Pridėti nuotrauką
                 </>
               )}
@@ -412,10 +420,10 @@ export function GeneralListingWizard({
                     if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
                   })
                 }
-                className="flex h-28 w-28 items-center justify-center rounded-xl border border-[#e5e7eb] bg-[#f9fafb] transition hover:border-[#1167b1]"
+                className="flex h-28 w-28 items-center justify-center rounded-xl border border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-text)_4%,transparent)] transition hover:border-[var(--portal-accent,var(--vauto-accent))]"
                 aria-label="Pridėti dar vieną nuotrauką"
               >
-                <Plus className="h-10 w-10 text-[#9ca3af]" />
+                <Plus className="h-10 w-10 text-[var(--vauto-text-muted)]" />
               </button>
             )}
           </div>
@@ -426,7 +434,7 @@ export function GeneralListingWizard({
               value={draft.title}
               onChange={(e) => onUpdate({ title: e.target.value })}
               placeholder="Parduodu…"
-              className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]"
+              className={inputCls}
             />
           </SkelbiuField>
 
@@ -437,15 +445,15 @@ export function GeneralListingWizard({
                 setShowCategoryPicker((s) => !s);
                 setCategoryPath(parseSkelbiuCategory(categoryValue).slice(0, -1));
               }}
-              className="flex w-full items-center justify-between border-0 border-b border-[#cfd8dc] py-2 text-left text-sm"
+              className="flex w-full items-center justify-between border-0 border-b border-[var(--vauto-border)] py-2 text-left text-sm"
             >
-              <span className={categoryValue ? "text-[#263238]" : "text-[#9e9e9e]"}>
+              <span className={categoryValue ? "" : "text-[var(--vauto-text-muted)]"}>
                 {categoryValue || "Pasirinkite kategoriją"}
               </span>
               <ChevronRight className="h-4 w-4 text-[#bdbdbd]" />
             </button>
             {categoryValue && (
-              <p className="mt-1 text-xs text-[#78909c]">{categoryValue}</p>
+              <p className="listing-form-label mt-1 text-xs">{categoryValue}</p>
             )}
           </SkelbiuField>
 
@@ -552,7 +560,7 @@ export function GeneralListingWizard({
                   onUpdate({ contact: sanitizeListingPhoneInput(e.target.value) })
                 }
                 placeholder="+370 600 00000"
-                className="w-full border-0 border-b border-[#cfd8dc] bg-transparent py-2 text-sm outline-none focus:border-[#1167b1]"
+                className={inputCls}
               />
               <label className="mt-2 flex items-center gap-2 text-sm text-[#546e7a]">
                 <input
@@ -578,34 +586,34 @@ export function GeneralListingWizard({
             </div>
           )}
 
-          <label className="mb-6 flex items-start gap-2 text-sm text-[#546e7a]">
+          <label className="mb-6 flex items-start gap-2 text-sm text-[var(--vauto-text-muted)]">
             <input
               type="checkbox"
               checked={termsAccepted}
               onChange={(e) => setTermsAccepted(e.target.checked)}
-              className="mt-0.5 accent-[#1167b1]"
+              className="mt-0.5"
             />
             <span>
               Sutinku su{" "}
-              <span className="text-[#1167b1]">VAUTO taisyklėmis</span> ir{" "}
-              <span className="text-[#1167b1]">privatumo politika</span>.
+              <span className="listing-form-accent">VAUTO taisyklėmis</span> ir{" "}
+              <span className="listing-form-accent">privatumo politika</span>.
             </span>
           </label>
 
           <button
             type="button"
             onClick={handlePublish}
-            className={`mb-3 w-full rounded-full py-3.5 text-lg font-bold text-white ${
-              canPublish ? "" : "opacity-80"
+            disabled={!canPublish}
+            className={`listing-form-cta mb-3 w-full rounded-full py-3.5 text-lg font-bold ${
+              canPublish ? "" : "cursor-not-allowed opacity-60"
             }`}
-            style={{ backgroundColor: ACCENT }}
           >
             Įdėti skelbimą
           </button>
           <button
             type="button"
             onClick={handleSaveDraft}
-            className="w-full rounded-full border-2 border-[#1167b1] py-3 text-base font-semibold text-[#1167b1]"
+            className="listing-form-accent w-full rounded-full border-2 border-[var(--portal-accent,var(--vauto-accent))] py-3 text-base font-semibold"
           >
             Išsaugoti ruošinį
           </button>
