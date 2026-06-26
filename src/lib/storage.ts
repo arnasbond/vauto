@@ -86,6 +86,11 @@ export function saveUser(user: UserProfile): void {
   write(KEYS.user, user);
 }
 
+export function clearUser(): void {
+  if (typeof window === "undefined") return;
+  localStorage.removeItem(KEYS.user);
+}
+
 export function loadAuthSession(): AuthSession | null {
   return read<AuthSession>(KEYS.auth);
 }

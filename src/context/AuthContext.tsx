@@ -26,6 +26,7 @@ import {
 } from "@/lib/auth/session";
 import {
   clearAuthSession,
+  clearUser,
   loadAuthSession,
   loadUser,
   saveUser,
@@ -99,6 +100,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const token = loadAccessToken();
 
       if (auth?.isAuthenticated && storedUser) {
+        if (auth.expiresAt && new Date(auth.expiresAt).getTime() < Date.now()) {
+          clearAuthSessionFull();
+          clearUser();
+          setHydrated(true);
+          return;
+        }
+
         setUser(storedUser);
         setIsAuthenticated(true);
 
@@ -153,7 +161,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   );
 
   const loginLocal = useCallback((data: LoginPayload): UserProfile => {
-    if (data.email === ADMIN_EMAIL || data.role === "admin" || data.role === "super_admin") {
+    if (data.email === ADMIN_EMAIL) {
       return {
         id: "admin-1",
         name: "Vauto Admin",
@@ -312,6 +320,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setIsAuthenticated(false);
     clearAuthSession();
     clearAuthSessionFull();
+    clearUser();
     setUser(ANONYMOUS_USER);
   }, []);
 

@@ -65,12 +65,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
   const activeChatIdRef = useRef<string | null>(null);
   const smsCancelRef = useRef<Map<string, () => void>>(new Map());
+  const timeoutRef = useRef<Set<number>>(new Set());
   const chatsRef = useRef(chats);
   chatsRef.current = chats;
   const userRef = useRef(user);
   userRef.current = user;
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
+
+  const scheduleTimeout = useCallback((fn: () => void, ms: number) => {
+    const id = window.setTimeout(() => {
+      timeoutRef.current.delete(id);
+      fn();
+    }, ms);
+    timeoutRef.current.add(id);
+    return id;
+  }, []);
 
   const persistChat = useCallback(
     (thread: ChatThread) => {
@@ -105,12 +115,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (res.ok) setChats(res.data);
       } else {
         const stored = loadChats();
-        if (stored?.length) setChats(stored);
+        if (stored?.length) {
+          const mine =
+            user.id && user.id !== "guest"
+              ? stored.filter(
+                  (c) => c.buyerId === user.id || c.sellerId === user.id
+                )
+              : stored;
+          if (mine.length) setChats(mine);
+        }
       }
-      void requestChatPushPermission();
+      if (isAuthenticated && user.id !== "guest") {
+        void requestChatPushPermission();
+      }
     }
     void load();
-  }, [hydrated, apiActive, user.id]);
+  }, [hydrated, apiActive, user.id, isAuthenticated]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -118,10 +138,27 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   }, [chats, hydrated, apiActive]);
 
   useEffect(() => {
+    const timeouts = timeoutRef.current;
+    const smsCancels = smsCancelRef.current;
+    return () => {
+      timeouts.forEach((id) => window.clearTimeout(id));
+      timeouts.clear();
+      smsCancels.forEach((cancel) => cancel());
+      smsCancels.clear();
+    };
+  }, []);
+
+  useEffect(() => {
     if (typeof window === "undefined") return;
     const reload = () => {
       const stored = loadChats();
-      if (stored?.length) setChats(stored);
+      if (!stored?.length) return;
+      const uid = userRef.current.id;
+      const mine =
+        uid && uid !== "guest"
+          ? stored.filter((c) => c.buyerId === uid || c.sellerId === uid)
+          : stored;
+      if (mine.length) setChats(mine);
     };
     window.addEventListener("vauto-chats-reload", reload);
     return () => window.removeEventListener("vauto-chats-reload", reload);
@@ -184,7 +221,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const advanceMessageStatus = useCallback(
     (chatId: string, messageId: string, senderId: string, recipientId: string) => {
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         upsertChats((prev) => {
           const next = patchMessageStatus(prev, chatId, messageId, "delivered");
           publishChatEvent({
@@ -199,7 +236,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         });
       }, DELIVER_MS);
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         if (activeChatIdRef.current === chatId) {
           upsertChats((prev) => {
             const next = markSenderMessagesRead(prev, chatId, senderId);
@@ -216,13 +253,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       }, READ_SIM_MS);
     },
-    [persistChat, upsertChats]
+    [persistChat, scheduleTimeout, upsertChats]
   );
 
   const notifyRecipient = useCallback(
     (chat: ChatThread, message: ChatMessage, recipientId: string) => {
       if (activeChatIdRef.current === chat.id) return;
       if (message.senderId === recipientId) return;
+      if (userRef.current.id !== recipientId) return;
 
       const listing = listingsRef.current.find((l) => l.id === chat.listingId);
       const sender =
@@ -277,6 +315,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(
     (chatId: string, text: string) => {
+      if (!isAuthenticated || user.id === "guest") {
+        openAuthModal("/pokalbiai");
+        return;
+      }
+
       const msg: ChatMessage = {
         id: `m-${Date.now()}`,
         senderId: user.id,
@@ -317,7 +360,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      window.setTimeout(() => {
+      scheduleTimeout(() => {
         if (user.id !== buyerId) return;
         const replyId = `m-${Date.now()}`;
         const reply: ChatMessage = {
@@ -336,11 +379,14 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     },
     [
       user.id,
+      isAuthenticated,
+      openAuthModal,
       scheduleIncomingSms,
       persistChat,
       upsertChats,
       advanceMessageStatus,
       notifyRecipient,
+      scheduleTimeout,
     ]
   );
 

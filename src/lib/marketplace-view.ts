@@ -131,6 +131,10 @@ export function mergeAgentIntoMarketplaceFilters(
     base = { ...base, condition: "all" };
   }
 
+  if (agent.category && agent.category !== current.category) {
+    base = { ...base, categoryAttributes: { ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS } };
+  }
+
   return normalizeMarketplaceFilters({
     ...base,
     ...(agent.category ? { category: agent.category as ListingCategory } : {}),

@@ -189,7 +189,7 @@ export function AuthModal({
 
   const verifyOtp = () => {
     onClearError?.();
-    if (!otp.trim() || otp.length < 4) {
+    if (!otp.trim() || otp.length !== 6) {
       setOtpError("Įveskite 6 skaitmenų kodą");
       return;
     }

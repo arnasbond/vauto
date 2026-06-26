@@ -67,6 +67,15 @@ function norm(value: string): string {
     .trim();
 }
 
+/** NT sandorio tipų sinonimai tarp wizard ir filtro žodynų. */
+function normalizeTransactionToken(value: string): string {
+  const n = norm(value);
+  if (n === "pardavimui" || n === "parduoda") return "parduoda";
+  if (n === "nuomai" || n === "nuomoja") return "nuomoja";
+  if (n.includes("trumpalaik")) return "trumpalaikė nuoma";
+  return n;
+}
+
 function matchesChecklist(listing: Listing, field: CategoryFilterFieldDef, filterValue: string): boolean {
   const keys = field.attributeKeys ?? [field.key];
   const items = attrChecklist(listing, keys);
@@ -84,10 +93,6 @@ function matchesOption(listing: Listing, field: CategoryFilterFieldDef, filterVa
 
   const keys = field.attributeKeys ?? [field.key];
   const listingVal = attrValue(listing, keys);
-  if (!listingVal) return false;
-  const nListing = norm(listingVal);
-  const nFilter = norm(filterValue);
-  if (nListing === nFilter || nListing.includes(nFilter)) return true;
 
   if (field.key === "yearFrom" || field.key === "yearTo") {
     const year = parseInt(listingVal.replace(/\D/g, "").slice(0, 4), 10);
@@ -111,6 +116,21 @@ function matchesOption(listing: Listing, field: CategoryFilterFieldDef, filterVa
     const min = parseFloat(filterValue);
     return Number.isFinite(num) && Number.isFinite(min) ? num >= min : false;
   }
+
+  if (!listingVal) return false;
+  const nListing = norm(listingVal);
+  const nFilter = norm(filterValue);
+
+  if (field.key === "transactionType") {
+    return (
+      normalizeTransactionToken(listingVal) === normalizeTransactionToken(filterValue) ||
+      nListing.includes(nFilter) ||
+      nFilter.includes(nListing)
+    );
+  }
+
+  if (nListing === nFilter || nListing.includes(nFilter)) return true;
+
   return false;
 }
 
@@ -120,8 +140,8 @@ export function categoryFilterFieldsFor(
   switch (category) {
     case "vehicles":
       return [
-        { key: "yearFrom", label: "Metai nuo", options: ["2000", "2005", "2010", "2015", "2018", "2020"] },
-        { key: "yearTo", label: "Metai iki", options: ["2010", "2015", "2018", "2020", "2022", "2024", "2026"] },
+        { key: "yearFrom", label: "Metai nuo", options: ["2000", "2005", "2010", "2015", "2018", "2020"], attributeKeys: ["year"] },
+        { key: "yearTo", label: "Metai iki", options: ["2010", "2015", "2018", "2020", "2022", "2024", "2026"], attributeKeys: ["year"] },
         { key: "fuelType", label: "Kuras", options: FUEL_TYPES, attributeKeys: ["fuelType", "kuras"] },
         { key: "bodyType", label: "Kėbulas", options: BODY_TYPES, attributeKeys: ["bodyType", "kebulas"] },
         { key: "gearbox", label: "Pavarų dėžė", options: GEARBOX_TYPES, attributeKeys: ["gearbox", "transmission"] },
@@ -139,7 +159,7 @@ export function categoryFilterFieldsFor(
           attributeKeys: ["vehicleOptions"],
           checklist: true,
         },
-        { key: "mileageMax", label: "Rida iki (km)", options: ["50000", "100000", "150000", "200000", "300000"] },
+        { key: "mileageMax", label: "Rida iki (km)", options: ["50000", "100000", "150000", "200000", "300000"], attributeKeys: ["mileage"] },
       ];
     case "real_estate":
       return [
@@ -188,7 +208,7 @@ export function categoryFilterFieldsFor(
           attributeKeys: ["ntFeatures", "features"],
           checklist: true,
         },
-        { key: "areaMin", label: "Plotas nuo (m²)", options: ["30", "50", "70", "100", "150"] },
+        { key: "areaMin", label: "Plotas nuo (m²)", options: ["30", "50", "70", "100", "150"], attributeKeys: ["area"] },
         { key: "landAreaMin", label: "Sklypas nuo (a)", options: ["3", "6", "10", "15", "20"] },
       ];
     case "clothing":
@@ -235,7 +255,7 @@ export function categoryFilterFieldsFor(
           key: "experienceRequired",
           label: "Patirtis",
           options: EXPERIENCE_YEARS,
-          attributeKeys: ["experienceRequired", "requirements"],
+          attributeKeys: ["experienceRequired", "experience"],
         },
         {
           key: "education",

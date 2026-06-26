@@ -30,6 +30,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
     canReviewListing(reviews, chat.listingId, user.id);
 
   useEffect(() => {
+    if (!chatId) return;
     setActiveChatId(chatId);
     return () => setActiveChatId(null);
   }, [chatId, setActiveChatId]);
@@ -52,7 +53,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
     <div className="flex h-[calc(100dvh-2rem)] flex-col px-4">
       <div className="mb-4 flex items-center gap-3 border-b border-[var(--vauto-border)] pb-3">
         <Link
-          href="/pokalbiai/"
+          href="/chats/"
           className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
         >
           <ArrowLeft className="h-5 w-5" />
