@@ -5,7 +5,9 @@ import { Apple, Download, Share2, Smartphone } from "lucide-react";
 import {
   APK_DOWNLOAD_URL,
   IOS_DOWNLOAD_URL,
+  getIosInstallUrl,
   getPreferredInstallPlatform,
+  hasTestFlightLink,
   isAndroid,
   isIOS,
   shareAndroidApk,
@@ -29,6 +31,8 @@ export function InstallDownloadButtons({
   const preferred = getPreferredInstallPlatform();
   const androidDevice = isAndroid();
   const iosDevice = isIOS();
+  const testFlight = hasTestFlightLink();
+  const iosInstallUrl = getIosInstallUrl();
 
   const primaryPlatform = useMemo<"android" | "ios">(() => {
     if (preferred === "ios") return "ios";
@@ -36,11 +40,13 @@ export function InstallDownloadButtons({
   }, [preferred]);
 
   const handleShare = async (platform: "android" | "ios") => {
-    const ok =
-      platform === "ios" ? await shareIosApp() : await shareAndroidApk();
+    await (platform === "ios" ? shareIosApp() : shareAndroidApk());
     onShare?.(platform);
-    return ok;
   };
+
+  const iosLabel = testFlight
+    ? "Gauti per TestFlight (iPhone)"
+    : "Įdiegti iOS programėlę (iPhone)";
 
   const androidButton = (
     <div
@@ -88,8 +94,8 @@ export function InstallDownloadButtons({
       )}
     >
       <a
-        href={IOS_DOWNLOAD_URL}
-        download="vauto.ipa"
+        href={iosInstallUrl}
+        {...(testFlight ? {} : { download: "vauto.ipa" })}
         className={cn(
           "flex flex-1 items-center justify-center gap-2 rounded-2xl py-3.5 text-sm font-bold text-white shadow-md transition active:scale-[0.98]",
           primaryPlatform === "ios"
@@ -98,7 +104,7 @@ export function InstallDownloadButtons({
         )}
       >
         <Apple className="h-4 w-4" />
-        Atsisiųsti iOS programėlę (iPhone)
+        {iosLabel}
       </a>
       {showShare && (
         <button
@@ -112,8 +118,17 @@ export function InstallDownloadButtons({
           )}
         >
           <Share2 className="h-4 w-4" />
-          Dalintis iOS
+          {testFlight ? "Dalintis TestFlight" : "Dalintis iOS"}
         </button>
+      )}
+      {!testFlight && primaryPlatform === "ios" && (
+        <a
+          href={IOS_DOWNLOAD_URL}
+          download="vauto.ipa"
+          className="text-center text-[11px] text-[var(--vauto-text-muted)] underline"
+        >
+          Arba atsisiųsti nepasirašytą IPA (reikia Xcode)
+        </a>
       )}
     </div>
   );
@@ -143,7 +158,9 @@ export function InstallDownloadButtons({
         <p className="flex items-center gap-2 text-xs text-[var(--vauto-text-muted)]">
           <Download className="h-3.5 w-3.5 text-[var(--vauto-blue)]" />
           {iosDevice
-            ? "Jūsų iPhone — siūlome iOS programėlę pirmiausia."
+            ? testFlight
+              ? "Jūsų iPhone — atidarykite TestFlight nuorodą."
+              : "Jūsų iPhone — OTA įdiegimas arba TestFlight (kai sukonfigūruota)."
             : "Jūsų Android — siūlome APK pirmiausia."}
         </p>
       )}

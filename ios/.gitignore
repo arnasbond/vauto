@@ -8,6 +8,11 @@ xcuserdata
 # Cordova plugins for Capacitor
 capacitor-cordova-ios-plugins
 
+# fastlane
+fastlane/report.xml
+fastlane/Preview.html
+fastlane/test_output
+
 # Generated Config files
 App/App/capacitor.config.json
 App/App/config.xml

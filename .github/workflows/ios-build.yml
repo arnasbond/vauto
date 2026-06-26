@@ -4,6 +4,17 @@ on:
   push:
     branches: [master]
   workflow_dispatch:
+    inputs:
+      deploy_target:
+        description: "Deploy target (auto = detect from secrets)"
+        required: false
+        default: auto
+        type: choice
+        options:
+          - auto
+          - unsigned
+          - testflight
+          - adhoc
 
 permissions:
   contents: write
@@ -11,6 +22,8 @@ permissions:
 jobs:
   ios:
     runs-on: macos-latest
+    env:
+      DEPLOY_TARGET: ${{ github.event.inputs.deploy_target || 'auto' }}
     steps:
       - uses: actions/checkout@v4
 
@@ -18,6 +31,25 @@ jobs:
         with:
           node-version: "22"
           cache: npm
+
+      - name: Detect signing mode
+        id: mode
+        env:
+          HAS_TESTFLIGHT: ${{ secrets.APPSTORE_KEY_ID != '' && secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+          HAS_ADHOC: ${{ secrets.IOS_ADHOC_PROFILE_BASE64 != '' && secrets.BUILD_CERTIFICATE_BASE64 != '' }}
+        run: |
+          MODE="${DEPLOY_TARGET}"
+          if [ "$MODE" = "auto" ]; then
+            if [ "$HAS_TESTFLIGHT" = "true" ]; then
+              MODE="testflight"
+            elif [ "$HAS_ADHOC" = "true" ]; then
+              MODE="adhoc"
+            else
+              MODE="unsigned"
+            fi
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "iOS deploy mode: $MODE"
 
       - name: Install dependencies
         run: npm ci
@@ -35,7 +67,66 @@ jobs:
         working-directory: ios/App
         run: pod install
 
+      # ── TestFlight (autonomous when secrets configured) ──
+      - name: Setup Ruby for Fastlane
+        if: steps.mode.outputs.mode == 'testflight' || steps.mode.outputs.mode == 'adhoc'
+        uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+          working-directory: ios/App
+
+      - name: Install Apple distribution certificate
+        if: steps.mode.outputs.mode == 'testflight' || steps.mode.outputs.mode == 'adhoc'
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.BUILD_CERTIFICATE_BASE64 }}
+          p12-password: ${{ secrets.P12_PASSWORD }}
+
+      - name: Install App Store provisioning profile
+        if: steps.mode.outputs.mode == 'testflight'
+        uses: apple-actions/download-provisioning-profiles@v4
+        with:
+          bundle-id: com.vauto.app
+          profile-type: IOS_APP_STORE
+          issuer-id: ${{ secrets.APPSTORE_ISSUER_ID }}
+          api-key-id: ${{ secrets.APPSTORE_KEY_ID }}
+          api-private-key: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+
+      - name: Install Ad Hoc provisioning profile
+        if: steps.mode.outputs.mode == 'adhoc'
+        env:
+          IOS_ADHOC_PROFILE_BASE64: ${{ secrets.IOS_ADHOC_PROFILE_BASE64 }}
+        run: |
+          mkdir -p ~/Library/MobileDevice/Provisioning\ Profiles
+          echo "$IOS_ADHOC_PROFILE_BASE64" | base64 --decode > /tmp/vauto-adhoc.mobileprovision
+          UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' /dev/stdin <<< "$(security cms -D -i /tmp/vauto-adhoc.mobileprovision)")
+          cp /tmp/vauto-adhoc.mobileprovision ~/Library/MobileDevice/Provisioning\ Profiles/${UUID}.mobileprovision
+
+      - name: Build and upload to TestFlight
+        if: steps.mode.outputs.mode == 'testflight'
+        working-directory: ios/App
+        env:
+          APPSTORE_KEY_ID: ${{ secrets.APPSTORE_KEY_ID }}
+          APPSTORE_ISSUER_ID: ${{ secrets.APPSTORE_ISSUER_ID }}
+          APPSTORE_PRIVATE_KEY: ${{ secrets.APPSTORE_PRIVATE_KEY }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_PROVISIONING_PROFILE_NAME: ${{ secrets.IOS_PROVISIONING_PROFILE_NAME }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: bundle exec fastlane beta
+
+      - name: Build ad-hoc IPA (OTA sideload)
+        if: steps.mode.outputs.mode == 'adhoc'
+        working-directory: ios/App
+        env:
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          IOS_ADHOC_PROFILE_NAME: ${{ secrets.IOS_ADHOC_PROFILE_NAME }}
+          GITHUB_RUN_NUMBER: ${{ github.run_number }}
+        run: bundle exec fastlane adhoc
+
+      # ── Unsigned fallback (no Apple Developer account) ──
       - name: Build unsigned iOS archive
+        if: steps.mode.outputs.mode == 'unsigned'
         working-directory: ios/App
         run: |
           xcodebuild \
@@ -51,7 +142,8 @@ jobs:
             CODE_SIGNING_STYLE=Manual \
             DEVELOPMENT_TEAM=""
 
-      - name: Package IPA from archive
+      - name: Package unsigned IPA
+        if: steps.mode.outputs.mode == 'unsigned'
         working-directory: ios/App
         run: |
           rm -rf build/Payload
@@ -60,38 +152,73 @@ jobs:
           cd build && zip -r ../vauto.ipa Payload
           rm -rf Payload
 
-      - name: Package xcarchive zip
+      - name: Package unsigned xcarchive zip
+        if: steps.mode.outputs.mode == 'unsigned'
         working-directory: ios/App
         run: zip -r ../../vauto.xcarchive.zip build/App.xcarchive
 
+      # ── Publish releases ──
+      - name: Publish TestFlight build artifact
+        if: steps.mode.outputs.mode == 'testflight'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-testflight-latest
+          name: Vauto iOS TestFlight build
+          body: |
+            Pasirašytas **vauto-testflight.ipa** — automatiškai įkeltas į TestFlight.
+
+            Vartotojams siųskite TestFlight nuorodą (App Store Connect → External Testing → Public Link).
+            Pridėkite ją į `NEXT_PUBLIC_IOS_TESTFLIGHT_URL` Vercel aplinkoje.
+          files: ios/App/build/vauto-testflight.ipa
+
+      - name: Publish ad-hoc OTA release
+        if: steps.mode.outputs.mode == 'adhoc'
+        run: |
+          gh release delete ios-adhoc-latest --yes || true
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+      - name: Upload ad-hoc IPA to GitHub Releases
+        if: steps.mode.outputs.mode == 'adhoc'
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ios-adhoc-latest
+          name: Vauto iOS Ad Hoc (OTA)
+          body: |
+            Pasirašytas **vauto-adhoc.ipa** — įdiegimas tik registruotų iPhone UDID.
+
+            iPhone atidarykite: https://vauto-chi.vercel.app/ios/install.html
+          files: ios/App/build/vauto-adhoc.ipa
+
       - name: Delete previous ios-latest release
+        if: steps.mode.outputs.mode == 'unsigned'
         continue-on-error: true
         run: gh release delete ios-latest --yes
         env:
           GH_TOKEN: ${{ github.token }}
 
-      - name: Publish iOS package to GitHub Releases
+      - name: Publish unsigned iOS package
+        if: steps.mode.outputs.mode == 'unsigned'
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ios-latest
           name: Vauto iOS (iPhone)
           body: |
-            Atsisiųskite **vauto.ipa** ir įdiekite iPhone įrenginyje.
+            Atsisiųskite **vauto.ipa** (nepasirašyta CI versija).
 
-            > **Pastaba:** Šis IPA failas surinktas CI be Apple Developer pasirašymo.
-            > Įdiegimui iPhone reikės TestFlight, Xcode arba patikimo sideload įrankio.
-
-            1. Atsisiųskite failą žemiau
-            2. Įdiekite per Xcode, TestFlight arba sideload įrankį
-            3. Paleiskite programėlę „Vauto“
+            > Įdiegimui iPhone reikia Apple Developer pasirašymo.
+            > Paleiskite `node scripts/setup-ios-testflight.mjs --check` ir užpildykite GitHub Secrets automatiniam TestFlight.
           files: |
             vauto.ipa
             vauto.xcarchive.zip
 
       - uses: actions/upload-artifact@v4
+        if: always()
         with:
-          name: vauto-ios
+          name: vauto-ios-${{ steps.mode.outputs.mode }}
           path: |
             vauto.ipa
             vauto.xcarchive.zip
+            ios/App/build/*.ipa
           retention-days: 30
+          if-no-files-found: ignore

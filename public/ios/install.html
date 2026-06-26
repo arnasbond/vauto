@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="lt">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Vauto — įdiegti iPhone</title>
+    <style>
+      body {
+        font-family: system-ui, -apple-system, sans-serif;
+        max-width: 28rem;
+        margin: 2rem auto;
+        padding: 0 1rem;
+        line-height: 1.5;
+        color: #1a1a1a;
+      }
+      a.btn {
+        display: block;
+        text-align: center;
+        background: #00bfa5;
+        color: #fff;
+        text-decoration: none;
+        padding: 1rem 1.25rem;
+        border-radius: 1rem;
+        font-weight: 700;
+        margin: 1.5rem 0;
+      }
+      .muted {
+        color: #666;
+        font-size: 0.875rem;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>Vauto iPhone</h1>
+    <p class="muted">
+      Ad-hoc OTA įdiegimas — veikia tik registruotų įrenginių UDID sąraše.
+      Jei turite TestFlight nuorodą, naudokite ją vietoje šio puslapio.
+    </p>
+    <a
+      class="btn"
+      href="itms-services://?action=download-manifest&amp;url=https://vauto-chi.vercel.app/ios/manifest.plist"
+    >
+      Įdiegti Vauto (iPhone)
+    </a>
+    <p class="muted">
+      Jei mygtukas neveikia — atidarykite
+      <a href="/install/">įdiegimo instrukcijas</a> arba TestFlight nuorodą.
+    </p>
+  </body>
+</html>
