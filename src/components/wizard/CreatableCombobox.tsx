@@ -2,7 +2,12 @@
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { cn } from "@/lib/cn";
+import {
+  COMBOBOX_MIN_QUERY_LAZY,
+  filterComboboxOptions,
+} from "@/lib/combobox-search";
 import { wizardInvalidClass } from "@/lib/listing-field-validation";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
 export interface CreatableComboboxProps {
   label?: string;
@@ -41,9 +46,11 @@ export function CreatableCombobox({
 }: CreatableComboboxProps) {
   const listId = useId();
   const rootRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLUListElement>(null);
   const [query, setQuery] = useState(value);
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const debouncedQuery = useDebouncedValue(query, 100);
 
   useEffect(() => {
     setQuery(value);
@@ -57,37 +64,24 @@ export function CreatableCombobox({
     return () => document.removeEventListener("mousedown", onDocClick);
   }, []);
 
-  const mergedOptions = useMemo(() => {
-    const seen = new Set<string>();
-    const out: string[] = [];
-    for (const opt of [...options, value]) {
-      const t = normalize(opt);
-      if (!t) continue;
-      const key = t.toLowerCase();
-      if (seen.has(key)) continue;
-      seen.add(key);
-      out.push(t);
-    }
-    return out.sort((a, b) => a.localeCompare(b, "lt"));
-  }, [options, value]);
-
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return mergedOptions.slice(0, 40);
-    return mergedOptions.filter((o) => o.toLowerCase().includes(q)).slice(0, 40);
-  }, [mergedOptions, query]);
+  const { items: filtered, lazyHint } = useMemo(
+    () => filterComboboxOptions(options, debouncedQuery, value),
+    [options, debouncedQuery, value]
+  );
 
   const exactMatch = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return false;
-    return mergedOptions.some((o) => o.toLowerCase() === q);
-  }, [mergedOptions, query]);
+    return filtered.some((o) => o.toLowerCase() === q) || value.trim().toLowerCase() === q;
+  }, [filtered, query, value]);
 
-  const showCreate =
-    query.trim().length > 0 && !exactMatch;
+  const showCreate = query.trim().length > 0 && !exactMatch;
 
   const listItems = showCreate
-    ? [{ type: "create" as const, label: createLabel(query.trim()) }, ...filtered.map((o) => ({ type: "option" as const, label: o }))]
+    ? [
+        { type: "create" as const, label: createLabel(query.trim()) },
+        ...filtered.map((o) => ({ type: "option" as const, label: o })),
+      ]
     : filtered.map((o) => ({ type: "option" as const, label: o }));
 
   const commit = (next: string) => {
@@ -97,6 +91,10 @@ export function CreatableCombobox({
     setOpen(false);
     setActiveIndex(-1);
   };
+
+  const emptyMessage = lazyHint
+    ? `Rašykite bent ${COMBOBOX_MIN_QUERY_LAZY} simbolius — sąraše ${options.length}+ variantų`
+    : emptyHint;
 
   return (
     <div ref={rootRef} className={cn("relative mb-3", className, wizardInvalidClass(Boolean(invalid)))}>
@@ -161,12 +159,13 @@ export function CreatableCombobox({
       />
       {open && !disabled && (
         <ul
+          ref={listRef}
           id={listId}
           role="listbox"
-          className="nt-wizard-panel absolute z-30 mt-1 max-h-52 w-full overflow-y-auto rounded-md border shadow-lg"
+          className="nt-wizard-panel absolute z-30 mt-1 max-h-52 w-full overflow-y-auto overscroll-contain rounded-md border shadow-lg"
         >
           {listItems.length === 0 && (
-            <li className="nt-wizard-muted px-3 py-2 text-sm">{emptyHint}</li>
+            <li className="nt-wizard-muted px-3 py-2 text-sm">{emptyMessage}</li>
           )}
           {listItems.map((item, index) => (
             <li key={`${item.type}-${item.label}`} role="option" aria-selected={index === activeIndex}>

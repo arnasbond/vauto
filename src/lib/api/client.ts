@@ -701,11 +701,23 @@ export async function apiImportListingFromUrl(body: {
   url: string;
   userCity: string;
   contact: string;
-}): Promise<import("@/lib/types").AiExtractedListing | null> {
-  return aiFetch("/api/ai/import-url", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+}): Promise<
+  | { ok: true; data: import("@/lib/types").AiExtractedListing }
+  | { ok: false; error: string; code?: string }
+> {
+  for (const base of getAiBaseUrls()) {
+    const result = await aiFetchOnce<import("@/lib/types").AiExtractedListing>(
+      base,
+      "/api/ai/import-url",
+      { method: "POST", body: JSON.stringify(body) },
+      AI_FETCH_TIMEOUT_MS
+    );
+    if (result.data) return { ok: true, data: result.data };
+    if (result.error) {
+      return { ok: false, error: result.error, code: result.code };
+    }
+  }
+  return { ok: false, error: "AI serveris nepasiekiamas.", code: "unavailable" };
 }
 
 export interface ApiServiceLead {

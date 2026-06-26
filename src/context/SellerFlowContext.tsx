@@ -27,7 +27,7 @@ import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
-import { importListingFromUrl as fetchListingFromPortal } from "@/lib/listing-url-import";
+import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
 import { resolveListingCity } from "@/lib/city-resolve";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
 import { isDataApiEnabled } from "@/lib/api/config";
@@ -93,7 +93,7 @@ import {
   readSocialPublishFromAttributes,
   type ListingSocialPublishOptions,
 } from "@/lib/listing-social-publish";
-import { runListingSocialPublish } from "@/lib/listing-social-sync";
+import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
@@ -623,17 +623,37 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           "success"
         );
       } catch (e) {
-        setSellerStep("idle");
-        showToast(
-          e instanceof Error ? e.message : "Nepavyko importuoti skelbimo",
-          "error"
-        );
+        const fallback =
+          e instanceof ListingImportError
+            ? e.fallbackDraft
+            : createImportFallbackDraft(url, {
+                userCity: user.city || "Lietuva",
+                contact: user.phone,
+              });
+        const msg = e instanceof Error ? e.message : "Nepavyko importuoti skelbimo";
+        if (fallback) {
+          setAiManualFallback(true);
+          const enriched = enrichVehicleListingDraft(fallback, [
+            fallback.title,
+            fallback.description ?? "",
+          ]);
+          setAiDraft(enriched);
+          setSellerInputMode("text");
+          setSellerUserPrompt(enriched.description ?? "");
+          const key = listingToAdaptiveKey(enriched.category);
+          setChameleonTheme(adaptiveKeyToTheme(key));
+          setSellerStep("confirmation");
+        } else {
+          setSellerStep("idle");
+        }
+        showToast(`${msg} Užpildykite laukus ranka.`, "error");
       }
     },
     [
       applyAgentListingDraft,
       requireAuthForListing,
       showToast,
+      setChameleonTheme,
       user.city,
       user.phone,
     ]
@@ -796,7 +816,26 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }
 
     let distKm = 0.5;
-    const coords = buyerCoords ?? (await getUserCoords());
+    const coordsPromise = buyerCoords
+      ? Promise.resolve(buyerCoords)
+      : Promise.race([
+          getUserCoords(),
+          new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2000)),
+        ]);
+
+    const vin =
+      typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
+    const vinOk = vin ? verifyVin(vin) : false;
+
+    const [listingImage, coords] = await Promise.all([
+      prepareListingImageForApi(sellerPreviewImage),
+      coordsPromise,
+    ]);
+    if (!listingImage) {
+      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+      return;
+    }
+
     const listingCity = resolveListingCity(aiDraft.location, user.city || "Vilnius");
     const listingCoords = geocodeLocation(listingCity);
     if (coords) {
@@ -806,17 +845,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         location: listingCity,
       });
       if (exact !== null) distKm = exact;
-    }
-
-    const vin =
-      typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
-    const vinOk = vin ? verifyVin(vin) : false;
-
-    const listingImage =
-      (await prepareListingImageForApi(sellerPreviewImage)) ?? null;
-    if (!listingImage) {
-      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-      return;
     }
 
     const createdAt = new Date().toISOString();
@@ -846,16 +874,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     let published = newListing;
     if (isDataApiEnabled()) {
-      const userRes = await apiUpdateUser({
+      void apiUpdateUser({
         ...user,
         avatar: sanitizeAvatarForApi(user.avatar),
+      }).catch(() => {
+        /* profile sync is best-effort — must not block publish */
       });
-      if (!userRes.ok) {
-        const msg = `Profilis neišsaugotas: ${userRes.error}`;
-        setSyncError(msg);
-        showToast(msg, "error");
-        return;
-      }
       const createRes = await apiCreateListing(newListing, user.id);
       if (!createRes.ok) {
         const msg = `Nepavyko publikuoti: ${createRes.error}`;
@@ -874,7 +898,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setLastPublishedListing(published);
     setSellerStep("published");
     scheduleSellerEngagementPush(published.id, published.location, published.title);
-    void runListingSocialPublish(published, listingSocialPublish).then((result) => {
+    scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {
         showToast("Facebook dalijimasis inicijuotas.", "info");
       }

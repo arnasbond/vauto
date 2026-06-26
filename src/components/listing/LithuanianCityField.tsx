@@ -1,6 +1,11 @@
 "use client";
 
 import { useEffect, useId, useMemo, useRef, useState } from "react";
+import {
+  COMBOBOX_MIN_QUERY_LAZY,
+  filterComboboxOptions,
+} from "@/lib/combobox-search";
+import { useDebouncedValue } from "@/lib/useDebouncedValue";
 
 interface LithuanianCityFieldProps {
   location: string;
@@ -30,17 +35,17 @@ export function LithuanianCityField({
   const [query, setQuery] = useState(() => normalizeCityInput(location));
   const [open, setOpen] = useState(false);
   const [activeIndex, setActiveIndex] = useState(-1);
+  const debouncedQuery = useDebouncedValue(query, 100);
 
   const presetCities = useMemo(
     () => cityOptions.filter((c) => c !== "Kita" && c !== "Visoje Lietuvoje" && c !== "Visa Lietuva"),
     [cityOptions]
   );
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return presetCities.slice(0, 20);
-    return presetCities.filter((c) => c.toLowerCase().includes(q)).slice(0, 20);
-  }, [presetCities, query]);
+  const { items: filtered, lazyHint } = useMemo(
+    () => filterComboboxOptions(presetCities, debouncedQuery, normalizeCityInput(location)),
+    [presetCities, debouncedQuery, location]
+  );
 
   const exactMatch = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -51,7 +56,10 @@ export function LithuanianCityField({
   const showCreate = query.trim().length > 0 && !exactMatch;
 
   const listItems = showCreate
-    ? [{ type: "create" as const, label: createLabel(query.trim()) }, ...filtered.map((o) => ({ type: "option" as const, label: o }))]
+    ? [
+        { type: "create" as const, label: createLabel(query.trim()) },
+        ...filtered.map((o) => ({ type: "option" as const, label: o })),
+      ]
     : filtered.map((o) => ({ type: "option" as const, label: o }));
 
   useEffect(() => {
@@ -85,6 +93,10 @@ export function LithuanianCityField({
     setOpen(false);
     setActiveIndex(-1);
   };
+
+  const emptyMessage = lazyHint
+    ? `Rašykite bent ${COMBOBOX_MIN_QUERY_LAZY} simbolius — sąraše ${presetCities.length}+ gyvenviečių`
+    : "Pradėkite rašyti pavadinimą";
 
   return (
     <div ref={rootRef} className="relative">
@@ -138,12 +150,15 @@ export function LithuanianCityField({
           }
         }}
       />
-      {open && listItems.length > 0 && (
+      {open && (
         <ul
           id={listId}
           role="listbox"
-          className="listing-form-suggestions absolute z-20 mt-1 max-h-48 w-full overflow-y-auto rounded-md border shadow-md"
+          className="listing-form-suggestions absolute z-20 mt-1 max-h-48 w-full overflow-y-auto overscroll-contain rounded-md border shadow-md"
         >
+          {listItems.length === 0 && (
+            <li className="listing-form-suggestion px-3 py-2 text-sm opacity-70">{emptyMessage}</li>
+          )}
           {listItems.map((item, index) => (
             <li key={`${item.type}-${item.label}`} role="option" aria-selected={index === activeIndex}>
               <button

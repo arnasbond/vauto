@@ -299,7 +299,7 @@ aiRouter.post("/extract-combined", async (req, res) => {
 });
 
 aiRouter.post("/import-url", async (req, res) => {
-  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+  if (!hasAiKey()) return res.status(503).json({ ...AI_UNAVAILABLE, code: "unavailable" });
 
   const { url, userCity, contact } = req.body as {
     url: string;
@@ -308,7 +308,7 @@ aiRouter.post("/import-url", async (req, res) => {
   };
 
   if (!url?.trim()) {
-    return res.status(400).json({ error: "url is required" });
+    return res.status(400).json({ error: "url is required", code: "missing_url" });
   }
 
   const city = userCity || "Lietuva";
@@ -324,16 +324,44 @@ aiRouter.post("/import-url", async (req, res) => {
   }
 
   try {
-    const pageRes = await fetch(url.trim(), {
-      headers: {
-        "User-Agent":
-          "Mozilla/5.0 (compatible; VautoBot/1.0; +https://vauto-chi.vercel.app)",
-        Accept: "text/html,application/xhtml+xml",
-      },
-      signal: AbortSignal.timeout(12_000),
-    });
+    let pageRes: Response;
+    try {
+      pageRes = await fetch(url.trim(), {
+        headers: {
+          "User-Agent":
+            "Mozilla/5.0 (compatible; VautoBot/1.0; +https://vauto-chi.vercel.app)",
+          Accept: "text/html,application/xhtml+xml",
+        },
+        signal: AbortSignal.timeout(12_000),
+      });
+    } catch (fetchErr) {
+      const isTimeout =
+        fetchErr instanceof Error &&
+        (fetchErr.name === "AbortError" || fetchErr.name === "TimeoutError");
+      return res.status(502).json({
+        error: isTimeout
+          ? "Portalo puslapis neatsakė laiku — bandykite vėliau arba užpildykite ranka."
+          : "Nepavyko pasiekti portalo — patikrinkite nuorodą arba užpildykite ranka.",
+        code: isTimeout ? "timeout" : "fetch_failed",
+      });
+    }
+
+    if (!pageRes.ok) {
+      return res.status(502).json({
+        error: "Portalo puslapis neprieinamas — užpildykite skelbimą ranka.",
+        code: "fetch_failed",
+      });
+    }
+
     const html = await pageRes.text();
     const text = stripHtml(html).slice(0, 14_000);
+
+    if (text.length < 80) {
+      return res.status(422).json({
+        error: "Puslapio turinys per trumpas — užpildykite laukus ranka.",
+        code: "empty_content",
+      });
+    }
 
     const raw = await chatJson([
       {
@@ -353,7 +381,10 @@ aiRouter.post("/import-url", async (req, res) => {
     };
     res.json(listing);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    res.status(500).json({
+      error: "Nepavyko apdoroti importo — užpildykite skelbimą ranka.",
+      code: "parse_failed",
+    });
   }
 });
 
