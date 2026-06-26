@@ -14,6 +14,7 @@ import {
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 import { getAuthHeaders } from "@/lib/auth/session";
 import { trimAgentRequestBody } from "@/lib/agent-request-trim";
+import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 
 export type ApiResult<T> =
   | { ok: true; data: T }
@@ -466,6 +467,7 @@ export async function apiUpdateUser(
   const payload = {
     ...user,
     city: resolveListingCity(user.city, "Vilnius"),
+    avatar: sanitizeAvatarForApi(user.avatar),
   };
   return dataFetch<null>(`/api/users/${user.id}`, {
     method: "PUT",

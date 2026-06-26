@@ -9,11 +9,17 @@ import { apiUploadMedia } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
 import {
   capturePhotoFromSource,
+  compressDataUrl,
   resolveImageForUpload,
 } from "@/lib/native-media";
+import {
+  API_AVATAR_MAX_LENGTH,
+  DEFAULT_USER_AVATAR,
+  isOversizedAvatar,
+  sanitizeAvatarForApi,
+} from "@/lib/avatar-url";
 
-const DEFAULT_AVATAR =
-  "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop";
+const DEFAULT_AVATAR = DEFAULT_USER_AVATAR;
 
 interface ProfileAvatarEditorProps {
   avatar: string;
@@ -42,13 +48,20 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
         }
 
         let finalUrl = resolved;
+        if (isOversizedAvatar(finalUrl)) {
+          finalUrl =
+            (await compressDataUrl(finalUrl, {
+              maxDim: 128,
+              maxChars: API_AVATAR_MAX_LENGTH - 64,
+              force: true,
+            })) ?? DEFAULT_AVATAR;
+        }
         if (isDataApiEnabled()) {
-          const uploaded = await apiUploadMedia(resolved);
+          const uploaded = await apiUploadMedia(finalUrl);
           if (uploaded) finalUrl = uploaded;
         }
-
+        finalUrl = sanitizeAvatarForApi(finalUrl);
         updateUser({ avatar: finalUrl });
-        setPreview(finalUrl);
         showToast("Profilio nuotrauka atnaujinta.", "success");
       } catch {
         showToast("Nuotraukos įkėlimas nepavyko.", "error");

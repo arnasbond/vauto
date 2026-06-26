@@ -21,9 +21,9 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import type { AiExtractedListing } from "@/lib/types";
 import {
   BUILDING_TYPES,
-  CONDITION_TYPES,
   defaultTransactionForType,
   FEATURE_OPTIONS,
+  FURNISHING_OPTIONS,
   HEATING_OPTIONS,
   HOUSE_TYPES,
   isLandPropertyType,
@@ -110,7 +110,7 @@ function ChipRow({
 }) {
   return (
     <div className="mb-4">
-      <label className="mb-2 block text-sm font-medium text-[#424242]">
+      <label className="nt-wizard-label mb-2 block text-sm font-medium">
         {label}
         {required && <span className="text-red-600"> *</span>}
       </label>
@@ -120,10 +120,8 @@ function ChipRow({
             key={opt}
             type="button"
             onClick={() => onChange(opt)}
-            className={`shrink-0 rounded-md border px-3 py-2 text-sm font-medium transition ${
-              value === opt
-                ? "border-[#c62828] bg-[#c62828] text-white"
-                : "border-[#e0e0e0] bg-white text-[#424242] hover:border-[#c62828]"
+            className={`nt-wizard-chip shrink-0 rounded-md border px-3 py-2 text-sm font-medium transition ${
+              value === opt ? "nt-wizard-chip-active" : ""
             }`}
           >
             {opt}
@@ -153,7 +151,7 @@ function SelectField({
 }) {
   return (
     <div className="mb-3">
-      <label className="mb-1.5 block text-sm font-medium text-[#424242]">
+      <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
         {label}
         {required && <span className="text-red-600"> *</span>}
       </label>
@@ -161,8 +159,8 @@ function SelectField({
         <select
           value={value}
           onChange={(e) => onChange(e.target.value)}
-          className={`w-full appearance-none rounded-md border px-3 py-3 pr-10 text-sm text-[#212121] outline-none focus:border-[#c62828] focus:ring-1 focus:ring-[#c62828] ${
-            highlight && !value ? "border-[#ffe082] bg-[#fffde7]" : "border-[#e0e0e0] bg-white"
+          className={`nt-wizard-input w-full appearance-none rounded-md border px-3 py-3 pr-10 text-sm outline-none focus:border-[#c62828] focus:ring-1 focus:ring-[#c62828] ${
+            highlight && !value ? "border-[#ffe082] bg-[#fffde7]" : ""
           }`}
         >
           <option value="">{placeholder}</option>
@@ -193,7 +191,7 @@ function ProgressHeader({
 }) {
   const pct = Math.round((step / TOTAL_STEPS) * 100);
   return (
-    <div className="mb-5 border-b border-[#e0e0e0] pb-4">
+    <div className="nt-wizard-header mb-5 border-b pb-4">
       <div className="mb-3 flex items-center justify-between">
         <span className="text-xs font-semibold uppercase tracking-wide text-[#c62828]">
           Naujas skelbimas
@@ -201,7 +199,7 @@ function ProgressHeader({
         <button
           type="button"
           onClick={onClose}
-          className="rounded-full p-1.5 text-[#757575] hover:bg-[#f5f5f5]"
+          className="nt-wizard-muted rounded-full p-1.5 hover:bg-[color-mix(in_srgb,var(--portal-text)_8%,transparent)]"
           aria-label="Atšaukti"
         >
           <X className="h-5 w-5" />
@@ -211,18 +209,18 @@ function ProgressHeader({
         <div
           className="relative flex h-12 w-12 shrink-0 items-center justify-center rounded-full"
           style={{
-            background: `conic-gradient(${ACCENT} ${pct}%, #e0e0e0 ${pct}%)`,
+            background: `conic-gradient(${ACCENT} ${pct}%, var(--vauto-border, #e0e0e0) ${pct}%)`,
           }}
         >
-          <div className="flex h-9 w-9 flex-col items-center justify-center rounded-full bg-white text-center">
+          <div className="nt-wizard-panel flex h-9 w-9 flex-col items-center justify-center rounded-full text-center">
             <span className="text-xs font-bold leading-none text-[#c62828]">{step}</span>
-            <span className="text-[9px] text-[#9e9e9e]">/ {TOTAL_STEPS}</span>
+            <span className="nt-wizard-muted text-[9px]">/ {TOTAL_STEPS}</span>
           </div>
         </div>
         <div className="min-w-0 flex-1">
           {breadcrumb && (
             <div className="flex items-center gap-2">
-              <p className="truncate text-xs font-semibold uppercase text-[#757575]">{breadcrumb}</p>
+              <p className="nt-wizard-muted truncate text-xs font-semibold uppercase">{breadcrumb}</p>
               {onChangeType && (
                 <button
                   type="button"
@@ -234,7 +232,7 @@ function ProgressHeader({
               )}
             </div>
           )}
-          <p className="text-base font-bold text-[#212121]">{title}</p>
+          <p className="nt-wizard-heading text-base font-bold">{title}</p>
         </div>
       </div>
     </div>
@@ -331,7 +329,14 @@ export function RealEstateListingWizard({
   const canNextStep1 = Boolean(propertyType);
   const canNextStep2 = Boolean(transactionType);
   const canNextStep3 = Boolean(municipality && settlement);
-  const canNextStep4 = Boolean(attr(attrs, "area"));
+  const canNextStep4 =
+    isLandPropertyType(propertyType)
+      ? Boolean(
+          attr(attrs, "area") ||
+            attr(attrs, "landArea") ||
+            attr(attrs, "plotArea")
+        )
+      : Boolean(attr(attrs, "area") && (attr(attrs, "furnishing") || attr(attrs, "condition")));
   const canNextStep5 = Boolean(attr(attrs, "rooms") && heating.length > 0);
   const canNextStep6 = Boolean(previewImage || draft.description?.trim());
   const canNextStep7 = draft.price > 0 && draft.contact?.trim() && termsAccepted;
@@ -384,6 +389,23 @@ export function RealEstateListingWizard({
     setStep(3);
   };
 
+  const selectFurnishing = (value: string) => {
+    onUpdate({
+      attributes: {
+        ...attrs,
+        furnishing: value,
+        condition: value,
+      },
+    });
+  };
+
+  const furnishingValue =
+    attr(attrs, "furnishing") || attr(attrs, "condition");
+
+  const isApartment = propertyType === "butas";
+  const isHouse = propertyType === "namas";
+  const isLandPlot = isLandPropertyType(propertyType);
+
   const stepTitle = STEP_TITLES[step - 1];
 
   useEffect(() => {
@@ -391,8 +413,8 @@ export function RealEstateListingWizard({
   }, []);
 
   return (
-    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#f5f5f5)]">
-        <div className="mx-auto w-full max-w-lg bg-[var(--portal-wizard-surface,#fff)] px-4 py-4 shadow-sm">
+    <div className="listing-wizard-overlay chameleon-wizard-shell">
+        <div className="mx-auto w-full max-w-lg px-4 py-4 pb-6 shadow-sm">
         <ProgressHeader
           step={progressStep}
           breadcrumb={step > 1 ? breadcrumb : ""}
@@ -408,18 +430,18 @@ export function RealEstateListingWizard({
         )}
 
         {step === 1 && (
-          <ul className="relative z-10 divide-y divide-[#e0e0e0] border border-[#e0e0e0] rounded-md overflow-hidden">
+          <ul className="nt-wizard-panel relative z-10 divide-y overflow-hidden rounded-md border">
             {PROPERTY_TYPES.map((pt) => (
               <li key={pt.id}>
                 <button
                   type="button"
                   onClick={() => selectPropertyType(pt.id)}
-                  className={`relative z-10 flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-left transition hover:bg-[#fafafa] ${
-                    propertyType === pt.id ? "bg-[#ffebee]" : "bg-white"
+                  className={`nt-wizard-option-row relative z-10 flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-left transition ${
+                    propertyType === pt.id ? "nt-wizard-option-row-selected" : ""
                   }`}
                 >
                   {TYPE_ICONS[pt.icon]}
-                  <span className="flex-1 text-sm font-medium text-[#212121]">{pt.label}</span>
+                  <span className="nt-wizard-heading flex-1 text-sm font-medium">{pt.label}</span>
                   <ChevronRight className="h-4 w-4 text-[#bdbdbd]" />
                 </button>
               </li>
@@ -428,22 +450,22 @@ export function RealEstateListingWizard({
         )}
 
         {step === 2 && (
-          <ul className="relative z-10 divide-y divide-[#e0e0e0] border border-[#e0e0e0] rounded-md overflow-hidden">
+          <ul className="nt-wizard-panel relative z-10 divide-y overflow-hidden rounded-md border">
             {TRANSACTION_TYPES.map((tx) => (
               <li key={tx}>
                 <button
                   type="button"
                   onClick={() => selectTransactionType(tx)}
-                  className={`relative z-10 flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-left transition hover:bg-[#fafafa] ${
-                    transactionType === tx ? "bg-[#ffebee]" : "bg-white"
+                  className={`nt-wizard-option-row relative z-10 flex w-full cursor-pointer items-center gap-4 px-4 py-4 text-left transition ${
+                    transactionType === tx ? "nt-wizard-option-row-selected" : ""
                   }`}
                 >
                   {tx === "Pardavimui" ? (
-                    <Building2 className="h-6 w-6 text-[#9e9e9e]" />
+                    <Building2 className="nt-wizard-muted h-6 w-6" />
                   ) : (
-                    <Clock className="h-6 w-6 text-[#9e9e9e]" />
+                    <Clock className="nt-wizard-muted h-6 w-6" />
                   )}
-                  <span className="text-sm font-medium text-[#212121]">{tx}</span>
+                  <span className="nt-wizard-heading text-sm font-medium">{tx}</span>
                   <ChevronRight className="ml-auto h-4 w-4 text-[#bdbdbd]" />
                 </button>
               </li>
@@ -546,39 +568,49 @@ export function RealEstateListingWizard({
 
         {step === 4 && (
           <>
-            <div className="mb-4">
-              <label className="mb-1.5 block text-sm font-medium text-[#424242]">
-                Plotas <span className="text-red-600">*</span>
-              </label>
-              <div className="flex">
-                <input
-                  type="text"
-                  inputMode="decimal"
-                  value={attr(attrs, "area")}
-                  onChange={(e) => onAttributeChange("area", e.target.value)}
-                  className="min-w-0 flex-1 rounded-l-md border border-[#e0e0e0] px-3 py-2.5 text-sm"
-                />
-                <span className="flex items-center rounded-r-md border border-l-0 border-[#e0e0e0] bg-[#fafafa] px-3 text-sm text-[#757575]">
-                  m²
-                </span>
+            {!isLandPlot && (
+              <div className="mb-4">
+                <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
+                  Bendras plotas <span className="text-red-600">*</span>
+                </label>
+                <div className="flex">
+                  <input
+                    type="text"
+                    inputMode="decimal"
+                    value={attr(attrs, "area")}
+                    onChange={(e) => onAttributeChange("area", e.target.value)}
+                    placeholder="Pvz. 54"
+                    className="nt-wizard-input min-w-0 flex-1 rounded-l-md border px-3 py-2.5 text-sm"
+                  />
+                  <span className="nt-wizard-muted flex items-center rounded-r-md border border-l-0 px-3 text-sm">
+                    m²
+                  </span>
+                </div>
               </div>
-            </div>
+            )}
 
-            {isLandPropertyType(propertyType) && (
+            {isLandPlot && (
               <>
                 <div className="mb-4">
-                  <label className="mb-1.5 block text-sm font-medium text-[#424242]">
-                    Sklypo plotas (a / ha)
+                  <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
+                    Sklypo plotas <span className="text-red-600">*</span>
                   </label>
                   <input
                     type="text"
-                    value={attr(attrs, "landArea") || attr(attrs, "plotArea")}
+                    value={attr(attrs, "landArea") || attr(attrs, "plotArea") || attr(attrs, "area")}
                     onChange={(e) => {
-                      onAttributeChange("landArea", e.target.value);
-                      onAttributeChange("plotArea", e.target.value);
+                      const v = e.target.value;
+                      onUpdate({
+                        attributes: {
+                          ...attrs,
+                          landArea: v,
+                          plotArea: v,
+                          area: v,
+                        },
+                      });
                     }}
-                    placeholder="12 a"
-                    className="w-full rounded-md border border-[#e0e0e0] px-3 py-2.5 text-sm"
+                    placeholder="Pvz. 12 a arba 0.5 ha"
+                    className="nt-wizard-input w-full rounded-md border px-3 py-2.5 text-sm"
                   />
                 </div>
                 <ChipRow
@@ -588,10 +620,10 @@ export function RealEstateListingWizard({
                   onChange={(v) => onAttributeChange("landPurpose", v)}
                 />
                 <div className="mb-4">
-                  <p className="mb-2 text-sm font-medium text-[#424242]">Komunikacijos</p>
-                  <div className="space-y-2 rounded-md border border-[#e0e0e0] bg-white p-3">
+                  <p className="nt-wizard-label mb-2 text-sm font-medium">Komunikacijos</p>
+                  <div className="nt-wizard-panel space-y-2 rounded-md border p-3">
                     {LAND_UTILITY_OPTIONS.map((opt) => (
-                      <label key={opt} className="flex cursor-pointer items-center gap-3 text-sm text-[#424242]">
+                      <label key={opt} className="nt-wizard-label flex cursor-pointer items-center gap-3 text-sm">
                         <input
                           type="checkbox"
                           checked={landUtilities.includes(opt)}
@@ -606,9 +638,11 @@ export function RealEstateListingWizard({
               </>
             )}
 
-            {(propertyType === "namas" || propertyType === "sklypas") && (
+            {isHouse && (
               <div className="mb-4">
-                <label className="mb-1.5 block text-sm font-medium text-[#424242]">Sklypo plotas</label>
+                <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
+                  Sklypo plotas (a)
+                </label>
                 <div className="flex items-center gap-3">
                   <div className="flex flex-1">
                     <input
@@ -616,13 +650,14 @@ export function RealEstateListingWizard({
                       value={attr(attrs, "plotArea")}
                       onChange={(e) => onAttributeChange("plotArea", e.target.value)}
                       disabled={attr(attrs, "noPlot") === "true"}
-                      className="min-w-0 flex-1 rounded-l-md border border-[#e0e0e0] px-3 py-2.5 text-sm disabled:bg-[#f5f5f5]"
+                      placeholder="Pvz. 8"
+                      className="nt-wizard-input min-w-0 flex-1 rounded-l-md border px-3 py-2.5 text-sm disabled:opacity-50"
                     />
-                    <span className="flex items-center rounded-r-md border border-l-0 border-[#e0e0e0] bg-[#fafafa] px-3 text-sm text-[#757575]">
+                    <span className="nt-wizard-muted flex items-center rounded-r-md border border-l-0 px-3 text-sm">
                       a
                     </span>
                   </div>
-                  <label className="flex shrink-0 items-center gap-2 text-sm text-[#424242]">
+                  <label className="nt-wizard-label flex shrink-0 items-center gap-2 text-sm">
                     <input
                       type="checkbox"
                       checked={attr(attrs, "noPlot") === "true"}
@@ -637,17 +672,19 @@ export function RealEstateListingWizard({
               </div>
             )}
 
-            {propertyType === "butas" && (
+            {isApartment && (
               <div className="mb-4">
-                <label className="mb-1.5 block text-sm font-medium text-[#424242]">Aukštas</label>
+                <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
+                  Aukštas (pvz. 2 / 5)
+                </label>
                 <input
                   type="text"
                   value={attr(attrs, "floor")}
                   onChange={(e) => onAttributeChange("floor", e.target.value)}
                   placeholder="2 / 5"
-                  className="w-full rounded-md border border-[#e0e0e0] px-3 py-2.5 text-sm"
+                  className="nt-wizard-input w-full rounded-md border px-3 py-2.5 text-sm"
                 />
-                <label className="mt-2 flex items-center gap-2 text-sm text-[#424242]">
+                <label className="nt-wizard-label mt-2 flex items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={attr(attrs, "hasElevator") === "true"}
@@ -661,40 +698,54 @@ export function RealEstateListingWizard({
               </div>
             )}
 
-            {(propertyType === "namas" || propertyType === "sklypas") && (
-              <ChipRow
-                label="Aukštų sk."
-                options={["1", "2", "Įveskite"]}
-                value={attr(attrs, "floors") || ""}
-                onChange={(v) => onAttributeChange("floors", v === "Įveskite" ? "" : v)}
-              />
-            )}
-
-            <div className="mb-4 flex items-end gap-3">
-              <div className="flex-1">
-                <label className="mb-1.5 block text-sm font-medium text-[#424242]">Statybos metai</label>
+            {isHouse && (
+              <div className="mb-4">
+                <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
+                  Aukštų skaičius pastate
+                </label>
                 <input
                   type="text"
                   inputMode="numeric"
-                  value={attr(attrs, "buildYear")}
-                  onChange={(e) => onAttributeChange("buildYear", e.target.value)}
-                  className="w-full rounded-md border border-[#e0e0e0] px-3 py-2.5 text-sm"
+                  value={attr(attrs, "floors")}
+                  onChange={(e) => onAttributeChange("floors", e.target.value)}
+                  placeholder="Pvz. 2"
+                  className="nt-wizard-input w-full rounded-md border px-3 py-2.5 text-sm"
                 />
               </div>
-              <label className="flex items-center gap-2 pb-2.5 text-sm text-[#424242]">
-                <input
-                  type="checkbox"
-                  checked={attr(attrs, "renovated") === "true"}
-                  onChange={(e) =>
-                    onAttributeChange("renovated", e.target.checked ? "true" : "false")
-                  }
-                  className="h-4 w-4 accent-[#4caf50]"
-                />
-                Namas renovuotas
-              </label>
-            </div>
+            )}
 
-            {(propertyType === "namas" || propertyType === "sklypas") && (
+            {!isLandPlot && (
+              <div className="mb-4 flex items-end gap-3">
+                <div className="flex-1">
+                  <label className="nt-wizard-label mb-1.5 block text-sm font-medium">
+                    Statybos metai
+                  </label>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    value={attr(attrs, "buildYear")}
+                    onChange={(e) => onAttributeChange("buildYear", e.target.value)}
+                    placeholder="Pvz. 2015"
+                    className="nt-wizard-input w-full rounded-md border px-3 py-2.5 text-sm"
+                  />
+                </div>
+                {isHouse && (
+                  <label className="nt-wizard-label flex items-center gap-2 pb-2.5 text-sm">
+                    <input
+                      type="checkbox"
+                      checked={attr(attrs, "renovated") === "true"}
+                      onChange={(e) =>
+                        onAttributeChange("renovated", e.target.checked ? "true" : "false")
+                      }
+                      className="h-4 w-4 accent-[#4caf50]"
+                    />
+                    Pastatas renovuotas
+                  </label>
+                )}
+              </div>
+            )}
+
+            {isHouse && (
               <>
                 <ChipRow
                   label="Namo tipas"
@@ -711,12 +762,15 @@ export function RealEstateListingWizard({
               </>
             )}
 
-            <ChipRow
-              label="Įrengimas"
-              options={CONDITION_TYPES}
-              value={attr(attrs, "condition")}
-              onChange={(v) => onAttributeChange("condition", v)}
-            />
+            {!isLandPlot && (
+              <ChipRow
+                label="Įrengimas"
+                required
+                options={FURNISHING_OPTIONS}
+                value={furnishingValue}
+                onChange={selectFurnishing}
+              />
+            )}
           </>
         )}
 
@@ -967,12 +1021,12 @@ export function RealEstateListingWizard({
           </>
         )}
 
-        <div className="mt-6 flex items-center justify-between gap-3 border-t border-[#e0e0e0] pt-4">
+        <div className="nt-wizard-footer mt-6 flex items-center justify-between gap-3">
           {step > 1 ? (
             <button
               type="button"
               onClick={goBack}
-              className="inline-flex items-center gap-1 text-sm font-medium text-[#757575] hover:text-[#212121]"
+              className="nt-wizard-muted inline-flex items-center gap-1 text-sm font-medium hover:opacity-80"
             >
               <ChevronLeft className="h-4 w-4" />
               Grįžti
@@ -984,7 +1038,7 @@ export function RealEstateListingWizard({
             type="button"
             disabled={!canNext && step < TOTAL_STEPS}
             onClick={goNext}
-            className="rounded-md bg-[#ffc107] px-8 py-3 text-sm font-bold text-[#212121] hover:bg-[#ffb300] disabled:cursor-not-allowed disabled:opacity-40"
+            className="rounded-md bg-[#ffc107] px-8 py-3 text-sm font-bold text-[#212121] shadow-md hover:bg-[#ffb300] disabled:cursor-not-allowed disabled:opacity-40"
           >
             {step >= TOTAL_STEPS ? "Įvesti" : "Toliau"}
           </button>

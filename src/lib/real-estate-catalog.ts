@@ -95,6 +95,13 @@ export const BUILDING_TYPES = [
   "Kita",
 ] as const;
 
+export const FURNISHING_OPTIONS = [
+  "Įrengtas",
+  "Dalinė apdaila",
+  "Neįrengtas",
+  "Remontuotinas",
+] as const;
+
 export const CONDITION_TYPES = [
   "Įrengtas",
   "Dalinė apdaila",

@@ -13,6 +13,7 @@ import {
 import { INITIAL_LISTINGS } from "@/data/mockListings";
 import { ensureDemoCatalogListings } from "@/lib/merge-listings";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
+import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { generateDynamicFilters } from "@/lib/scoring";
 import {
   DEFAULT_MARKETPLACE_FILTERS,
@@ -813,9 +814,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const updateUser = useCallback(
     (patch: Partial<UserProfile>) => {
-      patchAuthUser(patch);
+      const safePatch = { ...patch };
+      if (typeof safePatch.avatar === "string") {
+        safePatch.avatar = sanitizeAvatarForApi(safePatch.avatar);
+      }
+      patchAuthUser(safePatch);
       if (isDataApiEnabled()) {
-        void apiUpdateUser({ ...user, ...patch }).then((r) => {
+        void apiUpdateUser({ ...user, ...safePatch }).then((r) => {
           if (!r.ok) setSyncError(`Profilis neišsaugotas: ${r.error}`);
         });
       }

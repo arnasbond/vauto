@@ -10,6 +10,7 @@ import type { SearchIntentEvent } from "@/lib/search-intent";
 import type { ServiceLead } from "@/lib/service-leads";
 import type { SocialSyncPrefs } from "@/lib/social-share";
 import type { VautoInvoice } from "@/lib/invoices";
+import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 
 const KEYS = {
   listings: "vauto_listings_v1",
@@ -79,11 +80,13 @@ export function saveSavedIds(ids: Set<string>): void {
 }
 
 export function loadUser(): UserProfile | null {
-  return read<UserProfile>(KEYS.user);
+  const user = read<UserProfile>(KEYS.user);
+  if (!user) return null;
+  return { ...user, avatar: sanitizeAvatarForApi(user.avatar) };
 }
 
 export function saveUser(user: UserProfile): void {
-  write(KEYS.user, user);
+  write(KEYS.user, { ...user, avatar: sanitizeAvatarForApi(user.avatar) });
 }
 
 export function clearUser(): void {

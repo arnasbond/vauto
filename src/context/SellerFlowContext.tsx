@@ -25,6 +25,7 @@ import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/g
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
+import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
 import { importListingFromUrl as fetchListingFromPortal } from "@/lib/listing-url-import";
 import { resolveListingCity } from "@/lib/city-resolve";
@@ -845,7 +846,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     let published = newListing;
     if (isDataApiEnabled()) {
-      const userRes = await apiUpdateUser(user);
+      const userRes = await apiUpdateUser({
+        ...user,
+        avatar: sanitizeAvatarForApi(user.avatar),
+      });
       if (!userRes.ok) {
         const msg = `Profilis neišsaugotas: ${userRes.error}`;
         setSyncError(msg);

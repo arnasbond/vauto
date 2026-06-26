@@ -44,7 +44,19 @@ export function getMissingCriticalFields(
 
   for (const field of config.fields) {
     if (!field.critical) continue;
-    const val = attributes[field.key];
+    let val = attributes[field.key];
+    if (field.key === "furnishing" && isEmpty(val)) {
+      val = attributes.condition ?? attributes.irengimas;
+    }
+    if (
+      field.key === "furnishing" &&
+      isEmpty(val) &&
+      ["sklypas", "zemes_sklypas", "misko_sklypas"].includes(
+        String(attributes.propertyType ?? "")
+      )
+    ) {
+      continue;
+    }
     if (isEmpty(val)) missing.push(field.key);
   }
 
