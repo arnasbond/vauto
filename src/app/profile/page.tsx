@@ -1,14 +1,19 @@
 "use client";
 
-import Link from "next/link";
 import { Suspense } from "react";
-import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
+import {
+  BarChart3,
+  LayoutDashboard,
+  LogIn,
+  Settings2,
+  Smartphone,
+} from "lucide-react";
+import Link from "next/link";
 import { AdminProfileShell } from "@/components/admin/AdminProfileShell";
 import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
 import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
 import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
 import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
-import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -17,12 +22,14 @@ import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
-import { InvestorDemoCard } from "@/components/settings/InvestorDemoCard";
 import { ReferralInviteCard } from "@/components/dashboard/ReferralInviteCard";
 import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
+import { ProfileAccordion } from "@/components/profile/ProfileAccordion";
+import { ProfileBusinessPanel } from "@/components/profile/ProfileBusinessPanel";
+import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { useVauto } from "@/context/VautoContext";
@@ -49,7 +56,7 @@ export default function ProfilePage() {
 
   if (!authHydrated) {
     return (
-      <div className="flex min-h-dvh items-center justify-center bg-[var(--portal-bg,#f3f5f8)] px-6 pb-24 text-sm text-slate-500">
+      <div className="flex min-h-dvh items-center justify-center bg-[var(--vauto-bg)] px-6 pb-24 text-sm text-[var(--vauto-text-muted)]">
         Kraunama…
       </div>
     );
@@ -57,34 +64,30 @@ export default function ProfilePage() {
 
   if (!isAuthenticated) {
     return (
-      <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--portal-bg,#f3f5f8)] px-6 pb-24">
+      <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--vauto-bg)] px-6 pb-24">
         <div className="vauto-dashboard-card max-w-sm rounded-3xl p-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[var(--vauto-teal)]/15">
-            <LayoutDashboard className="h-8 w-8 text-[var(--vauto-teal)]" />
+          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--vauto-primary)_15%,transparent)]">
+            <LayoutDashboard className="h-8 w-8 text-[var(--vauto-primary)]" />
           </div>
-          <h1 className="text-xl font-bold text-slate-900">Valdymo skydelis</h1>
-          <p className="mt-2 text-sm text-slate-600">
+          <h1 className="text-xl font-bold text-[var(--vauto-text-main)]">Valdymo skydelis</h1>
+          <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
             Prisijunkite, kad valdytumėte skelbimus, analitiką ir mokamas paslaugas.
           </p>
           <button
             type="button"
             onClick={() => openAuthModal("/profile")}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)]"
           >
             <LogIn className="h-4 w-4" />
             Prisijungti / Registruotis
           </button>
           <Link
             href="/install/"
-            className="mt-3 flex items-center justify-center gap-2 text-xs text-slate-500 hover:text-[var(--vauto-teal)]"
+            className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)] hover:text-[var(--vauto-primary)]"
           >
             <Smartphone className="h-3.5 w-3.5" />
             Įdiegti programėlę
           </Link>
-          <div className="mt-6 text-left space-y-4">
-            <ConnectionStatusCard />
-            <InvestorDemoCard />
-          </div>
         </div>
       </div>
     );
@@ -94,7 +97,7 @@ export default function ProfilePage() {
     return (
       <Suspense
         fallback={
-          <div className="flex min-h-dvh items-center justify-center bg-[var(--portal-bg,#f3f5f8)] text-slate-500">
+          <div className="flex min-h-dvh items-center justify-center bg-[var(--vauto-bg)] text-[var(--vauto-text-muted)]">
             Kraunamas administratoriaus kabinetas…
           </div>
         }
@@ -112,66 +115,65 @@ export default function ProfilePage() {
       <Suspense fallback={null}>
         <ProUpgradeNotice />
       </Suspense>
+
       <DashboardHeader user={user} onLogout={logout} />
-
-      <SellerTrustCard user={user} listings={listings} />
-
       <ReferralInviteCard />
-
-      <section className="vauto-dashboard-card mt-6 rounded-2xl border border-[var(--vauto-border)] p-4">
-        <div className="mb-3 flex items-center gap-2">
-          <Smartphone className="h-5 w-5 text-[var(--vauto-teal)]" />
-          <div>
-            <h3 className="text-sm font-bold text-[var(--vauto-text)]">
-              Mobilioji programėlė
-            </h3>
-            <p className="text-[10px] text-[var(--vauto-text-muted)]">
-              Android — APK. iPhone — pridėti į pradžios ekraną per Safari.
-            </p>
-          </div>
-        </div>
-        <InstallDownloadButtons showShare />
-      </section>
-
-      {(user.role === "pro" || isSuperAdminUser(user)) && (
-        <div className="mt-6">
-          <SystemDiagnosticsCard />
-        </div>
-      )}
-
-      <SavedListingsSection />
-
-      <WishlistSection />
 
       <DashboardPage
         user={user}
         listings={myListings}
         allListings={listings}
         onRenew={handleRenew}
+        listingsOnly
       />
 
-      <div className="mt-6">
-        <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
-      </div>
+      <ProfileAccordion
+        title="Programėlės nustatymai"
+        subtitle="Tema, balsinis asistentas, privatumas"
+        icon={<Settings2 className="h-5 w-5 text-[var(--vauto-primary)]" />}
+      >
+        <ThemeSettingsCard embedded />
+        <WakeWordSettingsCard />
+        <PrivacySettingsCard />
+        <SocialSyncSettingsCard />
+        <PushAlertsSettingsCard />
+        <ConnectionStatusCard />
+      </ProfileAccordion>
 
-      <div className="mt-8 space-y-4">
+      <ProfileAccordion
+        title="Verslo paskyra & Analitika"
+        subtitle="Pro planai, statistika, išsaugoti skelbimai"
+        icon={<BarChart3 className="h-5 w-5 text-[var(--vauto-primary)]" />}
+      >
+        <SellerTrustCard user={user} listings={listings} />
+        <ProfileBusinessPanel
+          user={user}
+          listings={myListings}
+          allListings={listings}
+          onRenew={handleRenew}
+        />
+        <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
+        <SavedListingsSection />
+        <WishlistSection />
         <Suspense
           fallback={
-            <div className="vauto-dashboard-card rounded-2xl p-4 text-xs text-slate-500">
+            <div className="vauto-dashboard-card rounded-2xl p-4 text-xs text-[var(--vauto-text-muted)]">
               Kraunami pranešimai…
             </div>
           }
         >
           <UserSupportInbox />
         </Suspense>
-        <ConnectionStatusCard />
-        <InvestorDemoCard />
-        <ThemeSettingsCard />
-        <WakeWordSettingsCard />
-        <PrivacySettingsCard />
-        <SocialSyncSettingsCard />
-        <PushAlertsSettingsCard />
-      </div>
+        {(user.role === "pro" || isSuperAdminUser(user)) && <SystemDiagnosticsCard />}
+      </ProfileAccordion>
+
+      <ProfileAccordion
+        title="Atsisiųsti programėlę"
+        subtitle="Android APK · iPhone per Safari (PWA)"
+        icon={<Smartphone className="h-5 w-5 text-[var(--vauto-primary)]" />}
+      >
+        <InstallDownloadButtons showShare />
+      </ProfileAccordion>
     </DashboardShell>
   );
 }

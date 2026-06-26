@@ -25,14 +25,14 @@ import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 
 function DefaultHero() {
   return (
-    <div className="mb-5 mt-1 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">
-      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[#1167b1]">
+    <div className="vauto-dashboard-card mb-5 mt-1 rounded-2xl p-4 shadow-sm">
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-primary)]">
         VAUTO Zero-UI
       </p>
-      <h1 className="font-display mt-2 text-[1.65rem] font-extrabold leading-[1.08] tracking-tight text-[#111827] sm:text-[1.875rem]">
+      <h1 className="font-display mt-2 text-[1.65rem] font-extrabold leading-[1.08] tracking-tight text-[var(--vauto-text-main)] sm:text-[1.875rem]">
         Ieškok. Rask. Įdėk.
       </h1>
-      <p className="mt-2 text-[13px] leading-snug text-[#6b7280]">
+      <p className="mt-2 text-[13px] leading-snug text-[var(--vauto-text-muted)]">
         Rašykite paiešką viršuje arba spauskite + apačioje, kad įkeltumėte skelbimą.
       </p>
     </div>

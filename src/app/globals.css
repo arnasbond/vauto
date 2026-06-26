@@ -2,26 +2,33 @@
 
 /* ── Vauto Flux 2026 design tokens ── */
 :root {
-  --flux-bg: #0b0f17;
-  --flux-teal: #00d4aa;
+  --flux-bg: #0b0f19;
+  --flux-teal: #00f2fe;
   --flux-cyan: #22d3ee;
   --flux-indigo: #6366f1;
-  --flux-coral: #ff6b4a;
+  --flux-coral: #ff6b00;
   --flux-coral-light: #ff8f65;
   --flux-price-start: #ff8a65;
   --flux-price-end: #ffb74d;
 
-  --vauto-teal: var(--flux-teal);
-  --vauto-blue: var(--flux-indigo);
-  --vauto-orange: var(--flux-coral);
-  --vauto-orange-light: var(--flux-coral-light);
-  --vauto-text: #f8fafc;
-  --vauto-text-muted: #94a3b8;
-  --vauto-surface: var(--flux-bg);
-  --vauto-bg: var(--flux-bg);
-  --vauto-border: rgba(148, 163, 184, 0.35);
+  /* Canonical theme tokens (default = dark) */
+  --vauto-bg: #0b0f19;
+  --vauto-card-bg: #161c2a;
+  --vauto-text-main: #ffffff;
+  --vauto-text-muted: #9a9ea9;
+  --vauto-primary: #00f2fe;
+  --vauto-accent: #ff6b00;
+  --vauto-primary-contrast: #0b0f19;
+  --vauto-border: rgba(154, 158, 169, 0.28);
+
+  /* Legacy aliases — keep existing components working */
+  --vauto-text: var(--vauto-text-main);
+  --vauto-surface: var(--vauto-card-bg);
+  --vauto-teal: var(--vauto-primary);
+  --vauto-blue: var(--vauto-primary);
+  --vauto-orange: var(--vauto-accent);
+  --vauto-orange-light: #ff8f65;
   --vauto-red: #ef4444;
-  --vauto-accent: var(--vauto-teal);
 }
 
 @theme inline {
@@ -32,8 +39,9 @@
 
 body {
   font-family: var(--font-sans), system-ui, sans-serif;
-  color: var(--vauto-text);
-  background: var(--flux-bg);
+  color: var(--vauto-text-main);
+  background: var(--vauto-bg);
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 /* Ambient mesh — Flux signature background */
@@ -54,15 +62,16 @@ body {
 }
 
 .vauto-glass-card {
-  border: 1px solid #e5e7eb;
-  background: #ffffff;
-  color: #1e293b;
+  border: 1px solid var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
-/* Light inner pages (listing detail, chats) — override dark body text */
+/* Light inner pages inherit theme tokens */
 .vauto-light-page {
-  color: #0f172a;
+  color: var(--vauto-text-main);
+  background: var(--vauto-bg);
 }
 
 .vauto-flux-glass {
@@ -401,15 +410,25 @@ body.vauto-audio-first .vauto-dashboard-card {
 }
 
 .vauto-dashboard {
-  background: var(--portal-bg, #f3f5f8);
-  color: var(--portal-text, #1f2937);
+  background: var(--vauto-bg);
+  color: var(--vauto-text-main);
   min-height: 100dvh;
+  transition: background-color 0.25s ease, color 0.25s ease;
 }
 
 .vauto-dashboard-card {
-  background: #ffffff;
-  border: 1px solid #e5e7eb;
+  background: var(--vauto-card-bg);
+  border: 1px solid var(--vauto-border);
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  color: var(--vauto-text-main);
+  transition: background-color 0.25s ease, border-color 0.25s ease, color 0.25s ease;
+}
+
+.vauto-bottom-nav {
+  border-color: var(--vauto-border);
+  background: color-mix(in srgb, var(--vauto-card-bg) 92%, transparent);
+  color: var(--vauto-text-main);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .vauto-auth-modal {
@@ -884,95 +903,118 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 /* ── Global app themes (Profilis → Programėlės tema) ── */
 [data-app-theme="vauto-original"] {
-  --flux-bg: #f8fafc;
-  --flux-teal: #1167b1;
+  --flux-bg: #f4f7fc;
+  --flux-teal: #1e66ca;
   --flux-cyan: #1d8fe8;
-  --flux-indigo: #1167b1;
-  --flux-coral: #ff6b4a;
-  --flux-coral-light: #ff8f65;
-  --vauto-text: #0f172a;
-  --vauto-text-muted: #64748b;
-  --vauto-surface: #ffffff;
-  --vauto-bg: #ffffff;
-  --vauto-border: #cfd8dc;
-  --vauto-accent: #1167b1;
+  --flux-indigo: #1e66ca;
+  --flux-coral: #ff6b00;
+  --vauto-bg: #f4f7fc;
+  --vauto-card-bg: #ffffff;
+  --vauto-text-main: #0b0f19;
+  --vauto-text-muted: #5e6e82;
+  --vauto-primary: #1e66ca;
+  --vauto-accent: #ff6b00;
+  --vauto-primary-contrast: #ffffff;
+  --vauto-border: rgba(94, 110, 130, 0.22);
 }
 
-[data-app-theme="vauto-original"] body {
-  color: var(--vauto-text);
-  background: #ffffff;
+[data-app-theme="vauto-original"] body,
+[data-app-theme="vauto-original"] .vauto-flux-bg {
+  background: var(--vauto-bg);
+  color: var(--vauto-text-main);
 }
 
 [data-app-theme="vauto-original"] .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(17, 103, 177, 0.08), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(255, 107, 74, 0.08), transparent 50%),
-    #ffffff;
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 102, 202, 0.1), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(255, 107, 0, 0.08), transparent 50%),
+    var(--vauto-bg);
 }
 
 [data-app-theme="vauto-original"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #1167b1, #1d8fe8);
-  box-shadow: 0 12px 32px -8px rgba(17, 103, 177, 0.45);
+  background: linear-gradient(135deg, #1e66ca, #1d8fe8);
+  box-shadow: 0 12px 32px -8px rgba(30, 102, 202, 0.45);
   border-color: #ffffff;
 }
 
 [data-app-theme="dark"] {
-  --flux-bg: #0b0f17;
-  --flux-teal: #38bdf8;
+  --flux-bg: #0b0f19;
+  --flux-teal: #00f2fe;
   --flux-cyan: #22d3ee;
   --flux-indigo: #6366f1;
-  --flux-coral: #ff6b4a;
-  --vauto-text: #f8fafc;
-  --vauto-text-muted: #94a3b8;
-  --vauto-surface: #0b0f17;
-  --vauto-bg: #0b0f17;
-  --vauto-border: rgba(148, 163, 184, 0.35);
-  --vauto-accent: #38bdf8;
+  --flux-coral: #ff6b00;
+  --vauto-bg: #0b0f19;
+  --vauto-card-bg: #161c2a;
+  --vauto-text-main: #ffffff;
+  --vauto-text-muted: #9a9ea9;
+  --vauto-primary: #00f2fe;
+  --vauto-accent: #ff6b00;
+  --vauto-primary-contrast: #0b0f19;
+  --vauto-border: rgba(154, 158, 169, 0.28);
+}
+
+[data-app-theme="dark"] body,
+[data-app-theme="dark"] .vauto-flux-bg,
+[data-app-theme="dark"] .vauto-dashboard {
+  background: var(--vauto-bg);
+  color: var(--vauto-text-main);
+}
+
+[data-app-theme="dark"] .vauto-flux-bg {
+  background:
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 242, 254, 0.14), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(99, 102, 241, 0.16), transparent 50%),
+    var(--vauto-bg);
 }
 
 [data-app-theme="dark"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #38bdf8 0%, #6366f1 50%, #22d3ee 100%);
-  box-shadow: 0 12px 36px -8px rgba(56, 189, 248, 0.55);
+  background: linear-gradient(135deg, #00f2fe 0%, #6366f1 50%, #22d3ee 100%);
+  box-shadow: 0 12px 36px -8px rgba(0, 242, 254, 0.45);
 }
 
 [data-app-theme="light-minimal"] {
-  --flux-bg: #f3f5f8;
-  --flux-teal: #0d9488;
-  --flux-cyan: #14b8a6;
-  --flux-indigo: #475569;
-  --flux-coral: #f97316;
-  --vauto-text: #1e293b;
-  --vauto-text-muted: #64748b;
-  --vauto-surface: #f8fafc;
-  --vauto-bg: #f3f5f8;
-  --vauto-border: #cbd5e1;
-  --vauto-accent: #0d9488;
+  --flux-bg: #fafafa;
+  --flux-teal: #111111;
+  --flux-cyan: #111111;
+  --flux-indigo: #111111;
+  --flux-coral: #ff6b00;
+  --vauto-bg: #fafafa;
+  --vauto-card-bg: #ffffff;
+  --vauto-text-main: #111111;
+  --vauto-text-muted: #777777;
+  --vauto-primary: #111111;
+  --vauto-accent: #ff6b00;
+  --vauto-primary-contrast: #ffffff;
+  --vauto-border: transparent;
 }
 
-[data-app-theme="light-minimal"] body {
-  color: var(--vauto-text);
-  background: var(--flux-bg);
+[data-app-theme="light-minimal"] body,
+[data-app-theme="light-minimal"] .vauto-flux-bg {
+  background: var(--vauto-bg);
+  color: var(--vauto-text-main);
 }
 
 [data-app-theme="light-minimal"] .vauto-flux-bg {
-  background: linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%);
+  background: var(--vauto-bg);
 }
 
+[data-app-theme="light-minimal"] .vauto-dashboard-card,
 [data-app-theme="light-minimal"] .vauto-glass-card,
 [data-app-theme="light-minimal"] .vauto-flux-glass {
-  background: #ffffff;
-  border-color: #e2e8f0;
+  border: none;
   box-shadow: 0 4px 24px -6px rgba(15, 23, 42, 0.08);
-  color: #1e293b;
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
 }
 
-[data-app-theme="light-minimal"] .vauto-flux-nav {
+[data-app-theme="light-minimal"] .vauto-flux-nav,
+[data-app-theme="light-minimal"] .vauto-bottom-nav {
   background: rgba(255, 255, 255, 0.92);
-  border-top-color: #e2e8f0;
+  border-top-color: rgba(0, 0, 0, 0.06);
 }
 
 [data-app-theme="light-minimal"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #0d9488, #14b8a6);
-  box-shadow: 0 10px 28px -8px rgba(13, 148, 136, 0.35);
-  border-color: #f8fafc;
+  background: linear-gradient(135deg, #111111, #333333);
+  box-shadow: 0 10px 28px -8px rgba(0, 0, 0, 0.25);
+  border-color: #fafafa;
 }

@@ -20,7 +20,7 @@ export function AppShell({
 }: AppShellProps) {
   if (variant === "plain") {
     return (
-      <div className="vauto-light-page flex min-h-dvh flex-col bg-white text-slate-900">
+      <div className="vauto-light-page flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)]">
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
           <SyncErrorBanner />
           {children}
@@ -33,7 +33,7 @@ export function AppShell({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-[var(--portal-bg,#f3f5f8)] text-[var(--portal-text,#1f2937)] transition-colors duration-300">
+    <div className="flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)] transition-colors duration-300">
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col pb-28">
         <div className="px-4 pt-2">
           <SyncErrorBanner />

@@ -6,23 +6,31 @@ import type { AppThemeId } from "@/lib/app-theme";
 import { cn } from "@/lib/cn";
 
 const SWATCH: Record<AppThemeId, string> = {
-  "vauto-original": "bg-gradient-to-br from-white via-[#eef4ff] to-[#fff4ec]",
-  dark: "bg-gradient-to-br from-[#0b0f17] via-[#111827] to-[#1e3a5f]",
-  "light-minimal": "bg-gradient-to-br from-[#f8fafc] via-[#f1f5f9] to-[#e2e8f0]",
+  "vauto-original": "bg-gradient-to-br from-[#F4F7FC] via-white to-[#FFF4EC]",
+  dark: "bg-gradient-to-br from-[#0B0F19] via-[#161C2A] to-[#1a2744]",
+  "light-minimal": "bg-gradient-to-br from-[#FAFAFA] via-white to-[#F5F5F5]",
 };
 
-export function ThemeSettingsCard() {
+export function ThemeSettingsCard({ embedded = false }: { embedded?: boolean }) {
   const { theme, setTheme, themes } = useAppTheme();
 
-  return (
-    <div className="vauto-dashboard-card rounded-2xl p-4">
-      <div className="mb-3 flex items-center gap-2">
-        <Palette className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-slate-900">Programėlės tema</h3>
-      </div>
-      <p className="mb-4 text-xs leading-relaxed text-slate-500">
-        Pasirinkite vizualinį stilių — pakeitimas pritaikomas visoje programėlėje akimirksniu.
-      </p>
+  const content = (
+    <>
+      {!embedded && (
+        <div className="mb-3 flex items-center gap-2">
+          <Palette className="h-4 w-4 text-[var(--vauto-primary)]" />
+          <h3 className="text-sm font-semibold text-[var(--vauto-text-main)]">Programėlės tema</h3>
+        </div>
+      )}
+      {embedded ? (
+        <p className="mb-3 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
+          Pasirinkite vizualinį stilių — pakeitimas pritaikomas visoje programėlėje akimirksniu.
+        </p>
+      ) : (
+        <p className="mb-4 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
+          Pasirinkite vizualinį stilių — pakeitimas pritaikomas visoje programėlėje akimirksniu.
+        </p>
+      )}
       <div className="grid gap-2 sm:grid-cols-3">
         {themes.map((item) => {
           const active = theme === item.id;
@@ -34,22 +42,28 @@ export function ThemeSettingsCard() {
               className={cn(
                 "rounded-2xl border p-3 text-left transition",
                 active
-                  ? "border-[var(--vauto-teal)] ring-2 ring-[var(--vauto-teal)]/30"
-                  : "border-slate-200 hover:border-slate-300"
+                  ? "border-[var(--vauto-primary)] ring-2 ring-[color-mix(in_srgb,var(--vauto-primary)_30%,transparent)]"
+                  : "border-[var(--vauto-border)] hover:border-[color-mix(in_srgb,var(--vauto-primary)_40%,transparent)]"
               )}
             >
               <div
                 className={cn(
-                  "mb-2 h-10 w-full rounded-xl border border-black/5 shadow-inner",
+                  "mb-2 h-10 w-full rounded-xl border border-[var(--vauto-border)] shadow-inner",
                   SWATCH[item.id]
                 )}
               />
-              <p className="text-xs font-semibold text-slate-800">{item.label}</p>
-              <p className="mt-0.5 text-[10px] leading-snug text-slate-500">{item.description}</p>
+              <p className="text-xs font-semibold text-[var(--vauto-text-main)]">{item.label}</p>
+              <p className="mt-0.5 text-[10px] leading-snug text-[var(--vauto-text-muted)]">
+                {item.description}
+              </p>
             </button>
           );
         })}
       </div>
-    </div>
+    </>
   );
+
+  if (embedded) return <div>{content}</div>;
+
+  return <div className="vauto-dashboard-card rounded-2xl p-4">{content}</div>;
 }

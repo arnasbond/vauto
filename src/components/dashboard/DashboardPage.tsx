@@ -27,20 +27,17 @@ import type { Listing, UserProfile } from "@/lib/types";
 
 
 interface DashboardPageProps {
-
   user: UserProfile;
-
   listings: Listing[];
-
   allListings: Listing[];
-
   onRenew: (id: string) => void;
-
+  /** Rodyti tik „Mano skelbimai“ — analitika profilyje slepiama accordion'e */
+  listingsOnly?: boolean;
 }
 
 
 
-export function DashboardPage({ user, listings, allListings, onRenew }: DashboardPageProps) {
+export function DashboardPage({ user, listings, allListings, onRenew, listingsOnly = false }: DashboardPageProps) {
 
   const {
 
@@ -102,7 +99,7 @@ export function DashboardPage({ user, listings, allListings, onRenew }: Dashboar
 
   const listingGrid = (
 
-    <section className="mt-6">
+    <section className={listingsOnly ? "mt-2" : "mt-6"}>
 
       <div className="mb-3 flex items-center justify-between gap-2">
 
@@ -180,7 +177,8 @@ export function DashboardPage({ user, listings, allListings, onRenew }: Dashboar
 
     <div className="dashboard-page">
 
-      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-4">
+      {!listingsOnly && (
+      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-4">
 
         <span
 
@@ -225,10 +223,11 @@ export function DashboardPage({ user, listings, allListings, onRenew }: Dashboar
         </div>
 
       </div>
+      )}
 
-
-
-      {isEmployer ? (
+      {listingsOnly ? (
+        listingGrid
+      ) : isEmployer ? (
 
         <>
 

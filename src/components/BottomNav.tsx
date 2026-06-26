@@ -4,7 +4,6 @@ import Link from "next/link";
 import { Home, MessageCircle, Plus, Search, Shield, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
-import { useActivePortal } from "@/hooks/useActivePortal";
 import { countUnreadChats } from "@/lib/chat-helpers";
 import { cn } from "@/lib/cn";
 
@@ -28,7 +27,6 @@ export function BottomNav() {
     openAuthModal,
     requireAuthForListing,
   } = useVauto();
-  const { ui } = useActivePortal();
 
   const profileHref = "/profile/";
   const profileLabel = isAdmin ? "VAUTO CC" : "Profilis";
@@ -78,11 +76,11 @@ export function BottomNav() {
   };
 
   const tabColor = (active: boolean) =>
-    active ? ui.accent : ui.textMuted;
+    active ? "var(--vauto-primary)" : "var(--vauto-text-muted)";
 
   return (
     <nav
-      className="safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t border-[#d7dde5] bg-white/95 py-1.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] shadow-[0_-8px_24px_rgba(15,23,42,0.08)] backdrop-blur-xl"
+      className="vauto-bottom-nav safe-bottom fixed bottom-0 left-0 right-0 z-50 border-t py-1.5 pb-[max(1.25rem,env(safe-area-inset-bottom))] backdrop-blur-xl"
       translate="no"
       aria-label="Pagrindinė navigacija"
     >
@@ -112,14 +110,14 @@ export function BottomNav() {
           onClick={handlePlaceAd}
           disabled={placeAdBusy}
           className="relative -mt-7 flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 text-[10px] font-bold disabled:opacity-50"
-          style={{ color: ui.cta }}
+          style={{ color: "var(--vauto-accent)" }}
           aria-label="Įdėti naują skelbimą"
         >
           <span
-            className="flex h-14 w-14 items-center justify-center rounded-full border-[4px] border-white text-white shadow-lg"
+            className="flex h-14 w-14 items-center justify-center rounded-full border-[4px] border-[var(--vauto-card-bg)] text-[var(--vauto-primary-contrast,#fff)] shadow-lg"
             style={{
-              backgroundColor: ui.cta,
-              boxShadow: `0 10px 28px ${ui.cta}59`,
+              backgroundColor: "var(--vauto-accent)",
+              boxShadow: "0 10px 28px color-mix(in srgb, var(--vauto-accent) 35%, transparent)",
             }}
           >
             <Plus className="h-7 w-7" strokeWidth={2.5} />
