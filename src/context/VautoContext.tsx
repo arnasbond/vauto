@@ -249,6 +249,7 @@ interface VautoContextValue {
     voiceCapture?: boolean;
   }) => Promise<void>;
   applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
+  importListingFromUrl: (url: string) => Promise<void>;
   /** Voice/text on home search that expresses sell/post intent → listing flow */
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;

@@ -3,6 +3,7 @@
 import type { ReactNode } from "react";
 import { BottomNav } from "@/components/BottomNav";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
+import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SyncErrorBanner } from "@/components/SyncErrorBanner";
 
 interface AppShellProps {
@@ -23,6 +24,7 @@ export function AppShell({
         <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
           <SyncErrorBanner />
           {children}
+          <SiteFooter className="-mx-4 mt-6" />
         </div>
         {!hideNav && <BottomNav />}
         {!hideNav && <InstallAppBanner />}
@@ -37,6 +39,7 @@ export function AppShell({
           <SyncErrorBanner />
         </div>
         {children}
+        <SiteFooter />
       </div>
       {!hideNav && <BottomNav />}
       {!hideNav && <InstallAppBanner />}

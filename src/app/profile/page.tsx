@@ -17,6 +17,8 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
 import { InvestorDemoCard } from "@/components/settings/InvestorDemoCard";
+import { ReferralInviteCard } from "@/components/dashboard/ReferralInviteCard";
+import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
@@ -112,6 +114,14 @@ export default function ProfilePage() {
       <DashboardHeader user={user} onLogout={logout} />
 
       <SellerTrustCard user={user} listings={listings} />
+
+      <ReferralInviteCard />
+
+      {(user.role === "pro" || isSuperAdminUser(user)) && (
+        <div className="mt-6">
+          <SystemDiagnosticsCard />
+        </div>
+      )}
 
       <SavedListingsSection />
 

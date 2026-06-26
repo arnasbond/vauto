@@ -42,10 +42,10 @@ if (Test-Path $apk) {
     Write-Host (Join-Path $dist $outName)
     Write-Host ""
     if ($Release) {
-        Write-Host "Release APK nepasirasyta — pasirasykite Android Studio arba jarsigner pries platinima." -ForegroundColor Yellow
+        Write-Host "Release APK nepasirasyta - pasirasykite Android Studio arba jarsigner pries platinima." -ForegroundColor Yellow
     }
     Write-Host "Idiekite i telefona:" -ForegroundColor Yellow
-    Write-Host "  adb install -r `"$apk`""
+    Write-Host ('  adb install -r "' + $apk + '"')
 } else {
     Write-Host "APK nerasta. Patikrinkite Gradle klaidas." -ForegroundColor Red
     exit 1

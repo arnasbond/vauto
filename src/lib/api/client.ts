@@ -687,6 +687,17 @@ export async function apiReferenceImages(body: {
   return data?.images ?? null;
 }
 
+export async function apiImportListingFromUrl(body: {
+  url: string;
+  userCity: string;
+  contact: string;
+}): Promise<import("@/lib/types").AiExtractedListing | null> {
+  return aiFetch("/api/ai/import-url", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export interface ApiServiceLead {
   id: string;
   title: string;

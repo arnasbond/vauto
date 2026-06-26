@@ -15,6 +15,7 @@ import {
   type VoiceClarifyResult,
 } from "@/components/voice/VoiceClarifyFlowSheet";
 import { buildVoiceListingExtraContext } from "@/lib/voice-listing-context";
+import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCard";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -116,6 +117,7 @@ export function SellerUploadPanel({
   return (
     <>
       <div className={processing ? "pointer-events-none opacity-50" : undefined}>
+      <QuickImportFromUrlCard />
       <button
         type="button"
         onClick={openPhotoFlow}

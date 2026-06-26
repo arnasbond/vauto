@@ -26,6 +26,26 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://vauto-chi.vercel.app/apie/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vauto-chi.vercel.app/taisykles/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vauto-chi.vercel.app/privatumas/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://vauto-chi.vercel.app/registracija/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://vauto-chi.vercel.app/listing/bmw-320d-2003-kaunas/</loc>
     <lastmod>2026-06-01</lastmod>
     <changefreq>weekly</changefreq>

@@ -49,6 +49,10 @@ const staticPaths = [
   "/profile/",
   "/add/",
   "/install/",
+  "/apie/",
+  "/taisykles/",
+  "/privatumas/",
+  "/registracija/",
 ];
 
 const catalog = loadCatalog();

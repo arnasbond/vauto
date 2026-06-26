@@ -31,6 +31,10 @@ import {
   loadUser,
   saveUser,
 } from "@/lib/storage";
+import {
+  consumePendingReferral,
+  grantReferralCredit,
+} from "@/lib/referral";
 import { resolveStableUserId } from "@/lib/user-id";
 import type {
   AuthProvider as AuthProviderType,
@@ -149,6 +153,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
 
   const clearAuthRedirect = useCallback(() => setAuthRedirectPath(null), []);
+
+  const applyReferralOnSignup = useCallback((newUserId: string) => {
+    const ref = consumePendingReferral();
+    if (ref && ref !== newUserId) {
+      grantReferralCredit(ref);
+    }
+  }, []);
 
   const requireAuthForListing = useCallback(
     (redirectPath = "/add") => {
@@ -275,6 +286,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           setUser(profile);
           setIsAuthenticated(true);
           saveUser(profile);
+          applyReferralOnSignup(profile.id);
           return;
         }
 
@@ -287,11 +299,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(profile);
         setIsAuthenticated(true);
         saveUser(profile);
+        applyReferralOnSignup(profile.id);
       } finally {
         setAuthLoading(false);
       }
     },
-    [loginLocal, user.city]
+    [loginLocal, user.city, applyReferralOnSignup]
   );
 
   useEffect(() => {

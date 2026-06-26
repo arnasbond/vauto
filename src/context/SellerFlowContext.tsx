@@ -26,6 +26,7 @@ import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
+import { importListingFromUrl as fetchListingFromPortal } from "@/lib/listing-url-import";
 import { resolveListingCity } from "@/lib/city-resolve";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
@@ -141,6 +142,7 @@ export interface SellerFlowContextValue {
     voiceCapture?: boolean;
   }) => Promise<void>;
   applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
+  importListingFromUrl: (url: string) => Promise<void>;
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
@@ -553,6 +555,38 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     [requireAuthForListing, setChameleonTheme, showToast]
   );
 
+  const importListingFromUrl = useCallback(
+    async (url: string) => {
+      if (!requireAuthForListing("/add")) return;
+      setSellerStep("processing");
+      setAiManualFallback(false);
+      try {
+        const draft = await fetchListingFromPortal(url, {
+          userCity: user.city || "Lietuva",
+          contact: user.phone,
+        });
+        applyAgentListingDraft(draft);
+        showToast(
+          "Skelbimas importuotas — peržiūrėkite ir publikuokite visoje Lietuvoje",
+          "success"
+        );
+      } catch (e) {
+        setSellerStep("idle");
+        showToast(
+          e instanceof Error ? e.message : "Nepavyko importuoti skelbimo",
+          "error"
+        );
+      }
+    },
+    [
+      applyAgentListingDraft,
+      requireAuthForListing,
+      showToast,
+      user.city,
+      user.phone,
+    ]
+  );
+
   const startListingFromQuery = useCallback(
     (text: string) => {
       const trimmed = text.trim();
@@ -910,6 +944,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       finishPublishedFlow,
       submitSellerContent,
       applyAgentListingDraft,
+      importListingFromUrl,
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
@@ -936,6 +971,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       finishPublishedFlow,
       submitSellerContent,
       applyAgentListingDraft,
+      importListingFromUrl,
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,

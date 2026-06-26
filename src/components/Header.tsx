@@ -37,6 +37,12 @@ export function Header() {
 
       <div className="flex items-center gap-3">
         <Link
+          href="/apie/"
+          className="text-xs font-semibold text-[var(--vauto-text-muted,#6b7280)] transition hover:text-[var(--vauto-teal,#0d9488)]"
+        >
+          Apie
+        </Link>
+        <Link
           href="/chats/"
           onClick={handleChats}
           className="relative flex h-10 w-10 items-center justify-center rounded-[14px] border bg-white shadow-sm transition hover:opacity-90"

@@ -298,6 +298,65 @@ aiRouter.post("/extract-combined", async (req, res) => {
   }
 });
 
+aiRouter.post("/import-url", async (req, res) => {
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+
+  const { url, userCity, contact } = req.body as {
+    url: string;
+    userCity?: string;
+    contact?: string;
+  };
+
+  if (!url?.trim()) {
+    return res.status(400).json({ error: "url is required" });
+  }
+
+  const city = userCity || "Lietuva";
+  const phone = contact || "+370 612 34567";
+
+  function stripHtml(html: string): string {
+    return html
+      .replace(/<script[\s\S]*?<\/script>/gi, " ")
+      .replace(/<style[\s\S]*?<\/style>/gi, " ")
+      .replace(/<[^>]+>/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+  }
+
+  try {
+    const pageRes = await fetch(url.trim(), {
+      headers: {
+        "User-Agent":
+          "Mozilla/5.0 (compatible; VautoBot/1.0; +https://vauto-chi.vercel.app)",
+        Accept: "text/html,application/xhtml+xml",
+      },
+      signal: AbortSignal.timeout(12_000),
+    });
+    const html = await pageRes.text();
+    const text = stripHtml(html).slice(0, 14_000);
+
+    const raw = await chatJson([
+      {
+        role: "system",
+        content:
+          "Ištrauk skelbimo duomenis iš lietuviško portalo HTML. VAUTO veikia visoje Lietuvoje. Grąžink attributes su giliais laukais (auto: year, mileage, bodyType; NT: propertyType, area, heating; drabužiai: size, condition; darbas: jobTitle, salaryGross).",
+      },
+      {
+        role: "user",
+        content: `URL: ${url}\nTekstas:\n"""${text}"""\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${city}`,
+      },
+    ]);
+    const listing = toListing(raw, city, phone);
+    listing.attributes = {
+      ...listing.attributes,
+      _importUrl: url.trim(),
+    };
+    res.json(listing);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/extract-text", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
