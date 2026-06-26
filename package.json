@@ -11,7 +11,9 @@
     "test:e2e:install": "playwright install chromium",
     "build:mobile": "next build",
     "cap:sync": "npx cap sync android",
+    "cap:sync:ios": "npx cap sync ios",
     "cap:open": "npx cap open android",
+    "cap:open:ios": "npx cap open ios",
     "apk": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1",
     "apk:release": "powershell -ExecutionPolicy Bypass -File scripts/build-apk.ps1 -Release",
     "server:install": "npm install --prefix server",
@@ -44,6 +46,7 @@
     "@capacitor/camera": "^6.1.2",
     "@capacitor/core": "^6.2.1",
     "@capacitor/geolocation": "^6.1.0",
+    "@capacitor/ios": "^6.2.1",
     "@capacitor/push-notifications": "^6.0.4",
     "@capacitor/share": "^6.0.4",
     "@capacitor/splash-screen": "^6.0.3",
@@ -76,7 +79,8 @@
   },
   "capacitor": {
     "platforms": [
-      "android"
+      "android",
+      "ios"
     ]
   }
 }

@@ -21,14 +21,14 @@ export default function AdminAiPage() {
         </Link>
         <AdminGeminiUploadPanel />
         <p className="mt-4 text-center text-[11px] text-slate-400">
-          Jei nematote šio bloko programėlėje — atnaujinkite APK iš{" "}
+          Jei nematote šio bloko programėlėje — atnaujinkite iš{" "}
           <a
             href="https://vauto-chi.vercel.app/install/"
             className="text-indigo-600 underline"
           >
             vauto-chi.vercel.app/install
           </a>{" "}
-          arba atidarykite naršyklėje. Build: {ADMIN_GEMINI_BUILD}
+          (Android APK arba iPhone IPA) arba atidarykite naršyklėje. Build: {ADMIN_GEMINI_BUILD}
         </p>
       </div>
     </AppShell>

@@ -3,20 +3,32 @@
 import Link from "next/link";
 import { Download, X } from "lucide-react";
 import { useEffect, useState } from "react";
-import { shouldShowInstallPrompt } from "@/lib/mobile-install";
+import {
+  getPreferredInstallPlatform,
+  shouldShowInstallPrompt,
+} from "@/lib/mobile-install";
 
 const DISMISS_KEY = "vauto_install_banner_dismissed";
 
 export function InstallAppBanner() {
   const [visible, setVisible] = useState(false);
+  const [platform, setPlatform] = useState<"android" | "ios" | "other">("other");
 
   useEffect(() => {
     if (!shouldShowInstallPrompt()) return;
     if (localStorage.getItem(DISMISS_KEY) === "1") return;
+    setPlatform(getPreferredInstallPlatform());
     setVisible(true);
   }, []);
 
   if (!visible) return null;
+
+  const subtitle =
+    platform === "ios"
+      ? "Tikra iPhone programėlė — vienu paspaudimu"
+      : platform === "android"
+        ? "Tikra Android programėlė — vienu paspaudimu"
+        : "Tikra mobilioji programėlė — vienu paspaudimu";
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 mx-3">
@@ -28,9 +40,7 @@ export function InstallAppBanner() {
           <p className="text-sm font-semibold text-[var(--vauto-text)]">
             Įdiekite Vauto į telefoną
           </p>
-          <p className="text-xs text-[var(--vauto-text-muted)]">
-            Tikra Android programėlė — vienu paspaudimu
-          </p>
+          <p className="text-xs text-[var(--vauto-text-muted)]">{subtitle}</p>
         </div>
         <Link
           href="/install/"

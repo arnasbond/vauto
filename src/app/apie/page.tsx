@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
+import { InstallDownloadButtons } from "@/components/InstallDownloadButtons";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import { shareReferralInvite } from "@/lib/referral";
@@ -195,6 +196,19 @@ export default function ApiePage() {
               title="Skaidrūs planai ir kreditai"
               description="START / GROWTH / ENTERPRISE — mokate tik už tai, ką naudojate. Piniginė ir iškėlimai vienoje vietoje."
             />
+          </div>
+        </section>
+
+        {/* Mobile install */}
+        <section className="mt-8 rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-6 shadow-sm">
+          <h2 className="text-lg font-bold text-[var(--vauto-text)]">
+            Atsisiųskite programėlę
+          </h2>
+          <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
+            Android APK arba iPhone IPA — ta pati VAUTO patirtis telefone
+          </p>
+          <div className="mt-4">
+            <InstallDownloadButtons />
           </div>
         </section>
 

@@ -1,4 +1,9 @@
 import { Capacitor } from "@capacitor/core";
+import {
+  canUseCapacitorShare,
+  shareViaCapacitor,
+  type NativeSharePayload,
+} from "@/lib/native-share";
 
 /** Stable URL for the latest Android APK (GitHub Releases). */
 export const APK_DOWNLOAD_URL =
@@ -6,6 +11,15 @@ export const APK_DOWNLOAD_URL =
 
 export const APK_RELEASE_PAGE =
   "https://github.com/arnasbond/vauto/releases/tag/android-latest";
+
+/** Stable URL for the latest iOS IPA (GitHub Releases). */
+export const IOS_DOWNLOAD_URL =
+  "https://github.com/arnasbond/vauto/releases/download/ios-latest/vauto.ipa";
+
+export const IOS_RELEASE_PAGE =
+  "https://github.com/arnasbond/vauto/releases/tag/ios-latest";
+
+export type MobileInstallPlatform = "android" | "ios" | "other";
 
 export function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
@@ -30,6 +44,79 @@ export function isAndroid(): boolean {
   return /Android/i.test(navigator.userAgent);
 }
 
+export function isIOS(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /iPhone|iPad|iPod/i.test(navigator.userAgent);
+}
+
+export function getPreferredInstallPlatform(): MobileInstallPlatform {
+  if (isIOS()) return "ios";
+  if (isAndroid()) return "android";
+  return "other";
+}
+
+export function getPrimaryDownloadUrl(): string {
+  const platform = getPreferredInstallPlatform();
+  if (platform === "ios") return IOS_DOWNLOAD_URL;
+  if (platform === "android") return APK_DOWNLOAD_URL;
+  return "/install/";
+}
+
+export function getPrimaryReleasePage(): string {
+  const platform = getPreferredInstallPlatform();
+  if (platform === "ios") return IOS_RELEASE_PAGE;
+  if (platform === "android") return APK_RELEASE_PAGE;
+  return "/install/";
+}
+
 export function shouldShowInstallPrompt(): boolean {
   return isMobileDevice() && !isNativeApp() && !isInstalledPwa();
+}
+
+async function shareInstallPackage(payload: NativeSharePayload): Promise<boolean> {
+  if (canUseCapacitorShare()) {
+    const ok = await shareViaCapacitor(payload);
+    if (ok) return true;
+  }
+
+  if (typeof navigator !== "undefined" && navigator.share) {
+    try {
+      await navigator.share(payload);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  try {
+    await navigator.clipboard.writeText(payload.url);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+export async function shareAndroidApk(): Promise<boolean> {
+  return shareInstallPackage({
+    title: "Vauto Android programėlė",
+    text: "Atsisiųsk Vauto APK — lietuviška išmani skelbimų programėlė visoje Lietuvoje.",
+    url: APK_DOWNLOAD_URL,
+    dialogTitle: "Dalintis APK",
+  });
+}
+
+export async function shareIosApp(): Promise<boolean> {
+  return shareInstallPackage({
+    title: "Vauto iOS programėlė (iPhone)",
+    text: "Atsisiųsk Vauto iPhone programėlę — lietuviška išmani skelbimų ekosistema.",
+    url: IOS_DOWNLOAD_URL,
+    dialogTitle: "Dalintis iOS programėle",
+  });
+}
+
+export async function sharePreferredInstallPackage(): Promise<boolean> {
+  const platform = getPreferredInstallPlatform();
+  if (platform === "ios") return shareIosApp();
+  if (platform === "android") return shareAndroidApk();
+  return shareAndroidApk();
 }

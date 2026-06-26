@@ -12,6 +12,7 @@ import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
+import { InstallDownloadButtons } from "@/components/InstallDownloadButtons";
 import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
@@ -116,6 +117,22 @@ export default function ProfilePage() {
       <SellerTrustCard user={user} listings={listings} />
 
       <ReferralInviteCard />
+
+      <section className="vauto-dashboard-card mt-6 rounded-2xl border border-[var(--vauto-border)] p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Smartphone className="h-5 w-5 text-[var(--vauto-teal)]" />
+          <div>
+            <h3 className="text-sm font-bold text-[var(--vauto-text)]">
+              Mobilioji programėlė
+            </h3>
+            <p className="text-[10px] text-[var(--vauto-text-muted)]">
+              Atsisiųskite APK (Android) arba IPA (iPhone) — arba dalinkitės su
+              artimaisiais
+            </p>
+          </div>
+        </div>
+        <InstallDownloadButtons showShare />
+      </section>
 
       {(user.role === "pro" || isSuperAdminUser(user)) && (
         <div className="mt-6">

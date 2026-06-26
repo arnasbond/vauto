@@ -15,13 +15,18 @@ const config: CapacitorConfig = {
   android: {
     allowMixedContent: true,
   },
+  ios: {
+    contentInset: "automatic",
+  },
   server: useRemoteShell
     ? {
         url: productionWebUrl,
         androidScheme: "https",
+        iosScheme: "capacitor",
       }
     : {
         androidScheme: "https",
+        iosScheme: "capacitor",
       },
   plugins: {
     SplashScreen: {
