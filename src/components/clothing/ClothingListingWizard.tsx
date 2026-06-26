@@ -128,6 +128,9 @@ export function ClothingListingWizard({
 
   const selectCategory = (group: string, sub: string) => {
     onAttributeChange("vintedCategory", formatVintedCategory(group, sub));
+    if (group === "Moterims" || group === "Vyrams" || group === "Vaikams") {
+      onAttributeChange("clothingType", group);
+    }
     setShowCategoryPicker(false);
   };
 

@@ -8,6 +8,7 @@ import { AdminProfileShell } from "@/components/admin/AdminProfileShell";
 import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
 import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
 import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
+import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
@@ -187,6 +188,7 @@ export default function ProfilePage() {
           <UserSupportInbox />
         </Suspense>
         <ConnectionStatusCard />
+        <ThemeSettingsCard />
         <WakeWordSettingsCard />
         <PrivacySettingsCard />
         <SocialSyncSettingsCard />

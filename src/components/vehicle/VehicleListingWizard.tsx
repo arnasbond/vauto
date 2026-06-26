@@ -9,6 +9,7 @@ import {
   COLOR_OPTIONS,
   DEFECT_OPTIONS,
   DOOR_COUNTS,
+  DRIVE_TYPES,
   engineCcSuggestions,
   FUEL_TYPES,
   GEARBOX_TYPES,
@@ -548,6 +549,12 @@ export function VehicleListingWizard({
               options={GEARBOX_TYPES}
               value={attr(attrs, "gearbox")}
               onChange={(v) => onAttributeChange("gearbox", v)}
+            />
+            <ChipRow
+              label="Varantieji ratai"
+              options={DRIVE_TYPES}
+              value={attr(attrs, "driveType")}
+              onChange={(v) => onAttributeChange("driveType", v)}
             />
             <ChipRow
               label="Durų skaičius"

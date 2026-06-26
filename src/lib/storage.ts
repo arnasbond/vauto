@@ -27,6 +27,7 @@ const KEYS = {
   pushAlertsSeen: "vauto_push_alerts_seen_v1",
   pushAlertsEnabled: "vauto_push_alerts_v1",
   socialSync: "vauto_social_sync_v1",
+  appTheme: "vauto_app_theme_v1",
   serviceLeads: "vauto_service_leads_v1",
   openedServiceLeads: "vauto_opened_service_leads_v1",
 } as const;
@@ -182,6 +183,16 @@ export function loadSocialSyncPrefs(): SocialSyncPrefs | null {
 
 export function saveSocialSyncPrefs(prefs: SocialSyncPrefs): void {
   write(KEYS.socialSync, prefs);
+}
+
+export function loadAppTheme(): string | null {
+  if (typeof window === "undefined") return null;
+  return localStorage.getItem(KEYS.appTheme);
+}
+
+export function saveAppTheme(theme: string): void {
+  if (typeof window === "undefined") return;
+  localStorage.setItem(KEYS.appTheme, theme);
 }
 
 export function loadServiceLeads(): ServiceLead[] | null {

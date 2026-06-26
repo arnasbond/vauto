@@ -124,6 +124,8 @@ export const FUEL_TYPES = [
 
 export const GEARBOX_TYPES = ["Automatinė", "Mechaninė"] as const;
 
+export const DRIVE_TYPES = ["Priekiniai", "Galiniai", "Visi varantieji"] as const;
+
 export const DOOR_COUNTS = ["2/3", "4/5", "Kita"] as const;
 
 export const DEFECT_OPTIONS = ["Be defektų", "Smulkūs įbrėžimai", "Yra defektų"] as const;

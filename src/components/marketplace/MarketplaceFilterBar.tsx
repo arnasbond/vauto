@@ -21,6 +21,8 @@ import {
 import { LT_CITY_NAMES } from "@/lib/lt-cities";
 import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { CategoryAttributeFilterPanel } from "@/components/marketplace/CategoryAttributeFilterPanel";
+import { countActiveCategoryFilters } from "@/lib/category-attribute-filters";
 
 const CATEGORIES: { id: ListingCategory | "all"; label: string }[] = [
   { id: "all", label: "Visos" },
@@ -263,7 +265,7 @@ export function MarketplaceFilterBar({
                 safeFilters.category === c.id && "bg-[#eef6ff] font-semibold text-[#1167b1]"
               )}
               onClick={() => {
-                patchFilters({ category: c.id });
+                patchFilters({ category: c.id, categoryAttributes: {} });
                 close();
               }}
             >
@@ -405,7 +407,8 @@ export function MarketplaceFilterBar({
           safeFilters.priceMin != null ||
           safeFilters.priceMax != null ||
           safeFilters.condition !== "all" ||
-          safeFilters.sort !== "relevance") && (
+          safeFilters.sort !== "relevance" ||
+          countActiveCategoryFilters(safeFilters.categoryAttributes) > 0) && (
           <button
             type="button"
             onClick={() => onFiltersChange({ ...DEFAULT_MARKETPLACE_FILTERS })}
@@ -415,6 +418,13 @@ export function MarketplaceFilterBar({
           </button>
         )}
       </div>
+
+      <CategoryAttributeFilterPanel
+        category={safeFilters.category}
+        filters={safeFilters.categoryAttributes}
+        onChange={(categoryAttributes) => patchFilters({ categoryAttributes })}
+        className="mt-3"
+      />
     </div>
   );
 }

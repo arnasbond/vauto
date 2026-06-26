@@ -16,7 +16,7 @@ import {
   SALARY_DISPLAY_TYPES,
   SALARY_PERIODS,
 } from "@/lib/job-catalog";
-import { JOB_TYPE_OFFER } from "@/lib/jobs";
+import { JOB_TYPE_OFFER, JOB_TYPE_SEEK } from "@/lib/jobs";
 import { clearJobListingDraft, saveJobListingDraft } from "@/lib/listing-draft-storage";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
 import { isPlaceholderCity } from "@/lib/city-resolve";
@@ -99,6 +99,8 @@ export function JobListingWizard({
   const [openBenefit, setOpenBenefit] = useState<string | null>("Darbo ir laisvalaikio balansas");
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const benefits = attrArray(attrs, "benefits");
+  const jobMode = attr(attrs, "jobType") || JOB_TYPE_OFFER;
+  const isJobSeeker = jobMode === JOB_TYPE_SEEK;
 
   const toggleBenefit = useCallback(
     (item: string) => {
@@ -115,13 +117,17 @@ export function JobListingWizard({
     if (title) onUpdate({ title, category: "jobs" });
   };
 
-  const can1 = Boolean(attr(attrs, "cvEmail") && (attr(attrs, "jobTitle") || draft.title));
+  const can1 = isJobSeeker
+    ? Boolean(attr(attrs, "cvEmail") && attr(attrs, "experienceArea"))
+    : Boolean(attr(attrs, "cvEmail") && (attr(attrs, "jobTitle") || draft.title));
   const can2 = Boolean(attr(attrs, "locationType") && draft.location);
-  const can3 = Boolean(
-    attr(attrs, "experienceArea") &&
-      attr(attrs, "jobGroup") &&
-      attr(attrs, "workNature")
-  );
+  const can3 = isJobSeeker
+    ? Boolean((draft.description ?? "").trim().length > 10)
+    : Boolean(
+        attr(attrs, "experienceArea") &&
+          attr(attrs, "jobGroup") &&
+          attr(attrs, "workNature")
+      );
   const can5 = Boolean(attr(attrs, "salaryFrom") || attr(attrs, "salaryFixed"));
   const can6 = termsAccepted;
 
@@ -145,8 +151,16 @@ export function JobListingWizard({
         category: "jobs",
         attributes: {
           ...attrs,
-          jobType: attr(attrs, "jobType") || JOB_TYPE_OFFER,
+          jobType: isJobSeeker ? JOB_TYPE_SEEK : JOB_TYPE_OFFER,
           salaryType: attr(attrs, "salaryPeriod") || "€/mėn.",
+        },
+      });
+    } else if (isJobSeeker) {
+      onUpdate({
+        category: "jobs",
+        attributes: {
+          ...attrs,
+          jobType: JOB_TYPE_SEEK,
         },
       });
     }
@@ -179,13 +193,74 @@ export function JobListingWizard({
         </div>
 
         <div className="px-4 py-5">
+          <div className="mb-4 rounded-xl border border-[#c8d8f4] bg-[#f8fbff] p-3">
+            <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[#1f4b99]">
+              Skelbimo tipas (CVBankas)
+            </p>
+            <Segmented
+              options={[JOB_TYPE_OFFER, JOB_TYPE_SEEK]}
+              value={jobMode}
+              onChange={(v) => onAttributeChange("jobType", v)}
+            />
+            <p className="mt-2 text-[10px] leading-relaxed text-[#64748b]">
+              {isJobSeeker
+                ? "Vartotojo srautas — ieškote darbo ir siūlote savo CV."
+                : "Verslo srautas — darbdavys skelbia darbo pasiūlymą."}
+            </p>
+          </div>
+
           {manualFallback && step === 1 && (
             <p className="mb-4 rounded-lg border border-[#c8d8f4] bg-[#eaf1ff] px-3 py-2 text-xs text-[#1f4b99]">
               AI nepavyko pilnai atpažinti — užpildykite darbo skelbimą ranka.
             </p>
           )}
 
-          {step === 1 && (
+          {step === 1 && isJobSeeker && (
+            <>
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                CV / profilio nuoroda arba el. paštas *
+              </label>
+              <input
+                type="text"
+                value={attr(attrs, "cvEmail") || user.email || ""}
+                onChange={(e) => onAttributeChange("cvEmail", e.target.value)}
+                placeholder="cv@email.lt arba LinkedIn nuoroda"
+                className="mb-4 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                Pageidaujama pareigų sritis *
+              </label>
+              <select
+                value={attr(attrs, "experienceArea")}
+                onChange={(e) => onAttributeChange("experienceArea", e.target.value)}
+                className="mb-4 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              >
+                <option value="">Pasirinkite</option>
+                {EXPERIENCE_AREAS.map((a) => (
+                  <option key={a} value={a}>
+                    {a}
+                  </option>
+                ))}
+              </select>
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                Tikslinis atlyginimas (nuo), €/mėn.
+              </label>
+              <input
+                type="number"
+                value={attr(attrs, "salaryFrom")}
+                onChange={(e) => onAttributeChange("salaryFrom", e.target.value)}
+                className="mb-4 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
+              <p className="mb-2 text-sm font-medium text-[#334155]">Darbo vieta</p>
+              <Segmented
+                options={["Nuotolinis", "Ofise", "Hibridinis"]}
+                value={attr(attrs, "locationType")}
+                onChange={(v) => onAttributeChange("locationType", v)}
+              />
+            </>
+          )}
+
+          {step === 1 && !isJobSeeker && (
             <>
               <label className="mb-1 block text-sm font-medium text-[#334155]">
                 CV siųsti el. pašto adresu
@@ -285,7 +360,21 @@ export function JobListingWizard({
             </>
           )}
 
-          {step === 3 && (
+          {step === 3 && isJobSeeker && (
+            <>
+              <label className="mb-1 block text-sm font-medium text-[#334155]">
+                Trumpas CV aprašymas / įgūdžiai *
+              </label>
+              <textarea
+                rows={5}
+                value={draft.description ?? ""}
+                onChange={(e) => onUpdate({ description: e.target.value })}
+                className="mb-3 w-full rounded border border-[#d9e2f1] px-3 py-2.5 text-sm"
+              />
+            </>
+          )}
+
+          {step === 3 && !isJobSeeker && (
             <>
               <label className="mb-1 block text-sm text-[#475569]">Ieškomo darbuotojo sritis *</label>
               <select
@@ -339,7 +428,7 @@ export function JobListingWizard({
             </>
           )}
 
-          {step === 4 && (
+          {step === 4 && !isJobSeeker && (
             <div className="space-y-2">
               <p className="mb-2 font-semibold text-[#172033]">Įmonė siūlo</p>
               {Object.entries(BENEFIT_CATEGORIES).map(([cat, items]) => (

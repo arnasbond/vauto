@@ -1,6 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
+import { AppThemeProvider } from "@/context/AppThemeContext";
 import { AuthProvider } from "@/context/AuthContext";
 import { NavigationProvider } from "@/context/NavigationContext";
 import { ZeroUiScreenProvider } from "@/context/ZeroUiScreenContext";
@@ -13,14 +14,16 @@ import { VautoProvider } from "@/context/VautoContext";
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
-    <AuthProvider>
-      <ReviewsProvider>
-        <NavigationProvider>
-          <ZeroUiScreenProvider>
-            <VautoProvider>{children}</VautoProvider>
-          </ZeroUiScreenProvider>
-        </NavigationProvider>
-      </ReviewsProvider>
-    </AuthProvider>
+    <AppThemeProvider>
+      <AuthProvider>
+        <ReviewsProvider>
+          <NavigationProvider>
+            <ZeroUiScreenProvider>
+              <VautoProvider>{children}</VautoProvider>
+            </ZeroUiScreenProvider>
+          </NavigationProvider>
+        </ReviewsProvider>
+      </AuthProvider>
+    </AppThemeProvider>
   );
 }

@@ -1,4 +1,9 @@
 import type { Listing, ListingCategory } from "@/lib/types";
+import {
+  applyCategoryAttributeFilters,
+  EMPTY_CATEGORY_ATTRIBUTE_FILTERS,
+  type CategoryAttributeFilters,
+} from "@/lib/category-attribute-filters";
 import type { ScoredListing } from "@/lib/types";
 import { distanceKm, type UserCoords } from "@/lib/geolocation";
 import { coordsForLtCity, detectCityInText } from "@/lib/lt-cities";
@@ -43,6 +48,8 @@ export interface MarketplaceFilterState {
   sort: MarketplaceSortMode;
   /** Haversine radius from location city center or buyer GPS */
   radiusKm: MarketplaceRadiusKm | null;
+  /** Chameleon category-specific attribute filters (Auto, NT, Drabužiai, Darbas) */
+  categoryAttributes: CategoryAttributeFilters;
 }
 
 export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
@@ -53,6 +60,7 @@ export const DEFAULT_MARKETPLACE_FILTERS: MarketplaceFilterState = {
   condition: "all",
   sort: "relevance",
   radiusKm: null,
+  categoryAttributes: { ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS },
 };
 
 /** Ensure persisted/partial filter objects always include sort and valid fields */
@@ -82,6 +90,10 @@ export function normalizeMarketplaceFilters(
     condition: filters.condition ?? "all",
     sort: validSort,
     radiusKm: validRadius,
+    categoryAttributes: {
+      ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS,
+      ...(filters.categoryAttributes ?? {}),
+    },
   };
 }
 
@@ -241,6 +253,12 @@ export function applyMarketplaceFilters(
       });
     }
   }
+
+  results = applyCategoryAttributeFilters(
+    results,
+    filters.category,
+    filters.categoryAttributes
+  );
 
   return results;
 }
