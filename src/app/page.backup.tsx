@@ -16,10 +16,6 @@ import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 
 import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
 
-import { HomeAiHero } from "@/components/home/HomeAiHero";
-
-import { SearchAiResultsPanel } from "@/components/home/SearchAiResultsPanel";
-
 import { ZeroUiListingPreview } from "@/components/zero-ui/ZeroUiListingPreview";
 
 import { ZeroUiBusinessDashboard } from "@/components/zero-ui/ZeroUiBusinessDashboard";
@@ -32,9 +28,11 @@ import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 
 import { useVauto } from "@/context/VautoContext";
 
+import { portalExperienceForQuery } from "@/lib/portal-experience";
+
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 
-import { useCallback, useState } from "react";
+import { useCallback } from "react";
 
 import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
 
@@ -42,24 +40,55 @@ import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 
 
 
+function DefaultHero() {
+
+  return (
+
+    <div className="vauto-dashboard-card mb-5 mt-1 rounded-2xl p-4 shadow-sm">
+
+      <p className="text-[11px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-primary)]">
+
+        VAUTO Zero-UI
+
+      </p>
+
+      <h1 className="font-display mt-2 text-[1.65rem] font-extrabold leading-[1.08] tracking-tight text-[var(--vauto-text-main)] sm:text-[1.875rem]">
+
+        Ieškok. Rask. Įdėk.
+
+      </h1>
+
+      <p className="mt-2 text-[13px] leading-snug text-[var(--vauto-text-muted)]">
+
+        Rašykite paiešką viršuje arba spauskite + apačioje, kad įkeltumėte skelbimą.
+
+      </p>
+
+    </div>
+
+  );
+
+}
+
+
+
 function MarketplaceView() {
 
   const { searchQuery, sellerStep, rankedListings, searchLoading } = useVauto();
 
-  const [seedQuery, setSeedQuery] = useState<string | null>(null);
-
   const inSellerFlow = sellerStep !== "idle";
-  const hasSearch = searchQuery.trim().length >= 3;
 
-  const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
+  const portalActive = Boolean(searchQuery.trim()) || inSellerFlow;
 
+  const isFluxHome = !portalActive || portalExperienceForQuery(searchQuery).theme === "flux";
 
+  const emptySearchMode =
 
-  const handleSearchPrompt = useCallback((prompt: string) => {
+    Boolean(searchQuery.trim().length >= 3) &&
 
-    setSeedQuery(prompt);
+    rankedListings.length === 0 &&
 
-  }, []);
+    !searchLoading;
 
 
 
@@ -72,32 +101,35 @@ function MarketplaceView() {
       <HeroSection>
 
         <PortalPageChrome
-          minimal
+
+          minimal={portalActive}
+
           header={
+
             <>
-              {inSellerFlow ? (
-                <>
-                  <Header />
-                  <div className="mt-3">
-                    <SearchBar />
-                  </div>
-                </>
-              ) : (
-                <HomeAiHero
-                  compact={hasSearch}
-                  showQuickActions={!hasSearch}
-                  seedQuery={seedQuery}
-                  onSeedConsumed={() => setSeedQuery(null)}
-                  onSearchPrompt={handleSearchPrompt}
-                />
-              )}
+
+              <Header />
+
+              <div className="mt-3">
+
+                <SearchBar />
+
+              </div>
+
               {emptySearchMode && (
+
                 <SearchEmptyAssistantBanner searchQuery={searchQuery.trim()} />
+
               )}
+
             </>
+
           }
+
         >
-          <span className="sr-only">VAUTO pagrindinis puslapis</span>
+
+          {isFluxHome && !emptySearchMode && <DefaultHero />}
+
         </PortalPageChrome>
 
       </HeroSection>
@@ -106,21 +138,7 @@ function MarketplaceView() {
 
       <ContentSection>
 
-        {hasSearch && !emptySearchMode && (
-
-          <SearchAiResultsPanel onFollowUp={handleSearchPrompt} />
-
-        )}
-
-
-
-        <div id="browse-section" className="scroll-mt-24">
-
-          <MarketplaceCategoryGrid />
-
-        </div>
-
-
+        {!emptySearchMode && <MarketplaceCategoryGrid />}
 
         <div>
 

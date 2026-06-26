@@ -34,6 +34,16 @@ export default function AddPage() {
     const pending = consumePendingSellerQuery();
     if (pending && sellerStep === "idle") {
       void submitSellerContent({ text: pending });
+      return;
+    }
+    if (
+      typeof window !== "undefined" &&
+      new URLSearchParams(window.location.search).get("intent") === "services" &&
+      sellerStep === "idle"
+    ) {
+      void submitSellerContent({
+        text: "Siūlau paslaugas — verslo profilis ir paslaugų skelbimas",
+      });
     }
     if (!hasSeenAiIntro() && sellerStep === "idle") {
       setIntroOpen(true);

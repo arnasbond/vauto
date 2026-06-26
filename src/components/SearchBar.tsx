@@ -78,7 +78,15 @@ function applyFastSearchToGrid(
   });
 }
 
-export function SearchBar() {
+export function SearchBar({
+  variant = "default",
+  seedQuery,
+  onSeedConsumed,
+}: {
+  variant?: "default" | "hero";
+  seedQuery?: string | null;
+  onSeedConsumed?: () => void;
+}) {
   const {
     searchQuery,
     setSearchQuery,
@@ -192,6 +200,14 @@ export function SearchBar() {
       user.city,
     ]
   );
+
+  const lastSeedRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!seedQuery?.trim() || seedQuery === lastSeedRef.current) return;
+    lastSeedRef.current = seedQuery;
+    setDraftQuery(seedQuery);
+    void commitSearch(seedQuery).finally(() => onSeedConsumed?.());
+  }, [seedQuery, commitSearch, onSeedConsumed]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -327,26 +343,31 @@ export function SearchBar() {
     }
   };
 
+  const isHero = variant === "hero";
   const inputValue = recording && voiceCaption ? voiceCaption : draftQuery;
 
   return (
     <>
       <form
         className={cn(
-          "flex items-center gap-2 rounded-xl border bg-white py-1.5 pl-3.5 pr-1.5 shadow-sm transition-colors",
+          "flex items-center gap-2 border shadow-sm transition-colors",
+          isHero
+            ? "vauto-flux-glass rounded-[1.35rem] py-2.5 pl-4 pr-2"
+            : "rounded-xl bg-white py-1.5 pl-3.5 pr-1.5",
           zeroUiActive && "zero-ui-search-active"
         )}
-        style={{ borderColor: ui.searchBorder }}
+        style={{ borderColor: isHero ? "var(--vauto-border)" : ui.searchBorder }}
         onSubmit={handleSearchSubmit}
         role="search"
         aria-label="Skelbimų paieška"
       >
         <Sparkles
           className={cn(
-            "h-4 w-4 shrink-0 transition-opacity",
+            "shrink-0 transition-opacity",
+            isHero ? "h-5 w-5" : "h-4 w-4",
             agentBusy && "zero-ui-icon-pulse"
           )}
-          style={{ color: GEMINI_BLUE }}
+          style={{ color: isHero ? "var(--vauto-primary)" : GEMINI_BLUE }}
           aria-hidden
         />
 
@@ -360,9 +381,16 @@ export function SearchBar() {
             setVoiceCaption("");
             setDraftQuery(e.target.value);
           }}
-          placeholder="Paklauskite balsu arba tekstu — pvz. Volvo Panevėžyje"
+          placeholder={
+            isHero
+              ? "Pvz. Ieškau BMW 530d iki 20 000 €"
+              : "Paklauskite balsu arba tekstu — pvz. Volvo Panevėžyje"
+          }
           enterKeyHint="search"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)] outline-none"
+          className={cn(
+            "min-w-0 flex-1 border-none bg-transparent text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)] outline-none",
+            isHero ? "text-[15px]" : "text-sm"
+          )}
           disabled={agentBusy || searchLoading || isPhotoSearching || recording}
           autoComplete="off"
         />
@@ -373,8 +401,9 @@ export function SearchBar() {
             onClick={handleVoiceSearch}
             disabled={agentBusy || searchLoading || isPhotoSearching}
             className={cn(
-              "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#1167b1] transition hover:bg-[#eef6ff] disabled:opacity-40",
-              recording && "animate-pulse bg-[#eef6ff]"
+              "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary,#1167b1)] transition hover:bg-white/10 disabled:opacity-40",
+              isHero ? "h-11 w-11" : "h-10 w-10 rounded-lg hover:bg-[#eef6ff]",
+              recording && "animate-pulse bg-white/10"
             )}
             aria-label={recording ? "Sustabdyti balso paiešką" : "Paieška balsu"}
             title={recording ? "Sustabdyti" : "Paieška balsu"}
@@ -387,7 +416,10 @@ export function SearchBar() {
           type="button"
           onClick={handlePhotoSearch}
           disabled={isPhotoSearching || photoFlowOpen || recording}
-          className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-[#1167b1] transition hover:bg-[#eef6ff] disabled:opacity-40"
+          className={cn(
+            "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary,#1167b1)] transition hover:bg-white/10 disabled:opacity-40",
+            isHero ? "h-11 w-11" : "h-10 w-10 rounded-lg hover:bg-[#eef6ff]"
+          )}
           aria-label="Ieškoti ar analizuoti pagal nuotrauką"
           title="Nuotrauka — Vision AI"
         >
@@ -399,13 +431,17 @@ export function SearchBar() {
         </button>
       </form>
 
-      <p className="mt-2 text-center text-[11px] text-[#6b7280]">
-        🎤 balsas · 📷 nuotrauka — paieška ir analizė. Skelbimui įkelti naudokite + apačioje.
-      </p>
+      {!isHero && (
+        <>
+          <p className="mt-2 text-center text-[11px] text-[#6b7280]">
+            🎤 balsas · 📷 nuotrauka — paieška ir analizė. Skelbimui įkelti naudokite + apačioje.
+          </p>
 
-      <div className="mt-1.5 flex justify-center">
-        <AiModeBadge compact />
-      </div>
+          <div className="mt-1.5 flex justify-center">
+            <AiModeBadge compact />
+          </div>
+        </>
+      )}
 
       <AiPhotoFlowSheet
         open={photoFlowOpen}
