@@ -57,6 +57,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     setViewMode,
     marketplaceFilters,
     setMarketplaceFilters,
+    searchLoading,
   } = useVauto();
 
   const nativeLimited = shouldLimitNativeFeed();
@@ -146,7 +147,14 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         onViewModeChange={setViewMode}
       />
 
-      {displayListings.length === 0 ? (
+      {searchLoading ? (
+        <p
+          className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
+          style={{ borderColor: ui.border, color: ui.textMuted }}
+        >
+          Ieškoma…
+        </p>
+      ) : displayListings.length === 0 ? (
         <>
           {searchQuery.trim().length >= 3 && !hideEmptyAssistant ? (
             isAbsurdSearchQuery(searchQuery, listings) ? (

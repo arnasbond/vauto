@@ -121,7 +121,7 @@ export function ClothingSearchPanel() {
         onClick={runSearch}
         disabled={busy}
         className="inline-flex w-full items-center justify-center gap-2 rounded-full py-3 text-sm font-semibold text-white disabled:opacity-70"
-        style={{ backgroundColor: ui.cta }}
+        style={{ backgroundColor: "#c026d3" }}
       >
         {busy ? (
           <>

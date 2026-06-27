@@ -63,6 +63,11 @@ import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions
 import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
+import {
+  buildEmptySearchReply,
+  sanitizeAgentReplyForDisplay,
+  truncateVoiceReply,
+} from "@/lib/agent-reply-display";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -359,9 +364,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         options?.fromVoice || searchVoiceMode || searchInputMode === "voice"
       );
       const speakReply = (replyText: string) => {
-        const clean = replyText.trim();
+        const clean = sanitizeAgentReplyForDisplay(replyText.trim());
         if (clean && voiceReply) {
-          speakBuddyMessage(clean, { enabled: true, force: true });
+          speakBuddyMessage(truncateVoiceReply(clean), { enabled: true, force: true });
         }
       };
 
@@ -477,15 +482,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           fast.actions.type === "search" || fast.actions.type === "empty_search";
         const assistantText = isStateSearch
           ? fast.actions.type === "search"
-            ? "Atidarau skelbimus ekrane."
-            : "Rezultatų nerasta."
-          : fast.reply;
+            ? sanitizeAgentReplyForDisplay(fast.reply) || "Atidarau skelbimus ekrane."
+            : buildEmptySearchReply(trimmed)
+          : sanitizeAgentReplyForDisplay(fast.reply) || fast.reply;
         setMessages((prev) => [
           ...prev,
           {
             role: "assistant",
             text: assistantText,
-            toolCalls: fast.toolCalls,
           },
         ]);
         applyActions(fast.actions);
@@ -558,12 +562,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const isStateSearch =
           res.actions.type === "search" || res.actions.type === "empty_search";
         const assistantText = isConversationalSearchIntent(trimmed)
-          ? res.reply || buildConversationalLiveReply(user.name)
+          ? sanitizeAgentReplyForDisplay(res.reply || "") ||
+            buildConversationalLiveReply(user.name)
           : isStateSearch
             ? res.actions.type === "search"
-              ? "Atidarau skelbimus ekrane."
-              : "Rezultatų nerasta."
-            : res.reply;
+              ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
+              : buildEmptySearchReply(trimmed)
+            : sanitizeAgentReplyForDisplay(res.reply) || res.reply;
         setMessages((prev) => {
           const withoutLivePlaceholder =
             isConversationalSearchIntent(trimmed) && prev.length >= 2
@@ -574,7 +579,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             {
               role: "assistant",
               text: assistantText,
-              toolCalls: res.toolCalls,
             },
           ];
         });
@@ -777,12 +781,7 @@ function VautoAgentSheet() {
                     : "rounded-tl-md bg-[#f3f4f6] text-[#111827]"
                 }`}
               >
-                {m.text}
-                {m.toolCalls?.length ? (
-                  <p className="mt-2 text-[10px] uppercase tracking-wide opacity-60">
-                    {m.toolCalls.map((t) => t.name).join(" · ")}
-                  </p>
-                ) : null}
+                {sanitizeAgentReplyForDisplay(m.text) || m.text}
               </div>
             </div>
           ))}

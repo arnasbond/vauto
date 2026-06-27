@@ -82,11 +82,10 @@ function snapshotTranscript(results: SpeechResults): {
     } else {
       const lcCommitted = committed.toLowerCase();
       const lcInterim = interim.toLowerCase();
-      if (
-        lcInterim.startsWith(lcCommitted) ||
-        lcInterim.includes(lcCommitted)
-      ) {
+      if (lcInterim.startsWith(lcCommitted)) {
         preview = interim;
+      } else if (lcCommitted.endsWith(lcInterim) || lcCommitted.includes(lcInterim)) {
+        preview = committed;
       } else {
         preview = sanitizeSpeechTranscript(`${committed} ${interim}`);
       }

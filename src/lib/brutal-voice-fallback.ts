@@ -1,14 +1,24 @@
 /** Direct HTML5 TTS — bypasses all agent/session layers when production agent fails. */
 
+import { truncateVoiceReply } from "@/lib/agent-reply-display";
+import { hasLithuanianVoice, pickLithuanianVoice } from "@/lib/buddy-voice";
+
 export const BRUTAL_VOICE_GREETING =
   "Labas! Aš esu gyvas AI asistentas. Pasakyk, ko ieškai — padėsiu surasti, parduoti ar derėtis.";
 
 export function brutalHtml5Speak(text: string): void {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
+  if (!hasLithuanianVoice()) return;
+
+  const clean = truncateVoiceReply(text.trim());
+  if (!clean) return;
+
   window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(text);
+  const utterance = new SpeechSynthesisUtterance(clean);
   utterance.lang = "lt-LT";
   utterance.rate = 0.92;
+  const voice = pickLithuanianVoice();
+  if (voice) utterance.voice = voice;
   window.speechSynthesis.speak(utterance);
 }
 

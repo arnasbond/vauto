@@ -137,7 +137,7 @@ export function GeneralSearchPanel() {
         onClick={runSearch}
         disabled={busy}
         className="inline-flex w-full items-center justify-center gap-2 rounded py-3 text-base font-semibold text-white disabled:opacity-70"
-        style={{ backgroundColor: ui.cta }}
+        style={{ backgroundColor: ui.accent }}
       >
         {busy ? (
           <>

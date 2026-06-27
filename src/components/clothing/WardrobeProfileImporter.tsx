@@ -133,7 +133,11 @@ export function WardrobeProfileImporter({
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {isGuest ? "Peržiūrėti mano spintą" : "Perkelti spintą į VAUTO"}
+        {isGuest
+          ? "Peržiūrėti mano spintą"
+          : inSpintaCabinet
+            ? "Importuoti iš profilio URL"
+            : "Perkelti spintą į VAUTO"}
       </button>
       {isGuest && preview.length > 0 && <GuestWardrobePreviewGrid items={preview} />}
       {!isGuest && preview.length > 0 && (

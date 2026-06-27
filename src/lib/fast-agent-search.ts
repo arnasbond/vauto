@@ -8,6 +8,7 @@ import {
   type MarketplaceSortMode,
 } from "@/lib/marketplace-view";
 import { isConversationalSearchIntent } from "@/lib/search-conversational-intent";
+import { buildEmptySearchReply } from "@/lib/agent-reply-display";
 
 /** 0 = no slice — process full catalog dynamically */
 export const UNLIMITED_SEARCH = 0;
@@ -184,7 +185,7 @@ export async function runFastAgentSearch(
   }
 
   return {
-    reply: "Rezultatų nerasta.",
+    reply: buildEmptySearchReply(searchQuery),
     actions: {
       type: "empty_search",
       searchQuery,

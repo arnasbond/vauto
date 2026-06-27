@@ -1,4 +1,4 @@
-/** Web Speech API + conversational state logging for VAUTO Digital Buddy */
+import { truncateVoiceReply } from "@/lib/agent-reply-display";
 
 export type BuddyState =
   | "idle"
@@ -24,7 +24,12 @@ export function getFirstName(fullName: string): string {
   return trimmed.split(/\s+/)[0]?.replace(/\.$/, "") ?? "drauge";
 }
 
-function pickLithuanianVoice(): SpeechSynthesisVoice | undefined {
+export function hasLithuanianVoice(): boolean {
+  if (typeof window === "undefined" || !window.speechSynthesis) return false;
+  return window.speechSynthesis.getVoices().some((v) => v.lang.startsWith("lt"));
+}
+
+export function pickLithuanianVoice(): SpeechSynthesisVoice | undefined {
   if (typeof window === "undefined" || !window.speechSynthesis) return undefined;
   const voices = window.speechSynthesis.getVoices();
   return (
@@ -121,8 +126,13 @@ export function speakBuddyMessage(
     return null;
   }
 
-  const clean = text.trim();
+  const clean = truncateVoiceReply(text.trim());
   if (!clean) return null;
+
+  if (!hasLithuanianVoice()) {
+    logBuddyState("idle", { event: "speech_skipped", reason: "no_lt_voice" });
+    return null;
+  }
 
   return speakWithSynthesis(clean, options);
 }

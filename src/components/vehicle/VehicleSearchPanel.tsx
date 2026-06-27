@@ -117,7 +117,7 @@ export function VehicleSearchPanel() {
         onClick={runSearch}
         disabled={busy}
         className="inline-flex w-full items-center justify-center gap-2 rounded py-3 text-base font-bold text-white shadow-sm transition hover:opacity-95 disabled:opacity-70"
-        style={{ backgroundColor: ui.cta }}
+        style={{ backgroundColor: ui.accent }}
       >
         {busy ? (
           <>
