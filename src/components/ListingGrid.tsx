@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
@@ -21,6 +22,11 @@ import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
+import {
+  NATIVE_GRID_INITIAL,
+  NATIVE_GRID_STEP,
+  shouldLimitNativeFeed,
+} from "@/lib/native-perf";
 
 function emptyMessage(theme: ChameleonThemeId): string {
   switch (theme) {
@@ -53,42 +59,75 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     setMarketplaceFilters,
   } = useVauto();
 
+  const nativeLimited = shouldLimitNativeFeed();
+  const [nativeVisible, setNativeVisible] = useState(NATIVE_GRID_INITIAL);
+
+  useEffect(() => {
+    setNativeVisible(NATIVE_GRID_INITIAL);
+  }, [searchQuery, displayListings.length]);
+
+  const sliceForNative = (items: typeof displayListings) => {
+    if (!nativeLimited) return items;
+    return items.slice(0, nativeVisible);
+  };
+
   const brokerSignal = buildSmartBrokerSignal(searchQuery, displayListings);
   const portal = portalExperienceForQuery(searchQuery);
   const theme = portal.theme;
   const ui = getPortalUi(theme);
 
-  const renderListingCards = (items: typeof displayListings) => {
+  const renderListingCards = (items: typeof displayListings, showLoadMore = false) => {
+    const visible = sliceForNative(items);
+    const hasMore = nativeLimited && items.length > visible.length;
+
+    const loadMore =
+      showLoadMore && hasMore ? (
+        <button
+          type="button"
+          onClick={() => setNativeVisible((n) => n + NATIVE_GRID_STEP)}
+          className="mt-4 w-full rounded-2xl border border-[var(--vauto-border)] bg-white/5 py-3 text-sm font-medium text-[var(--vauto-teal)]"
+        >
+          Rodyti daugiau ({items.length - visible.length} liko)
+        </button>
+      ) : null;
+
     if (viewMode === "map") {
       return (
         <div className="mt-3">
-          <ListingMapView listings={items} />
+          <ListingMapView listings={visible} />
+          {loadMore}
         </div>
       );
     }
     if (viewMode === "list") {
       return (
-        <div className="listing-card-row mt-1 divide-y divide-[var(--vauto-border)] rounded-2xl border border-[var(--vauto-border)] px-3">
-          {items.map((listing) => (
-            <MarketplaceListRow
+        <>
+          <div className="listing-card-row mt-1 divide-y divide-[var(--vauto-border)] rounded-2xl border border-[var(--vauto-border)] px-3">
+            {visible.map((listing) => (
+              <MarketplaceListRow
+                key={listing.id}
+                listing={listing}
+                priceColor={ui.price}
+              />
+            ))}
+          </div>
+          {loadMore}
+        </>
+      );
+    }
+    return (
+      <>
+        <div className="mt-3 grid grid-cols-2 gap-3">
+          {visible.map((listing) => (
+            <MarketplaceGridCard
               key={listing.id}
               listing={listing}
               priceColor={ui.price}
             />
           ))}
         </div>
-      );
-    }
-    return (
-      <div className="mt-3 grid grid-cols-2 gap-3">
-        {items.map((listing) => (
-          <MarketplaceGridCard
-            key={listing.id}
-            listing={listing}
-            priceColor={ui.price}
-          />
-        ))}
-      </div>
+        {loadMore}
+      </>
     );
   };
 
@@ -143,7 +182,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
           )}
         </>
       ) : (
-        renderListingCards(displayListings)
+        renderListingCards(displayListings, true)
       )}
 
       {theme === "autoplius" && displayListings.length > 0 && (

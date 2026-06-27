@@ -48,7 +48,7 @@ export async function runNativeLaunchRecovery(): Promise<boolean> {
     if (pending) {
       const crashes = Number(localStorage.getItem(CRASH_COUNT) || "0") + 1;
       localStorage.setItem(CRASH_COUNT, String(crashes));
-      if (crashes >= 1) {
+      if (crashes >= 3) {
         await wipeNativeAppStorage();
         wiped = true;
         sessionStorage.setItem(LAUNCH_MARKER, "1");

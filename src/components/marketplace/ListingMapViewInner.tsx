@@ -14,6 +14,8 @@ import { listingPath } from "@/lib/seo";
 
 import { getListingCoverImage } from "@/lib/listing-image";
 
+import { capNativeFeed, NATIVE_MAP_MAX } from "@/lib/native-perf";
+
 import type { ScoredListing } from "@/lib/types";
 
 import "leaflet/dist/leaflet.css";
@@ -300,13 +302,18 @@ function ClusterMarkers({
 
 export function ListingMapViewInner({ listings }: { listings: ScoredListing[] }) {
 
+  const cappedListings = useMemo(
+    () => capNativeFeed(listings, NATIVE_MAP_MAX),
+    [listings]
+  );
+
   const geoListings = useMemo(() => {
 
-    const withCoords = listings.map(ensureCoords).filter((l): l is GeoListing => l != null);
+    const withCoords = cappedListings.map(ensureCoords).filter((l): l is GeoListing => l != null);
 
     return spreadDuplicateCoords(withCoords);
 
-  }, [listings]);
+  }, [cappedListings]);
 
 
 

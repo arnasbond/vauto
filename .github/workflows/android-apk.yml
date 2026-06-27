@@ -46,7 +46,10 @@ jobs:
           grep -q vauto-api.onrender.com out/runtime-config.json
           echo "Static export OK ($(find out -type f | wc -l) files)"
 
-      - name: Sync Capacitor Android (bundled assets — no remote shell)
+      - name: Sync Capacitor Android (live web shell = same as vauto-chi.vercel.app)
+        env:
+          CAPACITOR_USE_REMOTE: "1"
+          CAPACITOR_REMOTE_URL: https://vauto-chi.vercel.app
         run: npx cap sync android
 
       - name: Build debug APK
@@ -68,9 +71,9 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.3** — Samsung Fold crash fix: auto-recovery, bundled UI, didesnė atmintis.
+            **v1.0.4** — Remote web shell (visada = vauto-chi.vercel.app). Naršymo atminties apsauga.
 
-            Atsisiųskite **vauto.apk** ir įdiekite Android telefone.
+            APK = plonas „dangtelis“. UI ir pataisymai kraunasi iš **tos pačios** gamybinės svetainės kaip naršyklėje — nereikia naujo APK kiekvienam web fixui.
 
             1. Atsisiųskite failą žemiau
             2. Atidarykite atsisiųstą APK

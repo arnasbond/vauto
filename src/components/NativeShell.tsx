@@ -4,7 +4,7 @@ import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { useAuth } from "@/context/AuthContext";
-import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import { logWakeEvent } from "@/lib/wake-word-engine";
 import {
   attachNativePushNavigation,
@@ -85,9 +85,16 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!Capacitor.isNativePlatform()) return;
 
-    let removeListener: (() => void) | undefined;
+    let removeState: (() => void) | undefined;
+    let removeUrl: (() => void) | undefined;
 
     void import("@capacitor/app").then(({ App }) => {
+      void App.addListener("appStateChange", ({ isActive }) => {
+        if (!isActive) stopBuddySpeech();
+      }).then((handle) => {
+        removeState = () => void handle.remove();
+      });
+
       void App.addListener("appUrlOpen", ({ url }) => {
         const payload = storeOAuthCallbackPayload(url);
         if (payload?.idToken) {
@@ -104,11 +111,14 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
           /* ignore malformed urls */
         }
       }).then((handle) => {
-        removeListener = () => void handle.remove();
+        removeUrl = () => void handle.remove();
       });
     });
 
-    return () => removeListener?.();
+    return () => {
+      removeState?.();
+      removeUrl?.();
+    };
   }, [router]);
 
   return (

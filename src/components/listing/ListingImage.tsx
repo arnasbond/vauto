@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import { useState } from "react";
+import { isNativeApp } from "@/lib/mobile-install";
 import { resolveListingImage } from "@/lib/listing-image";
 import type { Listing } from "@/lib/types";
 
@@ -31,6 +32,23 @@ export function ListingImage({
     const fallback = resolveListingImage({ ...listing, images: [] });
     if (src !== fallback) setSrc(fallback);
   };
+
+  if (isNativeApp()) {
+    return (
+      // eslint-disable-next-line @next/next/no-img-element
+      <img
+        src={src}
+        alt={alt}
+        loading="lazy"
+        decoding="async"
+        className={className}
+        onError={handleError}
+        style={fill ? { width: "100%", height: "100%", objectFit: "cover" } : undefined}
+        width={width}
+        height={height}
+      />
+    );
+  }
 
   return (
     <Image
