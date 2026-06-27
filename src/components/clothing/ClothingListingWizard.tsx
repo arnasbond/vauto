@@ -33,6 +33,11 @@ import {
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
 import { MagicMirrorPanel } from "@/components/clothing/MagicMirrorPanel";
+import { ClothingWizardInlineGuide } from "@/components/clothing/ClothingWizardInlineGuide";
+import {
+  buildClothingWizardHint,
+  isClothingWizardReady,
+} from "@/lib/clothing-wizard-guidance";
 
 const ACCENT = "#09b1a8";
 
@@ -158,15 +163,41 @@ export function ClothingListingWizard({
     onAttributeChange("shipping", next);
   };
 
-  const canPublish =
-    Boolean(previewImage) &&
-    draft.title.trim().length >= 2 &&
-    Boolean(categoryValue) &&
-    Boolean(attr(attrs, "size")) &&
-    Boolean(attr(attrs, "brand")) &&
-    Boolean(attr(attrs, "condition")) &&
-    selectedColors.length > 0 &&
-    draft.price > 0;
+  const canPublish = isClothingWizardReady({
+    userName,
+    hasPhoto: Boolean(previewImage),
+    title: draft.title,
+    categoryValue,
+    size: attr(attrs, "size"),
+    brand: attr(attrs, "brand"),
+    condition: attr(attrs, "condition"),
+    colorCount: selectedColors.length,
+    price: draft.price,
+  });
+
+  const friendlyHint = useMemo(
+    () =>
+      buildClothingWizardHint({
+        userName,
+        hasPhoto: Boolean(previewImage),
+        title: draft.title,
+        categoryValue,
+        size: attr(attrs, "size"),
+        brand: attr(attrs, "brand"),
+        condition: attr(attrs, "condition"),
+        colorCount: selectedColors.length,
+        price: draft.price,
+      }),
+    [
+      userName,
+      previewImage,
+      draft.title,
+      draft.price,
+      categoryValue,
+      attrs,
+      selectedColors.length,
+    ]
+  );
 
   const handleSaveDraft = () => {
     saveClothingListingDraft(
@@ -177,6 +208,10 @@ export function ClothingListingWizard({
   };
 
   const handlePublish = () => {
+    if (!canPublish) {
+      if (friendlyHint) onToast?.(friendlyHint, "info");
+      return;
+    }
     onUpdate({ category: "clothing" });
     clearClothingListingDraft();
     onPublish();
@@ -282,10 +317,10 @@ export function ClothingListingWizard({
 
         <div className="px-4 pt-5">
           {manualFallback && (
-            <p className="mb-4 rounded-2xl border border-[#b8ebe8] bg-[#e6f7f6] px-3 py-2 text-xs text-[#374151]">
-              AI nepavyko pilnai atpažinti — užpildykite prekės informaciją ranka.
-            </p>
+            <ClothingWizardInlineGuide message="Kai kurie laukai dar tušti — padėsiu juos užpildyti švelniai, žingsnis po žingsnio." />
           )}
+
+          <ClothingWizardInlineGuide message={canPublish ? null : friendlyHint} />
 
           <WardrobeProfileImporter
             userName={userName}
@@ -563,12 +598,13 @@ export function ClothingListingWizard({
 
           <button
             type="button"
-            disabled={!canPublish}
             onClick={handlePublish}
-            className="mb-3 w-full rounded-full py-3.5 text-base font-semibold text-white disabled:opacity-40"
+            className={`mb-3 w-full rounded-full py-3.5 text-base font-semibold text-white transition ${
+              canPublish ? "" : "opacity-90"
+            }`}
             style={{ backgroundColor: ACCENT }}
           >
-            Įkelti
+            {canPublish ? "Įkelti" : "Tęsti su AI pagalba"}
           </button>
           <button
             type="button"

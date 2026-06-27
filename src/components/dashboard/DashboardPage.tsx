@@ -18,9 +18,13 @@ import { PrivateSellerDashboard } from "@/components/dashboard/PrivateSellerDash
 
 import { SmartPromoteModal } from "@/components/dashboard/SmartPromoteModal";
 
+import { WardrobeCabinetSection } from "@/components/clothing/WardrobeCabinetSection";
+
 import { useVauto } from "@/context/VautoContext";
 
 import { togglePauseStatus } from "@/lib/listing-visibility";
+
+import { isWardrobeChameleonActive } from "@/lib/wardrobe-cabinet-mode";
 
 import type { Listing, UserProfile } from "@/lib/types";
 
@@ -55,6 +59,14 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
     openCheckout,
 
+    chameleonTheme,
+
+    detectedAdaptiveKey,
+
+    searchQuery,
+
+    chats,
+
   } = useVauto();
 
 
@@ -66,6 +78,17 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
 
   const sorted = useMemo(() => sortListingsForDashboard(listings), [listings]);
+
+  const wardrobeMode = useMemo(
+    () =>
+      isWardrobeChameleonActive({
+        chameleonTheme,
+        detectedAdaptiveKey,
+        searchQuery,
+        listings,
+      }),
+    [chameleonTheme, detectedAdaptiveKey, searchQuery, listings]
+  );
 
   const isEmployer = user.role === "pro";
 
@@ -97,8 +120,15 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
 
 
-  const listingGrid = (
-
+  const listingGrid = wardrobeMode ? (
+    <WardrobeCabinetSection
+      user={user}
+      listings={sorted}
+      chats={chats}
+      onEdit={(listing) => startEditListingFlow(listing)}
+      onMarkSold={(listing) => markListingSold(listing.id)}
+    />
+  ) : (
     <section className={listingsOnly ? "mt-2" : "mt-6"}>
 
       <div className="mb-3 flex items-center justify-between gap-2">
@@ -168,7 +198,6 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
       )}
 
     </section>
-
   );
 
 
@@ -177,7 +206,7 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
     <div className="dashboard-page">
 
-      {!listingsOnly && (
+      {!listingsOnly && !wardrobeMode && (
       <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-4">
 
         <span
@@ -260,6 +289,10 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
           {listingGrid}
 
         </>
+
+      ) : wardrobeMode ? (
+
+        listingGrid
 
       ) : (
 
