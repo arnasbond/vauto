@@ -1,6 +1,7 @@
 import type { AgentSideEffect, AgentToolContext } from "./agent-tools.js";
 import { executeAgentTool } from "./agent-tools.js";
 import { isConversationalSearchIntent } from "./search-agent.js";
+import { extractProductSearchTokens } from "../search-filter.js";
 
 const STATE_SEARCH_REPLY = "Atidarau skelbimus ekrane.";
 const STATE_EMPTY_SEARCH_REPLY = "Rezultatų nerasta.";
@@ -72,7 +73,7 @@ function canUseFastSearch(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 140) return false;
   if (isConversationalSearchIntent(t)) return false;
-  if (SELLER_RE.test(t)) return false;
+  if (SELLER_RE.test(t) && extractProductSearchTokens(t).length === 0) return false;
   if (SKIP_FAST.test(t)) return false;
   return true;
 }
@@ -99,12 +100,15 @@ function parseFastSearchParams(text: string, catalogSize: number) {
     };
   }
 
-  const query = stripSearchPrefixes(working);
-  if (query.length < 2) return null;
+  const productTokens = extractProductSearchTokens(working);
+  const query = productTokens.length
+    ? productTokens.join(" ")
+    : stripSearchPrefixes(working).toLowerCase();
+  if (query.length < 2 && !cityNominative && !detectCategory(working)) return null;
 
   return {
-    query: query.toLowerCase(),
-    category: detectCategory(query),
+    query,
+    category: detectCategory(query || working),
     cityNominative,
     limit,
   };

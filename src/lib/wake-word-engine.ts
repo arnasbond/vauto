@@ -1,3 +1,4 @@
+import { readLastSpeechHypothesis } from "@/lib/speech-transcript";
 import { logBuddyState } from "@/lib/buddy-voice";
 import { isMobileDevice, isNativeApp } from "@/lib/mobile-install";
 import { isAppForeground } from "@/lib/app-visibility";
@@ -69,14 +70,6 @@ function getRecognitionCtor():
   return window.SpeechRecognition ?? window.webkitSpeechRecognition;
 }
 
-function extractTranscript(ev: SpeechRecognitionEvent): string {
-  let text = "";
-  for (let i = ev.resultIndex; i < ev.results.length; i++) {
-    text += ev.results[i]?.[0]?.transcript ?? "";
-  }
-  return text.trim();
-}
-
 function stripWakeWord(text: string): string {
   return text.replace(WAKE_RE, "").trim();
 }
@@ -146,19 +139,19 @@ export function createWakeWordSession(
   };
 
   const handleResult = (ev: SpeechRecognitionEvent) => {
-    const transcript = extractTranscript(ev);
+    const { text: transcript, isFinal } = readLastSpeechHypothesis(ev);
     if (!transcript) return;
 
     logWakeEvent("transcript", {
       phase,
-      interim: !ev.results[ev.results.length - 1]?.isFinal,
+      interim: !isFinal,
       text: transcript.slice(0, 120),
     });
 
     if (phase === "processing") return;
 
     if (phase === "active") {
-      if (transcript.length >= 3) {
+      if (isFinal && transcript.length >= 3) {
         clearActiveTimer();
         callbacks.onCommand(transcript);
       }

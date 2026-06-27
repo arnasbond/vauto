@@ -300,23 +300,7 @@ export function buildDisplayListings(
 
   ) {
 
-    const organic = runDisplayPipeline({
-
-      ...input,
-
-      agentPinnedListingIds: null,
-
-    });
-
-    if (organic.length > 0) {
-
-      return { listings: organic, fallbackListings: [] };
-
-    }
-
-    const fallbackListings = buildNationwideFallback(input, localFilters);
-
-    return { listings: [], fallbackListings };
+    return { listings: [], fallbackListings: [] };
 
   }
 

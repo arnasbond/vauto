@@ -49,7 +49,10 @@ export function startLiveTranscript(
   };
 
   rec.onresult = (event) => {
-    handleSpeechRecognitionResult(event, onUpdate);
+    handleSpeechRecognitionResult(event, {
+      setInputValue: onUpdate,
+      setInterimCaption: onUpdate,
+    });
   };
 
   rec.onerror = () => {};

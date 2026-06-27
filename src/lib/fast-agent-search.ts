@@ -9,6 +9,10 @@ import {
 } from "@/lib/marketplace-view";
 import { isConversationalSearchIntent } from "@/lib/search-conversational-intent";
 import { buildEmptySearchReply } from "@/lib/agent-reply-display";
+import {
+  extractProductSearchTokens,
+  listingMatchesProductTokens,
+} from "@/lib/search-token-filter";
 
 /** 0 = no slice — process full catalog dynamically */
 export const UNLIMITED_SEARCH = 0;
@@ -57,29 +61,15 @@ export function canUseFastSearch(text: string): boolean {
   if (!t || t.length > 140) return false;
   if (isConversationalSearchIntent(t)) return false;
   if (isViewModeOnlyCommand(t)) return false;
-  if (detectSellerListingIntent(t)) return false;
+  if (detectSellerListingIntent(t) && extractProductSearchTokens(t).length === 0) return false;
   if (SKIP_FAST.test(t)) return false;
   if ((t.match(/\?/g) ?? []).length > 1) return false;
   return true;
 }
 
-function matchesProductTokens(haystack: string, query: string): boolean {
-  const tokens = query.split(/[\s,.;:!?]+/).filter((t) => t.length >= 2);
-  if (!tokens.length) return haystack.includes(query);
-
-  const collapsed = query.replace(/\s+/g, "");
-  if (collapsed.length >= 4) {
-    const hayCollapsed = haystack.replace(/\s+/g, "");
-    if (hayCollapsed.includes(collapsed)) return true;
-  }
-
-  const hits = tokens.filter((t) => haystack.includes(t)).length;
-  return hits >= Math.max(1, Math.ceil(tokens.length * 0.5));
-}
-
 function filterListings(listings: Listing[], params: FastSearchParams): Listing[] {
   const city = params.cityNominative ? normCity(params.cityNominative) : "";
-  const query = params.query;
+  const query = params.query?.trim() ?? "";
 
   let filtered = listings.filter((l) => l.price > 0 && !l.banned);
 
@@ -96,11 +86,11 @@ function filterListings(listings: Listing[], params: FastSearchParams): Listing[
   }
 
   if (query) {
+    const tokens = extractProductSearchTokens(query);
+    if (!tokens.length) return [];
     filtered = filtered.filter((l) => {
       if (!listingMatchesStrictBrandQuery(l, query)) return false;
-      const haystack =
-        `${l.title} ${l.description ?? ""} ${l.category} ${(l.tags ?? []).join(" ")} ${String(l.attributes?.make ?? "")}`.toLowerCase();
-      return matchesProductTokens(haystack, query);
+      return listingMatchesProductTokens(l, query);
     });
   }
 
@@ -147,7 +137,7 @@ export async function runFastAgentSearch(
   const browseAll = BROWSE_ALL.test(text);
 
   const params: FastSearchParams = {
-    query: browseAll ? "" : intent.cleanQuery,
+    query: browseAll ? "" : intent.cleanQuery || extractProductSearchTokens(text).join(" "),
     category: options?.wardrobeOnly ? "clothing" : intent.category,
     cityNominative: intent.cityNominative,
     radiusKm: intent.radiusKm,

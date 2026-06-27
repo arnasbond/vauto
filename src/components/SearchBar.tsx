@@ -18,6 +18,10 @@ import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
+import {
+  extractProductSearchTokens,
+  listingMatchesProductTokens,
+} from "@/lib/search-token-filter";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
 import { buildCurrentPageContext } from "@/lib/vauto-agent-client";
 import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
@@ -58,6 +62,15 @@ function applyFastSearchToGrid(
 ): Promise<string | false> {
   return runFastAgentSearch(query, listings, { userCity, wardrobeOnly }).then((fast) => {
     if (!fast) {
+      const tokens = extractProductSearchTokens(query);
+      if (tokens.length) {
+        const pool = wardrobeOnly
+          ? listings.filter((l) => l.category === "clothing")
+          : listings;
+        const matched = pool.filter((l) => listingMatchesProductTokens(l, query));
+        setAgentPinnedListings(matched.map((l) => l.id));
+        return query;
+      }
       setAgentPinnedListings(null);
       return false;
     }
@@ -76,7 +89,7 @@ function applyFastSearchToGrid(
       return fast.actions.searchQuery;
     }
     if (fast.actions.type === "empty_search") {
-      setAgentPinnedListings(null);
+      setAgentPinnedListings([]);
       if (fast.actions.filters) {
         setMarketplaceFilters(
           mergeAgentIntoMarketplaceFilters(
@@ -105,7 +118,6 @@ export function SearchBar({
     searchQuery,
     setSearchQuery,
     requestMediaConsent,
-    startListingFromQuery,
     setSearchVoiceMode,
     setSearchInputMode,
     applyVisualSearch,
@@ -212,12 +224,7 @@ export function SearchBar({
         return;
       }
 
-      if (startListingFromQuery(q)) {
-        setDraftQuery("");
-        setSearchQuery("");
-        inputRef.current?.blur();
-        return;
-      }
+      // Main search bar = buyer search only; seller wizard opens via /add or agent.
 
       if (isConversationalSearchIntent(q)) {
         setSearchInputMode(opts?.voice ? "voice" : "text");
@@ -292,7 +299,6 @@ export function SearchBar({
       setViewMode,
       setAgentOpen,
       sendAgentMessage,
-      startListingFromQuery,
       toggleSave,
       pathname,
       showToast,
@@ -343,10 +349,7 @@ export function SearchBar({
           setVoiceCaption("");
         },
         onInterim: (preview) => {
-          if (preview) {
-            setVoiceCaption(preview);
-            setDraftQuery(preview);
-          }
+          if (preview) setVoiceCaption(preview);
         },
       });
       voiceSessionRef.current = session;

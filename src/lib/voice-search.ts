@@ -152,13 +152,15 @@ export function startVoiceSearch(
       };
 
       rec.onresult = (event) => {
-        const { isFinal, text } = handleSpeechRecognitionResult(event, (value) => {
-          onInterim?.(value);
+        handleSpeechRecognitionResult(event, {
+          setInputValue: (value) => {
+            committedFinal = value;
+          },
+          setInterimCaption: (value) => {
+            onInterim?.(value);
+          },
         });
-        if (isFinal) {
-          committedFinal = text;
-          if (text) scheduleSilenceStop();
-        }
+        if (committedFinal.trim()) scheduleSilenceStop();
       };
 
       rec.onerror = (ev) => {

@@ -1,4 +1,4 @@
-import { adminPatchListing, getListings, updateListing } from "../repository.js";
+import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -607,7 +607,7 @@ export async function executeAgentTool(
 
   switch (name) {
     case "searchListings": {
-      const query = String(args.query ?? "").toLowerCase();
+      const query = String(args.query ?? "").trim();
       const category = args.category ? String(args.category) : undefined;
       const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
       const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
@@ -615,38 +615,21 @@ export async function executeAgentTool(
       const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
       const city = cityNominative ? normCity(cityNominative) : "";
 
-      let filtered = listings.filter((l) => l.price > 0);
-      if (category) filtered = filtered.filter((l) => l.category === category);
-      if (maxPrice != null && !Number.isNaN(maxPrice)) {
-        filtered = filtered.filter((l) => l.price <= maxPrice);
-      }
-      if (minPrice != null && !Number.isNaN(minPrice)) {
-        filtered = filtered.filter((l) => l.price >= minPrice);
-      }
-      if (city) {
-        filtered = filtered.filter(
-          (l) =>
-            normCity(l.location) === city ||
-            l.location.toLowerCase().includes(city)
-        );
-      }
-      if (query) {
-        const tokens = query
-          .split(/[\s,.;:!?]+/)
-          .filter((t) => t.length >= 2);
-        filtered = filtered.filter((l) => {
-          const haystack = `${l.title} ${l.description ?? ""} ${l.category}`.toLowerCase();
-          if (!tokens.length) return haystack.includes(query);
-          const hits = tokens.filter((t) => haystack.includes(t)).length;
-          return hits >= Math.max(1, Math.ceil(tokens.length * 0.34));
-        });
-      }
-
       const limitRaw = Number(args.limit);
       const limit =
-        Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : filtered.length;
-      const results = filtered.slice(0, limit);
-      const searchQuery = [query, category, city].filter(Boolean).join(" ").trim();
+        Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 500;
+
+      const filteredRows = await searchListingsFiltered({
+        query: query || undefined,
+        category,
+        city: city || undefined,
+        minPrice,
+        maxPrice,
+        limit,
+      });
+
+      const results = filteredRows.map((l) => toAgentListingSummary(l));
+      const searchQuery = [query, category, cityNominative].filter(Boolean).join(" ").trim();
 
       const searchFilters: AgentSearchFilters = {
         query: query || undefined,

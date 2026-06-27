@@ -538,8 +538,13 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     };
 
     rec.onresult = (event) => {
-      handleSpeechRecognitionResult(event, (value) => {
-        currentTranscript = value;
+      handleSpeechRecognitionResult(event, {
+        setInputValue: (value) => {
+          currentTranscript = value;
+        },
+        setInterimCaption: () => {
+          /* interim ignored — only final transcript is committed */
+        },
       });
       if (currentTranscript) scheduleSilence();
     };

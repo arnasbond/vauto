@@ -187,6 +187,97 @@ export async function getListings(): Promise<ApiListing[]> {
   }
 }
 
+export interface ListingSearchParams {
+  query?: string;
+  category?: string;
+  city?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  limit?: number;
+}
+
+/** SQL + strict token filter — never returns the full catalog when query is set. */
+export async function searchListingsFiltered(
+  params: ListingSearchParams
+): Promise<ApiListing[]> {
+  const {
+    extractProductSearchTokens,
+    listingMatchesProductTokens,
+  } = await import("./search-filter.js");
+
+  const queryText = params.query?.trim() ?? "";
+  const tokens = queryText ? extractProductSearchTokens(queryText) : [];
+  const cityNorm = params.city?.trim().toLowerCase() ?? "";
+
+  const conditions = [
+    "(status IS NULL OR status IS DISTINCT FROM 'sold')",
+    "banned = false",
+    "price > 0",
+  ];
+  const values: unknown[] = [];
+  let idx = 1;
+
+  if (params.category) {
+    conditions.push(`category = $${idx++}`);
+    values.push(params.category);
+  }
+  if (params.minPrice != null && !Number.isNaN(params.minPrice)) {
+    conditions.push(`price >= $${idx++}`);
+    values.push(params.minPrice);
+  }
+  if (params.maxPrice != null && !Number.isNaN(params.maxPrice)) {
+    conditions.push(`price <= $${idx++}`);
+    values.push(params.maxPrice);
+  }
+  if (cityNorm) {
+    conditions.push(`LOWER(location) LIKE $${idx++}`);
+    values.push(`%${cityNorm}%`);
+  }
+  for (const token of tokens) {
+    conditions.push(`(
+      LOWER(title) LIKE $${idx} OR
+      LOWER(COALESCE(description, '')) LIKE $${idx} OR
+      LOWER(category) LIKE $${idx} OR
+      COALESCE(tags::text, '[]') LIKE $${idx} OR
+      LOWER(COALESCE(attributes::text, '')) LIKE $${idx}
+    )`);
+    values.push(`%${token}%`);
+    idx++;
+  }
+
+  const limit =
+    params.limit != null && params.limit > 0 ? Math.min(params.limit, 500) : 500;
+  const sql = `${LISTING_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${idx}`;
+  values.push(limit);
+
+  let rows: ApiListing[];
+  try {
+    const dbRows = await query<ListingRow>(sql, values);
+    rows = mergeDbListingsWithDemoCatalog(dbRows.map(mapListingRow));
+  } catch {
+    rows = await getListings();
+    rows = rows.filter((l) => l.status !== "sold" && !l.banned && l.price > 0);
+    if (params.category) rows = rows.filter((l) => l.category === params.category);
+    if (params.minPrice != null && !Number.isNaN(params.minPrice)) {
+      rows = rows.filter((l) => l.price >= params.minPrice!);
+    }
+    if (params.maxPrice != null && !Number.isNaN(params.maxPrice)) {
+      rows = rows.filter((l) => l.price <= params.maxPrice!);
+    }
+    if (cityNorm) {
+      rows = rows.filter((l) => l.location.toLowerCase().includes(cityNorm));
+    }
+  }
+
+  if (queryText && tokens.length) {
+    rows = rows.filter((l) => listingMatchesProductTokens(l, queryText));
+  } else if (queryText && !tokens.length) {
+    return [];
+  }
+
+  return rows.slice(0, limit);
+}
+
 export async function insertListing(listing: ApiListing): Promise<void> {
   await ensureUser(listing.sellerId);
   await query(
