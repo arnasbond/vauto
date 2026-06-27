@@ -4,21 +4,21 @@ import android.content.ComponentCallbacks2;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.webkit.DownloadListener;
 import android.webkit.WebResourceRequest;
+import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
+import java.io.ByteArrayInputStream;
 
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "VautoMainActivity";
 
-    /** Bundled Capacitor shell (production APK). */
     private static final String HOST_LOCALHOST = "localhost";
-
-    /** Optional live fallback/error page only. */
     private static final String HOST_VERCEL = "vauto-chi.vercel.app";
 
     @Override
@@ -73,10 +73,19 @@ public class MainActivity extends BridgeActivity {
             webView.setWebViewClient(new VautoUrlGuardWebViewClient(bridge));
         }
 
-        // Never hand off to Android DownloadManager from inside the WebView shell.
         webView.setDownloadListener(
-            (url, userAgent, contentDisposition, mimeType, contentLength) ->
-                Log.w(TAG, "Blocked WebView download: " + url)
+            new DownloadListener() {
+                @Override
+                public void onDownloadStart(
+                    String url,
+                    String userAgent,
+                    String contentDisposition,
+                    String mimetype,
+                    long contentLength
+                ) {
+                    Log.w(TAG, "Swallowed download (blocked): " + url);
+                }
+            }
         );
     }
 
@@ -90,10 +99,56 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
+    static boolean isHardBlocked(String url) {
+        if (url == null || url.isEmpty()) return true;
+        String lower = url.toLowerCase();
+        if (lower.contains("github")) return true;
+        if (lower.contains("usercontent")) return true;
+        if (lower.contains("render.com")) return true;
+        if (lower.contains(".apk")) return true;
+        if (lower.contains("vauto.apk")) return true;
+        return false;
+    }
+
+    /** Block CDN/APK fetches only — allow render.com for auth fetch/XHR. */
+    static boolean isHardBlockedResource(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String lower = url.toLowerCase();
+        if (lower.contains("github")) return true;
+        if (lower.contains("usercontent")) return true;
+        if (lower.contains(".apk")) return true;
+        if (lower.contains("vauto.apk")) return true;
+        return false;
+    }
+
+    private static boolean isAllowedInAppUrl(String url) {
+        Uri uri;
+        try {
+            uri = Uri.parse(url);
+        } catch (Exception e) {
+            return false;
+        }
+
+        String scheme = uri.getScheme();
+        if (scheme == null) return false;
+
+        if ("file".equalsIgnoreCase(scheme)) return true;
+        if ("capacitor".equalsIgnoreCase(scheme)) return true;
+
+        if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
+            return false;
+        }
+
+        String host = uri.getHost();
+        if (host == null) return false;
+        host = host.toLowerCase();
+
+        return HOST_LOCALHOST.equals(host) || HOST_VERCEL.equals(host);
+    }
+
     /**
-     * Strict in-app navigation only. External URLs (GitHub, APK, Render API, browser)
-     * return true — consumed silently, no reload, no DownloadManager, no Chrome Custom Tab.
-     * Auth/API must use fetch/XHR from JS, not full-page WebView navigation.
+     * Blocks all external navigation and CDN redirects (incl. release-assets.githubusercontent.com).
+     * Never calls super for blocked URLs — no launchIntent, no DownloadManager loop.
      */
     private static final class VautoUrlGuardWebViewClient extends BridgeWebViewClient {
 
@@ -102,28 +157,42 @@ public class MainActivity extends BridgeActivity {
         }
 
         @Override
-        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
-            if (request != null && !request.isForMainFrame()) {
-                return false;
+        public WebResourceResponse shouldInterceptRequest(WebView view, WebResourceRequest request) {
+            if (request != null && request.getUrl() != null) {
+                String url = request.getUrl().toString();
+                if (isHardBlockedResource(url)) {
+                    Log.w(TAG, "Intercept-blocked: " + url);
+                    return emptyResponse();
+                }
             }
-            Uri uri = request != null ? request.getUrl() : null;
-            return handleNavigation(uri != null ? uri.toString() : null);
+            return super.shouldInterceptRequest(view, request);
+        }
+
+        @Override
+        public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
+            String url =
+                request != null && request.getUrl() != null ? request.getUrl().toString() : null;
+            return handleNavigation(url, request == null || request.isForMainFrame());
         }
 
         @SuppressWarnings("deprecation")
         @Override
         public boolean shouldOverrideUrlLoading(WebView view, String url) {
-            return handleNavigation(url);
+            return handleNavigation(url, true);
         }
 
-        /** @return true = block navigation (handled), false = allow WebView to load */
-        private boolean handleNavigation(String url) {
-            if (url == null || url.isEmpty()) {
+        /** @return true = consume URL (block), false = allow WebView load */
+        private boolean handleNavigation(String url, boolean mainFrame) {
+            if (isHardBlocked(url)) {
+                Log.w(TAG, "Hard-blocked navigation: " + url);
                 return true;
             }
 
-            if (isHardBlocked(url)) {
-                Log.w(TAG, "Hard-blocked URL: " + url);
+            if (!mainFrame) {
+                return false;
+            }
+
+            if (url == null || url.isEmpty()) {
                 return true;
             }
 
@@ -135,40 +204,8 @@ public class MainActivity extends BridgeActivity {
             return true;
         }
 
-        private static boolean isHardBlocked(String url) {
-            String lower = url.toLowerCase();
-            if (lower.contains(".apk")) return true;
-            if (lower.contains("github.com")) return true;
-            if (lower.contains("/releases/download/")) return true;
-            if (lower.contains("/releases/tag/")) return true;
-            if (lower.contains("vauto-api.onrender.com")) return true;
-            if (lower.contains("/download/vauto")) return true;
-            return false;
-        }
-
-        private static boolean isAllowedInAppUrl(String url) {
-            Uri uri;
-            try {
-                uri = Uri.parse(url);
-            } catch (Exception e) {
-                return false;
-            }
-
-            String scheme = uri.getScheme();
-            if (scheme == null) return false;
-
-            if ("file".equalsIgnoreCase(scheme)) return true;
-            if ("capacitor".equalsIgnoreCase(scheme)) return true;
-
-            if (!"http".equalsIgnoreCase(scheme) && !"https".equalsIgnoreCase(scheme)) {
-                return false;
-            }
-
-            String host = uri.getHost();
-            if (host == null) return false;
-            host = host.toLowerCase();
-
-            return HOST_LOCALHOST.equals(host) || HOST_VERCEL.equals(host);
+        private static WebResourceResponse emptyResponse() {
+            return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream(new byte[0]));
         }
     }
 }

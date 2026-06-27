@@ -70,7 +70,7 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.9 (build 11)** — Strict WebView URL guard: only localhost/Vercel in-app; block APK/GitHub/API navigation.
+            **v1.1.0** — Block GitHub CDN (usercontent) + empty DownloadListener; no install UI in native app after login.
 
             **Rekomenduojama nuoroda:** https://vauto-chi.vercel.app/download/vauto.apk
 

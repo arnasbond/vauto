@@ -30,7 +30,10 @@ export function isNativeApp(): boolean {
   if (platform === "android" || platform === "ios") return true;
   const bridge = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
     .Capacitor;
-  return bridge?.isNativePlatform?.() === true;
+  if (bridge?.isNativePlatform?.() === true) return true;
+  // Bundled Capacitor shell serves from https://localhost
+  if (window.location.hostname === "localhost" && isAndroid()) return true;
+  return false;
 }
 
 export function isInstalledPwa(): boolean {
@@ -119,6 +122,7 @@ async function shareInstallPackage(payload: NativeSharePayload): Promise<boolean
 }
 
 export async function shareAndroidApk(): Promise<boolean> {
+  if (isNativeApp()) return false;
   return shareInstallPackage({
     title: "Vauto Android programėlė",
     text: "Atsisiųsk Vauto APK — lietuviška išmani skelbimų programėlė visoje Lietuvoje.",

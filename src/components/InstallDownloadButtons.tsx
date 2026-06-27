@@ -38,26 +38,16 @@ export function InstallDownloadButtons({
     return "android";
   }, [preferred]);
 
+  if (nativeApp) {
+    return null;
+  }
+
   const handleShare = async (platform: "android" | "ios") => {
     await (platform === "ios" ? shareIosPwa() : shareAndroidApk());
     onShare?.(platform);
   };
 
-  const androidBlock = nativeApp ? (
-    <div
-      className={cn(
-        "rounded-2xl border p-4",
-        "border-green-200 bg-green-50"
-      )}
-    >
-      <p className="text-sm font-semibold text-green-800">
-        Vauto jau veikia šioje programėlėje
-      </p>
-      <p className="mt-1 text-xs text-green-700">
-        APK atsisiuntimas čia nereikalingas — naudokite meniu apačioje.
-      </p>
-    </div>
-  ) : (
+  const androidBlock = (
     <div
       className={cn(
         "rounded-2xl border p-4",
@@ -131,9 +121,8 @@ export function InstallDownloadButtons({
     </div>
   );
 
-  const ordered = nativeApp ? (
-    androidBlock
-  ) : primaryPlatform === "ios" ? (
+  const ordered =
+    primaryPlatform === "ios" ? (
       <>
         {iosBlock}
         {androidBlock}
@@ -153,7 +142,7 @@ export function InstallDownloadButtons({
         className
       )}
     >
-      {(iosDevice || androidDevice) && !nativeApp && (
+      {(iosDevice || androidDevice) && (
         <p className="flex items-center gap-2 text-xs text-[var(--vauto-text-muted)]">
           <Download className="h-3.5 w-3.5 text-[var(--vauto-blue)]" />
           {iosDevice
@@ -162,13 +151,11 @@ export function InstallDownloadButtons({
         </p>
       )}
       {ordered}
-      {!nativeApp && (
-        <p className="text-center text-[10px] text-[var(--vauto-text-muted)]">
-          <a href={INSTALL_PAGE_URL} className="underline">
-            Pilnos instrukcijos
-          </a>
-        </p>
-      )}
+      <p className="text-center text-[10px] text-[var(--vauto-text-muted)]">
+        <a href={INSTALL_PAGE_URL} className="underline">
+          Pilnos instrukcijos
+        </a>
+      </p>
     </div>
   );
 }
