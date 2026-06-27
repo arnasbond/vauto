@@ -57,6 +57,10 @@ public class MainActivity extends BridgeActivity {
         if (!(webView.getWebChromeClient() instanceof VautoWebChromeClient)) {
             webView.setWebChromeClient(new VautoWebChromeClient(bridge));
         }
+
+        if (!(webView.getWebViewClient() instanceof VautoWebViewClient)) {
+            webView.setWebViewClient(new VautoWebViewClient(bridge));
+        }
     }
 
     private void trimWebViewMemory(boolean aggressive) {

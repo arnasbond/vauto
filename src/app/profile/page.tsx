@@ -35,10 +35,12 @@ import { ProfileViewProvider } from "@/lib/profile-view";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
+import { isNativeApp } from "@/lib/mobile-install";
 import { useVauto } from "@/context/VautoContext";
 
 export default function ProfilePage() {
   const { openAuthModal } = useAuth();
+  const nativeApp = isNativeApp();
   const {
     user,
     listings,
@@ -90,13 +92,15 @@ export default function ProfilePage() {
           >
             Išbandyti VAUTO Spintą be prisijungimo
           </Link>
-          <Link
-            href="/install/"
-            className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)] hover:text-[var(--vauto-primary)]"
-          >
-            <Smartphone className="h-3.5 w-3.5" />
-            Įdiegti programėlę
-          </Link>
+          {!nativeApp && (
+            <Link
+              href="/install/"
+              className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)] hover:text-[var(--vauto-primary)]"
+            >
+              <Smartphone className="h-3.5 w-3.5" />
+              Įdiegti programėlę
+            </Link>
+          )}
         </div>
       </div>
     );
@@ -179,13 +183,15 @@ export default function ProfilePage() {
         {(user.role === "pro" || isSuperAdminUser(user)) && <SystemDiagnosticsCard />}
       </ProfileAccordion>
 
-      <ProfileAccordion
-        title="Atsisiųsti programėlę"
-        subtitle="Android APK · iPhone per Safari (PWA)"
-        icon={<Smartphone className="h-5 w-5 text-[var(--vauto-primary)]" />}
-      >
-        <InstallDownloadButtons showShare />
-      </ProfileAccordion>
+      {!nativeApp && (
+        <ProfileAccordion
+          title="Atsisiųsti programėlę"
+          subtitle="Android APK · iPhone per Safari (PWA)"
+          icon={<Smartphone className="h-5 w-5 text-[var(--vauto-primary)]" />}
+        >
+          <InstallDownloadButtons showShare />
+        </ProfileAccordion>
+      )}
     </DashboardShell>
     </ProfileViewProvider>
   );

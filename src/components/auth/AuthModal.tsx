@@ -190,8 +190,16 @@ export function AuthModal({
   const displayError = error ?? otpError;
 
   return (
-    <div className="fixed inset-0 z-[200] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center">
-      <div className="vauto-auth-modal w-full max-w-md rounded-t-3xl p-6 shadow-2xl sm:rounded-3xl">
+    <div
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center"
+      onClick={(e) => {
+        e.stopPropagation();
+      }}
+    >
+      <div
+        className="vauto-auth-modal w-full max-w-md rounded-t-3xl p-6 shadow-2xl sm:rounded-3xl"
+        onClick={(e) => e.stopPropagation()}
+      >
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-white">Prisijungti prie Vauto</h2>

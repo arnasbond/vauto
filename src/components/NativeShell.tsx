@@ -11,6 +11,7 @@ import {
   registerNativePush,
 } from "@/lib/native-push";
 import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
+import { attachNativeInstallLinkBlocker } from "@/lib/native-link-blocker";
 import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
@@ -21,6 +22,10 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     attachNativePushNavigation((path) => router.push(path));
   }, [router]);
+
+  useEffect(() => {
+    return attachNativeInstallLinkBlocker();
+  }, []);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !isAuthenticated) return;

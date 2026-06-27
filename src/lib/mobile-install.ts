@@ -22,7 +22,12 @@ export type MobileInstallPlatform = "android" | "ios" | "other";
 
 export function isNativeApp(): boolean {
   if (typeof window === "undefined") return false;
-  return Capacitor.isNativePlatform();
+  if (Capacitor.isNativePlatform()) return true;
+  const platform = Capacitor.getPlatform();
+  if (platform === "android" || platform === "ios") return true;
+  const bridge = (window as Window & { Capacitor?: { isNativePlatform?: () => boolean } })
+    .Capacitor;
+  return bridge?.isNativePlatform?.() === true;
 }
 
 export function isInstalledPwa(): boolean {

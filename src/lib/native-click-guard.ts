@@ -1,6 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 
-const DEFAULT_MS = 450;
+const DEFAULT_MS = 900;
 
 /** Prevent ghost taps hitting links under a closing modal (BottomNav, APK download). */
 export function blockNativeClickThrough(ms = DEFAULT_MS): void {

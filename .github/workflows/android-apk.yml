@@ -46,18 +46,17 @@ jobs:
           grep -q vauto-api.onrender.com out/runtime-config.json
           echo "Static export OK ($(find out -type f | wc -l) files)"
 
-      - name: Sync Capacitor Android (live web shell = same as vauto-chi.vercel.app)
-        env:
-          CAPACITOR_USE_REMOTE: "1"
-          CAPACITOR_REMOTE_URL: https://vauto-chi.vercel.app
+      - name: Sync Capacitor Android (bundled assets — stable like vauto.vercel.apk)
         run: npx cap sync android
 
       - name: Build debug APK
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 
-      - name: Prepare release asset
-        run: cp android/app/build/outputs/apk/debug/app-debug.apk vauto.apk
+      - name: Prepare release assets
+        run: |
+          cp android/app/build/outputs/apk/debug/app-debug.apk vauto.apk
+          cp android/app/build/outputs/apk/debug/app-debug.apk vauto.vercel.apk
 
       - name: Delete previous android-latest release
         continue-on-error: true
@@ -71,16 +70,18 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.7** — Fix OTP login ghost-tap → GitHub APK; hide download link inside native app.
+            **v1.0.8** — Grąžintas stabilus bundled APK (kaip senasis vauto.vercel.apk). Blokuojamos GitHub APK nuorodos programėlėje po prisijungimo.
 
-            Live web shell — UI sinchronizuotas su vauto-chi.vercel.app.
+            UI įdėtas į APK — prisijungimas nebe priklauso nuo nuotolinio Vercel shell.
 
-            1. Atsisiųskite failą žemiau
+            1. Atsisiųskite **vauto.apk** arba **vauto.vercel.apk** (tas pats failas)
             2. Atidarykite atsisiųstą APK
             3. Jei prašo — leiskite diegimą iš nežinomų šaltinių
             4. Paleiskite programėlę „Vauto“
-            5. Jei turėjote senesnę versiją — ištrinkite ją prieš diegiant
-          files: vauto.apk
+            5. **Ištrinkite senesnę versiją** prieš diegiant
+          files: |
+            vauto.apk
+            vauto.vercel.apk
           make_latest: true
 
       - uses: actions/upload-artifact@v4

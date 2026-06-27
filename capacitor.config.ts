@@ -4,9 +4,8 @@ const productionWebUrl =
   process.env.CAPACITOR_REMOTE_URL?.trim() || "https://vauto-chi.vercel.app";
 
 /**
- * Production APK = remote shell → always loads live web (vauto-chi.vercel.app).
- * Same fixes as browser; only the thin native wrapper is baked into the APK.
- * Set CAPACITOR_USE_REMOTE=0 for offline bundled dev builds.
+ * Production APK = bundled `out/` assets (stable login, works offline at launch).
+ * Set CAPACITOR_USE_REMOTE=1 only for dev parity testing against live Vercel.
  */
 const useRemoteShell =
   process.env.CAPACITOR_USE_REMOTE === "1" ||
@@ -28,8 +27,6 @@ const config: CapacitorConfig = {
         androidScheme: "https",
         iosScheme: "capacitor",
         cleartext: false,
-        /** Bundled out/index.html when remote URL fails (cache wipe / offline). */
-        errorPath: "index.html",
         allowNavigation: [
           "vauto-chi.vercel.app",
           "vauto-api.onrender.com",

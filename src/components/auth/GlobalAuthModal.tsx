@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef } from "react";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useAuth } from "@/context/AuthContext";
@@ -10,6 +10,7 @@ import { blockNativeClickThrough } from "@/lib/native-click-guard";
 /** App-wide login modal — opened when guest tries to publish a listing */
 export function GlobalAuthModal() {
   const router = useRouter();
+  const pathname = usePathname();
   const {
     authModalOpen,
     closeAuthModal,
@@ -35,12 +36,16 @@ export function GlobalAuthModal() {
     const path = authRedirectPath;
     const timer = window.setTimeout(() => {
       if (path) {
-        router.replace(path);
+        const target = path.replace(/\/$/, "") || "/";
+        const current = (pathname ?? "/").replace(/\/$/, "") || "/";
+        if (target !== current) {
+          router.replace(path);
+        }
         clearAuthRedirect();
       }
       closeAuthModal();
       wasOpen.current = false;
-    }, Capacitor.isNativePlatform() ? 400 : 0);
+    }, Capacitor.isNativePlatform() ? 700 : 0);
 
     return () => window.clearTimeout(timer);
   }, [
@@ -49,6 +54,7 @@ export function GlobalAuthModal() {
     clearAuthRedirect,
     closeAuthModal,
     router,
+    pathname,
   ]);
 
   return (
