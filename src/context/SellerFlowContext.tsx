@@ -873,6 +873,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     });
 
     let published = newListing;
+    setListings((prev) => [newListing, ...prev]);
+    setLastPublishedListing(newListing);
+    setSellerStep("published");
+    showToast("Skelbimas sėkmingai įkeltas!", "success");
+
     if (isDataApiEnabled()) {
       void apiUpdateUser({
         ...user,
@@ -882,6 +887,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       });
       const createRes = await apiCreateListing(newListing, user.id);
       if (!createRes.ok) {
+        setListings((prev) => prev.filter((l) => l.id !== newListing.id));
+        setLastPublishedListing(null);
+        setSellerStep("confirmation");
         const msg = `Nepavyko publikuoti: ${createRes.error}`;
         setSyncError(msg);
         showToast(msg, "error");
@@ -891,12 +899,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         ...createRes.data,
         slug: createRes.data.slug ?? newListing.slug,
       });
+      setListings((prev) =>
+        prev.map((l) => (l.id === newListing.id ? published : l))
+      );
+      setLastPublishedListing(published);
     }
 
-    showToast("Skelbimas sėkmingai įkeltas!", "success");
-    setListings((prev) => [published, ...prev]);
-    setLastPublishedListing(published);
-    setSellerStep("published");
     scheduleSellerEngagementPush(published.id, published.location, published.title);
     scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {

@@ -4,7 +4,6 @@ import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishS
 import {
   Briefcase,
   Building2,
-  Camera,
   Car,
   ChevronRight,
   ClipboardList,
@@ -45,7 +44,7 @@ import {
   buildLocationString,
   type PropertyTypeId,
 } from "@/lib/real-estate-catalog";
-import { capturePhoto } from "@/lib/native-media";
+import { ListingGalleryFileInput } from "@/components/listing/ListingGalleryFileInput";
 import { parseVideoUrl } from "@/lib/video-url";
 
 const ACCENT = "#c62828";
@@ -866,19 +865,20 @@ export function RealEstateListingWizard({
             <p className="mb-2 text-xs text-[#757575]">
               Galite įkelti iki 50 nuotraukų. Maks. dydis 16 MB. Formatai: JPG, PNG, WEBP.
             </p>
-            <button
-              type="button"
-              onClick={() =>
-                requestMediaConsent(async () => {
-                  const photo = await capturePhoto();
-                  if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-                })
-              }
+            <ListingGalleryFileInput
+              requestConsent={requestMediaConsent}
+              maxFiles={50}
               className="mb-4 flex w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-[#4caf50] bg-[#f1f8e9] px-4 py-8 text-[#2e7d32] hover:bg-[#e8f5e9]"
-            >
-              <Camera className="h-8 w-8" />
-              <span className="text-sm font-semibold">Įkelkite nuotraukų (iki 50)</span>
-            </button>
+              label="Įkelkite nuotraukų (iki 50)"
+              onFilesSelected={(files) => {
+                const file = files[0];
+                if (!file) return;
+                const reader = new FileReader();
+                reader.onload = () =>
+                  onMediaChange({ imageDataUrl: reader.result as string });
+                reader.readAsDataURL(file);
+              }}
+            />
             {previewImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img src={previewImage} alt="" className="mb-4 max-h-48 w-full rounded-md object-cover" />

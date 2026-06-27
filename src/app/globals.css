@@ -909,7 +909,31 @@ body.chameleon-autoplius .nt-wizard-chip-active {
   min-height: 100%;
 }
 
-/** File inputs must stay out of display:none for mobile camera capture */
+/** File inputs must stay out of display:none for mobile gallery picker */
+.listing-gallery-file-input {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 1px;
+  height: 1px;
+  opacity: 0.01;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+[data-app-theme="dark"] .zero-ui-screen-chrome h2,
+[data-app-theme="dark"] .zero-ui-screen-chrome .text-\[var\(--portal-text\,\#111827\)\] {
+  color: #f8fafc !important;
+}
+
+[data-app-theme="dark"] .listing-social-option-label,
+[data-app-theme="dark"] .listing-social-publish h3 {
+  color: #f1f5f9 !important;
+}
+
+[data-app-theme="dark"] .listing-social-option {
+  background: color-mix(in srgb, var(--portal-wizard-surface, #1e293b) 92%, #ffffff 8%) !important;
+}
 .native-file-input {
   position: fixed;
   top: 0;
