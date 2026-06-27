@@ -92,6 +92,7 @@ export interface VautoAgentRequest {
     sessionExpired?: boolean;
     sessionLastActiveAt?: number;
     lastSessionTopic?: string;
+    pendingImageUrls?: string[];
     monetization?: {
       tier?: "free" | "business_pro";
       activeBoost?: boolean;
@@ -323,6 +324,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   if (req.context.currentView) {
     wizardBits.push(`currentView=${req.context.currentView}`);
   }
+  if (req.context.pendingImageUrls?.length) {
+    wizardBits.push(
+      `pendingImageUrls=${JSON.stringify(req.context.pendingImageUrls.slice(0, 6))}`
+    );
+  }
   if (wizardBits.length) {
     contents.unshift({
       role: "user",
@@ -342,6 +348,17 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     contents.unshift({
       role: "user",
       parts: [{ text: pageContextBlock }],
+    });
+  }
+
+  if (req.context.pendingImageUrls?.length) {
+    contents.unshift({
+      role: "user",
+      parts: [
+        {
+          text: `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\nimageUrls: ${JSON.stringify(req.context.pendingImageUrls.slice(0, 6))}`,
+        },
+      ],
     });
   }
 
@@ -476,6 +493,25 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   const soldResult = soldCall?.result as { message?: string; ok?: boolean } | undefined;
   if (soldResult?.ok && soldResult.message) {
     finalText = soldResult.message;
+  }
+
+  const scanCall = toolCalls.find((t) => t.name === "scanListingPhotos");
+  const scanResult = scanCall?.result as {
+    ok?: boolean;
+    voiceAnnouncement?: string;
+    message?: string;
+  } | undefined;
+  if (scanResult?.ok && (scanResult.voiceAnnouncement || scanResult.message)) {
+    finalText = scanResult.voiceAnnouncement ?? scanResult.message ?? finalText;
+  }
+
+  const priceCall = toolCalls.find((t) => t.name === "analyzeMarketPrice");
+  const priceResult = priceCall?.result as {
+    smartPriceAdvice?: string;
+    proposedPrice?: number;
+  } | undefined;
+  if (priceResult?.smartPriceAdvice && priceResult.proposedPrice) {
+    finalText = priceResult.smartPriceAdvice;
   }
 
   const searchSideEffect =

@@ -256,12 +256,14 @@ export function SearchBar({
     });
   };
 
-  const routeToGeminiAgent = (text: string) => {
+  const routeToGeminiAgent = (text: string, photoUrls?: string[]) => {
     const q = sanitizeSearchQuery(text, "final");
     if (!q) return;
     setDraftQuery(q);
     setSearchQuery(q);
-    void sendAgentMessage(q);
+    void sendAgentMessage(q, {
+      pendingImageUrls: photoUrls?.filter(Boolean).slice(0, 6),
+    });
   };
 
   const handlePhotoSearch = () => {
@@ -289,7 +291,8 @@ export function SearchBar({
         setSearchInputMode("photo");
         setSearchVoiceMode(false);
         routeToGeminiAgent(
-          result.extraContext?.trim() || `Noriu įkelti skelbimą: ${vision.title}`
+          result.extraContext?.trim() || `Noriu įkelti skelbimą: ${vision.title}`,
+          result.photos
         );
         return;
       }

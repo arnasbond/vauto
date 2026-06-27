@@ -59,6 +59,7 @@ import { focusSearchOutcome } from "@/lib/search-results-focus";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
+  pendingImageUrls?: string[];
 }
 
 interface VautoAgentContextValue {
@@ -431,6 +432,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             sessionExpired: sessionExpired || undefined,
             sessionLastActiveAt: lastActiveAt ?? undefined,
             lastSessionTopic,
+            pendingImageUrls: options?.pendingImageUrls,
             lastError,
             isAuthenticated,
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,

@@ -55,6 +55,7 @@ export interface VautoAgentContext {
   sessionExpired?: boolean;
   sessionLastActiveAt?: number;
   lastSessionTopic?: string;
+  pendingImageUrls?: string[];
   monetization?: {
     tier?: "free" | "business_pro";
     activeBoost?: boolean;

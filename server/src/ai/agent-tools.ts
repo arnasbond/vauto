@@ -14,12 +14,13 @@ import {
 } from "./lithuanian-location-normalize.js";
 import { buildSellerContextualVoiceFollowUp } from "./seller-voice-prompt.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
-import { runMarketPriceAnalysis } from "./market-price-analysis.js";
+import { runMarketPriceAnalysis, type MarketPriceAnalysisResult } from "./market-price-analysis.js";
 import {
   buildProactivePricingMessage,
   buildProactiveSearchResetMessage,
 } from "./proactive-agent.js";
 import { scheduleDeferredListingMarketAnalysis } from "./background-market-analysis.js";
+import { hasAiKey, visionExtractJson } from "./llm-provider.js";
 import type { MyListingForAgent } from "./user-agent-context.js";
 import {
   buildBusinessProUpsellMessage,
@@ -99,6 +100,183 @@ export interface AgentToolContext {
     location?: string;
     category?: string;
     attributes?: Record<string, string>;
+  };
+}
+
+const VISION_LISTING_SCHEMA = `{
+  "title": "string",
+  "price": "number",
+  "location": "string",
+  "description": "string",
+  "category": "vehicles | electronics | real_estate | clothing | services | home | other",
+  "confidence": "number 0-1",
+  "attributes": {
+    "color": "string — spalva",
+    "bodyType": "string — kėbulo tipas (sedanas, hečbekas, SUV…)",
+    "fuelType": "string",
+    "make": "string",
+    "model": "string",
+    "year": "string",
+    "mileage": "string",
+    "condition": "string — nauja/naudota",
+    "rooms": "string — kambarių skaičius",
+    "area": "string — plotas m²",
+    "equipment": "string — įrengimas/baldai/technika",
+    "partType": "string"
+  }
+}`;
+
+const VISION_FIELD_LABELS: Record<string, string> = {
+  color: "spalva",
+  bodyType: "kėbulo tipas",
+  fuelType: "kuro tipas",
+  make: "markė",
+  model: "modelis",
+  year: "metai",
+  mileage: "rida",
+  condition: "būklė",
+  rooms: "kambarių skaičius",
+  area: "plotas",
+  equipment: "įrengimas",
+  partType: "dalies tipas",
+};
+
+function parseVisionAttributes(raw: unknown): Record<string, string> {
+  if (!raw || typeof raw !== "object") return {};
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (v == null || v === "") continue;
+    out[k] = String(v).trim();
+  }
+  return out;
+}
+
+function collectFilledVisionLabels(attributes: Record<string, string>): string[] {
+  return Object.keys(attributes)
+    .filter((k) => attributes[k]?.trim())
+    .map((k) => VISION_FIELD_LABELS[k] ?? k);
+}
+
+export function buildSmartPriceAdvisorMessage(
+  userName: string | undefined,
+  proposedPrice: number,
+  analysis: MarketPriceAnalysisResult
+): string {
+  const firstName = (userName ?? "drauge").split(/\s+/)[0] || "drauge";
+
+  if (proposedPrice <= 0) {
+    return analysis.message;
+  }
+
+  if (!analysis.medianPrice || analysis.sampleSize < 1) {
+    return `${firstName}, ${proposedPrice} € įrašiau — ${analysis.message.toLowerCase()}`;
+  }
+
+  const median = analysis.medianPrice;
+  const ratio = proposedPrice / median;
+
+  if (ratio <= 0.92) {
+    return `${firstName}, ${proposedPrice} € — puiki kaina! VAUTO duomenimis panašūs skelbimai ~${median} € — esi konkurencingas.`;
+  }
+  if (ratio <= 1.08) {
+    return `${firstName}, ${proposedPrice} € — kaip tik viduryje! Pagal ${analysis.sampleSize} panašius skelbimus vidurkis ~${median} €.`;
+  }
+  if (ratio <= 1.2) {
+    return `${firstName}, ${proposedPrice} € šiek tiek virš vidurkio (~${median} €). Vis dar realu — jei nori greičiau parduoti, galime nusileisti 5–8 %.`;
+  }
+  return `${firstName}, ${proposedPrice} € žymiai aukščiau rinkos (~${median} €). Kaip brokeris patarsiu: apsvarstyk ${Math.round(median * 1.02)}–${Math.round(median * 1.05)} € greitesniam pardavimui.`;
+}
+
+function buildVisionScanAnnouncement(
+  userName: string | undefined,
+  labels: string[]
+): string {
+  const firstName = (userName ?? "drauge").split(/\s+/)[0] || "drauge";
+  if (!labels.length) {
+    return `${firstName}, nuotraukas peržiūrėjau — reikia dar kelių detalių. Kokią kainą planuoji?`;
+  }
+  if (labels.length === 1) {
+    return `${firstName}, pagal nuotraukas jau užpildžiau ${labels[0]!} lauką!`;
+  }
+  const last = labels[labels.length - 1]!;
+  const rest = labels.slice(0, -1).join(", ");
+  return `${firstName}, pagal nuotraukas jau užpildžiau ${rest} ir ${last} laukus!`;
+}
+
+async function runVisionListingScan(
+  imageUrls: string[],
+  opts: {
+    category?: string;
+    city?: string;
+    userCity: string;
+    existingDraft?: AgentToolContext["listingDraft"];
+  }
+): Promise<{
+  draft: {
+    title: string;
+    description?: string;
+    price: number;
+    location: string;
+    contact: string;
+    category: string;
+    confidence: number;
+    attributes?: Record<string, string>;
+  };
+  filledFieldLabels: string[];
+  voiceAnnouncement: string;
+}> {
+  if (!hasAiKey()) {
+    throw new Error("GEMINI_API_KEY not configured for vision scan");
+  }
+
+  const urls = imageUrls.filter(Boolean).slice(0, 6);
+  if (!urls.length) {
+    throw new Error("imageUrls are required for vision scan");
+  }
+
+  const city = opts.city?.trim()
+    ? resolveAgentDefaultCity(opts.city)
+    : opts.userCity;
+
+  const raw = await visionExtractJson(
+    `Nuskenuok prekės/objekto nuotraukas ir užpildyk techninius laukus lietuviškam skelbimui.
+Automobiliui — make, model, year, color, bodyType, fuelType, mileage, condition.
+NT — rooms, area, equipment. Elektronikai — condition, color.
+JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.category ?? "auto"}.`,
+    urls
+  );
+
+  const visionAttrs = parseVisionAttributes(raw.attributes);
+  const base = opts.existingDraft ?? {};
+  const mergedAttrs = {
+    ...(base.attributes ?? {}),
+    ...visionAttrs,
+  };
+
+  const enriched = enrichVehicleListingDraftFromArgs(
+    String(raw.title ?? base.title ?? "Skelbimas"),
+    String(raw.description ?? base.description ?? ""),
+    String(raw.category ?? base.category ?? opts.category ?? "other"),
+    mergedAttrs
+  );
+
+  const filledFieldLabels = collectFilledVisionLabels(visionAttrs);
+
+  const draft = {
+    title: enriched.title,
+    description: enriched.description,
+    price: Number(raw.price) || base.price || 0,
+    location: String(raw.location ?? base.location ?? city),
+    contact: "",
+    category: enriched.category,
+    confidence: Number(raw.confidence) || 0.88,
+    attributes: enriched.attributes,
+  };
+
+  return {
+    draft,
+    filledFieldLabels,
+    voiceAnnouncement: "",
   };
 }
 
@@ -203,7 +381,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "analyzeMarketPrice",
     description:
-      "Grąžina rinkos kainų vidurkį ir patarimą verslui ar pardavėjui pagal markę, modelį, metus ar kategoriją.",
+      "Smart Price Advisor — lygina vartotojo kainą su VAUTO vidine DB pagal kategoriją, lokaciją, markę/modelį. PRIVALOMA kai vartotojas pasako kainą — perduok proposedPrice.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -212,7 +390,33 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         year: { type: "INTEGER" },
         category: { type: "STRING" },
         city: { type: "STRING" },
+        proposedPrice: {
+          type: "NUMBER",
+          description: "Vartotojo pasakyta ar įvesta kaina EUR — brokerio patarimui",
+        },
+        title: {
+          type: "STRING",
+          description: "Skelbimo pavadinimas jei nėra make/model",
+        },
       },
+    },
+  },
+  {
+    name: "scanListingPhotos",
+    description:
+      "Gemini Vision — nuskenuoja įkeltas nuotraukas ir automatiškai užpildo techninius laukus (spalva, kėbulas, kambariai, įrengimas…). Naudok kai vartotojas įkėlė nuotraukas ar yra [Nuotraukos įkeltos] blokas.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        imageUrls: {
+          type: "ARRAY",
+          items: { type: "STRING" },
+          description: "HTTPS arba data: URL nuotraukų",
+        },
+        category: { type: "STRING" },
+        city: { type: "STRING" },
+      },
+      required: ["imageUrls"],
     },
   },
   {
@@ -562,11 +766,14 @@ export async function executeAgentTool(
       const model = String(args.model ?? "").toLowerCase();
       const year = args.year != null ? String(args.year) : "";
       const category = args.category ? String(args.category) : undefined;
-      const cityRaw = args.city ? String(args.city).trim() : "";
+      const titleHint = args.title ? String(args.title) : "";
+      const cityRaw = args.city ? String(args.city).trim() : ctx.userCity;
       const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
+      const proposedPrice =
+        args.proposedPrice != null ? Number(args.proposedPrice) : 0;
 
       const analysis = runMarketPriceAnalysis(listings, {
-        title: `${brand} ${model} ${year}`.trim(),
+        title: titleHint || `${brand} ${model} ${year}`.trim(),
         category,
         city: cityNominative,
         make: brand,
@@ -574,15 +781,74 @@ export async function executeAgentTool(
         year,
       });
 
+      const smartPriceAdvice =
+        proposedPrice > 0
+          ? buildSmartPriceAdvisorMessage(ctx.userName, proposedPrice, analysis)
+          : analysis.message;
+
       return {
         result: {
           sampleSize: analysis.sampleSize,
           minPrice: analysis.minPrice,
           maxPrice: analysis.maxPrice,
           medianPrice: analysis.medianPrice,
+          proposedPrice: proposedPrice > 0 ? proposedPrice : undefined,
           message: analysis.message,
+          smartPriceAdvice,
         },
       };
+    }
+
+    case "scanListingPhotos": {
+      const imageUrls = Array.isArray(args.imageUrls)
+        ? args.imageUrls.map(String).filter(Boolean)
+        : [];
+      const category = args.category ? String(args.category) : ctx.listingDraft?.category;
+      const cityArg = args.city ? String(args.city) : ctx.listingDraft?.location ?? ctx.userCity;
+
+      try {
+        const scan = await runVisionListingScan(imageUrls, {
+          category,
+          city: cityArg,
+          userCity: ctx.userCity,
+          existingDraft: ctx.listingDraft,
+        });
+
+        const draft = {
+          ...scan.draft,
+          contact: ctx.contact,
+        };
+        const voiceAnnouncement = buildVisionScanAnnouncement(
+          ctx.userName,
+          scan.filledFieldLabels
+        );
+
+        return {
+          result: {
+            ok: true,
+            filledFieldLabels: scan.filledFieldLabels,
+            filledFields: scan.filledFieldLabels,
+            draft,
+            voiceAnnouncement,
+            message: voiceAnnouncement,
+          },
+          sideEffect: {
+            type: "listing_draft",
+            listingDraft: draft,
+            imageUrl: imageUrls[0],
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message:
+              e instanceof Error
+                ? e.message
+                : "Nepavyko nuskenuoti nuotraukų — bandykite dar kartą arba užpildykite ranka.",
+          },
+        };
+      }
     }
 
     case "triggerMicroPayment": {
