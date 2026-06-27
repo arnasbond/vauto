@@ -10,17 +10,22 @@ export interface UserCoords {
 }
 
 /** Get device GPS coordinates — Capacitor on native, geolocation API on web */
-export async function getUserCoords(): Promise<UserCoords | null> {
+export async function getUserCoords(options?: {
+  /** Native only: prompt for location if not yet granted (avoid on cold start). */
+  requestPermission?: boolean;
+}): Promise<UserCoords | null> {
   try {
     if (Capacitor.isNativePlatform()) {
       const { Geolocation } = await import("@capacitor/geolocation");
       const perm = await Geolocation.checkPermissions();
       if (perm.location !== "granted") {
-        await Geolocation.requestPermissions();
+        if (!options?.requestPermission) return null;
+        const req = await Geolocation.requestPermissions();
+        if (req.location !== "granted") return null;
       }
       const pos = await Geolocation.getCurrentPosition({
-        enableHighAccuracy: true,
-        timeout: 10000,
+        enableHighAccuracy: false,
+        timeout: 15000,
       });
       return { lat: pos.coords.latitude, lng: pos.coords.longitude };
     }

@@ -222,6 +222,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     async function restore() {
 
+      try {
+
       const { session: auth, user: storedUser, token } = await restorePersistedAuth();
 
 
@@ -233,8 +235,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
           await clearAuthSessionFull();
 
           clearUser();
-
-          setHydrated(true);
 
           return;
 
@@ -288,7 +288,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       }
 
+      } catch (e) {
+
+        console.error("[vauto] auth restore failed — clearing session", e);
+
+        try {
+
+          await clearAuthSessionFull();
+
+        } catch {
+
+          /* ignore */
+
+        }
+
+        setIsAuthenticated(false);
+
+        setUser(ANONYMOUS_USER);
+
+      } finally {
+
       setHydrated(true);
+
+      }
 
     }
 

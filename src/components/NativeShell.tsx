@@ -63,7 +63,8 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
     async function initNative() {
       try {
         const { StatusBar, Style } = await import("@capacitor/status-bar");
-        await StatusBar.setOverlaysWebView({ overlay: true });
+        // overlay:true crashes WebView on some Samsung foldables (One UI edge-to-edge)
+        await StatusBar.setOverlaysWebView({ overlay: false });
         await StatusBar.setStyle({ style: Style.Light });
         await StatusBar.setBackgroundColor({ color: "#00bfa5" });
       } catch {

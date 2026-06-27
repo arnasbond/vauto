@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { Capacitor } from "@capacitor/core";
 import { INITIAL_LISTINGS } from "@/data/mockListings";
 import { ensureDemoCatalogListings } from "@/lib/merge-listings";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
@@ -838,11 +839,20 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, [soldPromptDismissed, hydrated, apiActive]);
 
   useEffect(() => {
-    getUserCoords().then((coords) => {
-      if (!coords) return;
-      setBuyerCoords(coords);
-      setListings((prev) => applyBuyerDistances(prev, coords));
-    });
+    const loadCoords = () => {
+      getUserCoords().then((coords) => {
+        if (!coords) return;
+        setBuyerCoords(coords);
+        setListings((prev) => applyBuyerDistances(prev, coords));
+      });
+    };
+
+    if (typeof window !== "undefined" && Capacitor.isNativePlatform()) {
+      const timer = window.setTimeout(loadCoords, 4_000);
+      return () => window.clearTimeout(timer);
+    }
+
+    loadCoords();
   }, []);
 
   const clearSyncError = useCallback(() => setSyncError(null), []);

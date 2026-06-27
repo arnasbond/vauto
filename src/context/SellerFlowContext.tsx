@@ -317,7 +317,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       };
 
       try {
-        const coordsPromise = getUserCoords();
+        const coordsPromise = getUserCoords({ requestPermission: true });
         const locationHintPromise = coordsPromise.then((coords) => {
           if (!coords) return user.city;
           const d = distanceToCity(coords, user.city);
@@ -822,7 +822,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const coordsPromise = buyerCoords
       ? Promise.resolve(buyerCoords)
       : Promise.race([
-          getUserCoords(),
+          getUserCoords({ requestPermission: true }),
           new Promise<null>((resolve) => window.setTimeout(() => resolve(null), 2000)),
         ]);
 
@@ -955,7 +955,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         return;
       }
 
-      const coords = buyerCoords ?? (await getUserCoords());
+      const coords = buyerCoords ?? (await getUserCoords({ requestPermission: true }));
       let published = 0;
 
       for (const draft of drafts) {

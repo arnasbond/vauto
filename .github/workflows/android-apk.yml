@@ -68,7 +68,7 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.2** — bundled assets (veikia be interneto paleidimui). API: vauto-api.onrender.com
+            **v1.0.3** — Samsung Fold crash fix: auto-recovery, bundled UI, didesnė atmintis.
 
             Atsisiųskite **vauto.apk** ir įdiekite Android telefone.
 
