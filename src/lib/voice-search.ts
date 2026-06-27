@@ -50,7 +50,7 @@ export interface VoiceSearchSession {
   cancel: () => void;
 }
 
-const DEFAULT_SILENCE_MS = 2_400;
+const DEFAULT_SILENCE_MS = 2_000;
 const DEFAULT_MAX_MS = 25_000;
 
 /**
@@ -65,7 +65,7 @@ export function startVoiceSearch(
     onStart,
     silenceMs = DEFAULT_SILENCE_MS,
     maxMs = DEFAULT_MAX_MS,
-    stopOnFinal = true,
+    stopOnFinal = false,
   } = options;
 
   const SpeechRecognition = getSpeechRecognition();

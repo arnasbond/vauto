@@ -33,6 +33,9 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
+import {
+  isConversationalSearchIntent,
+} from "@/lib/search-conversational-intent";
 import type { ListingCategory } from "@/lib/types";
 
 const GEMINI_BLUE = "#1167b1";
@@ -117,7 +120,7 @@ export function SearchBar({
 
   const pathname = usePathname();
 
-  const { sendAgentMessage, busy: agentBusy } = useVautoAgent();
+  const { sendAgentMessage, busy: agentBusy, setOpen: setAgentOpen } = useVautoAgent();
 
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
@@ -176,6 +179,22 @@ export function SearchBar({
         return;
       }
 
+      if (isConversationalSearchIntent(q)) {
+        setSearchInputMode(opts?.voice ? "voice" : "text");
+        if (opts?.voice) setSearchVoiceMode(true);
+        clearVisualSearch({ keepInputMode: true });
+        setAgentPinnedListings(null);
+        setDraftQuery(q);
+        setSearchQuery("");
+        setAgentOpen(true);
+        void sendAgentMessage(q).then((res) => {
+          if (res.ok && res.reply && opts?.voice) {
+            speakBuddyMessage(res.reply, { enabled: true });
+          }
+        });
+        return;
+      }
+
       const pageContext = buildCurrentPageContext({
         pathname: pathname ?? "/",
         listings,
@@ -228,7 +247,10 @@ export function SearchBar({
       setSearchInputMode,
       setSearchQuery,
       setSearchLoading,
+      setSearchVoiceMode,
       setViewMode,
+      setAgentOpen,
+      sendAgentMessage,
       startListingFromQuery,
       toggleSave,
       pathname,
@@ -271,8 +293,8 @@ export function SearchBar({
       clearVisualSearch({ keepInputMode: true });
 
       const session = startVoiceSearch({
-        silenceMs: 2_800,
-        stopOnFinal: true,
+        silenceMs: 2_000,
+        stopOnFinal: false,
         onInterim: (text) => {
           const clean = sanitizeSpeechTranscript(text);
           if (clean) setVoiceCaption(clean);

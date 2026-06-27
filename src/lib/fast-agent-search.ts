@@ -7,6 +7,7 @@ import {
   isViewModeOnlyCommand,
   type MarketplaceSortMode,
 } from "@/lib/marketplace-view";
+import { isConversationalSearchIntent } from "@/lib/search-conversational-intent";
 
 /** 0 = no slice — process full catalog dynamically */
 export const UNLIMITED_SEARCH = 0;
@@ -53,6 +54,7 @@ function agentFiltersFromParams(params: FastSearchParams) {
 export function canUseFastSearch(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 140) return false;
+  if (isConversationalSearchIntent(t)) return false;
   if (isViewModeOnlyCommand(t)) return false;
   if (detectSellerListingIntent(t)) return false;
   if (SKIP_FAST.test(t)) return false;

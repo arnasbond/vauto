@@ -1,5 +1,6 @@
 import type { AgentSideEffect, AgentToolContext } from "./agent-tools.js";
 import { executeAgentTool } from "./agent-tools.js";
+import { isConversationalSearchIntent } from "./search-agent.js";
 
 const STATE_SEARCH_REPLY = "Atidarau skelbimus ekrane.";
 const STATE_EMPTY_SEARCH_REPLY = "Rezultatų nerasta.";
@@ -70,6 +71,7 @@ function detectCategory(query: string): string | undefined {
 function canUseFastSearch(text: string): boolean {
   const t = text.trim();
   if (!t || t.length > 140) return false;
+  if (isConversationalSearchIntent(t)) return false;
   if (SELLER_RE.test(t)) return false;
   if (SKIP_FAST.test(t)) return false;
   return true;

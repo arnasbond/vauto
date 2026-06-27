@@ -2,6 +2,7 @@ import type { AiExtractedListing, Listing, ScoredListing } from "@/lib/types";
 import { WANTED_EMPTY_MESSAGE } from "@/lib/matching-service";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { getSearchMatchStatus } from "@/lib/search-match";
+import { isConversationalSearchIntent } from "@/lib/search-conversational-intent";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { getFirstName } from "@/lib/buddy-voice";
 
@@ -31,9 +32,11 @@ export function isServiceSearchQuery(query: string): boolean {
   return SERVICE_QUERY_RE.test(query);
 }
 
-/** Buddy activates for any meaningful search (3+ chars). */
+/** Buddy activates for product search — not for greetings / small talk. */
 export function isBuddySearchQuery(query: string): boolean {
-  return query.trim().length >= 3;
+  const q = query.trim();
+  if (q.length < 3) return false;
+  return !isConversationalSearchIntent(q);
 }
 
 export function buildManualFallbackMessage(): string {

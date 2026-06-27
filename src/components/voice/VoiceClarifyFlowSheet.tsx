@@ -305,7 +305,7 @@ export function VoiceClarifyFlowSheet({
     const session = startVoiceSearch({
       onStart: () => setMicReady(true),
       onInterim: emitSubtitle,
-      silenceMs: 1_500,
+      silenceMs: 2_000,
       maxMs: 25_000,
     });
     voiceRef.current = session;

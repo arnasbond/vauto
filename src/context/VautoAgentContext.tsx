@@ -54,6 +54,10 @@ import {
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
+import {
+  buildConversationalLiveReply,
+  isConversationalSearchIntent,
+} from "@/lib/search-conversational-intent";
 import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
 import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions";
 import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
@@ -438,10 +442,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      if (isConversationalSearchIntent(trimmed)) {
+        setOpen(true);
+        const liveReply = buildConversationalLiveReply(user.name);
+        setMessages([...nextMessages, { role: "assistant", text: liveReply }]);
+        speakBuddyMessage(liveReply, { enabled: true });
+      }
+
       const fast = await runFastAgentSearch(trimmed, listings, {
         userCity: user.city,
       });
-      if (fast) {
+      if (fast && !isConversationalSearchIntent(trimmed)) {
         setLastError(undefined);
         const isStateSearch =
           fast.actions.type === "search" || fast.actions.type === "empty_search";
@@ -523,20 +534,33 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setLastError(undefined);
         const isStateSearch =
           res.actions.type === "search" || res.actions.type === "empty_search";
-        const assistantText = isStateSearch
-          ? res.actions.type === "search"
-            ? "Atidarau skelbimus ekrane."
-            : "Rezultatų nerasta."
-          : res.reply;
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: assistantText,
-            toolCalls: res.toolCalls,
-          },
-        ]);
-        applyActions(res.actions);
+        const assistantText = isConversationalSearchIntent(trimmed)
+          ? res.reply || buildConversationalLiveReply(user.name)
+          : isStateSearch
+            ? res.actions.type === "search"
+              ? "Atidarau skelbimus ekrane."
+              : "Rezultatų nerasta."
+            : res.reply;
+        setMessages((prev) => {
+          const withoutLivePlaceholder =
+            isConversationalSearchIntent(trimmed) && prev.length >= 2
+              ? prev.slice(0, -1)
+              : prev;
+          return [
+            ...withoutLivePlaceholder,
+            {
+              role: "assistant",
+              text: assistantText,
+              toolCalls: res.toolCalls,
+            },
+          ];
+        });
+        if (isConversationalSearchIntent(trimmed) && assistantText) {
+          speakBuddyMessage(assistantText, { enabled: true });
+        }
+        if (!isConversationalSearchIntent(trimmed)) {
+          applyActions(res.actions);
+        }
         if (res.actions.type !== "micro_payment") {
           const paymentIntent = microPaymentFromToolResult(
             res.toolCalls.find((t) => t.name === "triggerMicroPayment")?.result
@@ -649,7 +673,8 @@ function VautoAgentSheet() {
     setVoiceCaption("");
     lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
-      stopOnFinal: true,
+      silenceMs: 2_000,
+      stopOnFinal: false,
       onInterim: (text) => {
         const clean = sanitizeSpeechTranscript(text);
         if (!clean) return;
@@ -664,9 +689,8 @@ function VautoAgentSheet() {
       setVoiceCaption("");
       if (!clean) return;
       lastVoiceDisplayRef.current = clean;
-      setSearchQuery(clean);
-      void sendAgentMessage(clean);
-      setOpen(false);
+      setOpen(true);
+      void sendAgentMessage(clean, { skipBusyCheck: true });
     });
   };
 

@@ -522,7 +522,7 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     const scheduleSilence = () => {
       if (!committed.trim()) return;
       if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => finish(committed.trim() || null), 1_500);
+      silenceTimer = setTimeout(() => finish(committed.trim() || null), 2_000);
     };
 
     const maxTimeout = setTimeout(() => {
