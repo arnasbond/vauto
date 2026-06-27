@@ -57,45 +57,6 @@ jobs:
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk vauto.apk
           cp android/app/build/outputs/apk/debug/app-debug.apk vauto.vercel.apk
-          mkdir -p out/download
-          cp vauto.apk out/download/vauto.apk
-          cp vauto.apk out/download/vauto.vercel.apk
-
-      - name: Deploy APK mirror to Vercel
-        run: |
-          npm install -g vercel@latest
-          mkdir -p .vercel/output/static
-          cp -r out/. .vercel/output/static/
-          node -e "
-            const fs = require('fs');
-            const v = JSON.parse(fs.readFileSync('vercel.json','utf8'));
-            const routes = [];
-            for (const r of v.rewrites || []) {
-              routes.push({ src: r.source, dest: r.destination });
-            }
-            for (const r of v.redirects || []) {
-              routes.push({ src: r.source, dest: r.destination, status: r.permanent ? 308 : 307 });
-            }
-            routes.push({ handle: 'filesystem' });
-            fs.writeFileSync('.vercel/output/config.json', JSON.stringify({ version: 3, routes }, null, 2));
-          "
-          test -f .vercel/output/static/download/vauto.apk
-          mkdir -p .vercel
-          printf '%s\n' \
-            '{' \
-            "  \"projectId\": \"${{ secrets.VERCEL_PROJECT_ID }}\"," \
-            "  \"orgId\": \"${{ secrets.VERCEL_ORG_ID }}\"," \
-            '  "settings": {' \
-            '    "framework": null,' \
-            '    "buildCommand": null,' \
-            '    "outputDirectory": "out"' \
-            '  }' \
-            '}' > .vercel/project.json
-          vercel deploy --prebuilt --prod --yes --archive=tgz --token="$VERCEL_TOKEN"
-        env:
-          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
-          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
-          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
 
       - name: Delete previous android-latest release
         continue-on-error: true

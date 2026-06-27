@@ -49,23 +49,6 @@ jobs:
         run: npm run verify:health
         continue-on-error: true
 
-      - name: Attach latest Android APK to static export
-        continue-on-error: true
-        run: |
-          mkdir -p out/download
-          for i in $(seq 1 12); do
-            if gh release download android-latest -p "vauto.apk" -D out/download --clobber 2>/dev/null; then
-              cp out/download/vauto.apk out/download/vauto.vercel.apk
-              ls -lh out/download/
-              exit 0
-            fi
-            echo "Waiting for APK release (attempt $i)..."
-            sleep 20
-          done
-          echo "APK release not ready — site deploy continues without /download mirror"
-        env:
-          GH_TOKEN: ${{ github.token }}
-
       - name: Install Vercel CLI
         run: npm install -g vercel@latest
 

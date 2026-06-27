@@ -13,6 +13,14 @@
   },
   "rewrites": [
     {
+      "source": "/download/vauto.apk",
+      "destination": "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk"
+    },
+    {
+      "source": "/download/vauto.vercel.apk",
+      "destination": "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk"
+    },
+    {
       "source": "/api/vauto-agent",
       "destination": "https://vauto-api.onrender.com/api/vauto-agent"
     },
