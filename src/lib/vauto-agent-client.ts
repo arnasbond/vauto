@@ -31,6 +31,10 @@ export interface VautoAgentContext {
   userRole?: "buyer" | "seller" | "business" | "admin";
   contact?: string;
   listings?: AgentListingSnapshot[];
+  userName?: string;
+  accountType?: string;
+  myListings?: MyListingForAgent[];
+  myListingsSummary?: string;
   lastError?: { code: string; message?: string };
   wizardMode?: "listing_review" | "search" | "idle";
   listingDraft?: {
@@ -62,6 +66,15 @@ export interface AgentListingSnapshot {
   category: string;
   location: string;
   description?: string;
+}
+
+export interface MyListingForAgent {
+  id: string;
+  title: string;
+  price: number;
+  category: string;
+  location: string;
+  status: string;
 }
 
 export type VautoAgentAction =
@@ -118,6 +131,11 @@ export type VautoAgentAction =
       price: number;
       product: "smart_boost" | "region_stats" | "b2b_lead" | "generic";
       voiceConfirmPhrase?: string;
+    }
+  | {
+      type: "mark_listing_sold";
+      listingId: string;
+      title?: string;
     };
 
 export interface VautoAgentResponse {
@@ -157,6 +175,93 @@ export function compactListingsForAgent(listings: Listing[]): AgentListingSnapsh
       location: l.location,
       description: l.description?.slice(0, 160),
     }));
+}
+
+export function compactMyListingsForAgent(
+  listings: Listing[],
+  sellerId?: string
+): MyListingForAgent[] {
+  return listings
+    .filter((l) => (!sellerId || l.sellerId === sellerId) && !l.banned)
+    .map((l) => ({
+      id: l.id,
+      title: l.title,
+      price: l.price,
+      category: l.category,
+      location: l.location,
+      status: l.status ?? "active",
+    }));
+}
+
+export function resolveAccountTypeLabel(user: {
+  role?: string;
+  businessType?: string;
+}): string {
+  if (user.role === "super_admin" || user.role === "admin") return "Administratorius";
+  if (user.role === "pro") {
+    if (user.businessType === "dealer") return "Verslas · Auto salonas";
+    if (user.businessType === "services") return "Verslas · Paslaugos";
+    return "Verslas · Pro";
+  }
+  return "Privatus pardavėjas";
+}
+
+function summarizeMyListingsForGreeting(
+  myListings: MyListingForAgent[],
+  firstName: string
+): string {
+  const active = myListings.filter((l) => l.status !== "sold");
+  if (!myListings.length) {
+    return "Nori naujo skelbimo, ar padėti rasti prekę?";
+  }
+  if (active.length === 1) {
+    const l = active[0]!;
+    return `Matau tavo skelbimą „${l.title}" ${l.location} — nori įkelti nuotraukas, pakoreguoti kainą, ar pažiūrim statistiką?`;
+  }
+  if (active.length > 1) {
+    return `Turi ${active.length} aktyvius skelbimus — nori tvarkyti esamus, ar kelti naują?`;
+  }
+  return `${firstName}, aktyvių skelbimų nebeliko — padėsiu su nauju skelbimu ar paieška?`;
+}
+
+export function buildPersonalizedAgentGreeting(
+  userName: string,
+  myListings: MyListingForAgent[]
+): string {
+  const firstName = userName.split(/\s+/)[0] || userName;
+  if (userName === "Svečias" || !userName.trim()) {
+    return "Labas! Aš tavo VAUTO sekretorius — galiu padėti rasti prekę ar paruošti skelbimą. Nuo ko pradedam?";
+  }
+  const tail = summarizeMyListingsForGreeting(myListings, firstName);
+  return `Labas, ${firstName}! ${tail}`;
+}
+
+export function summarizeMyListingsSummary(
+  myListings: MyListingForAgent[],
+  userName: string
+): string {
+  const firstName = userName.split(/\s+/)[0] || userName;
+  const active = myListings.filter((l) => l.status !== "sold");
+  const sold = myListings.filter((l) => l.status === "sold");
+
+  if (!myListings.length) {
+    return `${firstName} neturi skelbimų — gali pasiūlyti naują skelbimą ar paiešką.`;
+  }
+  if (active.length === 1) {
+    const l = active[0]!;
+    return `Turi 1 aktyvų skelbimą: „${l.title}" (${l.location}, ${l.price}€).`;
+  }
+  if (active.length > 1) {
+    const sample = active
+      .slice(0, 3)
+      .map((l) => `„${l.title}" (${l.location})`)
+      .join("; ");
+    return `Turi ${active.length} aktyvius skelbimus: ${sample}.`;
+  }
+  if (sold.length) {
+    return `Aktyvių skelbimų nėra; ${sold.length} archyvuota (-i).`;
+  }
+  return `${firstName} skelbimų sąrašas tuščias.`;
 }
 
 export function mapAgentDraftToListing(draft: {

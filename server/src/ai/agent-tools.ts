@@ -1,4 +1,4 @@
-import { adminPatchListing, getListings } from "../repository.js";
+import { adminPatchListing, getListings, updateListing } from "../repository.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -20,6 +20,7 @@ import {
   buildProactiveSearchResetMessage,
 } from "./proactive-agent.js";
 import { scheduleDeferredListingMarketAnalysis } from "./background-market-analysis.js";
+import type { MyListingForAgent } from "./user-agent-context.js";
 import {
   buildBusinessProUpsellMessage,
   buildMicroPaymentVoiceReply,
@@ -83,12 +84,54 @@ export interface AgentToolContext {
   userCity: string;
   userRole: "buyer" | "seller" | "business" | "admin";
   contact: string;
+  userName?: string;
+  authUserId?: string;
+  myListings?: MyListingForAgent[];
   listingsSnapshot?: AgentListingSummary[];
   searchSessionReset?: boolean;
   monetization?: MonetizationState;
+  listingDraft?: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string>;
+  };
 }
 
 export const AGENT_FUNCTION_DECLARATIONS = [
+  {
+    name: "markListingSold",
+    description:
+      'Pažymi vartotojo skelbimą kaip parduotą / archyvuoja. Naudok kai vartotojas sako „pardaviau“, „jau parduota“, „archyvuok“. Jei vienas aktyvus skelbimas — listingId galima praleisti.',
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        listingId: { type: "STRING", description: "Skelbimo id iš [Vartotojo profilis]" },
+        titleHint: {
+          type: "STRING",
+          description: "Dalis pavadinimo, jei vartotojas mini konkretų skelbimą",
+        },
+      },
+    },
+  },
+  {
+    name: "updateListingDraft",
+    description:
+      "Atnaujina esamą skelbimo juodraštį (kaina, miestas, aprašymas). Naudok kai trūksta vieno lauko ir vartotojas jį pateikia.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        title: { type: "STRING" },
+        description: { type: "STRING" },
+        price: { type: "NUMBER" },
+        city: { type: "STRING" },
+        category: { type: "STRING" },
+        attributes: { type: "OBJECT" },
+      },
+    },
+  },
   {
     name: "searchListings",
     description:
@@ -714,6 +757,115 @@ export async function executeAgentTool(
       };
     }
 
+    case "markListingSold": {
+      const listingId = String(args.listingId ?? "").trim();
+      const titleHint = String(args.titleHint ?? "").trim().toLowerCase();
+      const mine = (ctx.myListings ?? []).filter((l) => l.status !== "sold");
+      let target =
+        mine.find((l) => l.id === listingId) ??
+        (titleHint
+          ? mine.find((l) => l.title.toLowerCase().includes(titleHint))
+          : undefined) ??
+        (mine.length === 1 ? mine[0] : undefined);
+
+      if (!target) {
+        return {
+          result: {
+            ok: false,
+            message:
+              mine.length > 1
+                ? "Turite kelis aktyvius skelbimus — patikslinkite kurį pardavėte (pavadinimą arba id)."
+                : "Neradau aktyvaus skelbimo, kurį galėčiau archyvuoti.",
+          },
+        };
+      }
+
+      const firstName = (ctx.userName ?? "drauge").split(/\s+/)[0];
+
+      if (ctx.authUserId) {
+        try {
+          const updated = await updateListing(target.id, ctx.authUserId, {
+            status: "sold",
+          });
+          if (!updated) {
+            return {
+              result: {
+                ok: false,
+                message: "Nepavyko archyvuoti skelbimo — patikrinkite savininko teises.",
+              },
+            };
+          }
+          target = { ...target, status: "sold" };
+        } catch (e) {
+          return {
+            result: {
+              ok: false,
+              message:
+                e instanceof Error ? e.message : "Nepavyko pažymėti skelbimo parduotu.",
+            },
+          };
+        }
+      }
+
+      return {
+        result: {
+          ok: true,
+          listingId: target.id,
+          title: target.title,
+          message: `Puiku, ${firstName}, tavo skelbimą „${target.title}" archyvavau!`,
+        },
+        sideEffect: {
+          type: "mark_listing_sold",
+          listingId: target.id,
+          title: target.title,
+        },
+      };
+    }
+
+    case "updateListingDraft": {
+      const base = ctx.listingDraft ?? {};
+      const patch: NonNullable<AgentToolContext["listingDraft"]> = { ...base };
+      if (args.title != null) patch.title = String(args.title);
+      if (args.description != null) patch.description = String(args.description);
+      if (args.price != null) patch.price = Number(args.price);
+      if (args.city != null) patch.location = resolveAgentDefaultCity(String(args.city));
+      if (args.category != null) patch.category = String(args.category);
+      if (args.attributes && typeof args.attributes === "object") {
+        patch.attributes = {
+          ...(base.attributes ?? {}),
+          ...Object.fromEntries(
+            Object.entries(args.attributes as Record<string, unknown>).map(([k, v]) => [
+              k,
+              String(v),
+            ])
+          ),
+        };
+      }
+
+      const draft = {
+        title: patch.title ?? "Skelbimas",
+        description: patch.description ?? "",
+        price: patch.price ?? 0,
+        location: patch.location ?? ctx.userCity,
+        contact: ctx.contact,
+        category: patch.category ?? "other",
+        confidence: 0.9,
+        attributes: patch.attributes ?? {},
+      };
+
+      return {
+        result: {
+          ok: true,
+          message: "Juodraštis atnaujintas.",
+          draft,
+        },
+        sideEffect: {
+          type: "listing_draft",
+          listingDraft: draft,
+        },
+      };
+    }
+
     case "navigate_view": {
       const viewRaw = String(args.view ?? "").trim();
       if (!isAppView(viewRaw)) {
@@ -798,6 +950,11 @@ export type AgentSideEffect =
   | {
       type: "register_wanted";
       query: string;
+    }
+  | {
+      type: "mark_listing_sold";
+      listingId: string;
+      title: string;
     }
   | {
       type: "navigate";

@@ -27,6 +27,12 @@ import {
   ZeroUiIntentAck,
   type ZeroUiIntentKind,
 } from "@/components/zero-ui/ZeroUiIntentAck";
+import { useVauto } from "@/context/VautoContext";
+import {
+  compactMyListingsForAgent,
+  resolveAccountTypeLabel,
+  summarizeMyListingsSummary,
+} from "@/lib/vauto-agent-client";
 
 export interface VoiceClarifyResult {
   mergedTranscript: string;
@@ -89,6 +95,8 @@ export function VoiceClarifyFlowSheet({
   onLiveSubtitle,
   onVoicePhase,
 }: VoiceClarifyFlowSheetProps) {
+  const { user, listings, isAuthenticated } = useVauto();
+  const myListingsForAgent = compactMyListingsForAgent(listings, user.id);
   const [step, setStep] = useState<FlowStep>("listen");
   const [history, setHistory] = useState<VoiceIntentTurn[]>([]);
   const [analysis, setAnalysis] = useState<VoiceIntentAnalysis | null>(null);
@@ -258,6 +266,10 @@ export function VoiceClarifyFlowSheet({
           mode,
           history: currentHistory,
           userCity,
+          userName: user.name,
+          accountType: resolveAccountTypeLabel(user),
+          myListingsSummary: summarizeMyListingsSummary(myListingsForAgent, user.name),
+          isAuthenticated,
         });
 
         const nextHistory: VoiceIntentTurn[] = [
@@ -277,7 +289,7 @@ export function VoiceClarifyFlowSheet({
         window.setTimeout(() => startListeningRef.current?.(), 600);
       }
     },
-    [continueAfterIntentAck, emitPhase, emitSubtitle, mode, userCity]
+    [continueAfterIntentAck, emitPhase, emitSubtitle, isAuthenticated, mode, myListingsForAgent, user, userCity]
   );
 
   const startListening = useCallback(() => {

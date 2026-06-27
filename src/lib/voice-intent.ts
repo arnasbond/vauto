@@ -156,6 +156,10 @@ export async function analyzeVoiceIntent(params: {
   mode: "search" | "listing";
   history?: VoiceIntentTurn[];
   userCity?: string;
+  userName?: string;
+  accountType?: string;
+  myListingsSummary?: string;
+  isAuthenticated?: boolean;
 }): Promise<VoiceIntentAnalysis> {
   const history = params.history ?? [];
   const city = params.userCity ?? "Lietuva";
@@ -172,6 +176,10 @@ export async function analyzeVoiceIntent(params: {
         mode: params.mode,
         history,
         userCity: city,
+        userName: params.userName,
+        accountType: params.accountType,
+        myListingsSummary: params.myListingsSummary,
+        isAuthenticated: params.isAuthenticated,
       });
       if (remote && isValidVoiceIntentPayload(remote)) {
         const intent =

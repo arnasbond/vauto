@@ -7,6 +7,7 @@ import { userIsAdmin } from "../middleware/auth.js";
 import { getAdminAgentContext } from "../repository.js";
 import { trimVautoAgentRequest } from "../ai/agent-request-trim.js";
 import { hasAgentAiKey } from "../load-env.js";
+import { resolveAuthenticatedAgentContext } from "../ai/user-agent-context.js";
 
 export const vautoAgentRouter = Router();
 
@@ -80,10 +81,27 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
   }
 
   try {
+    const clientContext = context ?? {};
+    const userCtx = await resolveAuthenticatedAgentContext(req.authUserId, {
+      userName: clientContext.userName,
+      accountType: clientContext.accountType,
+      userCity: clientContext.userCity,
+      contact: clientContext.contact,
+      userRole: clientContext.userRole,
+      isAuthenticated: clientContext.isAuthenticated,
+      myListings: clientContext.myListings,
+      myListingsSummary: clientContext.myListingsSummary,
+    });
+
     const result = await runVautoAgent(
       trimVautoAgentRequest({
         messages,
-        context: context ?? {},
+        authUserId: req.authUserId,
+        context: {
+          ...clientContext,
+          ...userCtx,
+          isAuthenticated: userCtx.isAuthenticated,
+        },
         adminProjectContext,
       })
     );

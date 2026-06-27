@@ -160,8 +160,15 @@ async function aiFetch<T>(
   opts?: RequestInit,
   timeoutMs = AI_FETCH_TIMEOUT_MS
 ): Promise<T | null> {
+  const mergedOpts: RequestInit = {
+    ...opts,
+    headers: {
+      ...getAuthHeaders(),
+      ...(opts?.headers as Record<string, string> | undefined),
+    },
+  };
   for (const base of getAiBaseUrls()) {
-    const { data } = await aiFetchOnce<T>(base, path, opts, timeoutMs);
+    const { data } = await aiFetchOnce<T>(base, path, mergedOpts, timeoutMs);
     if (data !== null) return data;
   }
   return null;
@@ -678,6 +685,10 @@ export async function apiAnalyzeVoice(body: {
   mode: "search" | "listing";
   history: { role: "user" | "assistant"; text: string }[];
   userCity: string;
+  userName?: string;
+  accountType?: string;
+  myListingsSummary?: string;
+  isAuthenticated?: boolean;
 }): Promise<import("@/lib/voice-intent").VoiceIntentAnalysis | null> {
   return aiFetch("/api/ai/analyze-voice", {
     method: "POST",

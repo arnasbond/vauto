@@ -4,6 +4,7 @@ export const AGENT_MAX_MESSAGES = 32;
 export const AGENT_MAX_MESSAGE_CHARS = 12_000;
 export const AGENT_MAX_LISTINGS = 48;
 export const AGENT_MAX_LISTING_DESC_CHARS = 160;
+export const AGENT_MAX_MY_LISTINGS = 24;
 
 function capText(text: string, max: number): string {
   const t = text.trim();
@@ -30,12 +31,15 @@ export function trimVautoAgentRequest(req: VautoAgentRequest): VautoAgentRequest
       }))
     : listings;
 
+  const myListings = req.context?.myListings?.slice(0, AGENT_MAX_MY_LISTINGS);
+
   return {
     ...req,
     messages: messages.length ? messages : req.messages.slice(-1),
     context: {
       ...req.context,
       listings: trimmedListings,
+      myListings,
     },
   };
 }

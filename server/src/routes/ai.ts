@@ -6,6 +6,12 @@ import {
   visionExtractJson,
 } from "../ai/llm-provider.js";
 import { analyzeSearchIntent } from "../ai/search-intent.js";
+import type { AuthedRequest } from "../middleware/auth.js";
+import {
+  buildUserContextInjectionBlock,
+  resolveAuthenticatedAgentContext,
+} from "../ai/user-agent-context.js";
+import { VOICE_SECRETARY_PERSONA } from "../ai/secretary-persona.js";
 
 export const aiRouter = Router();
 
@@ -124,19 +130,33 @@ const REFERENCE_FALLBACK: Record<string, string[]> = {
   ],
 };
 
-aiRouter.post("/analyze-voice", async (req, res) => {
+aiRouter.post("/analyze-voice", async (req: AuthedRequest, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
-  const { transcript, mode, history, userCity } = req.body as {
+  const { transcript, mode, history, userCity, userName, accountType, myListingsSummary, isAuthenticated } =
+    req.body as {
     transcript: string;
     mode?: "search" | "listing";
     history?: { role: "user" | "assistant"; text: string }[];
     userCity?: string;
+    userName?: string;
+    accountType?: string;
+    myListingsSummary?: string;
+    isAuthenticated?: boolean;
   };
 
   if (!transcript?.trim()) {
     return res.status(400).json({ error: "transcript is required" });
   }
+
+  const userCtx = await resolveAuthenticatedAgentContext(req.authUserId, {
+    userName,
+    accountType,
+    userCity,
+    isAuthenticated,
+    myListingsSummary,
+  });
+  const userProfileBlock = buildUserContextInjectionBlock(userCtx);
 
   const historyText = (history ?? [])
     .map((h) => `${h.role === "user" ? "Vartotojas" : "AI"}: ${h.text}`)
@@ -150,12 +170,19 @@ aiRouter.post("/analyze-voice", async (req, res) => {
     const raw = await chatJson([
       {
         role: "system",
-        content: `Esi Vauto balso asistentas Lietuvoje (tik Gemini). ${modeHint} understoodSummary — lietuviškai, BE žodžių „ieškoti“ jei vartotojas kelia skelbimą. imageSearchQuery — tik kai vartotojas IEŠKO, angliški raktažodžiai.
-Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarification=true ir followUpQuestion vienu TTS klausimu (pvz. automobiliui: „AI užpildė markę ir modelį. Kokiais metais pagamintas jūsų automobilis ir kokia būtų kaina?“).`,
+        content: `${VOICE_SECRETARY_PERSONA}
+
+${userProfileBlock}
+
+Esi Vauto balso sekretorius Lietuvoje (tik Gemini). ${modeHint}
+understoodSummary — lietuviškai, suasmenintai vardu, BE žodžių „ieškoti“ jei vartotojas kelia skelbimą.
+imageSearchQuery — tik kai vartotojas IEŠKO, angliški raktažodžiai.
+Jei vartotojas sako „pardaviau“ / „jau parduota“ — needsClarification=false, understoodSummary patvirtina archyvavimą (klientas vėliau kvies agentą).
+Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarification=true ir followUpQuestion vienu šiltu TTS klausimu.`,
       },
       {
         role: "user",
-        content: `Istorija:\n${historyText || "(tuščia)"}\n\nĮrašas: "${transcript}"\nJSON: ${VOICE_INTENT_SCHEMA}\nMiestas: ${userCity ?? "Lietuva"}`,
+        content: `Istorija:\n${historyText || "(tuščia)"}\n\nĮrašas: "${transcript}"\nJSON: ${VOICE_INTENT_SCHEMA}\nMiestas: ${userCtx.userCity}`,
       },
     ]);
     res.json({

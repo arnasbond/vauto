@@ -18,9 +18,13 @@ import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import {
   compactListingsForAgent,
+  compactMyListingsForAgent,
+  buildPersonalizedAgentGreeting,
   mapAgentDraftToListing,
   registerAgentErrorReporter,
+  resolveAccountTypeLabel,
   resolveAgentUserRole,
+  summarizeMyListingsSummary,
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
@@ -71,6 +75,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchInputMode,
     applyAgentListingDraft,
     setListingBanned,
+    markListingSold,
     showToast,
     isAuthenticated,
     openAuthModal,
@@ -93,13 +98,30 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     activeSearchFilters,
   } = useZeroUiMemory();
 
+  const myListingsForAgent = useMemo(
+    () => compactMyListingsForAgent(listings, user.id),
+    [listings, user.id]
+  );
+
+  const agentGreeting = useMemo(
+    () => buildPersonalizedAgentGreeting(user.name, myListingsForAgent),
+    [user.name, myListingsForAgent]
+  );
+
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState<AgentChatMessage[]>([
+  const [messages, setMessages] = useState<AgentChatMessage[]>(() => [
     {
       role: "assistant",
-      text: "Sveiki! Aš esu VAUTO asistentas. Galiu padėti rasti skelbimus, paruošti naują skelbimą ar patarti dėl kainos. Kuo galiu padėti?",
+      text: buildPersonalizedAgentGreeting("Svečias", []),
     },
   ]);
+  useEffect(() => {
+    setMessages((prev) => {
+      if (prev.length !== 1 || prev[0]?.role !== "assistant") return prev;
+      return [{ role: "assistant", text: agentGreeting }];
+    });
+  }, [agentGreeting]);
+
   const [busy, setBusy] = useState(false);
   const adminProjectContext = useAdminProjectContextForAgent();
   const includeAdminContext = Boolean(adminProjectContext);
@@ -191,6 +213,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           onError: (msg) => showToast(msg, "error"),
         });
       }
+      if (actions.type === "mark_listing_sold" && actions.listingId) {
+        markListingSold(actions.listingId);
+        showToast(
+          actions.title
+            ? `Skelbimas archyvuotas: ${actions.title}`
+            : "Skelbimas pažymėtas parduotu",
+          "success"
+        );
+      }
       if (actions.type === "micro_payment") {
         openMicroPayment({
           reason: actions.reason,
@@ -227,6 +258,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
     },
     [
+      markListingSold,
       applyAgentListingDraft,
       goToMarketplace,
       isAuthenticated,
@@ -338,6 +370,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             userRole: resolveAgentUserRole(user),
             contact: user.phone || "+370 612 34567",
             listings: compactListingsForAgent(listings),
+            userName: user.name,
+            accountType: resolveAccountTypeLabel(user),
+            myListings: myListingsForAgent,
+            myListingsSummary: summarizeMyListingsSummary(myListingsForAgent, user.name),
             lastError,
             isAuthenticated,
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
@@ -428,6 +464,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       clearSearchFilters,
       activeBoost,
       openMicroPayment,
+      myListingsForAgent,
     ]
   );
 

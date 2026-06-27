@@ -1,34 +1,33 @@
 import {
   AGENT_FUNCTION_DECLARATIONS,
   executeAgentTool,
-  LT_LOCATION_AGENT_HINT,
   type AgentSideEffect,
   type AgentToolContext,
 } from "./agent-tools.js";
-import { buildAgentSystemInstruction } from "./agent-system-instruction.js";
+import {
+  buildAgentSystemInstruction,
+  buildVautoAgentSystemInstruction,
+} from "./agent-system-instruction.js";
 import {
   resolveGeminiApiKey,
 } from "../load-env.js";
 import {
-  AGENT_MEMORY_SYSTEM_HINT,
   buildAgentMemoryContextBlock,
   type AgentMemoryPayload,
   type AgentSearchFilters,
 } from "./agent-memory-context.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
-import {
-  resolveMonetizationState,
-  B2B_LEAD_PRICE,
-  BUSINESS_MONTHLY_PRO,
-  SMART_BOOST_B2B,
-  SMART_BOOST_C2C,
-} from "./monetization-engine.js";
+import { resolveMonetizationState } from "./monetization-engine.js";
 import {
   AgentRouteError,
   fetchWithTimeout,
   isAbortError,
 } from "./agent-errors.js";
 import { tryFastAgentSearchPath } from "./fast-agent-search.js";
+import {
+  buildUserContextInjectionBlock,
+  type MyListingForAgent,
+} from "./user-agent-context.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -62,6 +61,10 @@ export interface VautoAgentRequest {
     missingFields?: string[];
     wizardPrompts?: string[];
     isAuthenticated?: boolean;
+    userName?: string;
+    accountType?: string;
+    myListings?: MyListingForAgent[];
+    myListingsSummary?: string;
     searchResultCount?: number;
     lastSearchQuery?: string;
     currentView?: string;
@@ -80,7 +83,8 @@ export interface VautoAgentRequest {
       walletBalance?: number;
     };
   };
-  /** Server-verified admin only — injected into Gemini systemInstruction */
+  /** Set by route from JWT — used for DB writes (mark sold, etc.) */
+  authUserId?: string;
   adminProjectContext?: string;
 }
 
@@ -90,49 +94,6 @@ export interface VautoAgentResponse {
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
 }
-
-const SYSTEM_INSTRUCTION = `Tu esi VAUTO – proaktyvus Lietuvos skelbimų turgaus AI vedlys (wizard).
-Tavo tikslas – vesti vartotoją pokalbiu per visą procesą lietuviškai, ne palikti sausų formų laukų.
-
-${LT_LOCATION_AGENT_HINT}
-
-${AGENT_MEMORY_SYSTEM_HINT}
-
-PARDAVIMO VEDLYS:
-- Kai vartotojas įkelia nuotrauką ar tekstą — iškart sugeneruok profesionalų aprašymą, nustatyk tikslią kategoriją, pasiūlyk rinkos kainą (analyzeMarketPrice) ir iškviesk postNewListing.
-- Jei trūksta privalomų duomenų (miestas, kaina, būklė) — užduok patariamuosius klausimus: „Matau, kad nenurodėte miesto. Ar skelbiame Kaune?", „Ar prekė nauja, ar naudota?"
-- Jei kategorija vehicles / AUTOMOBILIAI — iš balso ar teksto VISADA ištrauk make (markė), model (modelis), year (metai) ir perduok postNewListing (atskirais laukais arba attributes). Pvz. „BMW 520 2018“ → make=BMW, model=520, year=2018, category=vehicles.
-- Automobiliams paklausk: „Ar norėtumėte įvesti VIN kodą, kad Regitra duomenys užsipildytų automatiškai?"
-- Prieš publikavimą paklausk: „Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?"
-- Jei vartotojas neprisijungęs (isAuthenticated=false) — pasiūlyk: „Sukurkime nemokamą paskyrą vienu spustelėjimu, kad galėtumėte sekti peržiūras ir žinutes."
-
-PAIEŠKA (MARKTPLAATS UX — PRIVALOMA):
-- Kai vartotojas ieško („parodyk visus skelbimus“, „ieškau Volvo“ ir pan.) — VISADA iškviesk searchListings ir showZeroUiScreen(marketplace).
-- NIEKADA neišvardink skelbimų tekstu pokalbyje: jokių pavadinimų, kainų, numeruotų sąrašų ar aprašymų. Rezultatai rodomi TIK UI tinklelyje su nuotraukomis.
-- Atsakyme naudok tik vieną trumpą frazę: „Atidarau skelbimus ekrane." arba „Rezultatų nerasta."
-- ${LT_LOCATION_AGENT_HINT}
-- Jei rezultatų 0 ir užklausa visiškai nesusieta su katalogu (pvz. „kosminis laivas“) — iškviesk registerWanted; kitaip tik „Rezultatų nerasta.“
-
-PARDAVIMO BALSO DIALOGAS:
-- Kai postNewListing grąžina voiceFollowUp — ištark jį VERBATIM kaip TTS atsakymą (pvz. „AI užpildė markę ir modelį. Kokiais metais pagamintas jūsų automobilis ir kokia būtų kaina?").
-- Jei vartotojas pateikia tik dalį duomenų (pvz. „Parduodu Volvo V70“ be metų/kainos) — iškart paklausk trūkstamų laukų vienu šiltu klausimu, pirmiausia patvirtindamas ką AI jau suprato.
-
-KITI ĮRANKIAI:
-- analyzeMarketPrice — rinkos kainos patarimas.
-- triggerMicroPayment — diferencijuota kainodara: C2C Smart Boost ${SMART_BOOST_C2C} €, B2B Smart Boost ${SMART_BOOST_B2B} € (apsauga nuo dirbtinės konkurencijos), B2B Lead Gen ${B2B_LEAD_PRICE} €. Kai kaina viršija medianą — postNewListing pasiūlys Smart Boost atitinkama kaina; vartotojui pasakius „Iškelti skelbimą“ — triggerMicroPayment su price=0 (sistema pritaikys). B2B nemokamam verslui gili regiono paklausa — NIEKADA triggerMicroPayment; siūlyk Business Pro ${BUSINESS_MONTHLY_PRO} €/mėn ir showZeroUiScreen(business_dashboard).
-- trackUserError — proaktyvus klaidų sprendimas.
-- blockListing — administratoriui.
-- showZeroUiScreen — pagrindinis Zero-UI ekranas (marketplace, listing_preview, business_dashboard, admin_panel).
-- navigate_view — legacy perjungimas (pageidavimui naudok showZeroUiScreen).
-
-KETINIMO ATPAŽINIMAS (PRIVALOMA — nekeisk paieška, jei vartotojas nori kelti skelbimą):
-- Pardavimas / skelbimo kėlimas („noriu kelti skelbimą“, „parduodu“, „įdėti skelbimą“) → postNewListing + showZeroUiScreen(listing_preview). NIEKADA searchListings.
-- Paieška / pirkimas → searchListings + showZeroUiScreen(marketplace).
-- Verslo statistika („mano skelbimų statistika“, „peržiūros“, „skambučiai“) → showZeroUiScreen(business_dashboard).
-- Admin moderavimas („patvirtinti skelbimus“, „moderuoti“) → showZeroUiScreen(admin_panel) (tik admin).
-- Jei vartotojas aiškiai nori kelti skelbimą — nepridėk žodžio „ieškoti“ ir nekeisk jo užklausos į paieškos režimą.
-
-Būk glaustas, profesionalus, šiltas, be emoji. Visada atsakyk lietuviškai.`;
 
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
@@ -182,7 +143,7 @@ async function geminiAgentTurn(
           contents,
           tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
           toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-          generationConfig: { temperature: 0.35 },
+          generationConfig: { temperature: 0.55 },
         }),
       },
       GEMINI_AGENT_TIMEOUT_MS
@@ -240,14 +201,42 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
 
 async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentResponse> {
   const systemInstruction = buildAgentSystemInstruction(
-    SYSTEM_INSTRUCTION,
+    buildVautoAgentSystemInstruction(),
     req.adminProjectContext
   );
+
+  const userProfileBlock = buildUserContextInjectionBlock({
+    userName: req.context.userName ?? "Svečias",
+    accountType: req.context.accountType ?? "Svečias",
+    userCity: resolveAgentDefaultCity(req.context.userCity),
+    contact: req.context.contact?.trim() || "+370 612 34567",
+    userRole: req.context.userRole ?? "buyer",
+    isAuthenticated: Boolean(req.context.isAuthenticated),
+    myListings: req.context.myListings ?? [],
+    myListingsSummary:
+      req.context.myListingsSummary ??
+      "Vartotojo skelbimai nežinomi — paklausk ar nori kelti naują.",
+  });
 
   const ctx: AgentToolContext = {
     userCity: resolveAgentDefaultCity(req.context.userCity),
     userRole: req.context.userRole ?? "buyer",
     contact: req.context.contact?.trim() || "+370 612 34567",
+    userName: req.context.userName,
+    authUserId: req.authUserId,
+    myListings: req.context.myListings,
+    listingDraft: req.context.listingDraft
+      ? {
+          title: req.context.listingDraft.title,
+          description: req.context.listingDraft.description,
+          price: req.context.listingDraft.price,
+          location: req.context.listingDraft.location,
+          category: req.context.listingDraft.category,
+          attributes: req.context.listingDraft.attributes as
+            | Record<string, string>
+            | undefined,
+        }
+      : undefined,
     listingsSnapshot: req.context.listings,
     searchSessionReset: Boolean(req.context.searchSessionReset),
     monetization: resolveMonetizationState({
@@ -311,6 +300,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       parts: [{ text: memoryBlock }],
     });
   }
+
+  contents.unshift({
+    role: "user",
+    parts: [{ text: userProfileBlock }],
+  });
 
   const toolCalls: { name: string; result: unknown }[] = [];
   let sideEffect: AgentSideEffect | undefined;
@@ -376,7 +370,13 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
         if (fx) {
           if (fx.type === "micro_payment") microPaymentEffect = fx;
           else if (fx.type === "navigate") navigateEffect = fx;
-          else if (!sideEffect) sideEffect = fx;
+          else if (
+            fx.type === "mark_listing_sold" ||
+            fx.type === "listing_draft" ||
+            !sideEffect
+          ) {
+            sideEffect = fx;
+          }
         }
         responseParts.push({ functionResponse: { name, response: result } });
       }
@@ -410,6 +410,12 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   } | undefined;
   if (paymentResult?.message && (paymentResult.ok || paymentResult.message.includes("Business Pro"))) {
     finalText = paymentResult.message;
+  }
+
+  const soldCall = toolCalls.find((t) => t.name === "markListingSold");
+  const soldResult = soldCall?.result as { message?: string; ok?: boolean } | undefined;
+  if (soldResult?.ok && soldResult.message) {
+    finalText = soldResult.message;
   }
 
   const searchSideEffect =
