@@ -1,6 +1,8 @@
 package com.vauto.app;
 
 import android.content.ComponentCallbacks2;
+import android.content.Intent;
+import android.net.Uri;
 import android.os.Bundle;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
@@ -61,6 +63,18 @@ public class MainActivity extends BridgeActivity {
         if (!(webView.getWebViewClient() instanceof VautoWebViewClient)) {
             webView.setWebViewClient(new VautoWebViewClient(bridge));
         }
+
+        webView.setDownloadListener((url, userAgent, contentDisposition, mimeType, contentLength) -> {
+            if (VautoWebViewClient.shouldBlockInstallDownload(url)) {
+                return;
+            }
+            try {
+                Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                startActivity(intent);
+            } catch (Exception ignored) {
+                /* no external handler */
+            }
+        });
     }
 
     private void trimWebViewMemory(boolean aggressive) {

@@ -4,7 +4,6 @@ import { useMemo } from "react";
 import { Apple, Download, Share2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import {
-  APK_DOWNLOAD_URL,
   INSTALL_PAGE_URL,
   getPreferredInstallPlatform,
   isAndroid,
@@ -12,6 +11,7 @@ import {
   isNativeApp,
   shareAndroidApk,
   shareIosPwa,
+  startApkDownload,
 } from "@/lib/mobile-install";
 import { cn } from "@/lib/cn";
 
@@ -71,14 +71,14 @@ export function InstallDownloadButtons({
         Android
       </p>
       <div className="flex flex-col gap-2 sm:flex-row">
-        <a
-          href={APK_DOWNLOAD_URL}
-          download="vauto.apk"
+        <button
+          type="button"
+          onClick={startApkDownload}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-blue)] py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98]"
         >
           <Download className="h-4 w-4" />
           Atsisiųsti APK
-        </a>
+        </button>
         {showShare && (
           <button
             type="button"

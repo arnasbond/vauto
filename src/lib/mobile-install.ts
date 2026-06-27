@@ -6,9 +6,15 @@ import {
 } from "@/lib/native-share";
 import { SITE_URL } from "@/lib/social-share";
 
-/** Stable URL for the latest Android APK (GitHub Releases). */
-export const APK_DOWNLOAD_URL =
+/** Direct mirror on Vercel — no GitHub redirect chain (fixes stuck Android downloads). */
+export const APK_VERCEL_DOWNLOAD_URL = `${SITE_URL}/download/vauto.apk`;
+
+/** Fallback when Vercel mirror is not ready yet. */
+export const APK_GITHUB_DOWNLOAD_URL =
   "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk";
+
+/** Primary browser download URL. */
+export const APK_DOWNLOAD_URL = APK_VERCEL_DOWNLOAD_URL;
 
 export const APK_RELEASE_PAGE =
   "https://github.com/arnasbond/vauto/releases/tag/android-latest";
@@ -76,6 +82,22 @@ export function shouldShowInstallPrompt(): boolean {
   return isMobileDevice() && !isNativeApp() && !isInstalledPwa();
 }
 
+let apkDownloadInFlight = false;
+
+/** One-shot APK download — avoids Android DownloadManager retry loops from `<a download>`. */
+export function startApkDownload(): void {
+  if (typeof window === "undefined") return;
+  if (isNativeApp()) return;
+  if (apkDownloadInFlight) return;
+
+  apkDownloadInFlight = true;
+  window.setTimeout(() => {
+    apkDownloadInFlight = false;
+  }, 15_000);
+
+  window.location.assign(APK_DOWNLOAD_URL);
+}
+
 async function shareInstallPackage(payload: NativeSharePayload): Promise<boolean> {
   if (canUseCapacitorShare()) {
     const ok = await shareViaCapacitor(payload);
@@ -103,7 +125,7 @@ export async function shareAndroidApk(): Promise<boolean> {
   return shareInstallPackage({
     title: "Vauto Android programėlė",
     text: "Atsisiųsk Vauto APK — lietuviška išmani skelbimų programėlė visoje Lietuvoje.",
-    url: APK_DOWNLOAD_URL,
+    url: APK_VERCEL_DOWNLOAD_URL,
     dialogTitle: "Dalintis APK",
   });
 }

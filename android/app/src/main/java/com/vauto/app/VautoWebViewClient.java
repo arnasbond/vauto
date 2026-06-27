@@ -13,10 +13,20 @@ public class VautoWebViewClient extends BridgeWebViewClient {
         super(bridge);
     }
 
+    public static boolean shouldBlockInstallDownload(String url) {
+        if (url == null || url.isEmpty()) return false;
+        String lower = url.toLowerCase();
+        if (lower.contains("/download/vauto") && lower.endsWith(".apk")) return true;
+        if (!lower.contains("github.com")) return false;
+        return lower.contains(".apk")
+            || lower.contains("/releases/download/")
+            || lower.contains("/releases/tag/android");
+    }
+
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, WebResourceRequest request) {
         Uri uri = request.getUrl();
-        if (uri != null && shouldBlockExternalInstallLink(uri.toString())) {
+        if (uri != null && shouldBlockInstallDownload(uri.toString())) {
             return true;
         }
         return super.shouldOverrideUrlLoading(view, request);
@@ -25,18 +35,9 @@ public class VautoWebViewClient extends BridgeWebViewClient {
     @SuppressWarnings("deprecation")
     @Override
     public boolean shouldOverrideUrlLoading(WebView view, String url) {
-        if (shouldBlockExternalInstallLink(url)) {
+        if (shouldBlockInstallDownload(url)) {
             return true;
         }
         return super.shouldOverrideUrlLoading(view, url);
-    }
-
-    private static boolean shouldBlockExternalInstallLink(String url) {
-        if (url == null || url.isEmpty()) return false;
-        String lower = url.toLowerCase();
-        if (!lower.contains("github.com")) return false;
-        return lower.contains(".apk")
-            || lower.contains("/releases/download/")
-            || lower.contains("/releases/tag/android");
     }
 }
