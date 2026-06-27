@@ -137,6 +137,7 @@ export function AiConfirmationScreen({
         previewImage={sellerPreviewImage}
         manualFallback={aiManualFallback}
         userName={user.name}
+        defaultLocation={user.city || draft.location}
         onUpdate={updateAiDraft}
         onAttributeChange={handleAttributeChange}
         onMediaChange={updateSellerMedia}

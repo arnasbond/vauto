@@ -8,7 +8,15 @@ import { MessageStatusTicks } from "@/components/chat/MessageStatusTicks";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
 import { AiTrustScoreBanner } from "@/components/trust/AiTrustScoreBanner";
 import { ReportButton } from "@/components/support/ReportButton";
+import { MagicMirrorChatBanner } from "@/components/chat/MagicMirrorChatBanner";
+import { NegotiationTwinPanel } from "@/components/chat/NegotiationTwinPanel";
 import { useVauto } from "@/context/VautoContext";
+import {
+  analyzeMagicMirrorFit,
+  buyerMeasurementsFromProfile,
+  garmentMeasurementsFromDraft,
+  type MagicMirrorFit,
+} from "@/lib/magic-mirror";
 import { getQuickQuestions } from "@/lib/chat-helpers";
 import { canReviewListing } from "@/lib/reviews";
 import {
@@ -17,9 +25,18 @@ import {
 } from "@/lib/user-trust-score";
 
 function ChatThreadContent({ chatId }: { chatId: string }) {
-  const { chats, sendMessage, user, listings, setActiveChatId, reviews, queueReviewPrompt } =
-    useVauto();
+  const {
+    chats,
+    sendMessage,
+    user,
+    listings,
+    setActiveChatId,
+    reviews,
+    queueReviewPrompt,
+    updateNegotiationTwin,
+  } = useVauto();
   const [draft, setDraft] = useState("");
+  const [magicMirror, setMagicMirror] = useState<MagicMirrorFit | null>(null);
   const chat = chats.find((c) => c.id === chatId);
   const listing = listings.find((l) => l.id === chat?.listingId);
   const quickQuestions = getQuickQuestions(listing);
@@ -51,6 +68,26 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
     setActiveChatId(chatId);
     return () => setActiveChatId(null);
   }, [chatId, setActiveChatId]);
+
+  useEffect(() => {
+    if (!isBuyer || !listing || listing.category !== "clothing") {
+      setMagicMirror(null);
+      return;
+    }
+    let cancelled = false;
+    void analyzeMagicMirrorFit({
+      buyerName: user.name,
+      listingTitle: listing.title,
+      buyerMeasurements: buyerMeasurementsFromProfile(user),
+      garmentMeasurements: garmentMeasurementsFromDraft(listing),
+      listingDescription: listing.description,
+    }).then((fit) => {
+      if (!cancelled) setMagicMirror(fit);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [isBuyer, listing, user]);
 
   if (!chatId || !chat) {
     return (
@@ -126,6 +163,10 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
 
         {isBuyer && sellerTrust && <AiTrustScoreBanner profile={sellerTrust} />}
 
+        {isBuyer && magicMirror && listing?.category === "clothing" && (
+          <MagicMirrorChatBanner fit={magicMirror} />
+        )}
+
         {chat.escrowOffered && (
           <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />
         )}
@@ -144,6 +185,14 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
             </button>
           ))}
         </div>
+      )}
+
+      {isSeller && listing && (
+        <NegotiationTwinPanel
+          chat={chat}
+          listingPrice={listing.price}
+          onUpdate={(config) => updateNegotiationTwin(chatId, config)}
+        />
       )}
 
       {showReviewPrompt && (

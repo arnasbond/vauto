@@ -19,6 +19,8 @@ import { isDataApiEnabled } from "@/lib/api/config";
 import { loadChats, saveChats } from "@/lib/storage";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import { requestChatShieldAnalysis } from "@/lib/chat-shield-client";
+import { requestNegotiationTwin } from "@/lib/chat-agent-client";
+import { resolveSellerDisplayName } from "@/lib/user-trust-score";
 import { logAnalytics } from "@/lib/analytics";
 import { listingPath } from "@/lib/seo";
 import {
@@ -35,13 +37,14 @@ import {
   dispatchChatPushNotification,
   requestChatPushPermission,
 } from "@/lib/chat-push";
-import type { ChatMessage, ChatThread, EscrowTransaction, Listing } from "@/lib/types";
+import type { ChatMessage, ChatThread, EscrowTransaction, Listing, NegotiationTwinConfig } from "@/lib/types";
 
 interface ChatContextValue {
   chats: ChatThread[];
   sendMessage: (chatId: string, text: string) => void;
   startChat: (listingId: string) => string | null;
   updateEscrow: (chatId: string, escrow: EscrowTransaction) => void;
+  updateNegotiationTwin: (chatId: string, config: NegotiationTwinConfig) => void;
   setActiveChatId: (chatId: string | null) => void;
   markChatRead: (chatId: string) => void;
   findListing: (idOrSlug: string) => Listing | undefined;
@@ -366,33 +369,72 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const listing = chatMeta
             ? listingsRef.current.find((l) => l.id === chatMeta.listingId)
             : undefined;
-          void requestChatShieldAnalysis({
-            message: text,
-            listingPrice: listing?.price ?? 0,
-            listingTitle: listing?.title ?? listingTitle,
-            sellerName: "Pardavėjas",
-          }).then((shield) => {
-            if (!shield?.shouldShield || !shield.autoReply?.trim()) return;
+          const sellerName = resolveSellerDisplayName(sellerId, listingsRef.current);
+          const twin = chatMeta?.negotiationTwin;
 
-            const autoId = `m-shield-${Date.now()}`;
-            const autoMsg: ChatMessage = {
-              id: autoId,
-              senderId: sellerId,
-              text: shield.autoReply,
-              timestamp: new Date().toISOString(),
-              status: "sent",
-            };
+          if (twin?.enabled && twin.minPrice > 0 && listing) {
+            void requestNegotiationTwin({
+              buyerMessage: text,
+              listingPrice: listing.price,
+              minPrice: twin.minPrice,
+              listingTitle: listing.title,
+              sellerName,
+            }).then((negotiation) => {
+              if (!negotiation?.shouldReply || !negotiation.autoReply?.trim()) return;
 
-            upsertChats((prev) =>
-              prev.map((c) =>
-                c.id === chatId ? { ...c, messages: [...c.messages, autoMsg] } : c
-              )
-            );
+              const autoId = `m-twin-${Date.now()}`;
+              const autoMsg: ChatMessage = {
+                id: autoId,
+                senderId: sellerId,
+                text: negotiation.autoReply,
+                timestamp: new Date().toISOString(),
+                status: "sent",
+              };
 
-            if (userRef.current.id === sellerId && shield.sellerNotification) {
-              showToast(`🛡️ ${shield.sellerNotification}`, "info");
-            }
-          });
+              upsertChats((prev) =>
+                prev.map((c) => {
+                  if (c.id !== chatId) return c;
+                  return {
+                    ...c,
+                    messages: [...c.messages, autoMsg],
+                    ...(negotiation.dealReady ? { escrowOffered: true } : {}),
+                  };
+                })
+              );
+
+              if (userRef.current.id === sellerId && negotiation.sellerNotification) {
+                showToast(`🤖 ${negotiation.sellerNotification}`, "success");
+              }
+            });
+          } else {
+            void requestChatShieldAnalysis({
+              message: text,
+              listingPrice: listing?.price ?? 0,
+              listingTitle: listing?.title ?? listingTitle,
+              sellerName,
+            }).then((shield) => {
+              if (!shield?.shouldShield || !shield.autoReply?.trim()) return;
+
+              const autoId = `m-shield-${Date.now()}`;
+              const autoMsg: ChatMessage = {
+                id: autoId,
+                senderId: sellerId,
+                text: shield.autoReply,
+                timestamp: new Date().toISOString(),
+                status: "sent",
+              };
+
+              upsertChats((prev) =>
+                prev.map((c) =>
+                  c.id === chatId ? { ...c, messages: [...c.messages, autoMsg] } : c
+                )
+              );
+
+              if (userRef.current.id === sellerId && shield.sellerNotification) {
+                showToast(`🛡️ ${shield.sellerNotification}`, "info");
+              }
+            });
+          }
         }
       }
 
@@ -495,12 +537,28 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [setSyncError, upsertChats]
   );
 
+  const updateNegotiationTwin = useCallback(
+    (chatId: string, config: NegotiationTwinConfig) => {
+      let saved: ChatThread | null = null;
+      upsertChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== chatId) return chat;
+          saved = { ...chat, negotiationTwin: config };
+          return saved;
+        })
+      );
+      if (saved) persistChat(saved);
+    },
+    [persistChat, upsertChats]
+  );
+
   const value = useMemo<ChatContextValue>(
     () => ({
       chats,
       sendMessage,
       startChat,
       updateEscrow,
+      updateNegotiationTwin,
       setActiveChatId,
       markChatRead,
       findListing,
@@ -510,6 +568,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       sendMessage,
       startChat,
       updateEscrow,
+      updateNegotiationTwin,
       setActiveChatId,
       markChatRead,
       findListing,

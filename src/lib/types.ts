@@ -147,6 +147,21 @@ export interface UserProfile {
     model: string;
     year: number;
   };
+  /** Magic Mirror — pirkėjos figūros matmenys drabužiams */
+  bodyMeasurements?: BodyMeasurements;
+}
+
+export interface BodyMeasurements {
+  heightCm?: number;
+  bustCm?: number;
+  waistCm?: number;
+  hipsCm?: number;
+  usualSize?: string;
+}
+
+export interface NegotiationTwinConfig {
+  enabled: boolean;
+  minPrice: number;
 }
 
 export interface SellerReview {
@@ -258,6 +273,10 @@ export interface ChatThread {
   /** Last time current user viewed this thread */
   lastReadAt?: string;
   smsFallbackSentFor?: string;
+  /** Negotiation Twin — AI dvynys derybose fone */
+  negotiationTwin?: NegotiationTwinConfig;
+  /** Magic Mirror gyva rekomendacija pirkėjui */
+  magicMirrorNote?: string;
 }
 
 export type EscrowStatus =

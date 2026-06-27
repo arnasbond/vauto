@@ -75,6 +75,7 @@ import type {
   AiExtractedListing,
   ChatThread,
   EscrowTransaction,
+  NegotiationTwinConfig,
   Listing,
   ReportCategory,
   ReportStatus,
@@ -261,6 +262,7 @@ interface VautoContextValue {
   sendMessage: (chatId: string, text: string) => void;
   startChat: (listingId: string) => string | null;
   updateEscrow: (chatId: string, escrow: EscrowTransaction) => void;
+  updateNegotiationTwin: (chatId: string, config: NegotiationTwinConfig) => void;
 
   isAuthenticated: boolean;
   authHydrated: boolean;
@@ -383,6 +385,7 @@ type VautoCatalogSlice = Omit<
   | "sendMessage"
   | "startChat"
   | "updateEscrow"
+  | "updateNegotiationTwin"
   | "setActiveChatId"
   | "markChatRead"
   | "findListing"

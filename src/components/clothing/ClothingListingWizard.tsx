@@ -29,6 +29,8 @@ import {
   type WardrobeDraftItem,
 } from "@/lib/wardrobe-vision";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
+import { MagicMirrorPanel } from "@/components/clothing/MagicMirrorPanel";
 
 const ACCENT = "#09b1a8";
 
@@ -37,6 +39,7 @@ interface ClothingListingWizardProps {
   previewImage: string | null;
   manualFallback?: boolean;
   userName?: string;
+  defaultLocation?: string;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null }) => void;
@@ -109,6 +112,7 @@ export function ClothingListingWizard({
   previewImage,
   manualFallback,
   userName,
+  defaultLocation = "",
   onUpdate,
   onAttributeChange,
   onMediaChange,
@@ -219,10 +223,24 @@ export function ClothingListingWizard({
   const handlePublishAllWardrobe = () => {
     if (!onPublishBulk || !wardrobeItems.length) return;
     const drafts = wardrobeItems.map((item) =>
-      wardrobeItemToDraft(item, draft.contact, draft.location)
+      wardrobeItemToDraft(item, draft.contact, draft.location || defaultLocation)
     );
     clearClothingListingDraft();
     onPublishBulk(drafts);
+  };
+
+  const handleProfileImport = (drafts: AiExtractedListing[], voice: string) => {
+    speakBuddyMessage(voice, { enabled: true });
+    if (onPublishBulk && drafts.length > 1) {
+      onPublishBulk(drafts);
+      return;
+    }
+    if (drafts[0]) {
+      onUpdate(drafts[0]);
+      for (const [key, val] of Object.entries(drafts[0].attributes ?? {})) {
+        onAttributeChange(key, val as string | string[]);
+      }
+    }
   };
 
   const selectCategory = (group: string, sub: string) => {
@@ -266,6 +284,14 @@ export function ClothingListingWizard({
               AI nepavyko pilnai atpažinti — užpildykite prekės informaciją ranka.
             </p>
           )}
+
+          <WardrobeProfileImporter
+            userName={userName}
+            defaultLocation={draft.location || defaultLocation}
+            contact={draft.contact}
+            onImportReady={handleProfileImport}
+            onToast={onToast}
+          />
 
           <SectionTitle>Nuotraukos</SectionTitle>
           <div className="mb-6 rounded-2xl border border-dashed border-[#d1d5db] bg-white p-4">
@@ -357,6 +383,13 @@ export function ClothingListingWizard({
           </div>
 
           <SectionTitle>Prekės informacija</SectionTitle>
+          <MagicMirrorPanel
+            chestCm={attr(attrs, "chestCm")}
+            waistCm={attr(attrs, "waistCm")}
+            hipsCm={attr(attrs, "hipsCm")}
+            lengthCm={attr(attrs, "lengthCm")}
+            onChange={onAttributeChange}
+          />
           <div className="mb-3 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
             <button
               type="button"

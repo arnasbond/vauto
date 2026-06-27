@@ -744,6 +744,43 @@ export async function apiProcessExpressEscrow(body: {
   });
 }
 
+export async function apiImportWardrobeProfile(body: {
+  profileUrl: string;
+  userName?: string;
+  defaultLocation?: string;
+}): Promise<import("@/lib/vinted-importer").WardrobeProfileImport | null> {
+  return aiFetch("/api/ai/import-wardrobe-profile", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiMagicMirrorFit(body: {
+  buyerName: string;
+  listingTitle: string;
+  buyerMeasurements: import("@/lib/types").BodyMeasurements;
+  garmentMeasurements: Record<string, unknown>;
+  listingDescription?: string;
+}): Promise<import("@/lib/magic-mirror").MagicMirrorFit | null> {
+  return aiFetch("/api/ai/magic-mirror-fit", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiNegotiationTwin(body: {
+  buyerMessage: string;
+  listingPrice: number;
+  minPrice: number;
+  listingTitle: string;
+  sellerName: string;
+}): Promise<import("@/lib/chat-agent-client").NegotiationTwinReply | null> {
+  return aiFetch("/api/ai/negotiation-twin", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiChatShield(body: {
   message: string;
   listingPrice: number;

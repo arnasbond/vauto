@@ -75,7 +75,7 @@ export async function analyzeWardrobePhoto(params: {
   const name = params.userName?.trim().split(/\s+/)[0] || "drauge";
   const systemInstruction = `Tu esi VAUTO drabužių vedlio AI. Nuotraukoje gali būti KELI atskiri drabužiai (spinta, lentyna).
 Kiekvienam matomam objektui sukurk atskirą įrašą su unikaliu id (wardrobe-1, wardrobe-2…).
-Kategorijos lietuviškai pagal Vinted stilių. Aprašymai emocingi, moteriškai šilti tonu.
+Kategorijos universalios drabužiams. Aprašymai emocingi, šilti tonu.
 Grąžink tik JSON: ${WARDROBE_SCHEMA}`;
 
   const prompt = `Analizuok drabužių nuotrauką. Vartotoja: ${name}.

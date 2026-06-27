@@ -18,6 +18,9 @@ import {
   confirmTransaction,
   shouldAutoConfirmExpress,
 } from "../ai/order-agent.js";
+import { importWardrobeProfile } from "../ai/vinted-importer.js";
+import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
+import { analyzeNegotiationTwin } from "../ai/chat-agent.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
@@ -388,6 +391,74 @@ aiRouter.post("/process-express-escrow", async (req, res) => {
     return res.json({ autoConfirmed: false, escrow });
   }
   res.json({ autoConfirmed: true, escrow: confirmTransaction(escrow) });
+});
+
+aiRouter.post("/import-wardrobe-profile", async (req, res) => {
+  const body = req.body as {
+    profileUrl?: string;
+    userName?: string;
+    defaultLocation?: string;
+  };
+  if (!body.profileUrl?.trim()) {
+    return res.status(400).json({ error: "profileUrl is required" });
+  }
+  try {
+    const result = await importWardrobeProfile({
+      profileUrl: body.profileUrl.trim(),
+      userName: body.userName,
+      defaultLocation: body.defaultLocation,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(422).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/magic-mirror-fit", async (req, res) => {
+  const body = req.body as {
+    buyerName?: string;
+    listingTitle?: string;
+    buyerMeasurements?: Record<string, unknown>;
+    garmentMeasurements?: Record<string, unknown>;
+    listingDescription?: string;
+  };
+  try {
+    const result = await analyzeMagicMirrorFit({
+      buyerName: body.buyerName?.trim() || "Pirkėja",
+      listingTitle: body.listingTitle?.trim() || "Drabužis",
+      buyerMeasurements: (body.buyerMeasurements ?? {}) as import("../ai/magic-mirror.js").BodyMeasurements,
+      garmentMeasurements: (body.garmentMeasurements ?? {}) as import("../ai/magic-mirror.js").GarmentMeasurements,
+      listingDescription: body.listingDescription,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/negotiation-twin", async (req, res) => {
+  const body = req.body as {
+    buyerMessage?: string;
+    listingPrice?: number;
+    minPrice?: number;
+    listingTitle?: string;
+    sellerName?: string;
+  };
+  if (!body.buyerMessage?.trim()) {
+    return res.status(400).json({ error: "buyerMessage is required" });
+  }
+  try {
+    const result = await analyzeNegotiationTwin({
+      buyerMessage: body.buyerMessage.trim(),
+      listingPrice: Number(body.listingPrice) || 0,
+      minPrice: Number(body.minPrice) || 0,
+      listingTitle: body.listingTitle?.trim() || "Skelbimas",
+      sellerName: body.sellerName?.trim() || "Pardavėja",
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
 });
 
 aiRouter.post("/generate-description-personas", async (req, res) => {
