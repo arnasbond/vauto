@@ -64,8 +64,9 @@ public class MainActivity extends BridgeActivity {
         if (bridge == null) return;
         WebView webView = bridge.getWebView();
         if (webView == null) return;
+        // Never clearCache — after Android "clear cache" recovery the WebView stays blank.
         if (aggressive) {
-            webView.clearCache(false);
+            webView.clearFormData();
         }
     }
 }

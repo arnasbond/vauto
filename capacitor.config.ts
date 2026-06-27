@@ -28,6 +28,8 @@ const config: CapacitorConfig = {
         androidScheme: "https",
         iosScheme: "capacitor",
         cleartext: false,
+        /** Bundled out/index.html when remote URL fails (cache wipe / offline). */
+        errorPath: "index.html",
         allowNavigation: [
           "vauto-chi.vercel.app",
           "vauto-api.onrender.com",

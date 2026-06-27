@@ -2,7 +2,6 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
-import { wipeNativeAppStorage } from "@/lib/native-recovery";
 
 interface Props {
   children: ReactNode;
@@ -10,29 +9,31 @@ interface Props {
 
 interface State {
   error: Error | null;
-  resetting: boolean;
+  reloading: boolean;
 }
 
 export class NativeErrorBoundary extends Component<Props, State> {
-  state: State = { error: null, resetting: false };
+  state: State = { error: null, reloading: false };
 
   static getDerivedStateFromError(error: Error): State {
-    return { error, resetting: false };
+    return { error, reloading: false };
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
     console.error("[VAUTO ErrorBoundary]", error, info.componentStack);
   }
 
-  handleReset = () => {
-    this.setState({ resetting: true });
-    void wipeNativeAppStorage().finally(() => {
-      window.location.href = "/";
-    });
+  handleReload = () => {
+    this.setState({ reloading: true });
+    window.location.reload();
+  };
+
+  handleOpenWeb = () => {
+    window.location.href = "https://vauto-chi.vercel.app/";
   };
 
   render() {
-    const { error, resetting } = this.state;
+    const { error, reloading } = this.state;
     if (!error) return this.props.children;
 
     const native =
@@ -44,17 +45,26 @@ export class NativeErrorBoundary extends Component<Props, State> {
         <h1 className="mt-4 text-xl font-bold">Programėlė sustojo</h1>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
           {native
-            ? "Dažniausia priežastis — sugadinti vietiniai duomenys arba atminties trūkumas (Samsung Fold). Atstatykite programėlę."
+            ? "Dažniausia priežastis — prisijungimo langas arba WebView atmintis. Perkraukite programėlę; duomenys neištrinami."
             : "Įvyko netikėta klaida. Perkraukite puslapį."}
         </p>
         <button
           type="button"
-          disabled={resetting}
-          onClick={this.handleReset}
+          disabled={reloading}
+          onClick={this.handleReload}
           className="mt-8 rounded-2xl bg-[#00BFA5] px-8 py-3 text-sm font-semibold text-white disabled:opacity-60"
         >
-          {resetting ? "Atstatoma…" : "Atstatyti programėlę"}
+          {reloading ? "Perkraunama…" : "Perkrauti programėlę"}
         </button>
+        {native && (
+          <button
+            type="button"
+            onClick={this.handleOpenWeb}
+            className="mt-3 text-sm text-slate-400 underline"
+          >
+            Atidaryti vauto-chi.vercel.app naršyklėje
+          </button>
+        )}
         {!native && (
           <button
             type="button"

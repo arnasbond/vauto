@@ -51,7 +51,7 @@ export async function runNativeLaunchRecovery(): Promise<boolean> {
       if (crashes >= 3) {
         await wipeNativeAppStorage();
         wiped = true;
-        sessionStorage.setItem(LAUNCH_MARKER, "1");
+        sessionStorage.setItem(LAUNCH_MARKER, "0");
         localStorage.removeItem(CRASH_COUNT);
       }
     } else {

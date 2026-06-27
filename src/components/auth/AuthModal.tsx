@@ -91,6 +91,8 @@ export function AuthModal({
   useEffect(() => {
     if (!open || step !== "methods" || !googleBtnRef.current) return;
     if (!isGoogleAuthConfigured()) return;
+    // Google GSI iframe inside WebView crashes Samsung/Android renderer — phone auth only.
+    if (isNativeAuthEnvironment()) return;
     void import("@/lib/auth/google-client").then(({ renderGoogleButton }) => {
       if (!googleBtnRef.current) return;
       void renderGoogleButton(googleBtnRef.current, (credential) => {
@@ -123,6 +125,13 @@ export function AuthModal({
 
   const handleGoogle = async () => {
     onClearError?.();
+    if (isNativeAuthEnvironment()) {
+      setOtpError(
+        "Programėlėje saugiausias būdas — prisijungti su telefonu (SMS). Google WebView gali sudrebinti sistemą."
+      );
+      setStep("phone");
+      return;
+    }
     if (isAuthApiAvailable() && !isGoogleAuthConfigured()) {
       setOtpError(
         "Google prisijungimas dar neaktyvuotas serveryje. Naudokite telefoną arba admin OTP."
@@ -257,8 +266,14 @@ export function AuthModal({
                 runtime-config arba Vercel env.
               </p>
             )}
-            {isGoogleAuthConfigured() && (
+            {isGoogleAuthConfigured() && !isNativeAuthEnvironment() && (
               <div ref={googleBtnRef} className="flex justify-center" />
+            )}
+            {isNativeAuthEnvironment() && (
+              <p className="text-center text-[11px] leading-relaxed text-slate-400">
+                Google prisijungimas programėlėje laikinai išjungtas dėl Android saugumo.
+                Naudokite <span className="text-[var(--vauto-teal)]">telefono numerį</span> žemiau.
+              </p>
             )}
             {isAppleAuthConfigured() ? (
               <button
