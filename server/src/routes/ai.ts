@@ -12,6 +12,11 @@ import {
   resolveAuthenticatedAgentContext,
 } from "../ai/user-agent-context.js";
 import { VOICE_SECRETARY_PERSONA } from "../ai/secretary-persona.js";
+import {
+  isTooShortSecretaryQuery,
+  normalizeSecretaryQuery,
+  resolveSecretaryNoiseReply,
+} from "../ai/secretary-guards.js";
 
 export const aiRouter = Router();
 
@@ -149,6 +154,21 @@ aiRouter.post("/analyze-voice", async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: "transcript is required" });
   }
 
+  const cleanedTranscript = normalizeSecretaryQuery(transcript);
+  if (isTooShortSecretaryQuery(cleanedTranscript)) {
+    const followUp = resolveSecretaryNoiseReply(cleanedTranscript);
+    return res.json({
+      understoodSummary: followUp,
+      needsClarification: true,
+      followUpQuestion: followUp,
+      missingFields: [],
+      imageSearchQuery: "",
+      mergedTranscript: cleanedTranscript,
+      category: "other",
+      confidence: 0.15,
+    });
+  }
+
   const userCtx = await resolveAuthenticatedAgentContext(req.authUserId, {
     userName,
     accountType,
@@ -182,7 +202,7 @@ Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarif
       },
       {
         role: "user",
-        content: `Istorija:\n${historyText || "(tuščia)"}\n\nĮrašas: "${transcript}"\nJSON: ${VOICE_INTENT_SCHEMA}\nMiestas: ${userCtx.userCity}`,
+        content: `Istorija:\n${historyText || "(tuščia)"}\n\nĮrašas: "${cleanedTranscript}"\nJSON: ${VOICE_INTENT_SCHEMA}\nMiestas: ${userCtx.userCity}`,
       },
     ]);
     res.json({

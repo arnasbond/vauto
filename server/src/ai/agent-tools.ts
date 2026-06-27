@@ -86,6 +86,8 @@ export interface AgentToolContext {
   contact: string;
   userName?: string;
   authUserId?: string;
+  activeListingId?: string;
+  activeListingTitle?: string;
   myListings?: MyListingForAgent[];
   listingsSnapshot?: AgentListingSummary[];
   searchSessionReset?: boolean;
@@ -760,9 +762,11 @@ export async function executeAgentTool(
     case "markListingSold": {
       const listingId = String(args.listingId ?? "").trim();
       const titleHint = String(args.titleHint ?? "").trim().toLowerCase();
+      const pageListingId = ctx.activeListingId?.trim();
       const mine = (ctx.myListings ?? []).filter((l) => l.status !== "sold");
       let target =
         mine.find((l) => l.id === listingId) ??
+        (pageListingId ? mine.find((l) => l.id === pageListingId) : undefined) ??
         (titleHint
           ? mine.find((l) => l.title.toLowerCase().includes(titleHint))
           : undefined) ??

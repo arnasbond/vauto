@@ -51,6 +51,10 @@ export interface VautoAgentContext {
   searchResultCount?: number;
   lastSearchQuery?: string;
   currentView?: AppView | import("@/lib/zero-ui-screens").ZeroUiScreen;
+  currentPageContext?: CurrentPageContext;
+  sessionExpired?: boolean;
+  sessionLastActiveAt?: number;
+  lastSessionTopic?: string;
   monetization?: {
     tier?: "free" | "business_pro";
     activeBoost?: boolean;
@@ -75,6 +79,137 @@ export interface MyListingForAgent {
   category: string;
   location: string;
   status: string;
+}
+
+/** UI deixis context — „šitas/anas" resolves to active_listing_id. */
+export interface CurrentPageContext {
+  page_id: string;
+  active_listing_id?: string;
+  active_listing_title?: string;
+  zero_ui_screen?: string;
+}
+
+/** Matches server SECRETARY_SESSION_TTL_MS (15 min). */
+export const AGENT_SESSION_TTL_MS = 15 * 60 * 1000;
+
+export const AGENT_MIN_QUERY_CHARS = 5;
+
+export const AGENT_NOISE_REPLIES = [
+  "Atsiprašau, neišgirdau — pakartokite prašau?",
+  "Aplink per daug triukšmo — galite parašyti?",
+] as const;
+
+const AGENT_SESSION_ACTIVITY_KEY = "vauto_agent_last_activity_v1";
+
+export function isTooShortAgentQuery(text: string | null | undefined): boolean {
+  const t = String(text ?? "").trim();
+  if (!t) return true;
+  return t.length < AGENT_MIN_QUERY_CHARS;
+}
+
+export function resolveAgentNoiseReply(seed?: string): string {
+  if (!AGENT_NOISE_REPLIES.length) return AGENT_NOISE_REPLIES[0]!;
+  if (!seed?.trim()) return AGENT_NOISE_REPLIES[0]!;
+  let hash = 0;
+  for (let i = 0; i < seed.length; i++) {
+    hash = (hash + seed.charCodeAt(i) * (i + 1)) % AGENT_NOISE_REPLIES.length;
+  }
+  return AGENT_NOISE_REPLIES[hash]!;
+}
+
+export function readAgentSessionLastActiveAt(): number | null {
+  if (typeof window === "undefined") return null;
+  const raw = window.sessionStorage.getItem(AGENT_SESSION_ACTIVITY_KEY);
+  if (!raw) return null;
+  const n = Number(raw);
+  return Number.isFinite(n) ? n : null;
+}
+
+export function touchAgentSessionActivity(at = Date.now()): void {
+  if (typeof window === "undefined") return;
+  window.sessionStorage.setItem(AGENT_SESSION_ACTIVITY_KEY, String(at));
+}
+
+export function isAgentSessionExpired(
+  lastActiveAt: number | null,
+  now = Date.now()
+): boolean {
+  if (!lastActiveAt || !Number.isFinite(lastActiveAt)) return false;
+  return now - lastActiveAt > AGENT_SESSION_TTL_MS;
+}
+
+export function extractLastSessionTopic(messages: AgentChatMessage[]): string {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const msg = messages[i];
+    if (msg?.role !== "user") continue;
+    const text = msg.text.trim();
+    if (text.length >= AGENT_MIN_QUERY_CHARS) {
+      return text.length > 80 ? `${text.slice(0, 77)}…` : text;
+    }
+  }
+  return "skelbimus ar paiešką";
+}
+
+export function resolveListingFromPathname(
+  pathname: string,
+  listings: Listing[]
+): Listing | undefined {
+  const p = pathname.replace(/\/$/, "") || "/";
+  const segmentMatch = p.match(/^\/listing\/([^/?#]+)/);
+  if (segmentMatch?.[1]) {
+    const slug = decodeURIComponent(segmentMatch[1]);
+    return listings.find((l) => l.slug === slug || l.id === slug);
+  }
+  if (p.startsWith("/listing") && typeof window !== "undefined") {
+    try {
+      const slug = new URL(pathname, window.location.origin).searchParams.get("slug");
+      if (slug) {
+        return listings.find((l) => l.slug === slug || l.id === slug);
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+  return undefined;
+}
+
+export function buildCurrentPageContext(params: {
+  pathname: string;
+  zeroUiScreen?: string;
+  listings: Listing[];
+  sellerId?: string;
+}): CurrentPageContext {
+  const pathnameListing = resolveListingFromPathname(params.pathname, params.listings);
+  const ownActive = params.sellerId
+    ? params.listings.filter(
+        (l) => l.sellerId === params.sellerId && l.status !== "sold" && !l.banned
+      )
+    : [];
+
+  let activeListing = pathnameListing;
+  if (!activeListing && params.zeroUiScreen === "listing_preview" && ownActive.length === 1) {
+    activeListing = ownActive[0];
+  }
+  if (!activeListing && params.zeroUiScreen === "business_dashboard" && ownActive.length === 1) {
+    activeListing = ownActive[0];
+  }
+
+  return {
+    page_id: (params.zeroUiScreen ?? params.pathname.replace(/\/$/, "")) || "/",
+    active_listing_id: activeListing?.id,
+    active_listing_title: activeListing?.title,
+    zero_ui_screen: params.zeroUiScreen,
+  };
+}
+
+export function buildWelcomeBackAgentGreeting(
+  userName: string,
+  _myListings: MyListingForAgent[],
+  lastTopic: string
+): string {
+  const firstName = userName.split(/\s+/)[0] || userName;
+  const topic = lastTopic.trim() || "skelbimus ar paiešką";
+  return `Sveiki sugrįžę, ${firstName}! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame ar pradedame naują skelbimą?`;
 }
 
 export type VautoAgentAction =

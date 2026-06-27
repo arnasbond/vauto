@@ -6,6 +6,10 @@ import { extractVehicleAttributesFromText } from "@/lib/vehicle-attribute-extrac
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
 import { buildPartialListingVoicePrompt } from "@/lib/voice-listing-context";
 import {
+  isTooShortAgentQuery,
+  resolveAgentNoiseReply,
+} from "@/lib/vauto-agent-client";
+import {
   BUDDY_REPEAT_PROMPT,
   createGracefulVoiceIntentFallback,
   isUnclearTranscript,
@@ -165,8 +169,13 @@ export async function analyzeVoiceIntent(params: {
   const city = params.userCity ?? "Lietuva";
   const transcript = sanitizeSpeechTranscript(params.transcript);
 
-  if (isUnclearTranscript(transcript)) {
-    return createGracefulVoiceIntentFallback(transcript);
+  if (isUnclearTranscript(transcript) || isTooShortAgentQuery(transcript)) {
+    const followUp = resolveAgentNoiseReply(transcript);
+    return {
+      ...createGracefulVoiceIntentFallback(transcript),
+      understoodSummary: followUp,
+      followUpQuestion: followUp,
+    };
   }
 
   if (isAiProxyAvailable()) {

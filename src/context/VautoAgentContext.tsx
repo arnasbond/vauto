@@ -17,14 +17,22 @@ import { apiVautoAgent } from "@/lib/api/client";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import {
+  buildCurrentPageContext,
+  buildPersonalizedAgentGreeting,
+  buildWelcomeBackAgentGreeting,
   compactListingsForAgent,
   compactMyListingsForAgent,
-  buildPersonalizedAgentGreeting,
+  extractLastSessionTopic,
+  isAgentSessionExpired,
+  isTooShortAgentQuery,
   mapAgentDraftToListing,
+  readAgentSessionLastActiveAt,
   registerAgentErrorReporter,
   resolveAccountTypeLabel,
+  resolveAgentNoiseReply,
   resolveAgentUserRole,
   summarizeMyListingsSummary,
+  touchAgentSessionActivity,
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
@@ -88,6 +96,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     marketplaceFilters,
     clearVisualSearch,
   } = useVauto();
+  const pathname = usePathname();
   const { navigateTo } = useNavigation();
   const { currentView: zeroUiScreen, setScreen, goToMarketplace, openMicroPayment, activeBoost } = useZeroUiScreen();
   const {
@@ -106,6 +115,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const agentGreeting = useMemo(
     () => buildPersonalizedAgentGreeting(user.name, myListingsForAgent),
     [user.name, myListingsForAgent]
+  );
+
+  const currentPageContext = useMemo(
+    () =>
+      buildCurrentPageContext({
+        pathname,
+        zeroUiScreen,
+        listings,
+        sellerId: user.id,
+      }),
+    [pathname, zeroUiScreen, listings, user.id]
   );
 
   const [open, setOpen] = useState(false);
@@ -291,8 +311,41 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
       }
 
+      if (isTooShortAgentQuery(trimmed)) {
+        const reply = resolveAgentNoiseReply(trimmed);
+        const shortUserMsg: AgentChatMessage = { role: "user", text: trimmed };
+        setMessages((prev) => [
+          ...prev,
+          shortUserMsg,
+          { role: "assistant", text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      const lastActiveAt = readAgentSessionLastActiveAt();
+      const sessionExpired =
+        isAgentSessionExpired(lastActiveAt) && messages.length > 1;
+      const lastSessionTopic = sessionExpired
+        ? extractLastSessionTopic(messages)
+        : undefined;
+
+      let conversationBase = messages;
+      if (sessionExpired) {
+        conversationBase = [
+          {
+            role: "assistant",
+            text: buildWelcomeBackAgentGreeting(
+              user.name,
+              myListingsForAgent,
+              lastSessionTopic ?? "skelbimus ar paiešką"
+            ),
+          },
+        ];
+      }
+
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
-      const nextMessages = [...messages, userMsg];
+      const nextMessages = [...conversationBase, userMsg];
       setMessages(nextMessages);
       noteUserMessage(trimmed);
       setBusy(true);
@@ -374,6 +427,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             accountType: resolveAccountTypeLabel(user),
             myListings: myListingsForAgent,
             myListingsSummary: summarizeMyListingsSummary(myListingsForAgent, user.name),
+            currentPageContext,
+            sessionExpired: sessionExpired || undefined,
+            sessionLastActiveAt: lastActiveAt ?? undefined,
+            lastSessionTopic,
             lastError,
             isAuthenticated,
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
@@ -440,6 +497,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (open) showToast(message, "info");
         return { ok: true, reply: message };
       } finally {
+        touchAgentSessionActivity();
         setBusy(false);
       }
     },
@@ -465,6 +523,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       activeBoost,
       openMicroPayment,
       myListingsForAgent,
+      currentPageContext,
     ]
   );
 

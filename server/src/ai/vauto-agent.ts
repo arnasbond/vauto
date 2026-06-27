@@ -28,6 +28,13 @@ import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
+import {
+  buildPageContextInjectionBlock,
+  buildSessionExpiredInjectionBlock,
+  isTooShortSecretaryQuery,
+  normalizeSecretaryQuery,
+  resolveSecretaryNoiseReply,
+} from "./secretary-guards.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -76,6 +83,15 @@ export interface VautoAgentRequest {
     };
     activeSearchFilters?: AgentSearchFilters | null;
     searchSessionReset?: boolean;
+    currentPageContext?: {
+      page_id: string;
+      active_listing_id?: string;
+      active_listing_title?: string;
+      zero_ui_screen?: string;
+    };
+    sessionExpired?: boolean;
+    sessionLastActiveAt?: number;
+    lastSessionTopic?: string;
     monetization?: {
       tier?: "free" | "business_pro";
       activeBoost?: boolean;
@@ -200,6 +216,24 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
 }
 
 async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentResponse> {
+  const lastUserText = normalizeSecretaryQuery(
+    [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
+  );
+
+  if (isTooShortSecretaryQuery(lastUserText)) {
+    return {
+      ok: true,
+      reply: resolveSecretaryNoiseReply(lastUserText),
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
+
+  const sessionMessages =
+    req.context.sessionExpired && req.messages.length > 1
+      ? req.messages.filter((m) => m.role === "user").slice(-1)
+      : req.messages;
+
   const systemInstruction = buildAgentSystemInstruction(
     buildVautoAgentSystemInstruction(),
     req.adminProjectContext
@@ -224,6 +258,8 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     contact: req.context.contact?.trim() || "+370 612 34567",
     userName: req.context.userName,
     authUserId: req.authUserId,
+    activeListingId: req.context.currentPageContext?.active_listing_id,
+    activeListingTitle: req.context.currentPageContext?.active_listing_title,
     myListings: req.context.myListings,
     listingDraft: req.context.listingDraft
       ? {
@@ -253,10 +289,10 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     activeSearchFilters: req.context.activeSearchFilters ?? null,
   } satisfies AgentMemoryPayload);
 
-  const fastPath = await tryFastAgentSearchPath(req, ctx);
+  const fastPath = await tryFastAgentSearchPath({ ...req, messages: sessionMessages }, ctx);
   if (fastPath) return fastPath;
 
-  const contents: GeminiContent[] = req.messages.map((m) => ({
+  const contents: GeminiContent[] = sessionMessages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.text }],
   }));
@@ -298,6 +334,30 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     contents.unshift({
       role: "user",
       parts: [{ text: memoryBlock }],
+    });
+  }
+
+  const pageContextBlock = buildPageContextInjectionBlock(req.context.currentPageContext);
+  if (pageContextBlock) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: pageContextBlock }],
+    });
+  }
+
+  if (req.context.sessionExpired) {
+    const firstName =
+      (req.context.userName ?? "drauge").split(/\s+/)[0] || req.context.userName || "drauge";
+    contents.unshift({
+      role: "user",
+      parts: [
+        {
+          text: buildSessionExpiredInjectionBlock(
+            firstName,
+            req.context.lastSessionTopic ?? "skelbimus ar paiešką"
+          ),
+        },
+      ],
     });
   }
 
