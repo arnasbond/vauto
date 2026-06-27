@@ -70,7 +70,7 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.9** — Fix begalinis APK atsisiuntimas: Vercel /download/ mirror, blokuojamas WebView DownloadManager.
+            **v1.0.9 (build 11)** — Strict WebView URL guard: only localhost/Vercel in-app; block APK/GitHub/API navigation.
 
             **Rekomenduojama nuoroda:** https://vauto-chi.vercel.app/download/vauto.apk
 
