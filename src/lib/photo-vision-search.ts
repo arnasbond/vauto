@@ -1,5 +1,5 @@
 import { AI_VISION_FETCH_TIMEOUT_MS } from "@/lib/ai-safeguards";
-import { getDataApiBaseUrl, isAiProxyAvailable } from "@/lib/api/config";
+import { isAiProxyAvailable } from "@/lib/api/config";
 import { buildPhotoSearchQuery } from "@/lib/photo-search";
 import { mockExtractFromImage } from "@/lib/ai-mocks";
 import {
@@ -28,15 +28,7 @@ export interface PhotoVisionSearchResult {
   title?: string;
 }
 
-function getVisionApiBases(): string[] {
-  const bases: string[] = [];
-  if (typeof window !== "undefined") {
-    bases.push(window.location.origin);
-  }
-  const dataApi = getDataApiBaseUrl();
-  if (dataApi && !bases.includes(dataApi)) bases.push(dataApi);
-  return bases;
-}
+const VISION_SEARCH_API_URL = "https://vauto-api.onrender.com/api/search/vision";
 
 function normalizeVisionImagePayload(imageBase64: string): string {
   const trimmed = imageBase64.trim();
@@ -50,84 +42,77 @@ async function postVisionApi(
   extraContext?: string,
   userCity?: string
 ): Promise<PhotoVisionSearchResult | null> {
-  const bases = getVisionApiBases();
-  if (!bases.length) return null;
-
   const payload = {
     imageBase64: normalizeVisionImagePayload(imageBase64),
     extraContext,
     userCity: userCity ?? "Lietuva",
   };
 
-  for (const base of bases) {
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), AI_VISION_FETCH_TIMEOUT_MS);
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), AI_VISION_FETCH_TIMEOUT_MS);
 
-    try {
-      const res = await fetch(`${base}/api/search/vision`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(payload),
-        signal: controller.signal,
-      });
+  try {
+    const res = await fetch(VISION_SEARCH_API_URL, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
 
-      const json = (await res.json()) as {
-        ok?: boolean;
-        keywords?: string;
-        confidence?: number;
-        category?: string;
-        title?: string;
-        searchFilters?: Record<string, string>;
-        location?: string;
-        error?: string;
-      };
+    const json = (await res.json()) as {
+      ok?: boolean;
+      keywords?: string;
+      confidence?: number;
+      category?: string;
+      title?: string;
+      searchFilters?: Record<string, string>;
+      location?: string;
+      error?: string;
+    };
 
-      if (!res.ok || !json.ok || !json.keywords?.trim()) {
-        continue;
-      }
-
-      const category = (json.category as ListingCategory | undefined) ?? undefined;
-      const searchFilters = json.searchFilters ?? {};
-      const intent: ResolvedVisualSearchIntent = {
-        cleanQuery: json.keywords.trim(),
-        category,
-        cityNominative: json.location?.trim() || userCity,
-        categoryAttributes: {
-          ...(searchFilters.bodyType ? { bodyType: searchFilters.bodyType } : {}),
-          ...(searchFilters.fuelType ? { fuelType: searchFilters.fuelType } : {}),
-          ...(searchFilters.color ? { color: searchFilters.color } : {}),
-          ...(searchFilters.propertyType ? { propertyType: searchFilters.propertyType } : {}),
-          ...(searchFilters.rooms ? { rooms: searchFilters.rooms } : {}),
-          ...(searchFilters.furnishing ? { furnishing: searchFilters.furnishing } : {}),
-          ...(searchFilters.brand ? { brand: searchFilters.brand } : {}),
-        },
-        agentFilters: {
-          query: json.keywords.trim(),
-          category,
-          city: json.location?.trim() || userCity,
-        },
-        visualSummary: json.title ?? json.keywords.trim(),
-        confidence: Number(json.confidence) || 0,
-        objectType: category ?? "other",
-        searchFilters,
-        source: "gemini",
-      };
-
-      return {
-        intent,
-        keywords: json.keywords.trim(),
-        confidence: intent.confidence,
-        category,
-        title: json.title,
-      };
-    } catch {
-      continue;
-    } finally {
-      clearTimeout(timer);
+    if (!res.ok || !json.ok || !json.keywords?.trim()) {
+      return null;
     }
-  }
 
-  return null;
+    const category = (json.category as ListingCategory | undefined) ?? undefined;
+    const searchFilters = json.searchFilters ?? {};
+    const intent: ResolvedVisualSearchIntent = {
+      cleanQuery: json.keywords.trim(),
+      category,
+      cityNominative: json.location?.trim() || userCity,
+      categoryAttributes: {
+        ...(searchFilters.bodyType ? { bodyType: searchFilters.bodyType } : {}),
+        ...(searchFilters.fuelType ? { fuelType: searchFilters.fuelType } : {}),
+        ...(searchFilters.color ? { color: searchFilters.color } : {}),
+        ...(searchFilters.propertyType ? { propertyType: searchFilters.propertyType } : {}),
+        ...(searchFilters.rooms ? { rooms: searchFilters.rooms } : {}),
+        ...(searchFilters.furnishing ? { furnishing: searchFilters.furnishing } : {}),
+        ...(searchFilters.brand ? { brand: searchFilters.brand } : {}),
+      },
+      agentFilters: {
+        query: json.keywords.trim(),
+        category,
+        city: json.location?.trim() || userCity,
+      },
+      visualSummary: json.title ?? json.keywords.trim(),
+      confidence: Number(json.confidence) || 0,
+      objectType: category ?? "other",
+      searchFilters,
+      source: "gemini",
+    };
+
+    return {
+      intent,
+      keywords: json.keywords.trim(),
+      confidence: intent.confidence,
+      category,
+      title: json.title,
+    };
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 function keywordsFromLegacyExtract(extracted: import("@/lib/types").AiExtractedListing): PhotoVisionSearchResult {
