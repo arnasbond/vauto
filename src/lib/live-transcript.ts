@@ -1,4 +1,4 @@
-import { extractLastSpeechTranscript } from "@/lib/speech-transcript";
+import { handleSpeechRecognitionResult } from "@/lib/speech-transcript";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -49,12 +49,7 @@ export function startLiveTranscript(
   };
 
   rec.onresult = (event) => {
-    const { text, isFinal } = extractLastSpeechTranscript(event.results);
-    if (isFinal) {
-      onUpdate(text);
-    } else if (text) {
-      onUpdate(text);
-    }
+    handleSpeechRecognitionResult(event, onUpdate);
   };
 
   rec.onerror = () => {};

@@ -1,57 +1,32 @@
-/** Web Speech API result — incremental final + interim text without duplication. */
-export function rebuildSpeechTranscript(event: {
-  resultIndex: number;
-  results: {
-    length: number;
-    [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
-  };
-}): { finalDelta: string; interim: string; hadFinal: boolean } {
-  let finalDelta = "";
-  let interim = "";
-  let hadFinal = false;
-
-  for (let i = event.resultIndex; i < event.results.length; i++) {
-    const part = event.results[i]?.[0]?.transcript ?? "";
-    if (event.results[i]?.isFinal) {
-      finalDelta += part;
-      hadFinal = true;
-    } else {
-      interim += part;
-    }
-  }
-
-  return {
-    finalDelta: finalDelta.trim(),
-    interim: interim.trim(),
-    hadFinal,
-  };
-}
-
 type SpeechResultsLike = {
   length: number;
   [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
 };
 
-/**
- * Use ONLY the last speech hypothesis — never concatenate prior segments.
- * Prevents Android echo: "Noriu parduotiNoriu parduoti batus".
- */
-export function extractLastSpeechTranscript(results: SpeechResultsLike): {
-  text: string;
-  isFinal: boolean;
-} {
-  if (!results.length) return { text: "", isFinal: false };
-  const last = results[results.length - 1];
-  const raw = (last?.[0]?.transcript ?? "").trim();
-  return {
-    text: sanitizeSpeechTranscript(raw),
-    isFinal: Boolean(last?.isFinal),
-  };
-}
+export type SpeechRecognitionResultEvent = {
+  results: SpeechResultsLike;
+};
 
-/** Latest caption text (final or interim) from the last result slot only. */
-export function buildSpeechTranscriptFromResults(results: SpeechResultsLike): string {
-  return extractLastSpeechTranscript(results).text;
+/**
+ * Web Speech API onresult — TIK paskutinis rezultatas, jokio lipdymo ar ciklų.
+ * setInputValue atnaujina ir final, ir interim hipotezę.
+ */
+export function handleSpeechRecognitionResult(
+  event: SpeechRecognitionResultEvent,
+  setInputValue: (text: string) => void
+): { isFinal: boolean; text: string } {
+  if (!event.results.length) {
+    return { isFinal: false, text: "" };
+  }
+
+  const lastResultIndex = event.results.length - 1;
+  const currentTranscript = (event.results[lastResultIndex][0]?.transcript ?? "").trim();
+  const isFinal = Boolean(event.results[lastResultIndex]?.isFinal);
+  const text = sanitizeSpeechTranscript(currentTranscript);
+
+  setInputValue(text);
+
+  return { isFinal, text };
 }
 
 /** Clean garbled STT output before AI analysis. */
@@ -59,16 +34,9 @@ export function sanitizeSpeechTranscript(text: string): string {
   let t = text.replace(/\s+/g, " ").trim();
   if (!t) return t;
 
-  // "nori nori nori" → "nori"
   t = t.replace(/\b(\p{L}+)(?:\s+\1\b)+/giu, "$1");
-
-  // "2006 2006 metų" → "2006 metų"
   t = t.replace(/\b(\d{4})(?:\s+\1\b)+/g, "$1");
-
-  // Collapse glued duplicate syllables: "norinorinori" → "nori" (heuristic)
   t = t.replace(/(\p{L}{3,}?)\1{2,}/giu, "$1");
-
-  // "Surask SuraskSurask" → "Surask"
   t = t.replace(/\b(\p{L}{3,})(\1)+\b/giu, "$1");
 
   return t.replace(/\s+/g, " ").trim();

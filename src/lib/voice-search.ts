@@ -1,5 +1,5 @@
 import {
-  extractLastSpeechTranscript,
+  handleSpeechRecognitionResult,
   sanitizeSpeechTranscript,
 } from "@/lib/speech-transcript";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
@@ -152,13 +152,12 @@ export function startVoiceSearch(
       };
 
       rec.onresult = (event) => {
-        const { text, isFinal } = extractLastSpeechTranscript(event.results);
+        const { isFinal, text } = handleSpeechRecognitionResult(event, (value) => {
+          onInterim?.(value);
+        });
         if (isFinal) {
           committedFinal = text;
-          onInterim?.(text);
           if (text) scheduleSilenceStop();
-        } else if (text) {
-          onInterim?.(text);
         }
       };
 

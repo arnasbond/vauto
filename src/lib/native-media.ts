@@ -3,7 +3,7 @@ import {
   createVoiceSession,
   type VoiceSession,
 } from "@/lib/audio-session";
-import { extractLastSpeechTranscript, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { handleSpeechRecognitionResult, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 
 export interface CapturedPhoto {
   dataUrl: string;
@@ -538,12 +538,9 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     };
 
     rec.onresult = (event) => {
-      const { text, isFinal } = extractLastSpeechTranscript(event.results);
-      if (isFinal) {
-        currentTranscript = text;
-      } else if (text) {
-        currentTranscript = text;
-      }
+      handleSpeechRecognitionResult(event, (value) => {
+        currentTranscript = value;
+      });
       if (currentTranscript) scheduleSilence();
     };
     rec.onerror = (ev: { error: string }) => {
