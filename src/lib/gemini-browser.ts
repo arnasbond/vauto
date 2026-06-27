@@ -1079,7 +1079,7 @@ const URL_IMPORT_SCHEMA = `{
 
     "real_estate": "propertyType, transactionType, area, rooms, heating, landUtilities, ntFeatures, furnishing",
 
-    "clothing": "vintedCategory, clothingType, brand, size, condition, colors, shipping",
+    "clothing": "fashionCategory, clothingType, brand, size, condition, colors, shipping",
 
     "jobs": "jobType, employmentType, locationType, experienceRequired, salaryGross, salaryNet, jobTitle",
 
@@ -1101,7 +1101,7 @@ Auto: year, mileage, bodyType, fuelType, gearbox, driveType, vehicleOptions (mas
 
 NT: propertyType (butas/namas/sklypas), transactionType (Pardavimui/Nuomai), area, rooms, heating, landUtilities, ntFeatures.
 
-Drabužiai: size, condition, colors, brand, vintedCategory, shipping.
+Drabužiai: size, condition, colors, brand, fashionCategory, shipping.
 
 Darbas: jobTitle, employmentType, locationType, experienceRequired, salaryGross, salaryNet (jei matoma).
 

@@ -6,14 +6,16 @@ import type { AiExtractedListing } from "@/lib/types";
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
 import {
   CLOTHING_COLORS,
-  formatVintedCategory,
-  parseVintedCategory,
+  FASHION_CATEGORY_ATTR,
+  FASHION_CATEGORY_TREE,
+  FASHION_CONDITIONS,
+  FASHION_SHIPPING_OPTIONS,
+  formatFashionCategory,
+  parseFashionCategory,
   POPULAR_BRANDS,
-  sizesForVintedListing,
+  readFashionCategory,
+  sizesForFashionListing,
   subcategoriesFor,
-  VINTED_CATEGORY_TREE,
-  VINTED_CONDITIONS,
-  VINTED_SHIPPING_OPTIONS,
 } from "@/lib/clothing-catalog";
 import {
   clearClothingListingDraft,
@@ -62,7 +64,7 @@ function attrArray(attrs: Record<string, string | string[] | undefined>, key: st
   return [];
 }
 
-function VintedField({
+function WardrobeField({
   label,
   value,
   onChange,
@@ -128,10 +130,10 @@ export function ClothingListingWizard({
   const [wardrobeVoice, setWardrobeVoice] = useState<string | null>(null);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
-  const categoryValue = attr(attrs, "vintedCategory");
-  const { group: categoryGroup, sub: categorySub } = parseVintedCategory(categoryValue);
+  const categoryValue = readFashionCategory(attrs);
+  const { group: categoryGroup, sub: categorySub } = parseFashionCategory(categoryValue);
   const sizeOptions = useMemo(
-    () => (categoryGroup && categorySub ? sizesForVintedListing(categoryGroup, categorySub) : []),
+    () => (categoryGroup && categorySub ? sizesForFashionListing(categoryGroup, categorySub) : []),
     [categoryGroup, categorySub]
   );
   const selectedColors = attrArray(attrs, "colors").length
@@ -244,7 +246,7 @@ export function ClothingListingWizard({
   };
 
   const selectCategory = (group: string, sub: string) => {
-    onAttributeChange("vintedCategory", formatVintedCategory(group, sub));
+    onAttributeChange(FASHION_CATEGORY_ATTR, formatFashionCategory(group, sub));
     if (group === "Moterims" || group === "Vyrams" || group === "Vaikams") {
       onAttributeChange("clothingType", group);
     }
@@ -366,14 +368,14 @@ export function ClothingListingWizard({
 
           <SectionTitle>Apie prekę</SectionTitle>
           <div className="mb-6 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
-            <VintedField
+            <WardrobeField
               label="Pavadinimas"
               value={draft.title}
               onChange={(v) => onUpdate({ title: v })}
               placeholder="Papasakok pirkėjams, ką parduodi"
             />
             <div className="border-t border-[#f3f4f6]" />
-            <VintedField
+            <WardrobeField
               label="Aprašymas"
               value={draft.description ?? ""}
               onChange={(v) => onUpdate({ description: v })}
@@ -410,7 +412,7 @@ export function ClothingListingWizard({
 
           {showCategoryPicker && (
             <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
-              {Object.keys(VINTED_CATEGORY_TREE).map((group) => (
+              {Object.keys(FASHION_CATEGORY_TREE).map((group) => (
                 <div key={group} className="border-b border-[#f3f4f6] last:border-0">
                   <p className="bg-[#faf8f5] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
                     {group}
@@ -461,13 +463,13 @@ export function ClothingListingWizard({
                 <label className="mb-1.5 block text-xs text-[#9ca3af]">Prekės ženklas *</label>
                 <input
                   type="text"
-                  list="vinted-brands"
+                  list="fashion-brands"
                   value={attr(attrs, "brand")}
                   onChange={(e) => onAttributeChange("brand", e.target.value)}
                   placeholder="Zara, Nike…"
                   className="w-full border-0 border-b border-[#e8e4df] bg-transparent py-2 text-sm outline-none focus:border-[#09b1a8]"
                 />
-                <datalist id="vinted-brands">
+                <datalist id="fashion-brands">
                   {POPULAR_BRANDS.map((b) => (
                     <option key={b} value={b} />
                   ))}
@@ -482,7 +484,7 @@ export function ClothingListingWizard({
                   className="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#09b1a8]"
                 >
                   <option value="">Pasirinkite būklę</option>
-                  {VINTED_CONDITIONS.map((c) => (
+                  {FASHION_CONDITIONS.map((c) => (
                     <option key={c} value={c}>
                       {c}
                     </option>
@@ -513,7 +515,7 @@ export function ClothingListingWizard({
               <div>
                 <label className="mb-1.5 block text-xs text-[#9ca3af]">Siuntimo būdai</label>
                 <div className="space-y-2">
-                  {VINTED_SHIPPING_OPTIONS.map((opt) => (
+                  {FASHION_SHIPPING_OPTIONS.map((opt) => (
                     <label key={opt} className="flex items-center gap-2 text-sm text-[#374151]">
                       <input
                         type="checkbox"

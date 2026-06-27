@@ -1,6 +1,6 @@
 import type { AdaptiveCategoryConfig } from "./types";
 
-const VINTED_GROUPS = [
+const FASHION_GROUPS = [
   "Moterims",
   "Vyrams",
   "Vaikams",
@@ -8,7 +8,7 @@ const VINTED_GROUPS = [
   "Augintiniams",
 ];
 
-const VINTED_CONDITION_OPTS = [
+const FASHION_CONDITION_OPTS = [
   "Nauja su etiketėmis",
   "Nauja be etiketės",
   "Labai gera",
@@ -16,7 +16,7 @@ const VINTED_CONDITION_OPTS = [
   "Patenkinama",
 ];
 
-const VINTED_SHIPPING = [
+const FASHION_SHIPPING = [
   "LP Express / Omniva terminalas",
   "Paštas",
   "Atsiėmimas gyvai",
@@ -146,7 +146,7 @@ export const ADAPTIVE_CATEGORIES: Record<
   },
   clothing: {
     key: "clothing",
-    label: "VINTED",
+    label: "APRANGA",
     portalStyle: "Apranga",
     layout: "tag-social",
     baseFields: ["title", "price", "location", "contact", "description"],
@@ -156,10 +156,10 @@ export const ADAPTIVE_CATEGORIES: Record<
         label: "Pagrindinė grupė / Tipas",
         critical: true,
         inputType: "select",
-        options: VINTED_GROUPS,
+        options: FASHION_GROUPS,
       },
       {
-        key: "vintedSubcategory",
+        key: "fashionSubcategory",
         label: "Subkategorija",
         critical: true,
         placeholder: "Striukės, Suknelės, Sportbačiai…",
@@ -176,7 +176,7 @@ export const ADAPTIVE_CATEGORIES: Record<
         label: "Būklė",
         critical: true,
         inputType: "select",
-        options: VINTED_CONDITION_OPTS,
+        options: FASHION_CONDITION_OPTS,
       },
       {
         key: "colors",
@@ -199,7 +199,7 @@ export const ADAPTIVE_CATEGORIES: Record<
         key: "shippingOptions",
         label: "Siuntimo parinktys",
         inputType: "checklist",
-        options: VINTED_SHIPPING,
+        options: FASHION_SHIPPING,
       },
     ],
   },

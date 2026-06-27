@@ -12,7 +12,7 @@ export function categoriesForPortal(theme: ChameleonThemeId): string[] | null {
       return ["jobs"];
     case "aruodas":
       return ["real_estate"];
-    case "vinted":
+    case "wardrobe":
       return ["clothing"];
     case "paslaugos":
       return ["services"];

@@ -9,7 +9,7 @@ import { portalExperienceForQuery } from "@/lib/portal-experience";
 const CHAMELEON_CLASSES = [
   "chameleon-flux",
   "chameleon-autoplius",
-  "chameleon-vinted",
+  "chameleon-wardrobe",
   "chameleon-skelbiu",
   "chameleon-aruodas",
   "chameleon-paslaugos",

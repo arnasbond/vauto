@@ -5,9 +5,9 @@ import { Loader2 } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import {
+  FASHION_CATEGORY_TREE,
   CLOTHING_SIZES,
   POPULAR_BRANDS,
-  VINTED_CATEGORIES,
   subcategoriesFor,
 } from "@/lib/clothing-catalog";
 import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
@@ -15,7 +15,7 @@ import { usePortalSearchSubmit } from "@/hooks/usePortalSearchSubmit";
 export function ClothingSearchPanel() {
   const { searchQuery } = useVauto();
   const { submitSearch, busy } = usePortalSearchSubmit();
-  const ui = getPortalUi("vinted");
+  const ui = getPortalUi("wardrobe");
   const [keyword, setKeyword] = useState(searchQuery);
   const [group, setGroup] = useState("Moterims");
   const [subcategory, setSubcategory] = useState("");
@@ -53,7 +53,7 @@ export function ClothingSearchPanel() {
       />
 
       <div className="mb-3 flex flex-wrap gap-2">
-        {Object.keys(VINTED_CATEGORIES).map((g) => (
+        {Object.keys(FASHION_CATEGORY_TREE).map((g) => (
           <button
             key={g}
             type="button"

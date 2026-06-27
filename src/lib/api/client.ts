@@ -748,7 +748,7 @@ export async function apiImportWardrobeProfile(body: {
   profileUrl: string;
   userName?: string;
   defaultLocation?: string;
-}): Promise<import("@/lib/vinted-importer").WardrobeProfileImport | null> {
+}): Promise<import("@/lib/wardrobe-profile-importer").WardrobeProfileImport | null> {
   return aiFetch("/api/ai/import-wardrobe-profile", {
     method: "POST",
     body: JSON.stringify(body),

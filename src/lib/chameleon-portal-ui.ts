@@ -63,7 +63,7 @@ export const PORTAL_UI: Record<ChameleonThemeId, PortalUiTokens> = {
     portalName: "autoplius",
     tagline: "Automobilių skelbimai Lietuvoje",
   },
-  vinted: {
+  wardrobe: {
     accent: "#09b1a8",
     accentHover: "#078f88",
     cta: "#09b1a8",
@@ -80,7 +80,7 @@ export const PORTAL_UI: Record<ChameleonThemeId, PortalUiTokens> = {
     searchBorder: "#e8e4df",
     progress: "#09b1a8",
     fontClass: "font-sans font-light",
-    portalName: "Vinted",
+    portalName: "VAUTO Spinta",
     tagline: "Drabužiai ir aksesuarai",
   },
   skelbiu: {

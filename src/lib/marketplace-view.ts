@@ -76,7 +76,7 @@ export function effectiveChameleonCategory(
       return "vehicles";
     case "aruodas":
       return "real_estate";
-    case "vinted":
+    case "wardrobe":
       return "clothing";
     case "cvbankas":
       return "jobs";

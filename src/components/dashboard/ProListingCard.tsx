@@ -85,7 +85,7 @@ export function ProListingCard({
                 className={cn(
                   "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-900",
                   promoteTheme === "autoplius" && "bg-[#1a56db]",
-                  promoteTheme === "vinted" && "bg-[#09b1a8]",
+                  promoteTheme === "wardrobe" && "bg-[#09b1a8]",
                   promoteTheme === "skelbiu" && "bg-[#1565c0]",
                   promoteTheme === "aruodas" && "bg-[#c62828]",
                   promoteTheme === "flux" && "bg-[var(--vauto-orange)]"
@@ -143,7 +143,7 @@ export function ProListingCard({
               "mt-3 flex w-full items-start gap-2 rounded-xl p-3 text-left transition",
               promoteTheme === "autoplius" &&
                 "border border-[#1a56db]/40 bg-[#e8f0fe] hover:bg-[#dbeafe]",
-              promoteTheme === "vinted" &&
+              promoteTheme === "wardrobe" &&
                 "border border-[#09b1a8]/30 bg-[#e6f7f6] hover:bg-[#d4f1ef]",
               promoteTheme === "skelbiu" &&
                 "border-2 border-[#1565c0]/40 bg-[#e3f2fd] hover:bg-[#bbdefb]",
@@ -157,7 +157,7 @@ export function ProListingCard({
               className={cn(
                 "mt-0.5 h-4 w-4 shrink-0",
                 promoteTheme === "autoplius" && "text-[#1a56db]",
-                promoteTheme === "vinted" && "text-[#09b1a8]",
+                promoteTheme === "wardrobe" && "text-[#09b1a8]",
                 promoteTheme === "skelbiu" && "text-[#1565c0]",
                 promoteTheme === "aruodas" && "text-[#c62828]",
                 promoteTheme === "flux" && "text-[var(--vauto-teal)]"
@@ -168,7 +168,7 @@ export function ProListingCard({
                 className={cn(
                   "text-xs font-semibold",
                   promoteTheme === "autoplius" && "text-[#1a56db]",
-                  promoteTheme === "vinted" && "text-[#09b1a8] font-light",
+                  promoteTheme === "wardrobe" && "text-[#09b1a8] font-light",
                   promoteTheme === "skelbiu" && "text-[#1565c0] font-bold",
                   promoteTheme === "flux" && "text-[var(--vauto-teal)]"
                 )}

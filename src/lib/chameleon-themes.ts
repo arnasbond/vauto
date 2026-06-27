@@ -5,7 +5,7 @@ import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 export type ChameleonThemeId =
   | "flux"
   | "autoplius"
-  | "vinted"
+  | "wardrobe"
   | "skelbiu"
   | "aruodas"
   | "paslaugos"
@@ -115,9 +115,9 @@ const THEMES: Record<ChameleonThemeId, ChameleonThemeTokens> = {
       title: "text-[#1f2937]",
     },
   },
-  vinted: {
-    id: "vinted",
-    bodyClass: "chameleon-vinted",
+  wardrobe: {
+    id: "wardrobe",
+    bodyClass: "chameleon-wardrobe",
     portalLabel: "Aprangos skelbimas",
     classicLayout: false,
     promote: {
@@ -290,7 +290,7 @@ export function adaptiveKeyToTheme(key: AdaptiveCategoryKey): ChameleonThemeId {
     case "vehicles":
       return "autoplius";
     case "clothing":
-      return "vinted";
+      return "wardrobe";
     case "real_estate":
       return "aruodas";
     case "services":

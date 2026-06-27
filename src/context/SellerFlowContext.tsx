@@ -66,8 +66,10 @@ import {
   detectClothingGroupFromText,
   detectSizeFromText,
   detectSubcategoryFromText,
-  formatVintedCategory,
+  FASHION_CATEGORY_ATTR,
+  formatFashionCategory,
   looksLikeClothingListing,
+  readFashionCategory,
 } from "@/lib/clothing-catalog";
 import {
   detectConditionFromText,
@@ -412,8 +414,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             const attrs = { ...(next.attributes ?? {}) };
             const group = detectClothingGroupFromText(title) ?? "Moterims";
             const sub = detectSubcategoryFromText(title, group) ?? "Kita";
-            if (!attrs.vintedCategory) {
-              attrs.vintedCategory = formatVintedCategory(group, sub);
+            if (!readFashionCategory(attrs)) {
+              attrs[FASHION_CATEGORY_ATTR] = formatFashionCategory(group, sub);
             }
             if (!attrs.brand) {
               const brand = detectBrandFromText(title);

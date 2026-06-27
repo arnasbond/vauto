@@ -1,7 +1,7 @@
 import { apiAnalyzeWardrobePhoto } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import type { AiExtractedListing } from "@/lib/types";
-import { formatVintedCategory } from "@/lib/clothing-catalog";
+import { formatFashionCategory, FASHION_CATEGORY_ATTR } from "@/lib/clothing-catalog";
 
 export interface WardrobeDraftItem {
   id: string;
@@ -86,7 +86,7 @@ export function wardrobeItemToDraft(
     descriptionVariants: item.descriptionVariants,
     selectedPersona: "youth",
     attributes: {
-      vintedCategory: formatVintedCategory(item.categoryGroup, item.categorySub),
+      [FASHION_CATEGORY_ATTR]: formatFashionCategory(item.categoryGroup, item.categorySub),
       clothingType: item.categoryGroup,
       size: item.size,
       color: item.color,

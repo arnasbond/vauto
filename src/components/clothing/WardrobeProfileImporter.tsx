@@ -7,7 +7,7 @@ import {
   isWardrobeProfileUrl,
   profileItemToDraft,
   type WardrobeProfileImportItem,
-} from "@/lib/vinted-importer";
+} from "@/lib/wardrobe-profile-importer";
 import type { AiExtractedListing } from "@/lib/types";
 
 interface WardrobeProfileImporterProps {

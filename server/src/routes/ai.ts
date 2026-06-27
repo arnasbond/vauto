@@ -18,7 +18,7 @@ import {
   confirmTransaction,
   shouldAutoConfirmExpress,
 } from "../ai/order-agent.js";
-import { importWardrobeProfile } from "../ai/vinted-importer.js";
+import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
 import { analyzeNegotiationTwin } from "../ai/chat-agent.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";

@@ -1,6 +1,9 @@
 import { apiImportWardrobeProfile } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
-import { formatVintedCategory } from "@/lib/clothing-catalog";
+import {
+  FASHION_CATEGORY_ATTR,
+  formatFashionCategory,
+} from "@/lib/clothing-catalog";
 import type { AiExtractedListing } from "@/lib/types";
 
 export interface WardrobeProfileImportItem {
@@ -52,7 +55,7 @@ export function profileItemToDraft(
     confidence: 0.88,
     description: item.description,
     attributes: {
-      vintedCategory: formatVintedCategory(group, item.category),
+      [FASHION_CATEGORY_ATTR]: formatFashionCategory(group, item.category),
       clothingType: group,
       size: item.size,
       color: item.color,

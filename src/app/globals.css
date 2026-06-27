@@ -487,7 +487,7 @@ body.chameleon-autoplius {
   background: var(--portal-bg);
 }
 
-body.chameleon-vinted {
+body.chameleon-wardrobe {
   --chameleon-accent: #09b1a8;
   --portal-accent: #09b1a8;
   --portal-cta: #09b1a8;
@@ -568,7 +568,7 @@ body.chameleon-aruodas .chameleon-details-panel textarea {
   border-radius: 4px;
 }
 
-.chameleon-vinted-media img {
+.chameleon-wardrobe-media img {
   min-height: 220px;
   object-fit: cover;
 }
@@ -594,8 +594,8 @@ body.chameleon-skelbiu .chameleon-details-panel textarea {
   font-size: 1rem;
 }
 
-body.chameleon-vinted .chameleon-details-panel input,
-body.chameleon-vinted .chameleon-details-panel textarea {
+body.chameleon-wardrobe .chameleon-details-panel input,
+body.chameleon-wardrobe .chameleon-details-panel textarea {
   border: 1px solid #e8e4df;
   background: #fffdf9;
   color: #374151;
@@ -623,7 +623,7 @@ body.chameleon-autoplius .portal-listing-card:hover {
 body.chameleon-aruodas .portal-listing-card:hover {
   border-color: #c62828;
 }
-body.chameleon-vinted .portal-listing-card:hover {
+body.chameleon-wardrobe .portal-listing-card:hover {
   border-color: #09b1a8;
 }
 body.chameleon-skelbiu .portal-listing-card:hover {

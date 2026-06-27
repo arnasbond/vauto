@@ -238,7 +238,7 @@ export function AdaptiveConfirmation({
   );
 
   const mediaBlock = (
-    <div className={chameleonTheme === "vinted" ? "chameleon-vinted-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
+    <div className={chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
       <ListingPhotoRequiredBanner visible={needsPhotoForPublish} />
       <DraftMediaEditor
         previewImage={previewImage}

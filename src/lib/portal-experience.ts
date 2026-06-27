@@ -38,8 +38,8 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
     border: "#c5d9f7",
     quickFilters: ["VIN", "Ratlankiai", "TA galioja"],
   },
-  vinted: {
-    theme: "vinted",
+  wardrobe: {
+    theme: "wardrobe",
     portalName: "Apranga",
     headline: "Drabužių ir aksesuarų režimas",
     description:
@@ -106,7 +106,7 @@ export function portalExperienceForQuery(query: string): PortalExperience {
     return EXPERIENCES.autoplius;
   }
   if (/suknel|batai|drabu|striuk|dydis|brand|zara|nike|vinted/.test(q)) {
-    return EXPERIENCES.vinted;
+    return EXPERIENCES.wardrobe;
   }
   if (/but|nam|nuom|sklyp|kamb|aruod|nt\b|nekilnoj/.test(q)) {
     return EXPERIENCES.aruodas;
@@ -124,7 +124,7 @@ export function portalExperienceForQuery(query: string): PortalExperience {
 export function allPortalExperiences(): PortalExperience[] {
   return [
     EXPERIENCES.autoplius,
-    EXPERIENCES.vinted,
+    EXPERIENCES.wardrobe,
     EXPERIENCES.skelbiu,
     EXPERIENCES.aruodas,
     EXPERIENCES.paslaugos,
@@ -137,7 +137,7 @@ export function portalShortLabel(theme: ChameleonThemeId): string {
   switch (theme) {
     case "autoplius":
       return "Auto";
-    case "vinted":
+    case "wardrobe":
       return "Apranga";
     case "aruodas":
       return "NT";

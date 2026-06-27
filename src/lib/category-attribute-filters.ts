@@ -7,7 +7,11 @@ import {
   GEARBOX_TYPES,
   VEHICLE_EQUIPMENT_OPTIONS,
 } from "@/lib/vehicle-catalog";
-import { VINTED_CONDITIONS } from "@/lib/clothing-catalog";
+import {
+  FASHION_CATEGORY_ATTR,
+  FASHION_CONDITIONS,
+  LEGACY_FASHION_CATEGORY_ATTR,
+} from "@/lib/clothing-catalog";
 import {
   EDUCATION_LEVELS,
   EMPLOYMENT_TYPES_FULL,
@@ -217,10 +221,10 @@ export function categoryFilterFieldsFor(
           key: "clothingType",
           label: "Tipas",
           options: ["Moterims", "Vyrams", "Vaikams", "Namams / Interjerui", "Augintiniams"],
-          attributeKeys: ["clothingType", "vintedCategory"],
+          attributeKeys: ["clothingType", FASHION_CATEGORY_ATTR, LEGACY_FASHION_CATEGORY_ATTR],
         },
         { key: "size", label: "Dydis", options: ["XS", "S", "M", "L", "XL", "XXL", "38", "40", "42"] },
-        { key: "condition", label: "Būklė", options: VINTED_CONDITIONS },
+        { key: "condition", label: "Būklė", options: FASHION_CONDITIONS },
         { key: "brand", label: "Prekės ženklas", options: ["Nike", "Zara", "H&M", "Adidas", "Kita"] },
         {
           key: "color",

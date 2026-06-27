@@ -10,9 +10,9 @@ import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { listingPath } from "@/lib/seo";
 import type { ScoredListing } from "@/lib/types";
 
-function VintedCard({ listing }: { listing: ScoredListing }) {
+function WardrobeCard({ listing }: { listing: ScoredListing }) {
   const { savedIds, toggleSave } = useVauto();
-  const ui = getPortalUi("vinted");
+  const ui = getPortalUi("wardrobe");
   const isSaved = savedIds.has(listing.id);
   const attrs = listing.attributes ?? {};
   const size = attrs.size ? String(attrs.size) : null;
@@ -71,7 +71,7 @@ interface ClothingListingResultsProps {
 }
 
 export function ClothingListingResults({ listings, title }: ClothingListingResultsProps) {
-  const ui = getPortalUi("vinted");
+  const ui = getPortalUi("wardrobe");
   const items = listings.filter((l) => l.category === "clothing");
 
   if (items.length === 0) {
@@ -94,7 +94,7 @@ export function ClothingListingResults({ listings, title }: ClothingListingResul
       )}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
         {items.map((listing) => (
-          <VintedCard key={listing.id} listing={listing} />
+          <WardrobeCard key={listing.id} listing={listing} />
         ))}
       </div>
     </div>

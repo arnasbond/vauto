@@ -30,7 +30,7 @@ function emptyMessage(theme: ChameleonThemeId): string {
       return "Automobilių nerasta. Pabandykite kitą markę ar miestą.";
     case "aruodas":
       return "NT skelbimų nerasta. Pabandykite kitą tipą ar miestą.";
-    case "vinted":
+    case "wardrobe":
       return "Drabužių nerasta. Pabandykite kitą dydį ar prekės ženklą.";
     case "skelbiu":
       return "Skelbimų nerasta. Pabandykite kitą kategoriją ar miestą.";
@@ -158,7 +158,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       )}
       {theme === "cvbankas" && displayListings.length > 0 && <JobSearchPanel />}
       {theme === "aruodas" && displayListings.length > 0 && <RealEstateSearchPanel />}
-      {theme === "vinted" && displayListings.length > 0 && <ClothingSearchPanel />}
+      {theme === "wardrobe" && displayListings.length > 0 && <ClothingSearchPanel />}
       {theme === "skelbiu" && displayListings.length > 0 && <GeneralSearchPanel />}
       {theme === "paslaugos" && displayListings.length > 0 && <ServiceSearchPanel />}
 
