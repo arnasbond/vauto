@@ -33,6 +33,10 @@
       "destination": "https://vauto-api.onrender.com/api/ai/:path*"
     },
     {
+      "source": "/api/search/:path*",
+      "destination": "https://vauto-api.onrender.com/api/search/:path*"
+    },
+    {
       "source": "/listing/:slug",
       "destination": "/listing/index.html?slug=:slug"
     },
