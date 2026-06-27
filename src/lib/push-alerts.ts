@@ -1,5 +1,6 @@
 import type { Listing } from "@/lib/types";
 import { listingPath } from "@/lib/seo";
+import { isNativePushDisabled } from "@/lib/mobile-install";
 import { logWakeEvent } from "@/lib/wake-word-engine";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 
@@ -79,6 +80,7 @@ export function findHighScoreAlertMatch(
 }
 
 export async function requestNotificationPermission(): Promise<NotificationPermission> {
+  if (isNativePushDisabled()) return "denied";
   if (typeof window === "undefined" || !("Notification" in window)) return "denied";
   if (Notification.permission === "granted") return "granted";
   if (Notification.permission === "denied") return "denied";
@@ -136,6 +138,7 @@ export function startPushAlertPolling(
 }
 
 export async function showLocalPushNotification(payload: PushAlertPayload): Promise<void> {
+  if (isNativePushDisabled()) return;
   logWakeEvent("push_show", { listingId: payload.listingId, title: payload.title });
 
   if ("serviceWorker" in navigator) {

@@ -1,6 +1,7 @@
 import { apiGetVapidPublicKey, apiSubscribePush, apiSyncAlertQueries } from "@/lib/api/wallet-reviews";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { logWakeEvent } from "@/lib/wake-word-engine";
+import { isNativePushDisabled } from "@/lib/mobile-install";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -20,6 +21,7 @@ export async function registerWebPush(
 export async function ensureWebPushSubscription(
   savedQueries: string[] = []
 ): Promise<boolean> {
+  if (isNativePushDisabled()) return false;
   if (typeof window === "undefined" || !isDataApiEnabled()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
 
@@ -54,6 +56,7 @@ export async function ensureWebPushSubscription(
 }
 
 export function isWebPushSupported(): boolean {
+  if (isNativePushDisabled()) return false;
   return (
     typeof window !== "undefined" &&
     "serviceWorker" in navigator &&

@@ -27,6 +27,7 @@ import { REPORT_CATEGORIES, URGENCY_META } from "@/lib/reports";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ReportCategory, ReportMessage, ReportUrgency, SupportReport } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { requestNotificationPermission } from "@/lib/push-alerts";
 
 const URGENCY_ORDER: ReportUrgency[] = ["critical", "feedback", "general"];
 
@@ -75,9 +76,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
   const [reanalyzing, setReanalyzing] = useState(false);
 
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      void Notification.requestPermission();
-    }
+    void requestNotificationPermission();
   }, []);
 
   useEffect(() => {

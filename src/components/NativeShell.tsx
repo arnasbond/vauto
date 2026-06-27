@@ -3,20 +3,15 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
-import { useAuth } from "@/context/AuthContext";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import { logWakeEvent } from "@/lib/wake-word-engine";
-import {
-  attachNativePushNavigation,
-  registerNativePush,
-} from "@/lib/native-push";
+import { attachNativePushNavigation } from "@/lib/native-push";
 import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
 import { attachNativeInstallLinkBlocker } from "@/lib/native-link-blocker";
 import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
@@ -27,13 +22,7 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
     return attachNativeInstallLinkBlocker();
   }, []);
 
-  useEffect(() => {
-    if (!Capacitor.isNativePlatform() || !isAuthenticated) return;
-    const timer = window.setTimeout(() => {
-      void registerNativePush();
-    }, 2500);
-    return () => window.clearTimeout(timer);
-  }, [isAuthenticated]);
+  // Native FCM disabled until google-services.json is in CI — no auto prompt after login.
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {

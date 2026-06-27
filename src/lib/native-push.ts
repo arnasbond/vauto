@@ -1,6 +1,7 @@
 import { Capacitor } from "@capacitor/core";
 import { apiRegisterFcmToken } from "@/lib/api/wallet-reviews";
 import { isDataApiEnabled } from "@/lib/api/config";
+import { isNativePushDisabled } from "@/lib/mobile-install";
 import { logWakeEvent } from "@/lib/wake-word-engine";
 
 type NavigateFn = (url: string) => void;
@@ -8,6 +9,7 @@ type NavigateFn = (url: string) => void;
 let listenersAttached = false;
 
 export async function registerNativePush(): Promise<boolean> {
+  if (isNativePushDisabled()) return false;
   if (!Capacitor.isNativePlatform() || !isDataApiEnabled()) return false;
 
   try {
@@ -65,6 +67,7 @@ export async function registerNativePush(): Promise<boolean> {
 
 /** Open listing when user taps a push notification (Android/iOS). */
 export function attachNativePushNavigation(navigate: NavigateFn): void {
+  if (isNativePushDisabled()) return;
   if (!Capacitor.isNativePlatform() || listenersAttached) return;
   listenersAttached = true;
 
@@ -93,5 +96,6 @@ export function attachNativePushNavigation(navigate: NavigateFn): void {
 }
 
 export function isNativePushSupported(): boolean {
+  if (isNativePushDisabled()) return false;
   return Capacitor.isNativePlatform();
 }

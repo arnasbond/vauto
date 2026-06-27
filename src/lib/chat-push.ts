@@ -1,6 +1,7 @@
 import { formatPrice } from "@/data/mockListings";
 import { getListingCoverImage } from "@/lib/listing-image";
 import { logWakeEvent } from "@/lib/wake-word-engine";
+import { isNativePushDisabled } from "@/lib/mobile-install";
 import type { ChatThread, Listing, UserProfile } from "@/lib/types";
 
 export interface ChatPushPayload {
@@ -50,6 +51,7 @@ export function buildChatPushPayload(params: {
 export async function dispatchChatPushNotification(
   payload: ChatPushPayload
 ): Promise<void> {
+  if (isNativePushDisabled()) return;
   logWakeEvent("chat_push_dispatch", { chatId: payload.chatId });
 
   if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
@@ -91,6 +93,7 @@ export async function dispatchChatPushNotification(
 }
 
 export async function requestChatPushPermission(): Promise<boolean> {
+  if (isNativePushDisabled()) return false;
   if (typeof window === "undefined" || !("Notification" in window)) return false;
   if (Notification.permission === "granted") return true;
   if (Notification.permission === "denied") return false;

@@ -36,6 +36,14 @@ export function isNativeApp(): boolean {
   return false;
 }
 
+/**
+ * Native WebView push (FCM) is disabled until google-services.json is wired in CI.
+ * Prevents POST_NOTIFICATIONS crash / redirect loop after user taps Allow.
+ */
+export function isNativePushDisabled(): boolean {
+  return isNativeApp();
+}
+
 export function isInstalledPwa(): boolean {
   if (typeof window === "undefined") return false;
   return (

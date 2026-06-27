@@ -15,6 +15,7 @@ import { useVauto } from "@/context/VautoContext";
 import { REPORT_CATEGORIES } from "@/lib/reports";
 import type { ReportMessage, SupportReport } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { requestNotificationPermission } from "@/lib/push-alerts";
 
 function roleStyles(role: ReportMessage["role"]) {
   switch (role) {
@@ -59,9 +60,7 @@ export function UserSupportInbox() {
   const [livePulse, setLivePulse] = useState(false);
 
   useEffect(() => {
-    if (typeof Notification !== "undefined" && Notification.permission === "default") {
-      void Notification.requestPermission();
-    }
+    void requestNotificationPermission();
   }, []);
 
   useEffect(() => {
