@@ -44,7 +44,7 @@ import {
   buildLocationString,
   type PropertyTypeId,
 } from "@/lib/real-estate-catalog";
-import { ListingGalleryFileInput } from "@/components/listing/ListingGalleryFileInput";
+import { ListingGalleryFileInput, applyFirstGalleryFile } from "@/components/listing/ListingGalleryFileInput";
 import { parseVideoUrl } from "@/lib/video-url";
 
 const ACCENT = "#c62828";
@@ -871,12 +871,9 @@ export function RealEstateListingWizard({
               className="mb-4 flex w-full flex-col items-center justify-center gap-2 rounded-md border-2 border-dashed border-[#4caf50] bg-[#f1f8e9] px-4 py-8 text-[#2e7d32] hover:bg-[#e8f5e9]"
               label="Įkelkite nuotraukų (iki 50)"
               onFilesSelected={(files) => {
-                const file = files[0];
-                if (!file) return;
-                const reader = new FileReader();
-                reader.onload = () =>
-                  onMediaChange({ imageDataUrl: reader.result as string });
-                reader.readAsDataURL(file);
+                applyFirstGalleryFile(files, (dataUrl) =>
+                  onMediaChange({ imageDataUrl: dataUrl })
+                );
               }}
             />
             {previewImage && (

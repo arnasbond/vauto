@@ -1,7 +1,7 @@
 "use client";
 
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
-import { Camera, Plus, X } from "lucide-react";
+import { Camera, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import { getVehicleStepMissingKeys } from "@/lib/listing-field-validation";
@@ -32,7 +32,10 @@ import {
   lookupVehicle,
   vehicleLookupToDraftPatch,
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
-import { capturePhoto } from "@/lib/native-media";
+import {
+  applyFirstGalleryFile,
+  ListingGalleryFileInput,
+} from "@/components/listing/ListingGalleryFileInput";
 import { parseVideoUrl } from "@/lib/video-url";
 import { isValidVin } from "@/lib/trust";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
@@ -511,24 +514,18 @@ export function VehicleListingWizard({
 
         {step === 2 && (
           <>
-            <button
-              type="button"
-              onClick={() =>
-                requestMediaConsent(async () => {
-                  const photo = await capturePhoto();
-                  if (photo) {
-                    onMediaChange({ imageDataUrl: photo.dataUrl });
-                    await onPhotoCaptured?.(photo.dataUrl);
-                  }
-                })
-              }
-              className="mb-4 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#1167b1] bg-[#f0f7ff] py-10"
-            >
-              <span className="flex h-12 w-12 items-center justify-center rounded-full bg-[#1167b1] text-white">
-                <Plus className="h-6 w-6" />
-              </span>
-              <span className="text-sm font-semibold text-[#1167b1]">Įkelti nuotrauką</span>
-            </button>
+            <ListingGalleryFileInput
+              requestConsent={requestMediaConsent}
+              maxFiles={60}
+              className="mb-4 flex w-full flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed border-[#1167b1] bg-[#f0f7ff] py-10 text-[#1167b1]"
+              label="Įkelti nuotrauką"
+              onFilesSelected={(files) => {
+                applyFirstGalleryFile(files, (dataUrl) => {
+                  onMediaChange({ imageDataUrl: dataUrl });
+                  void onPhotoCaptured?.(dataUrl);
+                });
+              }}
+            />
             {previewImage && (
               <div className="mb-4 overflow-hidden rounded-xl border border-[#e5e7eb]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}

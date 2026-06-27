@@ -922,13 +922,17 @@ body.chameleon-autoplius .nt-wizard-chip-active {
 }
 
 [data-app-theme="dark"] .zero-ui-screen-chrome h2,
-[data-app-theme="dark"] .zero-ui-screen-chrome .text-\[var\(--portal-text\,\#111827\)\] {
+[data-app-theme="dark"] .zero-ui-screen-chrome .text-\[var\(--portal-text\,\#111827\)\],
+[data-app-theme="dark"] .zero-ui-screen-subtitle,
+[data-app-theme="dark"] .zero-ui-loader-copy {
   color: #f8fafc !important;
 }
 
 [data-app-theme="dark"] .listing-social-option-label,
-[data-app-theme="dark"] .listing-social-publish h3 {
+[data-app-theme="dark"] .listing-social-publish h3,
+[data-app-theme="dark"] .listing-social-publish-desc {
   color: #f1f5f9 !important;
+  opacity: 1 !important;
 }
 
 [data-app-theme="dark"] .listing-social-option {

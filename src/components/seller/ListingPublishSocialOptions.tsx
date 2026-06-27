@@ -20,7 +20,7 @@ export function ListingPublishSocialOptions({ className }: { className?: string 
           Automatinis dalijimasis socialiniuose tinkluose
         </h3>
       </div>
-      <p className="mb-3 text-xs text-[var(--vauto-text-muted,#6b7280)]">
+      <p className="listing-social-publish-desc mb-3 text-xs text-[var(--portal-text,var(--vauto-text-main,#374151))] opacity-80">
         Pasirinkite, kur dar automatiškai reklamuoti skelbimą po publikavimo.
       </p>
       <div className="space-y-2.5">

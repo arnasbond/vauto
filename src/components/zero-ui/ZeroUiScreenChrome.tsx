@@ -37,7 +37,7 @@ export function ZeroUiScreenChrome({
               {screenLabel}
             </h2>
             {subtitle ? (
-              <p className="truncate text-xs text-[var(--vauto-text-muted,#6b7280)]">
+              <p className="zero-ui-screen-subtitle truncate text-xs text-[var(--portal-text,var(--vauto-text-main,#374151))] opacity-80">
                 {subtitle}
               </p>
             ) : null}

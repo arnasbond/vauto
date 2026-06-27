@@ -61,7 +61,13 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
           if (uploaded) finalUrl = uploaded;
         }
         finalUrl = sanitizeAvatarForApi(finalUrl);
-        updateUser({ avatar: finalUrl });
+        const saved = await updateUser({ avatar: finalUrl });
+        if (!saved) {
+          showToast("Profilio nuotrauka neišsaugota.", "error");
+          setPreview(null);
+          return;
+        }
+        setPreview(null);
         showToast("Profilio nuotrauka atnaujinta.", "success");
       } catch {
         showToast("Nuotraukos įkėlimas nepavyko.", "error");
@@ -83,9 +89,13 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
     [uploadAvatar]
   );
 
-  const handleRemove = useCallback(() => {
-    updateUser({ avatar: DEFAULT_AVATAR });
-    setPreview(DEFAULT_AVATAR);
+  const handleRemove = useCallback(async () => {
+    const saved = await updateUser({ avatar: DEFAULT_AVATAR });
+    if (!saved) {
+      showToast("Nepavyko pašalinti nuotraukos.", "error");
+      return;
+    }
+    setPreview(null);
     showToast("Nuotrauka pašalinta.", "info");
   }, [showToast, updateUser]);
 
@@ -132,7 +142,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
         {displaySrc !== DEFAULT_AVATAR && (
           <button
             type="button"
-            onClick={handleRemove}
+            onClick={() => void handleRemove()}
             disabled={uploading}
             className="absolute -bottom-1 -left-1 flex h-7 w-7 items-center justify-center rounded-full bg-[color-mix(in_srgb,var(--vauto-text-main)_12%,transparent)] text-[var(--vauto-text-muted)] shadow-md ring-2 ring-[var(--vauto-card-bg)] hover:text-red-500 disabled:opacity-60"
             aria-label="Pašalinti nuotrauką"

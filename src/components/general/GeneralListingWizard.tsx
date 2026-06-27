@@ -29,7 +29,10 @@ import {
   clearGeneralListingDraft,
   saveGeneralListingDraft,
 } from "@/lib/listing-draft-storage";
-import { capturePhoto } from "@/lib/native-media";
+import {
+  applyFirstGalleryFile,
+  ListingGalleryFileInput,
+} from "@/components/listing/ListingGalleryFileInput";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
 import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import {
@@ -392,41 +395,25 @@ export function GeneralListingWizard({
           <ListingPhotoRequiredBanner visible={showPhotoError} />
 
           <div className="mb-6 flex flex-wrap items-start gap-3">
-            <button
-              type="button"
-              onClick={() =>
-                requestMediaConsent(async () => {
-                  const photo = await capturePhoto();
-                  if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-                })
-              }
-              className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-text)_4%,transparent)] text-xs text-[var(--vauto-text-muted)] transition hover:border-[var(--portal-accent,var(--vauto-accent))] hover:bg-[color-mix(in_srgb,var(--portal-accent,var(--vauto-accent))_8%,transparent)]"
-            >
-              {previewImage ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewImage} alt="" className="h-full w-full rounded-lg object-cover" />
-              ) : (
-                <>
-                  <Camera className="h-8 w-8 text-[var(--vauto-text-muted)]" />
-                  Pridėti nuotrauką
-                </>
-              )}
-            </button>
             {previewImage && (
-              <button
-                type="button"
-                onClick={() =>
-                  requestMediaConsent(async () => {
-                    const photo = await capturePhoto();
-                    if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-                  })
-                }
-                className="flex h-28 w-28 items-center justify-center rounded-xl border border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-text)_4%,transparent)] transition hover:border-[var(--portal-accent,var(--vauto-accent))]"
-                aria-label="Pridėti dar vieną nuotrauką"
-              >
-                <Plus className="h-10 w-10 text-[var(--vauto-text-muted)]" />
-              </button>
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewImage}
+                alt=""
+                className="h-28 w-28 rounded-xl object-cover ring-1 ring-[var(--vauto-border)]"
+              />
             )}
+            <ListingGalleryFileInput
+              requestConsent={requestMediaConsent}
+              icon={previewImage ? Plus : Camera}
+              className="flex h-28 w-28 flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-text)_4%,transparent)] text-xs text-[var(--vauto-text-muted)] transition hover:border-[var(--portal-accent,var(--vauto-accent))] hover:bg-[color-mix(in_srgb,var(--portal-accent,var(--vauto-accent))_8%,transparent)]"
+              label={previewImage ? "Keisti" : "Pridėti nuotrauką"}
+              onFilesSelected={(files) => {
+                applyFirstGalleryFile(files, (dataUrl) =>
+                  onMediaChange({ imageDataUrl: dataUrl })
+                );
+              }}
+            />
           </div>
 
           <SkelbiuField label="Skelbimo antraštė" valid={titleValid}>

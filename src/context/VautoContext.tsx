@@ -179,7 +179,7 @@ export interface ConfirmDialogState {
 
 interface VautoContextValue {
   user: UserProfile;
-  updateUser: (patch: Partial<UserProfile>) => void;
+  updateUser: (patch: Partial<UserProfile>) => Promise<boolean>;
   listings: Listing[];
   savedIds: Set<string>;
   searchQuery: string;
@@ -593,6 +593,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     authHydrated,
     isAdmin,
     updateUser: patchAuthUser,
+    refreshAuthUser,
     openAuthModal,
     closeAuthModal,
     clearAuthRedirect,
@@ -659,6 +660,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const wakeWordAgentRef = useRef<WakeWordGeminiAgent | null>(null);
   const listingsRef = useRef(listings);
   listingsRef.current = listings;
+  const userRef = useRef(user);
+  userRef.current = user;
+  const profileLocalEditRef = useRef(false);
 
   useEffect(() => {
     async function load() {
@@ -692,7 +696,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           if (savedRes?.ok) setSavedIds(new Set(savedRes.data));
           else if (savedRes) errors.push(savedRes.error);
           if (userRes?.ok && auth?.isAuthenticated) {
-            patchAuthUser(userRes.data);
+            if (!profileLocalEditRef.current) {
+              patchAuthUser(userRes.data);
+            }
           } else if (storedUser && auth?.isAuthenticated) {
             patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
           }
@@ -813,19 +819,33 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const clearSyncError = useCallback(() => setSyncError(null), []);
 
   const updateUser = useCallback(
-    (patch: Partial<UserProfile>) => {
+    async (patch: Partial<UserProfile>): Promise<boolean> => {
       const safePatch = { ...patch };
       if (typeof safePatch.avatar === "string") {
         safePatch.avatar = sanitizeAvatarForApi(safePatch.avatar);
       }
+      profileLocalEditRef.current = true;
       patchAuthUser(safePatch);
-      if (isDataApiEnabled()) {
-        void apiUpdateUser({ ...user, ...safePatch }).then((r) => {
-          if (!r.ok) setSyncError(`Profilis neišsaugotas: ${r.error}`);
-        });
+
+      if (!isDataApiEnabled()) return true;
+
+      const merged = { ...userRef.current, ...safePatch };
+      const res = await apiUpdateUser(merged);
+      if (!res.ok) {
+        profileLocalEditRef.current = false;
+        setSyncError(`Profilis neišsaugotas: ${res.error}`);
+        return false;
       }
+
+      const fresh = await apiFetchUser(merged.id);
+      if (fresh.ok) {
+        patchAuthUser(fresh.data);
+      }
+
+      await refreshAuthUser();
+      return true;
     },
-    [patchAuthUser, user]
+    [patchAuthUser, refreshAuthUser]
   );
 
   const dynamicFilters = useMemo(

@@ -112,7 +112,10 @@ export function DraftMediaEditor({
         ref={fileInputRef}
         type="file"
         accept="image/*"
-        className="hidden"
+        multiple
+        tabIndex={-1}
+        aria-hidden
+        className="listing-gallery-file-input"
         onChange={(e) => {
           const file = e.target.files?.[0];
           if (file) handleFile(file);

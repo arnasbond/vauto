@@ -1,7 +1,7 @@
 "use client";
 
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
-import { Camera, ChevronLeft, X } from "lucide-react";
+import { ChevronLeft, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/context/AuthContext";
 import type { AiExtractedListing } from "@/lib/types";
@@ -12,7 +12,10 @@ import {
   SERVICE_SPECIALTIES,
 } from "@/lib/service-catalog";
 import { clearServiceListingDraft, saveServiceListingDraft } from "@/lib/listing-draft-storage";
-import { capturePhoto } from "@/lib/native-media";
+import {
+  applyFirstGalleryFile,
+  ListingGalleryFileInput,
+} from "@/components/listing/ListingGalleryFileInput";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
 import { CreatableCombobox } from "@/components/wizard/CreatableCombobox";
 import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
@@ -121,15 +124,6 @@ export function ServiceListingWizard({
     });
     clearServiceListingDraft();
     onPublish();
-  };
-
-  const addPhoto = () => {
-    requestMediaConsent(() => {
-      void capturePhoto().then((photo) => {
-        if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-        else onToast?.("Nuotraukos nepavyko", "error");
-      });
-    });
   };
 
   useEffect(() => {
@@ -262,21 +256,24 @@ export function ServiceListingWizard({
             <>
               <ListingPhotoRequiredBanner visible={!hasListingPhoto(previewImage)} />
               <div className="mb-4 flex items-center gap-4">
-                <button
-                  type="button"
-                  onClick={addPhoto}
+                <ListingGalleryFileInput
+                  requestConsent={requestMediaConsent}
                   className="flex h-24 w-24 flex-col items-center justify-center rounded-xl border-2 border-dashed border-[#cfe3ff] text-[#64748b]"
-                >
-                  {previewImage ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img src={previewImage} alt="" className="h-full w-full rounded-xl object-cover" />
-                  ) : (
-                    <>
-                      <Camera className="h-6 w-6" />
-                      <span className="mt-1 text-[10px]">Nuotrauka</span>
-                    </>
-                  )}
-                </button>
+                  label={previewImage ? "Keisti" : "Nuotrauka"}
+                  onFilesSelected={(files) => {
+                    applyFirstGalleryFile(files, (dataUrl) =>
+                      onMediaChange({ imageDataUrl: dataUrl })
+                    );
+                  }}
+                />
+                {previewImage && (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    src={previewImage}
+                    alt=""
+                    className="h-24 w-24 rounded-xl object-cover ring-1 ring-[#cfe3ff]"
+                  />
+                )}
                 <div className="min-w-0 flex-1 text-sm text-[#64748b]">
                   <p className="font-semibold text-[#0f172a]">{draft.title || attr(attrs, "serviceSpecialty")}</p>
                   <p className="mt-1">{draft.location}</p>

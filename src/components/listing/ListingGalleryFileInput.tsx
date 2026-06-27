@@ -17,6 +17,20 @@ interface ListingGalleryFileInputProps {
   hint?: ReactNode;
 }
 
+/** Read first selected image as a data URL (shared by listing wizards). */
+export function applyFirstGalleryFile(
+  files: File[],
+  onDataUrl: (dataUrl: string) => void
+): void {
+  const file = files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (typeof reader.result === "string") onDataUrl(reader.result);
+  };
+  reader.readAsDataURL(file);
+}
+
 /** Gallery-first file picker — never sets HTML capture (mobile opens media library). */
 export function ListingGalleryFileInput({
   onFilesSelected,

@@ -3,18 +3,24 @@
 import { Loader2 } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { ZeroUiScreenChrome } from "@/components/zero-ui/ZeroUiScreenChrome";
 import { ZeroUiPaymentGate } from "@/components/zero-ui/ZeroUiPaymentGate";
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import { AI_PROCESSING_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import { vehicleSummaryLabel } from "@/lib/vehicle-catalog";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 5000;
+/** UI safety net — slightly above AI extract ceiling so fallback can fire first */
+const PROCESSING_UI_TIMEOUT_MS = AI_PROCESSING_TIMEOUT_MS + 4000;
 
 export function ZeroUiListingPreview() {
-  const { aiDraft, sellerStep, cancelSellerFlow, showToast } = useVauto();
+  const { aiDraft, sellerStep, cancelSellerFlow, showToast, sellerPreviewImage } =
+    useVauto();
+  const { openManualListingWizard } = useSellerFlow();
   const { goToMarketplace, pendingMicroPayment, clearMicroPayment, setActiveBoost } =
     useZeroUiScreen();
   const loadStartedRef = useRef<number | null>(null);
@@ -27,12 +33,9 @@ export function ZeroUiListingPreview() {
 
   useEffect(() => {
     const ready =
-      sellerStep === "published" || (sellerStep === "confirmation" && Boolean(aiDraft));
+      sellerStep === "published" ||
+      (sellerStep === "confirmation" && Boolean(aiDraft));
     if (ready) {
-      loadStartedRef.current = null;
-      return;
-    }
-    if (sellerStep === "processing") {
       loadStartedRef.current = null;
       return;
     }
@@ -41,10 +44,26 @@ export function ZeroUiListingPreview() {
       loadStartedRef.current = Date.now();
     }
 
+    const limitMs =
+      sellerStep === "processing"
+        ? PROCESSING_UI_TIMEOUT_MS
+        : PREVIEW_LOAD_TIMEOUT_MS;
     const elapsed = Date.now() - loadStartedRef.current;
-    const remaining = Math.max(0, PREVIEW_LOAD_TIMEOUT_MS - elapsed);
+    const remaining = Math.max(0, limitMs - elapsed);
 
     const timer = window.setTimeout(() => {
+      if (sellerStep === "processing") {
+        showToast(
+          "AI analizė užtruko per ilgai — užpildykite skelbimą ranka.",
+          "error"
+        );
+        openManualListingWizard({
+          previewImage: sellerPreviewImage,
+          toastMessage: "AI analizė užtruko — rankinis vedlys",
+        });
+        return;
+      }
+
       showToast(
         "Per ilgai laukiama — grįžtame į skelbimų formą. Užpildykite laukus ranka.",
         "error"
@@ -54,7 +73,15 @@ export function ZeroUiListingPreview() {
     }, remaining);
 
     return () => window.clearTimeout(timer);
-  }, [sellerStep, aiDraft, cancelSellerFlow, goToMarketplace, showToast]);
+  }, [
+    sellerStep,
+    aiDraft,
+    cancelSellerFlow,
+    goToMarketplace,
+    showToast,
+    openManualListingWizard,
+    sellerPreviewImage,
+  ]);
 
   const handleBack = () => {
     cancelSellerFlow();
@@ -101,9 +128,9 @@ export function ZeroUiListingPreview() {
   if (sellerStep === "processing") {
     return (
       <ZeroUiScreenChrome subtitle="Analizuojama…" onBack={handleBack}>
-        <div className="flex flex-col items-center gap-3 py-12">
+        <div className="zero-ui-loader-state flex flex-col items-center gap-3 py-12">
           <Loader2 className="h-8 w-8 animate-spin text-[var(--vauto-primary,#1167b1)]" />
-          <p className="text-center text-sm text-[var(--vauto-text-muted,#94a3b8)]">
+          <p className="zero-ui-loader-copy text-center text-sm text-[var(--portal-text,var(--vauto-text-main,#111827))]">
             AI analizuoja skelbimo duomenis…
           </p>
         </div>
@@ -113,9 +140,9 @@ export function ZeroUiListingPreview() {
 
   return (
     <ZeroUiScreenChrome subtitle="Ruošiama…" onBack={handleBack}>
-      <div className="flex flex-col items-center gap-3 py-12">
+      <div className="zero-ui-loader-state flex flex-col items-center gap-3 py-12">
         <Loader2 className="h-8 w-8 animate-spin text-[var(--vauto-primary,#1167b1)]" />
-        <p className="text-center text-sm text-[var(--vauto-text-muted,#94a3b8)]">
+        <p className="zero-ui-loader-copy text-center text-sm text-[var(--portal-text,var(--vauto-text-main,#111827))]">
           AI paruošia skelbimo juodraštį…
         </p>
       </div>

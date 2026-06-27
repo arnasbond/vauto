@@ -19,7 +19,10 @@ import {
   clearClothingListingDraft,
   saveClothingListingDraft,
 } from "@/lib/listing-draft-storage";
-import { capturePhoto } from "@/lib/native-media";
+import {
+  applyFirstGalleryFile,
+  ListingGalleryFileInput,
+} from "@/components/listing/ListingGalleryFileInput";
 
 const ACCENT = "#09b1a8";
 
@@ -204,43 +207,24 @@ export function ClothingListingWizard({
 
           <SectionTitle>Nuotraukos</SectionTitle>
           <div className="mb-6 rounded-2xl border border-dashed border-[#d1d5db] bg-white p-4">
-            {previewImage ? (
-              <div className="relative">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={previewImage}
-                  alt=""
-                  className="max-h-56 w-full rounded-xl object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() =>
-                    requestMediaConsent(async () => {
-                      const photo = await capturePhoto();
-                      if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-                    })
-                  }
-                  className="mt-3 w-full rounded-full border border-[#09b1a8] py-2 text-sm font-medium text-[#09b1a8]"
-                >
-                  + Pridėti nuotraukų
-                </button>
-              </div>
-            ) : (
-              <button
-                type="button"
-                onClick={() =>
-                  requestMediaConsent(async () => {
-                    const photo = await capturePhoto();
-                    if (photo) onMediaChange({ imageDataUrl: photo.dataUrl });
-                  })
-                }
-                className="flex w-full flex-col items-center justify-center gap-3 py-10"
-              >
-                <span className="rounded-full border-2 border-[#09b1a8] px-5 py-2 text-sm font-medium text-[#09b1a8]">
-                  + Įkelti nuotraukų
-                </span>
-              </button>
+            {previewImage && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={previewImage}
+                alt=""
+                className="mb-3 max-h-56 w-full rounded-xl object-cover"
+              />
             )}
+            <ListingGalleryFileInput
+              requestConsent={requestMediaConsent}
+              className="flex w-full flex-col items-center justify-center gap-3 py-6 text-[#09b1a8]"
+              label={previewImage ? "+ Pridėti nuotraukų" : "+ Įkelti nuotraukų"}
+              onFilesSelected={(files) => {
+                applyFirstGalleryFile(files, (dataUrl) =>
+                  onMediaChange({ imageDataUrl: dataUrl })
+                );
+              }}
+            />
           </div>
 
           <SectionTitle>Apie prekę</SectionTitle>

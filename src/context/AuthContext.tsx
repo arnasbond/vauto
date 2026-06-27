@@ -160,6 +160,8 @@ interface AuthContextValue {
 
   updateUser: (patch: Partial<UserProfile>) => void;
 
+  refreshAuthUser: () => Promise<boolean>;
+
   login: (data: LoginPayload) => Promise<void>;
 
   upgradeToPro: (data: UpgradeToProPayload) => Promise<boolean>;
@@ -311,6 +313,46 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateUser = useCallback((patch: Partial<UserProfile>) => {
 
     setUser((prev) => ({ ...prev, ...patch }));
+
+  }, []);
+
+
+
+  const refreshAuthUser = useCallback(async (): Promise<boolean> => {
+
+    const token = loadAccessToken();
+
+    if (!token || !isAuthApiAvailable()) return false;
+
+    const refreshed = await apiFetchAuthSession(token);
+
+    if (!refreshed.ok) return false;
+
+    let synced: UserProfile | null = null;
+
+    setUser((prev) => {
+
+      synced = mapApiUserToProfile(refreshed.data.user, {
+
+        role: refreshed.data.role,
+
+        provider: prev.authProvider ?? "phone",
+
+      });
+
+      return synced;
+
+    });
+
+    const auth = loadAuthSession();
+
+    if (auth?.isAuthenticated && synced) {
+
+      await persistAuthSessionFull({ ...auth, accessToken: token }, synced);
+
+    }
+
+    return true;
 
   }, []);
 
@@ -788,6 +830,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       updateUser,
 
+      refreshAuthUser,
+
       login,
 
       upgradeToPro,
@@ -827,6 +871,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       clearAuthError,
 
       updateUser,
+
+      refreshAuthUser,
 
       login,
 
