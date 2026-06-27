@@ -9,6 +9,7 @@ import {
   getPreferredInstallPlatform,
   isAndroid,
   isIOS,
+  isNativeApp,
   shareAndroidApk,
   shareIosPwa,
 } from "@/lib/mobile-install";
@@ -30,6 +31,7 @@ export function InstallDownloadButtons({
   const preferred = getPreferredInstallPlatform();
   const androidDevice = isAndroid();
   const iosDevice = isIOS();
+  const nativeApp = isNativeApp();
 
   const primaryPlatform = useMemo<"android" | "ios">(() => {
     if (preferred === "ios") return "ios";
@@ -41,7 +43,21 @@ export function InstallDownloadButtons({
     onShare?.(platform);
   };
 
-  const androidBlock = (
+  const androidBlock = nativeApp ? (
+    <div
+      className={cn(
+        "rounded-2xl border p-4",
+        "border-green-200 bg-green-50"
+      )}
+    >
+      <p className="text-sm font-semibold text-green-800">
+        Vauto jau veikia šioje programėlėje
+      </p>
+      <p className="mt-1 text-xs text-green-700">
+        APK atsisiuntimas čia nereikalingas — naudokite meniu apačioje.
+      </p>
+    </div>
+  ) : (
     <div
       className={cn(
         "rounded-2xl border p-4",
@@ -115,8 +131,9 @@ export function InstallDownloadButtons({
     </div>
   );
 
-  const ordered =
-    primaryPlatform === "ios" ? (
+  const ordered = nativeApp ? (
+    androidBlock
+  ) : primaryPlatform === "ios" ? (
       <>
         {iosBlock}
         {androidBlock}
@@ -136,7 +153,7 @@ export function InstallDownloadButtons({
         className
       )}
     >
-      {(iosDevice || androidDevice) && (
+      {(iosDevice || androidDevice) && !nativeApp && (
         <p className="flex items-center gap-2 text-xs text-[var(--vauto-text-muted)]">
           <Download className="h-3.5 w-3.5 text-[var(--vauto-blue)]" />
           {iosDevice
@@ -145,11 +162,13 @@ export function InstallDownloadButtons({
         </p>
       )}
       {ordered}
-      <p className="text-center text-[10px] text-[var(--vauto-text-muted)]">
-        <a href={INSTALL_PAGE_URL} className="underline">
-          Pilnos instrukcijos
-        </a>
-      </p>
+      {!nativeApp && (
+        <p className="text-center text-[10px] text-[var(--vauto-text-muted)]">
+          <a href={INSTALL_PAGE_URL} className="underline">
+            Pilnos instrukcijos
+          </a>
+        </p>
+      )}
     </div>
   );
 }

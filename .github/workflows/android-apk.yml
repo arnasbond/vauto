@@ -71,7 +71,7 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.6** — Fix login WebView crash: no Google GSI in APK, bundled fallback if remote fails.
+            **v1.0.7** — Fix OTP login ghost-tap → GitHub APK; hide download link inside native app.
 
             Live web shell — UI sinchronizuotas su vauto-chi.vercel.app.
 

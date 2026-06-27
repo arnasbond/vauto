@@ -12,6 +12,7 @@ import {
 } from "@/lib/auth/google-client";
 import { isAppleAuthConfigured } from "@/lib/auth/apple-client";
 import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
+import { blockNativeClickThrough } from "@/lib/native-click-guard";
 import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
 
 type AuthStep = "methods" | "phone" | "otp" | "admin";
@@ -182,6 +183,7 @@ export function AuthModal({
       setOtpError("Įveskite 6 skaitmenų kodą");
       return;
     }
+    blockNativeClickThrough();
     finish("phone");
   };
 
@@ -438,7 +440,11 @@ export function AuthModal({
             />
             <button
               type="button"
-              onClick={verifyOtp}
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                verifyOtp();
+              }}
               disabled={loading}
               className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
             >

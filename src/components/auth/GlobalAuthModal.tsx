@@ -2,8 +2,10 @@
 
 import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Capacitor } from "@capacitor/core";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useAuth } from "@/context/AuthContext";
+import { blockNativeClickThrough } from "@/lib/native-click-guard";
 
 /** App-wide login modal — opened when guest tries to publish a listing */
 export function GlobalAuthModal() {
@@ -27,13 +29,20 @@ export function GlobalAuthModal() {
 
   useEffect(() => {
     if (!wasOpen.current || !isAuthenticated) return;
+
+    blockNativeClickThrough();
+
     const path = authRedirectPath;
-    if (path) {
-      router.push(path);
-      clearAuthRedirect();
-    }
-    closeAuthModal();
-    wasOpen.current = false;
+    const timer = window.setTimeout(() => {
+      if (path) {
+        router.replace(path);
+        clearAuthRedirect();
+      }
+      closeAuthModal();
+      wasOpen.current = false;
+    }, Capacitor.isNativePlatform() ? 400 : 0);
+
+    return () => window.clearTimeout(timer);
   }, [
     isAuthenticated,
     authRedirectPath,

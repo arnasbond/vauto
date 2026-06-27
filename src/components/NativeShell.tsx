@@ -24,7 +24,10 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() || !isAuthenticated) return;
-    void registerNativePush();
+    const timer = window.setTimeout(() => {
+      void registerNativePush();
+    }, 2500);
+    return () => window.clearTimeout(timer);
   }, [isAuthenticated]);
 
   useEffect(() => {
