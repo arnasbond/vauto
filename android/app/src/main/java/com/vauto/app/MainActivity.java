@@ -12,13 +12,18 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        tuneWebViewForFoldables();
+    }
+
+    @Override
+    public void onStart() {
+        super.onStart();
+        tuneWebViewForMedia();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        tuneWebViewForFoldables();
+        tuneWebViewForMedia();
     }
 
     @Override
@@ -35,8 +40,8 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    /** Reduce Samsung Fold WebView renderer crashes (OOM / fold resize). */
-    private void tuneWebViewForFoldables() {
+    /** WebView media + Samsung Fold stability tuning. */
+    private void tuneWebViewForMedia() {
         Bridge bridge = getBridge();
         if (bridge == null) return;
         WebView webView = bridge.getWebView();
@@ -47,6 +52,11 @@ public class MainActivity extends BridgeActivity {
         settings.setDatabaseEnabled(true);
         settings.setCacheMode(WebSettings.LOAD_DEFAULT);
         settings.setOffscreenPreRaster(false);
+        settings.setMediaPlaybackRequiresUserGesture(false);
+
+        if (!(webView.getWebChromeClient() instanceof VautoWebChromeClient)) {
+            webView.setWebChromeClient(new VautoWebChromeClient(bridge));
+        }
     }
 
     private void trimWebViewMemory(boolean aggressive) {

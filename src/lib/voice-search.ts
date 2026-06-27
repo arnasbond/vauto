@@ -1,4 +1,5 @@
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
 
 type SpeechResults = {
   length: number;
@@ -97,6 +98,7 @@ function snapshotTranscript(results: SpeechResults): {
 
 /**
  * Single SpeechRecognition session — delivers ONE final string on onend/stop only.
+ * On Android APK, getUserMedia first triggers the system mic permission dialog.
  */
 export function startVoiceSearch(
   options: VoiceSearchOptions = {}
@@ -108,129 +110,121 @@ export function startVoiceSearch(
     maxMs = DEFAULT_MAX_MS,
   } = options;
 
-  const SpeechRecognition = getSpeechRecognition();
-  if (!SpeechRecognition) {
-    let resolved = false;
-    let resolvePromise: (value: string | null) => void = () => {};
-    const promise = new Promise<string | null>((resolve) => {
-      resolvePromise = resolve;
-    });
-    const finish = (value: string | null) => {
-      if (resolved) return;
-      resolved = true;
-      resolvePromise(value);
-    };
-    return {
-      promise,
-      stop: () => finish(null),
-      cancel: () => finish(null),
-    };
-  }
-
   let resolved = false;
   let rec: InstanceType<SpeechRecognitionCtor> | null = null;
-  let committedFinal = "";
-  let silenceTimer: ReturnType<typeof setTimeout> | null = null;
-  let maxTimer: ReturnType<typeof setTimeout> | null = null;
-  let started = false;
-  let stopping = false;
+  let stopFn: () => void = () => {};
+  let cancelFn: () => void = () => {};
 
-  const clearTimers = () => {
-    if (silenceTimer) clearTimeout(silenceTimer);
-    if (maxTimer) clearTimeout(maxTimer);
-    silenceTimer = null;
-    maxTimer = null;
-  };
+  const promise = (async (): Promise<string | null> => {
+    const micOk = await ensureNativeMicrophonePermission();
+    if (!micOk) return null;
 
-  let resolvePromise: (value: string | null) => void = () => {};
-  const promise = new Promise<string | null>((resolve) => {
-    resolvePromise = resolve;
-  });
+    const SpeechRecognition = getSpeechRecognition();
+    if (!SpeechRecognition) return null;
 
-  const deliverOnce = (text: string | null) => {
-    if (resolved) return;
-    resolved = true;
-    clearTimers();
-    try {
-      rec?.abort();
-    } catch {
-      /* ignore */
-    }
-    rec = null;
-    resolvePromise(text?.trim() ? sanitizeSpeechTranscript(text.trim()) : null);
-  };
+    return new Promise<string | null>((resolve) => {
+      let committedFinal = "";
+      let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+      let maxTimer: ReturnType<typeof setTimeout> | null = null;
+      let started = false;
+      let stopping = false;
 
-  const requestStop = () => {
-    if (resolved || stopping) return;
-    stopping = true;
-    clearTimers();
-    try {
-      rec?.stop();
-    } catch {
-      deliverOnce(committedFinal.trim() || null);
-    }
-  };
+      const clearTimers = () => {
+        if (silenceTimer) clearTimeout(silenceTimer);
+        if (maxTimer) clearTimeout(maxTimer);
+        silenceTimer = null;
+        maxTimer = null;
+      };
 
-  const scheduleSilenceStop = () => {
-    if (!committedFinal.trim()) return;
-    if (silenceTimer) clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(requestStop, silenceMs);
-  };
+      const deliverOnce = (text: string | null) => {
+        if (resolved) return;
+        resolved = true;
+        clearTimers();
+        try {
+          rec?.abort();
+        } catch {
+          /* ignore */
+        }
+        rec = null;
+        resolve(text?.trim() ? sanitizeSpeechTranscript(text.trim()) : null);
+      };
 
-  rec = new SpeechRecognition();
-  rec.lang = "lt-LT";
-  rec.continuous = true;
-  rec.interimResults = true;
-  rec.maxAlternatives = 1;
+      const requestStop = () => {
+        if (resolved || stopping) return;
+        stopping = true;
+        clearTimers();
+        try {
+          rec?.stop();
+        } catch {
+          deliverOnce(committedFinal.trim() || null);
+        }
+      };
 
-  rec.onstart = () => {
-    if (!started) {
-      started = true;
-      onStart?.();
-    }
-  };
+      const scheduleSilenceStop = () => {
+        if (!committedFinal.trim()) return;
+        if (silenceTimer) clearTimeout(silenceTimer);
+        silenceTimer = setTimeout(requestStop, silenceMs);
+      };
 
-  rec.onresult = (event) => {
-    const { committed, preview } = snapshotTranscript(event.results);
-    committedFinal = committed;
-    onInterim?.(preview);
-    if (committed) scheduleSilenceStop();
-  };
+      stopFn = requestStop;
+      cancelFn = () => {
+        if (resolved) return;
+        stopping = true;
+        clearTimers();
+        try {
+          rec?.abort();
+        } catch {
+          /* ignore */
+        }
+        rec = null;
+        resolved = true;
+        resolve(null);
+      };
 
-  rec.onerror = (ev) => {
-    if (ev.error === "no-speech" || ev.error === "aborted") return;
-    if (ev.error === "not-allowed") deliverOnce(null);
-  };
+      rec = new SpeechRecognition();
+      rec.lang = "lt-LT";
+      rec.continuous = true;
+      rec.interimResults = true;
+      rec.maxAlternatives = 1;
 
-  rec.onend = () => {
-    if (resolved) return;
-    deliverOnce(committedFinal.trim() || null);
-  };
+      rec.onstart = () => {
+        if (!started) {
+          started = true;
+          onStart?.();
+        }
+      };
 
-  maxTimer = setTimeout(requestStop, maxMs);
+      rec.onresult = (event) => {
+        const { committed, preview } = snapshotTranscript(event.results);
+        committedFinal = committed;
+        onInterim?.(preview);
+        if (committed) scheduleSilenceStop();
+      };
 
-  try {
-    rec.start();
-  } catch {
-    deliverOnce(null);
-  }
+      rec.onerror = (ev) => {
+        if (ev.error === "no-speech" || ev.error === "aborted") return;
+        if (ev.error === "not-allowed") deliverOnce(null);
+      };
+
+      rec.onend = () => {
+        if (resolved) return;
+        deliverOnce(committedFinal.trim() || null);
+      };
+
+      maxTimer = setTimeout(requestStop, maxMs);
+
+      try {
+        rec.start();
+      } catch {
+        deliverOnce(null);
+      }
+    });
+  })();
 
   return {
     promise,
-    stop: requestStop,
-    cancel: () => {
-      if (resolved) return;
-      stopping = true;
-      clearTimers();
-      try {
-        rec?.abort();
-      } catch {
-        /* ignore */
-      }
-      rec = null;
-      resolved = true;
-      resolvePromise(null);
-    },
+    stop: () => stopFn(),
+    cancel: () => cancelFn(),
   };
 }
 

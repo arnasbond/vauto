@@ -71,9 +71,9 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
-            **v1.0.4** — Remote web shell (visada = vauto-chi.vercel.app). Naršymo atminties apsauga.
+            **v1.0.5** — Mikrofono leidimai WebView: RECORD_AUDIO + MODIFY_AUDIO_SETTINGS, runtime dialogas paspaudus mic.
 
-            APK = plonas „dangtelis“. UI ir pataisymai kraunasi iš **tos pačios** gamybinės svetainės kaip naršyklėje — nereikia naujo APK kiekvienam web fixui.
+            Live web shell — UI visada sinchronizuotas su vauto-chi.vercel.app.
 
             1. Atsisiųskite failą žemiau
             2. Atidarykite atsisiųstą APK
