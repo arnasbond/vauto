@@ -2,15 +2,14 @@
 
 import { Sparkles } from "lucide-react";
 
-const ACCENT = "#09b1a8";
+const ACCENT = "#d946ef";
 
 export function ClothingWizardInlineGuide({ message }: { message: string | null }) {
   if (!message) return null;
 
   return (
     <div
-      className="mb-4 flex gap-3 rounded-2xl border bg-[#fffdf9] px-3 py-3"
-      style={{ borderColor: "#b8ebe8" }}
+      className="mb-4 flex gap-3 rounded-2xl border border-fuchsia-500/30 bg-[#131c38] px-3 py-3"
       role="status"
       aria-live="polite"
     >
@@ -21,7 +20,7 @@ export function ClothingWizardInlineGuide({ message }: { message: string | null 
       >
         <Sparkles className="h-4 w-4" />
       </span>
-      <p className="text-sm font-light leading-relaxed text-[#374151]">{message}</p>
+      <p className="text-sm font-light leading-relaxed text-slate-200">{message}</p>
     </div>
   );
 }

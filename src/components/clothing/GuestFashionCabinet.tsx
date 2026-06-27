@@ -75,8 +75,8 @@ export function GuestFashionCabinet() {
           <p className="text-xs font-medium uppercase tracking-wide text-fuchsia-600">
             Viešas demo režimas
           </p>
-          <h1 className="text-xl font-semibold text-slate-900">VAUTO Spinta</h1>
-          <p className="text-xs text-slate-500">
+          <h1 className="text-xl font-semibold text-white">VAUTO Spinta</h1>
+          <p className="text-xs text-slate-400">
             Pirk ir parduok drabužius — be privalomo prisijungimo peržiūrai
           </p>
         </div>
@@ -123,7 +123,7 @@ export function GuestFashionCabinet() {
         <button
           type="button"
           onClick={() => openAuthModal("/fashion/")}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-fuchsia-200 bg-white py-2.5 text-sm font-medium text-fuchsia-700"
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-fuchsia-500/50 bg-[#131c38] py-2.5 text-sm font-medium text-fuchsia-300"
         >
           <LogIn className="h-4 w-4" />
           Jau turi paskyrą? Prisijunk
@@ -131,7 +131,7 @@ export function GuestFashionCabinet() {
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-[#374151]">
+        <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-slate-200">
           <Shirt className="h-4 w-4 text-fuchsia-600" />
           Mados turgus
         </h2>

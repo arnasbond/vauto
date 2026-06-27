@@ -271,3 +271,29 @@ export function looksLikeClothingListing(text: string, category?: string): boole
     text
   );
 }
+
+/** Apply clothing category + fashion attrs from full transcript/title blob. */
+export function enrichClothingListingDraft<
+  T extends {
+    category?: string;
+    attributes?: Record<string, string | string[] | undefined>;
+  },
+>(draft: T, text: string): T {
+  if (!looksLikeClothingListing(text, draft.category)) return draft;
+  const attrs = { ...(draft.attributes ?? {}) };
+  const group = detectClothingGroupFromText(text) ?? "Moterims";
+  const sub = detectSubcategoryFromText(text, group) ?? "Kita";
+  if (!readFashionCategory(attrs)) {
+    attrs[FASHION_CATEGORY_ATTR] = formatFashionCategory(group, sub);
+  }
+  if (!attrs.brand) {
+    const brand = detectBrandFromText(text);
+    if (brand) attrs.brand = brand;
+  }
+  if (!attrs.size) {
+    const size = detectSizeFromText(text);
+    if (size) attrs.size = size;
+  }
+  if (!attrs.condition) attrs.condition = "Gera";
+  return { ...draft, category: "clothing", attributes: attrs };
+}

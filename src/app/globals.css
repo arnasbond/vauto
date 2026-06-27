@@ -596,10 +596,24 @@ body.chameleon-skelbiu .chameleon-details-panel textarea {
 
 body.chameleon-wardrobe .chameleon-details-panel input,
 body.chameleon-wardrobe .chameleon-details-panel textarea {
-  border: 1px solid #e8e4df;
-  background: #fffdf9;
-  color: #374151;
+  border: 1px solid rgba(217, 70, 239, 0.4);
+  background: #131c38;
+  color: #ffffff;
   font-weight: 300;
+}
+
+body.chameleon-wardrobe .listing-wizard-overlay,
+body.chameleon-wardrobe .chameleon-wizard-shell > .mx-auto {
+  background-color: #0a1128 !important;
+  color: #ffffff;
+}
+
+body.chameleon-wardrobe .listing-wizard-overlay input,
+body.chameleon-wardrobe .listing-wizard-overlay textarea,
+body.chameleon-wardrobe .listing-wizard-overlay select {
+  background: #131c38 !important;
+  color: #ffffff !important;
+  border-color: rgba(217, 70, 239, 0.4) !important;
 }
 
 body.chameleon-paslaugos .chameleon-details-panel input,

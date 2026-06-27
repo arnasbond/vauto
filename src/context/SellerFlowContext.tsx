@@ -66,6 +66,7 @@ import {
   detectClothingGroupFromText,
   detectSizeFromText,
   detectSubcategoryFromText,
+  enrichClothingListingDraft,
   FASHION_CATEGORY_ATTR,
   formatFashionCategory,
   looksLikeClothingListing,
@@ -411,25 +412,25 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         } else if (looksLikeVehicle) {
           next = enrichVehicleListingDraft(next, [textForHeuristics]);
         } else {
-          const title = next.title ?? "";
-          if (looksLikeClothingListing(title, next.category)) {
+          const title = next.title ?? textForHeuristics;
+          if (looksLikeClothingListing(textForHeuristics, next.category)) {
             const attrs = { ...(next.attributes ?? {}) };
-            const group = detectClothingGroupFromText(title) ?? "Moterims";
-            const sub = detectSubcategoryFromText(title, group) ?? "Kita";
+            const group = detectClothingGroupFromText(textForHeuristics) ?? "Moterims";
+            const sub = detectSubcategoryFromText(textForHeuristics, group) ?? "Kita";
             if (!readFashionCategory(attrs)) {
               attrs[FASHION_CATEGORY_ATTR] = formatFashionCategory(group, sub);
             }
             if (!attrs.brand) {
-              const brand = detectBrandFromText(title);
+              const brand = detectBrandFromText(textForHeuristics);
               if (brand) attrs.brand = brand;
             }
             if (!attrs.size) {
-              const size = detectSizeFromText(title);
+              const size = detectSizeFromText(textForHeuristics);
               if (size) attrs.size = size;
             }
             if (!attrs.condition) attrs.condition = "Gera";
             next = { ...next, category: "clothing", attributes: attrs };
-          } else if (looksLikeServiceListing(title, next.category)) {
+          } else if (looksLikeServiceListing(textForHeuristics, next.category)) {
             const attrs = { ...(next.attributes ?? {}) };
             if (!attrs.serviceSpecialty) {
               const specialty = detectServiceSpecialty(title);
@@ -581,16 +582,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     (draft: AiExtractedListing, imageUrl?: string) => {
       if (!requireAuthForListing("/add")) return;
       setAiManualFallback(false);
-      const enriched = enrichVehicleListingDraft(draft, [
-        draft.title,
-        draft.description ?? "",
-      ]);
+      const sourceText = [draft.title, draft.description].filter(Boolean).join(" ");
+      let enriched = enrichVehicleListingDraft(draft, [sourceText]);
+      enriched = enrichClothingListingDraft(enriched, sourceText);
       setAiDraft(enriched);
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
       const key = listingToAdaptiveKey(enriched.category);
       setChameleonTheme(adaptiveKeyToTheme(key));
+      if (key === "clothing") activateWardrobeSpinta();
       setSellerStep("confirmation");
       const vehicleAttrs = enriched.attributes;
       const prefilled =
@@ -609,7 +610,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         speakBuddyMessage(voicePrompt, { enabled: true });
       }
     },
-    [requireAuthForListing, setChameleonTheme, showToast]
+    [requireAuthForListing, setChameleonTheme, showToast, activateWardrobeSpinta]
   );
 
   const importListingFromUrl = useCallback(

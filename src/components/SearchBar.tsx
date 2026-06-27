@@ -172,13 +172,6 @@ export function SearchBar({
         }
       }
 
-      if (startListingFromQuery(q)) {
-        setDraftQuery("");
-        setSearchQuery("");
-        inputRef.current?.blur();
-        return;
-      }
-
       setSearchInputMode(opts?.voice ? "voice" : "text");
       clearVisualSearch({ keepInputMode: true });
 
@@ -193,6 +186,7 @@ export function SearchBar({
         return;
       }
 
+      // Voice → Zero-UI agent first (sell/search unified dialog, no form hijack)
       if (shouldForceLiveVoiceAssistant(q, opts?.voice)) {
         setSearchInputMode("voice");
         setSearchVoiceMode(true);
@@ -207,6 +201,13 @@ export function SearchBar({
             speakBuddyMessage(res.reply, { enabled: true, force: true });
           }
         });
+        return;
+      }
+
+      if (startListingFromQuery(q)) {
+        setDraftQuery("");
+        setSearchQuery("");
+        inputRef.current?.blur();
         return;
       }
 

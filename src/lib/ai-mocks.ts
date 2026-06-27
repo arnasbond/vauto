@@ -155,7 +155,7 @@ function detectCategory(text: string): ListingCategory {
   if (isVehicleQuery(text) || VEHICLE_GENERIC_PATTERN.test(t)) {
     return "vehicles";
   }
-  if (/suknel|batai|zara|rubas|drabuž|marškin|striuk|nike|dydis|būklė/i.test(t)) {
+  if (/suknel|batai|batus|batų|zara|rubas|drabuž|marškin|striuk|nike|dydis|būklė/i.test(t)) {
     return "clothing";
   }
   if (isRealEstateQuery(text) || NT_KEYWORD_PATTERN.test(t)) {
