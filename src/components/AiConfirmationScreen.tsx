@@ -131,7 +131,7 @@ export function AiConfirmationScreen({
   }
 
   if (isClothing) {
-    return wrapWithCategoryPicker(
+    return portalWrap(
       <ClothingListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}

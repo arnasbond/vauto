@@ -303,15 +303,9 @@ export function ClothingListingWizard({
   }, [activateWardrobeSpinta]);
 
   return (
-    <div
-      className="listing-wizard-overlay chameleon-wizard-shell text-white"
-      style={{ backgroundColor: SPINTA_BG }}
-    >
-        <div className="mx-auto w-full max-w-lg pb-8" style={{ backgroundColor: SPINTA_BG }}>
-        <div
-          className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 px-4 py-3"
-          style={{ backgroundColor: SPINTA_BG }}
-        >
+    <div className="listing-wizard-overlay chameleon-wizard-shell spinta-listing-wizard bg-[#0a1128] text-white min-h-screen">
+      <div className="mx-auto w-full max-w-lg bg-[#0a1128] text-white min-h-screen pb-8">
+        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 bg-[#0a1128] px-4 py-3">
           <div className="flex items-center gap-2">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold text-white"
@@ -639,7 +633,7 @@ export function ClothingListingWizard({
             </button>
           </div>
 
-          <ListingPublishSocialOptions className="mb-4" />
+          <ListingPublishSocialOptions className="mb-4 spinta-social-options" />
 
           <button
             type="button"

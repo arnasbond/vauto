@@ -1,4 +1,4 @@
-import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { buildSpeechTranscriptFromResults, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
 
 type SpeechResults = {
@@ -47,20 +47,6 @@ export interface VoiceSearchSession {
 
 const DEFAULT_SILENCE_MS = 2_000;
 const DEFAULT_MAX_MS = 25_000;
-
-/** Replace transcript each event — never append to prior text (prevents voice echo). */
-function snapshotTranscriptFromEvent(event: {
-  resultIndex: number;
-  results: SpeechResults;
-}): string {
-  let finalTranscript = "";
-  let interimTranscript = "";
-  for (let i = event.resultIndex; i < event.results.length; ++i) {
-    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
-    else interimTranscript += event.results[i][0].transcript;
-  }
-  return sanitizeSpeechTranscript((finalTranscript + interimTranscript).trim());
-}
 
 /**
  * Single SpeechRecognition session — delivers ONE final string on onend/stop only.
@@ -161,7 +147,7 @@ export function startVoiceSearch(
       };
 
       rec.onresult = (event) => {
-        const preview = snapshotTranscriptFromEvent(event);
+        const preview = buildSpeechTranscriptFromResults(event.results);
         committedFinal = preview;
         onInterim?.(preview);
         if (preview) scheduleSilenceStop();

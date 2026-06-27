@@ -27,6 +27,33 @@ export function rebuildSpeechTranscript(event: {
   };
 }
 
+type SpeechResultsLike = {
+  length: number;
+  [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
+};
+
+/**
+ * Rebuild full transcript from the entire results array each event.
+ * Never append to prior state — prevents "parduodu batus parduodu batus" echo.
+ * Uses only the trailing interim hypothesis to avoid final+interim overlap.
+ */
+export function buildSpeechTranscriptFromResults(results: SpeechResultsLike): string {
+  let finalTranscript = "";
+  let interimTranscript = "";
+
+  for (let i = 0; i < results.length; ++i) {
+    const part = results[i]?.[0]?.transcript ?? "";
+    if (!part) continue;
+    if (results[i].isFinal) {
+      finalTranscript += part;
+    } else {
+      interimTranscript = part;
+    }
+  }
+
+  return sanitizeSpeechTranscript((finalTranscript + interimTranscript).trim());
+}
+
 /** Clean garbled STT output before AI analysis. */
 export function sanitizeSpeechTranscript(text: string): string {
   let t = text.replace(/\s+/g, " ").trim();

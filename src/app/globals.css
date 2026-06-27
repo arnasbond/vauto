@@ -616,6 +616,32 @@ body.chameleon-wardrobe .listing-wizard-overlay select {
   border-color: rgba(217, 70, 239, 0.4) !important;
 }
 
+/* Spinta clothing wizard — force dark shell over global white fallbacks */
+.spinta-listing-wizard.listing-wizard-overlay,
+.spinta-listing-wizard.listing-wizard-overlay > .mx-auto,
+.spinta-listing-wizard .listing-wizard-overlay {
+  background-color: #0a1128 !important;
+  color: #ffffff !important;
+}
+
+.spinta-listing-wizard .listing-social-publish,
+.spinta-listing-wizard .listing-social-option {
+  background-color: #131c38 !important;
+  border-color: rgba(148, 163, 184, 0.35) !important;
+  color: #ffffff !important;
+}
+
+.spinta-listing-wizard .listing-social-publish h3,
+.spinta-listing-wizard .listing-social-publish-desc,
+.spinta-listing-wizard .listing-social-option-label {
+  color: #e2e8f0 !important;
+}
+
+.spinta-listing-wizard select option {
+  background-color: #131c38;
+  color: #ffffff;
+}
+
 body.chameleon-paslaugos .chameleon-details-panel input,
 body.chameleon-paslaugos .chameleon-details-panel textarea {
   border: 1px solid #cfe3ff;
