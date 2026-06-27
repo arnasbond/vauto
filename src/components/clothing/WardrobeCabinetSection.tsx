@@ -44,9 +44,9 @@ export function WardrobeCabinetSection({
 
       <WardrobeDealStepper deals={deals} />
 
-      <WardrobePowerStats user={user} listings={listings} />
+      <WardrobePowerStats user={user} listings={listings} inSpintaCabinet />
 
-      <VisibilityBooster listings={listings} />
+      <VisibilityBooster listings={listings} inSpintaCabinet />
 
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-[#374151]">

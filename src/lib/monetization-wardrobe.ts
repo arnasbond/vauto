@@ -28,9 +28,17 @@ export interface WardrobeEscrowMonetizationContext {
   negotiationTwinEnabled: boolean;
 }
 
-/** Monetizacija aktyvi tik wardrobe chameleon sluoksnyje */
+/** Monetizacija aktyvi tik wardrobe chameleon sluoksnyje (escrow / sandoriai) */
 export function isWardrobeMonetizationActive(theme: ChameleonThemeId): boolean {
   return theme === "wardrobe";
+}
+
+/** Kabineto monetizacija — wardrobe tema arba aktyvus „Mano Spinta“ kontekstas */
+export function isWardrobeSpintaEconomyActive(
+  theme: ChameleonThemeId,
+  inSpintaCabinet = false
+): boolean {
+  return isWardrobeMonetizationActive(theme) || inSpintaCabinet;
 }
 
 export function shouldApplyNegotiationTwinFee(

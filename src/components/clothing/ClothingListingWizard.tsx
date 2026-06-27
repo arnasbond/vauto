@@ -38,6 +38,8 @@ import {
   buildClothingWizardHint,
   isClothingWizardReady,
 } from "@/lib/clothing-wizard-guidance";
+import { useVauto } from "@/context/VautoContext";
+import { isWardrobeChameleonActive } from "@/lib/wardrobe-cabinet-mode";
 
 const ACCENT = "#09b1a8";
 
@@ -129,6 +131,11 @@ export function ClothingListingWizard({
   onPublishBulk,
   onToast,
 }: ClothingListingWizardProps) {
+  const { chameleonTheme } = useVauto();
+  const inSpintaCabinet = isWardrobeChameleonActive({
+    chameleonTheme,
+    detectedAdaptiveKey: "clothing",
+  });
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wardrobeItems, setWardrobeItems] = useState<WardrobeDraftItem[]>([]);
   const [wardrobeAnalyzing, setWardrobeAnalyzing] = useState(false);
@@ -326,6 +333,7 @@ export function ClothingListingWizard({
             userName={userName}
             defaultLocation={draft.location || defaultLocation}
             contact={draft.contact}
+            inSpintaCabinet={inSpintaCabinet}
             onImportReady={handleProfileImport}
             onToast={onToast}
           />

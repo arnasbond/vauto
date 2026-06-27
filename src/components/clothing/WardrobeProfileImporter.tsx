@@ -9,7 +9,8 @@ import {
   profileItemToDraft,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
-import { incrementWardrobeImportCount, buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";import {
+import { incrementWardrobeImportCount, buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";
+import {
   canPerformWardrobeProfileImport,
   resolveWardrobeSubscriptionAccess,
 } from "@/lib/SubscriptionGuard";
@@ -19,6 +20,7 @@ interface WardrobeProfileImporterProps {
   userName?: string;
   defaultLocation: string;
   contact: string;
+  inSpintaCabinet?: boolean;
   onImportReady: (drafts: AiExtractedListing[], voiceAnnouncement: string) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }
@@ -27,13 +29,14 @@ export function WardrobeProfileImporter({
   userName,
   defaultLocation,
   contact,
+  inSpintaCabinet = false,
   onImportReady,
   onToast,
 }: WardrobeProfileImporterProps) {
   const { user, chameleonTheme, openCheckout } = useVauto();
   const access = useMemo(
-    () => resolveWardrobeSubscriptionAccess(user, chameleonTheme),
-    [user, chameleonTheme]
+    () => resolveWardrobeSubscriptionAccess(user, chameleonTheme, inSpintaCabinet),
+    [user, chameleonTheme, inSpintaCabinet]
   );
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -45,7 +48,7 @@ export function WardrobeProfileImporter({
       onToast?.("Įveskite galiojantį profilio URL (member puslapį).", "info");
       return;
     }
-    if (access.active && !canPerformWardrobeProfileImport(user, chameleonTheme)) {
+    if (access.active && !canPerformWardrobeProfileImport(user, chameleonTheme, inSpintaCabinet)) {
       onToast?.(
         "Nemokamas spintos importas išnaudotas — Power-User atrakina neribotą importą.",
         "info"

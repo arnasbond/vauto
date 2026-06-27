@@ -6,7 +6,7 @@ import { useVauto } from "@/context/VautoContext";
 import {
   buildWardrobeStyleBoostCheckout,
   isListingInStyleBoostFeed,
-  isWardrobeMonetizationActive,
+  isWardrobeSpintaEconomyActive,
 } from "@/lib/monetization-wardrobe";
 import type { Listing } from "@/lib/types";
 
@@ -14,9 +14,10 @@ const ACCENT = "#09b1a8";
 
 interface VisibilityBoosterProps {
   listings: Listing[];
+  inSpintaCabinet?: boolean;
 }
 
-export function VisibilityBooster({ listings }: VisibilityBoosterProps) {
+export function VisibilityBooster({ listings, inSpintaCabinet = false }: VisibilityBoosterProps) {
   const { chameleonTheme, openCheckout, showToast } = useVauto();
 
   const clothing = useMemo(
@@ -24,7 +25,7 @@ export function VisibilityBooster({ listings }: VisibilityBoosterProps) {
     [listings]
   );
 
-  if (!isWardrobeMonetizationActive(chameleonTheme) || clothing.length === 0) {
+  if (!isWardrobeSpintaEconomyActive(chameleonTheme, inSpintaCabinet) || clothing.length === 0) {
     return null;
   }
 

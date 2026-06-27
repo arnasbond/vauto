@@ -37,7 +37,7 @@ export function useBuyerPersonaDescriptions(
     return () => {
       cancelled = true;
     };
-  }, [enabled, draft.title, draft.category, draft.price, draft.location, draft.descriptionVariants]);
+  }, [enabled, draft]);
 
   return {
     variants,

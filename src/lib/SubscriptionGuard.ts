@@ -1,8 +1,8 @@
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 import {
   WARDROBE_FREE_IMPORT_LIMIT,
-  isWardrobeMonetizationActive,
   isWardrobePowerUser,
+  isWardrobeSpintaEconomyActive,
   readWardrobeImportCount,
 } from "@/lib/monetization-wardrobe";
 import type { UserProfile } from "@/lib/types";
@@ -31,10 +31,10 @@ const LOCKED: WardrobeSubscriptionAccess = {
 /** Atpažįsta Power-User ir atrakina Spintos premium funkcijas — tik wardrobe režime */
 export function resolveWardrobeSubscriptionAccess(
   user: UserProfile,
-  theme: ChameleonThemeId
+  theme: ChameleonThemeId,
+  inSpintaCabinet = false
 ): WardrobeSubscriptionAccess {
-  if (!isWardrobeMonetizationActive(theme)) return LOCKED;
-
+  if (!isWardrobeSpintaEconomyActive(theme, inSpintaCabinet)) return LOCKED;
   const power = isWardrobePowerUser(user);
   const importsUsed = readWardrobeImportCount(user.id);
   const importLimit = WARDROBE_FREE_IMPORT_LIMIT;
@@ -66,9 +66,10 @@ export function resolveWardrobeSubscriptionAccess(
 
 export function canPerformWardrobeProfileImport(
   user: UserProfile,
-  theme: ChameleonThemeId
+  theme: ChameleonThemeId,
+  inSpintaCabinet = false
 ): boolean {
-  const access = resolveWardrobeSubscriptionAccess(user, theme);
+  const access = resolveWardrobeSubscriptionAccess(user, theme, inSpintaCabinet);
   if (!access.active) return true;
   if (access.canImportUnlimited) return true;
   return access.importsRemaining !== 0;

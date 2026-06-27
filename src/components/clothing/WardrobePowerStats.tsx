@@ -13,11 +13,16 @@ const ACCENT = "#09b1a8";
 interface WardrobePowerStatsProps {
   user: UserProfile;
   listings: Listing[];
+  inSpintaCabinet?: boolean;
 }
 
-export function WardrobePowerStats({ user, listings }: WardrobePowerStatsProps) {
+export function WardrobePowerStats({
+  user,
+  listings,
+  inSpintaCabinet = false,
+}: WardrobePowerStatsProps) {
   const { chameleonTheme, openCheckout } = useVauto();
-  const access = resolveWardrobeSubscriptionAccess(user, chameleonTheme);
+  const access = resolveWardrobeSubscriptionAccess(user, chameleonTheme, inSpintaCabinet);
 
   const stats = useMemo(() => {
     const clothing = listings.filter((l) => l.category === "clothing");
