@@ -1,7 +1,17 @@
 "use client";
 
 import { Check, Clock, CreditCard, Package, QrCode, ShieldCheck, Truck, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useVauto } from "@/context/VautoContext";
+import {
+  applyWardrobeNegotiationTwinFee,
+  buildWardrobeEscrowContext,
+  calculateNegotiationTwinBuyerFee,
+  calculateBuyerTotalWithWardrobeFee,
+  finalizeWardrobeEscrowOnClose,
+  shouldApplyNegotiationTwinFee,
+  WARDROBE_NEGOTIATION_TWIN_FEE_LABEL,
+} from "@/lib/monetization-wardrobe";
 import {
   createEscrow,
   patchEscrow,
@@ -69,6 +79,27 @@ export function EscrowModal({
   onUpdate,
   onSellerNotify,
 }: EscrowModalProps) {
+  const { chameleonTheme, listings, showToast } = useVauto();
+  const listing = useMemo(
+    () => listings.find((l) => l.id === chat.listingId),
+    [listings, chat.listingId]
+  );
+  const monetizationCtx = useMemo(
+    () => buildWardrobeEscrowContext(chameleonTheme, chat, listing),
+    [chameleonTheme, chat, listing]
+  );
+  const twinFee = useMemo(
+    () =>
+      shouldApplyNegotiationTwinFee(monetizationCtx)
+        ? calculateNegotiationTwinBuyerFee(amount)
+        : 0,
+    [monetizationCtx, amount]
+  );
+  const buyerTotal = useMemo(
+    () => calculateBuyerTotalWithWardrobeFee(amount, twinFee),
+    [amount, twinFee]
+  );
+
   const [step, setStep] = useState<EscrowStep>(() => stepFromEscrow(escrow));
   const [paymentProvider, setPaymentProvider] = useState<PaymentProviderId>("montonio");
   const [shippingProvider, setShippingProvider] = useState<ShippingProviderId>("omniva");
@@ -100,11 +131,23 @@ export function EscrowModal({
     patch: Partial<EscrowTransaction> = {}
   ) => {
     const base = escrow ?? createEscrow(chat, amount);
-    const next = patchEscrow(base, {
+    let next = patchEscrow(base, {
       status,
       ...(code ? { trackingCode: code } : {}),
       ...patch,
     });
+    if (status === "paid" || status === "paying") {
+      next = applyWardrobeNegotiationTwinFee(next, monetizationCtx);
+    }
+    if (status === "completed") {
+      next = finalizeWardrobeEscrowOnClose(next, monetizationCtx);
+      if (next.negotiationTwinFeeApplied && next.buyerServiceFeeEur) {
+        showToast(
+          `Sandoris uždarytas. ${WARDROBE_NEGOTIATION_TWIN_FEE_LABEL}: ${next.buyerServiceFeeEur.toFixed(2)} € (3%).`,
+          "info"
+        );
+      }
+    }
     onUpdate(next);
     return next;
   };
@@ -216,8 +259,14 @@ export function EscrowModal({
             <div className="mt-4 rounded-2xl bg-gray-50 p-4">
               <p className="text-xs text-[var(--vauto-text-muted)]">Suma</p>
               <p className="text-2xl font-bold text-[var(--vauto-orange)]">
-                {amount} €
+                {buyerTotal.toFixed(2)} €
               </p>
+              {twinFee > 0 && (
+                <p className="mt-2 text-xs text-slate-600">
+                  Prekė {amount.toFixed(2)} € + {WARDROBE_NEGOTIATION_TWIN_FEE_LABEL}{" "}
+                  {twinFee.toFixed(2)} € (3% per Derybų dvynį)
+                </p>
+              )}
             </div>
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold text-slate-500">

@@ -1,13 +1,18 @@
 "use client";
 
 import { Loader2, Sparkles, UploadCloud } from "lucide-react";
-import { useState } from "react";
+import { useMemo, useState } from "react";
+import { useVauto } from "@/context/VautoContext";
 import {
   importWardrobeProfile,
   isWardrobeProfileUrl,
   profileItemToDraft,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
+import { incrementWardrobeImportCount, buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";import {
+  canPerformWardrobeProfileImport,
+  resolveWardrobeSubscriptionAccess,
+} from "@/lib/SubscriptionGuard";
 import type { AiExtractedListing } from "@/lib/types";
 
 interface WardrobeProfileImporterProps {
@@ -25,6 +30,11 @@ export function WardrobeProfileImporter({
   onImportReady,
   onToast,
 }: WardrobeProfileImporterProps) {
+  const { user, chameleonTheme, openCheckout } = useVauto();
+  const access = useMemo(
+    () => resolveWardrobeSubscriptionAccess(user, chameleonTheme),
+    [user, chameleonTheme]
+  );
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<WardrobeProfileImportItem[]>([]);
@@ -32,7 +42,15 @@ export function WardrobeProfileImporter({
   const handleImport = async () => {
     const trimmed = url.trim();
     if (!isWardrobeProfileUrl(trimmed)) {
-      onToast?.("Įveskite galiojantį profilio URL (member puslapį).", "error");
+      onToast?.("Įveskite galiojantį profilio URL (member puslapį).", "info");
+      return;
+    }
+    if (access.active && !canPerformWardrobeProfileImport(user, chameleonTheme)) {
+      onToast?.(
+        "Nemokamas spintos importas išnaudotas — Power-User atrakina neribotą importą.",
+        "info"
+      );
+      openCheckout(buildWardrobePowerSubscriptionCheckout());
       return;
     }
     setLoading(true);
@@ -44,8 +62,11 @@ export function WardrobeProfileImporter({
         contact,
       });
       if (!result?.items.length) {
-        onToast?.("Nepavyko importuoti — bandykite vėliau.", "error");
+        onToast?.("Importas nepavyko — bandykite vėliau.", "info");
         return;
+      }
+      if (access.active && !access.canImportUnlimited) {
+        incrementWardrobeImportCount(user.id);
       }
       setPreview(result.items);
       const drafts = result.items.map((item) =>
@@ -68,6 +89,9 @@ export function WardrobeProfileImporter({
           <p className="text-sm font-semibold text-slate-900">Spintos perkėlimas</p>
           <p className="text-[11px] text-slate-500">
             Vienas URL — AI sukuria visus VAUTO skelbimus automatiškai
+            {access.active && !access.canImportUnlimited && (
+              <> · liko {access.importsRemaining} nemokamas importas</>
+            )}
           </p>
         </div>
       </div>

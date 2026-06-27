@@ -6,12 +6,17 @@ import {
   confirmTransaction,
   shouldAutoConfirmExpress,
 } from "@/lib/order-agent";
+import {
+  applyWardrobeNegotiationTwinFee,
+  buildWardrobeEscrowContext,
+  finalizeWardrobeEscrowOnClose,
+} from "@/lib/monetization-wardrobe";
 import { apiProcessExpressEscrow } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
 
 /** Fone tikrina 24h express escrow ir automatiškai confirmTransaction(). */
 export function ExpressEscrowProcessor() {
-  const { chats, updateEscrow, showToast } = useVauto();
+  const { chats, listings, chameleonTheme, updateEscrow, showToast } = useVauto();
 
   useEffect(() => {
     const tick = () => {
@@ -19,7 +24,13 @@ export function ExpressEscrowProcessor() {
         const escrow = chat.escrow;
         if (!escrow || !shouldAutoConfirmExpress(escrow)) continue;
 
-        const finish = (next: typeof escrow) => {
+        const listing = listings.find((l) => l.id === chat.listingId);
+        const ctx = buildWardrobeEscrowContext(chameleonTheme, chat, listing);
+
+        const finish = (raw: typeof escrow) => {
+          let next = confirmTransaction(raw);
+          next = applyWardrobeNegotiationTwinFee(next, ctx);
+          next = finalizeWardrobeEscrowOnClose(next, ctx);
           updateEscrow(chat.id, next);
           showToast(
             `Express escrow: pinigai pervesti pardavėjui (${chat.listingTitle}).`,
@@ -40,7 +51,7 @@ export function ExpressEscrowProcessor() {
     tick();
     const id = window.setInterval(tick, 60_000);
     return () => window.clearInterval(id);
-  }, [chats, updateEscrow, showToast]);
+  }, [chats, listings, chameleonTheme, updateEscrow, showToast]);
 
   return null;
 }

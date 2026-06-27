@@ -5,6 +5,8 @@ import { Shirt } from "lucide-react";
 import { SecretaryWarmGreeting } from "@/components/clothing/SecretaryWarmGreeting";
 import { WardrobeCabinetGrid } from "@/components/clothing/WardrobeCabinetGrid";
 import { WardrobeDealStepper } from "@/components/clothing/WardrobeDealStepper";
+import { VisibilityBooster } from "@/components/clothing/VisibilityBooster";
+import { WardrobePowerStats } from "@/components/clothing/WardrobePowerStats";
 import { collectWardrobeDeals } from "@/lib/wardrobe-deals";
 import type { ChatThread, Listing, UserProfile } from "@/lib/types";
 
@@ -41,6 +43,10 @@ export function WardrobeCabinetSection({
       />
 
       <WardrobeDealStepper deals={deals} />
+
+      <WardrobePowerStats user={user} listings={listings} />
+
+      <VisibilityBooster listings={listings} />
 
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-[#374151]">

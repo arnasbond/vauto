@@ -127,6 +127,11 @@ import {
   type CheckoutSession,
 } from "@/lib/monetization-catalog";
 import {
+  WARDROBE_STYLE_BOOST_ATTR,
+  powerSubscriptionExpiryIso,
+  styleBoostExpiryIso,
+} from "@/lib/monetization-wardrobe";
+import {
   jobCreditsForPlan,
   type B2BBillingPlanId,
 } from "@/lib/b2b-plans";
@@ -1566,11 +1571,36 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           "success"
         );
         logAnalytics("checkout_b2b_plan", { planId, amount: session.amountEur });
+      } else if (session.kind === "wardrobe_style_boost" && session.listingId) {
+        const target = listingsRef.current.find((l) => l.id === session.listingId);
+        if (target) {
+          updateListing(session.listingId, {
+            attributes: {
+              ...(target.attributes ?? {}),
+              [WARDROBE_STYLE_BOOST_ATTR]: styleBoostExpiryIso(),
+            },
+          });
+        }
+        showToast(
+          "Prekė įtraukta į AI asmeninių stiliaus derinių srautą!",
+          "success"
+        );
+        logAnalytics("checkout_wardrobe_style_boost", {
+          listingId: session.listingId,
+          amount: session.amountEur,
+        });
+      } else if (session.kind === "wardrobe_power_subscription") {
+        patchAuthUser({
+          wardrobePowerUser: true,
+          wardrobePowerUntil: powerSubscriptionExpiryIso(),
+        });
+        showToast("VAUTO Spinta Power-User aktyvuota — neribotas importas!", "success");
+        logAnalytics("checkout_wardrobe_power", { amount: session.amountEur });
       }
 
       setCheckoutSession(null);
     },
-    [user, applyB2CPromote, patchAuthUser, showToast]
+    [user, applyB2CPromote, patchAuthUser, showToast, updateListing]
   );
 
   const activateInvestorDemo = useCallback(async () => {

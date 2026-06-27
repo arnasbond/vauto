@@ -43,12 +43,20 @@ export const B2C_PROMOTE_PRODUCTS: B2CPromoteProduct[] = [
   },
 ];
 
-export type CheckoutProductKind = "b2c_promote" | "b2b_subscription";
+export type CheckoutProductKind =
+  | "b2c_promote"
+  | "b2b_subscription"
+  | "wardrobe_style_boost"
+  | "wardrobe_power_subscription";
+
+export type WardrobeCheckoutProductId = "style_boost" | "power_subscription";
+
+export type CheckoutProductId = B2CPromoteProductId | B2BBillingPlanId | WardrobeCheckoutProductId;
 
 export interface CheckoutSession {
   id: string;
   kind: CheckoutProductKind;
-  productId: B2CPromoteProductId | B2BBillingPlanId;
+  productId: CheckoutProductId;
   listingId?: string;
   listingTitle?: string;
   lineTitle: string;

@@ -11,6 +11,8 @@ export type AnalyticsEvent =
   | "wake_word_detected"
   | "checkout_b2c_promote"
   | "checkout_b2b_plan"
+  | "checkout_wardrobe_style_boost"
+  | "checkout_wardrobe_power"
   | "chat_message_sent";
 
 export function logAnalytics(

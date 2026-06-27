@@ -149,6 +149,9 @@ export interface UserProfile {
   };
   /** Magic Mirror — pirkėjos figūros matmenys drabužiams */
   bodyMeasurements?: BodyMeasurements;
+  /** VAUTO Spinta Power-User prenumerata (tik wardrobe chameleon) */
+  wardrobePowerUser?: boolean;
+  wardrobePowerUntil?: string;
 }
 
 export interface BodyMeasurements {
@@ -307,6 +310,10 @@ export interface EscrowTransaction {
   courierProvider?: string;
   createdAt: string;
   updatedAt: string;
+  /** VAUTO Spinta — 3% AI saugumo garantija per Derybų dvynį */
+  negotiationTwinFeeApplied?: boolean;
+  buyerServiceFeeEur?: number;
+  buyerTotalEur?: number;
 }
 
 /** Smart Wardrobe Vision — vienas foto, keli skelbimai */
