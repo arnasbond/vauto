@@ -35,6 +35,11 @@ import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import {
   isConversationalSearchIntent,
 } from "@/lib/search-conversational-intent";
+import {
+  BRUTAL_VOICE_GREETING,
+  brutalHtml5Speak,
+  shouldForceLiveVoiceAssistant,
+} from "@/lib/brutal-voice-fallback";
 import type { ListingCategory } from "@/lib/types";
 
 const GEMINI_BLUE = "#1167b1";
@@ -175,6 +180,23 @@ export function SearchBar({
         setSearchQuery(q);
         setAgentPinnedListings(null);
         scrollToResults();
+        return;
+      }
+
+      if (shouldForceLiveVoiceAssistant(q, opts?.voice)) {
+        setSearchInputMode("voice");
+        setSearchVoiceMode(true);
+        clearVisualSearch({ keepInputMode: true });
+        setAgentPinnedListings(null);
+        setDraftQuery(q);
+        setSearchQuery("");
+        setAgentOpen(true);
+        brutalHtml5Speak(BRUTAL_VOICE_GREETING);
+        void sendAgentMessage(q, { fromVoice: true }).then((res) => {
+          if (res.ok && res.reply) {
+            speakBuddyMessage(res.reply, { enabled: true, force: true });
+          }
+        });
         return;
       }
 

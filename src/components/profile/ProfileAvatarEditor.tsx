@@ -1,7 +1,6 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import Image from "next/image";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import { useVauto } from "@/context/VautoContext";
@@ -21,6 +20,12 @@ import {
 
 const DEFAULT_AVATAR = DEFAULT_USER_AVATAR;
 
+function avatarSrcWithCacheBust(url: string, cacheBust: number): string {
+  if (!url || url.startsWith("data:") || url.startsWith("blob:")) return url;
+  const sep = url.includes("?") ? "&" : "?";
+  return `${url}${sep}v=${cacheBust || Date.now()}`;
+}
+
 interface ProfileAvatarEditorProps {
   avatar: string;
   name: string;
@@ -32,6 +37,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [committedAvatar, setCommittedAvatar] = useState<string | null>(null);
+  const [cacheBust, setCacheBust] = useState(() => Date.now());
 
   useEffect(() => {
     if (committedAvatar && avatar === committedAvatar) {
@@ -40,7 +46,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
   }, [avatar, committedAvatar]);
 
   const displaySrc = preview || committedAvatar || avatar || DEFAULT_AVATAR;
-  const isDataUrl = displaySrc.startsWith("data:");
+  const imgSrc = avatarSrcWithCacheBust(displaySrc, cacheBust);
 
   const uploadAvatar = useCallback(
     async (dataUrl: string) => {
@@ -76,6 +82,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
         }
         setPreview(null);
         setCommittedAvatar(finalUrl);
+        setCacheBust(Date.now());
         showToast("Profilio nuotrauka atnaujinta.", "success");
       } catch {
         showToast("Nuotraukos įkėlimas nepavyko.", "error");
@@ -105,6 +112,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
     }
     setPreview(null);
     setCommittedAvatar(DEFAULT_AVATAR);
+    setCacheBust(Date.now());
     showToast("Nuotrauka pašalinta.", "info");
   }, [showToast, updateUser]);
 
@@ -112,24 +120,12 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
     <>
       <div className="relative shrink-0">
         <div className="relative h-16 w-16 overflow-hidden rounded-2xl ring-2 ring-[color-mix(in_srgb,var(--vauto-primary)_40%,transparent)]">
-          {isDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={displaySrc}
-              alt={name}
-              className="h-full w-full object-cover"
-            />
-          ) : (
-            <Image
-              key={displaySrc}
-              src={displaySrc}
-              alt={name}
-              width={64}
-              height={64}
-              className="h-16 w-16 object-cover"
-              unoptimized={displaySrc.startsWith("blob:") || displaySrc.startsWith("http")}
-            />
-          )}
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imgSrc}
+            alt={name}
+            className="h-full w-full object-cover"
+          />
           {uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black/45">
               <Loader2 className="h-5 w-5 animate-spin text-white" />

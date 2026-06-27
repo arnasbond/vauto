@@ -5,6 +5,7 @@
   "scripts": {
     "dev": "next dev",
     "build": "node scripts/generate-sitemap.mjs && next build",
+    "build:clean": "node -e \"try{require('fs').rmSync('.next',{recursive:true,force:true})}catch(e){}\" && npm run build",
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "npm run build && playwright test",

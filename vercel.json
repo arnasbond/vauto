@@ -62,6 +62,10 @@
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },
     {
+      "source": "/fashion/(.*)",
+      "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
+    },
+    {
       "source": "/admin/(.*)",
       "headers": [{ "key": "Cache-Control", "value": "no-cache, must-revalidate" }]
     },

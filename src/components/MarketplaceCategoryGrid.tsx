@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   BriefcaseBusiness,
   Car,
@@ -36,9 +35,9 @@ const ICONS: Record<ListingCategory, typeof Car> = {
 };
 
 export function MarketplaceCategoryGrid() {
-  const router = useRouter();
   const {
     isAuthenticated,
+    user,
     setSearchQuery,
     setMarketplaceFilters,
     setAgentPinnedListings,
@@ -67,8 +66,9 @@ export function MarketplaceCategoryGrid() {
   };
 
   const handleCategoryClick = (cat: MarketplaceCategoryDef) => {
-    if (!isAuthenticated && cat.id === "clothing") {
-      router.push("/fashion/");
+    const isGuest = !isAuthenticated || user.id === "guest";
+    if (cat.id === "clothing" && isGuest) {
+      window.location.href = "/fashion/";
       return;
     }
     setExpandedId((prev) => (prev === cat.id ? null : cat.id));

@@ -1,17 +1,14 @@
 "use client";
 
 import { Shirt, Sparkles } from "lucide-react";
-import { useRouter } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 
 export function ProfileSpintaSwitch() {
-  const { activateWardrobeSpinta, showToast } = useVauto();
-  const router = useRouter();
+  const { activateWardrobeSpinta } = useVauto();
 
   const handleActivate = () => {
     activateWardrobeSpinta();
-    showToast("VAUTO Spinta aktyvuota — sveiki atvykę į Mano Spintą!", "success");
-    router.push("/profile/");
+    window.location.assign("/profile/?spinta=1");
   };
 
   return (
