@@ -3,7 +3,10 @@ import type { CapacitorConfig } from "@capacitor/cli";
 const productionWebUrl =
   process.env.CAPACITOR_REMOTE_URL?.trim() || "https://vauto-chi.vercel.app";
 
-/** APK release builds load the live site so users get updates without reinstalling. */
+/**
+ * Remote shell (CAPACITOR_USE_REMOTE=1) loads the live site — fragile on poor networks.
+ * Production APK builds use bundled `out/` assets for stable offline launch.
+ */
 const useRemoteShell =
   process.env.CAPACITOR_USE_REMOTE === "1" ||
   process.env.CAPACITOR_USE_REMOTE === "true";
@@ -23,10 +26,13 @@ const config: CapacitorConfig = {
         url: productionWebUrl,
         androidScheme: "https",
         iosScheme: "capacitor",
+        cleartext: false,
       }
     : {
         androidScheme: "https",
         iosScheme: "capacitor",
+        hostname: "localhost",
+        cleartext: false,
       },
   plugins: {
     SplashScreen: {

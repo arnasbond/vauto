@@ -29,13 +29,24 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Sync runtime config (API URL baked into bundled assets)
+        run: npm run sync:runtime-config
+        env:
+          NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+
       - name: Build web app
         run: npm run build
-
-      - name: Sync Capacitor Android
         env:
-          CAPACITOR_USE_REMOTE: "1"
-          CAPACITOR_REMOTE_URL: https://vauto-chi.vercel.app
+          NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+
+      - name: Verify static export for Capacitor
+        run: |
+          test -f out/index.html
+          test -f out/runtime-config.json
+          grep -q vauto-api.onrender.com out/runtime-config.json
+          echo "Static export OK ($(find out -type f | wc -l) files)"
+
+      - name: Sync Capacitor Android (bundled assets — no remote shell)
         run: npx cap sync android
 
       - name: Build debug APK
@@ -57,12 +68,15 @@ jobs:
           tag_name: android-latest
           name: Vauto Android APK
           body: |
+            **v1.0.2** — bundled assets (veikia be interneto paleidimui). API: vauto-api.onrender.com
+
             Atsisiųskite **vauto.apk** ir įdiekite Android telefone.
 
             1. Atsisiųskite failą žemiau
             2. Atidarykite atsisiųstą APK
             3. Jei prašo — leiskite diegimą iš nežinomų šaltinių
             4. Paleiskite programėlę „Vauto“
+            5. Jei turėjote senesnę versiją — ištrinkite ją prieš diegiant
           files: vauto.apk
           make_latest: true
 

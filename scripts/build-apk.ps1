@@ -12,11 +12,21 @@ $gradleTask = if ($Release) { "assembleRelease" } else { "assembleDebug" }
 $apkName = if ($Release) { "app-release-unsigned.apk" } else { "app-debug.apk" }
 $outName = if ($Release) { "vauto-release-unsigned.apk" } else { "vauto-debug.apk" }
 
+Write-Host "==> Syncing runtime config..." -ForegroundColor Cyan
+$env:NEXT_PUBLIC_API_URL = if ($env:NEXT_PUBLIC_API_URL) { $env:NEXT_PUBLIC_API_URL } else { "https://vauto-api.onrender.com" }
+npm run sync:runtime-config
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "==> Building Next.js static export..." -ForegroundColor Cyan
 npm run build
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-Write-Host "==> Syncing Capacitor Android (webDir: out)..." -ForegroundColor Cyan
+if (-not (Test-Path "out\index.html")) {
+    Write-Host "out/index.html nerastas — build nepavyko." -ForegroundColor Red
+    exit 1
+}
+
+Write-Host "==> Syncing Capacitor Android (bundled webDir: out)..." -ForegroundColor Cyan
 npx cap sync android
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
