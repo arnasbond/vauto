@@ -633,6 +633,16 @@ export function validateEscrow(body: unknown): ValidationResult<ApiEscrowTransac
   const updatedAt = isoDateString(body, "updatedAt");
   if (!updatedAt.ok) return updatedAt;
   if (updatedAt.value === undefined) return fail("updatedAt is required");
+  const expressEscrow24h = optionalBoolean(body, "expressEscrow24h");
+  if (!expressEscrow24h.ok) return expressEscrow24h;
+  const deliveredToLockerAt = isoDateString(body, "deliveredToLockerAt");
+  if (!deliveredToLockerAt.ok) return deliveredToLockerAt;
+  const claimDeadlineAt = isoDateString(body, "claimDeadlineAt");
+  if (!claimDeadlineAt.ok) return claimDeadlineAt;
+  const courierStatus = optionalString(body, "courierStatus", 120);
+  if (!courierStatus.ok) return courierStatus;
+  const courierProvider = optionalString(body, "courierProvider", 40);
+  if (!courierProvider.ok) return courierProvider;
   return ok({
     id: id.value,
     threadId: threadId.value,
@@ -642,6 +652,11 @@ export function validateEscrow(body: unknown): ValidationResult<ApiEscrowTransac
     amount: amount.value,
     status: status.value as ApiEscrowStatus,
     trackingCode: trackingCode.value,
+    expressEscrow24h: expressEscrow24h.value,
+    deliveredToLockerAt: deliveredToLockerAt.value,
+    claimDeadlineAt: claimDeadlineAt.value,
+    courierStatus: courierStatus.value,
+    courierProvider: courierProvider.value,
     createdAt: createdAt.value,
     updatedAt: updatedAt.value,
   });

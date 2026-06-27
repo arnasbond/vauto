@@ -156,6 +156,7 @@ export interface SellerFlowContextValue {
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
   publishListing: () => void;
+  publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
   lastPublishedListing: Listing | null;
   finishPublishedFlow: () => void;
@@ -934,6 +935,106 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     listingSocialPublish,
   ]);
 
+  const publishBulkClothingListings = useCallback(
+    async (drafts: AiExtractedListing[]) => {
+      if (!drafts.length) return;
+      if (!authHydrated) {
+        showToast("Palaukite — kraunama paskyra…", "info");
+        return;
+      }
+      if (!isAuthenticated) {
+        openAuthModal("/add");
+        return;
+      }
+
+      const listingImage = await prepareListingImageForApi(sellerPreviewImage);
+      if (!listingImage) {
+        showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+        return;
+      }
+
+      const coords = buyerCoords ?? (await getUserCoords());
+      let published = 0;
+
+      for (const draft of drafts) {
+        if (!draft.title.trim() || draft.price <= 0) continue;
+        const listingCity = resolveListingCity(draft.location, user.city || "Vilnius");
+        const listingCoords = geocodeLocation(listingCity);
+        let distKm = 0.5;
+        if (coords) {
+          const exact = distanceToListing(coords, {
+            latitude: listingCoords.lat,
+            longitude: listingCoords.lng,
+            location: listingCity,
+          });
+          if (exact !== null) distKm = exact;
+        }
+
+        const createdAt = new Date().toISOString();
+        const newListing: Listing = enrichListingCoords({
+          id: `l-${Date.now()}-${published}`,
+          title: draft.title,
+          price: draft.price,
+          priceLabel: draft.priceLabel,
+          location: listingCity,
+          distanceKm: distKm,
+          slug: generateListingSlug(draft.title, listingCity),
+          images: [listingImage],
+          category: "clothing",
+          tags: attributesToTags(draft),
+          description: draft.description,
+          attributes: mergeSocialPublishAttributes(draft.attributes, listingSocialPublish),
+          status: "active",
+          sellerId: user.id,
+          createdAt,
+          expiresAt: defaultExpiresAt(createdAt),
+          contact: draft.contact,
+          hasVideo: false,
+          vinVerified: false,
+          providerVerified: false,
+        });
+
+        setListings((prev) => [newListing, ...prev]);
+        published += 1;
+
+        if (isDataApiEnabled()) {
+          const createRes = await apiCreateListing(newListing, user.id);
+          if (createRes.ok) {
+            const synced = withDefaultExpiry({
+              ...createRes.data,
+              slug: createRes.data.slug ?? newListing.slug,
+            });
+            setListings((prev) =>
+              prev.map((l) => (l.id === newListing.id ? synced : l))
+            );
+          }
+        }
+      }
+
+      if (published > 0) {
+        showToast(
+          `${published} drabužių skelbim${published === 1 ? "as" : "ai"} sėkmingai įkelti!`,
+          "success"
+        );
+        resetSellerFlow();
+      } else {
+        showToast("Nepavyko publikuoti — patikrinkite kainas ir pavadinimus.", "error");
+      }
+    },
+    [
+      authHydrated,
+      isAuthenticated,
+      openAuthModal,
+      sellerPreviewImage,
+      buyerCoords,
+      user,
+      listingSocialPublish,
+      setListings,
+      showToast,
+      resetSellerFlow,
+    ]
+  );
+
   const startEditListingFlow = useCallback(
     (listing: Listing) => {
       if (listing.sellerId !== user.id) {
@@ -1033,6 +1134,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       cancelVoiceRecording,
       updateAiDraft,
       publishListing,
+      publishBulkClothingListings,
       cancelSellerFlow,
       lastPublishedListing,
       finishPublishedFlow,
@@ -1062,6 +1164,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       cancelVoiceRecording,
       updateAiDraft,
       publishListing,
+      publishBulkClothingListings,
       cancelSellerFlow,
       lastPublishedListing,
       finishPublishedFlow,

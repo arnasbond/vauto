@@ -11,6 +11,13 @@ import {
 } from "../ai/search-intent.js";
 import { generateBuyerPersonaDescriptions } from "../ai/description-personas.js";
 import { analyzeChatShield, refineChatShieldReply } from "../ai/chat-shield.js";
+import { analyzeWardrobePhoto } from "../ai/wardrobe-vision.js";
+import {
+  activateExpressEscrow24h,
+  buildExpressSellerNotification,
+  confirmTransaction,
+  shouldAutoConfirmExpress,
+} from "../ai/order-agent.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
@@ -328,6 +335,60 @@ async function handleVisualSearchIntent(
 }
 
 aiRouter.post("/analyze-search-visual", visualSearchBodyParser, handleVisualSearchIntent);
+
+aiRouter.post("/analyze-wardrobe-photo", async (req, res) => {
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+
+  const body = req.body as { imageDataUrl?: string; userName?: string };
+  if (!body.imageDataUrl?.trim()) {
+    return res.status(400).json({ error: "imageDataUrl is required" });
+  }
+
+  try {
+    const result = await analyzeWardrobePhoto({
+      imageDataUrl: body.imageDataUrl.trim(),
+      userName: body.userName,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/express-escrow-locker", async (req, res) => {
+  const body = req.body as {
+    escrow?: Record<string, unknown>;
+    courierProvider?: string;
+    sellerName?: string;
+    listingTitle?: string;
+  };
+  if (!body.escrow || typeof body.escrow !== "object") {
+    return res.status(400).json({ error: "escrow is required" });
+  }
+
+  const base = body.escrow as unknown as import("../types.js").ApiEscrowTransaction;
+  const activated = activateExpressEscrow24h(base, body.courierProvider);
+  const sellerNotification = buildExpressSellerNotification(
+    body.sellerName?.trim() || "Pardavėjas",
+    body.listingTitle?.trim() || "Prekė"
+  );
+  res.json({ escrow: activated, sellerNotification });
+});
+
+aiRouter.post("/process-express-escrow", async (req, res) => {
+  const body = req.body as { escrow?: Record<string, unknown> };
+  if (!body.escrow || typeof body.escrow !== "object") {
+    return res.status(400).json({ error: "escrow is required" });
+  }
+  const escrow = body.escrow as unknown as import("../types.js").ApiEscrowTransaction & {
+    expressEscrow24h?: boolean;
+    claimDeadlineAt?: string;
+  };
+  if (!shouldAutoConfirmExpress(escrow)) {
+    return res.json({ autoConfirmed: false, escrow });
+  }
+  res.json({ autoConfirmed: true, escrow: confirmTransaction(escrow) });
+});
 
 aiRouter.post("/generate-description-personas", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);

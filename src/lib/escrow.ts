@@ -26,7 +26,18 @@ export function createEscrow(
 
 export function patchEscrow(
   escrow: EscrowTransaction,
-  patch: Partial<Pick<EscrowTransaction, "status" | "trackingCode">>
+  patch: Partial<
+    Pick<
+      EscrowTransaction,
+      | "status"
+      | "trackingCode"
+      | "expressEscrow24h"
+      | "deliveredToLockerAt"
+      | "claimDeadlineAt"
+      | "courierStatus"
+      | "courierProvider"
+    >
+  >
 ): EscrowTransaction {
   return {
     ...escrow,

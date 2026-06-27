@@ -134,6 +134,11 @@ export interface ApiEscrowTransaction {
   amount: number;
   status: ApiEscrowStatus;
   trackingCode?: string;
+  expressEscrow24h?: boolean;
+  deliveredToLockerAt?: string;
+  claimDeadlineAt?: string;
+  courierStatus?: string;
+  courierProvider?: string;
   createdAt: string;
   updatedAt: string;
 }

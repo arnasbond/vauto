@@ -280,8 +280,29 @@ export interface EscrowTransaction {
   amount: number;
   status: EscrowStatus;
   trackingCode?: string;
+  /** 24h express escrow po pristatymo į paštomatą */
+  expressEscrow24h?: boolean;
+  deliveredToLockerAt?: string;
+  claimDeadlineAt?: string;
+  courierStatus?: string;
+  courierProvider?: string;
   createdAt: string;
   updatedAt: string;
+}
+
+/** Smart Wardrobe Vision — vienas foto, keli skelbimai */
+export interface WardrobeDraftItem {
+  id: string;
+  title: string;
+  categoryGroup: string;
+  categorySub: string;
+  size: string;
+  color: string;
+  brand: string;
+  condition: string;
+  suggestedPrice: number;
+  description: string;
+  descriptionVariants?: AiExtractedListing["descriptionVariants"];
 }
 
 /** Ranked listing with computed score for buyer feed */

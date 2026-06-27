@@ -1,17 +1,28 @@
 "use client";
 
-import { Check, CreditCard, Package, QrCode, ShieldCheck, Truck, X } from "lucide-react";
+import { Check, Clock, CreditCard, Package, QrCode, ShieldCheck, Truck, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   createEscrow,
   patchEscrow,
 } from "@/lib/escrow";
 import {
+  activateExpressEscrow24h,
+  buildExpressSellerNotification,
+  expressClaimRemainingMs,
+  formatExpressDeadline,
+  simulateCourierLockerDelivery,
+} from "@/lib/order-agent";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { apiExpressEscrowLocker } from "@/lib/api/client";
+import { isAiProxyAvailable } from "@/lib/api/config";
+import {
   PAYMENT_PROVIDERS,
   createDemoPaymentIntent,
   type PaymentProviderId,
 } from "@/lib/payments/payment-provider";
 import {
+  COURIER_LOCKER_DELIVERED_STATUS,
   SHIPPING_PROVIDERS,
   createDemoShipmentLabel,
   type ParcelSize,
@@ -25,8 +36,10 @@ interface EscrowModalProps {
   chat: ChatThread;
   amount: number;
   escrow?: EscrowTransaction | null;
+  sellerName?: string;
   onClose: () => void;
   onUpdate: (escrow: EscrowTransaction) => void;
+  onSellerNotify?: (message: string) => void;
 }
 
 function stepFromEscrow(escrow?: EscrowTransaction | null): EscrowStep {
@@ -51,8 +64,10 @@ export function EscrowModal({
   chat,
   amount,
   escrow,
+  sellerName = "Pardavėjas",
   onClose,
   onUpdate,
+  onSellerNotify,
 }: EscrowModalProps) {
   const [step, setStep] = useState<EscrowStep>(() => stepFromEscrow(escrow));
   const [paymentProvider, setPaymentProvider] = useState<PaymentProviderId>("montonio");
@@ -62,20 +77,70 @@ export function EscrowModal({
   const [qrPayload, setQrPayload] = useState("");
   const [paymentLabel, setPaymentLabel] = useState("Montonio Bank Link");
   const [shipmentInstructions, setShipmentInstructions] = useState("");
+  const [claimRemaining, setClaimRemaining] = useState(() =>
+    escrow ? expressClaimRemainingMs(escrow) : 0
+  );
 
   useEffect(() => {
     setStep(stepFromEscrow(escrow));
     if (escrow?.trackingCode) setTrackingCode(escrow.trackingCode);
   }, [escrow]);
 
-  const persist = (status: EscrowStatus, code?: string) => {
+  useEffect(() => {
+    if (!escrow?.expressEscrow24h || escrow.status !== "delivered") return;
+    const tick = () => setClaimRemaining(expressClaimRemainingMs(escrow));
+    tick();
+    const id = window.setInterval(tick, 30_000);
+    return () => window.clearInterval(id);
+  }, [escrow]);
+
+  const persist = (
+    status: EscrowStatus,
+    code?: string,
+    patch: Partial<EscrowTransaction> = {}
+  ) => {
     const base = escrow ?? createEscrow(chat, amount);
     const next = patchEscrow(base, {
       status,
       ...(code ? { trackingCode: code } : {}),
+      ...patch,
     });
     onUpdate(next);
     return next;
+  };
+
+  const notifySellerExpress = (message: string) => {
+    onSellerNotify?.(message);
+    speakBuddyMessage(message, { enabled: true });
+  };
+
+  const handleLockerDelivery = async () => {
+    const base = escrow ?? createEscrow(chat, amount);
+    const local = simulateCourierLockerDelivery(
+      patchEscrow(base, {
+        status: "shipped",
+        trackingCode: trackingCode || escrow?.trackingCode,
+      }),
+      shippingProvider
+    );
+
+    if (isAiProxyAvailable()) {
+      const res = await apiExpressEscrowLocker({
+        escrow: local,
+        courierProvider: shippingProvider,
+        sellerName,
+        listingTitle: chat.listingTitle,
+      });
+      if (res) {
+        onUpdate(res.escrow);
+        notifySellerExpress(res.sellerNotification);
+        return;
+      }
+    }
+
+    const next = activateExpressEscrow24h(local, shippingProvider);
+    onUpdate(next);
+    notifySellerExpress(buildExpressSellerNotification(sellerName, chat.listingTitle));
   };
 
   const handlePay = () => {
@@ -297,12 +362,36 @@ export function EscrowModal({
               </button>
               <button
                 type="button"
-                onClick={handleComplete}
-                className="rounded-xl bg-green-600 py-3 text-xs font-semibold text-white"
+                onClick={handleLockerDelivery}
+                className="rounded-xl bg-[#1167b1] py-3 text-xs font-semibold text-white"
               >
-                Patvirtinti gavimą
+                {COURIER_LOCKER_DELIVERED_STATUS}
               </button>
             </div>
+            {escrow?.expressEscrow24h && escrow.status === "delivered" && (
+              <div className="mt-3 rounded-xl border border-amber-200 bg-amber-50 p-3">
+                <div className="flex items-center gap-2 text-amber-900">
+                  <Clock className="h-4 w-4 shrink-0" />
+                  <p className="text-xs font-semibold">24h express escrow</p>
+                </div>
+                <p className="mt-1 text-xs text-amber-800">
+                  Pirkėjas turi {formatExpressDeadline(escrow)} pasimatuoti. Jei pretenzijos
+                  nebus — pinigai pervedami automatiškai.
+                </p>
+                {claimRemaining > 0 && (
+                  <p className="mt-1 font-mono text-[10px] text-amber-700">
+                    Liko: {Math.ceil(claimRemaining / 3_600_000)} val.
+                  </p>
+                )}
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={handleComplete}
+              className="mt-3 w-full rounded-xl bg-green-600 py-3 text-xs font-semibold text-white"
+            >
+              Patvirtinti gavimą (rankiniu būdu)
+            </button>
           </>
         )}
 

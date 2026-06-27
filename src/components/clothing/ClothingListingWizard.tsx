@@ -1,6 +1,6 @@
 "use client";
 
-import { ChevronRight, X } from "lucide-react";
+import { ChevronRight, Loader2, Sparkles, X } from "lucide-react";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import type { AiExtractedListing } from "@/lib/types";
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
@@ -23,6 +23,12 @@ import {
   applyFirstGalleryFile,
   ListingGalleryFileInput,
 } from "@/components/listing/ListingGalleryFileInput";
+import {
+  analyzeWardrobePhoto,
+  wardrobeItemToDraft,
+  type WardrobeDraftItem,
+} from "@/lib/wardrobe-vision";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
 
 const ACCENT = "#09b1a8";
 
@@ -30,12 +36,14 @@ interface ClothingListingWizardProps {
   draft: AiExtractedListing;
   previewImage: string | null;
   manualFallback?: boolean;
+  userName?: string;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null }) => void;
   requestMediaConsent: (onGranted: () => void) => void;
   onCancel: () => void;
   onPublish: () => void;
+  onPublishBulk?: (drafts: AiExtractedListing[]) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }
 
@@ -100,15 +108,20 @@ export function ClothingListingWizard({
   draft,
   previewImage,
   manualFallback,
+  userName,
   onUpdate,
   onAttributeChange,
   onMediaChange,
   requestMediaConsent,
   onCancel,
   onPublish,
+  onPublishBulk,
   onToast,
 }: ClothingListingWizardProps) {
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
+  const [wardrobeItems, setWardrobeItems] = useState<WardrobeDraftItem[]>([]);
+  const [wardrobeAnalyzing, setWardrobeAnalyzing] = useState(false);
+  const [wardrobeVoice, setWardrobeVoice] = useState<string | null>(null);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
   const categoryValue = attr(attrs, "vintedCategory");
@@ -161,6 +174,55 @@ export function ClothingListingWizard({
     onUpdate({ category: "clothing" });
     clearClothingListingDraft();
     onPublish();
+  };
+
+  const runWardrobeVision = async (imageDataUrl: string) => {
+    setWardrobeAnalyzing(true);
+    setWardrobeItems([]);
+    try {
+      const result = await analyzeWardrobePhoto({
+        imageDataUrl,
+        userName,
+      });
+      if (!result?.items.length) return;
+
+      setWardrobeItems(result.items);
+      setWardrobeVoice(result.voiceAnnouncement);
+      speakBuddyMessage(result.voiceAnnouncement, { enabled: true });
+      onToast?.(result.voiceAnnouncement, "info");
+
+      if (result.items.length === 1) {
+        const single = wardrobeItemToDraft(
+          result.items[0],
+          draft.contact,
+          draft.location
+        );
+        onUpdate(single);
+        for (const [key, val] of Object.entries(single.attributes ?? {})) {
+          onAttributeChange(key, val as string | string[]);
+        }
+      }
+    } finally {
+      setWardrobeAnalyzing(false);
+    }
+  };
+
+  const applyWardrobeItem = (item: WardrobeDraftItem) => {
+    const next = wardrobeItemToDraft(item, draft.contact, draft.location);
+    onUpdate(next);
+    for (const [key, val] of Object.entries(next.attributes ?? {})) {
+      onAttributeChange(key, val as string | string[]);
+    }
+    onToast?.(`Redaguojate: ${item.title}`, "info");
+  };
+
+  const handlePublishAllWardrobe = () => {
+    if (!onPublishBulk || !wardrobeItems.length) return;
+    const drafts = wardrobeItems.map((item) =>
+      wardrobeItemToDraft(item, draft.contact, draft.location)
+    );
+    clearClothingListingDraft();
+    onPublishBulk(drafts);
   };
 
   const selectCategory = (group: string, sub: string) => {
@@ -220,12 +282,61 @@ export function ClothingListingWizard({
               className="flex w-full flex-col items-center justify-center gap-3 py-6 text-[#09b1a8]"
               label={previewImage ? "+ Pridėti nuotraukų" : "+ Įkelti nuotraukų"}
               onFilesSelected={(files) => {
-                applyFirstGalleryFile(files, (dataUrl) =>
-                  onMediaChange({ imageDataUrl: dataUrl })
-                );
+                applyFirstGalleryFile(files, (dataUrl) => {
+                  onMediaChange({ imageDataUrl: dataUrl });
+                  void runWardrobeVision(dataUrl);
+                });
               }}
             />
+            {wardrobeAnalyzing && (
+              <p className="mt-2 flex items-center justify-center gap-2 text-xs text-[#6b7280]">
+                <Loader2 className="h-4 w-4 animate-spin text-[#09b1a8]" />
+                Smart Wardrobe Vision analizuoja drabužius…
+              </p>
+            )}
           </div>
+
+          {wardrobeItems.length > 1 && (
+            <div className="mb-6 rounded-2xl border border-[#b8ebe8] bg-[#e6f7f6] p-4">
+              <div className="mb-3 flex items-center gap-2">
+                <Sparkles className="h-4 w-4 text-[#09b1a8]" />
+                <p className="text-sm font-semibold text-[#1f2937]">
+                  AI aptiko {wardrobeItems.length} drabužius
+                </p>
+              </div>
+              {wardrobeVoice && (
+                <p className="mb-3 text-xs italic text-[#374151]">{wardrobeVoice}</p>
+              )}
+              <div className="space-y-2">
+                {wardrobeItems.map((item) => (
+                  <button
+                    key={item.id}
+                    type="button"
+                    onClick={() => applyWardrobeItem(item)}
+                    className="flex w-full items-center justify-between rounded-xl border border-white bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-[#09b1a8]"
+                  >
+                    <div>
+                      <p className="text-sm font-medium text-[#374151]">{item.title}</p>
+                      <p className="text-[10px] text-[#9ca3af]">
+                        {item.categorySub} · {item.size} · {item.color} · {item.suggestedPrice} €
+                      </p>
+                    </div>
+                    <ChevronRight className="h-4 w-4 text-[#d1d5db]" />
+                  </button>
+                ))}
+              </div>
+              {onPublishBulk && (
+                <button
+                  type="button"
+                  onClick={handlePublishAllWardrobe}
+                  className="mt-4 w-full rounded-full py-3 text-sm font-semibold text-white"
+                  style={{ backgroundColor: ACCENT }}
+                >
+                  Patvirtinti visus {wardrobeItems.length} skelbimus
+                </button>
+              )}
+            </div>
+          )}
 
           <SectionTitle>Apie prekę</SectionTitle>
           <div className="mb-6 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">

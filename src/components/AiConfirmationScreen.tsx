@@ -36,10 +36,12 @@ export function AiConfirmationScreen({
     updateSellerMedia,
     updateAiDraft,
     publishListing,
+    publishBulkClothingListings,
     cancelSellerFlow,
     requestMediaConsent,
     showToast,
     submitSellerContent,
+    user,
   } = useVauto();
 
   useEffect(() => {
@@ -134,12 +136,14 @@ export function AiConfirmationScreen({
         draft={aiDraft}
         previewImage={sellerPreviewImage}
         manualFallback={aiManualFallback}
+        userName={user.name}
         onUpdate={updateAiDraft}
         onAttributeChange={handleAttributeChange}
         onMediaChange={updateSellerMedia}
         requestMediaConsent={requestMediaConsent}
         onCancel={cancelSellerFlow}
         onPublish={publishListing}
+        onPublishBulk={(drafts) => void publishBulkClothingListings(drafts)}
         onToast={showToast}
       />
     );

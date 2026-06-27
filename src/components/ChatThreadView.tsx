@@ -3,13 +3,18 @@
 import { ArrowLeft, Send } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MessageStatusTicks } from "@/components/chat/MessageStatusTicks";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
+import { AiTrustScoreBanner } from "@/components/trust/AiTrustScoreBanner";
 import { ReportButton } from "@/components/support/ReportButton";
 import { useVauto } from "@/context/VautoContext";
 import { getQuickQuestions } from "@/lib/chat-helpers";
 import { canReviewListing } from "@/lib/reviews";
+import {
+  buildUserTrustScore,
+  resolveSellerDisplayName,
+} from "@/lib/user-trust-score";
 
 function ChatThreadContent({ chatId }: { chatId: string }) {
   const { chats, sendMessage, user, listings, setActiveChatId, reviews, queueReviewPrompt } =
@@ -28,6 +33,18 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
     listing &&
     chat.messages.length >= 3 &&
     canReviewListing(reviews, chat.listingId, user.id);
+
+  const sellerTrust = useMemo(() => {
+    if (!isBuyer || !chat) return null;
+    const sellerName = resolveSellerDisplayName(chat.sellerId, listings);
+    return buildUserTrustScore({
+      sellerId: chat.sellerId,
+      sellerName,
+      reviews,
+      chats,
+      listings,
+    });
+  }, [isBuyer, chat, reviews, chats, listings]);
 
   useEffect(() => {
     if (!chatId) return;
@@ -106,6 +123,8 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
             </div>
           );
         })}
+
+        {isBuyer && sellerTrust && <AiTrustScoreBanner profile={sellerTrust} />}
 
         {chat.escrowOffered && (
           <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />

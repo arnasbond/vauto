@@ -707,6 +707,43 @@ export async function apiGenerateDescriptionPersonas(body: {
   });
 }
 
+export async function apiAnalyzeWardrobePhoto(body: {
+  imageDataUrl: string;
+  userName?: string;
+}): Promise<import("@/lib/wardrobe-vision").WardrobeVisionAnalysis | null> {
+  return aiFetch("/api/ai/analyze-wardrobe-photo", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiExpressEscrowLocker(body: {
+  escrow: import("@/lib/types").EscrowTransaction;
+  courierProvider?: string;
+  sellerName?: string;
+  listingTitle?: string;
+}): Promise<{
+  escrow: import("@/lib/types").EscrowTransaction;
+  sellerNotification: string;
+} | null> {
+  return aiFetch("/api/ai/express-escrow-locker", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiProcessExpressEscrow(body: {
+  escrow: import("@/lib/types").EscrowTransaction;
+}): Promise<{
+  autoConfirmed: boolean;
+  escrow: import("@/lib/types").EscrowTransaction;
+} | null> {
+  return aiFetch("/api/ai/process-express-escrow", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiChatShield(body: {
   message: string;
   listingPrice: number;

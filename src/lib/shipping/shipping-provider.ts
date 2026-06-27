@@ -37,6 +37,17 @@ export const SHIPPING_PROVIDERS: ShippingProviderOption[] = [
   },
 ];
 
+/** Kurjerių webhook statusas — aktyvuoja 24h express escrow. */
+export const COURIER_LOCKER_DELIVERED_STATUS = "Pristatyta į paštomatą";
+
+export function isLockerDeliveredStatus(status: string): boolean {
+  const s = status.trim().toLowerCase();
+  return (
+    s === COURIER_LOCKER_DELIVERED_STATUS.toLowerCase() ||
+    s.includes("pristatyta") && s.includes("paštomat")
+  );
+}
+
 export function createDemoShipmentLabel(params: {
   providerId: ShippingProviderId;
   parcelSize: ParcelSize;

@@ -11,6 +11,7 @@ import {
   registerNativePush,
 } from "@/lib/native-push";
 import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
+import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
@@ -109,5 +110,10 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
     return () => removeListener?.();
   }, [router]);
 
-  return <>{children}</>;
+  return (
+    <>
+      <ExpressEscrowProcessor />
+      {children}
+    </>
+  );
 }

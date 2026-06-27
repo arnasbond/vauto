@@ -239,6 +239,7 @@ interface VautoContextValue {
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
   publishListing: () => void;
+  publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
   submitSellerContent: (payload: {
     text?: string;

@@ -1,9 +1,11 @@
 "use client";
 
-import { CheckCircle2, PackageCheck, ShieldCheck, Truck } from "lucide-react";
+import { CheckCircle2, Clock, PackageCheck, ShieldCheck, Truck } from "lucide-react";
 import { useState } from "react";
 import { EscrowModal } from "@/components/EscrowModal";
 import { useVauto } from "@/context/VautoContext";
+import { formatExpressDeadline } from "@/lib/order-agent";
+import { resolveSellerDisplayName } from "@/lib/user-trust-score";
 import type { ChatThread } from "@/lib/types";
 
 export function EscrowActionBlock({
@@ -13,9 +15,10 @@ export function EscrowActionBlock({
   chat: ChatThread;
   amount: number;
 }) {
-  const { updateEscrow } = useVauto();
+  const { updateEscrow, listings, showToast } = useVauto();
   const [open, setOpen] = useState(false);
   const escrow = chat.escrow;
+  const sellerName = resolveSellerDisplayName(chat.sellerId, listings);
 
   if (escrow?.status === "completed") {
     return (
@@ -102,6 +105,12 @@ export function EscrowActionBlock({
                 {escrow.trackingCode}
               </p>
             )}
+            {escrow?.expressEscrow24h && escrow.status === "delivered" && (
+              <p className="mt-2 flex items-center gap-1 text-xs text-amber-800">
+                <Clock className="h-3.5 w-3.5" />
+                24h pasimatavimas iki {formatExpressDeadline(escrow)}
+              </p>
+            )}
           </div>
         </div>
       </div>
@@ -110,8 +119,10 @@ export function EscrowActionBlock({
           chat={chat}
           amount={amount}
           escrow={escrow}
+          sellerName={sellerName}
           onClose={() => setOpen(false)}
           onUpdate={(e) => updateEscrow(chat.id, e)}
+          onSellerNotify={(msg) => showToast(msg, "success")}
         />
       )}
     </>
