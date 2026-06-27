@@ -48,51 +48,18 @@ export interface VoiceSearchSession {
 const DEFAULT_SILENCE_MS = 2_000;
 const DEFAULT_MAX_MS = 25_000;
 
-/**
- * Rebuild transcript from the FULL results array each event.
- * Finals: one segment per result index. Interim: replace trailing hypothesis only.
- * Prevents "ieškau Volvo ieškau Volvo" echo from append + interim overlap.
- */
-function snapshotTranscript(results: SpeechResults): {
-  committed: string;
-  preview: string;
-} {
-  const finals: string[] = [];
-  let trailingInterim = "";
-
-  for (let i = 0; i < results.length; i++) {
-    const result = results[i];
-    const part = (result?.[0]?.transcript ?? "").trim();
-    if (!part) continue;
-
-    if (result.isFinal) {
-      finals.push(part);
-    } else {
-      trailingInterim = part;
-    }
+/** Replace transcript each event — never append to prior text (prevents voice echo). */
+function snapshotTranscriptFromEvent(event: {
+  resultIndex: number;
+  results: SpeechResults;
+}): string {
+  let finalTranscript = "";
+  let interimTranscript = "";
+  for (let i = event.resultIndex; i < event.results.length; ++i) {
+    if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+    else interimTranscript += event.results[i][0].transcript;
   }
-
-  const committed = sanitizeSpeechTranscript(finals.join(" "));
-  let preview = committed;
-
-  if (trailingInterim) {
-    const interim = sanitizeSpeechTranscript(trailingInterim);
-    if (!committed) {
-      preview = interim;
-    } else {
-      const lcCommitted = committed.toLowerCase();
-      const lcInterim = interim.toLowerCase();
-      if (lcInterim.startsWith(lcCommitted)) {
-        preview = interim;
-      } else if (lcCommitted.endsWith(lcInterim) || lcCommitted.includes(lcInterim)) {
-        preview = committed;
-      } else {
-        preview = sanitizeSpeechTranscript(`${committed} ${interim}`);
-      }
-    }
-  }
-
-  return { committed, preview };
+  return sanitizeSpeechTranscript((finalTranscript + interimTranscript).trim());
 }
 
 /**
@@ -194,10 +161,10 @@ export function startVoiceSearch(
       };
 
       rec.onresult = (event) => {
-        const { committed, preview } = snapshotTranscript(event.results);
-        committedFinal = committed;
+        const preview = snapshotTranscriptFromEvent(event);
+        committedFinal = preview;
         onInterim?.(preview);
-        if (committed) scheduleSilenceStop();
+        if (preview) scheduleSilenceStop();
       };
 
       rec.onerror = (ev) => {

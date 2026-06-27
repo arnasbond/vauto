@@ -2003,6 +2003,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       scheduleSellerEngagementPush,
       setDetectedAdaptiveKey,
       setChameleonTheme,
+      activateWardrobeSpinta,
     }),
     [
       listings,
@@ -2016,6 +2017,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       requireAuthForListing,
       openAuthModal,
       scheduleSellerEngagementPush,
+      activateWardrobeSpinta,
     ]
   );
 

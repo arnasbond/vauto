@@ -105,7 +105,7 @@ export function portalExperienceForQuery(query: string): PortalExperience {
   if (isVehicleQuery(q)) {
     return EXPERIENCES.autoplius;
   }
-  if (/suknel|batai|drabu|striuk|dydis|brand|zara|nike|vinted/.test(q)) {
+  if (/suknel|batai|batų|batu|drabu|striuk|dydis|brand|zara|nike|vinted|aprang|krepš|kepur|megzt|keln|marškin|palaid|mados|spinta|adidas|h&m|reserved|sandal/i.test(q)) {
     return EXPERIENCES.wardrobe;
   }
   if (/but|nam|nuom|sklyp|kamb|aruod|nt\b|nekilnoj/.test(q)) {

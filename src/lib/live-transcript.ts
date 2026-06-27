@@ -41,17 +41,15 @@ export function startLiveTranscript(
   rec.continuous = true;
   rec.interimResults = true;
 
-  let committed = "";
-
   rec.onresult = (event) => {
-    let interim = "";
-    for (let i = event.resultIndex; i < event.results.length; i++) {
-      const part = event.results[i]?.[0]?.transcript ?? "";
-      if (event.results[i]?.isFinal) committed += part;
-      else interim += part;
+    let finalTranscript = "";
+    let interimTranscript = "";
+    for (let i = event.resultIndex; i < event.results.length; ++i) {
+      if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+      else interimTranscript += event.results[i][0].transcript;
     }
-    const combined = `${committed}${interim}`.trim();
-    if (combined) onUpdate(combined);
+    const švarusTekstas = (finalTranscript + interimTranscript).trim();
+    if (švarusTekstas) onUpdate(švarusTekstas);
   };
 
   rec.onerror = () => {};

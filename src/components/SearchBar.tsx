@@ -2,7 +2,7 @@
 
 import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
@@ -40,6 +40,7 @@ import {
   brutalHtml5Speak,
   shouldForceLiveVoiceAssistant,
 } from "@/lib/brutal-voice-fallback";
+import { isWardrobePortalQuery } from "@/lib/wardrobe-cabinet-mode";
 import type { ListingCategory } from "@/lib/types";
 
 const GEMINI_BLUE = "#1167b1";
@@ -120,9 +121,11 @@ export function SearchBar({
     setMarketplaceFilters,
     marketplaceFilters,
     toggleSave,
+    activateWardrobeSpinta,
   } = useVauto();
 
   const pathname = usePathname();
+  const router = useRouter();
 
   const { sendAgentMessage, busy: agentBusy, setOpen: setAgentOpen } = useVautoAgent();
 
@@ -161,6 +164,13 @@ export function SearchBar({
     async (raw: string, opts?: { voice?: boolean }) => {
       const q = sanitizeSearchQuery(raw, "final");
       if (!q) return;
+
+      if (isWardrobePortalQuery(q)) {
+        activateWardrobeSpinta();
+        if (pathname !== "/fashion" && pathname !== "/fashion/") {
+          router.push("/fashion/");
+        }
+      }
 
       if (startListingFromQuery(q)) {
         setDraftQuery("");
@@ -278,6 +288,8 @@ export function SearchBar({
       showToast,
       user.city,
       user.id,
+      activateWardrobeSpinta,
+      router,
     ]
   );
 

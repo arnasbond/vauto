@@ -3,7 +3,7 @@ import {
   createVoiceSession,
   type VoiceSession,
 } from "@/lib/audio-session";
-import { rebuildSpeechTranscript, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 
 export interface CapturedPhoto {
   dataUrl: string;
@@ -503,7 +503,7 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     rec.interimResults = true;
 
     let resolved = false;
-    let committed = "";
+    let currentTranscript = "";
     let silenceTimer: ReturnType<typeof setTimeout> | null = null;
 
     const finish = (text: string | null) => {
@@ -520,28 +520,36 @@ async function speechRecognitionTranscript(): Promise<string | null> {
     };
 
     const scheduleSilence = () => {
-      if (!committed.trim()) return;
+      if (!currentTranscript.trim()) return;
       if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(() => finish(committed.trim() || null), 2_000);
+      silenceTimer = setTimeout(
+        () => finish(sanitizeSpeechTranscript(currentTranscript.trim()) || null),
+        2_000
+      );
     };
 
     const maxTimeout = setTimeout(() => {
-      finish(committed.trim() || null);
+      finish(sanitizeSpeechTranscript(currentTranscript.trim()) || null);
     }, 20_000);
 
     rec.onresult = (event) => {
-      const { finalDelta, hadFinal } = rebuildSpeechTranscript(event);
-      if (finalDelta) {
-        committed = sanitizeSpeechTranscript(`${committed} ${finalDelta}`.trim());
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let i = event.resultIndex; i < event.results.length; ++i) {
+        if (event.results[i].isFinal) finalTranscript += event.results[i][0].transcript;
+        else interimTranscript += event.results[i][0].transcript;
       }
-      if (hadFinal && committed) scheduleSilence();
+      currentTranscript = (finalTranscript + interimTranscript).trim();
+      if (currentTranscript) scheduleSilence();
     };
     rec.onerror = (ev: { error: string }) => {
       if (ev.error === "no-speech" || ev.error === "aborted") return;
       if (ev.error === "not-allowed") finish(null);
     };
     rec.onend = () => {
-      if (!resolved && committed.trim()) finish(sanitizeSpeechTranscript(committed.trim()));
+      if (!resolved && currentTranscript.trim()) {
+        finish(sanitizeSpeechTranscript(currentTranscript.trim()));
+      }
     };
 
     try {

@@ -3,6 +3,10 @@ import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { Listing } from "@/lib/types";
 
+export function isWardrobePortalQuery(query: string): boolean {
+  return portalExperienceForQuery(query).theme === "wardrobe";
+}
+
 /** Ar kabinetas turi persijungti į „Mano Spinta“ (tik drabužių chameleon sluoksniui). */
 export function isWardrobeChameleonActive(params: {
   chameleonTheme: ChameleonThemeId;
@@ -17,7 +21,7 @@ export function isWardrobeChameleonActive(params: {
   if (params.detectedAdaptiveKey === "clothing") return true;
 
   const q = params.searchQuery?.trim();
-  if (q && portalExperienceForQuery(q).theme === "wardrobe") return true;
+  if (q && isWardrobePortalQuery(q)) return true;
 
   const listings = params.listings ?? [];
   if (listings.length === 0) return false;

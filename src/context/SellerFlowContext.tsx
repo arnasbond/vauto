@@ -99,6 +99,7 @@ import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
+import { isWardrobePortalQuery } from "@/lib/wardrobe-cabinet-mode";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { buildPartialListingVoicePromptFromDraft } from "@/lib/voice-listing-context";
 import { BUDDY_REPEAT_PROMPT, isUnclearTranscript } from "@/lib/voice-graceful";
@@ -200,6 +201,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     scheduleSellerEngagementPush,
     setDetectedAdaptiveKey,
     setChameleonTheme,
+    activateWardrobeSpinta,
   } = useVautoBridge();
 
   const [sellerStep, setSellerStep] = useState<SellerFlowStep>("idle");
@@ -666,6 +668,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || !detectSellerListingIntent(trimmed)) return false;
+      if (isWardrobePortalQuery(trimmed)) activateWardrobeSpinta();
       if (!requireAuthForListing("/add")) {
         setPendingSellerQuery(trimmed);
         return true;
@@ -673,7 +676,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       void submitSellerContent({ text: trimmed });
       return true;
     },
-    [requireAuthForListing, submitSellerContent]
+    [requireAuthForListing, submitSellerContent, activateWardrobeSpinta]
   );
 
   const consumePendingSellerQuery = useCallback(() => {
@@ -1107,6 +1110,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const key = listingToAdaptiveKey(aiDraft.category);
       setDetectedAdaptiveKey(key);
       setChameleonTheme(adaptiveKeyToTheme(key));
+      if (key === "clothing") activateWardrobeSpinta();
       return;
     }
     if (sellerStep === "idle") {
@@ -1118,6 +1122,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     sellerStep,
     setDetectedAdaptiveKey,
     setChameleonTheme,
+    activateWardrobeSpinta,
   ]);
 
   const value = useMemo<SellerFlowContextValue>(

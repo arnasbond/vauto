@@ -102,14 +102,14 @@ export function WardrobeProfileImporter({
   };
 
   return (
-    <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-200/80 bg-gradient-to-br from-fuchsia-50 via-white to-violet-50 p-4 shadow-sm">
+    <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-500/50 bg-[#131c38] p-4 shadow-lg">
       <div className="mb-3 flex items-center gap-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow">
           <UploadCloud className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-slate-900">Spintos perkėlimas</p>
-          <p className="text-[11px] text-slate-500">
+          <p className="text-sm font-semibold text-white">Spintos perkėlimas</p>
+          <p className="text-[11px] text-slate-400">
             {isGuest
               ? "Demo režimas — įklijuok profilio URL ir AI paruoš tavo spintą"
               : "Vienas URL — AI sukuria visus VAUTO skelbimus automatiškai"}
@@ -124,7 +124,7 @@ export function WardrobeProfileImporter({
         value={url}
         onChange={(e) => setUrl(e.target.value)}
         placeholder="https://…/member/tavo-profilis"
-        className="mb-3 w-full rounded-2xl border border-fuchsia-100 bg-white px-3 py-2.5 text-sm outline-none ring-fuchsia-200 focus:ring-2"
+        className="mb-3 w-full rounded-2xl border border-fuchsia-500/60 bg-[#0a1128] px-3 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-fuchsia-500/40"
       />
       <button
         type="button"
@@ -141,7 +141,7 @@ export function WardrobeProfileImporter({
       </button>
       {isGuest && preview.length > 0 && <GuestWardrobePreviewGrid items={preview} />}
       {!isGuest && preview.length > 0 && (
-        <p className="mt-2 text-center text-[11px] text-fuchsia-700">
+        <p className="mt-2 text-center text-[11px] text-fuchsia-300">
           Paruošta {preview.length} skelbimų — patvirtinkite žemiau
         </p>
       )}

@@ -41,7 +41,9 @@ import {
 import { useVauto } from "@/context/VautoContext";
 import { isWardrobeChameleonActive } from "@/lib/wardrobe-cabinet-mode";
 
-const ACCENT = "#09b1a8";
+const ACCENT = "#d946ef";
+const SPINTA_BG = "#0a1128";
+const SPINTA_CARD = "#131c38";
 
 interface ClothingListingWizardProps {
   draft: AiExtractedListing;
@@ -87,10 +89,10 @@ function WardrobeField({
   type?: string;
 }) {
   const shared =
-    "w-full border-0 border-b border-[#e8e4df] bg-transparent px-0 py-2 text-sm text-[#374151] outline-none placeholder:text-[#9ca3af] focus:border-[#09b1a8]";
+    "w-full rounded-xl border border-fuchsia-500/40 bg-[#131c38] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-400 focus:border-fuchsia-400";
   return (
     <div className="px-4 py-3">
-      <label className="mb-0.5 block text-xs text-[#9ca3af]">{label}</label>
+      <label className="mb-0.5 block text-xs text-slate-300">{label}</label>
       {multiline ? (
         <textarea
           rows={3}
@@ -113,7 +115,7 @@ function WardrobeField({
 }
 
 function SectionTitle({ children }: { children: ReactNode }) {
-  return <h2 className="mb-3 text-base font-semibold text-[#1f2937]">{children}</h2>;
+  return <h2 className="mb-3 text-base font-semibold text-white">{children}</h2>;
 }
 
 export function ClothingListingWizard({
@@ -131,7 +133,7 @@ export function ClothingListingWizard({
   onPublishBulk,
   onToast,
 }: ClothingListingWizardProps) {
-  const { chameleonTheme } = useVauto();
+  const { chameleonTheme, activateWardrobeSpinta } = useVauto();
   const inSpintaCabinet = isWardrobeChameleonActive({
     chameleonTheme,
     detectedAdaptiveKey: "clothing",
@@ -297,12 +299,19 @@ export function ClothingListingWizard({
 
   useEffect(() => {
     window.scrollTo(0, 0);
-  }, []);
+    activateWardrobeSpinta();
+  }, [activateWardrobeSpinta]);
 
   return (
-    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[var(--portal-wizard-bg,#faf8f5)]">
-        <div className="mx-auto w-full max-w-lg bg-[#faf8f5] pb-8">
-        <div className="sticky top-0 z-10 flex items-center justify-between border-b border-[#e8e4df] bg-[#fffdf9] px-4 py-3">
+    <div
+      className="listing-wizard-overlay chameleon-wizard-shell text-white"
+      style={{ backgroundColor: SPINTA_BG }}
+    >
+        <div className="mx-auto w-full max-w-lg pb-8" style={{ backgroundColor: SPINTA_BG }}>
+        <div
+          className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 px-4 py-3"
+          style={{ backgroundColor: SPINTA_BG }}
+        >
           <div className="flex items-center gap-2">
             <span
               className="flex h-8 w-8 items-center justify-center rounded-full text-lg font-bold text-white"
@@ -310,12 +319,12 @@ export function ClothingListingWizard({
             >
               V
             </span>
-            <span className="text-sm font-light text-[#6b7280]">Įkelti prekę</span>
+            <span className="text-sm font-light text-slate-200">Įkelti prekę</span>
           </div>
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full p-1.5 text-[#9ca3af] hover:bg-[#f3f4f6]"
+            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800"
             aria-label="Atšaukti"
           >
             <X className="h-5 w-5" />
@@ -339,7 +348,10 @@ export function ClothingListingWizard({
           />
 
           <SectionTitle>Nuotraukos</SectionTitle>
-          <div className="mb-6 rounded-2xl border border-dashed border-[#d1d5db] bg-white p-4">
+          <div
+            className="mb-6 rounded-2xl border border-dashed border-fuchsia-500/40 p-4"
+            style={{ backgroundColor: SPINTA_CARD }}
+          >
             {previewImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -350,7 +362,7 @@ export function ClothingListingWizard({
             )}
             <ListingGalleryFileInput
               requestConsent={requestMediaConsent}
-              className="flex w-full flex-col items-center justify-center gap-3 py-6 text-[#09b1a8]"
+              className="flex w-full flex-col items-center justify-center gap-3 py-6 text-fuchsia-400"
               label={previewImage ? "+ Pridėti nuotraukų" : "+ Įkelti nuotraukų"}
               onFilesSelected={(files) => {
                 applyFirstGalleryFile(files, (dataUrl) => {
@@ -360,23 +372,26 @@ export function ClothingListingWizard({
               }}
             />
             {wardrobeAnalyzing && (
-              <p className="mt-2 flex items-center justify-center gap-2 text-xs text-[#6b7280]">
-                <Loader2 className="h-4 w-4 animate-spin text-[#09b1a8]" />
+              <p className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-300">
+                <Loader2 className="h-4 w-4 animate-spin text-fuchsia-400" />
                 Smart Wardrobe Vision analizuoja drabužius…
               </p>
             )}
           </div>
 
           {wardrobeItems.length > 1 && (
-            <div className="mb-6 rounded-2xl border border-[#b8ebe8] bg-[#e6f7f6] p-4">
+            <div
+              className="mb-6 rounded-2xl border border-fuchsia-500/30 p-4"
+              style={{ backgroundColor: SPINTA_CARD }}
+            >
               <div className="mb-3 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-[#09b1a8]" />
-                <p className="text-sm font-semibold text-[#1f2937]">
+                <Sparkles className="h-4 w-4 text-fuchsia-400" />
+                <p className="text-sm font-semibold text-white">
                   AI aptiko {wardrobeItems.length} drabužius
                 </p>
               </div>
               {wardrobeVoice && (
-                <p className="mb-3 text-xs italic text-[#374151]">{wardrobeVoice}</p>
+                <p className="mb-3 text-xs italic text-slate-300">{wardrobeVoice}</p>
               )}
               <div className="space-y-2">
                 {wardrobeItems.map((item) => (
@@ -384,15 +399,16 @@ export function ClothingListingWizard({
                     key={item.id}
                     type="button"
                     onClick={() => applyWardrobeItem(item)}
-                    className="flex w-full items-center justify-between rounded-xl border border-white bg-white px-3 py-2.5 text-left shadow-sm transition hover:border-[#09b1a8]"
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-600 px-3 py-2.5 text-left transition hover:border-fuchsia-400"
+                    style={{ backgroundColor: SPINTA_BG }}
                   >
                     <div>
-                      <p className="text-sm font-medium text-[#374151]">{item.title}</p>
-                      <p className="text-[10px] text-[#9ca3af]">
+                      <p className="text-sm font-medium text-white">{item.title}</p>
+                      <p className="text-[10px] text-slate-400">
                         {item.categorySub} · {item.size} · {item.color} · {item.suggestedPrice} €
                       </p>
                     </div>
-                    <ChevronRight className="h-4 w-4 text-[#d1d5db]" />
+                    <ChevronRight className="h-4 w-4 text-slate-500" />
                   </button>
                 ))}
               </div>
@@ -410,14 +426,17 @@ export function ClothingListingWizard({
           )}
 
           <SectionTitle>Apie prekę</SectionTitle>
-          <div className="mb-6 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
+          <div
+            className="mb-6 overflow-hidden rounded-2xl border border-slate-700"
+            style={{ backgroundColor: SPINTA_CARD }}
+          >
             <WardrobeField
               label="Pavadinimas"
               value={draft.title}
               onChange={(v) => onUpdate({ title: v })}
               placeholder="Papasakok pirkėjams, ką parduodi"
             />
-            <div className="border-t border-[#f3f4f6]" />
+            <div className="border-t border-slate-700" />
             <WardrobeField
               label="Aprašymas"
               value={draft.description ?? ""}
@@ -435,29 +454,38 @@ export function ClothingListingWizard({
             lengthCm={attr(attrs, "lengthCm")}
             onChange={onAttributeChange}
           />
-          <div className="mb-3 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
+          <div
+            className="mb-3 overflow-hidden rounded-2xl border border-slate-700"
+            style={{ backgroundColor: SPINTA_CARD }}
+          >
             <button
               type="button"
               onClick={() => setShowCategoryPicker((s) => !s)}
               className="flex w-full items-center justify-between px-4 py-4 text-left"
             >
               <div>
-                <p className="text-xs text-[#9ca3af]">Kategorija</p>
-                <p className={`text-sm ${categoryValue ? "text-[#374151]" : "text-[#9ca3af]"}`}>
+                <p className="text-xs text-slate-400">Kategorija</p>
+                <p className={`text-sm ${categoryValue ? "text-white" : "text-slate-500"}`}>
                   {categoryValue || "Pasirink kategoriją"}
                 </p>
               </div>
               <ChevronRight
-                className={`h-5 w-5 text-[#9ca3af] transition ${showCategoryPicker ? "rotate-90" : ""}`}
+                className={`h-5 w-5 text-slate-500 transition ${showCategoryPicker ? "rotate-90" : ""}`}
               />
             </button>
           </div>
 
           {showCategoryPicker && (
-            <div className="mb-4 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white">
+            <div
+              className="mb-4 overflow-hidden rounded-2xl border border-slate-700"
+              style={{ backgroundColor: SPINTA_CARD }}
+            >
               {Object.keys(FASHION_CATEGORY_TREE).map((group) => (
-                <div key={group} className="border-b border-[#f3f4f6] last:border-0">
-                  <p className="bg-[#faf8f5] px-4 py-2 text-xs font-semibold uppercase tracking-wide text-[#6b7280]">
+                <div key={group} className="border-b border-slate-700 last:border-0">
+                  <p
+                    className="px-4 py-2 text-xs font-semibold uppercase tracking-wide text-slate-400"
+                    style={{ backgroundColor: SPINTA_BG }}
+                  >
                     {group}
                   </p>
                   {subcategoriesFor(group).map((sub) => (
@@ -465,14 +493,14 @@ export function ClothingListingWizard({
                       key={`${group}-${sub}`}
                       type="button"
                       onClick={() => selectCategory(group, sub)}
-                      className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-[#faf8f5] ${
+                      className={`flex w-full items-center justify-between px-4 py-3 text-left text-sm hover:bg-slate-800/60 ${
                         categoryGroup === group && categorySub === sub
-                          ? "bg-[#e6f7f6] font-medium text-[#09b1a8]"
-                          : "text-[#374151]"
+                          ? "bg-fuchsia-900/30 font-medium text-fuchsia-300"
+                          : "text-slate-200"
                       }`}
                     >
                       {sub}
-                      <ChevronRight className="h-4 w-4 text-[#d1d5db]" />
+                      <ChevronRight className="h-4 w-4 text-slate-500" />
                     </button>
                   ))}
                 </div>
@@ -481,9 +509,12 @@ export function ClothingListingWizard({
           )}
 
           {categoryValue && (
-            <div className="mb-6 space-y-3 rounded-2xl border border-[#e8e4df] bg-white p-4">
+            <div
+              className="mb-6 space-y-3 rounded-2xl border border-slate-700 p-4"
+              style={{ backgroundColor: SPINTA_CARD }}
+            >
               <div>
-                <label className="mb-1.5 block text-xs text-[#9ca3af]">Dydis *</label>
+                <label className="mb-1.5 block text-xs text-slate-400">Dydis *</label>
                 <div className="flex flex-wrap gap-2">
                   {(sizeOptions.length ? sizeOptions : ["XS", "S", "M", "L", "XL"]).map((size) => (
                     <button
@@ -492,8 +523,8 @@ export function ClothingListingWizard({
                       onClick={() => onAttributeChange("size", size)}
                       className={`rounded-full border px-3 py-1.5 text-xs font-medium ${
                         attr(attrs, "size") === size
-                          ? "border-[#09b1a8] bg-[#09b1a8] text-white"
-                          : "border-[#e8e4df] bg-white text-[#374151]"
+                          ? "border-fuchsia-500 bg-fuchsia-600 text-white"
+                          : "border-slate-600 bg-[#0a1128] text-slate-200"
                       }`}
                     >
                       {size}
@@ -503,14 +534,14 @@ export function ClothingListingWizard({
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs text-[#9ca3af]">Prekės ženklas *</label>
+                <label className="mb-1.5 block text-xs text-slate-400">Prekės ženklas *</label>
                 <input
                   type="text"
                   list="fashion-brands"
                   value={attr(attrs, "brand")}
                   onChange={(e) => onAttributeChange("brand", e.target.value)}
                   placeholder="Zara, Nike…"
-                  className="w-full border-0 border-b border-[#e8e4df] bg-transparent py-2 text-sm outline-none focus:border-[#09b1a8]"
+                  className="w-full rounded-xl border border-fuchsia-500/40 bg-[#0a1128] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-400 focus:border-fuchsia-400"
                 />
                 <datalist id="fashion-brands">
                   {POPULAR_BRANDS.map((b) => (
@@ -520,11 +551,11 @@ export function ClothingListingWizard({
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs text-[#9ca3af]">Būklė *</label>
+                <label className="mb-1.5 block text-xs text-slate-400">Būklė *</label>
                 <select
                   value={attr(attrs, "condition")}
                   onChange={(e) => onAttributeChange("condition", e.target.value)}
-                  className="w-full rounded-xl border border-[#e8e4df] bg-white px-3 py-2.5 text-sm outline-none focus:border-[#09b1a8]"
+                  className="w-full rounded-xl border border-fuchsia-500/40 bg-[#0a1128] px-3 py-2.5 text-sm text-white outline-none focus:border-fuchsia-400"
                 >
                   <option value="">Pasirinkite būklę</option>
                   {FASHION_CONDITIONS.map((c) => (
@@ -536,7 +567,7 @@ export function ClothingListingWizard({
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs text-[#9ca3af]">Spalva * (galima kelios)</label>
+                <label className="mb-1.5 block text-xs text-slate-400">Spalva * (galima kelios)</label>
                 <div className="flex flex-wrap gap-2">
                   {CLOTHING_COLORS.map((color) => (
                     <button
@@ -545,8 +576,8 @@ export function ClothingListingWizard({
                       onClick={() => toggleColor(color)}
                       className={`rounded-full border px-3 py-1.5 text-xs ${
                         selectedColors.includes(color)
-                          ? "border-[#09b1a8] bg-[#09b1a8] text-white"
-                          : "border-[#e8e4df] text-[#374151]"
+                          ? "border-fuchsia-500 bg-fuchsia-600 text-white"
+                          : "border-slate-600 text-slate-200"
                       }`}
                     >
                       {color}
@@ -556,15 +587,15 @@ export function ClothingListingWizard({
               </div>
 
               <div>
-                <label className="mb-1.5 block text-xs text-[#9ca3af]">Siuntimo būdai</label>
+                <label className="mb-1.5 block text-xs text-slate-400">Siuntimo būdai</label>
                 <div className="space-y-2">
                   {FASHION_SHIPPING_OPTIONS.map((opt) => (
-                    <label key={opt} className="flex items-center gap-2 text-sm text-[#374151]">
+                    <label key={opt} className="flex items-center gap-2 text-sm text-slate-200">
                       <input
                         type="checkbox"
                         checked={shippingOptions.includes(opt)}
                         onChange={() => toggleShipping(opt)}
-                        className="accent-[#09b1a8]"
+                        className="accent-fuchsia-500"
                       />
                       {opt}
                     </label>
@@ -575,8 +606,11 @@ export function ClothingListingWizard({
           )}
 
           <SectionTitle>Kaina</SectionTitle>
-          <div className="mb-6 overflow-hidden rounded-2xl border border-[#e8e4df] bg-white px-4 py-3">
-            <label className="mb-0.5 block text-xs text-[#9ca3af]">Kaina</label>
+          <div
+            className="mb-6 overflow-hidden rounded-2xl border border-slate-700 px-4 py-3"
+            style={{ backgroundColor: SPINTA_CARD }}
+          >
+            <label className="mb-0.5 block text-xs text-slate-400">Kaina</label>
             <div className="flex items-center gap-1">
               <input
                 type="number"
@@ -585,18 +619,21 @@ export function ClothingListingWizard({
                 value={draft.price > 0 ? draft.price : ""}
                 onChange={(e) => onUpdate({ price: Number(e.target.value) || 0 })}
                 placeholder="0,00"
-                className="min-w-0 flex-1 border-0 bg-transparent py-2 text-lg text-[#374151] outline-none"
+                className="min-w-0 flex-1 border-0 bg-transparent py-2 text-lg text-white outline-none placeholder:text-slate-500"
               />
-              <span className="text-lg text-[#9ca3af]">€</span>
+              <span className="text-lg text-slate-400">€</span>
             </div>
           </div>
 
-          <div className="mb-6 flex items-center justify-between rounded-2xl border border-[#e8e4df] bg-white px-4 py-3 text-sm text-[#6b7280]">
+          <div
+            className="mb-6 flex items-center justify-between rounded-2xl border border-slate-700 px-4 py-3 text-sm text-slate-300"
+            style={{ backgroundColor: SPINTA_CARD }}
+          >
             <span>Ką manai apie įkėlimo procesą?</span>
             <button
               type="button"
               onClick={() => onToast?.("Ačiū už atsiliepimą!", "info")}
-              className="shrink-0 rounded-full border border-[#09b1a8] px-3 py-1 text-xs font-medium text-[#09b1a8]"
+              className="shrink-0 rounded-full border border-fuchsia-500 px-3 py-1 text-xs font-medium text-fuchsia-300"
             >
               Palikti atsiliepimą
             </button>
@@ -617,7 +654,7 @@ export function ClothingListingWizard({
           <button
             type="button"
             onClick={handleSaveDraft}
-            className="w-full rounded-full border border-[#09b1a8] py-3.5 text-base font-medium text-[#09b1a8]"
+            className="w-full rounded-full border border-fuchsia-500 py-3.5 text-base font-medium text-fuchsia-300"
           >
             Išsaugoti ruošinį
           </button>
