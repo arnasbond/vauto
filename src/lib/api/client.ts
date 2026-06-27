@@ -680,6 +680,19 @@ export async function apiAnalyzeSearchIntent(body: {
   });
 }
 
+export async function apiAnalyzeVisualSearchIntent(body: {
+  imageDataUrl?: string;
+  imageBase64?: string;
+  userCity?: string;
+  userName?: string;
+  extraContext?: string;
+}): Promise<import("@/lib/gemini-search-intent").GeminiVisualSearchIntent | null> {
+  return aiFetch("/api/ai/analyze-search-visual", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiAnalyzeVoice(body: {
   transcript: string;
   mode: "search" | "listing";

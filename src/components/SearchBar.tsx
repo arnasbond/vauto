@@ -4,11 +4,12 @@ import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { buildPhotoSearchToast } from "@/lib/photo-search";
 import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
+  applyVisualPhotoSearchToGrid,
   runPhotoVisionSearch,
 } from "@/lib/photo-vision-search";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { isSellIntent } from "@/lib/gemini-intent";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
@@ -274,14 +275,15 @@ export function SearchBar({
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
     setIsPhotoSearching(true);
     try {
-      const vision = await runPhotoVisionSearch(
-        result.photos[0]!,
-        result.extraContext || undefined
-      );
+      const vision = await runPhotoVisionSearch(result.photos[0]!, {
+        extraContext: result.extraContext || undefined,
+        userCity: user.city,
+        userName: user.name,
+      });
 
       setPhotoFlowOpen(false);
 
-      if (!vision || vision.confidence < 0.4 || !vision.keywords.trim()) {
+      if (!vision || vision.confidence < 0.35 || !vision.keywords.trim()) {
         showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
         return;
       }
@@ -297,47 +299,38 @@ export function SearchBar({
         return;
       }
 
-      const query = vision.keywords;
+      const grid = applyVisualPhotoSearchToGrid(
+        vision,
+        listings,
+        marketplaceFilters,
+        user.name
+      );
+
       setSearchInputMode("photo");
       setSearchVoiceMode(false);
-      setDraftQuery(query);
-      setSearchQuery(query);
-
-      applyFastSearchToGrid(
-        query,
-        listings,
-        setAgentPinnedListings,
-        setMarketplaceFilters,
-        marketplaceFilters,
-        user.city
-      );
+      setDraftQuery(grid.searchQuery);
+      setSearchQuery(grid.searchQuery);
+      setMarketplaceFilters(grid.filters);
+      setAgentPinnedListings(grid.listingIds.length ? grid.listingIds : null);
 
       void applyVisualSearch(
         buildVisualSearchProfile(
           {
-            title: vision.title ?? query,
+            title: vision.title ?? grid.searchQuery,
             price: 0,
-            location: user.city || "Lietuva",
+            location: grid.intent.cityNominative || user.city || "Lietuva",
             contact: user.phone || "+370 612 34567",
             category: (vision.category as ListingCategory) ?? "other",
             confidence: vision.confidence,
+            attributes: grid.intent.searchFilters as Record<string, string>,
           },
           "photo",
           result.photos[0]
         )
       );
 
-      showToast(
-        buildPhotoSearchToast({
-          title: vision.title ?? query,
-          price: 0,
-          location: user.city || "Lietuva",
-          contact: user.phone || "+370 612 34567",
-          category: (vision.category as ListingCategory) ?? "other",
-          confidence: vision.confidence,
-        }),
-        "success"
-      );
+      showToast(grid.secretaryComment, "success");
+      speakBuddyMessage(grid.secretaryComment, { enabled: true });
       scrollToResults();
     } catch {
       showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");

@@ -1,6 +1,9 @@
 import { Router } from "express";
+import express from "express";
 import { hasAgentAiKey } from "../load-env.js";
 import { hasAiKey } from "../ai/llm-provider.js";
+import { analyzeVisualSearchIntent } from "../ai/search-intent.js";
+import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
@@ -811,3 +814,71 @@ apiRouter.post(
     }
   }
 );
+
+const visionSearchBodyParser = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => {
+  if (req.is("multipart/form-data")) {
+    express.raw({ type: "multipart/form-data", limit: "25mb" })(req, res, next);
+    return;
+  }
+  if (req.body && typeof req.body === "object" && Object.keys(req.body as object).length > 0) {
+    next();
+    return;
+  }
+  express.json({ limit: "25mb" })(req, res, next);
+};
+
+/** Legacy photo search endpoint — maps Vision intent to keywords for older clients. */
+apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
+  if (!hasAiKey()) {
+    return res.status(503).json({ ok: false, error: "GEMINI_API_KEY not set" });
+  }
+
+  let imageBase64: string | undefined;
+  let extraContext: string | undefined;
+  let userCity = "Lietuva";
+
+  const multipart = parseMultipartImageRequest(req);
+  if (multipart) {
+    imageBase64 = multipart.imageDataUrl;
+    extraContext = multipart.fields.extraContext?.trim() || undefined;
+    userCity = multipart.fields.userCity?.trim() || userCity;
+  } else {
+    const body = req.body as {
+      imageBase64?: string;
+      imageDataUrl?: string;
+      extraContext?: string;
+      userCity?: string;
+    };
+    imageBase64 = body.imageDataUrl ?? body.imageBase64;
+    extraContext = body.extraContext?.trim() || undefined;
+    userCity = body.userCity?.trim() || userCity;
+  }
+
+  if (!imageBase64?.trim()) {
+    return res.status(400).json({ ok: false, error: "imageBase64 is required" });
+  }
+
+  try {
+    const intent = await analyzeVisualSearchIntent({
+      imageDataUrl: imageBase64.startsWith("data:") ? imageBase64 : undefined,
+      imageBase64: imageBase64.startsWith("data:") ? undefined : imageBase64,
+      extraContext,
+      userCity,
+    });
+    res.json({
+      ok: true,
+      keywords: intent.cleanQuery,
+      confidence: intent.confidence,
+      category: intent.listingCategory ?? intent.category ?? "other",
+      title: intent.visualSummary || intent.cleanQuery,
+      searchFilters: intent.searchFilters,
+      location: intent.location,
+    });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});

@@ -6,22 +6,32 @@ import {
   clientExtractListingFromImage,
   isClientGeminiAvailable,
 } from "@/lib/gemini-browser";
+import {
+  buildVisualSearchSecretaryComment,
+  filterListingsByVisualIntent,
+  mergeVisualIntentIntoMarketplaceFilters,
+  resolveVisualSearchIntent,
+  type ResolvedVisualSearchIntent,
+} from "@/lib/gemini-search-intent";
 import { compressForAiVision } from "@/lib/native-media";
-import type { AiExtractedListing } from "@/lib/types";
+import type { Listing, ListingCategory } from "@/lib/types";
+import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 
 export const PHOTO_SEARCH_FALLBACK_MESSAGE =
   "Nepavyko automatiškai atpažinti nuotraukos. Įveskite tekstą rankiniu būdu";
 
 export interface PhotoVisionSearchResult {
+  intent: ResolvedVisualSearchIntent;
   keywords: string;
   confidence: number;
-  category?: string;
+  category?: ListingCategory;
   title?: string;
 }
 
 async function postVisionApi(
   imageBase64: string,
-  extraContext?: string
+  extraContext?: string,
+  userCity?: string
 ): Promise<PhotoVisionSearchResult | null> {
   const base = getAiBaseUrl();
   if (!base) return null;
@@ -36,7 +46,7 @@ async function postVisionApi(
       body: JSON.stringify({
         imageBase64,
         extraContext,
-        userCity: "Lietuva",
+        userCity: userCity ?? "Lietuva",
       }),
       signal: controller.signal,
     });
@@ -47,6 +57,8 @@ async function postVisionApi(
       confidence?: number;
       category?: string;
       title?: string;
+      searchFilters?: Record<string, string>;
+      location?: string;
       error?: string;
     };
 
@@ -54,10 +66,38 @@ async function postVisionApi(
       return null;
     }
 
-    return {
-      keywords: json.keywords.trim(),
+    const category = (json.category as ListingCategory | undefined) ?? undefined;
+    const searchFilters = json.searchFilters ?? {};
+    const intent: ResolvedVisualSearchIntent = {
+      cleanQuery: json.keywords.trim(),
+      category,
+      cityNominative: json.location?.trim() || userCity,
+      categoryAttributes: {
+        ...(searchFilters.bodyType ? { bodyType: searchFilters.bodyType } : {}),
+        ...(searchFilters.fuelType ? { fuelType: searchFilters.fuelType } : {}),
+        ...(searchFilters.color ? { color: searchFilters.color } : {}),
+        ...(searchFilters.propertyType ? { propertyType: searchFilters.propertyType } : {}),
+        ...(searchFilters.rooms ? { rooms: searchFilters.rooms } : {}),
+        ...(searchFilters.furnishing ? { furnishing: searchFilters.furnishing } : {}),
+        ...(searchFilters.brand ? { brand: searchFilters.brand } : {}),
+      },
+      agentFilters: {
+        query: json.keywords.trim(),
+        category,
+        city: json.location?.trim() || userCity,
+      },
+      visualSummary: json.title ?? json.keywords.trim(),
       confidence: Number(json.confidence) || 0,
-      category: json.category,
+      objectType: category ?? "other",
+      searchFilters,
+      source: "gemini",
+    };
+
+    return {
+      intent,
+      keywords: json.keywords.trim(),
+      confidence: intent.confidence,
+      category,
       title: json.title,
     };
   } catch {
@@ -67,49 +107,116 @@ async function postVisionApi(
   }
 }
 
-function keywordsFromExtracted(extracted: AiExtractedListing): PhotoVisionSearchResult {
-  return {
-    keywords: buildPhotoSearchQuery(extracted),
+function keywordsFromLegacyExtract(extracted: import("@/lib/types").AiExtractedListing): PhotoVisionSearchResult {
+  const keywords = buildPhotoSearchQuery(extracted);
+  const intent: ResolvedVisualSearchIntent = {
+    cleanQuery: keywords,
+    category: extracted.category,
+    cityNominative: extracted.location,
+    categoryAttributes: {},
+    agentFilters: {
+      query: keywords,
+      category: extracted.category,
+    },
+    visualSummary: extracted.title ?? keywords,
     confidence: extracted.confidence ?? 0,
+    objectType: extracted.category ?? "other",
+    searchFilters: {},
+    source: "fallback",
+  };
+  return {
+    intent,
+    keywords,
+    confidence: intent.confidence,
     category: extracted.category,
     title: extracted.title,
   };
 }
 
-/** Vision search — browser Gemini first, then API proxy, then mock. */
+/** Vision search — structured intent (Gemini Vision) → searchFilters + DB filtravimas. */
 export async function runPhotoVisionSearch(
   imageBase64: string,
-  extraContext?: string
+  options?: { extraContext?: string; userCity?: string; userName?: string }
 ): Promise<PhotoVisionSearchResult | null> {
   const compressed = await compressForAiVision(imageBase64);
+  const userCity = options?.userCity ?? "Lietuva";
+
+  const structured = await resolveVisualSearchIntent(compressed, {
+    userCity,
+    userName: options?.userName,
+    extraContext: options?.extraContext,
+  });
+  if (structured && structured.confidence >= 0.35 && structured.cleanQuery.trim()) {
+    return {
+      intent: structured,
+      keywords: structured.cleanQuery,
+      confidence: structured.confidence,
+      category: structured.category,
+      title: structured.visualSummary,
+    };
+  }
+
+  if (isAiProxyAvailable()) {
+    const fromApi = await postVisionApi(compressed, options?.extraContext, userCity);
+    if (fromApi) return fromApi;
+  }
 
   if (isClientGeminiAvailable()) {
     try {
       const extracted = await clientExtractListingFromImage({
         imageDataUrl: compressed,
-        extraContext,
-        userCity: "Lietuva",
+        extraContext: options?.extraContext,
+        userCity,
       });
-      return keywordsFromExtracted(extracted);
+      return keywordsFromLegacyExtract(extracted);
     } catch (e) {
-      console.warn("[runPhotoVisionSearch] client Gemini failed:", e);
+      console.warn("[runPhotoVisionSearch] legacy client extract failed:", e);
     }
-  }
-
-  if (isAiProxyAvailable()) {
-    const fromApi = await postVisionApi(compressed, extraContext);
-    if (fromApi) return fromApi;
   }
 
   if (!isClientGeminiAvailable()) {
     try {
       const extracted = await mockExtractFromImage(undefined, compressed);
       if (!extracted) return null;
-      return keywordsFromExtracted(extracted);
+      return keywordsFromLegacyExtract(extracted);
     } catch {
       return null;
     }
   }
 
   return null;
+}
+
+export interface VisualPhotoSearchGridResult {
+  intent: ResolvedVisualSearchIntent;
+  filters: MarketplaceFilterState;
+  listingIds: string[];
+  secretaryComment: string;
+  searchQuery: string;
+}
+
+/** Pritaiko visual intent prie tinklelio — filtrai + pinned IDs + sekretoriaus komentaras. */
+export function applyVisualPhotoSearchToGrid(
+  vision: PhotoVisionSearchResult,
+  listings: Listing[],
+  marketplaceFilters: MarketplaceFilterState,
+  userName?: string
+): VisualPhotoSearchGridResult {
+  const filters = mergeVisualIntentIntoMarketplaceFilters(
+    marketplaceFilters,
+    vision.intent
+  );
+  const matched = filterListingsByVisualIntent(listings, vision.intent, filters);
+  const secretaryComment = buildVisualSearchSecretaryComment(
+    userName,
+    vision.intent,
+    matched.length
+  );
+  return {
+    intent: vision.intent,
+    filters,
+    listingIds: matched.map((l) => l.id),
+    secretaryComment,
+    searchQuery: vision.intent.cleanQuery || vision.keywords,
+  };
 }

@@ -1,11 +1,15 @@
-import { Router } from "express";
+import express, { Router } from "express";
 import {
   chatJson,
   hasAiKey,
   resolveAiProvider,
   visionExtractJson,
 } from "../ai/llm-provider.js";
-import { analyzeSearchIntent } from "../ai/search-intent.js";
+import {
+  analyzeSearchIntent,
+  analyzeVisualSearchIntent,
+} from "../ai/search-intent.js";
+import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
   buildUserContextInjectionBlock,
@@ -249,6 +253,79 @@ aiRouter.post("/analyze-search", async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+const visualSearchBodyParser = (
+  req: express.Request,
+  res: express.Response,
+  next: express.NextFunction
+) => {
+  if (req.is("multipart/form-data")) {
+    express.raw({ type: "multipart/form-data", limit: "25mb" })(req, res, next);
+    return;
+  }
+  if (req.body && typeof req.body === "object" && Object.keys(req.body as object).length > 0) {
+    next();
+    return;
+  }
+  express.json({ limit: "25mb" })(req, res, next);
+};
+
+async function handleVisualSearchIntent(
+  req: express.Request,
+  res: express.Response
+) {
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+
+  let imageDataUrl: string | undefined;
+  let imageDataUrls: string[] | undefined;
+  let imageBase64: string | undefined;
+  let userCity = "Lietuva";
+  let userName: string | undefined;
+  let extraContext: string | undefined;
+
+  const multipart = parseMultipartImageRequest(req);
+  if (multipart) {
+    imageDataUrl = multipart.imageDataUrl;
+    userCity = multipart.fields.userCity?.trim() || userCity;
+    userName = multipart.fields.userName?.trim() || undefined;
+    extraContext = multipart.fields.extraContext?.trim() || undefined;
+  } else {
+    const body = req.body as {
+      imageDataUrl?: string;
+      imageDataUrls?: string[];
+      imageBase64?: string;
+      userCity?: string;
+      userName?: string;
+      extraContext?: string;
+    };
+    imageDataUrl = body.imageDataUrl;
+    imageDataUrls = body.imageDataUrls;
+    imageBase64 = body.imageBase64;
+    userCity = body.userCity?.trim() || userCity;
+    userName = body.userName?.trim() || undefined;
+    extraContext = body.extraContext?.trim() || undefined;
+  }
+
+  if (!imageDataUrl && !imageDataUrls?.length && !imageBase64) {
+    return res.status(400).json({ error: "imageDataUrl, imageBase64, or multipart image is required" });
+  }
+
+  try {
+    const intent = await analyzeVisualSearchIntent({
+      imageDataUrl,
+      imageDataUrls,
+      imageBase64,
+      userCity,
+      userName,
+      extraContext,
+    });
+    res.json(intent);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+}
+
+aiRouter.post("/analyze-search-visual", visualSearchBodyParser, handleVisualSearchIntent);
 
 aiRouter.post("/reference-images", async (req, res) => {
   const { query, category, limit = 4 } = req.body as {

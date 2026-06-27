@@ -991,6 +991,68 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
 
 }
 
+const VISUAL_SEARCH_INTENT_SCHEMA = `{
+  "objectType": "vehicle | real_estate | electronics | clothing | home | services | other",
+  "category": "Auto | Elektronika | Namai | Drabužiai | Paslaugos | NT | Darbas | null",
+  "cleanQuery": "string — lietuviškas paieškos tekstas (markė, modelis, spalva, tipas)",
+  "location": "string — Lietuvos miestas vardininku arba tuščia",
+  "radiusKm": "number | null — tik 5, 10, 20, 50 arba null",
+  "condition": "used | new | null",
+  "confidence": "number 0-1",
+  "visualSummary": "string — 1 sakinys, ką matai nuotraukoje",
+  "searchFilters": {
+    "make": "string | null",
+    "model": "string | null",
+    "bodyType": "string | null",
+    "color": "string | null",
+    "fuelType": "string | null",
+    "propertyType": "string | null",
+    "rooms": "string | null",
+    "furnishing": "string | null",
+    "transactionType": "string | null",
+    "brand": "string | null",
+    "size": "string | null",
+    "clothingType": "string | null"
+  }
+}`;
+
+/** Gemini Vision buyer search — nuotrauka → struktūrizuoti filtrai (browser-direct). */
+export async function clientAnalyzeVisualSearchIntent(input: {
+  imageDataUrl: string;
+  extraContext?: string;
+  userCity?: string;
+}): Promise<Record<string, unknown>> {
+  const apiKey = getClientGeminiApiKey();
+  if (!apiKey) {
+    throw new Error("NEXT_PUBLIC_GEMINI_API_KEY not configured");
+  }
+
+  const part = dataUrlToInlinePart(input.imageDataUrl);
+  if (!part) {
+    throw new Error("Nuotraukos Base64 konversija nepavyko");
+  }
+
+  const contextNote = input.extraContext?.trim()
+    ? ` Papildomas vartotojo tekstas: ${input.extraContext.trim()}`
+    : "";
+
+  const systemInstruction = `Esi VAUTO pirkėjo VISUAL paieškos intent analizatorius su Gemini Vision.
+Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
+Identifikuok objekto tipą, markę, modelį, kėbulo tipą, spalvą, NT pobūdį, kambarius, aplinką.
+Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
+Grąžink tik JSON: ${VISUAL_SEARCH_INTENT_SCHEMA}`;
+
+  const userPrompt = `Analizuok paieškos nuotrauką ir suformuok filtrus.
+Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
+
+  return geminiGenerateJsonWithModels(
+    apiKey,
+    GEMINI_VISION_MODELS,
+    systemInstruction,
+    [{ text: userPrompt }, part]
+  );
+}
+
 
 
 const URL_IMPORT_SCHEMA = `{
