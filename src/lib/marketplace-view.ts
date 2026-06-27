@@ -167,6 +167,14 @@ export function mergeAgentIntoMarketplaceFilters(
     ...(agent.maxPrice != null ? { priceMax: agent.maxPrice } : {}),
     ...(agent.radiusKm != null ? { radiusKm: snapRadiusKm(agent.radiusKm) } : {}),
     ...(agent.condition ? { condition: agent.condition } : {}),
+    ...(agent.categoryAttributes && Object.keys(agent.categoryAttributes).length
+      ? {
+          categoryAttributes: {
+            ...base.categoryAttributes,
+            ...agent.categoryAttributes,
+          },
+        }
+      : {}),
   });
 }
 

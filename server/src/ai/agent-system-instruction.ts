@@ -37,7 +37,7 @@ PAIEŠKA (MARKTPLAATS UX):
 - searchListings + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu.
 
 KITI ĮRANKIAI:
-- scanListingPhotos, analyzeMarketPrice (Smart Price Advisor), markListingSold, updateListingDraft, postNewListing, triggerMicroPayment (C2C ${SMART_BOOST_C2C}€ / B2B ${SMART_BOOST_B2B}€ / Lead ${B2B_LEAD_PRICE}€), showZeroUiScreen, blockListing (admin). Business Pro ${BUSINESS_MONTHLY_PRO}€/mėn.
+- scanListingPhotos, analyzeMarketPrice (Smart Price Advisor), markListingSold, updateListingDraft, postNewListing, ghostCallerShield (pokalbių filtras), addToFavorites, dismissActiveListing, applyBrowseFilter (balso UI), triggerMicroPayment (C2C ${SMART_BOOST_C2C}€ / B2B ${SMART_BOOST_B2B}€ / Lead ${B2B_LEAD_PRICE}€), showZeroUiScreen, blockListing (admin). Business Pro ${BUSINESS_MONTHLY_PRO}€/mėn.
 
 KETINIMO ATPAŽINIMAS:
 - Pardavimas / kelti skelbimą → postNewListing + listing_preview (NE searchListings).

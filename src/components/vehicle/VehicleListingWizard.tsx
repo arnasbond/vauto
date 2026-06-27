@@ -45,6 +45,9 @@ import { isPlaceholderCity } from "@/lib/city-resolve";
 import { LT_CITIES } from "@/lib/general-catalog";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { ZeroUiPaymentGate } from "@/components/zero-ui/ZeroUiPaymentGate";
+import { BuyerPersonaDescriptionPicker } from "@/components/listing/BuyerPersonaDescriptionPicker";
+import { useBuyerPersonaDescriptions } from "@/hooks/useBuyerPersonaDescriptions";
+import type { BuyerPersonaId } from "@/lib/description-personas";
 
 const TOTAL_STEPS = 7;
 
@@ -224,6 +227,8 @@ export function VehicleListingWizard({
 }: VehicleListingWizardProps) {
   const [step, setStep] = useState(1);
   const [showStepErrors, setShowStepErrors] = useState(false);
+  const { variants: personaVariants, loading: personaLoading, selected: selectedPersona } =
+    useBuyerPersonaDescriptions(draft, step === 6);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const make = attr(attrs, "make");
   const model = attr(attrs, "model");
@@ -244,6 +249,31 @@ export function VehicleListingWizard({
   const ccSuggestions = useMemo(
     () => engineCcSuggestions(make, model),
     [make, model]
+  );
+
+  useEffect(() => {
+    if (step !== 6 || !personaVariants) return;
+    if (!draft.descriptionVariants) {
+      onUpdate({ descriptionVariants: personaVariants });
+    }
+    if (!draft.description?.trim() && personaVariants.family) {
+      onUpdate({
+        description: personaVariants.family,
+        selectedPersona: "family",
+        descriptionVariants: personaVariants,
+      });
+    }
+  }, [step, personaVariants, draft.description, draft.descriptionVariants, onUpdate]);
+
+  const handlePersonaSelect = useCallback(
+    (id: BuyerPersonaId, text: string) => {
+      onUpdate({
+        description: text,
+        selectedPersona: id,
+        descriptionVariants: personaVariants ?? draft.descriptionVariants,
+      });
+    },
+    [onUpdate, personaVariants, draft.descriptionVariants]
   );
   const kwSuggestions = useMemo(
     () => powerKwSuggestions(make, model),
@@ -835,6 +865,12 @@ export function VehicleListingWizard({
             </div>
             <div className="mb-4">
               <label className="mb-1.5 block text-sm font-medium text-[#374151]">Aprašymas</label>
+              <BuyerPersonaDescriptionPicker
+                variants={personaVariants ?? draft.descriptionVariants}
+                selected={selectedPersona ?? draft.selectedPersona}
+                loading={personaLoading}
+                onSelect={handlePersonaSelect}
+              />
               <textarea
                 rows={4}
                 value={draft.description ?? ""}

@@ -55,6 +55,9 @@ import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
 import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
+import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions";
+import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
+import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 
 export interface AgentSendOptions {
@@ -96,6 +99,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setMarketplaceFilters,
     marketplaceFilters,
     clearVisualSearch,
+    toggleSave,
   } = useVauto();
   const pathname = usePathname();
   const { navigateTo } = useNavigation();
@@ -243,6 +247,34 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           "success"
         );
       }
+      if (actions.type === "toggle_favorite" && actions.listingId) {
+        toggleSave(actions.listingId);
+        showToast(
+          actions.added ? "Pridėta į mėgstamiausius." : "Pašalinta iš mėgstamiausių.",
+          "success"
+        );
+      }
+      if (actions.type === "dismiss_listing") {
+        if (actions.mode === "next") {
+          window.dispatchEvent(new CustomEvent("vauto:listing-next"));
+          document.getElementById("listing-results")?.scrollBy({ top: 420, behavior: "smooth" });
+        } else {
+          window.dispatchEvent(new CustomEvent("vauto:listing-dismiss"));
+          window.history.back();
+        }
+      }
+      if (actions.type === "apply_ui_filters") {
+        goToMarketplace("agent");
+        setMarketplaceFilters(
+          mergeVoiceUiFilters(
+            marketplaceFilters,
+            actions.categoryAttributes,
+            actions.filters
+          )
+        );
+        if (actions.label) showToast(actions.label, "success");
+        window.setTimeout(() => focusSearchOutcome(0), 120);
+      }
       if (actions.type === "micro_payment") {
         openMicroPayment({
           reason: actions.reason,
@@ -298,6 +330,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setMarketplaceFilters,
       marketplaceFilters,
       clearVisualSearch,
+      toggleSave,
     ]
   );
 
@@ -383,6 +416,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ]);
           setBusy(false);
           return { ok: true, reply: "Vaizdas perjungtas." };
+        }
+      }
+
+      const voiceCmd = parseVoiceUiCommand(trimmed);
+      if (voiceCmd.type !== "none") {
+        const handled = applyVoiceUiCommand(voiceCmd, {
+          activeListingId: currentPageContext.active_listing_id,
+          marketplaceFilters,
+          setMarketplaceFilters,
+          toggleSave,
+          showToast,
+        });
+        if (handled.handled) {
+          const reply = handled.reply ?? "Atlikta.";
+          setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
+          speakBuddyMessage(reply, { enabled: true });
+          setBusy(false);
+          touchAgentSessionActivity();
+          return { ok: true, reply };
         }
       }
 
@@ -526,6 +578,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       openMicroPayment,
       myListingsForAgent,
       currentPageContext,
+      toggleSave,
+      marketplaceFilters,
+      setMarketplaceFilters,
     ]
   );
 

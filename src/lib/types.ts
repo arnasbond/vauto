@@ -77,6 +77,13 @@ export interface AiExtractedListing {
   category: ListingCategory;
   confidence: number;
   description?: string;
+  /** AI Chameleon — 3 pirkėjo personos aprašymų variantai */
+  descriptionVariants?: {
+    family?: string;
+    youth?: string;
+    rational?: string;
+  };
+  selectedPersona?: "family" | "youth" | "rational";
   attributes?: CategoryAttributes;
 }
 

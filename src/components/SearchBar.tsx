@@ -2,6 +2,7 @@
 
 import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
@@ -18,6 +19,9 @@ import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
+import { buildCurrentPageContext } from "@/lib/vauto-agent-client";
+import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
+import { applyVoiceUiCommand } from "@/lib/voice-ui-actions";
 import {
   mergeAgentIntoMarketplaceFilters,
   parseViewModeIntent,
@@ -108,7 +112,10 @@ export function SearchBar({
     setViewMode,
     setMarketplaceFilters,
     marketplaceFilters,
+    toggleSave,
   } = useVauto();
+
+  const pathname = usePathname();
 
   const { sendAgentMessage, busy: agentBusy } = useVautoAgent();
 
@@ -169,6 +176,31 @@ export function SearchBar({
         return;
       }
 
+      const pageContext = buildCurrentPageContext({
+        pathname: pathname ?? "/",
+        listings,
+        sellerId: user.id,
+      });
+      const voiceCmd = opts?.voice ? parseVoiceUiCommand(q) : { type: "none" as const };
+      if (voiceCmd.type !== "none") {
+        const handled = applyVoiceUiCommand(voiceCmd, {
+          activeListingId: pageContext.active_listing_id,
+          marketplaceFilters,
+          setMarketplaceFilters,
+          toggleSave,
+          showToast,
+        });
+        if (handled.handled) {
+          setDraftQuery(q);
+          setSearchQuery(q);
+          if (opts?.voice && handled.reply) {
+            speakBuddyMessage(handled.reply, { enabled: true });
+          }
+          scrollToResults();
+          return;
+        }
+      }
+
       setSearchLoading(true);
       try {
         const cleanQuery = await applyFastSearchToGrid(
@@ -198,7 +230,11 @@ export function SearchBar({
       setSearchLoading,
       setViewMode,
       startListingFromQuery,
+      toggleSave,
+      pathname,
+      showToast,
       user.city,
+      user.id,
     ]
   );
 

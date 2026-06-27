@@ -18,6 +18,7 @@ import { apiFetchChats, apiUpsertChat, apiUpsertEscrow } from "@/lib/api/client"
 import { isDataApiEnabled } from "@/lib/api/config";
 import { loadChats, saveChats } from "@/lib/storage";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
+import { requestChatShieldAnalysis } from "@/lib/chat-shield-client";
 import { logAnalytics } from "@/lib/analytics";
 import { listingPath } from "@/lib/seo";
 import {
@@ -352,11 +353,46 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       );
 
       if (updatedThread) {
-        persistChat(updatedThread);
+        const thread = updatedThread;
+        persistChat(thread);
         const recipientId = user.id === buyerId ? sellerId : buyerId;
         if (recipientId) {
           advanceMessageStatus(chatId, msg.id, user.id, recipientId);
-          notifyRecipient(updatedThread, msg, recipientId);
+          notifyRecipient(thread, msg, recipientId);
+        }
+
+        if (user.id === buyerId && sellerId) {
+          const chatMeta = chatsRef.current.find((c) => c.id === chatId);
+          const listing = chatMeta
+            ? listingsRef.current.find((l) => l.id === chatMeta.listingId)
+            : undefined;
+          void requestChatShieldAnalysis({
+            message: text,
+            listingPrice: listing?.price ?? 0,
+            listingTitle: listing?.title ?? listingTitle,
+            sellerName: "Pardavėjas",
+          }).then((shield) => {
+            if (!shield?.shouldShield || !shield.autoReply?.trim()) return;
+
+            const autoId = `m-shield-${Date.now()}`;
+            const autoMsg: ChatMessage = {
+              id: autoId,
+              senderId: sellerId,
+              text: shield.autoReply,
+              timestamp: new Date().toISOString(),
+              status: "sent",
+            };
+
+            upsertChats((prev) =>
+              prev.map((c) =>
+                c.id === chatId ? { ...c, messages: [...c.messages, autoMsg] } : c
+              )
+            );
+
+            if (userRef.current.id === sellerId && shield.sellerNotification) {
+              showToast(`🛡️ ${shield.sellerNotification}`, "info");
+            }
+          });
         }
       }
 
@@ -381,6 +417,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       user.id,
       isAuthenticated,
       openAuthModal,
+      showToast,
       scheduleIncomingSms,
       persistChat,
       upsertChats,

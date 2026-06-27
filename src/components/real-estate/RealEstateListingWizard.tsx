@@ -46,6 +46,9 @@ import {
 } from "@/lib/real-estate-catalog";
 import { ListingGalleryFileInput, applyFirstGalleryFile } from "@/components/listing/ListingGalleryFileInput";
 import { parseVideoUrl } from "@/lib/video-url";
+import { BuyerPersonaDescriptionPicker } from "@/components/listing/BuyerPersonaDescriptionPicker";
+import { useBuyerPersonaDescriptions } from "@/hooks/useBuyerPersonaDescriptions";
+import type { BuyerPersonaId } from "@/lib/description-personas";
 
 const ACCENT = "#c62828";
 const TOTAL_STEPS = 7;
@@ -214,6 +217,8 @@ export function RealEstateListingWizard({
   const [showFeatures, setShowFeatures] = useState(false);
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showStepErrors, setShowStepErrors] = useState(false);
+  const { variants: personaVariants, loading: personaLoading, selected: selectedPersona } =
+    useBuyerPersonaDescriptions(draft, step === 6);
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
   const propertyType = attr(attrs, "propertyType") as PropertyTypeId | "";
@@ -229,6 +234,31 @@ export function RealEstateListingWizard({
   const heating = attrArray(attrs, "heating");
   const features = attrArray(attrs, "features");
   const landUtilities = attrArray(attrs, "landUtilities");
+
+  useEffect(() => {
+    if (step !== 6 || !personaVariants) return;
+    if (!draft.descriptionVariants) {
+      onUpdate({ descriptionVariants: personaVariants });
+    }
+    if (!draft.description?.trim() && personaVariants.family) {
+      onUpdate({
+        description: personaVariants.family,
+        selectedPersona: "family",
+        descriptionVariants: personaVariants,
+      });
+    }
+  }, [step, personaVariants, draft.description, draft.descriptionVariants, onUpdate]);
+
+  const handlePersonaSelect = useCallback(
+    (id: BuyerPersonaId, text: string) => {
+      onUpdate({
+        description: text,
+        selectedPersona: id,
+        descriptionVariants: personaVariants ?? draft.descriptionVariants,
+      });
+    },
+    [onUpdate, personaVariants, draft.descriptionVariants]
+  );
 
   const toggleLandUtility = useCallback(
     (opt: string) => {
@@ -854,6 +884,12 @@ export function RealEstateListingWizard({
               <Pencil className="h-5 w-5 text-[#757575]" />
               Aprašykite objektą
             </button>
+            <BuyerPersonaDescriptionPicker
+              variants={personaVariants ?? draft.descriptionVariants}
+              selected={selectedPersona ?? draft.selectedPersona}
+              loading={personaLoading}
+              onSelect={handlePersonaSelect}
+            />
             <textarea
               rows={4}
               value={draft.description ?? ""}

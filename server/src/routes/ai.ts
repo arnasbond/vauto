@@ -9,6 +9,8 @@ import {
   analyzeSearchIntent,
   analyzeVisualSearchIntent,
 } from "../ai/search-intent.js";
+import { generateBuyerPersonaDescriptions } from "../ai/description-personas.js";
+import { analyzeChatShield, refineChatShieldReply } from "../ai/chat-shield.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
@@ -326,6 +328,73 @@ async function handleVisualSearchIntent(
 }
 
 aiRouter.post("/analyze-search-visual", visualSearchBodyParser, handleVisualSearchIntent);
+
+aiRouter.post("/generate-description-personas", async (req, res) => {
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+
+  const body = req.body as {
+    title?: string;
+    category?: string;
+    price?: number;
+    location?: string;
+    attributes?: Record<string, string>;
+    baseDescription?: string;
+  };
+
+  if (!body.title?.trim() || !body.category?.trim()) {
+    return res.status(400).json({ error: "title and category are required" });
+  }
+
+  try {
+    const variants = await generateBuyerPersonaDescriptions({
+      title: body.title.trim(),
+      category: body.category.trim(),
+      price: body.price,
+      location: body.location,
+      attributes: body.attributes,
+      baseDescription: body.baseDescription,
+    });
+    res.json(variants);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/chat-shield", async (req, res) => {
+  const body = req.body as {
+    message?: string;
+    listingPrice?: number;
+    listingTitle?: string;
+    sellerName?: string;
+  };
+
+  if (!body.message?.trim()) {
+    return res.status(400).json({ error: "message is required" });
+  }
+
+  try {
+    let result = await analyzeChatShield({
+      message: body.message.trim(),
+      listingPrice: Number(body.listingPrice) || 0,
+      listingTitle: body.listingTitle?.trim() || "Skelbimas",
+      sellerName: body.sellerName,
+    });
+    if (result.shouldShield && hasAiKey()) {
+      result = await refineChatShieldReply(
+        {
+          message: body.message.trim(),
+          listingPrice: Number(body.listingPrice) || 0,
+          listingTitle: body.listingTitle?.trim() || "Skelbimas",
+          sellerName: body.sellerName,
+        },
+        result
+      );
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
 
 aiRouter.post("/reference-images", async (req, res) => {
   const { query, category, limit = 4 } = req.body as {

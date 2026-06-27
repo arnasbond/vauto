@@ -21,6 +21,7 @@ import {
 } from "./proactive-agent.js";
 import { scheduleDeferredListingMarketAnalysis } from "./background-market-analysis.js";
 import { hasAiKey, visionExtractJson } from "./llm-provider.js";
+import { analyzeChatShield } from "./chat-shield.js";
 import type { MyListingForAgent } from "./user-agent-context.js";
 import {
   buildBusinessProUpsellMessage,
@@ -513,6 +514,64 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         },
       },
       required: ["view"],
+    },
+  },
+  {
+    name: "addToFavorites",
+    description:
+      "Prideda aktyvu ar nurodyta skelbima i megstamiausius. Naudok kai vartotojas sako idiek i isimintus ar issaugok sita.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        listingId: {
+          type: "STRING",
+          description: "Skelbimo id; jei praleista — naudok active_listing_id iš [UI kontekstas]",
+        },
+      },
+    },
+  },
+  {
+    name: "dismissActiveListing",
+    description:
+      "Atmeta aktyvu skelbima arba pereina prie kito sarase. Naudok atmesk sita, sekantis, kitas skelbimas.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        mode: {
+          type: "STRING",
+          description: "next — sekantis skelbimas; close — uždaryti peržiūrą",
+        },
+      },
+    },
+  },
+  {
+    name: "applyBrowseFilter",
+    description:
+      "Voice-Driven UI — pritaiko narsymo filtra be pilnos paieskos. Pvz. parodyk tik mechanines -> gearbox Mechanine.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        category: { type: "STRING" },
+        gearbox: { type: "STRING", description: "Mechaninė | Automatinė" },
+        fuelType: { type: "STRING" },
+        bodyType: { type: "STRING" },
+        label: { type: "STRING", description: "Trumpas filtro pavadinimas TTS" },
+      },
+    },
+  },
+  {
+    name: "ghostCallerShield",
+    description:
+      "Ghost Caller Shield — analizuoja pirkėjo žinutę pokalbyje (per žemas pasiūlymas, agresija, perpardavinėtojas) ir grąžina mandagų auto-atsakymą pardavėjui.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        message: { type: "STRING" },
+        listingPrice: { type: "NUMBER" },
+        listingTitle: { type: "STRING" },
+        sellerName: { type: "STRING" },
+      },
+      required: ["message", "listingPrice", "listingTitle"],
     },
   },
 ];
@@ -1170,6 +1229,73 @@ export async function executeAgentTool(
       };
     }
 
+    case "addToFavorites": {
+      const listingId = String(args.listingId ?? ctx.activeListingId ?? "").trim();
+      if (!listingId) {
+        return {
+          result: { ok: false, message: "Nėra active_listing_id — atidarykite skelbimą." },
+        };
+      }
+      return {
+        result: { ok: true, listingId, message: "Pridėta į mėgstamiausius." },
+        sideEffect: { type: "toggle_favorite", listingId, added: true },
+      };
+    }
+
+    case "dismissActiveListing": {
+      const modeRaw = String(args.mode ?? "next").toLowerCase();
+      const mode: "next" | "close" = modeRaw === "close" ? "close" : "next";
+      return {
+        result: {
+          ok: true,
+          mode,
+          message: mode === "next" ? "Einame prie kito." : "Uždarau peržiūrą.",
+        },
+        sideEffect: { type: "dismiss_listing", mode },
+      };
+    }
+
+    case "applyBrowseFilter": {
+      const category = args.category ? String(args.category) : undefined;
+      const categoryAttributes: Record<string, string> = {};
+      if (args.gearbox) categoryAttributes.gearbox = String(args.gearbox);
+      if (args.fuelType) categoryAttributes.fuelType = String(args.fuelType);
+      if (args.bodyType) categoryAttributes.bodyType = String(args.bodyType);
+      const label = String(args.label ?? "Filtras pritaikytas").trim();
+      const filters: AgentSearchFilters = {
+        category,
+        categoryAttributes: Object.keys(categoryAttributes).length ? categoryAttributes : undefined,
+      };
+      return {
+        result: { ok: true, filters, label },
+        sideEffect: {
+          type: "apply_ui_filters",
+          filters,
+          categoryAttributes,
+          label,
+        },
+      };
+    }
+
+    case "ghostCallerShield": {
+      const message = String(args.message ?? "").trim();
+      const listingPrice = Number(args.listingPrice) || 0;
+      const listingTitle = String(args.listingTitle ?? "Skelbimas").trim();
+      const sellerName = String(args.sellerName ?? ctx.userName ?? "Pardavėjas").trim();
+      const shield = await analyzeChatShield({
+        message,
+        listingPrice,
+        listingTitle,
+        sellerName,
+      });
+      return {
+        result: {
+          ok: true,
+          ...shield,
+        },
+      };
+    }
+
     default:
       return { result: { error: `Unknown tool: ${name}` } };
   }
@@ -1182,6 +1308,7 @@ export interface AgentSearchFilters {
   maxPrice?: number;
   minPrice?: number;
   refinements?: string[];
+  categoryAttributes?: Record<string, string>;
 }
 
 export type AgentSideEffect =
@@ -1241,4 +1368,19 @@ export type AgentSideEffect =
       price: number;
       product: "smart_boost" | "region_stats" | "b2b_lead" | "generic";
       voiceConfirmPhrase?: string;
+    }
+  | {
+      type: "toggle_favorite";
+      listingId: string;
+      added: boolean;
+    }
+  | {
+      type: "dismiss_listing";
+      mode: "next" | "close";
+    }
+  | {
+      type: "apply_ui_filters";
+      filters?: AgentSearchFilters;
+      categoryAttributes?: Record<string, string>;
+      label?: string;
     };

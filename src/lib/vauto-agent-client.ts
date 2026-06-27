@@ -16,6 +16,7 @@ export interface AgentSearchFilters {
   minPrice?: number;
   condition?: "used" | "new";
   refinements?: string[];
+  categoryAttributes?: Record<string, string>;
 }
 
 export interface VautoAgentContext {
@@ -272,6 +273,21 @@ export type VautoAgentAction =
       type: "mark_listing_sold";
       listingId: string;
       title?: string;
+    }
+  | {
+      type: "toggle_favorite";
+      listingId: string;
+      added: boolean;
+    }
+  | {
+      type: "dismiss_listing";
+      mode: "next" | "close";
+    }
+  | {
+      type: "apply_ui_filters";
+      filters?: AgentSearchFilters;
+      categoryAttributes?: Record<string, string>;
+      label?: string;
     };
 
 export interface VautoAgentResponse {

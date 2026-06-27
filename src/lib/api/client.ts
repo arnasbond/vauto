@@ -693,6 +693,32 @@ export async function apiAnalyzeVisualSearchIntent(body: {
   });
 }
 
+export async function apiGenerateDescriptionPersonas(body: {
+  title: string;
+  category: string;
+  price?: number;
+  location?: string;
+  attributes?: Record<string, string>;
+  baseDescription?: string;
+}): Promise<import("@/lib/description-personas").BuyerPersonaVariants | null> {
+  return aiFetch("/api/ai/generate-description-personas", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiChatShield(body: {
+  message: string;
+  listingPrice: number;
+  listingTitle: string;
+  sellerName?: string;
+}): Promise<import("@/lib/chat-shield-client").ChatShieldClientResult | null> {
+  return aiFetch("/api/ai/chat-shield", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiAnalyzeVoice(body: {
   transcript: string;
   mode: "search" | "listing";
