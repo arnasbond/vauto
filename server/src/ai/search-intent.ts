@@ -1,5 +1,11 @@
 import { unifiedLlmJson, visionExtractJson } from "./llm-provider.js";
 
+const SPINTA_SEARCH_SYSTEM_RULE = `
+GRIEŽTA SPINTOS TAISYKLĖ: Vartotojas yra VAUTO Spintoje (drabužių ir batų portalas).
+category VISADA turi būti "Drabužiai" (listingCategory: clothing).
+NIEKADA negrąžink Auto, Elektronika, Namai, NT, Paslaugos, Darbas kategorijų.
+Paieška TIK drabužiai, batai, avalynė, apranga, aksesuarai — jokios padangos, automobilių dalių ar kitų prekių.`;
+
 const SEARCH_INTENT_SCHEMA = `{
   "category": "Auto | Elektronika | Namai | Drabužiai | Paslaugos | NT | Darbas | null",
   "cleanQuery": "string — produkto ar paslaugos pavadinimas lietuviškai, be klausiamųjų žodžių (kas, kur, rask)",
@@ -119,6 +125,7 @@ function buildCleanQueryFromFilters(
 export interface AnalyzeSearchInput {
   query: string;
   userCity?: string;
+  wardrobeOnly?: boolean;
 }
 
 export interface AnalyzeSearchResult {
@@ -151,6 +158,7 @@ export interface AnalyzeVisualSearchInput {
   userCity?: string;
   userName?: string;
   extraContext?: string;
+  wardrobeOnly?: boolean;
 }
 
 export interface AnalyzeVisualSearchResult {
@@ -173,6 +181,7 @@ export async function analyzeSearchIntent(
   const query = input.query.trim();
   const systemInstruction = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
 Vartotojas IEŠKO skelbimų — nekelia skelbimo.
+${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Grąžink tik JSON pagal schemą: ${SEARCH_INTENT_SCHEMA}`;
 
   const userPrompt = `Užklausa: "${query}"
@@ -184,7 +193,7 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
   });
 
   return {
-    category: normalizeCategory(raw.category),
+    category: input.wardrobeOnly ? "Drabužiai" : normalizeCategory(raw.category),
     cleanQuery: String(raw.cleanQuery ?? "").trim(),
     location: String(raw.location ?? "").trim(),
     radiusKm: snapSearchRadius(raw.radiusKm),
@@ -221,6 +230,7 @@ export async function analyzeVisualSearchIntent(
 Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
 Identifikuok objekto tipą, markę, modelį, kėbulo tipą, spalvą, NT pobūdį, kambarius, aplinką.
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
+${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Jei nuotraukoje visas automobilis — category "Auto", searchFilters.make/model/bodyType/color.
 Jei butas/namas — category "NT", propertyType, rooms, furnishing.
 Jei drabužis — category "Drabužiai", brand, color, size.
@@ -230,7 +240,7 @@ Grąžink tik JSON: ${VISUAL_SEARCH_INTENT_SCHEMA}`;
 Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
 
   const raw = await visionExtractJson(userPrompt, images);
-  const category = normalizeCategory(raw.category);
+  const category = input.wardrobeOnly ? "Drabužiai" : normalizeCategory(raw.category);
   const searchFilters = normalizeSearchFilters(raw.searchFilters);
   const cleanQuery = buildCleanQueryFromFilters(
     searchFilters,
@@ -238,7 +248,7 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
   );
 
   return {
-    objectType: String(raw.objectType ?? "other").trim() || "other",
+    objectType: input.wardrobeOnly ? "clothing" : String(raw.objectType ?? "other").trim() || "other",
     category,
     listingCategory: category ? (CATEGORY_TO_LISTING[category] ?? null) : null,
     cleanQuery,

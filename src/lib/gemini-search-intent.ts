@@ -26,8 +26,6 @@ import type { UserCoords } from "@/lib/geolocation";
 
 import { parseSearchIntentFallback } from "@/lib/search-query-parse";
 
-
-
 export type GeminiSearchCategoryLabel =
 
   | "Auto"
@@ -140,9 +138,9 @@ const CACHE_TTL_MS = 90_000;
 
 
 
-function cacheKey(query: string, userCity?: string) {
+function cacheKey(query: string, userCity?: string, wardrobeOnly?: boolean) {
 
-  return `${query.trim().toLowerCase()}|${(userCity ?? "").trim().toLowerCase()}`;
+  return `${query.trim().toLowerCase()}|${(userCity ?? "").trim().toLowerCase()}|${wardrobeOnly ? "spinta" : "all"}`;
 
 }
 
@@ -284,7 +282,26 @@ function cacheIntent(key: string, intent: ResolvedSearchIntent) {
 
 }
 
+function enforceWardrobeSearchIntent(
+  intent: ResolvedSearchIntent,
+  wardrobeOnly?: boolean
+): ResolvedSearchIntent {
+  if (!wardrobeOnly) return intent;
+  return { ...intent, category: "clothing" };
+}
 
+function enforceWardrobeVisualIntent(
+  intent: ResolvedVisualSearchIntent,
+  wardrobeOnly?: boolean
+): ResolvedVisualSearchIntent {
+  if (!wardrobeOnly) return intent;
+  return {
+    ...intent,
+    category: "clothing",
+    objectType: "clothing",
+    agentFilters: { ...intent.agentFilters, category: "clothing" },
+  };
+}
 
 /**
 
@@ -298,7 +315,7 @@ export async function resolveSearchIntent(
 
   rawQuery: string,
 
-  options?: { userCity?: string }
+  options?: { userCity?: string; wardrobeOnly?: boolean }
 
 ): Promise<ResolvedSearchIntent> {
 
@@ -312,7 +329,7 @@ export async function resolveSearchIntent(
 
 
 
-  const key = cacheKey(query, options?.userCity);
+  const key = cacheKey(query, options?.userCity, options?.wardrobeOnly);
 
   const cached = intentCache.get(key);
 
@@ -334,14 +351,19 @@ export async function resolveSearchIntent(
 
         userCity: options?.userCity,
 
+        wardrobeOnly: options?.wardrobeOnly,
+
       });
 
-      const resolved = mergeWithGeoFallback(
+      const resolved = enforceWardrobeSearchIntent(
+        mergeWithGeoFallback(
 
-        geminiToResolved(normalized, query),
+          geminiToResolved(normalized, query),
 
-        query
+          query
 
+        ),
+        options?.wardrobeOnly
       );
 
       cacheIntent(key, resolved);
@@ -368,18 +390,23 @@ export async function resolveSearchIntent(
 
         userCity: options?.userCity,
 
+        wardrobeOnly: options?.wardrobeOnly,
+
       });
 
       const normalized = normalizeGeminiPayload(remote);
 
       if (normalized) {
 
-        const resolved = mergeWithGeoFallback(
+        const resolved = enforceWardrobeSearchIntent(
+          mergeWithGeoFallback(
 
-          geminiToResolved(normalized, query),
+            geminiToResolved(normalized, query),
 
-          query
+            query
 
+          ),
+          options?.wardrobeOnly
         );
 
         cacheIntent(key, resolved);
@@ -402,19 +429,20 @@ export async function resolveSearchIntent(
 
     const fallback = parseSearchIntentFallback(query);
 
-    const resolved: ResolvedSearchIntent = {
+    const resolved: ResolvedSearchIntent = enforceWardrobeSearchIntent(
+      {
+        cleanQuery: fallback.cleanQuery,
 
-      cleanQuery: fallback.cleanQuery,
+        cityNominative: fallback.cityNominative,
 
-      cityNominative: fallback.cityNominative,
+        radiusKm: fallback.radiusKm,
 
-      radiusKm: fallback.radiusKm,
+        condition: fallback.condition,
 
-      condition: fallback.condition,
-
-      source: "fallback",
-
-    };
+        source: "fallback",
+      },
+      options?.wardrobeOnly
+    );
 
     cacheIntent(key, resolved);
 
@@ -619,19 +647,22 @@ export function buildVisualSearchSecretaryComment(
 
 export function mergeVisualIntentIntoMarketplaceFilters(
   current: MarketplaceFilterState,
-  intent: ResolvedVisualSearchIntent
+  intent: ResolvedVisualSearchIntent,
+  wardrobeOnly?: boolean
 ): MarketplaceFilterState {
   const merged = mergeAgentIntoMarketplaceFilters(current, intent.agentFilters, {
     resetAbsentGeo: true,
     resetAbsentCondition: true,
   });
-  return normalizeMarketplaceFilters({
+  const normalized = normalizeMarketplaceFilters({
     ...merged,
     categoryAttributes: {
       ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS,
       ...intent.categoryAttributes,
     },
   });
+  if (!wardrobeOnly) return normalized;
+  return normalizeMarketplaceFilters({ ...normalized, category: "clothing" });
 }
 
 /**
@@ -640,22 +671,13 @@ export function mergeVisualIntentIntoMarketplaceFilters(
  */
 export async function resolveVisualSearchIntent(
   imageDataUrl: string,
-  options?: { userCity?: string; userName?: string; extraContext?: string }
-): Promise<ResolvedVisualSearchIntent | null> {
-  if (isClientGeminiAvailable()) {
-    try {
-      const normalized = await clientAnalyzeVisualSearchIntent({
-        imageDataUrl,
-        userCity: options?.userCity,
-        extraContext: options?.extraContext,
-      });
-      const payload = normalizeVisualPayload(normalized);
-      if (payload) return visualToResolved(payload);
-    } catch (e) {
-      console.warn("[visual-search-intent] client Gemini failed:", e);
-    }
+  options?: {
+    userCity?: string;
+    userName?: string;
+    extraContext?: string;
+    wardrobeOnly?: boolean;
   }
-
+): Promise<ResolvedVisualSearchIntent | null> {
   if (isAiProxyAvailable()) {
     try {
       const remote = await apiAnalyzeVisualSearchIntent({
@@ -663,11 +685,31 @@ export async function resolveVisualSearchIntent(
         userCity: options?.userCity,
         userName: options?.userName,
         extraContext: options?.extraContext,
+        wardrobeOnly: options?.wardrobeOnly,
       });
       const payload = normalizeVisualPayload(remote);
-      if (payload) return visualToResolved(payload);
+      if (payload) {
+        return enforceWardrobeVisualIntent(visualToResolved(payload), options?.wardrobeOnly);
+      }
     } catch (e) {
       console.warn("[visual-search-intent] server Gemini proxy failed:", e);
+    }
+  }
+
+  if (isClientGeminiAvailable()) {
+    try {
+      const normalized = await clientAnalyzeVisualSearchIntent({
+        imageDataUrl,
+        userCity: options?.userCity,
+        extraContext: options?.extraContext,
+        wardrobeOnly: options?.wardrobeOnly,
+      });
+      const payload = normalizeVisualPayload(normalized);
+      if (payload) {
+        return enforceWardrobeVisualIntent(visualToResolved(payload), options?.wardrobeOnly);
+      }
+    } catch (e) {
+      console.warn("[visual-search-intent] client Gemini failed:", e);
     }
   }
 
@@ -691,27 +733,33 @@ export function filterListingsByVisualIntent(
   listings: Listing[],
   intent: ResolvedVisualSearchIntent,
   filters: MarketplaceFilterState,
-  buyerCoords?: UserCoords | null
+  buyerCoords?: UserCoords | null,
+  wardrobeOnly?: boolean
 ): Listing[] {
+  const scopedFilters = wardrobeOnly
+    ? normalizeMarketplaceFilters({ ...filters, category: "clothing" })
+    : filters;
+  const scopedIntent = wardrobeOnly ? enforceWardrobeVisualIntent(intent, true) : intent;
   const base = listings.filter((l) => l.price > 0 && !l.banned);
-  const scored = base as ScoredListing[];
-  let filtered = applyMarketplaceFilters(scored, filters, buyerCoords ?? null);
+  const scopedBase = wardrobeOnly ? base.filter((l) => l.category === "clothing") : base;
+  const scored = scopedBase as ScoredListing[];
+  let filtered = applyMarketplaceFilters(scored, scopedFilters, buyerCoords ?? null);
 
-  if (intent.cleanQuery.trim()) {
+  if (scopedIntent.cleanQuery.trim()) {
     filtered = filtered.filter((l) => {
-      if (!listingMatchesStrictBrandQuery(l, intent.cleanQuery)) return false;
+      if (!listingMatchesStrictBrandQuery(l, scopedIntent.cleanQuery)) return false;
       const haystack =
         `${l.title} ${l.description ?? ""} ${l.category} ${(l.tags ?? []).join(" ")} ${String(l.attributes?.make ?? "")} ${String(l.attributes?.color ?? "")}`.toLowerCase();
-      return matchesProductTokens(haystack, intent.cleanQuery.toLowerCase());
+      return matchesProductTokens(haystack, scopedIntent.cleanQuery.toLowerCase());
     });
   }
 
-  const category = intent.category ?? filters.category;
-  if (category && category !== "all" && Object.keys(intent.categoryAttributes).length) {
+  const category = scopedIntent.category ?? scopedFilters.category;
+  if (category && category !== "all" && Object.keys(scopedIntent.categoryAttributes).length) {
     filtered = applyCategoryAttributeFilters(
       filtered,
       category,
-      intent.categoryAttributes
+      scopedIntent.categoryAttributes
     );
   }
 

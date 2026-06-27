@@ -1,9 +1,10 @@
-import { buildSpeechTranscriptFromResults } from "@/lib/speech-transcript";
+import { extractLastSpeechTranscript } from "@/lib/speech-transcript";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
+  onstart: (() => void) | null;
   onresult:
     | ((e: {
         resultIndex: number;
@@ -43,9 +44,17 @@ export function startLiveTranscript(
   rec.continuous = true;
   rec.interimResults = true;
 
+  rec.onstart = () => {
+    onUpdate("");
+  };
+
   rec.onresult = (event) => {
-    const švarusTekstas = buildSpeechTranscriptFromResults(event.results);
-    onUpdate(švarusTekstas);
+    const { text, isFinal } = extractLastSpeechTranscript(event.results);
+    if (isFinal) {
+      onUpdate(text);
+    } else if (text) {
+      onUpdate(text);
+    }
   };
 
   rec.onerror = () => {};

@@ -685,6 +685,7 @@ export async function apiBillingPortal(): Promise<
 export async function apiAnalyzeSearchIntent(body: {
   query: string;
   userCity?: string;
+  wardrobeOnly?: boolean;
 }): Promise<import("@/lib/gemini-search-intent").GeminiSearchIntent | null> {
   return aiFetch("/api/ai/analyze-search", {
     method: "POST",
@@ -698,6 +699,7 @@ export async function apiAnalyzeVisualSearchIntent(body: {
   userCity?: string;
   userName?: string;
   extraContext?: string;
+  wardrobeOnly?: boolean;
 }): Promise<import("@/lib/gemini-search-intent").GeminiVisualSearchIntent | null> {
   return aiFetch("/api/ai/analyze-search-visual", {
     method: "POST",

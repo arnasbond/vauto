@@ -33,25 +33,25 @@ type SpeechResultsLike = {
 };
 
 /**
- * Rebuild full transcript from the entire results array each event.
- * Never append to prior state — prevents "parduodu batus parduodu batus" echo.
- * Uses only the trailing interim hypothesis to avoid final+interim overlap.
+ * Use ONLY the last speech hypothesis — never concatenate prior segments.
+ * Prevents Android echo: "Noriu parduotiNoriu parduoti batus".
  */
+export function extractLastSpeechTranscript(results: SpeechResultsLike): {
+  text: string;
+  isFinal: boolean;
+} {
+  if (!results.length) return { text: "", isFinal: false };
+  const last = results[results.length - 1];
+  const raw = (last?.[0]?.transcript ?? "").trim();
+  return {
+    text: sanitizeSpeechTranscript(raw),
+    isFinal: Boolean(last?.isFinal),
+  };
+}
+
+/** Latest caption text (final or interim) from the last result slot only. */
 export function buildSpeechTranscriptFromResults(results: SpeechResultsLike): string {
-  let finalTranscript = "";
-  let interimTranscript = "";
-
-  for (let i = 0; i < results.length; ++i) {
-    const part = results[i]?.[0]?.transcript ?? "";
-    if (!part) continue;
-    if (results[i].isFinal) {
-      finalTranscript += part;
-    } else {
-      interimTranscript = part;
-    }
-  }
-
-  return sanitizeSpeechTranscript((finalTranscript + interimTranscript).trim());
+  return extractLastSpeechTranscript(results).text;
 }
 
 /** Clean garbled STT output before AI analysis. */

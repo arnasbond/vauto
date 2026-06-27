@@ -9,6 +9,7 @@
 
 
 import { resolveListingCity } from "@/lib/city-resolve";
+import { SPINTA_SEARCH_SYSTEM_RULE } from "@/lib/wardrobe-cabinet-mode";
 
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 
@@ -925,6 +926,8 @@ export async function clientAnalyzeSearchIntent(input: {
 
   userCity?: string;
 
+  wardrobeOnly?: boolean;
+
 }): Promise<ClientSearchIntent> {
 
   const apiKey = getClientGeminiApiKey();
@@ -942,6 +945,7 @@ export async function clientAnalyzeSearchIntent(input: {
   const systemInstruction = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
 
 Vartotojas IEŠKO skelbimų — nekelia skelbimo.
+${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 
 Grąžink tik JSON pagal schemą: ${SEARCH_INTENT_SCHEMA}`;
 
@@ -975,7 +979,7 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
 
   return {
 
-    category,
+    category: input.wardrobeOnly ? "Drabužiai" : category,
 
     cleanQuery: String(raw.cleanQuery ?? "").trim(),
 
@@ -1021,6 +1025,7 @@ export async function clientAnalyzeVisualSearchIntent(input: {
   imageDataUrl: string;
   extraContext?: string;
   userCity?: string;
+  wardrobeOnly?: boolean;
 }): Promise<Record<string, unknown>> {
   const apiKey = getClientGeminiApiKey();
   if (!apiKey) {
@@ -1040,6 +1045,7 @@ export async function clientAnalyzeVisualSearchIntent(input: {
 Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
 Identifikuok objekto tipą, markę, modelį, kėbulo tipą, spalvą, NT pobūdį, kambarius, aplinką.
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
+${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Grąžink tik JSON: ${VISUAL_SEARCH_INTENT_SCHEMA}`;
 
   const userPrompt = `Analizuok paieškos nuotrauką ir suformuok filtrus.

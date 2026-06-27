@@ -53,9 +53,10 @@ function applyFastSearchToGrid(
     filters: import("@/lib/marketplace-view").MarketplaceFilterState
   ) => void,
   marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState,
-  userCity?: string
+  userCity?: string,
+  wardrobeOnly?: boolean
 ): Promise<string | false> {
-  return runFastAgentSearch(query, listings, { userCity }).then((fast) => {
+  return runFastAgentSearch(query, listings, { userCity, wardrobeOnly }).then((fast) => {
     if (!fast) {
       setAgentPinnedListings(null);
       return false;
@@ -122,6 +123,7 @@ export function SearchBar({
     marketplaceFilters,
     toggleSave,
     activateWardrobeSpinta,
+    wardrobeSpintaForced,
   } = useVauto();
 
   const pathname = usePathname();
@@ -153,6 +155,12 @@ export function SearchBar({
 
   const zeroUiActive =
     agentBusy || searchLoading || isPhotoSearching || photoFlowOpen || recording;
+
+  const wardrobeSearchOnly =
+    wardrobeSpintaForced ||
+    chameleonTheme === "wardrobe" ||
+    pathname === "/fashion" ||
+    pathname === "/fashion/";
 
   const scrollToResults = () => {
     document
@@ -260,7 +268,8 @@ export function SearchBar({
           setAgentPinnedListings,
           setMarketplaceFilters,
           marketplaceFilters,
-          user.city
+          user.city,
+          wardrobeSearchOnly
         );
         const committed = typeof cleanQuery === "string" ? cleanQuery : q;
         setDraftQuery(committed);
@@ -291,6 +300,7 @@ export function SearchBar({
       user.id,
       activateWardrobeSpinta,
       router,
+      wardrobeSearchOnly,
     ]
   );
 
@@ -328,8 +338,15 @@ export function SearchBar({
 
       const session = startVoiceSearch({
         silenceMs: 2_000,
+        onStart: () => {
+          setDraftQuery("");
+          setVoiceCaption("");
+        },
         onInterim: (preview) => {
-          if (preview) setVoiceCaption(preview);
+          if (preview) {
+            setVoiceCaption(preview);
+            setDraftQuery(preview);
+          }
         },
       });
       voiceSessionRef.current = session;
@@ -370,6 +387,7 @@ export function SearchBar({
         extraContext: result.extraContext || undefined,
         userCity: user.city,
         userName: user.name,
+        wardrobeOnly: wardrobeSearchOnly,
       });
 
       setPhotoFlowOpen(false);
@@ -394,7 +412,8 @@ export function SearchBar({
         vision,
         listings,
         marketplaceFilters,
-        user.name
+        user.name,
+        wardrobeSearchOnly
       );
 
       setSearchInputMode("photo");

@@ -45,6 +45,10 @@
       "destination": "https://vauto-api.onrender.com/api/search/vision"
     },
     {
+      "source": "/api/search/vision/",
+      "destination": "https://vauto-api.onrender.com/api/search/vision"
+    },
+    {
       "source": "/api/search/:path*",
       "destination": "https://vauto-api.onrender.com/api/search/:path*"
     },

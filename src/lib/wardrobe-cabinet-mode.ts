@@ -3,6 +3,13 @@ import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { Listing } from "@/lib/types";
 
+/** Griežta Spintos paieškos taisyklė Gemini system promptui. */
+export const SPINTA_SEARCH_SYSTEM_RULE = `
+GRIEŽTA SPINTOS TAISYKLĖ: Vartotojas yra VAUTO Spintoje (drabužių ir batų portalas).
+category VISADA turi būti "Drabužiai" (listingCategory: clothing).
+NIEKADA negrąžink Auto, Elektronika, Namai, NT, Paslaugos, Darbas kategorijų.
+Paieška TIK drabužiai, batai, avalynė, apranga, aksesuarai — jokios padangos, automobilių dalių ar kitų prekių.`;
+
 export function isWardrobePortalQuery(query: string): boolean {
   return portalExperienceForQuery(query).theme === "wardrobe";
 }

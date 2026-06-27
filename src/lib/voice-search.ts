@@ -1,4 +1,7 @@
-import { buildSpeechTranscriptFromResults, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import {
+  extractLastSpeechTranscript,
+  sanitizeSpeechTranscript,
+} from "@/lib/speech-transcript";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
 
 type SpeechResults = {
@@ -32,7 +35,7 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 }
 
 export interface VoiceSearchOptions {
-  /** Live caption — latest hypothesis only, never duplicated finals */
+  /** Live caption — latest hypothesis only */
   onInterim?: (text: string) => void;
   onStart?: () => void;
   silenceMs?: number;
@@ -140,6 +143,8 @@ export function startVoiceSearch(
       rec.maxAlternatives = 1;
 
       rec.onstart = () => {
+        committedFinal = "";
+        onInterim?.("");
         if (!started) {
           started = true;
           onStart?.();
@@ -147,10 +152,14 @@ export function startVoiceSearch(
       };
 
       rec.onresult = (event) => {
-        const preview = buildSpeechTranscriptFromResults(event.results);
-        committedFinal = preview;
-        onInterim?.(preview);
-        if (preview) scheduleSilenceStop();
+        const { text, isFinal } = extractLastSpeechTranscript(event.results);
+        if (isFinal) {
+          committedFinal = text;
+          onInterim?.(text);
+          if (text) scheduleSilenceStop();
+        } else if (text) {
+          onInterim?.(text);
+        }
       };
 
       rec.onerror = (ev) => {

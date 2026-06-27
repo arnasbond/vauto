@@ -249,9 +249,10 @@ Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarif
 aiRouter.post("/analyze-search", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
-  const { query, userCity } = req.body as {
+  const { query, userCity, wardrobeOnly } = req.body as {
     query?: string;
     userCity?: string;
+    wardrobeOnly?: boolean;
   };
 
   if (!query?.trim()) {
@@ -259,7 +260,11 @@ aiRouter.post("/analyze-search", async (req, res) => {
   }
 
   try {
-    const result = await analyzeSearchIntent({ query: query.trim(), userCity });
+    const result = await analyzeSearchIntent({
+      query: query.trim(),
+      userCity,
+      wardrobeOnly: Boolean(wardrobeOnly),
+    });
     res.json(result);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -294,6 +299,7 @@ async function handleVisualSearchIntent(
   let userCity = "Lietuva";
   let userName: string | undefined;
   let extraContext: string | undefined;
+  let wardrobeOnly = false;
 
   const multipart = parseMultipartImageRequest(req);
   if (multipart) {
@@ -301,6 +307,7 @@ async function handleVisualSearchIntent(
     userCity = multipart.fields.userCity?.trim() || userCity;
     userName = multipart.fields.userName?.trim() || undefined;
     extraContext = multipart.fields.extraContext?.trim() || undefined;
+    wardrobeOnly = multipart.fields.wardrobeOnly === "true";
   } else {
     const body = req.body as {
       imageDataUrl?: string;
@@ -309,6 +316,7 @@ async function handleVisualSearchIntent(
       userCity?: string;
       userName?: string;
       extraContext?: string;
+      wardrobeOnly?: boolean;
     };
     imageDataUrl = body.imageDataUrl;
     imageDataUrls = body.imageDataUrls;
@@ -316,6 +324,7 @@ async function handleVisualSearchIntent(
     userCity = body.userCity?.trim() || userCity;
     userName = body.userName?.trim() || undefined;
     extraContext = body.extraContext?.trim() || undefined;
+    wardrobeOnly = Boolean(body.wardrobeOnly);
   }
 
   if (!imageDataUrl && !imageDataUrls?.length && !imageBase64) {
@@ -330,6 +339,7 @@ async function handleVisualSearchIntent(
       userCity,
       userName,
       extraContext,
+      wardrobeOnly,
     });
     res.json(intent);
   } catch (e) {

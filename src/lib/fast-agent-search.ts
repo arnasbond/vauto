@@ -134,12 +134,13 @@ export function sortListingsFast<T extends Listing>(
 export async function runFastAgentSearch(
   text: string,
   listings: Listing[],
-  options?: { userCity?: string }
+  options?: { userCity?: string; wardrobeOnly?: boolean }
 ): Promise<FastSearchResult | null> {
   if (!canUseFastSearch(text)) return null;
 
   const intent = await resolveSearchIntent(text, {
     userCity: options?.userCity,
+    wardrobeOnly: options?.wardrobeOnly,
   });
 
   const limit = listings.length > 0 ? listings.length : UNLIMITED_SEARCH;
@@ -147,7 +148,7 @@ export async function runFastAgentSearch(
 
   const params: FastSearchParams = {
     query: browseAll ? "" : intent.cleanQuery,
-    category: intent.category,
+    category: options?.wardrobeOnly ? "clothing" : intent.category,
     cityNominative: intent.cityNominative,
     radiusKm: intent.radiusKm,
     condition: intent.condition,
@@ -158,7 +159,10 @@ export async function runFastAgentSearch(
     return null;
   }
 
-  const results = filterListings(listings, params);
+  const results = filterListings(
+    options?.wardrobeOnly ? listings.filter((l) => l.category === "clothing") : listings,
+    params
+  );
   const searchQuery = params.query || text.trim();
   const filters = agentFiltersFromParams(params);
 
