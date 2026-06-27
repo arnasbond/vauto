@@ -7,7 +7,9 @@ import { WardrobeCabinetGrid } from "@/components/clothing/WardrobeCabinetGrid";
 import { WardrobeDealStepper } from "@/components/clothing/WardrobeDealStepper";
 import { VisibilityBooster } from "@/components/clothing/VisibilityBooster";
 import { WardrobePowerStats } from "@/components/clothing/WardrobePowerStats";
+import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
 import { collectWardrobeDeals } from "@/lib/wardrobe-deals";
+import { useVauto } from "@/context/VautoContext";
 import type { ChatThread, Listing, UserProfile } from "@/lib/types";
 
 interface WardrobeCabinetSectionProps {
@@ -25,6 +27,7 @@ export function WardrobeCabinetSection({
   onEdit,
   onMarkSold,
 }: WardrobeCabinetSectionProps) {
+  const { publishBulkClothingListings, showToast } = useVauto();
   const deals = useMemo(
     () => collectWardrobeDeals(chats, listings, user.id),
     [chats, listings, user.id]
@@ -40,6 +43,18 @@ export function WardrobeCabinetSection({
         userName={user.name}
         listings={listings}
         deals={deals}
+      />
+
+      <WardrobeProfileImporter
+        userName={user.name}
+        defaultLocation={user.city || "Vilnius"}
+        contact={user.phone}
+        inSpintaCabinet
+        onImportReady={(drafts, voice) => {
+          void publishBulkClothingListings(drafts);
+          showToast(voice, "success");
+        }}
+        onToast={showToast}
       />
 
       <WardrobeDealStepper deals={deals} />

@@ -6,6 +6,7 @@ import {
   readWardrobeImportCount,
 } from "@/lib/monetization-wardrobe";
 import type { UserProfile } from "@/lib/types";
+import { isGuestUserId } from "@/lib/wardrobe-guest-demo";
 
 export interface WardrobeSubscriptionAccess {
   /** Monetizacija / guard aktyvus šiam kontekstui */
@@ -34,6 +35,7 @@ export function resolveWardrobeSubscriptionAccess(
   theme: ChameleonThemeId,
   inSpintaCabinet = false
 ): WardrobeSubscriptionAccess {
+  if (isGuestUserId(user.id)) return LOCKED;
   if (!isWardrobeSpintaEconomyActive(theme, inSpintaCabinet)) return LOCKED;
   const power = isWardrobePowerUser(user);
   const importsUsed = readWardrobeImportCount(user.id);

@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import Image from "next/image";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
@@ -31,8 +31,15 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
   const [sheetOpen, setSheetOpen] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
+  const [committedAvatar, setCommittedAvatar] = useState<string | null>(null);
 
-  const displaySrc = preview || avatar || DEFAULT_AVATAR;
+  useEffect(() => {
+    if (committedAvatar && avatar === committedAvatar) {
+      setCommittedAvatar(null);
+    }
+  }, [avatar, committedAvatar]);
+
+  const displaySrc = preview || committedAvatar || avatar || DEFAULT_AVATAR;
   const isDataUrl = displaySrc.startsWith("data:");
 
   const uploadAvatar = useCallback(
@@ -68,6 +75,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
           return;
         }
         setPreview(null);
+        setCommittedAvatar(finalUrl);
         showToast("Profilio nuotrauka atnaujinta.", "success");
       } catch {
         showToast("Nuotraukos įkėlimas nepavyko.", "error");
@@ -96,6 +104,7 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
       return;
     }
     setPreview(null);
+    setCommittedAvatar(DEFAULT_AVATAR);
     showToast("Nuotrauka pašalinta.", "info");
   }, [showToast, updateUser]);
 
@@ -112,12 +121,13 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
             />
           ) : (
             <Image
+              key={displaySrc}
               src={displaySrc}
               alt={name}
               width={64}
               height={64}
               className="h-16 w-16 object-cover"
-              unoptimized={displaySrc.startsWith("blob:")}
+              unoptimized={displaySrc.startsWith("blob:") || displaySrc.startsWith("http")}
             />
           )}
           {uploading && (

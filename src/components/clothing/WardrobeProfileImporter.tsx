@@ -2,6 +2,7 @@
 
 import { Loader2, Sparkles, UploadCloud } from "lucide-react";
 import { useMemo, useState } from "react";
+import { GuestWardrobePreviewGrid } from "@/components/clothing/GuestWardrobePreviewGrid";
 import { useVauto } from "@/context/VautoContext";
 import {
   importWardrobeProfile,
@@ -14,6 +15,7 @@ import {
   canPerformWardrobeProfileImport,
   resolveWardrobeSubscriptionAccess,
 } from "@/lib/SubscriptionGuard";
+import { isGuestUserId } from "@/lib/wardrobe-guest-demo";
 import type { AiExtractedListing } from "@/lib/types";
 
 interface WardrobeProfileImporterProps {
@@ -21,7 +23,10 @@ interface WardrobeProfileImporterProps {
   defaultLocation: string;
   contact: string;
   inSpintaCabinet?: boolean;
-  onImportReady: (drafts: AiExtractedListing[], voiceAnnouncement: string) => void;
+  /** Anoniminis demo — importas be prisijungimo, registracija tik publikuojant */
+  guestMode?: boolean;
+  onImportReady?: (drafts: AiExtractedListing[], voiceAnnouncement: string) => void;
+  onGuestPreview?: (items: WardrobeProfileImportItem[], drafts: AiExtractedListing[]) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }
 
@@ -30,13 +35,19 @@ export function WardrobeProfileImporter({
   defaultLocation,
   contact,
   inSpintaCabinet = false,
+  guestMode = false,
   onImportReady,
+  onGuestPreview,
   onToast,
 }: WardrobeProfileImporterProps) {
   const { user, chameleonTheme, openCheckout } = useVauto();
+  const isGuest = guestMode || isGuestUserId(user.id);
   const access = useMemo(
-    () => resolveWardrobeSubscriptionAccess(user, chameleonTheme, inSpintaCabinet),
-    [user, chameleonTheme, inSpintaCabinet]
+    () =>
+      isGuest
+        ? null
+        : resolveWardrobeSubscriptionAccess(user, chameleonTheme, inSpintaCabinet),
+    [user, chameleonTheme, inSpintaCabinet, isGuest]
   );
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
@@ -48,7 +59,11 @@ export function WardrobeProfileImporter({
       onToast?.("Įveskite galiojantį profilio URL (member puslapį).", "info");
       return;
     }
-    if (access.active && !canPerformWardrobeProfileImport(user, chameleonTheme, inSpintaCabinet)) {
+    if (
+      !isGuest &&
+      access?.active &&
+      !canPerformWardrobeProfileImport(user, chameleonTheme, inSpintaCabinet)
+    ) {
       onToast?.(
         "Nemokamas spintos importas išnaudotas — Power-User atrakina neribotą importą.",
         "info"
@@ -62,20 +77,24 @@ export function WardrobeProfileImporter({
         profileUrl: trimmed,
         userName,
         defaultLocation,
-        contact,
+        contact: contact || "+370",
       });
       if (!result?.items.length) {
         onToast?.("Importas nepavyko — bandykite vėliau.", "info");
         return;
       }
-      if (access.active && !access.canImportUnlimited) {
+      if (!isGuest && access?.active && !access.canImportUnlimited) {
         incrementWardrobeImportCount(user.id);
       }
       setPreview(result.items);
       const drafts = result.items.map((item) =>
-        profileItemToDraft(item, contact, defaultLocation)
+        profileItemToDraft(item, contact || "+370", defaultLocation)
       );
-      onImportReady(drafts, result.voiceAnnouncement);
+      if (isGuest) {
+        onGuestPreview?.(result.items, drafts);
+      } else {
+        onImportReady?.(drafts, result.voiceAnnouncement);
+      }
       onToast?.(result.voiceAnnouncement, "success");
     } finally {
       setLoading(false);
@@ -91,8 +110,10 @@ export function WardrobeProfileImporter({
         <div>
           <p className="text-sm font-semibold text-slate-900">Spintos perkėlimas</p>
           <p className="text-[11px] text-slate-500">
-            Vienas URL — AI sukuria visus VAUTO skelbimus automatiškai
-            {access.active && !access.canImportUnlimited && (
+            {isGuest
+              ? "Demo režimas — įklijuok profilio URL ir AI paruoš tavo spintą"
+              : "Vienas URL — AI sukuria visus VAUTO skelbimus automatiškai"}
+            {!isGuest && access?.active && !access.canImportUnlimited && (
               <> · liko {access.importsRemaining} nemokamas importas</>
             )}
           </p>
@@ -112,9 +133,10 @@ export function WardrobeProfileImporter({
         className="flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
       >
         {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        Perkelti spintą į VAUTO
+        {isGuest ? "Peržiūrėti mano spintą" : "Perkelti spintą į VAUTO"}
       </button>
-      {preview.length > 0 && (
+      {isGuest && preview.length > 0 && <GuestWardrobePreviewGrid items={preview} />}
+      {!isGuest && preview.length > 0 && (
         <p className="mt-2 text-center text-[11px] text-fuchsia-700">
           Paruošta {preview.length} skelbimų — patvirtinkite žemiau
         </p>

@@ -152,6 +152,10 @@ import { WakeWordHost } from "@/components/voice/WakeWordHost";
 import { WakeWordAgentBridge } from "@/components/voice/WakeWordAgentBridge";
 import type { WakeWordGeminiAgent } from "@/lib/voice-intent-engine";
 import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
+import {
+  readWardrobeSpintaForced,
+  writeWardrobeSpintaForced,
+} from "@/lib/wardrobe-spinta-session";
 import type { WakeWordPhase } from "@/lib/wake-word-types";
 import {
   WakeWordProvider,
@@ -381,6 +385,8 @@ interface VautoContextValue {
 
   chameleonTheme: ChameleonThemeId;
   detectedAdaptiveKey: AdaptiveCategoryKey | null;
+  wardrobeSpintaForced: boolean;
+  activateWardrobeSpinta: () => void;
 }
 
 type VautoCatalogSlice = Omit<
@@ -653,6 +659,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [confirmDialog, setConfirmDialog] = useState<ConfirmDialogState | null>(null);
   const confirmResolverRef = useRef<((value: boolean) => void) | null>(null);
   const [chameleonTheme, setChameleonTheme] = useState<ChameleonThemeId>("flux");
+  const [wardrobeSpintaForced, setWardrobeSpintaForced] = useState(false);
   const [detectedAdaptiveKey, setDetectedAdaptiveKey] =
     useState<AdaptiveCategoryKey | null>(null);
   const [checkoutSession, setCheckoutSession] = useState<CheckoutSession | null>(null);
@@ -672,6 +679,17 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const userRef = useRef(user);
   userRef.current = user;
   const profileLocalEditRef = useRef(false);
+
+  useEffect(() => {
+    setWardrobeSpintaForced(readWardrobeSpintaForced());
+  }, []);
+
+  const activateWardrobeSpinta = useCallback(() => {
+    writeWardrobeSpintaForced(true);
+    setWardrobeSpintaForced(true);
+    setChameleonTheme("wardrobe");
+    setDetectedAdaptiveKey("clothing");
+  }, []);
 
   useEffect(() => {
     async function load() {
@@ -836,7 +854,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       profileLocalEditRef.current = true;
       patchAuthUser(safePatch);
 
-      if (!isDataApiEnabled()) return true;
+      if (!isDataApiEnabled()) {
+        profileLocalEditRef.current = false;
+        return true;
+      }
 
       const merged = { ...userRef.current, ...safePatch };
       const res = await apiUpdateUser(merged);
@@ -848,10 +869,17 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
       const fresh = await apiFetchUser(merged.id);
       if (fresh.ok) {
-        patchAuthUser(fresh.data);
+        patchAuthUser({
+          ...fresh.data,
+          avatar: safePatch.avatar ?? fresh.data.avatar,
+        });
       }
 
       await refreshAuthUser();
+      if (typeof safePatch.avatar === "string") {
+        patchAuthUser({ avatar: safePatch.avatar });
+      }
+      profileLocalEditRef.current = false;
       return true;
     },
     [patchAuthUser, refreshAuthUser]
@@ -1817,6 +1845,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       dismissConfirm,
       chameleonTheme,
       detectedAdaptiveKey,
+      wardrobeSpintaForced,
+      activateWardrobeSpinta,
     }),
     [
       user,
@@ -1904,6 +1934,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       dismissConfirm,
       chameleonTheme,
       detectedAdaptiveKey,
+      wardrobeSpintaForced,
+      activateWardrobeSpinta,
     ]
   );
 

@@ -30,6 +30,7 @@ import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { ProfileAccordion } from "@/components/profile/ProfileAccordion";
 import { ProfileBusinessPanel } from "@/components/profile/ProfileBusinessPanel";
 import { ProfileAccountTypePanel } from "@/components/profile/ProfileAccountTypePanel";
+import { ProfileSpintaSwitch } from "@/components/profile/ProfileSpintaSwitch";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { useAuth } from "@/context/AuthContext";
@@ -84,6 +85,12 @@ export default function ProfilePage() {
             Prisijungti / Registruotis
           </button>
           <Link
+            href="/fashion/"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 py-3 text-sm font-semibold text-fuchsia-700"
+          >
+            Išbandyti VAUTO Spintą be prisijungimo
+          </Link>
+          <Link
             href="/install/"
             className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)] hover:text-[var(--vauto-primary)]"
           >
@@ -121,6 +128,7 @@ export default function ProfilePage() {
 
       <DashboardHeader user={user} onLogout={logout} />
       <ReferralInviteCard />
+      <ProfileSpintaSwitch />
       <ProfileAccountTypePanel />
 
       <DashboardPage

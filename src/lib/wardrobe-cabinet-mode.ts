@@ -9,7 +9,10 @@ export function isWardrobeChameleonActive(params: {
   detectedAdaptiveKey: AdaptiveCategoryKey | null;
   searchQuery?: string;
   listings?: Listing[];
+  /** Rankinis „VAUTO Spinta“ perjungimas (profilis / fashion demo) */
+  spintaForced?: boolean;
 }): boolean {
+  if (params.spintaForced) return true;
   if (params.chameleonTheme === "wardrobe") return true;
   if (params.detectedAdaptiveKey === "clothing") return true;
 

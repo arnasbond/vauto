@@ -52,13 +52,16 @@ export function SecretaryWarmGreeting({
   userName,
   listings,
   deals,
+  isGuest = false,
 }: {
-  userName: string;
+  userName?: string;
   listings: Listing[];
   deals: WardrobeDealView[];
+  isGuest?: boolean;
 }) {
-  const firstName = getFirstName(userName || "Drauge");
-  const message = buildSummary(firstName, listings, deals);
+  const message = isGuest
+    ? "Labas! Aš esu tavo AI mados asistentas. Čia gali pirkti ir parduoti drabužius be ilgų Vinted laukimų. Išbandyk spintos importą viršuje!"
+    : buildSummary(getFirstName(userName || "Drauge"), listings, deals);
 
   return (
     <div

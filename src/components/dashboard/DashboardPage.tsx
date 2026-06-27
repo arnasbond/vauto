@@ -67,6 +67,8 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
     chats,
 
+    wardrobeSpintaForced,
+
   } = useVauto();
 
 
@@ -86,8 +88,9 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
         detectedAdaptiveKey,
         searchQuery,
         listings,
+        spintaForced: wardrobeSpintaForced,
       }),
-    [chameleonTheme, detectedAdaptiveKey, searchQuery, listings]
+    [chameleonTheme, detectedAdaptiveKey, searchQuery, listings, wardrobeSpintaForced]
   );
 
   const isEmployer = user.role === "pro";
