@@ -14,6 +14,8 @@ import {
 
   useMemo,
 
+  useRef,
+
   useState,
 
   type ReactNode,
@@ -96,6 +98,8 @@ import { consumeOAuthPendingPayload } from "@/lib/auth/oauth-redirect";
 
 
 
+export type AuthSignupIntent = "private" | "pro" | "wardrobe";
+
 export interface LoginPayload {
 
   provider: AuthProviderType;
@@ -111,6 +115,8 @@ export interface LoginPayload {
   city?: string;
 
   idToken?: string;
+
+  signupIntent?: AuthSignupIntent;
 
 }
 
@@ -178,6 +184,8 @@ interface AuthContextValue {
 
   restoreDemoSession: (profile: UserProfile) => void | Promise<void>;
 
+  consumePendingAuthIntent: () => AuthSignupIntent | null;
+
 }
 
 
@@ -201,6 +209,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [authError, setAuthError] = useState<string | null>(null);
 
   const [hydrated, setHydrated] = useState(false);
+
+  const pendingAuthIntentRef = useRef<AuthSignupIntent | null>(null);
 
 
 
@@ -373,6 +383,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
   const clearAuthRedirect = useCallback(() => setAuthRedirectPath(null), []);
+
+
+
+  const applySignupIntentAfterLogin = useCallback((intent?: AuthSignupIntent) => {
+
+    if (!intent || intent === "private") return;
+
+    pendingAuthIntentRef.current = intent;
+
+    setAuthRedirectPath("/profile/");
+
+  }, []);
+
+
+
+  const consumePendingAuthIntent = useCallback((): AuthSignupIntent | null => {
+
+    const intent = pendingAuthIntentRef.current;
+
+    pendingAuthIntentRef.current = null;
+
+    return intent;
+
+  }, []);
 
 
 
@@ -586,6 +620,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           applyReferralOnSignup(profile.id);
 
+          applySignupIntentAfterLogin(data.signupIntent);
+
           return;
 
         }
@@ -612,6 +648,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         applyReferralOnSignup(profile.id);
 
+        applySignupIntentAfterLogin(data.signupIntent);
+
       } finally {
 
         setAuthLoading(false);
@@ -620,7 +658,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     },
 
-    [loginLocal, user.city, applyReferralOnSignup]
+    [loginLocal, user.city, applyReferralOnSignup, applySignupIntentAfterLogin]
 
   );
 
@@ -848,6 +886,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       restoreDemoSession,
 
+      consumePendingAuthIntent,
+
     }),
 
     [
@@ -889,6 +929,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       requireAuthForListing,
 
       restoreDemoSession,
+
+      consumePendingAuthIntent,
 
     ]
 

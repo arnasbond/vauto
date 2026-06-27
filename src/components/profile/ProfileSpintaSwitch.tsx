@@ -1,7 +1,6 @@
 "use client";
 
 import { Shirt, Sparkles } from "lucide-react";
-import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 
@@ -34,12 +33,6 @@ export function ProfileSpintaSwitch() {
             <Sparkles className="h-4 w-4" />
             Persijungti į VAUTO Spintą
           </button>
-          <Link
-            href="/fashion/"
-            className="mt-2 block text-center text-[11px] font-medium text-fuchsia-700 hover:underline"
-          >
-            Arba atidaryk viešą demo be prisijungimo →
-          </Link>
         </div>
       </div>
     </div>

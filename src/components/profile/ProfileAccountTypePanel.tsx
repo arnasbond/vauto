@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useState } from "react";
-import { Building2, Shirt, UserRound } from "lucide-react";
+import { Building2, UserRound } from "lucide-react";
 import type { ProBusinessType } from "@/lib/types";
 import { PRO_DEMO_PHONE } from "@/lib/reports";
 import { useAuth } from "@/context/AuthContext";
@@ -13,7 +13,7 @@ const INPUT_CLASS =
 
 export function ProfileAccountTypePanel() {
   const { user, upgradeToPro, authLoading, authError, clearAuthError } = useAuth();
-  const { showToast, activateWardrobeSpinta } = useVauto();
+  const { showToast } = useVauto();
   const isPro = user.role === "pro";
   const { viewMode, setViewMode } = useProfileViewMode(isPro);
 
@@ -38,7 +38,7 @@ export function ProfileAccountTypePanel() {
         <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
           Perjunkite tarp privataus pardavėjo ir verslo kabineto vaizdo.
         </p>
-        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid grid-cols-1 gap-2 sm:grid-cols-2">
           <button
             type="button"
             onClick={() => setViewMode("private")}
@@ -62,17 +62,6 @@ export function ProfileAccountTypePanel() {
           >
             <Building2 className="h-4 w-4" />
             Verslas
-          </button>
-          <button
-            type="button"
-            onClick={() => {
-              activateWardrobeSpinta();
-              showToast("VAUTO Spinta aktyvuota!", "success");
-            }}
-            className="flex items-center justify-center gap-2 rounded-xl bg-gradient-to-br from-fuchsia-600 to-violet-600 px-3 py-3 text-sm font-semibold text-white shadow-sm transition hover:brightness-110"
-          >
-            <Shirt className="h-4 w-4" />
-            VAUTO Spinta
           </button>
         </div>
       </div>

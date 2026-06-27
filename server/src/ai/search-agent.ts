@@ -1,5 +1,24 @@
 /** Server-side intent guard — conversational utterances skip dry DB search. */
 
+export const SEARCH_AGENT_BREVITY_RULES = `Atsakymų formatas (PRIVALOMA visiems paieškos ir derybų atsakymams):
+- Maksimaliai 2–3 sakiniai. Jokio ilgo teksto sienos ar sąrašų.
+- Gyvas, derybinis tonas — tarsi kalbėtum su klientu, ne rašytum ataskaitą.
+- Pritaikyta klausymuisi (TTS) — trumpi sakiniai, aiškūs veiksmai.
+- NIEKADA neišvardink skelbimų tekstu — atidaryk paiešką arba pasiūlyk kitą žingsnį.`;
+
+export const SEARCH_AGENT_VOICE_INPUT_RULES = `[Balso įvestis — fromVoice]
+- Vartotojas kalbėjo mikrofonu. Atsakyk TIK 1–2 sakiniais.
+- Pabaigoje vienas aiškus klausimas arba pasiūlymas (pvz. „Ar ieškome iki 20 000 €?").
+- Jokio markdown, numeruotų sąrašų ar techninių paaiškinimų.`;
+
+export function enforceVoiceReplyBrevity(text: string, maxSentences = 3): string {
+  const trimmed = text.replace(/\s+/g, " ").trim();
+  if (!trimmed) return trimmed;
+  const parts = trimmed.match(/[^.!?…]+[.!?…]+|[^.!?…]+$/g);
+  if (!parts?.length) return trimmed.slice(0, 320);
+  return parts.slice(0, maxSentences).join(" ").trim();
+}
+
 const GREETING_RE =
   /^(labas|sveikas|sveiki|sveika|laba\s+diena|labas\s+rytas|labas\s+vakaras|hey|hi|hello)\b/i;
 

@@ -63,6 +63,7 @@ export interface VautoAgentContext {
     billingPlan?: string;
     walletBalance?: number;
   };
+  fromVoice?: boolean;
 }
 
 export interface AgentListingSnapshot {

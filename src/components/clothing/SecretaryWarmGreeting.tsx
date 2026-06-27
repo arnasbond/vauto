@@ -1,6 +1,7 @@
 "use client";
 
 import { Sparkles } from "lucide-react";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { getFirstName } from "@/lib/buddy-voice";
 import {
   countActiveShipments,
@@ -10,6 +11,9 @@ import {
 import type { Listing } from "@/lib/types";
 
 const ACCENT = "#09b1a8";
+
+export const WARDROBE_SECRETARY_CLICK_GREETING =
+  "Labas! Aš esu tavo AI mados asistentas. Galiu padėti automatiškai perkelti tavo spintą, derėtis su pirkėjais arba parinkti stilingiausius derinius. Ką išbandome pirmiausia?";
 
 function buildSummary(
   firstName: string,
@@ -59,14 +63,23 @@ export function SecretaryWarmGreeting({
   deals: WardrobeDealView[];
   isGuest?: boolean;
 }) {
+  const { openWithGreeting } = useVautoAgent();
+
   const message = isGuest
-    ? "Labas! Aš esu tavo AI mados asistentas. Čia gali pirkti ir parduoti drabužius be ilgų Vinted laukimų. Išbandyk spintos importą viršuje!"
+    ? "Paspausk čia — pradėsiu pokalbį balsu ir padėsiu su spinta, derybomis ar stiliaus patarimais."
     : buildSummary(getFirstName(userName || "Drauge"), listings, deals);
 
+  const handleActivate = () => {
+    openWithGreeting(WARDROBE_SECRETARY_CLICK_GREETING);
+  };
+
   return (
-    <div
-      className="mb-5 overflow-hidden rounded-3xl border bg-gradient-to-br from-[#fffdf9] to-[#e6f7f6] p-4 shadow-sm"
+    <button
+      type="button"
+      onClick={handleActivate}
+      className="mb-5 w-full overflow-hidden rounded-3xl border bg-gradient-to-br from-[#fffdf9] to-[#e6f7f6] p-4 text-left shadow-sm transition hover:brightness-[0.98] active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#09b1a8] focus-visible:ring-offset-2"
       style={{ borderColor: "#b8ebe8" }}
+      aria-label="Atidaryti AI mados asistento pokalbį"
     >
       <div className="flex gap-3">
         <span
@@ -83,6 +96,6 @@ export function SecretaryWarmGreeting({
           <p className="mt-1 text-sm font-light leading-relaxed text-[#374151]">{message}</p>
         </div>
       </div>
-    </div>
+    </button>
   );
 }

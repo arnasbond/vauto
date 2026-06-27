@@ -67,11 +67,14 @@ import { focusSearchOutcome } from "@/lib/search-results-focus";
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
   pendingImageUrls?: string[];
+  /** User input came from microphone in agent sheet or search bar */
+  fromVoice?: boolean;
 }
 
 interface VautoAgentContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
+  openWithGreeting: (text: string) => void;
   messages: AgentChatMessage[];
   busy: boolean;
   sendAgentMessage: (
@@ -89,6 +92,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     user,
     setSearchQuery,
     setSearchInputMode,
+    setSearchVoiceMode,
+    searchInputMode,
+    searchVoiceMode,
     applyAgentListingDraft,
     setListingBanned,
     markListingSold,
@@ -349,6 +355,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
       }
 
+      const voiceReply = Boolean(
+        options?.fromVoice || searchVoiceMode || searchInputMode === "voice"
+      );
+      const speakReply = (replyText: string) => {
+        const clean = replyText.trim();
+        if (clean && voiceReply) {
+          speakBuddyMessage(clean, { enabled: true, force: true });
+        }
+      };
+
       if (isTooShortAgentQuery(trimmed)) {
         const reply = resolveAgentNoiseReply(trimmed);
         const shortUserMsg: AgentChatMessage = { role: "user", text: trimmed };
@@ -357,6 +373,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           shortUserMsg,
           { role: "assistant", text: reply },
         ]);
+        speakReply(reply);
         touchAgentSessionActivity();
         return { ok: true, reply };
       }
@@ -406,18 +423,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (viewIntent) {
         setViewMode(viewIntent);
         if (isViewModeOnlyCommand(trimmed)) {
+          const viewReply =
+            viewIntent === "map"
+              ? "Perjungiu į žemėlapio vaizdą."
+              : viewIntent === "list"
+                ? "Perjungiu į sąrašo vaizdą."
+                : "Perjungiu į tinklelio vaizdą.";
           setMessages((prev) => [
             ...prev,
             {
               role: "assistant",
-              text:
-                viewIntent === "map"
-                  ? "Perjungiu į žemėlapio vaizdą."
-                  : viewIntent === "list"
-                    ? "Perjungiu į sąrašo vaizdą."
-                    : "Perjungiu į tinklelio vaizdą.",
+              text: viewReply,
             },
           ]);
+          speakReply(viewReply);
           setBusy(false);
           return { ok: true, reply: "Vaizdas perjungtas." };
         }
@@ -435,7 +454,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (handled.handled) {
           const reply = handled.reply ?? "Atlikta.";
           setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
-          speakBuddyMessage(reply, { enabled: true });
+          speakReply(reply);
           setBusy(false);
           touchAgentSessionActivity();
           return { ok: true, reply };
@@ -446,7 +465,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setOpen(true);
         const liveReply = buildConversationalLiveReply(user.name);
         setMessages([...nextMessages, { role: "assistant", text: liveReply }]);
-        speakBuddyMessage(liveReply, { enabled: true });
+        speakReply(liveReply);
       }
 
       const fast = await runFastAgentSearch(trimmed, listings, {
@@ -470,6 +489,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           },
         ]);
         applyActions(fast.actions);
+        speakReply(assistantText);
         setBusy(false);
         return { ok: true, reply: fast.reply };
       }
@@ -501,6 +521,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
             currentView: zeroUiScreen,
+            fromVoice: voiceReply,
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
@@ -514,6 +535,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               text: message,
             },
           ]);
+          speakReply(message);
           if (open) showToast(message, "info");
           return { ok: true, reply: message };
         }
@@ -527,6 +549,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               text: fallback,
             },
           ]);
+          speakReply(fallback);
           if (open) showToast(fallback, "info");
           return { ok: true, reply: fallback };
         }
@@ -555,9 +578,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             },
           ];
         });
-        if (isConversationalSearchIntent(trimmed) && assistantText) {
-          speakBuddyMessage(assistantText, { enabled: true });
-        }
+        speakReply(assistantText);
         if (!isConversationalSearchIntent(trimmed)) {
           applyActions(res.actions);
         }
@@ -572,6 +593,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: res.reply };
       } catch {
         const message = BUDDY_REPEAT_PROMPT;
+        speakReply(message);
         if (open) showToast(message, "info");
         return { ok: true, reply: message };
       } finally {
@@ -605,6 +627,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       toggleSave,
       marketplaceFilters,
       setMarketplaceFilters,
+      searchVoiceMode,
+      searchInputMode,
     ]
   );
 
@@ -623,16 +647,30 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     return () => registerAgentErrorReporter(null);
   }, [reportAgentError]);
 
+  const openWithGreeting = useCallback(
+    (text: string) => {
+      const trimmed = text.trim();
+      if (!trimmed) return;
+      setSearchInputMode("voice");
+      setSearchVoiceMode(true);
+      setOpen(true);
+      setMessages((prev) => [...prev, { role: "assistant", text: trimmed }]);
+      speakBuddyMessage(trimmed, { enabled: true });
+    },
+    [setSearchInputMode, setSearchVoiceMode]
+  );
+
   const value = useMemo(
     () => ({
       open,
       setOpen,
+      openWithGreeting,
       messages,
       busy,
       sendAgentMessage,
       reportAgentError,
     }),
-    [open, messages, busy, sendAgentMessage, reportAgentError]
+    [open, openWithGreeting, messages, busy, sendAgentMessage, reportAgentError]
   );
 
   return (
@@ -651,7 +689,7 @@ export function useVautoAgent(): VautoAgentContextValue {
 
 function VautoAgentSheet() {
   const { open, setOpen, messages, busy, sendAgentMessage } = useVautoAgent();
-  const { searchQuery, setSearchQuery } = useVauto();
+  const { searchQuery, setSearchQuery, setSearchInputMode, setSearchVoiceMode } = useVauto();
   const pathname = usePathname();
   const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
   const [recording, setRecording] = useState(false);
@@ -674,11 +712,9 @@ function VautoAgentSheet() {
     lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
       silenceMs: 2_000,
-      stopOnFinal: false,
-      onInterim: (text) => {
-        const clean = sanitizeSpeechTranscript(text);
-        if (!clean) return;
-        setVoiceCaption(clean);
+      onInterim: (preview) => {
+        const clean = sanitizeSpeechTranscript(preview);
+        if (clean) setVoiceCaption(clean);
       },
     });
     voiceSessionRef.current = session;
@@ -689,8 +725,10 @@ function VautoAgentSheet() {
       setVoiceCaption("");
       if (!clean) return;
       lastVoiceDisplayRef.current = clean;
+      setSearchInputMode("voice");
+      setSearchVoiceMode(true);
       setOpen(true);
-      void sendAgentMessage(clean, { skipBusyCheck: true });
+      void sendAgentMessage(clean, { skipBusyCheck: true, fromVoice: true });
     });
   };
 

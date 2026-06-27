@@ -468,6 +468,18 @@ export async function apiFetchUser(
   return dataFetch<UserProfile>(`/api/users/${id}`);
 }
 
+export async function apiUpdateUserAvatar(
+  userId: string,
+  avatar: string
+): Promise<ApiResult<UserProfile>> {
+  const safeAvatar = sanitizeAvatarForApi(avatar);
+  return dataFetch<UserProfile>(`/api/users/${userId}/avatar`, {
+    method: "PATCH",
+    body: JSON.stringify({ avatar: safeAvatar }),
+    userId,
+  });
+}
+
 export async function apiUpdateUser(
   user: UserProfile
 ): Promise<ApiResult<null>> {

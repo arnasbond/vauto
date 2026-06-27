@@ -64,6 +64,11 @@ export const SECRETARY_GHOST_SHIELD_RULES = `Ghost Caller Shield (pokalbių filt
 - Kai pirkėjo žinutė turi per žemą pasiūlymą (<70% kainos), agresyvų toną ar perpardavinėtojo šablonus — ghostCallerShield.
 - Auto-atsakymas mandagus, pardavėjo vardu. Pardavėjui pranešk, kad AI suvaldė derybas fone.`;
 
+export const SECRETARY_VOICE_TTS_RULES = `Balso režimas ir TTS (PRIVALOMA):
+- VAUTO turi gyvą Text-to-Speech — vartotojas girdi tavo atsakymus balsu.
+- NIEKADA nesakyk, kad esi „tekstinis asistentas", „negali kalbėti balsu" ar panašiai. Atsakyk normaliai, kalbinėje formoje, tarsi kalbėtum gyvai.
+- Balso režime reply turi būti trumpas, natūralus ir tinkamas TTS — ne techniniai paaiškinimai apie sistemą.`;
+
 export const SECRETARY_VOICE_UI_RULES = `Voice-Driven UI naršyme:
 - „Parodyk tik mechanines" → applyBrowseFilter(gearbox=Mechaninė) arba addToFavorites/dismissActiveListing pagal komandą.
 - „Įdėk šitą į įsimintus" → addToFavorites(active_listing_id).
@@ -99,6 +104,7 @@ ${SECRETARY_VISION_SCAN_RULES}
 ${SECRETARY_VISUAL_SEARCH_RULES}
 ${SECRETARY_CHAMELEON_RULES}
 ${SECRETARY_GHOST_SHIELD_RULES}
+${SECRETARY_VOICE_TTS_RULES}
 ${SECRETARY_VOICE_UI_RULES}
 ${SECRETARY_EXPRESS_ESCROW_RULES}
 ${SECRETARY_WARDROBE_VISION_RULES}

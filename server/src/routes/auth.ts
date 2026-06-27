@@ -121,7 +121,7 @@ async function buildSession(
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
     phone: profile.phone ?? existing?.phone ?? "+370",
     city: profile.city ?? existing?.city ?? "Vilnius",
-    avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
+    avatar: existing?.avatar ?? profile.avatar ?? defaultAvatar(meta.provider),
     email,
     warned: existing?.warned ?? false,
     role,

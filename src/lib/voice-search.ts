@@ -1,18 +1,17 @@
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 
+type SpeechResults = {
+  length: number;
+  [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
+};
+
 type SpeechRecognitionCtor = new () => {
   lang: string;
   continuous: boolean;
   interimResults: boolean;
   maxAlternatives: number;
   onresult:
-    | ((e: {
-        resultIndex: number;
-        results: {
-          length: number;
-          [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
-        };
-      }) => void)
+    | ((e: { resultIndex: number; results: SpeechResults }) => void)
     | null;
   onerror: ((e: { error: string }) => void) | null;
   onend: (() => void) | null;
@@ -32,16 +31,11 @@ function getSpeechRecognition(): SpeechRecognitionCtor | null {
 }
 
 export interface VoiceSearchOptions {
-  /** Live caption while speaking — interim preview only */
+  /** Live caption — latest hypothesis only, never duplicated finals */
   onInterim?: (text: string) => void;
-  /** Fired when a finalized speech segment is committed */
-  onFinal?: (text: string) => void;
   onStart?: () => void;
-  /** Stop after this much silence once we have text (only if no final yet) */
   silenceMs?: number;
   maxMs?: number;
-  /** Finish session immediately after first finalized segment */
-  stopOnFinal?: boolean;
 }
 
 export interface VoiceSearchSession {
@@ -54,18 +48,64 @@ const DEFAULT_SILENCE_MS = 2_000;
 const DEFAULT_MAX_MS = 25_000;
 
 /**
- * Mobile-friendly voice search — single SpeechRecognition stream (no MediaRecorder conflict).
+ * Rebuild transcript from the FULL results array each event.
+ * Finals: one segment per result index. Interim: replace trailing hypothesis only.
+ * Prevents "ieškau Volvo ieškau Volvo" echo from append + interim overlap.
+ */
+function snapshotTranscript(results: SpeechResults): {
+  committed: string;
+  preview: string;
+} {
+  const finals: string[] = [];
+  let trailingInterim = "";
+
+  for (let i = 0; i < results.length; i++) {
+    const result = results[i];
+    const part = (result?.[0]?.transcript ?? "").trim();
+    if (!part) continue;
+
+    if (result.isFinal) {
+      finals.push(part);
+    } else {
+      trailingInterim = part;
+    }
+  }
+
+  const committed = sanitizeSpeechTranscript(finals.join(" "));
+  let preview = committed;
+
+  if (trailingInterim) {
+    const interim = sanitizeSpeechTranscript(trailingInterim);
+    if (!committed) {
+      preview = interim;
+    } else {
+      const lcCommitted = committed.toLowerCase();
+      const lcInterim = interim.toLowerCase();
+      if (
+        lcInterim.startsWith(lcCommitted) ||
+        lcInterim.includes(lcCommitted)
+      ) {
+        preview = interim;
+      } else {
+        preview = sanitizeSpeechTranscript(`${committed} ${interim}`);
+      }
+    }
+  }
+
+  return { committed, preview };
+}
+
+/**
+ * Single SpeechRecognition session — delivers ONE final string on onend/stop only.
  */
 export function startVoiceSearch(
   options: VoiceSearchOptions = {}
 ): VoiceSearchSession {
   const {
     onInterim,
-    onFinal,
     onStart,
     silenceMs = DEFAULT_SILENCE_MS,
     maxMs = DEFAULT_MAX_MS,
-    stopOnFinal = false,
   } = options;
 
   const SpeechRecognition = getSpeechRecognition();
@@ -87,15 +127,13 @@ export function startVoiceSearch(
     };
   }
 
-  let active = true;
   let resolved = false;
   let rec: InstanceType<SpeechRecognitionCtor> | null = null;
   let committedFinal = "";
   let silenceTimer: ReturnType<typeof setTimeout> | null = null;
   let maxTimer: ReturnType<typeof setTimeout> | null = null;
   let started = false;
-  let closingAfterFinal = false;
-  const seenFinalIndices = new Set<number>();
+  let stopping = false;
 
   const clearTimers = () => {
     if (silenceTimer) clearTimeout(silenceTimer);
@@ -109,10 +147,9 @@ export function startVoiceSearch(
     resolvePromise = resolve;
   });
 
-  const finish = (text: string | null) => {
+  const deliverOnce = (text: string | null) => {
     if (resolved) return;
     resolved = true;
-    active = false;
     clearTimers();
     try {
       rec?.abort();
@@ -120,144 +157,81 @@ export function startVoiceSearch(
       /* ignore */
     }
     rec = null;
-    resolvePromise(text?.trim() || null);
+    resolvePromise(text?.trim() ? sanitizeSpeechTranscript(text.trim()) : null);
   };
 
-  const stopRecognitionCleanly = () => {
-    closingAfterFinal = true;
-    active = false;
+  const requestStop = () => {
+    if (resolved || stopping) return;
+    stopping = true;
     clearTimers();
     try {
       rec?.stop();
     } catch {
-      /* ignore */
+      deliverOnce(committedFinal.trim() || null);
     }
   };
 
   const scheduleSilenceStop = () => {
-    const candidate = sanitizeSpeechTranscript(committedFinal.trim());
-    if (!candidate) return;
+    if (!committedFinal.trim()) return;
     if (silenceTimer) clearTimeout(silenceTimer);
-    silenceTimer = setTimeout(() => {
-      if (active && !resolved) {
-        stopRecognitionCleanly();
-        finish(candidate);
-      }
-    }, silenceMs);
+    silenceTimer = setTimeout(requestStop, silenceMs);
   };
 
-  const bindRecognition = () => {
-    const instance = new SpeechRecognition();
-    instance.lang = "lt-LT";
-    instance.continuous = true;
-    instance.interimResults = true;
-    instance.maxAlternatives = 1;
+  rec = new SpeechRecognition();
+  rec.lang = "lt-LT";
+  rec.continuous = true;
+  rec.interimResults = true;
+  rec.maxAlternatives = 1;
 
-    instance.onstart = () => {
-      if (!started) {
-        started = true;
-        onStart?.();
-      }
-    };
-
-    instance.onresult = (event) => {
-      let interimText = "";
-      let gotNewFinal = false;
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const result = event.results[i];
-        const part = (result?.[0]?.transcript ?? "").trim();
-        if (!part) continue;
-
-        if (result.isFinal) {
-          if (!seenFinalIndices.has(i)) {
-            seenFinalIndices.add(i);
-            committedFinal = sanitizeSpeechTranscript(
-              committedFinal ? `${committedFinal} ${part}` : part
-            );
-            gotNewFinal = true;
-          }
-        } else {
-          interimText = interimText ? `${interimText} ${part}` : part;
-        }
-      }
-
-      if (gotNewFinal && committedFinal) {
-        onFinal?.(committedFinal);
-        if (stopOnFinal) {
-          stopRecognitionCleanly();
-          finish(committedFinal);
-          return;
-        }
-        scheduleSilenceStop();
-      }
-
-      if (interimText) {
-        const preview = sanitizeSpeechTranscript(
-          committedFinal ? `${committedFinal} ${interimText}` : interimText
-        );
-        onInterim?.(preview);
-      } else if (committedFinal) {
-        onInterim?.(committedFinal);
-      }
-    };
-
-    instance.onerror = (ev) => {
-      if (ev.error === "no-speech" || ev.error === "aborted") return;
-      if (ev.error === "not-allowed") finish(null);
-    };
-
-    instance.onend = () => {
-      if (resolved || closingAfterFinal) {
-        if (!resolved && committedFinal.trim()) {
-          finish(sanitizeSpeechTranscript(committedFinal.trim()));
-        }
-        return;
-      }
-      if (!active) return;
-      if (committedFinal.trim()) {
-        scheduleSilenceStop();
-        return;
-      }
-      finish(null);
-    };
-
-    return instance;
+  rec.onstart = () => {
+    if (!started) {
+      started = true;
+      onStart?.();
+    }
   };
 
-  rec = bindRecognition();
-  maxTimer = setTimeout(() => {
-    finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
-  }, maxMs);
+  rec.onresult = (event) => {
+    const { committed, preview } = snapshotTranscript(event.results);
+    committedFinal = committed;
+    onInterim?.(preview);
+    if (committed) scheduleSilenceStop();
+  };
+
+  rec.onerror = (ev) => {
+    if (ev.error === "no-speech" || ev.error === "aborted") return;
+    if (ev.error === "not-allowed") deliverOnce(null);
+  };
+
+  rec.onend = () => {
+    if (resolved) return;
+    deliverOnce(committedFinal.trim() || null);
+  };
+
+  maxTimer = setTimeout(requestStop, maxMs);
 
   try {
     rec.start();
   } catch {
-    finish(null);
+    deliverOnce(null);
   }
 
-  const stop = () => {
-    if (resolved) return;
-    stopRecognitionCleanly();
-    finish(sanitizeSpeechTranscript(committedFinal.trim()) || null);
+  return {
+    promise,
+    stop: requestStop,
+    cancel: () => {
+      if (resolved) return;
+      stopping = true;
+      clearTimers();
+      try {
+        rec?.abort();
+      } catch {
+        /* ignore */
+      }
+      rec = null;
+      resolved = true;
+      resolvePromise(null);
+    },
   };
-
-  const cancel = () => {
-    if (resolved) return;
-    resolved = true;
-    active = false;
-    closingAfterFinal = true;
-    clearTimers();
-    try {
-      rec?.abort();
-    } catch {
-      /* ignore */
-    }
-    rec = null;
-    resolvePromise(null);
-  };
-
-  return { promise, stop, cancel };
 }
 
 export function isVoiceSearchSupported(): boolean {

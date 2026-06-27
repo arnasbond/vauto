@@ -1,8 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Apple, Phone, Shield, X } from "lucide-react";
+import { Apple, Building2, Phone, Shield, Shirt, UserRound, X } from "lucide-react";
 import type { AuthProvider, UserRole } from "@/lib/types";
+import type { AuthSignupIntent } from "@/context/AuthContext";
 import { ADMIN_EMAIL, ADMIN_PHONE } from "@/lib/reports";
 import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 import {
@@ -28,6 +29,7 @@ interface AuthModalProps {
     email?: string;
     otp?: string;
     idToken?: string;
+    signupIntent?: AuthSignupIntent;
   }) => void;
 }
 
@@ -66,6 +68,7 @@ export function AuthModal({
   const [phone, setPhone] = useState("+370 ");
   const [otp, setOtp] = useState("");
   const [role, setRole] = useState<UserRole>("private");
+  const [signupIntent, setSignupIntent] = useState<AuthSignupIntent>("private");
   const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
   const [otpSending, setOtpSending] = useState(false);
   const [otpError, setOtpError] = useState<string | null>(null);
@@ -78,6 +81,7 @@ export function AuthModal({
       setPhone("+370 ");
       setOtp("");
       setRole("private");
+      setSignupIntent("private");
       setAdminEmail(ADMIN_EMAIL);
       setOtpError(null);
       setGoogleIdToken(null);
@@ -96,10 +100,11 @@ export function AuthModal({
           provider: "google",
           role: "private",
           idToken: credential,
+          signupIntent,
         });
       });
     });
-  }, [open, step, onComplete, onClearError]);
+  }, [open, step, onComplete, onClearError, signupIntent]);
 
   if (!open) return null;
 
@@ -112,6 +117,7 @@ export function AuthModal({
       idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
       role: role === "admin" ? "admin" : "private",
       email: role === "admin" ? ADMIN_EMAIL : undefined,
+      signupIntent: role === "admin" ? undefined : signupIntent,
     });
   };
 
@@ -130,7 +136,7 @@ export function AuthModal({
       }
       const token = await requestGoogleIdToken();
       if (token) {
-        onComplete({ provider: "google", role: "private", idToken: token });
+        onComplete({ provider: "google", role: "private", idToken: token, signupIntent });
         return;
       }
       if (isAuthApiAvailable()) {
@@ -139,7 +145,7 @@ export function AuthModal({
       }
     }
     if (!isAuthApiAvailable()) {
-      onComplete({ provider: "google", role: "private" });
+      onComplete({ provider: "google", role: "private", signupIntent });
     }
   };
 
@@ -203,6 +209,36 @@ export function AuthModal({
 
         {step === "methods" && (
           <div className="space-y-3">
+            <div className="rounded-2xl bg-white/5 p-1 ring-1 ring-white/10">
+              <p className="px-3 pb-2 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+                Paskyros tipas
+              </p>
+              <div className="grid grid-cols-3 gap-1">
+                {(
+                  [
+                    ["private", "Privatus", UserRound],
+                    ["pro", "Verslas PRO", Building2],
+                    ["wardrobe", "VAUTO Spinta", Shirt],
+                  ] as const
+                ).map(([key, label, Icon]) => (
+                  <button
+                    key={key}
+                    type="button"
+                    onClick={() => setSignupIntent(key)}
+                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-semibold transition ${
+                      signupIntent === key
+                        ? key === "wardrobe"
+                          ? "bg-fuchsia-600 text-white shadow-sm"
+                          : "bg-[var(--vauto-teal)] text-white shadow-sm"
+                        : "text-slate-400 hover:bg-white/5 hover:text-white"
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            </div>
             <button
               type="button"
               onClick={() => void handleGoogle()}
@@ -229,7 +265,7 @@ export function AuthModal({
                 type="button"
                 onClick={() => {
                   onClearError?.();
-                  onComplete({ provider: "apple", role: "private" });
+                  onComplete({ provider: "apple", role: "private", signupIntent });
                 }}
                 disabled={loading}
                 className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"

@@ -25,6 +25,11 @@ import {
 } from "./agent-errors.js";
 import { tryFastAgentSearchPath } from "./fast-agent-search.js";
 import {
+  enforceVoiceReplyBrevity,
+  SEARCH_AGENT_BREVITY_RULES,
+  SEARCH_AGENT_VOICE_INPUT_RULES,
+} from "./search-agent.js";
+import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
@@ -99,6 +104,7 @@ export interface VautoAgentRequest {
       billingPlan?: string;
       walletBalance?: number;
     };
+    fromVoice?: boolean;
   };
   /** Set by route from JWT — used for DB writes (mark sold, etc.) */
   authUserId?: string;
@@ -236,7 +242,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       : req.messages;
 
   const systemInstruction = buildAgentSystemInstruction(
-    buildVautoAgentSystemInstruction(),
+    `${buildVautoAgentSystemInstruction()}\n\n${SEARCH_AGENT_BREVITY_RULES}${
+      req.context.fromVoice ? `\n\n${SEARCH_AGENT_VOICE_INPUT_RULES}` : ""
+    }`,
     req.adminProjectContext
   );
 
@@ -579,6 +587,10 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     !finalText.includes(listingResult.voiceFollowUp.slice(0, 24))
   ) {
     finalText = listingResult.voiceFollowUp;
+  }
+
+  if (req.context.fromVoice) {
+    finalText = enforceVoiceReplyBrevity(finalText);
   }
 
   return {

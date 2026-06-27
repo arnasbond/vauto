@@ -69,6 +69,7 @@ import {
   apiUpdateListing,
   apiUpdateSaved,
   apiUpdateUser,
+  apiUpdateUserAvatar,
 } from "@/lib/api/client";
 import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
 import type {
@@ -618,6 +619,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     restoreDemoSession,
     authModalOpen,
     authRedirectPath,
+    consumePendingAuthIntent,
   } = useAuth();
   const { reviews, submitReview } = useReviews();
 
@@ -860,11 +862,23 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
 
       const merged = { ...userRef.current, ...safePatch };
-      const res = await apiUpdateUser(merged);
+      const avatarOnly =
+        Object.keys(safePatch).length === 1 && typeof safePatch.avatar === "string";
+
+      const res = avatarOnly
+        ? await apiUpdateUserAvatar(merged.id, safePatch.avatar!)
+        : await apiUpdateUser(merged);
+
       if (!res.ok) {
         profileLocalEditRef.current = false;
         setSyncError(`Profilis neišsaugotas: ${res.error}`);
         return false;
+      }
+
+      if (avatarOnly && res.ok && "data" in res && res.data) {
+        patchAuthUser({ ...res.data, avatar: safePatch.avatar ?? res.data.avatar });
+        profileLocalEditRef.current = false;
+        return true;
       }
 
       const fresh = await apiFetchUser(merged.id);
@@ -875,7 +889,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      await refreshAuthUser();
+      if (!avatarOnly) {
+        await refreshAuthUser();
+      }
       if (typeof safePatch.avatar === "string") {
         patchAuthUser({ avatar: safePatch.avatar });
       }
@@ -1321,6 +1337,27 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     },
     []
   );
+
+  const prevAuthenticatedRef = useRef(isAuthenticated);
+  useEffect(() => {
+    if (!authHydrated) return;
+    const justLoggedIn = isAuthenticated && !prevAuthenticatedRef.current;
+    prevAuthenticatedRef.current = isAuthenticated;
+    if (!justLoggedIn) return;
+    const intent = consumePendingAuthIntent();
+    if (intent === "wardrobe") {
+      activateWardrobeSpinta();
+      showToast("VAUTO Spinta aktyvuota — sveiki atvykę į mados kabinę!", "success");
+    } else if (intent === "pro") {
+      showToast("Prisijungta! Pro verslą galite aktyvuoti profilio skydelyje.", "info");
+    }
+  }, [
+    isAuthenticated,
+    authHydrated,
+    consumePendingAuthIntent,
+    activateWardrobeSpinta,
+    showToast,
+  ]);
 
   const clearToast = useCallback(() => setToast(null), []);
 

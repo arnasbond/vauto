@@ -127,6 +127,20 @@ export async function ensureUser(id: string): Promise<void> {
   );
 }
 
+/** Persist avatar URL — returns row after write for audit logging. */
+export async function updateUserAvatar(
+  userId: string,
+  avatarUrl: string
+): Promise<ApiUser | null> {
+  await query(
+    `UPDATE users SET avatar_url = $2, updated_at = now() WHERE id = $1`,
+    [userId, avatarUrl]
+  );
+  const updatedUser = await getUser(userId);
+  console.log("REAL_DB_WRITE:", updatedUser);
+  return updatedUser;
+}
+
 export async function upsertUser(user: ApiUser): Promise<void> {
   await query(
     `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,

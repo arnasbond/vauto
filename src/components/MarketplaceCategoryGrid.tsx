@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   BriefcaseBusiness,
   Car,
@@ -35,8 +36,13 @@ const ICONS: Record<ListingCategory, typeof Car> = {
 };
 
 export function MarketplaceCategoryGrid() {
-  const { setSearchQuery, setMarketplaceFilters, setAgentPinnedListings } =
-    useVauto();
+  const router = useRouter();
+  const {
+    isAuthenticated,
+    setSearchQuery,
+    setMarketplaceFilters,
+    setAgentPinnedListings,
+  } = useVauto();
   const [expandedId, setExpandedId] = useState<ListingCategory | null>(null);
 
   const applyBrowse = (
@@ -60,7 +66,11 @@ export function MarketplaceCategoryGrid() {
     });
   };
 
-  const toggleCategory = (cat: MarketplaceCategoryDef) => {
+  const handleCategoryClick = (cat: MarketplaceCategoryDef) => {
+    if (!isAuthenticated && cat.id === "clothing") {
+      router.push("/fashion/");
+      return;
+    }
     setExpandedId((prev) => (prev === cat.id ? null : cat.id));
   };
 
@@ -83,7 +93,7 @@ export function MarketplaceCategoryGrid() {
             <button
               key={cat.id}
               type="button"
-              onClick={() => toggleCategory(cat)}
+              onClick={() => handleCategoryClick(cat)}
               className={`group flex flex-col items-center gap-1.5 rounded-xl p-2 text-center transition ${
                 expanded
                   ? "bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] ring-2 ring-[var(--vauto-primary)]"

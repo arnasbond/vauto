@@ -31,7 +31,6 @@ import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
-import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import {
   isConversationalSearchIntent,
@@ -187,9 +186,9 @@ export function SearchBar({
         setDraftQuery(q);
         setSearchQuery("");
         setAgentOpen(true);
-        void sendAgentMessage(q).then((res) => {
+        void sendAgentMessage(q, { fromVoice: Boolean(opts?.voice) }).then((res) => {
           if (res.ok && res.reply && opts?.voice) {
-            speakBuddyMessage(res.reply, { enabled: true });
+            speakBuddyMessage(res.reply, { enabled: true, force: true });
           }
         });
         return;
@@ -213,7 +212,7 @@ export function SearchBar({
           setDraftQuery(q);
           setSearchQuery(q);
           if (opts?.voice && handled.reply) {
-            speakBuddyMessage(handled.reply, { enabled: true });
+            speakBuddyMessage(handled.reply, { enabled: true, force: true });
           }
           scrollToResults();
           return;
@@ -294,18 +293,17 @@ export function SearchBar({
 
       const session = startVoiceSearch({
         silenceMs: 2_000,
-        stopOnFinal: false,
-        onInterim: (text) => {
-          const clean = sanitizeSpeechTranscript(text);
-          if (clean) setVoiceCaption(clean);
+        onInterim: (preview) => {
+          if (preview) setVoiceCaption(preview);
         },
       });
       voiceSessionRef.current = session;
       void session.promise
         .then((text) => {
-          const clean = sanitizeSpeechTranscript(text ?? "");
-          if (!clean) return;
-          return commitSearch(clean, { voice: true });
+          setVoiceCaption("");
+          if (!text) return;
+          setDraftQuery(text);
+          return commitSearch(text, { voice: true });
         })
         .finally(() => {
           setRecording(false);

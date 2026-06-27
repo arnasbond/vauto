@@ -40,6 +40,7 @@ import {
   upsertChat,
   upsertEscrow,
   upsertUser,
+  updateUserAvatar,
   warnUser,
 } from "../repository.js";
 import { seedIfEmpty } from "../seed-runtime.js";
@@ -578,7 +579,32 @@ apiRouter.put("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
           soldCount: undefined,
         };
     await upsertUser({ ...user, id: req.params.id });
+    if (parsed.value.avatar) {
+      await updateUserAvatar(req.params.id, parsed.value.avatar);
+    }
     res.json({ ...user, id: req.params.id });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.patch("/users/:id/avatar", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    if (!canActForUser(req, req.params.id)) {
+      res.status(403).json({ error: "Forbidden" });
+      return;
+    }
+    const avatar = String(req.body?.avatar ?? "").trim();
+    if (!avatar || avatar.length > 1000) {
+      res.status(400).json({ error: "Invalid avatar URL" });
+      return;
+    }
+    const updatedUser = await updateUserAvatar(req.params.id, avatar);
+    if (!updatedUser) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(updatedUser);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
