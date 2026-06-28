@@ -600,7 +600,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "updateUIFilters",
     description:
-      "AI-Driven UI — tiesiogiai nustato paieškos tinklelio filtrus (kategorija, subkategorija, lokacija, dydis, būklė). PRIVALOMA VAUTO Spintos režime klaidingai ištartai balso įvestiai vietoj searchListings. Pvz. „rozni kedai" → category clothing, subcategory shoes.",
+      'AI-Driven UI — tiesiogiai nustato paieškos tinklelio filtrus (kategorija, subkategorija, lokacija, dydis, būklė). PRIVALOMA VAUTO Spintos režime klaidingai ištartai balso įvestiai vietoj searchListings. Pvz. rozni kedai → category clothing, subcategory shoes.',
     parameters: {
       type: "OBJECT",
       properties: {
@@ -623,7 +623,8 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         maxPrice: { type: "NUMBER" },
         label: {
           type: "STRING",
-          description: "Trumpas šiltas lietuviškas TTS atsakymas, pvz. „Supratau, filtruoju batelius Jolantos spintoje!"",
+          description:
+            "Trumpas šiltas lietuviškas TTS atsakymas, pvz. Supratau, filtruoju batelius Jolantos spintoje!",
         },
         activateWardrobe: { type: "BOOLEAN" },
         wardrobeMode: { type: "BOOLEAN" },
@@ -655,7 +656,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "createUserRequirement",
     description:
-      "No-Match Lead — sukuria pirkėjo pageidavimą DB, kai paieška/filtrai grąžina 0 rezultatų. Pasiūlyk: „Matau, kad šiuo metu tokios prekės neturime. Leisk man užfiksuoti tavo norą fone!\" PRIVALOMA prieš leidžiant vartotojui išeiti.",
+      'No-Match Lead — sukuria pirkėjo pageidavimą DB, kai paieška/filtrai grąžina 0 rezultatų. Pasiūlyk: Matau, kad šiuo metu tokios prekės neturime. Leisk man užfiksuoti tavo norą fone! PRIVALOMA prieš leidžiant vartotojui išeiti.',
     parameters: {
       type: "OBJECT",
       properties: {
