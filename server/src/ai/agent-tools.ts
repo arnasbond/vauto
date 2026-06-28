@@ -300,7 +300,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "create_listing_draft",
     description:
-      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI, ĮKELTI ar PASKELBTI prekę. PRIVALOMA vietoj searchListings pardavimo intencijai. Pvz. „Padėk parduoti suknelę\" → category=clothing, title=Suknelė. NEreikalauja kainos ar miesto.",
+      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI, ĮKELTI ar PASKELBTI prekę. Pvz. „noreciau parduoti volvo v70\" → category=vehicles, title=Volvo V70. PRIVALOMA vietoj searchListings pardavimo intencijai.",
     parameters: {
       type: "OBJECT",
       properties: {

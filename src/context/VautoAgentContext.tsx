@@ -68,6 +68,8 @@ export interface AgentSendOptions {
   pendingImageUrls?: string[];
   /** User input came from microphone in agent sheet or search bar */
   fromVoice?: boolean;
+  /** Submitted from main SearchBar — Gemini must route via function calling */
+  fromSearchBar?: boolean;
 }
 
 interface VautoAgentContextValue {
@@ -109,6 +111,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     marketplaceFilters,
     clearVisualSearch,
     toggleSave,
+    aiDraft,
+    sellerStep,
   } = useVauto();
   const pathname = usePathname();
   const { navigateTo } = useNavigation();
@@ -141,6 +145,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }),
     [pathname, zeroUiScreen, listings, user.id]
   );
+
+  const sellerWizardContext = useMemo(() => {
+    if (!aiDraft || sellerStep === "idle") return {};
+    return {
+      wizardMode: "listing_review" as const,
+      listingDraft: {
+        title: aiDraft.title,
+        description: aiDraft.description,
+        price: aiDraft.price,
+        location: aiDraft.location,
+        category: aiDraft.category,
+        attributes: aiDraft.attributes as Record<string, string> | undefined,
+      },
+    };
+  }, [aiDraft, sellerStep]);
 
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<AgentChatMessage[]>(() => [
@@ -485,6 +504,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
           context: {
             ...memoryContext,
+            ...sellerWizardContext,
             activeSearchFilters: searchSessionReset
               ? resetFilters
               : memoryContext.activeSearchFilters,
@@ -508,6 +528,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             lastSearchQuery: searchQuery.trim() || undefined,
             currentView: zeroUiScreen,
             fromVoice: voiceReply,
+            fromSearchBar: options?.fromSearchBar,
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
@@ -604,6 +625,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setMarketplaceFilters,
       searchVoiceMode,
       searchInputMode,
+      aiDraft,
+      sellerStep,
+      sellerWizardContext,
     ]
   );
 

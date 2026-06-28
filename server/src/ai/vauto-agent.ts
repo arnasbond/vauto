@@ -104,6 +104,7 @@ export interface VautoAgentRequest {
       walletBalance?: number;
     };
     fromVoice?: boolean;
+    fromSearchBar?: boolean;
   };
   /** Set by route from JWT — used for DB writes (mark sold, etc.) */
   authUserId?: string;
@@ -316,6 +317,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   }
 
   const wizardBits: string[] = [];
+  if (req.context.fromSearchBar) {
+    wizardBits.push("fromSearchBar=true");
+  }
   if (req.context.wizardMode) wizardBits.push(`wizardMode=${req.context.wizardMode}`);
   if (req.context.isAuthenticated === false) wizardBits.push("isAuthenticated=false");
   if (req.context.missingFields?.length) {

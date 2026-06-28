@@ -140,20 +140,20 @@ export function SearchBar({
         return;
       }
 
-      // Mazgas 1→2: švarus tekstas tiesiai į Gemini (intencija per Function Calling)
+      // Mazgas 1→2: tekstas į Gemini — tinklelis NEfiltruojamas iki atsakymo
       const routeThroughAgent = (voice: boolean) => {
         setSearchInputMode(voice ? "voice" : "text");
         if (voice) setSearchVoiceMode(true);
         setDraftQuery(q);
-        setSearchQuery(q);
+        setSearchQuery("");
+        setAgentPinnedListings(null);
         setAgentOpen(true);
         setSearchLoading(true);
-        void sendAgentMessage(q, { fromVoice: voice })
+        void sendAgentMessage(q, { fromVoice: voice, fromSearchBar: true })
           .then((res) => {
             if (res.ok && res.reply && voice) {
               speakBuddyMessage(res.reply, { enabled: true, force: true });
             }
-            scrollToResults();
           })
           .finally(() => setSearchLoading(false));
       };

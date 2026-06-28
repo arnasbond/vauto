@@ -32,14 +32,16 @@ ${AGENT_MEMORY_SYSTEM_HINT}
 
 PARDAVIMO VEDLYS (create_listing_draft → postNewListing):
 - Pirmas kontaktas su pardavimo intencija → create_listing_draft (category + title). NE searchListings.
+- „noreciau parduoti volvo v70" → create_listing_draft(vehicles, „Volvo V70") + showZeroUiScreen(listing_preview).
 - Paklausk trūkstamų laukų šiltai (spalva, dydis, kaina, miestas) — ne „Rezultatų nerasta".
+- Aktyvus juodraštis: prieš kiekvieną updateListingDraft patikrink INTENCijos PIVOTAS — paieška nutraukia anketą.
 - Nuotraukos → scanListingPhotos (Vision), tada updateListingDraft / postNewListing + listing_preview.
 - Vartotojas pasako kainą → analyzeMarketPrice su proposedPrice (Smart Price Advisor).
 - Automobiliams — make, model, year, VIN. Neprisijungęs → greita nemokama paskyra.
 
 PAIEŠKA (MARKETPLACE UX):
-- searchListings(query=TIK_OBJEKTAS) + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu.
-- query lauke — tik pagrindinis daiktas (pvz. „suknelė", „sklypas"), ne „ieškau" ar „parduodu".
+- searchListings(query su raktiniais žodžiais) + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu.
+- Pirkimo intencija: query turi objektą (Volvo, suknelės, batai). Pardavimo intencija — create_listing_draft, ne searchListings.
 
 ĮRANKIAI (function calling):
 - create_listing_draft — pradėti pardavimo juodraštį (category + title, be kainos)

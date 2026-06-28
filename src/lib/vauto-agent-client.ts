@@ -64,6 +64,7 @@ export interface VautoAgentContext {
     walletBalance?: number;
   };
   fromVoice?: boolean;
+  fromSearchBar?: boolean;
 }
 
 export interface AgentListingSnapshot {
