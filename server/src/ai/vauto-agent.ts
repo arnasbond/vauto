@@ -121,8 +121,34 @@ export interface VautoAgentResponse {
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
 
-const STATE_SEARCH_REPLY = "Atidarau skelbimus ekrane.";
-const STATE_EMPTY_SEARCH_REPLY = "Rezultatų nerasta.";
+const STATE_SEARCH_REPLY = "Radau variantus — pasižiūrėkim ekrane!";
+
+function humanizeSearchItem(searchQuery: string): string {
+  const q = searchQuery.trim().toLowerCase();
+  if (/bat|aul|bas/.test(q)) return "tokių batelių";
+  if (/sukn|dress/.test(q)) return "tokių suknelių";
+  if (/ked|bat/.test(q)) return "tokių batų ar kedų";
+  if (/džins|keln|jean/.test(q)) return "tokių džinsų";
+  if (/pal|stri|megz/.test(q)) return "tokių drabužių";
+  const first = q.split(/\s+/).find((w) => w.length >= 3);
+  return first ? `tokių „${first}"` : "tokių prekių";
+}
+
+function buildEmptySearchReply(searchQuery?: string): string {
+  const item = humanizeSearchItem(searchQuery ?? "");
+  return `Šiuo metu ${item} turguje neturime, bet galiu užfiksuoti jūsų norą ir pranešti, kai kas nors juos įkels. Norite, kad užsiregistruočiau paiešką?`;
+}
+
+function isGenericEmptySearchReply(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return (
+    !t ||
+    t === "rezultatų nerasta." ||
+    t === "rezultatų nerasta" ||
+    t === "nerasta atitinkančių skelbimų." ||
+    t.startsWith("nerasta ")
+  );
+}
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 const MAX_TOOL_ROUNDS = 5;
@@ -548,10 +574,28 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     !hasListingDraftAction &&
     (searchToolCall || searchSideEffect || emptySearchSideEffect)
   ) {
-    finalText =
-      searchToolCount > 0 || searchSideEffect
-        ? STATE_SEARCH_REPLY
-        : STATE_EMPTY_SEARCH_REPLY;
+    const emptyQuery =
+      emptySearchSideEffect?.searchQuery ??
+      (searchToolCall?.result &&
+      typeof searchToolCall.result === "object" &&
+      "filters" in searchToolCall.result
+        ? String(
+            (searchToolCall.result as { filters?: { query?: string } }).filters
+              ?.query ?? ""
+          )
+        : "");
+
+    if (searchToolCount > 0 || searchSideEffect) {
+      finalText =
+        finalText.trim() && !isGenericEmptySearchReply(finalText)
+          ? finalText
+          : STATE_SEARCH_REPLY;
+    } else {
+      finalText =
+        finalText.trim() && !isGenericEmptySearchReply(finalText)
+          ? finalText
+          : buildEmptySearchReply(emptyQuery);
+    }
   }
 
   if (!finalText) {

@@ -1,4 +1,7 @@
-import { handleSpeechRecognitionResult } from "@/lib/speech-transcript";
+import {
+  handleSpeechRecognitionResult,
+  teardownSpeechRecognition,
+} from "@/lib/speech-transcript";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -18,6 +21,7 @@ type SpeechRecognitionCtor = new () => {
   onend: (() => void) | null;
   start: () => void;
   stop: () => void;
+  abort: () => void;
 };
 
 function getSpeechRecognition(): SpeechRecognitionCtor | null {
@@ -52,10 +56,16 @@ export function startLiveTranscript(
     handleSpeechRecognitionResult(event, {
       setInputValue: onUpdate,
       setInterimCaption: onUpdate,
+      onFinalTranscript: () => {
+        onUpdate("");
+        teardownSpeechRecognition(rec);
+      },
     });
   };
 
-  rec.onerror = () => {};
+  rec.onerror = () => {
+    teardownSpeechRecognition(rec);
+  };
   rec.onend = () => {};
 
   try {
@@ -65,10 +75,6 @@ export function startLiveTranscript(
   }
 
   return () => {
-    try {
-      rec.stop();
-    } catch {
-      /* ignore */
-    }
+    teardownSpeechRecognition(rec);
   };
 }

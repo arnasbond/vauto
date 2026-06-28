@@ -12,6 +12,27 @@ export interface SpeechRecognitionHandlers {
   setInputValue?: (text: string) => void;
   /** Live caption while user is still speaking (interim hypothesis). */
   setInterimCaption?: (text: string) => void;
+  /** Fired once per final slot — consumer should stop/abort recognition immediately. */
+  onFinalTranscript?: (text: string) => void;
+}
+
+export interface SpeechRecognitionHandle {
+  abort?: () => void;
+  stop?: () => void;
+}
+
+/** Hard-stop Web Speech session — prevents duplicate finals on mobile WebView/APK. */
+export function teardownSpeechRecognition(rec: SpeechRecognitionHandle | null): void {
+  if (!rec) return;
+  try {
+    rec.abort?.();
+  } catch {
+    try {
+      rec.stop?.();
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /** Mazgas 1: tik paskutinis STT slot — be lipdymo, be regex filtrų. */
@@ -28,7 +49,9 @@ export function handleSpeechRecognitionResult(
   const isFinal = Boolean(event.results[lastResultIndex]?.isFinal);
 
   if (isFinal) {
+    handlers.setInterimCaption?.("");
     handlers.setInputValue?.(text);
+    handlers.onFinalTranscript?.(text);
   } else {
     handlers.setInterimCaption?.(text);
   }

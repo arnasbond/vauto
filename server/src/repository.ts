@@ -267,18 +267,40 @@ function listingHaystack(listing: ApiListing): string {
     .toLowerCase();
 }
 
+function listingSecondaryHaystack(listing: ApiListing): string {
+  return [
+    listing.title,
+    listing.description ?? "",
+    ...(listing.tags ?? []),
+    JSON.stringify(listing.attributes ?? {}),
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
 function listingMatchesSqlTokens(listing: ApiListing, tokens: string[]): boolean {
   if (!tokens.length) return false;
   const { primary, secondary } = splitSearchTokens(tokens);
   const titleLower = listing.title.toLowerCase();
-  const haystack = listingHaystack(listing);
+  const haystack = listingSecondaryHaystack(listing);
 
   if (primary.length) {
     if (!primary.every((t) => titleLower.includes(t))) return false;
     return secondary.every((t) => haystack.includes(t));
   }
 
-  return tokens.every((t) => haystack.includes(t));
+  return tokens.every((t) => listingHaystack(listing).includes(t));
+}
+
+function rankByCategoryPreference(
+  rows: ApiListing[],
+  category?: string
+): ApiListing[] {
+  if (!category?.trim()) return rows;
+  const cat = category.trim();
+  const inCat = rows.filter((l) => l.category === cat);
+  const rest = rows.filter((l) => l.category !== cat);
+  return inCat.length ? [...inCat, ...rest] : rows;
 }
 
 /** SQL ILIKE pagal Gemini query — niekada negrąžina viso katalogo su query. */
@@ -297,7 +319,10 @@ export async function searchListingsFiltered(
   const values: unknown[] = [];
   let idx = 1;
 
-  if (params.category) {
+  const { primary, secondary } = splitSearchTokens(tokens);
+  const softCategoryOnly = Boolean(params.category && primary.length > 0);
+
+  if (params.category && !softCategoryOnly) {
     conditions.push(`category = $${idx++}`);
     values.push(params.category);
   }
@@ -313,7 +338,6 @@ export async function searchListingsFiltered(
     conditions.push(`LOWER(location) LIKE $${idx++}`);
     values.push(`%${cityNorm}%`);
   }
-  const { primary, secondary } = splitSearchTokens(tokens);
 
   for (const token of primary) {
     conditions.push(`LOWER(title) LIKE $${idx++}`);
@@ -324,7 +348,6 @@ export async function searchListingsFiltered(
     conditions.push(`(
       LOWER(title) LIKE $${idx} OR
       LOWER(COALESCE(description, '')) LIKE $${idx} OR
-      LOWER(category) LIKE $${idx} OR
       COALESCE(tags::text, '[]') LIKE $${idx} OR
       LOWER(COALESCE(attributes::text, '')) LIKE $${idx}
     )`);
@@ -344,7 +367,9 @@ export async function searchListingsFiltered(
   } catch {
     rows = await getListings();
     rows = rows.filter((l) => l.status !== "sold" && !l.banned && l.price > 0);
-    if (params.category) rows = rows.filter((l) => l.category === params.category);
+    if (params.category && !softCategoryOnly) {
+      rows = rows.filter((l) => l.category === params.category);
+    }
     if (params.minPrice != null && !Number.isNaN(params.minPrice)) {
       rows = rows.filter((l) => l.price >= params.minPrice!);
     }
@@ -358,6 +383,9 @@ export async function searchListingsFiltered(
 
   if (queryText && tokens.length) {
     rows = rows.filter((l) => listingMatchesSqlTokens(l, tokens));
+    if (softCategoryOnly) {
+      rows = rankByCategoryPreference(rows, params.category);
+    }
   } else if (queryText && !tokens.length) {
     return [];
   }

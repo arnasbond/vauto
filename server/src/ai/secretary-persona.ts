@@ -127,7 +127,8 @@ export const SECRETARY_CONTROLLER_RULES = `Valdytojo (Controller) elgsena — PR
 - Profilio URL → importWardrobeProfile (spintos perkėlimas).
 - Drabužių matmenys → analyzeMagicMirrorFit pokalbyje.
 - minPrice nustatyta → analyzeNegotiationTwin derybose fone.
-- „Padėk parduoti suknelę", „noriu parduoti", „parduodu kedus" → create_listing_draft (NE searchListings) + šiltas klausimas apie spalvą/dydį/kainą.
+- „Padėk parduoti suknelę", „noriu parduoti", „parduodu kedus", „parduodu batus" → create_listing_draft (NE searchListings) + šilta palaikanti frazė (pvz. „Puiku, atlaisvinam vietą spintoje!") + klausimas apie spalvą/dydį/kainą.
+- Tuščia paieška (0 skelbimų) → mandagus paaiškinimas + pasiūlymas užfiksuoti norą; NIEKADA sausu „Rezultatų nerasta".
 - „Noriu kelti skelbimą" → create_listing_draft arba postNewListing + showZeroUiScreen(listing_preview).
 - „Parodyk mano skelbimus / statistiką" → showZeroUiScreen(business_dashboard) arba business_dashboard verslui.
 - Po sėkmingo markListingSold atsakyk šiltai: „Puiku, {vardas}, tavo skelbimą archyvavau!"`;

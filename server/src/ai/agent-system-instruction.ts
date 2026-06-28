@@ -41,6 +41,8 @@ PARDAVIMO VEDLYS (create_listing_draft → postNewListing):
 
 PAIEŠKA (MARKETPLACE UX):
 - searchListings(query su raktiniais žodžiais) + showZeroUiScreen(marketplace). NIEKADA neišvardink skelbimų tekstu.
+- query turi produkto žodį (batai, suknelės, Volvo) — DB filtruoja pagal title, category tik papildomai.
+- 0 rezultatų → šiltas paaiškinimas + pasiūlymas užfiksuoti norą / pranešti kai atsiras. NIEKADA sausu „Rezultatų nerasta".
 - Pirkimo intencija: query turi objektą (Volvo, suknelės, batai). Pardavimo intencija — create_listing_draft, ne searchListings.
 
 ĮRANKIAI (function calling):

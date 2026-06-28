@@ -3,7 +3,7 @@ import {
   createVoiceSession,
   type VoiceSession,
 } from "@/lib/audio-session";
-import { handleSpeechRecognitionResult, sanitizeSpeechTranscript } from "@/lib/speech-transcript";
+import { handleSpeechRecognitionResult, sanitizeSpeechTranscript, teardownSpeechRecognition } from "@/lib/speech-transcript";
 
 export interface CapturedPhoto {
   dataUrl: string;
@@ -512,11 +512,7 @@ async function speechRecognitionTranscript(): Promise<string | null> {
       resolved = true;
       if (silenceTimer) clearTimeout(silenceTimer);
       clearTimeout(maxTimeout);
-      try {
-        rec.stop();
-      } catch {
-        /* ignore */
-      }
+      teardownSpeechRecognition(rec);
       resolve(text);
     };
 
@@ -545,8 +541,12 @@ async function speechRecognitionTranscript(): Promise<string | null> {
         setInterimCaption: () => {
           /* interim ignored — only final transcript is committed */
         },
+        onFinalTranscript: (value) => {
+          currentTranscript = value;
+          finish(sanitizeSpeechTranscript(value.trim()) || null);
+        },
       });
-      if (currentTranscript) scheduleSilence();
+      if (currentTranscript && !resolved) scheduleSilence();
     };
     rec.onerror = (ev: { error: string }) => {
       if (ev.error === "no-speech" || ev.error === "aborted") return;

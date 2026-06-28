@@ -1,4 +1,12 @@
 /** Opening follow-up after create_listing_draft — warm wizard tone, not empty-search. */
+function clothingWarmOpener(title: string): string {
+  const lower = title.toLowerCase();
+  if (/bat|aul|bas|ked|sukn|mar|keln|pal|stri|megz|kost/.test(lower)) {
+    return "Puiku, atlaisvinam vietą spintoje! Padėsiu paruošti skelbimą";
+  }
+  return "Puiku! Padėsiu paruošti skelbimą";
+}
+
 export function buildCreateListingDraftFollowUp(
   category: string,
   title: string,
@@ -14,12 +22,13 @@ export function buildCreateListingDraftFollowUp(
         : item;
 
   if (category === "clothing") {
+    const opener = clothingWarmOpener(item);
     const hasColor = Boolean(attributes.color?.trim());
     const hasSize = Boolean(attributes.size?.trim() || attributes.clothingSize?.trim());
     if (hasColor && hasSize) {
-      return `Supratau, pradedam ${genitive} skelbimo kūrimą! Kokia būtų kaina?`;
+      return `${opener} — kokia būtų kaina?`;
     }
-    return `Supratau, pradedam ${genitive} skelbimo kūrimą! Kokios spalvos ar dydžio ji yra?`;
+    return `${opener} — kokios spalvos ar dydžio?`;
   }
 
   if (category === "vehicles") {

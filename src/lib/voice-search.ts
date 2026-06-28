@@ -1,6 +1,7 @@
 import {
   handleSpeechRecognitionResult,
   sanitizeSpeechTranscript,
+  teardownSpeechRecognition,
 } from "@/lib/speech-transcript";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
 
@@ -148,12 +149,9 @@ export function startVoiceSearch(
         if (resolved) return;
         resolved = true;
         clearTimers();
-        try {
-          rec?.abort();
-        } catch {
-          /* ignore */
-        }
+        teardownSpeechRecognition(rec);
         rec = null;
+        onInterim?.("");
         resolve(text?.trim() ? sanitizeSpeechTranscript(text.trim()) : null);
       };
 
@@ -179,12 +177,9 @@ export function startVoiceSearch(
         if (resolved) return;
         stopping = true;
         clearTimers();
-        try {
-          rec?.abort();
-        } catch {
-          /* ignore */
-        }
+        teardownSpeechRecognition(rec);
         rec = null;
+        onInterim?.("");
         resolved = true;
         resolve(null);
       };
@@ -205,15 +200,20 @@ export function startVoiceSearch(
       };
 
       rec.onresult = (event) => {
-        handleSpeechRecognitionResult(event, {
+        const { isFinal, text } = handleSpeechRecognitionResult(event, {
           setInputValue: (value) => {
             committedFinal = value;
           },
           setInterimCaption: (value) => {
             onInterim?.(value);
           },
+          onFinalTranscript: (value) => {
+            committedFinal = value;
+            onInterim?.("");
+            requestStop();
+          },
         });
-        if (committedFinal.trim()) scheduleSilenceStop();
+        if (!isFinal && text.trim()) scheduleSilenceStop();
       };
 
       rec.onerror = (ev) => {
