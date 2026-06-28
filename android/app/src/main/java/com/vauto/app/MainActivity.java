@@ -5,11 +5,14 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
+import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
+import android.webkit.WebStorage;
 import android.webkit.WebView;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
@@ -20,6 +23,7 @@ public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "VautoMainActivity";
     private boolean jsBridgeAttached = false;
+    private boolean webViewColdStartDone = false;
 
     private static final String HOST_LOCALHOST = "localhost";
     private static final String HOST_VERCEL = "vauto-chi.vercel.app";
@@ -27,18 +31,33 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        getWindow()
+            .getDecorView()
+            .post(
+                () -> {
+                    if (webViewColdStartDone) return;
+                    Bridge bridge = getBridge();
+                    if (bridge == null) return;
+                    WebView webView = bridge.getWebView();
+                    if (webView == null) return;
+                    purgeWebViewCacheAndStorage(webView);
+                    configureWebView(webView, bridge);
+                    reloadFreshDocument(webView);
+                    webViewColdStartDone = true;
+                }
+            );
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        tuneWebViewForMedia();
+        ensureWebViewConfigured();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        tuneWebViewForMedia();
+        ensureWebViewConfigured();
     }
 
     @Override
@@ -55,16 +74,63 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private void tuneWebViewForMedia() {
+    private void ensureWebViewConfigured() {
         Bridge bridge = getBridge();
         if (bridge == null) return;
         WebView webView = bridge.getWebView();
         if (webView == null) return;
+        if (!webViewColdStartDone) return;
+        configureWebView(webView, bridge);
+    }
 
+    /** One-time cold start purge — drops stale JS bundles cached by WebView. */
+    private void purgeWebViewCacheAndStorage(WebView webView) {
+        try {
+            webView.clearCache(true);
+            webView.clearHistory();
+
+            WebSettings settings = webView.getSettings();
+            settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
+            settings.setMediaPlaybackRequiresUserGesture(false);
+
+            CookieManager cookieManager = CookieManager.getInstance();
+            cookieManager.setAcceptCookie(true);
+            cookieManager.removeAllCookies(
+                (ValueCallback<Boolean>) cleared -> {
+                    cookieManager.flush();
+                    Log.i(TAG, "WebView cookies cleared on cold start: " + cleared);
+                }
+            );
+            WebStorage.getInstance().deleteAllData();
+
+            Log.i(TAG, "WebView cache + storage purged on cold start");
+        } catch (Exception e) {
+            Log.w(TAG, "WebView cache purge failed", e);
+        }
+    }
+
+    /** Force main document reload with cache-buster after purge. */
+    private void reloadFreshDocument(WebView webView) {
+        try {
+            String url = webView.getUrl();
+            if (url == null || url.isEmpty()) {
+                url = "https://" + HOST_LOCALHOST + "/";
+            }
+            if (url.contains("_vc=")) return;
+            String sep = url.contains("?") ? "&" : "?";
+            String freshUrl = url + sep + "_vc=" + System.currentTimeMillis();
+            Log.i(TAG, "Reloading fresh document: " + freshUrl);
+            webView.loadUrl(freshUrl);
+        } catch (Exception e) {
+            Log.w(TAG, "Fresh document reload failed", e);
+        }
+    }
+
+    private void configureWebView(WebView webView, Bridge bridge) {
         WebSettings settings = webView.getSettings();
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
-        settings.setCacheMode(WebSettings.LOAD_DEFAULT);
+        settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
         settings.setOffscreenPreRaster(false);
         settings.setMediaPlaybackRequiresUserGesture(false);
 
