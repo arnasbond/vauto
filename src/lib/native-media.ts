@@ -351,8 +351,19 @@ async function pickFilesAsDataUrls(
   return captured.filter((x): x is CapturedPhoto => x !== null);
 }
 
+/** True on phones/tablets where HTML capture="environment" is meaningful. */
+export function isMobilePhotoCaptureDevice(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Android|iPhone|iPad|iPod|Mobile|webOS|BlackBerry/i.test(
+    navigator.userAgent
+  );
+}
+
 /** Web: open rear camera inside the current tap gesture. */
 export async function pickCameraPhotoWeb(): Promise<CapturedPhoto | null> {
+  if (!isMobilePhotoCaptureDevice()) {
+    return pickFileInUserGesture();
+  }
   return pickFileInUserGesture("environment");
 }
 
@@ -398,7 +409,9 @@ function pickFileInUserGesture(
     });
 
     document.body.appendChild(input);
-    window.addEventListener("focus", onWindowFocus, { once: true });
+    if (!capture) {
+      window.addEventListener("focus", onWindowFocus, { once: true });
+    }
     input.click();
   });
 }

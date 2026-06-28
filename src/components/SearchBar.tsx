@@ -11,6 +11,10 @@ import {
   applyVisualPhotoSearchToGrid,
   runPhotoVisionSearch,
 } from "@/lib/photo-vision-search";
+import {
+  clearPhotoSearchSession,
+  persistPhotoSearchSession,
+} from "@/lib/photo-search-session";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
@@ -186,8 +190,14 @@ export function SearchBar({
     requestMediaConsent(() => setPhotoFlowOpen(true));
   };
 
-  const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
+  const handlePhotoFlowSubmit = async (
+    result: AiPhotoFlowResult
+  ): Promise<boolean> => {
     setIsPhotoSearching(true);
+    await persistPhotoSearchSession(
+      { dataUrl: result.photos[0]!, fileName: result.fileName },
+      result.extraContext
+    );
     try {
       const vision = await runPhotoVisionSearch(result.photos[0]!, {
         extraContext: result.extraContext || undefined,
@@ -196,11 +206,9 @@ export function SearchBar({
         wardrobeOnly: wardrobeSearchOnly,
       });
 
-      setPhotoFlowOpen(false);
-
       if (!vision || vision.confidence < 0.35 || !vision.keywords.trim()) {
         showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
-        return;
+        return false;
       }
 
       if (result.extraContext?.trim()) {
@@ -215,7 +223,9 @@ export function SearchBar({
             if (res.actions) syncGridFromAgentActions(res.actions);
           })
           .finally(() => setSearchLoading(false));
-        return;
+        clearPhotoSearchSession();
+        setPhotoFlowOpen(false);
+        return true;
       }
 
       const grid = applyVisualPhotoSearchToGrid(
@@ -239,7 +249,9 @@ export function SearchBar({
           "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
           "info"
         );
-        return;
+        clearPhotoSearchSession();
+        setPhotoFlowOpen(false);
+        return true;
       }
 
       const action = buildVisionSearchAgentAction(vision, grid.listingIds, {
@@ -269,8 +281,12 @@ export function SearchBar({
 
       showToast(grid.secretaryComment, "success");
       scrollToResults();
+      clearPhotoSearchSession();
+      setPhotoFlowOpen(false);
+      return true;
     } catch {
       showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
+      return false;
     } finally {
       setIsPhotoSearching(false);
     }

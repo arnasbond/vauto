@@ -1,17 +1,19 @@
 "use client";
 
-import { Camera, ImageIcon, Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState, type ReactNode } from "react";
+import { Loader2, Sparkles, Trash2, X } from "lucide-react";
+import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
-import { Capacitor } from "@capacitor/core";
-import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
+import { ImageSearchCapture } from "@/components/search/ImageSearch";
+import { PhotoSearchScanOverlay } from "@/components/search/PhotoSearchScanOverlay";
 import {
-  capturePhotoFromSource,
-  pickCameraPhotoWeb,
-  pickGalleryPhotoWeb,
   pickMultipleFromGallery,
   type CapturedPhoto,
 } from "@/lib/native-media";
+import {
+  loadPhotoSearchSession,
+  persistPhotoSearchSession,
+  sessionToCapturedPhoto,
+} from "@/lib/photo-search-session";
 
 export const MAX_AI_PHOTOS = 6;
 
@@ -26,39 +28,8 @@ interface AiPhotoFlowSheetProps {
   mode: "search" | "listing";
   prefillPhoto?: CapturedPhoto | null;
   onClose: () => void;
-  onSubmit: (result: AiPhotoFlowResult) => void | Promise<void>;
+  onSubmit: (result: AiPhotoFlowResult) => boolean | void | Promise<boolean | void>;
   busy?: boolean;
-}
-
-function PhotoSourceTile({
-  label,
-  icon,
-  onClick,
-  disabled,
-  variant = "primary",
-}: {
-  label: string;
-  icon: ReactNode;
-  onClick: () => void;
-  disabled?: boolean;
-  variant?: "primary" | "secondary";
-}) {
-  const primary =
-    variant === "primary"
-      ? "border-2 border-dashed border-[#00f2fe]/60 bg-[#1e293b] text-[#00f2fe] hover:bg-[#334155]"
-      : "border border-slate-600 bg-[#1e293b] text-slate-200 hover:bg-[#334155]";
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 transition disabled:opacity-50 ${primary}`}
-    >
-      {icon}
-      <span className="text-center text-xs font-semibold leading-tight">{label}</span>
-    </button>
-  );
 }
 
 export function AiPhotoFlowSheet({
@@ -71,7 +42,6 @@ export function AiPhotoFlowSheet({
 }: AiPhotoFlowSheetProps) {
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [extraContext, setExtraContext] = useState("");
-  const [sourceOpen, setSourceOpen] = useState(false);
   const [mounted, setMounted] = useState(false);
 
   const title =
@@ -82,15 +52,31 @@ export function AiPhotoFlowSheet({
   }, []);
 
   useEffect(() => {
-    if (open && prefillPhoto) {
+    if (!open) return;
+    if (prefillPhoto) {
       setPhotos([prefillPhoto]);
+      return;
     }
-  }, [open, prefillPhoto]);
+    if (mode === "search") {
+      const saved = loadPhotoSearchSession();
+      if (saved) {
+        setPhotos([sessionToCapturedPhoto(saved)]);
+        if (saved.extraContext) setExtraContext(saved.extraContext);
+      }
+    }
+  }, [open, prefillPhoto, mode]);
+
+  const syncSearchSession = useCallback(
+    (nextPhotos: CapturedPhoto[], context = extraContext) => {
+      if (mode !== "search" || !nextPhotos[0]) return;
+      void persistPhotoSearchSession(nextPhotos[0], context);
+    },
+    [mode, extraContext]
+  );
 
   const reset = useCallback(() => {
     setPhotos([]);
     setExtraContext("");
-    setSourceOpen(false);
   }, []);
 
   const handleClose = () => {
@@ -104,49 +90,23 @@ export function AiPhotoFlowSheet({
     setPhotos((prev) => {
       const room = MAX_AI_PHOTOS - prev.length;
       if (room <= 0) return prev;
-      return [...prev, ...incoming.slice(0, room)];
+      const next = [...prev, ...incoming.slice(0, room)];
+      syncSearchSession(next);
+      return next;
     });
   };
 
-  const applyCapturedPhoto = async (shot: CapturedPhoto) => {
+  const applyCapturedPhoto = (shot: CapturedPhoto) => {
     if (mode === "search") {
       setPhotos([shot]);
+      syncSearchSession([shot]);
       return;
     }
     addPhotos([shot]);
   };
 
-  /** Must not setState before opening camera — mobile browsers require sync gesture. */
-  const triggerCamera = () => {
+  const triggerListingGallery = () => {
     if (busy) return;
-    const pending = Capacitor.isNativePlatform()
-      ? capturePhotoFromSource("camera")
-      : pickCameraPhotoWeb();
-    void pending.then((shot) => {
-      if (shot) void applyCapturedPhoto(shot);
-    });
-  };
-
-  const triggerGallery = () => {
-    if (busy) return;
-    if (Capacitor.isNativePlatform()) {
-      void (async () => {
-        const remaining = MAX_AI_PHOTOS - photos.length;
-        const picked = await pickMultipleFromGallery(remaining);
-        if (mode === "search" && picked[0]) {
-          await applyCapturedPhoto(picked[0]);
-          return;
-        }
-        addPhotos(picked);
-      })();
-      return;
-    }
-    if (mode === "search") {
-      void pickGalleryPhotoWeb().then((shot) => {
-        if (shot) void applyCapturedPhoto(shot);
-      });
-      return;
-    }
     void (async () => {
       const remaining = MAX_AI_PHOTOS - photos.length;
       const picked = await pickMultipleFromGallery(remaining);
@@ -154,24 +114,33 @@ export function AiPhotoFlowSheet({
     })();
   };
 
-  const handleSourceSelect = (source: "camera" | "gallery") => {
-    if (source === "camera") triggerCamera();
-    else triggerGallery();
-    setSourceOpen(false);
+  const handleExtraContextChange = (value: string) => {
+    setExtraContext(value);
+    if (mode === "search" && photos[0]) {
+      void persistPhotoSearchSession(photos[0], value);
+    }
   };
 
   const removePhoto = (index: number) => {
-    setPhotos((prev) => prev.filter((_, i) => i !== index));
+    setPhotos((prev) => {
+      const next = prev.filter((_, i) => i !== index);
+      syncSearchSession(next);
+      return next;
+    });
   };
 
   const handleSubmit = async () => {
     if (!photos.length || busy) return;
-    await onSubmit({
+    const result = {
       photos: photos.map((p) => p.dataUrl),
       extraContext: extraContext.trim(),
       fileName: photos[0]?.fileName,
-    });
-    reset();
+    };
+    syncSearchSession(photos, extraContext.trim());
+    const ok = await onSubmit(result);
+    if (ok !== false) {
+      reset();
+    }
   };
 
   if (!open || !mounted) return null;
@@ -235,41 +204,38 @@ export function AiPhotoFlowSheet({
               </div>
             ))}
 
-            {showInlineSourcePickers && (
-              <>
-                <PhotoSourceTile
-                  label="Fotografuoti"
-                  icon={<Camera className="h-7 w-7" />}
-                  onClick={triggerCamera}
+            {showInlineSourcePickers &&
+              (mode === "search" ? (
+                <ImageSearchCapture
                   disabled={busy}
-                  variant="primary"
+                  onCapture={applyCapturedPhoto}
                 />
-                <PhotoSourceTile
-                  label="Galerija"
-                  icon={<ImageIcon className="h-6 w-6" />}
-                  onClick={triggerGallery}
-                  disabled={busy}
-                  variant="secondary"
-                />
-              </>
-            )}
+              ) : (
+                <>
+                  <ImageSearchCapture
+                    disabled={busy}
+                    onCapture={applyCapturedPhoto}
+                  />
+                  <button
+                    type="button"
+                    onClick={triggerListingGallery}
+                    disabled={busy}
+                    className="flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border border-slate-600 bg-[#1e293b] px-2 text-slate-200 transition hover:bg-[#334155] disabled:opacity-50"
+                  >
+                    <span className="text-center text-xs font-semibold leading-tight">
+                      Kelios iš galerijos
+                    </span>
+                  </button>
+                </>
+              ))}
           </div>
 
           {showSearchReplacePickers && (
             <div className="mt-3 grid grid-cols-2 gap-3">
-              <PhotoSourceTile
-                label="Fotografuoti iš naujo"
-                icon={<Camera className="h-6 w-6" />}
-                onClick={triggerCamera}
+              <ImageSearchCapture
                 disabled={busy}
-                variant="primary"
-              />
-              <PhotoSourceTile
-                label="Kita iš galerijos"
-                icon={<ImageIcon className="h-5 w-5" />}
-                onClick={triggerGallery}
-                disabled={busy}
-                variant="secondary"
+                onCapture={applyCapturedPhoto}
+                replaceMode
               />
             </div>
           )}
@@ -294,7 +260,7 @@ export function AiPhotoFlowSheet({
           </label>
           <textarea
             value={extraContext}
-            onChange={(e) => setExtraContext(e.target.value)}
+            onChange={(e) => handleExtraContextChange(e.target.value)}
             disabled={busy}
             rows={4}
             placeholder="Pvz.: prekės ženklas ir modelis, matmenys, būklė, kas įeina į komplektą."
@@ -319,11 +285,7 @@ export function AiPhotoFlowSheet({
         </div>
       </div>
 
-      <PhotoSourceSheet
-        open={sourceOpen}
-        onClose={() => setSourceOpen(false)}
-        onSelect={(source) => handleSourceSelect(source)}
-      />
+      <PhotoSearchScanOverlay active={busy} />
     </>
   );
 
