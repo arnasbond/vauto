@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
+import { Camera, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
@@ -11,16 +11,12 @@ import {
   applyVisualPhotoSearchToGrid,
   runPhotoVisionSearch,
 } from "@/lib/photo-vision-search";
-import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
-import { buildCurrentPageContext } from "@/lib/vauto-agent-client";
-import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
-import { applyVoiceUiCommand } from "@/lib/voice-ui-actions";
 import {
   parseViewModeIntent,
   isViewModeOnlyCommand,
@@ -29,26 +25,11 @@ import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
-import {
-  isVoiceSearchSupported,
-  startVoiceSearch,
-} from "@/lib/voice-search";
-import {
-  ensureSpeechVoicesReady,
-  lockSessionLocale,
-} from "@/lib/SpeechEngine";
-import {
-  stripLegacyCategorySuffixes,
-} from "@/lib/speech-transcript";
-import {
-  BRUTAL_VOICE_GREETING,
-  brutalHtml5Speak,
-  shouldForceLiveVoiceAssistant,
-} from "@/lib/brutal-voice-fallback";
+import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
-import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
+import { buildVisionSearchAgentAction } from "@/lib/vision-agent-bridge";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -65,7 +46,6 @@ export function SearchBar({
     searchQuery,
     setSearchQuery,
     requestMediaConsent,
-    setSearchVoiceMode,
     setSearchInputMode,
     applyVisualSearch,
     clearVisualSearch,
@@ -78,31 +58,21 @@ export function SearchBar({
     listings,
     setAgentPinnedListings,
     setViewMode,
-    setMarketplaceFilters,
     marketplaceFilters,
-    toggleSave,
   } = useVauto();
 
   const pathname = usePathname();
   const { trackEvent } = useUserBehavior();
-
   const { sendAgentMessage, busy: agentBusy, applyAgentActions } = useVautoAgent();
 
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
-  const [recording, setRecording] = useState(false);
-  const [voiceCaption, setVoiceCaption] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
-  const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
 
   useEffect(() => {
-    if (!recording) setDraftQuery(searchQuery);
-  }, [searchQuery, recording]);
-
-  useEffect(() => {
-    return () => voiceSessionRef.current?.cancel();
-  }, []);
+    setDraftQuery(searchQuery);
+  }, [searchQuery]);
 
   const activeTheme =
     sellerStep !== "idle"
@@ -110,12 +80,10 @@ export function SearchBar({
       : portalExperienceForQuery(searchQuery).theme;
   const ui = useMemo(() => getPortalUi(activeTheme), [activeTheme]);
 
-  const zeroUiActive =
-    agentBusy || searchLoading || isPhotoSearching || photoFlowOpen || recording;
+  const zeroUiActive = agentBusy || searchLoading || isPhotoSearching || photoFlowOpen;
 
   const wardrobeSearchOnly =
-    pathname === "/fashion" ||
-    pathname === "/fashion/";
+    pathname === "/fashion" || pathname === "/fashion/";
 
   const scrollToResults = () => {
     document
@@ -124,7 +92,7 @@ export function SearchBar({
   };
 
   const syncGridFromAgentActions = useCallback(
-    async (actions: VautoAgentAction | undefined, fromVoice?: boolean) => {
+    (actions: VautoAgentAction | undefined) => {
       if (!actions || actions.type === "none") return;
       applyAgentActions(actions);
       if (actions.type === "search") {
@@ -134,9 +102,7 @@ export function SearchBar({
         setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(0);
       } else if (actions.type === "apply_ui_filters") {
-        const q =
-          actions.query?.trim() ||
-          actions.filters?.query?.trim();
+        const q = actions.query?.trim() || actions.filters?.query?.trim();
         if (q) setDraftQuery(stripLegacyCategorySuffixes(q));
         focusSearchOutcome(0);
       } else if (actions.type === "navigate_to_screen") {
@@ -145,28 +111,23 @@ export function SearchBar({
         }
         focusSearchOutcome(0);
       }
-      if (fromVoice && isUiDrivingAgentAction(actions)) {
-        setSearchVoiceMode(false);
-        setSearchInputMode("text");
-        await completeVoiceTeardown();
-      }
     },
-    [applyAgentActions, setSearchInputMode, setSearchVoiceMode]
+    [applyAgentActions]
   );
 
   const commitSearch = useCallback(
-    async (raw: string, opts?: { voice?: boolean }) => {
+    async (raw: string) => {
       const q = stripLegacyCategorySuffixes(sanitizeSearchQuery(raw, "final"));
       if (!q) return;
 
       trackEvent("search_submit", {
         query: q,
-        voice: Boolean(opts?.voice),
+        voice: false,
         wardrobeMode: wardrobeSearchOnly,
         pathname: pathname ?? "/",
       });
 
-      setSearchInputMode(opts?.voice ? "voice" : "text");
+      setSearchInputMode("text");
       clearVisualSearch({ keepInputMode: true });
 
       const viewIntent = parseViewModeIntent(q);
@@ -180,80 +141,27 @@ export function SearchBar({
         return;
       }
 
-      // Mazgas 1→2→3: Gemini → applyActions → tinklelis
-      const routeThroughAgent = (voice: boolean) => {
-        setSearchInputMode(voice ? "voice" : "text");
-        if (voice) setSearchVoiceMode(true);
-        setDraftQuery(q);
-        setAgentPinnedListings(null);
-        clearVisualSearch({ keepInputMode: true });
-        setSearchLoading(true);
-        void sendAgentMessage(q, { fromVoice: voice, fromSearchBar: true })
-          .then(async (res) => {
-            if (res.actions) {
-              await syncGridFromAgentActions(res.actions, voice);
-            } else if (res.ok) {
-              scrollToResults();
-            }
-            if (res.ok && res.reply && voice) {
-              speakBuddyMessage(res.reply, { enabled: true, force: true });
-            }
-          })
-          .finally(() => setSearchLoading(false));
-      };
-
-      if (shouldForceLiveVoiceAssistant(q, opts?.voice)) {
-        clearVisualSearch({ keepInputMode: true });
-        setAgentPinnedListings(null);
-        brutalHtml5Speak(BRUTAL_VOICE_GREETING);
-        routeThroughAgent(true);
-        return;
-      }
-
-      const pageContext = buildCurrentPageContext({
-        pathname: pathname ?? "/",
-        listings,
-        sellerId: user.id,
-      });
-      const voiceCmd = opts?.voice ? parseVoiceUiCommand(q) : { type: "none" as const };
-      if (voiceCmd.type !== "none") {
-        const handled = applyVoiceUiCommand(voiceCmd, {
-          activeListingId: pageContext.active_listing_id,
-          marketplaceFilters,
-          setMarketplaceFilters,
-          toggleSave,
-          showToast,
-        });
-        if (handled.handled) {
-          setDraftQuery(q);
-          setSearchQuery(q);
-          if (opts?.voice && handled.reply) {
-            speakBuddyMessage(handled.reply, { enabled: true, force: true });
-          }
-          scrollToResults();
-          return;
-        }
-      }
-
-      routeThroughAgent(Boolean(opts?.voice));
+      setDraftQuery(q);
+      setAgentPinnedListings(null);
+      clearVisualSearch({ keepInputMode: true });
+      setSearchLoading(true);
+      void sendAgentMessage(q, { fromSearchBar: true })
+        .then((res) => {
+          if (res.actions) syncGridFromAgentActions(res.actions);
+          else if (res.ok) scrollToResults();
+        })
+        .finally(() => setSearchLoading(false));
     },
     [
       clearVisualSearch,
-      listings,
-      marketplaceFilters,
       setAgentPinnedListings,
-      setMarketplaceFilters,
       setSearchInputMode,
       setSearchQuery,
       setSearchLoading,
-      setSearchVoiceMode,
       setViewMode,
       sendAgentMessage,
       syncGridFromAgentActions,
-      toggleSave,
       pathname,
-      showToast,
-      user.id,
       trackEvent,
       wardrobeSearchOnly,
     ]
@@ -273,66 +181,8 @@ export function SearchBar({
     inputRef.current?.blur();
   };
 
-  const handleVoiceSearch = () => {
-    if (recording) {
-      voiceSessionRef.current?.stop();
-      return;
-    }
-    if (!isVoiceSearchSupported()) {
-      showToast("Balso paieška nepalaikoma šiame įrenginyje.", "info");
-      return;
-    }
-    if (agentBusy || searchLoading || isPhotoSearching) return;
-
-    requestMediaConsent(() => {
-      lockSessionLocale("lt-LT");
-      void ensureSpeechVoicesReady();
-      setRecording(true);
-      setVoiceCaption("");
-      setDraftQuery("");
-      setSearchQuery("");
-      setSearchVoiceMode(true);
-      setSearchInputMode("voice");
-      clearVisualSearch({ keepInputMode: true });
-
-      const session = startVoiceSearch({
-        onStart: () => {
-          setDraftQuery("");
-          setVoiceCaption("");
-        },
-        onInterim: (preview) => {
-          setVoiceCaption(preview.trim());
-        },
-      });
-      voiceSessionRef.current = session;
-      void session.promise
-        .then((text) => {
-          setVoiceCaption("");
-          if (!text) return;
-          const clean = stripLegacyCategorySuffixes(text);
-          setDraftQuery(clean);
-          return commitSearch(clean, { voice: true });
-        })
-        .finally(() => {
-          setRecording(false);
-          voiceSessionRef.current = null;
-          setVoiceCaption("");
-        });
-    });
-  };
-
-  const routeToGeminiAgent = (text: string, photoUrls?: string[]) => {
-    const q = sanitizeSearchQuery(text, "final");
-    if (!q) return;
-    setDraftQuery(q);
-    setSearchQuery(q);
-    void sendAgentMessage(q, {
-      pendingImageUrls: photoUrls?.filter(Boolean).slice(0, 6),
-    });
-  };
-
   const handlePhotoSearch = () => {
-    if (isPhotoSearching || photoFlowOpen || recording) return;
+    if (isPhotoSearching || photoFlowOpen) return;
     requestMediaConsent(() => setPhotoFlowOpen(true));
   };
 
@@ -355,8 +205,16 @@ export function SearchBar({
 
       if (result.extraContext?.trim()) {
         setSearchInputMode("photo");
-        setSearchVoiceMode(false);
-        routeToGeminiAgent(result.extraContext.trim(), result.photos);
+        setDraftQuery(result.extraContext.trim());
+        setSearchLoading(true);
+        void sendAgentMessage(result.extraContext.trim(), {
+          fromSearchBar: true,
+          pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6),
+        })
+          .then((res) => {
+            if (res.actions) syncGridFromAgentActions(res.actions);
+          })
+          .finally(() => setSearchLoading(false));
         return;
       }
 
@@ -369,12 +227,10 @@ export function SearchBar({
       );
 
       const itemLabel = vision.title ?? grid.searchQuery;
+      setSearchInputMode("photo");
 
       if (grid.listingIds.length === 0) {
-        setSearchInputMode("photo");
-        setSearchVoiceMode(false);
         setDraftQuery(itemLabel);
-        setAgentPinnedListings(null);
         void sendAgentMessage(
           `Nuotraukoje matau: ${itemLabel}. Šio daikto turguje neradau — ar norite jį įdėti pardavimui?`,
           { pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6) }
@@ -383,19 +239,17 @@ export function SearchBar({
           "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
           "info"
         );
-        speakBuddyMessage(
-          "Šio daikto turguje neradau. Ar norite jį įdėti pardavimui?",
-          { enabled: true }
-        );
         return;
       }
 
-      setSearchInputMode("photo");
-      setSearchVoiceMode(false);
+      const action = buildVisionSearchAgentAction(vision, grid.listingIds, {
+        wardrobeOnly: wardrobeSearchOnly,
+        label: grid.secretaryComment,
+      });
+      syncGridFromAgentActions(action);
+
       setDraftQuery(grid.searchQuery);
       setSearchQuery(grid.searchQuery);
-      setMarketplaceFilters(grid.filters);
-      setAgentPinnedListings(grid.listingIds.length ? grid.listingIds : null);
 
       void applyVisualSearch(
         buildVisualSearchProfile(
@@ -414,7 +268,6 @@ export function SearchBar({
       );
 
       showToast(grid.secretaryComment, "success");
-      speakBuddyMessage(grid.secretaryComment, { enabled: true });
       scrollToResults();
     } catch {
       showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
@@ -424,7 +277,6 @@ export function SearchBar({
   };
 
   const isHero = variant === "hero";
-  const inputValue = recording ? voiceCaption : draftQuery;
 
   return (
     <>
@@ -456,52 +308,34 @@ export function SearchBar({
           type="search"
           name="q"
           role="searchbox"
-          value={inputValue}
-          onChange={(e) => {
-            setVoiceCaption("");
-            setDraftQuery(e.target.value);
-          }}
+          value={draftQuery}
+          onChange={(e) => setDraftQuery(e.target.value)}
           placeholder={
             isHero
               ? "Pvz. Ieškau BMW 530d iki 20 000 €"
-              : "Paklauskite balsu arba tekstu — pvz. Volvo Panevėžyje"
+              : "Rašykite paiešką arba įkelkite nuotrauką…"
           }
           enterKeyHint="search"
           className={cn(
             "min-w-0 flex-1 border-none bg-transparent outline-none",
-            isHero ? "text-[15px]" : "text-sm text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)]"
+            isHero
+              ? "text-[15px]"
+              : "text-sm text-[var(--vauto-text-main,#111827)] caret-[var(--vauto-primary,#1167b1)] placeholder:text-[var(--vauto-text-muted,#9ca3af)]"
           )}
-          disabled={agentBusy || searchLoading || isPhotoSearching || recording}
+          disabled={agentBusy || searchLoading || isPhotoSearching}
           autoComplete="off"
         />
-
-        {isVoiceSearchSupported() && (
-          <button
-            type="button"
-            onClick={handleVoiceSearch}
-            disabled={agentBusy || searchLoading || isPhotoSearching}
-            className={cn(
-              "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary,#1167b1)] transition hover:bg-white/10 disabled:opacity-40",
-              isHero ? "h-11 w-11" : "h-10 w-10 rounded-lg hover:bg-[#eef6ff]",
-              recording && "animate-pulse bg-white/10"
-            )}
-            aria-label={recording ? "Sustabdyti balso paiešką" : "Paieška balsu"}
-            title={recording ? "Sustabdyti" : "Paieška balsu"}
-          >
-            <Mic className="h-5 w-5" fill={recording ? "currentColor" : "none"} />
-          </button>
-        )}
 
         <button
           type="button"
           onClick={handlePhotoSearch}
-          disabled={isPhotoSearching || photoFlowOpen || recording}
+          disabled={isPhotoSearching || photoFlowOpen}
           className={cn(
             "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary,#1167b1)] transition hover:bg-white/10 disabled:opacity-40",
             isHero ? "h-11 w-11" : "h-10 w-10 rounded-lg hover:bg-[#eef6ff]"
           )}
-          aria-label="Ieškoti ar analizuoti pagal nuotrauką"
-          title="Nuotrauka — Vision AI"
+          aria-label="Vision AI paieška pagal nuotrauką"
+          title="Vision AI — nuotrauka"
         >
           {isPhotoSearching ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -514,9 +348,8 @@ export function SearchBar({
       {!isHero && (
         <>
           <p className="mt-2 text-center text-[11px] text-[#6b7280]">
-            🎤 balsas · 📷 nuotrauka — paieška ir analizė. Skelbimui įkelti naudokite + apačioje.
+            📷 Vision AI — nuotraukos paieška ir analizė. Tekstas — greitas Gemini chat.
           </p>
-
           <div className="mt-1.5 flex justify-center">
             <AiModeBadge compact />
           </div>

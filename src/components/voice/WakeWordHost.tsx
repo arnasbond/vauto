@@ -1,24 +1,11 @@
 "use client";
 
 import { useEffect } from "react";
-import { useVauto } from "@/context/VautoContext";
-import { WakeWordOverlay } from "@/components/voice/WakeWordOverlay";
 
-/** Global wake-word overlay + audio-first body class */
+/** Wake-word / voice STT disabled in v1.2 — text + Vision AI only. */
 export function WakeWordHost() {
-  const { wakeWordPhase, wakeWordStatusText, wakeWordTranscript } = useVauto();
-
   useEffect(() => {
-    const active = wakeWordPhase === "active" || wakeWordPhase === "processing";
-    document.body.classList.toggle("vauto-audio-first", active);
-    return () => document.body.classList.remove("vauto-audio-first");
-  }, [wakeWordPhase]);
-
-  return (
-    <WakeWordOverlay
-      phase={wakeWordPhase}
-      statusText={wakeWordStatusText}
-      transcript={wakeWordTranscript}
-    />
-  );
+    document.body.classList.remove("vauto-audio-first");
+  }, []);
+  return null;
 }

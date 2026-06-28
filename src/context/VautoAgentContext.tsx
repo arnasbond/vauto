@@ -1,14 +1,13 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Loader2, Mic, Send, Sparkles, X } from "lucide-react";
+import { Loader2, Send, Sparkles, X } from "lucide-react";
 import {
   createContext,
   useCallback,
   useContext,
   useEffect,
   useMemo,
-  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -51,21 +50,20 @@ import {
   selectAgentSessionMessages,
   shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
-import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
-import { ensureSpeechVoicesReady, lockSessionLocale } from "@/lib/SpeechEngine";
-import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
-import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
-import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions";
-import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
-import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { mergeVoiceUiFilters } from "@/lib/voice-ui-actions";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import {
   buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
-  truncateVoiceReply,
 } from "@/lib/agent-reply-display";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
+import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
+import {
+  parseViewModeIntent,
+  isViewModeOnlyCommand,
+  mergeAgentIntoMarketplaceFilters,
+} from "@/lib/marketplace-view";
 import {
   apiCreateUserRequirement,
   type ProactiveOfferContext,
@@ -566,14 +564,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
       }
 
-      const voiceReply = Boolean(
-        options?.fromVoice || searchVoiceMode || searchInputMode === "voice"
-      );
-      const speakReply = (replyText: string) => {
-        const clean = sanitizeAgentReplyForDisplay(replyText.trim());
-        if (clean && voiceReply) {
-          speakBuddyMessage(truncateVoiceReply(clean), { enabled: true, force: true });
-        }
+      const voiceReply = false;
+      const speakReply = (_replyText: string) => {
+        /* v1.2 — text-only assistant, no TTS */
       };
 
       if (isTooShortAgentQuery(trimmed, { fromVoice: voiceReply })) {
@@ -656,28 +649,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               text: viewReply,
             },
           ]);
-          speakReply(viewReply);
           setBusy(false);
           return { ok: true, reply: "Vaizdas perjungtas." };
-        }
-      }
-
-      const voiceCmd = parseVoiceUiCommand(trimmed);
-      if (voiceCmd.type !== "none") {
-        const handled = applyVoiceUiCommand(voiceCmd, {
-          activeListingId: currentPageContext.active_listing_id,
-          marketplaceFilters,
-          setMarketplaceFilters,
-          toggleSave,
-          showToast,
-        });
-        if (handled.handled) {
-          const reply = handled.reply ?? "Atlikta.";
-          setMessages((prev) => [...prev, { role: "assistant", text: reply }]);
-          speakReply(reply);
-          setBusy(false);
-          touchAgentSessionActivity();
-          return { ok: true, reply };
         }
       }
 
@@ -860,11 +833,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     (text: string) => {
       const trimmed = text.trim();
       if (!trimmed) return;
-      setSearchInputMode("voice");
-      setSearchVoiceMode(true);
+      setSearchInputMode("text");
+      setSearchVoiceMode(false);
       setOpen(true);
       setMessages((prev) => [...prev, { role: "assistant", text: trimmed }]);
-      speakBuddyMessage(trimmed, { enabled: true });
     },
     [setSearchInputMode, setSearchVoiceMode]
   );
@@ -899,70 +871,9 @@ export function useVautoAgent(): VautoAgentContextValue {
 
 function VautoAgentSheet() {
   const { open, setOpen, messages, busy, sendAgentMessage } = useVautoAgent();
-  const { searchQuery, setSearchQuery, setSearchInputMode, setSearchVoiceMode } = useVauto();
+  const { searchQuery, setSearchQuery } = useVauto();
   const pathname = usePathname();
   const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
-  const [recording, setRecording] = useState(false);
-  const [voiceCaption, setVoiceCaption] = useState("");
-  const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
-  const lastVoiceDisplayRef = useRef("");
-
-  const resetVoiceSessionAfterSend = useCallback(async () => {
-    voiceSessionRef.current?.cancel();
-    voiceSessionRef.current = null;
-    setRecording(false);
-    setVoiceCaption("");
-    lastVoiceDisplayRef.current = "";
-    await recycleSpeechRecognitionEngine();
-  }, []);
-
-  useEffect(() => {
-    return () => voiceSessionRef.current?.cancel();
-  }, []);
-
-  const dispatchAgentMessage = useCallback(
-    async (text: string, options?: AgentSendOptions) => {
-      const clean = text.trim();
-      if (!clean) return { ok: false, error: "Tuščia užklausa" };
-      await resetVoiceSessionAfterSend();
-      return sendAgentMessage(clean, options);
-    },
-    [resetVoiceSessionAfterSend, sendAgentMessage]
-  );
-
-  const handleVoice = () => {
-    if (recording) {
-      voiceSessionRef.current?.stop();
-      return;
-    }
-    if (!isVoiceSearchSupported()) return;
-    lockSessionLocale("lt-LT");
-    void ensureSpeechVoicesReady();
-    setRecording(true);
-    setVoiceCaption("");
-    lastVoiceDisplayRef.current = "";
-    const session = startVoiceSearch({
-      onInterim: (preview) => {
-        const clean = preview.trim();
-        if (clean) setVoiceCaption(clean);
-        else setVoiceCaption("");
-      },
-    });
-    voiceSessionRef.current = session;
-    void session.promise.then(async (text) => {
-      setRecording(false);
-      voiceSessionRef.current = null;
-      const clean = (text ?? "").trim();
-      setVoiceCaption("");
-      if (!clean) return;
-      lastVoiceDisplayRef.current = clean;
-      setSearchInputMode("voice");
-      setSearchVoiceMode(true);
-      setOpen(true);
-      await resetVoiceSessionAfterSend();
-      void dispatchAgentMessage(clean, { skipBusyCheck: true, fromVoice: true });
-    });
-  };
 
   if (!open || onHome) return <VautoAgentFab />;
 
@@ -993,7 +904,7 @@ function VautoAgentSheet() {
         </header>
 
         <p className="shrink-0 border-b border-slate-700 bg-[#0f172a] px-4 py-2 text-center text-[11px] text-slate-400">
-          Tas pats laukas kaip paieškoje viršuje — tekstas sinchronizuojamas.
+          ChatGPT stiliaus tekstinis asistentas — paieška, derybos, skelbimai.
         </p>
 
         <div className="flex-1 overflow-y-auto bg-[#0a1128] px-4 py-4 pb-28">
@@ -1027,29 +938,13 @@ function VautoAgentSheet() {
             e.preventDefault();
             const t = searchQuery.trim();
             if (!t || busy) return;
-            void dispatchAgentMessage(t);
+            void sendAgentMessage(t);
           }}
         >
           <div className="mx-auto flex max-w-lg gap-2">
-            {isVoiceSearchSupported() && (
-              <button
-                type="button"
-                onClick={handleVoice}
-                disabled={busy}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-600 text-slate-300 disabled:opacity-40 ${
-                  recording ? "animate-pulse border-sky-400 text-sky-400" : ""
-                }`}
-                aria-label={recording ? "Sustabdyti balso įrašymą" : "Balso įvedimas"}
-              >
-                <Mic className="h-4 w-4" fill={recording ? "currentColor" : "none"} />
-              </button>
-            )}
             <input
-              value={recording ? voiceCaption : searchQuery}
-              onChange={(e) => {
-                setVoiceCaption("");
-                setSearchQuery(e.target.value);
-              }}
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Paklauskite Gemini — paieška, skelbimas, patarimai…"
               className="min-w-0 flex-1 rounded-xl border border-slate-600 bg-[#1e293b] px-4 py-3 text-sm text-white caret-sky-400 placeholder:text-slate-400 outline-none focus:border-sky-500"
               disabled={busy}

@@ -107,6 +107,29 @@ export async function extractFromImage(
     imageDataUrls: images.length > 1 ? images : undefined,
   };
 
+  const unified = await tryUnifiedExtract(enriched, "image");
+  if (unified) return unified;
+
+  if (images[0]) {
+    try {
+      const { runPhotoVisionSearch, mapVisionResultToListingExtract } =
+        await import("@/lib/photo-vision-search");
+      const vision = await runPhotoVisionSearch(images[0], {
+        extraContext: ctx.extraContext,
+        userCity: ctx.userCity,
+      });
+      if (vision && vision.confidence >= 0.35) {
+        return mapVisionResultToListingExtract(vision, {
+          userCity: ctx.userCity,
+          contact: ctx.contact,
+          extraContext: ctx.extraContext,
+        });
+      }
+    } catch (e) {
+      console.warn("[extractFromImage] Vision API fallback failed:", e);
+    }
+  }
+
   if (isClientGeminiAvailable() && images[0]) {
     try {
       return await clientExtractListingFromImage({
@@ -120,9 +143,6 @@ export async function extractFromImage(
       console.warn("[extractFromImage] client Gemini failed:", e);
     }
   }
-
-  const unified = await tryUnifiedExtract(enriched, "image");
-  if (unified) return unified;
 
   if (!isClientGeminiAvailable() && !isAiProxyAvailable()) {
     return mockExtractFromImage(ctx.fileName, images[0]);

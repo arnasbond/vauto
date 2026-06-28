@@ -1,4 +1,4 @@
-const CACHE = "vauto-shell-v12";
+const CACHE = "vauto-shell-v13";
 const PRECACHE = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 /** @type {{ listings: object[]; savedQueries: string[]; seenIds: Set<string> }} */
