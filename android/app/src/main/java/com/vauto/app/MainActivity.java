@@ -5,14 +5,11 @@ import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
-import android.webkit.CookieManager;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
-import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
-import android.webkit.WebStorage;
 import android.webkit.WebView;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
@@ -23,7 +20,7 @@ public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "VautoMainActivity";
     private boolean jsBridgeAttached = false;
-    private boolean webViewColdStartDone = false;
+    private static boolean httpCachePurgedThisProcess = false;
 
     private static final String HOST_LOCALHOST = "localhost";
     private static final String HOST_VERCEL = "vauto-chi.vercel.app";
@@ -31,33 +28,18 @@ public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        getWindow()
-            .getDecorView()
-            .post(
-                () -> {
-                    if (webViewColdStartDone) return;
-                    Bridge bridge = getBridge();
-                    if (bridge == null) return;
-                    WebView webView = bridge.getWebView();
-                    if (webView == null) return;
-                    purgeWebViewCacheAndStorage(webView);
-                    configureWebView(webView, bridge);
-                    reloadFreshDocument(webView);
-                    webViewColdStartDone = true;
-                }
-            );
     }
 
     @Override
     public void onStart() {
         super.onStart();
-        ensureWebViewConfigured();
+        configureWebView();
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        ensureWebViewConfigured();
+        configureWebView();
     }
 
     @Override
@@ -74,59 +56,14 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    private void ensureWebViewConfigured() {
+    private void configureWebView() {
         Bridge bridge = getBridge();
         if (bridge == null) return;
         WebView webView = bridge.getWebView();
         if (webView == null) return;
-        if (!webViewColdStartDone) return;
-        configureWebView(webView, bridge);
-    }
 
-    /** One-time cold start purge — drops stale JS bundles cached by WebView. */
-    private void purgeWebViewCacheAndStorage(WebView webView) {
-        try {
-            webView.clearCache(true);
-            webView.clearHistory();
+        purgeHttpCacheOnce(webView);
 
-            WebSettings settings = webView.getSettings();
-            settings.setCacheMode(WebSettings.LOAD_NO_CACHE);
-            settings.setMediaPlaybackRequiresUserGesture(false);
-
-            CookieManager cookieManager = CookieManager.getInstance();
-            cookieManager.setAcceptCookie(true);
-            cookieManager.removeAllCookies(
-                (ValueCallback<Boolean>) cleared -> {
-                    cookieManager.flush();
-                    Log.i(TAG, "WebView cookies cleared on cold start: " + cleared);
-                }
-            );
-            WebStorage.getInstance().deleteAllData();
-
-            Log.i(TAG, "WebView cache + storage purged on cold start");
-        } catch (Exception e) {
-            Log.w(TAG, "WebView cache purge failed", e);
-        }
-    }
-
-    /** Force main document reload with cache-buster after purge. */
-    private void reloadFreshDocument(WebView webView) {
-        try {
-            String url = webView.getUrl();
-            if (url == null || url.isEmpty()) {
-                url = "https://" + HOST_LOCALHOST + "/";
-            }
-            if (url.contains("_vc=")) return;
-            String sep = url.contains("?") ? "&" : "?";
-            String freshUrl = url + sep + "_vc=" + System.currentTimeMillis();
-            Log.i(TAG, "Reloading fresh document: " + freshUrl);
-            webView.loadUrl(freshUrl);
-        } catch (Exception e) {
-            Log.w(TAG, "Fresh document reload failed", e);
-        }
-    }
-
-    private void configureWebView(WebView webView, Bridge bridge) {
         WebSettings settings = webView.getSettings();
         settings.setDomStorageEnabled(true);
         settings.setDatabaseEnabled(true);
@@ -162,6 +99,21 @@ public class MainActivity extends BridgeActivity {
         if (!jsBridgeAttached) {
             webView.addJavascriptInterface(new VautoJsBridge(this), "VautoAndroid");
             jsBridgeAttached = true;
+        }
+    }
+
+    /**
+     * Purge WebView HTTP disk cache once per process — safe for Capacitor localhost.
+     * Does NOT wipe cookies/localStorage/WebStorage (that broke app launch on v1.1.3).
+     */
+    private static void purgeHttpCacheOnce(WebView webView) {
+        if (httpCachePurgedThisProcess || webView == null) return;
+        httpCachePurgedThisProcess = true;
+        try {
+            webView.clearCache(true);
+            Log.i(TAG, "WebView HTTP cache purged (cold start, no storage wipe)");
+        } catch (Exception e) {
+            Log.w(TAG, "WebView cache purge failed", e);
         }
     }
 
@@ -241,10 +193,6 @@ public class MainActivity extends BridgeActivity {
         return HOST_LOCALHOST.equals(host) || HOST_VERCEL.equals(host);
     }
 
-    /**
-     * Blocks all external navigation and CDN redirects (incl. release-assets.githubusercontent.com).
-     * Never calls super for blocked URLs — no launchIntent, no DownloadManager loop.
-     */
     private static final class VautoUrlGuardWebViewClient extends BridgeWebViewClient {
 
         private final MainActivity activity;
@@ -289,7 +237,6 @@ public class MainActivity extends BridgeActivity {
             return handleNavigation(url, true);
         }
 
-        /** @return true = consume URL (block), false = allow WebView load */
         private boolean handleNavigation(String url, boolean mainFrame) {
             if (isHardBlocked(url)) {
                 Log.w(TAG, "Hard-blocked navigation: " + url);
@@ -317,7 +264,6 @@ public class MainActivity extends BridgeActivity {
         }
     }
 
-    /** Opens APK update URL in system browser — WebView blocks github/.apk navigation. */
     static final class VautoJsBridge {
         private final MainActivity activity;
 
