@@ -673,7 +673,8 @@ export async function executeAgentTool(
       });
 
       const results = filteredRows.map((l) => toAgentListingSummary(l));
-      const searchQuery = [query, category, cityNominative].filter(Boolean).join(" ").trim();
+      /** UI search bar — raw user/Gemini query only; category lives in filters, never appended. */
+      const searchQuery = query.trim();
 
       const searchFilters: AgentSearchFilters = {
         query: query || undefined,

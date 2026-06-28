@@ -104,7 +104,7 @@ export function recycleSpeechRecognitionEngine(): Promise<void> {
 }
 
 /**
- * Single SpeechRecognition session — delivers ONE final string on onend/stop only.
+ * Single SpeechRecognition session — delivers ONE final string on stop/end.
  * On Android APK, getUserMedia first triggers the system mic permission dialog.
  */
 export function startVoiceSearch(
@@ -148,6 +148,7 @@ export function startVoiceSearch(
       const deliverOnce = (text: string | null) => {
         if (resolved) return;
         resolved = true;
+        stopping = true;
         clearTimers();
         teardownSpeechRecognition(rec);
         rec = null;
@@ -186,7 +187,8 @@ export function startVoiceSearch(
 
       rec = new SpeechRecognition();
       rec.lang = "lt-LT";
-      rec.continuous = true;
+      /** false — avoids infinite no-speech restart loops in Android WebView. */
+      rec.continuous = false;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
 
@@ -217,8 +219,16 @@ export function startVoiceSearch(
       };
 
       rec.onerror = (ev) => {
-        if (ev.error === "no-speech" || ev.error === "aborted") return;
-        if (ev.error === "not-allowed") deliverOnce(null);
+        if (ev.error === "aborted") return;
+        if (ev.error === "no-speech") {
+          requestStop();
+          return;
+        }
+        if (ev.error === "not-allowed") {
+          deliverOnce(null);
+          return;
+        }
+        deliverOnce(committedFinal.trim() || null);
       };
 
       rec.onend = () => {

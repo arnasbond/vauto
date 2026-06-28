@@ -57,6 +57,7 @@ import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions
 import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
+import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import {
   buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
@@ -202,7 +203,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setOpen(false);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        setSearchQuery(actions.searchQuery);
+        const displayQuery = stripLegacyCategorySuffixes(
+          actions.filters?.query?.trim() || actions.searchQuery
+        );
+        setSearchQuery(displayQuery);
         setAgentPinnedListings(actions.listingIds);
         if (actions.filters) {
           setMarketplaceFilters(
@@ -263,7 +267,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        setSearchQuery(actions.searchQuery);
+        const displayQuery = stripLegacyCategorySuffixes(
+          actions.filters?.query?.trim() || actions.searchQuery
+        );
+        setSearchQuery(displayQuery);
         if (actions.filters) {
           setMarketplaceFilters(
             mergeAgentIntoMarketplaceFilters(
@@ -859,7 +866,7 @@ function VautoAgentSheet() {
               </button>
             )}
             <input
-              value={recording && voiceCaption ? voiceCaption : searchQuery}
+              value={recording ? voiceCaption : searchQuery}
               onChange={(e) => {
                 setVoiceCaption("");
                 setSearchQuery(e.target.value);

@@ -1,5 +1,6 @@
 import {
   handleSpeechRecognitionResult,
+  stripLegacyCategorySuffixes,
   teardownSpeechRecognition,
 } from "@/lib/speech-transcript";
 
@@ -66,7 +67,9 @@ export function startLiveTranscript(
   rec.onerror = () => {
     teardownSpeechRecognition(rec);
   };
-  rec.onend = () => {};
+  rec.onend = () => {
+    teardownSpeechRecognition(rec);
+  };
 
   try {
     rec.start();

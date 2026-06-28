@@ -21,6 +21,18 @@ export interface SpeechRecognitionHandle {
   stop?: () => void;
 }
 
+/** Internal listing category IDs — must never appear as STT suffixes in the search bar. */
+const LEGACY_APPENDED_CATEGORY_TOKENS = new Set([
+  "other",
+  "clothing",
+  "vehicles",
+  "electronics",
+  "home",
+  "services",
+  "real_estate",
+  "jobs",
+]);
+
 /** Hard-stop Web Speech session — prevents duplicate finals on mobile WebView/APK. */
 export function teardownSpeechRecognition(rec: SpeechRecognitionHandle | null): void {
   if (!rec) return;
@@ -35,7 +47,21 @@ export function teardownSpeechRecognition(rec: SpeechRecognitionHandle | null): 
   }
 }
 
-/** Mazgas 1: tik paskutinis STT slot — be lipdymo, be regex filtrų. */
+/** Remove legacy agent bug suffixes (e.g. "batai clothing") without altering user words. */
+export function stripLegacyCategorySuffixes(text: string): string {
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  while (tokens.length > 1) {
+    const last = tokens[tokens.length - 1]!.toLowerCase();
+    if (LEGACY_APPENDED_CATEGORY_TOKENS.has(last)) {
+      tokens.pop();
+    } else {
+      break;
+    }
+  }
+  return tokens.join(" ");
+}
+
+/** Mazgas 1: tik paskutinis STT slot — grynas vartotojo tekstas, be kategorijų priedėlių. */
 export function handleSpeechRecognitionResult(
   event: SpeechRecognitionResultEvent,
   handlers: SpeechRecognitionHandlers
@@ -45,7 +71,8 @@ export function handleSpeechRecognitionResult(
   }
 
   const lastResultIndex = event.results.length - 1;
-  const text = (event.results[lastResultIndex][0]?.transcript ?? "").trim();
+  const raw = (event.results[lastResultIndex][0]?.transcript ?? "").trim();
+  const text = stripLegacyCategorySuffixes(raw);
   const isFinal = Boolean(event.results[lastResultIndex]?.isFinal);
 
   if (isFinal) {
@@ -64,13 +91,14 @@ export function readLastSpeechHypothesis(
 ): { text: string; isFinal: boolean } {
   if (!event.results.length) return { text: "", isFinal: false };
   const lastResultIndex = event.results.length - 1;
+  const raw = (event.results[lastResultIndex][0]?.transcript ?? "").trim();
   return {
-    text: (event.results[lastResultIndex][0]?.transcript ?? "").trim(),
+    text: stripLegacyCategorySuffixes(raw),
     isFinal: Boolean(event.results[lastResultIndex]?.isFinal),
   };
 }
 
-/** @deprecated Use raw trim from STT — kept for legacy imports. */
+/** Raw STT trim + strip legacy category suffixes accidentally shown in UI. */
 export function sanitizeSpeechTranscript(text: string): string {
-  return text.trim();
+  return stripLegacyCategorySuffixes(text.trim());
 }

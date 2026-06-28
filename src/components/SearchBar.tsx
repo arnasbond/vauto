@@ -28,7 +28,12 @@ import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
-import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
+import {
+  isVoiceSearchSupported,
+  recycleSpeechRecognitionEngine,
+  startVoiceSearch,
+} from "@/lib/voice-search";
+import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import {
   BRUTAL_VOICE_GREETING,
   brutalHtml5Speak,
@@ -115,10 +120,10 @@ export function SearchBar({
       if (!actions || actions.type === "none") return;
       applyAgentActions(actions);
       if (actions.type === "search") {
-        setDraftQuery(actions.searchQuery);
+        setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(actions.listingIds.length);
       } else if (actions.type === "empty_search") {
-        setDraftQuery(actions.searchQuery);
+        setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(0);
       }
     },
@@ -127,7 +132,7 @@ export function SearchBar({
 
   const commitSearch = useCallback(
     async (raw: string, opts?: { voice?: boolean }) => {
-      const q = sanitizeSearchQuery(raw, "final");
+      const q = stripLegacyCategorySuffixes(sanitizeSearchQuery(raw, "final"));
       if (!q) return;
 
       setSearchInputMode(opts?.voice ? "voice" : "text");
@@ -247,35 +252,41 @@ export function SearchBar({
     if (agentBusy || searchLoading || isPhotoSearching) return;
 
     requestMediaConsent(() => {
-      setRecording(true);
-      setVoiceCaption("");
-      setSearchVoiceMode(true);
-      setSearchInputMode("voice");
-      clearVisualSearch({ keepInputMode: true });
+      void recycleSpeechRecognitionEngine().then(() => {
+        setRecording(true);
+        setVoiceCaption("");
+        setDraftQuery("");
+        setSearchQuery("");
+        setSearchVoiceMode(true);
+        setSearchInputMode("voice");
+        clearVisualSearch({ keepInputMode: true });
 
-      const session = startVoiceSearch({
-        silenceMs: 2_000,
-        onStart: () => {
-          setDraftQuery("");
-          setVoiceCaption("");
-        },
-        onInterim: (preview) => {
-          if (preview) setVoiceCaption(preview);
-        },
-      });
-      voiceSessionRef.current = session;
-      void session.promise
-        .then((text) => {
-          setVoiceCaption("");
-          if (!text) return;
-          setDraftQuery(text);
-          return commitSearch(text, { voice: true });
-        })
-        .finally(() => {
-          setRecording(false);
-          voiceSessionRef.current = null;
-          setVoiceCaption("");
+        const session = startVoiceSearch({
+          silenceMs: 2_000,
+          onStart: () => {
+            setDraftQuery("");
+            setVoiceCaption("");
+          },
+          onInterim: (preview) => {
+            setVoiceCaption(preview.trim());
+          },
         });
+        voiceSessionRef.current = session;
+        void session.promise
+          .then((text) => {
+            setVoiceCaption("");
+            if (!text) return;
+            const clean = stripLegacyCategorySuffixes(text);
+            setDraftQuery(clean);
+            return commitSearch(clean, { voice: true });
+          })
+          .finally(() => {
+            setRecording(false);
+            voiceSessionRef.current = null;
+            setVoiceCaption("");
+            void recycleSpeechRecognitionEngine();
+          });
+      });
     });
   };
 
@@ -382,7 +393,7 @@ export function SearchBar({
   };
 
   const isHero = variant === "hero";
-  const inputValue = recording && voiceCaption ? voiceCaption : draftQuery;
+  const inputValue = recording ? voiceCaption : draftQuery;
 
   return (
     <>
