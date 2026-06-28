@@ -2,6 +2,7 @@ import {
   handleSpeechRecognitionResult,
   sanitizeSpeechTranscript,
   teardownSpeechRecognition,
+  VOICE_SILENCE_DEBOUNCE_MS,
 } from "@/lib/speech-transcript";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
 
@@ -49,7 +50,7 @@ export interface VoiceSearchSession {
   cancel: () => void;
 }
 
-const DEFAULT_SILENCE_MS = 2_000;
+const DEFAULT_SILENCE_MS = VOICE_SILENCE_DEBOUNCE_MS;
 const DEFAULT_MAX_MS = 25_000;
 
 let activeVoiceSession: VoiceSearchSession | null = null;
@@ -61,7 +62,7 @@ export function cancelActiveVoiceSearch(): void {
 }
 
 /**
- * Flush WebKit SpeechRecognition state after a chat turn — prevents hang on 3rd+ utterance.
+ * Flush WebKit SpeechRecognition state after a completed chat turn — not before recording.
  */
 export function recycleSpeechRecognitionEngine(): Promise<void> {
   cancelActiveVoiceSearch();
@@ -104,8 +105,8 @@ export function recycleSpeechRecognitionEngine(): Promise<void> {
 }
 
 /**
- * Single SpeechRecognition session — delivers ONE final string on stop/end.
- * On Android APK, getUserMedia first triggers the system mic permission dialog.
+ * Continuous SpeechRecognition with manual end via silence debounce.
+ * Android WebView: continuous=true keeps the mic open mid-sentence; stop() ends cleanly.
  */
 export function startVoiceSearch(
   options: VoiceSearchOptions = {}
@@ -133,17 +134,22 @@ export function startVoiceSearch(
 
     return new Promise<string | null>((resolve) => {
       let committedFinal = "";
-      let silenceTimer: ReturnType<typeof setTimeout> | null = null;
+      let latestHypothesis = "";
+      let silenceTimeout: ReturnType<typeof setTimeout> | null = null;
       let maxTimer: ReturnType<typeof setTimeout> | null = null;
       let started = false;
       let stopping = false;
+      let heardSpeech = false;
 
       const clearTimers = () => {
-        if (silenceTimer) clearTimeout(silenceTimer);
+        if (silenceTimeout) clearTimeout(silenceTimeout);
         if (maxTimer) clearTimeout(maxTimer);
-        silenceTimer = null;
+        silenceTimeout = null;
         maxTimer = null;
       };
+
+      const bestTranscript = () =>
+        (committedFinal.trim() || latestHypothesis.trim()).trim();
 
       const deliverOnce = (text: string | null) => {
         if (resolved) return;
@@ -163,17 +169,26 @@ export function startVoiceSearch(
         try {
           rec?.stop();
         } catch {
-          deliverOnce(committedFinal.trim() || null);
+          deliverOnce(bestTranscript() || null);
         }
       };
 
-      const scheduleSilenceStop = () => {
-        if (!committedFinal.trim()) return;
-        if (silenceTimer) clearTimeout(silenceTimer);
-        silenceTimer = setTimeout(requestStop, silenceMs);
+      /** Reset silence debounce on every new STT hypothesis — manual end only after pause. */
+      const resetSilenceDebounce = () => {
+        if (silenceTimeout) clearTimeout(silenceTimeout);
+        silenceTimeout = setTimeout(() => {
+          const payload = bestTranscript();
+          if (payload) requestStop();
+          else deliverOnce(null);
+        }, silenceMs);
       };
 
-      stopFn = requestStop;
+      stopFn = () => {
+        clearTimers();
+        if (bestTranscript()) requestStop();
+        else deliverOnce(null);
+      };
+
       cancelFn = () => {
         if (resolved) return;
         stopping = true;
@@ -187,13 +202,14 @@ export function startVoiceSearch(
 
       rec = new SpeechRecognition();
       rec.lang = "lt-LT";
-      /** false — avoids infinite no-speech restart loops in Android WebView. */
-      rec.continuous = false;
+      rec.continuous = true;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
 
       rec.onstart = () => {
         committedFinal = "";
+        latestHypothesis = "";
+        heardSpeech = false;
         onInterim?.("");
         if (!started) {
           started = true;
@@ -205,38 +221,51 @@ export function startVoiceSearch(
         const { isFinal, text } = handleSpeechRecognitionResult(event, {
           setInputValue: (value) => {
             committedFinal = value;
+            latestHypothesis = value;
           },
           setInterimCaption: (value) => {
+            latestHypothesis = value;
             onInterim?.(value);
           },
           onFinalTranscript: (value) => {
             committedFinal = value;
+            latestHypothesis = value;
             onInterim?.("");
-            requestStop();
+            resetSilenceDebounce();
           },
         });
-        if (!isFinal && text.trim()) scheduleSilenceStop();
+
+        if (text.trim()) {
+          heardSpeech = true;
+          if (!isFinal) latestHypothesis = text;
+          resetSilenceDebounce();
+        }
       };
 
       rec.onerror = (ev) => {
         if (ev.error === "aborted") return;
         if (ev.error === "no-speech") {
-          requestStop();
+          /** Ignore idle no-speech bursts — silence debounce / max timer owns session end. */
+          if (!heardSpeech && !bestTranscript()) return;
           return;
         }
         if (ev.error === "not-allowed") {
           deliverOnce(null);
           return;
         }
-        deliverOnce(committedFinal.trim() || null);
+        deliverOnce(bestTranscript() || null);
       };
 
       rec.onend = () => {
         if (resolved) return;
-        deliverOnce(committedFinal.trim() || null);
+        /** Safe exit — no reload loop when user stayed silent or stop() completed normally. */
+        deliverOnce(bestTranscript() || null);
       };
 
-      maxTimer = setTimeout(requestStop, maxMs);
+      maxTimer = setTimeout(() => {
+        if (bestTranscript()) requestStop();
+        else deliverOnce(null);
+      }, maxMs);
 
       try {
         rec.start();

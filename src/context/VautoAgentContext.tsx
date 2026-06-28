@@ -51,6 +51,7 @@ import {
   shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
+import { VOICE_SILENCE_DEBOUNCE_MS } from "@/lib/speech-transcript";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
 import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions";
@@ -759,7 +760,7 @@ function VautoAgentSheet() {
     setVoiceCaption("");
     lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
-      silenceMs: 2_000,
+      silenceMs: VOICE_SILENCE_DEBOUNCE_MS,
       onInterim: (preview) => {
         const clean = preview.trim();
         if (clean) setVoiceCaption(clean);
@@ -772,10 +773,7 @@ function VautoAgentSheet() {
       voiceSessionRef.current = null;
       const clean = (text ?? "").trim();
       setVoiceCaption("");
-      if (!clean) {
-        await recycleSpeechRecognitionEngine();
-        return;
-      }
+      if (!clean) return;
       lastVoiceDisplayRef.current = clean;
       setSearchInputMode("voice");
       setSearchVoiceMode(true);

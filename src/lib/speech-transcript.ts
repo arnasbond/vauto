@@ -1,3 +1,6 @@
+/** Debounce after last STT hypothesis before manual recognition.stop() (ms). */
+export const VOICE_SILENCE_DEBOUNCE_MS = 1500;
+
 type SpeechResultsLike = {
   length: number;
   [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };

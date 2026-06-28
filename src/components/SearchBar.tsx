@@ -30,10 +30,12 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import {
   isVoiceSearchSupported,
-  recycleSpeechRecognitionEngine,
   startVoiceSearch,
 } from "@/lib/voice-search";
-import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
+import {
+  stripLegacyCategorySuffixes,
+  VOICE_SILENCE_DEBOUNCE_MS,
+} from "@/lib/speech-transcript";
 import {
   BRUTAL_VOICE_GREETING,
   brutalHtml5Speak,
@@ -252,41 +254,38 @@ export function SearchBar({
     if (agentBusy || searchLoading || isPhotoSearching) return;
 
     requestMediaConsent(() => {
-      void recycleSpeechRecognitionEngine().then(() => {
-        setRecording(true);
-        setVoiceCaption("");
-        setDraftQuery("");
-        setSearchQuery("");
-        setSearchVoiceMode(true);
-        setSearchInputMode("voice");
-        clearVisualSearch({ keepInputMode: true });
+      setRecording(true);
+      setVoiceCaption("");
+      setDraftQuery("");
+      setSearchQuery("");
+      setSearchVoiceMode(true);
+      setSearchInputMode("voice");
+      clearVisualSearch({ keepInputMode: true });
 
-        const session = startVoiceSearch({
-          silenceMs: 2_000,
-          onStart: () => {
-            setDraftQuery("");
-            setVoiceCaption("");
-          },
-          onInterim: (preview) => {
-            setVoiceCaption(preview.trim());
-          },
-        });
-        voiceSessionRef.current = session;
-        void session.promise
-          .then((text) => {
-            setVoiceCaption("");
-            if (!text) return;
-            const clean = stripLegacyCategorySuffixes(text);
-            setDraftQuery(clean);
-            return commitSearch(clean, { voice: true });
-          })
-          .finally(() => {
-            setRecording(false);
-            voiceSessionRef.current = null;
-            setVoiceCaption("");
-            void recycleSpeechRecognitionEngine();
-          });
+      const session = startVoiceSearch({
+        silenceMs: VOICE_SILENCE_DEBOUNCE_MS,
+        onStart: () => {
+          setDraftQuery("");
+          setVoiceCaption("");
+        },
+        onInterim: (preview) => {
+          setVoiceCaption(preview.trim());
+        },
       });
+      voiceSessionRef.current = session;
+      void session.promise
+        .then((text) => {
+          setVoiceCaption("");
+          if (!text) return;
+          const clean = stripLegacyCategorySuffixes(text);
+          setDraftQuery(clean);
+          return commitSearch(clean, { voice: true });
+        })
+        .finally(() => {
+          setRecording(false);
+          voiceSessionRef.current = null;
+          setVoiceCaption("");
+        });
     });
   };
 
