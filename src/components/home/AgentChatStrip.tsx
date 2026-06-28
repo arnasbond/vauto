@@ -1,21 +1,58 @@
 "use client";
 
 import { Loader2, Sparkles } from "lucide-react";
+import { useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import { useVauto } from "@/context/VautoContext";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
+import { looksLikeClothingListing } from "@/lib/clothing-catalog";
+import { pushAddListing } from "@/lib/listing-navigation";
+import { detectSellerListingIntent } from "@/lib/scoring";
 
 /**
- * Organiškas AI dialogas namų ekrane — 2 paskutinės eilutės, be pilno ekrano lango.
+ * Organiškas AI dialogas namų ekrane — 2 paskutinės eilutės + veikiantys CTA mygtukai.
  */
 export function AgentChatStrip() {
+  const router = useRouter();
   const { messages, busy } = useVautoAgent();
+  const { startListingFromQuery } = useVauto();
   const recent = messages.slice(-2);
+
+  const lastUser = useMemo(
+    () => [...messages].reverse().find((m) => m.role === "user")?.text ?? "",
+    [messages]
+  );
+
+  const sellCta = useMemo(() => {
+    if (busy) return null;
+    const userWantsSell = detectSellerListingIntent(lastUser);
+    const lastAssistant = [...messages]
+      .reverse()
+      .find((m) => m.role === "assistant")?.text;
+    const assistantSuggestsSell =
+      typeof lastAssistant === "string" &&
+      /\b(parduot|skelb|įkelt|ikelt|spint|pradėkime|pradekime|kelkime|formą|forma)\w*/i.test(
+        lastAssistant
+      );
+    if (!userWantsSell && !assistantSuggestsSell) return null;
+    const fashion = looksLikeClothingListing(`${lastUser} ${lastAssistant ?? ""}`);
+    return {
+      fashion,
+      label: fashion ? "Atidaryti Spintos įkėlimą" : "Atidaryti skelbimo formą",
+    };
+  }, [busy, lastUser, messages]);
+
+  const handleSellCta = () => {
+    pushAddListing(router, sellCta?.fashion);
+    if (lastUser.trim()) startListingFromQuery(lastUser);
+  };
 
   if (!recent.length && !busy) return null;
 
   return (
     <div
-      className="mt-3 rounded-2xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-card-bg)] px-3.5 py-3 shadow-sm"
+      className="relative z-20 mt-3 rounded-2xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-card-bg)] px-3.5 py-3 shadow-sm"
       aria-live="polite"
       aria-label="VAUTO asistento atsakymas"
     >
@@ -52,6 +89,17 @@ export function AgentChatStrip() {
           </p>
         )}
       </div>
+
+      {sellCta && (
+        <button
+          type="button"
+          onClick={handleSellCta}
+          className="relative z-30 mt-3 flex w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 active:scale-[0.99]"
+        >
+          <Sparkles className="h-4 w-4" aria-hidden />
+          {sellCta.label}
+        </button>
+      )}
     </div>
   );
 }

@@ -931,6 +931,9 @@ apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
       extraContext,
       userCity,
     });
+    if (!intent.cleanQuery?.trim() || intent.confidence < 0.2) {
+      return res.status(422).json({ ok: false, error: "Prekė neatpažinta" });
+    }
     res.json({
       ok: true,
       keywords: intent.cleanQuery,

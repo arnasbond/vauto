@@ -1,5 +1,6 @@
-import { unifiedLlmJson, visionExtractJson } from "./llm-provider.js";
+import { visionExtractJson } from "./llm-provider.js";
 import { generateBuyerPersonaDescriptions } from "./description-personas.js";
+import { WARDROBE_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 
 export interface WardrobeVisionItem {
   id: string;
@@ -76,6 +77,7 @@ export async function analyzeWardrobePhoto(params: {
   const systemInstruction = `Tu esi VAUTO drabužių vedlio AI. Nuotraukoje gali būti KELI atskiri drabužiai (spinta, lentyna).
 Kiekvienam matomam objektui sukurk atskirą įrašą su unikaliu id (wardrobe-1, wardrobe-2…).
 Kategorijos universalios drabužiams. Aprašymai emocingi, šilti tonu.
+${WARDROBE_ANTI_HALLUCINATION_RULE}
 Grąžink tik JSON: ${WARDROBE_SCHEMA}`;
 
   const prompt = `Analizuok drabužių nuotrauką. Vartotoja: ${name}.
@@ -84,14 +86,20 @@ voiceAnnouncement: „${name}, tavo nuotraukoje matau N drabužius. Paruošiau N
 
   const fullPrompt = `${systemInstruction}\n\n${prompt}`;
   const raw = await visionExtractJson(fullPrompt, [params.imageDataUrl]);
+  const explicitError = String(raw.error ?? "").trim();
+  if (/prekė neatpažinta|neatpažinta/i.test(explicitError)) {
+    return {
+      items: [],
+      voiceAnnouncement: `${name}, nuotraukoje nematau aiškaus drabužio — įkelkite kitą nuotrauką.`,
+    };
+  }
   let items = parseItems(raw);
 
   if (!items.length) {
-    const fallback = await unifiedLlmJson({
-      prompt: `Nuotrauka neaiški — sukurk 1 drabužio juodraštį lietuviškai JSON items masyve.`,
-      systemInstruction,
-    });
-    items = parseItems(fallback as Record<string, unknown>);
+    return {
+      items: [],
+      voiceAnnouncement: `${name}, nuotraukoje nematau aiškaus drabužio — įkelkite kitą nuotrauką.`,
+    };
   }
 
   const enriched: WardrobeVisionItem[] = [];

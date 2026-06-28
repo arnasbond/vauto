@@ -232,7 +232,14 @@ export function ClothingListingWizard({
         imageDataUrl,
         userName,
       });
-      if (!result?.items.length) return;
+      if (!result?.items.length) {
+        onToast?.(
+          result?.voiceAnnouncement ??
+            "Nuotraukoje nematau aiškaus drabužio — įkelkite kitą nuotrauką.",
+          "info"
+        );
+        return;
+      }
 
       setWardrobeItems(result.items);
       setWardrobeVoice(result.voiceAnnouncement);

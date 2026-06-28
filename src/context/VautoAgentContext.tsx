@@ -1,6 +1,6 @@
 "use client";
 
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
   useCallback,
@@ -68,6 +68,10 @@ import {
   apiCreateUserRequirement,
   type ProactiveOfferContext,
 } from "@/lib/offer-engine-client";
+import {
+  isOnAddListingPath,
+  pushAddListing,
+} from "@/lib/listing-navigation";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -129,6 +133,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     startChat,
   } = useVauto();
   const pathname = usePathname();
+  const router = useRouter();
   const { navigateTo } = useNavigation();
   const { currentView: zeroUiScreen, setScreen, goToMarketplace, openMicroPayment, activeBoost } = useZeroUiScreen();
   const {
@@ -206,15 +211,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [setScreen]
   );
 
-  const navigateToAdd = useCallback((fashion = false) => {
-    const path = fashion ? "/add/?vertical=fashion" : "/add/";
-    if (typeof window !== "undefined") {
-      const current = window.location.pathname.replace(/\/$/, "") || "/";
-      if (current !== "/add") {
-        window.location.assign(path);
-      }
-    }
-  }, []);
+  const navigateToAdd = useCallback(
+    (fashion = false) => {
+      if (fashion) activateWardrobeSpinta();
+      if (isOnAddListingPath(fashion)) return;
+      pushAddListing(router, fashion);
+    },
+    [router, activateWardrobeSpinta]
+  );
 
   const applyActions = useCallback(
     (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
@@ -419,7 +423,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           const target = actions.path.replace(/\/$/, "") || "/";
           const current = window.location.pathname.replace(/\/$/, "") || "/";
           if (target !== current) {
-            window.location.assign(actions.path);
+            router.push(actions.path);
           } else {
             goToMarketplace("agent");
           }
@@ -503,10 +507,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         routeZeroUiScreen(actions.screen);
         showToast(`Zero-UI: ${actions.screen.replace(/_/g, " ")}`, "info");
       }
-      if (actions.type === "navigate") {
+        if (actions.type === "navigate") {
         const view = actions.view;
         if (view === "add_listing" || view === "seller_wizard") {
-          navigateToAdd();
+          navigateToAdd(Boolean(actions.params?.vertical === "fashion"));
         } else if (view === "profile") {
           routeZeroUiScreen("business_dashboard");
         } else if (view === "admin_ai") {

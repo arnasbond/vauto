@@ -54,7 +54,9 @@ Grąžink JSON: {"alt":"string","title":"string","description":"string"}
 alt — iki 125 simbolių, lietuviškai, su miestu ir prekės tipu (Google Images).
 title — iki 70 simbolių, patrauklus lietuviškas pavadinimas su lokacija.
 description — 1–2 sakiniai lietuviškai SEO aprašymui.
-Nenaudok angliškų placeholderių. Įtrauk VAUTO prekės ženklą natūraliai.`,
+Nenaudok angliškų placeholderių. Įtrauk VAUTO prekės ženklą natūraliai.
+Jei nuotraukoje nėra realaus objekto (tik logotipas, tekstas, tuščias vaizdas) — grąžink {"alt":"","title":"","description":"","error":"Prekė neatpažinta"}.
+Griežtai draudžiama haliucinuoti netikrus drabužius ar prekes.`,
       prompt: `Skelbimas: ${input.listingTitle}
 Kategorija: ${category}
 Miestas: ${city}
@@ -65,8 +67,9 @@ Atributai: ${JSON.stringify(attrs).slice(0, 400)}`,
     const alt = String(raw.alt ?? fallback.alt).trim().slice(0, 125);
     const title = String(raw.title ?? fallback.title).trim().slice(0, 70);
     const description = String(raw.description ?? fallback.description ?? "").trim();
+    const error = String(raw.error ?? "").trim();
 
-    if (alt.length < 8) return fallback;
+    if (/prekė neatpažinta|neatpažinta/i.test(error) || alt.length < 8) return fallback;
 
     return { alt, title: title || fallback.title, description: description || fallback.description };
   } catch {

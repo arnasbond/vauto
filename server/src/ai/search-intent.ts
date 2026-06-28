@@ -1,4 +1,8 @@
 import { unifiedLlmJson, visionExtractJson } from "./llm-provider.js";
+import {
+  VISION_ANTI_HALLUCINATION_RULE,
+  WARDROBE_ANTI_HALLUCINATION_RULE,
+} from "./vision-guardrails.js";
 
 const SPINTA_SEARCH_SYSTEM_RULE = `
 GRIEŽTA SPINTOS TAISYKLĖ: Vartotojas yra VAUTO Spintoje (drabužių ir batų portalas).
@@ -230,6 +234,7 @@ export async function analyzeVisualSearchIntent(
 Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
 Identifikuok objekto tipą, markę, modelį, kėbulo tipą, spalvą, NT pobūdį, kambarius, aplinką.
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
+${VISION_ANTI_HALLUCINATION_RULE}
 ${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Jei nuotraukoje visas automobilis — category "Auto", searchFilters.make/model/bodyType/color.
 Jei butas/namas — category "NT", propertyType, rooms, furnishing.
@@ -242,21 +247,44 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
   const raw = await visionExtractJson(userPrompt, images);
   const category = input.wardrobeOnly ? "Drabužiai" : normalizeCategory(raw.category);
   const searchFilters = normalizeSearchFilters(raw.searchFilters);
+  const confidence = Math.min(1, Math.max(0, Number(raw.confidence) || 0.5));
+  const visualSummary = String(raw.visualSummary ?? "").trim();
+  const rejected =
+    confidence < 0.2 ||
+    /prekė neatpažinta|neatpažinta|logotip|tik tekst/i.test(visualSummary);
+
+  if (rejected) {
+    return {
+      objectType: "other",
+      category: null,
+      listingCategory: null,
+      cleanQuery: "",
+      location: String(raw.location ?? input.userCity ?? "").trim(),
+      radiusKm: snapSearchRadius(raw.radiusKm),
+      condition: normalizeCondition(raw.condition),
+      confidence: 0,
+      visualSummary: "Prekė neatpažinta",
+      searchFilters: {},
+    };
+  }
+
   const cleanQuery = buildCleanQueryFromFilters(
     searchFilters,
     String(raw.cleanQuery ?? "").trim()
   );
 
   return {
-    objectType: input.wardrobeOnly ? "clothing" : String(raw.objectType ?? "other").trim() || "other",
+    objectType: input.wardrobeOnly
+      ? "clothing"
+      : String(raw.objectType ?? "other").trim() || "other",
     category,
     listingCategory: category ? (CATEGORY_TO_LISTING[category] ?? null) : null,
     cleanQuery,
     location: String(raw.location ?? input.userCity ?? "").trim(),
     radiusKm: snapSearchRadius(raw.radiusKm),
     condition: normalizeCondition(raw.condition),
-    confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.5)),
-    visualSummary: String(raw.visualSummary ?? cleanQuery).trim(),
+    confidence,
+    visualSummary: visualSummary || cleanQuery,
     searchFilters,
   };
 }

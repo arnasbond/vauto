@@ -1045,6 +1045,7 @@ export async function clientAnalyzeVisualSearchIntent(input: {
 Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
 Identifikuok objekto tipą, markę, modelį, kėbulo tipą, spalvą, NT pobūdį, kambarius, aplinką.
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
+GRIEŽTA TAISYKLĖ: Jei nuotraukoje nėra realaus objekto (tik logotipas, tekstas, tuščias vaizdas) — confidence: 0, cleanQuery: "", visualSummary: "Prekė neatpažinta". DRAUDŽIAMA haliucinuoti.
 ${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Grąžink tik JSON: ${VISUAL_SEARCH_INTENT_SCHEMA}`;
 
