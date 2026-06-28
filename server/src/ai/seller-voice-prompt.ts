@@ -1,5 +1,43 @@
-export function buildSellerContextualVoiceFollowUp(
+/** Opening follow-up after create_listing_draft — warm wizard tone, not empty-search. */
+export function buildCreateListingDraftFollowUp(
   category: string,
+  title: string,
+  attributes: Record<string, string> = {}
+): string {
+  const item = title.trim() || "skelbimo";
+  const genitive = item.endsWith("ė")
+    ? item.slice(0, -1) + "ės"
+    : item.endsWith("as")
+      ? item.slice(0, -2) + "o"
+      : item.endsWith("is")
+        ? item.slice(0, -2) + "io"
+        : item;
+
+  if (category === "clothing") {
+    const hasColor = Boolean(attributes.color?.trim());
+    const hasSize = Boolean(attributes.size?.trim() || attributes.clothingSize?.trim());
+    if (hasColor && hasSize) {
+      return `Supratau, pradedam ${genitive} skelbimo kūrimą! Kokia būtų kaina?`;
+    }
+    return `Supratau, pradedam ${genitive} skelbimo kūrimą! Kokios spalvos ar dydžio ji yra?`;
+  }
+
+  if (category === "vehicles") {
+    return `Supratau, pradedam ${genitive} skelbimo kūrimą! Kokia markė, modelis ir metai?`;
+  }
+
+  if (category === "real_estate") {
+    return `Supratau, pradedam ${genitive} skelbimo kūrimą! Koks plotas ir kurioje vietoje?`;
+  }
+
+  if (category === "electronics") {
+    return `Supratau, pradedam ${genitive} skelbimo kūrimą! Kokia būklė ir kaina?`;
+  }
+
+  return `Supratau, pradedam ${genitive} skelbimo kūrimą! Papasakokite daugiau — kaina, vieta, būklė?`;
+}
+
+export function buildSellerContextualVoiceFollowUp(  category: string,
   attributes: Record<string, string>,
   missingFields: string[]
 ): string | null {

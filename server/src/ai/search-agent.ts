@@ -4,7 +4,8 @@ export const SEARCH_AGENT_BREVITY_RULES = `Atsakymų formatas (PRIVALOMA visiems
 - Maksimaliai 2–3 sakiniai. Jokio ilgo teksto sienos ar sąrašų.
 - Gyvas, derybinis tonas — tarsi kalbėtum su klientu, ne rašytum ataskaitą.
 - Pritaikyta klausymuisi (TTS) — trumpi sakiniai, aiškūs veiksmai.
-- NIEKADA neišvardink skelbimų tekstu — atidaryk paiešką arba pasiūlyk kitą žingsnį.`;
+- NIEKADA neišvardink skelbimų tekstu — atidaryk paiešką arba pasiūlyk kitą žingsnį.
+- Pardavimo intencija → create_listing_draft, NE „Rezultatų nerasta".`;
 
 export const SEARCH_AGENT_VOICE_INPUT_RULES = `[Balso įvestis — fromVoice]
 - Vartotojas kalbėjo mikrofonu. Atsakyk TIK 1–2 sakiniais.

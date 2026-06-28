@@ -23,7 +23,13 @@ import {
   fetchWithTimeout,
   isAbortError,
 } from "./agent-errors.js";
-import { tryFastAgentSearchPath } from "./fast-agent-search.js";
+import {
+  buildPageContextInjectionBlock,
+  buildSessionExpiredInjectionBlock,
+  isTooShortSecretaryQuery,
+  normalizeSecretaryQuery,
+  resolveSecretaryNoiseReply,
+} from "./secretary-guards.js";
 import {
   enforceVoiceReplyBrevity,
   SEARCH_AGENT_BREVITY_RULES,
@@ -33,13 +39,6 @@ import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
-import {
-  buildPageContextInjectionBlock,
-  buildSessionExpiredInjectionBlock,
-  isTooShortSecretaryQuery,
-  normalizeSecretaryQuery,
-  resolveSecretaryNoiseReply,
-} from "./secretary-guards.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -298,8 +297,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     activeSearchFilters: req.context.activeSearchFilters ?? null,
   } satisfies AgentMemoryPayload);
 
-  const fastPath = await tryFastAgentSearchPath({ ...req, messages: sessionMessages }, ctx);
-  if (fastPath) return fastPath;
+  // Gemini function calling owns all intent routing — no programmed fast-search bypass.
 
   const contents: GeminiContent[] = sessionMessages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
@@ -473,7 +471,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   }
 
   if (!finalText) {
-    const listingCall = [...toolCalls].reverse().find((t) => t.name === "postNewListing");
+    const listingCall = [...toolCalls]
+      .reverse()
+      .find((t) => t.name === "create_listing_draft" || t.name === "postNewListing");
     const listingResult = listingCall?.result as {
       voiceFollowUp?: string;
       proactivePricingMessage?: string | null;
@@ -534,7 +534,16 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       ? Number((searchToolCall.result as { count?: number }).count)
       : searchSideEffect?.listingIds?.length ?? 0;
 
-  if (searchToolCall || searchSideEffect || emptySearchSideEffect) {
+  const hasListingDraftAction =
+    sideEffect?.type === "listing_draft" ||
+    toolCalls.some(
+      (t) => t.name === "create_listing_draft" || t.name === "postNewListing"
+    );
+
+  if (
+    !hasListingDraftAction &&
+    (searchToolCall || searchSideEffect || emptySearchSideEffect)
+  ) {
     finalText =
       searchToolCount > 0 || searchSideEffect
         ? STATE_SEARCH_REPLY
@@ -567,7 +576,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     };
   }
 
-  const listingCall = toolCalls.find((t) => t.name === "postNewListing");
+  const listingCall = toolCalls.find(
+    (t) => t.name === "create_listing_draft" || t.name === "postNewListing"
+  );
   const listingResult = listingCall?.result as {
     voiceFollowUp?: string;
     missingFields?: string[];

@@ -1,4 +1,5 @@
 import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
+import { extractProductSearchTokens } from "../search-filter.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -12,7 +13,7 @@ import {
   normCityForFilter,
   resolveLtCityNominative,
 } from "./lithuanian-location-normalize.js";
-import { buildSellerContextualVoiceFollowUp } from "./seller-voice-prompt.js";
+import { buildSellerContextualVoiceFollowUp, buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
 import { runMarketPriceAnalysis, type MarketPriceAnalysisResult } from "./market-price-analysis.js";
 import {
@@ -298,6 +299,32 @@ export const AGENT_FUNCTION_DECLARATIONS = [
     },
   },
   {
+    name: "create_listing_draft",
+    description:
+      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI, ĮKELTI ar PASKELBTI prekę. PRIVALOMA vietoj searchListings pardavimo intencijai. Pvz. „Padėk parduoti suknelę\" → category=clothing, title=Suknelė. NEreikalauja kainos ar miesto.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        title: {
+          type: "STRING",
+          description:
+            "Pagrindinis objektas lietuviškai BE stop-žodžių: Suknelė, Kedai, BMW 320d, Sklypas",
+        },
+        category: {
+          type: "STRING",
+          description:
+            "vehicles | electronics | real_estate | clothing | services | jobs | home | other",
+        },
+        description: { type: "STRING", description: "Trumpas aprašymas jei žinomas" },
+        attributes: {
+          type: "OBJECT",
+          description: "color, size, make, model, year, propertyType, clothingSize…",
+        },
+      },
+      required: ["title", "category"],
+    },
+  },
+  {
     name: "updateListingDraft",
     description:
       "Atnaujina esamą skelbimo juodraštį (kaina, miestas, aprašymas). Naudok kai trūksta vieno lauko ir vartotojas jį pateikia.",
@@ -316,7 +343,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "searchListings",
     description:
-      "Ieško aktyvių skelbimų pagal raktažodžius, kategoriją, kainos intervalą ir miestą. Naudok kai vartotojas ieško prekės ar paslaugos.",
+      "Ieško aktyvių skelbimų. query lauke perduok TIK pagrindinį OBJEKTĄ (pvz. kedai, suknelė, sklypas) — GRIEŽTAI be stop-žodžių parduodu/ieškau/noriu. Kategoriją nustatyk semantiškai pagal objektą.",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -607,7 +634,9 @@ export async function executeAgentTool(
 
   switch (name) {
     case "searchListings": {
-      const query = String(args.query ?? "").trim();
+      const rawQuery = String(args.query ?? "").trim();
+      const tokens = rawQuery ? extractProductSearchTokens(rawQuery) : [];
+      const query = tokens.length ? tokens.join(" ") : rawQuery.toLowerCase();
       const category = args.category ? String(args.category) : undefined;
       const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
       const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
@@ -675,6 +704,48 @@ export async function executeAgentTool(
                 type: "empty_search",
                 searchQuery: searchQuery || query || "paieška",
               },
+      };
+    }
+
+    case "create_listing_draft": {
+      const title = String(args.title ?? "Skelbimas").trim();
+      const category = String(args.category ?? "other");
+      const description = args.description ? String(args.description) : "";
+      const attributes =
+        args.attributes && typeof args.attributes === "object"
+          ? Object.fromEntries(
+              Object.entries(args.attributes as Record<string, unknown>).map(([k, v]) => [
+                k,
+                String(v),
+              ])
+            )
+          : {};
+
+      const draft = {
+        title,
+        description,
+        price: 0,
+        location: ctx.userCity?.trim() || "",
+        contact: ctx.contact,
+        category,
+        confidence: 0.85,
+        attributes,
+      };
+
+      const voiceFollowUp = buildCreateListingDraftFollowUp(category, title, attributes);
+
+      return {
+        result: {
+          ok: true,
+          message: "Pradedamas skelbimo juodraštis.",
+          draft,
+          voiceFollowUp,
+          suggestedQuestions: [voiceFollowUp],
+        },
+        sideEffect: {
+          type: "listing_draft",
+          listingDraft: draft,
+        },
       };
     }
 
