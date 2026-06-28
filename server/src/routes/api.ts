@@ -50,6 +50,7 @@ import {
   vehicleLookupFeatures,
 } from "../vehicle/vehicle-lookup-route.js";
 import { notifyListingMatch } from "../push/web-push.js";
+import { scheduleWishlistMatchNotifications } from "../notifications/notifications-service.js";
 import {
   notifyAdminsNewReport,
   notifyAdminsUserFollowUp,
@@ -325,6 +326,7 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     }
     await insertListing(listing);
     void notifyListingMatch(listing).catch(() => {});
+    scheduleWishlistMatchNotifications(listing);
     res.status(201).json(listing);
   } catch (e) {
     res.status(500).json({ error: String(e) });

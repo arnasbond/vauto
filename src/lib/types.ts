@@ -179,6 +179,10 @@ export interface UserProfile {
   /** VAUTO Spinta Power-User prenumerata (tik wardrobe chameleon) */
   wardrobePowerUser?: boolean;
   wardrobePowerUntil?: string;
+  /** Server-side referral code (VAUTO-XXXXX) */
+  referralCode?: string;
+  /** Nemokamos pirkėjo apsaugos kreditai */
+  freeProtectionCredits?: number;
 }
 
 export interface BodyMeasurements {

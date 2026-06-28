@@ -1,4 +1,4 @@
-/** Offer Engine — no-match leads & smart bargaining (server-side). */
+/** Offer Engine — no-match leads, smart bargaining, wishlist matching. */
 
 export interface NormalizedUserRequirement {
   query: string;
@@ -11,6 +11,31 @@ export interface NormalizedUserRequirement {
   wardrobeMode: boolean;
   filters?: Record<string, unknown>;
   source: string;
+}
+
+export interface UserRequirementRow {
+  id: string;
+  userId: string;
+  query: string;
+  category?: string | null;
+  city?: string | null;
+  maxPrice?: number | null;
+  minPrice?: number | null;
+  size?: string | null;
+  subcategory?: string | null;
+  wardrobeMode: boolean;
+  lastNotifiedListingId?: string | null;
+}
+
+export interface ListingMatchInput {
+  id: string;
+  title: string;
+  price: number;
+  category: string;
+  location: string;
+  tags: string[];
+  description?: string;
+  attributes?: Record<string, unknown>;
 }
 
 export function normalizeUserRequirementArgs(
@@ -51,6 +76,84 @@ export function normalizeUserRequirementArgs(
     wardrobeMode,
     filters,
     source,
+  };
+}
+
+function tokens(q: string): string[] {
+  return q
+    .toLowerCase()
+    .split(/[\s,.;:!?—–-]+/)
+    .filter((t) => t.length >= 3);
+}
+
+function haystackForListing(listing: ListingMatchInput): string {
+  const attrs = listing.attributes ?? {};
+  const attrText = Object.values(attrs)
+    .flatMap((v) => (Array.isArray(v) ? v : [v]))
+    .filter(Boolean)
+    .join(" ");
+  return [
+    listing.title,
+    listing.location,
+    listing.category,
+    ...listing.tags,
+    listing.description ?? "",
+    attrText,
+  ]
+    .join(" ")
+    .toLowerCase();
+}
+
+/** Structured match against user_requirements (price, category, city, tokens). */
+export function listingMatchesRequirement(
+  listing: ListingMatchInput,
+  req: UserRequirementRow
+): boolean {
+  if (req.lastNotifiedListingId === listing.id) return false;
+
+  const hay = haystackForListing(listing);
+  const qTokens = tokens(req.query);
+  if (qTokens.length > 0 && !qTokens.every((t) => hay.includes(t))) {
+    return false;
+  }
+
+  if (req.category && req.category !== listing.category) return false;
+
+  if (req.city) {
+    const city = req.city.toLowerCase();
+    if (!listing.location.toLowerCase().includes(city)) return false;
+  }
+
+  if (req.maxPrice != null && listing.price > Number(req.maxPrice)) return false;
+  if (req.minPrice != null && listing.price < Number(req.minPrice)) return false;
+
+  if (req.wardrobeMode && listing.category !== "clothing") return false;
+
+  if (req.size) {
+    const size = req.size.toLowerCase();
+    const attrs = listing.attributes ?? {};
+    const listingSize = String(attrs.size ?? attrs.clothingSize ?? "").toLowerCase();
+    if (listingSize && !listingSize.includes(size) && !hay.includes(size)) {
+      return false;
+    }
+  }
+
+  if (req.subcategory) {
+    const sub = req.subcategory.toLowerCase();
+    if (!hay.includes(sub)) return false;
+  }
+
+  return true;
+}
+
+export function buildWishlistMatchMessage(
+  req: UserRequirementRow,
+  listing: ListingMatchInput
+): { title: string; body: string } {
+  const query = req.query.trim() || listing.title;
+  return {
+    title: "VAUTO: radome jūsų pageidavimą!",
+    body: `Naujas skelbimas atitinka „${query}“: ${listing.title} — ${listing.price.toFixed(0)} €, ${listing.location}`,
   };
 }
 

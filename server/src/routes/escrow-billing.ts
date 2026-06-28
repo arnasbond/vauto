@@ -16,6 +16,11 @@ import {
   upsertEscrow,
 } from "../repository.js";
 import { validateEscrow, type ValidationResult } from "../validation.js";
+import {
+  applyReferralEscrowRewards,
+  consumeProtectionCredit,
+  getFreeProtectionCredits,
+} from "../referral/referral-service.js";
 import type { ApiEscrowTransaction } from "../types.js";
 import type { Response } from "express";
 
@@ -61,8 +66,9 @@ escrowBillingRouter.post("/checkout", requireAuth, async (req: AuthedRequest, re
       shippingLockerName?: string;
     };
 
-    const buyerProtectionFee = calculateBuyerProtectionFee(escrow.amount);
-    const buyerTotal = calculateBuyerTotal(escrow.amount);
+    const freeCredits = await getFreeProtectionCredits(escrow.buyerId);
+    const buyerProtectionFee = calculateBuyerProtectionFee(escrow.amount, freeCredits);
+    const buyerTotal = calculateBuyerTotal(escrow.amount, freeCredits);
     const now = new Date().toISOString();
     const draft: ApiEscrowTransaction = {
       ...escrow,
@@ -121,8 +127,15 @@ escrowBillingRouter.post("/confirm-session", requireAuth, async (req: AuthedRequ
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const fee = existing.buyerProtectionFee ?? calculateBuyerProtectionFee(existing.amount);
-    const total = existing.buyerTotal ?? calculateBuyerTotal(existing.amount);
+    const freeCredits = await getFreeProtectionCredits(existing.buyerId);
+    const fee =
+      existing.buyerProtectionFee ??
+      calculateBuyerProtectionFee(existing.amount, freeCredits);
+    const total =
+      existing.buyerTotal ?? calculateBuyerTotal(existing.amount, freeCredits);
+    if (fee === 0 && freeCredits > 0) {
+      await consumeProtectionCredit(existing.buyerId);
+    }
     const updated = await markEscrowPaidFromStripe({
       escrowId,
       paymentIntentId,
@@ -202,6 +215,10 @@ escrowBillingRouter.post("/confirm-delivery", requireAuth, async (req: AuthedReq
     }
 
     const updated = await confirmEscrowDelivery(escrowId);
+    await applyReferralEscrowRewards({
+      buyerId: escrow.buyerId,
+      sellerId: escrow.sellerId,
+    });
     res.json({ ok: true, escrow: updated });
   } catch (e) {
     res.status(500).json({ error: String(e) });

@@ -26,6 +26,8 @@ export interface AuthApiSession {
     serviceNationwide?: boolean;
     serviceSpecialties?: string[];
     averageResponseMinutes?: number;
+    referralCode?: string;
+    freeProtectionCredits?: number;
   };
   role: UserRole;
   provider: AuthProvider;
@@ -87,6 +89,7 @@ export async function apiVerifyOtp(params: {
   serviceRadiusKm?: number;
   serviceNationwide?: boolean;
   serviceSpecialties?: string[];
+  referralCode?: string;
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/otp/verify", {
     method: "POST",
@@ -108,6 +111,7 @@ export async function apiSocialLogin(params: {
   serviceRadiusKm?: number;
   serviceNationwide?: boolean;
   serviceSpecialties?: string[];
+  referralCode?: string;
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/social", {
     method: "POST",
@@ -176,5 +180,7 @@ export function mapApiUserToProfile(
       (meta.role === "pro" ? 25 : 0),
     memberSince: new Date().toISOString(),
     soldCount: apiUser.soldCount ?? 0,
+    referralCode: apiUser.referralCode,
+    freeProtectionCredits: apiUser.freeProtectionCredits ?? 0,
   };
 }

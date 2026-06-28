@@ -432,15 +432,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
 
-  const applyReferralOnSignup = useCallback((newUserId: string) => {
+  const applyReferralOnSignup = useCallback((newUserId: string, referralCode?: string) => {
 
-    const ref = consumePendingReferral();
+    if (!referralCode || referralCode === newUserId) return;
 
-    if (ref && ref !== newUserId) {
-
-      grantReferralCredit(ref);
-
-    }
+    grantReferralCredit(referralCode);
 
   }, []);
 
@@ -564,6 +560,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       try {
 
+        const referralCode = consumePendingReferral() ?? undefined;
+
         if (isAuthApiAvailable()) {
 
           const apiResult =
@@ -580,6 +578,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                   city: data.city ?? user.city,
 
+                  referralCode,
+
                 })
 
               : await apiSocialLogin({
@@ -593,6 +593,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   city: data.city ?? user.city,
 
                   idToken: data.idToken,
+
+                  referralCode,
 
                 });
 
@@ -640,8 +642,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           setIsAuthenticated(true);
 
-          applyReferralOnSignup(profile.id);
-
           applySignupIntentAfterLogin(data.signupIntent);
 
           return;
@@ -668,7 +668,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         setIsAuthenticated(true);
 
-        applyReferralOnSignup(profile.id);
+        applyReferralOnSignup(profile.id, referralCode);
 
         applySignupIntentAfterLogin(data.signupIntent);
 

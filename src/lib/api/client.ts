@@ -1064,3 +1064,41 @@ export async function apiConfirmEscrowDelivery(
     userId,
   });
 }
+
+export async function apiGrowthReferralMe(
+  userId: string
+): Promise<
+  ApiResult<{ referralCode: string; freeProtectionCredits: number }>
+> {
+  return dataFetch("/api/growth/referral/me", { userId });
+}
+
+export async function apiApplyReferralCode(
+  code: string,
+  userId: string
+): Promise<
+  ApiResult<{ message: string; freeProtectionCredits: number }>
+> {
+  return dataFetch("/api/growth/referral/apply", {
+    method: "POST",
+    body: JSON.stringify({ code }),
+    userId,
+  });
+}
+
+export interface UserNotification {
+  id: string;
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+  url?: string;
+  createdAt: string;
+}
+
+export async function apiFetchUserNotifications(
+  userId: string,
+  limit = 40
+): Promise<ApiResult<{ notifications: UserNotification[] }>> {
+  return dataFetch(`/api/growth/notifications?limit=${limit}`, { userId });
+}

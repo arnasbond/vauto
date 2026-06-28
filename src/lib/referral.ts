@@ -14,12 +14,13 @@ export const REFERRAL_SIGNUP_BASE =
   process.env.NEXT_PUBLIC_REFERRAL_BASE?.replace(/\/$/, "") ||
   "https://vauto.lt/registracija";
 
-export function buildReferralUrl(userId: string): string {
+export function buildReferralUrl(user: Pick<UserProfile, "id" | "referralCode"> | string): string {
+  const ref = typeof user === "string" ? user : user.referralCode ?? user.id;
   const base = REFERRAL_SIGNUP_BASE.includes("://")
     ? REFERRAL_SIGNUP_BASE
     : `${SITE_URL}/registracija`;
   const url = new URL(base.endsWith("/") ? base : `${base}/`);
-  url.searchParams.set("ref", userId);
+  url.searchParams.set("ref", ref);
   return url.toString();
 }
 
@@ -43,13 +44,16 @@ export function consumePendingReferral(): string | null {
   }
 }
 
-export function getReferralCredits(userId: string): number {
+export function getReferralCredits(user: Pick<UserProfile, "id" | "freeProtectionCredits">): number {
+  if (typeof user.freeProtectionCredits === "number") {
+    return user.freeProtectionCredits;
+  }
   if (typeof window === "undefined") return 0;
   try {
     const raw = localStorage.getItem(REFERRAL_CREDITS_KEY);
     if (!raw) return 0;
     const map = JSON.parse(raw) as Record<string, number>;
-    return map[userId] ?? 0;
+    return map[user.id] ?? 0;
   } catch {
     return 0;
   }
@@ -68,7 +72,7 @@ export function grantReferralCredit(userId: string): void {
 }
 
 export function referralSharePayload(user: UserProfile): NativeSharePayload {
-  const url = buildReferralUrl(user.id);
+  const url = buildReferralUrl(user);
   return {
     title: "Vauto — skelbimai visoje Lietuvoje",
     text: `Prisijunk prie VAUTO ir gauk TOP iškėlimą! Naudok mano pakvietimo nuorodą:`,

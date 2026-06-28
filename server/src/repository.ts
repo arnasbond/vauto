@@ -107,10 +107,13 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     sold_count: number;
     auth_provider: string | null;
     billing_plan: string | null;
+    referral_code: string | null;
+    free_protection_credits: number | null;
+    referred_by_user_id: string | null;
   }>(
     `SELECT id, name, phone, city, avatar_url, email, warned,
             wallet_balance, role, business_type, sold_count, auth_provider,
-            billing_plan
+            billing_plan, referral_code, free_protection_credits, referred_by_user_id
      FROM users WHERE id = $1`,
     [id]
   );
@@ -129,6 +132,9 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     soldCount: r.sold_count,
     authProvider: r.auth_provider ?? undefined,
     billingPlan: r.billing_plan ?? undefined,
+    referralCode: r.referral_code ?? undefined,
+    freeProtectionCredits: r.free_protection_credits ?? 0,
+    referredByUserId: r.referred_by_user_id ?? undefined,
     avatar:
       r.avatar_url ??
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
@@ -1546,6 +1552,109 @@ export async function getUsersMatchingListing(
       return t.length > 0 && t.every((tok) => haystack.includes(tok));
     })
     .map((r) => ({ userId: r.user_id, query: r.query }));
+}
+
+export async function getActiveUserRequirements(): Promise<
+  import("./offer-engine.js").UserRequirementRow[]
+> {
+  const rows = await query<{
+    id: string;
+    user_id: string;
+    query: string;
+    category: string | null;
+    city: string | null;
+    max_price: string | null;
+    min_price: string | null;
+    size: string | null;
+    subcategory: string | null;
+    wardrobe_mode: boolean;
+    last_notified_listing_id: string | null;
+  }>(
+    `SELECT id, user_id, query, category, city, max_price, min_price,
+            size, subcategory, wardrobe_mode, last_notified_listing_id
+     FROM user_requirements
+     WHERE status = 'active'`
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    userId: r.user_id,
+    query: r.query,
+    category: r.category,
+    city: r.city,
+    maxPrice: r.max_price != null ? Number(r.max_price) : null,
+    minPrice: r.min_price != null ? Number(r.min_price) : null,
+    size: r.size,
+    subcategory: r.subcategory,
+    wardrobeMode: r.wardrobe_mode,
+    lastNotifiedListingId: r.last_notified_listing_id,
+  }));
+}
+
+export async function markRequirementNotified(
+  requirementId: string,
+  listingId: string
+): Promise<void> {
+  await query(
+    `UPDATE user_requirements SET last_notified_listing_id = $2 WHERE id = $1`,
+    [requirementId, listingId]
+  );
+}
+
+export async function insertUserNotification(input: {
+  userId: string;
+  kind: string;
+  title: string;
+  body: string;
+  url?: string;
+}): Promise<{ id: string }> {
+  const id = `ntf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await query(
+    `INSERT INTO user_notifications (id, user_id, kind, title, body, url)
+     VALUES ($1, $2, $3, $4, $5, $6)`,
+    [id, input.userId, input.kind, input.title, input.body, input.url ?? null]
+  );
+  return { id };
+}
+
+export async function getUserNotifications(
+  userId: string,
+  limit = 30
+): Promise<
+  {
+    id: string;
+    kind: string;
+    title: string;
+    body: string;
+    url?: string;
+    readAt?: string;
+    createdAt: string;
+  }[]
+> {
+  const rows = await query<{
+    id: string;
+    kind: string;
+    title: string;
+    body: string;
+    url: string | null;
+    read_at: Date | null;
+    created_at: Date;
+  }>(
+    `SELECT id, kind, title, body, url, read_at, created_at
+     FROM user_notifications
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [userId, limit]
+  );
+  return rows.map((r) => ({
+    id: r.id,
+    kind: r.kind,
+    title: r.title,
+    body: r.body,
+    url: r.url ?? undefined,
+    readAt: r.read_at?.toISOString(),
+    createdAt: r.created_at.toISOString(),
+  }));
 }
 
 export async function getListingForEmbedding(

@@ -16,6 +16,9 @@ export interface ApiUser {
   vatCode?: string;
   billingPlan?: string;
   billingModel?: string;
+  referralCode?: string;
+  freeProtectionCredits?: number;
+  referredByUserId?: string;
   serviceBaseCity?: string;
   serviceRadiusKm?: number;
   serviceNationwide?: boolean;

@@ -10,6 +10,10 @@ import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
 import { sendSmsOtp } from "../auth/sms.js";
 import { verifyGoogleIdToken } from "../auth/google-verify.js";
 import { getUser, upsertUser } from "../repository.js";
+import {
+  applyReferralOnSignup,
+  attachReferralFields,
+} from "../referral/referral-service.js";
 import type { ApiUser } from "../types.js";
 import { exposeOtpDevHint } from "../demo-guards.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
@@ -143,6 +147,7 @@ async function buildSession(
       (role === "pro" ? 25 : role === "admin" ? 0 : 0),
   };
   await upsertUser(user);
+  const enriched = await attachReferralFields(user);
   const token = signAccessToken({
     sub: userId,
     role,
@@ -151,10 +156,24 @@ async function buildSession(
   return {
     token,
     expiresAt: new Date(Date.now() + getTokenTtlMs()).toISOString(),
-    user,
+    user: enriched,
     role,
     provider: meta.provider,
   };
+}
+
+async function finalizeSessionWithReferral(
+  userId: string,
+  session: Awaited<ReturnType<typeof buildSession>>,
+  referralCode?: string
+) {
+  if (!referralCode) return session;
+  await applyReferralOnSignup(userId, referralCode);
+  const refreshed = await getUser(userId);
+  if (refreshed) {
+    session.user = await attachReferralFields(refreshed);
+  }
+  return session;
 }
 
 authRouter.post("/otp/send", (req, res) => {
@@ -199,6 +218,9 @@ authRouter.post("/otp/verify", async (req, res) => {
     const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
       ? (req.body.serviceSpecialties as unknown[]).map(String)
       : undefined;
+    const referralCode = req.body?.referralCode
+      ? String(req.body.referralCode).trim()
+      : undefined;
 
     if (!verifyOtp(phone, code) && !verifyDemoBypassOtp(phone, code)) {
       res.status(401).json({ error: "Neteisingas arba pasibaigęs kodas" });
@@ -222,7 +244,7 @@ authRouter.post("/otp/verify", async (req, res) => {
         serviceSpecialties,
       }
     );
-    res.json(session);
+    res.json(await finalizeSessionWithReferral(userId, session, referralCode));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -247,6 +269,9 @@ authRouter.post("/social", async (req, res) => {
     const serviceNationwide = req.body?.serviceNationwide === true;
     const serviceSpecialties = Array.isArray(req.body?.serviceSpecialties)
       ? (req.body.serviceSpecialties as unknown[]).map(String)
+      : undefined;
+    const referralCode = req.body?.referralCode
+      ? String(req.body.referralCode).trim()
       : undefined;
 
     if (provider === "google" && idToken) {
@@ -285,7 +310,7 @@ authRouter.post("/social", async (req, res) => {
           serviceSpecialties,
         }
       );
-      res.json(session);
+      res.json(await finalizeSessionWithReferral(userId, session, referralCode));
       return;
     }
 
@@ -322,7 +347,7 @@ authRouter.post("/social", async (req, res) => {
           serviceSpecialties,
         }
       );
-      res.json(session);
+      res.json(await finalizeSessionWithReferral("admin-1", session, referralCode));
       return;
     }
 
@@ -349,7 +374,7 @@ authRouter.post("/social", async (req, res) => {
         serviceSpecialties,
       }
     );
-    res.json(session);
+    res.json(await finalizeSessionWithReferral(userId, session, referralCode));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

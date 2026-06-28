@@ -12,8 +12,8 @@ import { cn } from "@/lib/cn";
 
 export function ReferralInviteCard() {
   const { user, showToast } = useVauto();
-  const referralUrl = useMemo(() => buildReferralUrl(user.id), [user.id]);
-  const credits = getReferralCredits(user.id);
+  const referralUrl = useMemo(() => buildReferralUrl(user), [user]);
+  const credits = getReferralCredits(user);
 
   const handleShare = async () => {
     const ok = await shareReferralInvite(user);

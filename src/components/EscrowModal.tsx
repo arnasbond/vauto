@@ -109,10 +109,14 @@ export function EscrowModal({
         : 0,
     [monetizationCtx, amount]
   );
-  const protectionFee = useMemo(() => calculateBuyerProtectionFee(amount), [amount]);
+  const freeCredits = user.freeProtectionCredits ?? 0;
+  const protectionFee = useMemo(
+    () => calculateBuyerProtectionFee(amount, freeCredits),
+    [amount, freeCredits]
+  );
   const buyerTotal = useMemo(
-    () => Math.round((calculateBuyerTotal(amount) + twinFee) * 100) / 100,
-    [amount, twinFee]
+    () => Math.round((calculateBuyerTotal(amount, freeCredits) + twinFee) * 100) / 100,
+    [amount, twinFee, freeCredits]
   );
 
   const [step, setStep] = useState<EscrowStep>(() => stepFromEscrow(escrow));
@@ -363,9 +367,28 @@ export function EscrowModal({
               </p>
               <div className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-xs text-slate-600">
                 <div className="flex justify-between">
-                  <span>Pirkėjo apsauga ({BUYER_PROTECTION_FEE_PERCENT}%)</span>
-                  <span className="font-semibold">{protectionFee.toFixed(2)} €</span>
+                  <span>
+                    Pirkėjo apsauga ({BUYER_PROTECTION_FEE_PERCENT}%)
+                    {freeCredits > 0 ? " — nemokamai" : ""}
+                  </span>
+                  <span className="font-semibold">
+                    {freeCredits > 0 ? (
+                      <>
+                        <span className="mr-1 text-slate-400 line-through">
+                          {calculateBuyerProtectionFee(amount, 0).toFixed(2)} €
+                        </span>
+                        0.00 €
+                      </>
+                    ) : (
+                      `${protectionFee.toFixed(2)} €`
+                    )}
+                  </span>
                 </div>
+                {freeCredits > 0 && (
+                  <p className="text-[10px] text-emerald-600">
+                    Naudojamas referral kreditas · liko {freeCredits}
+                  </p>
+                )}
                 {twinFee > 0 && (
                   <div className="flex justify-between">
                     <span>{WARDROBE_NEGOTIATION_TWIN_FEE_LABEL}</span>

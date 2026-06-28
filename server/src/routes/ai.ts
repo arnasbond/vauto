@@ -23,6 +23,7 @@ import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
 import { runAutoNegotiation } from "../ai/bargain-twin.js";
 import { calculateAppraisal } from "../ai/price-appraisal.js";
+import { generateListingShareCopy } from "../ai/listing-share-generator.js";
 import { getListings } from "../repository.js";
 import { toAgentListingSummary } from "../demo-catalog-api.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
@@ -907,6 +908,43 @@ ${listText}`;
     }
 
     res.json({ scores: normalized });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+aiRouter.post("/listing-share", async (req, res) => {
+  const body = req.body as {
+    listingId?: string;
+    slug?: string;
+    title?: string;
+    price?: number;
+    city?: string;
+    category?: string;
+    description?: string;
+    attributes?: Record<string, unknown>;
+    imageAlt?: string;
+  };
+
+  const listingId = String(body.listingId ?? "").trim();
+  const title = String(body.title ?? "").trim();
+  if (!listingId || !title) {
+    return res.status(400).json({ error: "listingId and title are required" });
+  }
+
+  try {
+    const copy = await generateListingShareCopy({
+      listingId,
+      slug: body.slug ? String(body.slug) : undefined,
+      title,
+      price: Number(body.price) || 0,
+      city: String(body.city ?? "Lietuva"),
+      category: String(body.category ?? "other"),
+      description: body.description ? String(body.description) : undefined,
+      attributes: body.attributes,
+      imageAlt: body.imageAlt ? String(body.imageAlt) : undefined,
+    });
+    res.json({ ok: true, ...copy });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

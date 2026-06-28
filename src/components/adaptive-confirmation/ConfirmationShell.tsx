@@ -8,6 +8,7 @@ import type { AiExtractedListing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { ShareListingPanel } from "@/components/social/ShareListingPanel";
+import { ShareSpintaButton } from "@/components/social/ShareSpintaButton";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 
@@ -123,7 +124,10 @@ export function PublishedOverlay() {
         </div>
 
         {lastPublishedListing && (
-          <ShareListingPanel listing={lastPublishedListing} className="mb-4" />
+          <>
+            <ShareSpintaButton listing={lastPublishedListing} className="mb-4" />
+            <ShareListingPanel listing={lastPublishedListing} className="mb-4" compact />
+          </>
         )}
 
         <button
