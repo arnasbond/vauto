@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -12,6 +12,7 @@ import {
   Phone,
   Tag,
   Trash2,
+  Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
@@ -36,6 +37,7 @@ import {
   isDemoListingPhone,
   resolveListingPhone,
 } from "@/lib/listing-display";
+import { LISTING_DWELL_MS } from "@/lib/offer-engine-client";
 
 interface ListingDetailPageProps {
   slug?: string;
@@ -82,8 +84,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     trackListingCall,
     reviews,
     listings,
+    chameleonTheme,
   } = useVauto();
   const { trackEvent } = useUserBehavior();
+  const dwellFiredRef = useRef(false);
 
   const listing = slug
     ? findListing(slug)
@@ -102,6 +106,29 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       });
     }
   }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, trackListingView, trackEvent]);
+
+  const wardrobeContext =
+    chameleonTheme === "wardrobe" ||
+    pathname === "/fashion" ||
+    pathname === "/fashion/" ||
+    listing?.category === "clothing";
+
+  useEffect(() => {
+    dwellFiredRef.current = false;
+    if (!listing?.id || listing.banned || !wardrobeContext) return;
+    const timer = window.setTimeout(() => {
+      if (dwellFiredRef.current) return;
+      dwellFiredRef.current = true;
+      trackEvent("listing_dwell", {
+        listingId: listing.id,
+        title: listing.title,
+        category: listing.category,
+        price: listing.price,
+        dwellMs: LISTING_DWELL_MS,
+      });
+    }, LISTING_DWELL_MS);
+    return () => window.clearTimeout(timer);
+  }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, wardrobeContext, trackEvent]);
 
   if (!listing || listing.banned) {
     return (
@@ -124,6 +151,20 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const detailRows = getListingDetailRows(listing);
   const categoryLabel = getCategoryLabel(listing);
   const similarListings = getSimilarListings(listing, listings);
+
+  const handleNegotiate = () => {
+    if (isOwn) {
+      showToast("Tai jūsų skelbimas.", "info");
+      return;
+    }
+    trackEvent("negotiate_click", {
+      listingId: listing.id,
+      title: listing.title,
+      category: listing.category,
+      price: listing.price,
+      wardrobeMode: wardrobeContext,
+    });
+  };
 
   const handleChat = () => {
     if (isOwn) {
@@ -234,6 +275,16 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               <MessageCircle className="h-5 w-5" />
               Rašyti pardavėjui
             </button>
+            {wardrobeContext && (
+              <button
+                type="button"
+                onClick={handleNegotiate}
+                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 py-3 text-sm font-semibold text-fuchsia-900"
+              >
+                <Sparkles className="h-5 w-5 text-fuchsia-600" />
+                Derėtis su AI
+              </button>
+            )}
           </div>
         )}
 

@@ -1,37 +1,79 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
+import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
 import { AGENT_MIN_QUERY_CHARS } from "@/lib/vauto-agent-client";
-
-function buildEmptySearchIntervention(query: string, wardrobeMode: boolean): string {
-  if (wardrobeMode) {
-    return `Matau, kad ieškai kažko specifinio Jolantos spintoje pagal „${query}“, bet kol kas tuščia. Leisk man padėti surasti fone — pasakyk spalvą, dydį ar stilių!`;
-  }
-  return `Matau, kad pagal „${query}“ kol kas nieko neradome. Galiu padėti susiaurinti paiešką ar užfiksuoti norą — pasakyk, ko tiksliai ieškai!`;
-}
+import {
+  buildBargainingInterventionMessage,
+  buildNoMatchInterventionMessage,
+} from "@/lib/offer-engine-client";
+import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 
 function buildWardrobeShortQueryIntervention(query: string): string {
-  return `Matau, kad ieškai kažko specifinio Jolantos spintoje („${query}“). Leisk man padėti — pasakyk dydį, spalvą ar prekės tipą, ir aš surasiu tau tinkamiausią variantą!`;
+  return `Matau, kad ieškai kažko specifinio Jolantos spintoje („${query}"). Leisk man padėti — pasakyk dydį, spalvą ar prekės tipą, ir aš surasiu tau tinkamiausią variantą!`;
 }
 
-/**
- * Global AI live interventions — proactive agent bubble when behavior signals need help.
- */
+function toAgentFilters(state: MarketplaceFilterState, searchQuery: string): AgentSearchFilters {
+  return {
+    query: searchQuery.trim() || undefined,
+    category: state.category !== "all" ? state.category : undefined,
+    city: state.location.trim() || undefined,
+    maxPrice: state.priceMax ?? undefined,
+    minPrice: state.priceMin ?? undefined,
+    radiusKm: state.radiusKm ?? undefined,
+    condition: state.condition !== "all" ? state.condition : undefined,
+    categoryAttributes: state.categoryAttributes,
+  };
+}
+
+/** Global AI live interventions — proactive Offer Engine (no-match leads + bargaining). */
 export function LiveInterventionHost() {
   const pathname = usePathname();
-  const { searchQuery, rankedListings, searchLoading, chameleonTheme } = useVauto();
-  const { open, openWithGreeting, busy: agentBusy } = useVautoAgent();
+  const {
+    searchQuery,
+    rankedListings,
+    searchLoading,
+    chameleonTheme,
+    marketplaceFilters,
+  } = useVauto();
+  const { open, openWithGreeting, busy: agentBusy, sendAgentMessage } = useVautoAgent();
   const { events, shouldFireIntervention } = useUserBehavior();
   const lastHandledEventId = useRef<string | null>(null);
+  const noMatchTriggeredRef = useRef<string | null>(null);
 
   const wardrobeMode =
     chameleonTheme === "wardrobe" ||
     pathname === "/fashion" ||
     pathname === "/fashion/";
+
+  const triggerNoMatchOffer = useCallback(
+    (query: string, key: string) => {
+      if (!shouldFireIntervention(key)) return;
+      noMatchTriggeredRef.current = key;
+      const greeting = buildNoMatchInterventionMessage(query, wardrobeMode);
+      openWithGreeting(greeting);
+      void sendAgentMessage(greeting, {
+        skipBusyCheck: true,
+        proactiveOffer: {
+          kind: "no_match",
+          query,
+          wardrobeMode,
+          filters: toAgentFilters(marketplaceFilters, query),
+        },
+      });
+    },
+    [
+      wardrobeMode,
+      shouldFireIntervention,
+      openWithGreeting,
+      sendAgentMessage,
+      marketplaceFilters,
+    ]
+  );
 
   useEffect(() => {
     if (open || agentBusy || searchLoading) return;
@@ -45,7 +87,55 @@ export function LiveInterventionHost() {
       const key = `empty:${query}`;
       if (!shouldFireIntervention(key)) return;
       lastHandledEventId.current = last.id;
-      openWithGreeting(buildEmptySearchIntervention(query, wardrobeMode));
+      triggerNoMatchOffer(query, key);
+      return;
+    }
+
+    if (last.type === "listing_dwell" && wardrobeMode) {
+      const listingId = String(last.payload.listingId ?? "");
+      const title = String(last.payload.title ?? "Prekė");
+      const price = Number(last.payload.price) || 0;
+      if (!listingId || price <= 0) return;
+      const key = `dwell:${listingId}`;
+      if (!shouldFireIntervention(key)) return;
+      lastHandledEventId.current = last.id;
+      const greeting = buildBargainingInterventionMessage(title, price, true);
+      openWithGreeting(greeting);
+      void sendAgentMessage(greeting, {
+        skipBusyCheck: true,
+        proactiveOffer: {
+          kind: "bargaining",
+          listingId,
+          listingTitle: title,
+          listingPrice: price,
+          category: String(last.payload.category ?? "clothing"),
+          wardrobeMode: true,
+        },
+      });
+      return;
+    }
+
+    if (last.type === "negotiate_click") {
+      const listingId = String(last.payload.listingId ?? "");
+      const title = String(last.payload.title ?? "Prekė");
+      const price = Number(last.payload.price) || 0;
+      if (!listingId || price <= 0) return;
+      const key = `negotiate:${listingId}`;
+      if (!shouldFireIntervention(key)) return;
+      lastHandledEventId.current = last.id;
+      const greeting = buildBargainingInterventionMessage(title, price, wardrobeMode);
+      openWithGreeting(greeting);
+      void sendAgentMessage(greeting, {
+        skipBusyCheck: true,
+        proactiveOffer: {
+          kind: "bargaining",
+          listingId,
+          listingTitle: title,
+          listingPrice: price,
+          category: String(last.payload.category ?? ""),
+          wardrobeMode,
+        },
+      });
       return;
     }
 
@@ -67,7 +157,9 @@ export function LiveInterventionHost() {
     searchQuery,
     wardrobeMode,
     openWithGreeting,
+    sendAgentMessage,
     shouldFireIntervention,
+    triggerNoMatchOffer,
   ]);
 
   useEffect(() => {
@@ -76,17 +168,15 @@ export function LiveInterventionHost() {
     if (rankedListings.length > 0) return;
 
     const key = `grid_empty:${q}`;
-    if (!shouldFireIntervention(key)) return;
-    openWithGreeting(buildEmptySearchIntervention(q, wardrobeMode));
+    if (noMatchTriggeredRef.current === key) return;
+    triggerNoMatchOffer(q, key);
   }, [
     searchQuery,
     rankedListings.length,
     searchLoading,
     agentBusy,
     open,
-    wardrobeMode,
-    openWithGreeting,
-    shouldFireIntervention,
+    triggerNoMatchOffer,
   ]);
 
   return null;

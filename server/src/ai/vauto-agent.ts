@@ -40,6 +40,11 @@ import {
   type MyListingForAgent,
 } from "./user-agent-context.js";
 import { buildUserBehaviorContextBlock } from "./user-behavior-context.js";
+import {
+  NO_MATCH_LEAD_HINT,
+  SMART_BARGAINING_HINT,
+  buildNoMatchLeadPrompt,
+} from "../offer-engine.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -112,6 +117,16 @@ export interface VautoAgentRequest {
       at: number;
       payload?: Record<string, unknown>;
     }[];
+    proactiveOffer?: {
+      kind: "no_match" | "bargaining";
+      query?: string;
+      listingId?: string;
+      listingTitle?: string;
+      listingPrice?: number;
+      category?: string;
+      wardrobeMode?: boolean;
+      filters?: AgentSearchFilters | null;
+    };
   };
   /** Set by route from JWT — used for DB writes (mark sold, etc.) */
   authUserId?: string;
@@ -405,6 +420,36 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     });
   }
 
+  if (req.context.proactiveOffer?.kind === "bargaining") {
+    const po = req.context.proactiveOffer;
+    contents.unshift({
+      role: "user",
+      parts: [
+        {
+          text: `[Proaktyvus derybų signalas — PRIVALOMA proposeSmartBargaining]\n${SMART_BARGAINING_HINT}\nlistingId=${po.listingId ?? ""}\ntitle=${po.listingTitle ?? ""}\nprice=${po.listingPrice ?? ""}\ncategory=${po.category ?? ""}\nwardrobeMode=${Boolean(po.wardrobeMode)}`,
+        },
+      ],
+    });
+  }
+
+  if (
+    req.context.proactiveOffer?.kind === "no_match" ||
+    req.context.searchResultCount === 0
+  ) {
+    const q =
+      req.context.proactiveOffer?.query ??
+      req.context.lastSearchQuery ??
+      "";
+    contents.unshift({
+      role: "user",
+      parts: [
+        {
+          text: `[No-Match Lead — 0 rezultatų]\n${NO_MATCH_LEAD_HINT}\nquery=${q}\nfilters=${JSON.stringify(req.context.activeSearchFilters ?? req.context.proactiveOffer?.filters ?? null)}`,
+        },
+      ],
+    });
+  }
+
   const pageContextBlock = buildPageContextInjectionBlock(req.context.currentPageContext);
   if (pageContextBlock) {
     contents.unshift({
@@ -451,6 +496,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   let microPaymentEffect: AgentSideEffect | undefined;
   let uiFilterEffect: AgentSideEffect | undefined;
   let navigateScreenEffect: AgentSideEffect | undefined;
+  let offerEffect: AgentSideEffect | undefined;
   let finalText = "";
 
   const hasGemini = Boolean(resolveGeminiApiKey());
@@ -513,6 +559,12 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
           else if (fx.type === "navigate") navigateEffect = fx;
           else if (fx.type === "apply_ui_filters") uiFilterEffect = fx;
           else if (fx.type === "navigate_to_screen") navigateScreenEffect = fx;
+          else if (
+            fx.type === "create_user_requirement" ||
+            fx.type === "propose_bargaining"
+          ) {
+            offerEffect = fx;
+          }
           else if (
             fx.type === "mark_listing_sold" ||
             fx.type === "listing_draft" ||
@@ -598,6 +650,28 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     finalText = navigateScreenResult.label ?? navigateScreenResult.message ?? finalText;
   }
 
+  const requirementCall = toolCalls.find((t) => t.name === "createUserRequirement");
+  const requirementResult = requirementCall?.result as {
+    ok?: boolean;
+    message?: string;
+  } | undefined;
+  if (requirementResult?.ok && requirementResult.message) {
+    finalText = requirementResult.message;
+  } else if (
+    requirementResult &&
+    !requirementResult.ok &&
+    requirementResult.message &&
+    (sideEffect?.type === "empty_search" || req.context.searchResultCount === 0)
+  ) {
+    finalText = requirementResult.message;
+  }
+
+  const bargainCall = toolCalls.find((t) => t.name === "proposeSmartBargaining");
+  const bargainResult = bargainCall?.result as { ok?: boolean; message?: string; openerMessage?: string } | undefined;
+  if (bargainResult?.ok && (bargainResult.message || bargainResult.openerMessage)) {
+    finalText = bargainResult.message ?? bargainResult.openerMessage ?? finalText;
+  }
+
   const searchSideEffect =
     sideEffect?.type === "search" ? sideEffect : undefined;
   const emptySearchSideEffect =
@@ -617,10 +691,12 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     );
 
   const hasUiDrivingTool = Boolean(uiFilterCall || navigateScreenCall);
+  const hasOfferTool = Boolean(requirementCall || bargainCall);
 
   if (
     !hasListingDraftAction &&
     !hasUiDrivingTool &&
+    !hasOfferTool &&
     (searchToolCall || searchSideEffect || emptySearchSideEffect)
   ) {
     const emptyQuery =
@@ -643,11 +719,12 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       finalText =
         finalText.trim() && !isGenericEmptySearchReply(finalText)
           ? finalText
-          : buildEmptySearchReply(emptyQuery);
+          : buildNoMatchLeadPrompt(emptyQuery);
     }
   }
 
   const resolvedAction =
+    offerEffect ??
     uiFilterEffect ??
     navigateScreenEffect ??
     sideEffect ??

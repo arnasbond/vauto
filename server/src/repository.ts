@@ -1250,6 +1250,60 @@ export async function getUserAlertQueries(userId: string): Promise<string[]> {
   return rows.map((r) => r.query);
 }
 
+export async function appendUserAlertQuery(userId: string, alertQuery: string): Promise<void> {
+  const q = alertQuery.trim();
+  if (q.length < 3) return;
+  await ensureUser(userId);
+  await query(
+    `INSERT INTO user_alert_queries (user_id, query) VALUES ($1, $2)
+     ON CONFLICT DO NOTHING`,
+    [userId, q]
+  );
+}
+
+export async function insertUserRequirement(
+  userId: string,
+  req: {
+    query: string;
+    category?: string;
+    city?: string;
+    maxPrice?: number;
+    minPrice?: number;
+    size?: string;
+    subcategory?: string;
+    wardrobeMode?: boolean;
+    filters?: Record<string, unknown>;
+    source?: string;
+  }
+): Promise<{ id: string } | null> {
+  const q = req.query.trim();
+  if (q.length < 3) return null;
+  await ensureUser(userId);
+  const id = `req-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await query(
+    `INSERT INTO user_requirements (
+       id, user_id, query, category, city, max_price, min_price,
+       size, subcategory, wardrobe_mode, filters, source
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12)`,
+    [
+      id,
+      userId,
+      q,
+      req.category ?? null,
+      req.city ?? null,
+      req.maxPrice ?? null,
+      req.minPrice ?? null,
+      req.size ?? null,
+      req.subcategory ?? null,
+      Boolean(req.wardrobeMode),
+      req.filters ? JSON.stringify(req.filters) : null,
+      req.source ?? "agent",
+    ]
+  );
+  await appendUserAlertQuery(userId, q);
+  return { id };
+}
+
 export async function getUsersMatchingListing(
   listing: ApiListing
 ): Promise<{ userId: string; query: string }[]> {

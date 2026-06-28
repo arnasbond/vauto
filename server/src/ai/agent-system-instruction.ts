@@ -3,6 +3,10 @@ import { GEMINI_INTENT_RULES } from "./gemini-intent-rules.js";
 import { LT_LOCATION_AGENT_HINT } from "./agent-tools.js";
 import { WARDROBE_VOICE_SEMANTIC_HINT } from "./agent-ui-tools.js";
 import {
+  NO_MATCH_LEAD_HINT,
+  SMART_BARGAINING_HINT,
+} from "../offer-engine.js";
+import {
   SECRETARY_CONTROLLER_RULES,
   SECRETARY_PERSONA,
 } from "./secretary-persona.js";
@@ -55,6 +59,10 @@ ELGSENOS SLUOKSNIS (UserBehaviorContext — privaloma):
 
 ${WARDROBE_VOICE_SEMANTIC_HINT}
 
+${NO_MATCH_LEAD_HINT}
+
+${SMART_BARGAINING_HINT}
+
 AI-DRIVEN UI (function calling — valdo sąsają, ne klientas):
 - updateUIFilters — tiesiogiai nustato tinklelio filtrus (category, subcategory, city, size, condition). Spintoje klaidinga STT → updateUIFilters + šiltas label TTS.
 - navigateToScreen — perprogramiškai perjungia ekranus (fashion/spinta → VAUTO Spinta, add_listing → skelbimo kėlimas).
@@ -62,7 +70,7 @@ AI-DRIVEN UI (function calling — valdo sąsają, ne klientas):
 
 ĮRANKIAI (function calling):
 - create_listing_draft — pradėti pardavimo juodraštį (category + title, be kainos)
-- searchListings, updateUIFilters, navigateToScreen, scanListingPhotos, analyzeMarketPrice, markListingSold, updateListingDraft,
+- searchListings, updateUIFilters, navigateToScreen, createUserRequirement, proposeSmartBargaining, scanListingPhotos, analyzeMarketPrice, markListingSold, updateListingDraft,
   postNewListing, ghostCallerShield, addToFavorites, dismissActiveListing, applyBrowseFilter,
   triggerMicroPayment (C2C ${SMART_BOOST_C2C}€ / B2B ${SMART_BOOST_B2B}€ / Lead ${B2B_LEAD_PRICE}€),
   showZeroUiScreen, blockListing (admin). Business Pro ${BUSINESS_MONTHLY_PRO}€/mėn.

@@ -36,6 +36,11 @@ import {
   normalizeUpdateUIFiltersArgs,
   resolveNavigateScreen,
 } from "./agent-ui-tools.js";
+import {
+  buildSmartBargainingProposal,
+  normalizeUserRequirementArgs,
+} from "../offer-engine.js";
+import { insertUserRequirement } from "../repository.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -645,6 +650,46 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         label: { type: "STRING", description: "Trumpas lietuviškas TTS patvirtinimas" },
       },
       required: ["screen"],
+    },
+  },
+  {
+    name: "createUserRequirement",
+    description:
+      "No-Match Lead — sukuria pirkėjo pageidavimą DB, kai paieška/filtrai grąžina 0 rezultatų. Pasiūlyk: „Matau, kad šiuo metu tokios prekės neturime. Leisk man užfiksuoti tavo norą fone!\" PRIVALOMA prieš leidžiant vartotojui išeiti.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        requirementData: {
+          type: "OBJECT",
+          description:
+            "JSON: query, category, city, maxPrice, minPrice, size, subcategory, wardrobeMode, filters",
+        },
+        query: { type: "STRING", description: "Ko ieško vartotojas lietuviškai" },
+        category: { type: "STRING" },
+        city: { type: "STRING" },
+        maxPrice: { type: "NUMBER" },
+        size: { type: "STRING" },
+        subcategory: { type: "STRING" },
+        wardrobeMode: { type: "BOOLEAN" },
+        label: { type: "STRING", description: "Trumpas TTS patvirtinimas po registracijos" },
+      },
+    },
+  },
+  {
+    name: "proposeSmartBargaining",
+    description:
+      "Spintos derybų tarpininkas — įvertina kainos rėžius ir siūlo proaktyvų derybų žingsnį (5–10% nuolaida mados režime). Naudok kai listing_dwell 15+ sek arba negotiate_click.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        listingId: { type: "STRING" },
+        listingTitle: { type: "STRING" },
+        listingPrice: { type: "NUMBER" },
+        category: { type: "STRING" },
+        wardrobeMode: { type: "BOOLEAN" },
+        label: { type: "STRING", description: "Trumpas proaktyvus TTS pasiūlymas" },
+      },
+      required: ["listingId", "listingPrice"],
     },
   },
   {
@@ -1465,6 +1510,127 @@ export async function executeAgentTool(
       };
     }
 
+    case "createUserRequirement": {
+      const normalized = normalizeUserRequirementArgs(args);
+      const label =
+        String(args.label ?? "").trim() ||
+        `Puiku! Užfiksavau tavo norą „${normalized.query}" — pranešiu, kai atsiras!`;
+
+      if (!normalized.query || normalized.query.length < 3) {
+        return {
+          result: {
+            ok: false,
+            message: "Per trumpa pageidavimo užklausa — reikia bent 3 simbolių.",
+          },
+        };
+      }
+
+      if (!ctx.authUserId) {
+        return {
+          result: {
+            ok: false,
+            needsAuth: true,
+            message:
+              "Kad galėčiau fone stebėti rinką, prisijunk — tada iškart užfiksuosiu tavo norą.",
+            requirement: normalized,
+          },
+          sideEffect: {
+            type: "create_user_requirement",
+            query: normalized.query,
+            requirement: normalized,
+            label,
+            needsAuth: true,
+          },
+        };
+      }
+
+      try {
+        const created = await insertUserRequirement(ctx.authUserId, {
+          ...normalized,
+          source: "agent",
+        });
+        if (!created) {
+          return {
+            result: { ok: false, message: "Nepavyko išsaugoti pageidavimo." },
+          };
+        }
+        return {
+          result: {
+            ok: true,
+            requirementId: created.id,
+            query: normalized.query,
+            message: label,
+          },
+          sideEffect: {
+            type: "create_user_requirement",
+            requirementId: created.id,
+            query: normalized.query,
+            requirement: normalized,
+            label,
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message:
+              e instanceof Error ? e.message : "Nepavyko išsaugoti pageidavimo DB.",
+          },
+        };
+      }
+    }
+
+    case "proposeSmartBargaining": {
+      const listingId = String(args.listingId ?? ctx.activeListingId ?? "").trim();
+      const listingTitle = String(
+        args.listingTitle ?? ctx.activeListingTitle ?? "Skelbimas"
+      ).trim();
+      const listingPrice = Number(args.listingPrice) || 0;
+      const category = args.category ? String(args.category) : undefined;
+      const wardrobeMode = Boolean(args.wardrobeMode) || category === "clothing";
+
+      if (!listingId || listingPrice <= 0) {
+        return {
+          result: {
+            ok: false,
+            message: "Reikia listingId ir listingPrice derybų pasiūlymui.",
+          },
+        };
+      }
+
+      const proposal = buildSmartBargainingProposal({
+        listingPrice,
+        listingTitle,
+        category,
+        wardrobeMode,
+      });
+      const label = String(args.label ?? "").trim() || proposal.openerMessage;
+
+      return {
+        result: {
+          ok: true,
+          ...proposal,
+          listingId,
+          listingTitle,
+          listingPrice,
+          message: label,
+        },
+        sideEffect: {
+          type: "propose_bargaining",
+          listingId,
+          listingTitle,
+          listingPrice,
+          discountPercentMin: proposal.discountPercentMin,
+          discountPercentMax: proposal.discountPercentMax,
+          suggestedOfferMin: proposal.suggestedOfferMin,
+          suggestedOfferMax: proposal.suggestedOfferMax,
+          label,
+          wardrobeMode,
+          openChat: true,
+        },
+      };
+    }
+
     case "ghostCallerShield": {
       const message = String(args.message ?? "").trim();
       const listingPrice = Number(args.listingPrice) || 0;
@@ -1585,4 +1751,35 @@ export type AgentSideEffect =
       categoryAttributes?: Record<string, string>;
       label?: string;
       query?: string;
+    }
+  | {
+      type: "create_user_requirement";
+      requirementId?: string;
+      query: string;
+      requirement?: {
+        query: string;
+        category?: string;
+        city?: string;
+        maxPrice?: number;
+        minPrice?: number;
+        size?: string;
+        subcategory?: string;
+        wardrobeMode?: boolean;
+        filters?: Record<string, unknown>;
+      };
+      label?: string;
+      needsAuth?: boolean;
+    }
+  | {
+      type: "propose_bargaining";
+      listingId: string;
+      listingTitle: string;
+      listingPrice: number;
+      discountPercentMin: number;
+      discountPercentMax: number;
+      suggestedOfferMin: number;
+      suggestedOfferMax: number;
+      label?: string;
+      wardrobeMode?: boolean;
+      openChat?: boolean;
     };

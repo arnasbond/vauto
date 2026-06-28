@@ -67,6 +67,10 @@ import {
   truncateVoiceReply,
 } from "@/lib/agent-reply-display";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
+import {
+  apiCreateUserRequirement,
+  type ProactiveOfferContext,
+} from "@/lib/offer-engine-client";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -75,6 +79,8 @@ export interface AgentSendOptions {
   fromVoice?: boolean;
   /** Submitted from main SearchBar — Gemini must route via function calling */
   fromSearchBar?: boolean;
+  /** Proactive Offer Engine — no-match lead or bargaining signal */
+  proactiveOffer?: ProactiveOfferContext;
 }
 
 interface VautoAgentContextValue {
@@ -123,6 +129,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     aiDraft,
     sellerStep,
     activateWardrobeSpinta,
+    startChat,
   } = useVauto();
   const pathname = usePathname();
   const { navigateTo } = useNavigation();
@@ -417,6 +424,64 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         });
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
+      if (actions.type === "create_user_requirement") {
+        if (actions.needsAuth) {
+          openAuthModal("/");
+          showToast(
+            actions.label ??
+              "Prisijunk — tada užfiksuosiu tavo norą ir pranešiu, kai atsiras!",
+            "info"
+          );
+          trackEvent("agent_action", {
+            action: "create_user_requirement",
+            needsAuth: true,
+            query: actions.query,
+          });
+          return;
+        }
+        if (actions.requirementId) {
+          void subscribeWishlist(actions.query);
+          showToast(
+            actions.label ??
+              `Pageidavimas „${actions.query}" užfiksuotas — stebėsiu rinką fone!`,
+            "success"
+          );
+          trackEvent("agent_action", {
+            action: "create_user_requirement",
+            requirementId: actions.requirementId,
+            query: actions.query,
+          });
+        } else if (actions.requirement && isAuthenticated) {
+          void apiCreateUserRequirement({
+            ...actions.requirement,
+            source: "agent_client",
+          }).then((res) => {
+            if (res.ok) {
+              void subscribeWishlist(actions.query);
+              showToast(
+                actions.label ??
+                  `Pageidavimas „${actions.query}" užfiksuotas fone!`,
+                "success"
+              );
+            }
+          });
+        }
+      }
+      if (actions.type === "propose_bargaining") {
+        trackEvent("agent_action", {
+          action: "propose_bargaining",
+          listingId: actions.listingId,
+          suggestedOfferMin: actions.suggestedOfferMin,
+          suggestedOfferMax: actions.suggestedOfferMax,
+        });
+        if (actions.label) showToast(actions.label, "info");
+        if (actions.openChat) {
+          const chatId = startChat(actions.listingId);
+          if (chatId && typeof window !== "undefined") {
+            window.location.assign(`/chats/thread/?id=${chatId}`);
+          }
+        }
+      }
       if (actions.type === "micro_payment") {
         openMicroPayment({
           reason: actions.reason,
@@ -476,6 +541,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setSearchVoiceMode,
       activateWardrobeSpinta,
       trackEvent,
+      startChat,
     ]
   );
 
@@ -640,12 +706,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             pendingImageUrls: options?.pendingImageUrls,
             lastError,
             isAuthenticated,
-            searchResultCount: searchQuery.trim() ? rankedListings.length : undefined,
+            searchResultCount:
+              options?.proactiveOffer?.kind === "no_match"
+                ? 0
+                : searchQuery.trim()
+                  ? rankedListings.length
+                  : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
             currentView: zeroUiScreen,
             fromVoice: voiceReply,
             fromSearchBar: options?.fromSearchBar,
             behaviorHistory: getBehaviorSnapshot(),
+            proactiveOffer: options?.proactiveOffer,
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });

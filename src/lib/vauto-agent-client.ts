@@ -69,6 +69,8 @@ export interface VautoAgentContext {
   fromSearchBar?: boolean;
   /** Last 10–15 user actions for global behavior-aware Gemini routing. */
   behaviorHistory?: UserBehaviorEvent[];
+  /** Proactive Offer Engine triggers from client (no-match grid, listing dwell, negotiate). */
+  proactiveOffer?: import("@/lib/offer-engine-client").ProactiveOfferContext;
 }
 
 export interface AgentListingSnapshot {
@@ -308,6 +310,37 @@ export type VautoAgentAction =
       categoryAttributes?: Record<string, string>;
       label?: string;
       query?: string;
+    }
+  | {
+      type: "create_user_requirement";
+      requirementId?: string;
+      query: string;
+      requirement?: {
+        query: string;
+        category?: string;
+        city?: string;
+        maxPrice?: number;
+        minPrice?: number;
+        size?: string;
+        subcategory?: string;
+        wardrobeMode?: boolean;
+        filters?: Record<string, unknown>;
+      };
+      label?: string;
+      needsAuth?: boolean;
+    }
+  | {
+      type: "propose_bargaining";
+      listingId: string;
+      listingTitle: string;
+      listingPrice: number;
+      discountPercentMin: number;
+      discountPercentMax: number;
+      suggestedOfferMin: number;
+      suggestedOfferMax: number;
+      label?: string;
+      wardrobeMode?: boolean;
+      openChat?: boolean;
     };
 
 export interface VautoAgentResponse {

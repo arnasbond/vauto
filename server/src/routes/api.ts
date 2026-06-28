@@ -27,6 +27,7 @@ import {
   insertReport,
   insertReview,
   insertServiceLead,
+  insertUserRequirement,
   openServiceLeadWallet,
   promoteListingWallet,
   renewListing,
@@ -840,6 +841,39 @@ apiRouter.post(
     }
   }
 );
+
+apiRouter.post("/requirements", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = req.body as Record<string, unknown>;
+    const queryText = String(body.query ?? "").trim();
+    if (queryText.length < 3) {
+      res.status(400).json({ error: "query must be at least 3 characters" });
+      return;
+    }
+    const created = await insertUserRequirement(req.authUserId!, {
+      query: queryText,
+      category: body.category ? String(body.category) : undefined,
+      city: body.city ? String(body.city) : undefined,
+      maxPrice: body.maxPrice != null ? Number(body.maxPrice) : undefined,
+      minPrice: body.minPrice != null ? Number(body.minPrice) : undefined,
+      size: body.size ? String(body.size) : undefined,
+      subcategory: body.subcategory ? String(body.subcategory) : undefined,
+      wardrobeMode: Boolean(body.wardrobeMode),
+      filters:
+        body.filters && typeof body.filters === "object"
+          ? (body.filters as Record<string, unknown>)
+          : undefined,
+      source: body.source ? String(body.source) : "client",
+    });
+    if (!created) {
+      res.status(400).json({ error: "Could not create requirement" });
+      return;
+    }
+    res.status(201).json({ ok: true, id: created.id, query: queryText });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
 
 const visionSearchBodyParser = (
   req: express.Request,

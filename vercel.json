@@ -53,6 +53,14 @@
       "destination": "https://vauto-api.onrender.com/api/search/:path*"
     },
     {
+      "source": "/api/requirements",
+      "destination": "https://vauto-api.onrender.com/api/requirements"
+    },
+    {
+      "source": "/api/requirements/",
+      "destination": "https://vauto-api.onrender.com/api/requirements"
+    },
+    {
       "source": "/listing/:slug",
       "destination": "/listing/index.html?slug=:slug"
     },

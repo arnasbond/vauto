@@ -4,6 +4,8 @@ export type UserBehaviorActionType =
   | "filter_change"
   | "view_mode_change"
   | "listing_view"
+  | "listing_dwell"
+  | "negotiate_click"
   | "search_submit"
   | "search_empty"
   | "theme_change"
