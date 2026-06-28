@@ -916,16 +916,63 @@ export async function getEscrowForThread(
     amount: string;
     status: string;
     tracking_code: string | null;
+    buyer_protection_fee: string | null;
+    buyer_total: string | null;
+    stripe_payment_intent_id: string | null;
+    shipping_label_id: string | null;
+    delivery_status: string | null;
+    buyer_confirmed: boolean | null;
+    shipping_provider: string | null;
+    shipping_locker_id: string | null;
+    shipping_locker_name: string | null;
+    express_escrow_24h: boolean | null;
+    delivered_to_locker_at: Date | null;
+    claim_deadline_at: Date | null;
+    courier_status: string | null;
+    courier_provider: string | null;
     created_at: Date;
     updated_at: Date;
   }>(
     `SELECT id, thread_id, listing_id, buyer_id, seller_id, amount, status,
-            tracking_code, created_at, updated_at
+            tracking_code, buyer_protection_fee, buyer_total, stripe_payment_intent_id,
+            shipping_label_id, delivery_status, buyer_confirmed, shipping_provider,
+            shipping_locker_id, shipping_locker_name, express_escrow_24h,
+            delivered_to_locker_at, claim_deadline_at, courier_status, courier_provider,
+            created_at, updated_at
      FROM escrow_transactions WHERE thread_id = $1`,
     [threadId]
   );
   const r = rows[0];
   if (!r) return null;
+  return mapEscrowRow(r);
+}
+
+function mapEscrowRow(r: {
+  id: string;
+  thread_id: string;
+  listing_id: string;
+  buyer_id: string;
+  seller_id: string;
+  amount: string;
+  status: string;
+  tracking_code: string | null;
+  buyer_protection_fee: string | null;
+  buyer_total: string | null;
+  stripe_payment_intent_id: string | null;
+  shipping_label_id: string | null;
+  delivery_status: string | null;
+  buyer_confirmed: boolean | null;
+  shipping_provider: string | null;
+  shipping_locker_id: string | null;
+  shipping_locker_name: string | null;
+  express_escrow_24h: boolean | null;
+  delivered_to_locker_at: Date | null;
+  claim_deadline_at: Date | null;
+  courier_status: string | null;
+  courier_provider: string | null;
+  created_at: Date;
+  updated_at: Date;
+}): ApiEscrowTransaction {
   return {
     id: r.id,
     threadId: r.thread_id,
@@ -935,9 +982,51 @@ export async function getEscrowForThread(
     amount: Number(r.amount),
     status: r.status as ApiEscrowTransaction["status"],
     trackingCode: r.tracking_code ?? undefined,
+    buyerProtectionFee:
+      r.buyer_protection_fee != null ? Number(r.buyer_protection_fee) : undefined,
+    buyerTotal: r.buyer_total != null ? Number(r.buyer_total) : undefined,
+    stripePaymentIntentId: r.stripe_payment_intent_id ?? undefined,
+    shippingLabelId: r.shipping_label_id ?? undefined,
+    deliveryStatus: r.delivery_status ?? undefined,
+    buyerConfirmed: r.buyer_confirmed ?? undefined,
+    shippingProvider: r.shipping_provider ?? undefined,
+    shippingLockerId: r.shipping_locker_id ?? undefined,
+    shippingLockerName: r.shipping_locker_name ?? undefined,
+    expressEscrow24h: r.express_escrow_24h ?? undefined,
+    deliveredToLockerAt: r.delivered_to_locker_at?.toISOString(),
+    claimDeadlineAt: r.claim_deadline_at?.toISOString(),
+    courierStatus: r.courier_status ?? undefined,
+    courierProvider: r.courier_provider ?? undefined,
     createdAt: r.created_at.toISOString(),
     updatedAt: r.updated_at.toISOString(),
   };
+}
+
+export async function getEscrowById(
+  escrowId: string
+): Promise<ApiEscrowTransaction | null> {
+  const rows = await query<Parameters<typeof mapEscrowRow>[0]>(
+    `SELECT id, thread_id, listing_id, buyer_id, seller_id, amount, status,
+            tracking_code, buyer_protection_fee, buyer_total, stripe_payment_intent_id,
+            shipping_label_id, delivery_status, buyer_confirmed, shipping_provider,
+            shipping_locker_id, shipping_locker_name, express_escrow_24h,
+            delivered_to_locker_at, claim_deadline_at, courier_status, courier_provider,
+            created_at, updated_at
+     FROM escrow_transactions WHERE id = $1`,
+    [escrowId]
+  );
+  const r = rows[0];
+  return r ? mapEscrowRow(r) : null;
+}
+
+export async function getUserStripeConnectAccountId(
+  userId: string
+): Promise<string | null> {
+  const rows = await query<{ stripe_connect_account_id: string | null }>(
+    `SELECT stripe_connect_account_id FROM users WHERE id = $1`,
+    [userId]
+  );
+  return rows[0]?.stripe_connect_account_id ?? null;
 }
 
 export async function upsertEscrow(escrow: ApiEscrowTransaction): Promise<void> {
@@ -946,11 +1035,29 @@ export async function upsertEscrow(escrow: ApiEscrowTransaction): Promise<void> 
   await query(
     `INSERT INTO escrow_transactions (
       id, thread_id, listing_id, buyer_id, seller_id, amount, status,
-      tracking_code, created_at, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10)
+      tracking_code, buyer_protection_fee, buyer_total, stripe_payment_intent_id,
+      shipping_label_id, delivery_status, buyer_confirmed, shipping_provider,
+      shipping_locker_id, shipping_locker_name, express_escrow_24h,
+      delivered_to_locker_at, claim_deadline_at, courier_status, courier_provider,
+      created_at, updated_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20,$21,$22,$23,$24)
     ON CONFLICT (id) DO UPDATE SET
       status = EXCLUDED.status,
       tracking_code = EXCLUDED.tracking_code,
+      buyer_protection_fee = EXCLUDED.buyer_protection_fee,
+      buyer_total = EXCLUDED.buyer_total,
+      stripe_payment_intent_id = EXCLUDED.stripe_payment_intent_id,
+      shipping_label_id = EXCLUDED.shipping_label_id,
+      delivery_status = EXCLUDED.delivery_status,
+      buyer_confirmed = EXCLUDED.buyer_confirmed,
+      shipping_provider = EXCLUDED.shipping_provider,
+      shipping_locker_id = EXCLUDED.shipping_locker_id,
+      shipping_locker_name = EXCLUDED.shipping_locker_name,
+      express_escrow_24h = EXCLUDED.express_escrow_24h,
+      delivered_to_locker_at = EXCLUDED.delivered_to_locker_at,
+      claim_deadline_at = EXCLUDED.claim_deadline_at,
+      courier_status = EXCLUDED.courier_status,
+      courier_provider = EXCLUDED.courier_provider,
       updated_at = EXCLUDED.updated_at`,
     [
       escrow.id,
@@ -961,10 +1068,61 @@ export async function upsertEscrow(escrow: ApiEscrowTransaction): Promise<void> 
       escrow.amount,
       escrow.status,
       escrow.trackingCode ?? null,
+      escrow.buyerProtectionFee ?? null,
+      escrow.buyerTotal ?? null,
+      escrow.stripePaymentIntentId ?? null,
+      escrow.shippingLabelId ?? null,
+      escrow.deliveryStatus ?? "pending",
+      escrow.buyerConfirmed ?? false,
+      escrow.shippingProvider ?? null,
+      escrow.shippingLockerId ?? null,
+      escrow.shippingLockerName ?? null,
+      escrow.expressEscrow24h ?? false,
+      escrow.deliveredToLockerAt ?? null,
+      escrow.claimDeadlineAt ?? null,
+      escrow.courierStatus ?? null,
+      escrow.courierProvider ?? null,
       escrow.createdAt,
       escrow.updatedAt,
     ]
   );
+}
+
+export async function markEscrowPaidFromStripe(opts: {
+  escrowId: string;
+  paymentIntentId: string;
+  buyerProtectionFee: number;
+  buyerTotal: number;
+}): Promise<ApiEscrowTransaction | null> {
+  const now = new Date().toISOString();
+  await query(
+    `UPDATE escrow_transactions SET
+      status = 'paid',
+      stripe_payment_intent_id = $2,
+      buyer_protection_fee = $3,
+      buyer_total = $4,
+      delivery_status = 'awaiting_shipment',
+      updated_at = $5
+     WHERE id = $1`,
+    [opts.escrowId, opts.paymentIntentId, opts.buyerProtectionFee, opts.buyerTotal, now]
+  );
+  return getEscrowById(opts.escrowId);
+}
+
+export async function confirmEscrowDelivery(
+  escrowId: string
+): Promise<ApiEscrowTransaction | null> {
+  const now = new Date().toISOString();
+  await query(
+    `UPDATE escrow_transactions SET
+      status = 'completed',
+      buyer_confirmed = true,
+      delivery_status = 'delivered_confirmed',
+      updated_at = $2
+     WHERE id = $1`,
+    [escrowId, now]
+  );
+  return getEscrowById(escrowId);
 }
 
 export async function getChats(userId: string): Promise<ApiChatThread[]> {

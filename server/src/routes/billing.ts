@@ -2,9 +2,15 @@ import { Router, type Request, type Response } from "express";
 import type Stripe from "stripe";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import {
+  calculateBuyerProtectionFee,
+  calculateBuyerTotal,
+  resolveEscrowPaymentIntentId,
+} from "../billing/stripe-b2b.js";
+import {
   cancelUserBillingByStripeCustomer,
   getUser,
   getUserStripeCustomerId,
+  markEscrowPaidFromStripe,
   subscribeUserPlan,
 } from "../repository.js";
 import {
@@ -168,11 +174,34 @@ export async function handleStripeWebhook(
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
-    const userId = session.metadata?.userId;
-    const planId = session.metadata?.planId;
-    const customerId = resolveStripeCustomerId(session.customer);
-    if (userId && planId && VALID_PLANS.has(planId)) {
-      await subscribeUserPlan(userId, planId, session.id, customerId);
+    if (session.metadata?.kind === "escrow" && session.metadata.escrowId) {
+      try {
+        const { paymentIntentId } = await resolveEscrowPaymentIntentId(session.id);
+        const escrowId = session.metadata.escrowId;
+        const itemAmount = Number(session.metadata.itemAmountEur ?? 0);
+        const fee = Number(session.metadata.buyerProtectionFeeEur ?? 0);
+        const buyerProtectionFee =
+          fee > 0 ? fee : calculateBuyerProtectionFee(itemAmount);
+        const buyerTotal =
+          session.amount_total != null
+            ? session.amount_total / 100
+            : calculateBuyerTotal(itemAmount);
+        await markEscrowPaidFromStripe({
+          escrowId,
+          paymentIntentId,
+          buyerProtectionFee,
+          buyerTotal,
+        });
+      } catch (e) {
+        console.error("Escrow webhook mark paid failed:", e);
+      }
+    } else {
+      const userId = session.metadata?.userId;
+      const planId = session.metadata?.planId;
+      const customerId = resolveStripeCustomerId(session.customer);
+      if (userId && planId && VALID_PLANS.has(planId)) {
+        await subscribeUserPlan(userId, planId, session.id, customerId);
+      }
     }
   }
 

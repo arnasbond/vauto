@@ -153,6 +153,15 @@ export interface ApiEscrowTransaction {
   claimDeadlineAt?: string;
   courierStatus?: string;
   courierProvider?: string;
+  buyerProtectionFee?: number;
+  buyerTotal?: number;
+  stripePaymentIntentId?: string;
+  shippingLabelId?: string;
+  deliveryStatus?: string;
+  buyerConfirmed?: boolean;
+  shippingProvider?: string;
+  shippingLockerId?: string;
+  shippingLockerName?: string;
   createdAt: string;
   updatedAt: string;
 }

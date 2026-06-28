@@ -987,3 +987,80 @@ export async function apiLookupVehicle(
   void _ignored;
   return rest;
 }
+
+export async function apiEscrowBillingStatus(): Promise<{ live: boolean } | null> {
+  const r = await dataFetch<{ live: boolean }>("/api/escrow-billing/status");
+  return r.ok ? r.data : null;
+}
+
+export async function apiEscrowCheckout(body: {
+  escrow: import("@/lib/types").EscrowTransaction;
+  listingTitle?: string;
+  shippingProvider?: string;
+  shippingLockerId?: string;
+  shippingLockerName?: string;
+}): Promise<
+  ApiResult<{
+    checkoutUrl: string;
+    sessionId: string;
+    buyerProtectionFee: number;
+    buyerTotal: number;
+  }>
+> {
+  return dataFetch("/api/escrow-billing/checkout", {
+    method: "POST",
+    body: JSON.stringify(body),
+    userId: body.escrow.buyerId,
+  });
+}
+
+export async function apiConfirmEscrowSession(
+  sessionId: string,
+  userId: string
+): Promise<
+  ApiResult<{ escrow: import("@/lib/types").EscrowTransaction }>
+> {
+  return dataFetch("/api/escrow-billing/confirm-session", {
+    method: "POST",
+    body: JSON.stringify({ sessionId }),
+    userId,
+  });
+}
+
+export async function apiEscrowShippingLabel(body: {
+  escrowId: string;
+  providerId: string;
+  parcelSize: string;
+  lockerId?: string;
+  lockerName?: string;
+  userId: string;
+}): Promise<
+  ApiResult<{
+    escrow: import("@/lib/types").EscrowTransaction;
+    label: {
+      id: string;
+      trackingCode: string;
+      qrPayload: string;
+      instructions: string;
+    };
+  }>
+> {
+  return dataFetch("/api/escrow-billing/shipping-label", {
+    method: "POST",
+    body: JSON.stringify(body),
+    userId: body.userId,
+  });
+}
+
+export async function apiConfirmEscrowDelivery(
+  escrowId: string,
+  userId: string
+): Promise<
+  ApiResult<{ escrow: import("@/lib/types").EscrowTransaction }>
+> {
+  return dataFetch("/api/escrow-billing/confirm-delivery", {
+    method: "POST",
+    body: JSON.stringify({ escrowId }),
+    userId,
+  });
+}

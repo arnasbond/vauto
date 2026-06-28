@@ -343,6 +343,16 @@ export interface EscrowTransaction {
   negotiationTwinFeeApplied?: boolean;
   buyerServiceFeeEur?: number;
   buyerTotalEur?: number;
+  /** 5% pirkėjo apsaugos mokestis (platform fee) */
+  buyerProtectionFee?: number;
+  buyerTotal?: number;
+  stripePaymentIntentId?: string;
+  shippingLabelId?: string;
+  deliveryStatus?: string;
+  buyerConfirmed?: boolean;
+  shippingProvider?: string;
+  shippingLockerId?: string;
+  shippingLockerName?: string;
 }
 
 /** Smart Wardrobe Vision — vienas foto, keli skelbimai */

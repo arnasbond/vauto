@@ -36,6 +36,15 @@ export function patchEscrow(
       | "claimDeadlineAt"
       | "courierStatus"
       | "courierProvider"
+      | "buyerProtectionFee"
+      | "buyerTotal"
+      | "stripePaymentIntentId"
+      | "shippingLabelId"
+      | "deliveryStatus"
+      | "buyerConfirmed"
+      | "shippingProvider"
+      | "shippingLockerId"
+      | "shippingLockerName"
     >
   >
 ): EscrowTransaction {

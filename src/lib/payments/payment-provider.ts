@@ -1,3 +1,8 @@
+import {
+  calculateBuyerProtectionFee,
+  calculateBuyerTotal,
+} from "@/lib/payments/buyer-protection";
+
 export type PaymentProviderId = "montonio" | "kevin" | "bank_link";
 
 export interface PaymentProviderOption {
@@ -31,8 +36,8 @@ export const PAYMENT_PROVIDERS: PaymentProviderOption[] = [
   },
   {
     id: "bank_link",
-    label: "Bank Link demo",
-    description: "Fallback bankinio mokėjimo scenarijus prototipui.",
+    label: "Bank Link",
+    description: "Alternatyvus bankinis mokėjimo kanalas.",
     feePercent: 1,
   },
 ];
@@ -43,13 +48,13 @@ export function createDemoPaymentIntent(
 ): DemoPaymentIntent {
   const provider =
     PAYMENT_PROVIDERS.find((p) => p.id === providerId) ?? PAYMENT_PROVIDERS[0];
-  const buyerProtectionFee = Math.max(0.5, Math.round(amount * provider.feePercent) / 100);
+  const buyerProtectionFee = calculateBuyerProtectionFee(amount);
   return {
     id: `pay-${provider.id}-${Date.now()}`,
     provider,
     amount,
     buyerProtectionFee,
-    total: Math.round((amount + buyerProtectionFee) * 100) / 100,
+    total: calculateBuyerTotal(amount),
     status: "paid",
   };
 }

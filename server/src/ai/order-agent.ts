@@ -1,4 +1,6 @@
 import type { ApiEscrowTransaction } from "../types.js";
+import { confirmDelivery, isStripeEscrowLive } from "../billing/stripe-b2b.js";
+import { confirmEscrowDelivery } from "../repository.js";
 
 export const COURIER_LOCKER_DELIVERED = "Pristatyta į paštomatą";
 export const EXPRESS_CLAIM_MS = 24 * 60 * 60 * 1000;
@@ -35,8 +37,23 @@ export function confirmTransaction(
   return {
     ...escrow,
     status: "completed",
+    buyerConfirmed: true,
+    deliveryStatus: "delivered_confirmed",
     updatedAt: new Date().toISOString(),
   };
+}
+
+/** Server-side delivery confirmation — captures Stripe hold then marks DB. */
+export async function confirmDeliveryForEscrow(
+  escrowId: string
+): Promise<(ApiEscrowTransaction & ExpressEscrowPatch) | null> {
+  const { getEscrowById } = await import("../repository.js");
+  const escrow = await getEscrowById(escrowId);
+  if (!escrow) return null;
+  if (isStripeEscrowLive() && escrow.stripePaymentIntentId) {
+    await confirmDelivery(escrow.stripePaymentIntentId);
+  }
+  return (await confirmEscrowDelivery(escrowId)) as ApiEscrowTransaction & ExpressEscrowPatch;
 }
 
 export function shouldAutoConfirmExpress(

@@ -1,21 +1,26 @@
 "use client";
 
-import { Check, Clock, CreditCard, Package, QrCode, ShieldCheck, Truck, X } from "lucide-react";
+import { Check, Clock, CreditCard, Package, QrCode, ShieldCheck, Sparkles, Truck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { ParcelLockerPicker } from "@/components/escrow/ParcelLockerPicker";
 import { useVauto } from "@/context/VautoContext";
 import {
   applyWardrobeNegotiationTwinFee,
   buildWardrobeEscrowContext,
   calculateNegotiationTwinBuyerFee,
-  calculateBuyerTotalWithWardrobeFee,
   finalizeWardrobeEscrowOnClose,
   shouldApplyNegotiationTwinFee,
   WARDROBE_NEGOTIATION_TWIN_FEE_LABEL,
 } from "@/lib/monetization-wardrobe";
 import {
-  createEscrow,
-  patchEscrow,
-} from "@/lib/escrow";
+  apiConfirmEscrowDelivery,
+  apiEscrowBillingStatus,
+  apiEscrowCheckout,
+  apiEscrowShippingLabel,
+  apiExpressEscrowLocker,
+} from "@/lib/api/client";
+import { isAiProxyAvailable, isDataApiEnabled } from "@/lib/api/config";
+import { createEscrow, patchEscrow } from "@/lib/escrow";
 import {
   activateExpressEscrow24h,
   buildExpressSellerNotification,
@@ -24,13 +29,17 @@ import {
   simulateCourierLockerDelivery,
 } from "@/lib/order-agent";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
-import { apiExpressEscrowLocker } from "@/lib/api/client";
-import { isAiProxyAvailable } from "@/lib/api/config";
 import {
   PAYMENT_PROVIDERS,
   createDemoPaymentIntent,
   type PaymentProviderId,
 } from "@/lib/payments/payment-provider";
+import {
+  BUYER_PROTECTION_FEE_PERCENT,
+  buyerProtectionExplanation,
+  calculateBuyerProtectionFee,
+  calculateBuyerTotal,
+} from "@/lib/payments/buyer-protection";
 import {
   COURIER_LOCKER_DELIVERED_STATUS,
   SHIPPING_PROVIDERS,
@@ -38,9 +47,14 @@ import {
   type ParcelSize,
   type ShippingProviderId,
 } from "@/lib/shipping/shipping-provider";
+import type { ParcelLocker } from "@/lib/shipping/parcel-lockers";
 import type { ChatThread, EscrowStatus, EscrowTransaction } from "@/lib/types";
 
 type EscrowStep = "offer" | "paying" | "label" | "shipping" | "done";
+
+const CHECKOUT_PROVIDERS = SHIPPING_PROVIDERS.filter((p) =>
+  ["omniva", "lp_express"].includes(p.id)
+);
 
 interface EscrowModalProps {
   chat: ChatThread;
@@ -79,7 +93,7 @@ export function EscrowModal({
   onUpdate,
   onSellerNotify,
 }: EscrowModalProps) {
-  const { chameleonTheme, listings, showToast } = useVauto();
+  const { chameleonTheme, listings, showToast, user } = useVauto();
   const listing = useMemo(
     () => listings.find((l) => l.id === chat.listingId),
     [listings, chat.listingId]
@@ -95,22 +109,30 @@ export function EscrowModal({
         : 0,
     [monetizationCtx, amount]
   );
+  const protectionFee = useMemo(() => calculateBuyerProtectionFee(amount), [amount]);
   const buyerTotal = useMemo(
-    () => calculateBuyerTotalWithWardrobeFee(amount, twinFee),
+    () => Math.round((calculateBuyerTotal(amount) + twinFee) * 100) / 100,
     [amount, twinFee]
   );
 
   const [step, setStep] = useState<EscrowStep>(() => stepFromEscrow(escrow));
+  const [stripeEscrowLive, setStripeEscrowLive] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState<PaymentProviderId>("montonio");
   const [shippingProvider, setShippingProvider] = useState<ShippingProviderId>("omniva");
   const [parcelSize, setParcelSize] = useState<ParcelSize>("M");
+  const [selectedLocker, setSelectedLocker] = useState<ParcelLocker | null>(null);
   const [trackingCode, setTrackingCode] = useState(escrow?.trackingCode ?? "");
   const [qrPayload, setQrPayload] = useState("");
-  const [paymentLabel, setPaymentLabel] = useState("Montonio Bank Link");
+  const [paymentLabel, setPaymentLabel] = useState("Stripe saugus mokėjimas");
   const [shipmentInstructions, setShipmentInstructions] = useState("");
   const [claimRemaining, setClaimRemaining] = useState(() =>
     escrow ? expressClaimRemainingMs(escrow) : 0
   );
+
+  useEffect(() => {
+    if (!isDataApiEnabled()) return;
+    void apiEscrowBillingStatus().then((s) => setStripeEscrowLive(Boolean(s?.live)));
+  }, []);
 
   useEffect(() => {
     setStep(stepFromEscrow(escrow));
@@ -133,6 +155,8 @@ export function EscrowModal({
     const base = escrow ?? createEscrow(chat, amount);
     let next = patchEscrow(base, {
       status,
+      buyerProtectionFee: protectionFee,
+      buyerTotal,
       ...(code ? { trackingCode: code } : {}),
       ...patch,
     });
@@ -163,6 +187,7 @@ export function EscrowModal({
       patchEscrow(base, {
         status: "shipped",
         trackingCode: trackingCode || escrow?.trackingCode,
+        deliveryStatus: "in_transit",
       }),
       shippingProvider
     );
@@ -175,33 +200,88 @@ export function EscrowModal({
         listingTitle: chat.listingTitle,
       });
       if (res) {
-        onUpdate(res.escrow);
+        onUpdate({ ...res.escrow, deliveryStatus: "delivered_to_locker" });
         notifySellerExpress(res.sellerNotification);
         return;
       }
     }
 
     const next = activateExpressEscrow24h(local, shippingProvider);
-    onUpdate(next);
+    onUpdate({ ...next, deliveryStatus: "delivered_to_locker" });
     notifySellerExpress(buildExpressSellerNotification(sellerName, chat.listingTitle));
   };
 
-  const handlePay = () => {
-    const provider =
-      PAYMENT_PROVIDERS.find((p) => p.id === paymentProvider) ??
-      PAYMENT_PROVIDERS[0];
-    setPaymentLabel(provider.label);
+  const handlePay = async () => {
+    if (!selectedLocker) {
+      showToast("Pasirinkite pristatymo paštomatą.", "info");
+      return;
+    }
+
+    const base = escrow ?? createEscrow(chat, amount);
+    const draft = patchEscrow(base, {
+      status: "paying",
+      buyerProtectionFee: protectionFee,
+      buyerTotal,
+      shippingProvider,
+      shippingLockerId: selectedLocker.id,
+      shippingLockerName: selectedLocker.name,
+      deliveryStatus: "pending",
+    });
+
+    setPaymentLabel(
+      stripeEscrowLive ? "Stripe Connect escrow" : PAYMENT_PROVIDERS.find((p) => p.id === paymentProvider)?.label ?? "Mokėjimas"
+    );
     setStep("paying");
-    persist("paying");
+    onUpdate(draft);
+
+    if (stripeEscrowLive && isDataApiEnabled()) {
+      const res = await apiEscrowCheckout({
+        escrow: draft,
+        listingTitle: chat.listingTitle,
+        shippingProvider,
+        shippingLockerId: selectedLocker.id,
+        shippingLockerName: selectedLocker.name,
+      });
+      if (res.ok && res.data.checkoutUrl) {
+        window.location.assign(res.data.checkoutUrl);
+        return;
+      }
+      showToast(res.ok ? "Nepavyko pradėti mokėjimo." : res.error, "error");
+    }
+
     setTimeout(() => {
       const payment = createDemoPaymentIntent(amount, paymentProvider);
       setPaymentLabel(payment.provider.label);
-      persist("paid");
+      persist("paid", undefined, {
+        stripePaymentIntentId: undefined,
+        deliveryStatus: "awaiting_shipment",
+      });
       setStep("label");
     }, 1500);
   };
 
-  const handleConfirmLabel = () => {
+  const handleConfirmLabel = async () => {
+    const escrowId = (escrow ?? createEscrow(chat, amount)).id;
+
+    if (isDataApiEnabled()) {
+      const res = await apiEscrowShippingLabel({
+        escrowId,
+        providerId: shippingProvider,
+        parcelSize,
+        lockerId: selectedLocker?.id ?? escrow?.shippingLockerId,
+        lockerName: selectedLocker?.name ?? escrow?.shippingLockerName,
+        userId: user.id,
+      });
+      if (res.ok) {
+        setTrackingCode(res.data.label.trackingCode);
+        setQrPayload(res.data.label.qrPayload);
+        setShipmentInstructions(res.data.label.instructions);
+        onUpdate(res.data.escrow);
+        setStep("shipping");
+        return;
+      }
+    }
+
     const label = createDemoShipmentLabel({
       providerId: shippingProvider,
       parcelSize,
@@ -211,16 +291,34 @@ export function EscrowModal({
     setTrackingCode(label.trackingCode);
     setQrPayload(label.qrPayload);
     setShipmentInstructions(label.instructions);
-    persist("label_sent", label.trackingCode);
+    persist("label_sent", label.trackingCode, {
+      shippingLabelId: label.trackingCode,
+      deliveryStatus: "label_created",
+    });
     setStep("shipping");
   };
 
   const handleMarkShipped = () => {
-    persist("shipped", trackingCode || escrow?.trackingCode);
+    persist("shipped", trackingCode || escrow?.trackingCode, {
+      deliveryStatus: "in_transit",
+    });
   };
 
-  const handleComplete = () => {
-    persist("completed", trackingCode || escrow?.trackingCode);
+  const handleComplete = async () => {
+    const base = persist("completed", trackingCode || escrow?.trackingCode, {
+      buyerConfirmed: true,
+      deliveryStatus: "delivered_confirmed",
+    });
+
+    if (isDataApiEnabled()) {
+      const res = await apiConfirmEscrowDelivery(base.id, user.id);
+      if (res.ok && res.data.escrow) {
+        onUpdate(res.data.escrow);
+      } else if (!res.ok && stripeEscrowLive) {
+        showToast(res.error, "error");
+      }
+    }
+
     setStep("done");
     setTimeout(onClose, 1600);
   };
@@ -234,9 +332,11 @@ export function EscrowModal({
             <h2 className="font-semibold text-[var(--vauto-text)]">
               Saugus mokėjimas
             </h2>
-            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
-              Demo
-            </span>
+            {stripeEscrowLive && (
+              <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-800">
+                Stripe Escrow
+              </span>
+            )}
           </div>
           {step !== "paying" && step !== "done" && (
             <button
@@ -252,86 +352,51 @@ export function EscrowModal({
         {step === "offer" && (
           <>
             <p className="text-sm text-[var(--vauto-text-muted)]">
-              Pinigai laikomi escrow sąskaitoje, kol pirkėjas gauna prekę.
-              Mokėjimo ir siuntos provideriai dabar demo režimu, bet API
-              sluoksnis paruoštas Montonio/Kevin ir paštomatų integracijoms.
+              Pinigai įšaldomi platformos escrow sąskaitoje, kol patvirtinsite
+              prekės gavimą. Po patvirtinimo lėšos perduodamos pardavėjui per
+              Stripe Connect.
             </p>
             <div className="mt-4 rounded-2xl bg-gray-50 p-4">
-              <p className="text-xs text-[var(--vauto-text-muted)]">Suma</p>
-              <p className="text-2xl font-bold text-[var(--vauto-orange)]">
-                {buyerTotal.toFixed(2)} €
+              <p className="text-xs text-[var(--vauto-text-muted)]">Prekė</p>
+              <p className="text-lg font-bold text-[var(--vauto-text)]">
+                {amount.toFixed(2)} €
               </p>
-              {twinFee > 0 && (
-                <p className="mt-2 text-xs text-slate-600">
-                  Prekė {amount.toFixed(2)} € + {WARDROBE_NEGOTIATION_TWIN_FEE_LABEL}{" "}
-                  {twinFee.toFixed(2)} € (3% per Derybų dvynį)
-                </p>
-              )}
+              <div className="mt-3 space-y-1 border-t border-slate-200 pt-3 text-xs text-slate-600">
+                <div className="flex justify-between">
+                  <span>Pirkėjo apsauga ({BUYER_PROTECTION_FEE_PERCENT}%)</span>
+                  <span className="font-semibold">{protectionFee.toFixed(2)} €</span>
+                </div>
+                {twinFee > 0 && (
+                  <div className="flex justify-between">
+                    <span>{WARDROBE_NEGOTIATION_TWIN_FEE_LABEL}</span>
+                    <span className="font-semibold">{twinFee.toFixed(2)} €</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm font-bold text-[var(--vauto-orange)]">
+                  <span>Iš viso</span>
+                  <span>{buyerTotal.toFixed(2)} €</span>
+                </div>
+              </div>
+            </div>
+            <div className="mt-3 flex gap-2 rounded-xl border border-[#bfdbfe] bg-[#eef6ff] p-3">
+              <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-[#1167b1]" />
+              <p className="text-xs leading-relaxed text-slate-700">
+                {buyerProtectionExplanation()}
+              </p>
             </div>
             <div className="mt-4">
               <p className="mb-2 text-xs font-semibold text-slate-500">
-                Mokėjimas
+                Siuntimo partneris
               </p>
               <div className="grid gap-2">
-                {PAYMENT_PROVIDERS.map((provider) => (
+                {CHECKOUT_PROVIDERS.map((provider) => (
                   <button
                     key={provider.id}
                     type="button"
-                    onClick={() => setPaymentProvider(provider.id)}
-                    className={`rounded-xl border p-3 text-left transition ${
-                      paymentProvider === provider.id
-                        ? "border-[#1167b1] bg-[#eef6ff]"
-                        : "border-slate-200 bg-white"
-                    }`}
-                  >
-                    <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
-                      <CreditCard className="h-4 w-4 text-[#1167b1]" />
-                      {provider.label}
-                    </span>
-                    <span className="mt-1 block text-xs text-slate-500">
-                      {provider.description}
-                    </span>
-                  </button>
-                ))}
-              </div>
-            </div>
-            <button
-              type="button"
-              onClick={handlePay}
-              className="mt-6 w-full rounded-2xl bg-[var(--vauto-blue)] py-3.5 text-sm font-semibold text-white"
-            >
-              Mokėti saugiai
-            </button>
-          </>
-        )}
-
-        {step === "paying" && (
-          <div className="py-8 text-center">
-            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[var(--vauto-blue)]/20 border-t-[var(--vauto-blue)]" />
-            <p className="text-sm font-medium">
-              Apdorojamas mokėjimas per {paymentLabel}...
-            </p>
-          </div>
-        )}
-
-        {step === "label" && (
-          <>
-            <div className="rounded-2xl border border-dashed border-[var(--vauto-blue)]/40 bg-[var(--vauto-blue)]/5 p-4">
-              <div className="flex items-center gap-3">
-                <Package className="h-10 w-10 shrink-0 text-[var(--vauto-blue)]" />
-                <div>
-                  <p className="text-sm font-semibold">Mokėjimas gautas</p>
-                  <p className="text-xs text-[var(--vauto-text-muted)]">
-                    Pasirinkite siuntimo partnerį ir sugeneruokite QR lipduką.
-                  </p>
-                </div>
-              </div>
-              <div className="mt-4 grid gap-2">
-                {SHIPPING_PROVIDERS.map((provider) => (
-                  <button
-                    key={provider.id}
-                    type="button"
-                    onClick={() => setShippingProvider(provider.id)}
+                    onClick={() => {
+                      setShippingProvider(provider.id);
+                      setSelectedLocker(null);
+                    }}
                     className={`rounded-xl border p-3 text-left transition ${
                       shippingProvider === provider.id
                         ? "border-[#f97316] bg-orange-50"
@@ -347,6 +412,78 @@ export function EscrowModal({
                     </span>
                   </button>
                 ))}
+              </div>
+              <ParcelLockerPicker
+                providerId={shippingProvider}
+                selectedId={selectedLocker?.id ?? escrow?.shippingLockerId}
+                onSelect={setSelectedLocker}
+              />
+            </div>
+            {!stripeEscrowLive && (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-semibold text-slate-500">
+                  Mokėjimo būdas
+                </p>
+                <div className="grid gap-2">
+                  {PAYMENT_PROVIDERS.map((provider) => (
+                    <button
+                      key={provider.id}
+                      type="button"
+                      onClick={() => setPaymentProvider(provider.id)}
+                      className={`rounded-xl border p-3 text-left transition ${
+                        paymentProvider === provider.id
+                          ? "border-[#1167b1] bg-[#eef6ff]"
+                          : "border-slate-200 bg-white"
+                      }`}
+                    >
+                      <span className="flex items-center gap-2 text-sm font-semibold text-slate-900">
+                        <CreditCard className="h-4 w-4 text-[#1167b1]" />
+                        {provider.label}
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+            <button
+              type="button"
+              onClick={() => void handlePay()}
+              disabled={!selectedLocker}
+              className="mt-6 w-full rounded-2xl bg-[var(--vauto-blue)] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Mokėti saugiai — {buyerTotal.toFixed(2)} €
+            </button>
+          </>
+        )}
+
+        {step === "paying" && (
+          <div className="py-8 text-center">
+            <div className="mx-auto mb-4 h-10 w-10 animate-spin rounded-full border-4 border-[var(--vauto-blue)]/20 border-t-[var(--vauto-blue)]" />
+            <p className="text-sm font-medium">
+              Apdorojamas mokėjimas per {paymentLabel}...
+            </p>
+            <p className="mt-2 text-xs text-slate-500">
+              Lėšos bus sulaikytos iki gavimo patvirtinimo.
+            </p>
+          </div>
+        )}
+
+        {step === "label" && (
+          <>
+            <div className="rounded-2xl border border-dashed border-[var(--vauto-blue)]/40 bg-[var(--vauto-blue)]/5 p-4">
+              <div className="flex items-center gap-3">
+                <Package className="h-10 w-10 shrink-0 text-[var(--vauto-blue)]" />
+                <div>
+                  <p className="text-sm font-semibold">Mokėjimas gautas ir įšaldytas</p>
+                  <p className="text-xs text-[var(--vauto-text-muted)]">
+                    Sugeneruokite siuntos lipduką pardavėjui.
+                  </p>
+                  {escrow?.shippingLockerName && (
+                    <p className="mt-1 text-xs text-slate-600">
+                      Pristatymas: {escrow.shippingLockerName}
+                    </p>
+                  )}
+                </div>
               </div>
               <div className="mt-3 flex gap-2">
                 {(["S", "M", "L"] as const).map((size) => (
@@ -367,7 +504,7 @@ export function EscrowModal({
             </div>
             <button
               type="button"
-              onClick={handleConfirmLabel}
+              onClick={() => void handleConfirmLabel()}
               className="mt-6 w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white"
             >
               Generuoti QR siuntos lipduką
@@ -411,7 +548,7 @@ export function EscrowModal({
               </button>
               <button
                 type="button"
-                onClick={handleLockerDelivery}
+                onClick={() => void handleLockerDelivery()}
                 className="rounded-xl bg-[#1167b1] py-3 text-xs font-semibold text-white"
               >
                 {COURIER_LOCKER_DELIVERED_STATUS}
@@ -436,10 +573,10 @@ export function EscrowModal({
             )}
             <button
               type="button"
-              onClick={handleComplete}
+              onClick={() => void handleComplete()}
               className="mt-3 w-full rounded-xl bg-green-600 py-3 text-xs font-semibold text-white"
             >
-              Patvirtinti gavimą (rankiniu būdu)
+              Patvirtinti gavimą
             </button>
           </>
         )}
@@ -450,10 +587,10 @@ export function EscrowModal({
               <Check className="h-8 w-8 text-green-600" />
             </div>
             <p className="font-semibold text-[var(--vauto-text)]">
-              Sandoris inicijuotas!
+              Sandoris užbaigtas!
             </p>
             <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
-              Pardavėjas gavo siuntos instrukcijas.
+              Lėšos perduotos pardavėjui. Ačiū, kad naudojatės VAUTO apsauga.
             </p>
           </div>
         )}

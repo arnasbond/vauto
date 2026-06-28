@@ -9,6 +9,7 @@ import { aiRouter } from "./routes/ai.js";
 import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
 import { billingRouter, handleStripeWebhook } from "./routes/billing.js";
+import { escrowBillingRouter } from "./routes/escrow-billing.js";
 import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
 import { optionalAuth } from "./middleware/auth.js";
@@ -35,6 +36,7 @@ app.use("/api/ai", aiRouter);
 app.use("/api/vauto-server", vautoServerRouter);
 app.use("/api/vauto-agent", vautoAgentRouter);
 app.use("/api/billing", billingRouter);
+app.use("/api/escrow-billing", escrowBillingRouter);
 
 app.use(
   (

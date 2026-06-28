@@ -697,6 +697,24 @@ export function validateEscrow(body: unknown): ValidationResult<ApiEscrowTransac
   if (!courierStatus.ok) return courierStatus;
   const courierProvider = optionalString(body, "courierProvider", 40);
   if (!courierProvider.ok) return courierProvider;
+  const buyerProtectionFee = optionalNumber(body, "buyerProtectionFee", 0, 100_000);
+  if (!buyerProtectionFee.ok) return buyerProtectionFee;
+  const buyerTotal = optionalNumber(body, "buyerTotal", 0, 100_000_000);
+  if (!buyerTotal.ok) return buyerTotal;
+  const stripePaymentIntentId = optionalString(body, "stripePaymentIntentId", 120);
+  if (!stripePaymentIntentId.ok) return stripePaymentIntentId;
+  const shippingLabelId = optionalString(body, "shippingLabelId", 120);
+  if (!shippingLabelId.ok) return shippingLabelId;
+  const deliveryStatus = optionalString(body, "deliveryStatus", 80);
+  if (!deliveryStatus.ok) return deliveryStatus;
+  const buyerConfirmed = optionalBoolean(body, "buyerConfirmed");
+  if (!buyerConfirmed.ok) return buyerConfirmed;
+  const shippingProvider = optionalString(body, "shippingProvider", 40);
+  if (!shippingProvider.ok) return shippingProvider;
+  const shippingLockerId = optionalString(body, "shippingLockerId", 120);
+  if (!shippingLockerId.ok) return shippingLockerId;
+  const shippingLockerName = optionalString(body, "shippingLockerName", 200);
+  if (!shippingLockerName.ok) return shippingLockerName;
   return ok({
     id: id.value,
     threadId: threadId.value,
@@ -711,6 +729,15 @@ export function validateEscrow(body: unknown): ValidationResult<ApiEscrowTransac
     claimDeadlineAt: claimDeadlineAt.value,
     courierStatus: courierStatus.value,
     courierProvider: courierProvider.value,
+    buyerProtectionFee: buyerProtectionFee.value,
+    buyerTotal: buyerTotal.value,
+    stripePaymentIntentId: stripePaymentIntentId.value,
+    shippingLabelId: shippingLabelId.value,
+    deliveryStatus: deliveryStatus.value,
+    buyerConfirmed: buyerConfirmed.value,
+    shippingProvider: shippingProvider.value,
+    shippingLockerId: shippingLockerId.value,
+    shippingLockerName: shippingLockerName.value,
     createdAt: createdAt.value,
     updatedAt: updatedAt.value,
   });

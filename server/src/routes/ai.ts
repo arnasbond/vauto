@@ -16,6 +16,7 @@ import {
   activateExpressEscrow24h,
   buildExpressSellerNotification,
   confirmTransaction,
+  confirmDeliveryForEscrow,
   shouldAutoConfirmExpress,
 } from "../ai/order-agent.js";
 import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
@@ -403,7 +404,11 @@ aiRouter.post("/process-express-escrow", async (req, res) => {
   if (!shouldAutoConfirmExpress(escrow)) {
     return res.json({ autoConfirmed: false, escrow });
   }
-  res.json({ autoConfirmed: true, escrow: confirmTransaction(escrow) });
+  const confirmed = await confirmDeliveryForEscrow(escrow.id);
+  res.json({
+    autoConfirmed: true,
+    escrow: confirmed ?? confirmTransaction(escrow),
+  });
 });
 
 aiRouter.post("/import-wardrobe-profile", async (req, res) => {
