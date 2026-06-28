@@ -9,6 +9,7 @@ import { attachNativePushNavigation } from "@/lib/native-push";
 import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
 import { attachNativeInstallLinkBlocker } from "@/lib/native-link-blocker";
 import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
+import { AppVersionGuard } from "@/components/version/AppVersionGuard";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
@@ -121,6 +122,7 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
   return (
     <>
       <ExpressEscrowProcessor />
+      <AppVersionGuard />
       {children}
     </>
   );

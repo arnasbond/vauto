@@ -33,6 +33,7 @@ import { ProfileAccountTypePanel } from "@/components/profile/ProfileAccountType
 import { ProfileSpintaSwitch } from "@/components/profile/ProfileSpintaSwitch";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
+import { AppVersionStatusCard } from "@/components/version/AppVersionStatusCard";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { isNativeApp } from "@/lib/mobile-install";
@@ -154,6 +155,7 @@ export default function ProfilePage() {
         <SocialSyncSettingsCard />
         <PushAlertsSettingsCard />
         <ConnectionStatusCard />
+        <AppVersionStatusCard />
       </ProfileAccordion>
 
       <ProfileAccordion

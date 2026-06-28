@@ -1,0 +1,75 @@
+"use client";
+
+import { AlertTriangle, CheckCircle2, Globe, Loader2, RefreshCw } from "lucide-react";
+import { useAppVersion } from "@/context/AppVersionContext";
+import { cn } from "@/lib/cn";
+
+export function AppVersionStatusCard() {
+  const { status, remote, local, error, refresh } = useAppVersion();
+
+  if (status === "loading") {
+    return (
+      <p className="flex items-center justify-center gap-2 py-3 text-center text-xs text-[var(--vauto-text-muted)]">
+        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+        Tikrinama versija…
+      </p>
+    );
+  }
+
+  if (status === "error") {
+    return (
+      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-center">
+        <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-amber-200">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          Versijos patikra nepavyko
+        </p>
+        <p className="mt-1 text-[10px] text-amber-200/80">{error}</p>
+        <button
+          type="button"
+          onClick={() => void refresh()}
+          className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-100 underline"
+        >
+          <RefreshCw className="h-3 w-3" />
+          Bandyti dar kartą
+        </button>
+      </div>
+    );
+  }
+
+  if (status === "web" && remote) {
+    return (
+      <p className="flex items-center justify-center gap-1.5 py-3 text-center text-xs text-[var(--vauto-text-muted)]">
+        <Globe className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-primary)]" />
+        Web versija v{remote.latestVersion} (gamybinė)
+      </p>
+    );
+  }
+
+  if (status === "current" && remote && local) {
+    return (
+      <p
+        className={cn(
+          "flex items-center justify-center gap-1.5 py-3 text-center text-xs",
+          "text-emerald-300/90"
+        )}
+      >
+        <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
+        Aplikacija atitinka Web (v{remote.latestVersion}) — versija naujausia
+        <span className="text-[10px] text-slate-500">
+          · APK {local.versionName} ({local.versionCode})
+        </span>
+      </p>
+    );
+  }
+
+  if (status === "outdated" && remote && local) {
+    return (
+      <p className="py-2 text-center text-xs text-fuchsia-300">
+        APK pasenusi: {local.versionName} ({local.versionCode}) → reikia v
+        {remote.latestVersion} ({remote.versionCode})
+      </p>
+    );
+  }
+
+  return null;
+}

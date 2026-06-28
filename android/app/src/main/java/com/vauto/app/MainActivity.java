@@ -1,10 +1,12 @@
 package com.vauto.app;
 
 import android.content.ComponentCallbacks2;
+import android.content.Intent;
 import android.net.Uri;
 import android.os.Bundle;
 import android.util.Log;
 import android.webkit.DownloadListener;
+import android.webkit.JavascriptInterface;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
@@ -17,6 +19,7 @@ import java.io.ByteArrayInputStream;
 public class MainActivity extends BridgeActivity {
 
     private static final String TAG = "VautoMainActivity";
+    private boolean jsBridgeAttached = false;
 
     private static final String HOST_LOCALHOST = "localhost";
     private static final String HOST_VERCEL = "vauto-chi.vercel.app";
@@ -87,6 +90,32 @@ public class MainActivity extends BridgeActivity {
                 }
             }
         );
+
+        injectNativeVersionScript(webView, this);
+
+        if (!jsBridgeAttached) {
+            webView.addJavascriptInterface(new VautoJsBridge(this), "VautoAndroid");
+            jsBridgeAttached = true;
+        }
+    }
+
+    private static void injectNativeVersionScript(WebView webView, android.content.Context context) {
+        if (webView == null || context == null) return;
+        try {
+            android.content.pm.PackageInfo pkg =
+                context.getPackageManager().getPackageInfo(context.getPackageName(), 0);
+            String versionName =
+                pkg.versionName != null ? pkg.versionName.replace("\"", "\\\"") : "";
+            String js =
+                "(function(){window.__VAUTO_NATIVE_VERSION__={versionCode:"
+                    + pkg.versionCode
+                    + ",versionName:\""
+                    + versionName
+                    + "\"};})();";
+            webView.evaluateJavascript(js, null);
+        } catch (Exception e) {
+            Log.w(TAG, "Native version inject failed", e);
+        }
     }
 
     private void trimWebViewMemory(boolean aggressive) {
@@ -152,8 +181,13 @@ public class MainActivity extends BridgeActivity {
      */
     private static final class VautoUrlGuardWebViewClient extends BridgeWebViewClient {
 
+        private final MainActivity activity;
+
         VautoUrlGuardWebViewClient(Bridge bridge) {
             super(bridge);
+            this.activity = bridge != null && bridge.getActivity() instanceof MainActivity
+                ? (MainActivity) bridge.getActivity()
+                : null;
         }
 
         @Override
@@ -166,6 +200,14 @@ public class MainActivity extends BridgeActivity {
                 }
             }
             return super.shouldInterceptRequest(view, request);
+        }
+
+        @Override
+        public void onPageFinished(WebView view, String url) {
+            super.onPageFinished(view, url);
+            if (view != null && url != null && isAllowedInAppUrl(url) && activity != null) {
+                injectNativeVersionScript(view, activity);
+            }
         }
 
         @Override
@@ -206,6 +248,28 @@ public class MainActivity extends BridgeActivity {
 
         private static WebResourceResponse emptyResponse() {
             return new WebResourceResponse("text/plain", "utf-8", new ByteArrayInputStream(new byte[0]));
+        }
+    }
+
+    /** Opens APK update URL in system browser — WebView blocks github/.apk navigation. */
+    static final class VautoJsBridge {
+        private final MainActivity activity;
+
+        VautoJsBridge(MainActivity activity) {
+            this.activity = activity;
+        }
+
+        @JavascriptInterface
+        public void openExternalUrl(String url) {
+            if (url == null || url.isEmpty()) return;
+            activity.runOnUiThread(() -> {
+                try {
+                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
+                    activity.startActivity(intent);
+                } catch (Exception e) {
+                    Log.w(TAG, "openExternalUrl failed: " + url, e);
+                }
+            });
         }
     }
 }
