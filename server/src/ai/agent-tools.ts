@@ -32,6 +32,10 @@ import {
   resolveMonetizationState,
   type MonetizationState,
 } from "./monetization-engine.js";
+import {
+  normalizeUpdateUIFiltersArgs,
+  resolveNavigateScreen,
+} from "./agent-ui-tools.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -586,6 +590,61 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         bodyType: { type: "STRING" },
         label: { type: "STRING", description: "Trumpas filtro pavadinimas TTS" },
       },
+    },
+  },
+  {
+    name: "updateUIFilters",
+    description:
+      "AI-Driven UI — tiesiogiai nustato paieškos tinklelio filtrus (kategorija, subkategorija, lokacija, dydis, būklė). PRIVALOMA VAUTO Spintos režime klaidingai ištartai balso įvestiai vietoj searchListings. Pvz. „rozni kedai" → category clothing, subcategory shoes.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        filters: {
+          type: "OBJECT",
+          description:
+            "JSON filtrai: category, subcategory, query, city, size, condition, minPrice, maxPrice, categoryAttributes",
+        },
+        category: { type: "STRING" },
+        subcategory: {
+          type: "STRING",
+          description: "shoes | dresses | jackets | bateliai | kedai | suknele …",
+        },
+        query: { type: "STRING" },
+        city: { type: "STRING" },
+        location: { type: "STRING" },
+        size: { type: "STRING" },
+        condition: { type: "STRING", description: "new | used | naudota" },
+        minPrice: { type: "NUMBER" },
+        maxPrice: { type: "NUMBER" },
+        label: {
+          type: "STRING",
+          description: "Trumpas šiltas lietuviškas TTS atsakymas, pvz. „Supratau, filtruoju batelius Jolantos spintoje!"",
+        },
+        activateWardrobe: { type: "BOOLEAN" },
+        wardrobeMode: { type: "BOOLEAN" },
+        categoryAttributes: { type: "OBJECT" },
+      },
+    },
+  },
+  {
+    name: "navigateToScreen",
+    description:
+      "Programiškai perjungia vartotoją tarp ekranų: fashion/spinta/wardrobe → VAUTO Spinta; add_listing/upload → skelbimo kėlimas; marketplace → paieška.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        screen: {
+          type: "STRING",
+          description:
+            "fashion | spinta | wardrobe | vauto_spinta | add_listing | upload | marketplace | profile | chats | seller_wizard",
+        },
+        filters: {
+          type: "OBJECT",
+          description: "Optional filtrai pritaikyti po navigacijos",
+        },
+        label: { type: "STRING", description: "Trumpas lietuviškas TTS patvirtinimas" },
+      },
+      required: ["screen"],
     },
   },
   {
@@ -1347,6 +1406,65 @@ export async function executeAgentTool(
       };
     }
 
+    case "updateUIFilters": {
+      const normalized = normalizeUpdateUIFiltersArgs(args);
+      return {
+        result: {
+          ok: true,
+          filters: normalized.filters,
+          categoryAttributes: normalized.categoryAttributes,
+          label: normalized.label,
+          activateWardrobe: normalized.activateWardrobe,
+          query: normalized.query,
+        },
+        sideEffect: {
+          type: "apply_ui_filters",
+          filters: normalized.filters,
+          categoryAttributes: normalized.categoryAttributes,
+          label: normalized.label,
+          activateWardrobe: normalized.activateWardrobe,
+          query: normalized.query,
+        },
+      };
+    }
+
+    case "navigateToScreen": {
+      const screen = String(args.screen ?? "").trim();
+      const nav = resolveNavigateScreen(screen);
+      if (!nav.ok) {
+        return { result: { ok: false, message: nav.message } };
+      }
+      const filterPayload =
+        args.filters && typeof args.filters === "object" && !Array.isArray(args.filters)
+          ? normalizeUpdateUIFiltersArgs(args.filters as Record<string, unknown>)
+          : undefined;
+      const label =
+        String(args.label ?? "").trim() ||
+        filterPayload?.label ||
+        nav.message;
+      return {
+        result: {
+          ok: true,
+          screen: nav.screen,
+          path: nav.path,
+          activateWardrobe: nav.activateWardrobe,
+          label,
+        },
+        sideEffect: {
+          type: "navigate_to_screen",
+          screen: nav.screen,
+          path: nav.path,
+          activateWardrobe: nav.activateWardrobe,
+          zeroUi: nav.zeroUi as ZeroUiScreen | undefined,
+          view: nav.view as AppView | undefined,
+          filters: filterPayload?.filters,
+          categoryAttributes: filterPayload?.categoryAttributes,
+          label,
+          query: filterPayload?.query,
+        },
+      };
+    }
+
     case "ghostCallerShield": {
       const message = String(args.message ?? "").trim();
       const listingPrice = Number(args.listingPrice) || 0;
@@ -1453,4 +1571,18 @@ export type AgentSideEffect =
       filters?: AgentSearchFilters;
       categoryAttributes?: Record<string, string>;
       label?: string;
+      activateWardrobe?: boolean;
+      query?: string;
+    }
+  | {
+      type: "navigate_to_screen";
+      screen: string;
+      path: string;
+      activateWardrobe?: boolean;
+      zeroUi?: ZeroUiScreen;
+      view?: AppView;
+      filters?: AgentSearchFilters;
+      categoryAttributes?: Record<string, string>;
+      label?: string;
+      query?: string;
     };

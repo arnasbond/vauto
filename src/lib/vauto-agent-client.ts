@@ -294,6 +294,20 @@ export type VautoAgentAction =
       filters?: AgentSearchFilters;
       categoryAttributes?: Record<string, string>;
       label?: string;
+      activateWardrobe?: boolean;
+      query?: string;
+    }
+  | {
+      type: "navigate_to_screen";
+      screen: string;
+      path: string;
+      activateWardrobe?: boolean;
+      zeroUi?: import("@/lib/zero-ui-screens").ZeroUiScreen;
+      view?: import("@/lib/app-views").AppView;
+      filters?: AgentSearchFilters;
+      categoryAttributes?: Record<string, string>;
+      label?: string;
+      query?: string;
     };
 
 export interface VautoAgentResponse {

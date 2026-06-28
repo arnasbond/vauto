@@ -449,6 +449,8 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   let sideEffect: AgentSideEffect | undefined;
   let navigateEffect: AgentSideEffect | undefined;
   let microPaymentEffect: AgentSideEffect | undefined;
+  let uiFilterEffect: AgentSideEffect | undefined;
+  let navigateScreenEffect: AgentSideEffect | undefined;
   let finalText = "";
 
   const hasGemini = Boolean(resolveGeminiApiKey());
@@ -509,6 +511,8 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
         if (fx) {
           if (fx.type === "micro_payment") microPaymentEffect = fx;
           else if (fx.type === "navigate") navigateEffect = fx;
+          else if (fx.type === "apply_ui_filters") uiFilterEffect = fx;
+          else if (fx.type === "navigate_to_screen") navigateScreenEffect = fx;
           else if (
             fx.type === "mark_listing_sold" ||
             fx.type === "listing_draft" ||
@@ -578,6 +582,22 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     finalText = priceResult.smartPriceAdvice;
   }
 
+  const uiFilterCall = toolCalls.find((t) => t.name === "updateUIFilters");
+  const uiFilterResult = uiFilterCall?.result as { ok?: boolean; label?: string } | undefined;
+  if (uiFilterResult?.ok && uiFilterResult.label) {
+    finalText = uiFilterResult.label;
+  }
+
+  const navigateScreenCall = toolCalls.find((t) => t.name === "navigateToScreen");
+  const navigateScreenResult = navigateScreenCall?.result as {
+    ok?: boolean;
+    label?: string;
+    message?: string;
+  } | undefined;
+  if (navigateScreenResult?.ok && (navigateScreenResult.label || navigateScreenResult.message)) {
+    finalText = navigateScreenResult.label ?? navigateScreenResult.message ?? finalText;
+  }
+
   const searchSideEffect =
     sideEffect?.type === "search" ? sideEffect : undefined;
   const emptySearchSideEffect =
@@ -596,8 +616,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       (t) => t.name === "create_listing_draft" || t.name === "postNewListing"
     );
 
+  const hasUiDrivingTool = Boolean(uiFilterCall || navigateScreenCall);
+
   if (
     !hasListingDraftAction &&
+    !hasUiDrivingTool &&
     (searchToolCall || searchSideEffect || emptySearchSideEffect)
   ) {
     const emptyQuery =
@@ -624,20 +647,28 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     }
   }
 
+  const resolvedAction =
+    uiFilterEffect ??
+    navigateScreenEffect ??
+    sideEffect ??
+    microPaymentEffect ??
+    navigateEffect ??
+    ({ type: "none" } as const);
+
   if (!finalText) {
     if (lastGeminiError) {
       return {
         ok: true,
         reply: BUDDY_REPEAT_PROMPT,
         toolCalls,
-        actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
+        actions: resolvedAction,
       };
     }
     return {
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
       toolCalls,
-      actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
+      actions: resolvedAction,
     };
   }
 
@@ -646,7 +677,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
       toolCalls,
-      actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
+      actions: resolvedAction,
     };
   }
 
@@ -682,6 +713,6 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     ok: true,
     reply: finalText,
     toolCalls,
-    actions: sideEffect ?? microPaymentEffect ?? navigateEffect ?? { type: "none" },
+    actions: resolvedAction,
   };
 }

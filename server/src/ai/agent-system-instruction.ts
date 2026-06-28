@@ -1,6 +1,7 @@
 import { AGENT_MEMORY_SYSTEM_HINT } from "./agent-memory-context.js";
 import { GEMINI_INTENT_RULES } from "./gemini-intent-rules.js";
 import { LT_LOCATION_AGENT_HINT } from "./agent-tools.js";
+import { WARDROBE_VOICE_SEMANTIC_HINT } from "./agent-ui-tools.js";
 import {
   SECRETARY_CONTROLLER_RULES,
   SECRETARY_PERSONA,
@@ -48,13 +49,20 @@ PAIEŠKA (MARKETPLACE UX):
 ELGSENOS SLUOKSNIS (UserBehaviorContext — privaloma):
 - Kiekvienoje sesijoje gauni vartotojo elgsenos istoriją (puslapiai, filtrai, paieškos, peržiūros).
 - Naują balso ar teksto užklausą INTERPRETUOK per elgsenos filtrą — ne aklai vykdydamas paskutinį sakinį.
-- VAUTO Spinta (/fashion, wardrobe, spinta_enter): prioritetas Drabužiai / mados kontekstas; klaidingai ištartus žodžius koreguok intuityviai (batai, suknelė, dydis, spalva).
-- Jei elgsenoje search_empty ar vartotojas Spintos režime — proaktyviai siūlyk pagalbą, patikslink filtrus (applyBrowseFilter) arba searchListings su išplėstu query.
+- VAUTO Spinta (/fashion, wardrobe, spinta_enter): prioritetas Drabužiai / mados kontekstas; klaidingai ištartus žodžius koreguok per updateUIFilters (NE searchListings su „other").
+- Jei elgsenoje search_empty ar vartotojas Spintos režime — proaktyviai siūlyk pagalbą, patikslink filtrus (updateUIFilters) arba searchListings su išplėstu query.
 - Kategoriją nustatyk per Function Calling ir filtrus — NIEKADA neprijunk category ID prie vartotojo teksto searchQuery lauke.
+
+${WARDROBE_VOICE_SEMANTIC_HINT}
+
+AI-DRIVEN UI (function calling — valdo sąsają, ne klientas):
+- updateUIFilters — tiesiogiai nustato tinklelio filtrus (category, subcategory, city, size, condition). Spintoje klaidinga STT → updateUIFilters + šiltas label TTS.
+- navigateToScreen — perprogramiškai perjungia ekranus (fashion/spinta → VAUTO Spinta, add_listing → skelbimo kėlimas).
+- Po updateUIFilters / navigateToScreen — trumpas lietuviškas patvirtinimas (label), ne ilgas sąrašas.
 
 ĮRANKIAI (function calling):
 - create_listing_draft — pradėti pardavimo juodraštį (category + title, be kainos)
-- searchListings, scanListingPhotos, analyzeMarketPrice, markListingSold, updateListingDraft,
+- searchListings, updateUIFilters, navigateToScreen, scanListingPhotos, analyzeMarketPrice, markListingSold, updateListingDraft,
   postNewListing, ghostCallerShield, addToFavorites, dismissActiveListing, applyBrowseFilter,
   triggerMicroPayment (C2C ${SMART_BOOST_C2C}€ / B2B ${SMART_BOOST_B2B}€ / Lead ${B2B_LEAD_PRICE}€),
   showZeroUiScreen, blockListing (admin). Business Pro ${BUSINESS_MONTHLY_PRO}€/mėn.

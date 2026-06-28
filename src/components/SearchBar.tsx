@@ -49,6 +49,7 @@ import {
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
+import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -124,7 +125,7 @@ export function SearchBar({
   };
 
   const syncGridFromAgentActions = useCallback(
-    (actions: VautoAgentAction | undefined) => {
+    async (actions: VautoAgentAction | undefined, fromVoice?: boolean) => {
       if (!actions || actions.type === "none") return;
       applyAgentActions(actions);
       if (actions.type === "search") {
@@ -133,9 +134,25 @@ export function SearchBar({
       } else if (actions.type === "empty_search") {
         setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(0);
+      } else if (actions.type === "apply_ui_filters") {
+        const q =
+          actions.query?.trim() ||
+          actions.filters?.query?.trim();
+        if (q) setDraftQuery(stripLegacyCategorySuffixes(q));
+        focusSearchOutcome(0);
+      } else if (actions.type === "navigate_to_screen") {
+        if (actions.query?.trim()) {
+          setDraftQuery(stripLegacyCategorySuffixes(actions.query.trim()));
+        }
+        focusSearchOutcome(0);
+      }
+      if (fromVoice && isUiDrivingAgentAction(actions)) {
+        setSearchVoiceMode(false);
+        setSearchInputMode("text");
+        await completeVoiceTeardown();
       }
     },
-    [applyAgentActions]
+    [applyAgentActions, setSearchInputMode, setSearchVoiceMode]
   );
 
   const commitSearch = useCallback(
@@ -173,9 +190,9 @@ export function SearchBar({
         clearVisualSearch({ keepInputMode: true });
         setSearchLoading(true);
         void sendAgentMessage(q, { fromVoice: voice, fromSearchBar: true })
-          .then((res) => {
+          .then(async (res) => {
             if (res.actions) {
-              syncGridFromAgentActions(res.actions);
+              await syncGridFromAgentActions(res.actions, voice);
             } else if (res.ok) {
               scrollToResults();
             }

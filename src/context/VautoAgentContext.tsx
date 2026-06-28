@@ -66,6 +66,7 @@ import {
   sanitizeAgentReplyForDisplay,
   truncateVoiceReply,
 } from "@/lib/agent-reply-display";
+import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -121,6 +122,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     toggleSave,
     aiDraft,
     sellerStep,
+    activateWardrobeSpinta,
   } = useVauto();
   const pathname = usePathname();
   const { navigateTo } = useNavigation();
@@ -336,7 +338,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
       if (actions.type === "apply_ui_filters") {
+        if (actions.activateWardrobe) {
+          activateWardrobeSpinta();
+          trackEvent("spinta_enter", { source: "agent_ui_filters" });
+        }
         goToMarketplace("agent");
+        setOpen(false);
+        clearVisualSearch({ keepInputMode: false });
+        setSearchInputMode("text");
+        setSearchVoiceMode(false);
+        const displayQuery =
+          actions.query?.trim() ||
+          actions.filters?.query?.trim();
+        if (displayQuery) {
+          setSearchQuery(stripLegacyCategorySuffixes(displayQuery));
+        }
         setMarketplaceFilters(
           mergeVoiceUiFilters(
             marketplaceFilters,
@@ -345,6 +361,60 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           )
         );
         if (actions.label) showToast(actions.label, "success");
+        trackEvent("agent_action", {
+          action: "apply_ui_filters",
+          label: actions.label,
+          category: actions.filters?.category,
+        });
+        window.setTimeout(() => focusSearchOutcome(0), 120);
+      }
+      if (actions.type === "navigate_to_screen") {
+        if (actions.activateWardrobe) {
+          activateWardrobeSpinta();
+          trackEvent("spinta_enter", { source: "agent_navigate", screen: actions.screen });
+        }
+        setOpen(false);
+        clearVisualSearch({ keepInputMode: false });
+        setSearchInputMode("text");
+        setSearchVoiceMode(false);
+        if (actions.filters || actions.categoryAttributes) {
+          setMarketplaceFilters(
+            mergeVoiceUiFilters(
+              marketplaceFilters,
+              actions.categoryAttributes,
+              actions.filters
+            )
+          );
+        }
+        if (actions.query?.trim()) {
+          setSearchQuery(stripLegacyCategorySuffixes(actions.query.trim()));
+        }
+        if (actions.zeroUi) {
+          routeZeroUiScreen(actions.zeroUi);
+        } else if (actions.view) {
+          if (actions.view === "add_listing" || actions.view === "seller_wizard") {
+            routeZeroUiScreen("listing_preview");
+          } else if (actions.view === "profile") {
+            routeZeroUiScreen("business_dashboard");
+          } else {
+            navigateTo(actions.view, {}, { source: "agent", zeroUi: false });
+          }
+        }
+        if (typeof window !== "undefined" && actions.path) {
+          const target = actions.path.replace(/\/$/, "") || "/";
+          const current = window.location.pathname.replace(/\/$/, "") || "/";
+          if (target !== current) {
+            window.location.assign(actions.path);
+          } else {
+            goToMarketplace("agent");
+          }
+        }
+        if (actions.label) showToast(actions.label, "success");
+        trackEvent("agent_action", {
+          action: "navigate_to_screen",
+          screen: actions.screen,
+          path: actions.path,
+        });
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
       if (actions.type === "micro_payment") {
@@ -403,8 +473,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       marketplaceFilters,
       clearVisualSearch,
       toggleSave,
+      setSearchVoiceMode,
+      activateWardrobeSpinta,
       trackEvent,
     ]
+  );
+
+  const teardownVoiceAfterUiAction = useCallback(
+    async (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
+      if (!isUiDrivingAgentAction(actions)) return;
+      setSearchInputMode("text");
+      setSearchVoiceMode(false);
+      await completeVoiceTeardown();
+    },
+    [setSearchInputMode, setSearchVoiceMode]
   );
 
   const sendAgentMessage = useCallback(
@@ -624,6 +706,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           if (!options?.fromSearchBar) {
             applyActions(res.actions);
           }
+          if (voiceReply) {
+            void teardownVoiceAfterUiAction(res.actions);
+          }
         }
         if (options?.fromSearchBar) {
           setOpen(false);
@@ -680,6 +765,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       sellerWizardContext,
       trackEvent,
       getBehaviorSnapshot,
+      teardownVoiceAfterUiAction,
     ]
   );
 
