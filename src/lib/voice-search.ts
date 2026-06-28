@@ -1,5 +1,6 @@
 import {
   handleSpeechRecognitionResult,
+  recoverFromSpeechRecognitionError,
   sanitizeSpeechTranscript,
   teardownSpeechRecognition,
 } from "@/lib/speech-transcript";
@@ -238,7 +239,13 @@ export function startVoiceSearch(
           deliverOnce(null);
           return;
         }
-        deliverOnce(resolveTranscript() || null);
+
+        void recoverFromSpeechRecognitionError(ev.error).then(() => {
+          if (resolved) return;
+          teardownSpeechRecognition(rec);
+          rec = null;
+          deliverOnce(null);
+        });
       };
 
       rec.onend = () => {

@@ -21,14 +21,42 @@ declare global {
     };
     VautoAndroid?: {
       openExternalUrl?: (url: string) => void;
+      clearWebViewCache?: () => void;
+      promptMajorUpdate?: (versionLabel: string, downloadUrl: string) => void;
     };
   }
+}
+
+/** Major APK jump when remote versionCode exceeds local by more than one release. */
+export const NATIVE_APK_MAJOR_GAP = 1;
+
+export function versionCodeGap(
+  localVersionCode: number,
+  remoteVersionCode: number
+): number {
+  return remoteVersionCode - localVersionCode;
+}
+
+export function isMajorApkUpdateRequired(
+  localVersionCode: number,
+  remoteVersionCode: number
+): boolean {
+  return versionCodeGap(localVersionCode, remoteVersionCode) > NATIVE_APK_MAJOR_GAP;
+}
+
+export function isMinorApkDrift(
+  localVersionCode: number,
+  remoteVersionCode: number
+): boolean {
+  const gap = versionCodeGap(localVersionCode, remoteVersionCode);
+  return gap > 0 && gap <= NATIVE_APK_MAJOR_GAP;
 }
 
 export type AppVersionStatus =
   | "loading"
   | "current"
-  | "outdated"
+  | "outdated_minor"
+  | "outdated_major"
   | "web"
   | "error";
 
@@ -117,9 +145,24 @@ export function evaluateAppVersion(
     };
   }
   if (local.versionCode < remote.versionCode) {
-    return { status: "outdated", isNativeShell, remote, local };
+    if (isMajorApkUpdateRequired(local.versionCode, remote.versionCode)) {
+      return { status: "outdated_major", isNativeShell, remote, local };
+    }
+    return { status: "outdated_minor", isNativeShell, remote, local };
   }
   return { status: "current", isNativeShell, remote, local };
+}
+
+/** Invoke Android native AlertDialog for major APK updates (versionCode gap > 1). */
+export function promptNativeMajorUpdate(
+  versionLabel: string,
+  downloadUrl: string
+): boolean {
+  if (typeof window === "undefined") return false;
+  const bridge = window.VautoAndroid?.promptMajorUpdate;
+  if (typeof bridge !== "function") return false;
+  bridge(versionLabel, downloadUrl);
+  return true;
 }
 
 export async function openAppUpdateDownload(url: string): Promise<void> {

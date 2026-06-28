@@ -50,6 +50,94 @@ export function teardownSpeechRecognition(rec: SpeechRecognitionHandle | null): 
   }
 }
 
+type SpeechRecognitionCtor = new () => {
+  continuous: boolean;
+  interimResults: boolean;
+  onend: (() => void) | null;
+  onerror: ((e: { error: string }) => void) | null;
+  start: () => void;
+  abort: () => void;
+  stop: () => void;
+};
+
+function getSpeechRecognitionCtor(): SpeechRecognitionCtor | null {
+  if (typeof window === "undefined") return null;
+  const w = window as Window & {
+    SpeechRecognition?: SpeechRecognitionCtor;
+    webkitSpeechRecognition?: SpeechRecognitionCtor;
+  };
+  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
+}
+
+let silentResetInFlight: Promise<void> | null = null;
+
+/**
+ * Silent STT engine reset after WebView audio errors — recycles WebKit recognizer
+ * without UI feedback so the next mic tap starts clean (no frozen UI / bad cuts).
+ */
+export function silentResetSpeechEngine(): Promise<void> {
+  if (silentResetInFlight) return silentResetInFlight;
+
+  silentResetInFlight = new Promise<void>((resolve) => {
+    if (typeof window === "undefined") {
+      resolve();
+      return;
+    }
+
+    const SpeechRecognition = getSpeechRecognitionCtor();
+    if (!SpeechRecognition) {
+      resolve();
+      return;
+    }
+
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.onend = finish;
+      rec.onerror = finish;
+      try {
+        rec.start();
+      } catch {
+        finish();
+        return;
+      }
+      window.setTimeout(() => {
+        teardownSpeechRecognition(rec);
+        finish();
+      }, 80);
+      window.setTimeout(finish, 450);
+    } catch {
+      finish();
+    }
+  }).finally(() => {
+    silentResetInFlight = null;
+  });
+
+  return silentResetInFlight;
+}
+
+/** Recover from WebView STT errors — never deliver partial hypotheses after a fault. */
+export async function recoverFromSpeechRecognitionError(
+  errorCode: string
+): Promise<{ deliverPartial: boolean }> {
+  if (errorCode === "aborted" || errorCode === "no-speech") {
+    return { deliverPartial: false };
+  }
+  if (errorCode === "not-allowed") {
+    return { deliverPartial: false };
+  }
+  await silentResetSpeechEngine();
+  return { deliverPartial: false };
+}
+
 /** Remove legacy agent bug suffixes (e.g. "batai clothing") without altering user words. */
 export function stripLegacyCategorySuffixes(text: string): string {
   const tokens = text.trim().split(/\s+/).filter(Boolean);

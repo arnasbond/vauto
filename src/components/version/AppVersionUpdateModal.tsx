@@ -7,7 +7,7 @@ import { useAppVersion } from "@/context/AppVersionContext";
 export function AppVersionUpdateModal() {
   const { status, remote, local } = useAppVersion();
 
-  if (status !== "outdated" || !remote) return null;
+  if (status !== "outdated_major" || !remote) return null;
 
   const handleUpdate = () => {
     void openAppUpdateDownload(remote.downloadUrl);
@@ -26,7 +26,7 @@ export function AppVersionUpdateModal() {
         </div>
 
         <h2 className="font-display text-lg font-bold">
-          Išleistas svarbus programėlės atnaujinimas (v{remote.latestVersion})
+          Paruoštas svarbus VAUTO atnaujinimas (v{remote.latestVersion})
         </h2>
 
         <p className="mt-3 text-sm leading-relaxed text-slate-300">
@@ -34,8 +34,8 @@ export function AppVersionUpdateModal() {
           <span className="font-semibold text-white">
             {local?.versionName ?? "?"} (code {local?.versionCode ?? "?"})
           </span>{" "}
-          neatitinka gamybinės Web versijos. Atnaujinkite, kad balso įvestis, paieška ir
-          AI veiktų sinchroniškai.
+          gerokai atsilieka nuo gamybinės. Spauskite atnaujinti, kad aktyvuotumėte naujas
+          funkcijas.
         </p>
 
         <button

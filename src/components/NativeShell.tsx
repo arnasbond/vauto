@@ -10,6 +10,8 @@ import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
 import { attachNativeInstallLinkBlocker } from "@/lib/native-link-blocker";
 import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
 import { AppVersionGuard } from "@/components/version/AppVersionGuard";
+import { NativeMajorUpdatePrompt } from "@/components/version/NativeMajorUpdatePrompt";
+import { PullToRefreshHost } from "@/components/native/PullToRefreshHost";
 
 /** Configures status bar, splash, PWA service worker, and push voice playback */
 export function NativeShell({ children }: { children: React.ReactNode }) {
@@ -120,10 +122,11 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
   }, [router]);
 
   return (
-    <>
+    <PullToRefreshHost>
       <ExpressEscrowProcessor />
+      <NativeMajorUpdatePrompt />
       <AppVersionGuard />
       {children}
-    </>
+    </PullToRefreshHost>
   );
 }

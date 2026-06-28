@@ -62,10 +62,19 @@ export function AppVersionStatusCard() {
     );
   }
 
-  if (status === "outdated" && remote && local) {
+  if (status === "outdated_minor" && remote && local) {
+    return (
+      <p className="py-2 text-center text-xs text-sky-300">
+        Web atnaujinta (v{remote.latestVersion}). Patraukite ekraną žemyn, kad sinchronizuotumėte
+        APK turinį — {local.versionName} ({local.versionCode})
+      </p>
+    );
+  }
+
+  if (status === "outdated_major" && remote && local) {
     return (
       <p className="py-2 text-center text-xs text-fuchsia-300">
-        APK pasenusi: {local.versionName} ({local.versionCode}) → reikia v
+        Reikalingas svarbus APK atnaujinimas: {local.versionName} ({local.versionCode}) → v
         {remote.latestVersion} ({remote.versionCode})
       </p>
     );

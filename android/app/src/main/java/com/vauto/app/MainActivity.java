@@ -1,10 +1,18 @@
 package com.vauto.app;
 
+import android.app.AlertDialog;
+import android.app.DownloadManager;
 import android.content.ActivityNotFoundException;
+import android.content.BroadcastReceiver;
 import android.content.ComponentCallbacks2;
+import android.content.Context;
 import android.content.Intent;
+import android.content.IntentFilter;
+import android.database.Cursor;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
+import android.os.Environment;
 import android.util.Log;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
@@ -15,10 +23,12 @@ import android.webkit.WebSettings;
 import android.webkit.WebView;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
+import androidx.core.content.FileProvider;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
 import java.io.ByteArrayInputStream;
+import java.io.File;
 
 public class MainActivity extends BridgeActivity {
 
@@ -28,6 +38,9 @@ public class MainActivity extends BridgeActivity {
 
     private ValueCallback<Uri[]> pendingFilePathCallback;
     private ActivityResultLauncher<Intent> imageFileChooserLauncher;
+    private long pendingApkDownloadId = -1L;
+    private BroadcastReceiver apkDownloadReceiver;
+    private boolean majorUpdateDialogVisible = false;
 
     private static final String HOST_LOCALHOST = "localhost";
     private static final String HOST_VERCEL = "vauto-chi.vercel.app";
@@ -57,6 +70,189 @@ public class MainActivity extends BridgeActivity {
                     pendingFilePathCallback = null;
                 }
             );
+        registerApkDownloadReceiver();
+    }
+
+    @Override
+    protected void onDestroy() {
+        unregisterApkDownloadReceiver();
+        super.onDestroy();
+    }
+
+    /** Native AlertDialog + background APK download for major version jumps (versionCode gap > 1). */
+    void promptMajorUpdate(String versionLabel, String downloadUrl) {
+        if (downloadUrl == null || downloadUrl.trim().isEmpty()) return;
+        if (majorUpdateDialogVisible) return;
+        runOnUiThread(() -> {
+            majorUpdateDialogVisible = true;
+            new AlertDialog.Builder(this)
+                .setTitle("VAUTO atnaujinimas")
+                .setMessage(
+                    "Paruoštas svarbus VAUTO atnaujinimas. Spauskite atnaujinti, kad aktyvuotumėte naujas funkcijas."
+                )
+                .setCancelable(false)
+                .setPositiveButton(
+                    "Atnaujinti",
+                    (dialog, which) -> startApkDownload(downloadUrl.trim())
+                )
+                .setNegativeButton(
+                    "Vėliau",
+                    (dialog, which) -> majorUpdateDialogVisible = false
+                )
+                .setOnDismissListener(dialog -> majorUpdateDialogVisible = false)
+                .show();
+        });
+    }
+
+    void clearWebViewDiskCache() {
+        runOnUiThread(() -> {
+            Bridge bridge = getBridge();
+            if (bridge == null) return;
+            WebView webView = bridge.getWebView();
+            if (webView == null) return;
+            try {
+                webView.clearCache(true);
+                Log.i(TAG, "WebView disk cache cleared (deep refresh)");
+            } catch (Exception e) {
+                Log.w(TAG, "WebView cache clear failed", e);
+            }
+        });
+    }
+
+    private void registerApkDownloadReceiver() {
+        if (apkDownloadReceiver != null) return;
+        apkDownloadReceiver =
+            new BroadcastReceiver() {
+                @Override
+                public void onReceive(Context context, Intent intent) {
+                    if (intent == null) return;
+                    long id = intent.getLongExtra(DownloadManager.EXTRA_DOWNLOAD_ID, -1L);
+                    if (id != pendingApkDownloadId) return;
+                    pendingApkDownloadId = -1L;
+                    installDownloadedApk(id);
+                }
+            };
+        IntentFilter filter = new IntentFilter(DownloadManager.ACTION_DOWNLOAD_COMPLETE);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(apkDownloadReceiver, filter, Context.RECEIVER_NOT_EXPORTED);
+        } else {
+            registerReceiver(apkDownloadReceiver, filter);
+        }
+    }
+
+    private void unregisterApkDownloadReceiver() {
+        if (apkDownloadReceiver == null) return;
+        try {
+            unregisterReceiver(apkDownloadReceiver);
+        } catch (Exception e) {
+            Log.w(TAG, "APK download receiver unregister failed", e);
+        }
+        apkDownloadReceiver = null;
+    }
+
+    private void startApkDownload(String downloadUrl) {
+        majorUpdateDialogVisible = false;
+        try {
+            DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+            if (dm == null) {
+                openExternalUrlFallback(downloadUrl);
+                return;
+            }
+
+            File dir = getExternalFilesDir(Environment.DIRECTORY_DOWNLOADS);
+            if (dir != null && !dir.exists()) {
+                //noinspection ResultOfMethodCallIgnored
+                dir.mkdirs();
+            }
+
+            DownloadManager.Request request =
+                new DownloadManager.Request(Uri.parse(downloadUrl));
+            request.setTitle("VAUTO atnaujinimas");
+            request.setDescription("Atsisiunčiamas naujas VAUTO APK");
+            request.setNotificationVisibility(
+                DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED
+            );
+            request.setDestinationInExternalFilesDir(
+                this,
+                Environment.DIRECTORY_DOWNLOADS,
+                "vauto-update.apk"
+            );
+
+            pendingApkDownloadId = dm.enqueue(request);
+            Log.i(TAG, "APK download started: " + downloadUrl);
+        } catch (Exception e) {
+            Log.w(TAG, "APK download failed, opening browser", e);
+            openExternalUrlFallback(downloadUrl);
+        }
+    }
+
+    private void installDownloadedApk(long downloadId) {
+        DownloadManager dm = (DownloadManager) getSystemService(DOWNLOAD_SERVICE);
+        if (dm == null) return;
+
+        DownloadManager.Query query = new DownloadManager.Query();
+        query.setFilterById(downloadId);
+        try (Cursor cursor = dm.query(query)) {
+            if (cursor == null || !cursor.moveToFirst()) return;
+            int statusIndex = cursor.getColumnIndex(DownloadManager.COLUMN_STATUS);
+            if (statusIndex < 0) return;
+            if (cursor.getInt(statusIndex) != DownloadManager.STATUS_SUCCESSFUL) return;
+
+            Uri apkUri = dm.getUriForDownloadedFile(downloadId);
+            if (apkUri == null) {
+                int uriIndex = cursor.getColumnIndex(DownloadManager.COLUMN_LOCAL_URI);
+                if (uriIndex >= 0) {
+                    String localUri = cursor.getString(uriIndex);
+                    if (localUri != null) apkUri = Uri.parse(localUri);
+                }
+            }
+            if (apkUri == null) return;
+            launchApkInstallIntent(apkUri);
+        } catch (Exception e) {
+            Log.w(TAG, "APK install launch failed", e);
+        }
+    }
+
+    private void launchApkInstallIntent(Uri apkUri) {
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+                if (!getPackageManager().canRequestPackageInstalls()) {
+                    Intent settings =
+                        new Intent(android.provider.Settings.ACTION_MANAGE_UNKNOWN_APP_SOURCES);
+                    settings.setData(Uri.parse("package:" + getPackageName()));
+                    startActivity(settings);
+                    return;
+                }
+            }
+
+            Intent install = new Intent(Intent.ACTION_VIEW);
+            install.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK);
+            install.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION);
+
+            if ("file".equalsIgnoreCase(apkUri.getScheme())) {
+                Uri contentUri =
+                    FileProvider.getUriForFile(
+                        this,
+                        getPackageName() + ".fileprovider",
+                        new File(apkUri.getPath())
+                    );
+                install.setDataAndType(contentUri, "application/vnd.android.package-archive");
+            } else {
+                install.setDataAndType(apkUri, "application/vnd.android.package-archive");
+            }
+
+            startActivity(install);
+        } catch (Exception e) {
+            Log.w(TAG, "Unable to open APK installer", e);
+        }
+    }
+
+    private void openExternalUrlFallback(String url) {
+        try {
+            startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse(url)));
+        } catch (Exception e) {
+            Log.w(TAG, "openExternalUrlFallback failed: " + url, e);
+        }
     }
 
     /** Opens the system image picker for WebView file inputs (e.g. listing photo upload). */
@@ -328,14 +524,17 @@ public class MainActivity extends BridgeActivity {
         @JavascriptInterface
         public void openExternalUrl(String url) {
             if (url == null || url.isEmpty()) return;
-            activity.runOnUiThread(() -> {
-                try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(url));
-                    activity.startActivity(intent);
-                } catch (Exception e) {
-                    Log.w(TAG, "openExternalUrl failed: " + url, e);
-                }
-            });
+            activity.runOnUiThread(() -> activity.openExternalUrlFallback(url));
+        }
+
+        @JavascriptInterface
+        public void clearWebViewCache() {
+            activity.clearWebViewDiskCache();
+        }
+
+        @JavascriptInterface
+        public void promptMajorUpdate(String versionLabel, String downloadUrl) {
+            activity.promptMajorUpdate(versionLabel, downloadUrl);
         }
     }
 }
