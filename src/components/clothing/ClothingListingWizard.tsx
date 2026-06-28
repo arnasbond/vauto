@@ -212,6 +212,10 @@ export function ClothingListingWizard({
 
   const handlePublish = () => {
     if (!canPublish) {
+      if (!previewImage) {
+        onToast?.("Pridėkite bent vieną nuotrauką.", "info");
+        return;
+      }
       if (friendlyHint) onToast?.(friendlyHint, "info");
       return;
     }
@@ -323,7 +327,9 @@ export function ClothingListingWizard({
             <ClothingWizardInlineGuide message="Kai kurie laukai dar tušti — padėsiu juos užpildyti švelniai, žingsnis po žingsnio." />
           )}
 
-          <ClothingWizardInlineGuide message={canPublish ? null : friendlyHint} />
+          <ClothingWizardInlineGuide
+            message={canPublish || !previewImage ? null : friendlyHint}
+          />
 
           <WardrobeProfileImporter
             userName={userName}

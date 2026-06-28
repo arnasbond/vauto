@@ -47,7 +47,7 @@ export function buildClothingWizardHint(progress: ClothingWizardProgress): strin
 
   switch (missing) {
     case "photo":
-      return `${name}, pridėkime nuotrauką — taip pirkėjos iškart pamatys, ką siūlai.`;
+      return null;
     case "title":
       return `${name}, trumpas pavadinimas padės greičiau rasti tavo skelbimą.`;
     case "category":
