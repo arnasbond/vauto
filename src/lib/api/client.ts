@@ -234,10 +234,14 @@ export async function apiVautoServer(
   }, timeoutMs);
 }
 
-export async function apiUploadMedia(imageDataUrl: string): Promise<string | null> {
+export async function apiUploadMedia(
+  imageDataUrl: string,
+  listingId?: string
+): Promise<string | null> {
   const res = await apiVautoServer({
     action: "upload_media",
     imageDataUrl,
+    listingId,
   });
   if (res && "url" in res) return res.url;
   return null;

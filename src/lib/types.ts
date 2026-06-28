@@ -50,6 +50,14 @@ export interface Listing {
   minNegotiationPrice?: number;
   /** AI kainų vertinimo patikimumas 0–100 */
   appraisalScore?: number;
+  /** Vision anti-fraud patvirtinimas */
+  isVerified?: boolean;
+  /** Reikalinga moderacijos peržiūra */
+  requiresReview?: boolean;
+  /** Google Images SEO alt */
+  imageAlt?: string;
+  /** Google Images SEO title */
+  imageTitle?: string;
 }
 
 /** Catalog/API rows that may still ship a legacy single `image` field */
@@ -97,6 +105,11 @@ export interface AiExtractedListing {
     maxPrice: number;
     optimalPrice: number;
   };
+  isVerified?: boolean;
+  requiresReview?: boolean;
+  reviewNotice?: string;
+  imageAlt?: string;
+  imageTitle?: string;
 }
 
 /** Seller flow states */

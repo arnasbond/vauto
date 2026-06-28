@@ -73,11 +73,15 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
     listing.description?.slice(0, 155) ??
     `${action} ${regionalTitle} ${city} už ${priceText}. Peržiūrėkite skelbimą ir susisiekite per VAUTO.`;
 
+  const ogTitle =
+    listing.imageTitle?.trim() ||
+    `${regionalTitle} — ${priceText}`;
+
   return {
     title,
     description,
     og: {
-      title: `${regionalTitle} — ${priceText}`,
+      title: ogTitle,
       description: `${description} ${city} regionas.`,
       image: listing.images[0] ?? "",
       url: `${SITE_URL}${listingPrettyPath(listing)}`,

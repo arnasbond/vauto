@@ -1,6 +1,9 @@
 import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
 import { resolveListingCity } from "../lib/city-resolve.js";
 import { unifiedLlmJson } from "./llm-provider.js";
+import { generateImageMetadata } from "./image-metadata-generator.js";
+import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
+import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -72,6 +75,11 @@ export interface VautoListingPayload {
   confidence: number;
   attributes: Record<string, string | string[]>;
   intent?: string;
+  isVerified?: boolean;
+  requiresReview?: boolean;
+  imageAlt?: string;
+  imageTitle?: string;
+  reviewNotice?: string;
 }
 
 function toListingPayload(
@@ -154,6 +162,7 @@ export interface VautoServerRequest {
   extraContext?: string;
   userCity?: string;
   contact?: string;
+  listingId?: string;
 }
 
 export async function handleVautoServerAction(body: VautoServerRequest) {
@@ -184,8 +193,16 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
         { status: 503 }
       );
     }
-    const uploaded = await uploadImageToCloudinary(image);
-    return { ok: true, action, url: uploaded.url, publicId: uploaded.publicId };
+    const listingId = body.listingId?.trim() || `tmp-${Date.now()}`;
+    let processed = image;
+    try {
+      processed = await optimizeListingImage(image);
+      processed = await applyVautoWatermark(processed, listingId);
+    } catch {
+      /* fallback — upload original if sharp unavailable */
+    }
+    const uploaded = await uploadImageToCloudinary(processed);
+    return { ok: true, action, url: uploaded.url, publicId: uploaded.publicId, listingId };
   }
 
   const images =
@@ -216,7 +233,42 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       imageDataUrls: images,
     });
     const listing = toListingPayload(raw, city, contact);
-    return { ok: true, action, parsed: raw, listing };
+
+    const [visualSeo, antiFraud] = await Promise.all([
+      generateImageMetadata({
+        listingTitle: listing.title,
+        category: listing.category,
+        city: listing.location,
+        attributes: listing.attributes as Record<string, unknown>,
+        imageDataUrl: images[0],
+      }),
+      runVisionAntiFraudGuard(images, {
+        title: listing.title,
+        category: listing.category,
+      }),
+    ]);
+
+    listing.imageAlt = visualSeo.alt;
+    listing.imageTitle = visualSeo.title;
+    listing.isVerified = antiFraud.isVerified;
+    listing.requiresReview = antiFraud.requiresReview;
+    listing.reviewNotice = antiFraud.userNotice;
+    listing.attributes = {
+      ...listing.attributes,
+      imageAlt: visualSeo.alt,
+      imageTitle: visualSeo.title,
+      imageSeoDescription: visualSeo.description ?? "",
+      fraudRiskScore: String(antiFraud.riskScore),
+    };
+
+    return {
+      ok: true,
+      action,
+      parsed: raw,
+      listing,
+      visualSeo,
+      antiFraud,
+    };
   }
 
   throw Object.assign(new Error(`Unknown action: ${action}`), { status: 400 });

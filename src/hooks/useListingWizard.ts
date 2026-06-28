@@ -128,10 +128,13 @@ export function useListingWizard({
 
   const buddyMessage = useMemo(() => {
     const parts = [analysis.intro];
+    if (draft.requiresReview && draft.reviewNotice?.trim()) {
+      parts.push(draft.reviewNotice.trim());
+    }
     if (analysis.questions.length) parts.push(...analysis.questions.slice(0, 2));
     if (agentEnhancement) parts.push(agentEnhancement);
     return parts.join(" ");
-  }, [analysis, agentEnhancement]);
+  }, [analysis, agentEnhancement, draft.requiresReview, draft.reviewNotice]);
 
   useEffect(() => {
     if (manualFallback || kickedOff.current) return;

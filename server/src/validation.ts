@@ -298,6 +298,14 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
   if (!minNegotiationPrice.ok) return minNegotiationPrice;
   const appraisalScore = optionalNumber(body, "appraisalScore", 0, 100);
   if (!appraisalScore.ok) return appraisalScore;
+  const isVerified = optionalBoolean(body, "isVerified");
+  if (!isVerified.ok) return isVerified;
+  const requiresReview = optionalBoolean(body, "requiresReview");
+  if (!requiresReview.ok) return requiresReview;
+  const imageAlt = optionalString(body, "imageAlt", 200);
+  if (!imageAlt.ok) return imageAlt;
+  const imageTitle = optionalString(body, "imageTitle", 120);
+  if (!imageTitle.ok) return imageTitle;
 
   return ok({
     id: id.value,
@@ -326,6 +334,10 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
     promoted: promoted.value,
     minNegotiationPrice: minNegotiationPrice.value,
     appraisalScore: appraisalScore.value,
+    isVerified: isVerified.value,
+    requiresReview: requiresReview.value,
+    imageAlt: imageAlt.value,
+    imageTitle: imageTitle.value,
   });
 }
 
@@ -346,6 +358,10 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     "banned",
     "minNegotiationPrice",
     "appraisalScore",
+    "isVerified",
+    "requiresReview",
+    "imageAlt",
+    "imageTitle",
   ]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) return fail(`${key} cannot be updated`);
@@ -421,6 +437,26 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     const appraisalScore = optionalNumber(body, "appraisalScore", 0, 100);
     if (!appraisalScore.ok) return appraisalScore;
     patch.appraisalScore = appraisalScore.value;
+  }
+  if (body.isVerified !== undefined) {
+    const isVerified = optionalBoolean(body, "isVerified");
+    if (!isVerified.ok) return isVerified;
+    patch.isVerified = isVerified.value;
+  }
+  if (body.requiresReview !== undefined) {
+    const requiresReview = optionalBoolean(body, "requiresReview");
+    if (!requiresReview.ok) return requiresReview;
+    patch.requiresReview = requiresReview.value;
+  }
+  if (body.imageAlt !== undefined) {
+    const imageAlt = optionalString(body, "imageAlt", 200);
+    if (!imageAlt.ok) return imageAlt;
+    patch.imageAlt = imageAlt.value;
+  }
+  if (body.imageTitle !== undefined) {
+    const imageTitle = optionalString(body, "imageTitle", 120);
+    if (!imageTitle.ok) return imageTitle;
+    patch.imageTitle = imageTitle.value;
   }
   return ok(patch);
 }

@@ -69,6 +69,14 @@ export interface ApiListing {
   minNegotiationPrice?: number;
   /** AI kainų vertinimo patikimumas 0–100 */
   appraisalScore?: number;
+  /** Vision anti-fraud — ar skelbimas patvirtintas */
+  isVerified?: boolean;
+  /** Reikia moderacijos peržiūros */
+  requiresReview?: boolean;
+  /** Google Images SEO alt tekstas */
+  imageAlt?: string;
+  /** Google Images SEO title atributas */
+  imageTitle?: string;
 }
 
 export interface ApiChatMessage {

@@ -128,12 +128,15 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
 };
 
-async function prepareListingImageForApi(src: string | null | undefined): Promise<string | null> {
+async function prepareListingImageForApi(
+  src: string | null | undefined,
+  listingId?: string
+): Promise<string | null> {
   if (!src?.trim()) return null;
   let image = (await resolveImageForUpload(src)) ?? src.trim();
   if (image.startsWith("data:image")) {
     image = await compressDataUrl(image);
-    const cloudUrl = await apiUploadMedia(image);
+    const cloudUrl = await apiUploadMedia(image, listingId);
     if (cloudUrl) return cloudUrl;
     return image;
   }
@@ -501,6 +504,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         setAiDraft(next);
         setSellerStep("confirmation");
 
+        if (next.requiresReview && next.reviewNotice?.trim()) {
+          showToast(next.reviewNotice.trim(), "info");
+        }
+
         const voicePrompt = buildPartialListingVoicePromptFromDraft(next);
         if (voicePrompt && (mode === "voice" || opts?.transcript?.trim())) {
           speakBuddyMessage(voicePrompt, { enabled: true });
@@ -830,8 +837,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
     const vinOk = vin ? verifyVin(vin) : false;
 
+    const createdAt = new Date().toISOString();
+    const listingId = `l-${Date.now()}`;
+
     const [listingImage, coords] = await Promise.all([
-      prepareListingImageForApi(sellerPreviewImage),
+      prepareListingImageForApi(sellerPreviewImage, listingId),
       coordsPromise,
     ]);
     if (!listingImage) {
@@ -850,9 +860,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (exact !== null) distKm = exact;
     }
 
-    const createdAt = new Date().toISOString();
     const newListing: Listing = enrichListingCoords({
-      id: `l-${Date.now()}`,
+      id: listingId,
       title: aiDraft.title,
       price: aiDraft.price,
       priceLabel: aiDraft.priceLabel,
@@ -875,6 +884,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         aiDraft.category === "services" && isVerifiedServiceProvider(user),
       minNegotiationPrice: aiDraft.minNegotiationPrice,
       appraisalScore: aiDraft.appraisalScore,
+      isVerified: aiDraft.isVerified ?? true,
+      requiresReview: aiDraft.requiresReview ?? false,
+      imageAlt: aiDraft.imageAlt,
+      imageTitle: aiDraft.imageTitle,
     });
 
     let published = newListing;
@@ -951,7 +964,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         return;
       }
 
-      const listingImage = await prepareListingImageForApi(sellerPreviewImage);
+      const bulkListingId = `bulk-${Date.now()}`;
+      const listingImage = await prepareListingImageForApi(
+        sellerPreviewImage,
+        bulkListingId
+      );
       if (!listingImage) {
         showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
         return;
@@ -996,6 +1013,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           hasVideo: false,
           vinVerified: false,
           providerVerified: false,
+          isVerified: draft.isVerified ?? true,
+          requiresReview: draft.requiresReview ?? false,
+          imageAlt: draft.imageAlt,
+          imageTitle: draft.imageTitle,
         });
 
         setListings((prev) => [newListing, ...prev]);

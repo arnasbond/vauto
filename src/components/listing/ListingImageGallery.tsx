@@ -7,9 +7,24 @@ import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
 type ListingImageGalleryProps = {
-  listing: Pick<Listing, "id" | "title" | "category" | "images" | "description">;
+  listing: Pick<
+    Listing,
+    "id" | "title" | "category" | "images" | "description" | "imageAlt" | "imageTitle" | "attributes"
+  >;
   className?: string;
 };
+
+function resolveImageAlt(
+  listing: ListingImageGalleryProps["listing"],
+  index: number
+): string {
+  if (index === 0) {
+    if (listing.imageAlt?.trim()) return listing.imageAlt.trim();
+    const attrAlt = listing.attributes?.imageAlt;
+    if (typeof attrAlt === "string" && attrAlt.trim()) return attrAlt.trim();
+  }
+  return `${listing.title} — nuotrauka ${index + 1}`;
+}
 
 export function ListingImageGallery({ listing, className }: ListingImageGalleryProps) {
   const images = resolveListingImages(listing);
@@ -53,7 +68,8 @@ export function ListingImageGallery({ listing, className }: ListingImageGalleryP
           >
             <Image
               src={src}
-              alt={`${listing.title} — nuotrauka ${index + 1}`}
+              alt={resolveImageAlt(listing, index)}
+              title={index === 0 ? listing.imageTitle ?? listing.title : undefined}
               fill
               sizes="100vw"
               className="object-cover"

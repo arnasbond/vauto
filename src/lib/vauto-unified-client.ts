@@ -15,6 +15,7 @@ export interface VautoServerRequest {
   extraContext?: string;
   userCity?: string;
   contact?: string;
+  listingId?: string;
 }
 
 export interface VautoServerListingPayload {
@@ -27,6 +28,11 @@ export interface VautoServerListingPayload {
   confidence: number;
   attributes: Record<string, string | string[]>;
   intent?: string;
+  isVerified?: boolean;
+  requiresReview?: boolean;
+  imageAlt?: string;
+  imageTitle?: string;
+  reviewNotice?: string;
 }
 
 export interface VautoServerParseResponse {
@@ -34,6 +40,13 @@ export interface VautoServerParseResponse {
   action: VautoServerAction;
   parsed?: Record<string, unknown>;
   listing: VautoServerListingPayload;
+  visualSeo?: { alt: string; title: string; description?: string };
+  antiFraud?: {
+    isVerified: boolean;
+    requiresReview: boolean;
+    riskScore: number;
+    userNotice: string;
+  };
 }
 
 export interface VautoServerUploadResponse {
@@ -41,6 +54,7 @@ export interface VautoServerUploadResponse {
   action: "upload_media";
   url: string;
   publicId: string;
+  listingId?: string;
 }
 
 const VALID_CATEGORIES: ListingCategory[] = [
@@ -66,6 +80,12 @@ export function mapVautoServerListing(
   const attrs = { ...(listing.attributes ?? {}) };
   delete attrs._vautoCategory;
 
+  const imageAlt =
+    listing.imageAlt ?? (typeof attrs.imageAlt === "string" ? attrs.imageAlt : undefined);
+  const imageTitle =
+    listing.imageTitle ??
+    (typeof attrs.imageTitle === "string" ? attrs.imageTitle : undefined);
+
   return {
     title: listing.title,
     price: listing.price,
@@ -75,5 +95,10 @@ export function mapVautoServerListing(
     description: listing.description,
     confidence: listing.confidence,
     attributes: attrs,
+    isVerified: listing.isVerified ?? true,
+    requiresReview: listing.requiresReview ?? false,
+    reviewNotice: listing.reviewNotice,
+    imageAlt,
+    imageTitle,
   };
 }
