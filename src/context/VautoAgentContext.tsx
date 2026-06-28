@@ -51,7 +51,7 @@ import {
   selectAgentSessionMessages,
   shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
-import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
+import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { runFastAgentSearch } from "@/lib/fast-agent-search";
 import {
@@ -701,9 +701,26 @@ function VautoAgentSheet() {
   const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
   const lastVoiceDisplayRef = useRef("");
 
+  const resetVoiceSessionAfterSend = useCallback(async () => {
+    voiceSessionRef.current?.cancel();
+    voiceSessionRef.current = null;
+    setRecording(false);
+    setVoiceCaption("");
+    lastVoiceDisplayRef.current = "";
+    await recycleSpeechRecognitionEngine();
+  }, []);
+
   useEffect(() => {
     return () => voiceSessionRef.current?.cancel();
   }, []);
+
+  const dispatchAgentMessage = useCallback(
+    async (text: string, options?: AgentSendOptions) => {
+      await resetVoiceSessionAfterSend();
+      return sendAgentMessage(text, options);
+    },
+    [resetVoiceSessionAfterSend, sendAgentMessage]
+  );
 
   const handleVoice = () => {
     if (recording) {
@@ -722,17 +739,21 @@ function VautoAgentSheet() {
       },
     });
     voiceSessionRef.current = session;
-    void session.promise.then((text) => {
+    void session.promise.then(async (text) => {
       setRecording(false);
       voiceSessionRef.current = null;
       const clean = sanitizeSpeechTranscript(text ?? "");
       setVoiceCaption("");
-      if (!clean) return;
+      if (!clean) {
+        await recycleSpeechRecognitionEngine();
+        return;
+      }
       lastVoiceDisplayRef.current = clean;
       setSearchInputMode("voice");
       setSearchVoiceMode(true);
       setOpen(true);
-      void sendAgentMessage(clean, { skipBusyCheck: true, fromVoice: true });
+      await resetVoiceSessionAfterSend();
+      void dispatchAgentMessage(clean, { skipBusyCheck: true, fromVoice: true });
     });
   };
 
@@ -742,51 +763,51 @@ function VautoAgentSheet() {
     <>
       <VautoAgentFab />
       <div
-        className="fixed inset-0 z-[240] flex flex-col bg-white"
+        className="fixed inset-0 z-[240] flex flex-col bg-[#0a1128] text-white"
         role="dialog"
         aria-modal="true"
         aria-label="VAUTO AI asistentas"
       >
-        <header className="flex shrink-0 items-center gap-3 border-b border-[#e5e7eb] px-4 py-3">
+        <header className="flex shrink-0 items-center gap-3 border-b border-slate-700 bg-[#0a1128] px-4 py-3">
           <button
             type="button"
             onClick={() => setOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-[#6b7280] hover:bg-[#f3f4f6]"
+            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:bg-slate-800"
             aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
           </button>
           <div className="flex flex-1 items-center justify-center gap-2 pr-9">
-            <Sparkles className="h-4 w-4 text-[#1167b1]" />
-            <h2 className="font-display text-base font-bold text-[#111827]">
+            <Sparkles className="h-4 w-4 text-sky-400" />
+            <h2 className="font-display text-base font-bold text-white">
               VAUTO Gemini
             </h2>
           </div>
         </header>
 
-        <p className="shrink-0 border-b border-[#e5e7eb] bg-[#f8fafc] px-4 py-2 text-center text-[11px] text-[#6b7280]">
+        <p className="shrink-0 border-b border-slate-700 bg-[#0f172a] px-4 py-2 text-center text-[11px] text-slate-400">
           Tas pats laukas kaip paieškoje viršuje — tekstas sinchronizuojamas.
         </p>
 
-        <div className="flex-1 overflow-y-auto px-4 py-4 pb-28">
+        <div className="flex-1 overflow-y-auto bg-[#0a1128] px-4 py-4 pb-28">
           {messages.map((m, i) => (
             <div
               key={`${m.role}-${i}`}
               className={`mb-3 flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <div
-                className={`max-w-[88%] rounded-2xl px-4 py-3 text-sm leading-relaxed ${
+                className={
                   m.role === "user"
-                    ? "rounded-tr-md bg-[#1167b1] text-white"
-                    : "rounded-tl-md bg-[#f3f4f6] text-[#111827]"
-                }`}
+                    ? "max-w-[88%] rounded-2xl rounded-tr-md bg-[#1167b1] px-4 py-3 text-sm leading-relaxed text-white"
+                    : "max-w-[88%] rounded-lg border border-slate-700 bg-[#1e293b] p-3 text-sm leading-relaxed text-white"
+                }
               >
                 {sanitizeAgentReplyForDisplay(m.text) || m.text}
               </div>
             </div>
           ))}
           {busy && (
-            <div className="flex items-center gap-2 text-sm text-[#6b7280]">
+            <div className="flex items-center gap-2 text-sm text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
               Galvoju ir vykdau veiksmus…
             </div>
@@ -794,12 +815,12 @@ function VautoAgentSheet() {
         </div>
 
         <form
-          className="fixed bottom-0 left-0 right-0 border-t border-[#e5e7eb] bg-white p-4"
+          className="fixed bottom-0 left-0 right-0 border-t border-slate-700 bg-[#0a1128] p-4"
           onSubmit={(e) => {
             e.preventDefault();
             const t = searchQuery.trim();
             if (!t || busy) return;
-            void sendAgentMessage(t);
+            void dispatchAgentMessage(t);
           }}
         >
           <div className="mx-auto flex max-w-lg gap-2">
@@ -808,8 +829,8 @@ function VautoAgentSheet() {
                 type="button"
                 onClick={handleVoice}
                 disabled={busy}
-                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-[#d1d5db] text-[#6b7280] disabled:opacity-40 ${
-                  recording ? "animate-pulse border-[#1167b1] text-[#1167b1]" : ""
+                className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-slate-600 text-slate-300 disabled:opacity-40 ${
+                  recording ? "animate-pulse border-sky-400 text-sky-400" : ""
                 }`}
                 aria-label={recording ? "Sustabdyti balso įrašymą" : "Balso įvedimas"}
               >
@@ -823,7 +844,7 @@ function VautoAgentSheet() {
                 setSearchQuery(e.target.value);
               }}
               placeholder="Paklauskite Gemini — paieška, skelbimas, patarimai…"
-              className="min-w-0 flex-1 rounded-xl border border-[#d1d5db] bg-white px-4 py-3 text-sm text-[#111827] caret-[#1167b1] placeholder:text-[#9ca3af] outline-none focus:border-[#1167b1]"
+              className="min-w-0 flex-1 rounded-xl border border-slate-600 bg-[#1e293b] px-4 py-3 text-sm text-white caret-sky-400 placeholder:text-slate-400 outline-none focus:border-sky-500"
               disabled={busy}
               autoComplete="off"
             />

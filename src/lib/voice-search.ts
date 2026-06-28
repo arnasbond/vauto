@@ -51,6 +51,57 @@ export interface VoiceSearchSession {
 const DEFAULT_SILENCE_MS = 2_000;
 const DEFAULT_MAX_MS = 25_000;
 
+let activeVoiceSession: VoiceSearchSession | null = null;
+
+/** Abort any in-flight voice search session (e.g. before sending chat message). */
+export function cancelActiveVoiceSearch(): void {
+  activeVoiceSession?.cancel();
+  activeVoiceSession = null;
+}
+
+/**
+ * Flush WebKit SpeechRecognition state after a chat turn — prevents hang on 3rd+ utterance.
+ */
+export function recycleSpeechRecognitionEngine(): Promise<void> {
+  cancelActiveVoiceSearch();
+  const SpeechRecognition = getSpeechRecognition();
+  if (!SpeechRecognition) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    let settled = false;
+    const finish = () => {
+      if (settled) return;
+      settled = true;
+      resolve();
+    };
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.lang = "lt-LT";
+      rec.continuous = false;
+      rec.interimResults = false;
+      rec.onend = finish;
+      rec.onerror = finish;
+      try {
+        rec.start();
+      } catch {
+        finish();
+        return;
+      }
+      window.setTimeout(() => {
+        try {
+          rec.stop();
+        } catch {
+          finish();
+        }
+      }, 80);
+      window.setTimeout(finish, 400);
+    } catch {
+      finish();
+    }
+  });
+}
+
 /**
  * Single SpeechRecognition session — delivers ONE final string on onend/stop only.
  * On Android APK, getUserMedia first triggers the system mic permission dialog.
@@ -58,6 +109,8 @@ const DEFAULT_MAX_MS = 25_000;
 export function startVoiceSearch(
   options: VoiceSearchOptions = {}
 ): VoiceSearchSession {
+  cancelActiveVoiceSearch();
+
   const {
     onInterim,
     onStart,
@@ -183,11 +236,16 @@ export function startVoiceSearch(
     });
   })();
 
-  return {
-    promise,
+  const session: VoiceSearchSession = {
+    promise: promise.finally(() => {
+      if (activeVoiceSession === session) activeVoiceSession = null;
+    }),
     stop: () => stopFn(),
     cancel: () => cancelFn(),
   };
+
+  activeVoiceSession = session;
+  return session;
 }
 
 export function isVoiceSearchSupported(): boolean {
