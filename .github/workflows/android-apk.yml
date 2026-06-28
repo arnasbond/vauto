@@ -53,6 +53,14 @@ jobs:
         working-directory: android
         run: chmod +x gradlew && ./gradlew assembleDebug --no-daemon
 
+      - name: Read APK version
+        id: appver
+        run: |
+          VERSION=$(grep 'versionName' android/app/build.gradle | head -1 | sed 's/.*"\([^"]*\)".*/\1/')
+          CODE=$(grep 'versionCode' android/app/build.gradle | head -1 | awk '{print $2}')
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "code=$CODE" >> "$GITHUB_OUTPUT"
+
       - name: Prepare release assets
         run: |
           cp android/app/build/outputs/apk/debug/app-debug.apk vauto.apk
@@ -68,19 +76,16 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: android-latest
-          name: Vauto Android APK
+          name: Vauto Android APK v${{ steps.appver.outputs.version }}
           body: |
-            **v1.1.0** — Block GitHub CDN (usercontent) + empty DownloadListener; no install UI in native app after login.
+            **v${{ steps.appver.outputs.version }}** (versionCode ${{ steps.appver.outputs.code }})
 
             **Rekomenduojama nuoroda:** https://vauto-chi.vercel.app/download/vauto.apk
 
-            UI įdėtas į APK — prisijungimas nebe priklauso nuo nuotolinio Vercel shell.
-
-            1. Atsisiųskite **vauto.apk** arba **vauto.vercel.apk** (tas pats failas)
-            2. Atidarykite atsisiųstą APK
-            3. Jei prašo — leiskite diegimą iš nežinomų šaltinių
-            4. Paleiskite programėlę „Vauto“
-            5. **Ištrinkite senesnę versiją** prieš diegiant
+            1. Atsisiųskite **vauto.apk**
+            2. **Ištrinkite senesnę versiją** prieš diegiant
+            3. Atidarykite APK ir paspauskite **Įdiegti**
+            4. Leiskite diegimą iš nežinomų šaltinių, jei prašo
           files: |
             vauto.apk
             vauto.vercel.apk

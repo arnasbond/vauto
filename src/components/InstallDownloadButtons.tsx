@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Apple, Download, Share2, Smartphone } from "lucide-react";
 import Link from "next/link";
 import {
@@ -13,6 +13,7 @@ import {
   shareIosPwa,
   startApkDownload,
 } from "@/lib/mobile-install";
+import { fetchVersionConfig } from "@/lib/app-version";
 import { cn } from "@/lib/cn";
 
 type InstallDownloadButtonsProps = {
@@ -32,6 +33,13 @@ export function InstallDownloadButtons({
   const androidDevice = isAndroid();
   const iosDevice = isIOS();
   const nativeApp = isNativeApp();
+  const [latestVersion, setLatestVersion] = useState<string | null>(null);
+
+  useEffect(() => {
+    void fetchVersionConfig()
+      .then((cfg) => setLatestVersion(cfg.latestVersion))
+      .catch(() => setLatestVersion(null));
+  }, []);
 
   const primaryPlatform = useMemo<"android" | "ios">(() => {
     if (preferred === "ios") return "ios";
@@ -63,11 +71,11 @@ export function InstallDownloadButtons({
       <div className="flex flex-col gap-2 sm:flex-row">
         <button
           type="button"
-          onClick={startApkDownload}
+          onClick={() => void startApkDownload()}
           className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-blue)] py-3 text-sm font-bold text-white shadow-md transition active:scale-[0.98]"
         >
           <Download className="h-4 w-4" />
-          Atsisiųsti APK
+          Atsisiųsti APK{latestVersion ? ` v${latestVersion}` : ""}
         </button>
         {showShare && (
           <button

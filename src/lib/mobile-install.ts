@@ -5,6 +5,7 @@ import {
   type NativeSharePayload,
 } from "@/lib/native-share";
 import { SITE_URL } from "@/lib/social-share";
+import { fetchVersionConfig } from "@/lib/app-version";
 
 /** Primary browser download — Vercel rewrite proxies to GitHub release (no 404). */
 export const APK_DOWNLOAD_URL = `${SITE_URL}/download/vauto.apk`;
@@ -92,8 +93,8 @@ export function shouldShowInstallPrompt(): boolean {
 
 let apkDownloadInFlight = false;
 
-/** One-shot APK download — avoids Android DownloadManager retry loops from `<a download>`. */
-export function startApkDownload(): void {
+/** One-shot APK download — uses version-config URL with cache bust. */
+export async function startApkDownload(): Promise<void> {
   if (typeof window === "undefined") return;
   if (isNativeApp()) return;
   if (apkDownloadInFlight) return;
@@ -103,7 +104,16 @@ export function startApkDownload(): void {
     apkDownloadInFlight = false;
   }, 15_000);
 
-  window.location.assign(APK_GITHUB_DOWNLOAD_URL);
+  let url = APK_DOWNLOAD_URL;
+  try {
+    const cfg = await fetchVersionConfig();
+    url = cfg.downloadUrl || APK_DOWNLOAD_URL;
+  } catch {
+    url = APK_GITHUB_DOWNLOAD_URL;
+  }
+
+  const sep = url.includes("?") ? "&" : "?";
+  window.location.assign(`${url}${sep}ts=${Date.now()}`);
 }
 
 async function shareInstallPackage(payload: NativeSharePayload): Promise<boolean> {
