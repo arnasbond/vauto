@@ -1,6 +1,5 @@
 import {
   handleSpeechRecognitionResult,
-  stripLegacyCategorySuffixes,
   teardownSpeechRecognition,
 } from "@/lib/speech-transcript";
 

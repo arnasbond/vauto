@@ -1,7 +1,8 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -19,6 +20,8 @@ const CHAMELEON_CLASSES = [
 /** Applies chameleon body class — seller flow or active search portal */
 export function ChameleonThemeHost() {
   const { chameleonTheme, searchQuery, sellerStep } = useVauto();
+  const { trackEvent } = useUserBehavior();
+  const lastThemeRef = useRef<string | null>(null);
 
   const effectiveTheme = useMemo(() => {
     if (sellerStep !== "idle") return chameleonTheme;
@@ -27,6 +30,12 @@ export function ChameleonThemeHost() {
   }, [chameleonTheme, searchQuery, sellerStep]);
 
   const theme = getChameleonTheme(effectiveTheme);
+
+  useEffect(() => {
+    if (effectiveTheme === lastThemeRef.current) return;
+    lastThemeRef.current = effectiveTheme;
+    trackEvent("theme_change", { theme: effectiveTheme, chameleonTheme, sellerStep });
+  }, [effectiveTheme, chameleonTheme, sellerStep, trackEvent]);
 
   useEffect(() => {
     const body = document.body;

@@ -25,6 +25,7 @@ import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { SimilarListingsSection } from "@/components/listing/SimilarListingsSection";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { getSimilarListings } from "@/lib/similar-listings";
 import { sellerDisplayName } from "@/lib/seller-display";
 import { sellerPath } from "@/lib/seo";
@@ -82,6 +83,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     reviews,
     listings,
   } = useVauto();
+  const { trackEvent } = useUserBehavior();
 
   const listing = slug
     ? findListing(slug)
@@ -90,8 +92,16 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       : undefined;
 
   useEffect(() => {
-    if (listing?.id && !listing.banned) trackListingView(listing.id);
-  }, [listing?.id, listing?.banned, trackListingView]);
+    if (listing?.id && !listing.banned) {
+      trackListingView(listing.id);
+      trackEvent("listing_view", {
+        listingId: listing.id,
+        title: listing.title,
+        category: listing.category,
+        price: listing.price,
+      });
+    }
+  }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, trackListingView, trackEvent]);
 
   if (!listing || listing.banned) {
     return (

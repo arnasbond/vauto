@@ -1,4 +1,5 @@
 import type { VautoAgentContext } from "@/lib/vauto-agent-client";
+import { USER_BEHAVIOR_MAX_EVENTS } from "@/lib/user-behavior-types";
 
 /** Keep agent POST bodies under platform limits (Vercel ~4.5MB, safe target much lower). */
 export const AGENT_MAX_MESSAGES = 8;
@@ -42,6 +43,13 @@ export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {
           ? capText(l.description, AGENT_MAX_LISTING_DESC_CHARS)
           : undefined,
       })),
+    };
+  }
+
+  if (context?.behaviorHistory?.length) {
+    context = {
+      ...context,
+      behaviorHistory: context.behaviorHistory.slice(-USER_BEHAVIOR_MAX_EVENTS),
     };
   }
 

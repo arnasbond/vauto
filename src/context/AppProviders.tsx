@@ -7,12 +7,13 @@ import { NavigationProvider } from "@/context/NavigationContext";
 import { ZeroUiScreenProvider } from "@/context/ZeroUiScreenContext";
 import { ReviewsProvider } from "@/context/ReviewsContext";
 import { VautoProvider } from "@/context/VautoContext";
+import { UserBehaviorProvider } from "@/context/UserBehaviorContext";
 import { NativeErrorBoundary } from "@/components/NativeErrorBoundary";
 import { AppVersionProvider } from "@/context/AppVersionContext";
+import { UserBehaviorNavigationTracker } from "@/components/agent/UserBehaviorNavigationTracker";
 
 /**
- * Application provider tree (Phase 5):
- * AuthProvider → ReviewsProvider → NavigationProvider → ZeroUiScreenProvider → VautoProvider
+ * Application provider tree — UserBehaviorProvider feeds global Gemini agent context.
  */
 export function AppProviders({ children }: { children: ReactNode }) {
   return (
@@ -20,13 +21,16 @@ export function AppProviders({ children }: { children: ReactNode }) {
       <AppVersionProvider>
         <AppThemeProvider>
           <AuthProvider>
-            <ReviewsProvider>
-              <NavigationProvider>
-                <ZeroUiScreenProvider>
-                  <VautoProvider>{children}</VautoProvider>
-                </ZeroUiScreenProvider>
-              </NavigationProvider>
-            </ReviewsProvider>
+            <UserBehaviorProvider>
+              <ReviewsProvider>
+                <NavigationProvider>
+                  <UserBehaviorNavigationTracker />
+                  <ZeroUiScreenProvider>
+                    <VautoProvider>{children}</VautoProvider>
+                  </ZeroUiScreenProvider>
+                </NavigationProvider>
+              </ReviewsProvider>
+            </UserBehaviorProvider>
           </AuthProvider>
         </AppThemeProvider>
       </AppVersionProvider>

@@ -13,6 +13,7 @@ import {
   type ReactNode,
 } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiVautoAgent } from "@/lib/api/client";
 import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import {
@@ -93,6 +94,7 @@ interface VautoAgentContextValue {
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
 
 export function VautoAgentProvider({ children }: { children: ReactNode }) {
+  const { trackEvent, getBehaviorSnapshot } = useUserBehavior();
   const {
     listings,
     user,
@@ -239,6 +241,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           clearSearchFilters();
         }
         if (nextFilters) recordSearchFilters(nextFilters);
+        trackEvent("agent_action", {
+          action: "search",
+          query: displayQuery,
+          resultCount: actions.listingIds.length,
+        });
         showToast(
           actions.listingIds.length
             ? `Rasta ${actions.listingIds.length} skelbimų`
@@ -285,6 +292,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             )
           );
         }
+        trackEvent("search_empty", {
+          query: displayQuery,
+          filters: actions.filters ?? null,
+        });
+        trackEvent("agent_action", { action: "empty_search", query: displayQuery });
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
       if (actions.type === "register_wanted") {
@@ -390,6 +402,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       marketplaceFilters,
       clearVisualSearch,
       toggleSave,
+      trackEvent,
     ]
   );
 
@@ -454,6 +467,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setMessages(nextMessages);
       }
       noteUserMessage(trimmed);
+      trackEvent("agent_message", {
+        text: trimmed.slice(0, 120),
+        fromVoice: voiceReply,
+        fromSearchBar: Boolean(options?.fromSearchBar),
+      });
       setBusy(true);
 
       const sessionMessages = options?.fromSearchBar
@@ -544,6 +562,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             currentView: zeroUiScreen,
             fromVoice: voiceReply,
             fromSearchBar: options?.fromSearchBar,
+            behaviorHistory: getBehaviorSnapshot(),
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
@@ -658,6 +677,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       aiDraft,
       sellerStep,
       sellerWizardContext,
+      trackEvent,
+      getBehaviorSnapshot,
     ]
   );
 

@@ -19,6 +19,8 @@ export interface AgentSearchFilters {
   categoryAttributes?: Record<string, string>;
 }
 
+import type { UserBehaviorEvent } from "@/lib/user-behavior-types";
+
 export interface VautoAgentContext {
   userCity?: string;
   defaultRegion?: string;
@@ -65,6 +67,8 @@ export interface VautoAgentContext {
   };
   fromVoice?: boolean;
   fromSearchBar?: boolean;
+  /** Last 10–15 user actions for global behavior-aware Gemini routing. */
+  behaviorHistory?: UserBehaviorEvent[];
 }
 
 export interface AgentListingSnapshot {

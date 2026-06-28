@@ -4,6 +4,7 @@ import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
@@ -79,6 +80,7 @@ export function SearchBar({
   } = useVauto();
 
   const pathname = usePathname();
+  const { trackEvent } = useUserBehavior();
 
   const { sendAgentMessage, busy: agentBusy, applyAgentActions } = useVautoAgent();
 
@@ -136,6 +138,13 @@ export function SearchBar({
     async (raw: string, opts?: { voice?: boolean }) => {
       const q = stripLegacyCategorySuffixes(sanitizeSearchQuery(raw, "final"));
       if (!q) return;
+
+      trackEvent("search_submit", {
+        query: q,
+        voice: Boolean(opts?.voice),
+        wardrobeMode: wardrobeSearchOnly,
+        pathname: pathname ?? "/",
+      });
 
       setSearchInputMode(opts?.voice ? "voice" : "text");
       clearVisualSearch({ keepInputMode: true });
@@ -225,6 +234,8 @@ export function SearchBar({
       pathname,
       showToast,
       user.id,
+      trackEvent,
+      wardrobeSearchOnly,
     ]
   );
 

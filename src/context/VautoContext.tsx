@@ -113,6 +113,7 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
+import { LiveInterventionHost } from "@/components/agent/LiveInterventionHost";
 import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
 import { FleetMatchBuddyHost } from "@/components/buddy/FleetMatchBuddyHost";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
@@ -572,6 +573,7 @@ function VautoFacade({
           <VautoAgentProvider>
             <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
             <FleetMatchBuddyHost />
+            <LiveInterventionHost />
             {children}
           </VautoAgentProvider>
         </ZeroUiMemoryProvider>

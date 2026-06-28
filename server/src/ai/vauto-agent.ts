@@ -39,6 +39,7 @@ import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
+import { buildUserBehaviorContextBlock } from "./user-behavior-context.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -105,6 +106,12 @@ export interface VautoAgentRequest {
     };
     fromVoice?: boolean;
     fromSearchBar?: boolean;
+    behaviorHistory?: {
+      id?: string;
+      type: string;
+      at: number;
+      payload?: Record<string, unknown>;
+    }[];
   };
   /** Set by route from JWT — used for DB writes (mark sold, etc.) */
   authUserId?: string;
@@ -324,6 +331,14 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     activeSearchFilters: req.context.activeSearchFilters ?? null,
   } satisfies AgentMemoryPayload);
 
+  const behaviorBlock = buildUserBehaviorContextBlock(
+    req.context.behaviorHistory?.map((e) => ({
+      type: e.type,
+      at: e.at,
+      payload: e.payload,
+    }))
+  );
+
   // Gemini function calling owns all intent routing — no programmed fast-search bypass.
 
   const contents: GeminiContent[] = sessionMessages.map((m) => ({
@@ -376,6 +391,13 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     contents.unshift({
       role: "user",
       parts: [{ text: memoryBlock }],
+    });
+  }
+
+  if (behaviorBlock) {
+    contents.unshift({
+      role: "user",
+      parts: [{ text: behaviorBlock }],
     });
   }
 

@@ -23,6 +23,7 @@ import {
 import { LT_CITY_NAMES } from "@/lib/lt-cities";
 import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { CategoryAttributeFilterPanel } from "@/components/marketplace/CategoryAttributeFilterPanel";
 import {
   categoryFilterFieldsFor,
@@ -161,6 +162,7 @@ export function MarketplaceFilterBar({
 }) {
   const [openKey, setOpenKey] = useState<string | null>(null);
   const [chameleonOpen, setChameleonOpen] = useState(false);
+  const { trackEvent } = useUserBehavior();
   const safeFilters = normalizeMarketplaceFilters(filters);
 
   const chameleonCategory = effectiveChameleonCategory(safeFilters.category, searchQuery);
@@ -175,7 +177,9 @@ export function MarketplaceFilterBar({
   const close = () => setOpenKey(null);
 
   const patchFilters = (patch: Partial<MarketplaceFilterState>) => {
-    onFiltersChange(normalizeMarketplaceFilters({ ...safeFilters, ...patch }));
+    const next = normalizeMarketplaceFilters({ ...safeFilters, ...patch });
+    onFiltersChange(next);
+    trackEvent("filter_change", { patch, category: next.category, location: next.location });
   };
 
   const handleChameleonChange = (categoryAttributes: MarketplaceFilterState["categoryAttributes"]) => {
@@ -256,7 +260,10 @@ export function MarketplaceFilterBar({
               title={label}
               aria-label={label}
               aria-pressed={viewMode === mode}
-              onClick={() => onViewModeChange(mode)}
+              onClick={() => {
+                trackEvent("view_mode_change", { mode });
+                onViewModeChange(mode);
+              }}
               className={cn(
                 "rounded-lg p-2 transition",
                 viewMode === mode
