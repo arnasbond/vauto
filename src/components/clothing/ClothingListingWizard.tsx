@@ -38,8 +38,6 @@ import {
   buildClothingWizardHint,
   isClothingWizardReady,
 } from "@/lib/clothing-wizard-guidance";
-import { useVauto } from "@/context/VautoContext";
-import { isWardrobeChameleonActive } from "@/lib/wardrobe-cabinet-mode";
 
 const ACCENT = "#d946ef";
 const SPINTA_BG = "#0a1128";
@@ -89,7 +87,7 @@ function WardrobeField({
   type?: string;
 }) {
   const shared =
-    "w-full rounded-xl border border-fuchsia-500/40 bg-[#131c38] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-400 focus:border-fuchsia-400";
+    "w-full rounded-xl border border-slate-700 bg-[#1e293b] px-3 py-2.5 text-sm text-white outline-none placeholder:text-slate-400 focus:border-sky-500";
   return (
     <div className="px-4 py-3">
       <label className="mb-0.5 block text-xs text-slate-300">{label}</label>
@@ -133,11 +131,7 @@ export function ClothingListingWizard({
   onPublishBulk,
   onToast,
 }: ClothingListingWizardProps) {
-  const { chameleonTheme, activateWardrobeSpinta } = useVauto();
-  const inSpintaCabinet = isWardrobeChameleonActive({
-    chameleonTheme,
-    detectedAdaptiveKey: "clothing",
-  });
+  const inSpintaCabinet = false;
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
   const [wardrobeItems, setWardrobeItems] = useState<WardrobeDraftItem[]>([]);
   const [wardrobeAnalyzing, setWardrobeAnalyzing] = useState(false);
@@ -299,8 +293,7 @@ export function ClothingListingWizard({
 
   useEffect(() => {
     window.scrollTo(0, 0);
-    activateWardrobeSpinta();
-  }, [activateWardrobeSpinta]);
+  }, []);
 
   return (
     <div className="listing-wizard-overlay chameleon-wizard-shell spinta-listing-wizard bg-[#0a1128] text-white min-h-screen">

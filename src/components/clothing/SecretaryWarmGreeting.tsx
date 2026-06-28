@@ -77,8 +77,7 @@ export function SecretaryWarmGreeting({
     <button
       type="button"
       onClick={handleActivate}
-      className="mb-5 w-full overflow-hidden rounded-3xl border bg-gradient-to-br from-[#fffdf9] to-[#e6f7f6] p-4 text-left shadow-sm transition hover:brightness-[0.98] active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-[#09b1a8] focus-visible:ring-offset-2"
-      style={{ borderColor: "#b8ebe8" }}
+      className="mb-5 w-full overflow-hidden rounded-3xl border border-slate-700 bg-[#1e293b] p-4 text-left text-white shadow-lg shadow-black/20 transition hover:brightness-105 active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a1128]"
       aria-label="Atidaryti AI mados asistento pokalbį"
     >
       <div className="flex gap-3">
@@ -90,10 +89,10 @@ export function SecretaryWarmGreeting({
           <Sparkles className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-medium uppercase tracking-wide" style={{ color: ACCENT }}>
+          <p className="text-xs font-semibold uppercase tracking-wide text-white">
             Tavo AI sekretorė
           </p>
-          <p className="mt-1 text-sm font-light leading-relaxed text-[#374151]">{message}</p>
+          <p className="mt-1 text-sm font-light leading-relaxed text-slate-200">{message}</p>
         </div>
       </div>
     </button>

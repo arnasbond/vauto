@@ -35,12 +35,7 @@ const ICONS: Record<ListingCategory, typeof Car> = {
 };
 
 export function MarketplaceCategoryGrid() {
-  const {
-    setSearchQuery,
-    setMarketplaceFilters,
-    setAgentPinnedListings,
-    activateWardrobeSpinta,
-  } = useVauto();
+  const { setSearchQuery, setMarketplaceFilters, setAgentPinnedListings } = useVauto();
   const [expandedId, setExpandedId] = useState<ListingCategory | null>(null);
 
   const applyBrowse = (
@@ -48,11 +43,6 @@ export function MarketplaceCategoryGrid() {
     query: string,
     patch?: Partial<MarketplaceFilterState>
   ) => {
-    if (category === "clothing") {
-      activateWardrobeSpinta();
-      window.location.href = `/fashion/?q=${encodeURIComponent(query)}`;
-      return;
-    }
     setAgentPinnedListings(null);
     setMarketplaceFilters({
       ...DEFAULT_MARKETPLACE_FILTERS,
@@ -70,11 +60,6 @@ export function MarketplaceCategoryGrid() {
   };
 
   const handleCategoryClick = (cat: MarketplaceCategoryDef) => {
-    if (cat.id === "clothing") {
-      activateWardrobeSpinta();
-      window.location.href = "/fashion/";
-      return;
-    }
     setExpandedId((prev) => (prev === cat.id ? null : cat.id));
   };
 

@@ -2,7 +2,7 @@
 
 import { Camera, Loader2, Mic, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
@@ -35,7 +35,6 @@ import {
   shouldForceLiveVoiceAssistant,
 } from "@/lib/brutal-voice-fallback";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
-import { isWardrobePortalQuery } from "@/lib/wardrobe-cabinet-mode";
 import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 
@@ -70,12 +69,9 @@ export function SearchBar({
     setMarketplaceFilters,
     marketplaceFilters,
     toggleSave,
-    activateWardrobeSpinta,
-    wardrobeSpintaForced,
   } = useVauto();
 
   const pathname = usePathname();
-  const router = useRouter();
 
   const { sendAgentMessage, busy: agentBusy, applyAgentActions } = useVautoAgent();
 
@@ -105,8 +101,6 @@ export function SearchBar({
     agentBusy || searchLoading || isPhotoSearching || photoFlowOpen || recording;
 
   const wardrobeSearchOnly =
-    wardrobeSpintaForced ||
-    chameleonTheme === "wardrobe" ||
     pathname === "/fashion" ||
     pathname === "/fashion/";
 
@@ -135,13 +129,6 @@ export function SearchBar({
     async (raw: string, opts?: { voice?: boolean }) => {
       const q = sanitizeSearchQuery(raw, "final");
       if (!q) return;
-
-      if (isWardrobePortalQuery(q)) {
-        activateWardrobeSpinta();
-        if (pathname !== "/fashion" && pathname !== "/fashion/") {
-          router.push("/fashion/");
-        }
-      }
 
       setSearchInputMode(opts?.voice ? "voice" : "text");
       clearVisualSearch({ keepInputMode: true });
@@ -231,8 +218,6 @@ export function SearchBar({
       pathname,
       showToast,
       user.id,
-      activateWardrobeSpinta,
-      router,
     ]
   );
 
