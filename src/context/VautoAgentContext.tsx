@@ -14,7 +14,6 @@ import {
 } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { apiVautoAgent } from "@/lib/api/client";
-import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import {
   buildCurrentPageContext,
@@ -53,10 +52,6 @@ import {
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
-import {
-  buildConversationalLiveReply,
-  isConversationalSearchIntent,
-} from "@/lib/search-conversational-intent";
 import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
 import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions";
 import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
@@ -373,7 +368,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       text: string,
       options?: AgentSendOptions
     ): Promise<WakeWordAgentResult> => {
-      const trimmed = sanitizeSpeechTranscript(text.trim());
+      const trimmed = text.trim();
       if (!trimmed) return { ok: false, error: "Tuščia užklausa" };
       if (busy && !options?.skipBusyCheck) {
         return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
@@ -485,13 +480,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (isConversationalSearchIntent(trimmed)) {
-        setOpen(true);
-        const liveReply = buildConversationalLiveReply(user.name);
-        setMessages([...nextMessages, { role: "assistant", text: liveReply }]);
-        speakReply(liveReply);
-      }
-
       try {
         const res = await apiVautoAgent({
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
@@ -553,37 +541,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         setLastError(undefined);
-        const isListingDraft = res.actions.type === "listing_draft";
         const isStateSearch =
-          !isListingDraft &&
-          (res.actions.type === "search" || res.actions.type === "empty_search");
-        const assistantText = isConversationalSearchIntent(trimmed)
-          ? sanitizeAgentReplyForDisplay(res.reply || "") ||
-            buildConversationalLiveReply(user.name)
-          : isListingDraft
-            ? sanitizeAgentReplyForDisplay(res.reply) || res.reply
-            : isStateSearch
-              ? res.actions.type === "search"
-                ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
-                : buildEmptySearchReply(trimmed)
-              : sanitizeAgentReplyForDisplay(res.reply) || res.reply;
-        setMessages((prev) => {
-          const withoutLivePlaceholder =
-            isConversationalSearchIntent(trimmed) && prev.length >= 2
-              ? prev.slice(0, -1)
-              : prev;
-          return [
-            ...withoutLivePlaceholder,
-            {
-              role: "assistant",
-              text: assistantText,
-            },
-          ];
-        });
+          res.actions.type === "search" || res.actions.type === "empty_search";
+        const assistantText = isStateSearch
+          ? res.actions.type === "search"
+            ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
+            : buildEmptySearchReply(trimmed)
+          : sanitizeAgentReplyForDisplay(res.reply) || res.reply;
+        setMessages((prev) => [
+          ...prev,
+          {
+            role: "assistant",
+            text: assistantText,
+          },
+        ]);
         speakReply(assistantText);
-        if (!isConversationalSearchIntent(trimmed)) {
-          applyActions(res.actions);
-        }
+        applyActions(res.actions);
         if (res.actions.type !== "micro_payment") {
           const paymentIntent = microPaymentFromToolResult(
             res.toolCalls.find((t) => t.name === "triggerMicroPayment")?.result
@@ -651,7 +624,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const openWithGreeting = useCallback(
     (text: string) => {
-      const trimmed = sanitizeSpeechTranscript(text.trim());
+      const trimmed = text.trim();
       if (!trimmed) return;
       setSearchInputMode("voice");
       setSearchVoiceMode(true);
@@ -714,7 +687,7 @@ function VautoAgentSheet() {
 
   const dispatchAgentMessage = useCallback(
     async (text: string, options?: AgentSendOptions) => {
-      const clean = sanitizeSpeechTranscript(text.trim());
+      const clean = text.trim();
       if (!clean) return { ok: false, error: "Tuščia užklausa" };
       await resetVoiceSessionAfterSend();
       return sendAgentMessage(clean, options);
@@ -734,7 +707,7 @@ function VautoAgentSheet() {
     const session = startVoiceSearch({
       silenceMs: 2_000,
       onInterim: (preview) => {
-        const clean = sanitizeSpeechTranscript(preview);
+        const clean = preview.trim();
         if (clean) setVoiceCaption(clean);
         else setVoiceCaption("");
       },
@@ -743,7 +716,7 @@ function VautoAgentSheet() {
     void session.promise.then(async (text) => {
       setRecording(false);
       voiceSessionRef.current = null;
-      const clean = sanitizeSpeechTranscript(text ?? "");
+      const clean = (text ?? "").trim();
       setVoiceCaption("");
       if (!clean) {
         await recycleSpeechRecognitionEngine();

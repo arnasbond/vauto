@@ -12,22 +12,15 @@ import {
 } from "@/lib/photo-vision-search";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
-import { isSellIntent } from "@/lib/gemini-intent";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import { cn } from "@/lib/cn";
-import {
-  extractProductSearchTokens,
-  listingMatchesProductTokens,
-} from "@/lib/search-token-filter";
-import { runFastAgentSearch } from "@/lib/fast-agent-search";
 import { buildCurrentPageContext } from "@/lib/vauto-agent-client";
 import { parseVoiceUiCommand } from "@/lib/voice-ui-commands";
 import { applyVoiceUiCommand } from "@/lib/voice-ui-actions";
 import {
-  mergeAgentIntoMarketplaceFilters,
   parseViewModeIntent,
   isViewModeOnlyCommand,
 } from "@/lib/marketplace-view";
@@ -37,9 +30,6 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import {
-  isConversationalSearchIntent,
-} from "@/lib/search-conversational-intent";
-import {
   BRUTAL_VOICE_GREETING,
   brutalHtml5Speak,
   shouldForceLiveVoiceAssistant,
@@ -48,62 +38,6 @@ import { isWardrobePortalQuery } from "@/lib/wardrobe-cabinet-mode";
 import type { ListingCategory } from "@/lib/types";
 
 const GEMINI_BLUE = "#1167b1";
-
-function applyFastSearchToGrid(
-  query: string,
-  listings: ReturnType<typeof useVauto>["listings"],
-  setAgentPinnedListings: (ids: string[] | null) => void,
-  setMarketplaceFilters: (
-    filters: import("@/lib/marketplace-view").MarketplaceFilterState
-  ) => void,
-  marketplaceFilters: import("@/lib/marketplace-view").MarketplaceFilterState,
-  userCity?: string,
-  wardrobeOnly?: boolean
-): Promise<string | false> {
-  return runFastAgentSearch(query, listings, { userCity, wardrobeOnly }).then((fast) => {
-    if (!fast) {
-      const tokens = extractProductSearchTokens(query);
-      if (tokens.length) {
-        const pool = wardrobeOnly
-          ? listings.filter((l) => l.category === "clothing")
-          : listings;
-        const matched = pool.filter((l) => listingMatchesProductTokens(l, query));
-        setAgentPinnedListings(matched.map((l) => l.id));
-        return query;
-      }
-      setAgentPinnedListings(null);
-      return false;
-    }
-
-    if (fast.actions.type === "search") {
-      setAgentPinnedListings(fast.actions.listingIds);
-      if (fast.actions.filters) {
-        setMarketplaceFilters(
-          mergeAgentIntoMarketplaceFilters(
-            marketplaceFilters,
-            fast.actions.filters,
-            { resetAbsentGeo: true, resetAbsentCondition: true }
-          )
-        );
-      }
-      return fast.actions.searchQuery;
-    }
-    if (fast.actions.type === "empty_search") {
-      setAgentPinnedListings([]);
-      if (fast.actions.filters) {
-        setMarketplaceFilters(
-          mergeAgentIntoMarketplaceFilters(
-            marketplaceFilters,
-            fast.actions.filters,
-            { resetAbsentGeo: true, resetAbsentCondition: true }
-          )
-        );
-      }
-      return fast.actions.searchQuery;
-    }
-    return false;
-  });
-}
 
 export function SearchBar({
   variant = "default",
@@ -206,39 +140,30 @@ export function SearchBar({
         return;
       }
 
-      // Voice → Zero-UI agent first (sell/search unified dialog, no form hijack)
+      // Mazgas 1→2: švarus tekstas tiesiai į Gemini (intencija per Function Calling)
+      const routeThroughAgent = (voice: boolean) => {
+        setSearchInputMode(voice ? "voice" : "text");
+        if (voice) setSearchVoiceMode(true);
+        setDraftQuery(q);
+        setSearchQuery(q);
+        setAgentOpen(true);
+        setSearchLoading(true);
+        void sendAgentMessage(q, { fromVoice: voice })
+          .then((res) => {
+            if (res.ok && res.reply && voice) {
+              speakBuddyMessage(res.reply, { enabled: true, force: true });
+            }
+            scrollToResults();
+          })
+          .finally(() => setSearchLoading(false));
+      };
+
       if (shouldForceLiveVoiceAssistant(q, opts?.voice)) {
-        setSearchInputMode("voice");
-        setSearchVoiceMode(true);
         clearVisualSearch({ keepInputMode: true });
         setAgentPinnedListings(null);
-        setDraftQuery(q);
         setSearchQuery("");
-        setAgentOpen(true);
         brutalHtml5Speak(BRUTAL_VOICE_GREETING);
-        void sendAgentMessage(q, { fromVoice: true }).then((res) => {
-          if (res.ok && res.reply) {
-            speakBuddyMessage(res.reply, { enabled: true, force: true });
-          }
-        });
-        return;
-      }
-
-      // Main search bar = buyer search only; seller wizard opens via /add or agent.
-
-      if (isConversationalSearchIntent(q)) {
-        setSearchInputMode(opts?.voice ? "voice" : "text");
-        if (opts?.voice) setSearchVoiceMode(true);
-        clearVisualSearch({ keepInputMode: true });
-        setAgentPinnedListings(null);
-        setDraftQuery(q);
-        setSearchQuery("");
-        setAgentOpen(true);
-        void sendAgentMessage(q, { fromVoice: Boolean(opts?.voice) }).then((res) => {
-          if (res.ok && res.reply && opts?.voice) {
-            speakBuddyMessage(res.reply, { enabled: true, force: true });
-          }
-        });
+        routeThroughAgent(true);
         return;
       }
 
@@ -267,24 +192,7 @@ export function SearchBar({
         }
       }
 
-      setSearchLoading(true);
-      try {
-        const cleanQuery = await applyFastSearchToGrid(
-          q,
-          listings,
-          setAgentPinnedListings,
-          setMarketplaceFilters,
-          marketplaceFilters,
-          user.city,
-          wardrobeSearchOnly
-        );
-        const committed = typeof cleanQuery === "string" ? cleanQuery : q;
-        setDraftQuery(committed);
-        setSearchQuery(committed);
-        scrollToResults();
-      } finally {
-        setSearchLoading(false);
-      }
+      routeThroughAgent(Boolean(opts?.voice));
     },
     [
       clearVisualSearch,
@@ -302,11 +210,9 @@ export function SearchBar({
       toggleSave,
       pathname,
       showToast,
-      user.city,
       user.id,
       activateWardrobeSpinta,
       router,
-      wardrobeSearchOnly,
     ]
   );
 
@@ -400,14 +306,10 @@ export function SearchBar({
         return;
       }
 
-      const contextText = [result.extraContext, vision.title].filter(Boolean).join(" ");
-      if (contextText && isSellIntent(contextText)) {
+      if (result.extraContext?.trim()) {
         setSearchInputMode("photo");
         setSearchVoiceMode(false);
-        routeToGeminiAgent(
-          result.extraContext?.trim() || `Noriu įkelti skelbimą: ${vision.title}`,
-          result.photos
-        );
+        routeToGeminiAgent(result.extraContext.trim(), result.photos);
         return;
       }
 

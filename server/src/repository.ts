@@ -196,17 +196,39 @@ export interface ListingSearchParams {
   limit?: number;
 }
 
-/** SQL + strict token filter — never returns the full catalog when query is set. */
+/** Mazgas 3: Gemini query → SQL ILIKE (be stop-žodžių). */
+function sqlSearchTokens(query: string): string[] {
+  return [
+    ...new Set(
+      query
+        .toLowerCase()
+        .split(/[\s,.;:!?—–-]+/)
+        .map((t) => t.trim())
+        .filter((t) => t.length >= 2)
+    ),
+  ];
+}
+
+function listingMatchesSqlTokens(listing: ApiListing, tokens: string[]): boolean {
+  if (!tokens.length) return false;
+  const haystack = [
+    listing.title,
+    listing.description ?? "",
+    listing.category,
+    ...(listing.tags ?? []),
+    JSON.stringify(listing.attributes ?? {}),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return tokens.every((t) => haystack.includes(t));
+}
+
+/** SQL ILIKE pagal Gemini query — niekada negrąžina viso katalogo su query. */
 export async function searchListingsFiltered(
   params: ListingSearchParams
 ): Promise<ApiListing[]> {
-  const {
-    extractProductSearchTokens,
-    listingMatchesProductTokens,
-  } = await import("./search-filter.js");
-
   const queryText = params.query?.trim() ?? "";
-  const tokens = queryText ? extractProductSearchTokens(queryText) : [];
+  const tokens = queryText ? sqlSearchTokens(queryText) : [];
   const cityNorm = params.city?.trim().toLowerCase() ?? "";
 
   const conditions = [
@@ -270,7 +292,7 @@ export async function searchListingsFiltered(
   }
 
   if (queryText && tokens.length) {
-    rows = rows.filter((l) => listingMatchesProductTokens(l, queryText));
+    rows = rows.filter((l) => listingMatchesSqlTokens(l, tokens));
   } else if (queryText && !tokens.length) {
     return [];
   }

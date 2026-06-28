@@ -1,5 +1,4 @@
 import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
-import { extractProductSearchTokens } from "../search-filter.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -343,11 +342,14 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "searchListings",
     description:
-      "Ieško aktyvių skelbimų. query lauke perduok TIK pagrindinį OBJEKTĄ (pvz. kedai, suknelė, sklypas) — GRIEŽTAI be stop-žodžių parduodu/ieškau/noriu. Kategoriją nustatyk semantiškai pagal objektą.",
+      "Ieško aktyvių skelbimų. query PRIVALO turėti raktinius žodžius (pvz. Volvo, batai, namas). Kategoriją nustatyk semantiškai.",
     parameters: {
       type: "OBJECT",
       properties: {
-        query: { type: "STRING", description: "Laisvas paieškos tekstas lietuviškai" },
+        query: {
+          type: "STRING",
+          description: "Paieškos raktiniai žodžiai — pvz. Volvo, batai, namas",
+        },
         category: {
           type: "STRING",
           description:
@@ -634,13 +636,11 @@ export async function executeAgentTool(
 
   switch (name) {
     case "searchListings": {
-      const rawQuery = String(args.query ?? "").trim();
-      const tokens = rawQuery ? extractProductSearchTokens(rawQuery) : [];
-      const query = tokens.length ? tokens.join(" ") : rawQuery.toLowerCase();
+      const query = String(args.query ?? "").trim();
       const category = args.category ? String(args.category) : undefined;
 
       if (!query) {
-        const searchQuery = rawQuery || "paieška";
+        const searchQuery = query || "paieška";
         return {
           result: {
             count: 0,
