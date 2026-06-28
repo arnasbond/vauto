@@ -4,6 +4,7 @@ import {
   type AgentSideEffect,
   type AgentToolContext,
 } from "./agent-tools.js";
+import { buildRuntimeIntentHint } from "./gemini-intent-rules.js";
 import {
   buildAgentSystemInstruction,
   buildVautoAgentSystemInstruction,
@@ -303,6 +304,15 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     role: m.role === "user" ? "user" : "model",
     parts: [{ text: m.text }],
   }));
+
+  const lastUserForHint = [...sessionMessages].reverse().find((m) => m.role === "user");
+  const intentHint = lastUserForHint ? buildRuntimeIntentHint(lastUserForHint.text) : null;
+  if (intentHint) {
+    contents.push({
+      role: "user",
+      parts: [{ text: intentHint }],
+    });
+  }
 
   if (req.context.lastError?.code) {
     contents.unshift({

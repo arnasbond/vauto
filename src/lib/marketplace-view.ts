@@ -137,6 +137,8 @@ export function mergeAgentIntoMarketplaceFilters(
     /** Clear geo/condition when the new query omits them (fresh product search) */
     resetAbsentGeo?: boolean;
     resetAbsentCondition?: boolean;
+    /** Clear stale category when a new product query arrives without category */
+    resetAbsentCategory?: boolean;
   }
 ): MarketplaceFilterState {
   if (!agent) return normalizeMarketplaceFilters(current);
@@ -153,6 +155,14 @@ export function mergeAgentIntoMarketplaceFilters(
 
   if (options?.resetAbsentCondition && !agent.condition) {
     base = { ...base, condition: "all" };
+  }
+
+  if (options?.resetAbsentCategory && agent.query && !agent.category) {
+    base = {
+      ...base,
+      category: "all",
+      categoryAttributes: { ...EMPTY_CATEGORY_ATTRIBUTE_FILTERS },
+    };
   }
 
   if (agent.category && agent.category !== current.category) {

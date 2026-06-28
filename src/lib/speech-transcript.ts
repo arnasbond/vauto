@@ -58,7 +58,13 @@ export function sanitizeSpeechTranscript(text: string): string {
   let t = text.replace(/\s+/g, " ").trim();
   if (!t) return t;
 
-  t = t.replace(/\b(\p{L}+)(?:\s+\1\b)+/giu, "$1");
+  // Collapse repeated consecutive words (e.g. "porą porą kedų" → "porą kedų")
+  let prev = "";
+  while (prev !== t) {
+    prev = t;
+    t = t.replace(/\b(\p{L}+)(?:\s+\1\b)+/giu, "$1");
+  }
+
   t = t.replace(/\b(\d{4})(?:\s+\1\b)+/g, "$1");
   t = t.replace(/(\p{L}{3,}?)\1{2,}/giu, "$1");
   t = t.replace(/\b(\p{L}{3,})(\1)+\b/giu, "$1");

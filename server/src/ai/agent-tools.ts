@@ -638,6 +638,21 @@ export async function executeAgentTool(
       const tokens = rawQuery ? extractProductSearchTokens(rawQuery) : [];
       const query = tokens.length ? tokens.join(" ") : rawQuery.toLowerCase();
       const category = args.category ? String(args.category) : undefined;
+
+      if (!query) {
+        const searchQuery = rawQuery || "paieška";
+        return {
+          result: {
+            count: 0,
+            listings: [],
+            summary: "Paieškos query negali būti tuščias — perduok tik objektą (pvz. Volvo, namas, kedai).",
+          },
+          sideEffect: {
+            type: "empty_search",
+            searchQuery,
+          },
+        };
+      }
       const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
       const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
       const cityRaw = args.city ? String(args.city).trim() : "";

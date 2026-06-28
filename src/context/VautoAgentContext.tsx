@@ -53,7 +53,6 @@ import {
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
-import { runFastAgentSearch } from "@/lib/fast-agent-search";
 import {
   buildConversationalLiveReply,
   isConversationalSearchIntent,
@@ -193,7 +192,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             mergeAgentIntoMarketplaceFilters(
               marketplaceFilters,
               actions.filters,
-              { resetAbsentGeo: true, resetAbsentCondition: true }
+              {
+                resetAbsentGeo: true,
+                resetAbsentCondition: true,
+                resetAbsentCategory: true,
+              }
+            )
+          );
+        } else if (actions.searchQuery) {
+          setMarketplaceFilters(
+            mergeAgentIntoMarketplaceFilters(
+              marketplaceFilters,
+              { query: actions.searchQuery },
+              {
+                resetAbsentGeo: true,
+                resetAbsentCondition: true,
+                resetAbsentCategory: true,
+              }
             )
           );
         }
@@ -228,7 +243,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "empty_search") {
         goToMarketplace("agent");
         setOpen(false);
-        setAgentPinnedListings(null);
+        setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery(actions.searchQuery);
@@ -237,7 +252,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             mergeAgentIntoMarketplaceFilters(
               marketplaceFilters,
               actions.filters,
-              { resetAbsentGeo: true, resetAbsentCondition: true }
+              {
+                resetAbsentGeo: true,
+                resetAbsentCondition: true,
+                resetAbsentCategory: true,
+              }
             )
           );
         }
@@ -354,7 +373,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       text: string,
       options?: AgentSendOptions
     ): Promise<WakeWordAgentResult> => {
-      const trimmed = text.trim();
+      const trimmed = sanitizeSpeechTranscript(text.trim());
       if (!trimmed) return { ok: false, error: "Tuščia užklausa" };
       if (busy && !options?.skipBusyCheck) {
         return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
@@ -473,31 +492,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         speakReply(liveReply);
       }
 
-      const fast = await runFastAgentSearch(trimmed, listings, {
-        userCity: user.city,
-      });
-      if (fast && !isConversationalSearchIntent(trimmed)) {
-        setLastError(undefined);
-        const isStateSearch =
-          fast.actions.type === "search" || fast.actions.type === "empty_search";
-        const assistantText = isStateSearch
-          ? fast.actions.type === "search"
-            ? sanitizeAgentReplyForDisplay(fast.reply) || "Atidarau skelbimus ekrane."
-            : buildEmptySearchReply(trimmed)
-          : sanitizeAgentReplyForDisplay(fast.reply) || fast.reply;
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: assistantText,
-          },
-        ]);
-        applyActions(fast.actions);
-        speakReply(assistantText);
-        setBusy(false);
-        return { ok: true, reply: fast.reply };
-      }
-
       try {
         const res = await apiVautoAgent({
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
@@ -559,16 +553,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         setLastError(undefined);
+        const isListingDraft = res.actions.type === "listing_draft";
         const isStateSearch =
-          res.actions.type === "search" || res.actions.type === "empty_search";
+          !isListingDraft &&
+          (res.actions.type === "search" || res.actions.type === "empty_search");
         const assistantText = isConversationalSearchIntent(trimmed)
           ? sanitizeAgentReplyForDisplay(res.reply || "") ||
             buildConversationalLiveReply(user.name)
-          : isStateSearch
-            ? res.actions.type === "search"
-              ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
-              : buildEmptySearchReply(trimmed)
-            : sanitizeAgentReplyForDisplay(res.reply) || res.reply;
+          : isListingDraft
+            ? sanitizeAgentReplyForDisplay(res.reply) || res.reply
+            : isStateSearch
+              ? res.actions.type === "search"
+                ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
+                : buildEmptySearchReply(trimmed)
+              : sanitizeAgentReplyForDisplay(res.reply) || res.reply;
         setMessages((prev) => {
           const withoutLivePlaceholder =
             isConversationalSearchIntent(trimmed) && prev.length >= 2
@@ -653,7 +651,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const openWithGreeting = useCallback(
     (text: string) => {
-      const trimmed = text.trim();
+      const trimmed = sanitizeSpeechTranscript(text.trim());
       if (!trimmed) return;
       setSearchInputMode("voice");
       setSearchVoiceMode(true);
@@ -716,8 +714,10 @@ function VautoAgentSheet() {
 
   const dispatchAgentMessage = useCallback(
     async (text: string, options?: AgentSendOptions) => {
+      const clean = sanitizeSpeechTranscript(text.trim());
+      if (!clean) return { ok: false, error: "Tuščia užklausa" };
       await resetVoiceSessionAfterSend();
-      return sendAgentMessage(text, options);
+      return sendAgentMessage(clean, options);
     },
     [resetVoiceSessionAfterSend, sendAgentMessage]
   );
@@ -736,6 +736,7 @@ function VautoAgentSheet() {
       onInterim: (preview) => {
         const clean = sanitizeSpeechTranscript(preview);
         if (clean) setVoiceCaption(clean);
+        else setVoiceCaption("");
       },
     });
     voiceSessionRef.current = session;
