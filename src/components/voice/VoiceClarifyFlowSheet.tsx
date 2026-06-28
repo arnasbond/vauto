@@ -13,7 +13,7 @@ import {
 } from "@/lib/voice-intent";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
 import { detectSellerListingIntent, isBuyerSearchIntent } from "@/lib/scoring";
-import { sanitizeSpeechTranscript, VOICE_SILENCE_DEBOUNCE_MS } from "@/lib/speech-transcript";
+import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import {
   isVoiceSearchSupported,
   startVoiceSearch,
@@ -305,7 +305,6 @@ export function VoiceClarifyFlowSheet({
     const session = startVoiceSearch({
       onStart: () => setMicReady(true),
       onInterim: emitSubtitle,
-      silenceMs: VOICE_SILENCE_DEBOUNCE_MS,
       maxMs: 25_000,
     });
     voiceRef.current = session;

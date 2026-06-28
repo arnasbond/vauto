@@ -1,5 +1,6 @@
 package com.vauto.app;
 
+import android.content.ActivityNotFoundException;
 import android.content.ComponentCallbacks2;
 import android.content.Intent;
 import android.net.Uri;
@@ -7,10 +8,13 @@ import android.os.Bundle;
 import android.util.Log;
 import android.webkit.DownloadListener;
 import android.webkit.JavascriptInterface;
+import android.webkit.ValueCallback;
 import android.webkit.WebResourceRequest;
 import android.webkit.WebResourceResponse;
 import android.webkit.WebSettings;
 import android.webkit.WebView;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import com.getcapacitor.Bridge;
 import com.getcapacitor.BridgeActivity;
 import com.getcapacitor.BridgeWebViewClient;
@@ -22,12 +26,62 @@ public class MainActivity extends BridgeActivity {
     private boolean jsBridgeAttached = false;
     private static boolean httpCachePurgedThisProcess = false;
 
+    private ValueCallback<Uri[]> pendingFilePathCallback;
+    private ActivityResultLauncher<Intent> imageFileChooserLauncher;
+
     private static final String HOST_LOCALHOST = "localhost";
     private static final String HOST_VERCEL = "vauto-chi.vercel.app";
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        imageFileChooserLauncher =
+            registerForActivityResult(
+                new ActivityResultContracts.StartActivityForResult(),
+                result -> {
+                    if (pendingFilePathCallback == null) return;
+                    Uri[] uris = null;
+                    if (result.getResultCode() == RESULT_OK && result.getData() != null) {
+                        Intent data = result.getData();
+                        if (data.getClipData() != null) {
+                            int count = data.getClipData().getItemCount();
+                            uris = new Uri[count];
+                            for (int i = 0; i < count; i++) {
+                                uris[i] = data.getClipData().getItemAt(i).getUri();
+                            }
+                        } else if (data.getData() != null) {
+                            uris = new Uri[] { data.getData() };
+                        }
+                    }
+                    pendingFilePathCallback.onReceiveValue(uris);
+                    pendingFilePathCallback = null;
+                }
+            );
+    }
+
+    /** Opens the system image picker for WebView file inputs (e.g. listing photo upload). */
+    void launchImageFileChooser(ValueCallback<Uri[]> callback, boolean allowMultiple) {
+        if (pendingFilePathCallback != null) {
+            pendingFilePathCallback.onReceiveValue(null);
+        }
+        pendingFilePathCallback = callback;
+
+        Intent intent = new Intent(Intent.ACTION_GET_CONTENT);
+        intent.addCategory(Intent.CATEGORY_OPENABLE);
+        intent.setType("image/*");
+        if (allowMultiple) {
+            intent.putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true);
+        }
+
+        try {
+            imageFileChooserLauncher.launch(
+                Intent.createChooser(intent, "Pasirinkite nuotrauką")
+            );
+        } catch (ActivityNotFoundException e) {
+            Log.w(TAG, "Image file chooser unavailable", e);
+            pendingFilePathCallback.onReceiveValue(null);
+            pendingFilePathCallback = null;
+        }
     }
 
     @Override

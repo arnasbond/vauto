@@ -39,7 +39,6 @@ import {
 } from "@/lib/SpeechEngine";
 import {
   stripLegacyCategorySuffixes,
-  VOICE_SILENCE_DEBOUNCE_MS,
 } from "@/lib/speech-transcript";
 import {
   BRUTAL_VOICE_GREETING,
@@ -297,7 +296,6 @@ export function SearchBar({
       clearVisualSearch({ keepInputMode: true });
 
       const session = startVoiceSearch({
-        silenceMs: VOICE_SILENCE_DEBOUNCE_MS,
         onStart: () => {
           setDraftQuery("");
           setVoiceCaption("");

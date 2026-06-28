@@ -365,6 +365,9 @@ export async function searchListingsFiltered(
     const dbRows = await query<ListingRow>(sql, values);
     rows = mergeDbListingsWithDemoCatalog(dbRows.map(mapListingRow));
   } catch {
+    if (queryText && !tokens.length) {
+      return [];
+    }
     rows = await getListings();
     rows = rows.filter((l) => l.status !== "sold" && !l.banned && l.price > 0);
     if (params.category && !softCategoryOnly) {
@@ -379,15 +382,25 @@ export async function searchListingsFiltered(
     if (cityNorm) {
       rows = rows.filter((l) => l.location.toLowerCase().includes(cityNorm));
     }
+    if (queryText && tokens.length) {
+      rows = rows.filter((l) => listingMatchesSqlTokens(l, tokens));
+      if (!rows.length) {
+        return [];
+      }
+    }
   }
 
-  if (queryText && tokens.length) {
+  if (queryText) {
+    if (!tokens.length) {
+      return [];
+    }
     rows = rows.filter((l) => listingMatchesSqlTokens(l, tokens));
+    if (!rows.length) {
+      return [];
+    }
     if (softCategoryOnly) {
       rows = rankByCategoryPreference(rows, params.category);
     }
-  } else if (queryText && !tokens.length) {
-    return [];
   }
 
   return rows.slice(0, limit);

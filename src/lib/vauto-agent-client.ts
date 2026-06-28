@@ -103,18 +103,22 @@ export interface CurrentPageContext {
 export const AGENT_SESSION_TTL_MS = 15 * 60 * 1000;
 
 export const AGENT_MIN_QUERY_CHARS = 5;
+export const AGENT_VOICE_MIN_QUERY_CHARS = 2;
 
 export const AGENT_NOISE_REPLIES = [
   "Atsiprašau, neišgirdau — pakartokite prašau?",
-  "Aplink per daug triukšmo — galite parašyti?",
 ] as const;
 
 const AGENT_SESSION_ACTIVITY_KEY = "vauto_agent_last_activity_v1";
 
-export function isTooShortAgentQuery(text: string | null | undefined): boolean {
+export function isTooShortAgentQuery(
+  text: string | null | undefined,
+  opts?: { fromVoice?: boolean }
+): boolean {
   const t = String(text ?? "").trim();
   if (!t) return true;
-  return t.length < AGENT_MIN_QUERY_CHARS;
+  const min = opts?.fromVoice ? AGENT_VOICE_MIN_QUERY_CHARS : AGENT_MIN_QUERY_CHARS;
+  return t.length < min;
 }
 
 export function resolveAgentNoiseReply(seed?: string): string {

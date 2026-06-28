@@ -323,7 +323,7 @@ export function rankListings(
     const relevant = results.filter(
       (l) => l.semanticRelevance >= MIN_QUERY_RELEVANCE
     );
-    if (relevant.length > 0) results = relevant;
+    results = relevant;
   }
 
   return results;

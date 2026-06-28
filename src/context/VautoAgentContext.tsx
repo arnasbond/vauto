@@ -52,7 +52,6 @@ import {
   shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
-import { VOICE_SILENCE_DEBOUNCE_MS } from "@/lib/speech-transcript";
 import { ensureSpeechVoicesReady, lockSessionLocale } from "@/lib/SpeechEngine";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
@@ -354,6 +353,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         clearVisualSearch({ keepInputMode: false });
         setSearchInputMode("text");
         setSearchVoiceMode(false);
+        setAgentPinnedListings(null);
         const displayQuery =
           actions.query?.trim() ||
           actions.filters?.query?.trim();
@@ -576,7 +576,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       };
 
-      if (isTooShortAgentQuery(trimmed)) {
+      if (isTooShortAgentQuery(trimmed, { fromVoice: voiceReply })) {
         const reply = resolveAgentNoiseReply(trimmed);
         const shortUserMsg: AgentChatMessage = { role: "user", text: trimmed };
         setMessages((prev) => [
@@ -942,7 +942,6 @@ function VautoAgentSheet() {
     setVoiceCaption("");
     lastVoiceDisplayRef.current = "";
     const session = startVoiceSearch({
-      silenceMs: VOICE_SILENCE_DEBOUNCE_MS,
       onInterim: (preview) => {
         const clean = preview.trim();
         if (clean) setVoiceCaption(clean);

@@ -815,7 +815,7 @@ export async function executeAgentTool(
           results.length > 0
             ? {
                 type: "search",
-                searchQuery: searchQuery || results[0]!.title,
+                searchQuery,
                 listingIds: results.map((r) => r.id),
                 filters: searchFilters,
                 filtersReset: Boolean(ctx.searchSessionReset),
@@ -823,7 +823,8 @@ export async function executeAgentTool(
               }
             : {
                 type: "empty_search",
-                searchQuery: searchQuery || query || "paieška",
+                searchQuery,
+                filters: searchFilters,
               },
       };
     }
@@ -1454,22 +1455,63 @@ export async function executeAgentTool(
 
     case "updateUIFilters": {
       const normalized = normalizeUpdateUIFiltersArgs(args);
+      const queryText =
+        normalized.query?.trim() || normalized.filters.query?.trim() || "";
+
+      const baseResult = {
+        ok: true,
+        filters: normalized.filters,
+        categoryAttributes: normalized.categoryAttributes,
+        label: normalized.label,
+        activateWardrobe: normalized.activateWardrobe,
+        query: queryText || normalized.query,
+      };
+
+      const uiOnlySideEffect = {
+        type: "apply_ui_filters" as const,
+        filters: normalized.filters,
+        categoryAttributes: normalized.categoryAttributes,
+        label: normalized.label,
+        activateWardrobe: normalized.activateWardrobe,
+        query: queryText || normalized.query,
+      };
+
+      if (!queryText) {
+        return { result: baseResult, sideEffect: uiOnlySideEffect };
+      }
+
+      const filteredRows = await searchListingsFiltered({
+        query: queryText,
+        category: normalized.filters.category,
+        city: normalized.filters.city,
+        minPrice: normalized.filters.minPrice,
+        maxPrice: normalized.filters.maxPrice,
+        limit: 500,
+      });
+
+      const searchFilters: AgentSearchFilters = {
+        ...normalized.filters,
+        query: queryText,
+      };
+
+      if (filteredRows.length > 0) {
+        return {
+          result: { ...baseResult, matchCount: filteredRows.length },
+          sideEffect: {
+            type: "search",
+            searchQuery: queryText,
+            listingIds: filteredRows.map((l) => l.id),
+            filters: searchFilters,
+          },
+        };
+      }
+
       return {
-        result: {
-          ok: true,
-          filters: normalized.filters,
-          categoryAttributes: normalized.categoryAttributes,
-          label: normalized.label,
-          activateWardrobe: normalized.activateWardrobe,
-          query: normalized.query,
-        },
+        result: { ...baseResult, matchCount: 0 },
         sideEffect: {
-          type: "apply_ui_filters",
-          filters: normalized.filters,
-          categoryAttributes: normalized.categoryAttributes,
-          label: normalized.label,
-          activateWardrobe: normalized.activateWardrobe,
-          query: normalized.query,
+          type: "empty_search",
+          searchQuery: queryText,
+          filters: searchFilters,
         },
       };
     }
@@ -1698,6 +1740,7 @@ export type AgentSideEffect =
   | {
       type: "empty_search";
       searchQuery: string;
+      filters?: AgentSearchFilters;
     }
   | {
       type: "register_wanted";

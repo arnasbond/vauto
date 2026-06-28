@@ -1,5 +1,5 @@
-/** Debounce after last STT hypothesis before manual recognition.stop() (ms). */
-export const VOICE_SILENCE_DEBOUNCE_MS = 1500;
+/** Legacy export — silence debounce removed; mic ends on isFinal or manual stop. */
+export const VOICE_SILENCE_DEBOUNCE_MS = 0;
 
 type SpeechResultsLike = {
   length: number;
