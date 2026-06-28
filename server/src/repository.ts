@@ -160,7 +160,6 @@ export async function updateUserAvatar(
     [userId, avatarUrl]
   );
   const updatedUser = await getUser(userId);
-  console.log("REAL_DB_WRITE:", updatedUser);
   return updatedUser;
 }
 

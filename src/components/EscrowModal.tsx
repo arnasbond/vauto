@@ -439,6 +439,7 @@ export function EscrowModal({
               <ParcelLockerPicker
                 providerId={shippingProvider}
                 selectedId={selectedLocker?.id ?? escrow?.shippingLockerId}
+                originLocation={listing?.location}
                 onSelect={setSelectedLocker}
               />
             </div>

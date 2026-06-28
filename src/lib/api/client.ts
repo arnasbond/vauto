@@ -1102,3 +1102,33 @@ export async function apiFetchUserNotifications(
 ): Promise<ApiResult<{ notifications: UserNotification[] }>> {
   return dataFetch(`/api/growth/notifications?limit=${limit}`, { userId });
 }
+
+export async function apiSearchParcelLockers(params: {
+  providerId: string;
+  city?: string;
+  q?: string;
+  limit?: number;
+}): Promise<
+  ApiResult<{ lockers: import("@/lib/shipping/shipping-routing").ParcelLocker[] }>
+> {
+  const qs = new URLSearchParams({ provider: params.providerId });
+  if (params.city) qs.set("city", params.city);
+  if (params.q) qs.set("q", params.q);
+  if (params.limit) qs.set("limit", String(params.limit));
+  return dataFetch(`/api/shipping/lockers?${qs.toString()}`);
+}
+
+export async function apiShippingRouteEstimate(body: {
+  origin: string;
+  destination: string;
+  providerId?: string;
+}): Promise<
+  ApiResult<{
+    estimate: import("@/lib/shipping/shipping-routing").ShippingRouteEstimate;
+  }>
+> {
+  return dataFetch("/api/shipping/route-estimate", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}

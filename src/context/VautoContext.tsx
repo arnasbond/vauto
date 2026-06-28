@@ -949,7 +949,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         location: l.location,
         timeAgo: formatTimeAgo(l.createdAt),
       }));
-    return sold.length > 0 ? sold : DEMO_SOLD_STORIES;
+    return sold.length > 0 || process.env.NODE_ENV !== "production"
+      ? sold.length > 0
+        ? sold
+        : DEMO_SOLD_STORIES
+      : [];
   }, [listings]);
 
   const myActiveListings = useMemo(

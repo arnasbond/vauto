@@ -1,5 +1,7 @@
 /** Skelbiu.lt-style category tree and helpers for general listings. */
 
+import { LT_CITY_NAMES } from "@/lib/lt-cities";
+
 export interface SkelbiuCategoryNode {
   label: string;
   children?: SkelbiuCategoryNode[];
@@ -132,19 +134,7 @@ export const SELLER_TYPES = [
   "Įmonė / verslas / komercinė veikla",
 ] as const;
 
-export const LT_CITIES = [
-  "Vilnius",
-  "Kaunas",
-  "Klaipėda",
-  "Šiauliai",
-  "Panevėžys",
-  "Alytus",
-  "Marijampolė",
-  "Mažeikiai",
-  "Jonava",
-  "Utena",
-  "Kita",
-] as const;
+export const LT_CITIES = [...LT_CITY_NAMES, "Kita"] as const;
 
 export function formatSkelbiuCategory(parts: string[]): string {
   return parts.filter(Boolean).join(" › ");

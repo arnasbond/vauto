@@ -188,7 +188,7 @@ authRouter.post("/otp/send", (req, res) => {
   }
   const { code, expiresAt } = issueOtp(phone);
   void sendSmsOtp(phone, code);
-  if (usesDemoOtp()) {
+  if (usesDemoOtp() && exposeOtpDevHint()) {
     console.log(`[Vauto Auth] Demo OTP for ${phone}: ${demoOtpCode()}`);
   }
   res.json({
