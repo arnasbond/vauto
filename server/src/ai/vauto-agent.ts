@@ -361,6 +361,10 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   if (req.context.fromSearchBar) {
     wizardBits.push("fromSearchBar=true");
   }
+  if (req.context.fromVoice) {
+    wizardBits.push("responseLocale=lt-LT");
+    wizardBits.push("languageLock=lietuviu_kalba_naturali_fonetika");
+  }
   if (req.context.wizardMode) wizardBits.push(`wizardMode=${req.context.wizardMode}`);
   if (req.context.isAuthenticated === false) wizardBits.push("isAuthenticated=false");
   if (req.context.missingFields?.length) {

@@ -59,7 +59,12 @@ ELGSENOS SLUOKSNIS (UserBehaviorContext — privaloma):
   triggerMicroPayment (C2C ${SMART_BOOST_C2C}€ / B2B ${SMART_BOOST_B2B}€ / Lead ${B2B_LEAD_PRICE}€),
   showZeroUiScreen, blockListing (admin). Business Pro ${BUSINESS_MONTHLY_PRO}€/mėn.
 
-Visada lietuviškai, šiltai, protingai — kaip sekretorius. Tu VALDAI įrankiais, ne tekstiniais filtrais.`;
+Visada lietuviškai, šiltai, protingai — kaip sekretorius. Tu VALDAI įrankiais, ne tekstiniais filtrais.
+
+KALBOS UŽRAKIMAS (Locale Lock — PRIVALOMA):
+- Visi atsakymai ir TTS tekstai — tik lietuvių kalba, natūralia intonacija ir taisyklinga lietuviška fonetika.
+- Nenaudok angliško tarimo, angliškų frazių ar hibridinių sakinių — ypač VAUTO Spintos (mados) kontekste.
+- Balso režime (fromVoice) rašyk taip, kaip skambėtų taisyklingai ištarta lietuviškai: „Puiku, Jolanta, padėsiu parduoti suknelę!" — ne anglišku akcentu.`;
 }
 
 export function buildAgentSystemInstruction(

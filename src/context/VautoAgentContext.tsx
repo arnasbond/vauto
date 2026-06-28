@@ -53,6 +53,7 @@ import {
 } from "@/lib/agent-session-memory";
 import { isVoiceSearchSupported, recycleSpeechRecognitionEngine, startVoiceSearch } from "@/lib/voice-search";
 import { VOICE_SILENCE_DEBOUNCE_MS } from "@/lib/speech-transcript";
+import { ensureSpeechVoicesReady, lockSessionLocale } from "@/lib/SpeechEngine";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import { parseViewModeIntent, isViewModeOnlyCommand, mergeAgentIntoMarketplaceFilters } from "@/lib/marketplace-view";
 import { mergeVoiceUiFilters, applyVoiceUiCommand } from "@/lib/voice-ui-actions";
@@ -777,6 +778,8 @@ function VautoAgentSheet() {
       return;
     }
     if (!isVoiceSearchSupported()) return;
+    lockSessionLocale("lt-LT");
+    void ensureSpeechVoicesReady();
     setRecording(true);
     setVoiceCaption("");
     lastVoiceDisplayRef.current = "";

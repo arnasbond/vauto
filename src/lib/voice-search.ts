@@ -4,6 +4,12 @@ import {
   teardownSpeechRecognition,
   VOICE_SILENCE_DEBOUNCE_MS,
 } from "@/lib/speech-transcript";
+import {
+  detectSpokenLocale,
+  ensureSpeechVoicesReady,
+  getLockedSttLang,
+  lockSessionLocale,
+} from "@/lib/SpeechEngine";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
 
 type SpeechResults = {
@@ -79,7 +85,7 @@ export function recycleSpeechRecognitionEngine(): Promise<void> {
 
     try {
       const rec = new SpeechRecognition();
-      rec.lang = "lt-LT";
+      rec.lang = getLockedSttLang();
       rec.continuous = false;
       rec.interimResults = false;
       rec.onend = finish;
@@ -141,6 +147,9 @@ export function startVoiceSearch(
       let stopping = false;
       let heardSpeech = false;
 
+      lockSessionLocale("lt-LT");
+      void ensureSpeechVoicesReady();
+
       const clearTimers = () => {
         if (silenceTimeout) clearTimeout(silenceTimeout);
         if (maxTimer) clearTimeout(maxTimer);
@@ -201,7 +210,7 @@ export function startVoiceSearch(
       };
 
       rec = new SpeechRecognition();
-      rec.lang = "lt-LT";
+      rec.lang = getLockedSttLang();
       rec.continuous = true;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
@@ -238,6 +247,7 @@ export function startVoiceSearch(
         if (text.trim()) {
           heardSpeech = true;
           if (!isFinal) latestHypothesis = text;
+          detectSpokenLocale(text);
           resetSilenceDebounce();
         }
       };

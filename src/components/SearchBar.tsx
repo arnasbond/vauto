@@ -34,6 +34,10 @@ import {
   startVoiceSearch,
 } from "@/lib/voice-search";
 import {
+  ensureSpeechVoicesReady,
+  lockSessionLocale,
+} from "@/lib/SpeechEngine";
+import {
   stripLegacyCategorySuffixes,
   VOICE_SILENCE_DEBOUNCE_MS,
 } from "@/lib/speech-transcript";
@@ -265,6 +269,8 @@ export function SearchBar({
     if (agentBusy || searchLoading || isPhotoSearching) return;
 
     requestMediaConsent(() => {
+      lockSessionLocale("lt-LT");
+      void ensureSpeechVoicesReady();
       setRecording(true);
       setVoiceCaption("");
       setDraftQuery("");

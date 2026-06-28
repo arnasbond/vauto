@@ -2,6 +2,11 @@ import {
   handleSpeechRecognitionResult,
   teardownSpeechRecognition,
 } from "@/lib/speech-transcript";
+import {
+  ensureSpeechVoicesReady,
+  getLockedSttLang,
+  lockSessionLocale,
+} from "@/lib/SpeechEngine";
 
 type SpeechRecognitionCtor = new () => {
   lang: string;
@@ -44,7 +49,9 @@ export function startLiveTranscript(
   if (!SpeechRecognition) return () => {};
 
   const rec = new SpeechRecognition();
-  rec.lang = "lt-LT";
+  lockSessionLocale("lt-LT");
+  void ensureSpeechVoicesReady();
+  rec.lang = getLockedSttLang();
   rec.continuous = true;
   rec.interimResults = true;
 

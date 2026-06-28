@@ -1,25 +1,26 @@
 /** Direct HTML5 TTS — bypasses all agent/session layers when production agent fails. */
 
 import { truncateVoiceReply } from "@/lib/agent-reply-display";
-import { hasLithuanianVoice, pickLithuanianVoice } from "@/lib/buddy-voice";
+import {
+  ensureSpeechVoicesReady,
+  getLockedLocale,
+  hasLocaleVoice,
+  speakWithLocale,
+} from "@/lib/SpeechEngine";
 
 export const BRUTAL_VOICE_GREETING =
   "Labas! Aš esu gyvas AI asistentas. Pasakyk, ko ieškai — padėsiu surasti, parduoti ar derėtis.";
 
 export function brutalHtml5Speak(text: string): void {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
-  if (!hasLithuanianVoice()) return;
+  if (!hasLocaleVoice(getLockedLocale())) return;
 
   const clean = truncateVoiceReply(text.trim());
   if (!clean) return;
 
-  window.speechSynthesis.cancel();
-  const utterance = new SpeechSynthesisUtterance(clean);
-  utterance.lang = "lt-LT";
-  utterance.rate = 0.92;
-  const voice = pickLithuanianVoice();
-  if (voice) utterance.voice = voice;
-  window.speechSynthesis.speak(utterance);
+  void ensureSpeechVoicesReady().then(() => {
+    speakWithLocale(clean, { lang: getLockedLocale(), rate: 0.9 });
+  });
 }
 
 /** Voice mic or short generic utterance → always kick live assistant, never dry catalog. */

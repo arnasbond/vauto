@@ -4,6 +4,7 @@ import {
   type VoiceSession,
 } from "@/lib/audio-session";
 import { handleSpeechRecognitionResult, sanitizeSpeechTranscript, teardownSpeechRecognition } from "@/lib/speech-transcript";
+import { getLockedSttLang, lockSessionLocale } from "@/lib/SpeechEngine";
 
 export interface CapturedPhoto {
   dataUrl: string;
@@ -498,8 +499,9 @@ async function speechRecognitionTranscript(): Promise<string | null> {
   if (!SpeechRecognition) return null;
 
   return new Promise((resolve) => {
+    lockSessionLocale("lt-LT");
     const rec = new SpeechRecognition();
-    rec.lang = "lt-LT";
+    rec.lang = getLockedSttLang();
     rec.continuous = true;
     rec.interimResults = true;
 
