@@ -3,6 +3,7 @@ import {
   getDemoApiListings,
   mergeDbListingsWithDemoCatalog,
 } from "./demo-catalog-api.js";
+import { isServerDemoCatalogEnabled } from "./demo-catalog-env.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -80,6 +81,7 @@ function mapListingRow(r: ListingRow): ApiListing {
     requiresReview: r.requires_review,
     imageAlt: r.image_alt ?? undefined,
     imageTitle: r.image_title ?? undefined,
+    isDemo: false,
   };
 }
 
@@ -196,9 +198,13 @@ export async function getListings(): Promise<ApiListing[]> {
     const rows = await query<ListingRow>(
       `${LISTING_SELECT} ORDER BY created_at DESC`
     );
-    return mergeDbListingsWithDemoCatalog(rows.map(mapListingRow));
+    const fromDb = rows.map(mapListingRow);
+    if (!isServerDemoCatalogEnabled()) {
+      return fromDb;
+    }
+    return mergeDbListingsWithDemoCatalog(fromDb);
   } catch {
-    return getDemoApiListings();
+    return isServerDemoCatalogEnabled() ? getDemoApiListings() : [];
   }
 }
 
@@ -378,7 +384,10 @@ export async function searchListingsFiltered(
   let rows: ApiListing[];
   try {
     const dbRows = await query<ListingRow>(sql, values);
-    rows = mergeDbListingsWithDemoCatalog(dbRows.map(mapListingRow));
+    const fromDb = dbRows.map(mapListingRow);
+    rows = isServerDemoCatalogEnabled()
+      ? mergeDbListingsWithDemoCatalog(fromDb)
+      : fromDb;
   } catch {
     if (queryText && !tokens.length) {
       return [];

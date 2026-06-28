@@ -19,6 +19,7 @@ import {
 import { resolveListingPhone } from "@/lib/listing-display";
 import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingPath } from "@/lib/seo";
+import { chatThreadPath } from "@/lib/chat-routes";
 import { useVauto } from "@/context/VautoContext";
 
 export function BuddySearchAssistant() {
@@ -159,7 +160,7 @@ export function BuddySearchAssistant() {
 
     if (id === "chat_provider") {
       const chatId = startChat(listing.id);
-      if (chatId) router.push(`/chats/thread/?id=${chatId}`);
+      if (chatId) router.push(chatThreadPath(chatId));
       return;
     }
 

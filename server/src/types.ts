@@ -77,6 +77,8 @@ export interface ApiListing {
   imageAlt?: string;
   /** Google Images SEO title atributas */
   imageTitle?: string;
+  /** Demonstracinis katalogo įrašas */
+  isDemo?: boolean;
 }
 
 export interface ApiChatMessage {

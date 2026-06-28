@@ -12,7 +12,11 @@ import {
 } from "react";
 import { Capacitor } from "@capacitor/core";
 import { INITIAL_LISTINGS } from "@/data/mockListings";
-import { ensureDemoCatalogListings } from "@/lib/merge-listings";
+import {
+  markListingDemoFlags,
+  mergeListingsForClient,
+  shouldShowDemoCatalog,
+} from "@/lib/demo-catalog";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { generateDynamicFilters } from "@/lib/scoring";
@@ -499,7 +503,10 @@ function VautoFacade({
   const visibleListings = useMemo(
     () =>
       catalog.listings.filter(
-        (l) => !l.banned && !moderation.bannedUserIds.has(l.sellerId)
+        (l) =>
+          !l.banned &&
+          !moderation.bannedUserIds.has(l.sellerId) &&
+          (!l.isDemo || shouldShowDemoCatalog())
       ),
     [catalog.listings, moderation.bannedUserIds]
   );
@@ -629,7 +636,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
   const [syncError, setSyncError] = useState<string | null>(null);
-  const [listings, setListings] = useState<Listing[]>(INITIAL_LISTINGS);
+  const [listings, setListings] = useState<Listing[]>(
+    shouldShowDemoCatalog() ? markListingDemoFlags(INITIAL_LISTINGS) : []
+  );
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
   const [searchQuery, setSearchQuery] = useState("");
   const [searchLoading, setSearchLoading] = useState(false);
@@ -718,12 +727,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             const fromApi = listingsRes.data.map(withDefaultExpiry);
             setListings(
               normalizeListings(
-                ensureDemoCatalogListings(fromApi, INITIAL_LISTINGS)
+                mergeListingsForClient(fromApi, INITIAL_LISTINGS)
               )
             );
           } else {
             if (!listingsRes.ok) errors.push(listingsRes.error);
-            setListings(normalizeListings(INITIAL_LISTINGS));
+            setListings(
+              shouldShowDemoCatalog()
+                ? normalizeListings(markListingDemoFlags(INITIAL_LISTINGS))
+                : []
+            );
           }
           if (savedRes?.ok) setSavedIds(new Set(savedRes.data));
           else if (savedRes) errors.push(savedRes.error);
@@ -757,7 +770,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           : [];
         setListings(
           normalizeListings(
-            ensureDemoCatalogListings(offlineBase, INITIAL_LISTINGS)
+            mergeListingsForClient(offlineBase, INITIAL_LISTINGS)
           )
         );
         if (storedSaved) setSavedIds(new Set(storedSaved));
@@ -772,8 +785,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setGdprConsent(loadGdprConsent());
       } catch (e) {
         console.error("[vauto] listing catalog load failed", e);
-        setListings(normalizeListings(INITIAL_LISTINGS));
-        setSyncError("Nepavyko įkelti skelbimų — rodomas demonstracinis katalogas.");
+        setListings(
+          shouldShowDemoCatalog()
+            ? normalizeListings(markListingDemoFlags(INITIAL_LISTINGS))
+            : []
+        );
+        setSyncError("Nepavyko įkelti skelbimų.");
       } finally {
         setHydrated(true);
       }

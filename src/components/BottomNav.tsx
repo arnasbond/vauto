@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Home, MessageCircle, Plus, Search, Shield, User } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Home, MessageCircle, Plus, Shirt, Shield, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
@@ -11,16 +12,16 @@ const TAB_CLASS =
   "flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-semibold no-underline";
 
 /**
- * Marktplaats-style 5-tab bottom bar — Pradžia, Paieška, Įdėk (+), Pokalbiai, Profilis.
+ * Fashion-first bottom bar — Pradžia, Spinta, Įdėk (+), Pokalbiai, Profilis.
  */
 export function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
   const {
     isAdmin,
     isAuthenticated,
     unreadAdminCount,
     unreadUserReportCount,
-    startUploadFlow,
     sellerStep,
     chats,
     user,
@@ -44,11 +45,9 @@ export function BottomNav() {
   const unreadChats = isAuthenticated ? countUnreadChats(chats, user.id) : 0;
 
   const homeActive = pathname === "/" || pathname === "";
-  const searchActive =
-    pathname === "/search" ||
-    pathname.startsWith("/search/") ||
-    pathname === "/discover" ||
-    pathname.startsWith("/discover/");
+  const spintaActive =
+    pathname === "/fashion" ||
+    pathname.startsWith("/fashion/");
   const messagesActive =
     pathname === "/messages" ||
     pathname.startsWith("/messages/") ||
@@ -64,14 +63,22 @@ export function BottomNav() {
 
   const handlePlaceAd = () => {
     if (placeAdBusy) return;
-    if (!requireAuthForListing("/add/")) return;
-    void startUploadFlow();
+    const addPath = spintaActive ? "/add/?vertical=fashion" : "/add/";
+    if (!requireAuthForListing(addPath)) return;
+    router.push(addPath);
   };
 
   const handleMessages = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
       e.preventDefault();
       openAuthModal("/chats/");
+    }
+  };
+
+  const handleSpinta = (e: React.MouseEvent) => {
+    if (!isAuthenticated) {
+      e.preventDefault();
+      openAuthModal("/fashion/");
     }
   };
 
@@ -96,13 +103,14 @@ export function BottomNav() {
         </Link>
 
         <Link
-          href="/search/"
+          href="/fashion/"
+          onClick={handleSpinta}
           className={cn(TAB_CLASS)}
-          style={{ color: tabColor(searchActive) }}
-          aria-current={searchActive ? "page" : undefined}
+          style={{ color: tabColor(spintaActive) }}
+          aria-current={spintaActive ? "page" : undefined}
         >
-          <Search size={22} strokeWidth={searchActive ? 2.5 : 2} />
-          <span>Paieška</span>
+          <Shirt size={22} strokeWidth={spintaActive ? 2.5 : 2} />
+          <span>Spinta</span>
         </Link>
 
         <button

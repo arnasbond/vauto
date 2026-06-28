@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { VautoLogo } from "@/components/VautoLogo";
 import { SearchBar } from "@/components/SearchBar";
+import { AgentChatStrip } from "@/components/home/AgentChatStrip";
 import { HomeQuickActions } from "@/components/home/HomeQuickActions";
 import { Header } from "@/components/Header";
 
@@ -38,6 +39,7 @@ export function HomeAiHero({
             seedQuery={seedQuery}
             onSeedConsumed={onSeedConsumed}
           />
+          <AgentChatStrip />
         </div>
       </div>
     );
@@ -73,6 +75,7 @@ export function HomeAiHero({
           seedQuery={seedQuery}
           onSeedConsumed={onSeedConsumed}
         />
+        <AgentChatStrip />
       </div>
 
       {showQuickActions && (

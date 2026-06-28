@@ -30,6 +30,7 @@ import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { getSimilarListings } from "@/lib/similar-listings";
 import { sellerDisplayName } from "@/lib/seller-display";
 import { sellerPath } from "@/lib/seo";
+import { chatThreadPath } from "@/lib/chat-routes";
 import {
   formatListingPhoneDisplay,
   getCategoryLabel,
@@ -172,7 +173,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       return;
     }
     const chatId = startChat(listing.id);
-    if (chatId) router.push(`/chats/thread/?id=${chatId}`);
+    if (chatId) router.push(chatThreadPath(chatId));
   };
 
   const handleCall = () => {

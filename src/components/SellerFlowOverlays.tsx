@@ -2,20 +2,19 @@
 
 import { AiProcessingOverlay } from "@/components/AiProcessingOverlay";
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
-import { useZeroUiScreenOptional } from "@/context/ZeroUiScreenContext";
 import { usePathname } from "next/navigation";
 
 export function SellerFlowOverlays() {
-  const zeroUi = useZeroUiScreenOptional();
   const pathname = usePathname();
-  const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
-  const inlineListingPreview =
-    onHome && zeroUi?.currentView === "listing_preview";
+  const onAdd =
+    pathname === "/add" ||
+    pathname === "/add/" ||
+    pathname.startsWith("/add/");
 
   return (
     <>
       <AiProcessingOverlay />
-      {!inlineListingPreview && <AiConfirmationScreen mode="overlay" />}
+      {onAdd && <AiConfirmationScreen mode="overlay" />}
     </>
   );
 }

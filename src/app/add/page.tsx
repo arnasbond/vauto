@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
@@ -11,6 +11,8 @@ import {
   hasSeenAiIntro,
 } from "@/components/photo/AiIntroModal";
 import { useVauto } from "@/context/VautoContext";
+import { createManualFallbackDraft } from "@/lib/ai-safeguards";
+import { enrichClothingListingDraft } from "@/lib/clothing-catalog";
 
 export default function AddPage() {
   const router = useRouter();
@@ -20,10 +22,15 @@ export default function AddPage() {
     requireAuthForListing,
     consumePendingSellerQuery,
     submitSellerContent,
+    applyAgentListingDraft,
+    activateWardrobeSpinta,
     sellerStep,
+    user,
   } = useVauto();
   const [introOpen, setIntroOpen] = useState(false);
   const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
+  const [fashionMode, setFashionMode] = useState(false);
+  const fashionStartedRef = useRef(false);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -31,21 +38,39 @@ export default function AddPage() {
       requireAuthForListing("/add");
       return;
     }
+
+    const params =
+      typeof window !== "undefined"
+        ? new URLSearchParams(window.location.search)
+        : new URLSearchParams();
+    const isFashion = params.get("vertical") === "fashion";
+    setFashionMode(isFashion);
+
     const pending = consumePendingSellerQuery();
     if (pending && sellerStep === "idle") {
       void submitSellerContent({ text: pending });
       return;
     }
-    if (
-      typeof window !== "undefined" &&
-      new URLSearchParams(window.location.search).get("intent") === "services" &&
-      sellerStep === "idle"
-    ) {
-      void submitSellerContent({
-        text: "Siūlau paslaugas — verslo profilis ir paslaugų skelbimas",
-      });
+
+    if (isFashion && sellerStep === "idle" && !fashionStartedRef.current) {
+      fashionStartedRef.current = true;
+      activateWardrobeSpinta();
+      applyAgentListingDraft(
+        enrichClothingListingDraft(
+          {
+            ...createManualFallbackDraft({
+              location: user.city || "Lietuva",
+              contact: user.phone,
+            }),
+            category: "clothing",
+          },
+          "Spintos įkėlimas"
+        )
+      );
+      return;
     }
-    if (!hasSeenAiIntro() && sellerStep === "idle") {
+
+    if (!hasSeenAiIntro() && sellerStep === "idle" && !isFashion) {
       setIntroOpen(true);
     }
   }, [
@@ -54,7 +79,11 @@ export default function AddPage() {
     requireAuthForListing,
     consumePendingSellerQuery,
     submitSellerContent,
+    applyAgentListingDraft,
+    activateWardrobeSpinta,
     sellerStep,
+    user.city,
+    user.phone,
   ]);
 
   if (!authHydrated) {
@@ -79,7 +108,7 @@ export default function AddPage() {
           <HeroSection>
             <Header />
             <h2 className="mt-6 text-center text-xl font-bold text-white">
-              Naujas skelbimas
+              {fashionMode ? "Spintos įkėlimas" : "Naujas skelbimas"}
             </h2>
             <p className="mt-3 px-6 text-center text-sm text-slate-400">
               Prisijunkite arba užsiregistruokite, kad galėtumėte įdėti skelbimą.
@@ -103,28 +132,33 @@ export default function AddPage() {
         <HeroSection>
           <Header />
           <h2 className="font-display mt-6 text-center text-xl font-bold text-white">
-            Naujas skelbimas
+            {fashionMode ? "Spintos įkėlimas" : "Naujas skelbimas"}
           </h2>
           <p className="mt-2 text-center text-sm text-slate-400">
-            Įklijuokite nuorodą iš Autoplius ar Skelbiu — arba pridėkite nuotraukas, AI
-            užpildys skelbimą.
+            {fashionMode
+              ? "Pridėkite drabužių nuotraukas — AI užpildys Spintos skelbimą."
+              : "Įklijuokite nuorodą iš Autoplius ar Skelbiu — arba pridėkite nuotraukas, AI užpildys skelbimą."}
           </p>
-          <div className="mt-5">
-            <SellerUploadPanel
-              autoOpenPhotoFlow={startAiAfterIntro}
-              onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
-            />
-          </div>
+          {!fashionMode && (
+            <div className="mt-5">
+              <SellerUploadPanel
+                autoOpenPhotoFlow={startAiAfterIntro}
+                onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
+              />
+            </div>
+          )}
         </HeroSection>
 
-        <AiIntroModal
-          open={introOpen}
-          onClose={() => setIntroOpen(false)}
-          onStartAi={() => {
-            setIntroOpen(false);
-            setStartAiAfterIntro(true);
-          }}
-        />
+        {!fashionMode && (
+          <AiIntroModal
+            open={introOpen}
+            onClose={() => setIntroOpen(false)}
+            onStartAi={() => {
+              setIntroOpen(false);
+              setStartAiAfterIntro(true);
+            }}
+          />
+        )}
       </div>
     </AppShell>
   );

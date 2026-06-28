@@ -58,6 +58,8 @@ export interface Listing {
   imageAlt?: string;
   /** Google Images SEO title */
   imageTitle?: string;
+  /** Demonstracinis katalogo skelbimas — nerodomas prod sraute */
+  isDemo?: boolean;
 }
 
 /** Catalog/API rows that may still ship a legacy single `image` field */

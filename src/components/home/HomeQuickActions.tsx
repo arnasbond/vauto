@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { cn } from "@/lib/cn";
 import { useVauto } from "@/context/VautoContext";
 
-export type HomeQuickActionId = "search" | "sell" | "services" | "browse";
+export type HomeQuickActionId = "search" | "spinta" | "browse";
 
 interface HomeQuickActionsProps {
   className?: string;
@@ -25,16 +25,10 @@ const ACTIONS: {
     sublabel: "AI paieška",
   },
   {
-    id: "sell",
-    emoji: "➕",
-    label: "Parduodu prekę / auto",
-    sublabel: "Išmanus skelbimas",
-  },
-  {
-    id: "services",
-    emoji: "🛠️",
-    label: "Siūlau paslaugas",
-    sublabel: "Verslo profilis",
+    id: "spinta",
+    emoji: "👗",
+    label: "Mano Spinta",
+    sublabel: "Drabužiai ir mada",
   },
   {
     id: "browse",
@@ -50,7 +44,7 @@ export function HomeQuickActions({
   onSearchPrompt,
 }: HomeQuickActionsProps) {
   const router = useRouter();
-  const { requireAuthForListing, setSearchQuery } = useVauto();
+  const { isAuthenticated, openAuthModal } = useVauto();
 
   const handleAction = (id: HomeQuickActionId) => {
     switch (id) {
@@ -58,16 +52,12 @@ export function HomeQuickActions({
         onSearchPrompt?.("Ieškau BMW iki 15 000 €");
         onSearchFocus?.();
         break;
-      case "sell":
-        if (requireAuthForListing("/add/")) {
-          router.push("/add/");
+      case "spinta":
+        if (!isAuthenticated) {
+          openAuthModal("/fashion/");
+          return;
         }
-        break;
-      case "services":
-        if (requireAuthForListing("/add/")) {
-          setSearchQuery("");
-          router.push("/add/?intent=services");
-        }
+        router.push("/fashion/");
         break;
       case "browse":
         document
@@ -78,7 +68,7 @@ export function HomeQuickActions({
   };
 
   return (
-    <div className={cn("mt-5 grid grid-cols-2 gap-2.5 sm:grid-cols-4", className)}>
+    <div className={cn("mt-5 grid grid-cols-3 gap-2.5", className)}>
       {ACTIONS.map((action) => (
         <button
           key={action.id}

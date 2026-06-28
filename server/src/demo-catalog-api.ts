@@ -41,6 +41,7 @@ function demoRowToApiListing(row: DemoListingRow, index: number): ApiListing {
     vinVerified: row.vin_verified ?? false,
     providerVerified: row.provider_verified ?? false,
     promoted: false,
+    isDemo: true,
   };
 }
 

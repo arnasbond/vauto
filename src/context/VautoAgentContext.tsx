@@ -1,7 +1,6 @@
 "use client";
 
 import { usePathname } from "next/navigation";
-import { Loader2, Send, Sparkles, X } from "lucide-react";
 import {
   createContext,
   useCallback,
@@ -58,6 +57,7 @@ import {
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
+import { chatThreadPath } from "@/lib/chat-routes";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
 import {
   parseViewModeIntent,
@@ -206,6 +206,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [setScreen]
   );
 
+  const navigateToAdd = useCallback((fashion = false) => {
+    const path = fashion ? "/add/?vertical=fashion" : "/add/";
+    if (typeof window !== "undefined") {
+      const current = window.location.pathname.replace(/\/$/, "") || "/";
+      if (current !== "/add") {
+        window.location.assign(path);
+      }
+    }
+  }, []);
+
   const applyActions = useCallback(
     (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
       if (actions.type === "search") {
@@ -264,7 +274,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "listing_draft") {
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
-        routeZeroUiScreen("listing_preview");
+        navigateToAdd(draft.category === "clothing");
         setOpen(false);
       }
       if (actions.type === "block_listing" && actions.listingId) {
@@ -398,7 +408,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           routeZeroUiScreen(actions.zeroUi);
         } else if (actions.view) {
           if (actions.view === "add_listing" || actions.view === "seller_wizard") {
-            routeZeroUiScreen("listing_preview");
+            navigateToAdd(Boolean(actions.activateWardrobe));
           } else if (actions.view === "profile") {
             routeZeroUiScreen("business_dashboard");
           } else {
@@ -476,7 +486,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (actions.openChat) {
           const chatId = startChat(actions.listingId);
           if (chatId && typeof window !== "undefined") {
-            window.location.assign(`/chats/thread/?id=${chatId}`);
+            window.location.assign(chatThreadPath(chatId));
           }
         }
       }
@@ -487,7 +497,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           product: actions.product,
           voiceConfirmPhrase: actions.voiceConfirmPhrase,
         });
-        routeZeroUiScreen("listing_preview");
+        navigateToAdd();
       }
       if (actions.type === "zero_ui_screen") {
         routeZeroUiScreen(actions.screen);
@@ -496,7 +506,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (actions.type === "navigate") {
         const view = actions.view;
         if (view === "add_listing" || view === "seller_wizard") {
-          routeZeroUiScreen("listing_preview");
+          navigateToAdd();
         } else if (view === "profile") {
           routeZeroUiScreen("business_dashboard");
         } else if (view === "admin_ai") {
@@ -523,6 +533,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       navigateTo,
       openAuthModal,
       routeZeroUiScreen,
+      navigateToAdd,
       setListingBanned,
       setSearchInputMode,
       setSearchQuery,
@@ -605,9 +616,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
       const nextMessages = [...conversationBase, userMsg];
-      if (!options?.fromSearchBar) {
-        setMessages(nextMessages);
-      }
+      setMessages((prev) => [...prev, userMsg].slice(-6));
       noteUserMessage(trimmed);
       trackEvent("agent_message", {
         text: trimmed.slice(0, 120),
@@ -737,15 +746,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
             : buildEmptySearchReply(trimmed)
           : sanitizeAgentReplyForDisplay(res.reply) || res.reply || "Atlikta.";
-        if (!options?.fromSearchBar) {
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: assistantText,
-            },
-          ]);
-        }
+        setMessages((prev) => [
+          ...prev,
+          { role: "assistant" as const, text: assistantText },
+        ].slice(-6));
         speakReply(assistantText);
         if (hasExecutableAction) {
           if (!options?.fromSearchBar) {
@@ -754,9 +758,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           if (voiceReply) {
             void teardownVoiceAfterUiAction(res.actions);
           }
-        }
-        if (options?.fromSearchBar) {
-          setOpen(false);
         }
         if (res.actions.type !== "micro_payment") {
           const paymentIntent = microPaymentFromToolResult(
@@ -835,8 +836,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (!trimmed) return;
       setSearchInputMode("text");
       setSearchVoiceMode(false);
-      setOpen(true);
-      setMessages((prev) => [...prev, { role: "assistant", text: trimmed }]);
+      setMessages((prev) => [...prev, { role: "assistant" as const, text: trimmed }].slice(-6));
     },
     [setSearchInputMode, setSearchVoiceMode]
   );
@@ -858,7 +858,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   return (
     <VautoAgentContext.Provider value={value}>
       {children}
-      <VautoAgentSheet />
     </VautoAgentContext.Provider>
   );
 }
@@ -867,120 +866,4 @@ export function useVautoAgent(): VautoAgentContextValue {
   const ctx = useContext(VautoAgentContext);
   if (!ctx) throw new Error("useVautoAgent must be used within VautoAgentProvider");
   return ctx;
-}
-
-function VautoAgentSheet() {
-  const { open, setOpen, messages, busy, sendAgentMessage } = useVautoAgent();
-  const { searchQuery, setSearchQuery } = useVauto();
-  const pathname = usePathname();
-  const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
-
-  if (!open || onHome) return <VautoAgentFab />;
-
-  return (
-    <>
-      <VautoAgentFab />
-      <div
-        className="fixed inset-0 z-[240] flex flex-col bg-[#0a1128] text-white"
-        role="dialog"
-        aria-modal="true"
-        aria-label="VAUTO AI asistentas"
-      >
-        <header className="flex shrink-0 items-center gap-3 border-b border-slate-700 bg-[#0a1128] px-4 py-3">
-          <button
-            type="button"
-            onClick={() => setOpen(false)}
-            className="flex h-9 w-9 items-center justify-center rounded-full text-slate-300 hover:bg-slate-800"
-            aria-label="Uždaryti"
-          >
-            <X className="h-5 w-5" />
-          </button>
-          <div className="flex flex-1 items-center justify-center gap-2 pr-9">
-            <Sparkles className="h-4 w-4 text-sky-400" />
-            <h2 className="font-display text-base font-bold text-white">
-              VAUTO Gemini
-            </h2>
-          </div>
-        </header>
-
-        <p className="shrink-0 border-b border-slate-700 bg-[#0f172a] px-4 py-2 text-center text-[11px] text-slate-400">
-          ChatGPT stiliaus tekstinis asistentas — paieška, derybos, skelbimai.
-        </p>
-
-        <div className="flex-1 overflow-y-auto bg-[#0a1128] px-4 py-4 pb-28">
-          {messages.map((m, i) => (
-            <div
-              key={`${m.role}-${i}`}
-              className={`mb-3 flex ${m.role === "user" ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={
-                  m.role === "user"
-                    ? "max-w-[88%] rounded-2xl rounded-tr-md bg-[#1167b1] px-4 py-3 text-sm leading-relaxed text-white"
-                    : "max-w-[88%] rounded-lg border border-slate-700 bg-[#1e293b] p-3 text-sm leading-relaxed text-white"
-                }
-              >
-                {sanitizeAgentReplyForDisplay(m.text) || m.text}
-              </div>
-            </div>
-          ))}
-          {busy && (
-            <div className="flex items-center gap-2 text-sm text-slate-400">
-              <Loader2 className="h-4 w-4 animate-spin" />
-              Galvoju ir vykdau veiksmus…
-            </div>
-          )}
-        </div>
-
-        <form
-          className="fixed bottom-0 left-0 right-0 border-t border-slate-700 bg-[#0a1128] p-4"
-          onSubmit={(e) => {
-            e.preventDefault();
-            const t = searchQuery.trim();
-            if (!t || busy) return;
-            void sendAgentMessage(t);
-          }}
-        >
-          <div className="mx-auto flex max-w-lg gap-2">
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Paklauskite Gemini — paieška, skelbimas, patarimai…"
-              className="min-w-0 flex-1 rounded-xl border border-slate-600 bg-[#1e293b] px-4 py-3 text-sm text-white caret-sky-400 placeholder:text-slate-400 outline-none focus:border-sky-500"
-              disabled={busy}
-              autoComplete="off"
-            />
-            <button
-              type="submit"
-              disabled={busy || !searchQuery.trim()}
-              className="flex h-12 w-12 items-center justify-center rounded-xl bg-[#1167b1] text-white disabled:opacity-40"
-              aria-label="Siųsti"
-            >
-              <Send className="h-4 w-4" />
-            </button>
-          </div>
-        </form>
-      </div>
-    </>
-  );
-}
-
-function VautoAgentFab() {
-  const pathname = usePathname();
-  const { open, setOpen } = useVautoAgent();
-  const onHome = pathname.replace(/\/$/, "") === "" || pathname === "/";
-
-  if (open || onHome) return null;
-
-  return (
-    <button
-      type="button"
-      onClick={() => setOpen(true)}
-      className="fixed bottom-24 right-4 z-[200] flex h-14 w-14 items-center justify-center rounded-full bg-[#1167b1] text-white shadow-lg shadow-[#1167b1]/30 hover:bg-[#0d5a9a]"
-      aria-label="Atidaryti VAUTO asistentą"
-      data-testid="vauto-agent-fab"
-    >
-      <Sparkles className="h-6 w-6" />
-    </button>
-  );
 }

@@ -9,6 +9,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { useVautoBridge } from "@/context/VautoBridge";
 import {
@@ -19,7 +20,7 @@ import {
 } from "@/lib/client-api";
 import { isDuplicateListing } from "@/lib/dedup";
 import { moderateListing } from "@/lib/moderation";
-import { capturePhoto, compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
+import { compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
 import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
@@ -192,6 +193,7 @@ export interface SellerFlowContextValue {
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
 
 export function SellerFlowContextProvider({ children }: { children: ReactNode }) {
+  const router = useRouter();
   const { user, isAuthenticated, authHydrated, openAuthModal, requireAuthForListing } = useAuth();
   const {
     listings,
@@ -200,7 +202,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSyncError,
     showToast,
     showConfirm,
-    requestMediaConsent,
     scheduleSellerEngagementPush,
     setDetectedAdaptiveKey,
     setChameleonTheme,
@@ -613,8 +614,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (voicePrompt) {
         speakBuddyMessage(voicePrompt, { enabled: true });
       }
+      const addPath =
+        enriched.category === "clothing" ? "/add/?vertical=fashion" : "/add/";
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
+        router.push(addPath);
+      }
     },
-    [requireAuthForListing, setChameleonTheme, showToast]
+    [requireAuthForListing, setChameleonTheme, showToast, router]
   );
 
   const importListingFromUrl = useCallback(
@@ -1098,23 +1104,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const startUploadFlow = useCallback(async () => {
-    if (!requireAuthForListing("/add")) return;
-    requestMediaConsent(async () => {
-      const photo = await capturePhoto("prompt");
-      if (!photo) return;
-      setSellerPreviewImage(photo.dataUrl);
-      setSellerInputMode("upload");
-      await runAiProcessing("upload", { previewImage: photo.dataUrl });
-    });
-  }, [requireAuthForListing, runAiProcessing, requestMediaConsent]);
+    if (!requireAuthForListing("/add/")) return;
+    router.push("/add/");
+  }, [requireAuthForListing, router]);
 
   const startVoiceFlow = useCallback(() => {
-    if (!requireAuthForListing("/add")) return;
-    requestMediaConsent(() => {
-      setSellerInputMode("voice");
-      setSellerStep("recording");
-    });
-  }, [requireAuthForListing, requestMediaConsent]);
+    if (!requireAuthForListing("/add/")) return;
+    router.push("/add/");
+  }, [requireAuthForListing, router]);
 
   const cancelSellerFlow = useCallback(() => {
     resetSellerFlow();
