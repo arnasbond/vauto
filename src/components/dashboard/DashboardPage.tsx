@@ -37,11 +37,13 @@ interface DashboardPageProps {
   onRenew: (id: string) => void;
   /** Rodyti tik „Mano skelbimai“ — analitika profilyje slepiama accordion'e */
   listingsOnly?: boolean;
+  /** Profilyje — niekada nerodyti Spintos kabineto */
+  disableWardrobeMode?: boolean;
 }
 
 
 
-export function DashboardPage({ user, listings, allListings, onRenew, listingsOnly = false }: DashboardPageProps) {
+export function DashboardPage({ user, listings, allListings, onRenew, listingsOnly = false, disableWardrobeMode = false }: DashboardPageProps) {
 
   const {
 
@@ -81,17 +83,15 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
   const sorted = useMemo(() => sortListingsForDashboard(listings), [listings]);
 
-  const wardrobeMode = useMemo(
-    () =>
-      isWardrobeChameleonActive({
+  const wardrobeMode = disableWardrobeMode
+    ? false
+    : isWardrobeChameleonActive({
         chameleonTheme,
         detectedAdaptiveKey,
         searchQuery,
         listings,
         spintaForced: wardrobeSpintaForced,
-      }),
-    [chameleonTheme, detectedAdaptiveKey, searchQuery, listings, wardrobeSpintaForced]
-  );
+      });
 
   const isEmployer = user.role === "pro";
 

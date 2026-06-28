@@ -1,39 +1,18 @@
 "use client";
 
 import { Suspense } from "react";
-import {
-  BarChart3,
-  LayoutDashboard,
-  LogIn,
-  Settings2,
-  Smartphone,
-} from "lucide-react";
+import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
 import Link from "next/link";
 import { AdminProfileShell } from "@/components/admin/AdminProfileShell";
-import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
-import { PrivacySettingsCard, PushAlertsSettingsCard } from "@/components/privacy/PrivacySettingsCard";
-import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
-import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
-import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
-import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
-import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
-import { InstallDownloadButtons } from "@/components/InstallDownloadButtons";
 import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
-import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
-import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
-import { ReferralInviteCard } from "@/components/dashboard/ReferralInviteCard";
-import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
-import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
-import { WishlistSection } from "@/components/wishlist/WishlistSection";
-import { UserSupportInbox } from "@/components/support/UserSupportInbox";
-import { ProfileAccordion } from "@/components/profile/ProfileAccordion";
-import { ProfileBusinessPanel } from "@/components/profile/ProfileBusinessPanel";
-import { ProfileAccountTypePanel } from "@/components/profile/ProfileAccountTypePanel";
-import { ProfileSpintaSwitch } from "@/components/profile/ProfileSpintaSwitch";
+import { DashboardShell } from "@/components/dashboard/DashboardShell";
+import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
+import { ProfileProCTA } from "@/components/profile/ProfileProCTA";
+import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle";
+import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { ProfileViewProvider } from "@/lib/profile-view";
-import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
-import { AppVersionStatusCard } from "@/components/version/AppVersionStatusCard";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { isNativeApp } from "@/lib/mobile-install";
@@ -50,10 +29,10 @@ export default function ProfilePage() {
     logout,
     renewListing,
     showToast,
-    paymentHistoryVersion,
   } = useVauto();
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
+  const isPro = user.role === "pro";
 
   const handleRenew = async (id: string) => {
     await renewListing(id);
@@ -75,9 +54,9 @@ export default function ProfilePage() {
           <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--vauto-primary)_15%,transparent)]">
             <LayoutDashboard className="h-8 w-8 text-[var(--vauto-primary)]" />
           </div>
-          <h1 className="text-xl font-bold text-[var(--vauto-text-main)]">Valdymo skydelis</h1>
+          <h1 className="text-xl font-bold text-[var(--vauto-text-main)]">Profilis</h1>
           <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
-            Prisijunkite, kad valdytumėte skelbimus, analitiką ir mokamas paslaugas.
+            Prisijunkite, kad valdytumėte skelbimus ir nustatymus.
           </p>
           <button
             type="button"
@@ -91,7 +70,7 @@ export default function ProfilePage() {
             href="/fashion/"
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 py-3 text-sm font-semibold text-fuchsia-700"
           >
-            Išbandyti VAUTO Spintą be prisijungimo
+            Atidaryti Spintą
           </Link>
           {!nativeApp && (
             <Link
@@ -123,78 +102,31 @@ export default function ProfilePage() {
 
   return (
     <ProfileViewProvider>
-    <DashboardShell>
-      <Suspense fallback={null}>
-        <BillingReturnToast />
-      </Suspense>
-      <Suspense fallback={null}>
-        <ProUpgradeNotice />
-      </Suspense>
+      <DashboardShell>
+        <Suspense fallback={null}>
+          <BillingReturnToast />
+        </Suspense>
+        <Suspense fallback={null}>
+          <ProUpgradeNotice />
+        </Suspense>
 
-      <DashboardHeader user={user} onLogout={logout} />
-      <ReferralInviteCard />
-      <ProfileSpintaSwitch />
-      <ProfileAccountTypePanel />
+        <DashboardHeader user={user} onLogout={logout} />
 
-      <DashboardPage
-        user={user}
-        listings={myListings}
-        allListings={listings}
-        onRenew={handleRenew}
-        listingsOnly
-      />
+        {isPro ? <ProfileProViewToggle /> : <ProfileProCTA />}
 
-      <ProfileAccordion
-        title="Programėlės nustatymai"
-        subtitle="Tema, balsinis asistentas, privatumas"
-        icon={<Settings2 className="h-5 w-5 text-[var(--vauto-primary)]" />}
-      >
-        <ThemeSettingsCard embedded />
-        <WakeWordSettingsCard />
-        <PrivacySettingsCard />
-        <SocialSyncSettingsCard />
-        <PushAlertsSettingsCard />
-        <ConnectionStatusCard />
-        <AppVersionStatusCard />
-      </ProfileAccordion>
-
-      <ProfileAccordion
-        title="Verslo paskyra & Analitika"
-        subtitle="Pro planai, statistika, išsaugoti skelbimai"
-        icon={<BarChart3 className="h-5 w-5 text-[var(--vauto-primary)]" />}
-      >
-        <SellerTrustCard user={user} listings={listings} />
-        <ProfileBusinessPanel
+        <DashboardPage
           user={user}
           listings={myListings}
           allListings={listings}
           onRenew={handleRenew}
+          listingsOnly
+          disableWardrobeMode
         />
-        <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
-        <SavedListingsSection />
-        <WishlistSection />
-        <Suspense
-          fallback={
-            <div className="vauto-dashboard-card rounded-2xl p-4 text-xs text-[var(--vauto-text-muted)]">
-              Kraunami pranešimai…
-            </div>
-          }
-        >
-          <UserSupportInbox />
-        </Suspense>
-        {(user.role === "pro" || isSuperAdminUser(user)) && <SystemDiagnosticsCard />}
-      </ProfileAccordion>
 
-      {!nativeApp && (
-        <ProfileAccordion
-          title="Atsisiųsti programėlę"
-          subtitle="Android APK · iPhone per Safari (PWA)"
-          icon={<Smartphone className="h-5 w-5 text-[var(--vauto-primary)]" />}
-        >
-          <InstallDownloadButtons showShare />
-        </ProfileAccordion>
-      )}
-    </DashboardShell>
+        <div className="mt-4">
+          <ProfileSettingsMenu user={user} />
+        </div>
+      </DashboardShell>
     </ProfileViewProvider>
   );
 }
