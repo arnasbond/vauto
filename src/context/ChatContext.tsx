@@ -20,6 +20,10 @@ import { loadChats, saveChats } from "@/lib/storage";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import { requestChatShieldAnalysis } from "@/lib/chat-shield-client";
 import { requestNegotiationTwin } from "@/lib/chat-agent-client";
+import {
+  canRunAutoNegotiation,
+  resolveTwinMinPrice,
+} from "@/lib/bargain-twin";
 import { resolveSellerDisplayName } from "@/lib/user-trust-score";
 import { logAnalytics } from "@/lib/analytics";
 import { listingPath } from "@/lib/seo";
@@ -372,13 +376,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           const sellerName = resolveSellerDisplayName(sellerId, listingsRef.current);
           const twin = chatMeta?.negotiationTwin;
 
-          if (twin?.enabled && twin.minPrice > 0 && listing) {
+          if (canRunAutoNegotiation(twin, listing?.minNegotiationPrice) && listing) {
+            const minPrice = resolveTwinMinPrice(twin, listing);
             void requestNegotiationTwin({
               buyerMessage: text,
               listingPrice: listing.price,
-              minPrice: twin.minPrice,
+              minPrice,
               listingTitle: listing.title,
               sellerName,
+              sellerApproved: twin?.sellerApproved !== false,
+              autoNegotiationEnabled: twin?.enabled ?? false,
             }).then((negotiation) => {
               if (!negotiation?.shouldReply || !negotiation.autoReply?.trim()) return;
 

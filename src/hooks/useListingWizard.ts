@@ -5,6 +5,10 @@ import { useVauto } from "@/context/VautoContext";
 import { apiVautoAgent } from "@/lib/api/client";
 import { getPriceAdvice } from "@/lib/price-advisor";
 import type { PriceAdvice } from "@/lib/price-advisor";
+import {
+  appraisalToPriceAdvice,
+  fetchListingPriceAppraisal,
+} from "@/lib/price-appraisal";
 import type { AiExtractedListing } from "@/lib/types";
 import {
   analyzeListingWizard,
@@ -40,10 +44,12 @@ export function useListingWizard({
 }: UseListingWizardOptions) {
   const { listings, user, isAuthenticated, openAuthModal } = useVauto();
   const kickedOff = useRef(false);
+  const appraisalFetched = useRef(false);
   const [thread, setThread] = useState<WizardThreadMessage[]>([]);
   const [agentEnhancement, setAgentEnhancement] = useState<string | null>(null);
+  const [appraisalAdvice, setAppraisalAdvice] = useState<PriceAdvice | null>(null);
 
-  const priceAdvice: PriceAdvice | null = useMemo(
+  const localPriceAdvice: PriceAdvice = useMemo(
     () =>
       getPriceAdvice(
         {
@@ -61,6 +67,45 @@ export function useListingWizard({
       ),
     [draft, listings]
   );
+
+  const priceAdvice: PriceAdvice = appraisalAdvice ?? localPriceAdvice;
+
+  useEffect(() => {
+    if (manualFallback || appraisalFetched.current) return;
+    appraisalFetched.current = true;
+
+    void fetchListingPriceAppraisal(draft)
+      .then((appraisal) => {
+        if (!appraisal) return;
+        const advice = appraisalToPriceAdvice(appraisal, draft.price);
+        setAppraisalAdvice(advice);
+        if (draft.price <= 0 && appraisal.optimalPrice > 0) {
+          onUpdate({
+            price: appraisal.optimalPrice,
+            appraisalScore: appraisal.appraisalScore,
+            minNegotiationPrice: appraisal.minNegotiationPrice,
+            priceAppraisal: {
+              minPrice: appraisal.minPrice,
+              maxPrice: appraisal.maxPrice,
+              optimalPrice: appraisal.optimalPrice,
+            },
+          });
+        } else {
+          onUpdate({
+            appraisalScore: appraisal.appraisalScore,
+            minNegotiationPrice: appraisal.minNegotiationPrice,
+            priceAppraisal: {
+              minPrice: appraisal.minPrice,
+              maxPrice: appraisal.maxPrice,
+              optimalPrice: appraisal.optimalPrice,
+            },
+          });
+        }
+      })
+      .catch(() => {
+        /* local price advice pakanka */
+      });
+  }, [manualFallback, draft, onUpdate]);
 
   const analysis = useMemo(
     () =>

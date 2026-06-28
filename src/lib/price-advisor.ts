@@ -10,8 +10,11 @@ export interface PriceAdvice {
   minPrice?: number;
   maxPrice?: number;
   medianPrice?: number;
+  optimalPrice?: number;
+  appraisalScore?: number;
+  minNegotiationPrice?: number;
   sampleSize: number;
-  source?: "market" | "vauto";
+  source?: "market" | "vauto" | "appraisal";
   scope?: "city" | "national";
 }
 

@@ -20,7 +20,10 @@ import {
 } from "../ai/order-agent.js";
 import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
-import { analyzeNegotiationTwin } from "../ai/chat-agent.js";
+import { runAutoNegotiation } from "../ai/bargain-twin.js";
+import { calculateAppraisal } from "../ai/price-appraisal.js";
+import { getListings } from "../repository.js";
+import { toAgentListingSummary } from "../demo-catalog-api.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
@@ -446,6 +449,23 @@ aiRouter.post("/magic-mirror-fit", async (req, res) => {
   }
 });
 
+aiRouter.post("/price-appraisal", async (req, res) => {
+  const body = req.body as {
+    imageMetadata?: Record<string, unknown>;
+    category?: string;
+  };
+  const category = body.category?.trim() || "other";
+  const meta = (body.imageMetadata ?? {}) as import("../ai/price-appraisal.js").ImageMetadata;
+
+  try {
+    const listings = (await getListings()).map(toAgentListingSummary);
+    const result = await calculateAppraisal(meta, category, listings);
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/negotiation-twin", async (req, res) => {
   const body = req.body as {
     buyerMessage?: string;
@@ -453,17 +473,27 @@ aiRouter.post("/negotiation-twin", async (req, res) => {
     minPrice?: number;
     listingTitle?: string;
     sellerName?: string;
+    sellerApproved?: boolean;
+    autoNegotiationEnabled?: boolean;
   };
   if (!body.buyerMessage?.trim()) {
     return res.status(400).json({ error: "buyerMessage is required" });
   }
   try {
-    const result = await analyzeNegotiationTwin({
+    const minPrice = Number(body.minPrice) || 0;
+    const listingPrice = Number(body.listingPrice) || 0;
+    const result = await runAutoNegotiation({
       buyerMessage: body.buyerMessage.trim(),
-      listingPrice: Number(body.listingPrice) || 0,
-      minPrice: Number(body.minPrice) || 0,
+      listingPrice,
+      minPrice,
       listingTitle: body.listingTitle?.trim() || "Skelbimas",
       sellerName: body.sellerName?.trim() || "Pardavėja",
+      rules: {
+        minPrice,
+        listingPrice,
+        sellerApproved: body.sellerApproved !== false,
+        autoNegotiationEnabled: body.autoNegotiationEnabled !== false,
+      },
     });
     res.json(result);
   } catch (e) {

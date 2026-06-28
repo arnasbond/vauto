@@ -873,6 +873,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       vinVerified: vinOk,
       providerVerified:
         aiDraft.category === "services" && isVerifiedServiceProvider(user),
+      minNegotiationPrice: aiDraft.minNegotiationPrice,
+      appraisalScore: aiDraft.appraisalScore,
     });
 
     let published = newListing;

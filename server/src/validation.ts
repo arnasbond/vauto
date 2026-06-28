@@ -294,6 +294,10 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
   if (!providerVerified.ok) return providerVerified;
   const promoted = optionalBoolean(body, "promoted");
   if (!promoted.ok) return promoted;
+  const minNegotiationPrice = optionalNumber(body, "minNegotiationPrice", 0, 100_000_000);
+  if (!minNegotiationPrice.ok) return minNegotiationPrice;
+  const appraisalScore = optionalNumber(body, "appraisalScore", 0, 100);
+  if (!appraisalScore.ok) return appraisalScore;
 
   return ok({
     id: id.value,
@@ -320,6 +324,8 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
     vinVerified: vinVerified.value,
     providerVerified: providerVerified.value,
     promoted: promoted.value,
+    minNegotiationPrice: minNegotiationPrice.value,
+    appraisalScore: appraisalScore.value,
   });
 }
 
@@ -338,6 +344,8 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     "image",
     "status",
     "banned",
+    "minNegotiationPrice",
+    "appraisalScore",
   ]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) return fail(`${key} cannot be updated`);
@@ -403,6 +411,16 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     const banned = optionalBoolean(body, "banned");
     if (!banned.ok) return banned;
     patch.banned = banned.value;
+  }
+  if (body.minNegotiationPrice !== undefined) {
+    const minNegotiationPrice = optionalNumber(body, "minNegotiationPrice", 0, 100_000_000);
+    if (!minNegotiationPrice.ok) return minNegotiationPrice;
+    patch.minNegotiationPrice = minNegotiationPrice.value;
+  }
+  if (body.appraisalScore !== undefined) {
+    const appraisalScore = optionalNumber(body, "appraisalScore", 0, 100);
+    if (!appraisalScore.ok) return appraisalScore;
+    patch.appraisalScore = appraisalScore.value;
   }
   return ok(patch);
 }

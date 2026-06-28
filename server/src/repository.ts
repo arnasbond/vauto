@@ -39,6 +39,8 @@ type ListingRow = {
   vin_verified: boolean;
   provider_verified: boolean;
   promoted: boolean;
+  min_negotiation_price: string | null;
+  appraisal_score: number | null;
 };
 
 function mapListingRow(r: ListingRow): ApiListing {
@@ -67,12 +69,16 @@ function mapListingRow(r: ListingRow): ApiListing {
     vinVerified: r.vin_verified,
     providerVerified: r.provider_verified,
     promoted: r.promoted,
+    minNegotiationPrice:
+      r.min_negotiation_price != null ? Number(r.min_negotiation_price) : undefined,
+    appraisalScore: r.appraisal_score ?? undefined,
   };
 }
 
 const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, location, distance_km,
   latitude, longitude, slug, image, category, tags, contact, has_video, created_at, expires_at,
-  description, attributes, status, banned, vin_verified, provider_verified, promoted
+  description, attributes, status, banned, vin_verified, provider_verified, promoted,
+  min_negotiation_price, appraisal_score
   FROM listings`;
 
 export async function getUser(id: string): Promise<ApiUser | null> {
@@ -413,8 +419,8 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       id, seller_id, title, price, price_label, location, distance_km,
       latitude, longitude, slug, image, category, tags, contact, has_video,
       created_at, expires_at, description, attributes, status, banned,
-      vin_verified, provider_verified, promoted
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::jsonb,$20,$21,$22,$23,$24)
+      vin_verified, provider_verified, promoted, min_negotiation_price, appraisal_score
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::jsonb,$20,$21,$22,$23,$24,$25,$26)
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       price = EXCLUDED.price,
@@ -431,7 +437,9 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       banned = EXCLUDED.banned,
       vin_verified = EXCLUDED.vin_verified,
       provider_verified = EXCLUDED.provider_verified,
-      promoted = EXCLUDED.promoted`,
+      promoted = EXCLUDED.promoted,
+      min_negotiation_price = EXCLUDED.min_negotiation_price,
+      appraisal_score = EXCLUDED.appraisal_score`,
     [
       listing.id,
       listing.sellerId,
@@ -457,6 +465,8 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.vinVerified ?? false,
       listing.providerVerified ?? false,
       listing.promoted ?? false,
+      listing.minNegotiationPrice ?? null,
+      listing.appraisalScore ?? null,
     ]
   );
 
@@ -514,6 +524,9 @@ export async function updateListing(
   if (patch.image !== undefined) set("image", patch.image);
   if (patch.status !== undefined) set("status", patch.status);
   if (patch.banned !== undefined) set("banned", patch.banned);
+  if (patch.minNegotiationPrice !== undefined)
+    set("min_negotiation_price", patch.minNegotiationPrice);
+  if (patch.appraisalScore !== undefined) set("appraisal_score", patch.appraisalScore);
 
   if (fields.length === 0) {
     const all = await getListings();

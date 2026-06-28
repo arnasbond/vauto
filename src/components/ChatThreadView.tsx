@@ -191,6 +191,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
         <NegotiationTwinPanel
           chat={chat}
           listingPrice={listing.price}
+          listingMinNegotiationPrice={listing.minNegotiationPrice}
           onUpdate={(config) => updateNegotiationTwin(chatId, config)}
         />
       )}

@@ -7,19 +7,36 @@ import type { ChatThread } from "@/lib/types";
 interface NegotiationTwinPanelProps {
   chat: ChatThread;
   listingPrice: number;
-  onUpdate: (config: { enabled: boolean; minPrice: number }) => void;
+  listingMinNegotiationPrice?: number;
+  onUpdate: (config: {
+    enabled: boolean;
+    minPrice: number;
+    sellerApproved: boolean;
+  }) => void;
 }
 
 export function NegotiationTwinPanel({
   chat,
   listingPrice,
+  listingMinNegotiationPrice,
   onUpdate,
 }: NegotiationTwinPanelProps) {
   const twin = chat.negotiationTwin;
-  const [minPrice, setMinPrice] = useState(
-    twin?.minPrice ?? Math.max(1, Math.round(listingPrice * 0.85))
-  );
+  const defaultMin =
+    twin?.minPrice ??
+    listingMinNegotiationPrice ??
+    Math.max(1, Math.round(listingPrice * 0.85));
+  const [minPrice, setMinPrice] = useState(defaultMin);
+  const [sellerApproved, setSellerApproved] = useState(twin?.sellerApproved ?? false);
   const enabled = twin?.enabled ?? false;
+
+  const save = (nextEnabled: boolean) => {
+    onUpdate({
+      enabled: nextEnabled,
+      minPrice,
+      sellerApproved: nextEnabled ? sellerApproved : false,
+    });
+  };
 
   return (
     <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">
@@ -27,17 +44,18 @@ export function NegotiationTwinPanel({
         <Bot className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
         <div className="flex-1">
           <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
-            Derybų dvynys (AI)
+            Derybų dvynys (AI Twin)
           </p>
           <p className="mt-0.5 text-[11px] text-emerald-800 dark:text-emerald-200">
-            Nustatyk minimalią kainą — asistentas derasi fone, kol tu užsiėmusi.
+            Nustatyk minimalią kainą — asistentas derasi autonomiškai tik gavęs tavo
+            patvirtinimą.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1.5 text-xs text-emerald-900">
               <input
                 type="checkbox"
                 checked={enabled}
-                onChange={(e) => onUpdate({ enabled: e.target.checked, minPrice })}
+                onChange={(e) => save(e.target.checked)}
                 className="accent-emerald-600"
               />
               Aktyvuoti
@@ -54,14 +72,25 @@ export function NegotiationTwinPanel({
               />
               <span className="text-[11px] text-emerald-700">€</span>
             </div>
-            <button
-              type="button"
-              onClick={() => onUpdate({ enabled: true, minPrice })}
-              className="rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white"
-            >
-              Išsaugoti
-            </button>
           </div>
+          <label className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-900 dark:text-emerald-100">
+            <input
+              type="checkbox"
+              checked={sellerApproved}
+              onChange={(e) => setSellerApproved(e.target.checked)}
+              className="mt-0.5 accent-emerald-600"
+            />
+            Patvirtinu, kad AI dvynys gali autonomiškai atsakyti pirkėjams šiame
+            kainų rėžiuje
+          </label>
+          <button
+            type="button"
+            onClick={() => save(true)}
+            disabled={!sellerApproved}
+            className="mt-2 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
+          >
+            Išsaugoti taisykles
+          </button>
         </div>
       </div>
     </div>

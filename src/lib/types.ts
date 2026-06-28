@@ -46,6 +46,10 @@ export interface Listing {
   vinVerified?: boolean;
   /** Services: verified provider badge */
   providerVerified?: boolean;
+  /** Minimali kaina AI derybų dvyniui */
+  minNegotiationPrice?: number;
+  /** AI kainų vertinimo patikimumas 0–100 */
+  appraisalScore?: number;
 }
 
 /** Catalog/API rows that may still ship a legacy single `image` field */
@@ -85,6 +89,14 @@ export interface AiExtractedListing {
   };
   selectedPersona?: "family" | "youth" | "rational";
   attributes?: CategoryAttributes;
+  /** AI kainų vertinimas po Vision analizės */
+  appraisalScore?: number;
+  minNegotiationPrice?: number;
+  priceAppraisal?: {
+    minPrice: number;
+    maxPrice: number;
+    optimalPrice: number;
+  };
 }
 
 /** Seller flow states */
@@ -165,6 +177,8 @@ export interface BodyMeasurements {
 export interface NegotiationTwinConfig {
   enabled: boolean;
   minPrice: number;
+  /** Pardavėjo išankstinis patvirtinimas autonominėms deryboms */
+  sellerApproved?: boolean;
 }
 
 export interface SellerReview {

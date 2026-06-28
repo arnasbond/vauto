@@ -65,6 +65,10 @@ export interface ApiListing {
   vinVerified?: boolean;
   providerVerified?: boolean;
   promoted?: boolean;
+  /** Minimali kaina, kuria AI dvynys gali derėtis */
+  minNegotiationPrice?: number;
+  /** AI kainų vertinimo patikimumas 0–100 */
+  appraisalScore?: number;
 }
 
 export interface ApiChatMessage {

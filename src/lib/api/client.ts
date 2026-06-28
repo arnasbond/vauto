@@ -785,12 +785,24 @@ export async function apiMagicMirrorFit(body: {
   });
 }
 
+export async function apiPriceAppraisal(body: {
+  category: string;
+  imageMetadata: Record<string, unknown>;
+}): Promise<import("@/lib/price-appraisal").PriceAppraisalResult | null> {
+  return aiFetch("/api/ai/price-appraisal", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+}
+
 export async function apiNegotiationTwin(body: {
   buyerMessage: string;
   listingPrice: number;
   minPrice: number;
   listingTitle: string;
   sellerName: string;
+  sellerApproved?: boolean;
+  autoNegotiationEnabled?: boolean;
 }): Promise<import("@/lib/chat-agent-client").NegotiationTwinReply | null> {
   return aiFetch("/api/ai/negotiation-twin", {
     method: "POST",

@@ -52,6 +52,8 @@ export async function requestNegotiationTwin(body: {
   minPrice: number;
   listingTitle: string;
   sellerName: string;
+  sellerApproved?: boolean;
+  autoNegotiationEnabled?: boolean;
 }): Promise<NegotiationTwinReply | null> {
   if (isAiProxyAvailable()) {
     const remote = await apiNegotiationTwin(body);
