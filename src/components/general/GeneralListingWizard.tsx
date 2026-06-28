@@ -366,7 +366,7 @@ export function GeneralListingWizard({
   };
 
   return (
-    <div className="listing-wizard-overlay chameleon-wizard-shell">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[#0a1128] text-white min-h-screen">
         <div className="listing-form-shell mx-auto min-h-full w-full max-w-2xl pb-28 shadow-sm">
         <div className="flex items-center justify-between border-b border-[var(--vauto-border)] px-4 py-3">
           <div className="flex items-center gap-2">

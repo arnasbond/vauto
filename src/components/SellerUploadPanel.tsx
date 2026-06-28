@@ -132,13 +132,13 @@ export function SellerUploadPanel({
         type="button"
         onClick={handleVoice}
         disabled={busy || processing || voiceFlowOpen}
-        className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[#f97316] bg-[#fff7ed] py-3.5 text-sm font-semibold text-[#ea580c] hover:bg-[#ffedd5] disabled:opacity-60"
+        className="mb-5 flex w-full items-center justify-center gap-2 rounded-xl border border-[#ff6b00] bg-[#1e293b] py-3.5 text-sm font-semibold text-[#ff6b00] hover:bg-[#334155] disabled:opacity-60"
       >
         <Mic className="h-5 w-5" fill="currentColor" strokeWidth={0} />
         Skelbti balsu su AI
       </button>
 
-      <p className="mb-4 text-center text-sm text-[#6b7280]">
+      <p className="mb-4 text-center text-sm text-slate-400">
         Arba įvesk trumpą aprašymą tekstu.
       </p>
 
@@ -152,7 +152,7 @@ export function SellerUploadPanel({
               setQuery(item.prompt);
               void submitSellerContent({ text: item.prompt });
             }}
-            className="shrink-0 rounded-full border border-[#cfd8e3] bg-white px-3 py-1.5 text-xs font-medium text-[#374151] shadow-sm hover:border-[#1167b1] hover:text-[#1167b1] disabled:opacity-50"
+            className="shrink-0 rounded-full border border-slate-600 bg-[#1e293b] px-3 py-1.5 text-xs font-medium text-slate-200 shadow-sm hover:border-[#00f2fe] hover:text-[#00f2fe] disabled:opacity-50"
           >
             {item.label}
           </button>
@@ -160,18 +160,18 @@ export function SellerUploadPanel({
       </div>
 
       <form
-        className="flex items-center gap-2 rounded-xl border border-[#cfd8e3] bg-white py-1.5 pl-4 pr-1.5 shadow-sm"
+        className="flex items-center gap-2 rounded-xl border border-slate-700 bg-[#1e293b] py-1.5 pl-4 pr-1.5 shadow-sm"
         onSubmit={handleSubmit}
         aria-label="Skelbimo aprašymas"
       >
-        <Sparkles className="h-4 w-4 shrink-0 text-[#1167b1]" aria-hidden />
+        <Sparkles className="h-4 w-4 shrink-0 text-[#00f2fe]" aria-hidden />
         <input
           type="text"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
           placeholder='Pvz. „Parduodu BMW 5500€ Kaune“'
           enterKeyHint="go"
-          className="min-w-0 flex-1 border-none bg-transparent text-sm text-[#111827] outline-none placeholder:text-[#6b7280]"
+          className="min-w-0 flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
         />
         <button
           type="submit"
@@ -183,13 +183,13 @@ export function SellerUploadPanel({
         </button>
       </form>
 
-      <p className="mt-2 text-center text-xs text-[#6b7280]">
+      <p className="mt-2 text-center text-xs text-slate-500">
         Enter — AI atpažins kategoriją, užpildys formą ir pasiūlys kainą.
       </p>
       </div>
 
       {processing && (
-        <p className="mt-3 text-center text-sm font-medium text-[#1167b1]">
+        <p className="mt-3 text-center text-sm font-medium text-[#00f2fe]">
           AI apdoroja skelbimą — neuždarykite šio lango…
         </p>
       )}

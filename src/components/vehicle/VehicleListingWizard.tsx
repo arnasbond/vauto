@@ -401,7 +401,7 @@ export function VehicleListingWizard({
         className={
           embedded
             ? "chameleon-wizard-shell rounded-2xl border border-[#e5e7eb] bg-[var(--portal-wizard-surface,#fff)] p-4 shadow-sm"
-            : "listing-wizard-overlay chameleon-wizard-shell flex items-center justify-center p-4"
+            : "listing-wizard-overlay chameleon-wizard-shell flex items-center justify-center bg-[#0a1128] text-white min-h-screen p-4"
         }
       >
         <ZeroUiPaymentGate
@@ -422,7 +422,7 @@ export function VehicleListingWizard({
       className={
         embedded
           ? "chameleon-wizard-shell rounded-2xl border border-[var(--vauto-border,#e5e7eb)] bg-[var(--portal-wizard-surface,#fff)] shadow-sm"
-          : "listing-wizard-overlay chameleon-wizard-shell"
+          : "listing-wizard-overlay chameleon-wizard-shell bg-[#0a1128] text-white min-h-screen"
       }
     >
       <div

@@ -131,7 +131,7 @@ export function ServiceListingWizard({
   }, []);
 
   return (
-    <div className="listing-wizard-overlay chameleon-wizard-shell">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[#0a1128] text-white min-h-screen">
         <div className="mx-auto w-full max-w-2xl shadow-sm">
         <header className="sticky top-0 z-10 flex items-center justify-between border-b border-[var(--vauto-border,#cfe3ff)] bg-[var(--portal-wizard-surface,#fff)] px-4 py-3">
           <button type="button" onClick={step > 1 ? () => setStep(step - 1) : onCancel} className="rounded-full p-2">

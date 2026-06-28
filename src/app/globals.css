@@ -1246,8 +1246,17 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   color: inherit;
 }
 
+.seller-flow-page {
+  margin-left: -1rem;
+  margin-right: -1rem;
+  padding-left: 1rem;
+  padding-right: 1rem;
+  padding-bottom: 1rem;
+}
+
 [data-app-theme="dark"] .listing-wizard-overlay,
 [data-app-theme="dark"] .listing-form-shell {
+  background-color: #0a1128;
   color: var(--vauto-text-main);
 }
 

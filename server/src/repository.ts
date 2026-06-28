@@ -209,9 +209,54 @@ function sqlSearchTokens(query: string): string[] {
   ];
 }
 
-function listingMatchesSqlTokens(listing: ApiListing, tokens: string[]): boolean {
-  if (!tokens.length) return false;
-  const haystack = [
+/** Modifikatoriai (dydis, spalva…) — ne produkto pavadinimas; gali sutapti per attributes. */
+const SEARCH_MODIFIER_TOKENS = new Set([
+  "dydžio",
+  "dydis",
+  "dydzio",
+  "spalvos",
+  "spalva",
+  "naudotas",
+  "naujas",
+  "nauja",
+  "būklės",
+  "bukles",
+  "būklė",
+  "bukle",
+  "metų",
+  "metu",
+  "cm",
+  "mm",
+  "kg",
+]);
+
+function isNumericSearchToken(token: string): boolean {
+  return /^\d+([.,]\d+)?$/.test(token);
+}
+
+/** Produktų žodžiai (pvz. „batai“) — privalo sutapti title, ne tik kategorijoje. */
+function isPrimarySearchToken(token: string): boolean {
+  if (token.length < 2) return false;
+  if (isNumericSearchToken(token)) return false;
+  if (SEARCH_MODIFIER_TOKENS.has(token)) return false;
+  return true;
+}
+
+function splitSearchTokens(tokens: string[]): {
+  primary: string[];
+  secondary: string[];
+} {
+  const primary: string[] = [];
+  const secondary: string[] = [];
+  for (const t of tokens) {
+    if (isPrimarySearchToken(t)) primary.push(t);
+    else secondary.push(t);
+  }
+  return { primary, secondary };
+}
+
+function listingHaystack(listing: ApiListing): string {
+  return [
     listing.title,
     listing.description ?? "",
     listing.category,
@@ -220,6 +265,19 @@ function listingMatchesSqlTokens(listing: ApiListing, tokens: string[]): boolean
   ]
     .join(" ")
     .toLowerCase();
+}
+
+function listingMatchesSqlTokens(listing: ApiListing, tokens: string[]): boolean {
+  if (!tokens.length) return false;
+  const { primary, secondary } = splitSearchTokens(tokens);
+  const titleLower = listing.title.toLowerCase();
+  const haystack = listingHaystack(listing);
+
+  if (primary.length) {
+    if (!primary.every((t) => titleLower.includes(t))) return false;
+    return secondary.every((t) => haystack.includes(t));
+  }
+
   return tokens.every((t) => haystack.includes(t));
 }
 
@@ -255,7 +313,14 @@ export async function searchListingsFiltered(
     conditions.push(`LOWER(location) LIKE $${idx++}`);
     values.push(`%${cityNorm}%`);
   }
-  for (const token of tokens) {
+  const { primary, secondary } = splitSearchTokens(tokens);
+
+  for (const token of primary) {
+    conditions.push(`LOWER(title) LIKE $${idx++}`);
+    values.push(`%${token}%`);
+  }
+
+  for (const token of secondary) {
     conditions.push(`(
       LOWER(title) LIKE $${idx} OR
       LOWER(COALESCE(description, '')) LIKE $${idx} OR

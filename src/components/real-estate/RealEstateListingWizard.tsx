@@ -431,7 +431,7 @@ export function RealEstateListingWizard({
   }, [step]);
 
   return (
-    <div className="listing-wizard-overlay chameleon-wizard-shell">
+    <div className="listing-wizard-overlay chameleon-wizard-shell bg-[#0a1128] text-white min-h-screen">
         <div className="mx-auto w-full max-w-lg px-4 py-4 pb-6 shadow-sm">
         <ProgressHeader
           step={progressStep}

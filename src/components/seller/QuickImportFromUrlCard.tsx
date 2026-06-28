@@ -101,8 +101,8 @@ export function QuickImportFromUrlCard() {
             disabled={busy}
             className={cn(
               "profile-editable-input w-full rounded-xl border py-3.5 pl-10 pr-3 text-sm",
-              "border-[var(--vauto-border,#dde5ef)] bg-white",
-              "text-[#000000] placeholder:text-[#6b7280]",
+              "border-slate-700 bg-[#1e293b]",
+              "text-white placeholder:text-slate-500",
               "focus:outline-none focus:ring-2 focus:ring-[var(--vauto-accent,#ff6b00)]/40"
             )}
             onKeyDown={(e) => {

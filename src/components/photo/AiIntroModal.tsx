@@ -40,25 +40,25 @@ export function AiIntroModal({ open, onClose, onStartAi }: AiIntroModalProps) {
       aria-modal="true"
       aria-label="AI skelbimo pagalba"
     >
-      <div className="relative w-full max-w-sm rounded-2xl bg-white p-6 shadow-xl">
+      <div className="relative w-full max-w-sm rounded-2xl bg-[#1e293b] p-6 text-white shadow-xl">
         <button
           type="button"
           onClick={dismiss}
-          className="absolute right-4 top-4 text-[#9ca3af] hover:text-[#6b7280]"
+          className="absolute right-4 top-4 text-slate-400 hover:text-slate-200"
           aria-label="Uždaryti"
         >
           <X className="h-5 w-5" />
         </button>
 
-        <h2 className="font-display text-center text-lg font-bold text-[#111827]">
+        <h2 className="font-display text-center text-lg font-bold text-white">
           Norite skelbti greitai ir paprastai?
         </h2>
 
-        <div className="mx-auto mt-5 flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-[#eef6ff] to-[#fff7ed]">
-          <Sparkles className="h-12 w-12 text-[#1167b1]" />
+        <div className="mx-auto mt-5 flex h-28 w-28 items-center justify-center rounded-2xl bg-gradient-to-br from-[#1167b1]/30 to-[#0a1128]">
+          <Sparkles className="h-12 w-12 text-[#00f2fe]" />
         </div>
 
-        <p className="mt-5 text-center text-sm leading-relaxed text-[#4b5563]">
+        <p className="mt-5 text-center text-sm leading-relaxed text-slate-300">
           Pridėkite nuotraukas — likusią dalį padarys AI: pavadinimą, kategoriją
           ir aprašymą.
         </p>
@@ -73,7 +73,7 @@ export function AiIntroModal({ open, onClose, onStartAi }: AiIntroModalProps) {
         <button
           type="button"
           onClick={dismiss}
-          className="mt-2 w-full rounded-xl border border-[#1167b1] py-3.5 text-sm font-semibold text-[#1167b1] hover:bg-[#eef6ff]"
+          className="mt-2 w-full rounded-xl border border-slate-600 py-3.5 text-sm font-semibold text-slate-200 hover:bg-slate-700/50"
         >
           Ne, tęsti kaip įprasta
         </button>
