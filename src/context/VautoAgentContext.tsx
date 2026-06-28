@@ -82,6 +82,9 @@ interface VautoAgentContextValue {
     text: string,
     options?: AgentSendOptions
   ) => Promise<WakeWordAgentResult>;
+  applyAgentActions: (
+    actions: import("@/lib/vauto-agent-client").VautoAgentAction
+  ) => void;
   reportAgentError: (code: string, message?: string) => void;
 }
 
@@ -439,11 +442,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
       const nextMessages = [...conversationBase, userMsg];
-      setMessages(nextMessages);
+      if (!options?.fromSearchBar) {
+        setMessages(nextMessages);
+      }
       noteUserMessage(trimmed);
       setBusy(true);
 
-      const sessionMessages = selectAgentSessionMessages(nextMessages);
+      const sessionMessages = options?.fromSearchBar
+        ? [{ role: "user" as const, text: trimmed }]
+        : selectAgentSessionMessages(nextMessages);
       const memoryContext = buildAgentContext(user);
       const searchSessionReset = shouldResetSearchSession(
         trimmed,
@@ -535,30 +542,36 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error);
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: message,
-            },
-          ]);
+          if (!options?.fromSearchBar) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                text: message,
+              },
+            ]);
+          }
           speakReply(message);
-          if (open) showToast(message, "info");
+          if (open && !options?.fromSearchBar) showToast(message, "info");
           return { ok: true, reply: message };
         }
 
-        if (!res.reply) {
+        const hasExecutableAction = res.actions.type !== "none";
+
+        if (!res.reply && !hasExecutableAction) {
           const fallback = BUDDY_REPEAT_PROMPT;
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: fallback,
-            },
-          ]);
+          if (!options?.fromSearchBar) {
+            setMessages((prev) => [
+              ...prev,
+              {
+                role: "assistant",
+                text: fallback,
+              },
+            ]);
+          }
           speakReply(fallback);
-          if (open) showToast(fallback, "info");
-          return { ok: true, reply: fallback };
+          if (open && !options?.fromSearchBar) showToast(fallback, "info");
+          return { ok: true, reply: fallback, actions: res.actions };
         }
 
         setLastError(undefined);
@@ -568,16 +581,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ? res.actions.type === "search"
             ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
             : buildEmptySearchReply(trimmed)
-          : sanitizeAgentReplyForDisplay(res.reply) || res.reply;
-        setMessages((prev) => [
-          ...prev,
-          {
-            role: "assistant",
-            text: assistantText,
-          },
-        ]);
+          : sanitizeAgentReplyForDisplay(res.reply) || res.reply || "Atlikta.";
+        if (!options?.fromSearchBar) {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant",
+              text: assistantText,
+            },
+          ]);
+        }
         speakReply(assistantText);
-        applyActions(res.actions);
+        if (hasExecutableAction) {
+          if (!options?.fromSearchBar) {
+            applyActions(res.actions);
+          }
+        }
+        if (options?.fromSearchBar) {
+          setOpen(false);
+        }
         if (res.actions.type !== "micro_payment") {
           const paymentIntent = microPaymentFromToolResult(
             res.toolCalls.find((t) => t.name === "triggerMicroPayment")?.result
@@ -586,7 +608,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             openMicroPayment(paymentIntent);
           }
         }
-        return { ok: true, reply: res.reply };
+        return { ok: true, reply: res.reply || assistantText, actions: res.actions };
       } catch {
         const message = BUDDY_REPEAT_PROMPT;
         speakReply(message);
@@ -667,9 +689,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       messages,
       busy,
       sendAgentMessage,
+      applyAgentActions: applyActions,
       reportAgentError,
     }),
-    [open, openWithGreeting, messages, busy, sendAgentMessage, reportAgentError]
+    [open, openWithGreeting, messages, busy, sendAgentMessage, applyActions, reportAgentError]
   );
 
   return (

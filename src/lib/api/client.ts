@@ -274,6 +274,9 @@ export async function apiVautoAgent(body: {
     const result = await aiFetchOnce<
       import("@/lib/vauto-agent-client").VautoAgentApiResult
     >(base, "/api/vauto-agent", fetchOpts, timeoutMs);
+    if (result.data && "ok" in result.data && result.data.ok === true) {
+      return result.data;
+    }
     if (result.data && "reply" in result.data && result.data.reply) {
       return result.data;
     }

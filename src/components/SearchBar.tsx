@@ -34,8 +34,10 @@ import {
   brutalHtml5Speak,
   shouldForceLiveVoiceAssistant,
 } from "@/lib/brutal-voice-fallback";
+import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { isWardrobePortalQuery } from "@/lib/wardrobe-cabinet-mode";
 import type { ListingCategory } from "@/lib/types";
+import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -75,7 +77,7 @@ export function SearchBar({
   const pathname = usePathname();
   const router = useRouter();
 
-  const { sendAgentMessage, busy: agentBusy, setOpen: setAgentOpen } = useVautoAgent();
+  const { sendAgentMessage, busy: agentBusy, applyAgentActions } = useVautoAgent();
 
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
@@ -114,6 +116,21 @@ export function SearchBar({
       ?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
 
+  const syncGridFromAgentActions = useCallback(
+    (actions: VautoAgentAction | undefined) => {
+      if (!actions || actions.type === "none") return;
+      applyAgentActions(actions);
+      if (actions.type === "search") {
+        setDraftQuery(actions.searchQuery);
+        focusSearchOutcome(actions.listingIds.length);
+      } else if (actions.type === "empty_search") {
+        setDraftQuery(actions.searchQuery);
+        focusSearchOutcome(0);
+      }
+    },
+    [applyAgentActions]
+  );
+
   const commitSearch = useCallback(
     async (raw: string, opts?: { voice?: boolean }) => {
       const q = sanitizeSearchQuery(raw, "final");
@@ -140,17 +157,21 @@ export function SearchBar({
         return;
       }
 
-      // Mazgas 1→2: tekstas į Gemini — tinklelis NEfiltruojamas iki atsakymo
+      // Mazgas 1→2→3: Gemini → applyActions → tinklelis
       const routeThroughAgent = (voice: boolean) => {
         setSearchInputMode(voice ? "voice" : "text");
         if (voice) setSearchVoiceMode(true);
         setDraftQuery(q);
-        setSearchQuery("");
         setAgentPinnedListings(null);
-        setAgentOpen(true);
+        clearVisualSearch({ keepInputMode: true });
         setSearchLoading(true);
         void sendAgentMessage(q, { fromVoice: voice, fromSearchBar: true })
           .then((res) => {
+            if (res.actions) {
+              syncGridFromAgentActions(res.actions);
+            } else if (res.ok) {
+              scrollToResults();
+            }
             if (res.ok && res.reply && voice) {
               speakBuddyMessage(res.reply, { enabled: true, force: true });
             }
@@ -161,7 +182,6 @@ export function SearchBar({
       if (shouldForceLiveVoiceAssistant(q, opts?.voice)) {
         clearVisualSearch({ keepInputMode: true });
         setAgentPinnedListings(null);
-        setSearchQuery("");
         brutalHtml5Speak(BRUTAL_VOICE_GREETING);
         routeThroughAgent(true);
         return;
@@ -205,8 +225,8 @@ export function SearchBar({
       setSearchLoading,
       setSearchVoiceMode,
       setViewMode,
-      setAgentOpen,
       sendAgentMessage,
+      syncGridFromAgentActions,
       toggleSave,
       pathname,
       showToast,
@@ -320,6 +340,28 @@ export function SearchBar({
         user.name,
         wardrobeSearchOnly
       );
+
+      const itemLabel = vision.title ?? grid.searchQuery;
+
+      if (grid.listingIds.length === 0) {
+        setSearchInputMode("photo");
+        setSearchVoiceMode(false);
+        setDraftQuery(itemLabel);
+        setAgentPinnedListings(null);
+        void sendAgentMessage(
+          `Nuotraukoje matau: ${itemLabel}. Šio daikto turguje neradau — ar norite jį įdėti pardavimui?`,
+          { pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6) }
+        );
+        showToast(
+          "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
+          "info"
+        );
+        speakBuddyMessage(
+          "Šio daikto turguje neradau. Ar norite jį įdėti pardavimui?",
+          { enabled: true }
+        );
+        return;
+      }
 
       setSearchInputMode("photo");
       setSearchVoiceMode(false);

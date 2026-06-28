@@ -220,6 +220,7 @@ export interface WakeWordAgentResult {
   ok: boolean;
   reply?: string;
   error?: string;
+  actions?: import("@/lib/vauto-agent-client").VautoAgentAction;
 }
 
 export interface WakeWordGeminiAgent {
