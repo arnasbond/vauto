@@ -56,7 +56,7 @@ export function WardrobeProfileImporter({
   const handleImport = async () => {
     const trimmed = url.trim();
     if (!isWardrobeProfileUrl(trimmed)) {
-      onToast?.("Įveskite galiojantį profilio URL (member puslapį).", "info");
+      onToast?.("Įveskite galiojantį Vinted profilio URL (/member/ arba /invite/).", "info");
       return;
     }
     if (
@@ -123,7 +123,7 @@ export function WardrobeProfileImporter({
         type="url"
         value={url}
         onChange={(e) => setUrl(e.target.value)}
-        placeholder="https://…/member/tavo-profilis"
+        placeholder="https://www.vinted.lt/member/... arba /invite/..."
         className="mb-3 w-full rounded-2xl border border-fuchsia-500/60 bg-[#0a1128] px-3 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-fuchsia-500/40"
       />
       <button

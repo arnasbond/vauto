@@ -1,4 +1,8 @@
 import { chatJson } from "./llm-provider.js";
+import {
+  isWardrobeProfileUrl,
+  resolveVintedProfileUrl,
+} from "../lib/vinted-url.js";
 
 export interface ImportedWardrobeItem {
   id: string;
@@ -39,17 +43,6 @@ const IMPORT_SCHEMA = `{
     }
   ]
 }`;
-
-function isWardrobeProfileUrl(url: string): boolean {
-  try {
-    const u = new URL(url.trim());
-    return /vinted\.(lt|com|fr|de|pl|it|es|nl|be|at|cz|sk|hu|ro|gr|hr|fi|dk|se|no|co\.uk|com\.ua)$/i.test(
-      u.hostname
-    ) && /\/member(s)?\//i.test(u.pathname);
-  } catch {
-    return false;
-  }
-}
 
 function stripHtml(html: string): string {
   return html
@@ -136,8 +129,12 @@ export async function importWardrobeProfile(params: {
   const firstName = params.userName?.trim().split(/\s+/)[0] || "drauge";
 
   if (!isWardrobeProfileUrl(profileUrl)) {
-    throw new Error("Įveskite galiojantį drabužių platformos profilio URL (member puslapį).");
+    throw new Error(
+      "Įveskite galiojantį Vinted profilio URL (/member/ arba /invite/)."
+    );
   }
+
+  const resolvedProfileUrl = await resolveVintedProfileUrl(profileUrl);
 
   let pageText = "";
   try {
@@ -145,6 +142,7 @@ export async function importWardrobeProfile(params: {
       params.fetchHtml ??
       (async (url: string) => {
         const res = await fetch(url, {
+          redirect: "follow",
           headers: {
             "User-Agent":
               "Mozilla/5.0 (compatible; VautoWardrobeImporter/1.0; +https://vauto.app)",
@@ -155,11 +153,11 @@ export async function importWardrobeProfile(params: {
         if (!res.ok) throw new Error("fetch_failed");
         return res.text();
       });
-    pageText = stripHtml(await fetchPage(profileUrl)).slice(0, 18_000);
+    pageText = stripHtml(await fetchPage(resolvedProfileUrl)).slice(0, 18_000);
   } catch {
     const items = demoProfileItems(params.userName);
     return {
-      profileUrl,
+      profileUrl: resolvedProfileUrl,
       items,
       voiceAnnouncement: `${firstName}, paruošiau ${items.length} skelbimus iš tavo spintos — peržiūrėk ir patvirtink vienu paspaudimu!`,
     };
@@ -168,7 +166,7 @@ export async function importWardrobeProfile(params: {
   if (pageText.length < 60) {
     const items = demoProfileItems(params.userName);
     return {
-      profileUrl,
+      profileUrl: resolvedProfileUrl,
       items,
       voiceAnnouncement: `${firstName}, profilio turinys ribotas — sugeneravau ${items.length} demo juodraščius redagavimui.`,
     };
@@ -187,7 +185,7 @@ SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje.
     },
     {
       role: "user",
-      content: `Profilio URL: ${profileUrl}\n${locationHint}\nHTML tekstas:\n"""${pageText}"""`,
+      content: `Profilio URL: ${resolvedProfileUrl}\n${locationHint}\nHTML tekstas:\n"""${pageText}"""`,
     },
   ]);
 
@@ -207,11 +205,11 @@ SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje.
       : undefined;
 
   return {
-    profileUrl,
+    profileUrl: resolvedProfileUrl,
     sellerDisplayName,
     items,
     voiceAnnouncement: `${firstName}, radau ${items.length} prek${items.length === 1 ? "ę" : "es"} tavo spintoje. Paruošiau ${items.length} VAUTO skelbim${items.length === 1 ? "ą" : "us"} — beliko patvirtinti!`,
   };
 }
 
-export { isWardrobeProfileUrl };
+export { isWardrobeProfileUrl } from "../lib/vinted-url.js";

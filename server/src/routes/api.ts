@@ -86,6 +86,7 @@ import {
   saveUserProfile,
 } from "../controllers/user-controller.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
+import { proxyImageHandler } from "../controllers/proxy-controller.js";
 
 export const apiRouter = Router();
 
@@ -162,6 +163,10 @@ function computeReadiness(
     embeddingsSynced,
   };
 }
+
+apiRouter.get("/proxy/image", (req, res) => {
+  void proxyImageHandler(req, res);
+});
 
 apiRouter.get("/health", async (_req, res) => {
   const vehicle = vehicleLookupFeatures();

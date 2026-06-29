@@ -28,6 +28,7 @@ function rateLimitKey(req: AuthedRequest): string {
 /** General API limiter skips auth + heavy AI — those have dedicated limiters. */
 function shouldSkipGeneralRateLimit(path: string): boolean {
   if (path === "/api/health" || path === "/api/ai/health") return true;
+  if (path.startsWith("/api/proxy")) return true;
   if (path.startsWith("/api/billing/webhook")) return true;
   if (path.startsWith("/api/auth")) return true;
   if (path.startsWith("/api/ai")) return true;

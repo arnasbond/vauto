@@ -33,7 +33,8 @@ export function isWardrobeProfileUrl(url: string): boolean {
     return (
       /vinted\.(lt|com|fr|de|pl|it|es|nl|be|at|cz|sk|hu|ro|gr|hr|fi|dk|se|no|co\.uk|com\.ua)$/i.test(
         u.hostname
-      ) && /\/member(s)?\//i.test(u.pathname)
+      ) &&
+      (/\/member(s)?\//i.test(u.pathname) || /\/invite\//i.test(u.pathname))
     );
   } catch {
     return false;

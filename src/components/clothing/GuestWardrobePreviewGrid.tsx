@@ -1,7 +1,7 @@
 "use client";
 
-import Image from "next/image";
 import type { WardrobeProfileImportItem } from "@/lib/wardrobe-profile-importer";
+import { proxiedImageUrl } from "@/lib/proxy-image";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1515886657613-9f3515b0c790?w=400&h=520&fit=crop";
@@ -27,13 +27,12 @@ export function GuestWardrobePreviewGrid({
             className="overflow-hidden rounded-2xl border border-fuchsia-100 bg-gradient-to-b from-white to-fuchsia-50/40"
           >
             <div className="relative aspect-[3/4] bg-fuchsia-50">
-              <Image
-                src={item.imageUrl || PLACEHOLDER}
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img
+                src={item.imageUrl ? proxiedImageUrl(item.imageUrl) : PLACEHOLDER}
                 alt={item.title}
-                fill
-                sizes="(max-width: 512px) 50vw, 33vw"
-                className="object-cover"
-                unoptimized
+                className="absolute inset-0 h-full w-full object-cover"
+                loading="lazy"
                 onError={(e) => {
                   const img = e.currentTarget;
                   if (img.src !== PLACEHOLDER) img.src = PLACEHOLDER;
