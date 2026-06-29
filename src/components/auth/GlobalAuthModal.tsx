@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { AuthModal } from "@/components/auth/AuthModal";
 import { useAuth } from "@/context/AuthContext";
@@ -17,14 +17,19 @@ export function GlobalAuthModal() {
     authRedirectPath,
     clearAuthRedirect,
     isAuthenticated,
+    authHydrated,
     authLoading,
     authError,
     clearAuthError,
   } = useAuth();
   const wasOpen = useRef(false);
+  const [modalKey, setModalKey] = useState(0);
 
   useEffect(() => {
-    if (authModalOpen) wasOpen.current = true;
+    if (authModalOpen) {
+      wasOpen.current = true;
+      setModalKey((key) => key + 1);
+    }
   }, [authModalOpen]);
 
   useEffect(() => {
@@ -56,7 +61,8 @@ export function GlobalAuthModal() {
 
   return (
     <AuthModal
-      open={authModalOpen}
+      key={modalKey}
+      open={authModalOpen && authHydrated && !isAuthenticated}
       loading={authLoading}
       error={authError}
       onClearError={clearAuthError}

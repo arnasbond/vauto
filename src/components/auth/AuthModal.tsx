@@ -17,6 +17,17 @@ import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
 
 type AuthStep = "methods" | "phone" | "otp" | "admin";
 
+const AUTH_FORM_INITIAL = {
+  step: "methods" as AuthStep,
+  phone: "+370 ",
+  otp: "",
+  role: "private" as UserRole,
+  signupIntent: "private" as AuthSignupIntent,
+  adminEmail: ADMIN_EMAIL,
+  otpError: null as string | null,
+  googleIdToken: null as string | null,
+};
+
 interface AuthModalProps {
   open: boolean;
   loading?: boolean;
@@ -65,28 +76,38 @@ export function AuthModal({
   onClose,
   onComplete,
 }: AuthModalProps) {
-  const [step, setStep] = useState<AuthStep>("methods");
-  const [phone, setPhone] = useState("+370 ");
-  const [otp, setOtp] = useState("");
-  const [role, setRole] = useState<UserRole>("private");
-  const [signupIntent, setSignupIntent] = useState<AuthSignupIntent>("private");
-  const [adminEmail, setAdminEmail] = useState(ADMIN_EMAIL);
+  const [step, setStep] = useState<AuthStep>(AUTH_FORM_INITIAL.step);
+  const [phone, setPhone] = useState(AUTH_FORM_INITIAL.phone);
+  const [otp, setOtp] = useState(AUTH_FORM_INITIAL.otp);
+  const [role, setRole] = useState<UserRole>(AUTH_FORM_INITIAL.role);
+  const [signupIntent, setSignupIntent] = useState<AuthSignupIntent>(
+    AUTH_FORM_INITIAL.signupIntent
+  );
+  const [adminEmail, setAdminEmail] = useState(AUTH_FORM_INITIAL.adminEmail);
   const [otpSending, setOtpSending] = useState(false);
-  const [otpError, setOtpError] = useState<string | null>(null);
-  const [googleIdToken, setGoogleIdToken] = useState<string | null>(null);
+  const [otpError, setOtpError] = useState<string | null>(AUTH_FORM_INITIAL.otpError);
+  const [googleIdToken, setGoogleIdToken] = useState<string | null>(
+    AUTH_FORM_INITIAL.googleIdToken
+  );
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
+  const resetAuthForm = () => {
+    setStep(AUTH_FORM_INITIAL.step);
+    setPhone(AUTH_FORM_INITIAL.phone);
+    setOtp(AUTH_FORM_INITIAL.otp);
+    setRole(AUTH_FORM_INITIAL.role);
+    setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
+    setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
+    setOtpError(AUTH_FORM_INITIAL.otpError);
+    setGoogleIdToken(AUTH_FORM_INITIAL.googleIdToken);
+  };
+
   useEffect(() => {
-    if (!open) {
-      setStep("methods");
-      setPhone("+370 ");
-      setOtp("");
-      setRole("private");
-      setSignupIntent("private");
-      setAdminEmail(ADMIN_EMAIL);
-      setOtpError(null);
-      setGoogleIdToken(null);
+    if (open) {
+      resetAuthForm();
+      return;
     }
+    resetAuthForm();
   }, [open]);
 
   useEffect(() => {
@@ -409,7 +430,7 @@ export function AuthModal({
             <input
               type="tel"
               name="phone"
-              autoComplete="tel"
+              autoComplete="off"
               value={phone}
               onChange={(e) => setPhone(formatLtPhoneInput(e.target.value))}
               className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-teal)]"

@@ -17,6 +17,22 @@ export default function AuthGatePage() {
     }
   }, [authHydrated, isAuthenticated, router]);
 
+  if (!authHydrated) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-slate-400">
+        Kraunama…
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-slate-400">
+        Nukreipiama…
+      </div>
+    );
+  }
+
   return (
     <AppShell variant="plain">
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center px-6 text-center">

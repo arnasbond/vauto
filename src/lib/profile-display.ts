@@ -1,5 +1,14 @@
 import type { UserProfile } from "@/lib/types";
 
+/** Public profile label — nickname only; never exposes legal first/last name. */
+export function displayPublicNickname(
+  user: Pick<UserProfile, "nickname" | "name">
+): string {
+  const nick = user.nickname?.trim();
+  if (nick) return nick;
+  return "Vartotojas";
+}
+
 /** Display name: vardas + pavardė, arba nikas, arba legacy `name`. */
 export function displayUserName(
   user: Pick<UserProfile, "firstName" | "lastName" | "nickname" | "name">

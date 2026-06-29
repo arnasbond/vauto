@@ -42,6 +42,14 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
     }
   }, [avatar, committedAvatar]);
 
+  useEffect(
+    () => () => {
+      setPreview(null);
+      setCommittedAvatar(null);
+    },
+    []
+  );
+
   const displaySrc = preview || committedAvatar || avatar || DEFAULT_AVATAR;
   const imgSrc = avatarSrcWithCacheBust(displaySrc, cacheBust);
 

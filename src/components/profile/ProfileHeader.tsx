@@ -6,7 +6,7 @@ import type { UserProfile } from "@/lib/types";
 import { ProfileAvatarEditor } from "@/components/profile/ProfileAvatarEditor";
 import { useVauto } from "@/context/VautoContext";
 import {
-  displayUserName,
+  displayPublicNickname,
   splitUserName,
 } from "@/lib/profile-display";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
@@ -19,7 +19,7 @@ interface ProfileHeaderProps {
 export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
   const { updateUser, showToast } = useVauto();
   const isPro = user.role === "pro";
-  const displayName = displayUserName(user);
+  const publicNickname = displayPublicNickname(user);
 
   const [editOpen, setEditOpen] = useState(false);
   const [saving, setSaving] = useState(false);
@@ -43,6 +43,13 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [editOpen]);
+
+  useEffect(() => {
+    if (editOpen) return;
+    setFirstName("");
+    setLastName("");
+    setNickname("");
+  }, [editOpen, user.id]);
 
   const handleSave = async () => {
     const trimmedFirst = firstName.trim();
@@ -74,7 +81,7 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
     <>
       <div className="vauto-dashboard-card mb-4 rounded-3xl p-5">
         <div className="flex items-start gap-4">
-          <ProfileAvatarEditor avatar={user.avatar} name={displayName} />
+          <ProfileAvatarEditor avatar={user.avatar} name={publicNickname} />
           <div className="min-w-0 flex-1">
             <div className="flex items-center gap-2">
               <button
@@ -84,7 +91,7 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
                 aria-label="Redaguoti profilio duomenis"
               >
                 <h1 className="truncate text-lg font-bold text-[var(--vauto-text-main)] group-hover:text-[var(--vauto-primary)]">
-                  {displayName}
+                  @{publicNickname}
                 </h1>
                 <Pencil className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-text-muted)] opacity-70 group-hover:text-[var(--vauto-primary)]" />
               </button>
@@ -98,15 +105,6 @@ export function ProfileHeader({ user, onLogout }: ProfileHeaderProps) {
                 {isPro ? "Pro" : "Privatus"}
               </span>
             </div>
-            {user.nickname?.trim() &&
-              displayName !== user.nickname.trim() && (
-                <p className="mt-0.5 text-xs text-[var(--vauto-text-muted)]">
-                  @{user.nickname.trim()}
-                </p>
-              )}
-            <p className="mt-0.5 text-sm text-[var(--vauto-text-muted)]">
-              {user.city} · {user.phone}
-            </p>
             {isPro && user.businessType && (
               <p className="mt-1 flex items-center gap-1 text-xs text-[var(--vauto-primary)]">
                 <Building2 className="h-3 w-3" />

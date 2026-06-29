@@ -21,9 +21,25 @@ function RegistracijaContent() {
   useEffect(() => {
     if (!authHydrated) return;
     if (isAuthenticated) {
-      router.replace("/profile/");
+      router.replace("/fashion/mine/");
     }
   }, [authHydrated, isAuthenticated, router]);
+
+  if (!authHydrated) {
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center px-2 text-center text-sm text-[var(--vauto-text-muted)]">
+        Kraunama…
+      </div>
+    );
+  }
+
+  if (isAuthenticated) {
+    return (
+      <div className="flex min-h-[60dvh] items-center justify-center px-2 text-center text-sm text-[var(--vauto-text-muted)]">
+        Nukreipiama…
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-[60dvh] flex-col items-center justify-center px-2 text-center">

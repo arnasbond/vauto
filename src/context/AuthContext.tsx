@@ -84,6 +84,8 @@ import type {
 
   AuthProvider as AuthProviderType,
 
+  AuthSession,
+
   ProBusinessType,
 
   UserProfile,
@@ -92,7 +94,10 @@ import type {
 
 } from "@/lib/types";
 
+import { useRouter } from "next/navigation";
+
 import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
+import { SessionAutoLoginGuard } from "@/components/auth/SessionAutoLoginGuard";
 
 import { consumeOAuthPendingPayload } from "@/lib/auth/oauth-redirect";
 
@@ -196,6 +201,8 @@ const AuthContext = createContext<AuthContextValue | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
 
+  const router = useRouter();
+
   const [user, setUser] = useState<UserProfile>(ANONYMOUS_USER);
 
   const [isAuthenticated, setIsAuthenticated] = useState(false);
@@ -226,6 +233,68 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       const { session: auth, user: storedUser, token } = await restorePersistedAuth();
 
+      const accessToken = token ?? auth?.accessToken ?? loadAccessToken();
+
+      if (accessToken && isAuthApiAvailable()) {
+
+        const refreshed = await apiFetchAuthSession(accessToken);
+
+        if (refreshed.ok) {
+
+          const updated = mapApiUserToProfile(refreshed.data.user, {
+
+            role: refreshed.data.role,
+
+            provider:
+
+              (storedUser?.authProvider as AuthProviderType | undefined) ??
+
+              (auth?.provider as AuthProviderType | undefined) ??
+
+              "phone",
+
+          });
+
+          const session: AuthSession = {
+
+            isAuthenticated: true,
+
+            provider: updated.authProvider ?? "phone",
+
+            loggedInAt: auth?.loggedInAt ?? new Date().toISOString(),
+
+            accessToken,
+
+            expiresAt: auth?.expiresAt,
+
+          };
+
+          setUser(updated);
+
+          setIsAuthenticated(true);
+
+          await persistAuthSessionFull(session, updated);
+
+          return;
+
+        }
+
+        if (refreshed.status === 401) {
+
+          await clearAuthSessionFull();
+
+          clearUser();
+
+          setIsAuthenticated(false);
+
+          setUser(ANONYMOUS_USER);
+
+          return;
+
+        }
+
+      }
+
 
 
       if (auth?.isAuthenticated && storedUser) {
@@ -247,8 +316,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setIsAuthenticated(true);
 
 
-
-        const accessToken = token ?? auth.accessToken ?? loadAccessToken();
 
         if (accessToken && isAuthApiAvailable()) {
 
@@ -392,15 +459,47 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const openAuthModal = useCallback((redirectPath = "/add") => {
 
+    if (hydrated && isAuthenticated) {
+
+      const target = redirectPath.replace(/\/$/, "") || "/";
+
+      const current =
+
+        typeof window !== "undefined"
+
+          ? window.location.pathname.replace(/\/$/, "") || "/"
+
+          : "/";
+
+      if (target !== current) {
+
+        router.replace(redirectPath);
+
+      }
+
+      return;
+
+    }
+
     setAuthRedirectPath(redirectPath);
 
     setAuthModalOpen(true);
 
-  }, []);
+  }, [hydrated, isAuthenticated, router]);
 
 
 
   const closeAuthModal = useCallback(() => setAuthModalOpen(false), []);
+
+
+
+  useEffect(() => {
+
+    if (!hydrated || !isAuthenticated) return;
+
+    setAuthModalOpen(false);
+
+  }, [hydrated, isAuthenticated]);
 
 
 
@@ -965,6 +1064,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     <AuthContext.Provider value={value}>
 
       {children}
+
+      <SessionAutoLoginGuard />
 
       <GlobalAuthModal />
 
