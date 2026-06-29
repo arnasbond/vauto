@@ -3,6 +3,7 @@ import {
   isAllowedProxyImageUrl,
   upstreamImageReferer,
 } from "../lib/external-image-proxy.js";
+import { optimizeProxyImageToWebp } from "../lib/proxy-image-optimize.js";
 
 /** GET /api/proxy/image?url=... — bypass marketplace hotlink/CORS for import previews. */
 export async function proxyImageHandler(req: Request, res: Response): Promise<void> {
@@ -42,10 +43,19 @@ export async function proxyImageHandler(req: Request, res: Response): Promise<vo
     }
 
     const buffer = Buffer.from(await upstream.arrayBuffer());
-    res.setHeader("Content-Type", contentType);
+    let output: Buffer;
+    try {
+      output = await optimizeProxyImageToWebp(buffer);
+    } catch {
+      res.status(502).json({ error: "Image conversion failed" });
+      return;
+    }
+
+    res.setHeader("Content-Type", "image/webp");
     res.setHeader("Cache-Control", "public, max-age=86400");
     res.setHeader("Access-Control-Allow-Origin", "*");
-    res.send(buffer);
+    res.setHeader("Vary", "Accept");
+    res.send(output);
   } catch (err) {
     const message = err instanceof Error ? err.message : String(err);
     res.status(502).json({ error: message });

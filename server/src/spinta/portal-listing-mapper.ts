@@ -35,6 +35,24 @@ export function hashWardrobeItems(items: ImportedWardrobeItem[]): string {
   return createHash("sha256").update(payload).digest("hex").slice(0, 24);
 }
 
+export function normalizePortalItemId(
+  item: ImportedWardrobeItem,
+  idx: number,
+  portalKey: string
+): string {
+  const raw = item.id.trim();
+  const numeric =
+    raw.match(/(\d{7,})/)?.[1] ??
+    item.imageUrl?.match(/\/(\d{7,})(?:[._/?]|$)/)?.[1];
+  if (numeric) return numeric;
+  if (raw && !/^import-\d+$/i.test(raw)) return raw;
+  const fingerprint = createHash("sha256")
+    .update(`${portalKey}|${item.title}|${item.price}|${item.imageUrl ?? ""}`)
+    .digest("hex")
+    .slice(0, 12);
+  return `fp-${fingerprint}`;
+}
+
 export function wardrobeItemsToListings(
   user: ApiUser,
   items: ImportedWardrobeItem[],
@@ -48,10 +66,11 @@ export function wardrobeItemsToListings(
   ).toISOString();
 
   return items.map((item, idx) => {
+    const portalItemId = normalizePortalItemId(item, idx, portalKey);
     const title = item.title.trim() || `Drabužis ${idx + 1}`;
     const slugBase = slugify(`${title}-${city}`);
     return {
-      id: stableListingId(user.id, portalKey, item.id),
+      id: stableListingId(user.id, portalKey, portalItemId),
       sellerId: user.id,
       title,
       price: Math.max(1, Number(item.price) || 1),
@@ -74,7 +93,7 @@ export function wardrobeItemsToListings(
         condition: item.condition,
         _portalSync: portalKey,
         _portalProfileUrl: profileUrl,
-        _portalItemId: item.id,
+        _portalItemId: portalItemId,
       },
       status: "active",
       isVerified: true,

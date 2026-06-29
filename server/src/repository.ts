@@ -535,6 +535,50 @@ export async function searchListingsFiltered(
   return rows.slice(0, limit);
 }
 
+export async function findPortalListingByExternalId(
+  sellerId: string,
+  portalKey: string,
+  portalItemId: string
+): Promise<string | null> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM listings
+     WHERE seller_id = $1
+       AND category = 'clothing'
+       AND attributes->>'_portalSync' = $2
+       AND attributes->>'_portalItemId' = $3
+     LIMIT 1`,
+    [sellerId, portalKey, portalItemId]
+  );
+  return rows[0]?.id ?? null;
+}
+
+/** Strict upsert for portal wardrobe imports — dedupe by external portal item ID. */
+export async function upsertPortalListing(
+  listing: ApiListing
+): Promise<"inserted" | "updated"> {
+  const attrs = listing.attributes as Record<string, unknown> | undefined;
+  const portalKey = String(attrs?._portalSync ?? "");
+  const portalItemId = String(attrs?._portalItemId ?? "");
+
+  let resolved = listing;
+  let wasUpdate = false;
+
+  if (portalKey && portalItemId) {
+    const existingId = await findPortalListingByExternalId(
+      listing.sellerId,
+      portalKey,
+      portalItemId
+    );
+    if (existingId) {
+      resolved = { ...listing, id: existingId };
+      wasUpdate = true;
+    }
+  }
+
+  await insertListing(resolved);
+  return wasUpdate ? "updated" : "inserted";
+}
+
 export async function insertListing(listing: ApiListing): Promise<void> {
   await ensureUser(listing.sellerId);
   await query(

@@ -28,6 +28,8 @@ const AUTH_FORM_INITIAL = {
   googleIdToken: null as string | null,
 };
 
+const SMS_COOLDOWN_SECONDS = 60;
+
 interface AuthModalProps {
   open: boolean;
   loading?: boolean;
@@ -89,6 +91,7 @@ export function AuthModal({
   const [googleIdToken, setGoogleIdToken] = useState<string | null>(
     AUTH_FORM_INITIAL.googleIdToken
   );
+  const [smsCooldown, setSmsCooldown] = useState(0);
   const googleBtnRef = useRef<HTMLDivElement>(null);
 
   const resetAuthForm = () => {
@@ -100,7 +103,16 @@ export function AuthModal({
     setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
     setOtpError(AUTH_FORM_INITIAL.otpError);
     setGoogleIdToken(AUTH_FORM_INITIAL.googleIdToken);
+    setSmsCooldown(0);
   };
+
+  useEffect(() => {
+    if (smsCooldown <= 0) return;
+    const timer = window.setInterval(() => {
+      setSmsCooldown((prev) => (prev <= 1 ? 0 : prev - 1));
+    }, 1000);
+    return () => window.clearInterval(timer);
+  }, [smsCooldown]);
 
   useEffect(() => {
     if (open) {
@@ -181,6 +193,7 @@ export function AuthModal({
   };
 
   const sendOtp = async () => {
+    if (smsCooldown > 0) return;
     setOtpError(null);
     onClearError?.();
     setOtpSending(true);
@@ -192,6 +205,7 @@ export function AuthModal({
           return;
         }
       }
+      setSmsCooldown(SMS_COOLDOWN_SECONDS);
       setStep("otp");
     } finally {
       setOtpSending(false);
@@ -439,10 +453,14 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => void sendOtp()}
-              disabled={otpSending}
+              disabled={otpSending || smsCooldown > 0}
               className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
             >
-              {otpSending ? "Siunčiama…" : "Siųsti kodą"}
+              {otpSending
+                ? "Siunčiama…"
+                : smsCooldown > 0
+                  ? `Siųsti kodą (${smsCooldown}s)`
+                  : "Siųsti kodą"}
             </button>
             <button
               type="button"

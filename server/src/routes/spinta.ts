@@ -14,7 +14,7 @@ import {
 } from "../repository-portal-links.js";
 import { syncSinglePortalLink, runPortalSyncBatch } from "../spinta/portal-sync-service.js";
 import { hashWardrobeItems, wardrobeItemsToListings } from "../spinta/portal-listing-mapper.js";
-import { getUser, insertListing } from "../repository.js";
+import { getUser, upsertPortalListing } from "../repository.js";
 
 export const spintaRouter = Router();
 
@@ -91,7 +91,7 @@ spintaRouter.post("/import", async (req: AuthedRequest, res) => {
           result.profileUrl
         );
         for (const listing of listings) {
-          await insertListing(listing);
+          await upsertPortalListing(listing);
         }
       }
 

@@ -97,6 +97,7 @@ import type {
 import { useRouter } from "next/navigation";
 
 import { GlobalAuthModal } from "@/components/auth/GlobalAuthModal";
+import { AuthColdStartOverlay } from "@/components/auth/AuthColdStartOverlay";
 import { SessionAutoLoginGuard } from "@/components/auth/SessionAutoLoginGuard";
 
 import { consumeOAuthPendingPayload } from "@/lib/auth/oauth-redirect";
@@ -1066,6 +1067,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       {children}
 
       <SessionAutoLoginGuard />
+
+      <AuthColdStartOverlay />
 
       <GlobalAuthModal />
 

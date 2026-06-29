@@ -7,7 +7,7 @@ import {
   type UserPortalLink,
   upsertPortalLink,
 } from "../repository-portal-links.js";
-import { insertListing } from "../repository.js";
+import { upsertPortalListing } from "../repository.js";
 import {
   hashWardrobeItems,
   portalSyncIntervalMs,
@@ -70,7 +70,7 @@ export async function syncSinglePortalLink(
     );
 
     for (const listing of listings) {
-      await insertListing(listing);
+      await upsertPortalListing(listing);
     }
 
     await upsertPortalLink({
