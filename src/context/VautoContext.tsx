@@ -227,6 +227,8 @@ interface VautoContextValue {
   toggleSave: (id: string) => void;
   deleteListing: (id: string) => void;
   renewListing: (id: string) => Promise<void>;
+  /** Reload listings feed from API after portal sync / import */
+  refreshListingsCatalog: () => Promise<void>;
 
   syncError: string | null;
   clearSyncError: () => void;
@@ -1408,6 +1410,21 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     [listings, user.id]
   );
 
+  const refreshListingsCatalog = useCallback(async () => {
+    if (!isDataApiEnabled()) return;
+    const listingsRes = await apiFetchListings({ limit: 200 });
+    if (!listingsRes.ok || !Array.isArray(listingsRes.data)) {
+      if (!listingsRes.ok) setSyncError(listingsRes.error);
+      return;
+    }
+    const fromApi = listingsRes.data.map(withDefaultExpiry);
+    const merged = normalizeListings(
+      mergeListingsForClient(fromApi, INITIAL_LISTINGS)
+    );
+    setListings(merged);
+    saveListings(merged);
+  }, []);
+
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info" | "buddy" = "success") => {
       setToast({ message, type });
@@ -1892,6 +1909,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       toggleSave,
       deleteListing,
       renewListing,
+      refreshListingsCatalog,
       syncError,
       clearSyncError,
       apiActive,
@@ -1983,6 +2001,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       toggleSave,
       deleteListing,
       renewListing,
+      refreshListingsCatalog,
       syncError,
       clearSyncError,
       apiActive,

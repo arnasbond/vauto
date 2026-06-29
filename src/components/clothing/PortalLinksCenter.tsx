@@ -3,10 +3,12 @@
 import { ChevronDown, Link2, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { WardrobeValueShareCard } from "@/components/clothing/WardrobeValueShareCard";
+import { useVauto } from "@/context/VautoContext";
 import {
   apiGetPortalLinks,
   apiImportWardrobeProfile,
   apiLinkPortalProfile,
+  apiSpintaSync,
   apiUnlinkPortal,
 } from "@/lib/api/client";
 import {
@@ -17,7 +19,6 @@ import {
 import { portalsForProfileType, type ProfileType } from "@/lib/profile-type";
 import {
   profileItemToDraft,
-  computeWardrobeValueTotal,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
 import { cn } from "@/lib/cn";
@@ -66,6 +67,7 @@ export function PortalLinksCenter({
   onGuestPreview,
   onToast,
 }: PortalLinksCenterProps) {
+  const { refreshListingsCatalog } = useVauto();
   const [links, setLinks] = useState<UserPortalLinkDto[]>([]);
   const [loading, setLoading] = useState(false);
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
@@ -118,6 +120,75 @@ export function PortalLinksCenter({
     void refreshLinks();
   }, [refreshLinks]);
 
+  const runPortalSync = useCallback(
+    async (
+      portalKey: string,
+      profileUrl: string,
+      options: { force?: boolean; linkFirst?: boolean } = {}
+    ): Promise<{ ok: boolean; itemCount: number; voice: string }> => {
+      const trimmed = profileUrl.trim();
+
+      if (guestMode) {
+        const result = await apiImportWardrobeProfile({
+          profileUrl: trimmed,
+          userName,
+          defaultLocation,
+          persistLink: false,
+          portalKey,
+        });
+        if (!result?.items.length) {
+          return { ok: false, itemCount: 0, voice: "" };
+        }
+        const drafts = result.items.map((item) =>
+          profileItemToDraft(item, contact || "+370", defaultLocation)
+        );
+        onGuestPreview?.(result.items, drafts);
+        return {
+          ok: true,
+          itemCount: result.items.length,
+          voice: result.voiceAnnouncement,
+        };
+      }
+
+      if (options.linkFirst) {
+        await apiLinkPortalProfile({ portalKey, profileUrl: trimmed });
+      }
+
+      const syncResult = await apiSpintaSync({
+        profileUrl: trimmed,
+        portalKey,
+        userName,
+        defaultLocation,
+        force: options.force,
+      });
+
+      if (!syncResult?.ok || syncResult.status === "error") {
+        return { ok: false, itemCount: 0, voice: syncResult?.error ?? "" };
+      }
+
+      await refreshListingsCatalog();
+      await refreshLinks();
+
+      const count = syncResult.itemCount ?? 0;
+      const firstName = userName?.trim().split(/\s+/)[0] || "drauge";
+      const voice =
+        count > 0
+          ? `${firstName}, sinchronizavau ${count} prek${count === 1 ? "ę" : "es"} — atnaujinta tavo spinta!`
+          : `${firstName}, portale prekių neradau — patikrink nuorodą.`;
+
+      return { ok: true, itemCount: count, voice };
+    },
+    [
+      contact,
+      defaultLocation,
+      guestMode,
+      onGuestPreview,
+      refreshLinks,
+      refreshListingsCatalog,
+      userName,
+    ]
+  );
+
   const handleConnect = async (portalKey: string) => {
     const trimmed = draftUrl.trim();
     if (!isValidPortalUrl(trimmed, portalKey)) {
@@ -130,45 +201,46 @@ export function PortalLinksCenter({
     setExpandedKey(null);
 
     try {
-      if (!guestMode) {
-        await apiLinkPortalProfile({ portalKey, profileUrl: trimmed });
-      }
-
-      const result = await apiImportWardrobeProfile({
-        profileUrl: trimmed,
-        userName,
-        defaultLocation,
-        persistLink: !guestMode,
-        portalKey,
-      });
-
-      if (!result?.items.length) {
-        onToast?.("Importas nepavyko — bandykite vėliau.", "info");
+      const outcome = await runPortalSync(portalKey, trimmed, { linkFirst: true });
+      if (!outcome.ok) {
+        onToast?.("Sinchronizacija nepavyko — bandykite dar kartą.", "error");
         return;
       }
 
       setDraftUrl("");
-      await refreshLinks();
 
-      const total =
-        result.wardrobeValueTotal ?? computeWardrobeValueTotal(result.items);
-      const count = result.itemCount ?? result.items.length;
+      if (!guestMode && outcome.itemCount > 0) {
+        setValueCard({ total: 0, count: outcome.itemCount });
+      }
+
       if (!guestMode) {
-        setValueCard({ total, count });
+        onImportReady?.([], outcome.voice);
       }
-
-      const drafts = result.items.map((item) =>
-        profileItemToDraft(item, contact || "+370", defaultLocation)
-      );
-
-      if (guestMode) {
-        onGuestPreview?.(result.items, drafts);
-      } else {
-        onImportReady?.(drafts, result.voiceAnnouncement);
-      }
-      onToast?.(result.voiceAnnouncement, "success");
+      onToast?.(outcome.voice, "success");
     } catch {
-      onToast?.("Sinchronizacija nepavyka — bandykite dar kartą.", "error");
+      onToast?.("Sinchronizacija nepavyko — bandykite dar kartą.", "error");
+    } finally {
+      setLoading(false);
+      setSyncingKey(null);
+    }
+  };
+
+  const handleResync = async (portalKey: string, profileUrl: string) => {
+    setSyncingKey(portalKey);
+    setLoading(true);
+    try {
+      const outcome = await runPortalSync(portalKey, profileUrl, { force: true });
+      if (!outcome.ok) {
+        onToast?.("Sinchronizacija nepavyko — bandykite dar kartą.", "error");
+        return;
+      }
+      if (!guestMode && outcome.itemCount > 0) {
+        setValueCard({ total: 0, count: outcome.itemCount });
+      }
+      onImportReady?.([], outcome.voice);
+      onToast?.(outcome.voice, "success");
+    } catch {
+      onToast?.("Sinchronizacija nepavyko — bandykite dar kartą.", "error");
     } finally {
       setLoading(false);
       setSyncingKey(null);
@@ -283,15 +355,27 @@ export function PortalLinksCenter({
                         🟢 Sinchronizuota
                       </span>
                     )}
-                    {!guestMode && !isSyncing && (
-                      <button
-                        type="button"
-                        onClick={() => void handleUnlink(portal.key)}
-                        className="rounded-md p-1 text-slate-500 opacity-70 transition hover:bg-white/5 hover:text-slate-300 hover:opacity-100"
-                        aria-label={`Atjungti ${portal.label}`}
-                      >
-                        <X className="h-3.5 w-3.5" />
-                      </button>
+                    {!guestMode && !isSyncing && linked && (
+                      <>
+                        <button
+                          type="button"
+                          onClick={() =>
+                            void handleResync(portal.key, linked.profileUrl)
+                          }
+                          className="rounded-md p-1 text-slate-400 opacity-70 transition hover:bg-white/5 hover:text-fuchsia-300 hover:opacity-100"
+                          aria-label={`Sinchronizuoti ${portal.label} dar kartą`}
+                        >
+                          <RefreshCw className="h-3.5 w-3.5" />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => void handleUnlink(portal.key)}
+                          className="rounded-md p-1 text-slate-500 opacity-70 transition hover:bg-white/5 hover:text-slate-300 hover:opacity-100"
+                          aria-label={`Atjungti ${portal.label}`}
+                        >
+                          <X className="h-3.5 w-3.5" />
+                        </button>
+                      </>
                     )}
                   </div>
                 </div>

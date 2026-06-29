@@ -821,8 +821,10 @@ export async function apiImportWardrobeProfile(body: {
 
 export async function apiSpintaSync(body: {
   profileUrl: string;
+  portalKey?: string;
   userName?: string;
   defaultLocation?: string;
+  force?: boolean;
 }): Promise<{
   ok: boolean;
   status: string;

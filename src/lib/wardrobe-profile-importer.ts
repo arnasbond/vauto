@@ -1,5 +1,6 @@
 import { apiImportWardrobeProfile } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
+import { detectPortalKey } from "@/lib/spinta-portal";
 import {
   FASHION_CATEGORY_ATTR,
   formatFashionCategory,
@@ -133,10 +134,13 @@ export async function importWardrobeProfile(params: {
   contact?: string;
 }): Promise<WardrobeProfileImport | null> {
   if (isAiProxyAvailable()) {
+    const portalKey = detectPortalKey(params.profileUrl) ?? undefined;
     const remote = await apiImportWardrobeProfile({
       profileUrl: params.profileUrl,
       userName: params.userName,
       defaultLocation: params.defaultLocation,
+      persistLink: Boolean(portalKey),
+      portalKey,
     });
     if (remote) return remote;
   }

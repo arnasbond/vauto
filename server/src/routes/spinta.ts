@@ -154,6 +154,7 @@ spintaRouter.post("/sync", async (req: AuthedRequest, res) => {
     portalKey?: string;
     userName?: string;
     defaultLocation?: string;
+    force?: boolean;
   };
 
   const profileUrl = body.profileUrl?.trim();
@@ -177,7 +178,9 @@ spintaRouter.post("/sync", async (req: AuthedRequest, res) => {
       scheduleNextSync: false,
     });
 
-    const outcome = await syncSinglePortalLink(existing);
+    const outcome = await syncSinglePortalLink(existing, {
+      force: body.force === true,
+    });
 
     res.json({
       ok: outcome.status !== "error",

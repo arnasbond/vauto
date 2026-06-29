@@ -5,7 +5,6 @@ import { useMemo, useState } from "react";
 import { GuestWardrobePreviewGrid } from "@/components/clothing/GuestWardrobePreviewGrid";
 import { WardrobeValueShareCard } from "@/components/clothing/WardrobeValueShareCard";
 import { useVauto } from "@/context/VautoContext";
-import { apiSpintaSync } from "@/lib/api/client";
 import {
   importWardrobeProfile,
   isWardrobeProfileUrl,
@@ -51,7 +50,7 @@ export function WardrobeProfileImporter({
   onGuestPreview,
   onToast,
 }: WardrobeProfileImporterProps) {
-  const { user, chameleonTheme, openCheckout } = useVauto();
+  const { user, chameleonTheme, openCheckout, refreshListingsCatalog } = useVauto();
   const isGuest = guestMode || isGuestUserId(user.id);
   const access = useMemo(
     () =>
@@ -120,21 +119,14 @@ export function WardrobeProfileImporter({
         setValueCard({ total, count: result.items.length });
       }
 
-      if (!isGuest) {
-        void apiSpintaSync({
-          profileUrl: result.profileUrl || trimmed,
-          userName,
-          defaultLocation,
-        });
-      }
-
       const drafts = result.items.map((item) =>
         profileItemToDraft(item, contact || "+370", defaultLocation)
       );
       if (isGuest) {
         onGuestPreview?.(result.items, drafts);
       } else {
-        onImportReady?.(drafts, result.voiceAnnouncement);
+        await refreshListingsCatalog();
+        onImportReady?.([], result.voiceAnnouncement);
       }
       onToast?.(result.voiceAnnouncement, "success");
     } catch {

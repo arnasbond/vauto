@@ -31,7 +31,7 @@ export function WardrobeCabinetSection({
   onEdit,
   onMarkSold,
 }: WardrobeCabinetSectionProps) {
-  const { publishBulkClothingListings, showToast } = useVauto();
+  const { refreshListingsCatalog, showToast } = useVauto();
   const deals = useMemo(
     () => collectWardrobeDeals(chats, listings, user.id),
     [chats, listings, user.id]
@@ -54,9 +54,8 @@ export function WardrobeCabinetSection({
         defaultLocation={user.city || "Vilnius"}
         contact={user.phone}
         profileType={profileType ?? user.profileType}
-        onImportReady={(drafts, voice) => {
-          void publishBulkClothingListings(drafts);
-          showToast(voice, "success");
+        onImportReady={() => {
+          void refreshListingsCatalog();
         }}
         onToast={showToast}
       />

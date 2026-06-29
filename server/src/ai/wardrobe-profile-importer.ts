@@ -1,9 +1,15 @@
 import { chatJson } from "./llm-provider.js";
 import { logProductionWarn } from "../lib/production-log.js";
 import {
+  detectPortalKeyFromUrl,
+  isPortalProfileUrl,
+  portalLabelForKey,
+} from "../lib/portal-profile-url.js";
+import {
   isWardrobeProfileUrl,
   resolveVintedProfileUrl,
 } from "../lib/vinted-url.js";
+import { fetchPortalProfileHtml } from "../spinta/portal-profile-scraper.js";
 
 export interface ImportedWardrobeItem {
   id: string;
@@ -27,6 +33,7 @@ export interface WardrobeProfileImportResult {
   /** Sum of imported item prices (EUR) */
   wardrobeValueTotal: number;
   itemCount: number;
+  portalKey?: string;
 }
 
 export function computeWardrobeValueTotal(items: ImportedWardrobeItem[]): number {
@@ -36,7 +43,9 @@ export function computeWardrobeValueTotal(items: ImportedWardrobeItem[]): number
 }
 
 function withImportMeta(
-  result: Omit<WardrobeProfileImportResult, "wardrobeValueTotal" | "itemCount">
+  result: Omit<WardrobeProfileImportResult, "wardrobeValueTotal" | "itemCount"> & {
+    portalKey?: string;
+  }
 ): WardrobeProfileImportResult {
   return {
     ...result,
@@ -81,7 +90,7 @@ function parseItems(raw: Record<string, unknown>): ImportedWardrobeItem[] {
     const entry = arr[idx];
     if (!entry || typeof entry !== "object") continue;
     const o = entry as Record<string, unknown>;
-    const title = String(o.title ?? `Drabužis ${idx + 1}`).trim();
+    const title = String(o.title ?? `Prekė ${idx + 1}`).trim();
     if (!title) continue;
     out.push({
       id: String(o.id ?? `import-${idx + 1}`),
@@ -138,7 +147,18 @@ function demoProfileItems(userName?: string): ImportedWardrobeItem[] {
   ];
 }
 
-/** Vieno mygtuko spintos perkėlimas — profilio URL → VAUTO skelbimų juodraščiai. */
+function buildVoiceAnnouncement(
+  firstName: string,
+  count: number,
+  portalLabel: string
+): string {
+  if (count <= 0) {
+    return `${firstName}, portale ${portalLabel} prekių neradau — patikrink nuorodą.`;
+  }
+  return `${firstName}, sinchronizavau ${count} prek${count === 1 ? "ę" : "es"} iš ${portalLabel}. Atnaujinta tavo spinta!`;
+}
+
+/** Vieno mygtuko spintos perkėlimas — bet kurio portalo profilio URL → VAUTO skelbimai. */
 export async function importWardrobeProfile(params: {
   profileUrl: string;
   userName?: string;
@@ -147,54 +167,47 @@ export async function importWardrobeProfile(params: {
 }): Promise<WardrobeProfileImportResult> {
   const profileUrl = params.profileUrl.trim();
   const firstName = params.userName?.trim().split(/\s+/)[0] || "drauge";
+  const portalKey = detectPortalKeyFromUrl(profileUrl);
 
-  if (!isWardrobeProfileUrl(profileUrl)) {
-    throw new Error(
-      "Įveskite galiojantį Vinted profilio URL (/member/ arba /invite/)."
-    );
+  if (!portalKey || !isPortalProfileUrl(profileUrl, portalKey)) {
+    throw new Error("Įveskite galiojančią portalo profilio nuorodą.");
   }
 
-  const resolvedProfileUrl = await resolveVintedProfileUrl(profileUrl);
+  const portalLabel = portalLabelForKey(portalKey);
+  let resolvedProfileUrl = profileUrl;
+  if (isWardrobeProfileUrl(profileUrl)) {
+    resolvedProfileUrl = await resolveVintedProfileUrl(profileUrl);
+  }
 
   let pageText = "";
   try {
-    const fetchPage =
-      params.fetchHtml ??
-      (async (url: string) => {
-        const res = await fetch(url, {
-          redirect: "follow",
-          headers: {
-            "User-Agent":
-              "Mozilla/5.0 (compatible; VautoWardrobeImporter/1.0; +https://vauto.app)",
-            Accept: "text/html,application/xhtml+xml",
-          },
-          signal: AbortSignal.timeout(12_000),
-        });
-        if (!res.ok) throw new Error("fetch_failed");
-        return res.text();
-      });
+    const fetchPage = params.fetchHtml ?? fetchPortalProfileHtml;
     pageText = stripHtml(await fetchPage(resolvedProfileUrl)).slice(0, 18_000);
   } catch (err) {
     logProductionWarn("portal-import", "Profile HTML fetch failed — using demo items", {
       profileUrl: resolvedProfileUrl.slice(0, 120),
+      portalKey,
       error: err instanceof Error ? err.message : String(err),
     });
     const items = demoProfileItems(params.userName);
     return withImportMeta({
       profileUrl: resolvedProfileUrl,
+      portalKey,
       items,
-      voiceAnnouncement: `${firstName}, paruošiau ${items.length} skelbimus iš tavo spintos — peržiūrėk ir patvirtink vienu paspaudimu!`,
+      voiceAnnouncement: buildVoiceAnnouncement(firstName, items.length, portalLabel),
     });
   }
 
   if (pageText.length < 60) {
     logProductionWarn("portal-import", "Profile HTML too short — using demo items", {
       profileUrl: resolvedProfileUrl.slice(0, 120),
+      portalKey,
       length: pageText.length,
     });
     const items = demoProfileItems(params.userName);
     return withImportMeta({
       profileUrl: resolvedProfileUrl,
+      portalKey,
       items,
       voiceAnnouncement: `${firstName}, profilio turinys ribotas — sugeneravau ${items.length} demo juodraščius redagavimui.`,
     });
@@ -207,13 +220,18 @@ export async function importWardrobeProfile(params: {
   const raw = await chatJson([
     {
       role: "system",
-      content: `Tu esi VAUTO Spintos Importo AI. Iš profilio HTML ištrauk VISUS matomus aktyvius drabužių skelbimus.
+      content: `Tu esi VAUTO Spintos Importo AI. Iš ${portalLabel} profilio HTML ištrauk VISUS matomus aktyvius skelbimus/prekes.
 Grąžink JSON: ${IMPORT_SCHEMA}
-SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje. Kategorijos universalios, ne portalų UI kopija.`,
+SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje. Kategorijos universalios, ne portalų UI kopija.
+Kiekvienam item id naudok skaitinį ID iš portalo URL arba unikalų identifikatorių jei matomas HTML.`,
     },
     {
       role: "user",
-      content: `Profilio URL: ${resolvedProfileUrl}\n${locationHint}\nHTML tekstas:\n"""${pageText}"""`,
+      content: `Portalo tipas: ${portalLabel} (${portalKey})
+Profilio URL: ${resolvedProfileUrl}
+${locationHint}
+HTML tekstas:
+"""${pageText}"""`,
     },
   ]);
 
@@ -235,8 +253,9 @@ SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje.
   return withImportMeta({
     profileUrl: resolvedProfileUrl,
     sellerDisplayName,
+    portalKey,
     items,
-    voiceAnnouncement: `${firstName}, radau ${items.length} prek${items.length === 1 ? "ę" : "es"} tavo spintoje. Paruošiau ${items.length} VAUTO skelbim${items.length === 1 ? "ą" : "us"} — beliko patvirtinti!`,
+    voiceAnnouncement: buildVoiceAnnouncement(firstName, items.length, portalLabel),
   });
 }
 

@@ -32,7 +32,8 @@ export interface PortalSyncBatchResult {
 }
 
 export async function syncSinglePortalLink(
-  link: UserPortalLink
+  link: UserPortalLink,
+  options: { force?: boolean } = {}
 ): Promise<{ status: "updated" | "skipped" | "error"; itemCount: number }> {
   const user = await getUser(link.userId);
   if (!user) {
@@ -50,7 +51,11 @@ export async function syncSinglePortalLink(
     });
 
     const itemHash = hashWardrobeItems(result.items);
-    if (itemHash === link.lastItemHash && link.itemCount > 0) {
+    if (
+      !options.force &&
+      itemHash === link.lastItemHash &&
+      link.itemCount > 0
+    ) {
       await upsertPortalLink({
         userId: link.userId,
         portalKey: link.portalKey,
