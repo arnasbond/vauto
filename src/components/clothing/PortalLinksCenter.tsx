@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Link2, Loader2, Plus, RefreshCw, X } from "lucide-react";
+import { ChevronDown, Link2, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { WardrobeValueShareCard } from "@/components/clothing/WardrobeValueShareCard";
 import {
@@ -20,7 +20,30 @@ import {
   computeWardrobeValueTotal,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
+import { cn } from "@/lib/cn";
 import type { AiExtractedListing } from "@/lib/types";
+
+const PORTAL_SYNC_EXPANDED_KEY = "vauto_portal_sync_expanded";
+
+function readPortalSyncExpanded(): boolean {
+  if (typeof window === "undefined") return true;
+  try {
+    const stored = localStorage.getItem(PORTAL_SYNC_EXPANDED_KEY);
+    if (stored === "0") return false;
+    if (stored === "1") return true;
+  } catch {
+    /* ignore */
+  }
+  return true;
+}
+
+function persistPortalSyncExpanded(expanded: boolean): void {
+  try {
+    localStorage.setItem(PORTAL_SYNC_EXPANDED_KEY, expanded ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
 
 interface PortalLinksCenterProps {
   userName?: string;
@@ -48,6 +71,7 @@ export function PortalLinksCenter({
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [draftUrl, setDraftUrl] = useState("");
   const [syncingKey, setSyncingKey] = useState<string | null>(null);
+  const [sectionOpen, setSectionOpen] = useState(true);
   const [valueCard, setValueCard] = useState<{
     total: number;
     count: number;
@@ -63,6 +87,24 @@ export function PortalLinksCenter({
     for (const link of links) map.set(link.portalKey, link);
     return map;
   }, [links]);
+
+  const syncedCount = useMemo(
+    () =>
+      links.filter((l) => l.status === "synced" || l.status === "syncing").length,
+    [links]
+  );
+
+  useEffect(() => {
+    setSectionOpen(readPortalSyncExpanded());
+  }, []);
+
+  const toggleSection = () => {
+    setSectionOpen((prev) => {
+      const next = !prev;
+      persistPortalSyncExpanded(next);
+      return next;
+    });
+  };
 
   const refreshLinks = useCallback(async () => {
     if (guestMode) return;
@@ -141,9 +183,16 @@ export function PortalLinksCenter({
     }
   };
 
+  const subtitle =
+    profileType === "business"
+      ? "Skelbiu, Autoplius, Aruodas, Paslaugos.lt — automatinis atnaujinimas kas"
+      : profileType === "private"
+        ? "Vinted, Marktplaats, Depop — automatinis atnaujinimas kas"
+        : "Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, Marktplaats — automatinis atnaujinimas kas";
+
   return (
     <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-500/50 bg-[#131c38] p-4 shadow-lg">
-      {valueCard && !guestMode && (
+      {valueCard && !guestMode && sectionOpen && (
         <WardrobeValueShareCard
           wardrobeValueTotal={valueCard.total}
           itemCount={valueCard.count}
@@ -152,23 +201,43 @@ export function PortalLinksCenter({
         />
       )}
 
-      <div className="mb-3 flex items-start justify-between gap-2">
-        <div>
-          <p className="text-sm font-semibold text-white">Portalų sinchronizacija</p>
-          <p className="text-[11px] text-slate-400">
-            {profileType === "business"
-              ? "Skelbiu, Autoplius, Aruodas, Paslaugos.lt — automatinis atnaujinimas kas"
-              : profileType === "private"
-                ? "Vinted, Marktplaats, Depop — automatinis atnaujinimas kas"
-                : "Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, Marktplaats — automatinis atnaujinimas kas"}{" "}
+      <div className="flex items-start justify-between gap-2">
+        <button
+          type="button"
+          onClick={toggleSection}
+          className="min-w-0 flex-1 text-left"
+          aria-expanded={sectionOpen}
+          aria-controls="portal-sync-panel"
+        >
+          <div className="flex items-center gap-2">
+            <p className="text-sm font-semibold text-white">Portalų sinchronizacija</p>
+            <ChevronDown
+              className={cn(
+                "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200",
+                sectionOpen && "rotate-180"
+              )}
+              aria-hidden
+            />
+          </div>
+          <p className="mt-0.5 text-[11px] text-slate-400">
+            {subtitle}{" "}
             <span className="text-fuchsia-300">3 dienas</span>
+            {!sectionOpen && syncedCount > 0 && (
+              <span className="text-emerald-400/90">
+                {" "}
+                · {syncedCount} sinchronizuota
+              </span>
+            )}
           </p>
-        </div>
+        </button>
         {!guestMode && (
           <button
             type="button"
-            onClick={() => void refreshLinks()}
-            className="rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"
+            onClick={(e) => {
+              e.stopPropagation();
+              void refreshLinks();
+            }}
+            className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"
             aria-label="Atnaujinti būseną"
           >
             <RefreshCw className="h-4 w-4" />
@@ -176,116 +245,124 @@ export function PortalLinksCenter({
         )}
       </div>
 
-      <div className="space-y-2">
-        {portalList.map((portal) => {
-          const linked = linkByKey.get(portal.key);
-          const isSyncing =
-            syncingKey === portal.key ||
-            linked?.status === "syncing" ||
-            (loading && syncingKey === portal.key);
-          const isExpanded = expandedKey === portal.key;
+      {sectionOpen && (
+        <div id="portal-sync-panel" className="mt-3 space-y-2">
+          {portalList.map((portal) => {
+            const linked = linkByKey.get(portal.key);
+            const isSynced =
+              Boolean(linked) && linked?.status !== "error";
+            const isSyncing =
+              syncingKey === portal.key ||
+              linked?.status === "syncing" ||
+              (loading && syncingKey === portal.key);
+            const isExpanded = expandedKey === portal.key;
 
-          if (linked && linked.status !== "error" && !isExpanded) {
-            return (
-              <div
-                key={portal.key}
-                className="flex items-center gap-2 rounded-2xl border border-fuchsia-500/30 bg-[#0a1128] px-3 py-2"
-              >
-                <span className="inline-flex items-center gap-1.5 rounded-full bg-fuchsia-600/25 px-2.5 py-1 text-xs font-medium text-fuchsia-100">
-                  {isSyncing ? (
-                    <>
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                      [{portal.label}] Sinchronizuojama…
-                    </>
-                  ) : (
-                    <>
-                      <Check className="h-3 w-3" />
-                      [{portal.label}] Paskyra sinchronizuota
-                    </>
-                  )}
-                </span>
-                <span className="min-w-0 flex-1 truncate text-[11px] text-slate-500">
-                  {linked.itemCount > 0 && `${linked.itemCount} prekės · `}
-                  {shortenProfileUrl(linked.profileUrl)}
-                </span>
-                {!guestMode && (
-                  <button
-                    type="button"
-                    onClick={() => void handleUnlink(portal.key)}
-                    className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-white"
-                    aria-label={`Atjungti ${portal.label}`}
-                  >
-                    <X className="h-4 w-4" />
-                  </button>
-                )}
-              </div>
-            );
-          }
-
-          if (isExpanded) {
-            return (
-              <div
-                key={portal.key}
-                className="rounded-2xl border border-fuchsia-500/40 bg-[#0a1128] p-3"
-              >
-                <p className="mb-2 text-xs font-medium text-fuchsia-200">
-                  {portal.label} profilio nuoroda
-                </p>
-                <input
-                  type="url"
-                  value={draftUrl}
-                  onChange={(e) => setDraftUrl(e.target.value)}
-                  placeholder={portal.placeholder}
-                  className="mb-2 w-full rounded-xl border border-fuchsia-500/50 bg-[#060b1a] px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-fuchsia-500/30"
-                />
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    disabled={loading || !draftUrl.trim()}
-                    onClick={() => void handleConnect(portal.key)}
-                    className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fuchsia-600 py-2 text-xs font-semibold text-white disabled:opacity-50"
-                  >
-                    {loading && syncingKey === portal.key ? (
-                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    ) : (
-                      <Link2 className="h-3.5 w-3.5" />
+            if (isSynced && !isExpanded) {
+              return (
+                <div
+                  key={portal.key}
+                  className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-[#0a1128]/60 px-3 py-2.5"
+                >
+                  <div className="min-w-0 flex-1">
+                    <p className="text-xs font-medium text-slate-200">{portal.label}</p>
+                    {!isSyncing && linked && (
+                      <p className="truncate text-[10px] text-slate-500">
+                        {linked.itemCount > 0 && `${linked.itemCount} prekės · `}
+                        {shortenProfileUrl(linked.profileUrl)}
+                      </p>
                     )}
-                    Sinchronizuoti
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setExpandedKey(null);
-                      setDraftUrl("");
-                    }}
-                    className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-400"
-                  >
-                    Atšaukti
-                  </button>
+                  </div>
+                  <div className="flex shrink-0 items-center gap-1">
+                    {isSyncing ? (
+                      <span className="inline-flex items-center gap-1 text-[11px] text-fuchsia-300">
+                        <Loader2 className="h-3 w-3 animate-spin" />
+                        Sinchronizuojama…
+                      </span>
+                    ) : (
+                      <span className="text-[11px] font-medium text-emerald-400/95">
+                        🟢 Sinchronizuota
+                      </span>
+                    )}
+                    {!guestMode && !isSyncing && (
+                      <button
+                        type="button"
+                        onClick={() => void handleUnlink(portal.key)}
+                        className="rounded-md p-1 text-slate-500 opacity-70 transition hover:bg-white/5 hover:text-slate-300 hover:opacity-100"
+                        aria-label={`Atjungti ${portal.label}`}
+                      >
+                        <X className="h-3.5 w-3.5" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            );
-          }
+              );
+            }
 
-          return (
-            <button
-              key={portal.key}
-              type="button"
-              onClick={() => {
-                setExpandedKey(portal.key);
-                setDraftUrl("");
-              }}
-              className="flex w-full items-center justify-between rounded-2xl border border-dashed border-fuchsia-500/30 bg-[#0a1128]/60 px-3 py-2.5 text-left transition hover:border-fuchsia-500/50"
-            >
-              <span className="text-xs text-slate-300">{portal.label}</span>
-              <span className="inline-flex items-center gap-1 text-[11px] font-medium text-fuchsia-300">
-                <Plus className="h-3.5 w-3.5" />
-                Prijungti
-              </span>
-            </button>
-          );
-        })}
-      </div>
+            if (isExpanded) {
+              return (
+                <div
+                  key={portal.key}
+                  className="rounded-2xl border border-fuchsia-500/40 bg-[#0a1128] p-3"
+                >
+                  <p className="mb-2 text-xs font-medium text-fuchsia-200">
+                    {portal.label} profilio nuoroda
+                  </p>
+                  <input
+                    type="url"
+                    value={draftUrl}
+                    onChange={(e) => setDraftUrl(e.target.value)}
+                    placeholder={portal.placeholder}
+                    className="mb-2 w-full rounded-xl border border-fuchsia-500/50 bg-[#060b1a] px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-fuchsia-500/30"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      disabled={loading || !draftUrl.trim()}
+                      onClick={() => void handleConnect(portal.key)}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fuchsia-600 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                    >
+                      {loading && syncingKey === portal.key ? (
+                        <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      ) : (
+                        <Link2 className="h-3.5 w-3.5" />
+                      )}
+                      Sinchronizuoti
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setExpandedKey(null);
+                        setDraftUrl("");
+                      }}
+                      className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-400"
+                    >
+                      Atšaukti
+                    </button>
+                  </div>
+                </div>
+              );
+            }
+
+            return (
+              <button
+                key={portal.key}
+                type="button"
+                onClick={() => {
+                  setExpandedKey(portal.key);
+                  setDraftUrl("");
+                }}
+                className="flex w-full items-center justify-between rounded-2xl border border-dashed border-fuchsia-500/30 bg-[#0a1128]/60 px-3 py-2.5 text-left transition hover:border-fuchsia-500/50"
+              >
+                <span className="text-xs text-slate-300">{portal.label}</span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-fuchsia-300">
+                  <Plus className="h-3.5 w-3.5" />
+                  Prijungti
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }
