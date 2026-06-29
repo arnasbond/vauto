@@ -101,6 +101,7 @@ import { AuthColdStartOverlay } from "@/components/auth/AuthColdStartOverlay";
 import { SessionAutoLoginGuard } from "@/components/auth/SessionAutoLoginGuard";
 
 import { consumeOAuthPendingPayload } from "@/lib/auth/oauth-redirect";
+import { registerNativePush } from "@/lib/native-push";
 
 
 
@@ -499,6 +500,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!hydrated || !isAuthenticated) return;
 
     setAuthModalOpen(false);
+
+  }, [hydrated, isAuthenticated]);
+
+
+
+  useEffect(() => {
+
+    if (!hydrated || !isAuthenticated) return;
+
+    void registerNativePush();
 
   }, [hydrated, isAuthenticated]);
 

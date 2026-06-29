@@ -1,5 +1,6 @@
 import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
 import { getUser } from "../repository.js";
+import { notifyPortalSyncNewItems } from "../services/push-service.js";
 import {
   getPortalLinksDueForSync,
   markPortalLinkError,
@@ -83,6 +84,16 @@ export async function syncSinglePortalLink(
       lastItemHash: itemHash,
       scheduleNextSync: true,
     });
+
+    const previousCount = link.itemCount;
+    const newCount = result.items.length;
+    if (newCount > previousCount) {
+      void notifyPortalSyncNewItems(link.userId, {
+        portalLabel: link.portalLabel,
+        newCount: newCount - previousCount,
+        totalCount: newCount,
+      });
+    }
 
     return { status: "updated", itemCount: result.items.length };
   } catch (e) {

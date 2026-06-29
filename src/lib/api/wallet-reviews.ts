@@ -101,9 +101,9 @@ export async function apiRegisterFcmToken(
   token: string,
   platform: string
 ): Promise<ApiResult<{ ok: boolean }>> {
-  return authedFetch("/api/push/fcm-token", {
+  return authedFetch("/api/user/push-token", {
     method: "POST",
-    body: JSON.stringify({ token, platform }),
+    body: JSON.stringify({ token, device_type: platform }),
   });
 }
 

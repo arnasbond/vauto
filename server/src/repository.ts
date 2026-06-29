@@ -1328,6 +1328,50 @@ export async function getChats(userId: string): Promise<ApiChatThread[]> {
   return result;
 }
 
+export interface ChatThreadMeta {
+  id: string;
+  buyerId: string;
+  sellerId: string;
+  listingTitle: string;
+  escrowOffered: boolean;
+  messageCount: number;
+  buyerMessageCount: number;
+}
+
+export async function getChatThreadMeta(
+  threadId: string
+): Promise<ChatThreadMeta | null> {
+  const rows = await query<{
+    id: string;
+    buyer_id: string;
+    seller_id: string;
+    listing_title: string;
+    escrow_offered: boolean;
+    message_count: string;
+    buyer_message_count: string;
+  }>(
+    `SELECT t.id, t.buyer_id, t.seller_id, t.listing_title, t.escrow_offered,
+            COUNT(m.id)::text AS message_count,
+            COUNT(m.id) FILTER (WHERE m.sender_id = t.buyer_id)::text AS buyer_message_count
+     FROM chat_threads t
+     LEFT JOIN chat_messages m ON m.thread_id = t.id
+     WHERE t.id = $1
+     GROUP BY t.id`,
+    [threadId]
+  );
+  const t = rows[0];
+  if (!t) return null;
+  return {
+    id: t.id,
+    buyerId: t.buyer_id,
+    sellerId: t.seller_id,
+    listingTitle: t.listing_title,
+    escrowOffered: t.escrow_offered,
+    messageCount: Number(t.message_count) || 0,
+    buyerMessageCount: Number(t.buyer_message_count) || 0,
+  };
+}
+
 export async function upsertChat(thread: ApiChatThread): Promise<void> {
   await ensureUser(thread.buyerId);
   await ensureUser(thread.sellerId);
@@ -1556,13 +1600,28 @@ export async function getPushSubscriptionsForUsers(
   }));
 }
 
+export async function upsertUserPushToken(
+  userId: string,
+  token: string,
+  deviceType = "android"
+): Promise<void> {
+  await ensureUser(userId);
+  await query(
+    `INSERT INTO user_push_tokens (user_id, token, device_type)
+     VALUES ($1, $2, $3)
+     ON CONFLICT (user_id, token) DO UPDATE SET
+       device_type = EXCLUDED.device_type`,
+    [userId, token, deviceType]
+  );
+}
+
 export async function upsertFcmToken(
   userId: string,
   token: string,
   platform = "android"
 ): Promise<void> {
+  await upsertUserPushToken(userId, token, platform);
   const id = `fcm-${Buffer.from(token).toString("base64url").slice(0, 40)}`;
-  await ensureUser(userId);
   await query(
     `INSERT INTO fcm_tokens (id, user_id, token, platform, updated_at)
      VALUES ($1, $2, $3, $4, now())
@@ -1574,21 +1633,35 @@ export async function upsertFcmToken(
 }
 
 export async function deleteFcmToken(userId: string, token: string): Promise<void> {
+  await query(`DELETE FROM user_push_tokens WHERE user_id = $1 AND token = $2`, [
+    userId,
+    token,
+  ]);
   await query(`DELETE FROM fcm_tokens WHERE user_id = $1 AND token = $2`, [
     userId,
     token,
   ]);
 }
 
-export async function getFcmTokensForUsers(
+export async function getUserPushTokensForUsers(
   userIds: string[]
 ): Promise<{ userId: string; token: string }[]> {
   if (!userIds.length) return [];
   const rows = await query<{ user_id: string; token: string }>(
-    `SELECT user_id, token FROM fcm_tokens WHERE user_id = ANY($1::text[])`,
+    `SELECT DISTINCT user_id, token FROM (
+       SELECT user_id, token FROM user_push_tokens WHERE user_id = ANY($1::text[])
+       UNION
+       SELECT user_id, token FROM fcm_tokens WHERE user_id = ANY($1::text[])
+     ) AS tokens`,
     [userIds]
   );
   return rows.map((r) => ({ userId: r.user_id, token: r.token }));
+}
+
+export async function getFcmTokensForUsers(
+  userIds: string[]
+): Promise<{ userId: string; token: string }[]> {
+  return getUserPushTokensForUsers(userIds);
 }
 
 export async function setUserAlertQueries(

@@ -3,8 +3,8 @@ import {
   deletePushSubscription,
   getUserAlertQueries,
   setUserAlertQueries,
-  upsertFcmToken,
   upsertPushSubscription,
+  upsertUserPushToken,
 } from "../repository.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 import { getVapidPublicKey } from "../push/web-push.js";
@@ -84,7 +84,7 @@ pushRouter.post("/fcm-token", requireAuth, async (req: AuthedRequest, res) => {
       res.status(400).json({ error: "token required" });
       return;
     }
-    await upsertFcmToken(req.authUserId!, token, platform);
+    await upsertUserPushToken(req.authUserId!, token, platform);
     res.json({ ok: true });
   } catch (e) {
     res.status(500).json({ error: String(e) });

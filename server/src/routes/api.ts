@@ -14,6 +14,7 @@ import {
   getAdminAgentContext,
   getBannedUserIds,
   getChats,
+  getChatThreadMeta,
   getEscrowForThread,
   getEmbeddingIndexStats,
   getListings,
@@ -42,6 +43,7 @@ import {
   upsertChat,
   upsertEscrow,
   upsertUser,
+  upsertUserPushToken,
   updateUserAvatar,
   warnUser,
 } from "../repository.js";
@@ -59,6 +61,10 @@ import {
 } from "../push/report-notify.js";
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
+import {
+  notifyNegotiationDealClosed,
+  notifyNegotiationStarted,
+} from "../services/push-service.js";
 import { requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
@@ -610,6 +616,23 @@ apiRouter.post("/user/avatar", requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+apiRouter.post("/user/push-token", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const token = String(req.body?.token ?? "").trim();
+    const deviceType = String(
+      req.body?.device_type ?? req.body?.platform ?? "android"
+    ).trim();
+    if (!token) {
+      res.status(400).json({ error: "token required" });
+      return;
+    }
+    await upsertUserPushToken(req.authUserId!, token, deviceType);
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.get("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {
     if (!canActForUser(req, req.params.id)) {
@@ -721,8 +744,42 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
+
+    const prev = await getChatThreadMeta(thread.id);
+    const prevBuyerMsgs = prev?.buyerMessageCount ?? 0;
+    const nextBuyerMsgs = thread.messages.filter(
+      (m) => m.senderId === thread.buyerId
+    ).length;
+    const latestBuyerMsg = [...thread.messages]
+      .reverse()
+      .find((m) => m.senderId === thread.buyerId);
+
     await upsertChat(thread);
     res.json(thread);
+
+    void (async () => {
+      if (
+        nextBuyerMsgs > prevBuyerMsgs &&
+        latestBuyerMsg &&
+        thread.sellerId
+      ) {
+        await notifyNegotiationStarted(thread.sellerId, {
+          chatId: thread.id,
+          listingTitle: thread.listingTitle,
+          preview: latestBuyerMsg.text,
+        });
+      }
+
+      if (thread.escrowOffered && prev && !prev.escrowOffered) {
+        await notifyNegotiationDealClosed(
+          [thread.buyerId, thread.sellerId],
+          {
+            chatId: thread.id,
+            listingTitle: thread.listingTitle,
+          }
+        );
+      }
+    })();
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
