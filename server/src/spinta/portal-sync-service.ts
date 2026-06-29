@@ -1,4 +1,5 @@
 import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
+import { logProductionError } from "../lib/production-log.js";
 import { getUser } from "../repository.js";
 import { notifyPortalSyncNewItems } from "../services/push-service.js";
 import {
@@ -98,6 +99,11 @@ export async function syncSinglePortalLink(
     return { status: "updated", itemCount: result.items.length };
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
+    logProductionError("portal-sync", e, {
+      userId: link.userId,
+      portalKey: link.portalKey,
+      profileUrl: link.profileUrl.slice(0, 120),
+    });
     await markPortalLinkError(link.userId, link.portalKey, message);
     return { status: "error", itemCount: 0 };
   }

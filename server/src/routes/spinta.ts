@@ -15,6 +15,7 @@ import {
 import { syncSinglePortalLink, runPortalSyncBatch } from "../spinta/portal-sync-service.js";
 import { hashWardrobeItems, wardrobeItemsToListings } from "../spinta/portal-listing-mapper.js";
 import { getUser, upsertPortalListing } from "../repository.js";
+import { logProductionError } from "../lib/production-log.js";
 
 export const spintaRouter = Router();
 
@@ -109,6 +110,11 @@ spintaRouter.post("/import", async (req: AuthedRequest, res) => {
 
     res.json(result);
   } catch (e) {
+    logProductionError("portal-import", e, {
+      profileUrl: profileUrl.slice(0, 120),
+      portalKey,
+      userId: req.authUserId,
+    });
     res.status(422).json({ error: String(e) });
   }
 });
@@ -124,14 +130,19 @@ spintaRouter.post("/sync", async (req: AuthedRequest, res) => {
     Boolean(cronSecret) && typeof cronHeader === "string" && cronHeader === cronSecret;
 
   if (isCron && !req.body?.profileUrl) {
-    const batch = await runPortalSyncBatch({ maxLinks: 8 });
-    return res.json({
-      ok: true,
-      status: "batch_complete",
-      triggeredBy: "cron",
-      nextSyncInDays: 3,
-      ...batch,
-    });
+    try {
+      const batch = await runPortalSyncBatch({ maxLinks: 8 });
+      return res.json({
+        ok: true,
+        status: "batch_complete",
+        triggeredBy: "cron",
+        nextSyncInDays: 3,
+        ...batch,
+      });
+    } catch (e) {
+      logProductionError("portal-sync", e, { triggeredBy: "cron", mode: "batch" });
+      return res.status(500).json({ error: String(e) });
+    }
   }
 
   if (!isCron && !req.authUserId) {
@@ -156,24 +167,34 @@ spintaRouter.post("/sync", async (req: AuthedRequest, res) => {
   }
 
   const userId = req.authUserId!;
-  const existing = await upsertPortalLink({
-    userId,
-    portalKey,
-    portalLabel: portalLabelForKey(portalKey),
-    profileUrl,
-    status: "syncing",
-    scheduleNextSync: false,
-  });
+  try {
+    const existing = await upsertPortalLink({
+      userId,
+      portalKey,
+      portalLabel: portalLabelForKey(portalKey),
+      profileUrl,
+      status: "syncing",
+      scheduleNextSync: false,
+    });
 
-  const outcome = await syncSinglePortalLink(existing);
+    const outcome = await syncSinglePortalLink(existing);
 
-  res.json({
-    ok: outcome.status !== "error",
-    status: outcome.status,
-    triggeredBy: isCron ? "cron" : "user",
-    userId,
-    itemCount: outcome.itemCount,
-    profileUrl,
-    nextSyncInDays: 3,
-  });
+    res.json({
+      ok: outcome.status !== "error",
+      status: outcome.status,
+      triggeredBy: isCron ? "cron" : "user",
+      userId,
+      itemCount: outcome.itemCount,
+      profileUrl,
+      nextSyncInDays: 3,
+    });
+  } catch (e) {
+    logProductionError("portal-sync", e, {
+      userId,
+      portalKey,
+      profileUrl: profileUrl.slice(0, 120),
+      triggeredBy: isCron ? "cron" : "user",
+    });
+    res.status(500).json({ error: String(e) });
+  }
 });

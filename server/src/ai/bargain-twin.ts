@@ -1,4 +1,9 @@
 import { unifiedLlmJson } from "./llm-provider.js";
+import { logProductionError } from "../lib/production-log.js";
+import {
+  buildNegotiationSystemPrompt,
+  type NegotiationProfileType,
+} from "../services/ai-negotiator.js";
 
 export interface BargainTwinRules {
   minPrice: number;
@@ -15,6 +20,7 @@ export interface BargainTwinInput {
   minPrice: number;
   listingTitle: string;
   sellerName: string;
+  profileType?: NegotiationProfileType;
   rules?: BargainTwinRules;
 }
 
@@ -128,12 +134,11 @@ export async function runAutoNegotiation(
 
   try {
     const raw = await unifiedLlmJson({
-      systemInstruction: `Tu esi VAUTO Pardavėjo Dvynys — mandagus AI asistentas derybose.
-Grąžink JSON: {"shouldReply":true,"offeredPrice":number,"counterPrice":number|null,"dealReady":boolean,"autoReply":"string","sellerNotification":"string"}
-Jei pasiūlymas >= minPrice — dealReady true. Niekada nesiūlyk žemiau minPrice.`,
+      systemInstruction: buildNegotiationSystemPrompt(input.profileType),
       prompt: `Pardavėja: ${input.sellerName}
 Skelbimas: ${input.listingTitle}
 Kaina: ${input.listingPrice} €, minimumas: ${input.minPrice} €
+Profilio tipas: ${input.profileType ?? "nežinomas"}
 Pirkėjo žinutė: "${input.buyerMessage}"`,
     });
 
@@ -148,7 +153,11 @@ Pirkėjo žinutė: "${input.buyerMessage}"`,
         String(raw.sellerNotification ?? local.sellerNotification).trim() ||
         local.sellerNotification,
     };
-  } catch {
+  } catch (err) {
+    logProductionError("negotiation-twin", err, {
+      listingTitle: input.listingTitle,
+      profileType: input.profileType,
+    });
     return local;
   }
 }

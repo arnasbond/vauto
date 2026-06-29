@@ -24,7 +24,7 @@ import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
 import { runAutoNegotiation } from "../ai/bargain-twin.js";
 import { calculateAppraisal } from "../ai/price-appraisal.js";
 import { generateListingShareCopy } from "../ai/listing-share-generator.js";
-import { getListings } from "../repository.js";
+import { getListings, getUser } from "../repository.js";
 import { toAgentListingSummary } from "../demo-catalog-api.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import type { AuthedRequest } from "../middleware/auth.js";
@@ -32,6 +32,10 @@ import {
   buildUserContextInjectionBlock,
   resolveAuthenticatedAgentContext,
 } from "../ai/user-agent-context.js";
+import {
+  resolveNegotiationProfileType,
+} from "../services/ai-negotiator.js";
+import { logProductionError } from "../lib/production-log.js";
 import { VOICE_SECRETARY_PERSONA } from "../ai/secretary-persona.js";
 import {
   isTooShortSecretaryQuery,
@@ -476,7 +480,7 @@ aiRouter.post("/price-appraisal", async (req, res) => {
   }
 });
 
-aiRouter.post("/negotiation-twin", async (req, res) => {
+aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
   const body = req.body as {
     buyerMessage?: string;
     listingPrice?: number;
@@ -485,6 +489,7 @@ aiRouter.post("/negotiation-twin", async (req, res) => {
     sellerName?: string;
     sellerApproved?: boolean;
     autoNegotiationEnabled?: boolean;
+    profileType?: string;
   };
   if (!body.buyerMessage?.trim()) {
     return res.status(400).json({ error: "buyerMessage is required" });
@@ -492,12 +497,20 @@ aiRouter.post("/negotiation-twin", async (req, res) => {
   try {
     const minPrice = Number(body.minPrice) || 0;
     const listingPrice = Number(body.listingPrice) || 0;
+
+    let profileType = resolveNegotiationProfileType(body.profileType);
+    if (!profileType && req.authUserId) {
+      const seller = await getUser(req.authUserId);
+      profileType = resolveNegotiationProfileType(seller?.profileType);
+    }
+
     const result = await runAutoNegotiation({
       buyerMessage: body.buyerMessage.trim(),
       listingPrice,
       minPrice,
       listingTitle: body.listingTitle?.trim() || "Skelbimas",
       sellerName: body.sellerName?.trim() || "Pardavėja",
+      profileType,
       rules: {
         minPrice,
         listingPrice,
@@ -507,6 +520,7 @@ aiRouter.post("/negotiation-twin", async (req, res) => {
     });
     res.json(result);
   } catch (e) {
+    logProductionError("negotiation-twin", e);
     res.status(500).json({ error: String(e) });
   }
 });

@@ -4,6 +4,7 @@ import {
   upstreamImageReferer,
 } from "../lib/external-image-proxy.js";
 import { optimizeProxyImageToWebp } from "../lib/proxy-image-optimize.js";
+import { logProductionError } from "../lib/production-log.js";
 
 /** GET /api/proxy/image?url=... — bypass marketplace hotlink/CORS for import previews. */
 export async function proxyImageHandler(req: Request, res: Response): Promise<void> {
@@ -32,6 +33,11 @@ export async function proxyImageHandler(req: Request, res: Response): Promise<vo
     });
 
     if (!upstream.ok) {
+      logProductionError(
+        "image-proxy",
+        new Error(`Upstream HTTP ${upstream.status}`),
+        { url: target.hostname }
+      );
       res.status(502).json({ error: "Upstream image fetch failed" });
       return;
     }
@@ -46,7 +52,8 @@ export async function proxyImageHandler(req: Request, res: Response): Promise<vo
     let output: Buffer;
     try {
       output = await optimizeProxyImageToWebp(buffer);
-    } catch {
+    } catch (convertErr) {
+      logProductionError("image-proxy", convertErr, { url: target.hostname });
       res.status(502).json({ error: "Image conversion failed" });
       return;
     }
@@ -57,6 +64,7 @@ export async function proxyImageHandler(req: Request, res: Response): Promise<vo
     res.setHeader("Vary", "Accept");
     res.send(output);
   } catch (err) {
+    logProductionError("image-proxy", err, { url: raw.slice(0, 120) });
     const message = err instanceof Error ? err.message : String(err);
     res.status(502).json({ error: message });
   }
