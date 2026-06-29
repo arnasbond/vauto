@@ -42,6 +42,7 @@ import {
   microPaymentFromToolResult,
   resolveClientMonetizationState,
 } from "@/lib/monetization-engine";
+import { persistPendingZeroUiScreen } from "@/lib/zero-ui-pending";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import {
   filtersFromSearchAction,
@@ -203,12 +204,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const routeZeroUiScreen = useCallback(
     (screen: ZeroUiScreen) => {
-      if (typeof window !== "undefined" && window.location.pathname.replace(/\/$/, "") !== "") {
-        window.location.assign("/");
+      if (typeof window !== "undefined") {
+        persistPendingZeroUiScreen(screen);
+        const path = window.location.pathname.replace(/\/$/, "") || "/";
+        if (path !== "/") {
+          router.push("/");
+        }
       }
       setScreen(screen, "agent");
     },
-    [setScreen]
+    [setScreen, router]
   );
 
   const navigateToAdd = useCallback(
@@ -489,8 +494,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (actions.label) showToast(actions.label, "info");
         if (actions.openChat) {
           const chatId = startChat(actions.listingId);
-          if (chatId && typeof window !== "undefined") {
-            window.location.assign(chatThreadPath(chatId));
+          if (chatId) {
+            router.push(chatThreadPath(chatId));
           }
         }
       }
@@ -537,6 +542,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       navigateTo,
       openAuthModal,
       routeZeroUiScreen,
+      router,
       navigateToAdd,
       setListingBanned,
       setSearchInputMode,

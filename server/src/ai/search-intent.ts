@@ -331,3 +331,4 @@ export function buildVisualSearchVoiceCommentary(
 
   return `${firstName}, pagal tavo įkeltą nuotrauką suradau ${countLabel} ${subject} ${region} regione! Pasižiūrėkim.`;
 }
+

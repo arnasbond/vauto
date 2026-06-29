@@ -728,10 +728,14 @@ export async function apiAnalyzeVisualSearchIntent(body: {
   extraContext?: string;
   wardrobeOnly?: boolean;
 }): Promise<import("@/lib/gemini-search-intent").GeminiVisualSearchIntent | null> {
-  return aiFetch("/api/ai/analyze-search-visual", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  return aiFetch(
+    "/api/ai/analyze-search-visual",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    AI_VISION_FETCH_TIMEOUT_MS
+  );
 }
 
 export async function apiGenerateDescriptionPersonas(body: {
@@ -752,10 +756,14 @@ export async function apiAnalyzeWardrobePhoto(body: {
   imageDataUrl: string;
   userName?: string;
 }): Promise<import("@/lib/wardrobe-vision").WardrobeVisionAnalysis | null> {
-  return aiFetch("/api/ai/analyze-wardrobe-photo", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
+  return aiFetch(
+    "/api/ai/analyze-wardrobe-photo",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    AI_VISION_FETCH_TIMEOUT_MS
+  );
 }
 
 export async function apiExpressEscrowLocker(body: {

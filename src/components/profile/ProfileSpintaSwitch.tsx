@@ -73,11 +73,7 @@ export function ProfileSpintaSwitch() {
 
 
   const handleActivate = () => {
-
     activateWardrobeSpinta();
-
-    window.location.assign("/profile/?spinta=1");
-
   };
 
 

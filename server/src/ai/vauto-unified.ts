@@ -4,6 +4,7 @@ import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
 import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
+import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -141,6 +142,7 @@ function buildImagePrompt(
     ? `\nKontekstas: ${extraContext.trim()}`
     : "";
   return `${SYSTEM_RULES}
+${VISION_ANTI_HALLUCINATION_RULE}
 
 Analizuok nuotrauką(-as). Atpažink TIKSLŲ objektą — pavadinimas ir kategorija turi atitikti tai, ką matai (laptopas → ELEKTRONIKA, ne planšetė jei tai laptopas).${textNote}${extra}
 Numatytas miestas: ${userCity}

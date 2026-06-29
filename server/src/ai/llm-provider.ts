@@ -3,6 +3,9 @@
 import "../load-env.js";
 import { resolveGeminiApiKey } from "../load-env.js";
 
+/** Stay under Render free-tier ~30s request limit. */
+const GEMINI_FETCH_TIMEOUT_MS = 25_000;
+
 export type AiProvider = "gemini" | null;
 
 export function resolveAiProvider(): AiProvider {
@@ -89,6 +92,7 @@ async function geminiChatJson(
       contents: [{ role: "user", parts: userParts }],
       generationConfig: { temperature: 0.2 },
     }),
+    signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
   });
 
   if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
@@ -213,6 +217,7 @@ async function geminiGeneratePlainText(
           contents: [{ parts }],
           generationConfig: { temperature: 0.1 },
         }),
+        signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
       }
     );
     if (!res.ok) {
@@ -261,6 +266,7 @@ export async function embedText(text: string): Promise<number[] | null> {
         model: "models/gemini-embedding-001",
         content: { parts: [{ text: trimmed.slice(0, 8000) }] },
       }),
+      signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
     }
   );
   if (!res.ok) return null;

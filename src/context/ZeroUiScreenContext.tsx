@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useState,
   type ReactNode,
@@ -12,6 +13,7 @@ import {
   ZERO_UI_SCREEN_LABELS,
   type ZeroUiScreen,
 } from "@/lib/zero-ui-screens";
+import { consumePendingZeroUiScreen } from "@/lib/zero-ui-pending";
 import type { ZeroUiMicroPaymentIntent } from "@/lib/monetization-engine";
 
 export type ZeroUiScreenSource = "agent" | "user" | "voice";
@@ -60,6 +62,14 @@ export function ZeroUiScreenProvider({ children }: { children: ReactNode }) {
 
   const clearMicroPayment = useCallback(() => {
     setPendingMicroPayment(null);
+  }, []);
+
+  useEffect(() => {
+    const pending = consumePendingZeroUiScreen();
+    if (pending) {
+      setCurrentView(pending);
+      setLastSource("agent");
+    }
   }, []);
 
   const value = useMemo<ZeroUiScreenContextValue>(

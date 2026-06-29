@@ -394,22 +394,26 @@ aiRouter.post("/express-escrow-locker", async (req, res) => {
 });
 
 aiRouter.post("/process-express-escrow", async (req, res) => {
-  const body = req.body as { escrow?: Record<string, unknown> };
-  if (!body.escrow || typeof body.escrow !== "object") {
-    return res.status(400).json({ error: "escrow is required" });
+  try {
+    const body = req.body as { escrow?: Record<string, unknown> };
+    if (!body.escrow || typeof body.escrow !== "object") {
+      return res.status(400).json({ error: "escrow is required" });
+    }
+    const escrow = body.escrow as unknown as import("../types.js").ApiEscrowTransaction & {
+      expressEscrow24h?: boolean;
+      claimDeadlineAt?: string;
+    };
+    if (!shouldAutoConfirmExpress(escrow)) {
+      return res.json({ autoConfirmed: false, escrow });
+    }
+    const confirmed = await confirmDeliveryForEscrow(escrow.id);
+    res.json({
+      autoConfirmed: true,
+      escrow: confirmed ?? confirmTransaction(escrow),
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
   }
-  const escrow = body.escrow as unknown as import("../types.js").ApiEscrowTransaction & {
-    expressEscrow24h?: boolean;
-    claimDeadlineAt?: string;
-  };
-  if (!shouldAutoConfirmExpress(escrow)) {
-    return res.json({ autoConfirmed: false, escrow });
-  }
-  const confirmed = await confirmDeliveryForEscrow(escrow.id);
-  res.json({
-    autoConfirmed: true,
-    escrow: confirmed ?? confirmTransaction(escrow),
-  });
 });
 
 aiRouter.post("/import-wardrobe-profile", async (req, res) => {

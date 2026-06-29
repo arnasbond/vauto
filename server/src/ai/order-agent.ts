@@ -36,7 +36,6 @@ export function confirmTransaction(
 ): ApiEscrowTransaction & ExpressEscrowPatch {
   return {
     ...escrow,
-    status: "completed",
     buyerConfirmed: true,
     deliveryStatus: "delivered_confirmed",
     updatedAt: new Date().toISOString(),
@@ -53,7 +52,8 @@ export async function confirmDeliveryForEscrow(
   if (isStripeEscrowLive() && escrow.stripePaymentIntentId) {
     await confirmDelivery(escrow.stripePaymentIntentId);
   }
-  return (await confirmEscrowDelivery(escrowId)) as ApiEscrowTransaction & ExpressEscrowPatch;
+  return (await confirmEscrowDelivery(escrowId)) as ApiEscrowTransaction &
+    ExpressEscrowPatch;
 }
 
 export function shouldAutoConfirmExpress(
