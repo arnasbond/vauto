@@ -1,7 +1,6 @@
 "use client";
 
-import { Camera, ImageIcon, type LucideIcon } from "lucide-react";
-import { useRef } from "react";
+import { Camera, ImageIcon } from "lucide-react";
 import {
   isMobilePhotoCaptureDevice,
   type CapturedPhoto,
@@ -22,36 +21,8 @@ function readFileAsCapturedPhoto(file: File): Promise<CapturedPhoto | null> {
   });
 }
 
-function CaptureTile({
-  label,
-  icon: Icon,
-  onClick,
-  disabled,
-  variant = "primary",
-}: {
-  label: string;
-  icon: LucideIcon;
-  onClick: () => void;
-  disabled?: boolean;
-  variant?: "primary" | "secondary";
-}) {
-  const primary =
-    variant === "primary"
-      ? "border-2 border-dashed border-[#00f2fe]/60 bg-[#1e293b] text-[#00f2fe] hover:bg-[#334155]"
-      : "border border-slate-600 bg-[#1e293b] text-slate-200 hover:bg-[#334155]";
-
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      className={`flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 transition disabled:opacity-50 ${primary}`}
-    >
-      <Icon className="h-7 w-7" />
-      <span className="text-center text-xs font-semibold leading-tight">{label}</span>
-    </button>
-  );
-}
+const TILE_BASE =
+  "flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 transition disabled:opacity-50";
 
 export interface ImageSearchCaptureProps {
   disabled?: boolean;
@@ -60,35 +31,20 @@ export interface ImageSearchCaptureProps {
 }
 
 /**
- * Photo search capture — sync file input inside tap gesture (mobile camera + desktop gallery fallback).
+ * Photo search capture — label-wrapped file inputs keep the mobile user-gesture chain
+ * so capture="environment" opens the rear camera instead of the gallery.
  */
 export function ImageSearchCapture({
   disabled,
   onCapture,
   replaceMode = false,
 }: ImageSearchCaptureProps) {
-  const cameraInputRef = useRef<HTMLInputElement>(null);
-  const galleryInputRef = useRef<HTMLInputElement>(null);
   const mobileCapture = isMobilePhotoCaptureDevice();
 
   const applyFile = async (file: File | undefined) => {
-    if (!file) return;
+    if (!file || disabled) return;
     const photo = await readFileAsCapturedPhoto(file);
     if (photo) onCapture(photo);
-  };
-
-  const openCamera = () => {
-    if (disabled) return;
-    if (mobileCapture) {
-      cameraInputRef.current?.click();
-      return;
-    }
-    galleryInputRef.current?.click();
-  };
-
-  const openGallery = () => {
-    if (disabled) return;
-    galleryInputRef.current?.click();
   };
 
   const cameraLabel = replaceMode ? "Fotografuoti iš naujo" : "Fotografuoti";
@@ -96,46 +52,59 @@ export function ImageSearchCapture({
 
   return (
     <>
-      <CaptureTile
-        label={cameraLabel}
-        icon={Camera}
-        onClick={openCamera}
-        disabled={disabled}
-        variant="primary"
-      />
-      <CaptureTile
-        label={galleryLabel}
-        icon={ImageIcon}
-        onClick={openGallery}
-        disabled={disabled}
-        variant="secondary"
-      />
+      {mobileCapture ? (
+        <label className={`${TILE_BASE} cursor-pointer border-2 border-dashed border-[#00f2fe]/60 bg-[#1e293b] text-[#00f2fe] hover:bg-[#334155] ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+          <input
+            type="file"
+            accept="image/*"
+            capture="environment"
+            disabled={disabled}
+            tabIndex={-1}
+            aria-hidden
+            className="sr-only"
+            onChange={(e) => {
+              void applyFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <Camera className="h-7 w-7" />
+          <span className="text-center text-xs font-semibold leading-tight">{cameraLabel}</span>
+        </label>
+      ) : (
+        <label className={`${TILE_BASE} cursor-pointer border-2 border-dashed border-[#00f2fe]/60 bg-[#1e293b] text-[#00f2fe] hover:bg-[#334155] ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+          <input
+            type="file"
+            accept="image/*"
+            disabled={disabled}
+            tabIndex={-1}
+            aria-hidden
+            className="sr-only"
+            onChange={(e) => {
+              void applyFile(e.target.files?.[0]);
+              e.target.value = "";
+            }}
+          />
+          <Camera className="h-7 w-7" />
+          <span className="text-center text-xs font-semibold leading-tight">{cameraLabel}</span>
+        </label>
+      )}
 
-      <input
-        ref={cameraInputRef}
-        type="file"
-        accept="image/*"
-        capture="environment"
-        tabIndex={-1}
-        aria-hidden
-        className="listing-gallery-file-input"
-        onChange={(e) => {
-          void applyFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
-      <input
-        ref={galleryInputRef}
-        type="file"
-        accept="image/*"
-        tabIndex={-1}
-        aria-hidden
-        className="listing-gallery-file-input"
-        onChange={(e) => {
-          void applyFile(e.target.files?.[0]);
-          e.target.value = "";
-        }}
-      />
+      <label className={`${TILE_BASE} cursor-pointer border border-slate-600 bg-[#1e293b] text-slate-200 hover:bg-[#334155] ${disabled ? "pointer-events-none opacity-50" : ""}`}>
+        <input
+          type="file"
+          accept="image/*"
+          disabled={disabled}
+          tabIndex={-1}
+          aria-hidden
+          className="sr-only"
+          onChange={(e) => {
+            void applyFile(e.target.files?.[0]);
+            e.target.value = "";
+          }}
+        />
+        <ImageIcon className="h-7 w-7" />
+        <span className="text-center text-xs font-semibold leading-tight">{galleryLabel}</span>
+      </label>
     </>
   );
 }

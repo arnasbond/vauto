@@ -97,9 +97,9 @@ export function WardrobeCabinetGrid({
 
   if (clothing.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-[#b8ebe8] bg-[#fffdf9] px-6 py-14 text-center">
+      <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900 px-6 py-14 text-center">
         <Sparkles className="mx-auto mb-3 h-8 w-8 text-[#09b1a8]" />
-        <p className="text-sm font-light text-[#374151]">
+        <p className="text-sm font-light text-white">
           Tavo spinta dar tuščia — įkelk pirmą prekę ir aš padėsiu viską sutvarkyti.
         </p>
       </div>

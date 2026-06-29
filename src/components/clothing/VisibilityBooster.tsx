@@ -38,7 +38,7 @@ export function VisibilityBooster({ listings, inSpintaCabinet = false }: Visibil
   };
 
   return (
-    <section className="mb-6 overflow-hidden rounded-3xl border border-[#b8ebe8] bg-gradient-to-br from-[#fffdf9] to-[#e6f7f6] p-4">
+    <section className="mb-6 overflow-hidden rounded-3xl border border-slate-800 bg-slate-900 p-4 text-white">
       <div className="mb-3 flex items-center gap-2">
         <span
           className="flex h-9 w-9 items-center justify-center rounded-xl text-white"
@@ -47,8 +47,8 @@ export function VisibilityBooster({ listings, inSpintaCabinet = false }: Visibil
           <TrendingUp className="h-4 w-4" />
         </span>
         <div>
-          <p className="text-sm font-light text-[#374151]">AI matomumo stiprintuvas</p>
-          <p className="text-[11px] font-light text-[#9ca3af]">
+          <p className="text-sm font-light text-white">AI matomumo stiprintuvas</p>
+          <p className="text-[11px] font-light text-slate-400">
             Įtraukite prekę į asmeninių stiliaus derinių srautą — simbolinis mokestis
           </p>
         </div>
@@ -60,9 +60,9 @@ export function VisibilityBooster({ listings, inSpintaCabinet = false }: Visibil
           return (
             <div
               key={listing.id}
-              className="flex items-center justify-between gap-2 rounded-2xl border border-white bg-white/90 px-3 py-2.5"
+              className="flex items-center justify-between gap-2 rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2.5"
             >
-              <p className="min-w-0 flex-1 truncate text-sm font-light text-[#374151]">
+              <p className="min-w-0 flex-1 truncate text-sm font-light text-white">
                 {listing.title}
               </p>
               <button

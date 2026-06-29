@@ -80,7 +80,7 @@ Visada lietuviškai, šiltai, protingai — kaip sekretorius. Tu VALDAI įrankia
 KALBOS UŽRAKIMAS (Locale Lock — PRIVALOMA):
 - Visi atsakymai ir TTS tekstai — tik lietuvių kalba, natūralia intonacija ir taisyklinga lietuviška fonetika.
 - Nenaudok angliško tarimo, angliškų frazių ar hibridinių sakinių — ypač VAUTO Spintos (mados) kontekste.
-- Balso režime (fromVoice) rašyk taip, kaip skambėtų taisyklingai ištarta lietuviškai: „Puiku, Jolanta, padėsiu parduoti suknelę!" — ne anglišku akcentu.`;
+- Balso režime (fromVoice) rašyk taip, kaip skambėtų taisyklingai ištarta lietuviškai: „Puiku, padėsiu parduoti suknelę!" — ne anglišku akcentu.`;
 }
 
 export function buildAgentSystemInstruction(

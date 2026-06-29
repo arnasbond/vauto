@@ -2,9 +2,15 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useCallback } from "react";
 import { Home, LayoutGrid, MessageCircle, Plus, Shield, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
+import { useZeroUiMemory } from "@/context/ZeroUiMemoryContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
+import { dispatchHomeReset } from "@/lib/home-reset";
+import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { countUnreadChats } from "@/lib/chat-helpers";
 import { cn } from "@/lib/cn";
 import {
@@ -33,7 +39,46 @@ export function BottomNav() {
     user,
     openAuthModal,
     requireAuthForListing,
+    setSearchQuery,
+    setSearchLoading,
+    clearAgentPinnedListings,
+    resetMarketplaceFilters,
+    clearVisualSearch,
+    setSearchInputMode,
+    setSearchVoiceMode,
   } = useVauto();
+  const { goToMarketplace } = useZeroUiScreen();
+  const { clearSearchFilters } = useZeroUiMemory();
+  const { setOpen: setAgentOpen } = useVautoAgent();
+
+  const resetHomeExperience = useCallback(() => {
+    setSearchQuery("");
+    setSearchLoading(false);
+    clearAgentPinnedListings();
+    resetMarketplaceFilters();
+    clearVisualSearch();
+    setSearchInputMode(null);
+    setSearchVoiceMode(false);
+    clearSearchFilters();
+    clearPhotoSearchSession();
+    goToMarketplace("user");
+    setAgentOpen(false);
+    dispatchHomeReset();
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [
+    setSearchQuery,
+    setSearchLoading,
+    clearAgentPinnedListings,
+    resetMarketplaceFilters,
+    clearVisualSearch,
+    setSearchInputMode,
+    setSearchVoiceMode,
+    clearSearchFilters,
+    goToMarketplace,
+    setAgentOpen,
+  ]);
 
   const profileHref = "/profile/";
   const profileLabel = isAdmin ? "VAUTO CC" : "Profilis";
@@ -114,6 +159,7 @@ export function BottomNav() {
       <div className="relative mx-auto flex max-w-lg items-end justify-between px-2">
         <Link
           href="/"
+          onClick={resetHomeExperience}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(homeActive) }}
           aria-current={homeActive ? "page" : undefined}

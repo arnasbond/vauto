@@ -624,7 +624,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         label: {
           type: "STRING",
           description:
-            "Trumpas šiltas lietuviškas TTS atsakymas, pvz. Supratau, filtruoju batelius Jolantos spintoje!",
+            "Trumpas šiltas lietuviškas TTS atsakymas, pvz. Supratau, filtruoju batelius tavo spintoje!",
         },
         activateWardrobe: { type: "BOOLEAN" },
         wardrobeMode: { type: "BOOLEAN" },

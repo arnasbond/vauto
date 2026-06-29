@@ -11,10 +11,10 @@ export interface UiFilterPayload {
 
 /** Semantinis žodynas — klaidinga balso įvestis Spintos režime (Gemini, ne klientas). */
 export const WARDROBE_VOICE_SEMANTIC_HINT = `SPINTOS KLAIDŲ TOLERAVIMAS (updateUIFilters — PRIVALOMA):
-- Jei elgsena rodo /fashion, spinta_enter, wardrobe ar theme_change wardrobe — vartotojas Jolantos VAUTO Spintoje.
+- Jei elgsena rodo /fashion, spinta_enter, wardrobe ar theme_change wardrobe — vartotojas VAUTO Spintoje.
 - Klaidinga STT (pvz. „rozni kedai", „batai 42", „suknele") → updateUIFilters, NE searchListings su žodžiu „other".
 - Pavyzdžiai:
-  • „rozni kedai" / „raudoni kedai" → category clothing, subcategory shoes, atsakymas: „Supratau, filtruoju batelius Jolantos spintoje!"
+  • „rozni kedai" / „raudoni kedai" → category clothing, subcategory shoes, atsakymas: „Supratau, filtruoju batelius tavo spintoje!"
   • „suknele" / „suknelė raudona" → category clothing, subcategory dresses
   • „striuke" → category clothing, subcategory jackets
 - Po updateUIFilters — trumpas šiltas lietuviškas TTS atsakymas (label laukas).`;
@@ -119,7 +119,7 @@ export function normalizeUpdateUIFiltersArgs(
   const label =
     String(merged.label ?? "").trim() ||
     (category === "clothing" && subcategory
-      ? "Supratau, filtruoju batelius Jolantos spintoje!"
+      ? "Supratau, filtruoju batelius tavo spintoje!"
       : "Filtrai atnaujinti.");
 
   const categoryAttributes: Record<string, string> = {};

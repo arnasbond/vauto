@@ -8,7 +8,10 @@ import { buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardr
 import { resolveWardrobeSubscriptionAccess } from "@/lib/SubscriptionGuard";
 import type { Listing, UserProfile } from "@/lib/types";
 
-const ACCENT = "#09b1a8";
+const ACCENT = "var(--chameleon-accent, #09b1a8)";
+
+const CARD_CLASS =
+  "mb-6 rounded-3xl border border-slate-800 bg-slate-900 p-4 text-white";
 
 interface WardrobePowerStatsProps {
   user: UserProfile;
@@ -44,12 +47,12 @@ export function WardrobePowerStats({
 
   if (!access.showsDeepStats) {
     return (
-      <div className="mb-6 rounded-3xl border border-dashed border-[#b8ebe8] bg-[#fffdf9] p-4">
+      <div className={`${CARD_CLASS} border-dashed`}>
         <div className="flex items-start gap-3">
-          <Crown className="h-5 w-5 shrink-0 text-[#09b1a8]" />
+          <Crown className="h-5 w-5 shrink-0" style={{ color: ACCENT }} />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-light text-[#374151]">Power-User statistika</p>
-            <p className="mt-1 text-xs font-light text-[#9ca3af]">
+            <p className="text-sm font-light text-white">Power-User statistika</p>
+            <p className="mt-1 text-xs font-light text-slate-300">
               Gilesnė analitika ir neribotas spintos importas —{" "}
               {access.importsRemaining === 0
                 ? "nemokamas importas išnaudotas"
@@ -70,10 +73,10 @@ export function WardrobePowerStats({
   }
 
   return (
-    <section className="mb-6 rounded-3xl border border-[#b8ebe8] bg-[#fffdf9] p-4">
+    <section className={CARD_CLASS}>
       <div className="mb-3 flex items-center gap-2">
         <BarChart3 className="h-4 w-4" style={{ color: ACCENT }} />
-        <p className="text-sm font-light text-[#374151]">Spintos analitika · Power-User</p>
+        <p className="text-sm font-light text-white">Spintos analitika · Power-User</p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatChip label="Peržiūros" value={String(stats.views)} />
@@ -81,7 +84,7 @@ export function WardrobePowerStats({
         <StatChip label="Pokalbiai" value={String(stats.chats)} />
         <StatChip label="Domėjimasis" value={`${stats.conversion}%`} />
       </div>
-      <p className="mt-2 text-[10px] font-light text-[#9ca3af]">
+      <p className="mt-2 text-[10px] font-light text-slate-400">
         {stats.count} prek{stats.count === 1 ? "ė" : "ės"} spintoje · neribotas importas aktyvus
       </p>
     </section>
@@ -90,9 +93,9 @@ export function WardrobePowerStats({
 
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-[#e8e4df] bg-white px-3 py-2.5 text-center">
-      <p className="text-lg font-medium text-[#374151]">{value}</p>
-      <p className="text-[10px] font-light uppercase tracking-wide text-[#9ca3af]">
+    <div className="rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-center">
+      <p className="text-lg font-medium text-white">{value}</p>
+      <p className="text-[10px] font-light uppercase tracking-wide text-slate-400">
         {label}
       </p>
     </div>

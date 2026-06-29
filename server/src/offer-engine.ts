@@ -193,7 +193,7 @@ export function buildSmartBargainingProposal(input: {
   );
   const title = input.listingTitle?.trim() || "ši prekė";
   const openerMessage = wardrobe
-    ? `Ši prekė sulaukė daug peržiūrų Jolantos spintoje. Nori, padėsiu suderinti ${discountPercentMin}–${discountPercentMax}% nuolaidą tiesiogiai su pardavėju?`
+    ? `Ši prekė sulaukė daug peržiūrų tavo spintoje. Nori, padėsiu suderinti ${discountPercentMin}–${discountPercentMax}% nuolaidą tiesiogiai su pardavėju?`
     : `Ši prekė sulaukė daug susidomėjimo. Nori, padėsiu suderinti ${discountPercentMin}–${discountPercentMax}% nuolaidą su pardavėju?`;
   const message = `${openerMessage} Siūlomas rėžis: ${suggestedOfferMin}–${suggestedOfferMax} € (dabartinė ${price} €).`;
 

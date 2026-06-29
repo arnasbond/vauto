@@ -14,7 +14,7 @@ import {
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 
 function buildWardrobeShortQueryIntervention(query: string): string {
-  return `Matau, kad ieškai kažko specifinio Jolantos spintoje („${query}"). Leisk man padėti — pasakyk dydį, spalvą ar prekės tipą, ir aš surasiu tau tinkamiausią variantą!`;
+  return `Matau, kad ieškai kažko specifinio tavo spintoje („${query}"). Leisk man padėti — pasakyk dydį, spalvą ar prekės tipą, ir aš surasiu tau tinkamiausią variantą!`;
 }
 
 function toAgentFilters(state: MarketplaceFilterState, searchQuery: string): AgentSearchFilters {

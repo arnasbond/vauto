@@ -34,12 +34,13 @@ import { useVauto } from "@/context/VautoContext";
 
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 
 import { HomeWardrobeSecretary } from "@/components/home/HomeWardrobeSecretary";
 import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
 
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
+import { subscribeHomeReset } from "@/lib/home-reset";
 
 
 
@@ -60,6 +61,10 @@ function MarketplaceView() {
 
     setSeedQuery(prompt);
 
+  }, []);
+
+  useEffect(() => {
+    return subscribeHomeReset(() => setSeedQuery(null));
   }, []);
 
 

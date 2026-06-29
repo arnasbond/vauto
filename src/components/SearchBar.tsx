@@ -34,6 +34,7 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
+import { subscribeHomeReset } from "@/lib/home-reset";
 import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { buildVisionSearchAgentAction } from "@/lib/vision-agent-bridge";
@@ -82,6 +83,14 @@ export function SearchBar({
   useEffect(() => {
     setDraftQuery(searchQuery);
   }, [searchQuery]);
+
+  useEffect(() => {
+    return subscribeHomeReset(() => {
+      setPhotoFlowOpen(false);
+      setIsPhotoSearching(false);
+      setDraftQuery("");
+    });
+  }, []);
 
   const activeTheme =
     sellerStep !== "idle"
