@@ -2,9 +2,7 @@
 
 import { Camera, ImageIcon, type LucideIcon } from "lucide-react";
 import { useRef } from "react";
-import { Capacitor } from "@capacitor/core";
 import {
-  capturePhotoFromSource,
   isMobilePhotoCaptureDevice,
   type CapturedPhoto,
 } from "@/lib/native-media";
@@ -81,27 +79,15 @@ export function ImageSearchCapture({
 
   const openCamera = () => {
     if (disabled) return;
-    if (Capacitor.isNativePlatform()) {
-      void capturePhotoFromSource("camera").then((shot) => {
-        if (shot) onCapture(shot);
-      });
+    if (mobileCapture) {
+      cameraInputRef.current?.click();
       return;
     }
-    if (!mobileCapture) {
-      galleryInputRef.current?.click();
-      return;
-    }
-    cameraInputRef.current?.click();
+    galleryInputRef.current?.click();
   };
 
   const openGallery = () => {
     if (disabled) return;
-    if (Capacitor.isNativePlatform()) {
-      void capturePhotoFromSource("gallery").then((shot) => {
-        if (shot) onCapture(shot);
-      });
-      return;
-    }
     galleryInputRef.current?.click();
   };
 
