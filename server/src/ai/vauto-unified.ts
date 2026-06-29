@@ -5,6 +5,8 @@ import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
 import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
 import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
+import { normalizeImageInputList } from "./image-input.js";
+import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -126,6 +128,7 @@ function buildTextPrompt(text: string, userCity: string, extraContext?: string):
 
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
+Pavyzdys: „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën automobilis", technicalFields.make Citroën.
 Svarbu: lauką description užpildyk pilnu, profesionaliu skelbimo aprašymu lietuviškai (mažiausiai 4 sakiniai).
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
@@ -168,12 +171,13 @@ export interface VautoServerRequest {
 }
 
 export async function handleVautoServerAction(body: VautoServerRequest) {
-  const imagesEarly =
+  const imagesEarly = normalizeImageInputList(
     Array.isArray(body.imageDataUrls) && body.imageDataUrls.length
       ? body.imageDataUrls
       : body.imageDataUrl
         ? [body.imageDataUrl]
-        : [];
+        : []
+  );
 
   let action = body.action;
   if (action === "analyze") {
@@ -207,21 +211,17 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     return { ok: true, action, url: uploaded.url, publicId: uploaded.publicId, listingId };
   }
 
-  const images =
-    Array.isArray(body.imageDataUrls) && body.imageDataUrls.length
-      ? body.imageDataUrls
-      : body.imageDataUrl
-        ? [body.imageDataUrl]
-        : [];
+  const images = imagesEarly;
 
   if (action === "parse_text") {
     const text = body.text?.trim();
     if (!text) {
       throw Object.assign(new Error("text is required for parse_text"), { status: 400 });
     }
-    const raw = await unifiedLlmJson({
+    const rawParsed = await unifiedLlmJson({
       prompt: buildTextPrompt(text, city, body.extraContext),
     });
+    const raw = enrichSellerListingFromText(text, rawParsed);
     const listing = toListingPayload(raw, city, contact);
     return { ok: true, action, parsed: raw, listing };
   }
@@ -230,10 +230,14 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     if (!images.length) {
       throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
     }
-    const raw = await unifiedLlmJson({
+    const combinedText = body.text?.trim() ?? "";
+    const rawParsed = await unifiedLlmJson({
       prompt: buildImagePrompt(city, body.text, body.extraContext),
       imageDataUrls: images,
     });
+    const raw = combinedText
+      ? enrichSellerListingFromText(combinedText, rawParsed)
+      : rawParsed;
     const listing = toListingPayload(raw, city, contact);
 
     const [visualSeo, antiFraud] = await Promise.all([

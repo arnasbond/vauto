@@ -1,4 +1,5 @@
 import { unifiedLlmJson, visionExtractJson } from "./llm-provider.js";
+import { normalizeImageInputList } from "./image-input.js";
 import {
   VISION_ANTI_HALLUCINATION_RULE,
   WARDROBE_ANTI_HALLUCINATION_RULE,
@@ -209,18 +210,15 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
 export async function analyzeVisualSearchIntent(
   input: AnalyzeVisualSearchInput
 ): Promise<AnalyzeVisualSearchResult> {
-  const images =
+  const images = normalizeImageInputList(
     input.imageDataUrls?.filter(Boolean).length
       ? input.imageDataUrls!.filter(Boolean)
       : input.imageDataUrl
         ? [input.imageDataUrl]
         : input.imageBase64
-          ? [
-              input.imageBase64.startsWith("data:")
-                ? input.imageBase64
-                : `data:image/jpeg;base64,${input.imageBase64.replace(/\s/g, "")}`,
-            ]
-          : [];
+          ? [input.imageBase64]
+          : []
+  );
 
   if (!images.length) {
     throw new Error("imageDataUrl or imageBase64 is required");

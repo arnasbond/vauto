@@ -1,6 +1,7 @@
 /** Gemini-only LLM provider for vision, chat JSON, and embeddings. */
 
 import "../load-env.js";
+import { normalizeImageDataUrl } from "./image-input.js";
 import { resolveGeminiApiKey } from "../load-env.js";
 
 /** Stay under Render free-tier ~30s request limit. */
@@ -17,23 +18,32 @@ export function hasAiKey(): boolean {
 }
 
 function parseDataUrl(url: string): { mime: string; data: string } | null {
-  const m = url.match(/^data:([^;]+);base64,(.+)$/);
-  if (!m) return null;
-  return { mime: m[1], data: m[2] };
+  const normalized = normalizeImageDataUrl(url);
+  if (!normalized) return null;
+  if (normalized.startsWith("data:")) {
+    const m = /^data:([^;]+);base64,(.+)$/i.exec(normalized);
+    if (!m) return null;
+    return { mime: m[1]!, data: m[2]! };
+  }
+  return null;
 }
 
 async function imageUrlToInlinePart(
   url: string
 ): Promise<{ inline_data: { mime_type: string; data: string } } | null> {
-  const parsed = parseDataUrl(url);
+  const normalized = normalizeImageDataUrl(url);
+  if (!normalized) return null;
+
+  const parsed = parseDataUrl(normalized);
   if (parsed) {
     return {
       inline_data: { mime_type: parsed.mime, data: parsed.data },
     };
   }
-  if (!/^https?:\/\//i.test(url)) return null;
+
+  if (!/^https?:\/\//i.test(normalized)) return null;
   try {
-    const res = await fetch(url, { signal: AbortSignal.timeout(12_000) });
+    const res = await fetch(normalized, { signal: AbortSignal.timeout(12_000) });
     if (!res.ok) return null;
     const mime = res.headers.get("content-type")?.split(";")[0] || "image/jpeg";
     const buf = Buffer.from(await res.arrayBuffer());
@@ -79,6 +89,10 @@ async function geminiChatJson(
     if (inline) userParts.push(inline);
   }
 
+  if (imageDataUrls.length > 0 && userParts.length < 2) {
+    throw new Error("Invalid image payload: could not decode base64 or data URL");
+  }
+
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
 
   const res = await fetch(url, {
@@ -90,7 +104,7 @@ async function geminiChatJson(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: "user", parts: userParts }],
-      generationConfig: { temperature: 0.2 },
+      generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
     }),
     signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
   });
@@ -258,10 +272,13 @@ export async function embedText(text: string): Promise<number[] | null> {
   if (!key) return null;
 
   const res = await fetch(
-    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent?key=${key}`,
+    `https://generativelanguage.googleapis.com/v1beta/models/gemini-embedding-001:embedContent`,
     {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key,
+      },
       body: JSON.stringify({
         model: "models/gemini-embedding-001",
         content: { parts: [{ text: trimmed.slice(0, 8000) }] },

@@ -32,8 +32,8 @@ export function validateProductionEnv(): EnvCheckResult {
     warnings.push("Web Push disabled (VAPID keys missing)");
   }
 
-  if (!process.env.GEMINI_API_KEY?.trim() && !process.env.AI_KEY?.trim()) {
-    warnings.push("Gemini agent disabled (GEMINI_API_KEY / AI_KEY missing)");
+  if (!process.env.GEMINI_API_KEY?.trim() && !process.env.AI_KEY?.trim() && !process.env.GOOGLE_AI_API_KEY?.trim()) {
+    warnings.push("Gemini agent disabled (GEMINI_API_KEY / AI_KEY / GOOGLE_AI_API_KEY missing)");
   }
 
   for (const w of warnings) {

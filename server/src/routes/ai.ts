@@ -27,6 +27,7 @@ import { generateListingShareCopy } from "../ai/listing-share-generator.js";
 import { getListings, getUser } from "../repository.js";
 import { toAgentListingSummary } from "../demo-catalog-api.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
+import { normalizeImageInputList } from "../ai/image-input.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import {
   buildUserContextInjectionBlock,
@@ -107,12 +108,13 @@ aiRouter.post("/extract-image", async (req, res) => {
   };
   const city = userCity || "Lietuva";
   const phone = contact || "+370 612 34567";
-  const images =
+  const images = normalizeImageInputList(
     Array.isArray(imageDataUrls) && imageDataUrls.length
       ? imageDataUrls
       : imageDataUrl
         ? [imageDataUrl]
-        : [];
+        : []
+  );
 
   if (!images.length) {
     return res.status(400).json({ error: "imageDataUrl is required" });
@@ -133,7 +135,9 @@ aiRouter.post("/extract-image", async (req, res) => {
     );
     res.json(toListing(raw, city, phone));
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    const message = e instanceof Error ? e.message : String(e);
+    const status = /invalid image|required|decode/i.test(message) ? 400 : 500;
+    res.status(status).json({ error: message });
   }
 });
 

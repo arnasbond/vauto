@@ -766,7 +766,9 @@ async function geminiChatJson(
 
     systemInstruction,
 
-    [{ text: userPrompt }]
+    [{ text: userPrompt }],
+
+    { responseMimeType: "application/json" }
 
   );
 
@@ -1056,7 +1058,8 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
     apiKey,
     GEMINI_VISION_MODELS,
     systemInstruction,
-    [{ text: userPrompt }, part]
+    [{ text: userPrompt }, part],
+    { responseMimeType: "application/json" }
   );
 }
 

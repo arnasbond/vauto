@@ -58,7 +58,8 @@ export interface PhotoVisionSearchResult {
 
 
 
-const RENDER_VISION_URL = "https://vauto-api.onrender.com/api/search/vision";
+const RENDER_VISION_FALLBACK =
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ?? null;
 
 
 
@@ -77,12 +78,12 @@ async function resolveVisionApiUrls(): Promise<string[]> {
   const apiBase = getDataApiBaseUrl();
 
   if (apiBase) {
-
     urls.push(`${apiBase.replace(/\/$/, "")}/api/search/vision`);
-
   }
 
-  urls.push(RENDER_VISION_URL);
+  if (RENDER_VISION_FALLBACK) {
+    urls.push(`${RENDER_VISION_FALLBACK}/api/search/vision`);
+  }
 
   return [...new Set(urls)];
 

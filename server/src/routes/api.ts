@@ -3,6 +3,7 @@ import express from "express";
 import { hasAgentAiKey } from "../load-env.js";
 import { hasAiKey } from "../ai/llm-provider.js";
 import { analyzeVisualSearchIntent } from "../ai/search-intent.js";
+import { normalizeImageDataUrl } from "../ai/image-input.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { pool } from "../db.js";
@@ -1072,10 +1073,12 @@ apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
     return res.status(400).json({ ok: false, error: "imageBase64 is required" });
   }
 
+  const normalizedImage = normalizeImageDataUrl(imageBase64) ?? imageBase64.trim();
+
   try {
     const intent = await analyzeVisualSearchIntent({
-      imageDataUrl: imageBase64.startsWith("data:") ? imageBase64 : undefined,
-      imageBase64: imageBase64.startsWith("data:") ? undefined : imageBase64,
+      imageDataUrl: normalizedImage.startsWith("data:") ? normalizedImage : undefined,
+      imageBase64: normalizedImage.startsWith("data:") ? undefined : normalizedImage,
       extraContext,
       userCity,
     });
