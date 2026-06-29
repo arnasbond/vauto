@@ -1,0 +1,112 @@
+name: Beta bug report
+description: Klaida ar netikėtas elgesys beta testavimo metu (v1.6.x)
+title: "[Beta] "
+labels:
+  - beta
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        **Feature Freeze** — praneškite apie klaidą, ne apie naują funkciją.
+        Versija: **v1.6.3** (versionCode **49**).
+
+  - type: input
+    id: tester
+    attributes:
+      label: Testuotojas
+      placeholder: pvz. Jolanta
+    validations:
+      required: true
+
+  - type: dropdown
+    id: profile_type
+    attributes:
+      label: Profilio tipas
+      options:
+        - private (Privatus / Vinted)
+        - business (Verslas / Skelbimai)
+        - nežinoma
+    validations:
+      required: true
+
+  - type: dropdown
+    id: platform
+    attributes:
+      label: Platforma
+      options:
+        - Android APK
+        - Naršyklė (web)
+        - Abu
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: App versija
+      description: Nustatymai arba versijos modalas
+      placeholder: "1.6.3 (49)"
+    validations:
+      required: true
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Kas nutiko?
+      description: 1–3 sakiniai — kas blogai, ką tikėjotės
+      placeholder: Pvz. „Prijungus Vinted profilį, nuotraukos neįsikrauna.“
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Kaip pakartoti?
+      description: Žingsnis po žingsnio
+      placeholder: |
+        1. Prisijungti SMS
+        2. Pasirinkti Privatus profilis
+        3. Mano spinta → Prijungti Vinted URL
+        4. …
+    validations:
+      required: true
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Sritis
+      options:
+        - Prisijungimas / SMS OTP
+        - Profilio tipas (private/business)
+        - Portalų importas / sync
+        - Nuotraukų rodymas (proxy)
+        - AI derybos (Dvynys)
+        - Push pranešimai
+        - Pokalbiai / sandoris
+        - Versijos atnaujinimas
+        - Kita
+    validations:
+      required: true
+
+  - type: input
+    id: time
+    attributes:
+      label: Laikas (LT, apytiksliai)
+      placeholder: "2026-06-29 ~14:30"
+
+  - type: textarea
+    id: screenshot
+    attributes:
+      label: Ekrano nuotrauka / logai
+      description: Įkelkite failą arba įklijuokite nuorodą
+      placeholder: Drag & drop screenshot čia arba įklijuokite nuorodą
+
+  - type: checkboxes
+    id: severity
+    attributes:
+      label: Svarba
+      options:
+        - label: Blokuoja naudojimą (crash, negaliu prisijungti)
+        - label: Galima apeiti
+        - label: Kosmetinė / tekstas / UI

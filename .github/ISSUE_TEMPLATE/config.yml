@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: VAUTO beta testavimo gidas
+    url: https://github.com/arnasbond/vauto/blob/master/docs/beta/TESTAVIMAS.md
+    about: Pilnas checklist ir bug report formatas
+  - name: Įdiegti naujausią APK
+    url: https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk
+    about: Android v1.6.3 (49)

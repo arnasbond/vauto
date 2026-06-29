@@ -1,0 +1,29 @@
+Sveika, Jolanta! 👋
+
+VAUTO beta testavimas prasidėjo — versija *1.6.3* (49). Naujų funkcijų nebededame, tik renkame atsiliepimus ir klaidas.
+
+📲 Įdiegimas:
+• APK: https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk
+• Arba naršyklėje: vauto.lt → /install
+
+🔐 Pirmas kartas:
+1. Prisijunk SMS kodu
+2. Pasirink *Privatus* profilis (Vinted scenarijus)
+3. Eik į „Mano spinta“
+
+✅ Ką ištestuoti (svarbiausia):
+1. Prijunk savo Vinted profilio nuorodą — ar prekės atsiranda?
+2. Ar nuotraukos kraunasi normaliai?
+3. Portalų sync blokas — ar matosi 🟢 Sinchronizuota? Ar galima suskleisti?
+4. Jei bandysi derybas — ar AI atsako mandagiai, draugiškai?
+5. Ar app neužstringa po kelių minučių?
+
+🐛 Radai klaidą? Parašyk man:
+• Kas nutiko (1–2 sakiniai)
+• Ką spaudei prieš tai (žingsniai)
+• Laikas (apytiksliai)
+• Ekrano nuotrauka jei gali
+
+Arba atidaryk: https://github.com/arnasbond/vauto/issues/new?template=beta-bug-report.yml
+
+Ačiū labai — tavo feedback dabar super svarbus! 🙏
