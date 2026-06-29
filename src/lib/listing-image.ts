@@ -1,4 +1,5 @@
 import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
+import { getSafeImageUrl } from "@/lib/utils";
 
 const UNSPLASH = (id: string) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -120,7 +121,11 @@ export function resolveListingImages(listing: ListingImageFields): string[] {
 }
 
 export function getListingCoverImage(listing: ListingImageFields): string {
-  return resolveListingImage(listing);
+  return getSafeImageUrl(resolveListingImage(listing));
+}
+
+export function getListingGalleryImages(listing: ListingImageFields): string[] {
+  return resolveListingImages(listing).map(getSafeImageUrl);
 }
 
 export function coalesceListingImages(

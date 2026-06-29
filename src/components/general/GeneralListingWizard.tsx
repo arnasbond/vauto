@@ -43,6 +43,7 @@ import {
   validateGeneralListingDraft,
 } from "@/lib/listing-form-validation";
 import { isPlaceholderCity } from "@/lib/city-resolve";
+import { getSafeImageUrl } from "@/lib/utils";
 
 const inputCls =
   "listing-form-input w-full border-0 border-b py-2 text-sm outline-none";
@@ -398,7 +399,7 @@ export function GeneralListingWizard({
             {previewImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={previewImage}
+                src={getSafeImageUrl(previewImage)}
                 alt=""
                 className="h-28 w-28 rounded-xl object-cover ring-1 ring-[var(--vauto-border)]"
               />

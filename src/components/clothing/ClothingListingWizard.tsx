@@ -31,6 +31,7 @@ import {
   type WardrobeDraftItem,
 } from "@/lib/wardrobe-vision";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { getSafeImageUrl } from "@/lib/utils";
 import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
 import { MagicMirrorPanel } from "@/components/clothing/MagicMirrorPanel";
 import { ClothingWizardInlineGuide } from "@/components/clothing/ClothingWizardInlineGuide";
@@ -355,7 +356,7 @@ export function ClothingListingWizard({
             {previewImage && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
-                src={previewImage}
+                src={getSafeImageUrl(previewImage)}
                 alt=""
                 className="mb-3 max-h-56 w-full rounded-xl object-cover"
               />

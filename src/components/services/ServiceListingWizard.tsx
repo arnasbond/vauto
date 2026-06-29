@@ -26,6 +26,7 @@ import {
   sanitizeListingPhoneInput,
 } from "@/lib/listing-form-validation";
 import { isPlaceholderCity } from "@/lib/city-resolve";
+import { getSafeImageUrl } from "@/lib/utils";
 
 const ACCENT = "#0f766e";
 const TOTAL_STEPS = 4;
@@ -269,7 +270,7 @@ export function ServiceListingWizard({
                 {previewImage && (
                   // eslint-disable-next-line @next/next/no-img-element
                   <img
-                    src={previewImage}
+                    src={getSafeImageUrl(previewImage)}
                     alt=""
                     className="h-24 w-24 rounded-xl object-cover ring-1 ring-[#cfe3ff]"
                   />

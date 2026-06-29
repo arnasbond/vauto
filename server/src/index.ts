@@ -14,8 +14,10 @@ import { growthRouter } from "./routes/growth.js";
 import { shippingRouter } from "./routes/shipping.js";
 import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
+import { spintaRouter } from "./routes/spinta.js";
+import { searchRouter } from "./routes/search.js";
 import { optionalAuth } from "./middleware/auth.js";
-import { aiRateLimiter, apiRateLimiter, authRateLimiter } from "./middleware/rate-limit.js";
+import { aiRateLimiter, actionRateLimiter, apiRateLimiter, authRateLimiter, searchRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
 
 assertProductionEnv();
@@ -31,6 +33,9 @@ app.post(
 );
 app.use(express.json({ limit: "25mb" }));
 app.use(optionalAuth);
+app.use("/api/search", searchRateLimiter, searchRouter);
+app.use("/api/spinta", actionRateLimiter, spintaRouter);
+app.use("/api/user/avatar", actionRateLimiter);
 app.use("/api", apiRateLimiter);
 
 app.use("/api/auth", authRateLimiter, authRouter);

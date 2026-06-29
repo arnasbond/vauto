@@ -47,7 +47,9 @@ export function BottomNav() {
   const homeActive = pathname === "/" || pathname === "";
   const spintaActive =
     pathname === "/fashion" ||
-    pathname.startsWith("/fashion/");
+    pathname.startsWith("/fashion/") ||
+    pathname === "/auth-gate" ||
+    pathname.startsWith("/auth-gate/");
   const messagesActive =
     pathname === "/messages" ||
     pathname.startsWith("/messages/") ||
@@ -75,10 +77,12 @@ export function BottomNav() {
     }
   };
 
+  const spintaHref = isAuthenticated ? "/fashion/mine/" : "/auth-gate/";
+
   const handleSpinta = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
       e.preventDefault();
-      openAuthModal("/fashion/");
+      router.push("/auth-gate/");
     }
   };
 
@@ -103,7 +107,7 @@ export function BottomNav() {
         </Link>
 
         <Link
-          href="/fashion/"
+          href={spintaHref}
           onClick={handleSpinta}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(spintaActive) }}

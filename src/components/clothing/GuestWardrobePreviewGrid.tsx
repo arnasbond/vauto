@@ -1,7 +1,7 @@
 "use client";
 
 import type { WardrobeProfileImportItem } from "@/lib/wardrobe-profile-importer";
-import { proxiedImageUrl } from "@/lib/proxy-image";
+import { getSafeImageUrl } from "@/lib/utils";
 
 const PLACEHOLDER =
   "https://images.unsplash.com/photo-1515886657613-9f3515b0c790?w=400&h=520&fit=crop";
@@ -29,7 +29,7 @@ export function GuestWardrobePreviewGrid({
             <div className="relative aspect-[3/4] bg-fuchsia-50">
               {/* eslint-disable-next-line @next/next/no-img-element */}
               <img
-                src={item.imageUrl ? proxiedImageUrl(item.imageUrl) : PLACEHOLDER}
+                src={item.imageUrl ? getSafeImageUrl(item.imageUrl) : PLACEHOLDER}
                 alt={item.title}
                 className="absolute inset-0 h-full w-full object-cover"
                 loading="lazy"

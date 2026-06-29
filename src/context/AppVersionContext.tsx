@@ -10,6 +10,7 @@ import {
   type ReactNode,
 } from "react";
 import { isNativeApp } from "@/lib/mobile-install";
+import { initDataApiConfig } from "@/lib/api/config";
 import {
   evaluateAppVersion,
   fetchVersionConfig,
@@ -34,6 +35,7 @@ export function AppVersionProvider({ children }: { children: ReactNode }) {
   const refresh = useCallback(async () => {
     const isNativeShell = isNativeApp();
     try {
+      await initDataApiConfig();
       const [remote, local] = await Promise.all([
         fetchVersionConfig(),
         resolveNativeAppVersion(),

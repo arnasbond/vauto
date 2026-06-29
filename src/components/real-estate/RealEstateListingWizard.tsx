@@ -49,6 +49,7 @@ import { parseVideoUrl } from "@/lib/video-url";
 import { BuyerPersonaDescriptionPicker } from "@/components/listing/BuyerPersonaDescriptionPicker";
 import { useBuyerPersonaDescriptions } from "@/hooks/useBuyerPersonaDescriptions";
 import type { BuyerPersonaId } from "@/lib/description-personas";
+import { getSafeImageUrl } from "@/lib/utils";
 
 const ACCENT = "#c62828";
 const TOTAL_STEPS = 7;
@@ -914,7 +915,7 @@ export function RealEstateListingWizard({
             />
             {previewImage && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewImage} alt="" className="mb-4 max-h-48 w-full rounded-md object-cover" />
+              <img src={getSafeImageUrl(previewImage)} alt="" className="mb-4 max-h-48 w-full rounded-md object-cover" />
             )}
 
             <div className="mb-3">
@@ -1024,7 +1025,7 @@ export function RealEstateListingWizard({
               <p className="font-bold text-[#212121]">{summary || draft.title}</p>
               {previewImage && (
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={previewImage} alt="" className="mt-3 max-h-36 w-full rounded-md object-cover" />
+                <img src={getSafeImageUrl(previewImage)} alt="" className="mt-3 max-h-36 w-full rounded-md object-cover" />
               )}
               <dl className="mt-3 grid grid-cols-2 gap-2 text-xs">
                 <dt className="text-[#757575]">Kaina</dt>

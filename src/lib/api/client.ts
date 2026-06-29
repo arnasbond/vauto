@@ -803,10 +803,43 @@ export async function apiImportWardrobeProfile(body: {
   userName?: string;
   defaultLocation?: string;
 }): Promise<import("@/lib/wardrobe-profile-importer").WardrobeProfileImport | null> {
+  const fromSpinta = await dataFetch<
+    import("@/lib/wardrobe-profile-importer").WardrobeProfileImport
+  >("/api/spinta/import", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (fromSpinta.ok && fromSpinta.data) return fromSpinta.data;
+
   return aiFetch("/api/ai/import-wardrobe-profile", {
     method: "POST",
     body: JSON.stringify(body),
   });
+}
+
+export async function apiSpintaSync(body: {
+  profileUrl: string;
+  userName?: string;
+  defaultLocation?: string;
+}): Promise<{
+  ok: boolean;
+  status: string;
+  itemCount?: number;
+  profileUrl?: string;
+  error?: string;
+} | null> {
+  const result = await dataFetch<{
+    ok: boolean;
+    status: string;
+    itemCount?: number;
+    profileUrl?: string;
+    error?: string;
+  }>("/api/spinta/sync", {
+    method: "POST",
+    body: JSON.stringify(body),
+  });
+  if (!result.ok) return { ok: false, status: "error", error: result.error };
+  return result.data;
 }
 
 export async function apiMagicMirrorFit(body: {

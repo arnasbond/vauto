@@ -104,7 +104,7 @@ export function ProfileSpintaSwitch() {
 
             <Link
 
-              href="/fashion/"
+              href="/fashion/mine/"
 
               className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl border border-fuchsia-300 bg-white py-2.5 text-sm font-semibold text-fuchsia-700 transition hover:bg-fuchsia-50"
 

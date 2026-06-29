@@ -1,9 +1,10 @@
 "use client";
 
-import { Loader2, Sparkles, UploadCloud } from "lucide-react";
+import { Loader2, Sparkles, UploadCloud, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { GuestWardrobePreviewGrid } from "@/components/clothing/GuestWardrobePreviewGrid";
 import { useVauto } from "@/context/VautoContext";
+import { apiSpintaSync } from "@/lib/api/client";
 import {
   importWardrobeProfile,
   isWardrobeProfileUrl,
@@ -15,6 +16,7 @@ import {
   canPerformWardrobeProfileImport,
   resolveWardrobeSubscriptionAccess,
 } from "@/lib/SubscriptionGuard";
+import { detectWardrobePortalLabel, shortenProfileUrl } from "@/lib/spinta-portal";
 import { isGuestUserId } from "@/lib/wardrobe-guest-demo";
 import type { AiExtractedListing } from "@/lib/types";
 
@@ -29,6 +31,13 @@ interface WardrobeProfileImporterProps {
   onGuestPreview?: (items: WardrobeProfileImportItem[], drafts: AiExtractedListing[]) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }
+
+type LinkedProfileChip = {
+  url: string;
+  portal: string;
+  status: "syncing" | "synced";
+  itemCount: number;
+};
 
 export function WardrobeProfileImporter({
   userName,
@@ -52,6 +61,7 @@ export function WardrobeProfileImporter({
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<WardrobeProfileImportItem[]>([]);
+  const [linkedProfile, setLinkedProfile] = useState<LinkedProfileChip | null>(null);
 
   const handleImport = async () => {
     const trimmed = url.trim();
@@ -71,6 +81,9 @@ export function WardrobeProfileImporter({
       openCheckout(buildWardrobePowerSubscriptionCheckout());
       return;
     }
+
+    const portal = detectWardrobePortalLabel(trimmed);
+    setLinkedProfile({ url: trimmed, portal, status: "syncing", itemCount: 0 });
     setLoading(true);
     try {
       const result = await importWardrobeProfile({
@@ -80,6 +93,7 @@ export function WardrobeProfileImporter({
         contact: contact || "+370",
       });
       if (!result?.items.length) {
+        setLinkedProfile(null);
         onToast?.("Importas nepavyko — bandykite vėliau.", "info");
         return;
       }
@@ -87,6 +101,22 @@ export function WardrobeProfileImporter({
         incrementWardrobeImportCount(user.id);
       }
       setPreview(result.items);
+      setLinkedProfile({
+        url: result.profileUrl || trimmed,
+        portal,
+        status: "synced",
+        itemCount: result.items.length,
+      });
+      setUrl("");
+
+      if (!isGuest) {
+        void apiSpintaSync({
+          profileUrl: result.profileUrl || trimmed,
+          userName,
+          defaultLocation,
+        });
+      }
+
       const drafts = result.items.map((item) =>
         profileItemToDraft(item, contact || "+370", defaultLocation)
       );
@@ -96,9 +126,18 @@ export function WardrobeProfileImporter({
         onImportReady?.(drafts, result.voiceAnnouncement);
       }
       onToast?.(result.voiceAnnouncement, "success");
+    } catch {
+      setLinkedProfile(null);
+      onToast?.("Importas nepavyko — bandykite vėliau.", "error");
     } finally {
       setLoading(false);
     }
+  };
+
+  const clearLinkedProfile = () => {
+    setLinkedProfile(null);
+    setUrl("");
+    setPreview([]);
   };
 
   return (
@@ -119,26 +158,66 @@ export function WardrobeProfileImporter({
           </p>
         </div>
       </div>
-      <input
-        type="url"
-        value={url}
-        onChange={(e) => setUrl(e.target.value)}
-        placeholder="https://www.vinted.lt/member/... arba /invite/..."
-        className="mb-3 w-full rounded-2xl border border-fuchsia-500/60 bg-[#0a1128] px-3 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-fuchsia-500/40"
-      />
-      <button
-        type="button"
-        disabled={loading || !url.trim()}
-        onClick={() => void handleImport()}
-        className="flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
-      >
-        {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
-        {isGuest
-          ? "Peržiūrėti mano spintą"
-          : inSpintaCabinet
-            ? "Importuoti iš profilio URL"
-            : "Perkelti spintą į VAUTO"}
-      </button>
+
+      {linkedProfile ? (
+        <div className="mb-3 flex items-center gap-2 rounded-2xl border border-fuchsia-500/40 bg-[#0a1128] px-3 py-2.5">
+          <span
+            className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
+              linkedProfile.status === "syncing"
+                ? "bg-amber-500/20 text-amber-200"
+                : "bg-fuchsia-600/25 text-fuchsia-100"
+            }`}
+          >
+            {linkedProfile.status === "syncing" ? (
+              <>
+                <Loader2 className="h-3 w-3 animate-spin" />
+                {linkedProfile.portal}: Sinchronizuojama…
+              </>
+            ) : (
+              <>
+                <Sparkles className="h-3 w-3" />
+                {linkedProfile.portal}: {linkedProfile.itemCount} prekės
+              </>
+            )}
+          </span>
+          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-500">
+            {shortenProfileUrl(linkedProfile.url)}
+          </span>
+          <button
+            type="button"
+            onClick={clearLinkedProfile}
+            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-white"
+            aria-label="Pašalinti susietą profilį"
+          >
+            <X className="h-4 w-4" />
+          </button>
+        </div>
+      ) : (
+        <input
+          type="url"
+          value={url}
+          onChange={(e) => setUrl(e.target.value)}
+          placeholder="https://www.vinted.lt/member/... arba /invite/..."
+          className="mb-3 w-full rounded-2xl border border-fuchsia-500/60 bg-[#0a1128] px-3 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+        />
+      )}
+
+      {!linkedProfile && (
+        <button
+          type="button"
+          disabled={loading || !url.trim()}
+          onClick={() => void handleImport()}
+          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
+          {isGuest
+            ? "Peržiūrėti mano spintą"
+            : inSpintaCabinet
+              ? "Importuoti iš profilio URL"
+              : "Perkelti spintą į VAUTO"}
+        </button>
+      )}
+
       {isGuest && preview.length > 0 && <GuestWardrobePreviewGrid items={preview} />}
       {!isGuest && preview.length > 0 && (
         <p className="mt-2 text-center text-[11px] text-fuchsia-300">

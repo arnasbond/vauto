@@ -2,7 +2,7 @@
 
 import Image from "next/image";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { resolveListingImages } from "@/lib/listing-image";
+import { getListingGalleryImages } from "@/lib/listing-image";
 import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -27,7 +27,7 @@ function resolveImageAlt(
 }
 
 export function ListingImageGallery({ listing, className }: ListingImageGalleryProps) {
-  const images = resolveListingImages(listing);
+  const images = getListingGalleryImages(listing);
   const [activeIndex, setActiveIndex] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
 

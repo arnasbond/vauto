@@ -3,6 +3,7 @@
 import { Camera, ImagePlus, Link2, Trash2, Upload } from "lucide-react";
 import { useCallback, useRef } from "react";
 import { parseVideoUrl } from "@/lib/video-url";
+import { getSafeImageUrl } from "@/lib/utils";
 
 interface DraftMediaEditorProps {
   previewImage: string | null;
@@ -60,7 +61,7 @@ export function DraftMediaEditor({
         <div className="relative mb-3 overflow-hidden rounded-xl border border-white/5">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
-            src={previewImage}
+            src={getSafeImageUrl(previewImage)}
             alt="Skelbimo nuotrauka"
             className="h-40 w-full object-cover"
           />

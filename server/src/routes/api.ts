@@ -87,6 +87,7 @@ import {
 } from "../controllers/user-controller.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
+import { resolveAppVersionPayload } from "../lib/app-version-config.js";
 
 export const apiRouter = Router();
 
@@ -166,6 +167,10 @@ function computeReadiness(
 
 apiRouter.get("/proxy/image", (req, res) => {
   void proxyImageHandler(req, res);
+});
+
+apiRouter.get("/version", (_req, res) => {
+  res.json(resolveAppVersionPayload());
 });
 
 apiRouter.get("/health", async (_req, res) => {

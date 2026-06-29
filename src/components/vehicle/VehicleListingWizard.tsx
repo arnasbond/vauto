@@ -37,6 +37,7 @@ import {
   ListingGalleryFileInput,
 } from "@/components/listing/ListingGalleryFileInput";
 import { parseVideoUrl } from "@/lib/video-url";
+import { getSafeImageUrl } from "@/lib/utils";
 import { isValidVin } from "@/lib/trust";
 import { LithuanianCityField } from "@/components/listing/LithuanianCityField";
 import { ListingWizardStrip } from "@/components/wizard/ListingWizardStrip";
@@ -559,7 +560,7 @@ export function VehicleListingWizard({
             {previewImage && (
               <div className="mb-4 overflow-hidden rounded-xl border border-[#e5e7eb]">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={previewImage} alt="Peržiūra" className="max-h-48 w-full object-cover" />
+                <img src={getSafeImageUrl(previewImage)} alt="Peržiūra" className="max-h-48 w-full object-cover" />
               </div>
             )}
             <p className="mb-4 text-xs text-[#6b7280]">
@@ -887,7 +888,7 @@ export function VehicleListingWizard({
             <p className="font-semibold text-[#111827]">{summary || draft.title}</p>
             {previewImage && (
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={previewImage} alt="" className="max-h-40 w-full rounded-lg object-cover" />
+              <img src={getSafeImageUrl(previewImage)} alt="" className="max-h-40 w-full rounded-lg object-cover" />
             )}
             <dl className="grid grid-cols-2 gap-2 text-xs">
               <dt className="text-[#6b7280]">Kaina</dt>

@@ -44,7 +44,7 @@ export function HomeQuickActions({
   onSearchPrompt,
 }: HomeQuickActionsProps) {
   const router = useRouter();
-  const { isAuthenticated, openAuthModal } = useVauto();
+  const { isAuthenticated } = useVauto();
 
   const handleAction = (id: HomeQuickActionId) => {
     switch (id) {
@@ -53,11 +53,7 @@ export function HomeQuickActions({
         onSearchFocus?.();
         break;
       case "spinta":
-        if (!isAuthenticated) {
-          openAuthModal("/fashion/");
-          return;
-        }
-        router.push("/fashion/");
+        router.push(isAuthenticated ? "/fashion/mine/" : "/auth-gate/");
         break;
       case "browse":
         document

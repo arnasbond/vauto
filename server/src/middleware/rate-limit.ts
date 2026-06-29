@@ -5,6 +5,8 @@ const WINDOW_MS = 60 * 1000;
 const DEFAULT_API_LIMIT = 30;
 const DEFAULT_AUTH_LIMIT = 30;
 const DEFAULT_AI_LIMIT = 8;
+const DEFAULT_ACTION_LIMIT = 50;
+const DEFAULT_SEARCH_LIMIT = 10;
 
 const MAX_REQUESTS_PER_WINDOW = Number(
   process.env.API_RATE_LIMIT_PER_MIN ?? DEFAULT_API_LIMIT
@@ -14,6 +16,12 @@ const AUTH_REQUESTS_PER_WINDOW = Number(
 );
 const AI_REQUESTS_PER_WINDOW = Number(
   process.env.AI_RATE_LIMIT_PER_MIN ?? DEFAULT_AI_LIMIT
+);
+const ACTION_REQUESTS_PER_WINDOW = Number(
+  process.env.ACTION_RATE_LIMIT_PER_MIN ?? DEFAULT_ACTION_LIMIT
+);
+const SEARCH_REQUESTS_PER_WINDOW = Number(
+  process.env.SEARCH_RATE_LIMIT_PER_MIN ?? DEFAULT_SEARCH_LIMIT
 );
 
 function rateLimitKey(req: AuthedRequest): string {
@@ -25,15 +33,20 @@ function rateLimitKey(req: AuthedRequest): string {
   return `ip:${req.ip ?? "unknown"}`;
 }
 
-/** General API limiter skips auth + heavy AI — those have dedicated limiters. */
-function shouldSkipGeneralRateLimit(path: string): boolean {
+/** General API limiter skips auth, AI, search, proxy, and action-tier routes. */
+function shouldSkipGeneralRateLimit(path: string, method: string): boolean {
   if (path === "/api/health" || path === "/api/ai/health") return true;
+  if (path === "/api/version") return true;
   if (path.startsWith("/api/proxy")) return true;
   if (path.startsWith("/api/billing/webhook")) return true;
   if (path.startsWith("/api/auth")) return true;
   if (path.startsWith("/api/ai")) return true;
   if (path.startsWith("/api/vauto-server")) return true;
   if (path.startsWith("/api/vauto-agent")) return true;
+  if (path.startsWith("/api/search") && method === "GET") return true;
+  if (path === "/api/user/avatar" && method === "POST") return true;
+  if (path === "/api/spinta/import" && method === "POST") return true;
+  if (path === "/api/spinta/sync" && method === "POST") return true;
   return false;
 }
 
@@ -50,7 +63,7 @@ export const apiRateLimiter = rateLimit({
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
-  skip: (req) => shouldSkipGeneralRateLimit(req.path),
+  skip: (req) => shouldSkipGeneralRateLimit(req.path, req.method),
   handler: rateLimitHandler(
     "rate_limit_exceeded",
     "Per daug užklausų per minutę. Palaukite ir bandykite dar kartą."
@@ -80,5 +93,31 @@ export const aiRateLimiter = rateLimit({
   handler: rateLimitHandler(
     "ai_rate_limit_exceeded",
     "AI užklausų limitas pasiektas. Bandykite po minutės."
+  ),
+});
+
+/** Authenticated user actions — avatar upload, spinta import (50/min). */
+export const actionRateLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: ACTION_REQUESTS_PER_WINDOW,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
+  handler: rateLimitHandler(
+    "action_rate_limit_exceeded",
+    "Per daug veiksmų per minutę. Palaukite ir bandykite dar kartą."
+  ),
+});
+
+/** AI search GET routes only — strict cap (10/min). */
+export const searchRateLimiter = rateLimit({
+  windowMs: WINDOW_MS,
+  max: SEARCH_REQUESTS_PER_WINDOW,
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
+  handler: rateLimitHandler(
+    "search_rate_limit_exceeded",
+    "Paieškos limitas pasiektas. Bandykite po minutės."
   ),
 });

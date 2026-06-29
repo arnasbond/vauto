@@ -1,5 +1,6 @@
 import { Capacitor } from "@capacitor/core";
 import { isNativeApp } from "@/lib/mobile-install";
+import { getDataApiBaseUrl } from "@/lib/api/config";
 
 export interface VersionConfig {
   latestVersion: string;
@@ -69,6 +70,23 @@ export interface AppVersionSnapshot {
 }
 
 export async function fetchVersionConfig(): Promise<VersionConfig> {
+  const apiBase = getDataApiBaseUrl();
+  if (apiBase) {
+    try {
+      const res = await fetch(`${apiBase}/api/version?ts=${Date.now()}`, {
+        cache: "no-store",
+      });
+      if (res.ok) {
+        const json = (await res.json()) as VersionConfig;
+        if (json.latestVersion && typeof json.versionCode === "number") {
+          return json;
+        }
+      }
+    } catch {
+      /* fallback to static manifest */
+    }
+  }
+
   const res = await fetch(`/version-config.json?ts=${Date.now()}`, {
     cache: "no-store",
   });
