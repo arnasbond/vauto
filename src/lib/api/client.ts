@@ -339,8 +339,13 @@ export async function apiAiHealthCheck(): Promise<{
   return normalizeAiHealth(fallback);
 }
 
-export async function apiFetchListings(): Promise<ApiResult<Listing[]>> {
-  return dataFetch<Listing[]>("/api/listings");
+export async function apiFetchListings(
+  opts?: { limit?: number; offset?: number }
+): Promise<ApiResult<Listing[]>> {
+  const params = new URLSearchParams();
+  params.set("limit", String(opts?.limit ?? 50));
+  if (opts?.offset) params.set("offset", String(opts.offset));
+  return dataFetch<Listing[]>(`/api/listings?${params.toString()}`);
 }
 
 export async function apiCreateListing(

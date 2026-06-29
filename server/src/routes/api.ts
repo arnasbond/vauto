@@ -7,6 +7,7 @@ import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
 import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
+import { fetchListingsFeed } from "../controllers/listing-controller.js";
 import {
   adminPatchListing,
   deleteListing,
@@ -312,9 +313,17 @@ apiRouter.post("/admin/setup-stripe", requireAdmin, async (_req, res) => {
   }
 });
 
-apiRouter.get("/listings", async (_req, res) => {
+apiRouter.get("/listings", async (req, res) => {
   try {
-    res.json(await getListings());
+    const page = await fetchListingsFeed({
+      limit: req.query.limit ? Number(req.query.limit) : undefined,
+      offset: req.query.offset ? Number(req.query.offset) : undefined,
+    });
+    if (req.query.meta === "1") {
+      res.json(page);
+      return;
+    }
+    res.json(page.items);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

@@ -1,9 +1,17 @@
 import { unifiedLlmJson } from "./llm-provider.js";
+import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 
 export interface VisualSeoMetadata {
   alt: string;
   title: string;
   description?: string;
+}
+
+export class ImageMetadataRejectedError extends Error {
+  constructor(message = "Prekė neatpažinta") {
+    super(message);
+    this.name = "ImageMetadataRejectedError";
+  }
 }
 
 const CATEGORY_LT: Record<string, string> = {
@@ -32,8 +40,18 @@ function fallbackSeo(input: {
   };
 }
 
+const SINGLE_LISTING_VISION_RULE = `
+VIENAS SKELBIMAS — PRIVALOMA:
+- Analizuok tik PAGRINDINĮ objektą nuotraukoje (didžiausias, centrinis, aiškiausias).
+- Jei matomas automobilis — generuok metadata TIK automobiliui. Jei rūbas — TIK rūbui. Jei elektronika — TIK jai.
+- NEGENERUOK kelių skelbimų, variantų ar sąrašų. Grąžink tik vieną alt/title/description rinkinį.
+- Jei nuotraukoje keli objektai — pasirink tik vieną pagrindinį; nekurk atskirų variantų.
+- Jei prekės nėra ar objektas neaiškus — grąžink {"alt":"","title":"","description":"","error":"Prekė neatpažinta"}.
+- GRIEŽTAI draudžiama haliucinuoti netikrus drabužius, sukneles ar kitas prekes.`;
+
 /**
  * Visual SEO Generator — lietuviški alt/title atributai Google Images optimizacijai.
+ * Tik VIENAM pagrindiniam skelbimo objektui.
  */
 export async function generateImageMetadata(input: {
   listingTitle: string;
@@ -47,32 +65,51 @@ export async function generateImageMetadata(input: {
   const category = input.category || "other";
   const attrs = input.attributes ?? {};
 
+  if (!input.imageDataUrl?.trim()) {
+    return fallback;
+  }
+
   try {
     const raw = await unifiedLlmJson({
       systemInstruction: `Tu esi VAUTO Visual SEO specialistas Lietuvoje.
-Grąžink JSON: {"alt":"string","title":"string","description":"string"}
+Grąžink JSON: {"alt":"string","title":"string","description":"string","error":"string optional"}
 alt — iki 125 simbolių, lietuviškai, su miestu ir prekės tipu (Google Images).
 title — iki 70 simbolių, patrauklus lietuviškas pavadinimas su lokacija.
-description — 1–2 sakiniai lietuviškai SEO aprašymui.
+description — 1–2 sakiniai lietuviškai SEO aprašymui VIENAM objektui.
 Nenaudok angliškų placeholderių. Įtrauk VAUTO prekės ženklą natūraliai.
-Jei nuotraukoje nėra realaus objekto (tik logotipas, tekstas, tuščias vaizdas) — grąžink {"alt":"","title":"","description":"","error":"Prekė neatpažinta"}.
-Griežtai draudžiama haliucinuoti netikrus drabužius ar prekes.`,
+${VISION_ANTI_HALLUCINATION_RULE}
+${SINGLE_LISTING_VISION_RULE}`,
       prompt: `Skelbimas: ${input.listingTitle}
 Kategorija: ${category}
 Miestas: ${city}
-Atributai: ${JSON.stringify(attrs).slice(0, 400)}`,
-      imageDataUrls: input.imageDataUrl ? [input.imageDataUrl] : undefined,
+Atributai: ${JSON.stringify(attrs).slice(0, 400)}
+Sugeneruok SEO metadata tik šiam vienam pagrindiniam objektui.`,
+      imageDataUrls: [input.imageDataUrl],
     });
 
-    const alt = String(raw.alt ?? fallback.alt).trim().slice(0, 125);
-    const title = String(raw.title ?? fallback.title).trim().slice(0, 70);
-    const description = String(raw.description ?? fallback.description ?? "").trim();
     const error = String(raw.error ?? "").trim();
+    if (
+      error ||
+      /prekė neatpažinta|neatpažinta|logotip|tik tekst/i.test(error)
+    ) {
+      throw new ImageMetadataRejectedError(error || "Prekė neatpažinta");
+    }
 
-    if (/prekė neatpažinta|neatpažinta/i.test(error) || alt.length < 8) return fallback;
+    const alt = String(raw.alt ?? "").trim().slice(0, 125);
+    const title = String(raw.title ?? "").trim().slice(0, 70);
+    const description = String(raw.description ?? "").trim();
 
-    return { alt, title: title || fallback.title, description: description || fallback.description };
-  } catch {
+    if (alt.length < 8 || title.length < 4) {
+      throw new ImageMetadataRejectedError("Prekė neatpažinta");
+    }
+
+    return {
+      alt,
+      title: title || fallback.title,
+      description: description || fallback.description,
+    };
+  } catch (e) {
+    if (e instanceof ImageMetadataRejectedError) throw e;
     return fallback;
   }
 }

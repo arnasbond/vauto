@@ -233,6 +233,72 @@ export async function upsertUser(user: ApiUser): Promise<void> {
 }
 
 export async function getListings(): Promise<ApiListing[]> {
+  const page = await getListingsPage({ limit: DEFAULT_LISTINGS_PAGE_SIZE, offset: 0 });
+  return page.items;
+}
+
+export const DEFAULT_LISTINGS_PAGE_SIZE = 50;
+
+export interface ListingsPageResult {
+  items: ApiListing[];
+  limit: number;
+  offset: number;
+  total: number;
+  hasMore: boolean;
+}
+
+/** Paginated listings — avoids full-table scans on free-tier DB. */
+export async function getListingsPage(options: {
+  limit?: number;
+  offset?: number;
+}): Promise<ListingsPageResult> {
+  const limit = Math.min(
+    Math.max(Number(options.limit) || DEFAULT_LISTINGS_PAGE_SIZE, 1),
+    DEFAULT_LISTINGS_PAGE_SIZE
+  );
+  const offset = Math.max(Number(options.offset) || 0, 0);
+
+  try {
+    const countRows = await query<{ count: string }>(
+      `SELECT count(*)::text AS count FROM listings WHERE COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')`
+    );
+    const total = Number(countRows[0]?.count ?? 0);
+
+    const rows = await query<ListingRow>(
+      `${LISTING_SELECT}
+       WHERE COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')
+       ORDER BY created_at DESC
+       LIMIT $1 OFFSET $2`,
+      [limit, offset]
+    );
+    const fromDb = rows.map(mapListingRow);
+    let items = fromDb;
+    if (isServerDemoCatalogEnabled() && offset === 0) {
+      items = mergeDbListingsWithDemoCatalog(fromDb);
+      items = items.slice(0, limit);
+    }
+
+    return {
+      items,
+      limit,
+      offset,
+      total,
+      hasMore: offset + items.length < total,
+    };
+  } catch {
+    const demo = isServerDemoCatalogEnabled() ? getDemoApiListings() : [];
+    const items = demo.slice(offset, offset + limit);
+    return {
+      items,
+      limit,
+      offset,
+      total: demo.length,
+      hasMore: offset + items.length < demo.length,
+    };
+  }
+}
+
+export async function getListingsLegacyFull(): Promise<ApiListing[]> {
   try {
     const rows = await query<ListingRow>(
       `${LISTING_SELECT} ORDER BY created_at DESC`

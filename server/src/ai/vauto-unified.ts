@@ -243,7 +243,11 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
         city: listing.location,
         attributes: listing.attributes as Record<string, unknown>,
         imageDataUrl: images[0],
-      }),
+      }).catch(() => ({
+        alt: listing.title,
+        title: listing.title,
+        description: listing.description,
+      })),
       runVisionAntiFraudGuard(images, {
         title: listing.title,
         category: listing.category,

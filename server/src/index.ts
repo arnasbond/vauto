@@ -15,6 +15,7 @@ import { shippingRouter } from "./routes/shipping.js";
 import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
 import { optionalAuth } from "./middleware/auth.js";
+import { aiRateLimiter, apiRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
 
 assertProductionEnv();
@@ -30,13 +31,14 @@ app.post(
 );
 app.use(express.json({ limit: "25mb" }));
 app.use(optionalAuth);
+app.use("/api", apiRateLimiter);
 
 app.use("/api/auth", authRouter);
 app.use("/api/push", pushRouter);
 app.use("/api", apiRouter);
-app.use("/api/ai", aiRouter);
-app.use("/api/vauto-server", vautoServerRouter);
-app.use("/api/vauto-agent", vautoAgentRouter);
+app.use("/api/ai", aiRateLimiter, aiRouter);
+app.use("/api/vauto-server", aiRateLimiter, vautoServerRouter);
+app.use("/api/vauto-agent", aiRateLimiter, vautoAgentRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/escrow-billing", escrowBillingRouter);
 app.use("/api/growth", growthRouter);
