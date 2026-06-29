@@ -6,7 +6,14 @@ import { useVauto } from "@/context/VautoContext";
 import { isSupportedImportUrl } from "@/lib/listing-url-import";
 import { cn } from "@/lib/cn";
 
-const SUPPORTED_PORTALS = ["Autoplius", "Skelbiu", "Aruodas", "Vinted", "CVBankas"];
+const SUPPORTED_PORTALS = [
+  "Skelbiu",
+  "Autoplius",
+  "Aruodas",
+  "Paslaugos.lt",
+  "Vinted",
+  "CVBankas",
+];
 
 export function QuickImportFromUrlCard() {
   const { importListingFromUrl, sellerStep, showToast } = useVauto();
@@ -24,7 +31,7 @@ export function QuickImportFromUrlCard() {
     }
     if (!isSupportedImportUrl(trimmed)) {
       showToast(
-        "Palaikoma: Autoplius, Skelbiu, Aruodas, Vinted, CVBankas",
+        "Palaikoma: Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, CVBankas",
         "error"
       );
       return;

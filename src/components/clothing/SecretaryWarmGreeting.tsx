@@ -13,7 +13,7 @@ import type { Listing } from "@/lib/types";
 const ACCENT = "#09b1a8";
 
 export const WARDROBE_SECRETARY_CLICK_GREETING =
-  "Labas! Aš esu tavo AI mados asistentas. Galiu padėti automatiškai perkelti tavo spintą, derėtis su pirkėjais arba parinkti stilingiausius derinius. Ką išbandome pirmiausia?";
+  "Labas! Aš esu tavo AI asistentas. Galiu padėti sinchronizuoti skelbimus iš kelių portalų, derėtis su pirkėjais fone ir valdyti užklausas. Ką išbandome pirmiausia?";
 
 function buildSummary(
   firstName: string,
@@ -78,7 +78,7 @@ export function SecretaryWarmGreeting({
       type="button"
       onClick={handleActivate}
       className="mb-5 w-full overflow-hidden rounded-3xl border border-slate-700 bg-[#1e293b] p-4 text-left text-white shadow-lg shadow-black/20 transition hover:brightness-105 active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a1128]"
-      aria-label="Atidaryti AI mados asistento pokalbį"
+      aria-label="Atidaryti AI asistento pokalbį"
     >
       <div className="flex gap-3">
         <span

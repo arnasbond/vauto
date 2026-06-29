@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { LogIn, Shirt, Sparkles } from "lucide-react";
+import { LayoutGrid, LogIn, Sparkles } from "lucide-react";
 import { SecretaryWarmGreeting } from "@/components/clothing/SecretaryWarmGreeting";
 import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
 import { WardrobeCabinetGrid } from "@/components/clothing/WardrobeCabinetGrid";
@@ -57,27 +57,27 @@ export function GuestFashionCabinet() {
 
   const handleSaveAndStart = () => {
     if (guestDrafts.length === 0) {
-      showToast("Pirmiausia importuok spintą — įklijuok profilio URL viršuje.", "info");
+      showToast("Pirmiausia importuok asortimentą — įklijuok profilio URL viršuje.", "info");
       return;
     }
     saveGuestWardrobeDrafts(guestDrafts);
     openAuthModal("/fashion/");
-    showToast("Užsiregistruok — tavo importuoti drabužiai jau laukia!", "info");
+    showToast("Užsiregistruok — tavo importuoti skelbimai jau laukia!", "info");
   };
 
   return (
     <div className="chameleon-wardrobe pb-6">
       <div className="mb-5 flex items-center gap-3">
         <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow-md">
-          <Shirt className="h-6 w-6" />
+          <LayoutGrid className="h-6 w-6" />
         </span>
         <div>
           <p className="text-xs font-medium uppercase tracking-wide text-fuchsia-600">
             Viešas demo režimas
           </p>
-          <h1 className="text-xl font-semibold text-white">VAUTO Spinta</h1>
+          <h1 className="text-xl font-semibold text-white">Mano asortimentas</h1>
           <p className="text-xs text-slate-400">
-            Pirk ir parduok drabužius — be privalomo prisijungimo peržiūrai
+            Auto, NT, paslaugos ir prekės — peržiūrai be privalomo prisijungimo
           </p>
         </div>
       </div>
@@ -114,7 +114,7 @@ export function GuestFashionCabinet() {
           className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3.5 text-sm font-semibold text-white shadow-md"
         >
           <Sparkles className="h-4 w-4" />
-          Publikuoti {guestDrafts.length} importuotus drabužius
+          Publikuoti {guestDrafts.length} importuotus skelbimus
         </button>
       )}
 
@@ -131,8 +131,8 @@ export function GuestFashionCabinet() {
 
       <div className="mb-3 flex items-center gap-2">
         <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-slate-200">
-          <Shirt className="h-4 w-4 text-fuchsia-600" />
-          Mados turgus
+          <LayoutGrid className="h-4 w-4 text-fuchsia-600" />
+          Prekės ir paslaugos
         </h2>
       </div>
 

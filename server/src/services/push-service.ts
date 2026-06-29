@@ -115,9 +115,9 @@ export async function notifyPortalSyncNewItems(
       : `${opts.newCount} naujos prekės`;
 
   await sendPushToUsers([userId], {
-    title: "VAUTO: spinta atnaujinta",
+    title: "VAUTO: asortimentas atnaujintas",
     body: `${opts.portalLabel}: ${countLabel} (iš viso ${opts.totalCount}).`,
-    url: "/profile/?tab=spinta",
+    url: "/profile/?tab=asortimentas",
     type: "portal_sync",
   });
 }

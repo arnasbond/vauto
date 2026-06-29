@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Home, MessageCircle, Plus, Shirt, Shield, User } from "lucide-react";
+import { Home, LayoutGrid, MessageCircle, Plus, Shield, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
@@ -12,7 +12,7 @@ const TAB_CLASS =
   "flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-semibold no-underline";
 
 /**
- * Fashion-first bottom bar — Pradžia, Spinta, Įdėk (+), Pokalbiai, Profilis.
+ * Bottom bar — Pradžia, Asortimentas, Įdėk (+), Pokalbiai, Profilis.
  */
 export function BottomNav() {
   const pathname = usePathname();
@@ -113,8 +113,8 @@ export function BottomNav() {
           style={{ color: tabColor(spintaActive) }}
           aria-current={spintaActive ? "page" : undefined}
         >
-          <Shirt size={22} strokeWidth={spintaActive ? 2.5 : 2} />
-          <span>Spinta</span>
+          <LayoutGrid size={22} strokeWidth={spintaActive ? 2.5 : 2} />
+          <span>Asortimentas</span>
         </Link>
 
         <button

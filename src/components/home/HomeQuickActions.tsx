@@ -26,9 +26,9 @@ const ACTIONS: {
   },
   {
     id: "spinta",
-    emoji: "👗",
-    label: "Mano Spinta",
-    sublabel: "Drabužiai ir mada",
+    emoji: "📦",
+    label: "Mano skelbimai",
+    sublabel: "Prekės ir paslaugos",
   },
   {
     id: "browse",

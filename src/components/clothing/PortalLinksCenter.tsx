@@ -149,8 +149,8 @@ export function PortalLinksCenter({
         <div>
           <p className="text-sm font-semibold text-white">Portalų sinchronizacija</p>
           <p className="text-[11px] text-slate-400">
-            Vinted, Marktplaats ir kt. — automatinis atnaujinimas kas{" "}
-            <span className="text-fuchsia-300">3 dienas</span>
+            Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, Marktplaats — automatinis
+            atnaujinimas kas <span className="text-fuchsia-300">3 dienas</span>
           </p>
         </div>
         {!guestMode && (

@@ -1424,7 +1424,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     const intent = consumePendingAuthIntent();
     if (intent === "wardrobe") {
       activateWardrobeSpinta();
-      showToast("VAUTO Spinta aktyvuota — sveiki atvykę į mados kabinę!", "success");
+      showToast("Asortimentas aktyvuotas — sveiki atvykę į skelbimų kabinetą!", "success");
     } else if (intent === "pro") {
       showToast("Prisijungta! Pro verslą galite aktyvuoti profilio skydelyje.", "info");
     }
@@ -1736,7 +1736,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           wardrobePowerUser: true,
           wardrobePowerUntil: powerSubscriptionExpiryIso(),
         });
-        showToast("VAUTO Spinta Power-User aktyvuota — neribotas importas!", "success");
+        showToast("Asortimento Power-User aktyvuota — neribotas importas!", "success");
         logAnalytics("checkout_wardrobe_power", { amount: session.amountEur });
       }
 

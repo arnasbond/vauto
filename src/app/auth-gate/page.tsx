@@ -3,8 +3,9 @@
 import Link from "next/link";
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
-import { LogIn, Shirt, Sparkles } from "lucide-react";
+import { LogIn, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { SmartOnboardingCarousel } from "@/components/auth/SmartOnboardingCarousel";
 import { useVauto } from "@/context/VautoContext";
 
 export default function AuthGatePage() {
@@ -35,26 +36,29 @@ export default function AuthGatePage() {
 
   return (
     <AppShell variant="plain">
-      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col items-center justify-center px-6 text-center">
-        <span className="mb-5 flex h-16 w-16 items-center justify-center rounded-3xl bg-fuchsia-600 text-white shadow-lg">
-          <Shirt className="h-8 w-8" />
-        </span>
-        <h1 className="text-xl font-semibold text-white">Mano Spinta — tik registruotiems</h1>
-        <p className="mt-3 text-sm leading-relaxed text-slate-400">
-          Susikurk paskyrą ir valdyk savo drabužių spintą su AI importu, sinchronizacija ir
-          saugiu pardavimu per VAUTO.
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-8">
+        <p className="mb-5 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--vauto-teal)]">
+          Smart Onboarding
         </p>
+
+        <SmartOnboardingCarousel />
+
         <button
           type="button"
           onClick={() => openAuthModal("/fashion/mine/")}
-          className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3.5 text-sm font-semibold text-white shadow-md hover:bg-fuchsia-500"
+          className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white shadow-md hover:opacity-90"
         >
           <LogIn className="h-4 w-4" />
           Registruotis / Prisijungti
         </button>
+
+        <p className="mt-4 text-center text-xs leading-relaxed text-slate-400">
+          Auto, NT, paslaugos, prekyba ir asmeniniai daiktai — viena paskyra, visi portalai.
+        </p>
+
         <Link
           href="/fashion/"
-          className="mt-4 inline-flex items-center gap-1.5 text-sm text-fuchsia-300 hover:text-fuchsia-200"
+          className="mt-4 inline-flex items-center justify-center gap-1.5 text-sm text-[var(--vauto-teal)] hover:opacity-80"
         >
           <Sparkles className="h-4 w-4" />
           Tęsti kaip svečias (demo)

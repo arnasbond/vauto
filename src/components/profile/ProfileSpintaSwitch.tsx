@@ -6,7 +6,7 @@ import Link from "next/link";
 
 import { useMemo } from "react";
 
-import { Check, Shirt, Sparkles } from "lucide-react";
+import { Check, LayoutGrid, Sparkles } from "lucide-react";
 
 import { useVauto } from "@/context/VautoContext";
 
@@ -86,17 +86,17 @@ export function ProfileSpintaSwitch() {
 
         <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow-md">
 
-          <Shirt className="h-5 w-5" />
+          <LayoutGrid className="h-5 w-5" />
 
         </span>
 
         <div className="min-w-0 flex-1">
 
-          <p className="text-sm font-semibold text-slate-900">VAUTO Spinta</p>
+          <p className="text-sm font-semibold text-slate-900">Mano asortimentas</p>
 
           <p className="mt-0.5 text-xs text-slate-500">
 
-            Mados režimas su AI importu, Mano Spinta tinkleliu ir fuchsia aplinka.
+            Kelių portalų sinchronizacija, AI importas ir skelbimų valdymas vienoje vietoje.
 
           </p>
 
@@ -112,7 +112,7 @@ export function ProfileSpintaSwitch() {
 
               <Check className="h-4 w-4" />
 
-              Spinta aktyvi — atidaryti kabinę
+              Asortimentas aktyvus — atidaryti kabinę
 
             </Link>
 
@@ -130,7 +130,7 @@ export function ProfileSpintaSwitch() {
 
               <Sparkles className="h-4 w-4" />
 
-              Persijungti į VAUTO Spintą
+              Atidaryti asortimentą
 
             </button>
 

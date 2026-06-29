@@ -80,8 +80,8 @@ export const PORTAL_UI: Record<ChameleonThemeId, PortalUiTokens> = {
     searchBorder: "#e8e4df",
     progress: "#09b1a8",
     fontClass: "font-sans font-light",
-    portalName: "VAUTO Spinta",
-    tagline: "Drabužiai ir aksesuarai",
+    portalName: "VAUTO Asortimentas",
+    tagline: "Prekės ir paslaugos",
   },
   skelbiu: {
     accent: "#1565c0",

@@ -8,7 +8,6 @@ import {
   Home,
   Palette,
   Share2,
-  Shirt,
   Sparkles,
   Zap,
   Bell,
@@ -64,7 +63,7 @@ export default function ApiePage() {
 
     const payload = {
       title: "VAUTO — išmanioji skelbimų ekosistema",
-      text: "Prisijunk prie VAUTO — Auto, NT, Drabužiai, Darbas ir Paslaugos visoje Lietuvoje vienoje vietoje!",
+      text: "Prisijunk prie VAUTO — Auto, NT, Paslaugos, Prekyba ir dar daugiau visoje Lietuvoje vienoje vietoje!",
       url: SITE_URL,
       dialogTitle: "Pasidalinti su draugais",
     };
@@ -102,20 +101,20 @@ export default function ApiePage() {
             Apjunk viską vienoje vietoje:{" "}
             <strong className="text-[var(--vauto-text)]">Auto</strong>,{" "}
             <strong className="text-[var(--vauto-text)]">NT</strong>,{" "}
-            <strong className="text-[var(--vauto-text)]">Drabužius</strong>,{" "}
-            <strong className="text-[var(--vauto-text)]">Darbą</strong> ir{" "}
-            <strong className="text-[var(--vauto-text)]">Paslaugas</strong> — su
+            <strong className="text-[var(--vauto-text)]">Paslaugos</strong>,{" "}
+            <strong className="text-[var(--vauto-text)]">Prekyba</strong> ir{" "}
+            <strong className="text-[var(--vauto-text)]">Darbas</strong> — su
             žaibišku <span className="text-[var(--vauto-orange)]">Chameleon</span>{" "}
-            prisitaikymu prie kiekvieno portalo stiliaus. Veikiame visoje Lietuvoje —
-            be regioninių apribojimų.
+            prisitaikymu prie kiekvieno portalo stiliaus. Sujunkite Skelbiu, Autoplius,
+            Aruodas, Paslaugos.lt ir kitus — visoje Lietuvoje.
           </p>
           <div className="mt-5 flex flex-wrap gap-2">
             {[
               { Icon: Car, label: "Auto" },
               { Icon: Home, label: "NT" },
-              { Icon: Shirt, label: "Drabužiai" },
-              { Icon: Briefcase, label: "Darbas" },
               { Icon: Sparkles, label: "Paslaugos" },
+              { Icon: Briefcase, label: "Prekyba" },
+              { Icon: Building2, label: "Verslas" },
             ].map(({ Icon, label }) => (
               <span
                 key={label}
@@ -135,13 +134,14 @@ export default function ApiePage() {
           </Link>
         </section>
 
-        {/* B2C */}
+        {/* Privatiems */}
         <section className="mt-8">
           <h2 className="mb-1 text-lg font-bold text-[var(--vauto-text)]">
-            Ką išlošia paprastas vartotojas
+            Privatiems
           </h2>
-          <p className="mb-4 text-xs text-[var(--vauto-text-muted)]">
-            Nemokamai, be įkyrių reklamų — visoje Lietuvoje
+          <p className="mb-4 text-sm leading-relaxed text-[var(--vauto-text-muted)]">
+            Lengvas daiktų pardavimas ir derybų automatizavimas — Auto, NT, paslaugos ir
+            asmeninės prekės vienoje paskyroje.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <BenefitCard
@@ -157,7 +157,7 @@ export default function ApiePage() {
             <BenefitCard
               icon={Link2}
               title="Revoliucinis AI skelbimų importas"
-              description="Įklijuokite nuorodą iš Autoplius, Aruodas, Vinted, Skelbiu ar CVBankas — VAUTO AI užpildo skelbimą per ~5 sekundes."
+              description="Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted ar CVBankas — VAUTO AI užpildo skelbimą per ~5 sekundes."
             />
             <BenefitCard
               icon={Sparkles}
@@ -167,13 +167,14 @@ export default function ApiePage() {
           </div>
         </section>
 
-        {/* B2B */}
+        {/* Verslui */}
         <section className="mt-8">
           <h2 className="mb-1 text-lg font-bold text-[var(--vauto-text)]">
-            Ką išlošia verslas (B2B)
+            Verslui (NT, Auto, Paslaugos, Prekyba)
           </h2>
-          <p className="mb-4 text-xs text-[var(--vauto-text-muted)]">
-            Profesionalams, darbdaviams ir pardavėjams visoje Lietuvoje
+          <p className="mb-4 text-sm leading-relaxed text-[var(--vauto-text-muted)]">
+            Masinis skelbimų valdymas keliuose portaluose, klientų užklausų apdorojimas per AI
+            fone, laiko ir administravimo kaštų taupymas.
           </p>
           <div className="grid gap-3 sm:grid-cols-2">
             <BenefitCard

@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Apple, Building2, Phone, Shield, Shirt, UserRound, X } from "lucide-react";
+import { Apple, Building2, LayoutGrid, Phone, Shield, UserRound, X } from "lucide-react";
 import type { AuthProvider, UserRole } from "@/lib/types";
 import type { AuthSignupIntent } from "@/context/AuthContext";
 import { ADMIN_EMAIL, ADMIN_PHONE } from "@/lib/reports";
@@ -272,7 +272,7 @@ export function AuthModal({
                   [
                     ["private", "Privatus", UserRound],
                     ["pro", "Verslas PRO", Building2],
-                    ["wardrobe", "VAUTO Spinta", Shirt],
+                    ["wardrobe", "Asortimentas", LayoutGrid],
                   ] as const
                 ).map(([key, label, Icon]) => (
                   <button

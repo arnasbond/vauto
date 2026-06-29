@@ -5,14 +5,16 @@ export interface PortalProfileDef {
 }
 
 export const PORTAL_PROFILE_DEFS: PortalProfileDef[] = [
+  { key: "skelbiu", label: "Skelbiu.lt", hostPattern: /skelbiu/i },
+  { key: "autoplius", label: "Autoplius.lt", hostPattern: /autoplius/i },
+  { key: "aruodas", label: "Aruodas.lt", hostPattern: /aruodas/i },
+  { key: "paslaugos", label: "Paslaugos.lt", hostPattern: /paslaugos/i },
   { key: "vinted", label: "Vinted", hostPattern: /vinted\./i },
   { key: "marktplaats", label: "Marktplaats", hostPattern: /marktplaats/i },
   { key: "ebay", label: "eBay", hostPattern: /ebay\.|ebayimg\./i },
   { key: "depop", label: "Depop", hostPattern: /depop\./i },
   { key: "poshmark", label: "Poshmark", hostPattern: /poshmark/i },
   { key: "olx", label: "OLX", hostPattern: /olx\./i },
-  { key: "autoplius", label: "Autoplius", hostPattern: /autoplius/i },
-  { key: "skelbiu", label: "Skelbiu", hostPattern: /skelbiu/i },
 ];
 
 export function detectPortalKeyFromUrl(url: string): string | null {
@@ -28,7 +30,7 @@ export function detectPortalKeyFromUrl(url: string): string | null {
 }
 
 export function portalLabelForKey(key: string): string {
-  return PORTAL_PROFILE_DEFS.find((d) => d.key === key)?.label ?? "Spinta";
+  return PORTAL_PROFILE_DEFS.find((d) => d.key === key)?.label ?? "Portalas";
 }
 
 export function isPortalProfileUrl(url: string, portalKey?: string): boolean {

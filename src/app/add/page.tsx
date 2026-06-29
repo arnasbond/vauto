@@ -64,7 +64,7 @@ export default function AddPage() {
             }),
             category: "clothing",
           },
-          "Spintos įkėlimas"
+          "Asortimento įkėlimas"
         )
       );
       return;
@@ -108,7 +108,7 @@ export default function AddPage() {
           <HeroSection>
             <Header />
             <h2 className="mt-6 text-center text-xl font-bold text-white">
-              {fashionMode ? "Spintos įkėlimas" : "Naujas skelbimas"}
+              {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
             </h2>
             <p className="mt-3 px-6 text-center text-sm text-slate-400">
               Prisijunkite arba užsiregistruokite, kad galėtumėte įdėti skelbimą.
@@ -132,12 +132,12 @@ export default function AddPage() {
         <HeroSection>
           <Header />
           <h2 className="font-display mt-6 text-center text-xl font-bold text-white">
-            {fashionMode ? "Spintos įkėlimas" : "Naujas skelbimas"}
+            {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
           </h2>
           <p className="mt-2 text-center text-sm text-slate-400">
             {fashionMode
-              ? "Pridėkite drabužių nuotraukas — AI užpildys Spintos skelbimą."
-              : "Įklijuokite nuorodą iš Autoplius ar Skelbiu — arba pridėkite nuotraukas, AI užpildys skelbimą."}
+              ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
+              : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}
           </p>
           {!fashionMode && (
             <div className="mt-5">
