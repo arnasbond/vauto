@@ -4,18 +4,15 @@ import { useCallback, useEffect, useState } from "react";
 import { Camera, Loader2, Trash2 } from "lucide-react";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import { useVauto } from "@/context/VautoContext";
-import { apiUploadMedia } from "@/lib/api/client";
-import { isDataApiEnabled } from "@/lib/api/config";
 import {
   capturePhotoFromSource,
   compressDataUrl,
   resolveImageForUpload,
 } from "@/lib/native-media";
 import {
-  API_AVATAR_MAX_LENGTH,
+  API_AVATAR_DATA_URL_MAX,
   DEFAULT_USER_AVATAR,
   isOversizedAvatar,
-  sanitizeAvatarForApi,
 } from "@/lib/avatar-url";
 
 const DEFAULT_AVATAR = DEFAULT_USER_AVATAR;
@@ -65,15 +62,10 @@ export function ProfileAvatarEditor({ avatar, name }: ProfileAvatarEditorProps) 
           finalUrl =
             (await compressDataUrl(finalUrl, {
               maxDim: 128,
-              maxChars: API_AVATAR_MAX_LENGTH - 64,
+              maxChars: API_AVATAR_DATA_URL_MAX - 64,
               force: true,
             })) ?? DEFAULT_AVATAR;
         }
-        if (isDataApiEnabled()) {
-          const uploaded = await apiUploadMedia(finalUrl);
-          if (uploaded) finalUrl = uploaded;
-        }
-        finalUrl = sanitizeAvatarForApi(finalUrl);
         const saved = await updateUser({ avatar: finalUrl });
         if (!saved) {
           showToast("Profilio nuotrauka neišsaugota.", "error");

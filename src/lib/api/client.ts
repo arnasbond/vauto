@@ -487,6 +487,26 @@ export async function apiUpdateUserAvatar(
   });
 }
 
+export async function apiUpdateUserProfile(patch: {
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
+}): Promise<ApiResult<UserProfile>> {
+  return dataFetch<UserProfile>("/api/user/profile", {
+    method: "PUT",
+    body: JSON.stringify(patch),
+  });
+}
+
+export async function apiUpdateUserAvatarImage(
+  imageDataUrl: string
+): Promise<ApiResult<UserProfile>> {
+  return dataFetch<UserProfile>("/api/user/avatar", {
+    method: "POST",
+    body: JSON.stringify({ imageDataUrl }),
+  });
+}
+
 export async function apiUpdateUser(
   user: UserProfile
 ): Promise<ApiResult<null>> {

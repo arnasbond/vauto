@@ -139,6 +139,9 @@ export type ProBusinessType = "dealer" | "services" | "general";
 export interface UserProfile {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
   avatar: string;
   phone: string;
   city: string;

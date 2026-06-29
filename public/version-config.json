@@ -1,9 +1,5 @@
 {
-
-  "latestVersion": "1.3.4",
-
-  "versionCode": 32,
-
+  "latestVersion": "1.3.5",
+  "versionCode": 33,
   "downloadUrl": "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk"
-
 }

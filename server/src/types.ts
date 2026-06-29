@@ -1,6 +1,9 @@
 export interface ApiUser {
   id: string;
   name: string;
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
   phone: string;
   city: string;
   avatar: string;

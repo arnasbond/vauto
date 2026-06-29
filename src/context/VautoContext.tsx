@@ -75,7 +75,10 @@ import {
   apiUpdateSaved,
   apiUpdateUser,
   apiUpdateUserAvatar,
+  apiUpdateUserAvatarImage,
+  apiUpdateUserProfile,
 } from "@/lib/api/client";
+import { composeUserName } from "@/lib/profile-display";
 import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
 import type {
   AiExtractedListing,
@@ -879,9 +882,25 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const updateUser = useCallback(
     async (patch: Partial<UserProfile>): Promise<boolean> => {
       const safePatch = { ...patch };
-      if (typeof safePatch.avatar === "string") {
+      if (
+        typeof safePatch.avatar === "string" &&
+        !safePatch.avatar.startsWith("data:")
+      ) {
         safePatch.avatar = sanitizeAvatarForApi(safePatch.avatar);
       }
+
+      const profileFieldKeys = ["firstName", "lastName", "nickname"] as const;
+      const hasProfileFields = profileFieldKeys.some((k) => k in safePatch);
+      if (hasProfileFields) {
+        const mergedNames = { ...userRef.current, ...safePatch };
+        safePatch.name = composeUserName({
+          firstName: mergedNames.firstName,
+          lastName: mergedNames.lastName,
+          nickname: mergedNames.nickname,
+          fallback: userRef.current.name,
+        });
+      }
+
       profileLocalEditRef.current = true;
       patchAuthUser(safePatch);
 
@@ -892,11 +911,50 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
       const merged = { ...userRef.current, ...safePatch };
       const avatarOnly =
-        Object.keys(safePatch).length === 1 && typeof safePatch.avatar === "string";
+        Object.keys(safePatch).length === 1 &&
+        typeof safePatch.avatar === "string";
+      const profileOnly =
+        hasProfileFields &&
+        Object.keys(safePatch).every(
+          (k) =>
+            profileFieldKeys.includes(k as (typeof profileFieldKeys)[number]) ||
+            k === "name"
+        );
 
-      const res = avatarOnly
-        ? await apiUpdateUserAvatar(merged.id, safePatch.avatar!)
-        : await apiUpdateUser(merged);
+      if (profileOnly) {
+        const res = await apiUpdateUserProfile({
+          firstName: safePatch.firstName,
+          lastName: safePatch.lastName,
+          nickname: safePatch.nickname,
+        });
+        if (!res.ok) {
+          profileLocalEditRef.current = false;
+          setSyncError(`Profilis neišsaugotas: ${res.error}`);
+          return false;
+        }
+        patchAuthUser(res.data);
+        profileLocalEditRef.current = false;
+        return true;
+      }
+
+      if (avatarOnly) {
+        const rawAvatar = patch.avatar!;
+        const res = rawAvatar.startsWith("data:")
+          ? await apiUpdateUserAvatarImage(rawAvatar)
+          : await apiUpdateUserAvatar(merged.id, safePatch.avatar!);
+
+        if (!res.ok) {
+          profileLocalEditRef.current = false;
+          setSyncError(`Profilio nuotrauka neišsaugota: ${res.error}`);
+          return false;
+        }
+
+        patchAuthUser({ avatar: res.data.avatar });
+        profileLocalEditRef.current = false;
+        return true;
+      }
+
+      const res = await apiUpdateUser(merged);
 
       if (!res.ok) {
         profileLocalEditRef.current = false;
@@ -904,26 +962,12 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         return false;
       }
 
-      if (avatarOnly && res.ok && "data" in res && res.data) {
-        patchAuthUser({ ...res.data, avatar: safePatch.avatar ?? res.data.avatar });
-        profileLocalEditRef.current = false;
-        return true;
-      }
-
       const fresh = await apiFetchUser(merged.id);
       if (fresh.ok) {
-        patchAuthUser({
-          ...fresh.data,
-          avatar: safePatch.avatar ?? fresh.data.avatar,
-        });
+        patchAuthUser(fresh.data);
       }
 
-      if (!avatarOnly) {
-        await refreshAuthUser();
-      }
-      if (typeof safePatch.avatar === "string") {
-        patchAuthUser({ avatar: safePatch.avatar });
-      }
+      await refreshAuthUser();
       profileLocalEditRef.current = false;
       return true;
     },

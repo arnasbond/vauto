@@ -8,6 +8,9 @@ export interface AuthApiSession {
   user: {
     id: string;
     name: string;
+    firstName?: string;
+    lastName?: string;
+    nickname?: string;
     phone: string;
     city: string;
     avatar: string;
@@ -157,6 +160,9 @@ export function mapApiUserToProfile(
   return {
     id: apiUser.id,
     name: apiUser.name,
+    firstName: apiUser.firstName,
+    lastName: apiUser.lastName,
+    nickname: apiUser.nickname,
     phone: apiUser.phone,
     city: apiUser.city,
     email: apiUser.email,

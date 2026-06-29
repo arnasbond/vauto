@@ -78,7 +78,12 @@ import {
   validateReview,
   validateServiceLeadCreate,
   validateUser,
+  validateUserProfilePatch,
 } from "../validation.js";
+import {
+  saveUserAvatarFromImage,
+  saveUserProfile,
+} from "../controllers/user-controller.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
 
 export const apiRouter = Router();
@@ -550,6 +555,42 @@ apiRouter.put(
   }
 );
 
+apiRouter.put("/user/profile", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const userId = req.authUserId!;
+    const parsed = validateUserProfilePatch(req.body);
+    if (badRequest(res, parsed)) return;
+    const updated = await saveUserProfile(userId, parsed.value);
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/user/avatar", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const userId = req.authUserId!;
+    const imageDataUrl = String(req.body?.imageDataUrl ?? "").trim();
+    if (!imageDataUrl) {
+      res.status(400).json({ error: "imageDataUrl is required" });
+      return;
+    }
+    const updated = await saveUserAvatarFromImage(userId, imageDataUrl);
+    if (!updated) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    res.json(updated);
+  } catch (e) {
+    const err = e as Error & { status?: number };
+    res.status(err.status ?? 500).json({ error: err.message || String(e) });
+  }
+});
+
 apiRouter.get("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {
     if (!canActForUser(req, req.params.id)) {
@@ -598,7 +639,7 @@ apiRouter.patch("/users/:id/avatar", requireAuth, async (req: AuthedRequest, res
       return;
     }
     const avatar = String(req.body?.avatar ?? "").trim();
-    if (!avatar || avatar.length > 1000) {
+    if (!avatar || avatar.length > 120_000) {
       res.status(400).json({ error: "Invalid avatar URL" });
       return;
     }

@@ -96,6 +96,9 @@ export async function getUser(id: string): Promise<ApiUser | null> {
   const rows = await query<{
     id: string;
     name: string;
+    first_name: string | null;
+    last_name: string | null;
+    nickname: string | null;
     phone: string;
     city: string;
     avatar_url: string | null;
@@ -111,7 +114,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     free_protection_credits: number | null;
     referred_by_user_id: string | null;
   }>(
-    `SELECT id, name, phone, city, avatar_url, email, warned,
+    `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
             wallet_balance, role, business_type, sold_count, auth_provider,
             billing_plan, referral_code, free_protection_credits, referred_by_user_id
      FROM users WHERE id = $1`,
@@ -122,6 +125,9 @@ export async function getUser(id: string): Promise<ApiUser | null> {
   return {
     id: r.id,
     name: r.name,
+    firstName: r.first_name ?? undefined,
+    lastName: r.last_name ?? undefined,
+    nickname: r.nickname ?? undefined,
     phone: r.phone,
     city: r.city,
     email: r.email ?? undefined,
@@ -156,11 +162,39 @@ export async function updateUserAvatar(
   avatarUrl: string
 ): Promise<ApiUser | null> {
   await query(
-    `UPDATE users SET avatar_url = $2, updated_at = now() WHERE id = $1`,
-    [userId, avatarUrl]
+    `UPDATE users SET avatar_url = $1 WHERE id = $2`,
+    [avatarUrl, userId]
   );
   const updatedUser = await getUser(userId);
   return updatedUser;
+}
+
+export async function updateUserProfile(
+  userId: string,
+  patch: {
+    firstName?: string;
+    lastName?: string;
+    nickname?: string;
+    name: string;
+  }
+): Promise<ApiUser | null> {
+  await query(
+    `UPDATE users SET
+       first_name = $2,
+       last_name = $3,
+       nickname = $4,
+       name = $5,
+       updated_at = now()
+     WHERE id = $1`,
+    [
+      userId,
+      patch.firstName ?? null,
+      patch.lastName ?? null,
+      patch.nickname ?? null,
+      patch.name,
+    ]
+  );
+  return getUser(userId);
 }
 
 export async function upsertUser(user: ApiUser): Promise<void> {

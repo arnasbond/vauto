@@ -618,6 +618,36 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
   });
 }
 
+export interface UserProfilePatchInput {
+  firstName?: string;
+  lastName?: string;
+  nickname?: string;
+}
+
+export function validateUserProfilePatch(
+  body: unknown
+): ValidationResult<UserProfilePatchInput> {
+  if (!isRecord(body)) return fail("Body must be an object");
+  const firstName = optionalString(body, "firstName", 80);
+  if (!firstName.ok) return firstName;
+  const lastName = optionalString(body, "lastName", 80);
+  if (!lastName.ok) return lastName;
+  const nickname = optionalString(body, "nickname", 80);
+  if (!nickname.ok) return nickname;
+  if (
+    firstName.value === undefined &&
+    lastName.value === undefined &&
+    nickname.value === undefined
+  ) {
+    return fail("At least one profile field is required");
+  }
+  return ok({
+    firstName: firstName.value,
+    lastName: lastName.value,
+    nickname: nickname.value,
+  });
+}
+
 export function validateChatThread(body: unknown): ValidationResult<ApiChatThread> {
   if (!isRecord(body)) return fail("Body must be an object");
   const id = requiredString(body, "id", 120);
