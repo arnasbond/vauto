@@ -1,4 +1,5 @@
 import { chatJson } from "./llm-provider.js";
+import { logProductionWarn } from "../lib/production-log.js";
 import {
   isWardrobeProfileUrl,
   resolveVintedProfileUrl,
@@ -173,7 +174,11 @@ export async function importWardrobeProfile(params: {
         return res.text();
       });
     pageText = stripHtml(await fetchPage(resolvedProfileUrl)).slice(0, 18_000);
-  } catch {
+  } catch (err) {
+    logProductionWarn("portal-import", "Profile HTML fetch failed — using demo items", {
+      profileUrl: resolvedProfileUrl.slice(0, 120),
+      error: err instanceof Error ? err.message : String(err),
+    });
     const items = demoProfileItems(params.userName);
     return withImportMeta({
       profileUrl: resolvedProfileUrl,
@@ -183,6 +188,10 @@ export async function importWardrobeProfile(params: {
   }
 
   if (pageText.length < 60) {
+    logProductionWarn("portal-import", "Profile HTML too short — using demo items", {
+      profileUrl: resolvedProfileUrl.slice(0, 120),
+      length: pageText.length,
+    });
     const items = demoProfileItems(params.userName);
     return withImportMeta({
       profileUrl: resolvedProfileUrl,

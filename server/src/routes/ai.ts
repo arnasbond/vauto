@@ -487,6 +487,7 @@ aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
     minPrice?: number;
     listingTitle?: string;
     sellerName?: string;
+    sellerUserId?: string;
     sellerApproved?: boolean;
     autoNegotiationEnabled?: boolean;
     profileType?: string;
@@ -499,7 +500,16 @@ aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
     const listingPrice = Number(body.listingPrice) || 0;
 
     let profileType = resolveNegotiationProfileType(body.profileType);
-    if (!profileType && req.authUserId) {
+    const sellerUserId = body.sellerUserId?.trim();
+    if (!profileType && sellerUserId) {
+      const seller = await getUser(sellerUserId);
+      profileType = resolveNegotiationProfileType(seller?.profileType);
+    }
+    if (
+      !profileType &&
+      req.authUserId &&
+      (!sellerUserId || sellerUserId === req.authUserId)
+    ) {
       const seller = await getUser(req.authUserId);
       profileType = resolveNegotiationProfileType(seller?.profileType);
     }

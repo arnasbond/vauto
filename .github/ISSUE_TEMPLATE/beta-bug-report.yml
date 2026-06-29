@@ -9,7 +9,7 @@ body:
     attributes:
       value: |
         **Feature Freeze** — praneškite apie klaidą, ne apie naują funkciją.
-        Versija: **v1.6.3** (versionCode **49**).
+        Versija: **v1.6.4** (versionCode **50**).
 
   - type: input
     id: tester
@@ -46,7 +46,7 @@ body:
     attributes:
       label: App versija
       description: Nustatymai arba versijos modalas
-      placeholder: "1.6.3 (49)"
+      placeholder: "1.6.4 (50)"
     validations:
       required: true
 

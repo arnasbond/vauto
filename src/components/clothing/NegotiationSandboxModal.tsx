@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { Bot, Loader2, MessageCircle, X } from "lucide-react";
 import type { Listing } from "@/lib/types";
+import type { ProfileType } from "@/lib/profile-type";
 import { requestNegotiationTwin } from "@/lib/chat-agent-client";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
 
@@ -23,6 +24,8 @@ interface NegotiationSandboxModalProps {
   onClose: () => void;
   listing: Listing;
   sellerName: string;
+  sellerUserId?: string;
+  profileType?: ProfileType;
 }
 
 function buildAggressiveBuyerMessages(listing: Listing): string[] {
@@ -46,6 +49,8 @@ export function NegotiationSandboxModal({
   onClose,
   listing,
   sellerName,
+  sellerUserId,
+  profileType,
 }: NegotiationSandboxModalProps) {
   const [messages, setMessages] = useState<SandboxMessage[]>([]);
   const [running, setRunning] = useState(false);
@@ -94,6 +99,8 @@ export function NegotiationSandboxModal({
         minPrice,
         listingTitle: listing.title,
         sellerName,
+        sellerUserId,
+        profileType,
         sellerApproved: true,
         autoNegotiationEnabled: true,
       });
@@ -125,7 +132,7 @@ export function NegotiationSandboxModal({
 
     setRunning(false);
     setDone(true);
-  }, [appendMessage, listing, sellerName]);
+  }, [appendMessage, listing, sellerName, sellerUserId, profileType]);
 
   useEffect(() => {
     if (!open) {

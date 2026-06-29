@@ -44,6 +44,10 @@ export async function proxyImageHandler(req: Request, res: Response): Promise<vo
 
     const contentType = upstream.headers.get("content-type") || "image/jpeg";
     if (!contentType.startsWith("image/")) {
+      logProductionError("image-proxy", new Error("Upstream response is not an image"), {
+        url: target.hostname,
+        contentType,
+      });
       res.status(502).json({ error: "Upstream response is not an image" });
       return;
     }

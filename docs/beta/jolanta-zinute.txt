@@ -1,6 +1,6 @@
 Sveika, Jolanta! 👋
 
-VAUTO beta testavimas prasidėjo — versija *1.6.3* (49). Naujų funkcijų nebededame, tik renkame atsiliepimus ir klaidas.
+VAUTO beta testavimas prasidėjo — versija *1.6.4* (50). Naujų funkcijų nebededame, tik renkame atsiliepimus ir klaidas.
 
 📲 Įdiegimas:
 • APK: https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk

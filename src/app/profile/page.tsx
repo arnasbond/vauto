@@ -139,6 +139,8 @@ export default function ProfilePage() {
           <NegotiationSandboxTrigger
             listings={myListings}
             sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+            sellerUserId={user.id}
+            profileType={user.profileType}
             className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
           />
         </div>

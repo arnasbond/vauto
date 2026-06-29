@@ -68,6 +68,8 @@ export function WardrobeCabinetSection({
       <NegotiationSandboxTrigger
         listings={listings}
         sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+        sellerUserId={user.id}
+        profileType={profileType ?? user.profileType}
       />
 
       <VisibilityBooster listings={listings} inSpintaCabinet />

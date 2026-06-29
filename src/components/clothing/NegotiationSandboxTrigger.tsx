@@ -4,16 +4,21 @@ import { useMemo, useState } from "react";
 import { Bot } from "lucide-react";
 import { NegotiationSandboxModal } from "@/components/clothing/NegotiationSandboxModal";
 import type { Listing } from "@/lib/types";
+import type { ProfileType } from "@/lib/profile-type";
 
 interface NegotiationSandboxTriggerProps {
   listings: Listing[];
   sellerName: string;
+  sellerUserId?: string;
+  profileType?: ProfileType;
   className?: string;
 }
 
 export function NegotiationSandboxTrigger({
   listings,
   sellerName,
+  sellerUserId,
+  profileType,
   className,
 }: NegotiationSandboxTriggerProps) {
   const [open, setOpen] = useState(false);
@@ -46,6 +51,8 @@ export function NegotiationSandboxTrigger({
         onClose={() => setOpen(false)}
         listing={listing}
         sellerName={sellerName}
+        sellerUserId={sellerUserId}
+        profileType={profileType}
       />
     </>
   );

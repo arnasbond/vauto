@@ -2,7 +2,7 @@
 
 ## Versija
 
-- **Web / API:** 1.6.3 (versionCode 49)
+- **Web / API:** 1.6.4 (versionCode 50)
 - **APK:** https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk
 - **API health:** https://vauto-api.onrender.com/api/version
 
@@ -14,7 +14,7 @@ GitHub → Issues → **Beta bug report**: https://github.com/arnasbond/vauto/is
 
 ### Visiems
 
-- [ ] Įdiegti 1.6.3 (49)
+- [ ] Įdiegti 1.6.4 (50)
 - [ ] SMS prisijungimas
 - [ ] Pasirinkti profilio tipą (vienkartinis)
 

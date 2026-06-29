@@ -895,6 +895,8 @@ export async function apiNegotiationTwin(body: {
   minPrice: number;
   listingTitle: string;
   sellerName: string;
+  sellerUserId?: string;
+  profileType?: "private" | "business";
   sellerApproved?: boolean;
   autoNegotiationEnabled?: boolean;
 }): Promise<import("@/lib/chat-agent-client").NegotiationTwinReply | null> {

@@ -384,6 +384,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               minPrice,
               listingTitle: listing.title,
               sellerName,
+              sellerUserId: sellerId,
               sellerApproved: twin?.sellerApproved !== false,
               autoNegotiationEnabled: twin?.enabled ?? false,
             }).then((negotiation) => {
