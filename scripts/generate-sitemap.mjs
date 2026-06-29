@@ -89,3 +89,16 @@ ${urls
 const outPath = join(root, "public/sitemap.xml");
 writeFileSync(outPath, xml, "utf8");
 console.log(`Wrote ${urls.length} URLs to ${outPath}`);
+
+const versionConfig = JSON.parse(
+  readFileSync(join(root, "public/version-config.json"), "utf8")
+);
+const badgePath = join(root, "src/lib/web-build-badge.ts");
+const badge = `/** Auto-generated at build time — do not edit manually. */
+export const WEB_BUILD_VERSION_CODE = ${versionConfig.versionCode};
+export const WEB_BUILD_VERSION_NAME = ${JSON.stringify(versionConfig.latestVersion)};
+`;
+writeFileSync(badgePath, badge, "utf8");
+console.log(
+  `Wrote web build badge v${versionConfig.latestVersion} (code ${versionConfig.versionCode})`
+);

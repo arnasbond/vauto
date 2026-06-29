@@ -10,6 +10,7 @@ import { VautoProvider } from "@/context/VautoContext";
 import { UserBehaviorProvider } from "@/context/UserBehaviorContext";
 import { NativeErrorBoundary } from "@/components/NativeErrorBoundary";
 import { AppVersionProvider } from "@/context/AppVersionContext";
+import { WebAutoUpdateHost } from "@/components/version/WebAutoUpdateHost";
 import { UserBehaviorNavigationTracker } from "@/components/agent/UserBehaviorNavigationTracker";
 
 /**
@@ -19,6 +20,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
   return (
     <NativeErrorBoundary>
       <AppVersionProvider>
+        <WebAutoUpdateHost />
         <AppThemeProvider>
           <AuthProvider>
             <UserBehaviorProvider>
