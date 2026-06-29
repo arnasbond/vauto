@@ -11,6 +11,7 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
 import { ProfileProCTA } from "@/components/profile/ProfileProCTA";
 import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle";
+import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
@@ -122,6 +123,15 @@ export default function ProfilePage() {
           listingsOnly
           disableWardrobeMode
         />
+
+        <div className="mt-4 px-1">
+          <PortalLinksCenter
+            userName={user.name}
+            defaultLocation={user.city || "Vilnius"}
+            contact={user.phone}
+            onToast={showToast}
+          />
+        </div>
 
         <div className="mt-4">
           <ProfileSettingsMenu user={user} />

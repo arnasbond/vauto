@@ -9,8 +9,8 @@ export interface AppVersionPayload {
 }
 
 const DEFAULT_VERSION: AppVersionPayload = {
-  latestVersion: "1.4.0",
-  versionCode: 38,
+  latestVersion: "1.4.1",
+  versionCode: 39,
   downloadUrl:
     "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk",
 };

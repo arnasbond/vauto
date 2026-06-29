@@ -802,6 +802,8 @@ export async function apiImportWardrobeProfile(body: {
   profileUrl: string;
   userName?: string;
   defaultLocation?: string;
+  portalKey?: string;
+  persistLink?: boolean;
 }): Promise<import("@/lib/wardrobe-profile-importer").WardrobeProfileImport | null> {
   const fromSpinta = await dataFetch<
     import("@/lib/wardrobe-profile-importer").WardrobeProfileImport
@@ -840,6 +842,28 @@ export async function apiSpintaSync(body: {
   });
   if (!result.ok) return { ok: false, status: "error", error: result.error };
   return result.data;
+}
+
+export async function apiGetPortalLinks(): Promise<
+  ApiResult<{ links: import("@/lib/spinta-portal").UserPortalLinkDto[]; syncCycleDays: number }>
+> {
+  return dataFetch("/api/spinta/portals");
+}
+
+export async function apiLinkPortalProfile(body: {
+  portalKey: string;
+  profileUrl: string;
+}): Promise<ApiResult<{ link: import("@/lib/spinta-portal").UserPortalLinkDto }>> {
+  return dataFetch("/api/spinta/portals", {
+    method: "PUT",
+    body: JSON.stringify(body),
+  });
+}
+
+export async function apiUnlinkPortal(portalKey: string): Promise<ApiResult<{ ok: boolean }>> {
+  return dataFetch(`/api/spinta/portals/${encodeURIComponent(portalKey)}`, {
+    method: "DELETE",
+  });
 }
 
 export async function apiMagicMirrorFit(body: {

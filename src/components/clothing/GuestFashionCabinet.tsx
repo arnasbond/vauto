@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { LogIn, Shirt, Sparkles } from "lucide-react";
 import { SecretaryWarmGreeting } from "@/components/clothing/SecretaryWarmGreeting";
-import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
+import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
 import { WardrobeCabinetGrid } from "@/components/clothing/WardrobeCabinetGrid";
 import { useVauto } from "@/context/VautoContext";
 import {
@@ -88,11 +88,10 @@ export function GuestFashionCabinet() {
         isGuest={!isAuthenticated}
       />
 
-      <WardrobeProfileImporter
+      <PortalLinksCenter
         guestMode
         defaultLocation={user.city || "Vilnius"}
         contact=""
-        inSpintaCabinet
         onGuestPreview={handleGuestPreview}
         onToast={showToast}
       />

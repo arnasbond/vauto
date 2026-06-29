@@ -46,6 +46,7 @@ function shouldSkipGeneralRateLimit(path: string, method: string): boolean {
   if (path.startsWith("/api/search") && method === "GET") return true;
   if (path === "/api/user/avatar" && method === "POST") return true;
   if (path === "/api/spinta/import" && method === "POST") return true;
+  if (path.startsWith("/api/spinta/portals") && (method === "GET" || method === "PUT" || method === "DELETE")) return true;
   if (path === "/api/spinta/sync" && method === "POST") return true;
   return false;
 }

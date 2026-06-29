@@ -88,6 +88,8 @@ app.listen(port, async () => {
     });
     const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");
     void runStripeBootstrap();
+    const { startPortalSyncCron } = await import("./spinta/portal-sync-cron.js");
+    startPortalSyncCron();
     const gemini = Boolean(resolveGeminiApiKey());
     console.log(
       `Vauto API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
