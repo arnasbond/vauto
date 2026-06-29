@@ -23,6 +23,25 @@ export interface WardrobeProfileImportResult {
   sellerDisplayName?: string;
   items: ImportedWardrobeItem[];
   voiceAnnouncement: string;
+  /** Sum of imported item prices (EUR) */
+  wardrobeValueTotal: number;
+  itemCount: number;
+}
+
+export function computeWardrobeValueTotal(items: ImportedWardrobeItem[]): number {
+  return Math.round(
+    items.reduce((sum, item) => sum + Math.max(0, Number(item.price) || 0), 0)
+  );
+}
+
+function withImportMeta(
+  result: Omit<WardrobeProfileImportResult, "wardrobeValueTotal" | "itemCount">
+): WardrobeProfileImportResult {
+  return {
+    ...result,
+    itemCount: result.items.length,
+    wardrobeValueTotal: computeWardrobeValueTotal(result.items),
+  };
 }
 
 const IMPORT_SCHEMA = `{
@@ -156,20 +175,20 @@ export async function importWardrobeProfile(params: {
     pageText = stripHtml(await fetchPage(resolvedProfileUrl)).slice(0, 18_000);
   } catch {
     const items = demoProfileItems(params.userName);
-    return {
+    return withImportMeta({
       profileUrl: resolvedProfileUrl,
       items,
       voiceAnnouncement: `${firstName}, paruošiau ${items.length} skelbimus iš tavo spintos — peržiūrėk ir patvirtink vienu paspaudimu!`,
-    };
+    });
   }
 
   if (pageText.length < 60) {
     const items = demoProfileItems(params.userName);
-    return {
+    return withImportMeta({
       profileUrl: resolvedProfileUrl,
       items,
       voiceAnnouncement: `${firstName}, profilio turinys ribotas — sugeneravau ${items.length} demo juodraščius redagavimui.`,
-    };
+    });
   }
 
   const locationHint = params.defaultLocation?.trim()
@@ -204,12 +223,12 @@ SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje.
       ? String((raw as Record<string, unknown>).sellerDisplayName)
       : undefined;
 
-  return {
+  return withImportMeta({
     profileUrl: resolvedProfileUrl,
     sellerDisplayName,
     items,
     voiceAnnouncement: `${firstName}, radau ${items.length} prek${items.length === 1 ? "ę" : "es"} tavo spintoje. Paruošiau ${items.length} VAUTO skelbim${items.length === 1 ? "ą" : "us"} — beliko patvirtinti!`,
-  };
+  });
 }
 
 export { isWardrobeProfileUrl } from "../lib/vinted-url.js";

@@ -8,6 +8,7 @@ import { WardrobeDealStepper } from "@/components/clothing/WardrobeDealStepper";
 import { VisibilityBooster } from "@/components/clothing/VisibilityBooster";
 import { WardrobePowerStats } from "@/components/clothing/WardrobePowerStats";
 import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
+import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSandboxTrigger";
 import { collectWardrobeDeals } from "@/lib/wardrobe-deals";
 import { useVauto } from "@/context/VautoContext";
 import type { ChatThread, Listing, UserProfile } from "@/lib/types";
@@ -59,6 +60,11 @@ export function WardrobeCabinetSection({
       <WardrobeDealStepper deals={deals} />
 
       <WardrobePowerStats user={user} listings={listings} inSpintaCabinet />
+
+      <NegotiationSandboxTrigger
+        listings={listings}
+        sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+      />
 
       <VisibilityBooster listings={listings} inSpintaCabinet />
 

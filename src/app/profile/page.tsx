@@ -12,6 +12,7 @@ import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
 import { ProfileProCTA } from "@/components/profile/ProfileProCTA";
 import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle";
 import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
+import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSandboxTrigger";
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
@@ -130,6 +131,11 @@ export default function ProfilePage() {
             defaultLocation={user.city || "Vilnius"}
             contact={user.phone}
             onToast={showToast}
+          />
+          <NegotiationSandboxTrigger
+            listings={myListings}
+            sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
           />
         </div>
 

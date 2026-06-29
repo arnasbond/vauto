@@ -25,6 +25,14 @@ export interface WardrobeProfileImport {
   sellerDisplayName?: string;
   items: WardrobeProfileImportItem[];
   voiceAnnouncement: string;
+  wardrobeValueTotal?: number;
+  itemCount?: number;
+}
+
+export function computeWardrobeValueTotal(items: WardrobeProfileImportItem[]): number {
+  return Math.round(
+    items.reduce((sum, item) => sum + Math.max(0, Number(item.price) || 0), 0)
+  );
 }
 
 export function isWardrobeProfileUrl(url: string): boolean {
@@ -113,6 +121,8 @@ function demoImport(profileUrl: string, userName?: string, defaultLocation?: str
     profileUrl,
     items,
     voiceAnnouncement: `${first}, paruošiau ${items.length} skelbimus iš tavo spintos — peržiūrėk ir patvirtink vienu paspaudimu!`,
+    wardrobeValueTotal: computeWardrobeValueTotal(items),
+    itemCount: items.length,
   };
 }
 

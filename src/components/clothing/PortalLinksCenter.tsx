@@ -2,6 +2,7 @@
 
 import { Check, Link2, Loader2, Plus, RefreshCw, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import { WardrobeValueShareCard } from "@/components/clothing/WardrobeValueShareCard";
 import {
   apiGetPortalLinks,
   apiImportWardrobeProfile,
@@ -16,6 +17,7 @@ import {
 } from "@/lib/spinta-portal";
 import {
   profileItemToDraft,
+  computeWardrobeValueTotal,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
 import type { AiExtractedListing } from "@/lib/types";
@@ -44,6 +46,10 @@ export function PortalLinksCenter({
   const [expandedKey, setExpandedKey] = useState<string | null>(null);
   const [draftUrl, setDraftUrl] = useState("");
   const [syncingKey, setSyncingKey] = useState<string | null>(null);
+  const [valueCard, setValueCard] = useState<{
+    total: number;
+    count: number;
+  } | null>(null);
 
   const linkByKey = useMemo(() => {
     const map = new Map<string, UserPortalLinkDto>();
@@ -95,6 +101,13 @@ export function PortalLinksCenter({
       setDraftUrl("");
       await refreshLinks();
 
+      const total =
+        result.wardrobeValueTotal ?? computeWardrobeValueTotal(result.items);
+      const count = result.itemCount ?? result.items.length;
+      if (!guestMode) {
+        setValueCard({ total, count });
+      }
+
       const drafts = result.items.map((item) =>
         profileItemToDraft(item, contact || "+370", defaultLocation)
       );
@@ -123,6 +136,15 @@ export function PortalLinksCenter({
 
   return (
     <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-500/50 bg-[#131c38] p-4 shadow-lg">
+      {valueCard && !guestMode && (
+        <WardrobeValueShareCard
+          wardrobeValueTotal={valueCard.total}
+          itemCount={valueCard.count}
+          userName={userName}
+          onDismiss={() => setValueCard(null)}
+        />
+      )}
+
       <div className="mb-3 flex items-start justify-between gap-2">
         <div>
           <p className="text-sm font-semibold text-white">Portalų sinchronizacija</p>

@@ -3,12 +3,14 @@
 import { Loader2, Sparkles, UploadCloud, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { GuestWardrobePreviewGrid } from "@/components/clothing/GuestWardrobePreviewGrid";
+import { WardrobeValueShareCard } from "@/components/clothing/WardrobeValueShareCard";
 import { useVauto } from "@/context/VautoContext";
 import { apiSpintaSync } from "@/lib/api/client";
 import {
   importWardrobeProfile,
   isWardrobeProfileUrl,
   profileItemToDraft,
+  computeWardrobeValueTotal,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
 import { incrementWardrobeImportCount, buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";
@@ -62,6 +64,9 @@ export function WardrobeProfileImporter({
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<WardrobeProfileImportItem[]>([]);
   const [linkedProfile, setLinkedProfile] = useState<LinkedProfileChip | null>(null);
+  const [valueCard, setValueCard] = useState<{ total: number; count: number } | null>(
+    null
+  );
 
   const handleImport = async () => {
     const trimmed = url.trim();
@@ -110,6 +115,12 @@ export function WardrobeProfileImporter({
       setUrl("");
 
       if (!isGuest) {
+        const total =
+          result.wardrobeValueTotal ?? computeWardrobeValueTotal(result.items);
+        setValueCard({ total, count: result.items.length });
+      }
+
+      if (!isGuest) {
         void apiSpintaSync({
           profileUrl: result.profileUrl || trimmed,
           userName,
@@ -138,10 +149,20 @@ export function WardrobeProfileImporter({
     setLinkedProfile(null);
     setUrl("");
     setPreview([]);
+    setValueCard(null);
   };
 
   return (
     <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-500/50 bg-[#131c38] p-4 shadow-lg">
+      {valueCard && !isGuest && (
+        <WardrobeValueShareCard
+          wardrobeValueTotal={valueCard.total}
+          itemCount={valueCard.count}
+          userName={userName}
+          onDismiss={() => setValueCard(null)}
+        />
+      )}
+
       <div className="mb-3 flex items-center gap-2">
         <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow">
           <UploadCloud className="h-4 w-4" />
