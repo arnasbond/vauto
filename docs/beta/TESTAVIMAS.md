@@ -10,6 +10,11 @@
 
 GitHub → Issues → **Beta bug report**: https://github.com/arnasbond/vauto/issues/new?template=beta-bug-report.yml
 
+## Testuotojų žinutės (copy-paste)
+
+- **Privatus profilis (Vinted):** `docs/beta/jolanta-zinute.txt`
+- **Verslo profilis (Skelbiu/Autoplius):** `docs/beta/verslas-zinute.txt`
+
 ## Checklist (trumpai)
 
 ### Visiems

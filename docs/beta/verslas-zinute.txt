@@ -1,0 +1,31 @@
+Sveiki! 👋
+
+Kviečiame išbandyti VAUTO beta — versija *1.6.4* (50). Dabar renkame atsiliepimus iš verslo naudotojų (Skelbiu, Autoplius, NT, auto, paslaugos).
+
+📲 Įdiegimas:
+• APK: https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk
+• Arba naršyklėje: vauto.lt → /install
+
+🔐 Pirmas kartas:
+1. Prisijunkite SMS kodu
+2. Pasirinkite *Verslas* profilį (ne Privatus!)
+3. Eikite į tab „Skelbimai“ → /profile/
+
+✅ Ką ištestuoti (svarbiausia):
+1. Prijunkite Skelbiu.lt arba Autoplius profilio nuorodą — ar skelbimai importuojasi?
+2. Portalų sinchronizacija — ar matosi 🟢 Sinchronizuota? Ar bloką galima suskleisti?
+3. Ar nuotraukos ir skelbimų peržiūra veikia be klaidų?
+4. Derybų AI poligonas — ar tonas profesionalus, griežtas (B2B), ne per „draugiškas Vinted“?
+5. Skelbimo kūrimas / redagavimas — ar veikia sklandžiai?
+6. Ar app stabilus po 10–15 min naudojimo?
+
+🐛 Radote klaidą? Praneškite:
+• Kas nutiko (1–2 sakiniai)
+• Žingsniai, kaip pakartoti
+• Laikas (apytiksliai)
+• Ekrano nuotrauka
+
+GitHub forma: https://github.com/arnasbond/vauto/issues/new?template=beta-bug-report.yml
+(Pasirinkite profilio tipą: *business*)
+
+Ačiū — jūsų feedback padeda paruošti VAUTO verslui! 🙏
