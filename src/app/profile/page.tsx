@@ -17,6 +17,7 @@ import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
+import { isBusinessProfile, isPrivateProfile } from "@/lib/profile-type";
 import { isNativeApp } from "@/lib/mobile-install";
 import { useVauto } from "@/context/VautoContext";
 
@@ -35,6 +36,8 @@ export default function ProfilePage() {
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
   const isPro = user.role === "pro";
+  const isBusinessCabinet = isBusinessProfile(user);
+  const isPrivateCabinet = isPrivateProfile(user);
 
   const handleRenew = async (id: string) => {
     await renewListing(id);
@@ -121,8 +124,8 @@ export default function ProfilePage() {
           listings={myListings}
           allListings={listings}
           onRenew={handleRenew}
-          listingsOnly
-          disableWardrobeMode
+          listingsOnly={isPrivateCabinet}
+          disableWardrobeMode={isBusinessCabinet}
         />
 
         <div className="mt-4 px-1">
@@ -130,6 +133,7 @@ export default function ProfilePage() {
             userName={user.name}
             defaultLocation={user.city || "Vilnius"}
             contact={user.phone}
+            profileType={user.profileType}
             onToast={showToast}
           />
           <NegotiationSandboxTrigger

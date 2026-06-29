@@ -31,6 +31,7 @@ export interface AuthApiSession {
     averageResponseMinutes?: number;
     referralCode?: string;
     freeProtectionCredits?: number;
+    profileType?: "private" | "business";
   };
   role: UserRole;
   provider: AuthProvider;
@@ -130,6 +131,17 @@ export async function apiFetchAuthSession(
   });
 }
 
+export async function apiSetProfileType(
+  profileType: "private" | "business"
+): Promise<ApiResult<{ user: AuthApiSession["user"]; profileType: "private" | "business" }>> {
+  const { getAuthHeaders } = await import("@/lib/auth/session");
+  return authFetch("/api/user/profile-type", {
+    method: "POST",
+    headers: getAuthHeaders(),
+    body: JSON.stringify({ profileType }),
+  });
+}
+
 export async function apiUpgradeToPro(params: {
   businessType: ProBusinessType;
   companyName: string;
@@ -188,5 +200,6 @@ export function mapApiUserToProfile(
     soldCount: apiUser.soldCount ?? 0,
     referralCode: apiUser.referralCode,
     freeProtectionCredits: apiUser.freeProtectionCredits ?? 0,
+    profileType: apiUser.profileType,
   };
 }

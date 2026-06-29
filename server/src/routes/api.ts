@@ -44,6 +44,7 @@ import {
   upsertEscrow,
   upsertUser,
   upsertUserPushToken,
+  setUserProfileType,
   updateUserAvatar,
   warnUser,
 } from "../repository.js";
@@ -613,6 +614,36 @@ apiRouter.post("/user/avatar", requireAuth, async (req: AuthedRequest, res) => {
   } catch (e) {
     const err = e as Error & { status?: number };
     res.status(err.status ?? 500).json({ error: err.message || String(e) });
+  }
+});
+
+apiRouter.post("/user/profile-type", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const profileType = String(req.body?.profileType ?? "").trim();
+    if (profileType !== "private" && profileType !== "business") {
+      res.status(400).json({ error: "profileType must be private or business" });
+      return;
+    }
+    const existing = await getUser(req.authUserId!);
+    if (!existing) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    if (existing.profileType && existing.profileType !== profileType) {
+      res.status(409).json({ error: "Profilio tipas jau nustatytas" });
+      return;
+    }
+    const updated =
+      existing.profileType === profileType
+        ? existing
+        : await setUserProfileType(req.authUserId!, profileType);
+    if (!updated?.profileType) {
+      res.status(500).json({ error: "Nepavyko išsaugoti profilio tipo" });
+      return;
+    }
+    res.json({ user: updated, profileType: updated.profileType });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
   }
 });
 

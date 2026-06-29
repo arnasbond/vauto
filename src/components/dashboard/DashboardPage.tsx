@@ -25,6 +25,11 @@ import { useVauto } from "@/context/VautoContext";
 import { togglePauseStatus } from "@/lib/listing-visibility";
 
 import { isWardrobeChameleonActive } from "@/lib/wardrobe-cabinet-mode";
+import {
+  cabinetSectionTitle,
+  isBusinessProfile,
+  isPrivateProfile,
+} from "@/lib/profile-type";
 
 import type { Listing, UserProfile } from "@/lib/types";
 
@@ -83,17 +88,22 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
   const sorted = useMemo(() => sortListingsForDashboard(listings), [listings]);
 
+  const privateCabinet = isPrivateProfile(user);
+  const businessCabinet = isBusinessProfile(user);
+
   const wardrobeMode = disableWardrobeMode
     ? false
-    : isWardrobeChameleonActive({
-        chameleonTheme,
-        detectedAdaptiveKey,
-        searchQuery,
-        listings,
-        spintaForced: wardrobeSpintaForced,
-      });
+    : privateCabinet ||
+      (!businessCabinet &&
+        isWardrobeChameleonActive({
+          chameleonTheme,
+          detectedAdaptiveKey,
+          searchQuery,
+          listings,
+          spintaForced: wardrobeSpintaForced,
+        }));
 
-  const isEmployer = user.role === "pro";
+  const isEmployer = user.role === "pro" || businessCabinet;
 
   const activeJobListings = useMemo(
 
@@ -128,6 +138,7 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
       user={user}
       listings={sorted}
       chats={chats}
+      profileType={user.profileType}
       onEdit={(listing) => startEditListingFlow(listing)}
       onMarkSold={(listing) => markListingSold(listing.id)}
     />
@@ -140,7 +151,7 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
           <LayoutGrid className="h-4 w-4" />
 
-          Mano skelbimai ({sorted.length})
+          {cabinetSectionTitle(user.profileType)} ({sorted.length})
 
         </h2>
 
@@ -259,7 +270,7 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
       {listingsOnly ? (
         listingGrid
-      ) : isEmployer ? (
+      ) : businessCabinet || isEmployer ? (
 
         <>
 

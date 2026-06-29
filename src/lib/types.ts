@@ -186,6 +186,7 @@ export interface UserProfile {
   referralCode?: string;
   /** Nemokamos pirkėjo apsaugos kreditai */
   freeProtectionCredits?: number;
+  profileType?: "private" | "business";
 }
 
 export interface BodyMeasurements {

@@ -2,6 +2,7 @@
 
 import { useMemo } from "react";
 import { LayoutGrid } from "lucide-react";
+import { cabinetSectionTitle, type ProfileType } from "@/lib/profile-type";
 import { SecretaryWarmGreeting } from "@/components/clothing/SecretaryWarmGreeting";
 import { WardrobeCabinetGrid } from "@/components/clothing/WardrobeCabinetGrid";
 import { WardrobeDealStepper } from "@/components/clothing/WardrobeDealStepper";
@@ -17,6 +18,7 @@ interface WardrobeCabinetSectionProps {
   user: UserProfile;
   listings: Listing[];
   chats: ChatThread[];
+  profileType?: ProfileType;
   onEdit: (listing: Listing) => void;
   onMarkSold: (listing: Listing) => void;
 }
@@ -25,6 +27,7 @@ export function WardrobeCabinetSection({
   user,
   listings,
   chats,
+  profileType,
   onEdit,
   onMarkSold,
 }: WardrobeCabinetSectionProps) {
@@ -50,6 +53,7 @@ export function WardrobeCabinetSection({
         userName={user.name}
         defaultLocation={user.city || "Vilnius"}
         contact={user.phone}
+        profileType={profileType ?? user.profileType}
         onImportReady={(drafts, voice) => {
           void publishBulkClothingListings(drafts);
           showToast(voice, "success");
@@ -71,7 +75,7 @@ export function WardrobeCabinetSection({
       <div className="mb-3 flex items-center justify-between gap-2">
         <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-[#374151]">
           <LayoutGrid className="h-4 w-4 text-[#09b1a8]" />
-          Mano asortimentas
+          {cabinetSectionTitle(profileType ?? user.profileType)}
           {clothingCount > 0 && (
             <span className="text-xs text-[#9ca3af]">({clothingCount})</span>
           )}

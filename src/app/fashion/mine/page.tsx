@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { WardrobeCabinetSection } from "@/components/clothing/WardrobeCabinetSection";
 import { useVauto } from "@/context/VautoContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
+import { isBusinessProfile } from "@/lib/profile-type";
 
 export default function FashionMinePage() {
   const router = useRouter();
@@ -27,9 +28,20 @@ export default function FashionMinePage() {
       router.replace("/auth-gate/");
       return;
     }
+    if (isBusinessProfile(user)) {
+      router.replace("/profile/");
+      return;
+    }
     activateWardrobeSpinta();
     trackEvent("spinta_enter", { pathname: "/fashion/mine" });
-  }, [authHydrated, isAuthenticated, activateWardrobeSpinta, trackEvent, router]);
+  }, [
+    authHydrated,
+    isAuthenticated,
+    user,
+    activateWardrobeSpinta,
+    trackEvent,
+    router,
+  ]);
 
   const myClothing = useMemo(
     () =>
@@ -56,6 +68,7 @@ export default function FashionMinePage() {
           user={user}
           listings={myClothing}
           chats={chats}
+          profileType="private"
           onEdit={startEditListingFlow}
           onMarkSold={(listing) => markListingSold(listing.id)}
         />

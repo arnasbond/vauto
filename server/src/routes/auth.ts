@@ -145,6 +145,7 @@ async function buildSession(
     walletBalance:
       existing?.walletBalance ??
       (role === "pro" ? 25 : role === "admin" ? 0 : 0),
+    profileType: existing?.profileType,
   };
   await upsertUser(user);
   const enriched = await attachReferralFields(user);

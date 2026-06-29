@@ -7,6 +7,12 @@ import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
 import { cn } from "@/lib/cn";
+import {
+  cabinetNavLabel,
+  defaultCabinetPath,
+  isBusinessProfile,
+  isPrivateProfile,
+} from "@/lib/profile-type";
 
 const TAB_CLASS =
   "flex min-w-0 flex-1 flex-col items-center gap-0.5 text-[10px] font-semibold no-underline";
@@ -49,7 +55,9 @@ export function BottomNav() {
     pathname === "/fashion" ||
     pathname.startsWith("/fashion/") ||
     pathname === "/auth-gate" ||
-    pathname.startsWith("/auth-gate/");
+    pathname.startsWith("/auth-gate/") ||
+    (isBusinessProfile(user) &&
+      (pathname === "/profile" || pathname.startsWith("/profile/")));
   const messagesActive =
     pathname === "/messages" ||
     pathname.startsWith("/messages/") ||
@@ -65,7 +73,10 @@ export function BottomNav() {
 
   const handlePlaceAd = () => {
     if (placeAdBusy) return;
-    const addPath = spintaActive ? "/add/?vertical=fashion" : "/add/";
+    const addPath =
+      spintaActive && isPrivateProfile(user)
+        ? "/add/?vertical=fashion"
+        : "/add/";
     if (!requireAuthForListing(addPath)) return;
     router.push(addPath);
   };
@@ -77,7 +88,12 @@ export function BottomNav() {
     }
   };
 
-  const spintaHref = isAuthenticated ? "/fashion/mine/" : "/auth-gate/";
+  const spintaHref = isAuthenticated
+    ? defaultCabinetPath(user.profileType)
+    : "/auth-gate/";
+  const spintaLabel = isAuthenticated
+    ? cabinetNavLabel(user.profileType)
+    : "Asortimentas";
 
   const handleSpinta = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
@@ -114,7 +130,7 @@ export function BottomNav() {
           aria-current={spintaActive ? "page" : undefined}
         >
           <LayoutGrid size={22} strokeWidth={spintaActive ? 2.5 : 2} />
-          <span>Asortimentas</span>
+          <span>{spintaLabel}</span>
         </Link>
 
         <button

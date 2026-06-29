@@ -12,9 +12,9 @@ import {
 import {
   isValidPortalUrl,
   shortenProfileUrl,
-  WARDROBE_PORTALS,
   type UserPortalLinkDto,
 } from "@/lib/spinta-portal";
+import { portalsForProfileType, type ProfileType } from "@/lib/profile-type";
 import {
   profileItemToDraft,
   computeWardrobeValueTotal,
@@ -26,6 +26,7 @@ interface PortalLinksCenterProps {
   userName?: string;
   defaultLocation: string;
   contact: string;
+  profileType?: ProfileType | null;
   guestMode?: boolean;
   onImportReady?: (drafts: AiExtractedListing[], voiceAnnouncement: string) => void;
   onGuestPreview?: (items: WardrobeProfileImportItem[], drafts: AiExtractedListing[]) => void;
@@ -36,6 +37,7 @@ export function PortalLinksCenter({
   userName,
   defaultLocation,
   contact,
+  profileType,
   guestMode = false,
   onImportReady,
   onGuestPreview,
@@ -50,6 +52,11 @@ export function PortalLinksCenter({
     total: number;
     count: number;
   } | null>(null);
+
+  const portalList = useMemo(
+    () => portalsForProfileType(profileType),
+    [profileType]
+  );
 
   const linkByKey = useMemo(() => {
     const map = new Map<string, UserPortalLinkDto>();
@@ -149,8 +156,12 @@ export function PortalLinksCenter({
         <div>
           <p className="text-sm font-semibold text-white">Portalų sinchronizacija</p>
           <p className="text-[11px] text-slate-400">
-            Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, Marktplaats — automatinis
-            atnaujinimas kas <span className="text-fuchsia-300">3 dienas</span>
+            {profileType === "business"
+              ? "Skelbiu, Autoplius, Aruodas, Paslaugos.lt — automatinis atnaujinimas kas"
+              : profileType === "private"
+                ? "Vinted, Marktplaats, Depop — automatinis atnaujinimas kas"
+                : "Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, Marktplaats — automatinis atnaujinimas kas"}{" "}
+            <span className="text-fuchsia-300">3 dienas</span>
           </p>
         </div>
         {!guestMode && (
@@ -166,7 +177,7 @@ export function PortalLinksCenter({
       </div>
 
       <div className="space-y-2">
-        {WARDROBE_PORTALS.map((portal) => {
+        {portalList.map((portal) => {
           const linked = linkByKey.get(portal.key);
           const isSyncing =
             syncingKey === portal.key ||

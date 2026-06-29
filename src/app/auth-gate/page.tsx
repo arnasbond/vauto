@@ -1,22 +1,35 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogIn, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ProfileTypePicker } from "@/components/auth/ProfileTypePicker";
 import { SmartOnboardingCarousel } from "@/components/auth/SmartOnboardingCarousel";
-import { useVauto } from "@/context/VautoContext";
+import { useAuth } from "@/context/AuthContext";
+import {
+  defaultCabinetPath,
+  needsProfileTypeSelection,
+  type ProfileType,
+} from "@/lib/profile-type";
 
 export default function AuthGatePage() {
   const router = useRouter();
-  const { authHydrated, isAuthenticated, openAuthModal } = useVauto();
+  const { authHydrated, isAuthenticated, user, openAuthModal } = useAuth();
+
+  const redirectForProfile = useCallback(
+    (profileType: ProfileType) => {
+      router.replace(defaultCabinetPath(profileType));
+    },
+    [router]
+  );
 
   useEffect(() => {
-    if (authHydrated && isAuthenticated) {
-      router.replace("/fashion/mine/");
-    }
-  }, [authHydrated, isAuthenticated, router]);
+    if (!authHydrated || !isAuthenticated) return;
+    if (needsProfileTypeSelection(user)) return;
+    redirectForProfile(user.profileType!);
+  }, [authHydrated, isAuthenticated, user, redirectForProfile]);
 
   if (!authHydrated) {
     return (
@@ -26,11 +39,21 @@ export default function AuthGatePage() {
     );
   }
 
-  if (isAuthenticated) {
+  if (isAuthenticated && !needsProfileTypeSelection(user)) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-slate-400">
         Nukreipiama…
       </div>
+    );
+  }
+
+  if (isAuthenticated && needsProfileTypeSelection(user)) {
+    return (
+      <AppShell variant="plain">
+        <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-8">
+          <ProfileTypePicker onComplete={redirectForProfile} />
+        </div>
+      </AppShell>
     );
   }
 
@@ -45,7 +68,7 @@ export default function AuthGatePage() {
 
         <button
           type="button"
-          onClick={() => openAuthModal("/fashion/mine/")}
+          onClick={() => openAuthModal("/auth-gate/")}
           className="mt-8 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white shadow-md hover:opacity-90"
         >
           <LogIn className="h-4 w-4" />

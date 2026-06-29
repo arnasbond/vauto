@@ -113,10 +113,12 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     referral_code: string | null;
     free_protection_credits: number | null;
     referred_by_user_id: string | null;
+    profile_type: string | null;
   }>(
     `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
             wallet_balance, role, business_type, sold_count, auth_provider,
-            billing_plan, referral_code, free_protection_credits, referred_by_user_id
+            billing_plan, referral_code, free_protection_credits, referred_by_user_id,
+            profile_type
      FROM users WHERE id = $1`,
     [id]
   );
@@ -141,6 +143,10 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     referralCode: r.referral_code ?? undefined,
     freeProtectionCredits: r.free_protection_credits ?? 0,
     referredByUserId: r.referred_by_user_id ?? undefined,
+    profileType:
+      r.profile_type === "private" || r.profile_type === "business"
+        ? r.profile_type
+        : undefined,
     avatar:
       r.avatar_url ??
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
@@ -197,11 +203,24 @@ export async function updateUserProfile(
   return getUser(userId);
 }
 
+export async function setUserProfileType(
+  userId: string,
+  profileType: "private" | "business"
+): Promise<ApiUser | null> {
+  await ensureUser(userId);
+  await query(
+    `UPDATE users SET profile_type = $2, updated_at = now()
+     WHERE id = $1 AND profile_type IS NULL`,
+    [userId, profileType]
+  );
+  return getUser(userId);
+}
+
 export async function upsertUser(user: ApiUser): Promise<void> {
   await query(
     `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
-                        wallet_balance, role, business_type, sold_count, auth_provider)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+                        wallet_balance, role, business_type, sold_count, auth_provider, profile_type)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        phone = EXCLUDED.phone,
@@ -214,6 +233,7 @@ export async function upsertUser(user: ApiUser): Promise<void> {
        business_type = COALESCE(EXCLUDED.business_type, users.business_type),
        sold_count = COALESCE(EXCLUDED.sold_count, users.sold_count),
        auth_provider = COALESCE(EXCLUDED.auth_provider, users.auth_provider),
+       profile_type = COALESCE(users.profile_type, EXCLUDED.profile_type),
        updated_at = now()`,
     [
       user.id,
@@ -228,6 +248,7 @@ export async function upsertUser(user: ApiUser): Promise<void> {
       user.businessType ?? null,
       user.soldCount ?? 0,
       user.authProvider ?? null,
+      user.profileType ?? null,
     ]
   );
 }

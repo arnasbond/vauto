@@ -27,6 +27,7 @@ export interface ApiUser {
   serviceNationwide?: boolean;
   serviceSpecialties?: string[];
   averageResponseMinutes?: number;
+  profileType?: "private" | "business" | null;
 }
 
 export interface ApiReview {

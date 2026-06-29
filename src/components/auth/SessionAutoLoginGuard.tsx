@@ -3,6 +3,10 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import {
+  defaultCabinetPath,
+  needsProfileTypeSelection,
+} from "@/lib/profile-type";
 
 const AUTH_ONLY_PATHS = ["/registracija", "/auth-gate"] as const;
 
@@ -17,18 +21,12 @@ function isAuthOnlyPath(pathname: string | null): boolean {
   return AUTH_ONLY_PATHS.some((p) => normalized === p);
 }
 
-function resolvePostLoginPath(pathname: string | null): string {
-  if (pathname && normalizePath(pathname) === "/auth-gate") {
-    return "/fashion/mine/";
-  }
-  return "/fashion/mine/";
-}
-
-/** Redirects authenticated users away from registration/auth-gate screens after session hydration. */
+/** Redirects authenticated users; profile type selection stays on /auth-gate. */
 export function SessionAutoLoginGuard() {
   const router = useRouter();
   const pathname = usePathname();
-  const { authHydrated, isAuthenticated, authModalOpen, closeAuthModal } = useAuth();
+  const { authHydrated, isAuthenticated, authModalOpen, closeAuthModal, user } =
+    useAuth();
 
   useEffect(() => {
     if (!authHydrated || !isAuthenticated) return;
@@ -37,8 +35,15 @@ export function SessionAutoLoginGuard() {
       closeAuthModal();
     }
 
+    if (needsProfileTypeSelection(user)) {
+      if (normalizePath(pathname ?? "") !== "/auth-gate") {
+        router.replace("/auth-gate/");
+      }
+      return;
+    }
+
     if (isAuthOnlyPath(pathname)) {
-      router.replace(resolvePostLoginPath(pathname));
+      router.replace(defaultCabinetPath(user.profileType));
     }
   }, [
     authHydrated,
@@ -47,6 +52,7 @@ export function SessionAutoLoginGuard() {
     closeAuthModal,
     pathname,
     router,
+    user,
   ]);
 
   return null;
