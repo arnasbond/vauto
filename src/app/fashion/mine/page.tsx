@@ -63,7 +63,7 @@ export default function FashionMinePage() {
 
   return (
     <AppShell variant="plain">
-      <div className="chameleon-wardrobe px-4 pb-8 pt-4">
+      <div className="chameleon-wardrobe pb-8 pt-4 text-[var(--vauto-text-main)]">
         <WardrobeCabinetSection
           user={user}
           listings={myClothing}

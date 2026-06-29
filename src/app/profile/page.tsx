@@ -11,7 +11,6 @@ import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
 import { ProfileProCTA } from "@/components/profile/ProfileProCTA";
 import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle";
-import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
 import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSandboxTrigger";
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { ProfileViewProvider } from "@/lib/profile-view";
@@ -73,7 +72,7 @@ export default function ProfilePage() {
           </button>
           <Link
             href="/fashion/"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 py-3 text-sm font-semibold text-fuchsia-700"
+            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-primary)_10%,transparent)] py-3 text-sm font-semibold text-[var(--vauto-primary)]"
           >
             Atidaryti Spintą
           </Link>
@@ -125,25 +124,20 @@ export default function ProfilePage() {
           allListings={listings}
           onRenew={handleRenew}
           listingsOnly={isPrivateCabinet}
-          disableWardrobeMode={isBusinessCabinet}
+          disableWardrobeMode
         />
 
-        <div className="mt-4 px-1">
-          <PortalLinksCenter
-            userName={user.name}
-            defaultLocation={user.city || "Vilnius"}
-            contact={user.phone}
-            profileType={user.profileType}
-            onToast={showToast}
-          />
-          <NegotiationSandboxTrigger
-            listings={myListings}
-            sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
-            sellerUserId={user.id}
-            profileType={user.profileType}
-            className="mt-4 flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
-          />
-        </div>
+        {isBusinessCabinet && (
+          <div className="mt-4 px-1">
+            <NegotiationSandboxTrigger
+              listings={myListings}
+              sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+              sellerUserId={user.id}
+              profileType={user.profileType}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
+            />
+          </div>
+        )}
 
         <div className="mt-4">
           <ProfileSettingsMenu user={user} />

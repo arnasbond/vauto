@@ -6,7 +6,7 @@ import { SyncErrorBanner } from "@/components/SyncErrorBanner";
 
 export function DashboardShell({ children }: { children: ReactNode }) {
   return (
-    <div className="vauto-dashboard flex min-h-dvh flex-col">
+    <div className="vauto-dashboard flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)]">
       <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pb-28 pt-4">
         <SyncErrorBanner />
         {children}

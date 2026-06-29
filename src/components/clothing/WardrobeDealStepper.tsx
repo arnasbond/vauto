@@ -72,8 +72,8 @@ function DealStepperCard({ deal }: { deal: WardrobeDealView }) {
               <span
                 className={`flex h-8 w-8 items-center justify-center rounded-full border transition ${
                   done || current
-                    ? "border-[#09b1a8] bg-[#e6f7f6] text-[#09b1a8]"
-                    : "border-[#e8e4df] bg-white text-[#d1d5db]"
+                    ? "border-[var(--chameleon-accent,#09b1a8)] bg-[color-mix(in_srgb,var(--chameleon-accent,#09b1a8)_12%,var(--vauto-card-bg))] text-[var(--chameleon-accent,#09b1a8)]"
+                    : "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] text-[var(--vauto-text-muted)]"
                 }`}
                 aria-current={current ? "step" : undefined}
               >
@@ -81,7 +81,9 @@ function DealStepperCard({ deal }: { deal: WardrobeDealView }) {
               </span>
               <span
                 className={`hidden text-center text-[9px] leading-tight sm:block ${
-                  current ? "font-medium text-[#09b1a8]" : "font-light text-[#9ca3af]"
+                  current
+                    ? "font-medium text-[var(--chameleon-accent,#09b1a8)]"
+                    : "font-light text-[var(--vauto-text-muted)]"
                 }`}
               >
                 {step.label}
@@ -92,16 +94,16 @@ function DealStepperCard({ deal }: { deal: WardrobeDealView }) {
       </ol>
 
       {remaining > 0 && (
-        <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-[#fef9e6] px-3 py-2 text-xs text-[#92400e]">
+        <p className="mt-3 flex items-center gap-1.5 rounded-xl bg-[color-mix(in_srgb,var(--vauto-accent)_12%,var(--vauto-card-bg))] px-3 py-2 text-xs text-[var(--vauto-text-main)]">
           <Clock className="h-3.5 w-3.5 shrink-0" />
           24h auto-escrow iki {formatExpressDeadline(deal.escrow)} — pinigai saugiai laikomi.
         </p>
       )}
 
       {deal.escrow.trackingCode && (
-        <p className="mt-2 text-[10px] font-light text-[#6b7280]">
+        <p className="mt-2 text-[10px] font-light text-[var(--vauto-text-muted)]">
           Sekimo kodas:{" "}
-          <span className="font-medium text-[#374151]">{deal.escrow.trackingCode}</span>
+          <span className="font-medium text-[var(--vauto-text-main)]">{deal.escrow.trackingCode}</span>
         </p>
       )}
     </article>

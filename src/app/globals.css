@@ -487,7 +487,8 @@ body.chameleon-autoplius {
   background: var(--portal-bg);
 }
 
-body.chameleon-wardrobe {
+body.chameleon-wardrobe,
+.chameleon-wardrobe {
   --chameleon-accent: #09b1a8;
   --portal-accent: #09b1a8;
   --portal-cta: #09b1a8;
@@ -499,6 +500,28 @@ body.chameleon-wardrobe {
   font-weight: 300;
   color: var(--portal-text);
   background: var(--portal-bg);
+}
+
+[data-app-theme="dark"] body.chameleon-wardrobe,
+[data-app-theme="dark"] .chameleon-wardrobe {
+  --portal-bg: var(--vauto-bg);
+  --portal-wizard-bg: var(--vauto-bg);
+  --portal-wizard-surface: var(--vauto-card-bg);
+  --portal-text: var(--vauto-text-main);
+  color: var(--vauto-text-main);
+  background: var(--vauto-bg);
+}
+
+[data-app-theme="light-minimal"] body.chameleon-wardrobe,
+[data-app-theme="light-minimal"] .chameleon-wardrobe,
+[data-app-theme="vauto-original"] body.chameleon-wardrobe,
+[data-app-theme="vauto-original"] .chameleon-wardrobe {
+  --portal-bg: var(--vauto-bg);
+  --portal-wizard-bg: var(--vauto-bg);
+  --portal-wizard-surface: var(--vauto-card-bg);
+  --portal-text: var(--vauto-text-main);
+  color: var(--vauto-text-main);
+  background: var(--vauto-bg);
 }
 
 body.chameleon-skelbiu {

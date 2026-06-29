@@ -77,22 +77,24 @@ export function SecretaryWarmGreeting({
     <button
       type="button"
       onClick={handleActivate}
-      className="mb-5 w-full overflow-hidden rounded-3xl border border-slate-700 bg-[#1e293b] p-4 text-left text-white shadow-lg shadow-black/20 transition hover:brightness-105 active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 focus-visible:ring-offset-[#0a1128]"
+      className="mb-5 w-full overflow-hidden rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-4 text-left text-[var(--vauto-text-main)] shadow-lg transition hover:brightness-105 active:scale-[0.995] focus:outline-none focus-visible:ring-2 focus-visible:ring-[var(--vauto-primary)] focus-visible:ring-offset-2 focus-visible:ring-offset-[var(--vauto-bg)]"
       aria-label="Atidaryti AI asistento pokalbį"
     >
       <div className="flex gap-3">
         <span
-          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-white shadow-sm"
+          className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl text-[var(--vauto-primary-contrast,#fff)] shadow-sm"
           style={{ backgroundColor: ACCENT }}
           aria-hidden
         >
           <Sparkles className="h-5 w-5" />
         </span>
         <div className="min-w-0">
-          <p className="text-xs font-semibold uppercase tracking-wide text-white">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-text-main)]">
             Tavo AI sekretorė
           </p>
-          <p className="mt-1 text-sm font-light leading-relaxed text-slate-200">{message}</p>
+          <p className="mt-1 text-sm font-light leading-relaxed text-[var(--vauto-text-muted)]">
+            {message}
+          </p>
         </div>
       </div>
     </button>
