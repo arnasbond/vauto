@@ -17,6 +17,7 @@ import {
   WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_BULK_IMPORT_GREETING,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
 
 export default function AddPage() {
@@ -26,12 +27,12 @@ export default function AddPage() {
     authHydrated,
     requireAuthForListing,
     consumePendingSellerQuery,
-    submitSellerContent,
     applyAgentListingDraft,
     activateWardrobeSpinta,
     sellerStep,
     user,
   } = useVauto();
+  const { sendAgentMessage } = useVautoAgent();
   const [introOpen, setIntroOpen] = useState(false);
   const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
   const [fashionMode, setFashionMode] = useState(false);
@@ -53,7 +54,7 @@ export default function AddPage() {
 
     const pending = consumePendingSellerQuery();
     if (pending && sellerStep === "idle") {
-      void submitSellerContent({ text: pending });
+      void sendAgentMessage(pending, { fromSearchBar: true });
       return;
     }
 
@@ -86,7 +87,7 @@ export default function AddPage() {
     isAuthenticated,
     requireAuthForListing,
     consumePendingSellerQuery,
-    submitSellerContent,
+    sendAgentMessage,
     applyAgentListingDraft,
     activateWardrobeSpinta,
     sellerStep,

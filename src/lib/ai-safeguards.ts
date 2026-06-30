@@ -40,6 +40,13 @@ export const PROCESSING_MILESTONES = [
   { atMs: 900, label: "Tikrinama lokacija ir saugumo ženkliukai..." },
 ] as const;
 
+/** Text-only seller input — no voice/location copy (S0) */
+export const TEXT_PROCESSING_MILESTONES = [
+  { atMs: 0, label: "Analizuoju jūsų aprašymą..." },
+  { atMs: 500, label: "Nustatoma kategorija ir laukai..." },
+  { atMs: 1200, label: "Ruošiamas skelbimo juodraštis..." },
+] as const;
+
 export const PROCESSING_MILESTONE_UPLOAD = [
   { atMs: 0, label: "Apdorojama nuotrauka..." },
   { atMs: 400, label: "Struktūrizuojami skelbimo duomenys..." },
@@ -208,7 +215,7 @@ export function formatPriceForConfirm(
 }
 
 export function getProcessingMilestones(mode: SellerInputMode | null) {
-  return mode === "upload" || mode === "combined"
-    ? PROCESSING_MILESTONE_UPLOAD
-    : PROCESSING_MILESTONES;
+  if (mode === "upload" || mode === "combined") return PROCESSING_MILESTONE_UPLOAD;
+  if (mode === "text") return TEXT_PROCESSING_MILESTONES;
+  return PROCESSING_MILESTONES;
 }

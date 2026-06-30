@@ -8,6 +8,7 @@ import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { ZeroUiScreenChrome } from "@/components/zero-ui/ZeroUiScreenChrome";
 import { ZeroUiPaymentGate } from "@/components/zero-ui/ZeroUiPaymentGate";
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
+import { SafeAgentActionBoundary } from "@/components/agent/SafeAgentActionBoundary";
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { AI_PROCESSING_TIMEOUT_MS } from "@/lib/ai-safeguards";
@@ -119,7 +120,9 @@ export function ZeroUiListingPreview() {
             }}
           />
         ) : (
-          <AiConfirmationScreen mode="inline-full" />
+          <SafeAgentActionBoundary label="zero-ui-confirmation">
+            <AiConfirmationScreen mode="inline-full" />
+          </SafeAgentActionBoundary>
         )}
       </ZeroUiScreenChrome>
     );

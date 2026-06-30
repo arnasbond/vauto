@@ -9,6 +9,7 @@ import {
   isProactiveInternalAgentText,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
+import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -49,7 +50,10 @@ export function FlowAgentStrip({
   const styles = VARIANT_STYLES[variant];
 
   const visibleMessages = useMemo(
-    () => messages.filter((m) => !isProactiveInternalAgentText(m.text)).slice(-4),
+    () =>
+      messages
+        .filter((m) => !isProactiveInternalAgentText(safeMessageText(m.text)))
+        .slice(-4),
     [messages]
   );
 
@@ -106,10 +110,11 @@ export function FlowAgentStrip({
 
       <div className="space-y-2.5">
         {visibleMessages.map((m, i) => {
+          const rawText = safeMessageText(m.text);
           const display =
             m.role === "assistant"
-              ? sanitizeAgentReplyForDisplay(m.text) || m.text
-              : m.text;
+              ? sanitizeAgentReplyForDisplay(rawText) || rawText
+              : rawText;
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
           const messageChips =
@@ -120,7 +125,7 @@ export function FlowAgentStrip({
                 : [];
 
           return (
-            <AgentChatBubble key={`${m.role}-${i}-${m.text.slice(0, 24)}`} role={m.role}>
+            <AgentChatBubble key={safeMessageKey(m.role, i, m.text)} role={m.role}>
               {m.role === "user" ? (
                 <>
                   <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">

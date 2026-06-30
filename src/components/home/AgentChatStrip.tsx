@@ -5,20 +5,16 @@ import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { useVauto } from "@/context/VautoContext";
 import {
   extractAgentQuickReplies,
   isProactiveInternalAgentText,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
+import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { pushAddListing } from "@/lib/listing-navigation";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
-import {
-  WARDROBE_BULK_IMPORT_CHIPS,
-  WARDROBE_CONTINUOUS_FLOW_GREETING,
-} from "@/lib/agent-wardrobe-bulk-dialogue";
+import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 
 /**
  * Organiškas AI dialogas namų ekrane — burbulai, greiti atsakymai, veikiantys CTA.
@@ -26,10 +22,12 @@ import {
 export function AgentChatStrip() {
   const router = useRouter();
   const { messages, busy, sendAgentMessage } = useVautoAgent();
-  const { startListingFromQuery } = useVauto();
 
   const visibleMessages = useMemo(
-    () => messages.filter((m) => !isProactiveInternalAgentText(m.text)).slice(-3),
+    () =>
+      messages
+        .filter((m) => !isProactiveInternalAgentText(safeMessageText(m.text)))
+        .slice(-3),
     [messages]
   );
 
@@ -79,13 +77,14 @@ export function AgentChatStrip() {
   }, [busy, lastUser, lastAssistant, quickReplies.length]);
 
   const handleSellCta = () => {
-    if (sellCta?.fashion) {
-      notifyWardrobeBulkImportOpened(WARDROBE_CONTINUOUS_FLOW_GREETING, {
-        quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
-      });
+    const query = lastUser.trim();
+    if (!query) return;
+    const fashion = Boolean(sellCta?.fashion);
+    if (fashion) {
+      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
     }
-    pushAddListing(router, sellCta?.fashion);
-    if (lastUser.trim()) startListingFromQuery(lastUser);
+    pushAddListing(router, fashion);
+    void sendAgentMessage(query, { fromSearchBar: false });
   };
 
   const handleQuickReply = (option: string) => {
@@ -107,10 +106,11 @@ export function AgentChatStrip() {
 
       <div className="space-y-2.5">
         {visibleMessages.map((m, i) => {
+          const rawText = safeMessageText(m.text);
           const display =
             m.role === "assistant"
-              ? sanitizeAgentReplyForDisplay(m.text) || m.text
-              : m.text;
+              ? sanitizeAgentReplyForDisplay(rawText) || rawText
+              : rawText;
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
           const messageChips =
@@ -121,7 +121,7 @@ export function AgentChatStrip() {
                 : [];
 
           return (
-            <AgentChatBubble key={`${m.role}-${i}-${m.text.slice(0, 24)}`} role={m.role}>
+            <AgentChatBubble key={safeMessageKey(m.role, i, m.text)} role={m.role}>
               {m.role === "user" ? (
                 <>
                   <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">

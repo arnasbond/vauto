@@ -2,7 +2,7 @@
 
 import { Camera, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
@@ -16,9 +16,6 @@ import {
   persistPhotoSearchSession,
 } from "@/lib/photo-search-session";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
-import { detectSellerListingIntent } from "@/lib/scoring";
-import { looksLikeClothingListing } from "@/lib/clothing-catalog";
-import { pushAddListing } from "@/lib/listing-navigation";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { formatSearchAlternativeChips } from "@/lib/vision-choice-chips";
 import { AiModeBadge } from "@/components/AiModeBadge";
@@ -69,11 +66,9 @@ export function SearchBar({
     setAgentPinnedListings,
     setViewMode,
     marketplaceFilters,
-    startListingFromQuery,
   } = useVauto();
 
   const pathname = usePathname();
-  const router = useRouter();
   const { trackEvent } = useUserBehavior();
   const { sendAgentMessage, busy: agentBusy, applyAgentActions, openWithGreeting } = useVautoAgent();
 
@@ -147,14 +142,6 @@ export function SearchBar({
         pathname: pathname ?? "/",
       });
 
-      if (detectSellerListingIntent(q)) {
-        const fashion = looksLikeClothingListing(q);
-        setSearchInputMode("text");
-        setDraftQuery(q);
-        pushAddListing(router, fashion);
-        if (startListingFromQuery(q)) return;
-      }
-
       setSearchInputMode("text");
       clearVisualSearch({ keepInputMode: true });
 
@@ -192,8 +179,6 @@ export function SearchBar({
       pathname,
       trackEvent,
       wardrobeSearchOnly,
-      startListingFromQuery,
-      router,
     ]
   );
 

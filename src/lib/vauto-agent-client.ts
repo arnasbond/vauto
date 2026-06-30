@@ -1,5 +1,6 @@
 import type { AiExtractedListing, Listing, ListingCategory } from "@/lib/types";
 import type { AppView } from "@/lib/app-views";
+import { safeDraftAttributes } from "@/lib/agent-message-safe";
 
 export interface AgentChatMessage {
   role: "user" | "assistant";
@@ -524,7 +525,7 @@ export function mapAgentDraftToListing(draft: {
     category,
     description: draft.description,
     confidence: draft.confidence,
-    attributes: draft.attributes,
+    attributes: safeDraftAttributes(draft.attributes),
   };
 }
 

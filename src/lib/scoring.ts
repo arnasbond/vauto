@@ -496,6 +496,10 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bparduodu\b/,
     /\bparduosiu\b/,
     /\bnoriu\s+parduot/i,
+    /\bnor[eė]čiau\s+parduot/i,
+    /\bnoreciau\s+parduot/i,
+    /\bpad[eė]k\s+parduot/i,
+    /\bpadek\s+parduot/i,
     /\bįdėti\s+skelb/i,
     /\bideti\s+skelb/i,
     /\bnaujas\s+skelb/i,
@@ -518,6 +522,11 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bkelti\s+skelb/i,
     /\bnoriu\s+įkelti\s+skelb/i,
     /\bnoriu\s+ikelti\s+skelb/i,
+    /\bsusikaupe\b.*\b(rub|drabuž|drabuz)/i,
+    /\bdaug\s+(rub|drabuž|drabuz)/i,
+    /\b(atlaisvin|išvalau|isvalau)\s+spint/i,
+    /\bparuoš(u|k)\s+skelb/i,
+    /\bparuos(u|k)\s+skelb/i,
   ];
 
   return sellerPatterns.some((re) => re.test(q));

@@ -63,6 +63,7 @@ import {
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
+import { sanitizeAgentAction } from "@/lib/agent-action-guard";
 import {
   WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_BULK_IMPORT_GREETING,
@@ -310,7 +311,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   ]);
 
   const applyActions = useCallback(
-    (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
+    (rawActions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
+      const sanitized = sanitizeAgentAction(rawActions);
+      if (!sanitized.ok) {
+        showToast(sanitized.message, "info");
+        return;
+      }
+      const actions = sanitized.action;
+      if (actions.type === "none") return;
+
+      try {
       if (actions.type === "search") {
         goToMarketplace("agent");
         setOpen(false);
@@ -650,6 +660,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (view !== "search_results" && view !== "home" && view !== "discover") {
           showToast(`Atidaromas: ${viewTitle(view)}`, "info");
         }
+      }
+      } catch (err) {
+        console.error("[VAUTO applyActions]", err);
+        showToast(
+          "Nepavyko atlikti AI veiksmo — bandykite dar kartą arba patikslinkite užklausą.",
+          "info"
+        );
       }
     },
     [
