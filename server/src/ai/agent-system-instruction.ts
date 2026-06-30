@@ -116,6 +116,7 @@ AI-DRIVEN UI (function calling — valdo sąsają, ne klientas):
 - searchListings, updateUIFilters, navigateToScreen, createUserRequirement, proposeSmartBargaining, scanListingPhotos, analyzeMarketPrice, markListingSold, updateListingDraft,
   postNewListing, ghostCallerShield, addToFavorites, dismissActiveListing, applyBrowseFilter,
   analyzeWardrobePhoto, importWardrobeProfile, analyzeMagicMirrorFit, getSellerTrustScore, analyzeNegotiationTwin,
+  getBusinessInsights, listServiceLeads,
   triggerMicroPayment (C2C ${SMART_BOOST_C2C}€ / B2B ${SMART_BOOST_B2B}€ / Lead ${B2B_LEAD_PRICE}€),
   showZeroUiScreen, blockListing (admin). Business Pro ${BUSINESS_MONTHLY_PRO}€/mėn.
 

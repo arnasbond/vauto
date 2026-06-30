@@ -108,6 +108,14 @@ export interface VautoAgentRequest {
       billingPlan?: string;
       walletBalance?: number;
     };
+    sellerMetrics?: {
+      views: number;
+      callClicks: number;
+      chatStarts: number;
+      saves: number;
+      interestScore: number;
+      buyerIntentCount?: number;
+    };
     fromVoice?: boolean;
     fromSearchBar?: boolean;
     behaviorHistory?: {
@@ -360,6 +368,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       activeBoost: req.context.monetization?.activeBoost,
       walletBalance: req.context.monetization?.walletBalance,
     }),
+    sellerMetrics: req.context.sellerMetrics,
   };
 
   const memoryBlock = buildAgentMemoryContextBlock({
@@ -416,6 +425,9 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     wizardBits.push(
       `pendingImageUrls=${JSON.stringify(req.context.pendingImageUrls.slice(0, 6))}`
     );
+  }
+  if (req.context.sellerMetrics) {
+    wizardBits.push(`sellerMetrics=${JSON.stringify(req.context.sellerMetrics)}`);
   }
   if (wizardBits.length) {
     contents.unshift({
@@ -632,6 +644,14 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   const soldResult = soldCall?.result as { message?: string; ok?: boolean } | undefined;
   if (soldResult?.ok && soldResult.message) {
     finalText = soldResult.message;
+  }
+
+  const businessToolCall = toolCalls.find(
+    (t) => t.name === "getBusinessInsights" || t.name === "listServiceLeads"
+  );
+  const businessToolResult = businessToolCall?.result as { message?: string } | undefined;
+  if (businessToolResult?.message) {
+    finalText = businessToolResult.message;
   }
 
   const wardrobeToolCall = toolCalls.find(

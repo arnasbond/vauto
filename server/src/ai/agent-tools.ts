@@ -51,6 +51,11 @@ import { importWardrobeProfile } from "./wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "./magic-mirror.js";
 import { runAutoNegotiation } from "./bargain-twin.js";
 import { buildSellerTrustSummary } from "./seller-trust-score.js";
+import {
+  buildBusinessInsightsSummary,
+  fetchServiceLeadStats,
+  formatServiceLeadsMessage,
+} from "./business-agent-tools.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -120,6 +125,14 @@ export interface AgentToolContext {
     location?: string;
     category?: string;
     attributes?: Record<string, string>;
+  };
+  sellerMetrics?: {
+    views: number;
+    callClicks: number;
+    chatStarts: number;
+    saves: number;
+    interestScore: number;
+    buyerIntentCount?: number;
   };
 }
 
@@ -783,6 +796,31 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         minPrice: { type: "NUMBER" },
       },
       required: ["buyerMessage", "listingPrice", "minPrice"],
+    },
+  },
+  {
+    name: "getBusinessInsights",
+    description:
+      "Verslo partnerio apžvalga — aktyvūs skelbimai, peržiūros, kontaktai, pirkėjų norai, paslaugų leadai. Naudok kai verslas klausia statistikos, apžvalgos, patarimų ar „kaip sekasi\".",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        focus: {
+          type: "STRING",
+          description: "optional: overview | visibility | leads | pricing",
+        },
+      },
+    },
+  },
+  {
+    name: "listServiceLeads",
+    description:
+      "Paslaugų leadų dėžutė — rodo naujausias paslaugų užklausas verslo paskyrai. Naudok kai vartotojas klausia apie leadus, užklausas, klientus.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        limit: { type: "INTEGER", description: "Maks. leadų skaičius (default 8)" },
+      },
     },
   },
 ];
@@ -2022,6 +2060,77 @@ export async function executeAgentTool(
           },
         };
       }
+    }
+
+    case "getBusinessInsights": {
+      if (ctx.userRole !== "business" && ctx.userRole !== "admin") {
+        return {
+          result: {
+            ok: false,
+            message: "Verslo apžvalga prieinama Business Pro paskyroms.",
+          },
+        };
+      }
+      const metrics = ctx.sellerMetrics ?? {
+        views: 0,
+        callClicks: 0,
+        chatStarts: 0,
+        saves: 0,
+        interestScore: 0,
+        buyerIntentCount: 0,
+      };
+      const { leads, unopened } = await fetchServiceLeadStats(ctx.authUserId);
+      const insights = buildBusinessInsightsSummary({
+        userName: ctx.userName,
+        myListings: ctx.myListings ?? [],
+        metrics,
+        serviceLeadCount: leads.length,
+        unopenedLeadCount: unopened,
+      });
+      return {
+        result: {
+          ok: true,
+          ...insights,
+          message: insights.message,
+          quickReplies: insights.quickReplies,
+        },
+        sideEffect: {
+          type: "zero_ui_screen",
+          screen: "business_dashboard",
+        },
+      };
+    }
+
+    case "listServiceLeads": {
+      if (ctx.userRole !== "business" && ctx.userRole !== "admin") {
+        return {
+          result: {
+            ok: false,
+            message: "Paslaugų leadai prieinami verslo paskyroms.",
+          },
+        };
+      }
+      const { leads } = await fetchServiceLeadStats(ctx.authUserId);
+      const limit = Math.min(12, Math.max(1, Number(args.limit) || 8));
+      const formatted = formatServiceLeadsMessage(ctx.userName, leads.slice(0, limit));
+      return {
+        result: {
+          ok: true,
+          leadCount: leads.length,
+          leads: leads.slice(0, limit).map((l) => ({
+            id: l.id,
+            query: l.query,
+            city: l.city,
+            opened: l.opened,
+          })),
+          message: formatted.message,
+          quickReplies: formatted.quickReplies,
+        },
+        sideEffect: {
+          type: "zero_ui_screen",
+          screen: "business_dashboard",
+        },
+      };
     }
 
     default:

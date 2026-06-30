@@ -42,6 +42,7 @@ import { useZeroUiMemory } from "@/context/ZeroUiMemoryContext";
 import {
   microPaymentFromToolResult,
   resolveClientMonetizationState,
+  resolveSmartBoostPrice,
 } from "@/lib/monetization-engine";
 import { persistPendingZeroUiScreen } from "@/lib/zero-ui-pending";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
@@ -141,7 +142,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     startChat,
     applyAgentWardrobeBulk,
     pendingWardrobeBulkItems,
+    pendingWardrobeVoice,
     publishBulkClothingListings,
+    sellerAnalytics,
+    buyerIntentCount,
   } = useVauto();
   const pathname = usePathname();
   const router = useRouter();
@@ -177,9 +181,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   );
 
   const sellerWizardContext = useMemo(() => {
-    if (!aiDraft || sellerStep === "idle") return {};
+    if (!aiDraft) return {};
     return {
-      wizardMode: "listing_review" as const,
+      wizardMode:
+        sellerStep === "idle"
+          ? ("idle" as const)
+          : ("listing_review" as const),
       listingDraft: {
         title: aiDraft.title,
         description: aiDraft.description,
@@ -645,6 +652,84 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: confirmText };
       }
 
+      if (
+        /peržiūrėti importą|perziureti importa/i.test(trimmed) &&
+        pendingWardrobeBulkItems?.length
+      ) {
+        applyAgentWardrobeBulk(pendingWardrobeBulkItems, {
+          voiceAnnouncement: pendingWardrobeVoice ?? undefined,
+        });
+        const reply = "Atidarau importuotų prekių peržiūrą — patvirtinkite skelbimus.";
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      if (/atidaryti spintą|atidaryti spinta/i.test(trimmed)) {
+        activateWardrobeSpinta();
+        router.push("/fashion");
+        const reply = "Atidarau VAUTO Spintą.";
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      if (
+        /atidaryti verslo skydelį|verslo skydel/i.test(trimmed) &&
+        (user.role === "pro" || user.role === "admin")
+      ) {
+        routeZeroUiScreen("business_dashboard");
+        const reply = "Atidarau verslo skydelį.";
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      if (
+        /peržiūrėti leadus|perziureti leadus/i.test(trimmed) &&
+        (user.role === "pro" || user.role === "admin")
+      ) {
+        routeZeroUiScreen("business_dashboard");
+        const reply = "Atidarau leadų dėžutę verslo skydelyje.";
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      if (/pakelti matomumą|pakelti matomuma/i.test(trimmed)) {
+        const price = resolveSmartBoostPrice(user);
+        openMicroPayment({
+          reason: "Smart Boost — iškelkite skelbimo matomumą",
+          price,
+          product: "smart_boost",
+          voiceConfirmPhrase: "Taip, apmokėti",
+        });
+        const reply = `Atidarau Smart Boost (${price.toFixed(2)} €) — patvirtinkite mokėjimą.`;
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
       const lastActiveAt = readAgentSessionLastActiveAt();
       const sessionExpired =
         isAgentSessionExpired(lastActiveAt) && messages.length > 1;
@@ -771,6 +856,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             fromSearchBar: options?.fromSearchBar,
             behaviorHistory: getBehaviorSnapshot(),
             proactiveOffer: options?.proactiveOffer,
+            sellerMetrics: {
+              views: sellerAnalytics.views,
+              callClicks: sellerAnalytics.callClicks,
+              chatStarts: sellerAnalytics.chatStarts,
+              saves: sellerAnalytics.saves,
+              interestScore: sellerAnalytics.interestScore,
+              buyerIntentCount,
+            },
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         });
@@ -897,7 +990,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       activeBoost,
       openMicroPayment,
       pendingWardrobeBulkItems,
+      pendingWardrobeVoice,
       publishBulkClothingListings,
+      applyAgentWardrobeBulk,
+      sellerAnalytics,
+      buyerIntentCount,
+      activateWardrobeSpinta,
+      routeZeroUiScreen,
+      router,
       myListingsForAgent,
       currentPageContext,
       toggleSave,

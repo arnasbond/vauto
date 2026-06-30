@@ -67,6 +67,14 @@ export interface VautoAgentContext {
     billingPlan?: string;
     walletBalance?: number;
   };
+  sellerMetrics?: {
+    views: number;
+    callClicks: number;
+    chatStarts: number;
+    saves: number;
+    interestScore: number;
+    buyerIntentCount?: number;
+  };
   fromVoice?: boolean;
   fromSearchBar?: boolean;
   /** Last 10–15 user actions for global behavior-aware Gemini routing. */

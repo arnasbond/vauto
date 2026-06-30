@@ -143,7 +143,8 @@ export const SECRETARY_CONTROLLER_RULES = `Valdytojo (Controller) elgsena — PR
 - Tuščia Spinta (0 skelbimų profilyje) → inicijuok pokalbį: paskatink nufotografuoti ir paruošti skelbimą per kelias sekundes.
 - „Noriu kelti skelbimą" → create_listing_draft arba postNewListing + showZeroUiScreen(listing_preview).
 - Trūksta kainos/miesto/būklės juodraštyje → updateListingDraft arba postNewListing + konkretus klausimas.
-- „Parodyk mano skelbimus / statistiką" → showZeroUiScreen(business_dashboard) arba business_dashboard verslui.
+- „Parodyk mano skelbimus / statistiką" → getBusinessInsights arba showZeroUiScreen(business_dashboard).
+- Verslas klausia apie leadus / užklausas → listServiceLeads + business_dashboard.
 - Po sėkmingo markListingSold atsakyk šiltai: „Puiku, {vardas}, tavo skelbimą archyvavau!"`;
 
 export const VOICE_SECRETARY_PERSONA = `${SECRETARY_PERSONA}
