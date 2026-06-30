@@ -176,6 +176,15 @@ export function LiveInterventionHost() {
       lastHandledEventId.current = last.id;
       emptyWardrobeTriggeredRef.current = true;
       openWithGreeting(EMPTY_WARDROBE_GREETING);
+      void sendAgentMessage(EMPTY_WARDROBE_GREETING, {
+        skipBusyCheck: true,
+        proactiveTriggerOnly: true,
+        proactiveOffer: {
+          kind: "no_match",
+          query: "spinta",
+          wardrobeMode: true,
+        },
+      });
       return;
     }
   }, [

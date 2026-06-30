@@ -59,9 +59,9 @@ import {
   buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
+import { tryHandleAgentQuickReply } from "@/lib/agent-quick-reply-router";
 import {
   mapAgentWardrobeItems,
-  wardrobeBulkToDrafts,
 } from "@/lib/agent-wardrobe-bridge";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
 import { chatThreadPath } from "@/lib/chat-routes";
@@ -70,6 +70,7 @@ import {
   parseViewModeIntent,
   isViewModeOnlyCommand,
   mergeAgentIntoMarketplaceFilters,
+  snapRadiusKm,
 } from "@/lib/marketplace-view";
 import {
   apiCreateUserRequirement,
@@ -144,6 +145,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     pendingWardrobeBulkItems,
     pendingWardrobeVoice,
     publishBulkClothingListings,
+    publishListing,
     sellerAnalytics,
     buyerIntentCount,
   } = useVauto();
@@ -240,6 +242,31 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pushAddListing(router, fashion);
     },
     [router, activateWardrobeSpinta]
+  );
+
+  const broadenSearch = useCallback(() => {
+    goToMarketplace("agent");
+    clearSearchFilters();
+    setMarketplaceFilters({
+      ...marketplaceFilters,
+      category: "all",
+      condition: "all",
+      radiusKm: snapRadiusKm((marketplaceFilters.radiusKm ?? 10) + 20),
+    });
+  }, [goToMarketplace, clearSearchFilters, setMarketplaceFilters, marketplaceFilters]);
+
+  const registerWantedFlow = useCallback(
+    (query: string) => {
+      void registerWanted({
+        query,
+        isAuthenticated,
+        openAuthModal,
+        subscribeWishlist,
+        onSuccess: (msg) => showToast(msg, "success"),
+        onError: (msg) => showToast(msg, "info"),
+      });
+    },
+    [isAuthenticated, openAuthModal, subscribeWishlist, showToast]
   );
 
   const applyActions = useCallback(
@@ -631,103 +658,37 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply };
       }
 
-      if (
-        /patvirtinti visus/i.test(trimmed) &&
-        pendingWardrobeBulkItems &&
-        pendingWardrobeBulkItems.length > 1
-      ) {
-        const drafts = wardrobeBulkToDrafts(
-          pendingWardrobeBulkItems,
-          user.phone,
-          user.city || "Vilnius"
-        );
-        const confirmText = `Puiku — publikuoju ${drafts.length} drabužių skelbimus!`;
+      const quickReply = tryHandleAgentQuickReply({
+        trimmed,
+        user,
+        searchQuery,
+        aiDraft,
+        sellerStep,
+        pendingWardrobeBulkItems,
+        pendingWardrobeVoice,
+        publishListing,
+        publishBulkClothingListings,
+        applyAgentWardrobeBulk,
+        activateWardrobeSpinta,
+        routeZeroUiScreen,
+        openMicroPayment,
+        resolveSmartBoostPrice,
+        navigateToAdd,
+        applyAgentListingDraft,
+        routerPush: (path) => router.push(path),
+        goToDiscover: () => router.push("/discover"),
+        broadenSearch,
+        registerWantedFlow,
+        openChats: () => router.push("/chats"),
+      });
+      if (quickReply) {
         setMessages((prev) => [
           ...prev,
           { role: "user", text: trimmed },
-          { role: "assistant", text: confirmText },
-        ]);
-        void publishBulkClothingListings(drafts);
-        touchAgentSessionActivity();
-        return { ok: true, reply: confirmText };
-      }
-
-      if (
-        /peržiūrėti importą|perziureti importa/i.test(trimmed) &&
-        pendingWardrobeBulkItems?.length
-      ) {
-        applyAgentWardrobeBulk(pendingWardrobeBulkItems, {
-          voiceAnnouncement: pendingWardrobeVoice ?? undefined,
-        });
-        const reply = "Atidarau importuotų prekių peržiūrą — patvirtinkite skelbimus.";
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: trimmed },
-          { role: "assistant", text: reply },
+          { role: "assistant", text: quickReply.reply },
         ]);
         touchAgentSessionActivity();
-        return { ok: true, reply };
-      }
-
-      if (/atidaryti spintą|atidaryti spinta/i.test(trimmed)) {
-        activateWardrobeSpinta();
-        router.push("/fashion");
-        const reply = "Atidarau VAUTO Spintą.";
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: trimmed },
-          { role: "assistant", text: reply },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
-      }
-
-      if (
-        /atidaryti verslo skydelį|verslo skydel/i.test(trimmed) &&
-        (user.role === "pro" || user.role === "admin")
-      ) {
-        routeZeroUiScreen("business_dashboard");
-        const reply = "Atidarau verslo skydelį.";
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: trimmed },
-          { role: "assistant", text: reply },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
-      }
-
-      if (
-        /peržiūrėti leadus|perziureti leadus/i.test(trimmed) &&
-        (user.role === "pro" || user.role === "admin")
-      ) {
-        routeZeroUiScreen("business_dashboard");
-        const reply = "Atidarau leadų dėžutę verslo skydelyje.";
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: trimmed },
-          { role: "assistant", text: reply },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
-      }
-
-      if (/pakelti matomumą|pakelti matomuma/i.test(trimmed)) {
-        const price = resolveSmartBoostPrice(user);
-        openMicroPayment({
-          reason: "Smart Boost — iškelkite skelbimo matomumą",
-          price,
-          product: "smart_boost",
-          voiceConfirmPhrase: "Taip, apmokėti",
-        });
-        const reply = `Atidarau Smart Boost (${price.toFixed(2)} €) — patvirtinkite mokėjimą.`;
-        setMessages((prev) => [
-          ...prev,
-          { role: "user", text: trimmed },
-          { role: "assistant", text: reply },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
+        return { ok: true, reply: quickReply.reply };
       }
 
       const lastActiveAt = readAgentSessionLastActiveAt();
@@ -992,7 +953,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pendingWardrobeBulkItems,
       pendingWardrobeVoice,
       publishBulkClothingListings,
+      publishListing,
       applyAgentWardrobeBulk,
+      applyAgentListingDraft,
+      navigateToAdd,
+      broadenSearch,
+      registerWantedFlow,
       sellerAnalytics,
       buyerIntentCount,
       activateWardrobeSpinta,
