@@ -1,6 +1,7 @@
 "use client";
 
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
+import { ListingValidationBanner, LISTING_PUBLISH_CTA } from "@/components/listing/ListingValidationBanner";
 import { Check, X } from "lucide-react";
 import type { ReactNode } from "react";
 import type { AdaptiveCategoryConfig } from "@/lib/adaptive-categories";
@@ -17,7 +18,8 @@ interface ConfirmationShellProps {
   draft: AiExtractedListing;
   needsPrice: boolean;
   canPublish: boolean;
-  publishLabel: string;
+  publishLabel?: string;
+  validationIssues?: string[];
   onCancel: () => void;
   onPublish: () => void;
   assistantPrompt?: ReactNode;
@@ -28,7 +30,8 @@ export function ConfirmationShell({
   config,
   draft,
   canPublish,
-  publishLabel,
+  publishLabel = LISTING_PUBLISH_CTA,
+  validationIssues = [],
   onCancel,
   onPublish,
   assistantPrompt,
@@ -72,17 +75,21 @@ export function ConfirmationShell({
 
         <ListingPublishSocialOptions className="mt-4" />
 
+        {!canPublish && validationIssues.length > 0 && (
+          <ListingValidationBanner issues={validationIssues} className="mt-4" />
+        )}
+
         <button
           type="button"
           onClick={onPublish}
           disabled={!canPublish}
           className={cn(
-            "mt-6 w-full rounded-xl p-3 font-bold transition duration-300",
+            "mt-4 w-full rounded-xl p-3 font-bold transition duration-300",
             t.publishBtn,
             t.publishBtnDisabled
           )}
         >
-          {canPublish ? "Viskas gerai, publikuoti skelbimą" : publishLabel}
+          {publishLabel}
         </button>
         </div>
     </div>

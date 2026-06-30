@@ -77,7 +77,7 @@ export function CategoryFieldsEditor({
       : "mt-1 w-full rounded-lg border border-white/5 bg-white/5 p-2 text-xs text-white outline-none focus:border-[var(--vauto-teal)]";
 
   const inlineLabelClass =
-    appearance === "light" ? "text-xs font-medium text-slate-700" : "text-xs text-white/40";
+    appearance === "light" ? "text-xs font-semibold text-slate-800" : "text-xs text-white/40";
 
   return (
     <div className={wrapperClass}>

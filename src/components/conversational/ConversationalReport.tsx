@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type ReactNode } from "react";
 import { ChevronDown, ChevronUp, MessageCircle, X } from "lucide-react";
 import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
+import { ListingValidationBanner } from "@/components/listing/ListingValidationBanner";
 import { BuddyAvatar } from "@/components/conversational/BuddyAvatar";
 import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions";
 import { BuddyFab } from "@/components/buddy/BuddyFab";
@@ -26,6 +27,7 @@ interface ConversationalReportProps {
   speakEnabled: boolean;
   canPublish: boolean;
   publishLabel: string;
+  validationIssues?: string[];
   portalStyleLabel?: string;
   manualFallback?: boolean;
   onQuickAction: (id: BuddyActionId) => void;
@@ -46,6 +48,7 @@ export function ConversationalReport({
   speakEnabled,
   canPublish,
   publishLabel,
+  validationIssues = [],
   portalStyleLabel,
   manualFallback = false,
   onQuickAction,
@@ -323,6 +326,9 @@ export function ConversationalReport({
         )}
       >
         <ListingPublishSocialOptions className="mb-3" />
+        {!canPublish && validationIssues.length > 0 && (
+          <ListingValidationBanner issues={validationIssues} className="mb-3" />
+        )}
         <button
           type="button"
           onClick={onPublish}
@@ -335,7 +341,7 @@ export function ConversationalReport({
             t.publishBtnDisabled
           )}
         >
-          {canPublish ? "Viskas gerai, publikuoti skelbimą" : publishLabel}
+          {publishLabel}
         </button>
       </div>
     </div>

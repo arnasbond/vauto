@@ -4,6 +4,8 @@ import { getAdaptiveConfig } from "@/lib/adaptive-categories/config";
 import {
   filterFieldsForListingCategory,
   findStaleForeignAttributes,
+  resolveEffectiveListingCategory,
+  sanitizeAttributesForCategory,
 } from "@/lib/listing-attribute-isolation";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories/types";
 
@@ -106,9 +108,10 @@ export function getMissingCriticalFieldsForListing(
   attributes: CategoryAttributes = {},
   extras?: { price?: number; description?: string }
 ): string[] {
-  const adaptiveKey = listingToAdaptiveKey(category);
+  const effectiveCategory = resolveEffectiveListingCategory(category, attributes);
+  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
   const config = getAdaptiveConfig(adaptiveKey);
-  const activeFields = filterFieldsForListingCategory(category, attributes, config.fields);
+  const activeFields = filterFieldsForListingCategory(effectiveCategory, attributes, config.fields);
   const missing: string[] = [];
 
   if (extras?.price !== undefined && extras.price <= 0) missing.push("price");
@@ -138,6 +141,38 @@ export interface ListingPublishValidation {
   needsTitle: boolean;
   canPublish: boolean;
   blockMessage: string;
+  validationIssues: string[];
+}
+
+export function buildValidationIssues(params: {
+  adaptiveKey: AdaptiveCategoryKey;
+  missingKeys: string[];
+  staleKeys: Array<{ key: string; sourceVertical: AdaptiveCategoryKey; label: string }>;
+  needsPrice: boolean;
+  needsPhoto: boolean;
+  needsSellerType: boolean;
+  needsTitle: boolean;
+}): string[] {
+  const issues: string[] = [];
+
+  if (params.needsPhoto) issues.push("Pridėkite nuotrauką");
+  if (params.needsTitle) issues.push("Įveskite pavadinimą (min. 2 simboliai)");
+  if (params.needsPrice || params.missingKeys.includes("price")) issues.push("Įveskite kainą");
+  if (params.needsSellerType) issues.push("Pasirinkite: privatus ar įmonė");
+
+  for (const key of params.missingKeys) {
+    if (key === "price" || key === "description") continue;
+    issues.push(`Trūksta: ${getFieldLabel(params.adaptiveKey, key)}`);
+  }
+  if (params.missingKeys.includes("description")) {
+    issues.push("Trūksta: Aprašymas");
+  }
+
+  for (const stale of params.staleKeys) {
+    issues.push(`Nematoma klaida: ${stale.sourceVertical}.${stale.key}`);
+  }
+
+  return issues;
 }
 
 export function buildPublishBlockMessage(params: {
@@ -149,27 +184,9 @@ export function buildPublishBlockMessage(params: {
   needsSellerType: boolean;
   needsTitle: boolean;
 }): string {
-  const parts: string[] = [];
-
-  if (params.needsPhoto) parts.push("Pridėkite nuotrauką");
-  if (params.needsTitle) parts.push("Įveskite pavadinimą (min. 2 simboliai)");
-  if (params.needsPrice || params.missingKeys.includes("price")) parts.push("Įveskite kainą");
-  if (params.needsSellerType) parts.push("Pasirinkite: privatus ar įmonė");
-
-  for (const key of params.missingKeys) {
-    if (key === "price" || key === "description") continue;
-    parts.push(`Trūksta: ${getFieldLabel(params.adaptiveKey, key)}`);
-  }
-  if (params.missingKeys.includes("description")) {
-    parts.push("Trūksta: Aprašymas");
-  }
-
-  for (const stale of params.staleKeys.slice(0, 2)) {
-    parts.push(`Nematoma klaida: ${stale.sourceVertical}.${stale.key}`);
-  }
-
-  if (parts.length === 0) return "Užpildykite privalomus laukus";
-  return parts.slice(0, 4).join(" · ");
+  const issues = buildValidationIssues(params);
+  if (issues.length === 0) return "Užpildykite privalomus laukus";
+  return issues.slice(0, 4).join(" · ");
 }
 
 export function evaluateListingPublishValidation(
@@ -182,13 +199,18 @@ export function evaluateListingPublishValidation(
   },
   opts: { hasPhoto: boolean }
 ): ListingPublishValidation {
-  const adaptiveKey = listingToAdaptiveKey(category);
-  const attributes = draft.attributes ?? {};
-  const missingKeys = getMissingCriticalFieldsForListing(category, attributes, {
+  const effectiveCategory = resolveEffectiveListingCategory(category, draft.attributes ?? {});
+  const sanitizedAttributes = sanitizeAttributesForCategory(
+    effectiveCategory,
+    {},
+    draft.attributes ?? {}
+  );
+  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
+  const missingKeys = getMissingCriticalFieldsForListing(effectiveCategory, sanitizedAttributes, {
     price: draft.price,
     description: draft.description,
   });
-  const staleRaw = findStaleForeignAttributes(category, attributes);
+  const staleRaw = findStaleForeignAttributes(effectiveCategory, sanitizedAttributes);
   const staleKeys = staleRaw.map((item) => ({
     ...item,
     label: getFieldLabel(item.sourceVertical, item.key),
@@ -196,7 +218,7 @@ export function evaluateListingPublishValidation(
 
   const needsPrice = draft.price <= 0;
   const needsPhoto = !opts.hasPhoto;
-  const needsSellerType = !String(attributes.sellerType ?? "").trim();
+  const needsSellerType = !String(sanitizedAttributes.sellerType ?? "").trim();
   const needsTitle = draft.title.trim().length < 2;
   const canPublish =
     missingKeys.length === 0 &&
@@ -206,7 +228,7 @@ export function evaluateListingPublishValidation(
     !needsPhoto &&
     !needsSellerType;
 
-  const blockMessage = buildPublishBlockMessage({
+  const issueParams = {
     adaptiveKey,
     missingKeys,
     staleKeys,
@@ -214,7 +236,9 @@ export function evaluateListingPublishValidation(
     needsPhoto,
     needsSellerType,
     needsTitle,
-  });
+  };
+  const validationIssues = buildValidationIssues(issueParams);
+  const blockMessage = buildPublishBlockMessage(issueParams);
 
   return {
     missingKeys,
@@ -225,6 +249,7 @@ export function evaluateListingPublishValidation(
     needsTitle,
     canPublish,
     blockMessage,
+    validationIssues,
   };
 }
 

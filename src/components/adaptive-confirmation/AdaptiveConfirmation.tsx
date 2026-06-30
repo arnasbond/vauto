@@ -6,7 +6,11 @@ import {
   evaluateListingPublishValidation,
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
-import { filterFieldsForListingCategory } from "@/lib/listing-attribute-isolation";
+import {
+  filterFieldsForListingCategory,
+  resolveEffectiveListingCategory,
+} from "@/lib/listing-attribute-isolation";
+import { LISTING_PUBLISH_CTA } from "@/components/listing/ListingValidationBanner";
 import type { AiExtractedListing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
@@ -62,7 +66,14 @@ export function AdaptiveConfirmation({
   const theme = getChameleonTheme(universalMode ? "flux" : chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
-  const config = getAdaptiveConfig(adaptiveKey);
+  const effectiveCategory = useMemo(
+    () => resolveEffectiveListingCategory(draft.category, draft.attributes ?? {}),
+    [draft.category, draft.attributes]
+  );
+  const effectiveAdaptiveKey = listingToAdaptiveKey(effectiveCategory);
+  const config = getAdaptiveConfig(
+    effectiveAdaptiveKey === adaptiveKey ? adaptiveKey : effectiveAdaptiveKey
+  );
   const attributes = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const needsPrice = draft.price <= 0;
   const hasPhoto = Boolean(previewImage);
@@ -82,14 +93,13 @@ export function AdaptiveConfirmation({
     [draft.category, draft.title, draft.price, draft.description, attributes, hasPhoto]
   );
 
-  const { missingKeys, canPublish, needsSellerType, needsPhotoForPublish, blockMessage } =
+  const { missingKeys, canPublish, needsPhotoForPublish, validationIssues } =
     useMemo(
       () => ({
         missingKeys: publishValidation.missingKeys,
         canPublish: publishValidation.canPublish,
-        needsSellerType: publishValidation.needsSellerType,
         needsPhotoForPublish: publishValidation.needsPhoto,
-        blockMessage: publishValidation.blockMessage,
+        validationIssues: publishValidation.validationIssues,
       }),
       [publishValidation]
     );
@@ -155,17 +165,7 @@ export function AdaptiveConfirmation({
     needsPrice,
   });
 
-  const publishLabel = manualFallback
-    ? !canPublish
-      ? blockMessage
-      : "Publikuoti skelbimą"
-    : !canPublish
-      ? blockMessage
-      : needsPrice
-        ? "Įveskite kainą"
-        : needsSellerType
-          ? "Pasirinkite: privatus ar įmonė"
-          : "Viskas gerai, publikuoti skelbimą";
+  const publishLabel = LISTING_PUBLISH_CTA;
 
   const layoutMap = {
     "technical-grid": "grid" as const,
@@ -180,10 +180,10 @@ export function AdaptiveConfirmation({
   const vinOk = vinValue ? verifyVin(vinValue) : false;
 
   const categoryFields = filterFieldsForListingCategory(
-    draft.category,
+    effectiveCategory,
     attributes,
     config.fields.filter(
-      (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+      (f) => !(effectiveAdaptiveKey === "vehicles" && f.key === "vin" && vinOk)
     )
   );
 
@@ -282,7 +282,7 @@ export function AdaptiveConfirmation({
   const fieldsBlock = (
     <>
       <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-slate-700 bg-[#131c38]" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
-        <p className="mb-2 text-xs font-medium text-[#374151] dark:text-white/70">Jūs esate:</p>
+        <p className={`mb-2 text-xs font-semibold ${universalMode ? "text-slate-800" : "font-medium text-[#374151] dark:text-white/70"}`}>Jūs esate:</p>
         <div className="flex flex-wrap gap-2">
           {SELLER_TYPES.map((opt) => (
             <button
@@ -325,6 +325,7 @@ export function AdaptiveConfirmation({
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
+            appearance="light"
             showAiFilled={showAiFilledBadges}
             aiFilledKeys={aiFilledBase}
           />
@@ -383,6 +384,7 @@ export function AdaptiveConfirmation({
       manualFallback={manualFallback}
       canPublish={canPublish}
       publishLabel={publishLabel}
+      validationIssues={validationIssues}
       portalStyleLabel={config.label}
       onQuickAction={handleQuickAction}
       onCancel={onCancel}

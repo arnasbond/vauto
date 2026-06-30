@@ -115,6 +115,7 @@ import { listingToAdaptiveKey, evaluateListingPublishValidation } from "@/lib/ad
 import {
   adaptiveVerticalChanged,
   finalizeListingDraft,
+  resolveEffectiveListingCategory,
   sanitizeAttributesForCategory,
   universalSubVerticalChanged,
 } from "@/lib/listing-attribute-isolation";
@@ -899,18 +900,32 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
     setAiDraft((prev) => {
       if (!prev) return prev;
-      const nextCategory = patch.category ?? prev.category;
+      let nextCategory = patch.category ?? prev.category;
       const verticalChanged = patch.category
         ? adaptiveVerticalChanged(prev.category, nextCategory)
         : false;
+      const mergedAttrsPreview = {
+        ...(prev.attributes ?? {}),
+        ...(patch.attributes ?? {}),
+      };
+      const reconciledCategory = resolveEffectiveListingCategory(
+        nextCategory,
+        mergedAttrsPreview
+      );
+      const categoryReconciled =
+        reconciledCategory !== nextCategory &&
+        listingToAdaptiveKey(prev.category) === "vehicles";
+      if (categoryReconciled) {
+        nextCategory = reconciledCategory;
+      }
       const subVerticalChanged =
         listingToAdaptiveKey(nextCategory) === "universal" &&
         patch.attributes?.skelbiuCategory !== undefined &&
-        universalSubVerticalChanged(prev.attributes, {
-          ...prev.attributes,
-          ...patch.attributes,
-        });
-      const baseAttrs = verticalChanged || subVerticalChanged ? {} : (prev.attributes ?? {});
+        universalSubVerticalChanged(prev.attributes, mergedAttrsPreview);
+      const baseAttrs =
+        verticalChanged || categoryReconciled || subVerticalChanged
+          ? {}
+          : (prev.attributes ?? {});
       const mergedAttrs = patch.attributes
         ? { ...baseAttrs, ...patch.attributes }
         : baseAttrs;

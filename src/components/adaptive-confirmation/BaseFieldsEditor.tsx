@@ -14,6 +14,7 @@ interface BaseFieldsEditorProps {
   needsPrice: boolean;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   variant?: "default" | "compact" | "inline";
+  appearance?: "dark" | "light";
   showAiFilled?: boolean;
   aiFilledKeys?: ReadonlySet<string>;
 }
@@ -24,6 +25,7 @@ export function BaseFieldsEditor({
   needsPrice,
   onUpdate,
   variant = "default",
+  appearance = "dark",
   showAiFilled = false,
   aiFilledKeys,
 }: BaseFieldsEditorProps) {
@@ -60,7 +62,14 @@ export function BaseFieldsEditor({
   };
 
   const inputClass =
-    "mt-1 w-full rounded-xl border border-white/5 bg-white/5 p-3 text-sm text-white outline-none focus:border-[var(--vauto-teal)]";
+    appearance === "light"
+      ? "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 focus:border-[var(--vauto-primary)]"
+      : "mt-1 w-full rounded-xl border border-white/5 bg-white/5 p-3 text-sm text-white outline-none focus:border-[var(--vauto-teal)]";
+
+  const inlineLabelClass =
+    appearance === "light"
+      ? "text-xs font-semibold text-slate-800"
+      : "text-xs text-white/60";
 
   if (variant === "inline") {
     return (
@@ -69,7 +78,7 @@ export function BaseFieldsEditor({
           if (key === "description") {
             return (
               <div key={key}>
-                <label className="text-xs text-white/60">
+                <label className={inlineLabelClass}>
                   {labels[key]}
                   {showAiFilled && aiFilledKeys?.has(key) && (
                     <AiFilledBadge visible />
@@ -88,7 +97,7 @@ export function BaseFieldsEditor({
           if (key === "price") {
             return (
               <div key={key}>
-                <label className="text-xs text-white/60">
+                <label className={inlineLabelClass}>
                   Kaina (€){draft.priceLabel ? ` · ${draft.priceLabel}` : ""}
                   {showAiFilled && aiFilledKeys?.has("price") && (
                     <AiFilledBadge visible />
@@ -109,7 +118,7 @@ export function BaseFieldsEditor({
 
           return (
             <div key={key}>
-              <label className="text-xs text-white/60">
+              <label className={inlineLabelClass}>
                 {labels[key]}
                 {showAiFilled && aiFilledKeys?.has(key) && (
                   <AiFilledBadge visible />

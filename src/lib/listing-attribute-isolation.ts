@@ -63,6 +63,29 @@ export function allForeignSchemaKeys(currentKey: import("@/lib/adaptive-categori
   return foreign;
 }
 
+/**
+ * When JSON still says vehicles but skelbiuCategory / picker already moved to phones etc.,
+ * validation and sanitization must follow the effective universal path — not stale vehicle schema.
+ */
+export function resolveEffectiveListingCategory(
+  category: ListingCategory,
+  attributes: CategoryAttributes = {}
+): ListingCategory {
+  if (listingToAdaptiveKey(category) !== "vehicles") return category;
+
+  const sk = String(attributes.skelbiuCategory ?? "").toLowerCase();
+  if (/elektron|telefon|kompiuter|planšet|planset|iphone|android|televiz/.test(sk)) {
+    return "electronics";
+  }
+  if (/bald|sofa|lov|stal|spint|kėd|ked|interjer/.test(sk)) {
+    return "home";
+  }
+  if (/įrank|irank|statyb|sodo|technik|medžiag/.test(sk)) {
+    return "other";
+  }
+  return category;
+}
+
 export function allowedAttributeKeysForCategory(category: ListingCategory): Set<string> {
   const adaptiveKey = listingToAdaptiveKey(category);
   const allowed = schemaKeysForAdaptiveKey(adaptiveKey);
@@ -96,7 +119,8 @@ export function activeAttributeKeysForListing(
   category: ListingCategory,
   attributes: CategoryAttributes = {}
 ): Set<string> {
-  const adaptiveKey = listingToAdaptiveKey(category);
+  const effectiveCategory = resolveEffectiveListingCategory(category, attributes);
+  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
   const allowed =
     adaptiveKey === "universal"
       ? resolveUniversalSubVerticalKeys(attributes)
@@ -129,8 +153,9 @@ export function findStaleForeignAttributes(
   category: ListingCategory,
   attributes: CategoryAttributes = {}
 ): Array<{ key: string; sourceVertical: AdaptiveCategoryKey }> {
-  const adaptiveKey = listingToAdaptiveKey(category);
-  const allowed = activeAttributeKeysForListing(category, attributes);
+  const effectiveCategory = resolveEffectiveListingCategory(category, attributes);
+  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
+  const allowed = activeAttributeKeysForListing(effectiveCategory, attributes);
   const stale: Array<{ key: string; sourceVertical: AdaptiveCategoryKey }> = [];
 
   for (const [key, value] of Object.entries(attributes)) {
@@ -159,9 +184,10 @@ export function sanitizeAttributesForCategory(
   attributes: CategoryAttributes = {},
   incoming?: CategoryAttributes
 ): CategoryAttributes {
-  const adaptiveKey = listingToAdaptiveKey(category);
   const merged = { ...attributes, ...incoming };
-  const allowed = activeAttributeKeysForListing(category, merged);
+  const effectiveCategory = resolveEffectiveListingCategory(category, merged);
+  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
+  const allowed = activeAttributeKeysForListing(effectiveCategory, merged);
   const foreign = allForeignSchemaKeys(adaptiveKey);
   const out: CategoryAttributes = {};
 
@@ -190,21 +216,29 @@ export function filterFieldsForListingCategory(
   attributes: CategoryAttributes,
   fields: CategoryFieldDef[]
 ): CategoryFieldDef[] {
-  if (listingToAdaptiveKey(category) !== "universal") return fields;
+  const effectiveCategory = resolveEffectiveListingCategory(category, attributes);
+  if (listingToAdaptiveKey(effectiveCategory) !== "universal") {
+    return fields;
+  }
+
+  const universalFields =
+    listingToAdaptiveKey(category) === "universal"
+      ? fields
+      : getAdaptiveConfig("universal").fields;
 
   const sk = String(attributes.skelbiuCategory ?? "").toLowerCase();
 
   if (/elektron|telefon|kompiuter|planšet|planset|iphone|android|televiz/.test(sk)) {
-    return fields.filter((f) => UNIVERSAL_ELECTRONICS_KEYS.has(f.key));
+    return universalFields.filter((f) => UNIVERSAL_ELECTRONICS_KEYS.has(f.key));
   }
   if (/bald|sofa|lov|stal|spint|kėd|ked|interjer/.test(sk)) {
-    return fields.filter((f) => UNIVERSAL_FURNITURE_KEYS.has(f.key));
+    return universalFields.filter((f) => UNIVERSAL_FURNITURE_KEYS.has(f.key));
   }
   if (/įrank|irank|statyb|sodo|technik|medžiag/.test(sk)) {
-    return fields.filter((f) => UNIVERSAL_TOOLS_KEYS.has(f.key));
+    return universalFields.filter((f) => UNIVERSAL_TOOLS_KEYS.has(f.key));
   }
 
-  return fields.filter((f) => f.key === "skelbiuCategory" || f.key === "condition");
+  return universalFields.filter((f) => f.key === "skelbiuCategory" || f.key === "condition");
 }
 
 export function finalizeListingDraft(
@@ -212,13 +246,19 @@ export function finalizeListingDraft(
   previousCategory?: ListingCategory | null,
   previousAttributes?: CategoryAttributes | null
 ): import("@/lib/types").AiExtractedListing {
+  const effectiveCategory = resolveEffectiveListingCategory(
+    draft.category,
+    draft.attributes ?? {}
+  );
   const hardReset =
+    adaptiveVerticalChanged(previousCategory, effectiveCategory) ||
     adaptiveVerticalChanged(previousCategory, draft.category) ||
-    (listingToAdaptiveKey(draft.category) === "universal" &&
+    (listingToAdaptiveKey(effectiveCategory) === "universal" &&
       universalSubVerticalChanged(previousAttributes, draft.attributes));
   const baseAttrs = hardReset ? {} : (draft.attributes ?? {});
   return {
     ...draft,
-    attributes: sanitizeAttributesForCategory(draft.category, baseAttrs, draft.attributes),
+    category: effectiveCategory,
+    attributes: sanitizeAttributesForCategory(effectiveCategory, baseAttrs, draft.attributes),
   };
 }
