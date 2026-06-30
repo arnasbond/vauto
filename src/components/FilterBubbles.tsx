@@ -1,9 +1,17 @@
 "use client";
 
+import { useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearchState } from "@/context/VautoSearchContext";
+import { generateDynamicFilters } from "@/lib/scoring";
 
 export function FilterBubbles() {
-  const { dynamicFilters, activeFilterIds, toggleFilter } = useVauto();
+  const { searchQuery } = useVautoSearchState();
+  const dynamicFilters = useMemo(
+    () => generateDynamicFilters(searchQuery),
+    [searchQuery]
+  );
+  const { activeFilterIds, toggleFilter } = useVauto();
 
   if (dynamicFilters.length === 0) return null;
 

@@ -16,16 +16,15 @@ import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingPath } from "@/lib/seo";
 import { chatThreadPath } from "@/lib/chat-routes";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
+import { useChat } from "@/context/ChatContext";
 import type { BuddyState } from "@/lib/buddy-voice";
 
 export function BuddySearchAssistant() {
   const router = useRouter();
   const {
-    searchQuery,
     rankedListings,
     user,
-    searchInputMode,
-    startChat,
     trackListingCall,
     listings,
     subscribeWishlist,
@@ -33,8 +32,9 @@ export function BuddySearchAssistant() {
     showToast,
     isAuthenticated,
     openAuthModal,
-    setSearchInputMode,
   } = useVauto();
+  const { searchQuery, searchInputMode, setSearchInputMode } = useVautoSearch();
+  const { startChat } = useChat();
 
   const [buddyState, setBuddyState] = useState<BuddyState>("idle");
   const [showMessage, setShowMessage] = useState(false);

@@ -6,6 +6,10 @@ import { useCallback } from "react";
 import { Home, LayoutGrid, MessageCircle, Plus, Shield, User } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearchDispatch } from "@/context/VautoSearchContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useChat } from "@/context/ChatContext";
+import { useModeration } from "@/context/ModerationContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { useZeroUiMemory } from "@/context/ZeroUiMemoryContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
@@ -32,23 +36,23 @@ export function BottomNav() {
   const {
     isAdmin,
     isAuthenticated,
-    unreadAdminCount,
-    unreadUserReportCount,
-    sellerStep,
-    chats,
     user,
     openAuthModal,
     requireAuthForListing,
-    cancelSellerFlow,
+    clearVisualSearch,
+    activateWardrobeSpinta,
+  } = useVauto();
+  const { unreadAdminCount, unreadUserReportCount } = useModeration();
+  const { sellerStep, cancelSellerFlow } = useSellerFlow();
+  const { chats } = useChat();
+  const {
     setSearchQuery,
     setSearchLoading,
     clearAgentPinnedListings,
     resetMarketplaceFilters,
-    clearVisualSearch,
     setSearchInputMode,
     setSearchVoiceMode,
-    activateWardrobeSpinta,
-  } = useVauto();
+  } = useVautoSearchDispatch();
   const { goToMarketplace } = useZeroUiScreen();
   const { clearSearchFilters } = useZeroUiMemory();
   const { setOpen: setAgentOpen } = useVautoAgent();

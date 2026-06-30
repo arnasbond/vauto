@@ -118,7 +118,10 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
-import { useVautoSearch } from "@/context/VautoSearchContext";
+import {
+  useVautoSearchDispatch,
+  useVautoSearchState,
+} from "@/context/VautoSearchContext";
 import { LiveInterventionHost } from "@/components/agent/LiveInterventionHost";
 import { SearchRefinementHost } from "@/components/agent/SearchRefinementHost";
 import { AgentChromeHost } from "@/components/agent/AgentChromeHost";
@@ -463,6 +466,23 @@ type VautoCatalogSlice = Omit<
   | "displayListings"
   | "fallbackListings"
   | "popularListingIds"
+  | "searchQuery"
+  | "setSearchQuery"
+  | "searchLoading"
+  | "setSearchLoading"
+  | "agentPinnedListingIds"
+  | "setAgentPinnedListings"
+  | "clearAgentPinnedListings"
+  | "viewMode"
+  | "setViewMode"
+  | "marketplaceFilters"
+  | "setMarketplaceFilters"
+  | "resetMarketplaceFilters"
+  | "searchVoiceMode"
+  | "setSearchVoiceMode"
+  | "searchInputMode"
+  | "setSearchInputMode"
+  | "dynamicFilters"
 >;
 
 const DEMO_SOLD_STORIES = [
@@ -507,6 +527,9 @@ function VautoFacade({
   acceptGdprConsent,
   declineGdprConsent,
   wakeWordAgentRef,
+  hydrated,
+  registerServiceLead,
+  onSearchIntent,
 }: {
   catalog: VautoCatalogSlice;
   children: ReactNode;
@@ -514,12 +537,48 @@ function VautoFacade({
   acceptGdprConsent: () => void;
   declineGdprConsent: () => void;
   wakeWordAgentRef: React.MutableRefObject<WakeWordGeminiAgent | null>;
+  hydrated: boolean;
+  registerServiceLead: (query: string) => void;
+  onSearchIntent: (clean: string) => void;
 }) {
+  const searchState = useVautoSearchState();
+  const searchDispatch = useVautoSearchDispatch();
   const chat = useChat();
   const seller = useSellerFlow();
   const wakeWord = useWakeWord();
   const moderation = useModeration();
   const pushAlerts = usePushAlerts();
+
+  useEffect(() => {
+    if (!hydrated || typeof window === "undefined") return;
+    const q = new URLSearchParams(window.location.search).get("q");
+    if (q) {
+      const clean = sanitizeSearchQuery(q, "final");
+      if (clean) searchDispatch.setSearchQuery(clean);
+    }
+  }, [hydrated, searchDispatch]);
+
+  useEffect(() => {
+    if (!searchState.searchQuery.trim()) {
+      searchDispatch.clearAgentPinnedListings();
+    }
+  }, [searchState.searchQuery, searchDispatch]);
+
+  const handleSearchQuery = useCallback(
+    (q: string) => {
+      const clean = sanitizeSearchQuery(q);
+      searchDispatch.setSearchQuery(clean);
+      searchDispatch.clearAgentPinnedListings();
+      if (clean.length >= 2) onSearchIntent(clean);
+      if (isServiceDemandQuery(clean)) registerServiceLead(clean);
+    },
+    [searchDispatch, onSearchIntent, registerServiceLead]
+  );
+
+  const dynamicFilters = useMemo(
+    () => generateDynamicFilters(searchState.searchQuery),
+    [searchState.searchQuery]
+  );
 
   const visibleListings = useMemo(
     () =>
@@ -536,22 +595,22 @@ function VautoFacade({
     () =>
       buildDisplayListings({
         visibleListings,
-        searchQuery: catalog.searchQuery,
-        agentPinnedListingIds: catalog.agentPinnedListingIds,
-        marketplaceFilters: catalog.marketplaceFilters,
+        searchQuery: searchState.searchQuery,
+        agentPinnedListingIds: searchState.agentPinnedListingIds,
+        marketplaceFilters: searchState.marketplaceFilters,
         activeFilterIds: catalog.activeFilterIds,
-        dynamicFilters: catalog.dynamicFilters,
+        dynamicFilters,
         visualSearchProfile: catalog.visualSearchProfile,
         visualRankScores: catalog.visualRankScores,
         buyerCoords: catalog.buyerCoords,
       }),
     [
       visibleListings,
-      catalog.searchQuery,
-      catalog.agentPinnedListingIds,
-      catalog.marketplaceFilters,
+      searchState.searchQuery,
+      searchState.agentPinnedListingIds,
+      searchState.marketplaceFilters,
       catalog.activeFilterIds,
-      catalog.dynamicFilters,
+      dynamicFilters,
       catalog.visualSearchProfile,
       catalog.visualRankScores,
       catalog.buyerCoords,
@@ -570,6 +629,10 @@ function VautoFacade({
   const value = useMemo<VautoContextValue>(
     () => ({
       ...catalog,
+      ...searchState,
+      ...searchDispatch,
+      setSearchQuery: handleSearchQuery,
+      dynamicFilters,
       ...chat,
       ...seller,
       ...wakeWord,
@@ -582,6 +645,10 @@ function VautoFacade({
     }),
     [
       catalog,
+      searchState,
+      searchDispatch,
+      handleSearchQuery,
+      dynamicFilters,
       chat,
       seller,
       wakeWord,
@@ -655,23 +722,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     consumePendingAuthIntent,
   } = useAuth();
   const { reviews, submitReview } = useReviews();
-  const {
-    searchQuery,
-    setSearchQuery,
-    searchLoading,
-    setSearchLoading,
-    marketplaceFilters,
-    setMarketplaceFilters: setMarketplaceFiltersNormalized,
-    resetMarketplaceFilters,
-    viewMode,
-    setViewMode,
-    agentPinnedListingIds,
-    setAgentPinnedListings,
-    searchInputMode,
-    setSearchInputMode,
-    searchVoiceMode,
-    setSearchVoiceMode,
-  } = useVautoSearch();
+  const { setSearchInputMode } = useVautoSearchDispatch();
 
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
@@ -842,21 +893,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, [hydrated, apiActive, isAuthenticated, user.id, syncServiceLeadsFromApi]);
 
   useEffect(() => {
-    if (!hydrated || typeof window === "undefined") return;
-    const q = new URLSearchParams(window.location.search).get("q");
-    if (q) {
-      const clean = sanitizeSearchQuery(q, "final");
-      if (clean) setSearchQuery(clean);
-    }
-  }, [hydrated]);
-
-  useEffect(() => {
-    if (!searchQuery.trim()) {
-      setAgentPinnedListings(null);
-    }
-  }, [searchQuery, setAgentPinnedListings]);
-
-  useEffect(() => {
     if (!hydrated || apiActive) return;
     saveListings(listings);
   }, [listings, hydrated, apiActive]);
@@ -998,11 +1034,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       return true;
     },
     [patchAuthUser, refreshAuthUser]
-  );
-
-  const dynamicFilters = useMemo(
-    () => generateDynamicFilters(searchQuery),
-    [searchQuery]
   );
 
   const recentSoldStories = useMemo(() => {
@@ -1157,31 +1188,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  const clearAgentPinnedListings = useCallback(() => {
-    setAgentPinnedListings(null);
-  }, [setAgentPinnedListings]);
-
-  const handleSearchQuery = useCallback(
-    (q: string) => {
-      const clean = sanitizeSearchQuery(q);
-      setSearchQuery(clean);
-      setAgentPinnedListings(null);
-      if (clean.length >= 2) {
-        setSearchIntentEvents((prev) => recordSearchIntent(prev, clean));
-      }
-      if (isServiceDemandQuery(clean)) {
-        registerServiceLead(clean);
-      }
+  const clearVisualSearch = useCallback(
+    (opts?: { keepInputMode?: boolean }) => {
+      setVisualSearchProfile(null);
+      setVisualRankScores({});
+      setVisualSearchRefining(false);
+      if (!opts?.keepInputMode) setSearchInputMode(null);
     },
-    [registerServiceLead, setSearchQuery, setAgentPinnedListings]
+    [setSearchInputMode]
   );
-
-  const clearVisualSearch = useCallback((opts?: { keepInputMode?: boolean }) => {
-    setVisualSearchProfile(null);
-    setVisualRankScores({});
-    setVisualSearchRefining(false);
-    if (!opts?.keepInputMode) setSearchInputMode(null);
-  }, []);
 
   const applyVisualSearch = useCallback(
     async (profile: VisualSearchProfile) => {
@@ -1894,27 +1909,18 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setToast({ message, type: "info" });
   }, []);
 
+  const onSearchIntent = useCallback((clean: string) => {
+    setSearchIntentEvents((prev) => recordSearchIntent(prev, clean));
+  }, []);
+
   const catalogValue = useMemo(
     (): VautoCatalogSlice => ({
       user,
       updateUser,
       listings,
       savedIds,
-      searchQuery,
-      setSearchQuery: handleSearchQuery,
-      searchLoading,
-      setSearchLoading,
-      agentPinnedListingIds,
-      setAgentPinnedListings,
-      clearAgentPinnedListings,
-      viewMode,
-      setViewMode,
-      marketplaceFilters,
-      setMarketplaceFilters: setMarketplaceFiltersNormalized,
-      resetMarketplaceFilters,
       activeFilterIds,
       toggleFilter,
-      dynamicFilters,
       toggleSave,
       deleteListing,
       renewListing,
@@ -1922,10 +1928,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       syncError,
       clearSyncError,
       apiActive,
-      searchVoiceMode,
-      setSearchVoiceMode,
-      searchInputMode,
-      setSearchInputMode,
       visualSearchProfile,
       visualRankScores,
       visualSearchRefining,
@@ -1994,19 +1996,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       updateUser,
       listings,
       savedIds,
-      searchQuery,
-      handleSearchQuery,
-      searchLoading,
-      agentPinnedListingIds,
-      setAgentPinnedListings,
-      clearAgentPinnedListings,
-      viewMode,
-      marketplaceFilters,
-      setMarketplaceFiltersNormalized,
-      resetMarketplaceFilters,
       activeFilterIds,
       toggleFilter,
-      dynamicFilters,
       toggleSave,
       deleteListing,
       renewListing,
@@ -2014,8 +2005,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       syncError,
       clearSyncError,
       apiActive,
-      searchVoiceMode,
-      searchInputMode,
       visualSearchProfile,
       visualRankScores,
       visualSearchRefining,
@@ -2207,6 +2196,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
               <SellerFlowContextProvider>
                 <VautoFacade
                   catalog={catalogValue}
+                  hydrated={hydrated}
+                  registerServiceLead={registerServiceLead}
+                  onSearchIntent={onSearchIntent}
                   gdprModalOpen={gdprModalOpen}
                   acceptGdprConsent={acceptGdprConsent}
                   declineGdprConsent={declineGdprConsent}

@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { WardrobeCabinetSection } from "@/components/clothing/WardrobeCabinetSection";
 import { useVauto } from "@/context/VautoContext";
+import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { isBusinessProfile } from "@/lib/profile-type";
 
@@ -16,11 +17,11 @@ export default function FashionMinePage() {
     authHydrated,
     isAuthenticated,
     listings,
-    chats,
     user,
     startEditListingFlow,
     markListingSold,
   } = useVauto();
+  const { chats } = useChat();
   const { trackEvent } = useUserBehavior();
 
   useEffect(() => {

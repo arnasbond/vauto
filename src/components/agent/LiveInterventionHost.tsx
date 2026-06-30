@@ -256,6 +256,7 @@ export function LiveInterventionHost() {
     pathname,
     user.role,
     user.name,
+    user.city,
     sellerAnalytics.views,
     buyerIntentCount,
     shouldFireIntervention,

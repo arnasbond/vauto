@@ -606,20 +606,23 @@ export function registerWardrobeBulkImportHost(
 
 /** @deprecated P7 — use registerAgentFlowHost */
 export function registerWardrobePhotosReceivedHost(
-  _fn: ((payload: { itemCount: number; photoCount: number }) => void) | null
+  fn: ((payload: { itemCount: number; photoCount: number }) => void) | null
 ): void {
+  void fn;
   /* handled by agent-flow-client + registerAgentFlowHost */
 }
 
 /** @deprecated P7 — use registerAgentFlowHost */
 export function registerWardrobePublishCompleteHost(
-  _fn: ((publishedCount: number) => void) | null
+  fn: ((publishedCount: number) => void) | null
 ): void {
+  void fn;
   /* handled by agent-flow-client + registerAgentFlowHost */
 }
 
 /** @deprecated P7 — use registerAgentFlowHost */
-export function registerWardrobeProfileImportedHost(_fn: ((itemCount: number) => void) | null): void {
+export function registerWardrobeProfileImportedHost(fn: ((itemCount: number) => void) | null): void {
+  void fn;
   /* handled by agent-flow-client + registerAgentFlowHost */
 }
 

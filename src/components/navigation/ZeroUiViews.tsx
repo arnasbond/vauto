@@ -13,6 +13,9 @@ import { AdminGeminiUploadPanel } from "@/components/admin/AdminGeminiUploadPane
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearchState } from "@/context/VautoSearchContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useChat } from "@/context/ChatContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import type { AppView } from "@/lib/app-views";
 import { hasUnreadInThread } from "@/lib/chat-helpers";
@@ -101,7 +104,7 @@ function DiscoverZeroView() {
 }
 
 function SearchResultsZeroView() {
-  const { searchQuery } = useVauto();
+  const { searchQuery } = useVautoSearchState();
   return (
     <ZeroUiChrome subtitle={searchQuery.trim() || "Visi skelbimai"}>
       <FilterBubbles />
@@ -149,7 +152,7 @@ function AddListingZeroView() {
 }
 
 function SellerWizardZeroView() {
-  const { sellerStep } = useVauto();
+  const { sellerStep } = useSellerFlow();
   const { viewParams } = useNavigation();
   const category = viewParams.category;
 
@@ -176,8 +179,9 @@ function SellerWizardZeroView() {
 }
 
 function ChatsZeroView() {
-  const { openAuthModal } = useAuth();
-  const { chats, user, isAuthenticated, authHydrated } = useVauto();
+  const { openAuthModal, isAuthenticated, authHydrated } = useAuth();
+  const { chats } = useChat();
+  const { user } = useVauto();
 
   if (!authHydrated) {
     return (

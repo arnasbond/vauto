@@ -47,7 +47,7 @@ import { hapticImpactLight } from "@/lib/haptic-feedback";
 
 const GEMINI_BLUE = "#1167b1";
 
-export type AiCommandBarPlacement = "hero" | "top" | "inline" | "dock" | "wizard";
+export type AiCommandBarPlacement = "hero" | "top" | "inline" | "wizard";
 
 export interface AiCommandBarProps {
   placement?: AiCommandBarPlacement;
@@ -71,7 +71,6 @@ export function AiCommandBar({
   collapsible = false,
 }: AiCommandBarProps) {
   const isWizard = placement === "wizard";
-  const isBrowseDock = placement === "dock";
   const isTopBar = placement === "hero" || placement === "top";
 
   const {
@@ -464,7 +463,7 @@ export function AiCommandBar({
         ? "Rašykite Spintos sekretorei — pvz. „pakeisk dydį į M“"
         : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“";
 
-  const inputPlaceholder = isWizard || isBrowseDock
+  const inputPlaceholder = isWizard
     ? wizardPlaceholder
     : isTopBar
       ? AI_FIRST_SEARCH_PLACEHOLDER
@@ -545,17 +544,15 @@ export function AiCommandBar({
     );
   }
 
-  if (isWizard || isBrowseDock) {
+  if (isWizard) {
     return (
       <>
         <div
           className={cn(
-            isWizard
-              ? cn(
-                  "ai-wizard-composer pointer-events-none fixed inset-x-0 bottom-0 z-50",
-                  collapsible && "ai-wizard-composer-expanded"
-                )
-              : "ai-command-dock pointer-events-none fixed inset-x-0 bottom-0 z-40",
+            cn(
+              "ai-wizard-composer pointer-events-none fixed inset-x-0 bottom-0 z-50",
+              collapsible && "ai-wizard-composer-expanded"
+            ),
             "pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
             className
           )}
@@ -604,21 +601,6 @@ export function AiCommandBar({
                 enterKeyHint={isWizard ? "send" : "search"}
                 aria-label="VAUTO AI komanda"
               />
-              {isBrowseDock && (
-                <button
-                  type="button"
-                  onClick={handlePhotoSearch}
-                  disabled={isPhotoSearching || photoFlowOpen}
-                  className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40"
-                  aria-label="Vision AI paieška pagal nuotrauką"
-                >
-                  {isPhotoSearching ? (
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                  ) : (
-                    <Camera className="h-4 w-4" />
-                  )}
-                </button>
-              )}
               <button
                 type="submit"
                 disabled={!draftQuery.trim() || busy}
@@ -636,15 +618,6 @@ export function AiCommandBar({
             </form>
           </div>
         </div>
-        {isBrowseDock && (
-          <AiPhotoFlowSheet
-            open={photoFlowOpen}
-            mode="search"
-            busy={isPhotoSearching}
-            onClose={() => setPhotoFlowOpen(false)}
-            onSubmit={handlePhotoFlowSubmit}
-          />
-        )}
       </>
     );
   }

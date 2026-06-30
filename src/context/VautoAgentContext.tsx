@@ -12,6 +12,8 @@ import {
 } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiVautoAgent } from "@/lib/api/client";
 import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
@@ -130,8 +132,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     setSearchInputMode,
     setSearchVoiceMode,
-    searchInputMode,
-    searchVoiceMode,
     searchQuery,
     setAgentPinnedListings,
     setViewMode,
@@ -141,7 +141,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const {
     listings,
     user,
-    applyAgentListingDraft,
     setListingBanned,
     markListingSold,
     showToast,
@@ -151,19 +150,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     rankedListings,
     clearVisualSearch,
     toggleSave,
+    activateWardrobeSpinta,
+    sellerAnalytics,
+    buyerIntentCount,
+    startListingFromQuery,
+  } = useVauto();
+  const {
     aiDraft,
     sellerStep,
-    activateWardrobeSpinta,
-    startChat,
+    applyAgentListingDraft,
     applyAgentWardrobeBulk,
     pendingWardrobeBulkItems,
     pendingWardrobeVoice,
     publishBulkClothingListings,
     publishListing,
-    sellerAnalytics,
-    buyerIntentCount,
-    startListingFromQuery,
-  } = useVauto();
+  } = useSellerFlow();
+  const { startChat } = useChat();
   const pathname = usePathname();
   const router = useRouter();
   const { navigateTo } = useNavigation();
@@ -727,7 +729,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       const voiceReply = false;
-      const speakReply = (_replyText: string) => {
+      const speakReply = (_replyText?: string) => {
+        void _replyText;
         /* v1.2 — text-only assistant, no TTS */
       };
 
@@ -1088,11 +1091,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       router,
       myListingsForAgent,
       currentPageContext,
-      toggleSave,
-      marketplaceFilters,
-      setMarketplaceFilters,
-      searchVoiceMode,
-      searchInputMode,
       aiDraft,
       sellerStep,
       sellerWizardContext,

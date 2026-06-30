@@ -81,7 +81,7 @@ export function UniversalListingWizard({
 }: UniversalListingWizardProps) {
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const categoryLabel = getUniversalCategoryLabel(draft.category);
-  const attributes = draft.attributes ?? {};
+  const attributes = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
   const { dynamicFields } = useMemo(
     () => buildUniversalListingFields(draft.category, attributes),
@@ -144,6 +144,7 @@ export function UniversalListingWizard({
       onStageWardrobeBulk,
       onUpdate,
       userCity,
+      userName,
       userPhone,
       wardrobeVoice,
     ]

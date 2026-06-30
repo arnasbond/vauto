@@ -1,8 +1,8 @@
 "use client";
 
 /**
- * P9 — useVauto() diet phase 1: marketplace search state isolated from mega-context.
- * VautoContext consumes this provider to reduce re-render blast radius on search typing.
+ * P7d — marketplace search state isolated from VautoProvider mega-context.
+ * State and dispatch are split so catalog/seller providers do not re-render on keystrokes.
  */
 import {
   createContext,
@@ -20,25 +20,32 @@ import {
 } from "@/lib/marketplace-view";
 import type { SearchInputMode } from "@/lib/buddy-messages";
 
-export interface VautoSearchContextValue {
+export interface VautoSearchState {
   searchQuery: string;
-  setSearchQuery: (q: string) => void;
   searchLoading: boolean;
-  setSearchLoading: (loading: boolean) => void;
   marketplaceFilters: MarketplaceFilterState;
+  viewMode: MarketplaceViewMode;
+  agentPinnedListingIds: string[] | null;
+  searchInputMode: SearchInputMode;
+  searchVoiceMode: boolean;
+}
+
+export interface VautoSearchDispatch {
+  setSearchQuery: (q: string) => void;
+  setSearchLoading: (loading: boolean) => void;
   setMarketplaceFilters: (filters: MarketplaceFilterState) => void;
   resetMarketplaceFilters: () => void;
-  viewMode: MarketplaceViewMode;
   setViewMode: (mode: MarketplaceViewMode) => void;
-  agentPinnedListingIds: string[] | null;
   setAgentPinnedListings: (ids: string[] | null) => void;
-  searchInputMode: SearchInputMode;
+  clearAgentPinnedListings: () => void;
   setSearchInputMode: (mode: SearchInputMode) => void;
-  searchVoiceMode: boolean;
   setSearchVoiceMode: (on: boolean) => void;
 }
 
-const VautoSearchContext = createContext<VautoSearchContextValue | null>(null);
+export type VautoSearchContextValue = VautoSearchState & VautoSearchDispatch;
+
+const VautoSearchStateContext = createContext<VautoSearchState | null>(null);
+const VautoSearchDispatchContext = createContext<VautoSearchDispatch | null>(null);
 
 export function VautoSearchProvider({ children }: { children: ReactNode }) {
   const [searchQuery, setSearchQuery] = useState("");
@@ -64,47 +71,76 @@ export function VautoSearchProvider({ children }: { children: ReactNode }) {
     setAgentPinnedListingIds(ids);
   }, []);
 
-  const value = useMemo(
-    () => ({
+  const clearAgentPinnedListings = useCallback(() => {
+    setAgentPinnedListingIds(null);
+  }, []);
+
+  const state = useMemo(
+    (): VautoSearchState => ({
       searchQuery,
-      setSearchQuery,
       searchLoading,
-      setSearchLoading,
       marketplaceFilters,
-      setMarketplaceFilters,
-      resetMarketplaceFilters,
       viewMode,
-      setViewMode,
       agentPinnedListingIds,
-      setAgentPinnedListings,
       searchInputMode,
-      setSearchInputMode,
       searchVoiceMode,
-      setSearchVoiceMode,
     }),
     [
       searchQuery,
       searchLoading,
       marketplaceFilters,
-      setMarketplaceFilters,
-      resetMarketplaceFilters,
       viewMode,
       agentPinnedListingIds,
-      setAgentPinnedListings,
       searchInputMode,
       searchVoiceMode,
     ]
   );
 
+  const dispatch = useMemo(
+    (): VautoSearchDispatch => ({
+      setSearchQuery,
+      setSearchLoading,
+      setMarketplaceFilters,
+      resetMarketplaceFilters,
+      setViewMode,
+      setAgentPinnedListings,
+      clearAgentPinnedListings,
+      setSearchInputMode,
+      setSearchVoiceMode,
+    }),
+    [
+      setMarketplaceFilters,
+      resetMarketplaceFilters,
+      setAgentPinnedListings,
+      clearAgentPinnedListings,
+    ]
+  );
+
   return (
-    <VautoSearchContext.Provider value={value}>{children}</VautoSearchContext.Provider>
+    <VautoSearchDispatchContext.Provider value={dispatch}>
+      <VautoSearchStateContext.Provider value={state}>
+        {children}
+      </VautoSearchStateContext.Provider>
+    </VautoSearchDispatchContext.Provider>
   );
 }
 
-export function useVautoSearch(): VautoSearchContextValue {
-  const ctx = useContext(VautoSearchContext);
+export function useVautoSearchState(): VautoSearchState {
+  const ctx = useContext(VautoSearchStateContext);
   if (!ctx) {
-    throw new Error("useVautoSearch must be used within VautoSearchProvider");
+    throw new Error("useVautoSearchState must be used within VautoSearchProvider");
   }
   return ctx;
+}
+
+export function useVautoSearchDispatch(): VautoSearchDispatch {
+  const ctx = useContext(VautoSearchDispatchContext);
+  if (!ctx) {
+    throw new Error("useVautoSearchDispatch must be used within VautoSearchProvider");
+  }
+  return ctx;
+}
+
+export function useVautoSearch(): VautoSearchContextValue {
+  return { ...useVautoSearchState(), ...useVautoSearchDispatch() };
 }
