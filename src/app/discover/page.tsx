@@ -5,7 +5,7 @@ import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
 import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
-import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
+import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
 import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
@@ -51,7 +51,7 @@ export default function DiscoverPage() {
 
       <ContentSection>
         {isFluxHome && <PortalExperienceStrip />}
-        <MarketplaceCategoryGrid />
+        <AiFirstBrowsePrompt />
         <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />

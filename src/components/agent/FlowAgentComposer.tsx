@@ -57,7 +57,8 @@ export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) 
       aria-label="VAUTO asistento įvestis"
     >
       <div className="pointer-events-auto mx-auto max-w-lg px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))]">
-        {lastAssistant && phase === "listing_wizard" && (
+        {lastAssistant &&
+          (phase === "listing_wizard" || phase === "idle" || phase === "agent_chat") && (
           <p
             className={cn(
               "mb-1.5 line-clamp-2 rounded-xl border px-3 py-2 text-[11px] leading-snug text-slate-200 shadow-md backdrop-blur-md",

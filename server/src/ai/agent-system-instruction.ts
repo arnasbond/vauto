@@ -1,9 +1,10 @@
 import { AGENT_MEMORY_SYSTEM_HINT } from "./agent-memory-context.js";
 import { GEMINI_INTENT_RULES } from "./gemini-intent-rules.js";
 import { LT_LOCATION_AGENT_HINT } from "./agent-tools.js";
-import { WARDROBE_VOICE_SEMANTIC_HINT } from "./agent-ui-tools.js";
+import { WARDROBE_VOICE_SEMANTIC_HINT, AI_FIRST_SEARCH_SEMANTIC_HINT } from "./agent-ui-tools.js";
 import {
   NO_MATCH_LEAD_HINT,
+  SEARCH_REFINE_HINT,
   SMART_BARGAINING_HINT,
 } from "../offer-engine.js";
 import {
@@ -102,7 +103,11 @@ ELGSENOS SLUOKSNIS (UserBehaviorContext — privaloma):
 
 ${WARDROBE_VOICE_SEMANTIC_HINT}
 
+${AI_FIRST_SEARCH_SEMANTIC_HINT}
+
 ${NO_MATCH_LEAD_HINT}
+
+${SEARCH_REFINE_HINT}
 
 ${SMART_BARGAINING_HINT}
 

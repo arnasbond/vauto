@@ -900,9 +900,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             searchResultCount:
               options?.proactiveOffer?.kind === "no_match"
                 ? 0
-                : searchQuery.trim()
-                  ? rankedListings.length
-                  : undefined,
+                : options?.proactiveOffer?.kind === "search_refine"
+                  ? options.proactiveOffer.resultCount ?? rankedListings.length
+                  : searchQuery.trim()
+                    ? rankedListings.length
+                    : undefined,
             lastSearchQuery: searchQuery.trim() || undefined,
             currentView: zeroUiScreen,
             fromVoice: voiceReply,

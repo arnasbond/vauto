@@ -122,6 +122,7 @@ import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue }
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
 import { LiveInterventionHost } from "@/components/agent/LiveInterventionHost";
 import { SearchRefinementHost } from "@/components/agent/SearchRefinementHost";
+import { BrowseAgentComposerHost } from "@/components/BrowseAgentComposerHost";
 import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
 import { FleetMatchBuddyHost } from "@/components/buddy/FleetMatchBuddyHost";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
@@ -604,6 +605,7 @@ function VautoFacade({
             <LiveInterventionHost />
             <SearchRefinementHost />
             <SellerFlowOverlays />
+            <BrowseAgentComposerHost />
             {children}
           </VautoAgentProvider>
         </ZeroUiMemoryProvider>

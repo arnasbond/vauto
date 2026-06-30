@@ -5,11 +5,21 @@ import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import {
-  evaluateSearchRefinement,
-} from "@/lib/ai-first-search-vision";
+import { evaluateSearchRefinement } from "@/lib/ai-first-search-vision";
+import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
+import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 
 const REFINEMENT_COOLDOWN_MS = 45_000;
+
+function toAgentFilters(state: MarketplaceFilterState, query: string): AgentSearchFilters {
+  return {
+    query: query.trim() || undefined,
+    category: state.category !== "all" ? state.category : undefined,
+    city: state.location.trim() || undefined,
+    maxPrice: state.priceMax ?? undefined,
+    minPrice: state.priceMin ?? undefined,
+  };
+}
 
 /**
  * P7c foundation — proactive search refinement when results are empty or overwhelming.
@@ -17,7 +27,8 @@ const REFINEMENT_COOLDOWN_MS = 45_000;
  */
 export function SearchRefinementHost() {
   const pathname = usePathname();
-  const { searchQuery, rankedListings, searchLoading, sellerStep } = useVauto();
+  const { searchQuery, rankedListings, searchLoading, sellerStep, marketplaceFilters } =
+    useVauto();
   const { openWithGreeting, busy: agentBusy, sendAgentMessage } = useVautoAgent();
   const { shouldFireIntervention } = useUserBehavior();
   const lastFiredRef = useRef<{ key: string; at: number } | null>(null);
@@ -64,6 +75,7 @@ export function SearchRefinementHost() {
         query: q,
         wardrobeMode,
         resultCount: count,
+        filters: toAgentFilters(marketplaceFilters, q),
       },
     });
   }, [
@@ -76,6 +88,7 @@ export function SearchRefinementHost() {
     shouldFireIntervention,
     openWithGreeting,
     sendAgentMessage,
+    marketplaceFilters,
   ]);
 
   return null;

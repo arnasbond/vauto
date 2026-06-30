@@ -4,12 +4,6 @@ import { useState, useEffect } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
-import { JobSearchPanel } from "@/components/jobs/JobSearchPanel";
-import { VehicleSearchPanel } from "@/components/vehicle/VehicleSearchPanel";
-import { RealEstateSearchPanel } from "@/components/real-estate/RealEstateSearchPanel";
-import { ClothingSearchPanel } from "@/components/clothing/ClothingSearchPanel";
-import { GeneralSearchPanel } from "@/components/general/GeneralSearchPanel";
-import { ServiceSearchPanel } from "@/components/services/ServiceSearchPanel";
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
 import { MarketplaceFilterBar } from "@/components/marketplace/MarketplaceFilterBar";
 import {
@@ -168,7 +162,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
                 className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
                 style={{ borderColor: ui.border, color: ui.textMuted }}
               >
-                Rezultatų nerasta. Pabandykite kitą paieškos frazę arba pašalinkite filtrus.
+                Rezultatų nerasta. Patikslinkite per AI asistentą žemiau.
               </p>
             )
           ) : searchQuery.trim().length < 3 ? (
@@ -192,22 +186,6 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
       ) : (
         renderListingCards(displayListings, true)
       )}
-
-      {theme === "autoplius" && displayListings.length > 0 && (
-        <details className="vauto-surface-panel mt-6 rounded-lg border p-3 shadow-sm" style={{ borderColor: ui.border }}>
-          <summary className="cursor-pointer text-sm font-semibold" style={{ color: ui.accent }}>
-            Išplėstinė automobilių paieška
-          </summary>
-          <div className="mt-3 [&>div]:mb-0">
-            <VehicleSearchPanel />
-          </div>
-        </details>
-      )}
-      {theme === "cvbankas" && displayListings.length > 0 && <JobSearchPanel />}
-      {theme === "aruodas" && displayListings.length > 0 && <RealEstateSearchPanel />}
-      {theme === "wardrobe" && displayListings.length > 0 && <ClothingSearchPanel />}
-      {theme === "skelbiu" && displayListings.length > 0 && <GeneralSearchPanel />}
-      {theme === "paslaugos" && displayListings.length > 0 && <ServiceSearchPanel />}
 
       <VisualSearchStrip />
 

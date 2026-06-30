@@ -14,7 +14,7 @@ import { HeroSection, ContentSection } from "@/components/HeroSection";
 
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 
-import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
+import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 
 import { HomeAiHero } from "@/components/home/HomeAiHero";
 
@@ -124,7 +124,7 @@ function MarketplaceView() {
 
         <div id="browse-section" className="scroll-mt-24">
 
-          <MarketplaceCategoryGrid />
+          <AiFirstBrowsePrompt />
 
         </div>
 

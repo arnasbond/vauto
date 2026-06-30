@@ -6,7 +6,7 @@ import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
 import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
-import { MarketplaceCategoryGrid } from "@/components/MarketplaceCategoryGrid";
+import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
 import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
@@ -73,7 +73,7 @@ function HomeZeroView() {
         <SearchBar />
       </div>
       <div className="mt-4">
-        <MarketplaceCategoryGrid />
+        <AiFirstBrowsePrompt />
         <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />
@@ -91,7 +91,7 @@ function DiscoverZeroView() {
         <SearchBar />
       </div>
       <div className="mt-4">
-        <MarketplaceCategoryGrid />
+        <AiFirstBrowsePrompt />
         <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />

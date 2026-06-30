@@ -19,6 +19,54 @@ export const WARDROBE_VOICE_SEMANTIC_HINT = `SPINTOS KLAIDŲ TOLERAVIMAS (update
   • „striuke" → category clothing, subcategory jackets
 - Po updateUIFilters — trumpas šiltas lietuviškas patvirtinimas (label laukas).`;
 
+/** P7c-agent — AI-first paieška be kategorijų meniu; NL → updateUIFilters. */
+export const AI_FIRST_SEARCH_SEMANTIC_HINT = `AI-FIRST PAIEŠKA (updateUIFilters iš natūralios kalbos — PRIVALOMA):
+- Vartotojas nebereikia kategorijų meniu — viskas per laisvą frazę FlowAgentComposer / SearchBar.
+- „mobilie telefonai" / „iPhone" / „samsung" → category electronics + query
+- „citroen generatorius" / „volvo dalys" → category vehicles + query
+- „butas Kaune" / „butai" → category real_estate
+- „darbas programuotojas" → category jobs
+- „tik iki 500 €" / „iki 50 eurų" → maxPrice (išlaikyk query ir kitus filtrus)
+- „nuo 100 €" → minPrice
+- „Kaune" / „Vilniuje" → city normalizuotas lietuviškai
+- „38 dydis" / „dydis M" → size + category clothing jei kontekstas mada
+- Per daug rezultatų (search_refine) → paklausk ir pritaikyk updateUIFilters su maxPrice, city, subcategory.
+- Po updateUIFilters — trumpas label lietuviškai.`;
+
+const NL_CATEGORY_PATTERNS: Array<{ pattern: RegExp; category: string }> = [
+  { pattern: /\b(telefon|iphone|samsung|xiaomi|mobil|planset|laptop|kompiuter)/i, category: "electronics" },
+  { pattern: /\b(volvo|bmw|audi|citroen|toyota|automob|mašin|generator|padang|bamper)/i, category: "vehicles" },
+  { pattern: /\b(butas|butai|namas|sklyp|nt\b|aruod)/i, category: "real_estate" },
+  { pattern: /\b(darbas|atlyginim|cv\b|programuotoj)/i, category: "jobs" },
+  { pattern: /\b(paslaug|meistr|remont|valym)/i, category: "services" },
+  { pattern: /\b(batel|ked|suknel|striuk|drabuž|spint)/i, category: "clothing" },
+];
+
+function extractNlFilterHints(text: string): Partial<UiFilterPayload> {
+  const hints: Partial<UiFilterPayload> = {};
+  const t = text.trim();
+  if (!t) return hints;
+
+  const maxMatch = t.match(/\b(?:iki|max|ne daugiau(?: nei)?)\s*(\d{1,6})\s*(?:€|eur)/i);
+  if (maxMatch) hints.maxPrice = Number(maxMatch[1]);
+
+  const minMatch = t.match(/\b(?:nuo|min|ne mažiau(?: nei)?)\s*(\d{1,6})\s*(?:€|eur)/i);
+  if (minMatch) hints.minPrice = Number(minMatch[1]);
+
+  const sizeMatch = t.match(/\b(?:dydis|dydžio|size)\s*([xsml\d]{1,3})\b/i);
+  if (sizeMatch) hints.categoryAttributes = { size: sizeMatch[1].toUpperCase() };
+
+  for (const { pattern, category } of NL_CATEGORY_PATTERNS) {
+    if (pattern.test(t)) {
+      hints.category = category;
+      break;
+    }
+  }
+
+  if (!hints.query) hints.query = t;
+  return hints;
+}
+
 const SUBCATEGORY_ALIASES: Record<
   string,
   { group: string; sub: string; clothingType?: string }
@@ -104,9 +152,14 @@ export function normalizeUpdateUIFiltersArgs(
   const merged: Record<string, unknown> = { ...nested, ...args };
   delete merged.filters;
 
-  const category = merged.category ? String(merged.category).trim() : undefined;
+  const category = merged.category
+    ? String(merged.category).trim()
+    : undefined;
   const subcategory = merged.subcategory ? String(merged.subcategory).trim() : undefined;
-  const query = merged.query ? String(merged.query).trim() : undefined;
+  const queryRaw = merged.query ? String(merged.query).trim() : undefined;
+  const nlHints = queryRaw ? extractNlFilterHints(queryRaw) : {};
+  const query = queryRaw || nlHints.query;
+  const categoryResolved = category ?? nlHints.category;
   const city = merged.city
     ? String(merged.city).trim()
     : merged.location
@@ -118,7 +171,7 @@ export function normalizeUpdateUIFiltersArgs(
   const maxPrice = merged.maxPrice != null ? Number(merged.maxPrice) : undefined;
   const label =
     String(merged.label ?? "").trim() ||
-    (category === "clothing" && subcategory
+    (categoryResolved === "clothing" && subcategory
       ? "Supratau, filtruoju batelius tavo spintoje!"
       : "Filtrai atnaujinti.");
 
@@ -136,6 +189,7 @@ export function normalizeUpdateUIFiltersArgs(
   }
   const subAttrs = resolveSubcategoryAttributes(subcategory);
   if (subAttrs) Object.assign(categoryAttributes, subAttrs);
+  if (nlHints.categoryAttributes) Object.assign(categoryAttributes, nlHints.categoryAttributes);
   if (size) categoryAttributes.size = size;
 
   const refinements: string[] = [];
@@ -145,16 +199,22 @@ export function normalizeUpdateUIFiltersArgs(
 
   const filters: UiFilterPayload = {
     query: query || undefined,
-    category,
+    category: categoryResolved,
     city: city || undefined,
-    minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
-    maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
+    minPrice:
+      minPrice != null && !Number.isNaN(minPrice)
+        ? minPrice
+        : nlHints.minPrice,
+    maxPrice:
+      maxPrice != null && !Number.isNaN(maxPrice)
+        ? maxPrice
+        : nlHints.maxPrice,
     refinements: refinements.length ? refinements : undefined,
     categoryAttributes: Object.keys(categoryAttributes).length ? categoryAttributes : undefined,
   };
 
   const activateWardrobe =
-    category === "clothing" ||
+    categoryResolved === "clothing" ||
     Boolean(merged.activateWardrobe) ||
     Boolean(merged.wardrobeMode);
 

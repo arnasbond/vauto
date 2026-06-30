@@ -45,6 +45,7 @@ import {
 import { buildUserBehaviorContextBlock } from "./user-behavior-context.js";
 import {
   NO_MATCH_LEAD_HINT,
+  SEARCH_REFINE_HINT,
   SMART_BARGAINING_HINT,
   buildNoMatchLeadPrompt,
 } from "../offer-engine.js";
@@ -130,13 +131,14 @@ export interface VautoAgentRequest {
       payload?: Record<string, unknown>;
     }[];
     proactiveOffer?: {
-      kind: "no_match" | "bargaining";
+      kind: "no_match" | "bargaining" | "search_refine";
       query?: string;
       listingId?: string;
       listingTitle?: string;
       listingPrice?: number;
       category?: string;
       wardrobeMode?: boolean;
+      resultCount?: number;
       filters?: AgentSearchFilters | null;
     };
   };
@@ -462,6 +464,18 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       parts: [
         {
           text: `[Proaktyvus derybų signalas — PRIVALOMA proposeSmartBargaining]\n${SMART_BARGAINING_HINT}\nlistingId=${po.listingId ?? ""}\ntitle=${po.listingTitle ?? ""}\nprice=${po.listingPrice ?? ""}\ncategory=${po.category ?? ""}\nwardrobeMode=${Boolean(po.wardrobeMode)}`,
+        },
+      ],
+    });
+  }
+
+  if (req.context.proactiveOffer?.kind === "search_refine") {
+    const po = req.context.proactiveOffer;
+    contents.unshift({
+      role: "user",
+      parts: [
+        {
+          text: `[Search Refinement — per daug rezultatų]\n${SEARCH_REFINE_HINT}\nquery=${po.query ?? req.context.lastSearchQuery ?? ""}\nresultCount=${po.resultCount ?? req.context.searchResultCount ?? ""}\nfilters=${JSON.stringify(req.context.activeSearchFilters ?? po.filters ?? null)}`,
         },
       ],
     });

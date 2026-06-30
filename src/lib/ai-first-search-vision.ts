@@ -1,12 +1,11 @@
 /**
- * P7c — AI-First paieškos vizija ir refino mechanika (foundation).
+ * P7c-full — AI-First paieškos vizija ir refino mechanika.
  *
- * STRATEGIJA (komandos patikslinimas):
- * - Atsisakome gilaus kategorijų meniu — vartotojas rašo laisvą frazę FlowAgentComposer / SearchBar.
+ * STRATEGIJA:
+ * - Gilus kategorijų meniu pašalintas (MarketplaceCategoryGrid, CategoryAttributeFilterPanel).
+ * - Vartotojas rašo laisvą frazę FlowAgentComposer / SearchBar.
  * - Agentas semantiškai pritaiko filtrus (updateUIFilters / searchListings).
- * - Search Refinement: per daug arba 0 rezultatų → agentas proaktyviai įsijungia ir klausia patikslinimo.
- *
- * Šis modulis — tipai, heuristikos ir copy; vykdymas per VautoAgentContext + SearchRefinementHost.
+ * - Search Refinement: per daug arba 0 rezultatų → agentas proaktyviai įsijungia.
  */
 
 export type SearchRefinementKind = "too_many" | "no_results" | "none";

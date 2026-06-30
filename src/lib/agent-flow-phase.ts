@@ -28,9 +28,29 @@ export function resolveAgentFlowPhase(
   }
 }
 
-/** Persistent bottom composer — wizard/processing on any route (incl. /add overlay). */
+/** Persistent bottom composer — seller wizard/processing on any route (incl. /add overlay). */
 export function shouldShowFlowAgentComposer(phase: AgentFlowPhase): boolean {
   return phase === "listing_wizard" || phase === "listing_processing";
+}
+
+const BROWSE_AI_PATH_PREFIXES = ["/", "/search", "/discover", "/fashion"];
+
+function isBrowseAiRoute(pathname: string): boolean {
+  if (pathname === "/") return true;
+  return BROWSE_AI_PATH_PREFIXES.some(
+    (p) => p !== "/" && (pathname === p || pathname.startsWith(`${p}/`))
+  );
+}
+
+/** P7c-full — AI-first browse dock when seller flow is idle on marketplace routes. */
+export function shouldShowBrowseAgentComposer(
+  pathname: string,
+  sellerStep: SellerFlowStep,
+  phase: AgentFlowPhase
+): boolean {
+  if (sellerStep !== "idle") return false;
+  if (phase === "listing_wizard" || phase === "listing_processing") return false;
+  return isBrowseAiRoute(pathname);
 }
 
 /** Hide static upload/import CTAs while agent drives the form. */

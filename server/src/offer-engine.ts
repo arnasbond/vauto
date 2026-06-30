@@ -215,3 +215,16 @@ export function buildNoMatchLeadPrompt(query?: string): string {
   const q = query?.trim() || "ieškoma prekė";
   return `Matau, kad šiuo metu „${q}" neturime. Leisk man užfiksuoti tavo norą fone — pranešiu, kai atsiras!`;
 }
+
+/** P7c-agent — proactive refinement when results are overwhelming (24+). */
+export const SEARCH_REFINE_HINT = `SEARCH REFINEMENT — per daug rezultatų (PRIVALOMA):
+- Vartotojas mato per daug skelbimų — TU inicijuoji patikslinimą šiltu klausimu.
+- PRIVALOMA naudoti updateUIFilters kai vartotojas patikslina: maxPrice, minPrice, city, subcategory, size, categoryAttributes.
+- Pavyzdžiai:
+  • „tik iki 500 €" → maxPrice: 500 (išlaikyk query)
+  • „tik Kaune" / „mano mieste" → city normalizuotas
+  • „tik iPhone 15" → query patikslintas + category electronics
+  • „38 dydis" → size 38, category clothing
+- Jei vartotojas atsako quick reply „Iki 500 €" — iškart updateUIFilters su maxPrice.
+- Po filtro — trumpas label lietuviškai, ne ilgas sąrašas.
+- Jei po patikslinimo vis dar per daug — paklausk dar vieno kriterijaus.`;
