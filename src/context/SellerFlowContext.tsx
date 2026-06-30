@@ -6,6 +6,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -102,6 +103,7 @@ import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-c
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
+import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { buildPartialListingVoicePromptFromDraft } from "@/lib/voice-listing-context";
 import { BUDDY_REPEAT_PROMPT, isUnclearTranscript } from "@/lib/voice-graceful";
 import type {
@@ -128,6 +130,12 @@ const PLACEHOLDER_IMAGES: Record<string, string> = {
   other:
     "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
 };
+
+function hasExplicitServiceKeywords(text: string): boolean {
+  return /\b(meistr|paslaug|elektrik|santechn|valym|remont|statyb|plytel|gro[žz]|kirp|transport)/i.test(
+    text
+  );
+}
 
 async function prepareListingImageForApi(
   src: string | null | undefined,
@@ -220,6 +228,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [listingSocialPublish, setListingSocialPublish] =
     useState<ListingSocialPublishOptions>(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
+  const processingEpochRef = useRef(0);
+
+  const abortSellerProcessing = useCallback(() => {
+    processingEpochRef.current += 1;
+    void completeVoiceTeardown();
+  }, []);
+
+  const isProcessingStale = useCallback(
+    (epoch: number) => epoch !== processingEpochRef.current,
+    []
+  );
 
   const updateListingSocialPublish = useCallback(
     (patch: Partial<ListingSocialPublishOptions>) => {
@@ -252,6 +271,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       toastMessage?: string;
       inputMode?: SellerInputMode;
     }) => {
+      abortSellerProcessing();
       setAiManualFallback(true);
       setAiDraft(
         createManualFallbackDraft({
@@ -273,7 +293,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         "info"
       );
     },
-    [user.city, user.phone, showToast]
+    [user.city, user.phone, showToast, abortSellerProcessing]
   );
 
   const runAiProcessing = useCallback(
@@ -287,6 +307,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         videoUrl?: string;
       }
     ) => {
+      const epoch = processingEpochRef.current;
       const started = performance.now();
       setSellerStep("processing");
       setAiManualFallback(false);
@@ -299,6 +320,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
 
       const enterManualFallback = (reason: string, error?: unknown) => {
+        if (isProcessingStale(epoch)) return;
         if (reason === "timeout") {
           notifyAgentError("ai_timeout", "AI analizė užtruko per ilgai");
         } else if (reason === "invalid_extraction") {
@@ -350,6 +372,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           withAiTimeout(extractPromise, undefined, `extract_${mode ?? "unknown"}`),
         ]);
 
+        if (isProcessingStale(epoch)) return;
+
         if (!isValidAiExtracted(extracted)) {
           enterManualFallback("invalid_extraction");
           return;
@@ -370,6 +394,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           .join(" ");
 
         const textForHeuristics = sourceBlob || next.title || "";
+
+        if (
+          next.category === "services" &&
+          (next.confidence ?? 0) < 0.5 &&
+          !hasExplicitServiceKeywords(textForHeuristics) &&
+          (mode === "upload" || mode === "combined")
+        ) {
+          enterManualFallback("unclear_visual_service");
+          return;
+        }
+
         const detectedProperty = detectPropertyTypeFromText(textForHeuristics);
         const looksLikeRealEstate =
           next.category === "real_estate" ||
@@ -432,20 +467,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             }
             if (!attrs.condition) attrs.condition = "Gera";
             next = { ...next, category: "clothing", attributes: attrs };
-          } else if (looksLikeServiceListing(textForHeuristics, next.category)) {
+          } else if (
+            (hasExplicitServiceKeywords(textForHeuristics) ||
+              (next.category === "services" && (next.confidence ?? 0) >= 0.55)) &&
+            looksLikeServiceListing(textForHeuristics, next.category)
+          ) {
             const attrs = { ...(next.attributes ?? {}) };
             if (!attrs.serviceSpecialty) {
               const specialty = detectServiceSpecialty(title);
               if (specialty) attrs.serviceSpecialty = specialty;
             }
             if (!attrs.serviceRadius) attrs.serviceRadius = "25 km";
-            if (!attrs.experience) attrs.experience = "5+ metai";
-            const serviceList = attrs.serviceList;
-            const hasServices = Array.isArray(serviceList)
-              ? serviceList.length > 0
-              : Boolean(serviceList);
-            if (!hasServices) attrs.serviceList = ["Remontas", "Montavimas"];
-            if (!next.price || next.price <= 0) next = { ...next, price: 30 };
             next = { ...next, category: "services", attributes: attrs };
           } else if (looksLikeJobListing(title, next.category)) {
             const attrs = { ...(next.attributes ?? {}) };
@@ -502,6 +534,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           setSellerHasVideo(vid.hasVideo);
         }
 
+        if (isProcessingStale(epoch)) return;
+
         setAiDraft(next);
         setSellerStep("confirmation");
 
@@ -521,6 +555,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           confidence: next.confidence,
         });
       } catch (error) {
+        if (isProcessingStale(epoch)) return;
         if (error instanceof AiSafeguardError) {
           enterManualFallback(error.code, error);
           return;
@@ -528,7 +563,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage]
+    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale]
   );
 
   const submitSellerContent = useCallback(
@@ -1114,8 +1149,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   }, [requireAuthForListing, router]);
 
   const cancelSellerFlow = useCallback(() => {
+    abortSellerProcessing();
     resetSellerFlow();
-  }, [resetSellerFlow]);
+  }, [resetSellerFlow, abortSellerProcessing]);
 
   useEffect(() => {
     if (

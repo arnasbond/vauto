@@ -278,6 +278,11 @@ interface VautoContextValue {
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
+  openManualListingWizard: (opts?: {
+    previewImage?: string | null;
+    toastMessage?: string;
+    inputMode?: SellerInputMode;
+  }) => void;
 
   chats: ChatThread[];
   sendMessage: (chatId: string, text: string) => void;

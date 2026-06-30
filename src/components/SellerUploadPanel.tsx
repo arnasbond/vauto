@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowRight, Camera, Sparkles } from "lucide-react";
+import { ArrowRight, Camera, PenLine, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SELLER_CATEGORY_PROMPTS } from "@/lib/seller-category-prompts";
 import { useVauto } from "@/context/VautoContext";
@@ -18,7 +18,13 @@ export function SellerUploadPanel({
   autoOpenPhotoFlow?: boolean;
   onPhotoFlowAutoOpened?: () => void;
 } = {}) {
-  const { submitSellerContent, sellerStep, requestMediaConsent } = useVauto();
+  const {
+    submitSellerContent,
+    sellerStep,
+    requestMediaConsent,
+    openManualListingWizard,
+    requireAuthForListing,
+  } = useVauto();
   const [query, setQuery] = useState("");
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
@@ -55,6 +61,15 @@ export function SellerUploadPanel({
     requestMediaConsent(() => setPhotoFlowOpen(true));
   };
 
+  const handleManualUpload = () => {
+    if (!requireAuthForListing("/add")) return;
+    setPhotoFlowOpen(false);
+    openManualListingWizard({
+      toastMessage: "Užpildykite skelbimą rankiniu būdu — be AI analizės.",
+      inputMode: "upload",
+    });
+  };
+
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
     setPhotoSubmitting(true);
     try {
@@ -75,20 +90,33 @@ export function SellerUploadPanel({
 
   return (
     <>
-      <div className={processing ? "pointer-events-none opacity-50" : undefined}>
+      <div
+        className={`seller-upload-panel${processing ? " pointer-events-none opacity-50" : ""}`}
+      >
         <QuickImportFromUrlCard />
         <button
           type="button"
           onClick={openPhotoFlow}
           disabled={busy || processing}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white shadow-sm hover:bg-[#0d5a9a]"
+          className="seller-upload-primary-btn mb-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold shadow-sm disabled:opacity-50"
         >
           <Camera className="h-5 w-5" />
           Skelbti su Vision AI (nuotraukos)
         </button>
 
-        <p className="mb-4 text-center text-sm text-slate-400">
+        <button
+          type="button"
+          onClick={handleManualUpload}
+          disabled={sellerStep === "published"}
+          className="seller-upload-manual-btn mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3.5 text-sm font-bold shadow-sm disabled:opacity-50"
+        >
+          <PenLine className="h-5 w-5" />
+          Įkelti rankiniu būdu
+        </button>
+
+        <p className="mb-4 text-center text-sm text-[var(--vauto-text-muted)]">
           Gemini Vision automatiškai nustato kategoriją, spalvą ir paruošia aprašymą.
+          Arba užpildykite formą patys — be AI.
         </p>
 
         <div className="mb-4 flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
@@ -101,7 +129,7 @@ export function SellerUploadPanel({
                 setQuery(item.prompt);
                 void submitSellerContent({ text: item.prompt });
               }}
-              className="shrink-0 rounded-full border border-slate-600 bg-[#1e293b] px-3 py-1.5 text-xs font-medium text-slate-200 shadow-sm hover:border-[#00f2fe] hover:text-[#00f2fe] disabled:opacity-50"
+              className="seller-upload-chip shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm disabled:opacity-50"
             >
               {item.label}
             </button>
@@ -109,36 +137,36 @@ export function SellerUploadPanel({
         </div>
 
         <form
-          className="flex items-center gap-2 rounded-xl border border-slate-700 bg-[#1e293b] py-1.5 pl-4 pr-1.5 shadow-sm"
+          className="seller-upload-input-shell flex items-center gap-2 rounded-xl border py-1.5 pl-4 pr-1.5 shadow-sm"
           onSubmit={handleSubmit}
           aria-label="Skelbimo aprašymas"
         >
-          <Sparkles className="h-4 w-4 shrink-0 text-[#00f2fe]" aria-hidden />
+          <Sparkles className="h-4 w-4 shrink-0 text-[var(--vauto-primary)]" aria-hidden />
           <input
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder='Pvz. „Parduodu BMW 5500€ Kaune“'
             enterKeyHint="go"
-            className="min-w-0 flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-slate-500"
+            className="seller-upload-input min-w-0 flex-1 border-none bg-transparent text-sm outline-none"
           />
           <button
             type="submit"
             disabled={busy || processing || !query.trim()}
             aria-label="AI analizuoti aprašymą"
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-[#1167b1] text-white disabled:opacity-40"
+            className="seller-upload-primary-btn flex h-9 w-9 shrink-0 items-center justify-center rounded-lg disabled:opacity-40"
           >
             <ArrowRight className="h-4 w-4" />
           </button>
         </form>
 
-        <p className="mt-2 text-center text-xs text-slate-500">
+        <p className="mt-2 text-center text-xs text-[var(--vauto-text-muted)]">
           Enter — Gemini atpažins kategoriją, užpildys formą ir pasiūlys kainą.
         </p>
       </div>
 
       {processing && (
-        <p className="mt-3 text-center text-sm font-medium text-[#00f2fe]">
+        <p className="mt-3 text-center text-sm font-medium text-[var(--vauto-primary)]">
           Vision AI apdoroja skelbimą — neuždarykite šio lango…
         </p>
       )}

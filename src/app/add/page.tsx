@@ -89,10 +89,10 @@ export default function AddPage() {
   if (!authHydrated) {
     return (
       <AppShell>
-        <div className="seller-flow-page min-h-full bg-[#0a1128] text-white">
+        <div className="seller-flow-page min-h-full">
           <HeroSection>
             <Header />
-            <p className="mt-10 text-center text-sm text-slate-400">
+            <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)]">
               Kraunama…
             </p>
           </HeroSection>
@@ -104,19 +104,19 @@ export default function AddPage() {
   if (!isAuthenticated) {
     return (
       <AppShell>
-        <div className="seller-flow-page min-h-full bg-[#0a1128] text-white">
+        <div className="seller-flow-page min-h-full">
           <HeroSection>
             <Header />
-            <h2 className="mt-6 text-center text-xl font-bold text-white">
+            <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
               {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
             </h2>
-            <p className="mt-3 px-6 text-center text-sm text-slate-400">
+            <p className="mt-3 px-6 text-center text-sm text-[var(--vauto-text-muted)]">
               Prisijunkite arba užsiregistruokite, kad galėtumėte įdėti skelbimą.
             </p>
             <button
               type="button"
               onClick={() => router.push("/")}
-              className="mx-auto mt-6 block text-sm text-[#00f2fe] underline"
+              className="mx-auto mt-6 block text-sm text-[var(--vauto-primary)] underline"
             >
               Grįžti į paiešką
             </button>
@@ -128,13 +128,13 @@ export default function AddPage() {
 
   return (
     <AppShell>
-      <div className="seller-flow-page min-h-full bg-[#0a1128] text-white">
+      <div className="seller-flow-page min-h-full">
         <HeroSection>
           <Header />
-          <h2 className="font-display mt-6 text-center text-xl font-bold text-white">
+          <h2 className="font-display mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
             {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
           </h2>
-          <p className="mt-2 text-center text-sm text-slate-400">
+          <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)]">
             {fashionMode
               ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
               : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}

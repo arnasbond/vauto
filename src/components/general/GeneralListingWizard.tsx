@@ -84,11 +84,11 @@ function SkelbiuDeepFields({
 
   if (profile === "electronics") {
     return (
-      <div className="mb-5 rounded-lg border border-[#e0e0e0] bg-[#fafafa] p-4">
-        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[#1167b1]">
+      <div className="mb-5 rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-4">
+        <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--vauto-primary)]">
           Elektronika (Skelbiu.lt)
         </p>
-        <label className="mb-2 block text-sm text-[#78909c]">Gamintojas</label>
+        <label className="mb-2 block text-sm text-[var(--vauto-text-muted)]">Gamintojas</label>
         <select
           value={attr(attrs, "manufacturer")}
           onChange={(e) => onAttributeChange("manufacturer", e.target.value)}
@@ -447,13 +447,13 @@ export function GeneralListingWizard({
           </SkelbiuField>
 
           {showCategoryPicker && (
-            <div className="mb-5 rounded border border-[#e0e0e0] bg-[#fafafa]">
+            <div className="category-tree-picker mb-5 rounded border">
               {categoryPath.length > 0 && (
-                <div className="flex items-center gap-2 border-b border-[#e0e0e0] px-3 py-2 text-xs text-[#78909c]">
+                <div className="flex items-center gap-2 border-b border-[var(--vauto-border)] px-3 py-2 text-xs text-[var(--vauto-text-muted)]">
                   <button
                     type="button"
                     onClick={() => setCategoryPath((p) => p.slice(0, -1))}
-                    className="text-[#1167b1] hover:underline"
+                    className="text-[var(--vauto-primary)] hover:underline"
                   >
                     ← Atgal
                   </button>
@@ -465,7 +465,7 @@ export function GeneralListingWizard({
                   key={node.label}
                   type="button"
                   onClick={() => selectCategoryNode(node.label)}
-                  className="flex w-full items-center justify-between border-b border-[#eeeeee] px-4 py-3 text-left text-sm hover:bg-white"
+                  className="category-tree-row flex w-full items-center justify-between border-b px-4 py-3 text-left text-sm last:border-b-0"
                 >
                   {node.label}
                   {node.children?.length ? (

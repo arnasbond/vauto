@@ -1275,6 +1275,115 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   padding-left: 1rem;
   padding-right: 1rem;
   padding-bottom: 1rem;
+  background: var(--vauto-bg);
+  color: var(--vauto-text-main);
+}
+
+.seller-upload-panel .seller-upload-primary-btn {
+  background: var(--vauto-primary);
+  color: var(--vauto-primary-contrast);
+}
+
+.seller-upload-panel .seller-upload-primary-btn:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.seller-upload-panel .seller-upload-manual-btn {
+  border-color: var(--vauto-primary);
+  color: var(--vauto-primary);
+  background: transparent;
+}
+
+.seller-upload-panel .seller-upload-manual-btn:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vauto-primary) 10%, transparent);
+}
+
+.seller-upload-panel .seller-upload-chip {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+}
+
+.seller-upload-panel .seller-upload-chip:hover:not(:disabled) {
+  border-color: var(--vauto-primary);
+  color: var(--vauto-primary);
+}
+
+.seller-upload-panel .seller-upload-input-shell {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+}
+
+.seller-upload-panel .seller-upload-input {
+  color: var(--vauto-text-main);
+}
+
+.seller-upload-panel .seller-upload-input::placeholder {
+  color: var(--vauto-text-muted);
+}
+
+.ai-photo-flow-sheet {
+  background: var(--vauto-bg);
+  color: var(--vauto-text-main);
+}
+
+.ai-photo-flow-sheet .ai-photo-flow-header {
+  border-color: var(--vauto-border);
+  background: var(--vauto-bg);
+}
+
+.ai-photo-flow-sheet .ai-photo-flow-card {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+}
+
+.ai-photo-flow-sheet .ai-photo-flow-footer {
+  border-color: var(--vauto-border);
+  background: var(--vauto-bg);
+}
+
+.ai-scan-overlay-backdrop {
+  background: color-mix(in srgb, var(--vauto-bg) 92%, transparent);
+}
+
+.ai-scan-overlay-panel {
+  border-color: color-mix(in srgb, var(--vauto-primary) 40%, var(--vauto-border));
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+}
+
+.wizard-category-bar {
+  border-color: var(--vauto-border);
+  background: var(--vauto-bg);
+}
+
+.category-tree-picker {
+  border-color: var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+}
+
+.category-tree-picker .category-tree-row {
+  border-color: var(--vauto-border);
+}
+
+.category-tree-picker .category-tree-row:hover {
+  background: color-mix(in srgb, var(--vauto-primary) 8%, var(--vauto-card-bg));
+}
+
+[data-app-theme="vauto-original"] .seller-flow-page,
+[data-app-theme="light-minimal"] .seller-flow-page {
+  --portal-wizard-surface: var(--vauto-card-bg);
+  --portal-wizard-bg: var(--vauto-bg);
+  --portal-text: var(--vauto-text-main);
+}
+
+[data-app-theme="vauto-original"] .listing-wizard-overlay,
+[data-app-theme="vauto-original"] .listing-form-shell,
+[data-app-theme="light-minimal"] .listing-wizard-overlay,
+[data-app-theme="light-minimal"] .listing-form-shell {
+  background-color: var(--vauto-bg);
+  color: var(--vauto-text-main);
 }
 
 [data-app-theme="dark"] .listing-wizard-overlay,

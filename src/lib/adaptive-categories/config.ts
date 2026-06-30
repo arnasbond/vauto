@@ -453,7 +453,7 @@ export const ADAPTIVE_CATEGORIES: Record<
         inputType: "select",
         options: ["Apple", "Samsung", "Sony", "Huawei", "Xiaomi", "LG", "Kita"],
       },
-      { key: "deviceModel", label: "Modelis", placeholder: "iPhone 15 Pro" },
+      { key: "deviceModel", label: "Modelis", placeholder: "pvz. iPhone 14 Pro" },
       {
         key: "storageCapacity",
         label: "Atminties talpa",

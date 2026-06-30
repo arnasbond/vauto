@@ -28,7 +28,8 @@ Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą i�
 KATEGORIJŲ TAISYKLĖS (griežtai):
 - NT (nekilnojamasis turtas): jei tekste yra butas/butą/butai, namas/namą/namai, žemė/žeme, sklypas, sodyba, kotedžas, patalpos, garažas, nekilnojamasis — category PRIVALO būti „NT“, NE „NAMAI“ (NAMAI = buitinės prekės).
 - AUTOMOBILIAI: jei tekste yra auto/automobilis/automobili, mašina/masina, transportas, rida, markė — category „AUTOMOBILIAI“, net be konkretaus modelio.
-- ANTRAŠTĖ (title): sugeneruok patrauklią lietuvišką pardavimo antraštę (pvz. „Parduodamas butas“, „Parduodamas gyvenamasis namas“, „Parduodamas automobilis“). NIEKADA nenaudok „Universalus daiktas“, „Prekė“ ar kitų bendrinių placeholderių.
+- ANTRAŠTĖ (title): sugeneruok patrauklią lietuvišką pardavimo antraštę pagal TIKRĄ objektą iš vartotojo žinutės ar nuotraukos. NIEKADA nenaudok „Universalus daiktas“, „Prekė“ ar kitų bendrinių placeholderių. Nenaudok fiksuotų šabloninių modelių (pvz. iPhone 15 Pro), jei vartotojas nurodė kitą modelį.
+- Jei objektas neaiškus arba nuotraukoje tik fonas/kambarys — confidence < 0.3, category pagal faktus, price: null, title minimalus.
 
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
 NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
@@ -90,7 +91,7 @@ function toListingPayload(
   userCity: string,
   contact: string
 ): VautoListingPayload {
-  const categoryKey = String(raw.category ?? "NAMAI").toUpperCase();
+  const categoryKey = String(raw.category ?? "").toUpperCase();
   const internalCategory = CATEGORY_TO_INTERNAL[categoryKey] ?? "other";
   const priceRaw = raw.price;
   const price =
@@ -147,7 +148,7 @@ function buildImagePrompt(
   return `${SYSTEM_RULES}
 ${VISION_ANTI_HALLUCINATION_RULE}
 
-Analizuok nuotrauką(-as). Atpažink TIKSLŲ objektą — pavadinimas ir kategorija turi atitikti tai, ką matai (laptopas → ELEKTRONIKA, ne planšetė jei tai laptopas).${textNote}${extra}
+Analizuok nuotrauką(-as). Atpažink TIKSLŲ objektą — pavadinimas ir kategorija turi atitikti tai, ką matai. Jei objektas neaiškus — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
@@ -184,7 +185,7 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     action = imagesEarly.length ? "analyze_image" : "parse_text";
   }
   const city = resolveListingCity(body.userCity?.trim(), "Vilnius");
-  const contact = body.contact?.trim() || "+370 612 34567";
+  const contact = body.contact?.trim() || "";
 
   if (action === "upload_media") {
     const image = body.imageDataUrl;

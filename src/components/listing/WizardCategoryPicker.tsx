@@ -25,10 +25,10 @@ export function WizardCategoryPicker({
   onChange,
 }: WizardCategoryPickerProps) {
   return (
-    <div className="sticky top-0 z-20 border-b border-slate-800 bg-[#0a1128] px-4 py-3">
+    <div className="wizard-category-bar sticky top-0 z-20 border-b px-4 py-3">
       <label
         htmlFor="wizard-category-select"
-        className="mb-1.5 block text-xs font-semibold text-slate-400"
+        className="mb-1.5 block text-xs font-semibold text-[var(--vauto-text-muted)]"
       >
         Kategorija (galite pakeisti)
       </label>
@@ -37,7 +37,7 @@ export function WizardCategoryPicker({
           id="wizard-category-select"
           value={category}
           onChange={(e) => onChange(e.target.value as ListingCategory)}
-          className="wizard-category-select w-full appearance-none rounded-xl border border-slate-700 bg-[#1e293b] px-3 py-2.5 pr-10 text-sm font-semibold text-white outline-none focus:border-sky-500"
+          className="wizard-category-select w-full appearance-none rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-2.5 pr-10 text-sm font-semibold text-[var(--vauto-text-main)] outline-none focus:border-[var(--vauto-primary)]"
         >
           {CATEGORY_OPTIONS.map((id) => (
             <option key={id} value={id}>
