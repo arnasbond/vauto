@@ -47,11 +47,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { pushAgentGreeting, notifyWardrobeBulkImportOpened, notifyWardrobePublishComplete } from "@/lib/vauto-agent-client";
-import {
-  WARDROBE_BULK_IMPORT_CHIPS,
-  WARDROBE_BULK_IMPORT_GREETING,
-} from "@/lib/agent-wardrobe-bulk-dialogue";
+import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete } from "@/lib/vauto-agent-client";
 import {
   buildPhotoClarificationMessage,
   extractVisionChoiceChips,
@@ -693,6 +689,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
         router.push(addPath);
       }
+      if (imageUrl) {
+        notifyAgentFlow({
+          kind: "listing_media_analyzed",
+          objectLabel: enriched.title || enriched.description?.slice(0, 48) || "",
+          category: enriched.category,
+        });
+      } else if (enriched.category !== "clothing") {
+        notifyAgentFlow({ kind: "listing_wizard_opened", category: enriched.category });
+      }
     },
     [requireAuthForListing, setChameleonTheme, showToast, router]
   );
@@ -729,9 +734,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
         router.push(addPath);
       }
-      notifyWardrobeBulkImportOpened(WARDROBE_BULK_IMPORT_GREETING, {
-        quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
-      });
+      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
     },
     [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city]
   );
@@ -1062,9 +1065,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Anonser.lt sinchronizacija suplanuota.", "info");
       }
     });
-    if (aiDraft.category === "clothing") {
-      notifyWardrobePublishComplete(1);
-    }
+    notifyListingPublishComplete(aiDraft.category, 1);
   }, [
     aiDraft,
     sellerPreviewImage,
@@ -1174,7 +1175,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           `${published} drabužių skelbim${published === 1 ? "as" : "ai"} sėkmingai įkelti!`,
           "success"
         );
-        notifyWardrobePublishComplete(published);
+        notifyListingPublishComplete("clothing", published);
         resetSellerFlow();
       } else {
         showToast("Nepavyko publikuoti — patikrinkite kainas ir pavadinimus.", "error");

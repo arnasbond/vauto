@@ -14,6 +14,7 @@ import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { ListingWizardPortal } from "@/components/listing/ListingWizardPortal";
 import { WizardCategoryPicker } from "@/components/listing/WizardCategoryPicker";
 import { PhotoClarificationPanel } from "@/components/seller/PhotoClarificationPanel";
+import { FlowAgentStrip } from "@/components/agent/FlowAgentStrip";
 
 export type AiConfirmationMode = "overlay" | "inline-preview" | "inline-full";
 
@@ -70,8 +71,21 @@ export function AiConfirmationScreen({
 
   const draft = aiDraft;
 
-  const wrapWithCategoryPicker = (node: React.ReactNode) =>
+  const wrapWithFlowAgent = (
+    node: React.ReactNode,
+    opts?: { variant?: "default" | "spinta"; category?: typeof draft.category }
+  ) =>
     portalWrap(
+      <>
+        {opts?.variant !== "spinta" && (
+          <FlowAgentStrip variant="default" category={opts?.category ?? draft.category} />
+        )}
+        {node}
+      </>
+    );
+
+  const wrapWithCategoryPicker = (node: React.ReactNode) =>
+    wrapWithFlowAgent(
       <>
         <PhotoClarificationPanel
           draft={draft}
@@ -89,7 +103,8 @@ export function AiConfirmationScreen({
           onChange={(cat) => updateAiDraft({ category: cat })}
         />
         {node}
-      </>
+      </>,
+      { category: draft.category }
     );
 
   const handleAttributeChange = (key: string, value: string | string[]) => {
@@ -145,7 +160,7 @@ export function AiConfirmationScreen({
   }
 
   if (isClothing) {
-    return portalWrap(
+    return wrapWithFlowAgent(
       <ClothingListingWizard
         draft={aiDraft}
         previewImage={sellerPreviewImage}
@@ -163,7 +178,8 @@ export function AiConfirmationScreen({
         onToast={showToast}
         initialWardrobeItems={pendingWardrobeBulkItems ?? undefined}
         initialWardrobeVoice={pendingWardrobeVoice}
-      />
+      />,
+      { variant: "spinta", category: "clothing" }
     );
   }
 

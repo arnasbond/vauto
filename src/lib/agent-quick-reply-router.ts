@@ -1,14 +1,12 @@
 import type { SellerFlowStep } from "@/lib/types";
 import {
-  WARDROBE_CONTINUOUS_FLOW_GREETING,
-  WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
   WARDROBE_BULK_MANUAL_FILL_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
   requestWardrobeBulkPhotoPick,
   scrollToWardrobeBulkReview,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
-import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
+import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
 import type { AiExtractedListing, ListingCategory, UserProfile } from "@/lib/types";
@@ -254,10 +252,53 @@ export function tryHandleAgentQuickReply(
       /ikelti nuotrauku krepseli/,
       /įkelti nuotraukų/,
       /ikelti nuotrauku/,
+      /įkelti nuotraukas/,
+      /ikelti nuotraukas/,
     ])
   ) {
     requestWardrobeBulkPhotoPick();
     return { handled: true, reply: WARDROBE_BULK_PHOTO_PICK_HINT };
+  }
+
+  if (matchesChip(trimmed, [/taip, viskas tikslu/, /taip viskas tikslu/])) {
+    if (deps.aiDraft && deps.sellerStep === "confirmation") {
+      deps.publishListing();
+      return { handled: true, reply: "Puiku — publikuoju skelbimą!" };
+    }
+  }
+
+  if (matchesChip(trimmed, [/reikia pataisyti/])) {
+    return {
+      handled: true,
+      reply: "Gerai — pataisykite laukus formoje žemiau, o aš padėsiu jei prireiks.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/taip, tinka/, /taip tinka/])) {
+    return {
+      handled: true,
+      reply: "Puiku — jei norėsite platesnės paieškos ar naujo skelbimo, pasakykite.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/platesnė paieška/, /platesne paieska/])) {
+    deps.broadenSearch();
+    return {
+      handled: true,
+      reply: "Išplėsiu paieškos filtrus — peržiūrėkite atnaujintus rezultatus.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/sukurti skelbimą/, /sukurti skelbima/])) {
+    deps.navigateToAdd(deps.aiDraft?.category === "clothing");
+    notifyAgentFlow({
+      kind: "listing_wizard_opened",
+      category: deps.aiDraft?.category,
+    });
+    return {
+      handled: true,
+      reply: "Atidarau skelbimo kūrimą — įkelkite nuotrauką arba aprašykite prekę.",
+    };
   }
 
   if (matchesChip(trimmed, [/pildyti rankiniu būdu/, /pildyti rankiniu budu/])) {
@@ -319,13 +360,17 @@ export function tryHandleAgentQuickReply(
   }
 
   if (matchesChip(trimmed, [/noriu įkelti dar/, /noriu ikelti dar/])) {
-    deps.navigateToAdd(true);
-    notifyWardrobeBulkImportOpened(WARDROBE_CONTINUOUS_FLOW_GREETING, {
-      quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+    const fashion = deps.aiDraft?.category === "clothing";
+    deps.navigateToAdd(fashion);
+    notifyAgentFlow({
+      kind: "listing_wizard_opened",
+      category: deps.aiDraft?.category ?? (fashion ? "clothing" : undefined),
     });
     return {
       handled: true,
-      reply: "Atidarau Spintos įkėlimą — galite mesti nuotraukų krepšelį arba profilio nuorodą.",
+      reply: fashion
+        ? "Atidarau Spintos įkėlimą — galite mesti nuotraukų krepšelį arba profilio nuorodą."
+        : "Atidarau skelbimo kūrimą — vedžiu jus per visus žingsnius.",
     };
   }
 

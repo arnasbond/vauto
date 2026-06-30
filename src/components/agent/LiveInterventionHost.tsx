@@ -7,6 +7,7 @@ import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
 import { AGENT_MIN_QUERY_CHARS } from "@/lib/vauto-agent-client";
+import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import {
   buildBargainingInterventionMessage,
   buildNoMatchInterventionMessage,
@@ -239,11 +240,13 @@ export function LiveInterventionHost() {
     proBusinessNudgeRef.current = true;
 
     const firstName = user.name.split(/\s+/)[0] || "drauge";
-    const greeting = hasBuyerIntent
-      ? `${firstName}, rinkoje ${buyerIntentCount} pirkėjų ieško panašių prekių — geras laikas išryškinti skelbimus!`
-      : `${firstName}, matomumas dar žemas — galiu padėti su verslo apžvalga ir Smart Boost.`;
-
-    openWithGreeting(greeting);
+    notifyAgentFlow({
+      kind: "business_dashboard_nudge",
+      region: user.city || undefined,
+      viewsLow: lowVisibility,
+      buyerIntentCount: hasBuyerIntent ? buyerIntentCount : undefined,
+      firstName,
+    });
     void sendAgentMessage("Parodyk mano verslo apžvalgą ir statistiką", {
       skipBusyCheck: true,
     });

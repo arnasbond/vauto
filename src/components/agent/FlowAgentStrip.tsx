@@ -1,0 +1,157 @@
+"use client";
+
+import { Loader2, Sparkles } from "lucide-react";
+import { useMemo } from "react";
+import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
+import { useVautoAgent } from "@/context/VautoAgentContext";
+import {
+  extractAgentQuickReplies,
+  isProactiveInternalAgentText,
+  sanitizeAgentReplyForDisplay,
+} from "@/lib/agent-reply-display";
+import type { ListingCategory } from "@/lib/types";
+import { cn } from "@/lib/cn";
+
+export type FlowAgentStripVariant = "default" | "spinta";
+
+interface FlowAgentStripProps {
+  variant?: FlowAgentStripVariant;
+  /** Optional category hint for aria-label */
+  category?: ListingCategory;
+  className?: string;
+}
+
+const VARIANT_STYLES: Record<
+  FlowAgentStripVariant,
+  { border: string; bg: string; accent: string; spinner: string }
+> = {
+  default: {
+    border: "border-sky-500/35",
+    bg: "bg-[#131c38]",
+    accent: "text-sky-300",
+    spinner: "text-sky-400",
+  },
+  spinta: {
+    border: "border-fuchsia-500/35",
+    bg: "bg-[#131c38]",
+    accent: "text-fuchsia-300",
+    spinner: "text-fuchsia-400",
+  },
+};
+
+/** Embedded agent dialogue during listing / flow wizards — global P7 strip. */
+export function FlowAgentStrip({
+  variant = "default",
+  category,
+  className,
+}: FlowAgentStripProps) {
+  const { messages, busy, sendAgentMessage } = useVautoAgent();
+  const styles = VARIANT_STYLES[variant];
+
+  const visibleMessages = useMemo(
+    () => messages.filter((m) => !isProactiveInternalAgentText(m.text)).slice(-4),
+    [messages]
+  );
+
+  const lastAssistantMessage = useMemo(
+    () => [...messages].reverse().find((m) => m.role === "assistant"),
+    [messages]
+  );
+
+  const lastAssistant = useMemo(() => {
+    const raw = lastAssistantMessage?.text;
+    return raw ? sanitizeAgentReplyForDisplay(raw) || raw : "";
+  }, [lastAssistantMessage]);
+
+  const quickReplies = useMemo(() => {
+    if (busy) return [];
+    const structured = lastAssistantMessage?.quickReplies?.filter(Boolean) ?? [];
+    if (structured.length >= 2) return structured.slice(0, 4);
+    return extractAgentQuickReplies(lastAssistant);
+  }, [busy, lastAssistant, lastAssistantMessage?.quickReplies]);
+
+  const handleQuickReply = (option: string) => {
+    void sendAgentMessage(option);
+  };
+
+  if (!visibleMessages.length && !busy) return null;
+
+  const ariaContext =
+    category === "clothing"
+      ? "Spintos vedlio metu"
+      : category === "vehicles"
+        ? "Automobilio skelbimo vedlio metu"
+        : "Skelbimo vedlio metu";
+
+  return (
+    <div
+      className={cn(
+        "flow-agent-strip relative z-20 mx-4 mb-4 mt-2 rounded-2xl border px-3.5 py-3 shadow-lg",
+        styles.border,
+        styles.bg,
+        className
+      )}
+      aria-live="polite"
+      aria-label={`VAUTO asistentas ${ariaContext}`}
+    >
+      <div
+        className={cn(
+          "mb-2 flex items-center gap-1.5 text-[11px] font-semibold uppercase tracking-wide",
+          styles.accent
+        )}
+      >
+        <Sparkles className="h-3.5 w-3.5 shrink-0" aria-hidden />
+        VAUTO asistentas
+      </div>
+
+      <div className="space-y-2.5">
+        {visibleMessages.map((m, i) => {
+          const display =
+            m.role === "assistant"
+              ? sanitizeAgentReplyForDisplay(m.text) || m.text
+              : m.text;
+          const isLastAssistant =
+            m.role === "assistant" && m === lastAssistantMessage && !busy;
+          const messageChips =
+            isLastAssistant && (m.quickReplies?.length ?? 0) >= 2
+              ? m.quickReplies!
+              : isLastAssistant
+                ? quickReplies
+                : [];
+
+          return (
+            <AgentChatBubble key={`${m.role}-${i}-${m.text.slice(0, 24)}`} role={m.role}>
+              {m.role === "user" ? (
+                <>
+                  <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                    Jūs
+                  </span>
+                  {display}
+                </>
+              ) : (
+                <>
+                  {display}
+                  {messageChips.length > 0 && (
+                    <AgentQuickReplyChips
+                      options={messageChips}
+                      disabled={busy}
+                      onSelect={handleQuickReply}
+                      embedded
+                    />
+                  )}
+                </>
+              )}
+            </AgentChatBubble>
+          );
+        })}
+
+        {busy && (
+          <p className="flex items-center gap-2 px-1 text-[12px] text-slate-300">
+            <Loader2 className={cn("h-3.5 w-3.5 animate-spin shrink-0", styles.spinner)} />
+            Galvoju…
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}

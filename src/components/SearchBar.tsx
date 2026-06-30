@@ -38,6 +38,7 @@ import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { subscribeHomeReset } from "@/lib/home-reset";
 import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
+import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import { buildVisionSearchAgentAction } from "@/lib/vision-agent-bridge";
 
 const GEMINI_BLUE = "#1167b1";
@@ -316,6 +317,11 @@ export function SearchBar({
           vision.intent.semanticAlternatives ?? []
         );
         setDraftQuery(itemLabel);
+        notifyAgentFlow({
+          kind: "photo_search_applied",
+          objectLabel: itemLabel,
+          resultCount: 0,
+        });
         if (altChips.length >= 2) {
           openWithGreeting(
             `Tikslaus „${itemLabel}" neradau. Pabandykime artimiausius variantus:`,
@@ -342,6 +348,12 @@ export function SearchBar({
         label: grid.secretaryComment,
       });
       syncGridFromAgentActions(action);
+
+      notifyAgentFlow({
+        kind: "photo_search_applied",
+        objectLabel: itemLabel,
+        resultCount: grid.listingIds.length,
+      });
 
       setDraftQuery(grid.searchQuery);
       setSearchQuery(grid.searchQuery);

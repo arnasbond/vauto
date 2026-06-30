@@ -567,67 +567,57 @@ export function pushAgentGreeting(text: string, options?: AgentGreetingOptions):
   agentGreetingHost?.(text, options);
 }
 
-let wardrobeBulkImportHost: ((options: AgentGreetingOptions & { message: string }) => void) | null =
-  null;
+import {
+  registerAgentFlowHost,
+  notifyAgentFlow,
+  notifyAgentFlowDialogue,
+  notifyWardrobeBulkImportOpened,
+  notifyWardrobePhotosReceived,
+  notifyWardrobeProfileImported,
+  notifyWardrobePublishComplete,
+  notifyListingPublishComplete,
+} from "@/lib/agent-flow-client";
 
-let lastWardrobeBulkGreetingAt = 0;
-let lastWardrobeBulkGreetingKey = "";
+export {
+  registerAgentFlowHost,
+  notifyAgentFlow,
+  notifyAgentFlowDialogue,
+  notifyWardrobeBulkImportOpened,
+  notifyWardrobePhotosReceived,
+  notifyWardrobeProfileImported,
+  notifyWardrobePublishComplete,
+  notifyListingPublishComplete,
+};
 
+/** @deprecated P7 — use registerAgentFlowHost */
 export function registerWardrobeBulkImportHost(
   fn: ((options: AgentGreetingOptions & { message: string }) => void) | null
 ): void {
-  wardrobeBulkImportHost = fn;
+  registerAgentFlowHost(
+    fn
+      ? ({ message, quickReplies, openSheet }) =>
+          fn({ message, quickReplies, openSheet })
+      : null
+  );
 }
 
-export function notifyWardrobeBulkImportOpened(
-  message: string,
-  options?: Omit<AgentGreetingOptions, "openSheet">
-): void {
-  const key = message.trim().slice(0, 64);
-  const now = Date.now();
-  if (key && key === lastWardrobeBulkGreetingKey && now - lastWardrobeBulkGreetingAt < 2500) {
-    return;
-  }
-  lastWardrobeBulkGreetingKey = key;
-  lastWardrobeBulkGreetingAt = now;
-  wardrobeBulkImportHost?.({ message, openSheet: true, ...options });
-}
-
-let wardrobePhotosReceivedHost: ((payload: { itemCount: number; photoCount: number }) => void) | null =
-  null;
-
+/** @deprecated P7 — use registerAgentFlowHost */
 export function registerWardrobePhotosReceivedHost(
-  fn: ((payload: { itemCount: number; photoCount: number }) => void) | null
+  _fn: ((payload: { itemCount: number; photoCount: number }) => void) | null
 ): void {
-  wardrobePhotosReceivedHost = fn;
+  /* handled by agent-flow-client + registerAgentFlowHost */
 }
 
-export function notifyWardrobePhotosReceived(itemCount: number, photoCount = 1): void {
-  wardrobePhotosReceivedHost?.({ itemCount, photoCount });
-}
-
-let wardrobePublishCompleteHost: ((publishedCount: number) => void) | null = null;
-
+/** @deprecated P7 — use registerAgentFlowHost */
 export function registerWardrobePublishCompleteHost(
-  fn: ((publishedCount: number) => void) | null
+  _fn: ((publishedCount: number) => void) | null
 ): void {
-  wardrobePublishCompleteHost = fn;
+  /* handled by agent-flow-client + registerAgentFlowHost */
 }
 
-export function notifyWardrobePublishComplete(publishedCount: number): void {
-  if (publishedCount <= 0) return;
-  wardrobePublishCompleteHost?.(publishedCount);
-}
-
-let wardrobeProfileImportedHost: ((itemCount: number) => void) | null = null;
-
-export function registerWardrobeProfileImportedHost(fn: ((itemCount: number) => void) | null): void {
-  wardrobeProfileImportedHost = fn;
-}
-
-export function notifyWardrobeProfileImported(itemCount: number): void {
-  if (itemCount <= 0) return;
-  wardrobeProfileImportedHost?.(itemCount);
+/** @deprecated P7 — use registerAgentFlowHost */
+export function registerWardrobeProfileImportedHost(_fn: ((itemCount: number) => void) | null): void {
+  /* handled by agent-flow-client + registerAgentFlowHost */
 }
 
 let agentPendingImagesHost: ((urls: string[]) => void) | null = null;

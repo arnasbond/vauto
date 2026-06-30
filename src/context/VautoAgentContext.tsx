@@ -28,10 +28,7 @@ import {
   registerAgentErrorReporter,
   registerAgentGreetingHost,
   registerAgentPendingImagesHost,
-  registerWardrobeBulkImportHost,
-  registerWardrobePhotosReceivedHost,
-  registerWardrobeProfileImportedHost,
-  registerWardrobePublishCompleteHost,
+  registerAgentFlowHost,
   notifyWardrobeBulkImportOpened,
   resolveAccountTypeLabel,
   resolveAgentNoiseReply,
@@ -69,13 +66,6 @@ import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent
 import {
   WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_BULK_IMPORT_GREETING,
-  buildWardrobePhotosReceivedMessage,
-  buildWardrobeProfileImportedMessage,
-  buildWardrobePublishSuccessMessage,
-  wardrobePhotosReceivedChips,
-  wardrobeProfileImportedChips,
-  WARDROBE_PUBLISH_FEEDBACK_CHIPS,
-  WARDROBE_PUBLISH_FEEDBACK_QUESTION,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
 import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
 import {
@@ -1111,39 +1101,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     registerAgentGreetingHost(openWithGreeting);
-    registerWardrobeBulkImportHost(({ message, ...options }) => {
-      openWithGreeting(message, options);
-    });
-    registerWardrobePhotosReceivedHost(({ itemCount, photoCount }) => {
-      openWithGreeting(buildWardrobePhotosReceivedMessage(itemCount, photoCount), {
-        openSheet: true,
-        quickReplies: wardrobePhotosReceivedChips(itemCount),
-      });
-    });
-    registerWardrobeProfileImportedHost((itemCount) => {
-      openWithGreeting(buildWardrobeProfileImportedMessage(itemCount), {
-        openSheet: true,
-        quickReplies: wardrobeProfileImportedChips(itemCount),
-      });
-    });
-    registerWardrobePublishCompleteHost((publishedCount) => {
-      openWithGreeting(
-        `${buildWardrobePublishSuccessMessage(publishedCount)} ${WARDROBE_PUBLISH_FEEDBACK_QUESTION}`,
-        {
-          openSheet: true,
-          quickReplies: [...WARDROBE_PUBLISH_FEEDBACK_CHIPS],
-        }
-      );
+    registerAgentFlowHost(({ message, quickReplies, openSheet }) => {
+      openWithGreeting(message, { quickReplies, openSheet });
     });
     registerAgentPendingImagesHost((urls) => {
       setSessionPendingImageUrls(urls);
     });
     return () => {
       registerAgentGreetingHost(null);
-      registerWardrobeBulkImportHost(null);
-      registerWardrobePhotosReceivedHost(null);
-      registerWardrobeProfileImportedHost(null);
-      registerWardrobePublishCompleteHost(null);
+      registerAgentFlowHost(null);
       registerAgentPendingImagesHost(null);
     };
   }, [openWithGreeting]);
