@@ -24,10 +24,13 @@ import {
 } from "@/lib/wardrobe-vision";
 import { notifyWardrobePhotosReceived } from "@/lib/vauto-agent-client";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
+import {
+  resolveFlowUiSkin,
+  flowSkinToAgentStripVariant,
+  type FlowUiSkinTokens,
+} from "@/lib/flow-ui-skin";
 import { WARDROBE_BULK_PHOTO_PICK_EVENT } from "@/lib/agent-flow-wizard-orchestrator";
-
-const SHELL_BG = "#0a1128";
-const CARD_BG = "#131c38";
+import { cn } from "@/lib/cn";
 
 export interface UniversalListingWizardProps {
   draft: AiExtractedListing;
@@ -166,24 +169,37 @@ export function UniversalListingWizard({
   };
 
   const isClothing = adaptiveKey === "clothing";
+  const skin: FlowUiSkinTokens = useMemo(
+    () => resolveFlowUiSkin({ category: isClothing ? "clothing" : draft.category }),
+    [isClothing, draft.category]
+  );
+  const stripVariant = flowSkinToAgentStripVariant(skin);
 
   return (
     <div
-      className="universal-listing-wizard listing-wizard-overlay min-h-screen text-white"
-      style={{ backgroundColor: SHELL_BG }}
+      className={`universal-listing-wizard listing-wizard-overlay min-h-screen text-white ${skin.rootClass}`}
+      style={{ backgroundColor: skin.shellBg }}
     >
       <div className="mx-auto w-full max-w-lg min-h-screen pb-36">
         <div
-          className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 px-4 py-3"
-          style={{ backgroundColor: SHELL_BG }}
+          className={cn(
+            "sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3",
+            skin.variant === "spinta" ? "border-fuchsia-500/30" : "border-slate-700"
+          )}
+          style={{ backgroundColor: skin.shellBg }}
         >
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-full bg-sky-600 text-sm font-bold">
-              V
+            <span
+              className="flex h-8 w-8 items-center justify-center rounded-full text-sm font-bold text-white"
+              style={{ backgroundColor: skin.badgeBg }}
+            >
+              {skin.variant === "spinta" ? "✨" : "V"}
             </span>
             <div>
-              <p className="text-sm font-semibold text-white">Universali skelbimų magistralė</p>
-              <p className="text-[10px] uppercase tracking-wide text-sky-300/80">{categoryLabel}</p>
+              <p className="text-sm font-semibold text-white">{skin.headerTitle}</p>
+              <p className={`text-[10px] uppercase tracking-wide ${skin.headerSubtitle}`}>
+                {skin.variant === "spinta" ? "Tavo AI sekretorė" : categoryLabel}
+              </p>
             </div>
           </div>
           <button
@@ -196,7 +212,7 @@ export function UniversalListingWizard({
           </button>
         </div>
 
-        <FlowAgentStrip variant={isClothing ? "spinta" : "default"} category={draft.category} />
+        <FlowAgentStrip variant={stripVariant} category={draft.category} />
 
         <div className="px-4 pt-3">
           <PhotoClarificationPanel
@@ -218,13 +234,13 @@ export function UniversalListingWizard({
           {isClothing && (
             <div
               id="wardrobe-photo-basket"
-              className="mb-4 rounded-2xl border border-dashed border-sky-500/35 p-4"
-              style={{ backgroundColor: CARD_BG }}
+              className={`mb-4 rounded-2xl border border-dashed p-4 ${skin.borderDashed}`}
+              style={{ backgroundColor: skin.cardBg }}
             >
               <ListingGalleryFileInput
                 requestConsent={requestMediaConsent}
                 openPickerSignal={photoPickSignal}
-                className="flex w-full flex-col items-center justify-center gap-2 py-5 text-sky-300"
+                className={`flex w-full flex-col items-center justify-center gap-2 py-5 ${skin.basketLabel}`}
                 label="+ Įkelti nuotraukų krepšelį"
                 hint="Galite pasirinkti kelias nuotraukas — AI paruoš juodraščius"
                 onFilesSelected={(files) => {
@@ -237,8 +253,8 @@ export function UniversalListingWizard({
               />
               {wardrobeAnalyzing && (
                 <p className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-300">
-                  <Loader2 className="h-4 w-4 animate-spin text-sky-400" />
-                  Smart Vision analizuoja nuotraukų krepšelį…
+                  <Loader2 className={`h-4 w-4 animate-spin ${skin.composerAccentIcon}`} />
+                  Smart Wardrobe Vision analizuoja nuotraukų krepšelį…
                 </p>
               )}
             </div>
@@ -247,11 +263,11 @@ export function UniversalListingWizard({
           {wardrobeItems.length > 1 && (
             <div
               id="wardrobe-bulk-review"
-              className="mb-4 rounded-2xl border border-sky-500/30 p-4"
-              style={{ backgroundColor: CARD_BG }}
+              className={`mb-4 rounded-2xl border p-4 ${skin.border}`}
+              style={{ backgroundColor: skin.cardBg }}
             >
               <div className="mb-3 flex items-center gap-2">
-                <Sparkles className="h-4 w-4 text-sky-400" />
+                <Sparkles className={`h-4 w-4 ${skin.composerAccentIcon}`} />
                 <p className="text-sm font-semibold">Paruošta: {wardrobeItems.length} prekės</p>
               </div>
               {wardrobeVoice && (
@@ -263,8 +279,8 @@ export function UniversalListingWizard({
                     key={item.id}
                     type="button"
                     onClick={() => applyWardrobeItem(item)}
-                    className="flex w-full items-center justify-between rounded-xl border border-slate-600 px-3 py-2.5 text-left hover:border-sky-400"
-                    style={{ backgroundColor: SHELL_BG }}
+                    className="flex w-full items-center justify-between rounded-xl border border-slate-600 px-3 py-2.5 text-left hover:border-fuchsia-400"
+                    style={{ backgroundColor: skin.shellBg }}
                   >
                     <div>
                       <p className="text-sm font-medium">{item.title}</p>
@@ -280,7 +296,8 @@ export function UniversalListingWizard({
                 <button
                   type="button"
                   onClick={handlePublishAllWardrobe}
-                  className="mt-4 w-full rounded-full bg-sky-600 py-3 text-sm font-semibold text-white"
+                  className="mt-4 w-full rounded-full py-3 text-sm font-semibold text-white"
+                  style={{ backgroundColor: skin.accent }}
                 >
                   Patvirtinti visus {wardrobeItems.length} skelbimus
                 </button>
@@ -292,6 +309,7 @@ export function UniversalListingWizard({
             fields={dynamicFields}
             attributes={attributes}
             onChange={onAttributeChange}
+            skin={skin}
           />
 
           <AdaptiveConfirmation

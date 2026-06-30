@@ -37,6 +37,7 @@ import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import { buildVisionSearchAgentAction } from "@/lib/vision-agent-bridge";
+import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -408,7 +409,7 @@ export function SearchBar({
           onChange={(e) => setDraftQuery(e.target.value)}
           placeholder={
             isHero
-              ? "Pvz. Ieškau BMW 530d iki 20 000 €"
+              ? AI_FIRST_SEARCH_PLACEHOLDER
               : "Rašykite paiešką arba įkelkite nuotrauką…"
           }
           enterKeyHint="search"

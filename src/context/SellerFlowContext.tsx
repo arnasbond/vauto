@@ -668,7 +668,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
-      setChameleonTheme("flux");
+      setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
       setSellerStep("confirmation");
       const vehicleAttrs = enriched.attributes;
       const prefilled =
@@ -719,7 +719,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerInputMode("upload");
       setSellerUserPrompt(opts?.voiceAnnouncement ?? firstDraft.title);
       if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
-      setChameleonTheme("flux");
+      setChameleonTheme("wardrobe");
       setSellerStep("confirmation");
       showToast(
         opts?.voiceAnnouncement ??
@@ -781,7 +781,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           setAiDraft(enriched);
           setSellerInputMode("text");
           setSellerUserPrompt(enriched.description ?? "");
-          setChameleonTheme("flux");
+          setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
           setSellerStep("confirmation");
         } else {
           setSellerStep("idle");
@@ -1252,7 +1252,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         sellerStep === "published")
     ) {
       setDetectedAdaptiveKey(listingToAdaptiveKey(aiDraft.category));
-      setChameleonTheme("flux");
+      setChameleonTheme(aiDraft.category === "clothing" ? "wardrobe" : "flux");
       return;
     }
     if (sellerStep === "idle") {

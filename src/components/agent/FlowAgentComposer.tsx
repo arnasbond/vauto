@@ -3,8 +3,10 @@
 import { ArrowUp, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useMemo, useState } from "react";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
+import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import { cn } from "@/lib/cn";
 
 interface FlowAgentComposerProps {
@@ -13,10 +15,10 @@ interface FlowAgentComposerProps {
 }
 
 /**
- * P7b — always-on chat input dock during listing wizards.
- * Sits above BottomNav so users can keep correcting attributes via dialogue.
+ * P7b/P7c — always-on chat input dock during listing wizards (+ AI-first search foundation).
  */
 export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) {
+  const skin = useFlowUiSkin();
   const { messages, busy, sendAgentMessage } = useVautoAgent();
   const [text, setText] = useState("");
 
@@ -29,7 +31,11 @@ export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) 
   const placeholder =
     phase === "listing_processing"
       ? "Agentas apdoroja — galite rašyti patikslinimus…"
-      : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“";
+      : phase === "listing_wizard"
+        ? skin.variant === "spinta"
+          ? "Rašykite Spintos sekretorei — pvz. „pakeisk dydį į M“"
+          : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“"
+        : AI_FIRST_SEARCH_PLACEHOLDER;
 
   const submit = useCallback(
     async (e?: React.FormEvent) => {
@@ -52,15 +58,25 @@ export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) 
     >
       <div className="pointer-events-auto mx-auto max-w-lg px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))]">
         {lastAssistant && phase === "listing_wizard" && (
-          <p className="mb-1.5 line-clamp-2 rounded-xl border border-white/10 bg-[#131c38]/95 px-3 py-2 text-[11px] leading-snug text-slate-200 shadow-md backdrop-blur-md">
-            <Sparkles className="mr-1 inline h-3 w-3 text-sky-400" aria-hidden />
+          <p
+            className={cn(
+              "mb-1.5 line-clamp-2 rounded-xl border px-3 py-2 text-[11px] leading-snug text-slate-200 shadow-md backdrop-blur-md",
+              skin.composerBorder,
+              skin.composerBg
+            )}
+          >
+            <Sparkles className={cn("mr-1 inline h-3 w-3", skin.composerAccentIcon)} aria-hidden />
             {lastAssistant.slice(0, 180)}
             {lastAssistant.length > 180 ? "…" : ""}
           </p>
         )}
         <form
           onSubmit={(e) => void submit(e)}
-          className="flex items-center gap-2 rounded-2xl border border-sky-500/35 bg-[#0f172a]/95 p-1.5 pl-3.5 shadow-lg backdrop-blur-xl"
+          className={cn(
+            "flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
+            skin.composerBorder,
+            skin.composerBg
+          )}
         >
           <input
             type="text"
@@ -75,7 +91,10 @@ export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) 
           <button
             type="submit"
             disabled={!text.trim() || busy}
-            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-600 text-white transition hover:bg-sky-500 disabled:opacity-40"
+            className={cn(
+              "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition disabled:opacity-40",
+              skin.composerButton
+            )}
             aria-label="Siųsti žinutę"
           >
             {busy ? (

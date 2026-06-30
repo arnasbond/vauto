@@ -25,6 +25,7 @@ export function ChameleonThemeHost() {
 
   const effectiveTheme = useMemo(() => {
     if (sellerStep !== "idle") return chameleonTheme;
+    if (chameleonTheme === "wardrobe") return "wardrobe";
     if (searchQuery.trim()) return portalExperienceForQuery(searchQuery).theme;
     return "flux";
   }, [chameleonTheme, searchQuery, sellerStep]);

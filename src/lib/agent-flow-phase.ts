@@ -2,7 +2,7 @@ import type { SellerFlowStep } from "@/lib/types";
 
 /**
  * P7b — unified agent + seller flow phase machine.
- * Drives persistent chat composer, overlay vs inline wizard, and theme guards.
+ * P7c — extends toward AI-first search (see ai-first-search-vision.ts + SearchRefinementHost).
  */
 export type AgentFlowPhase =
   | "idle"

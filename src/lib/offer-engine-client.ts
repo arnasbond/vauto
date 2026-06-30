@@ -15,13 +15,14 @@ export interface UserRequirementPayload {
 }
 
 export interface ProactiveOfferContext {
-  kind: "no_match" | "bargaining";
+  kind: "no_match" | "bargaining" | "search_refine";
   query?: string;
   listingId?: string;
   listingTitle?: string;
   listingPrice?: number;
   category?: string;
   wardrobeMode?: boolean;
+  resultCount?: number;
   filters?: import("@/lib/vauto-agent-client").AgentSearchFilters | null;
 }
 
