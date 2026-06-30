@@ -1,5 +1,5 @@
 import {
-  getMissingCriticalFields,
+  getMissingCriticalFieldsForListing,
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
 import { isPlaceholderCity, resolveListingCity } from "@/lib/city-resolve";
@@ -42,7 +42,7 @@ export function analyzeListingWizard(
 ): WizardAnalysis {
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const userCity = resolveListingCity(opts.userCity, "Vilnius");
-  const missingKeys = getMissingCriticalFields(adaptiveKey, draft.attributes ?? {}, {
+  const missingKeys = getMissingCriticalFieldsForListing(draft.category, draft.attributes ?? {}, {
     price: draft.price,
     description: draft.description,
   });
@@ -142,7 +142,7 @@ export function analyzeListingWizard(
     intro += ` Rinkoje panašūs skelbimai ~${opts.priceAdvice.medianPrice} €.`;
   }
 
-  if (opts.userPrompt?.trim()) {
+  if (opts.userPrompt?.trim() && !/analizuoju/i.test(opts.userPrompt)) {
     intro += ` Jūsų užklausa: „${opts.userPrompt.trim().slice(0, 120)}".`;
   }
 

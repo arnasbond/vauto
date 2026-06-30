@@ -1,6 +1,11 @@
-import type { CategoryAttributes } from "@/lib/types";
+import type { CategoryAttributes, ListingCategory } from "@/lib/types";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories/types";
 import { getAdaptiveConfig } from "@/lib/adaptive-categories/config";
+import {
+  filterFieldsForListingCategory,
+  findStaleForeignAttributes,
+} from "@/lib/listing-attribute-isolation";
+import { listingToAdaptiveKey } from "@/lib/adaptive-categories/types";
 
 export const LAND_PROPERTY_TYPES = new Set([
   "sklypas",
@@ -93,6 +98,134 @@ export function getMissingCriticalFields(
   }
 
   return missing;
+}
+
+/** Validate only fields visible/active for the listing's current category path. */
+export function getMissingCriticalFieldsForListing(
+  category: ListingCategory,
+  attributes: CategoryAttributes = {},
+  extras?: { price?: number; description?: string }
+): string[] {
+  const adaptiveKey = listingToAdaptiveKey(category);
+  const config = getAdaptiveConfig(adaptiveKey);
+  const activeFields = filterFieldsForListingCategory(category, attributes, config.fields);
+  const missing: string[] = [];
+
+  if (extras?.price !== undefined && extras.price <= 0) missing.push("price");
+
+  for (const field of activeFields) {
+    if (!isCriticalFieldRequired(adaptiveKey, field.key, attributes)) continue;
+    if (isFieldMissing(field.key, attributes)) missing.push(field.key);
+  }
+
+  if (
+    adaptiveKey === "universal" &&
+    config.baseFields.includes("description") &&
+    isEmpty(extras?.description)
+  ) {
+    missing.push("description");
+  }
+
+  return missing;
+}
+
+export interface ListingPublishValidation {
+  missingKeys: string[];
+  staleKeys: Array<{ key: string; sourceVertical: AdaptiveCategoryKey; label: string }>;
+  needsPrice: boolean;
+  needsPhoto: boolean;
+  needsSellerType: boolean;
+  needsTitle: boolean;
+  canPublish: boolean;
+  blockMessage: string;
+}
+
+export function buildPublishBlockMessage(params: {
+  adaptiveKey: AdaptiveCategoryKey;
+  missingKeys: string[];
+  staleKeys: Array<{ key: string; sourceVertical: AdaptiveCategoryKey; label: string }>;
+  needsPrice: boolean;
+  needsPhoto: boolean;
+  needsSellerType: boolean;
+  needsTitle: boolean;
+}): string {
+  const parts: string[] = [];
+
+  if (params.needsPhoto) parts.push("Pridėkite nuotrauką");
+  if (params.needsTitle) parts.push("Įveskite pavadinimą (min. 2 simboliai)");
+  if (params.needsPrice || params.missingKeys.includes("price")) parts.push("Įveskite kainą");
+  if (params.needsSellerType) parts.push("Pasirinkite: privatus ar įmonė");
+
+  for (const key of params.missingKeys) {
+    if (key === "price" || key === "description") continue;
+    parts.push(`Trūksta: ${getFieldLabel(params.adaptiveKey, key)}`);
+  }
+  if (params.missingKeys.includes("description")) {
+    parts.push("Trūksta: Aprašymas");
+  }
+
+  for (const stale of params.staleKeys.slice(0, 2)) {
+    parts.push(`Nematoma klaida: ${stale.sourceVertical}.${stale.key}`);
+  }
+
+  if (parts.length === 0) return "Užpildykite privalomus laukus";
+  return parts.slice(0, 4).join(" · ");
+}
+
+export function evaluateListingPublishValidation(
+  category: ListingCategory,
+  draft: {
+    title: string;
+    price: number;
+    description?: string;
+    attributes?: CategoryAttributes;
+  },
+  opts: { hasPhoto: boolean }
+): ListingPublishValidation {
+  const adaptiveKey = listingToAdaptiveKey(category);
+  const attributes = draft.attributes ?? {};
+  const missingKeys = getMissingCriticalFieldsForListing(category, attributes, {
+    price: draft.price,
+    description: draft.description,
+  });
+  const staleRaw = findStaleForeignAttributes(category, attributes);
+  const staleKeys = staleRaw.map((item) => ({
+    ...item,
+    label: getFieldLabel(item.sourceVertical, item.key),
+  }));
+
+  const needsPrice = draft.price <= 0;
+  const needsPhoto = !opts.hasPhoto;
+  const needsSellerType = !String(attributes.sellerType ?? "").trim();
+  const needsTitle = draft.title.trim().length < 2;
+  const canPublish =
+    missingKeys.length === 0 &&
+    staleKeys.length === 0 &&
+    !needsPrice &&
+    !needsTitle &&
+    !needsPhoto &&
+    !needsSellerType;
+
+  const blockMessage = buildPublishBlockMessage({
+    adaptiveKey,
+    missingKeys,
+    staleKeys,
+    needsPrice,
+    needsPhoto,
+    needsSellerType,
+    needsTitle,
+  });
+
+  return {
+    missingKeys,
+    staleKeys,
+    needsPrice,
+    needsPhoto,
+    needsSellerType,
+    needsTitle,
+    canPublish,
+    blockMessage,
+  };
 }
 
 export function getFieldLabel(

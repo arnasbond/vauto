@@ -3,6 +3,9 @@ import { getFieldLabel } from "@/lib/listing-field-validation";
 
 export {
   getMissingCriticalFields,
+  getMissingCriticalFieldsForListing,
+  evaluateListingPublishValidation,
+  buildPublishBlockMessage,
   isFieldMissing,
   isCriticalFieldRequired,
   resolveFieldValue,

@@ -111,11 +111,12 @@ import {
   type ListingSocialPublishOptions,
 } from "@/lib/listing-social-publish";
 import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
-import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
+import { listingToAdaptiveKey, evaluateListingPublishValidation } from "@/lib/adaptive-categories";
 import {
   adaptiveVerticalChanged,
   finalizeListingDraft,
   sanitizeAttributesForCategory,
+  universalSubVerticalChanged,
 } from "@/lib/listing-attribute-isolation";
 import {
   buildSellerPhotoCategoryMismatchMessage,
@@ -227,6 +228,7 @@ export interface SellerFlowContextValue {
   listingSocialPublish: ListingSocialPublishOptions;
   updateListingSocialPublish: (patch: Partial<ListingSocialPublishOptions>) => void;
   revertPhotoCategoryMismatch: () => boolean;
+  acceptPhotoCategoryMismatch: () => void;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -607,7 +609,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         const previousDraft = aiDraftRef.current;
         const previousCategory = previousDraft?.category ?? null;
-        const finalized = finalizeListingDraft(next, previousCategory);
+        const previousAttributes = previousDraft?.attributes ?? null;
+        const finalized = finalizeListingDraft(next, previousCategory, previousAttributes);
 
         const photoCategoryMismatch =
           Boolean(previousDraft) &&
@@ -616,7 +619,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         if (photoCategoryMismatch && previousDraft && previousCategory) {
           categoryMismatchRollbackRef.current = {
-            draft: finalizeListingDraft(previousDraft),
+            draft: finalizeListingDraft(previousDraft, previousCategory, previousAttributes),
             previewImage: sellerPreviewImageRef.current,
           };
           const greeting = buildSellerPhotoCategoryMismatchMessage(
@@ -624,11 +627,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             finalized.category
           );
           const quickReplies = sellerPhotoCategoryMismatchQuickReplies(previousCategory);
+          setSellerUserPrompt(greeting);
           pushAgentGreeting(greeting, { quickReplies, openSheet: true });
           trackEvent("seller_photo_category_mismatch", {
             fromCategory: previousCategory,
             toCategory: finalized.category,
           });
+        } else {
+          setSellerUserPrompt(opts?.transcript?.trim() || null);
         }
 
         setAiDraft(finalized);
@@ -717,7 +723,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       let enriched = enrichVehicleListingDraft(draft, [sourceText]);
       enriched = enrichClothingListingDraft(enriched, sourceText);
       const previousCategory = aiDraftRef.current?.category ?? null;
-      setAiDraft(finalizeListingDraft(enriched, previousCategory));
+      const previousAttributes = aiDraftRef.current?.attributes ?? null;
+      setAiDraft(finalizeListingDraft(enriched, previousCategory, previousAttributes));
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
@@ -896,24 +903,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const verticalChanged = patch.category
         ? adaptiveVerticalChanged(prev.category, nextCategory)
         : false;
+      const subVerticalChanged =
+        listingToAdaptiveKey(nextCategory) === "universal" &&
+        patch.attributes?.skelbiuCategory !== undefined &&
+        universalSubVerticalChanged(prev.attributes, {
+          ...prev.attributes,
+          ...patch.attributes,
+        });
+      const baseAttrs = verticalChanged || subVerticalChanged ? {} : (prev.attributes ?? {});
       const mergedAttrs = patch.attributes
-        ? verticalChanged
-          ? sanitizeAttributesForCategory(nextCategory, {}, patch.attributes)
-          : { ...(prev.attributes ?? {}), ...patch.attributes }
-        : prev.attributes;
+        ? { ...baseAttrs, ...patch.attributes }
+        : baseAttrs;
       const next: AiExtractedListing = {
         ...prev,
         ...patch,
         category: nextCategory,
-        attributes: mergedAttrs,
+        attributes: sanitizeAttributesForCategory(nextCategory, {}, mergedAttrs),
       };
-      if (verticalChanged) {
-        next.attributes = sanitizeAttributesForCategory(
-          nextCategory,
-          {},
-          next.attributes
-        );
-      }
       return next;
     });
   }, []);
@@ -924,10 +930,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setAiDraft(snap.draft);
     setSellerPreviewImage(snap.previewImage);
     setSellerStep("confirmation");
+    setSellerUserPrompt(null);
     categoryMismatchRollbackRef.current = null;
     showToast("Atstatytas ankstesnis skelbimo juodraštis.", "info");
     return true;
   }, [showToast]);
+
+  const acceptPhotoCategoryMismatch = useCallback(() => {
+    categoryMismatchRollbackRef.current = null;
+    setSellerUserPrompt(null);
+    setSellerStep("confirmation");
+  }, []);
 
   const publishListing = useCallback(async () => {
     if (!aiDraft) {
@@ -951,16 +964,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
-    const adaptiveKey = listingToAdaptiveKey(aiDraft.category);
-    const missing = getMissingCriticalFields(adaptiveKey, aiDraft.attributes ?? {}, {
-      price: aiDraft.price,
-      description: aiDraft.description,
-    });
-    if (missing.length > 0) {
-      showToast(
-        `Užpildykite privalomus laukus: ${missing.slice(0, 3).join(", ")}`,
-        "error"
-      );
+    const validation = evaluateListingPublishValidation(
+      aiDraft.category,
+      {
+        title: aiDraft.title,
+        price: aiDraft.price,
+        description: aiDraft.description,
+        attributes: aiDraft.attributes,
+      },
+      { hasPhoto: Boolean(sellerPreviewImage) }
+    );
+
+    if (!validation.canPublish) {
+      showToast(validation.blockMessage, "error");
       return;
     }
 
@@ -1383,6 +1399,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       listingSocialPublish,
       updateListingSocialPublish,
       revertPhotoCategoryMismatch,
+      acceptPhotoCategoryMismatch,
     }),
     [
       sellerStep,
@@ -1418,6 +1435,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       listingSocialPublish,
       updateListingSocialPublish,
       revertPhotoCategoryMismatch,
+      acceptPhotoCategoryMismatch,
     ]
   );
 

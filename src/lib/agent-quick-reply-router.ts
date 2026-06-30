@@ -58,6 +58,7 @@ export interface AgentQuickReplyDeps {
   openBargainingChat: () => boolean;
   searchSimilarListings: () => void;
   revertPhotoCategoryMismatch: () => boolean;
+  acceptPhotoCategoryMismatch: () => void;
 }
 
 function normalizeChip(text: string): string {
@@ -107,6 +108,7 @@ export function tryHandleAgentQuickReply(
   }
 
   if (isSellerPhotoMismatchAcceptChip(trimmed)) {
+    deps.acceptPhotoCategoryMismatch();
     return {
       handled: true,
       reply: "Supratau — paliekame naują kategoriją pagal įkeltą nuotrauką. Patikrinkite laukus ir publikuokite.",

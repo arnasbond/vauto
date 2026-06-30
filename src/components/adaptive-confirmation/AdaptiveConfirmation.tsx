@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   getAdaptiveConfig,
-  getMissingCriticalFields,
+  evaluateListingPublishValidation,
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
 import { filterFieldsForListingCategory } from "@/lib/listing-attribute-isolation";
@@ -67,18 +67,32 @@ export function AdaptiveConfirmation({
   const needsPrice = draft.price <= 0;
   const hasPhoto = Boolean(previewImage);
 
-  const missingKeys = getMissingCriticalFields(adaptiveKey, attributes, {
-    price: draft.price,
-    description: draft.description,
-  });
-  const needsPhotoForPublish = !hasPhoto;
-  const needsSellerType = !String(attributes.sellerType ?? "").trim();
-  const canPublish =
-    missingKeys.length === 0 &&
-    !needsPrice &&
-    draft.title.trim().length >= 2 &&
-    !needsPhotoForPublish &&
-    !needsSellerType;
+  const publishValidation = useMemo(
+    () =>
+      evaluateListingPublishValidation(
+        draft.category,
+        {
+          title: draft.title,
+          price: draft.price,
+          description: draft.description,
+          attributes,
+        },
+        { hasPhoto }
+      ),
+    [draft.category, draft.title, draft.price, draft.description, attributes, hasPhoto]
+  );
+
+  const { missingKeys, canPublish, needsSellerType, needsPhotoForPublish, blockMessage } =
+    useMemo(
+      () => ({
+        missingKeys: publishValidation.missingKeys,
+        canPublish: publishValidation.canPublish,
+        needsSellerType: publishValidation.needsSellerType,
+        needsPhotoForPublish: publishValidation.needsPhoto,
+        blockMessage: publishValidation.blockMessage,
+      }),
+      [publishValidation]
+    );
 
   const { aiFilledBase, aiFilledAttrs, showAiBadges } = useMemo(() => {
     if (manualFallback) {
@@ -143,10 +157,10 @@ export function AdaptiveConfirmation({
 
   const publishLabel = manualFallback
     ? !canPublish
-      ? "Užpildykite privalomus laukus"
+      ? blockMessage
       : "Publikuoti skelbimą"
     : !canPublish
-      ? "Užpildykite privalomus laukus"
+      ? blockMessage
       : needsPrice
         ? "Įveskite kainą"
         : needsSellerType

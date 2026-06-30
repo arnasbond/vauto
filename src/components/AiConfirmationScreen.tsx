@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 import { UniversalListingWizard } from "@/components/listing/UniversalListingWizard";
@@ -36,6 +36,8 @@ export function AiConfirmationScreen({
     stageWardrobeBulkPreview,
   } = useVauto();
 
+  const reconciledDraftRef = useRef<string | null>(null);
+
   useEffect(() => {
     if (sellerStep === "confirmation") {
       window.scrollTo(0, 0);
@@ -44,6 +46,17 @@ export function AiConfirmationScreen({
       });
     }
   }, [sellerStep]);
+
+  useEffect(() => {
+    if (sellerStep !== "confirmation" || !aiDraft) {
+      reconciledDraftRef.current = null;
+      return;
+    }
+    const fingerprint = `${aiDraft.category}|${JSON.stringify(aiDraft.attributes ?? {})}`;
+    if (reconciledDraftRef.current === fingerprint) return;
+    reconciledDraftRef.current = fingerprint;
+    updateAiDraft({ attributes: { ...(aiDraft.attributes ?? {}) } });
+  }, [sellerStep, aiDraft, updateAiDraft]);
 
   useEffect(() => {
     if (sellerStep === "confirmation" && aiDraft && !aiDraft.attributes) {
