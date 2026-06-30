@@ -352,6 +352,7 @@ export type VautoAgentAction =
 export interface VautoAgentResponse {
   ok: true;
   reply: string;
+  quickReplies?: string[];
   toolCalls: { name: string; result: unknown }[];
   actions: VautoAgentAction;
 }

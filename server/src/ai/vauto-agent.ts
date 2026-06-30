@@ -43,6 +43,7 @@ import {
   SMART_BARGAINING_HINT,
   buildNoMatchLeadPrompt,
 } from "../offer-engine.js";
+import { EMPTY_SEARCH_QUICK_REPLIES } from "./structured-input-pipeline.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -134,8 +135,33 @@ export interface VautoAgentRequest {
 export interface VautoAgentResponse {
   ok: true;
   reply: string;
+  quickReplies?: string[];
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
+}
+
+function pickQuickReplies(candidates: unknown): string[] | undefined {
+  if (!Array.isArray(candidates)) return undefined;
+  const chips = candidates.map((c) => String(c).trim()).filter(Boolean).slice(0, 4);
+  return chips.length >= 2 ? chips : undefined;
+}
+
+function resolveAgentQuickReplies(
+  toolCalls: { name: string; result: unknown }[],
+  actions: AgentSideEffect | { type: "none" }
+): string[] | undefined {
+  for (const call of [...toolCalls].reverse()) {
+    const result = call.result as Record<string, unknown> | undefined;
+    if (!result || typeof result !== "object") continue;
+    const fromTool = pickQuickReplies(result.quickReplies ?? result.choiceChips);
+    if (fromTool) return fromTool;
+  }
+
+  if (actions.type === "empty_search") {
+    return [...EMPTY_SEARCH_QUICK_REPLIES];
+  }
+
+  return undefined;
 }
 
 const BUDDY_REPEAT_PROMPT =
@@ -724,11 +750,14 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     navigateEffect ??
     ({ type: "none" } as const);
 
+  const quickReplies = resolveAgentQuickReplies(toolCalls, resolvedAction);
+
   if (!finalText) {
     if (lastGeminiError) {
       return {
         ok: true,
         reply: BUDDY_REPEAT_PROMPT,
+        quickReplies,
         toolCalls,
         actions: resolvedAction,
       };
@@ -736,6 +765,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     return {
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
+      quickReplies,
       toolCalls,
       actions: resolvedAction,
     };
@@ -745,6 +775,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     return {
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
+      quickReplies,
       toolCalls,
       actions: resolvedAction,
     };
@@ -777,6 +808,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   return {
     ok: true,
     reply: finalText,
+    quickReplies,
     toolCalls,
     actions: resolvedAction,
   };

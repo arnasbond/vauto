@@ -39,4 +39,46 @@ export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta 
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):
 - scanListingPhotos → jei multi-object ar žema confidence: reply + followUpQuestion + choiceChips, NE updateListingDraft.
 - updateListingDraft / postNewListing → tik po disambiguation loop arba aiškaus vieno objekto.
-- Po sėkmingo updateListingDraft → voiceAnnouncement su confirmation flow ataskaita + showZeroUiScreen(listing_preview).`;
+- Po sėkmingo updateListingDraft → atsakymas su confirmation flow ataskaita + showZeroUiScreen(listing_preview).`;
+
+/** Greiti atsakymai po sėkmingo laukų užpildymo (agentas + klientas). */
+export const POST_VALIDATION_QUICK_REPLIES = [
+  "Viskas tinka",
+  "Pataisyti kainą",
+  "Pataisyti kategoriją",
+  "Pataisyti aprašymą",
+] as const;
+
+/** Greiti atsakymai kai paieška grąžina 0 rezultatų. */
+export const EMPTY_SEARCH_QUICK_REPLIES = [
+  "Užfiksuoti norą",
+  "Platesnė paieška",
+  "Kita kategorija",
+  "Parodyti populiariausius",
+] as const;
+
+const CATEGORY_LABELS: Record<string, string> = {
+  vehicles: "Automobiliai",
+  electronics: "Elektronika",
+  services: "Paslaugos",
+  jobs: "Darbas",
+  home: "Namai / buitis",
+  clothing: "Drabužiai",
+  real_estate: "NT",
+  other: "Kita",
+};
+
+/** Confirmation flow message after structured fields are populated. */
+export function buildPostValidationReportMessage(fields: {
+  category: string;
+  title: string;
+  price?: number;
+  location?: string;
+}): string {
+  const category = CATEGORY_LABELS[fields.category] ?? fields.category;
+  const title = fields.title?.trim() || "—";
+  const price =
+    fields.price && fields.price > 0 ? `${fields.price} €` : "nenurodyta";
+  const location = fields.location?.trim() || "nenurodytas";
+  return `Pagal jūsų įvestį užpildžiau skelbimo laukus: ${category}, „${title}", kaina ${price}, vieta ${location}. Ar rezultatas tinka, ar norėtumėte ką nors pataisyti?`;
+}

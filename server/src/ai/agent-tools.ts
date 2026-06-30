@@ -41,6 +41,16 @@ import {
   normalizeUserRequirementArgs,
 } from "../offer-engine.js";
 import { insertUserRequirement } from "../repository.js";
+import { parseListingImagesForAgent } from "./vauto-unified.js";
+import {
+  buildPostValidationReportMessage,
+  POST_VALIDATION_QUICK_REPLIES,
+} from "./structured-input-pipeline.js";
+import { analyzeWardrobePhoto } from "./wardrobe-vision.js";
+import { importWardrobeProfile } from "./wardrobe-profile-importer.js";
+import { analyzeMagicMirrorFit } from "./magic-mirror.js";
+import { runAutoNegotiation } from "./bargain-twin.js";
+import { buildSellerTrustSummary } from "./seller-trust-score.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -708,6 +718,73 @@ export const AGENT_FUNCTION_DECLARATIONS = [
       required: ["message", "listingPrice", "listingTitle"],
     },
   },
+  {
+    name: "analyzeWardrobePhoto",
+    description:
+      "Smart Wardrobe Vision — viena drabužių nuotrauka su keliais objektais. Aptinka kiekvieną drabužį ir paruošia atskirus skelbimus. Naudok Spintoje (/fashion) kai vartotojas įkelia nuotrauką.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        imageUrl: { type: "STRING", description: "Nuotraukos URL arba data: URL" },
+      },
+      required: ["imageUrl"],
+    },
+  },
+  {
+    name: "importWardrobeProfile",
+    description:
+      "Spintos perkėlimas — importuoja prekes iš portalo profilio URL (Vinted ir kt.) į VAUTO skelbimus vienu žingsniu.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        profileUrl: { type: "STRING", description: "Portalo profilio nuoroda" },
+      },
+      required: ["profileUrl"],
+    },
+  },
+  {
+    name: "analyzeMagicMirrorFit",
+    description:
+      "Magic Mirror — palygina drabužio dydį su pirkėjo figūra ir rekomenduoja ar tiks.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        listingTitle: { type: "STRING" },
+        buyerUsualSize: { type: "STRING", description: "Pirkėjo įprastas dydis, pvz. M" },
+        garmentSize: { type: "STRING", description: "Drabužio dydis iš skelbimo" },
+        listingDescription: { type: "STRING" },
+      },
+      required: ["listingTitle"],
+    },
+  },
+  {
+    name: "getSellerTrustScore",
+    description:
+      "AI pasitikėjimo pasas — rekomendacija pirkėjui apie pardavėjo patikimumą pagal atsiliepimus.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        sellerId: { type: "STRING" },
+        sellerName: { type: "STRING" },
+      },
+    },
+  },
+  {
+    name: "analyzeNegotiationTwin",
+    description:
+      "Derybų dvynys — analizuoja pirkėjo pasiūlymą; jei >= minPrice, paruošia sandorį ir auto-atsakymą.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        buyerMessage: { type: "STRING" },
+        listingId: { type: "STRING" },
+        listingTitle: { type: "STRING" },
+        listingPrice: { type: "NUMBER" },
+        minPrice: { type: "NUMBER" },
+      },
+      required: ["buyerMessage", "listingPrice", "minPrice"],
+    },
+  },
 ];
 
 async function resolveListings(ctx: AgentToolContext): Promise<AgentListingSummary[]> {
@@ -1038,34 +1115,67 @@ export async function executeAgentTool(
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String).filter(Boolean)
         : [];
-      const category = args.category ? String(args.category) : ctx.listingDraft?.category;
-      const cityArg = args.city ? String(args.city) : ctx.listingDraft?.location ?? ctx.userCity;
+      const categoryHint = args.category ? String(args.category) : ctx.listingDraft?.category;
 
       try {
-        const scan = await runVisionListingScan(imageUrls, {
-          category,
-          city: cityArg,
+        const parsed = await parseListingImagesForAgent({
+          imageDataUrls: imageUrls,
           userCity: ctx.userCity,
-          existingDraft: ctx.listingDraft,
+          contact: ctx.contact,
+          extraContext: categoryHint ? `category hint: ${categoryHint}` : undefined,
         });
 
-        const draft = {
-          ...scan.draft,
-          contact: ctx.contact,
-        };
-        const voiceAnnouncement = buildVisionScanAnnouncement(
-          ctx.userName,
-          scan.filledFieldLabels
+        const listingAttrs = Object.fromEntries(
+          Object.entries(parsed.listing.attributes).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v.join(", ") : String(v),
+          ])
         );
+
+        const draft = {
+          title: parsed.listing.title,
+          description: parsed.listing.description,
+          price: parsed.listing.price,
+          location: parsed.listing.location,
+          contact: ctx.contact,
+          category: parsed.listing.category,
+          confidence: parsed.listing.confidence,
+          attributes: listingAttrs,
+        };
+
+        if (parsed.needsClarification) {
+          const message =
+            parsed.clarificationPrompt ||
+            "Matau kelis objektus nuotraukoje — kurį norite parduoti? Pasirinkite žemiau.";
+          const quickReplies = parsed.choiceChips.slice(0, 4);
+          return {
+            result: {
+              ok: true,
+              needsClarification: true,
+              choiceChips: quickReplies,
+              quickReplies,
+              message,
+              voiceAnnouncement: message,
+            },
+          };
+        }
+
+        const message = buildPostValidationReportMessage({
+          category: draft.category,
+          title: draft.title,
+          price: draft.price,
+          location: draft.location,
+        });
+        const quickReplies = [...POST_VALIDATION_QUICK_REPLIES];
 
         return {
           result: {
             ok: true,
-            filledFieldLabels: scan.filledFieldLabels,
-            filledFields: scan.filledFieldLabels,
+            needsClarification: false,
             draft,
-            voiceAnnouncement,
-            message: voiceAnnouncement,
+            voiceAnnouncement: message,
+            message,
+            quickReplies,
           },
           sideEffect: {
             type: "listing_draft",
@@ -1358,11 +1468,27 @@ export async function executeAgentTool(
         attributes: patch.attributes ?? {},
       };
 
+      const hasCoreFields =
+        Boolean(draft.title?.trim()) &&
+        draft.category !== "other" &&
+        (draft.price > 0 || Boolean(draft.location?.trim()));
+      const message = hasCoreFields
+        ? buildPostValidationReportMessage({
+            category: draft.category,
+            title: draft.title,
+            price: draft.price,
+            location: draft.location,
+          })
+        : "Juodraštis atnaujintas.";
+
       return {
         result: {
           ok: true,
-          message: "Juodraštis atnaujintas.",
+          message,
           draft,
+          ...(hasCoreFields
+            ? { quickReplies: [...POST_VALIDATION_QUICK_REPLIES] }
+            : {}),
         },
         sideEffect: {
           type: "listing_draft",
@@ -1691,6 +1817,202 @@ export async function executeAgentTool(
           ...shield,
         },
       };
+    }
+
+    case "analyzeWardrobePhoto": {
+      const imageUrl = String(args.imageUrl ?? "").trim();
+      if (!imageUrl) {
+        return { result: { ok: false, message: "Reikalinga nuotraukos nuoroda." } };
+      }
+      try {
+        const result = await analyzeWardrobePhoto({
+          imageDataUrl: imageUrl,
+          userName: ctx.userName,
+        });
+        const count = result.items.length;
+        const quickReplies =
+          count > 0
+            ? ["Patvirtinti visus skelbimus", "Redaguoti po vieną", "Įkelti kitą nuotrauką"]
+            : ["Įkelti kitą nuotrauką", "Rankinis įvedimas"];
+        return {
+          result: {
+            ok: count > 0,
+            itemCount: count,
+            items: result.items,
+            message: result.voiceAnnouncement,
+            quickReplies: quickReplies.slice(0, 4),
+          },
+          ...(count > 0
+            ? {
+                sideEffect: {
+                  type: "listing_draft" as const,
+                  listingDraft: {
+                    title: result.items[0]!.title,
+                    description: result.items[0]!.description,
+                    price: result.items[0]!.suggestedPrice,
+                    location: ctx.userCity,
+                    contact: ctx.contact,
+                    category: "clothing",
+                    confidence: 0.88,
+                    attributes: {
+                      size: result.items[0]!.size,
+                      color: result.items[0]!.color,
+                      brand: result.items[0]!.brand,
+                      wardrobeBulkCount: String(count),
+                    },
+                  },
+                },
+              }
+            : {}),
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message: e instanceof Error ? e.message : "Nepavyko analizuoti drabužių nuotraukos.",
+          },
+        };
+      }
+    }
+
+    case "importWardrobeProfile": {
+      const profileUrl = String(args.profileUrl ?? "").trim();
+      if (!profileUrl) {
+        return { result: { ok: false, message: "Įveskite portalo profilio nuorodą." } };
+      }
+      try {
+        const result = await importWardrobeProfile({
+          profileUrl,
+          userName: ctx.userName,
+          defaultLocation: ctx.userCity,
+        });
+        return {
+          result: {
+            ok: result.items.length > 0,
+            itemCount: result.itemCount,
+            wardrobeValueTotal: result.wardrobeValueTotal,
+            message: result.voiceAnnouncement,
+            quickReplies:
+              result.items.length > 0
+                ? ["Peržiūrėti importą", "Patvirtinti visus", "Atidaryti Spintą"]
+                : ["Bandyti kitą nuorodą"],
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message: e instanceof Error ? e.message : "Nepavyko importuoti profilio.",
+          },
+        };
+      }
+    }
+
+    case "analyzeMagicMirrorFit": {
+      const listingTitle = String(args.listingTitle ?? ctx.activeListingTitle ?? "Drabužis").trim();
+      const buyerFirst = (ctx.userName ?? "drauge").split(/\s+/)[0] || "drauge";
+      try {
+        const fit = await analyzeMagicMirrorFit({
+          buyerName: buyerFirst,
+          listingTitle,
+          buyerMeasurements: {
+            usualSize: args.buyerUsualSize ? String(args.buyerUsualSize) : undefined,
+          },
+          garmentMeasurements: {
+            sizeLabel: args.garmentSize ? String(args.garmentSize) : undefined,
+          },
+          listingDescription: args.listingDescription
+            ? String(args.listingDescription)
+            : undefined,
+        });
+        return {
+          result: {
+            ok: true,
+            fitScore: fit.fitScore,
+            verdict: fit.verdict,
+            message: fit.recommendation,
+            sellerTip: fit.sellerTip,
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message: e instanceof Error ? e.message : "Nepavyko įvertinti dydžio.",
+          },
+        };
+      }
+    }
+
+    case "getSellerTrustScore": {
+      const sellerId = String(args.sellerId ?? "").trim();
+      if (!sellerId) {
+        return { result: { ok: false, message: "Nenurodytas pardavėjo ID." } };
+      }
+      try {
+        const trust = await buildSellerTrustSummary({
+          sellerId,
+          sellerName: args.sellerName ? String(args.sellerName) : undefined,
+          buyerName: ctx.userName,
+        });
+        return {
+          result: {
+            ok: true,
+            score: trust.score,
+            reviewCount: trust.reviewCount,
+            message: trust.recommendation,
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message: e instanceof Error ? e.message : "Nepavyko apskaičiuoti pasitikėjimo balo.",
+          },
+        };
+      }
+    }
+
+    case "analyzeNegotiationTwin": {
+      const buyerMessage = String(args.buyerMessage ?? "").trim();
+      const listingPrice = Number(args.listingPrice) || 0;
+      const minPrice = Number(args.minPrice) || 0;
+      const listingTitle = String(args.listingTitle ?? ctx.activeListingTitle ?? "Skelbimas").trim();
+      const sellerName = ctx.userName ?? "Pardavėjas";
+      if (!buyerMessage || listingPrice <= 0 || minPrice <= 0) {
+        return {
+          result: {
+            ok: false,
+            message: "Reikia pirkėjo žinutės, skelbimo ir minimalios kainos.",
+          },
+        };
+      }
+      try {
+        const twin = await runAutoNegotiation({
+          buyerMessage,
+          listingPrice,
+          minPrice,
+          listingTitle,
+          sellerName,
+        });
+        return {
+          result: {
+            ok: true,
+            dealReady: twin.dealReady,
+            offeredPrice: twin.offeredPrice,
+            counterPrice: twin.counterPrice,
+            message: twin.autoReply || twin.sellerNotification,
+            sellerNotification: twin.sellerNotification,
+          },
+        };
+      } catch (e) {
+        return {
+          result: {
+            ok: false,
+            message: e instanceof Error ? e.message : "Nepavyko analizuoti derybų.",
+          },
+        };
+      }
     }
 
     default:

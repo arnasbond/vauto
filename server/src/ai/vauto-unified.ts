@@ -318,3 +318,58 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
 
   throw Object.assign(new Error(`Unknown action: ${action}`), { status: 400 });
 }
+
+/** Lightweight vision parse for agent scanListingPhotos — multi-object chips + disambiguation. */
+export async function parseListingImagesForAgent(params: {
+  imageDataUrls: string[];
+  userCity: string;
+  contact?: string;
+  text?: string;
+  extraContext?: string;
+}): Promise<{
+  listing: VautoListingPayload;
+  choiceChips: string[];
+  clarificationPrompt: string;
+  needsClarification: boolean;
+}> {
+  const images = normalizeImageInputList(params.imageDataUrls);
+  if (!images.length) {
+    throw new Error("imageDataUrls are required");
+  }
+  const city = resolveListingCity(params.userCity?.trim(), "Vilnius");
+  const contact = params.contact?.trim() || "";
+  const combinedText = params.text?.trim() ?? "";
+  const rawParsed = await unifiedLlmJson({
+    prompt: buildImagePrompt(city, params.text, params.extraContext),
+    imageDataUrls: images,
+  });
+  const raw = combinedText
+    ? enrichSellerListingFromText(combinedText, rawParsed)
+    : rawParsed;
+  const listing = toListingPayload(raw, city, contact);
+
+  const detectedObjects = parseDetectedObjects(raw.detectedObjects);
+  let choiceChips = parseChoiceChips(
+    raw.choiceChips ?? listing.attributes.choiceChips,
+    "sell"
+  );
+  if (choiceChips.length < 2 && detectedObjects.length >= 2) {
+    choiceChips = chipsFromDetectedObjects(detectedObjects, "sell");
+  }
+  const sceneContext = String(raw.sceneContext ?? listing.attributes.sceneContext ?? "").trim();
+  const clarificationPrompt =
+    String(listing.attributes.clarificationPrompt ?? "").trim() ||
+    buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
+
+  const needsClarification =
+    listing.confidence < 0.55 ||
+    choiceChips.length >= 2 ||
+    (detectedObjects.length >= 2 && listing.confidence < 0.72);
+
+  return {
+    listing,
+    choiceChips,
+    clarificationPrompt,
+    needsClarification,
+  };
+}

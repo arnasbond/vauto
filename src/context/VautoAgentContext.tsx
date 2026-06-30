@@ -788,10 +788,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           assistantText.trim() !== lastAssistantText;
 
         if (shouldAppendAssistant) {
+          const structuredReplies = res.quickReplies?.filter(Boolean).slice(0, 4);
           setMessages((prev) =>
             [
               ...prev,
-              { role: "assistant" as const, text: assistantText },
+              {
+                role: "assistant" as const,
+                text: assistantText,
+                ...(structuredReplies && structuredReplies.length >= 2
+                  ? { quickReplies: structuredReplies }
+                  : {}),
+              },
             ].slice(-6)
           );
         }
