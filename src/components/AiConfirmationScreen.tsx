@@ -13,6 +13,7 @@ import { ServiceListingWizard } from "@/components/services/ServiceListingWizard
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { ListingWizardPortal } from "@/components/listing/ListingWizardPortal";
 import { WizardCategoryPicker } from "@/components/listing/WizardCategoryPicker";
+import { PhotoClarificationPanel } from "@/components/seller/PhotoClarificationPanel";
 
 export type AiConfirmationMode = "overlay" | "inline-preview" | "inline-full";
 
@@ -70,6 +71,17 @@ export function AiConfirmationScreen({
   const wrapWithCategoryPicker = (node: React.ReactNode) =>
     portalWrap(
       <>
+        <PhotoClarificationPanel
+          draft={draft}
+          onSelectChip={(chip) => {
+            const label = chip.replace(/^Parduoti\s+/i, "").trim();
+            updateAiDraft({
+              title: label ? `Parduodamas ${label}` : chip,
+              description: chip,
+              confidence: Math.max(draft.confidence ?? 0, 0.6),
+            });
+          }}
+        />
         <WizardCategoryPicker
           category={draft.category}
           onChange={(cat) => updateAiDraft({ category: cat })}

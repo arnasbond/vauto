@@ -7,6 +7,12 @@ import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
 import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
+import {
+  buildMultiObjectClarificationPrompt,
+  chipsFromDetectedObjects,
+  parseChoiceChips,
+  parseDetectedObjects,
+} from "./vision-multi-object.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -16,7 +22,10 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
   "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (4–8 sakiniai, be emoji, pirkėjus traukiantis tonas)",
   "technicalFields": "object — kategorijai būdingi laukai (metai, kuroTipas, markė, modelis, mileage, dydis, būklė, kambariai ir pan.)",
-  "confidence": "number 0-1"
+  "confidence": "number 0-1",
+  "sceneContext": "string — aplinkos kontekstas (pvz. svetainė, virtuvė, gatvė)",
+  "detectedObjects": [{ "label": "string — objekto pavadinimas lietuviškai", "category": "string — kategorija", "confidence": "number 0-1" }],
+  "choiceChips": ["string — mygtukų etiketės, pvz. Parduoti televizorių, Parduoti stalą"]
 }`;
 
 const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
@@ -30,8 +39,10 @@ KATEGORIJŲ TAISYKLĖS (griežtai):
 - AUTOMOBILIAI: jei tekste yra auto/automobilis/automobili, mašina/masina, transportas, rida, markė — category „AUTOMOBILIAI“, net be konkretaus modelio.
 - ANTRAŠTĖ (title): sugeneruok patrauklią lietuvišką pardavimo antraštę pagal TIKRĄ objektą iš vartotojo žinutės ar nuotraukos. NIEKADA nenaudok „Universalus daiktas“, „Prekė“ ar kitų bendrinių placeholderių. Nenaudok fiksuotų šabloninių modelių (pvz. iPhone 15 Pro), jei vartotojas nurodė kitą modelį.
 - Jei objektas neaiškus arba nuotraukoje tik fonas/kambarys — confidence < 0.3, price: null, title minimalus.
-- NEAIŠKUS KAMBARIO VAIZDAS: NEPRISKIR PASLAUGOS. technicalFields gali turėti clarificationPrompt — lietuvišką klausimą su 2–3 alternatyvomis (pvz. „Ar parduodate televizorių, baldą, ar siūlote paslaugas?").
-- Jei negali tiksliai nustatyti objekto — description lauke įrašyk šiltą patikslinimo klausimą vartotojui, ne išgalvotą skelbimą.
+- DAUgiatikslė ANALIZĖ: jei nuotraukoje keli objektai (pvz. kambarys + televizorius + stalas) — detectedObjects masyve išvardyk VISUS matomus objektus su confidence.
+- choiceChips: sugeneruok 2–4 mygtukų etiketes lietuviškai (pvz. „Parduoti televizorių“, „Parduoti stalą“) — po vieną kiekvienam aiškiam objektui.
+- NEAIŠKUS KAMBARIO VAIZDAS: NEPRISKIR PASLAUGOS. sceneContext aprašyk aplinką; technicalFields gali turėti clarificationPrompt.
+- Jei negali tiksliai nustatyti vieno objekto — confidence < 0.5, choiceChips privalomi, description — šiltas patikslinimo klausimas, ne išgalvotas skelbimas.
 
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
 NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
@@ -100,6 +111,15 @@ function toListingPayload(
     priceRaw === null || priceRaw === undefined ? 0 : Number(priceRaw) || 0;
 
   const technicalFields = parseTechnicalFields(raw.technicalFields ?? raw.attributes);
+  const detectedObjects = parseDetectedObjects(raw.detectedObjects);
+  const sceneContext = String(raw.sceneContext ?? technicalFields.sceneContext ?? "").trim();
+  let choiceChips = parseChoiceChips(raw.choiceChips ?? technicalFields.choiceChips, "sell");
+  if (choiceChips.length < 2 && detectedObjects.length >= 2) {
+    choiceChips = chipsFromDetectedObjects(detectedObjects, "sell");
+  }
+  const clarificationPrompt =
+    String(technicalFields.clarificationPrompt ?? "").trim() ||
+    buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
 
   const userCityResolved = resolveListingCity(userCity, "Vilnius");
 
@@ -118,6 +138,12 @@ function toListingPayload(
       ...technicalFields,
       _intent: String(raw.intent ?? "sell"),
       _vautoCategory: categoryKey,
+      ...(sceneContext ? { sceneContext } : {}),
+      ...(detectedObjects.length
+        ? { detectedObjects: JSON.stringify(detectedObjects) }
+        : {}),
+      ...(choiceChips.length ? { choiceChips: choiceChips.join("|") } : {}),
+      ...(clarificationPrompt ? { clarificationPrompt } : {}),
     },
     intent: String(raw.intent ?? "sell"),
   };
@@ -150,7 +176,8 @@ function buildImagePrompt(
   return `${SYSTEM_RULES}
 ${VISION_ANTI_HALLUCINATION_RULE}
 
-Analizuok nuotrauką(-as). Atpažink TIKSLŲ objektą — pavadinimas ir kategorija turi atitikti tai, ką matai. Jei objektas neaiškus — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.${textNote}${extra}
+Analizuok nuotrauką(-as) DAUgiatiksliai: identifikuok visus matomus objektus, aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1 arba confidence < 0.55.
+Jei vienas aiškus objektas — pasirink jį kaip pagrindinį title/category. Jei neaišku — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }

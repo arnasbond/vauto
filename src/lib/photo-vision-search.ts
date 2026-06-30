@@ -171,6 +171,14 @@ async function postVisionApi(
 
         location?: string;
 
+        sceneContext?: string;
+
+        choiceChips?: string[];
+
+        semanticAlternatives?: string[];
+
+        clarificationPrompt?: string;
+
         error?: string;
 
       };
@@ -234,6 +242,14 @@ async function postVisionApi(
         searchFilters,
 
         source: "gemini",
+
+        sceneContext: json.sceneContext,
+
+        choiceChips: json.choiceChips,
+
+        semanticAlternatives: json.semanticAlternatives,
+
+        clarificationPrompt: json.clarificationPrompt,
 
       };
 

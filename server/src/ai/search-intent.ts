@@ -4,6 +4,14 @@ import {
   VISION_ANTI_HALLUCINATION_RULE,
   WARDROBE_ANTI_HALLUCINATION_RULE,
 } from "./vision-guardrails.js";
+import {
+  buildMultiObjectClarificationPrompt,
+  buildSemanticAlternatives,
+  chipsFromDetectedObjects,
+  parseChoiceChips,
+  parseDetectedObjects,
+  type DetectedVisionObject,
+} from "./vision-multi-object.js";
 
 const SPINTA_SEARCH_SYSTEM_RULE = `
 GRIEŽTA SPINTOS TAISYKLĖ: Vartotojas yra VAUTO Spintoje (drabužių ir batų portalas).
@@ -28,6 +36,10 @@ const VISUAL_SEARCH_INTENT_SCHEMA = `{
   "condition": "used | new | null",
   "confidence": "number 0-1",
   "visualSummary": "string — 1 sakinys, ką matai nuotraukoje",
+  "sceneContext": "string — aplinkos kontekstas",
+  "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
+  "choiceChips": ["string — pvz. Ieškoti televizoriaus, Ieškoti sofos"],
+  "semanticAlternatives": ["string — artimos semantinės paieškos pagal spalvą/tipą/formą"],
   "searchFilters": {
     "make": "string | null — auto markė jei matoma",
     "model": "string | null — modelis jei matomas",
@@ -177,6 +189,11 @@ export interface AnalyzeVisualSearchResult {
   confidence: number;
   visualSummary: string;
   searchFilters: VisualSearchFilters;
+  sceneContext?: string;
+  detectedObjects?: DetectedVisionObject[];
+  choiceChips?: string[];
+  semanticAlternatives?: string[];
+  clarificationPrompt?: string;
 }
 
 /** Gemini structured buyer search intent (server-side; may 403 from Render IP). */
@@ -230,7 +247,8 @@ export async function analyzeVisualSearchIntent(
 
   const systemInstruction = `Esi VAUTO pirkėjo VISUAL paieškos intent analizatorius su Gemini Vision.
 Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
-Identifikuok objekto tipą, markę, modelį, kėbulo tipą, spalvą, NT pobūdį, kambarius, aplinką.
+Identifikuok VISUS matomus objektus (detectedObjects), aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1.
+Jei tikslaus daikto/modelio nėra — sugeneruok semanticAlternatives pagal vizualinius atributus (spalva, tipas, forma).
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
 ${VISION_ANTI_HALLUCINATION_RULE}
 ${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
@@ -247,29 +265,55 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
   const searchFilters = normalizeSearchFilters(raw.searchFilters);
   const confidence = Math.min(1, Math.max(0, Number(raw.confidence) || 0.5));
   const visualSummary = String(raw.visualSummary ?? "").trim();
+  const sceneContext = String(raw.sceneContext ?? "").trim();
+  const detectedObjects = parseDetectedObjects(raw.detectedObjects);
+  let choiceChips = parseChoiceChips(raw.choiceChips, "search");
+  if (choiceChips.length < 2 && detectedObjects.length >= 2) {
+    choiceChips = chipsFromDetectedObjects(detectedObjects, "search");
+  }
+  let semanticAlternatives = parseChoiceChips(raw.semanticAlternatives, "search").map((c) =>
+    c.replace(/^Ieškoti\s+/i, "").trim()
+  );
+  if (!semanticAlternatives.length) {
+    semanticAlternatives = buildSemanticAlternatives(searchFilters, visualSummary);
+  }
+  const clarificationPrompt = buildMultiObjectClarificationPrompt(
+    sceneContext,
+    detectedObjects,
+    "search"
+  );
   const rejected =
     confidence < 0.2 ||
     /prekė neatpažinta|neatpažinta|logotip|tik tekst/i.test(visualSummary);
 
   if (rejected) {
+    const fallbackQuery =
+      buildCleanQueryFromFilters(searchFilters, semanticAlternatives[0] ?? "") ||
+      semanticAlternatives[0] ||
+      "";
     return {
       objectType: "other",
       category: null,
       listingCategory: null,
-      cleanQuery: "",
+      cleanQuery: fallbackQuery,
       location: String(raw.location ?? input.userCity ?? "").trim(),
       radiusKm: snapSearchRadius(raw.radiusKm),
       condition: normalizeCondition(raw.condition),
       confidence: 0,
       visualSummary: "Prekė neatpažinta",
       searchFilters: {},
+      sceneContext,
+      detectedObjects,
+      choiceChips,
+      semanticAlternatives,
+      clarificationPrompt,
     };
   }
 
   const cleanQuery = buildCleanQueryFromFilters(
     searchFilters,
     String(raw.cleanQuery ?? "").trim()
-  );
+  ) || semanticAlternatives[0] || visualSummary;
 
   return {
     objectType: input.wardrobeOnly
@@ -284,6 +328,11 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
     confidence,
     visualSummary: visualSummary || cleanQuery,
     searchFilters,
+    sceneContext: sceneContext || undefined,
+    detectedObjects: detectedObjects.length ? detectedObjects : undefined,
+    choiceChips: choiceChips.length ? choiceChips : undefined,
+    semanticAlternatives: semanticAlternatives.length ? semanticAlternatives : undefined,
+    clarificationPrompt: clarificationPrompt || undefined,
   };
 }
 

@@ -1083,16 +1083,24 @@ apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
       userCity,
     });
     if (!intent.cleanQuery?.trim() || intent.confidence < 0.2) {
-      return res.status(422).json({ ok: false, error: "Prekė neatpažinta" });
+      const alt = intent.semanticAlternatives?.[0]?.trim();
+      if (!alt) {
+        return res.status(422).json({ ok: false, error: "Prekė neatpažinta" });
+      }
     }
     res.json({
       ok: true,
-      keywords: intent.cleanQuery,
+      keywords: intent.cleanQuery || intent.semanticAlternatives?.[0] || "",
       confidence: intent.confidence,
       category: intent.listingCategory ?? intent.category ?? "other",
       title: intent.visualSummary || intent.cleanQuery,
       searchFilters: intent.searchFilters,
       location: intent.location,
+      sceneContext: intent.sceneContext,
+      detectedObjects: intent.detectedObjects,
+      choiceChips: intent.choiceChips,
+      semanticAlternatives: intent.semanticAlternatives,
+      clarificationPrompt: intent.clarificationPrompt,
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });

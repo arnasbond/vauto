@@ -23,7 +23,7 @@ export function AgentChatBubble({
     >
       <div
         className={cn(
-          "agent-chat-bubble max-w-[min(100%,20rem)] break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed [overflow-wrap:anywhere]",
+          "agent-chat-bubble max-w-[min(100%,18.5rem)] break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed [overflow-wrap:anywhere]",
           isUser
             ? "agent-chat-bubble-user rounded-br-md"
             : "agent-chat-bubble-assistant rounded-bl-md"
@@ -39,16 +39,22 @@ export function AgentQuickReplyChips({
   options,
   disabled,
   onSelect,
+  embedded,
 }: {
   options: string[];
   disabled?: boolean;
   onSelect: (option: string) => void;
+  /** Render inside assistant bubble — tighter layout for mobile */
+  embedded?: boolean;
 }) {
   if (!options.length) return null;
 
   return (
     <div
-      className="agent-quick-reply-chips mt-2 flex flex-wrap gap-2"
+      className={cn(
+        "agent-quick-reply-chips flex flex-wrap gap-1.5",
+        embedded ? "mt-2.5 w-full" : "mt-2 gap-2"
+      )}
       role="group"
       aria-label="Greiti atsakymai"
     >
@@ -58,7 +64,12 @@ export function AgentQuickReplyChips({
           type="button"
           disabled={disabled}
           onClick={() => onSelect(option)}
-          className="agent-quick-reply-chip min-h-[40px] touch-manipulation rounded-full border px-3 py-2 text-left text-[12px] font-medium leading-snug transition active:scale-[0.98] disabled:opacity-50"
+          className={cn(
+            "agent-quick-reply-chip touch-manipulation rounded-full border text-left font-medium leading-snug transition active:scale-[0.98] disabled:opacity-50",
+            embedded
+              ? "min-h-[36px] max-w-full px-2.5 py-1.5 text-[11px] [overflow-wrap:anywhere]"
+              : "min-h-[40px] px-3 py-2 text-[12px]"
+          )}
         >
           {option}
         </button>

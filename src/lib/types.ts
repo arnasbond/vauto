@@ -112,6 +112,10 @@ export interface AiExtractedListing {
   reviewNotice?: string;
   imageAlt?: string;
   imageTitle?: string;
+  /** Multi-object vision — quick reply chips for chat UI */
+  choiceChips?: string[];
+  clarificationPrompt?: string;
+  semanticAlternatives?: string[];
 }
 
 /** Seller flow states */

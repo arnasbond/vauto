@@ -1434,6 +1434,53 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   color: #00f2fe;
 }
 
+[data-app-theme="light-minimal"] .agent-chat-bubble-assistant {
+  background: #ffffff;
+  color: #0f172a;
+  border-color: color-mix(in srgb, var(--vauto-primary) 18%, #e2e8f0);
+}
+
+[data-app-theme="light-minimal"] .agent-chat-bubble-user {
+  background: color-mix(in srgb, var(--vauto-primary) 10%, #f8fafc);
+  color: #0f172a;
+  border-color: color-mix(in srgb, var(--vauto-primary) 22%, #e2e8f0);
+}
+
+[data-app-theme="light-minimal"] .agent-quick-reply-chip {
+  background: #f8fafc;
+  color: #1e293b;
+  border-color: #cbd5e1;
+}
+
+[data-app-theme="vauto-original"] .agent-chat-bubble-assistant {
+  background: color-mix(in srgb, #ffffff 94%, var(--vauto-primary) 6%);
+  color: #0a1128;
+  border-color: rgba(17, 103, 177, 0.2);
+}
+
+[data-app-theme="vauto-original"] .agent-chat-bubble-user {
+  background: rgba(17, 103, 177, 0.1);
+  color: #0a1128;
+  border-color: rgba(17, 103, 177, 0.28);
+}
+
+[data-app-theme="vauto-original"] .agent-quick-reply-chip {
+  background: #ffffff;
+  color: #0a1128;
+  border-color: rgba(17, 103, 177, 0.25);
+}
+
+.photo-clarification-panel {
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+  border-color: color-mix(in srgb, var(--vauto-primary) 20%, var(--vauto-border));
+}
+
+[data-app-theme="dark"] .photo-clarification-panel {
+  background: #161c2a;
+  border-color: rgba(0, 242, 254, 0.22);
+}
+
 .zero-ui-intent-ack {
   background: var(--vauto-card-bg);
   color: var(--vauto-text-main);

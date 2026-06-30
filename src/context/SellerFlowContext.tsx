@@ -48,6 +48,12 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { pushAgentGreeting } from "@/lib/vauto-agent-client";
+import {
+  buildPhotoClarificationMessage,
+  extractVisionChoiceChips,
+  shouldClarifyPhotoUpload,
+} from "@/lib/vision-choice-chips";
 import { detectVehicleMake } from "@/lib/vehicle-keywords";
 import {
   enrichVehicleListingDraft,
@@ -535,6 +541,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         }
 
         if (isProcessingStale(epoch)) return;
+
+        if (
+          shouldClarifyPhotoUpload(next) &&
+          (mode === "upload" || mode === "combined")
+        ) {
+          pushAgentGreeting(buildPhotoClarificationMessage(next), {
+            quickReplies: extractVisionChoiceChips(next, "sell"),
+          });
+        }
 
         setAiDraft(next);
         setSellerStep("confirmation");

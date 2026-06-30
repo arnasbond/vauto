@@ -26,6 +26,7 @@ import {
   mapAgentDraftToListing,
   readAgentSessionLastActiveAt,
   registerAgentErrorReporter,
+  registerAgentGreetingHost,
   resolveAccountTypeLabel,
   resolveAgentNoiseReply,
   resolveAgentUserRole,
@@ -90,7 +91,7 @@ export interface AgentSendOptions {
 interface VautoAgentContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
-  openWithGreeting: (text: string) => void;
+  openWithGreeting: (text: string, options?: { quickReplies?: string[] }) => void;
   messages: AgentChatMessage[];
   busy: boolean;
   sendAgentMessage: (
@@ -881,15 +882,30 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [reportAgentError]);
 
   const openWithGreeting = useCallback(
-    (text: string) => {
+    (text: string, options?: { quickReplies?: string[] }) => {
       const trimmed = text.trim();
       if (!trimmed) return;
       setSearchInputMode("text");
       setSearchVoiceMode(false);
-      setMessages((prev) => [...prev, { role: "assistant" as const, text: trimmed }].slice(-6));
+      const quickReplies = options?.quickReplies?.filter(Boolean).slice(0, 4);
+      setMessages((prev) =>
+        [
+          ...prev,
+          {
+            role: "assistant" as const,
+            text: trimmed,
+            ...(quickReplies?.length ? { quickReplies } : {}),
+          },
+        ].slice(-6)
+      );
     },
     [setSearchInputMode, setSearchVoiceMode]
   );
+
+  useEffect(() => {
+    registerAgentGreetingHost(openWithGreeting);
+    return () => registerAgentGreetingHost(null);
+  }, [openWithGreeting]);
 
   const value = useMemo(
     () => ({

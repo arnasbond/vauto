@@ -25,8 +25,15 @@ export function sanitizeAgentReplyForDisplay(text: string): string {
   return cleaned;
 }
 
-/** Parse alternative options from proactive assistant questions (e.g. „ar TV, staliukas, o gal paslaugos?"). */
+/** Parse alternative options from proactive assistant questions or structured chips. */
 export function extractAgentQuickReplies(text: string): string[] {
+  const bracketChips = [...text.matchAll(/\[([^\]]{3,72})\]/g)]
+    .map((m) => m[1].trim())
+    .filter(Boolean);
+  if (bracketChips.length >= 2) {
+    return [...new Set(bracketChips)].slice(0, 4);
+  }
+
   const t = sanitizeAgentReplyForDisplay(text);
   if (!t.includes("?")) return [];
 

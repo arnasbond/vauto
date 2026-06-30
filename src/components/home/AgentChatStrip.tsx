@@ -36,17 +36,22 @@ export function AgentChatStrip() {
     [messages]
   );
 
-  const lastAssistant = useMemo(() => {
-    const raw = [...messages]
-      .reverse()
-      .find((m) => m.role === "assistant")?.text;
-    return raw ? sanitizeAgentReplyForDisplay(raw) || raw : "";
-  }, [messages]);
-
-  const quickReplies = useMemo(
-    () => (busy ? [] : extractAgentQuickReplies(lastAssistant)),
-    [busy, lastAssistant]
+  const lastAssistantMessage = useMemo(
+    () => [...messages].reverse().find((m) => m.role === "assistant"),
+    [messages]
   );
+
+  const lastAssistant = useMemo(() => {
+    const raw = lastAssistantMessage?.text;
+    return raw ? sanitizeAgentReplyForDisplay(raw) || raw : "";
+  }, [lastAssistantMessage]);
+
+  const quickReplies = useMemo(() => {
+    if (busy) return [];
+    const structured = lastAssistantMessage?.quickReplies?.filter(Boolean) ?? [];
+    if (structured.length >= 2) return structured.slice(0, 4);
+    return extractAgentQuickReplies(lastAssistant);
+  }, [busy, lastAssistant, lastAssistantMessage?.quickReplies]);
 
   const sellCta = useMemo(() => {
     if (busy) return null;
@@ -96,6 +101,15 @@ export function AgentChatStrip() {
             m.role === "assistant"
               ? sanitizeAgentReplyForDisplay(m.text) || m.text
               : m.text;
+          const isLastAssistant =
+            m.role === "assistant" && m === lastAssistantMessage && !busy;
+          const messageChips =
+            isLastAssistant && (m.quickReplies?.length ?? 0) >= 2
+              ? m.quickReplies!
+              : isLastAssistant
+                ? quickReplies
+                : [];
+
           return (
             <AgentChatBubble key={`${m.role}-${i}-${m.text.slice(0, 24)}`} role={m.role}>
               {m.role === "user" ? (
@@ -106,7 +120,17 @@ export function AgentChatStrip() {
                   {display}
                 </>
               ) : (
-                display
+                <>
+                  {display}
+                  {messageChips.length > 0 && (
+                    <AgentQuickReplyChips
+                      options={messageChips}
+                      disabled={busy}
+                      onSelect={handleQuickReply}
+                      embedded
+                    />
+                  )}
+                </>
               )}
             </AgentChatBubble>
           );
@@ -119,14 +143,6 @@ export function AgentChatStrip() {
           </p>
         )}
       </div>
-
-      {quickReplies.length > 0 && (
-        <AgentQuickReplyChips
-          options={quickReplies}
-          disabled={busy}
-          onSelect={handleQuickReply}
-        />
-      )}
 
       {sellCta && (
         <button

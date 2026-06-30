@@ -20,6 +20,7 @@ import { detectSellerListingIntent } from "@/lib/scoring";
 import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { pushAddListing } from "@/lib/listing-navigation";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
+import { formatSearchAlternativeChips } from "@/lib/vision-choice-chips";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -73,7 +74,7 @@ export function SearchBar({
   const pathname = usePathname();
   const router = useRouter();
   const { trackEvent } = useUserBehavior();
-  const { sendAgentMessage, busy: agentBusy, applyAgentActions } = useVautoAgent();
+  const { sendAgentMessage, busy: agentBusy, applyAgentActions, openWithGreeting } = useVautoAgent();
 
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
@@ -230,9 +231,26 @@ export function SearchBar({
         wardrobeOnly: wardrobeSearchOnly,
       });
 
-      if (!vision || vision.confidence < 0.35 || !vision.keywords.trim()) {
+      if (!vision || (!vision.keywords.trim() && !vision.intent.semanticAlternatives?.length)) {
         showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
         return false;
+      }
+
+      if (vision.confidence < 0.35 && !vision.intent.semanticAlternatives?.length) {
+        showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
+        return false;
+      }
+
+      const searchChips = vision.intent.choiceChips?.filter(Boolean) ?? [];
+      if (searchChips.length >= 2) {
+        openWithGreeting(
+          vision.intent.clarificationPrompt ||
+            "Nuotraukoje matau kelis objektus. Ką norite ieškoti?",
+          { quickReplies: searchChips }
+        );
+        clearPhotoSearchSession();
+        setPhotoFlowOpen(false);
+        return true;
       }
 
       if (result.extraContext?.trim()) {
@@ -264,15 +282,26 @@ export function SearchBar({
       setSearchInputMode("photo");
 
       if (grid.listingIds.length === 0) {
+        const altChips = formatSearchAlternativeChips(
+          vision.intent.semanticAlternatives ?? []
+        );
         setDraftQuery(itemLabel);
-        void sendAgentMessage(
-          `Nuotraukoje matau: ${itemLabel}. Šio daikto turguje neradau — ar norite jį įdėti pardavimui?`,
-          { pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6) }
-        );
-        showToast(
-          "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
-          "info"
-        );
+        if (altChips.length >= 2) {
+          openWithGreeting(
+            `Tikslaus „${itemLabel}" neradau. Pabandykime artimiausius variantus:`,
+            { quickReplies: altChips }
+          );
+          showToast("Pasiūliau panašius variantus — pasirinkite žemiau.", "info");
+        } else {
+          void sendAgentMessage(
+            `Nuotraukoje matau: ${itemLabel}. Šio daikto turguje neradau — ar norite jį įdėti pardavimui?`,
+            { pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6) }
+          );
+          showToast(
+            "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
+            "info"
+          );
+        }
         clearPhotoSearchSession();
         setPhotoFlowOpen(false);
         return true;

@@ -1,5 +1,8 @@
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import { resolveListingCity } from "@/lib/city-resolve";
+import {
+  extractVisionChoiceChips,
+} from "@/lib/vision-choice-chips";
 
 export type VautoServerAction =
   | "parse_text"
@@ -86,6 +89,16 @@ export function mapVautoServerListing(
     listing.imageTitle ??
     (typeof attrs.imageTitle === "string" ? attrs.imageTitle : undefined);
 
+  const clarificationPrompt =
+    typeof attrs.clarificationPrompt === "string" ? attrs.clarificationPrompt.trim() : undefined;
+  const choiceChips = extractVisionChoiceChips(
+    { attributes: attrs, clarificationPrompt, choiceChips: undefined },
+    "sell"
+  );
+  if (choiceChips.length) {
+    delete attrs.choiceChips;
+  }
+
   return {
     title: listing.title,
     price: listing.price,
@@ -100,5 +113,7 @@ export function mapVautoServerListing(
     reviewNotice: listing.reviewNotice,
     imageAlt,
     imageTitle,
+    choiceChips: choiceChips.length ? choiceChips : undefined,
+    clarificationPrompt,
   };
 }

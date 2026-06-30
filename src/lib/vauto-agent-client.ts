@@ -5,6 +5,8 @@ export interface AgentChatMessage {
   role: "user" | "assistant";
   text: string;
   toolCalls?: { name: string; result: unknown }[];
+  /** Structured quick replies from vision / proactive flows */
+  quickReplies?: string[];
 }
 
 export interface AgentSearchFilters {
@@ -518,4 +520,20 @@ export function registerAgentErrorReporter(
 
 export function notifyAgentError(code: string, message?: string): void {
   agentErrorReporter?.(code, message);
+}
+
+export interface AgentGreetingOptions {
+  quickReplies?: string[];
+}
+
+let agentGreetingHost: ((text: string, options?: AgentGreetingOptions) => void) | null = null;
+
+export function registerAgentGreetingHost(
+  fn: ((text: string, options?: AgentGreetingOptions) => void) | null
+): void {
+  agentGreetingHost = fn;
+}
+
+export function pushAgentGreeting(text: string, options?: AgentGreetingOptions): void {
+  agentGreetingHost?.(text, options);
 }

@@ -482,6 +482,10 @@ export interface GeminiVisualSearchIntent {
   visualSummary: string;
   searchFilters: VisualSearchFilters;
   listingCategory?: ListingCategory;
+  sceneContext?: string;
+  choiceChips?: string[];
+  semanticAlternatives?: string[];
+  clarificationPrompt?: string;
 }
 
 export interface ResolvedVisualSearchIntent {
@@ -497,6 +501,10 @@ export interface ResolvedVisualSearchIntent {
   objectType: string;
   searchFilters: VisualSearchFilters;
   source: "gemini" | "fallback";
+  sceneContext?: string;
+  choiceChips?: string[];
+  semanticAlternatives?: string[];
+  clarificationPrompt?: string;
 }
 
 function normalizeVisualSearchFilters(raw: unknown): VisualSearchFilters {
@@ -539,6 +547,12 @@ function normalizeVisualPayload(raw: unknown): GeminiVisualSearchIntent | null {
   const cleanQuery = String(r.cleanQuery ?? "").trim();
   if (!cleanQuery && !category && !Object.keys(searchFilters).length) return null;
   const listingCategory = category ? CATEGORY_MAP[category] : undefined;
+  const choiceChips = Array.isArray(r.choiceChips)
+    ? r.choiceChips.map((c) => String(c).trim()).filter(Boolean).slice(0, 4)
+    : undefined;
+  const semanticAlternatives = Array.isArray(r.semanticAlternatives)
+    ? r.semanticAlternatives.map((c) => String(c).trim()).filter(Boolean).slice(0, 4)
+    : undefined;
   return {
     objectType: String(r.objectType ?? "other").trim() || "other",
     category,
@@ -551,6 +565,12 @@ function normalizeVisualPayload(raw: unknown): GeminiVisualSearchIntent | null {
     confidence: Math.min(1, Math.max(0, Number(r.confidence) || 0.5)),
     visualSummary: String(r.visualSummary ?? cleanQuery).trim(),
     searchFilters,
+    sceneContext: r.sceneContext ? String(r.sceneContext).trim() : undefined,
+    choiceChips,
+    semanticAlternatives,
+    clarificationPrompt: r.clarificationPrompt
+      ? String(r.clarificationPrompt).trim()
+      : undefined,
   };
 }
 
@@ -600,6 +620,10 @@ function visualToResolved(gemini: GeminiVisualSearchIntent): ResolvedVisualSearc
     objectType: gemini.objectType,
     searchFilters: gemini.searchFilters,
     source: "gemini",
+    sceneContext: gemini.sceneContext,
+    choiceChips: gemini.choiceChips,
+    semanticAlternatives: gemini.semanticAlternatives,
+    clarificationPrompt: gemini.clarificationPrompt,
   };
 }
 
