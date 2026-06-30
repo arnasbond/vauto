@@ -29,7 +29,11 @@ interface WardrobeProfileImporterProps {
   inSpintaCabinet?: boolean;
   /** Anoniminis demo — importas be prisijungimo, registracija tik publikuojant */
   guestMode?: boolean;
-  onImportReady?: (drafts: AiExtractedListing[], voiceAnnouncement: string) => void;
+  onImportReady?: (
+    drafts: AiExtractedListing[],
+    voiceAnnouncement: string,
+    sourceItems?: WardrobeProfileImportItem[]
+  ) => void;
   onGuestPreview?: (items: WardrobeProfileImportItem[], drafts: AiExtractedListing[]) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
 }
@@ -51,7 +55,7 @@ export function WardrobeProfileImporter({
   onGuestPreview,
   onToast,
 }: WardrobeProfileImporterProps) {
-  const { user, chameleonTheme, openCheckout, refreshListingsCatalog } = useVauto();
+  const { user, chameleonTheme, openCheckout } = useVauto();
   const isGuest = guestMode || isGuestUserId(user.id);
   const access = useMemo(
     () =>
@@ -126,8 +130,7 @@ export function WardrobeProfileImporter({
       if (isGuest) {
         onGuestPreview?.(result.items, drafts);
       } else {
-        await refreshListingsCatalog();
-        onImportReady?.(drafts, result.voiceAnnouncement);
+        onImportReady?.(drafts, result.voiceAnnouncement, result.items);
         notifyWardrobeProfileImported(result.items.length);
       }
       onToast?.(result.voiceAnnouncement, "success");

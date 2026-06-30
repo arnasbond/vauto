@@ -71,6 +71,7 @@ import {
   buildWardrobePhotosReceivedMessage,
   buildWardrobeProfileImportedMessage,
   wardrobePhotosReceivedChips,
+  wardrobeProfileImportedChips,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
 import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
 import {
@@ -1116,7 +1117,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     registerWardrobeProfileImportedHost((itemCount) => {
       openWithGreeting(buildWardrobeProfileImportedMessage(itemCount), {
         openSheet: true,
-        quickReplies: wardrobePhotosReceivedChips(itemCount),
+        quickReplies: wardrobeProfileImportedChips(itemCount),
       });
     });
     registerAgentPendingImagesHost((urls) => {

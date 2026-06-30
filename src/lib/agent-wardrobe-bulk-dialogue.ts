@@ -39,15 +39,33 @@ export function wardrobePhotosReceivedChips(itemCount: number): string[] {
 
 export function buildWardrobeProfileImportedMessage(itemCount: number): string {
   if (itemCount <= 0) {
-    return "Profilį gavau — ruošiu juodraščius.";
+    return "Profilį gavau — ruošiu juodraščius peržiūrai.";
   }
   if (itemCount === 1) {
-    return "Profilį gavau, matau vieną prekę — paruošiau juodraštį. Ar tęsiame?";
+    return "Profilį gavau, matau vieną prekę — paruošiau juodraštį peržiūrai. Ar tęsiame?";
   }
-  return `Profilį gavau, matau ${itemCount} prekių — paruošiau juodraščius. Ar tęsiame?`;
+  return `Profilį gavau, matau ${itemCount} prekių — paruošiau juodraščius peržiūrai žemiau. Ar tęsiame?`;
 }
+
+export function wardrobeProfileImportedChips(itemCount: number): string[] {
+  if (itemCount > 1) {
+    return ["Taip, tęsti", "Peržiūrėti importą", "Redaguoti po vieną"];
+  }
+  return ["Taip, tęsti", "Pildyti rankiniu būdu", "Kaip veikia importas?"];
+}
+
+export const WARDROBE_BULK_REVIEW_EVENT = "vauto:wardrobe-bulk-scroll-review";
 
 export function requestWardrobeBulkPhotoPick(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(WARDROBE_BULK_PHOTO_PICK_EVENT));
+}
+
+export function scrollToWardrobeBulkReview(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(WARDROBE_BULK_REVIEW_EVENT));
+  document.getElementById("wardrobe-bulk-review")?.scrollIntoView({
+    behavior: "smooth",
+    block: "center",
+  });
 }

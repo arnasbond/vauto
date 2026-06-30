@@ -1,6 +1,7 @@
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeItemToDraft } from "@/lib/wardrobe-vision";
 import type { AiExtractedListing } from "@/lib/types";
+import type { WardrobeProfileImportItem } from "@/lib/wardrobe-profile-importer";
 
 export interface AgentWardrobeBulkItem {
   id: string;
@@ -39,6 +40,27 @@ export function mapAgentWardrobeItems(raw: unknown): WardrobeDraftItem[] {
     });
   }
   return out.slice(0, 8);
+}
+
+export function profileItemToWardrobeDraft(item: WardrobeProfileImportItem): WardrobeDraftItem {
+  return {
+    id: item.id,
+    title: item.title,
+    categoryGroup: "Moterims",
+    categorySub: item.category?.trim() || "Kita",
+    size: item.size || "M",
+    color: item.color || "Mišri",
+    brand: item.brand || "Be ženklo",
+    condition: item.condition || "Labai gera",
+    suggestedPrice: Math.max(1, Number(item.price) || 15),
+    description: item.description?.trim() || item.title,
+  };
+}
+
+export function profileItemsToWardrobeDrafts(
+  items: WardrobeProfileImportItem[]
+): WardrobeDraftItem[] {
+  return items.slice(0, 8).map(profileItemToWardrobeDraft);
 }
 
 export function wardrobeBulkToDrafts(

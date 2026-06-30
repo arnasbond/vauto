@@ -4,6 +4,7 @@ import {
   WARDROBE_BULK_MANUAL_FILL_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
   requestWardrobeBulkPhotoPick,
+  scrollToWardrobeBulkReview,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
@@ -106,12 +107,10 @@ export function tryHandleAgentQuickReply(
     matchesChip(trimmed, [/peržiūrėti importą/, /perziureti importa/]) &&
     deps.pendingWardrobeBulkItems?.length
   ) {
-    deps.applyAgentWardrobeBulk(deps.pendingWardrobeBulkItems, {
-      voiceAnnouncement: deps.pendingWardrobeVoice ?? undefined,
-    });
+    scrollToWardrobeBulkReview();
     return {
       handled: true,
-      reply: "Atidarau importuotų prekių peržiūrą — patvirtinkite skelbimus.",
+      reply: "Slinkite žemyn — parodau importuotų prekių sąrašą peržiūrai.",
     };
   }
 
@@ -268,9 +267,10 @@ export function tryHandleAgentQuickReply(
   }
 
   if (matchesChip(trimmed, [/redaguoti po vieną/, /redaguoti po viena/])) {
+    scrollToWardrobeBulkReview();
     return {
       handled: true,
-      reply: "Pasirinkite drabužį iš AI sąrašo žemiau — galėsite koreguoti laukus prieš publikuojant.",
+      reply: "Pasirinkite drabužį iš sąrašo žemiau — galėsite koreguoti laukus prieš publikuojant.",
     };
   }
 

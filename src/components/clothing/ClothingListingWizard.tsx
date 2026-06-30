@@ -35,6 +35,8 @@ import {
   notifyWardrobePhotosReceived,
 } from "@/lib/vauto-agent-client";
 import { WARDROBE_BULK_PHOTO_PICK_EVENT } from "@/lib/agent-wardrobe-bulk-dialogue";
+import { profileItemsToWardrobeDrafts } from "@/lib/agent-wardrobe-bridge";
+import type { WardrobeProfileImportItem } from "@/lib/wardrobe-profile-importer";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { getSafeImageUrl } from "@/lib/utils";
 import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
@@ -312,12 +314,43 @@ export function ClothingListingWizard({
     onPublishBulk(drafts);
   };
 
-  const handleProfileImport = (drafts: AiExtractedListing[], voice: string) => {
+  const handleProfileImport = (
+    drafts: AiExtractedListing[],
+    voice: string,
+    sourceItems?: WardrobeProfileImportItem[]
+  ) => {
     speakBuddyMessage(voice, { enabled: true });
-    if (onPublishBulk && drafts.length > 1) {
-      onPublishBulk(drafts);
+    const wardrobeFromProfile = sourceItems?.length
+      ? profileItemsToWardrobeDrafts(sourceItems)
+      : [];
+
+    if (wardrobeFromProfile.length > 1) {
+      setWardrobeItems(wardrobeFromProfile);
+      setWardrobeVoice(voice);
+      onStageWardrobeBulk?.(wardrobeFromProfile, voice);
+      onToast?.("Peržiūrėkite importuotus drabužius žemiau — patvirtinkite, kai viskas tinka.", "info");
       return;
     }
+
+    if (wardrobeFromProfile.length === 1) {
+      const single = wardrobeItemToDraft(
+        wardrobeFromProfile[0]!,
+        draft.contact,
+        draft.location || defaultLocation
+      );
+      onUpdate(single);
+      for (const [key, val] of Object.entries(single.attributes ?? {})) {
+        onAttributeChange(key, val as string | string[]);
+      }
+      onStageWardrobeBulk?.(wardrobeFromProfile, voice);
+      return;
+    }
+
+    if (drafts.length > 1) {
+      onToast?.("Peržiūrėkite importuotus drabužius — patvirtinkite publikavimą.", "info");
+      return;
+    }
+
     if (drafts[0]) {
       onUpdate(drafts[0]);
       for (const [key, val] of Object.entries(drafts[0].attributes ?? {})) {
@@ -424,13 +457,14 @@ export function ClothingListingWizard({
 
           {wardrobeItems.length > 1 && (
             <div
+              id="wardrobe-bulk-review"
               className="mb-6 rounded-2xl border border-fuchsia-500/30 p-4"
               style={{ backgroundColor: SPINTA_CARD }}
             >
               <div className="mb-3 flex items-center gap-2">
                 <Sparkles className="h-4 w-4 text-fuchsia-400" />
                 <p className="text-sm font-semibold text-white">
-                  AI aptiko {wardrobeItems.length} drabužius
+                  Paruošta peržiūrai: {wardrobeItems.length} prekės
                 </p>
               </div>
               {wardrobeVoice && (
