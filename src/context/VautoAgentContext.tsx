@@ -27,6 +27,10 @@ import {
   readAgentSessionLastActiveAt,
   registerAgentErrorReporter,
   registerAgentGreetingHost,
+  registerAgentPendingImagesHost,
+  registerWardrobeBulkImportHost,
+  registerWardrobePhotosReceivedHost,
+  notifyWardrobeBulkImportOpened,
   resolveAccountTypeLabel,
   resolveAgentNoiseReply,
   resolveAgentUserRole,
@@ -60,6 +64,13 @@ import {
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
+import {
+  WARDROBE_BULK_IMPORT_CHIPS,
+  WARDROBE_BULK_IMPORT_GREETING,
+  buildWardrobePhotosReceivedMessage,
+  wardrobePhotosReceivedChips,
+} from "@/lib/agent-wardrobe-bulk-dialogue";
+import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
 import {
   mapAgentWardrobeItems,
 } from "@/lib/agent-wardrobe-bridge";
@@ -97,7 +108,7 @@ export interface AgentSendOptions {
 interface VautoAgentContextValue {
   open: boolean;
   setOpen: (open: boolean) => void;
-  openWithGreeting: (text: string, options?: { quickReplies?: string[] }) => void;
+  openWithGreeting: (text: string, options?: AgentGreetingOptions) => void;
   messages: AgentChatMessage[];
   busy: boolean;
   sendAgentMessage: (
@@ -369,7 +380,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             imageUrl: actions.imageUrl,
             voiceAnnouncement: actions.voiceAnnouncement,
           });
-          setOpen(false);
         }
       }
       if (actions.type === "block_listing" && actions.listingId) {
@@ -479,11 +489,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
       if (actions.type === "navigate_to_screen") {
+        const opensWardrobeBulkImport =
+          Boolean(actions.activateWardrobe) &&
+          (actions.view === "add_listing" || actions.view === "seller_wizard");
         if (actions.activateWardrobe) {
           activateWardrobeSpinta();
           trackEvent("spinta_enter", { source: "agent_navigate", screen: actions.screen });
         }
-        setOpen(false);
+        if (!opensWardrobeBulkImport) {
+          setOpen(false);
+        }
         clearVisualSearch({ keepInputMode: false });
         setSearchInputMode("text");
         setSearchVoiceMode(false);
@@ -520,6 +535,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
         }
         if (actions.label) showToast(actions.label, "success");
+        if (opensWardrobeBulkImport) {
+          notifyWardrobeBulkImportOpened(WARDROBE_BULK_IMPORT_GREETING, {
+            quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+          });
+        }
         trackEvent("agent_action", {
           action: "navigate_to_screen",
           screen: actions.screen,
@@ -608,7 +628,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (actions.type === "navigate") {
         const view = actions.view;
         if (view === "add_listing" || view === "seller_wizard") {
-          navigateToAdd(Boolean(actions.params?.vertical === "fashion"));
+          const fashion = Boolean(actions.params?.vertical === "fashion");
+          navigateToAdd(fashion);
+          if (fashion) {
+            notifyWardrobeBulkImportOpened(WARDROBE_BULK_IMPORT_GREETING, {
+              quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+            });
+          }
         } else if (view === "profile") {
           routeZeroUiScreen("business_dashboard");
         } else if (view === "admin_ai") {
@@ -1053,9 +1079,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [reportAgentError]);
 
   const openWithGreeting = useCallback(
-    (text: string, options?: { quickReplies?: string[] }) => {
+    (text: string, options?: AgentGreetingOptions) => {
       const trimmed = text.trim();
       if (!trimmed) return;
+      if (options?.openSheet) setOpen(true);
       setSearchInputMode("text");
       setSearchVoiceMode(false);
       const quickReplies = options?.quickReplies?.filter(Boolean).slice(0, 4);
@@ -1075,7 +1102,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     registerAgentGreetingHost(openWithGreeting);
-    return () => registerAgentGreetingHost(null);
+    registerWardrobeBulkImportHost(({ message, ...options }) => {
+      openWithGreeting(message, options);
+    });
+    registerWardrobePhotosReceivedHost((itemCount) => {
+      openWithGreeting(buildWardrobePhotosReceivedMessage(itemCount), {
+        openSheet: true,
+        quickReplies: wardrobePhotosReceivedChips(itemCount),
+      });
+    });
+    registerAgentPendingImagesHost((urls) => {
+      setSessionPendingImageUrls(urls);
+    });
+    return () => {
+      registerAgentGreetingHost(null);
+      registerWardrobeBulkImportHost(null);
+      registerWardrobePhotosReceivedHost(null);
+      registerAgentPendingImagesHost(null);
+    };
   }, [openWithGreeting]);
 
   const value = useMemo(

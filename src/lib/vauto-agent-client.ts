@@ -551,6 +551,8 @@ export function notifyAgentError(code: string, message?: string): void {
 
 export interface AgentGreetingOptions {
   quickReplies?: string[];
+  /** Open agent chat sheet when pushing proactive assistant text */
+  openSheet?: boolean;
 }
 
 let agentGreetingHost: ((text: string, options?: AgentGreetingOptions) => void) | null = null;
@@ -563,4 +565,44 @@ export function registerAgentGreetingHost(
 
 export function pushAgentGreeting(text: string, options?: AgentGreetingOptions): void {
   agentGreetingHost?.(text, options);
+}
+
+let wardrobeBulkImportHost: ((options: AgentGreetingOptions & { message: string }) => void) | null =
+  null;
+
+export function registerWardrobeBulkImportHost(
+  fn: ((options: AgentGreetingOptions & { message: string }) => void) | null
+): void {
+  wardrobeBulkImportHost = fn;
+}
+
+export function notifyWardrobeBulkImportOpened(
+  message: string,
+  options?: Omit<AgentGreetingOptions, "openSheet">
+): void {
+  wardrobeBulkImportHost?.({ message, openSheet: true, ...options });
+}
+
+let wardrobePhotosReceivedHost: ((itemCount: number) => void) | null = null;
+
+export function registerWardrobePhotosReceivedHost(
+  fn: ((itemCount: number) => void) | null
+): void {
+  wardrobePhotosReceivedHost = fn;
+}
+
+export function notifyWardrobePhotosReceived(itemCount: number): void {
+  wardrobePhotosReceivedHost?.(itemCount);
+}
+
+let agentPendingImagesHost: ((urls: string[]) => void) | null = null;
+
+export function registerAgentPendingImagesHost(fn: ((urls: string[]) => void) | null): void {
+  agentPendingImagesHost = fn;
+}
+
+export function notifyAgentPendingImages(urls: string[]): void {
+  const clean = urls.filter(Boolean).slice(0, 6);
+  if (!clean.length) return;
+  agentPendingImagesHost?.(clean);
 }

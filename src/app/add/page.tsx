@@ -13,6 +13,11 @@ import {
 import { useVauto } from "@/context/VautoContext";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
 import { enrichClothingListingDraft } from "@/lib/clothing-catalog";
+import {
+  WARDROBE_BULK_IMPORT_CHIPS,
+  WARDROBE_BULK_IMPORT_GREETING,
+} from "@/lib/agent-wardrobe-bulk-dialogue";
+import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
 
 export default function AddPage() {
   const router = useRouter();
@@ -67,6 +72,9 @@ export default function AddPage() {
           "Asortimento įkėlimas"
         )
       );
+      notifyWardrobeBulkImportOpened(WARDROBE_BULK_IMPORT_GREETING, {
+        quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+      });
       return;
     }
 

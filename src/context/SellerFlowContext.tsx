@@ -47,7 +47,11 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { pushAgentGreeting } from "@/lib/vauto-agent-client";
+import { pushAgentGreeting, notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
+import {
+  WARDROBE_BULK_IMPORT_CHIPS,
+  WARDROBE_BULK_IMPORT_GREETING,
+} from "@/lib/agent-wardrobe-bulk-dialogue";
 import {
   buildPhotoClarificationMessage,
   extractVisionChoiceChips,
@@ -720,6 +724,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
         router.push(addPath);
       }
+      notifyWardrobeBulkImportOpened(WARDROBE_BULK_IMPORT_GREETING, {
+        quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+      });
     },
     [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city]
   );

@@ -30,6 +30,11 @@ import {
   wardrobeItemToDraft,
   type WardrobeDraftItem,
 } from "@/lib/wardrobe-vision";
+import {
+  notifyAgentPendingImages,
+  notifyWardrobePhotosReceived,
+} from "@/lib/vauto-agent-client";
+import { WARDROBE_BULK_PHOTO_PICK_EVENT } from "@/lib/agent-wardrobe-bulk-dialogue";
 import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { getSafeImageUrl } from "@/lib/utils";
 import { WardrobeProfileImporter } from "@/components/clothing/WardrobeProfileImporter";
@@ -142,6 +147,7 @@ export function ClothingListingWizard({
     () => initialWardrobeItems ?? []
   );
   const [wardrobeAnalyzing, setWardrobeAnalyzing] = useState(false);
+  const [wardrobePhotoPickSignal, setWardrobePhotoPickSignal] = useState(0);
   const [wardrobeVoice, setWardrobeVoice] = useState<string | null>(
     initialWardrobeVoice ?? null
   );
@@ -159,6 +165,18 @@ export function ClothingListingWizard({
       ? [attr(attrs, "color")]
       : [];
   const shippingOptions = attrArray(attrs, "shipping");
+
+  useEffect(() => {
+    const onPickPhotos = () => {
+      document.getElementById("wardrobe-photo-basket")?.scrollIntoView({
+        behavior: "smooth",
+        block: "center",
+      });
+      setWardrobePhotoPickSignal((n) => n + 1);
+    };
+    window.addEventListener(WARDROBE_BULK_PHOTO_PICK_EVENT, onPickPhotos);
+    return () => window.removeEventListener(WARDROBE_BULK_PHOTO_PICK_EVENT, onPickPhotos);
+  }, []);
 
   const toggleColor = (color: string) => {
     const next = selectedColors.includes(color)
@@ -254,6 +272,8 @@ export function ClothingListingWizard({
       setWardrobeVoice(result.voiceAnnouncement);
       speakBuddyMessage(result.voiceAnnouncement, { enabled: true });
       onToast?.(result.voiceAnnouncement, "info");
+      notifyAgentPendingImages([imageDataUrl]);
+      notifyWardrobePhotosReceived(result.items.length);
 
       if (result.items.length === 1) {
         const single = wardrobeItemToDraft(
@@ -367,6 +387,7 @@ export function ClothingListingWizard({
 
           <SectionTitle>Nuotraukos</SectionTitle>
           <div
+            id="wardrobe-photo-basket"
             className="mb-6 rounded-2xl border border-dashed border-fuchsia-500/40 p-4"
             style={{ backgroundColor: SPINTA_CARD }}
           >
@@ -380,6 +401,7 @@ export function ClothingListingWizard({
             )}
             <ListingGalleryFileInput
               requestConsent={requestMediaConsent}
+              openPickerSignal={wardrobePhotoPickSignal}
               className="flex w-full flex-col items-center justify-center gap-3 py-6 text-fuchsia-400"
               label={previewImage ? "+ Pridėti nuotraukų" : "+ Įkelti nuotraukų"}
               onFilesSelected={(files) => {

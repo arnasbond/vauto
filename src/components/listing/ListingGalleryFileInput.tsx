@@ -1,7 +1,7 @@
 "use client";
 
 import { Camera, type LucideIcon } from "lucide-react";
-import { useRef, type ReactNode } from "react";
+import { useRef, useEffect, type ReactNode } from "react";
 import { cn } from "@/lib/cn";
 
 interface ListingGalleryFileInputProps {
@@ -15,6 +15,8 @@ interface ListingGalleryFileInputProps {
   icon?: LucideIcon;
   label: ReactNode;
   hint?: ReactNode;
+  /** Increment to open the native picker from outside (e.g. agent quick-reply chip). */
+  openPickerSignal?: number;
 }
 
 /** Read first selected image as a data URL (shared by listing wizards). */
@@ -43,6 +45,7 @@ export function ListingGalleryFileInput({
   icon: Icon = Camera,
   label,
   hint,
+  openPickerSignal,
 }: ListingGalleryFileInputProps) {
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -55,6 +58,12 @@ export function ListingGalleryFileInput({
     if (requestConsent) requestConsent(run);
     else run();
   };
+
+  useEffect(() => {
+    if (!openPickerSignal) return;
+    openPicker();
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- signal-only external trigger
+  }, [openPickerSignal]);
 
   return (
     <>

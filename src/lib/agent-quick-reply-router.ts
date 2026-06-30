@@ -1,4 +1,10 @@
 import type { SellerFlowStep } from "@/lib/types";
+import {
+  WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
+  WARDROBE_BULK_MANUAL_FILL_REPLY,
+  WARDROBE_BULK_PHOTO_PICK_HINT,
+  requestWardrobeBulkPhotoPick,
+} from "@/lib/agent-wardrobe-bulk-dialogue";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
 import type { AiExtractedListing, ListingCategory, UserProfile } from "@/lib/types";
@@ -234,6 +240,64 @@ export function tryHandleAgentQuickReply(
       handled: true,
       reply: "Ieškau panašių skelbimų pagal paskutinę paiešką.",
     };
+  }
+
+  if (matchesChip(trimmed, [/kaip veikia importas/])) {
+    return { handled: true, reply: WARDROBE_IMPORT_HOW_IT_WORKS_REPLY };
+  }
+
+  if (
+    matchesChip(trimmed, [
+      /įkelti nuotraukų krepšelį/,
+      /ikelti nuotrauku krepseli/,
+      /įkelti nuotraukų/,
+      /ikelti nuotrauku/,
+    ])
+  ) {
+    requestWardrobeBulkPhotoPick();
+    return { handled: true, reply: WARDROBE_BULK_PHOTO_PICK_HINT };
+  }
+
+  if (matchesChip(trimmed, [/pildyti rankiniu būdu/, /pildyti rankiniu budu/])) {
+    return { handled: true, reply: WARDROBE_BULK_MANUAL_FILL_REPLY };
+  }
+
+  if (matchesChip(trimmed, [/įkelti kitą nuotrauką/, /ikelti kita nuotrauka/])) {
+    requestWardrobeBulkPhotoPick();
+    return { handled: true, reply: WARDROBE_BULK_PHOTO_PICK_HINT };
+  }
+
+  if (matchesChip(trimmed, [/redaguoti po vieną/, /redaguoti po viena/])) {
+    return {
+      handled: true,
+      reply: "Pasirinkite drabužį iš AI sąrašo žemiau — galėsite koreguoti laukus prieš publikuojant.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/taip, tęsti/, /taip tęsti/, /taip, testi/, /taip testi/])) {
+    if (deps.pendingWardrobeBulkItems && deps.pendingWardrobeBulkItems.length > 1) {
+      const drafts = wardrobeBulkToDrafts(
+        deps.pendingWardrobeBulkItems,
+        deps.user.phone,
+        deps.user.city || "Vilnius"
+      );
+      void deps.publishBulkClothingListings(drafts);
+      return {
+        handled: true,
+        reply: `Puiku — publikuoju ${drafts.length} drabužių skelbimus!`,
+      };
+    }
+    if (deps.aiDraft && deps.sellerStep === "confirmation") {
+      deps.publishListing();
+      return { handled: true, reply: "Puiku — publikuoju skelbimą!" };
+    }
+    if (deps.aiDraft) {
+      deps.navigateToAdd(deps.aiDraft.category === "clothing");
+      return {
+        handled: true,
+        reply: "Atidarau skelbimo peržiūrą — patvirtinkite publikavimą.",
+      };
+    }
   }
 
   return null;
