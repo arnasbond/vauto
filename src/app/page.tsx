@@ -4,9 +4,7 @@
 
 import { AppShell } from "@/components/AppShell";
 
-import { Header } from "@/components/Header";
-
-import { SearchBar } from "@/components/SearchBar";
+import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 
 import { ListingGrid } from "@/components/ListingGrid";
 
@@ -75,12 +73,10 @@ function MarketplaceView() {
           header={
             <>
               {inSellerFlow ? (
-                <>
-                  <Header />
-                  <div className="mt-3">
-                    <SearchBar />
-                  </div>
-                </>
+                <TopAiCommandChrome
+                  sticky={false}
+                  className="mb-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
+                />
               ) : (
                 <HomeAiHero
                   compact={hasSearch}

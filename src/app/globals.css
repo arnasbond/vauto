@@ -2047,6 +2047,26 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   border-color: var(--vauto-border);
 }
 
+.flow-skin-default .listing-wizard-overlay,
+.flow-skin-spinta.listing-wizard-overlay {
+  color: var(--vauto-text-main);
+}
+
+.flow-skin-default .listing-wizard-overlay [style*="background"],
+.flow-skin-spinta.listing-wizard-overlay [class*="rounded-2xl"] {
+  color: inherit;
+}
+
+[data-app-theme="vauto-original"] .flow-skin-default.listing-wizard-overlay,
+[data-app-theme="light-minimal"] .flow-skin-default.listing-wizard-overlay {
+  background-color: var(--vauto-bg) !important;
+}
+
+[data-app-theme="vauto-original"] .flow-skin-spinta.listing-wizard-overlay,
+[data-app-theme="light-minimal"] .flow-skin-spinta.listing-wizard-overlay {
+  background-color: var(--vauto-bg) !important;
+}
+
 .ai-wizard-fab-preview {
   animation: wizardPreviewIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }

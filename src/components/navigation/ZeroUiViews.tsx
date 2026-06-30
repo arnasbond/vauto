@@ -2,8 +2,7 @@
 
 import Link from "next/link";
 import { ArrowLeft, LogIn, MessageCircle, Sparkles } from "lucide-react";
-import { Header } from "@/components/Header";
-import { SearchBar } from "@/components/SearchBar";
+import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
@@ -68,10 +67,10 @@ function ZeroUiChrome({
 function HomeZeroView() {
   return (
     <ZeroUiChrome>
-      <Header />
-      <div className="mt-3">
-        <SearchBar />
-      </div>
+      <TopAiCommandChrome
+        sticky={false}
+        className="mb-0 mt-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
+      />
       <div className="mt-4">
         <AiFirstBrowsePrompt />
         <ServiceRequestCard />
@@ -86,10 +85,10 @@ function HomeZeroView() {
 function DiscoverZeroView() {
   return (
     <ZeroUiChrome subtitle="Išmanioji paieška ir rekomendacijos">
-      <Header />
-      <div className="mt-3">
-        <SearchBar />
-      </div>
+      <TopAiCommandChrome
+        sticky={false}
+        className="mb-0 mt-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
+      />
       <div className="mt-4">
         <AiFirstBrowsePrompt />
         <ServiceRequestCard />

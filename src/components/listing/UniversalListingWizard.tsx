@@ -177,14 +177,17 @@ export function UniversalListingWizard({
 
   return (
     <div
-      className={`universal-listing-wizard listing-wizard-overlay min-h-screen text-white ${skin.rootClass}`}
+      className={cn(
+        "universal-listing-wizard listing-wizard-overlay min-h-screen text-[var(--vauto-text-main)]",
+        skin.rootClass
+      )}
       style={{ backgroundColor: skin.shellBg }}
     >
       <div className="mx-auto w-full max-w-lg min-h-screen pb-36">
         <div
           className={cn(
             "sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3",
-            skin.variant === "spinta" ? "border-fuchsia-500/30" : "border-slate-700"
+            skin.variant === "spinta" ? "border-fuchsia-500/30" : "border-[var(--vauto-border)]"
           )}
           style={{ backgroundColor: skin.shellBg }}
         >
@@ -196,7 +199,7 @@ export function UniversalListingWizard({
               {skin.variant === "spinta" ? "✨" : "V"}
             </span>
             <div>
-              <p className="text-sm font-semibold text-white">{skin.headerTitle}</p>
+              <p className="text-sm font-semibold text-[var(--vauto-text-main)]">{skin.headerTitle}</p>
               <p className={`text-[10px] uppercase tracking-wide ${skin.headerSubtitle}`}>
                 {skin.variant === "spinta" ? "Tavo AI sekretorė" : categoryLabel}
               </p>
@@ -205,7 +208,7 @@ export function UniversalListingWizard({
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-full p-1.5 text-slate-400 hover:bg-slate-800"
+            className="rounded-full p-1.5 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
             aria-label="Atšaukti"
           >
             <X className="h-5 w-5" />
@@ -252,7 +255,7 @@ export function UniversalListingWizard({
                 }}
               />
               {wardrobeAnalyzing && (
-                <p className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-300">
+                <p className="mt-2 flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)]">
                   <Loader2 className={`h-4 w-4 animate-spin ${skin.composerAccentIcon}`} />
                   Smart Wardrobe Vision analizuoja nuotraukų krepšelį…
                 </p>
@@ -271,7 +274,7 @@ export function UniversalListingWizard({
                 <p className="text-sm font-semibold">Paruošta: {wardrobeItems.length} prekės</p>
               </div>
               {wardrobeVoice && (
-                <p className="mb-3 text-xs italic text-slate-300">{wardrobeVoice}</p>
+                <p className="mb-3 text-xs italic text-[var(--vauto-text-muted)]">{wardrobeVoice}</p>
               )}
               <div className="space-y-2">
                 {wardrobeItems.map((item) => (
@@ -279,7 +282,7 @@ export function UniversalListingWizard({
                     key={item.id}
                     type="button"
                     onClick={() => applyWardrobeItem(item)}
-                    className="flex w-full items-center justify-between rounded-xl border border-slate-600 px-3 py-2.5 text-left hover:border-fuchsia-400"
+                    className="flex w-full items-center justify-between rounded-xl border border-[var(--vauto-border)] px-3 py-2.5 text-left hover:border-[var(--vauto-primary)]"
                     style={{ backgroundColor: skin.shellBg }}
                   >
                     <div>
