@@ -341,45 +341,6 @@ export async function resolveSearchIntent(
 
 
 
-  if (isClientGeminiAvailable()) {
-
-    try {
-
-      const normalized = await clientAnalyzeSearchIntent({
-
-        query,
-
-        userCity: options?.userCity,
-
-        wardrobeOnly: options?.wardrobeOnly,
-
-      });
-
-      const resolved = enforceWardrobeSearchIntent(
-        mergeWithGeoFallback(
-
-          geminiToResolved(normalized, query),
-
-          query
-
-        ),
-        options?.wardrobeOnly
-      );
-
-      cacheIntent(key, resolved);
-
-      return resolved;
-
-    } catch (e) {
-
-      console.warn("[search-intent] client Gemini failed:", e);
-
-    }
-
-  }
-
-
-
   if (isAiProxyAvailable()) {
 
     try {
@@ -425,7 +386,46 @@ export async function resolveSearchIntent(
 
 
 
-  if (!isClientGeminiAvailable() && !isAiProxyAvailable()) {
+  if (isClientGeminiAvailable()) {
+
+    try {
+
+      const normalized = await clientAnalyzeSearchIntent({
+
+        query,
+
+        userCity: options?.userCity,
+
+        wardrobeOnly: options?.wardrobeOnly,
+
+      });
+
+      const resolved = enforceWardrobeSearchIntent(
+        mergeWithGeoFallback(
+
+          geminiToResolved(normalized, query),
+
+          query
+
+        ),
+        options?.wardrobeOnly
+      );
+
+      cacheIntent(key, resolved);
+
+      return resolved;
+
+    } catch (e) {
+
+      console.warn("[search-intent] client Gemini failed:", e);
+
+    }
+
+  }
+
+
+
+  if (!isAiProxyAvailable() && !isClientGeminiAvailable()) {
 
     const fallback = parseSearchIntentFallback(query);
 

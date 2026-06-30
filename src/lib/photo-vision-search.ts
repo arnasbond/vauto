@@ -5,6 +5,7 @@ import { getDataApiBaseUrl, initDataApiConfig } from "@/lib/api/config";
 import { buildPhotoSearchQuery } from "@/lib/photo-search";
 
 import { mockExtractFromImage } from "@/lib/ai-mocks";
+import { shouldUseOfflineAiMocks } from "@/lib/ai-pipeline";
 
 import {
 
@@ -435,7 +436,7 @@ export async function runPhotoVisionSearch(
 
 
 
-  if (!isClientGeminiAvailable()) {
+  if (shouldUseOfflineAiMocks()) {
 
     try {
 

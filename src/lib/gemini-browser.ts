@@ -10,6 +10,7 @@
 
 import { resolveListingCity } from "@/lib/city-resolve";
 import { SPINTA_SEARCH_SYSTEM_RULE } from "@/lib/wardrobe-cabinet-mode";
+import { isDevClientGeminiEnabled } from "@/lib/ai-pipeline";
 
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 
@@ -225,6 +226,8 @@ export function getClientGeminiApiKey(): string | null {
 
 
 export function isClientGeminiAvailable(): boolean {
+
+  if (!isDevClientGeminiEnabled()) return false;
 
   return typeof window !== "undefined" && Boolean(getClientGeminiApiKey());
 

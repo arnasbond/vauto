@@ -570,6 +570,9 @@ export function pushAgentGreeting(text: string, options?: AgentGreetingOptions):
 let wardrobeBulkImportHost: ((options: AgentGreetingOptions & { message: string }) => void) | null =
   null;
 
+let lastWardrobeBulkGreetingAt = 0;
+let lastWardrobeBulkGreetingKey = "";
+
 export function registerWardrobeBulkImportHost(
   fn: ((options: AgentGreetingOptions & { message: string }) => void) | null
 ): void {
@@ -580,6 +583,13 @@ export function notifyWardrobeBulkImportOpened(
   message: string,
   options?: Omit<AgentGreetingOptions, "openSheet">
 ): void {
+  const key = message.trim().slice(0, 64);
+  const now = Date.now();
+  if (key && key === lastWardrobeBulkGreetingKey && now - lastWardrobeBulkGreetingAt < 2500) {
+    return;
+  }
+  lastWardrobeBulkGreetingKey = key;
+  lastWardrobeBulkGreetingAt = now;
   wardrobeBulkImportHost?.({ message, openSheet: true, ...options });
 }
 

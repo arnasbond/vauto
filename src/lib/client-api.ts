@@ -4,6 +4,7 @@ import {
 } from "@/lib/ai-mocks";
 import { apiVautoServer } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
+import { shouldUseOfflineAiMocks } from "@/lib/ai-pipeline";
 import { compressForAiVision } from "@/lib/native-media";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 import {
@@ -143,11 +144,11 @@ export async function extractFromImage(
     }
   }
 
-  if (!isClientGeminiAvailable() && !isAiProxyAvailable()) {
-    return mockExtractFromImage(ctx.fileName, images[0]);
+  if (!shouldUseOfflineAiMocks()) {
+    throw new Error("Gemini vaizdo atpažinimas nepasiekiamas");
   }
 
-  throw new Error("Gemini vaizdo atpažinimas nepasiekiamas");
+  return mockExtractFromImage(ctx.fileName, images[0]);
 }
 
 export async function extractFromVoice(
@@ -162,6 +163,9 @@ export async function extractFromText(
   const text = sanitizeSpeechTranscript(ctx.transcript ?? "");
   const unified = await tryUnifiedExtract({ ...ctx, transcript: text }, "text");
   if (unified) return unified;
+  if (isAiProxyAvailable()) {
+    throw new Error("AI teksto analizė nepavyko — bandykite dar kartą.");
+  }
   return mockExtractFromText(text);
 }
 
@@ -171,6 +175,25 @@ export async function extractCombined(
   const images = await prepareImagesForAi(resolveImages(ctx));
   const transcript = mergeTranscript(ctx);
   const merged: ExtractContext = { ...ctx, transcript, imageDataUrl: images[0] };
+
+  const unified = await tryUnifiedExtract(merged, "combined");
+  if (unified) return unified;
+
+  if (images.length && transcript) {
+    try {
+      const fromImage = await extractFromImage(merged);
+      const fromText = await extractFromText(merged);
+      return {
+        ...fromImage,
+        title: fromText.title || fromImage.title,
+        price: fromText.price > 0 ? fromText.price : fromImage.price,
+        location: fromText.location || fromImage.location,
+        confidence: Math.max(fromImage.confidence, fromText.confidence) * 0.95,
+      };
+    } catch {
+      /* fall through to dev Gemini */
+    }
+  }
 
   if (isClientGeminiAvailable() && images[0]) {
     try {
@@ -187,20 +210,6 @@ export async function extractCombined(
     }
   }
 
-  const unified = await tryUnifiedExtract(merged, "combined");
-  if (unified) return unified;
-
-  if (images.length && transcript) {
-    const fromImage = await extractFromImage(merged);
-    const fromText = await extractFromText(merged);
-    return {
-      ...fromImage,
-      title: fromText.title || fromImage.title,
-      price: fromText.price > 0 ? fromText.price : fromImage.price,
-      location: fromText.location || fromImage.location,
-      confidence: Math.max(fromImage.confidence, fromText.confidence) * 0.95,
-    };
-  }
   if (images.length) return extractFromImage(merged);
   if (transcript) return extractFromText(merged);
   throw new Error("Nėra duomenų apdorojimui");
