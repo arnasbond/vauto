@@ -1,7 +1,9 @@
 /** Agent dialogue + chips for Spinta bulk import / wardrobe transfer wizard. */
 
-export const WARDROBE_BULK_IMPORT_GREETING =
-  "Matau, kad norite atlaisvinti spintą! Atidariau jums masinio įkėlimo įrankį. Galite tiesiog įklijuoti savo profilio nuorodą viršuje arba įmesti nuotraukų krepšelį žemiau – aš viską išdėliosiu į lentynas.";
+export const WARDROBE_CONTINUOUS_FLOW_GREETING =
+  "Puiku, mes jau tavo spintoje! Neminkyk formos rankiniu būdu — tiesiog įkelk visas drabužių nuotraukas iškart, o aš fone pradėsiu pildyti laukus.";
+
+export const WARDROBE_BULK_IMPORT_GREETING = WARDROBE_CONTINUOUS_FLOW_GREETING;
 
 export const WARDROBE_BULK_IMPORT_CHIPS = [
   "Kaip veikia importas?",
@@ -20,15 +22,37 @@ export const WARDROBE_BULK_PHOTO_PICK_HINT =
 
 export const WARDROBE_BULK_PHOTO_PICK_EVENT = "vauto:wardrobe-bulk-pick-photos";
 
-export function buildWardrobePhotosReceivedMessage(itemCount: number): string {
+export function buildWardrobePhotosReceivedMessage(
+  itemCount: number,
+  photoCount = 1
+): string {
   if (itemCount <= 0) {
     return "Nuotraukas gavau — analizuoju. Jei matysiu drabužius, paruošiu juodraščius.";
+  }
+  if (photoCount > 1) {
+    return `Matau ${itemCount} tavo drabužius iš ${photoCount} nuotraukų! Užfiksavau dydžius ir spalvas — juodraščiai paruošti. Pažvelk į formą žemiau.`;
   }
   if (itemCount === 1) {
     return "Nuotrauką gavau, matau vieną drabuį — ruošiu skelbimo juodraštį. Ar tęsiame?";
   }
   return `Nuotraukas gavau, matau ${itemCount} drabužius — pradedu ruošti skelbimų juodraščius. Ar tęsiame?`;
 }
+
+export function buildWardrobePublishSuccessMessage(publishedCount: number): string {
+  if (publishedCount <= 1) {
+    return "Valio! Tavo drabužis sėkmingai patalpintas ir jau laukia pirkėjų.";
+  }
+  return `Valio! Visi ${publishedCount} drabužiai sėkmingai patalpinti ir jau laukia pirkėjų.`;
+}
+
+export const WARDROBE_PUBLISH_FEEDBACK_QUESTION =
+  "Kaip tau patiko mano pagalba šiame procese?";
+
+export const WARDROBE_PUBLISH_FEEDBACK_CHIPS = [
+  "Super, labai greita!",
+  "Buvo neaiškumų",
+  "Noriu įkelti dar",
+] as const;
 
 export function wardrobePhotosReceivedChips(itemCount: number): string[] {
   if (itemCount > 1) {

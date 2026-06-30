@@ -31,6 +31,7 @@ import {
   registerWardrobeBulkImportHost,
   registerWardrobePhotosReceivedHost,
   registerWardrobeProfileImportedHost,
+  registerWardrobePublishCompleteHost,
   notifyWardrobeBulkImportOpened,
   resolveAccountTypeLabel,
   resolveAgentNoiseReply,
@@ -70,8 +71,11 @@ import {
   WARDROBE_BULK_IMPORT_GREETING,
   buildWardrobePhotosReceivedMessage,
   buildWardrobeProfileImportedMessage,
+  buildWardrobePublishSuccessMessage,
   wardrobePhotosReceivedChips,
   wardrobeProfileImportedChips,
+  WARDROBE_PUBLISH_FEEDBACK_CHIPS,
+  WARDROBE_PUBLISH_FEEDBACK_QUESTION,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
 import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
 import {
@@ -374,7 +378,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
         navigateToAdd(draft.category === "clothing");
-        setOpen(false);
+        if (draft.category !== "clothing") {
+          setOpen(false);
+        }
       }
       if (actions.type === "wardrobe_bulk") {
         const items = mapAgentWardrobeItems(actions.items);
@@ -1108,8 +1114,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     registerWardrobeBulkImportHost(({ message, ...options }) => {
       openWithGreeting(message, options);
     });
-    registerWardrobePhotosReceivedHost((itemCount) => {
-      openWithGreeting(buildWardrobePhotosReceivedMessage(itemCount), {
+    registerWardrobePhotosReceivedHost(({ itemCount, photoCount }) => {
+      openWithGreeting(buildWardrobePhotosReceivedMessage(itemCount, photoCount), {
         openSheet: true,
         quickReplies: wardrobePhotosReceivedChips(itemCount),
       });
@@ -1120,6 +1126,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         quickReplies: wardrobeProfileImportedChips(itemCount),
       });
     });
+    registerWardrobePublishCompleteHost((publishedCount) => {
+      openWithGreeting(
+        `${buildWardrobePublishSuccessMessage(publishedCount)} ${WARDROBE_PUBLISH_FEEDBACK_QUESTION}`,
+        {
+          openSheet: true,
+          quickReplies: [...WARDROBE_PUBLISH_FEEDBACK_CHIPS],
+        }
+      );
+    });
     registerAgentPendingImagesHost((urls) => {
       setSessionPendingImageUrls(urls);
     });
@@ -1128,6 +1143,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       registerWardrobeBulkImportHost(null);
       registerWardrobePhotosReceivedHost(null);
       registerWardrobeProfileImportedHost(null);
+      registerWardrobePublishCompleteHost(null);
       registerAgentPendingImagesHost(null);
     };
   }, [openWithGreeting]);

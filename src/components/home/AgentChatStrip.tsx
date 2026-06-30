@@ -14,6 +14,11 @@ import {
 import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { pushAddListing } from "@/lib/listing-navigation";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
+import {
+  WARDROBE_BULK_IMPORT_CHIPS,
+  WARDROBE_CONTINUOUS_FLOW_GREETING,
+} from "@/lib/agent-wardrobe-bulk-dialogue";
 
 /**
  * Organiškas AI dialogas namų ekrane — burbulai, greiti atsakymai, veikiantys CTA.
@@ -74,6 +79,11 @@ export function AgentChatStrip() {
   }, [busy, lastUser, lastAssistant, quickReplies.length]);
 
   const handleSellCta = () => {
+    if (sellCta?.fashion) {
+      notifyWardrobeBulkImportOpened(WARDROBE_CONTINUOUS_FLOW_GREETING, {
+        quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+      });
+    }
     pushAddListing(router, sellCta?.fashion);
     if (lastUser.trim()) startListingFromQuery(lastUser);
   };

@@ -1,11 +1,14 @@
 import type { SellerFlowStep } from "@/lib/types";
 import {
+  WARDROBE_CONTINUOUS_FLOW_GREETING,
+  WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
   WARDROBE_BULK_MANUAL_FILL_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
   requestWardrobeBulkPhotoPick,
   scrollToWardrobeBulkReview,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
+import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
 import type { AiExtractedListing, ListingCategory, UserProfile } from "@/lib/types";
@@ -298,6 +301,32 @@ export function tryHandleAgentQuickReply(
         reply: "Atidarau skelbimo peržiūrą — patvirtinkite publikavimą.",
       };
     }
+  }
+
+  if (matchesChip(trimmed, [/super, labai greita/])) {
+    return {
+      handled: true,
+      reply: "Ačiū už atsiliepimą — džiaugiuosi, kad padėjau greitai! Jei prireiks, visada čia.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/buvo neaiškumų/, /buvo neaiskumu/])) {
+    return {
+      handled: true,
+      reply:
+        "Atsiprašau dėl neaiškumų — parašykite, kuriame žingsnyje užstrigo, ir iš karto patobulinsiu srautą.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/noriu įkelti dar/, /noriu ikelti dar/])) {
+    deps.navigateToAdd(true);
+    notifyWardrobeBulkImportOpened(WARDROBE_CONTINUOUS_FLOW_GREETING, {
+      quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
+    });
+    return {
+      handled: true,
+      reply: "Atidarau Spintos įkėlimą — galite mesti nuotraukų krepšelį arba profilio nuorodą.",
+    };
   }
 
   return null;

@@ -47,7 +47,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { pushAgentGreeting, notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
+import { pushAgentGreeting, notifyWardrobeBulkImportOpened, notifyWardrobePublishComplete } from "@/lib/vauto-agent-client";
 import {
   WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_BULK_IMPORT_GREETING,
@@ -1062,6 +1062,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Anonser.lt sinchronizacija suplanuota.", "info");
       }
     });
+    if (aiDraft.category === "clothing") {
+      notifyWardrobePublishComplete(1);
+    }
   }, [
     aiDraft,
     sellerPreviewImage,
@@ -1171,6 +1174,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           `${published} drabužių skelbim${published === 1 ? "as" : "ai"} sėkmingai įkelti!`,
           "success"
         );
+        notifyWardrobePublishComplete(published);
         resetSellerFlow();
       } else {
         showToast("Nepavyko publikuoti — patikrinkite kainas ir pavadinimus.", "error");

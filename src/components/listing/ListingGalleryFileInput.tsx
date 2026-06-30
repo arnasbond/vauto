@@ -19,6 +19,28 @@ interface ListingGalleryFileInputProps {
   openPickerSignal?: number;
 }
 
+/** Read gallery files as data URLs (multi-photo wardrobe basket). */
+export async function readGalleryFilesAsDataUrls(
+  files: File[],
+  maxFiles = 8
+): Promise<string[]> {
+  const picked = files.slice(0, maxFiles);
+  return Promise.all(
+    picked.map(
+      (file) =>
+        new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => {
+            if (typeof reader.result === "string") resolve(reader.result);
+            else reject(new Error("Nepavyko nuskaityti nuotraukos"));
+          };
+          reader.onerror = () => reject(reader.error ?? new Error("Nepavyko nuskaityti nuotraukos"));
+          reader.readAsDataURL(file);
+        })
+    )
+  );
+}
+
 /** Read first selected image as a data URL (shared by listing wizards). */
 export function applyFirstGalleryFile(
   files: File[],

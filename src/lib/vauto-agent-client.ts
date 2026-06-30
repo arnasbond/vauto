@@ -593,16 +593,30 @@ export function notifyWardrobeBulkImportOpened(
   wardrobeBulkImportHost?.({ message, openSheet: true, ...options });
 }
 
-let wardrobePhotosReceivedHost: ((itemCount: number) => void) | null = null;
+let wardrobePhotosReceivedHost: ((payload: { itemCount: number; photoCount: number }) => void) | null =
+  null;
 
 export function registerWardrobePhotosReceivedHost(
-  fn: ((itemCount: number) => void) | null
+  fn: ((payload: { itemCount: number; photoCount: number }) => void) | null
 ): void {
   wardrobePhotosReceivedHost = fn;
 }
 
-export function notifyWardrobePhotosReceived(itemCount: number): void {
-  wardrobePhotosReceivedHost?.(itemCount);
+export function notifyWardrobePhotosReceived(itemCount: number, photoCount = 1): void {
+  wardrobePhotosReceivedHost?.({ itemCount, photoCount });
+}
+
+let wardrobePublishCompleteHost: ((publishedCount: number) => void) | null = null;
+
+export function registerWardrobePublishCompleteHost(
+  fn: ((publishedCount: number) => void) | null
+): void {
+  wardrobePublishCompleteHost = fn;
+}
+
+export function notifyWardrobePublishComplete(publishedCount: number): void {
+  if (publishedCount <= 0) return;
+  wardrobePublishCompleteHost?.(publishedCount);
 }
 
 let wardrobeProfileImportedHost: ((itemCount: number) => void) | null = null;

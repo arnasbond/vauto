@@ -22,9 +22,10 @@ import {
   saveClothingListingDraft,
 } from "@/lib/listing-draft-storage";
 import {
-  applyFirstGalleryFile,
+  readGalleryFilesAsDataUrls,
   ListingGalleryFileInput,
 } from "@/components/listing/ListingGalleryFileInput";
+import { WardrobeFlowAgentStrip } from "@/components/clothing/WardrobeFlowAgentStrip";
 import {
   analyzeWardrobePhoto,
   wardrobeItemToDraft,
@@ -255,41 +256,63 @@ export function ClothingListingWizard({
     onPublish();
   };
 
-  const runWardrobeVision = async (imageDataUrl: string) => {
+  const runWardrobeVisionBatch = async (imageDataUrls: string[]) => {
+    if (!imageDataUrls.length) return;
     setWardrobeAnalyzing(true);
     setWardrobeItems([]);
     try {
-      const result = await analyzeWardrobePhoto({
-        imageDataUrl,
-        userName,
-      });
-      if (!result?.items.length) {
+      const merged: WardrobeDraftItem[] = [];
+      for (const imageDataUrl of imageDataUrls) {
+        const result = await analyzeWardrobePhoto({
+          imageDataUrl,
+          userName,
+        });
+        if (!result?.items.length) continue;
+        for (const item of result.items) {
+          const duplicate = merged.some(
+            (existing) =>
+              existing.title === item.title &&
+              existing.size === item.size &&
+              existing.color === item.color
+          );
+          if (!duplicate) merged.push(item);
+        }
+      }
+
+      if (!merged.length) {
         onToast?.(
-          result?.voiceAnnouncement ??
-            "Nuotraukoje nematau aiškaus drabužio — įkelkite kitą nuotrauką.",
+          "Nuotraukose nematau aiškių drabužių — įkelkite kitas nuotraukas arba profilio nuorodą.",
           "info"
         );
         return;
       }
 
-      setWardrobeItems(result.items);
-      setWardrobeVoice(result.voiceAnnouncement);
-      speakBuddyMessage(result.voiceAnnouncement, { enabled: true });
-      onToast?.(result.voiceAnnouncement, "info");
-      notifyAgentPendingImages([imageDataUrl]);
-      onStageWardrobeBulk?.(result.items, result.voiceAnnouncement);
-      notifyWardrobePhotosReceived(result.items.length);
+      const voice =
+        imageDataUrls.length > 1
+          ? `AI aptiko ${merged.length} drabužius iš ${imageDataUrls.length} nuotraukų.`
+          : `AI aptiko ${merged.length} drabužį.`;
 
-      if (result.items.length === 1) {
+      setWardrobeItems(merged);
+      setWardrobeVoice(voice);
+      speakBuddyMessage(voice, { enabled: true });
+      onToast?.(voice, "info");
+      notifyAgentPendingImages(imageDataUrls);
+      onStageWardrobeBulk?.(merged, voice);
+      notifyWardrobePhotosReceived(merged.length, imageDataUrls.length);
+
+      if (merged.length === 1) {
         const single = wardrobeItemToDraft(
-          result.items[0],
+          merged[0]!,
           draft.contact,
           draft.location
         );
         onUpdate(single);
+        onMediaChange({ imageDataUrl: imageDataUrls[0] });
         for (const [key, val] of Object.entries(single.attributes ?? {})) {
           onAttributeChange(key, val as string | string[]);
         }
+      } else if (imageDataUrls[0]) {
+        onMediaChange({ imageDataUrl: imageDataUrls[0] });
       }
     } finally {
       setWardrobeAnalyzing(false);
@@ -403,6 +426,8 @@ export function ClothingListingWizard({
           </button>
         </div>
 
+        <WardrobeFlowAgentStrip />
+
         <div className="px-4 pt-5">
           {manualFallback && (
             <ClothingWizardInlineGuide message="Kai kurie laukai dar tušti — padėsiu juos užpildyti švelniai, žingsnis po žingsnio." />
@@ -439,18 +464,20 @@ export function ClothingListingWizard({
               requestConsent={requestMediaConsent}
               openPickerSignal={wardrobePhotoPickSignal}
               className="flex w-full flex-col items-center justify-center gap-3 py-6 text-fuchsia-400"
-              label={previewImage ? "+ Pridėti nuotraukų" : "+ Įkelti nuotraukų"}
+              label={previewImage ? "+ Pridėti nuotraukų" : "+ Įkelti nuotraukų krepšelį"}
+              hint="Galite pasirinkti kelias nuotraukas vienu metu"
               onFilesSelected={(files) => {
-                applyFirstGalleryFile(files, (dataUrl) => {
-                  onMediaChange({ imageDataUrl: dataUrl });
-                  void runWardrobeVision(dataUrl);
+                void readGalleryFilesAsDataUrls(files).then((dataUrls) => {
+                  if (!dataUrls.length) return;
+                  onMediaChange({ imageDataUrl: dataUrls[0] });
+                  void runWardrobeVisionBatch(dataUrls);
                 });
               }}
             />
             {wardrobeAnalyzing && (
               <p className="mt-2 flex items-center justify-center gap-2 text-xs text-slate-300">
                 <Loader2 className="h-4 w-4 animate-spin text-fuchsia-400" />
-                Smart Wardrobe Vision analizuoja drabužius…
+                Smart Wardrobe Vision analizuoja nuotraukų krepšelį…
               </p>
             )}
           </div>
