@@ -121,6 +121,7 @@ import {
 } from "@/lib/listing-attribute-isolation";
 import {
   pushPhotoCategoryMismatchGreeting,
+  hasActivePhotoCategoryMismatch,
 } from "@/lib/seller-photo-category-mismatch";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
@@ -1041,7 +1042,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       showToast("Klaida: nėra skelbimo duomenų. Bandykite iš naujo.", "error");
       return;
     }
-    if (photoCategoryMismatch) {
+    if (hasActivePhotoCategoryMismatch(photoCategoryMismatch)) {
       showToast(
         "Pirmiausia pasirinkite: grįžti į automobilių srautą arba keisti kategoriją į elektroniką.",
         "error"

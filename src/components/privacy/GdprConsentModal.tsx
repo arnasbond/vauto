@@ -16,7 +16,7 @@ export function GdprConsentModal({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[250] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
+    <div className="fixed inset-0 z-[10050] flex items-end justify-center bg-black/70 backdrop-blur-sm sm:items-center">
       <div className="vauto-auth-modal w-full max-w-md rounded-t-3xl p-6 sm:rounded-3xl">
         <div className="mb-4 flex items-start justify-between gap-3">
           <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-teal)]/20">

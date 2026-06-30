@@ -27,6 +27,7 @@ import { buildSellerQuickActions, type BuddyActionId } from "@/lib/buddy-message
 import { capturePhoto } from "@/lib/native-media";
 import { logBuddyState } from "@/lib/buddy-voice";
 import { cn } from "@/lib/cn";
+import { hasActivePhotoCategoryMismatch } from "@/lib/seller-photo-category-mismatch";
 
 interface AdaptiveConfirmationProps {
   draft: AiExtractedListing;
@@ -103,6 +104,9 @@ export function AdaptiveConfirmation({
       [publishValidation]
     );
 
+  const activePhotoMismatch = hasActivePhotoCategoryMismatch(photoCategoryMismatch);
+  const publishBlocked = !canPublish || activePhotoMismatch;
+
   const { aiFilledBase, aiFilledAttrs, showAiBadges } = useMemo(() => {
     if (manualFallback) {
       return {
@@ -160,7 +164,7 @@ export function AdaptiveConfirmation({
     onFocusVin: scrollToDetails,
   });
 
-  const quickActions = photoCategoryMismatch
+  const quickActions = activePhotoMismatch
     ? []
     : buildSellerQuickActions({
         missingKeys,
@@ -279,13 +283,11 @@ export function AdaptiveConfirmation({
         previewImage={previewImage}
         videoUrl={videoUrl}
         appearance={universalMode ? "light" : "dark"}
-        disabled={Boolean(photoCategoryMismatch)}
         onImageChange={(imageDataUrl) => {
           onMediaChange({ imageDataUrl });
           if (imageDataUrl && onPhotoCaptured) void onPhotoCaptured(imageDataUrl);
         }}
         onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
-        requestMediaConsent={requestMediaConsent}
       />
     </div>
   );
@@ -393,10 +395,11 @@ export function AdaptiveConfirmation({
       userPrompt={userPrompt}
       buddyMessage={buddyMessage}
       quickActions={quickActions}
-      speakEnabled={speakEnabled && !manualFallback && !photoCategoryMismatch}
+      speakEnabled={speakEnabled && !manualFallback && !activePhotoMismatch}
       manualFallback={manualFallback}
-      isolatedMismatchDialog={Boolean(photoCategoryMismatch)}
-      canPublish={canPublish}
+      isolatedMismatchDialog={activePhotoMismatch}
+      embeddedInWizard={universalMode}
+      canPublish={!publishBlocked}
       publishLabel={publishLabel}
       validationIssues={validationIssues}
       portalStyleLabel={config.label}

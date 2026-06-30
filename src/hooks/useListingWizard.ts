@@ -12,6 +12,7 @@ import {
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import {
   buildSellerPhotoCategoryMismatchMessage,
+  hasActivePhotoCategoryMismatch,
   sellerPhotoCategoryMismatchQuickReplies,
 } from "@/lib/seller-photo-category-mismatch";
 import {
@@ -82,7 +83,9 @@ export function useListingWizard({
 
   const priceAdvice: PriceAdvice = appraisalAdvice ?? localPriceAdvice;
 
-  const draftRevision = `${draft.category}|${photoCategoryMismatch?.toCategory ?? ""}|${userPrompt ?? ""}|${draft.title}`;
+  const activePhotoMismatch = hasActivePhotoCategoryMismatch(photoCategoryMismatch);
+
+  const draftRevision = `${draft.category}|${activePhotoMismatch ? photoCategoryMismatch!.toCategory : ""}|${userPrompt ?? ""}|${draft.title}`;
 
   useEffect(() => {
     if (draftRevisionRef.current === draftRevision) return;
@@ -95,7 +98,7 @@ export function useListingWizard({
   }, [draftRevision]);
 
   useEffect(() => {
-    if (manualFallback || appraisalFetched.current || photoCategoryMismatch) return;
+    if (manualFallback || appraisalFetched.current || activePhotoMismatch) return;
     appraisalFetched.current = true;
 
     void fetchListingPriceAppraisal(draft)
@@ -129,10 +132,10 @@ export function useListingWizard({
       .catch(() => {
         /* local price advice pakanka */
       });
-  }, [manualFallback, draft, onUpdate, photoCategoryMismatch]);
+  }, [manualFallback, draft, onUpdate, activePhotoMismatch]);
 
   const mismatchAnalysis = useMemo((): WizardAnalysis | null => {
-    if (!photoCategoryMismatch) return null;
+    if (!activePhotoMismatch || !photoCategoryMismatch) return null;
     const intro = buildSellerPhotoCategoryMismatchMessage(
       photoCategoryMismatch.fromCategory,
       photoCategoryMismatch.toCategory
@@ -148,7 +151,7 @@ export function useListingWizard({
       prompts: [],
       missingFields: [],
     };
-  }, [photoCategoryMismatch]);
+  }, [photoCategoryMismatch, activePhotoMismatch]);
 
   const analysis = useMemo(
     () =>
@@ -179,7 +182,7 @@ export function useListingWizard({
   );
 
   const buddyMessage = useMemo(() => {
-    if (photoCategoryMismatch) {
+    if (activePhotoMismatch && photoCategoryMismatch) {
       return buildSellerPhotoCategoryMismatchMessage(
         photoCategoryMismatch.fromCategory,
         photoCategoryMismatch.toCategory
@@ -192,10 +195,10 @@ export function useListingWizard({
     if (analysis.questions.length) parts.push(...analysis.questions.slice(0, 2));
     if (agentEnhancement) parts.push(agentEnhancement);
     return parts.join(" ");
-  }, [analysis, agentEnhancement, draft.requiresReview, draft.reviewNotice, photoCategoryMismatch]);
+  }, [analysis, agentEnhancement, draft.requiresReview, draft.reviewNotice, activePhotoMismatch, photoCategoryMismatch]);
 
   useEffect(() => {
-    if (manualFallback || kickedOff.current || photoCategoryMismatch) return;
+    if (manualFallback || kickedOff.current || activePhotoMismatch) return;
     kickedOff.current = true;
 
     const ctx = buildWizardAgentContext(draft, analysis, {
@@ -228,7 +231,7 @@ export function useListingWizard({
       .catch(() => {
         /* lokali analizė pakanka */
       });
-  }, [manualFallback, draft, analysis, isAuthenticated, user, listings, photoCategoryMismatch]);
+  }, [manualFallback, draft, analysis, isAuthenticated, user, listings, activePhotoMismatch]);
 
   const handleWizardReply = useCallback(
     (reply: WizardQuickReply) => {

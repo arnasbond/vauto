@@ -33,6 +33,8 @@ interface ConversationalReportProps {
   manualFallback?: boolean;
   /** Mismatch-only: skip buddy typing/TTS without switching wizard shell layout. */
   isolatedMismatchDialog?: boolean;
+  /** Inside UniversalListingWizard — no viewport-fixed overlay (keeps upload clicks alive). */
+  embeddedInWizard?: boolean;
   onQuickAction: (id: BuddyActionId) => void;
   onCancel: () => void;
   onPublish: () => void;
@@ -55,6 +57,7 @@ export function ConversationalReport({
   portalStyleLabel,
   manualFallback = false,
   isolatedMismatchDialog = false,
+  embeddedInWizard = false,
   onQuickAction,
   onCancel,
   onPublish,
@@ -163,10 +166,12 @@ export function ConversationalReport({
   return (
     <div
       className={cn(
-        manualFallback
-          ? "listing-wizard-overlay chameleon-wizard-shell flex flex-col"
-          : "fixed inset-0 z-[100] flex flex-col transition-colors duration-500 ease-in-out",
-        !manualFallback && t.shell
+        embeddedInWizard
+          ? "relative flex min-h-0 flex-1 flex-col"
+          : manualFallback
+            ? "listing-wizard-overlay chameleon-wizard-shell flex flex-col"
+            : "fixed inset-0 z-[100] flex flex-col transition-colors duration-500 ease-in-out",
+        !embeddedInWizard && !manualFallback && t.shell
       )}
     >
       {!manualFallback && !isolatedMismatchDialog && (

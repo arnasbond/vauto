@@ -992,6 +992,19 @@ body.chameleon-autoplius .nt-wizard-chip-active {
   pointer-events: none;
 }
 
+/** Draft wizard dropzone — native label click, always receives pointer events */
+.draft-media-file-input {
+  position: absolute;
+  inset: 0;
+  z-index: 20;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  cursor: pointer;
+  opacity: 0;
+}
+
 [data-app-theme="dark"] .zero-ui-screen-chrome h2,
 [data-app-theme="dark"] .zero-ui-screen-chrome .text-\[var\(--portal-text\,\#111827\)\],
 [data-app-theme="dark"] .zero-ui-screen-subtitle,

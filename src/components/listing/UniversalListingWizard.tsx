@@ -30,6 +30,7 @@ import {
   flowSkinToAgentStripVariant,
   type FlowUiSkinTokens,
 } from "@/lib/flow-ui-skin";
+import { hasActivePhotoCategoryMismatch } from "@/lib/seller-photo-category-mismatch";
 import { WARDROBE_BULK_PHOTO_PICK_EVENT } from "@/lib/agent-flow-wizard-orchestrator";
 import { cn } from "@/lib/cn";
 
@@ -225,7 +226,9 @@ export function UniversalListingWizard({
 
         <FlowAgentStrip variant={stripVariant} category={draft.category} />
 
-        {photoCategoryMismatch && onPhotoMismatchRevert && onPhotoMismatchAccept ? (
+        {hasActivePhotoCategoryMismatch(photoCategoryMismatch) &&
+        onPhotoMismatchRevert &&
+        onPhotoMismatchAccept ? (
           <div className="px-4 pt-3">
             <PhotoCategoryMismatchBanner
               fromCategory={photoCategoryMismatch.fromCategory}

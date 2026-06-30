@@ -6,6 +6,25 @@ import type { ListingCategory } from "@/lib/types";
 export const SELLER_PHOTO_MISMATCH_REVERT_CHIP = "Ne, pasilikti auto sraute";
 export const SELLER_PHOTO_MISMATCH_ACCEPT_CHIP = "Taip, keisti kategoriją";
 
+export type PhotoCategoryMismatchState =
+  | { fromCategory: ListingCategory; toCategory: ListingCategory }
+  | null
+  | undefined;
+
+/** Strict guard — only an explicit active mismatch object counts (never undefined/null). */
+export function hasActivePhotoCategoryMismatch(
+  state: PhotoCategoryMismatchState
+): state is { fromCategory: ListingCategory; toCategory: ListingCategory } {
+  return (
+    state !== null &&
+    state !== undefined &&
+    typeof state.fromCategory === "string" &&
+    typeof state.toCategory === "string" &&
+    state.fromCategory.length > 0 &&
+    state.toCategory.length > 0
+  );
+}
+
 function verticalLabel(category: ListingCategory): string {
   const key = listingToAdaptiveKey(category);
   switch (key) {
