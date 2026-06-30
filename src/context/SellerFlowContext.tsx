@@ -112,6 +112,16 @@ import {
 } from "@/lib/listing-social-publish";
 import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
+import {
+  adaptiveVerticalChanged,
+  finalizeListingDraft,
+  sanitizeAttributesForCategory,
+} from "@/lib/listing-attribute-isolation";
+import {
+  buildSellerPhotoCategoryMismatchMessage,
+  sellerPhotoCategoryMismatchQuickReplies,
+} from "@/lib/seller-photo-category-mismatch";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
@@ -216,6 +226,7 @@ export interface SellerFlowContextValue {
   startEditListingFlow: (listing: Listing) => void;
   listingSocialPublish: ListingSocialPublishOptions;
   updateListingSocialPublish: (patch: Partial<ListingSocialPublishOptions>) => void;
+  revertPhotoCategoryMismatch: () => boolean;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -234,6 +245,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setDetectedAdaptiveKey,
     setChameleonTheme,
   } = useVautoBridge();
+  const { trackEvent } = useUserBehavior();
 
   const [sellerStep, setSellerStep] = useState<SellerFlowStep>("idle");
   const [sellerInputMode, setSellerInputMode] = useState<SellerInputMode>(null);
@@ -253,6 +265,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   >(null);
   const [pendingWardrobeVoice, setPendingWardrobeVoice] = useState<string | null>(null);
   const processingEpochRef = useRef(0);
+  const categoryMismatchRollbackRef = useRef<{
+    draft: AiExtractedListing;
+    previewImage: string | null;
+  } | null>(null);
+  const aiDraftRef = useRef<AiExtractedListing | null>(null);
+  const sellerPreviewImageRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    aiDraftRef.current = aiDraft;
+  }, [aiDraft]);
+
+  useEffect(() => {
+    sellerPreviewImageRef.current = sellerPreviewImage;
+  }, [sellerPreviewImage]);
 
   const abortSellerProcessing = useCallback(() => {
     processingEpochRef.current += 1;
@@ -579,7 +605,33 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           });
         }
 
-        setAiDraft(next);
+        const previousDraft = aiDraftRef.current;
+        const previousCategory = previousDraft?.category ?? null;
+        const finalized = finalizeListingDraft(next, previousCategory);
+
+        const photoCategoryMismatch =
+          Boolean(previousDraft) &&
+          mode === "upload" &&
+          adaptiveVerticalChanged(previousCategory, finalized.category);
+
+        if (photoCategoryMismatch && previousDraft && previousCategory) {
+          categoryMismatchRollbackRef.current = {
+            draft: finalizeListingDraft(previousDraft),
+            previewImage: sellerPreviewImageRef.current,
+          };
+          const greeting = buildSellerPhotoCategoryMismatchMessage(
+            previousCategory,
+            finalized.category
+          );
+          const quickReplies = sellerPhotoCategoryMismatchQuickReplies(previousCategory);
+          pushAgentGreeting(greeting, { quickReplies, openSheet: true });
+          trackEvent("seller_photo_category_mismatch", {
+            fromCategory: previousCategory,
+            toCategory: finalized.category,
+          });
+        }
+
+        setAiDraft(finalized);
         setSellerStep("confirmation");
 
         if (next.requiresReview && next.reviewNotice?.trim()) {
@@ -589,8 +641,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         logAiSafeguard("processing_success", {
           mode,
           elapsedMs: Math.round(performance.now() - started),
-          category: next.category,
-          confidence: next.confidence,
+          category: finalized.category,
+          confidence: finalized.confidence,
         });
       } catch (error) {
         if (isProcessingStale(epoch)) return;
@@ -601,7 +653,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast]
+    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast, trackEvent]
   );
 
   const submitSellerContent = useCallback(
@@ -664,7 +716,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const sourceText = [draft.title, draft.description].filter(Boolean).join(" ");
       let enriched = enrichVehicleListingDraft(draft, [sourceText]);
       enriched = enrichClothingListingDraft(enriched, sourceText);
-      setAiDraft(enriched);
+      const previousCategory = aiDraftRef.current?.category ?? null;
+      setAiDraft(finalizeListingDraft(enriched, previousCategory));
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
@@ -839,13 +892,42 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
     setAiDraft((prev) => {
       if (!prev) return prev;
-      const next = { ...prev, ...patch };
-      if (patch.attributes) {
-        next.attributes = { ...(prev.attributes ?? {}), ...patch.attributes };
+      const nextCategory = patch.category ?? prev.category;
+      const verticalChanged = patch.category
+        ? adaptiveVerticalChanged(prev.category, nextCategory)
+        : false;
+      const mergedAttrs = patch.attributes
+        ? verticalChanged
+          ? sanitizeAttributesForCategory(nextCategory, {}, patch.attributes)
+          : { ...(prev.attributes ?? {}), ...patch.attributes }
+        : prev.attributes;
+      const next: AiExtractedListing = {
+        ...prev,
+        ...patch,
+        category: nextCategory,
+        attributes: mergedAttrs,
+      };
+      if (verticalChanged) {
+        next.attributes = sanitizeAttributesForCategory(
+          nextCategory,
+          {},
+          next.attributes
+        );
       }
       return next;
     });
   }, []);
+
+  const revertPhotoCategoryMismatch = useCallback(() => {
+    const snap = categoryMismatchRollbackRef.current;
+    if (!snap) return false;
+    setAiDraft(snap.draft);
+    setSellerPreviewImage(snap.previewImage);
+    setSellerStep("confirmation");
+    categoryMismatchRollbackRef.current = null;
+    showToast("Atstatytas ankstesnis skelbimo juodraštis.", "info");
+    return true;
+  }, [showToast]);
 
   const publishListing = useCallback(async () => {
     if (!aiDraft) {
@@ -1300,6 +1382,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       startEditListingFlow,
       listingSocialPublish,
       updateListingSocialPublish,
+      revertPhotoCategoryMismatch,
     }),
     [
       sellerStep,
@@ -1334,6 +1417,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       startEditListingFlow,
       listingSocialPublish,
       updateListingSocialPublish,
+      revertPhotoCategoryMismatch,
     ]
   );
 

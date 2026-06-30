@@ -6,6 +6,10 @@ import {
   requestWardrobeBulkPhotoPick,
   scrollToWardrobeBulkReview,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
+import {
+  isSellerPhotoMismatchAcceptChip,
+  isSellerPhotoMismatchRevertChip,
+} from "@/lib/seller-photo-category-mismatch";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
@@ -53,6 +57,7 @@ export interface AgentQuickReplyDeps {
   openChats: () => void;
   openBargainingChat: () => boolean;
   searchSimilarListings: () => void;
+  revertPhotoCategoryMismatch: () => boolean;
 }
 
 function normalizeChip(text: string): string {
@@ -86,6 +91,27 @@ export function tryHandleAgentQuickReply(
 ): AgentQuickReplyResult | null {
   const { trimmed } = deps;
   if (!trimmed) return null;
+
+  if (isSellerPhotoMismatchRevertChip(trimmed)) {
+    if (deps.revertPhotoCategoryMismatch()) {
+      return {
+        handled: true,
+        reply:
+          "Gerai — atstatiau ankstesnį skelbimo juodraštį. Galite įkelti tinkamą automobilio nuotrauką.",
+      };
+    }
+    return {
+      handled: true,
+      reply: "Šiuo metu neturiu ankstesnio juodraščio — tęskite formą arba pradėkite iš naujo.",
+    };
+  }
+
+  if (isSellerPhotoMismatchAcceptChip(trimmed)) {
+    return {
+      handled: true,
+      reply: "Supratau — paliekame naują kategoriją pagal įkeltą nuotrauką. Patikrinkite laukus ir publikuokite.",
+    };
+  }
 
   if (
     matchesChip(trimmed, [/patvirtinti visus/]) &&

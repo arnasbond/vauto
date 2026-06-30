@@ -1,5 +1,6 @@
 import type { CategoryFieldDef } from "@/lib/adaptive-categories";
 import { getAdaptiveConfig, listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import { allForeignSchemaKeys } from "@/lib/listing-attribute-isolation";
 import type { ListingCategory } from "@/lib/types";
 
 const HIDDEN_ATTR_KEYS = new Set([
@@ -47,10 +48,11 @@ export function buildUniversalListingFields(
   const adaptiveKey = listingToAdaptiveKey(category);
   const config = getAdaptiveConfig(adaptiveKey);
   const schemaKeys = new Set(config.fields.map((f) => f.key));
+  const foreignKeys = allForeignSchemaKeys(adaptiveKey);
 
   const dynamicFields: CategoryFieldDef[] = [];
   for (const [key, raw] of Object.entries(attributes)) {
-    if (HIDDEN_ATTR_KEYS.has(key) || schemaKeys.has(key)) continue;
+    if (HIDDEN_ATTR_KEYS.has(key) || schemaKeys.has(key) || foreignKeys.has(key)) continue;
     const val = Array.isArray(raw) ? raw.join(", ") : String(raw ?? "").trim();
     if (!val) continue;
     dynamicFields.push({

@@ -6,6 +6,7 @@ import {
   getMissingCriticalFields,
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
+import { filterFieldsForListingCategory } from "@/lib/listing-attribute-isolation";
 import type { AiExtractedListing } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
@@ -164,8 +165,12 @@ export function AdaptiveConfirmation({
     typeof attributes.vin === "string" ? attributes.vin : undefined;
   const vinOk = vinValue ? verifyVin(vinValue) : false;
 
-  const categoryFields = config.fields.filter(
-    (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+  const categoryFields = filterFieldsForListingCategory(
+    draft.category,
+    attributes,
+    config.fields.filter(
+      (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+    )
   );
 
   const baseFields = universalMode
@@ -237,6 +242,7 @@ export function AdaptiveConfirmation({
         layout={layoutMap[config.layout]}
         missingKeys={missingKeys}
         variant="inline"
+        appearance={universalMode ? "light" : "dark"}
         showAiFilled={showAiFilledBadges}
         aiFilledKeys={aiFilledAttrs}
       />

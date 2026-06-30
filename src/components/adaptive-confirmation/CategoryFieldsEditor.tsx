@@ -17,6 +17,7 @@ interface CategoryFieldsEditorProps {
   layout: "grid" | "tags" | "sheet" | "stack";
   missingKeys?: string[];
   variant?: "default" | "inline";
+  appearance?: "dark" | "light";
   showAiFilled?: boolean;
   aiFilledKeys?: ReadonlySet<string>;
 }
@@ -28,6 +29,7 @@ export function CategoryFieldsEditor({
   layout,
   missingKeys = [],
   variant = "default",
+  appearance = "dark",
   showAiFilled = false,
   aiFilledKeys,
 }: CategoryFieldsEditorProps) {
@@ -70,7 +72,12 @@ export function CategoryFieldsEditor({
           : "flex flex-col gap-2";
 
   const inlineInputClass =
-    "mt-1 w-full rounded-lg border border-white/5 bg-white/5 p-2 text-xs text-white outline-none focus:border-[var(--vauto-teal)]";
+    appearance === "light"
+      ? "mt-1 w-full rounded-lg border border-slate-300 bg-white p-2 text-sm text-slate-900 outline-none placeholder:text-slate-500 focus:border-[var(--vauto-primary)]"
+      : "mt-1 w-full rounded-lg border border-white/5 bg-white/5 p-2 text-xs text-white outline-none focus:border-[var(--vauto-teal)]";
+
+  const inlineLabelClass =
+    appearance === "light" ? "text-xs font-medium text-slate-700" : "text-xs text-white/40";
 
   return (
     <div className={wrapperClass}>
@@ -93,7 +100,7 @@ export function CategoryFieldsEditor({
 
             return (
               <div key={field.key} className={field.gridSpan === 2 ? "col-span-2" : ""}>
-                <label className="text-xs text-white/40">
+                <label className={inlineLabelClass}>
                   {field.label}
                   {showAiFilled && aiFilledKeys?.has(field.key) && (
                     <AiFilledBadge visible />
@@ -107,27 +114,27 @@ export function CategoryFieldsEditor({
                   }}
                   className={inlineInputClass}
                 >
-                  <option value="" className="bg-slate-800">
+                  <option value="" className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                     Pasirinkite markę…
                   </option>
                   {VEHICLE_MAKES.map((o) => (
-                    <option key={o} value={o} className="bg-slate-800">
+                    <option key={o} value={o} className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                       {o}
                     </option>
                   ))}
                 </select>
-                <label className="mt-2 block text-xs text-white/40">Modelis</label>
+                <label className={`mt-2 block ${inlineLabelClass}`}>Modelis</label>
                 <select
                   value={currentModel}
                   onChange={(e) => onChange("model", e.target.value)}
                   className={inlineInputClass}
                   disabled={!currentMake}
                 >
-                  <option value="" className="bg-slate-800">
+                  <option value="" className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                     {currentMake ? "Pasirinkite modelį…" : "Pirma pasirinkite markę"}
                   </option>
                   {modelOptions.map((o) => (
-                    <option key={o} value={o} className="bg-slate-800">
+                    <option key={o} value={o} className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                       {o}
                     </option>
                   ))}
@@ -143,7 +150,7 @@ export function CategoryFieldsEditor({
           if (field.key === "year") {
             return (
               <div key={field.key} className={field.gridSpan === 2 ? "col-span-2" : ""}>
-                <label className="text-xs text-white/40">
+                <label className={inlineLabelClass}>
                   {field.label}
                   {showAiFilled && aiFilledKeys?.has(field.key) && (
                     <AiFilledBadge visible />
@@ -154,7 +161,7 @@ export function CategoryFieldsEditor({
                   onChange={(e) => onChange(field.key, e.target.value)}
                   className={inlineInputClass}
                 >
-                  <option value="" className="bg-slate-800">
+                  <option value="" className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                     Metai…
                   </option>
                   {REGISTRATION_YEARS.map((y) => (
@@ -173,7 +180,7 @@ export function CategoryFieldsEditor({
                 key={field.key}
                 className={field.gridSpan === 2 ? "col-span-2" : ""}
               >
-                <label className="text-xs text-white/40">
+                <label className={inlineLabelClass}>
                   {field.label}
                   {missing && <span className="ml-1 text-amber-400">●</span>}
                   {showAiFilled && aiFilledKeys?.has(field.key) && (
@@ -185,11 +192,11 @@ export function CategoryFieldsEditor({
                   onChange={(e) => onChange(field.key, e.target.value)}
                   className={inlineInputClass}
                 >
-                  <option value="" className="bg-slate-800">
+                  <option value="" className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                     Pasirinkite…
                   </option>
                   {field.options.map((o) => (
-                    <option key={o} value={o} className="bg-slate-800">
+                    <option key={o} value={o} className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                       {o}
                     </option>
                   ))}
@@ -203,7 +210,7 @@ export function CategoryFieldsEditor({
               key={field.key}
               className={field.gridSpan === 2 ? "col-span-2" : ""}
             >
-              <label className="text-xs text-white/40">
+              <label className={inlineLabelClass}>
                 {field.label}
                 {field.critical && <span className="text-amber-400"> *</span>}
               </label>

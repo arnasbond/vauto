@@ -11,7 +11,8 @@ export type UserBehaviorActionType =
   | "theme_change"
   | "spinta_enter"
   | "agent_message"
-  | "agent_action";
+  | "agent_action"
+  | "seller_photo_category_mismatch";
 
 export interface UserBehaviorEvent {
   id: string;

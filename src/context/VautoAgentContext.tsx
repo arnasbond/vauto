@@ -164,6 +164,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     pendingWardrobeVoice,
     publishBulkClothingListings,
     publishListing,
+    revertPhotoCategoryMismatch,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -772,6 +773,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         openChats: () => router.push("/chats"),
         openBargainingChat,
         searchSimilarListings,
+        revertPhotoCategoryMismatch,
       });
       if (quickReply) {
         setMessages((prev) => [
@@ -1082,6 +1084,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       lastBargainingOffer,
       openBargainingChat,
       searchSimilarListings,
+      revertPhotoCategoryMismatch,
       sessionPendingImageUrls,
       setLastBargainingOffer,
       sellerAnalytics,

@@ -2067,6 +2067,24 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   background-color: var(--vauto-bg) !important;
 }
 
+[data-app-theme="vauto-original"] .listing-wizard-overlay select,
+[data-app-theme="light-minimal"] .listing-wizard-overlay select {
+  color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+  background-color: #ffffff !important;
+}
+
+[data-app-theme="vauto-original"] .listing-wizard-overlay select option,
+[data-app-theme="light-minimal"] .listing-wizard-overlay select option {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
+[data-app-theme="vauto-original"] .listing-wizard-overlay input::placeholder,
+[data-app-theme="light-minimal"] .listing-wizard-overlay input::placeholder {
+  color: #64748b;
+}
+
 .ai-wizard-fab-preview {
   animation: wizardPreviewIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
 }

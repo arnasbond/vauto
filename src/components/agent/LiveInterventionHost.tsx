@@ -12,7 +12,12 @@ import {
   buildBargainingInterventionMessage,
   buildNoMatchInterventionMessage,
 } from "@/lib/offer-engine-client";
+import {
+  buildSellerPhotoCategoryMismatchMessage,
+  sellerPhotoCategoryMismatchQuickReplies,
+} from "@/lib/seller-photo-category-mismatch";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
+import type { ListingCategory } from "@/lib/types";
 
 const EMPTY_WARDROBE_GREETING =
   "Matau, kad tavo spinta dar tuščia! Jei turi nereikalingų drabužių ar technikos — tiesiog nufotografuok, ir aš paruošiu skelbimą per 5 sekundes.";
@@ -96,6 +101,23 @@ export function LiveInterventionHost() {
 
     const last = events[events.length - 1];
     if (!last || last.id === lastHandledEventId.current) return;
+
+    if (last.type === "seller_photo_category_mismatch") {
+      const fromCategory = String(last.payload.fromCategory ?? "") as ListingCategory;
+      const toCategory = String(last.payload.toCategory ?? "") as ListingCategory;
+      if (!fromCategory || !toCategory) return;
+      const key = `photo_mismatch:${fromCategory}:${toCategory}`;
+      if (!shouldFireIntervention(key)) return;
+      lastHandledEventId.current = last.id;
+      const greeting = buildSellerPhotoCategoryMismatchMessage(fromCategory, toCategory);
+      const quickReplies = sellerPhotoCategoryMismatchQuickReplies(fromCategory);
+      openWithGreeting(greeting, { quickReplies, openSheet: true });
+      void sendAgentMessage(greeting, {
+        skipBusyCheck: true,
+        proactiveTriggerOnly: true,
+      });
+      return;
+    }
 
     if (last.type === "search_empty") {
       const query = String(last.payload.query ?? searchQuery).trim();

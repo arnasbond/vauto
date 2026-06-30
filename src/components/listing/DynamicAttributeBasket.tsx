@@ -47,6 +47,7 @@ export function DynamicAttributeBasket({
         layout="stack"
         missingKeys={missingKeys}
         variant="inline"
+        appearance="light"
       />
     </div>
   );
