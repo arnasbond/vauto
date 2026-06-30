@@ -3,23 +3,27 @@
 import { AiProcessingOverlay } from "@/components/AiProcessingOverlay";
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { SafeAgentActionBoundary } from "@/components/agent/SafeAgentActionBoundary";
-import { usePathname } from "next/navigation";
+import { FlowAgentComposer } from "@/components/agent/FlowAgentComposer";
+import { useVauto } from "@/context/VautoContext";
+import { useAgentFlowPhase } from "@/hooks/useAgentFlowPhase";
+import { shouldShowFlowAgentComposer } from "@/lib/agent-flow-phase";
 
 export function SellerFlowOverlays() {
-  const pathname = usePathname();
-  const onAdd =
-    pathname === "/add" ||
-    pathname === "/add/" ||
-    pathname.startsWith("/add/");
+  const { sellerStep } = useVauto();
+  const phase = useAgentFlowPhase();
+  const showWizard =
+    sellerStep === "confirmation" || sellerStep === "published";
+  const showComposer = shouldShowFlowAgentComposer(phase);
 
   return (
     <SafeAgentActionBoundary label="seller-flow-overlays">
       <AiProcessingOverlay />
-      {onAdd && (
+      {showWizard && (
         <SafeAgentActionBoundary label="ai-confirmation">
           <AiConfirmationScreen mode="overlay" />
         </SafeAgentActionBoundary>
       )}
+      {showComposer && <FlowAgentComposer phase={phase} />}
     </SafeAgentActionBoundary>
   );
 }

@@ -378,9 +378,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
         navigateToAdd(draft.category === "clothing");
-        if (draft.category !== "clothing") {
-          setOpen(false);
-        }
+        setOpen(true);
       }
       if (actions.type === "wardrobe_bulk") {
         const items = mapAgentWardrobeItems(actions.items);

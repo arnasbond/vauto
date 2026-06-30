@@ -4,7 +4,7 @@ import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
 const PORTAL_SHELL =
-  "listing-wizard-overlay fixed inset-0 z-[240] overflow-y-auto overscroll-contain";
+  "listing-wizard-overlay fixed inset-0 z-[240] overflow-y-auto overscroll-contain pb-36";
 
 /** Renders listing wizards on document.body to escape parent stacking contexts. */
 export function ListingWizardPortal({

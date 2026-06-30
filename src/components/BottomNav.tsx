@@ -39,6 +39,7 @@ export function BottomNav() {
     user,
     openAuthModal,
     requireAuthForListing,
+    cancelSellerFlow,
     setSearchQuery,
     setSearchLoading,
     clearAgentPinnedListings,
@@ -51,7 +52,14 @@ export function BottomNav() {
   const { clearSearchFilters } = useZeroUiMemory();
   const { setOpen: setAgentOpen } = useVautoAgent();
 
+  const resetSellerIfLeavingFlow = useCallback(() => {
+    if (sellerStep !== "idle" && sellerStep !== "published") {
+      cancelSellerFlow();
+    }
+  }, [sellerStep, cancelSellerFlow]);
+
   const resetHomeExperience = useCallback(() => {
+    resetSellerIfLeavingFlow();
     setSearchQuery("");
     setSearchLoading(false);
     clearAgentPinnedListings();
@@ -68,6 +76,7 @@ export function BottomNav() {
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [
+    resetSellerIfLeavingFlow,
     setSearchQuery,
     setSearchLoading,
     clearAgentPinnedListings,
@@ -170,7 +179,10 @@ export function BottomNav() {
 
         <Link
           href={spintaHref}
-          onClick={handleSpinta}
+          onClick={(e) => {
+            resetSellerIfLeavingFlow();
+            handleSpinta(e);
+          }}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(spintaActive) }}
           aria-current={spintaActive ? "page" : undefined}
@@ -201,7 +213,10 @@ export function BottomNav() {
 
         <Link
           href="/messages/"
-          onClick={handleMessages}
+          onClick={(e) => {
+            resetSellerIfLeavingFlow();
+            handleMessages(e);
+          }}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(messagesActive) }}
           aria-current={messagesActive ? "page" : undefined}
@@ -220,6 +235,7 @@ export function BottomNav() {
         <Link
           href={profileHref}
           onClick={(e) => {
+            resetSellerIfLeavingFlow();
             if (!isAuthenticated) {
               e.preventDefault();
               openAuthModal("/profile/");

@@ -13,10 +13,10 @@ import {
 import { useVauto } from "@/context/VautoContext";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
 import { enrichClothingListingDraft } from "@/lib/clothing-catalog";
-import { SafeAgentActionBoundary } from "@/components/agent/SafeAgentActionBoundary";
-import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
+import { useAgentFlowPhase } from "@/hooks/useAgentFlowPhase";
+import { isSellerFlowBlockingStaticUi } from "@/lib/agent-flow-phase";
 
 export default function AddPage() {
   const router = useRouter();
@@ -31,6 +31,8 @@ export default function AddPage() {
     user,
   } = useVauto();
   const { sendAgentMessage } = useVautoAgent();
+  const flowPhase = useAgentFlowPhase();
+  const blockStaticUi = isSellerFlowBlockingStaticUi(flowPhase);
   const [introOpen, setIntroOpen] = useState(false);
   const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
   const [fashionMode, setFashionMode] = useState(false);
@@ -136,30 +138,26 @@ export default function AddPage() {
   return (
     <AppShell>
       <div className="seller-flow-page min-h-full">
-        <HeroSection>
-          <Header />
-          <h2 className="font-display mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
-            {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
-          </h2>
-          <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)]">
-            {fashionMode
-              ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
-              : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}
-          </p>
-          {!fashionMode && (
-            <div className="mt-5">
-              <SellerUploadPanel
-                autoOpenPhotoFlow={startAiAfterIntro}
-                onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
-              />
-            </div>
-          )}
-        </HeroSection>
-
-        {fashionMode && sellerStep !== "idle" && (
-          <SafeAgentActionBoundary label="fashion-inline-wizard">
-            <AiConfirmationScreen mode="inline-full" />
-          </SafeAgentActionBoundary>
+        {!blockStaticUi && (
+          <HeroSection>
+            <Header />
+            <h2 className="font-display mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
+              {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
+            </h2>
+            <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)]">
+              {fashionMode
+                ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
+                : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}
+            </p>
+            {!fashionMode && (
+              <div className="mt-5">
+                <SellerUploadPanel
+                  autoOpenPhotoFlow={startAiAfterIntro}
+                  onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
+                />
+              </div>
+            )}
+          </HeroSection>
         )}
 
         {!fashionMode && (

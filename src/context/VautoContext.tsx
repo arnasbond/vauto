@@ -601,11 +601,11 @@ function VautoFacade({
             <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
             <FleetMatchBuddyHost />
             <LiveInterventionHost />
+            <SellerFlowOverlays />
             {children}
           </VautoAgentProvider>
         </ZeroUiMemoryProvider>
       </AdminProjectContextProvider>
-      <SellerFlowOverlays />
       <ZeroUiSellerBridge />
       <ChameleonThemeHost />
       <ReviewPromptHost />

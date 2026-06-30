@@ -405,7 +405,7 @@ export function ClothingListingWizard({
 
   return (
     <div className="listing-wizard-overlay chameleon-wizard-shell spinta-listing-wizard bg-[#0a1128] text-white min-h-screen">
-      <div className="mx-auto w-full max-w-lg bg-[#0a1128] text-white min-h-screen pb-8">
+      <div className="mx-auto w-full max-w-lg bg-[#0a1128] text-white min-h-screen pb-36">
         <div className="sticky top-0 z-10 flex items-center justify-between border-b border-slate-700 bg-[#0a1128] px-4 py-3">
           <div className="flex items-center gap-2">
             <span

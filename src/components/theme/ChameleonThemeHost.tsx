@@ -43,7 +43,6 @@ export function ChameleonThemeHost() {
     body.classList.add(theme.bodyClass);
     return () => {
       body.classList.remove(theme.bodyClass);
-      body.classList.add("chameleon-flux");
     };
   }, [theme.bodyClass]);
 
