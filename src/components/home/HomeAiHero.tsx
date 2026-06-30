@@ -3,10 +3,10 @@
 import Link from "next/link";
 import { Sparkles } from "lucide-react";
 import { VautoLogo } from "@/components/VautoLogo";
-import { SearchBar } from "@/components/SearchBar";
+import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
 import { Header } from "@/components/Header";
-import { useAiBrowseDockVisible } from "@/hooks/useAiBrowseDockVisible";
+import { useShellChrome } from "@/hooks/useShellChrome";
 
 interface HomeAiHeroProps {
   seedQuery?: string | null;
@@ -19,20 +19,22 @@ export function HomeAiHero({
   onSeedConsumed,
   compact = false,
 }: HomeAiHeroProps) {
-  const dockVisible = useAiBrowseDockVisible();
+  const shell = useShellChrome();
 
   if (compact) {
     return (
       <div className="mb-2">
         <Header />
-        <div className="mt-3">
-          <SearchBar
-            variant="hero"
-            seedQuery={seedQuery}
-            onSeedConsumed={onSeedConsumed}
-          />
-          {dockVisible ? null : <AgentChatStrip />}
-        </div>
+        {shell.showHeroCommand && (
+          <div className="mt-3">
+            <AiCommandBar
+              placement="hero"
+              seedQuery={seedQuery}
+              onSeedConsumed={onSeedConsumed}
+            />
+          </div>
+        )}
+        {!shell.showCommandDock && <AgentChatStrip />}
       </div>
     );
   }
@@ -61,13 +63,15 @@ export function HomeAiHero({
         </div>
       </div>
 
-      <div className="mt-2">
-        <SearchBar
-          variant="hero"
-          seedQuery={seedQuery}
-          onSeedConsumed={onSeedConsumed}
-        />
-      </div>
+      {shell.showHeroCommand && (
+        <div className="mt-2">
+          <AiCommandBar
+            placement="hero"
+            seedQuery={seedQuery}
+            onSeedConsumed={onSeedConsumed}
+          />
+        </div>
+      )}
     </div>
   );
 }

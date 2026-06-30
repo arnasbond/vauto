@@ -5,7 +5,6 @@ import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
 import { ListingGrid } from "@/components/ListingGrid";
 import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
-import { BrowseDockSpacer } from "@/components/BrowseDockSpacer";
 import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
@@ -51,7 +50,6 @@ export default function DiscoverPage() {
         {isFluxHome && <PortalExperienceStrip />}
         {isFluxHome && <AiFirstBrowsePrompt />}
         <ListingGrid />
-        <BrowseDockSpacer />
       </ContentSection>
     </AppShell>
   );

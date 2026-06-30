@@ -5,6 +5,8 @@ import { BottomNav } from "@/components/BottomNav";
 import { InstallAppBanner } from "@/components/InstallAppBanner";
 import { SiteFooter } from "@/components/layout/SiteFooter";
 import { SyncErrorBanner } from "@/components/SyncErrorBanner";
+import { useShellChrome } from "@/hooks/useShellChrome";
+import { cn } from "@/lib/cn";
 
 interface AppShellProps {
   children: ReactNode;
@@ -18,31 +20,44 @@ export function AppShell({
   hideNav = false,
   variant = "home",
 }: AppShellProps) {
+  const shell = useShellChrome();
+  const navHidden = hideNav || shell.hideBottomNav;
+
   if (variant === "plain") {
     return (
       <div className="vauto-light-page flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)]">
-        <div className="mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 pb-28">
+        <div
+          className={cn(
+            "mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4",
+            shell.contentBottomClass
+          )}
+        >
           <SyncErrorBanner />
           {children}
-          <SiteFooter className="-mx-4 mt-6" />
+          {!shell.hideSiteFooter && <SiteFooter className="-mx-4 mt-6" />}
         </div>
-        {!hideNav && <BottomNav />}
-        {!hideNav && <InstallAppBanner />}
+        {!navHidden && <BottomNav />}
+        {!navHidden && <InstallAppBanner />}
       </div>
     );
   }
 
   return (
     <div className="flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)] transition-colors duration-300">
-      <div className="mx-auto flex w-full max-w-lg flex-1 flex-col pb-28">
+      <div
+        className={cn(
+          "mx-auto flex w-full max-w-lg flex-1 flex-col",
+          shell.contentBottomClass
+        )}
+      >
         <div className="px-4 pt-2">
           <SyncErrorBanner />
         </div>
         {children}
-        <SiteFooter />
+        {!shell.hideSiteFooter && <SiteFooter />}
       </div>
-      {!hideNav && <BottomNav />}
-      {!hideNav && <InstallAppBanner />}
+      {!navHidden && <BottomNav />}
+      {!navHidden && <InstallAppBanner />}
     </div>
   );
 }

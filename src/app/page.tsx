@@ -15,8 +15,6 @@ import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 
 import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
-import { BrowseDockSpacer } from "@/components/BrowseDockSpacer";
-
 import { HomeAiHero } from "@/components/home/HomeAiHero";
 
 
@@ -118,8 +116,6 @@ function MarketplaceView() {
         <div>
           <ListingGrid hideEmptyAssistant={emptySearchMode} />
         </div>
-
-        <BrowseDockSpacer />
       </ContentSection>
 
     </>

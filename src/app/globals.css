@@ -2,24 +2,24 @@
 
 /* ── Vauto Flux 2026 design tokens ── */
 :root {
-  --flux-bg: #0b0f19;
-  --flux-teal: #00f2fe;
-  --flux-cyan: #22d3ee;
-  --flux-indigo: #6366f1;
+  --flux-bg: #f4f7fc;
+  --flux-teal: #1e66ca;
+  --flux-cyan: #1d8fe8;
+  --flux-indigo: #1e66ca;
   --flux-coral: #ff6b00;
   --flux-coral-light: #ff8f65;
   --flux-price-start: #ff8a65;
   --flux-price-end: #ffb74d;
 
-  /* Canonical theme tokens (default = dark) */
-  --vauto-bg: #0b0f19;
-  --vauto-card-bg: #161c2a;
-  --vauto-text-main: #ffffff;
-  --vauto-text-muted: #9a9ea9;
-  --vauto-primary: #00f2fe;
+  /* Canonical theme tokens (default = VAUTO Original light) */
+  --vauto-bg: #f4f7fc;
+  --vauto-card-bg: #ffffff;
+  --vauto-text-main: #0b0f19;
+  --vauto-text-muted: #5e6e82;
+  --vauto-primary: #1e66ca;
   --vauto-accent: #ff6b00;
-  --vauto-primary-contrast: #0b0f19;
-  --vauto-border: rgba(154, 158, 169, 0.28);
+  --vauto-primary-contrast: #ffffff;
+  --vauto-border: rgba(94, 110, 130, 0.22);
 
   /* Legacy aliases — keep existing components working */
   --vauto-text: var(--vauto-text-main);

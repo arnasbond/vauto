@@ -6,6 +6,7 @@ import { AuthProvider } from "@/context/AuthContext";
 import { NavigationProvider } from "@/context/NavigationContext";
 import { ZeroUiScreenProvider } from "@/context/ZeroUiScreenContext";
 import { ReviewsProvider } from "@/context/ReviewsContext";
+import { VautoSearchProvider } from "@/context/VautoSearchContext";
 import { VautoProvider } from "@/context/VautoContext";
 import { UserBehaviorProvider } from "@/context/UserBehaviorContext";
 import { NativeErrorBoundary } from "@/components/NativeErrorBoundary";
@@ -28,7 +29,9 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 <NavigationProvider>
                   <UserBehaviorNavigationTracker />
                   <ZeroUiScreenProvider>
-                    <VautoProvider>{children}</VautoProvider>
+                    <VautoSearchProvider>
+                      <VautoProvider>{children}</VautoProvider>
+                    </VautoSearchProvider>
                   </ZeroUiScreenProvider>
                 </NavigationProvider>
               </ReviewsProvider>

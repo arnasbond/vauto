@@ -27,10 +27,10 @@ export function ChameleonThemeHost() {
     if (sellerStep !== "idle") return chameleonTheme;
     if (chameleonTheme === "wardrobe") return "wardrobe";
     if (searchQuery.trim()) return portalExperienceForQuery(searchQuery).theme;
-    return "flux";
+    return null;
   }, [chameleonTheme, searchQuery, sellerStep]);
 
-  const theme = getChameleonTheme(effectiveTheme);
+  const theme = effectiveTheme ? getChameleonTheme(effectiveTheme) : null;
 
   useEffect(() => {
     if (effectiveTheme === lastThemeRef.current) return;
@@ -41,13 +41,15 @@ export function ChameleonThemeHost() {
   useEffect(() => {
     const body = document.body;
     body.classList.remove(...CHAMELEON_CLASSES);
+    if (!theme) return;
     body.classList.add(theme.bodyClass);
     return () => {
       body.classList.remove(theme.bodyClass);
     };
-  }, [theme.bodyClass]);
+  }, [theme]);
 
   useEffect(() => {
+    if (!effectiveTheme) return;
     const ui = getPortalUi(effectiveTheme);
     let meta = document.querySelector('meta[name="theme-color"]');
     if (!meta) {

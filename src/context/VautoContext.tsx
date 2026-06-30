@@ -21,8 +21,6 @@ import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { generateDynamicFilters } from "@/lib/scoring";
 import {
-  DEFAULT_MARKETPLACE_FILTERS,
-  normalizeMarketplaceFilters,
   type MarketplaceFilterState,
   type MarketplaceViewMode,
 } from "@/lib/marketplace-view";
@@ -120,9 +118,10 @@ import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { LiveInterventionHost } from "@/components/agent/LiveInterventionHost";
 import { SearchRefinementHost } from "@/components/agent/SearchRefinementHost";
-import { BrowseAgentComposerHost } from "@/components/BrowseAgentComposerHost";
+import { AgentChromeHost } from "@/components/agent/AgentChromeHost";
 import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
 import { FleetMatchBuddyHost } from "@/components/buddy/FleetMatchBuddyHost";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
@@ -605,7 +604,7 @@ function VautoFacade({
             <LiveInterventionHost />
             <SearchRefinementHost />
             <SellerFlowOverlays />
-            <BrowseAgentComposerHost />
+            <AgentChromeHost />
             {children}
           </VautoAgentProvider>
         </ZeroUiMemoryProvider>
@@ -656,6 +655,23 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     consumePendingAuthIntent,
   } = useAuth();
   const { reviews, submitReview } = useReviews();
+  const {
+    searchQuery,
+    setSearchQuery,
+    searchLoading,
+    setSearchLoading,
+    marketplaceFilters,
+    setMarketplaceFilters: setMarketplaceFiltersNormalized,
+    resetMarketplaceFilters,
+    viewMode,
+    setViewMode,
+    agentPinnedListingIds,
+    setAgentPinnedListings,
+    searchInputMode,
+    setSearchInputMode,
+    searchVoiceMode,
+    setSearchVoiceMode,
+  } = useVautoSearch();
 
   const [hydrated, setHydrated] = useState(false);
   const [apiActive, setApiActive] = useState(false);
@@ -664,14 +680,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     shouldShowDemoCatalog() ? markListingDemoFlags(INITIAL_LISTINGS) : []
   );
   const [savedIds, setSavedIds] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
-  const [searchLoading, setSearchLoading] = useState(false);
-  const [agentPinnedListingIds, setAgentPinnedListingIds] = useState<
-    string[] | null
-  >(null);
-  const [viewMode, setViewMode] = useState<MarketplaceViewMode>("grid");
-  const [marketplaceFilters, setMarketplaceFilters] =
-    useState<MarketplaceFilterState>(DEFAULT_MARKETPLACE_FILTERS);
   const [activeFilterIds, setActiveFilterIds] = useState<Set<string>>(
     new Set()
   );
@@ -687,9 +695,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const [openedServiceLeadIds, setOpenedServiceLeadIds] = useState<Set<string>>(new Set());
   const [soldPromptDismissed, setSoldPromptDismissed] = useState<Set<string>>(new Set());
   const [pendingReview, setPendingReview] = useState<PendingReviewPrompt | null>(null);
-  const [searchVoiceMode, setSearchVoiceMode] = useState(false);
-  const [searchInputMode, setSearchInputMode] =
-    useState<import("@/lib/buddy-messages").SearchInputMode>(null);
   const [visualSearchProfile, setVisualSearchProfile] =
     useState<VisualSearchProfile | null>(null);
   const [visualRankScores, setVisualRankScores] = useState<Record<string, number>>({});
@@ -847,9 +852,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!searchQuery.trim()) {
-      setAgentPinnedListingIds(null);
+      setAgentPinnedListings(null);
     }
-  }, [searchQuery]);
+  }, [searchQuery, setAgentPinnedListings]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
@@ -1152,30 +1157,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     ]
   );
 
-  const setAgentPinnedListings = useCallback((ids: string[] | null) => {
-    setAgentPinnedListingIds(ids);
-  }, []);
-
   const clearAgentPinnedListings = useCallback(() => {
-    setAgentPinnedListingIds(null);
-  }, []);
-
-  const resetMarketplaceFilters = useCallback(() => {
-    setMarketplaceFilters(DEFAULT_MARKETPLACE_FILTERS);
-  }, []);
-
-  const setMarketplaceFiltersNormalized = useCallback(
-    (next: MarketplaceFilterState) => {
-      setMarketplaceFilters(normalizeMarketplaceFilters(next));
-    },
-    []
-  );
+    setAgentPinnedListings(null);
+  }, [setAgentPinnedListings]);
 
   const handleSearchQuery = useCallback(
     (q: string) => {
       const clean = sanitizeSearchQuery(q);
       setSearchQuery(clean);
-      setAgentPinnedListingIds(null);
+      setAgentPinnedListings(null);
       if (clean.length >= 2) {
         setSearchIntentEvents((prev) => recordSearchIntent(prev, clean));
       }
@@ -1183,7 +1173,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         registerServiceLead(clean);
       }
     },
-    [registerServiceLead]
+    [registerServiceLead, setSearchQuery, setAgentPinnedListings]
   );
 
   const clearVisualSearch = useCallback((opts?: { keepInputMode?: boolean }) => {

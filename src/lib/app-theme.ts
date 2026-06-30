@@ -24,7 +24,7 @@ export const APP_THEMES: AppThemeMeta[] = [
   },
 ];
 
-export const DEFAULT_APP_THEME: AppThemeId = "dark";
+export const DEFAULT_APP_THEME: AppThemeId = "vauto-original";
 
 export function isAppThemeId(value: string): value is AppThemeId {
   return value === "vauto-original" || value === "dark" || value === "light-minimal";

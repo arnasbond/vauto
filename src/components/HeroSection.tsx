@@ -9,9 +9,7 @@ export function HeroSection({ children }: { children: ReactNode }) {
   );
 }
 
-/** Content area below hero — extra bottom padding clears fixed BottomNav */
+/** Content area below hero — shell chrome handles bottom safe area */
 export function ContentSection({ children }: { children: ReactNode }) {
-  return (
-    <section className="flex-1 px-4 pt-2 pb-8">{children}</section>
-  );
+  return <section className="marketplace-content flex-1 px-4 pt-2">{children}</section>;
 }
