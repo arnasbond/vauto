@@ -43,10 +43,10 @@ export const FLOW_UI_SKIN_DEFAULT: FlowUiSkinTokens = {
   headerTitle: "Universali skelbimų magistralė",
   headerSubtitle: "text-sky-300/80",
   badgeBg: "#0284c7",
-  composerBorder: "border-sky-500/35",
-  composerBg: "bg-[#0f172a]/95",
-  composerButton: "bg-sky-600 hover:bg-sky-500",
-  composerAccentIcon: "text-sky-400",
+  composerBorder: "border-[var(--vauto-border)]",
+  composerBg: "bg-[var(--vauto-card-bg)]/95 backdrop-blur-xl",
+  composerButton: "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] hover:opacity-90",
+  composerAccentIcon: "text-[var(--vauto-primary)]",
   basketLabel: "text-sky-300",
 };
 
@@ -63,10 +63,10 @@ export const FLOW_UI_SKIN_SPINTA: FlowUiSkinTokens = {
   headerTitle: "Tavo AI Spinta",
   headerSubtitle: "text-fuchsia-300/90",
   badgeBg: "#d946ef",
-  composerBorder: "border-fuchsia-500/40",
-  composerBg: "bg-[#0f172a]/95",
-  composerButton: "bg-fuchsia-600 hover:bg-fuchsia-500",
-  composerAccentIcon: "text-fuchsia-400",
+  composerBorder: "border-fuchsia-500/35",
+  composerBg: "bg-[var(--vauto-card-bg)]/95 backdrop-blur-xl",
+  composerButton: "bg-fuchsia-600 text-white hover:bg-fuchsia-500",
+  composerAccentIcon: "text-fuchsia-500",
   basketLabel: "text-fuchsia-300",
 };
 

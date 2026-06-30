@@ -11,5 +11,7 @@ export function HeroSection({ children }: { children: ReactNode }) {
 
 /** Content area below hero — shell chrome handles bottom safe area */
 export function ContentSection({ children }: { children: ReactNode }) {
-  return <section className="marketplace-content flex-1 px-4 pt-2">{children}</section>;
+  return (
+    <section className="marketplace-content flex-1 px-4 pt-2">{children}</section>
+  );
 }

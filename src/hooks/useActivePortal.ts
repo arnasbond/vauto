@@ -2,12 +2,16 @@
 
 import { useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 
 export function useActivePortal() {
-  const { searchQuery, sellerStep, chameleonTheme } = useVauto();
+  const { chameleonTheme } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const { searchQuery } = useVautoSearch();
   const theme: ChameleonThemeId =
     sellerStep !== "idle"
       ? chameleonTheme

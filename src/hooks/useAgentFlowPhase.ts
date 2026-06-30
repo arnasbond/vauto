@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo } from "react";
-import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
   resolveAgentFlowPhase,
@@ -9,7 +9,7 @@ import {
 } from "@/lib/agent-flow-phase";
 
 export function useAgentFlowPhase(): AgentFlowPhase {
-  const { sellerStep } = useVauto();
+  const { sellerStep } = useSellerFlow();
   const { open } = useVautoAgent();
   return useMemo(
     () => resolveAgentFlowPhase(sellerStep, { agentSheetOpen: open }),

@@ -8,11 +8,13 @@ import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
-import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 
 export default function DiscoverPage() {
-  const { searchQuery, sellerStep } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const { searchQuery } = useVautoSearch();
   const portalActive = Boolean(searchQuery.trim()) || sellerStep !== "idle";
   const isFluxHome = !portalActive || portalExperienceForQuery(searchQuery).theme === "flux";
 

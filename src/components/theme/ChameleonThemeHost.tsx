@@ -2,6 +2,8 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
@@ -19,7 +21,9 @@ const CHAMELEON_CLASSES = [
 
 /** Applies chameleon body class — seller flow or active search portal */
 export function ChameleonThemeHost() {
-  const { chameleonTheme, searchQuery, sellerStep } = useVauto();
+  const { chameleonTheme } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const { searchQuery } = useVautoSearch();
   const { trackEvent } = useUserBehavior();
   const lastThemeRef = useRef<string | null>(null);
 

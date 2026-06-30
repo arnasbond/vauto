@@ -8,10 +8,10 @@ import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
-import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 
 export default function SearchPage() {
-  const { searchQuery } = useVauto();
+  const { searchQuery } = useVautoSearch();
 
   useEffect(() => {
     if (searchQuery.trim()) {

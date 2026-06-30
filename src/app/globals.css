@@ -1868,6 +1868,11 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   border-color: var(--vauto-border);
 }
 
+/* Unified marketplace results surface — no dual background bands */
+.marketplace-content {
+  background: var(--vauto-bg);
+}
+
 [data-app-theme="dark"] .marketplace-filter-bar,
 [data-theme="dark"] .marketplace-filter-bar {
   background: color-mix(in srgb, var(--vauto-surface-muted) 96%, transparent);

@@ -3,10 +3,10 @@
 import { AiProcessingOverlay } from "@/components/AiProcessingOverlay";
 import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { SafeAgentActionBoundary } from "@/components/agent/SafeAgentActionBoundary";
-import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 
 export function SellerFlowOverlays() {
-  const { sellerStep } = useVauto();
+  const { sellerStep } = useSellerFlow();
   const showWizard =
     sellerStep === "confirmation" || sellerStep === "published";
 

@@ -2,6 +2,8 @@
 
 import type { ReactNode } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 
@@ -19,7 +21,9 @@ export function PortalPageChrome({
   header,
   minimal = false,
 }: PortalPageChromeProps) {
-  const { searchQuery, sellerStep, chameleonTheme } = useVauto();
+  const { chameleonTheme } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const { searchQuery } = useVautoSearch();
   const inSellerFlow = sellerStep !== "idle";
   const activeTheme = inSellerFlow
     ? chameleonTheme

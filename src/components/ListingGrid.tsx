@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { SmartBrokerCard } from "@/components/broker/SmartBrokerCard";
 import { VisualSearchStrip } from "@/components/search/VisualSearchStrip";
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
@@ -42,17 +43,15 @@ function emptyMessage(theme: ChameleonThemeId): string {
 }
 
 export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant?: boolean }) {
+  const { displayListings, fallbackListings, listings } = useVauto();
   const {
-    displayListings,
-    fallbackListings,
     searchQuery,
-    listings,
     viewMode,
     setViewMode,
     marketplaceFilters,
     setMarketplaceFilters,
     searchLoading,
-  } = useVauto();
+  } = useVautoSearch();
 
   const nativeLimited = shouldLimitNativeFeed();
   const [nativeVisible, setNativeVisible] = useState(NATIVE_GRID_INITIAL);

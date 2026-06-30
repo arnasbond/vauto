@@ -3,6 +3,7 @@
 import { useMemo } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 import {
   resolveFlowUiSkin,
   type FlowUiSkinTokens,
@@ -12,7 +13,8 @@ import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 /** Resolves active UI skin from universal data + optional Spinta route context. */
 export function useFlowUiSkin(): FlowUiSkinTokens {
   const pathname = usePathname();
-  const { aiDraft, wardrobeSpintaForced, sellerStep } = useVauto();
+  const { aiDraft, wardrobeSpintaForced } = useVauto();
+  const { sellerStep } = useSellerFlow();
 
   return useMemo(() => {
     const fashionRoute =

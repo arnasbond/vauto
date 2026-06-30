@@ -4,6 +4,8 @@ import { ArrowUp, Camera, Loader2, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
@@ -68,24 +70,26 @@ export function AiCommandBar({
   const isHero = placement === "hero";
 
   const {
-    searchQuery,
-    setSearchQuery,
     requestMediaConsent,
     setSearchInputMode,
     applyVisualSearch,
     clearVisualSearch,
     showToast,
     user,
-    sellerStep,
     chameleonTheme,
+    listings,
+    startListingFromQuery,
+  } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const {
+    searchQuery,
+    setSearchQuery,
     setSearchLoading,
     searchLoading,
-    listings,
     setAgentPinnedListings,
     setViewMode,
     marketplaceFilters,
-    startListingFromQuery,
-  } = useVauto();
+  } = useVautoSearch();
 
   const pathname = usePathname();
   const { trackEvent } = useUserBehavior();
@@ -442,27 +446,19 @@ export function AiCommandBar({
     lastAssistant &&
     (placement === "wizard" || phase === "idle" || phase === "agent_chat");
 
-  const dockFormClass =
-    placement === "wizard"
-      ? cn(
-          "pointer-events-auto flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
-          skin.composerBorder,
-          skin.composerBg
-        )
-      : cn(
-          "pointer-events-auto flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
-          "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)]"
-        );
+  const dockFormClass = cn(
+    "pointer-events-auto flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
+    placement === "wizard" ? skin.composerBorder : "border-[var(--vauto-border)]",
+    placement === "wizard" ? skin.composerBg : "bg-[var(--vauto-card-bg)]"
+  );
 
   const dockInputClass =
-    placement === "wizard"
-      ? "min-w-0 flex-1 border-none bg-transparent text-sm text-white outline-none placeholder:text-slate-400"
-      : "min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)]";
+    "min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)]";
 
   const dockButtonClass =
     placement === "wizard"
       ? cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl text-white transition disabled:opacity-40",
+          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-40",
           skin.composerButton
         )
       : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] transition disabled:opacity-40";
@@ -484,8 +480,9 @@ export function AiCommandBar({
                 className={cn(
                   "pointer-events-auto mb-1.5 line-clamp-2 rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-md backdrop-blur-md",
                   placement === "wizard"
-                    ? cn(skin.composerBorder, skin.composerBg, "text-slate-200")
-                    : "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] text-[var(--vauto-text-muted)]"
+                    ? cn(skin.composerBorder, skin.composerBg)
+                    : "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)]",
+                  "text-[var(--vauto-text-muted)]"
                 )}
               >
                 <Sparkles

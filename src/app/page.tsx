@@ -27,8 +27,9 @@ import { ZeroUiAdminPanel } from "@/components/zero-ui/ZeroUiAdminPanel";
 import { ZeroUiViewTransition } from "@/components/zero-ui/ZeroUiViewTransition";
 
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
-
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 
@@ -43,7 +44,9 @@ import { subscribeHomeReset } from "@/lib/home-reset";
 
 function MarketplaceView() {
 
-  const { searchQuery, sellerStep, rankedListings, searchLoading } = useVauto();
+  const { rankedListings } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const { searchQuery, searchLoading } = useVautoSearch();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
@@ -52,13 +55,6 @@ function MarketplaceView() {
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
 
-
-
-  const handleSearchPrompt = useCallback((prompt: string) => {
-
-    setSeedQuery(prompt);
-
-  }, []);
 
   useEffect(() => {
     return subscribeHomeReset(() => setSeedQuery(null));

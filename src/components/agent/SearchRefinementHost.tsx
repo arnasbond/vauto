@@ -3,6 +3,8 @@
 import { useEffect, useRef } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { evaluateSearchRefinement } from "@/lib/ai-first-search-vision";
@@ -27,8 +29,9 @@ function toAgentFilters(state: MarketplaceFilterState, query: string): AgentSear
  */
 export function SearchRefinementHost() {
   const pathname = usePathname();
-  const { searchQuery, rankedListings, searchLoading, sellerStep, marketplaceFilters } =
-    useVauto();
+  const { rankedListings } = useVauto();
+  const { sellerStep } = useSellerFlow();
+  const { searchQuery, searchLoading, marketplaceFilters } = useVautoSearch();
   const { openWithGreeting, busy: agentBusy, sendAgentMessage } = useVautoAgent();
   const { shouldFireIntervention } = useUserBehavior();
   const lastFiredRef = useRef<{ key: string; at: number } | null>(null);
