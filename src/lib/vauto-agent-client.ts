@@ -595,6 +595,17 @@ export function notifyWardrobePhotosReceived(itemCount: number): void {
   wardrobePhotosReceivedHost?.(itemCount);
 }
 
+let wardrobeProfileImportedHost: ((itemCount: number) => void) | null = null;
+
+export function registerWardrobeProfileImportedHost(fn: ((itemCount: number) => void) | null): void {
+  wardrobeProfileImportedHost = fn;
+}
+
+export function notifyWardrobeProfileImported(itemCount: number): void {
+  if (itemCount <= 0) return;
+  wardrobeProfileImportedHost?.(itemCount);
+}
+
 let agentPendingImagesHost: ((urls: string[]) => void) | null = null;
 
 export function registerAgentPendingImagesHost(fn: ((urls: string[]) => void) | null): void {

@@ -30,6 +30,7 @@ import {
   registerAgentPendingImagesHost,
   registerWardrobeBulkImportHost,
   registerWardrobePhotosReceivedHost,
+  registerWardrobeProfileImportedHost,
   notifyWardrobeBulkImportOpened,
   resolveAccountTypeLabel,
   resolveAgentNoiseReply,
@@ -68,6 +69,7 @@ import {
   WARDROBE_BULK_IMPORT_CHIPS,
   WARDROBE_BULK_IMPORT_GREETING,
   buildWardrobePhotosReceivedMessage,
+  buildWardrobeProfileImportedMessage,
   wardrobePhotosReceivedChips,
 } from "@/lib/agent-wardrobe-bulk-dialogue";
 import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
@@ -1111,6 +1113,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         quickReplies: wardrobePhotosReceivedChips(itemCount),
       });
     });
+    registerWardrobeProfileImportedHost((itemCount) => {
+      openWithGreeting(buildWardrobeProfileImportedMessage(itemCount), {
+        openSheet: true,
+        quickReplies: wardrobePhotosReceivedChips(itemCount),
+      });
+    });
     registerAgentPendingImagesHost((urls) => {
       setSessionPendingImageUrls(urls);
     });
@@ -1118,6 +1126,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       registerAgentGreetingHost(null);
       registerWardrobeBulkImportHost(null);
       registerWardrobePhotosReceivedHost(null);
+      registerWardrobeProfileImportedHost(null);
       registerAgentPendingImagesHost(null);
     };
   }, [openWithGreeting]);

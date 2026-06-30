@@ -202,6 +202,11 @@ export interface SellerFlowContextValue {
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
     opts?: { imageUrl?: string; voiceAnnouncement?: string }
   ) => void;
+  /** Sync wizard vision/import preview into agent-accessible bulk state (no navigation). */
+  stageWardrobeBulkPreview: (
+    items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
+    voiceAnnouncement?: string
+  ) => void;
   pendingWardrobeBulkItems: import("@/lib/wardrobe-vision").WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
   importListingFromUrl: (url: string) => Promise<void>;
@@ -729,6 +734,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       });
     },
     [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city]
+  );
+
+  const stageWardrobeBulkPreview = useCallback(
+    (items: WardrobeDraftItem[], voiceAnnouncement?: string) => {
+      if (!items.length) return;
+      setPendingWardrobeBulkItems(items.length > 1 ? items : null);
+      if (voiceAnnouncement?.trim()) {
+        setPendingWardrobeVoice(voiceAnnouncement.trim());
+      }
+    },
+    []
   );
 
   const importListingFromUrl = useCallback(
@@ -1272,6 +1288,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       submitSellerContent,
       applyAgentListingDraft,
       applyAgentWardrobeBulk,
+      stageWardrobeBulkPreview,
       pendingWardrobeBulkItems,
       pendingWardrobeVoice,
       importListingFromUrl,
@@ -1305,6 +1322,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       submitSellerContent,
       applyAgentListingDraft,
       applyAgentWardrobeBulk,
+      stageWardrobeBulkPreview,
       pendingWardrobeBulkItems,
       pendingWardrobeVoice,
       importListingFromUrl,

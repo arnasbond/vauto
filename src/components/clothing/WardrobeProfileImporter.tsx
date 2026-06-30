@@ -18,6 +18,7 @@ import {
   resolveWardrobeSubscriptionAccess,
 } from "@/lib/SubscriptionGuard";
 import { detectWardrobePortalLabel, shortenProfileUrl } from "@/lib/spinta-portal";
+import { notifyWardrobeProfileImported } from "@/lib/vauto-agent-client";
 import { isGuestUserId } from "@/lib/wardrobe-guest-demo";
 import type { AiExtractedListing } from "@/lib/types";
 
@@ -126,7 +127,8 @@ export function WardrobeProfileImporter({
         onGuestPreview?.(result.items, drafts);
       } else {
         await refreshListingsCatalog();
-        onImportReady?.([], result.voiceAnnouncement);
+        onImportReady?.(drafts, result.voiceAnnouncement);
+        notifyWardrobeProfileImported(result.items.length);
       }
       onToast?.(result.voiceAnnouncement, "success");
     } catch {

@@ -62,6 +62,7 @@ interface ClothingListingWizardProps {
   onCancel: () => void;
   onPublish: () => void;
   onPublishBulk?: (drafts: AiExtractedListing[]) => void;
+  onStageWardrobeBulk?: (items: WardrobeDraftItem[], voiceAnnouncement?: string) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
   initialWardrobeItems?: WardrobeDraftItem[];
   initialWardrobeVoice?: string | null;
@@ -137,6 +138,7 @@ export function ClothingListingWizard({
   onCancel,
   onPublish,
   onPublishBulk,
+  onStageWardrobeBulk,
   onToast,
   initialWardrobeItems,
   initialWardrobeVoice,
@@ -273,6 +275,7 @@ export function ClothingListingWizard({
       speakBuddyMessage(result.voiceAnnouncement, { enabled: true });
       onToast?.(result.voiceAnnouncement, "info");
       notifyAgentPendingImages([imageDataUrl]);
+      onStageWardrobeBulk?.(result.items, result.voiceAnnouncement);
       notifyWardrobePhotosReceived(result.items.length);
 
       if (result.items.length === 1) {

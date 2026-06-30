@@ -37,6 +37,16 @@ export function wardrobePhotosReceivedChips(itemCount: number): string[] {
   return ["Taip, tęsti", "Pildyti rankiniu būdu", "Įkelti kitą nuotrauką"];
 }
 
+export function buildWardrobeProfileImportedMessage(itemCount: number): string {
+  if (itemCount <= 0) {
+    return "Profilį gavau — ruošiu juodraščius.";
+  }
+  if (itemCount === 1) {
+    return "Profilį gavau, matau vieną prekę — paruošiau juodraštį. Ar tęsiame?";
+  }
+  return `Profilį gavau, matau ${itemCount} prekių — paruošiau juodraščius. Ar tęsiame?`;
+}
+
 export function requestWardrobeBulkPhotoPick(): void {
   if (typeof window === "undefined") return;
   window.dispatchEvent(new CustomEvent(WARDROBE_BULK_PHOTO_PICK_EVENT));

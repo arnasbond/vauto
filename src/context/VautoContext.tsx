@@ -277,6 +277,10 @@ interface VautoContextValue {
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
     opts?: { imageUrl?: string; voiceAnnouncement?: string }
   ) => void;
+  stageWardrobeBulkPreview: (
+    items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
+    voiceAnnouncement?: string
+  ) => void;
   pendingWardrobeBulkItems: import("@/lib/wardrobe-vision").WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
   importListingFromUrl: (url: string) => Promise<void>;
