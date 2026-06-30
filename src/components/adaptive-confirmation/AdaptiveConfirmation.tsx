@@ -10,7 +10,7 @@ import {
   filterFieldsForListingCategory,
 } from "@/lib/listing-attribute-isolation";
 import { LISTING_PUBLISH_CTA } from "@/components/listing/ListingValidationBanner";
-import type { AiExtractedListing } from "@/lib/types";
+import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import { useVauto } from "@/context/VautoContext";
 import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
 import { SELLER_TYPES } from "@/lib/general-catalog";
@@ -43,6 +43,9 @@ interface AdaptiveConfirmationProps {
   onCancel: () => void;
   onPublish: () => void;
   onPhotoCaptured?: (dataUrl: string) => void;
+  photoCategoryMismatch?: { fromCategory: ListingCategory; toCategory: ListingCategory } | null;
+  onPhotoMismatchRevert?: () => void;
+  onPhotoMismatchAccept?: () => void;
 }
 
 export function AdaptiveConfirmation({
@@ -60,6 +63,9 @@ export function AdaptiveConfirmation({
   onCancel,
   onPublish,
   onPhotoCaptured,
+  photoCategoryMismatch = null,
+  onPhotoMismatchRevert,
+  onPhotoMismatchAccept,
 }: AdaptiveConfirmationProps) {
   const { chameleonTheme } = useVauto();
   const theme = getChameleonTheme(universalMode ? "flux" : chameleonTheme);
@@ -145,6 +151,9 @@ export function AdaptiveConfirmation({
     draft,
     userPrompt,
     manualFallback,
+    photoCategoryMismatch,
+    onPhotoMismatchRevert,
+    onPhotoMismatchAccept,
     onUpdate,
     onAttributeChange,
     onFocusVin: scrollToDetails,

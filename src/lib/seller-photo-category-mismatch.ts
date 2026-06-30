@@ -3,7 +3,7 @@ import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import type { ListingCategory } from "@/lib/types";
 
 export const SELLER_PHOTO_MISMATCH_REVERT_CHIP =
-  "Ne, grįžti atgal į Automobilių srautą";
+  "Ne, pasilikti Automobilių sraute";
 export const SELLER_PHOTO_MISMATCH_ACCEPT_CHIP =
   "Taip, keisti kategoriją į Elektroniką";
 
@@ -61,4 +61,11 @@ export function isSellerPhotoMismatchRevertChip(text: string): boolean {
 export function isSellerPhotoMismatchAcceptChip(text: string): boolean {
   const n = text.trim().toLowerCase();
   return /taip,\s*keisti kategorij|keisti kategoriją į elektronik/.test(n);
+}
+
+export function isPhotoCategoryMismatchPrompt(text: string | null | undefined): boolean {
+  if (!text?.trim()) return false;
+  return /kaip norėtumėte pasielgti|telefono nuotrauką|pildėte automobilio skelbimą/i.test(
+    text
+  );
 }

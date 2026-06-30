@@ -5,7 +5,7 @@ import {
   type AdaptiveCategoryKey,
   type CategoryFieldDef,
 } from "@/lib/adaptive-categories";
-import type { CategoryAttributes, ListingCategory } from "@/lib/types";
+import type { AiExtractedListing, CategoryAttributes, ListingCategory } from "@/lib/types";
 
 /** Keys preserved across category switches (seller identity, geo, publish). */
 const GLOBAL_ATTRIBUTE_KEYS = new Set([
@@ -207,19 +207,29 @@ export function adaptiveVerticalChanged(
   return listingToAdaptiveKey(prevCategory) !== listingToAdaptiveKey(nextCategory);
 }
 
+function visionImpliesElectronicsListing(draft: AiExtractedListing): boolean {
+  if (draft.category === "electronics") return true;
+
+  const sk = String(draft.attributes?.skelbiuCategory ?? "").toLowerCase();
+  if (/elektron|telefon|mobil|iphone|android|samsung|kompiuter/.test(sk)) return true;
+
+  const haystack = `${draft.title ?? ""} ${draft.description ?? ""}`.toLowerCase();
+  return /telefon|iphone|samsung|mobilus|galaxy|android/.test(haystack);
+}
+
 /**
- * Vision re-analysis conflict — broader than adaptiveVerticalChanged alone.
- * Catches vehicle flow → phone (effective electronics) even when raw category lags.
+ * Photo re-upload conflict detector.
+ * Returns true when the user must confirm before category/fields change (no silent switch).
  */
 export function detectSellerPhotoCategoryConflict(
   previousCategory: ListingCategory | null | undefined,
   previousAttributes: CategoryAttributes | null | undefined,
-  finalized: import("@/lib/types").AiExtractedListing
+  finalized: AiExtractedListing
 ): boolean {
   if (!previousCategory) return false;
 
-  if (adaptiveVerticalChanged(previousCategory, finalized.category)) return true;
-
+  const prevKey = listingToAdaptiveKey(previousCategory);
+  const nextKey = listingToAdaptiveKey(finalized.category);
   const prevEffective = resolveEffectiveListingCategory(
     previousCategory,
     previousAttributes ?? {}
@@ -228,20 +238,28 @@ export function detectSellerPhotoCategoryConflict(
     finalized.category,
     finalized.attributes ?? {}
   );
-  if (prevEffective !== nextEffective) return true;
 
-  if (
-    listingToAdaptiveKey(previousCategory) === "vehicles" &&
-    listingToAdaptiveKey(finalized.category) === "universal" &&
-    universalSubVerticalChanged(previousAttributes, finalized.attributes)
-  ) {
+  // Hard rule: auto flow + Vision says phone/electronics → always prompt.
+  if (prevKey === "vehicles" && visionImpliesElectronicsListing(finalized)) {
     return true;
   }
 
-  const sk = String(finalized.attributes?.skelbiuCategory ?? "").toLowerCase();
+  if (prevEffective === "vehicles" && nextEffective === "electronics") {
+    return true;
+  }
+
+  if (adaptiveVerticalChanged(previousCategory, finalized.category)) {
+    return true;
+  }
+
+  if (prevEffective !== nextEffective) {
+    return true;
+  }
+
   if (
-    listingToAdaptiveKey(previousCategory) === "vehicles" &&
-    /elektron|telefon|mobil|iphone|android|samsung/.test(sk)
+    prevKey === "vehicles" &&
+    nextKey === "universal" &&
+    universalSubVerticalChanged(previousAttributes, finalized.attributes)
   ) {
     return true;
   }
@@ -273,10 +291,10 @@ export function filterFieldsForListingCategory(
 }
 
 export function finalizeListingDraft(
-  draft: import("@/lib/types").AiExtractedListing,
+  draft: AiExtractedListing,
   previousCategory?: ListingCategory | null,
   previousAttributes?: CategoryAttributes | null
-): import("@/lib/types").AiExtractedListing {
+): AiExtractedListing {
   const effectiveCategory = resolveEffectiveListingCategory(
     draft.category,
     draft.attributes ?? {}

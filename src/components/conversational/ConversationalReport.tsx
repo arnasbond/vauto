@@ -19,6 +19,7 @@ import {
 import { useVauto } from "@/context/VautoContext";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
+import { isPhotoCategoryMismatchPrompt } from "@/lib/seller-photo-category-mismatch";
 
 interface ConversationalReportProps {
   userPrompt: string | null;
@@ -188,7 +189,7 @@ export function ConversationalReport({
 
       <div className="chameleon-panel-enter flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-md space-y-4">
-          {userPrompt && (
+          {userPrompt && !isPhotoCategoryMismatchPrompt(userPrompt) && (
             <div className="flex justify-end">
               <div
                 className={cn(

@@ -665,7 +665,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             finalized.category
           );
           const quickReplies = sellerPhotoCategoryMismatchQuickReplies(previousCategory);
-          setSellerUserPrompt(greeting);
+          setSellerUserPrompt(null);
           pushAgentGreeting(greeting, { quickReplies, openSheet: true });
           notifyAgentFlowDialogue(
             { message: greeting, openSheet: true, quickReplies },

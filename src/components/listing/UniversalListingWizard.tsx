@@ -349,6 +349,9 @@ export function UniversalListingWizard({
             onCancel={onCancel}
             onPublish={onPublish}
             onPhotoCaptured={onPhotoCaptured}
+            photoCategoryMismatch={photoCategoryMismatch}
+            onPhotoMismatchRevert={onPhotoMismatchRevert}
+            onPhotoMismatchAccept={onPhotoMismatchAccept}
           />
         </div>
       </div>
