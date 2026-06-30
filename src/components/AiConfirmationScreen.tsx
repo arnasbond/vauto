@@ -88,7 +88,7 @@ export function AiConfirmationScreen({
   if (sellerStep === "published") return portalWrap(<PublishedOverlay />);
   if (sellerStep !== "confirmation" || !aiDraft) return null;
 
-  const wizardKey = `${aiDraft.category}|${sellerPreviewImage?.slice(0, 48) ?? ""}|${photoCategoryMismatch?.toCategory ?? ""}`;
+  const wizardKey = `${aiDraft.category}|mismatch:${photoCategoryMismatch ? `${photoCategoryMismatch.fromCategory}->${photoCategoryMismatch.toCategory}` : "none"}|${sellerPreviewImage?.slice(0, 48) ?? ""}`;
 
   return portalWrap(
     <UniversalListingWizard

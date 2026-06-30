@@ -38,17 +38,17 @@ export function PhotoCategoryMismatchBanner({
       <div className="mt-3 flex flex-wrap gap-2">
         <button
           type="button"
-          onClick={onRevert}
-          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-400"
-        >
-          {chips[0]}
-        </button>
-        <button
-          type="button"
           onClick={onAccept}
           className="rounded-full bg-[#1167b1] px-4 py-2 text-xs font-semibold text-white transition hover:bg-[#0d5a9a]"
         >
           {chips[1]}
+        </button>
+        <button
+          type="button"
+          onClick={onRevert}
+          className="rounded-full border border-slate-300 bg-white px-4 py-2 text-xs font-semibold text-slate-800 transition hover:border-slate-400"
+        >
+          {chips[0]}
         </button>
       </div>
     </div>

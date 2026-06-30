@@ -47,7 +47,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete } from "@/lib/vauto-agent-client";
+import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete, notifyAgentFlowDialogue } from "@/lib/vauto-agent-client";
 import {
   buildPhotoClarificationMessage,
   extractVisionChoiceChips,
@@ -263,6 +263,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     draft: AiExtractedListing;
     previewImage: string | null;
   } | null>(null);
+  const categoryMismatchPendingRef = useRef<AiExtractedListing | null>(null);
+  const photoReplaceSnapshotRef = useRef<{
+    draft: AiExtractedListing;
+    previewImage: string | null;
+  } | null>(null);
   const aiDraftRef = useRef<AiExtractedListing | null>(null);
   const sellerPreviewImageRef = useRef<string | null>(null);
 
@@ -307,6 +312,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setPendingWardrobeVoice(null);
     setPhotoCategoryMismatch(null);
     categoryMismatchRollbackRef.current = null;
+    categoryMismatchPendingRef.current = null;
+    photoReplaceSnapshotRef.current = null;
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -638,10 +645,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           );
 
         if (hasPhotoCategoryMismatch && previousDraft && previousCategory) {
-          categoryMismatchRollbackRef.current = {
-            draft: finalizeListingDraft(previousDraft, previousCategory, previousAttributes),
-            previewImage: sellerPreviewImageRef.current,
-          };
+          const rollbackSnap =
+            photoReplaceSnapshotRef.current ?? {
+              draft: finalizeListingDraft(
+                previousDraft,
+                previousCategory,
+                previousAttributes
+              ),
+              previewImage: sellerPreviewImageRef.current,
+            };
+          categoryMismatchRollbackRef.current = rollbackSnap;
+          categoryMismatchPendingRef.current = finalized;
           setPhotoCategoryMismatch({
             fromCategory: previousCategory,
             toCategory: finalized.category,
@@ -653,16 +667,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           const quickReplies = sellerPhotoCategoryMismatchQuickReplies(previousCategory);
           setSellerUserPrompt(greeting);
           pushAgentGreeting(greeting, { quickReplies, openSheet: true });
+          notifyAgentFlowDialogue(
+            { message: greeting, openSheet: true, quickReplies },
+            `photo_mismatch:${previousCategory}:${finalized.category}`
+          );
           trackEvent("seller_photo_category_mismatch", {
             fromCategory: previousCategory,
             toCategory: finalized.category,
           });
+          setAiDraft(rollbackSnap.draft);
         } else {
           setPhotoCategoryMismatch(null);
+          categoryMismatchPendingRef.current = null;
+          photoReplaceSnapshotRef.current = null;
           setSellerUserPrompt(opts?.transcript?.trim() || null);
+          setAiDraft(finalized);
         }
 
-        setAiDraft(finalized);
         setSellerStep("confirmation");
 
         if (next.requiresReview && next.reviewNotice?.trim()) {
@@ -703,7 +724,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         payload.imageDataUrls?.[0] ??
         parseVideoUrl(payload.videoUrl ?? "").thumbnail;
 
-      if (primaryImage) setSellerPreviewImage(primaryImage);
+      if (primaryImage) {
+        const priorDraft = aiDraftRef.current;
+        if (priorDraft) {
+          photoReplaceSnapshotRef.current = {
+            draft: finalizeListingDraft(
+              priorDraft,
+              priorDraft.category,
+              priorDraft.attributes ?? {}
+            ),
+            previewImage: sellerPreviewImageRef.current,
+          };
+        }
+        setSellerPreviewImage(primaryImage);
+      }
       if (payload.videoUrl) {
         setSellerVideoUrl(payload.videoUrl);
         const vid = parseVideoUrl(payload.videoUrl);
@@ -744,6 +778,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     async (imageDataUrl: string) => {
       if (!requireAuthForListing("/add")) return;
       if (!imageDataUrl.trim()) return;
+      const priorDraft = aiDraftRef.current;
+      if (priorDraft) {
+        photoReplaceSnapshotRef.current = {
+          draft: finalizeListingDraft(
+            priorDraft,
+            priorDraft.category,
+            priorDraft.attributes ?? {}
+          ),
+          previewImage: sellerPreviewImageRef.current,
+        };
+      }
       setSellerPreviewImage(imageDataUrl);
       setSellerInputMode("upload");
       setSellerUserPrompt("Įkelta nuotrauka — analizuoju…");
@@ -972,20 +1017,36 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerUserPrompt(null);
     setPhotoCategoryMismatch(null);
     categoryMismatchRollbackRef.current = null;
-    showToast("Atstatytas ankstesnis skelbimo juodraštis.", "info");
+    categoryMismatchPendingRef.current = null;
+    photoReplaceSnapshotRef.current = null;
+    showToast("Atstatytas automobilių skelbimo juodraštis.", "info");
     return true;
   }, [showToast]);
 
   const acceptPhotoCategoryMismatch = useCallback(() => {
+    const pending = categoryMismatchPendingRef.current;
+    if (pending) {
+      setAiDraft(pending);
+    }
     categoryMismatchRollbackRef.current = null;
+    categoryMismatchPendingRef.current = null;
+    photoReplaceSnapshotRef.current = null;
     setPhotoCategoryMismatch(null);
     setSellerUserPrompt(null);
     setSellerStep("confirmation");
-  }, []);
+    showToast("Kategorija pakeista į elektroniką.", "info");
+  }, [showToast]);
 
   const publishListing = useCallback(async () => {
     if (!aiDraft) {
       showToast("Klaida: nėra skelbimo duomenų. Bandykite iš naujo.", "error");
+      return;
+    }
+    if (photoCategoryMismatch) {
+      showToast(
+        "Pirmiausia pasirinkite: grįžti į automobilių srautą arba keisti kategoriją į elektroniką.",
+        "error"
+      );
       return;
     }
     if (!authHydrated) {
@@ -1233,6 +1294,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     editingListingId,
     resetSellerFlow,
     listingSocialPublish,
+    photoCategoryMismatch,
     refreshListingsCatalog,
   ]);
 
