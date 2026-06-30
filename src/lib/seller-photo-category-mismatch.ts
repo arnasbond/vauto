@@ -45,7 +45,7 @@ export function pushPhotoCategoryMismatchGreeting(
   const quickReplies = sellerPhotoCategoryMismatchQuickReplies(fromCategory);
   pushAgentGreeting(greeting, {
     quickReplies,
-    openSheet: true,
+    openSheet: false,
     replaceThread: true,
     isolatedMismatch: true,
   });

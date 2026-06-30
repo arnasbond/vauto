@@ -26,6 +26,7 @@ import { useListingWizard } from "@/hooks/useListingWizard";
 import { buildSellerQuickActions, type BuddyActionId } from "@/lib/buddy-messages";
 import { capturePhoto } from "@/lib/native-media";
 import { logBuddyState } from "@/lib/buddy-voice";
+import { cn } from "@/lib/cn";
 
 interface AdaptiveConfirmationProps {
   draft: AiExtractedListing;
@@ -267,12 +268,18 @@ export function AdaptiveConfirmation({
   );
 
   const mediaBlock = (
-    <div className={universalMode ? "rounded-2xl border border-slate-200 bg-white p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
+    <div
+      className={cn(
+        "relative z-10 pointer-events-auto",
+        universalMode ? "rounded-2xl border border-slate-200 bg-white p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined
+      )}
+    >
       <ListingPhotoRequiredBanner visible={needsPhotoForPublish} />
       <DraftMediaEditor
         previewImage={previewImage}
         videoUrl={videoUrl}
         appearance={universalMode ? "light" : "dark"}
+        disabled={Boolean(photoCategoryMismatch)}
         onImageChange={(imageDataUrl) => {
           onMediaChange({ imageDataUrl });
           if (imageDataUrl && onPhotoCaptured) void onPhotoCaptured(imageDataUrl);
@@ -387,7 +394,8 @@ export function AdaptiveConfirmation({
       buddyMessage={buddyMessage}
       quickActions={quickActions}
       speakEnabled={speakEnabled && !manualFallback && !photoCategoryMismatch}
-      manualFallback={manualFallback || Boolean(photoCategoryMismatch)}
+      manualFallback={manualFallback}
+      isolatedMismatchDialog={Boolean(photoCategoryMismatch)}
       canPublish={canPublish}
       publishLabel={publishLabel}
       validationIssues={validationIssues}

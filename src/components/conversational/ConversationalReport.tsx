@@ -31,6 +31,8 @@ interface ConversationalReportProps {
   validationIssues?: string[];
   portalStyleLabel?: string;
   manualFallback?: boolean;
+  /** Mismatch-only: skip buddy typing/TTS without switching wizard shell layout. */
+  isolatedMismatchDialog?: boolean;
   onQuickAction: (id: BuddyActionId) => void;
   onCancel: () => void;
   onPublish: () => void;
@@ -52,6 +54,7 @@ export function ConversationalReport({
   validationIssues = [],
   portalStyleLabel,
   manualFallback = false,
+  isolatedMismatchDialog = false,
   onQuickAction,
   onCancel,
   onPublish,
@@ -65,27 +68,32 @@ export function ConversationalReport({
   const t = theme.confirmation;
   const classic = theme.classicLayout;
 
-  const [buddyState, setBuddyState] = useState<BuddyState>(manualFallback ? "idle" : "typing");
-  const [showMessage, setShowMessage] = useState(manualFallback);
+  const skipBuddyTheater = manualFallback || isolatedMismatchDialog;
+
+  const [buddyState, setBuddyState] = useState<BuddyState>(skipBuddyTheater ? "idle" : "typing");
+  const [showMessage, setShowMessage] = useState(skipBuddyTheater);
   const [detailsOpen, setDetailsOpen] = useState(true);
   const spokenRef = useRef(false);
 
   useEffect(() => {
-    if (manualFallback || !canPublish) {
+    if (skipBuddyTheater || !canPublish) {
       setDetailsOpen(true);
       return;
     }
     const t = window.setTimeout(() => setDetailsOpen(true), 550);
     return () => window.clearTimeout(t);
-  }, [manualFallback, canPublish]);
+  }, [skipBuddyTheater, canPublish]);
 
   useEffect(() => {
-    if (manualFallback) {
+    if (skipBuddyTheater) {
       setBuddyState("idle");
       setShowMessage(true);
       setDetailsOpen(true);
       spokenRef.current = true;
-      logBuddyState("idle", { context: "seller_manual_fallback", theme: chameleonTheme });
+      logBuddyState("idle", {
+        context: isolatedMismatchDialog ? "seller_photo_mismatch" : "seller_manual_fallback",
+        theme: chameleonTheme,
+      });
       return;
     }
 
@@ -97,8 +105,7 @@ export function ConversationalReport({
     const reducedMotion =
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    const typingDelay =
-      manualFallback || reducedMotion ? 0 : TYPING_DELAY_MS;
+    const typingDelay = reducedMotion ? 0 : TYPING_DELAY_MS;
 
     const typingTimer = setTimeout(() => {
       setShowMessage(true);
@@ -124,9 +131,8 @@ export function ConversationalReport({
     return () => {
       clearTimeout(typingTimer);
       stopBuddySpeech();
-      setBuddyState("idle");
     };
-  }, [buddyMessage, speakEnabled, chameleonTheme, manualFallback]);
+  }, [buddyMessage, speakEnabled, chameleonTheme, skipBuddyTheater, isolatedMismatchDialog]);
 
   const handleAction = (id: BuddyQuickAction["id"]) => {
     if (id === "photo" || id === "change_price" || id === "edit_details") {
@@ -163,7 +169,7 @@ export function ConversationalReport({
         !manualFallback && t.shell
       )}
     >
-      {!manualFallback && (
+      {!manualFallback && !isolatedMismatchDialog && (
         <BuddyFab mode={buddyState === "speaking" ? "speaking" : "listening"} />
       )}
       <div
@@ -188,7 +194,7 @@ export function ConversationalReport({
         </button>
       </div>
 
-      <div className="chameleon-panel-enter flex-1 overflow-y-auto px-4 py-5">
+      <div className="chameleon-panel-enter pointer-events-auto relative z-10 flex-1 overflow-y-auto px-4 py-5">
         <div className="mx-auto max-w-md space-y-4">
           {userPrompt && !isPhotoCategoryMismatchPrompt(userPrompt) && (
             <div className="flex justify-end">
@@ -311,7 +317,7 @@ export function ConversationalReport({
           {detailsOpen && (
             <div
               className={cn(
-                "chameleon-panel-enter chameleon-details-panel space-y-4 rounded-2xl p-4 transition-colors duration-500 ease-in-out",
+                "chameleon-panel-enter chameleon-details-panel pointer-events-auto relative z-10 space-y-4 rounded-2xl p-4 transition-colors duration-500 ease-in-out",
                 t.detailsPanel
               )}
             >

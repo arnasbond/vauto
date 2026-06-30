@@ -709,6 +709,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }) => {
       if (!requireAuthForListing("/add")) return;
 
+      setPhotoCategoryMismatch(null);
+      categoryMismatchRollbackRef.current = null;
+      categoryMismatchPendingRef.current = null;
+      photoReplaceSnapshotRef.current = null;
+
       const primaryImage =
         payload.imageDataUrl ??
         payload.imageDataUrls?.[0] ??
@@ -790,6 +795,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const applyAgentListingDraft = useCallback(
     (draft: AiExtractedListing, imageUrl?: string) => {
       if (!requireAuthForListing("/add")) return;
+      setPhotoCategoryMismatch(null);
+      categoryMismatchRollbackRef.current = null;
+      categoryMismatchPendingRef.current = null;
+      photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const sourceText = [draft.title, draft.description].filter(Boolean).join(" ");
       let enriched = enrichVehicleListingDraft(draft, [sourceText]);

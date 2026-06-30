@@ -4,6 +4,7 @@ import { Camera, ImagePlus, Link2, Trash2, Upload } from "lucide-react";
 import { useCallback, useRef } from "react";
 import { parseVideoUrl } from "@/lib/video-url";
 import { getSafeImageUrl } from "@/lib/utils";
+import { cn } from "@/lib/cn";
 
 interface DraftMediaEditorProps {
   previewImage: string | null;
@@ -12,6 +13,7 @@ interface DraftMediaEditorProps {
   onVideoUrlChange: (url: string) => void;
   requestMediaConsent: (onGranted: () => void) => void;
   appearance?: "dark" | "light";
+  disabled?: boolean;
 }
 
 export function DraftMediaEditor({
@@ -21,14 +23,19 @@ export function DraftMediaEditor({
   onVideoUrlChange,
   requestMediaConsent,
   appearance = "dark",
+  disabled = false,
 }: DraftMediaEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  const openFilePicker = () => {
-    requestMediaConsent(() => {
-      fileInputRef.current?.click();
-    });
-  };
+  const openFilePicker = useCallback(() => {
+    if (disabled) return;
+    const triggerPicker = () => {
+      const input = fileInputRef.current;
+      if (!input || input.disabled) return;
+      input.click();
+    };
+    requestMediaConsent(triggerPicker);
+  }, [disabled, requestMediaConsent]);
 
   const handleFile = useCallback(
     (file: File) => {
@@ -63,16 +70,16 @@ export function DraftMediaEditor({
       : "mb-3 text-xs font-semibold uppercase tracking-wider text-white/50";
   const uploadBtnClass =
     appearance === "light"
-      ? "mb-3 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 transition hover:border-[var(--vauto-primary)] hover:bg-slate-100"
-      : "mb-3 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-6 transition hover:border-[var(--flux-teal)]/40 hover:bg-white/[0.06]";
+      ? "mb-3 flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 transition hover:border-[var(--vauto-primary)] hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+      : "mb-3 flex w-full cursor-pointer flex-col items-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-6 transition hover:border-[var(--flux-teal)]/40 hover:bg-white/[0.06] disabled:cursor-not-allowed disabled:opacity-50";
   const uploadTextClass =
     appearance === "light" ? "text-sm font-medium text-slate-800" : "text-sm font-medium text-white/80";
   const uploadHintClass =
     appearance === "light" ? "text-xs text-slate-500" : "text-xs text-white/40";
   const actionBtnClass =
     appearance === "light"
-      ? "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-100"
-      : "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/80 hover:bg-white/10";
+      ? "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
+      : "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/80 hover:bg-white/10 disabled:cursor-not-allowed disabled:opacity-50";
   const videoRowClass =
     appearance === "light"
       ? "mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
@@ -83,7 +90,7 @@ export function DraftMediaEditor({
       : "min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30";
 
   return (
-    <div className={shellClass}>
+    <div className={cn(shellClass, "pointer-events-auto relative z-10")}>
       <p className={headingClass}>
         Nuotraukos ir video
       </p>
@@ -99,7 +106,8 @@ export function DraftMediaEditor({
           <button
             type="button"
             onClick={handleRemoveImage}
-            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur-sm hover:bg-black/80"
+            disabled={disabled}
+            className="absolute right-2 top-2 flex h-8 w-8 items-center justify-center rounded-lg bg-black/60 text-white backdrop-blur-sm hover:bg-black/80 disabled:opacity-50"
             aria-label="Pašalinti nuotrauką"
           >
             <Trash2 className="h-4 w-4" />
@@ -108,8 +116,10 @@ export function DraftMediaEditor({
       ) : (
         <button
           type="button"
+          disabled={disabled}
           onClick={openFilePicker}
-          className={uploadBtnClass}
+          className={cn(uploadBtnClass, "pointer-events-auto")}
+          aria-label="Įkelkite nuotrauką"
         >
           <Upload className="h-8 w-8 text-[var(--flux-teal)]" />
           <span className={uploadTextClass}>
@@ -122,8 +132,9 @@ export function DraftMediaEditor({
       <div className="flex flex-wrap gap-2">
         <button
           type="button"
+          disabled={disabled}
           onClick={openFilePicker}
-          className={actionBtnClass}
+          className={cn(actionBtnClass, "pointer-events-auto")}
         >
           <Camera className="h-3.5 w-3.5" />
           {previewImage ? "Keisti nuotrauką" : "Kamera / galerija"}
@@ -131,8 +142,9 @@ export function DraftMediaEditor({
         {previewImage && (
           <button
             type="button"
+            disabled={disabled}
             onClick={() => onImageChange(null)}
-            className={actionBtnClass}
+            className={cn(actionBtnClass, "pointer-events-auto")}
           >
             <ImagePlus className="h-3.5 w-3.5" />
             Be nuotraukos
@@ -141,10 +153,12 @@ export function DraftMediaEditor({
       </div>
 
       <input
+        id="draft-media-file-input"
         ref={fileInputRef}
         type="file"
         accept="image/*"
         multiple
+        disabled={disabled}
         tabIndex={-1}
         aria-hidden
         className="listing-gallery-file-input"
@@ -160,6 +174,7 @@ export function DraftMediaEditor({
         <input
           type="url"
           value={videoUrl}
+          disabled={disabled}
           onChange={(e) => handleVideoChange(e.target.value)}
           placeholder="YouTube / TikTok nuoroda (neprivaloma)"
           className={videoInputClass}

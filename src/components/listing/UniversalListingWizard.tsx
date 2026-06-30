@@ -186,7 +186,7 @@ export function UniversalListingWizard({
   return (
     <div
       className={cn(
-        "universal-listing-wizard listing-wizard-overlay min-h-screen text-[var(--vauto-text-main)]",
+        "universal-listing-wizard min-h-screen text-[var(--vauto-text-main)]",
         skin.rootClass
       )}
       style={{ backgroundColor: skin.shellBg }}
