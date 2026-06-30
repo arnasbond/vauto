@@ -72,6 +72,8 @@ import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
 import {
   mapAgentWardrobeItems,
 } from "@/lib/agent-wardrobe-bridge";
+import { detectSellerListingIntent } from "@/lib/scoring";
+import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
 import { chatThreadPath } from "@/lib/chat-routes";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
@@ -157,6 +159,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     publishListing,
     sellerAnalytics,
     buyerIntentCount,
+    startListingFromQuery,
   } = useVauto();
   const pathname = usePathname();
   const router = useRouter();
@@ -774,6 +777,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: quickReply.reply };
       }
 
+      if (detectSellerListingIntent(trimmed) && sellerStep === "idle") {
+        const fashion = looksLikeClothingListing(trimmed);
+        const started = startListingFromQuery(trimmed);
+        if (started) {
+          const reply = fashion
+            ? "Puiku! Atidarau Tavo AI Spintą — užpildykime skelbimo formą kartu."
+            : "Gerai, pradedame skelbimą — patikrinkite laukus formoje.";
+          setMessages((prev) => [
+            ...prev,
+            { role: "user", text: trimmed },
+            { role: "assistant", text: reply },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: true, reply };
+        }
+      }
+
       const lastActiveAt = readAgentSessionLastActiveAt();
       const sessionExpired =
         isAgentSessionExpired(lastActiveAt) && messages.length > 1;
@@ -1073,6 +1093,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       aiDraft,
       sellerStep,
       sellerWizardContext,
+      startListingFromQuery,
       trackEvent,
       getBehaviorSnapshot,
       teardownVoiceAfterUiAction,

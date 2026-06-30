@@ -47,6 +47,7 @@ export function BottomNav() {
     clearVisualSearch,
     setSearchInputMode,
     setSearchVoiceMode,
+    activateWardrobeSpinta,
   } = useVauto();
   const { goToMarketplace } = useZeroUiScreen();
   const { clearSearchFilters } = useZeroUiMemory();
@@ -150,9 +151,16 @@ export function BottomNav() {
     : "Asortimentas";
 
   const handleSpinta = (e: React.MouseEvent) => {
+    resetSellerIfLeavingFlow();
     if (!isAuthenticated) {
       e.preventDefault();
       router.push("/auth-gate/");
+      return;
+    }
+    if (isPrivateProfile(user)) {
+      e.preventDefault();
+      activateWardrobeSpinta();
+      router.push("/fashion/mine/");
     }
   };
 
@@ -179,10 +187,7 @@ export function BottomNav() {
 
         <Link
           href={spintaHref}
-          onClick={(e) => {
-            resetSellerIfLeavingFlow();
-            handleSpinta(e);
-          }}
+          onClick={handleSpinta}
           className={cn(TAB_CLASS)}
           style={{ color: tabColor(spintaActive) }}
           aria-current={spintaActive ? "page" : undefined}

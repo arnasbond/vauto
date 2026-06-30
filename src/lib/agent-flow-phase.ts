@@ -46,10 +46,16 @@ function isBrowseAiRoute(pathname: string): boolean {
 export function shouldShowBrowseAgentComposer(
   pathname: string,
   sellerStep: SellerFlowStep,
-  phase: AgentFlowPhase
+  phase: AgentFlowPhase,
+  opts?: { homeHasSearch?: boolean }
 ): boolean {
   if (sellerStep !== "idle") return false;
   if (phase === "listing_wizard" || phase === "listing_processing") return false;
+
+  if (pathname === "/" || pathname === "") {
+    return Boolean(opts?.homeHasSearch);
+  }
+
   return isBrowseAiRoute(pathname);
 }
 

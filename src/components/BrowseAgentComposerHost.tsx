@@ -1,20 +1,17 @@
 "use client";
 
-import { usePathname } from "next/navigation";
 import { FlowAgentComposer } from "@/components/agent/FlowAgentComposer";
 import { useVauto } from "@/context/VautoContext";
 import { useAgentFlowPhase } from "@/hooks/useAgentFlowPhase";
-import { shouldShowBrowseAgentComposer } from "@/lib/agent-flow-phase";
+import { useAiBrowseDockVisible } from "@/hooks/useAiBrowseDockVisible";
 
-/** P7c-full — persistent AI composer dock on marketplace browse routes. */
+/** P7c — bottom AI dock above BottomNav (browse routes + home with active search). */
 export function BrowseAgentComposerHost() {
-  const pathname = usePathname();
   const { sellerStep } = useVauto();
   const phase = useAgentFlowPhase();
+  const visible = useAiBrowseDockVisible();
 
-  if (!shouldShowBrowseAgentComposer(pathname, sellerStep, phase)) {
-    return null;
-  }
+  if (!visible) return null;
 
-  return <FlowAgentComposer phase={phase} />;
+  return <FlowAgentComposer phase={phase} dockMode={sellerStep === "idle"} />;
 }

@@ -29,7 +29,7 @@ const BUY_PATTERNS = [
   /\bparodyk\b/i,
 ];
 
-const CLOTHING_HINT = /\b(drabuž|rub|sukn|bat|keln|striuk|spint|megz|maršk)/i;
+const CLOTHING_HINT = /\b(drabuž|rub|sukn|bat|batus|batel|ked|keln|striuk|spint|megz|maršk|gryb)/i;
 
 export function detectServerSellIntent(text: string): boolean {
   const q = text.trim().toLowerCase();
@@ -78,7 +78,12 @@ export function buildSellListingDraftFallback(
   const title = inferTitle(text, category) || "Naujas skelbimas";
   const attributes: Record<string, string> = {};
   if (category === "clothing") {
-    attributes.fashionCategory = "Moterims › Kita";
+    if (/\b(bat|ked|aul)/i.test(text)) {
+      attributes.fashionCategory = "Moterims › Bateliai";
+      attributes.clothingType = "Bateliai";
+    } else {
+      attributes.fashionCategory = "Moterims › Kita";
+    }
     attributes.condition = "Gera";
   }
   const listingDraft = {

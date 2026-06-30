@@ -5,29 +5,21 @@ import { Sparkles } from "lucide-react";
 import { VautoLogo } from "@/components/VautoLogo";
 import { SearchBar } from "@/components/SearchBar";
 import { AgentChatStrip } from "@/components/home/AgentChatStrip";
-import { HomeQuickActions } from "@/components/home/HomeQuickActions";
 import { Header } from "@/components/Header";
+import { useAiBrowseDockVisible } from "@/hooks/useAiBrowseDockVisible";
 
 interface HomeAiHeroProps {
-  showQuickActions?: boolean;
   seedQuery?: string | null;
   onSeedConsumed?: () => void;
-  onSearchPrompt?: (prompt: string) => void;
   compact?: boolean;
 }
 
 export function HomeAiHero({
-  showQuickActions = true,
   seedQuery,
   onSeedConsumed,
-  onSearchPrompt,
   compact = false,
 }: HomeAiHeroProps) {
-  const focusSearch = () => {
-    window.setTimeout(() => {
-      document.querySelector<HTMLInputElement>('input[name="q"]')?.focus();
-    }, 80);
-  };
+  const dockVisible = useAiBrowseDockVisible();
 
   if (compact) {
     return (
@@ -39,7 +31,7 @@ export function HomeAiHero({
             seedQuery={seedQuery}
             onSeedConsumed={onSeedConsumed}
           />
-          <AgentChatStrip />
+          {dockVisible ? null : <AgentChatStrip />}
         </div>
       </div>
     );
@@ -75,15 +67,7 @@ export function HomeAiHero({
           seedQuery={seedQuery}
           onSeedConsumed={onSeedConsumed}
         />
-        <AgentChatStrip />
       </div>
-
-      {showQuickActions && (
-        <HomeQuickActions
-          onSearchFocus={focusSearch}
-          onSearchPrompt={onSearchPrompt}
-        />
-      )}
     </div>
   );
 }

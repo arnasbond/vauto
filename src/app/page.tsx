@@ -15,10 +15,10 @@ import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 
 import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
+import { BrowseDockSpacer } from "@/components/BrowseDockSpacer";
 
 import { HomeAiHero } from "@/components/home/HomeAiHero";
 
-import { SearchAiResultsPanel } from "@/components/home/SearchAiResultsPanel";
 
 import { ZeroUiListingPreview } from "@/components/zero-ui/ZeroUiListingPreview";
 
@@ -36,7 +36,6 @@ import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 
 import { useCallback, useEffect, useState } from "react";
 
-import { HomeWardrobeSecretary } from "@/components/home/HomeWardrobeSecretary";
 import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
 
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
@@ -91,10 +90,8 @@ function MarketplaceView() {
               ) : (
                 <HomeAiHero
                   compact={hasSearch}
-                  showQuickActions={!hasSearch}
                   seedQuery={seedQuery}
                   onSeedConsumed={() => setSeedQuery(null)}
-                  onSearchPrompt={handleSearchPrompt}
                 />
               )}
               {emptySearchMode && (
@@ -112,30 +109,17 @@ function MarketplaceView() {
 
       <ContentSection>
 
-        {!hasSearch && <HomeWardrobeSecretary />}
-
-        {hasSearch && !emptySearchMode && (
-
-          <SearchAiResultsPanel onFollowUp={handleSearchPrompt} />
-
+        {!hasSearch && !inSellerFlow && (
+          <div id="browse-section" className="scroll-mt-24">
+            <AiFirstBrowsePrompt />
+          </div>
         )}
 
-
-
-        <div id="browse-section" className="scroll-mt-24">
-
-          <AiFirstBrowsePrompt />
-
-        </div>
-
-
-
         <div>
-
           <ListingGrid hideEmptyAssistant={emptySearchMode} />
-
         </div>
 
+        <BrowseDockSpacer />
       </ContentSection>
 
     </>

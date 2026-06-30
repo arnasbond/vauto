@@ -3,14 +3,12 @@
 import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
 import { SearchBar } from "@/components/SearchBar";
-import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
 import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
-import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
+import { BrowseDockSpacer } from "@/components/BrowseDockSpacer";
 import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
-import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 import { useVauto } from "@/context/VautoContext";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
 
@@ -51,11 +49,9 @@ export default function DiscoverPage() {
 
       <ContentSection>
         {isFluxHome && <PortalExperienceStrip />}
-        <AiFirstBrowsePrompt />
-        <ServiceRequestCard />
-        <HotKeywordsGrid />
-        <FilterBubbles />
+        {isFluxHome && <AiFirstBrowsePrompt />}
         <ListingGrid />
+        <BrowseDockSpacer />
       </ContentSection>
     </AppShell>
   );

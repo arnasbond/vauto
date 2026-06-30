@@ -847,7 +847,6 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
 
   if (
     !finalText &&
-    (req.context.fromSearchBar || hasListingDraftAction) &&
     detectServerSellIntent(lastUserText)
   ) {
     const fallback = buildSellListingDraftFallback(lastUserText, {

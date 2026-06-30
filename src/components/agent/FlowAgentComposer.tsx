@@ -12,12 +12,14 @@ import { cn } from "@/lib/cn";
 interface FlowAgentComposerProps {
   phase: AgentFlowPhase;
   className?: string;
+  /** Browse dock — sits above BottomNav (z-40), not over it. */
+  dockMode?: boolean;
 }
 
 /**
- * P7b/P7c — always-on chat input dock during listing wizards (+ AI-first search foundation).
+ * P7b/P7c — chat input dock during listing wizards + AI-first browse refinement.
  */
-export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) {
+export function FlowAgentComposer({ phase, className, dockMode = false }: FlowAgentComposerProps) {
   const skin = useFlowUiSkin();
   const { messages, busy, sendAgentMessage } = useVautoAgent();
   const [text, setText] = useState("");
@@ -48,33 +50,39 @@ export function FlowAgentComposer({ phase, className }: FlowAgentComposerProps) 
     [text, busy, sendAgentMessage]
   );
 
+  const bottomOffset = dockMode
+    ? "pb-[calc(4.75rem+env(safe-area-inset-bottom))]"
+    : "pb-[calc(5.25rem+env(safe-area-inset-bottom))]";
+
   return (
     <div
       className={cn(
-        "flow-agent-composer pointer-events-none fixed inset-x-0 bottom-0 z-[260]",
+        "flow-agent-composer pointer-events-none fixed inset-x-0 bottom-0",
+        dockMode ? "z-40" : "z-[260]",
+        bottomOffset,
         className
       )}
       aria-label="VAUTO asistento įvestis"
     >
-      <div className="pointer-events-auto mx-auto max-w-lg px-3 pb-[calc(5.25rem+env(safe-area-inset-bottom))]">
+      <div className="mx-auto max-w-lg px-3">
         {lastAssistant &&
           (phase === "listing_wizard" || phase === "idle" || phase === "agent_chat") && (
-          <p
-            className={cn(
-              "mb-1.5 line-clamp-2 rounded-xl border px-3 py-2 text-[11px] leading-snug text-slate-200 shadow-md backdrop-blur-md",
-              skin.composerBorder,
-              skin.composerBg
-            )}
-          >
-            <Sparkles className={cn("mr-1 inline h-3 w-3", skin.composerAccentIcon)} aria-hidden />
-            {lastAssistant.slice(0, 180)}
-            {lastAssistant.length > 180 ? "…" : ""}
-          </p>
-        )}
+            <p
+              className={cn(
+                "pointer-events-auto mb-1.5 line-clamp-2 rounded-xl border px-3 py-2 text-[11px] leading-snug text-slate-200 shadow-md backdrop-blur-md",
+                skin.composerBorder,
+                skin.composerBg
+              )}
+            >
+              <Sparkles className={cn("mr-1 inline h-3 w-3", skin.composerAccentIcon)} aria-hidden />
+              {lastAssistant.slice(0, 180)}
+              {lastAssistant.length > 180 ? "…" : ""}
+            </p>
+          )}
         <form
           onSubmit={(e) => void submit(e)}
           className={cn(
-            "flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
+            "pointer-events-auto flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
             skin.composerBorder,
             skin.composerBg
           )}

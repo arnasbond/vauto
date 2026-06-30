@@ -1,4 +1,5 @@
 import type { AgentMessage } from "./vauto-agent.js";
+import { detectServerSellIntent } from "./sell-intent-fallback.js";
 import {
   SECRETARY_MIN_QUERY_CHARS,
   SECRETARY_NOISE_REPLIES,
@@ -19,6 +20,7 @@ export function normalizeSecretaryQuery(text: string | null | undefined): string
 export function isTooShortSecretaryQuery(text: string | null | undefined): boolean {
   const t = normalizeSecretaryQuery(text);
   if (!t) return true;
+  if (detectServerSellIntent(t)) return false;
   return t.length < SECRETARY_MIN_QUERY_CHARS;
 }
 

@@ -67,6 +67,7 @@ export function SearchBar({
     setAgentPinnedListings,
     setViewMode,
     marketplaceFilters,
+    startListingFromQuery,
   } = useVauto();
 
   const pathname = usePathname();
@@ -157,6 +158,11 @@ export function SearchBar({
         return;
       }
 
+      if (startListingFromQuery(q)) {
+        setDraftQuery(q);
+        return;
+      }
+
       setDraftQuery(q);
       setAgentPinnedListings(null);
       clearVisualSearch({ keepInputMode: true });
@@ -180,6 +186,7 @@ export function SearchBar({
       pathname,
       trackEvent,
       wardrobeSearchOnly,
+      startListingFromQuery,
     ]
   );
 
