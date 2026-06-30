@@ -48,7 +48,7 @@ export function summarizeMyListings(listings: MyListingForAgent[], firstName: st
   const sold = listings.filter((l) => l.status === "sold");
 
   if (!listings.length) {
-    return `${firstName} neturi skelbimų — gali pasiūlyti naują skelbimą ar paiešką.`;
+    return `${firstName} neturi skelbimų — Spinta tuščia. Proaktyviai paskatink: nufotografuoti drabužius/techniką ir paruošti skelbimą per kelias sekundes (create_listing_draft / navigateToScreen add_listing).`;
   }
   if (active.length === 1) {
     const l = active[0]!;

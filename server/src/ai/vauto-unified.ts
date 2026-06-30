@@ -29,7 +29,9 @@ KATEGORIJŲ TAISYKLĖS (griežtai):
 - NT (nekilnojamasis turtas): jei tekste yra butas/butą/butai, namas/namą/namai, žemė/žeme, sklypas, sodyba, kotedžas, patalpos, garažas, nekilnojamasis — category PRIVALO būti „NT“, NE „NAMAI“ (NAMAI = buitinės prekės).
 - AUTOMOBILIAI: jei tekste yra auto/automobilis/automobili, mašina/masina, transportas, rida, markė — category „AUTOMOBILIAI“, net be konkretaus modelio.
 - ANTRAŠTĖ (title): sugeneruok patrauklią lietuvišką pardavimo antraštę pagal TIKRĄ objektą iš vartotojo žinutės ar nuotraukos. NIEKADA nenaudok „Universalus daiktas“, „Prekė“ ar kitų bendrinių placeholderių. Nenaudok fiksuotų šabloninių modelių (pvz. iPhone 15 Pro), jei vartotojas nurodė kitą modelį.
-- Jei objektas neaiškus arba nuotraukoje tik fonas/kambarys — confidence < 0.3, category pagal faktus, price: null, title minimalus.
+- Jei objektas neaiškus arba nuotraukoje tik fonas/kambarys — confidence < 0.3, price: null, title minimalus.
+- NEAIŠKUS KAMBARIO VAIZDAS: NEPRISKIR PASLAUGOS. technicalFields gali turėti clarificationPrompt — lietuvišką klausimą su 2–3 alternatyvomis (pvz. „Ar parduodate televizorių, baldą, ar siūlote paslaugas?").
+- Jei negali tiksliai nustatyti objekto — description lauke įrašyk šiltą patikslinimo klausimą vartotojui, ne išgalvotą skelbimą.
 
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
 NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;

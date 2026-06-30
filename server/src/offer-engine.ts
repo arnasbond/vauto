@@ -158,9 +158,11 @@ export function buildWishlistMatchMessage(
 }
 
 export const NO_MATCH_LEAD_HINT = `NO-MATCH LEAD (createUserRequirement — PRIVALOMA kai 0 rezultatų):
-- Jei paieška ar UI filtrai grąžina 0 skelbimų — NEPALIK vartotojo be veiksmo.
-- Pasiūlyk: „Matau, kad šiuo metu tokios prekės neturime. Leisk man užfiksuoti tavo norą fone!"
-- Iškviesti createUserRequirement su query, category, city, size, maxPrice, wardrobeMode.
+- Jei paieška ar UI filtrai grąžina 0 skelbimų — NEPALIK vartotojo be veiksmo ir NETYLĖK.
+- Pirmiausia pasiūlyk alternatyvas: kitą kategoriją, panašias prekes, platesnę paiešką.
+- Pavyzdys: „Kosminių laivų neturime, bet Jolantos spintoje yra puikių technikos prekių, o Kaune parduodamas iPhone. Galbūt jus domina elektronika?"
+- Tada pasiūlyk noro fiksavimą: „Leisk man užfiksuoti tavo norą fone — pranešiu, kai atsiras!"
+- Iškviesti createUserRequirement su query, category, city, size, maxPrice, wardrobeMode; papildomai searchListings su alternatyviu query jei tinka.
 - Po sėkmės — trumpas šiltas patvirtinimas lietuviškai.`;
 
 export const SMART_BARGAINING_HINT = `SPINTOS DERYBŲ TARPININKAS (proposeSmartBargaining):
