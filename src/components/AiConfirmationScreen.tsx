@@ -31,6 +31,9 @@ export function AiConfirmationScreen({
     cancelSellerFlow,
     requestMediaConsent,
     reprocessConfirmationPhoto,
+    photoCategoryMismatch,
+    revertPhotoCategoryMismatch,
+    acceptPhotoCategoryMismatch,
     user,
     pendingWardrobeBulkItems,
     pendingWardrobeVoice,
@@ -85,7 +88,7 @@ export function AiConfirmationScreen({
   if (sellerStep === "published") return portalWrap(<PublishedOverlay />);
   if (sellerStep !== "confirmation" || !aiDraft) return null;
 
-  const wizardKey = `${aiDraft.category}|${sellerUserPrompt ?? ""}|${sellerPreviewImage?.slice(0, 48) ?? ""}`;
+  const wizardKey = `${aiDraft.category}|${sellerPreviewImage?.slice(0, 48) ?? ""}|${photoCategoryMismatch?.toCategory ?? ""}`;
 
   return portalWrap(
     <UniversalListingWizard
@@ -100,6 +103,9 @@ export function AiConfirmationScreen({
       userPhone={user.phone}
       pendingWardrobeBulkItems={pendingWardrobeBulkItems}
       pendingWardrobeVoice={pendingWardrobeVoice}
+      photoCategoryMismatch={photoCategoryMismatch}
+      onPhotoMismatchRevert={revertPhotoCategoryMismatch}
+      onPhotoMismatchAccept={acceptPhotoCategoryMismatch}
       onUpdate={bindListingPatch}
       onAttributeChange={bindAttribute}
       onMediaChange={updateSellerMedia}

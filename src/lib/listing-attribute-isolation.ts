@@ -71,15 +71,14 @@ export function resolveEffectiveListingCategory(
   category: ListingCategory,
   attributes: CategoryAttributes = {}
 ): ListingCategory {
-  if (listingToAdaptiveKey(category) !== "vehicles") return category;
-
   const sk = String(attributes.skelbiuCategory ?? "").toLowerCase();
-  if (/elektron|telefon|kompiuter|planšet|planset|iphone|android|televiz/.test(sk)) {
+  if (/elektron|telefon|mobil|kompiuter|planšet|planset|iphone|android|samsung|televiz/.test(sk)) {
     return "electronics";
   }
   if (/bald|sofa|lov|stal|spint|kėd|ked|interjer/.test(sk)) {
     return "home";
   }
+  if (listingToAdaptiveKey(category) !== "vehicles") return category;
   if (/įrank|irank|statyb|sodo|technik|medžiag/.test(sk)) {
     return "other";
   }

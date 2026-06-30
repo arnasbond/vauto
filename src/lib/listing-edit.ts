@@ -1,4 +1,5 @@
 import { attributesToTags } from "@/lib/listing-attributes";
+import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import type { AiExtractedListing, Listing } from "@/lib/types";
 
 export type ListingEditPatch = Partial<
@@ -33,6 +34,7 @@ export function listingToDraft(listing: Listing): AiExtractedListing {
 }
 
 export function draftToListingPatch(draft: AiExtractedListing): ListingEditPatch {
+  const category = resolveEffectiveListingCategory(draft.category, draft.attributes ?? {});
   return {
     title: draft.title,
     price: draft.price,
@@ -40,8 +42,8 @@ export function draftToListingPatch(draft: AiExtractedListing): ListingEditPatch
     location: draft.location,
     contact: draft.contact,
     description: draft.description,
-    category: draft.category,
+    category,
     attributes: draft.attributes,
-    tags: attributesToTags(draft),
+    tags: attributesToTags({ ...draft, category }),
   };
 }

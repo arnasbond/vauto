@@ -69,7 +69,12 @@ const CONTENT_IMAGES: Array<[RegExp, string]> = [
 ];
 
 export function isValidListingImageUrl(url: unknown): url is string {
-  return typeof url === "string" && /^https?:\/\/.+/i.test(url.trim());
+  if (typeof url !== "string") return false;
+  const trimmed = url.trim();
+  if (!trimmed) return false;
+  if (trimmed.startsWith("data:image/")) return true;
+  if (trimmed.startsWith("blob:")) return true;
+  return /^https?:\/\/.+/i.test(trimmed);
 }
 
 type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images">;

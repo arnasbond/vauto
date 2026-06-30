@@ -1,4 +1,5 @@
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
+import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 import {
@@ -50,6 +51,11 @@ export function computeSemanticRelevance(
   if (!listingMatchesStrictBrandQuery(listing, query)) return 0;
 
   const tokens = tokenizeQuery(query);
+
+  const searchCategory = resolveEffectiveListingCategory(
+    listing.category,
+    listing.attributes ?? {}
+  );
 
   const haystack = [
     listing.title,
@@ -113,7 +119,7 @@ export function computeSemanticRelevance(
     score = Math.max(score, 0.95);
   }
 
-  if (/telefon|phone|mobil/i.test(query) && listing.category === "electronics")
+  if (/telefon|phone|mobil/i.test(query) && searchCategory === "electronics")
     score = Math.min(1, score + 0.3);
   if (/žol|pjov|sod/i.test(query) && listing.category === "services")
     score = Math.min(1, score + 0.4);
@@ -183,7 +189,7 @@ export function computeSemanticRelevance(
   if (/ieškau|perku|reikia/i.test(query) && attrs.listingAction === "Ieškau") {
     score = Math.min(1, score + 0.12);
   }
-  if (/telefon|iphone|samsung/i.test(query) && listing.category === "electronics") {
+  if (/telefon|iphone|samsung/i.test(query) && searchCategory === "electronics") {
     score = Math.min(1, score + 0.3);
   }
   if (/bald|sofa|komod/i.test(query) && listing.category === "home") {

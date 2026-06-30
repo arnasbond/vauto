@@ -9,14 +9,16 @@ import { generateListingSlug } from "@/lib/seo";
 /** Ensure API/local listings have slug + coordinates for feed ranking */
 export function normalizeListing(listing: LegacyListingInput): Listing {
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
+  const sellerImages = listingImagesFromLegacy(listing);
   const base = enrichListingCoords({
     ...listing,
-    images: listingImagesFromLegacy(listing),
+    images: sellerImages,
   } as Listing);
   return {
     ...base,
     slug,
-    images: resolveListingImages(base),
+    // Keep real seller uploads (https, data:, blob:) — demo gallery only when empty.
+    images: sellerImages.length > 0 ? sellerImages : resolveListingImages({ ...base, images: [] }),
   };
 }
 

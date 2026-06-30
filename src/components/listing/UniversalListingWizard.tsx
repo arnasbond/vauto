@@ -2,12 +2,13 @@
 
 import { ChevronRight, Loader2, Sparkles, X } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
-import type { AiExtractedListing } from "@/lib/types";
+import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { FlowAgentStrip } from "@/components/agent/FlowAgentStrip";
 import { AdaptiveConfirmation } from "@/components/adaptive-confirmation/AdaptiveConfirmation";
 import { WizardCategoryPicker } from "@/components/listing/WizardCategoryPicker";
 import { PhotoClarificationPanel } from "@/components/seller/PhotoClarificationPanel";
+import { PhotoCategoryMismatchBanner } from "@/components/seller/PhotoCategoryMismatchBanner";
 import { DynamicAttributeBasket } from "@/components/listing/DynamicAttributeBasket";
 import {
   buildUniversalListingFields,
@@ -52,6 +53,9 @@ export interface UniversalListingWizardProps {
   onPublishBulk?: (drafts: AiExtractedListing[]) => void;
   onStageWardrobeBulk?: (items: WardrobeDraftItem[], voiceAnnouncement?: string) => void;
   onPhotoCaptured?: (dataUrl: string) => void;
+  photoCategoryMismatch?: { fromCategory: ListingCategory; toCategory: ListingCategory } | null;
+  onPhotoMismatchRevert?: () => void;
+  onPhotoMismatchAccept?: () => void;
 }
 
 /**
@@ -78,6 +82,9 @@ export function UniversalListingWizard({
   onPublishBulk,
   onStageWardrobeBulk,
   onPhotoCaptured,
+  photoCategoryMismatch,
+  onPhotoMismatchRevert,
+  onPhotoMismatchAccept,
 }: UniversalListingWizardProps) {
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const categoryLabel = getUniversalCategoryLabel(draft.category);
@@ -218,6 +225,17 @@ export function UniversalListingWizard({
 
         <FlowAgentStrip variant={stripVariant} category={draft.category} />
 
+        {photoCategoryMismatch && onPhotoMismatchRevert && onPhotoMismatchAccept ? (
+          <div className="px-4 pt-3">
+            <PhotoCategoryMismatchBanner
+              fromCategory={photoCategoryMismatch.fromCategory}
+              toCategory={photoCategoryMismatch.toCategory}
+              onRevert={onPhotoMismatchRevert}
+              onAccept={onPhotoMismatchAccept}
+            />
+          </div>
+        ) : null}
+
         <div className="px-4 pt-3">
           <PhotoClarificationPanel
             draft={draft}
@@ -321,7 +339,7 @@ export function UniversalListingWizard({
             previewImage={previewImage}
             videoUrl={videoUrl}
             userPrompt={userPrompt}
-            speakEnabled={false}
+            speakEnabled={!manualFallback}
             manualFallback={manualFallback}
             universalMode
             onUpdate={onUpdate}

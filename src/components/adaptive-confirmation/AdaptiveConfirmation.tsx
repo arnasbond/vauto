@@ -285,7 +285,9 @@ export function AdaptiveConfirmation({
               className={`rounded-lg px-3 py-2 text-xs font-semibold transition ${
                 (attributes.sellerType || "Privatus asmuo") === opt
                   ? "bg-[#1167b1] text-white"
-                  : "bg-white text-[#374151] ring-1 ring-[#d0d7de] dark:bg-white/10 dark:text-white/80"
+                  : universalMode
+                    ? "bg-white text-slate-800 ring-1 ring-slate-300"
+                    : "bg-white text-[#374151] ring-1 ring-[#d0d7de] dark:bg-white/10 dark:text-white/80"
               }`}
             >
               {opt}

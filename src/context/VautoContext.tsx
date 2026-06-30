@@ -84,6 +84,7 @@ import type {
   EscrowTransaction,
   NegotiationTwinConfig,
   Listing,
+  ListingCategory,
   ReportCategory,
   ReportStatus,
   SellerFlowStep,
@@ -298,6 +299,9 @@ interface VautoContextValue {
     toastMessage?: string;
     inputMode?: SellerInputMode;
   }) => void;
+  photoCategoryMismatch: { fromCategory: ListingCategory; toCategory: ListingCategory } | null;
+  revertPhotoCategoryMismatch: () => boolean;
+  acceptPhotoCategoryMismatch: () => void;
 
   chats: ChatThread[];
   sendMessage: (chatId: string, text: string) => void;

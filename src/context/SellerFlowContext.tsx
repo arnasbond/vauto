@@ -115,6 +115,7 @@ import { listingToAdaptiveKey, evaluateListingPublishValidation } from "@/lib/ad
 import {
   adaptiveVerticalChanged,
   finalizeListingDraft,
+  resolveEffectiveListingCategory,
   sanitizeAttributesForCategory,
 } from "@/lib/listing-attribute-isolation";
 import {
@@ -128,27 +129,10 @@ import { isUnclearTranscript } from "@/lib/voice-graceful";
 import type {
   AiExtractedListing,
   Listing,
+  ListingCategory,
   SellerFlowStep,
   SellerInputMode,
 } from "@/lib/types";
-
-const PLACEHOLDER_IMAGES: Record<string, string> = {
-  electronics:
-    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=600&h=400&fit=crop",
-  services:
-    "https://images.unsplash.com/photo-1558904541-efa843a96f01?w=600&h=400&fit=crop",
-  vehicles:
-    "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=600&h=400&fit=crop",
-  home: "https://images.unsplash.com/photo-1555041469-a586c61ea9bc?w=600&h=400&fit=crop",
-  clothing:
-    "https://images.unsplash.com/photo-1489987707025-afc232f7ea0f?w=600&h=400&fit=crop",
-  real_estate:
-    "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=600&h=400&fit=crop",
-  jobs:
-    "https://images.unsplash.com/photo-1521737711867-e3b97375f902?w=600&h=400&fit=crop",
-  other:
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=600&h=400&fit=crop",
-};
 
 function hasExplicitServiceKeywords(text: string): boolean {
   return /\b(meistr|paslaug|elektrik|santechn|valym|remont|statyb|plytel|gro[žz]|kirp|transport)/i.test(
@@ -230,6 +214,7 @@ export interface SellerFlowContextValue {
   updateListingSocialPublish: (patch: Partial<ListingSocialPublishOptions>) => void;
   revertPhotoCategoryMismatch: () => boolean;
   acceptPhotoCategoryMismatch: () => void;
+  photoCategoryMismatch: { fromCategory: ListingCategory; toCategory: ListingCategory } | null;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -267,6 +252,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     WardrobeDraftItem[] | null
   >(null);
   const [pendingWardrobeVoice, setPendingWardrobeVoice] = useState<string | null>(null);
+  const [photoCategoryMismatch, setPhotoCategoryMismatch] = useState<{
+    fromCategory: ListingCategory;
+    toCategory: ListingCategory;
+  } | null>(null);
   const processingEpochRef = useRef(0);
   const categoryMismatchRollbackRef = useRef<{
     draft: AiExtractedListing;
@@ -314,6 +303,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setListingSocialPublish(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
     setPendingWardrobeBulkItems(null);
     setPendingWardrobeVoice(null);
+    setPhotoCategoryMismatch(null);
+    categoryMismatchRollbackRef.current = null;
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -630,6 +621,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             draft: finalizeListingDraft(previousDraft, previousCategory, previousAttributes),
             previewImage: sellerPreviewImageRef.current,
           };
+          setPhotoCategoryMismatch({
+            fromCategory: previousCategory,
+            toCategory: finalized.category,
+          });
           const greeting = buildSellerPhotoCategoryMismatchMessage(
             previousCategory,
             finalized.category
@@ -642,6 +637,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             toCategory: finalized.category,
           });
         } else {
+          setPhotoCategoryMismatch(null);
           setSellerUserPrompt(opts?.transcript?.trim() || null);
         }
 
@@ -953,6 +949,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerPreviewImage(snap.previewImage);
     setSellerStep("confirmation");
     setSellerUserPrompt(null);
+    setPhotoCategoryMismatch(null);
     categoryMismatchRollbackRef.current = null;
     showToast("Atstatytas ankstesnis skelbimo juodraštis.", "info");
     return true;
@@ -960,6 +957,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const acceptPhotoCategoryMismatch = useCallback(() => {
     categoryMismatchRollbackRef.current = null;
+    setPhotoCategoryMismatch(null);
     setSellerUserPrompt(null);
     setSellerStep("confirmation");
   }, []);
@@ -1033,10 +1031,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
       const patch = draftToListingPatch(aiDraft);
       const imageSource = sellerPreviewImage ?? existing.images[0] ?? null;
-      const listingImage =
-        (await prepareListingImageForApi(imageSource)) ??
-        existing.images[0] ??
-        PLACEHOLDER_IMAGES[aiDraft.category];
+      const listingImage = await prepareListingImageForApi(imageSource, editingListingId);
+      if (!listingImage && !hasListingPhoto(existing.images[0])) {
+        showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+        return;
+      }
       const updated: Listing = enrichListingCoords({
         ...existing,
         ...patch,
@@ -1044,7 +1043,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           { ...(existing.attributes ?? {}), ...(patch.attributes ?? aiDraft.attributes) },
           listingSocialPublish
         ),
-        images: listingImage ? [listingImage, ...existing.images.slice(1)] : existing.images,
+        images: listingImage
+          ? [listingImage, ...existing.images.slice(1)]
+          : existing.images,
         slug: generateListingSlug(patch.title ?? existing.title, patch.location ?? existing.location),
         hasVideo: sellerHasVideo,
       });
@@ -1110,6 +1111,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (exact !== null) distKm = exact;
     }
 
+    const publishCategory = resolveEffectiveListingCategory(
+      aiDraft.category,
+      aiDraft.attributes ?? {}
+    );
+    const publishDraft = { ...aiDraft, category: publishCategory };
+
     const newListing: Listing = enrichListingCoords({
       id: listingId,
       title: aiDraft.title,
@@ -1119,8 +1126,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       distanceKm: distKm,
       slug: generateListingSlug(aiDraft.title, listingCity),
       images: [listingImage],
-      category: aiDraft.category,
-      tags: attributesToTags(aiDraft),
+      category: publishCategory,
+      tags: attributesToTags(publishDraft),
       description: aiDraft.description,
       attributes: mergeSocialPublishAttributes(aiDraft.attributes, listingSocialPublish),
       status: "active",
@@ -1423,6 +1430,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       updateListingSocialPublish,
       revertPhotoCategoryMismatch,
       acceptPhotoCategoryMismatch,
+      photoCategoryMismatch,
     }),
     [
       sellerStep,
@@ -1460,6 +1468,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       updateListingSocialPublish,
       revertPhotoCategoryMismatch,
       acceptPhotoCategoryMismatch,
+      photoCategoryMismatch,
     ]
   );
 
