@@ -55,9 +55,9 @@ export const LISTING_DWELL_MS = 15_000;
 
 export function buildNoMatchInterventionMessage(query: string, wardrobeMode: boolean): string {
   if (wardrobeMode) {
-    return `Matau, kad tavo spintoje pagal „${query}" kol kas tuščia. Leisk man užfiksuoti tavo norą fone — pranešiu, kai atsiras!`;
+    return `Matau, kad tavo spintoje pagal „${query}" kol kas tuščia. Gal pabandyti platesnę paiešką arba leisk man užfiksuoti tavo norą fone — pranešiu, kai atsiras!`;
   }
-  return `Matau, kad šiuo metu tokios prekės neturime. Leisk man užfiksuoti tavo norą fone — stebėsiu rinką ir pranešiu!`;
+  return `Matau, kad šiuo metu tokios prekės neturime. Gal domina elektronika, drabužiai ar panašios prekės? Galiu ir užfiksuoti tavo norą fone — stebėsiu rinką ir pranešiu!`;
 }
 
 export function buildBargainingInterventionMessage(

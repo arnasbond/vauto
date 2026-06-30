@@ -5,6 +5,12 @@ const INTERNAL_TOOL_RE =
 
 const TRAILING_PUNCT_RE = /^[\s.,;:!?·]+|[\s.,;:!?·]+$/g;
 
+const PROACTIVE_INTERNAL_RE = /^\[Proaktyvi intervencija:/i;
+
+export function isProactiveInternalAgentText(text: string): boolean {
+  return PROACTIVE_INTERNAL_RE.test(text.trim());
+}
+
 export function sanitizeAgentReplyForDisplay(text: string): string {
   const cleaned = text
     .replace(INTERNAL_TOOL_RE, "")
@@ -19,12 +25,35 @@ export function sanitizeAgentReplyForDisplay(text: string): string {
   return cleaned;
 }
 
+/** Parse alternative options from proactive assistant questions (e.g. „ar TV, staliukas, o gal paslaugos?"). */
+export function extractAgentQuickReplies(text: string): string[] {
+  const t = sanitizeAgentReplyForDisplay(text);
+  if (!t.includes("?")) return [];
+
+  const questionBody = t.match(/ar\s+([\s\S]+?)\?/i)?.[1]?.trim();
+  if (!questionBody) return [];
+
+  const parts = questionBody
+    .split(/\s*,\s*(?=(?:ar|o\s+gal)\s+)/i)
+    .flatMap((segment) => segment.split(/\s+o\s+gal\s+/i))
+    .map((s) =>
+      s
+        .replace(/^(?:ar|norite|noriu|norėtumėte|gal)\s+/i, "")
+        .replace(/\s+(?:pasirinkite|patikslinkite).*$/i, "")
+        .trim()
+    )
+    .filter((s) => s.length >= 3 && s.length <= 72);
+
+  const unique = [...new Set(parts)];
+  return unique.length >= 2 ? unique.slice(0, 4) : [];
+}
+
 export function buildEmptySearchReply(query?: string): string {
   const q = query?.trim();
   if (q && q.length >= 2) {
-    return `Deja, pagal „${q}" nieko tinkamo neradau. Pabandykime kitą frazę ar filtrus.`;
+    return `Deja, pagal „${q}" nieko tinkamo neradau. Gal pabandyti elektroniką, drabužius ar platesnę paiešką? Galiu ir užfiksuoti tavo norą fone.`;
   }
-  return "Deja, šiuo metu nieko neradau. Pabandykime kitą paiešką ar filtrus.";
+  return "Deja, šiuo metu nieko neradau. Pabandykime kitą frazę — arba pasakyk, ką tiksliai ieškai, ir pasiūlysiu alternatyvų.";
 }
 
 /** Voice TTS — max 2–3 sentences for APK/WebView clarity. */

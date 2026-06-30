@@ -83,6 +83,8 @@ export interface AgentSendOptions {
   fromSearchBar?: boolean;
   /** Proactive Offer Engine — no-match lead or bargaining signal */
   proactiveOffer?: ProactiveOfferContext;
+  /** System-triggered proactive call — do not echo trigger text as user bubble */
+  proactiveTriggerOnly?: boolean;
 }
 
 interface VautoAgentContextValue {
@@ -625,8 +627,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
-      const nextMessages = [...conversationBase, userMsg];
-      setMessages((prev) => [...prev, userMsg].slice(-6));
+      const proactiveOnly = Boolean(options?.proactiveTriggerOnly);
+      const apiUserText = proactiveOnly
+        ? `[Proaktyvi intervencija: ${options?.proactiveOffer?.kind ?? "assist"} — ${
+            options?.proactiveOffer?.query?.trim() ||
+            options?.proactiveOffer?.listingTitle?.trim() ||
+            "padėk vartotojui proaktyviai"
+          }]`
+        : trimmed;
+
+      const nextMessages = proactiveOnly
+        ? conversationBase
+        : [...conversationBase, userMsg];
+
+      if (!proactiveOnly) {
+        setMessages((prev) => [...prev, userMsg].slice(-6));
+      }
       noteUserMessage(trimmed);
       trackEvent("agent_message", {
         text: trimmed.slice(0, 120),
@@ -637,7 +653,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       const sessionMessages = options?.fromSearchBar
         ? [{ role: "user" as const, text: trimmed }]
-        : selectAgentSessionMessages(nextMessages);
+        : selectAgentSessionMessages([
+            ...nextMessages,
+            ...(proactiveOnly
+              ? [{ role: "user" as const, text: apiUserText }]
+              : []),
+          ]);
       const memoryContext = buildAgentContext(user);
       const searchSessionReset = shouldResetSearchSession(
         trimmed,
@@ -756,10 +777,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
             : buildEmptySearchReply(trimmed)
           : sanitizeAgentReplyForDisplay(res.reply) || res.reply || "Atlikta.";
-        setMessages((prev) => [
-          ...prev,
-          { role: "assistant" as const, text: assistantText },
-        ].slice(-6));
+
+        const lastAssistantText = [...messages]
+          .reverse()
+          .find((m) => m.role === "assistant")?.text
+          ?.trim();
+        const shouldAppendAssistant =
+          assistantText.trim() &&
+          assistantText.trim() !== lastAssistantText;
+
+        if (shouldAppendAssistant) {
+          setMessages((prev) =>
+            [
+              ...prev,
+              { role: "assistant" as const, text: assistantText },
+            ].slice(-6)
+          );
+        }
         speakReply(assistantText);
         if (hasExecutableAction) {
           if (!options?.fromSearchBar) {
@@ -780,6 +814,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: res.reply || assistantText, actions: res.actions };
       } catch {
         const message = BUDDY_REPEAT_PROMPT;
+        setMessages((prev) =>
+          [
+            ...prev,
+            { role: "assistant" as const, text: message },
+          ].slice(-6)
+        );
         speakReply(message);
         if (open) showToast(message, "info");
         return { ok: true, reply: message };

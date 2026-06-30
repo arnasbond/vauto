@@ -1386,6 +1386,60 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   color: var(--vauto-text-main);
 }
 
+/* ── Agent chat bubbles (proactive assistant) ── */
+.agent-chat-bubble-assistant {
+  background: color-mix(in srgb, var(--vauto-card-bg) 92%, var(--vauto-primary) 8%);
+  color: var(--vauto-text-main);
+  border: 1px solid color-mix(in srgb, var(--vauto-primary) 22%, var(--vauto-border));
+}
+
+.agent-chat-bubble-user {
+  background: color-mix(in srgb, var(--vauto-primary) 18%, var(--vauto-card-bg));
+  color: var(--vauto-text-main);
+  border: 1px solid color-mix(in srgb, var(--vauto-primary) 30%, var(--vauto-border));
+}
+
+.agent-quick-reply-chip {
+  border-color: color-mix(in srgb, var(--vauto-primary) 35%, var(--vauto-border));
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+}
+
+.agent-quick-reply-chip:hover:not(:disabled) {
+  border-color: var(--vauto-primary);
+  background: color-mix(in srgb, var(--vauto-primary) 12%, var(--vauto-card-bg));
+  color: var(--vauto-primary);
+}
+
+[data-app-theme="dark"] .agent-chat-bubble-assistant {
+  background: #1e293b;
+  color: #f1f5f9;
+  border-color: rgba(0, 242, 254, 0.22);
+}
+
+[data-app-theme="dark"] .agent-chat-bubble-user {
+  background: rgba(0, 242, 254, 0.12);
+  color: #f8fafc;
+  border-color: rgba(0, 242, 254, 0.28);
+}
+
+[data-app-theme="dark"] .agent-quick-reply-chip {
+  background: #161c2a;
+  color: #e2e8f0;
+  border-color: rgba(0, 242, 254, 0.28);
+}
+
+[data-app-theme="dark"] .agent-quick-reply-chip:hover:not(:disabled) {
+  background: rgba(0, 242, 254, 0.14);
+  color: #00f2fe;
+}
+
+.zero-ui-intent-ack {
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+  border-color: var(--vauto-border);
+}
+
 [data-app-theme="dark"] .listing-wizard-overlay,
 [data-app-theme="dark"] .listing-form-shell {
   background-color: #0a1128;

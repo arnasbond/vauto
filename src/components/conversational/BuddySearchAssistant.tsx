@@ -178,11 +178,13 @@ export function BuddySearchAssistant() {
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--vauto-teal)]">
             {buddyState === "typing" ? "Ieškoma" : buddyState === "speaking" ? "Rezultatas" : "Paieškos asistentas"}
           </p>
-          <div className="rounded-2xl rounded-tl-md border border-slate-200 bg-white px-4 py-3 shadow-sm">
+          <div className="agent-chat-bubble-assistant rounded-2xl rounded-tl-md border border-[var(--vauto-border)] px-4 py-3 shadow-sm">
             {!showMessage ? (
-              <p className="text-sm text-slate-500">Analizuojama užklausa…</p>
+              <p className="text-sm text-[var(--vauto-text-muted)]">Analizuojama užklausa…</p>
             ) : (
-              <p className="text-base leading-relaxed text-slate-800">{message}</p>
+              <p className="text-base leading-relaxed text-[var(--vauto-text-main)] [overflow-wrap:anywhere]">
+                {message}
+              </p>
             )}
           </div>
           {showMessage && (

@@ -44,7 +44,9 @@ export function ZeroUiIntentAck({ summary, intent, className }: ZeroUiIntentAckP
             {meta.label} atpažinta
           </span>
         </div>
-        <p className="text-sm font-medium leading-snug text-[#111827]">{summary}</p>
+        <p className="text-sm font-medium leading-snug text-[var(--vauto-text-main)] [overflow-wrap:anywhere]">
+          {summary}
+        </p>
       </div>
     </div>
   );
