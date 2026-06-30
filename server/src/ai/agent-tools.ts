@@ -1821,6 +1821,7 @@ export async function executeAgentTool(
           listingTitle,
           listingPrice,
           message: label,
+          quickReplies: proposal.quickReplies,
         },
         sideEffect: {
           type: "propose_bargaining",

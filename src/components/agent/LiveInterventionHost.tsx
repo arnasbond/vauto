@@ -45,12 +45,15 @@ export function LiveInterventionHost() {
     listings,
     user,
     isAuthenticated,
+    sellerAnalytics,
+    buyerIntentCount,
   } = useVauto();
   const { open, openWithGreeting, busy: agentBusy, sendAgentMessage } = useVautoAgent();
   const { events, shouldFireIntervention } = useUserBehavior();
   const lastHandledEventId = useRef<string | null>(null);
   const noMatchTriggeredRef = useRef<string | null>(null);
   const emptyWardrobeTriggeredRef = useRef(false);
+  const proBusinessNudgeRef = useRef(false);
 
   const myClothingCount = listings.filter(
     (l) => l.sellerId === user.id && l.category === "clothing" && l.status !== "sold"
@@ -217,6 +220,44 @@ export function LiveInterventionHost() {
     agentBusy,
     open,
     triggerNoMatchOffer,
+  ]);
+
+  useEffect(() => {
+    if (open || agentBusy) return;
+    if (proBusinessNudgeRef.current) return;
+    if (user.role !== "pro" && user.role !== "admin") return;
+    const onProfile =
+      pathname === "/profile" || pathname?.startsWith("/profile/");
+    if (!onProfile) return;
+
+    const lowVisibility = sellerAnalytics.views < 12;
+    const hasBuyerIntent = buyerIntentCount > 0;
+    if (!lowVisibility && !hasBuyerIntent) return;
+
+    const key = "pro_business_nudge";
+    if (!shouldFireIntervention(key)) return;
+    proBusinessNudgeRef.current = true;
+
+    const firstName = user.name.split(/\s+/)[0] || "drauge";
+    const greeting = hasBuyerIntent
+      ? `${firstName}, rinkoje ${buyerIntentCount} pirkėjų ieško panašių prekių — geras laikas išryškinti skelbimus!`
+      : `${firstName}, matomumas dar žemas — galiu padėti su verslo apžvalga ir Smart Boost.`;
+
+    openWithGreeting(greeting);
+    void sendAgentMessage("Parodyk mano verslo apžvalgą ir statistiką", {
+      skipBusyCheck: true,
+    });
+  }, [
+    open,
+    agentBusy,
+    pathname,
+    user.role,
+    user.name,
+    sellerAnalytics.views,
+    buyerIntentCount,
+    shouldFireIntervention,
+    openWithGreeting,
+    sendAgentMessage,
   ]);
 
   return null;

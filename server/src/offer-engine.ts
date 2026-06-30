@@ -182,6 +182,7 @@ export function buildSmartBargainingProposal(input: {
   suggestedOfferMax: number;
   message: string;
   openerMessage: string;
+  quickReplies: string[];
 } {
   const price = Math.max(1, Math.round(input.listingPrice));
   const wardrobe =
@@ -206,6 +207,7 @@ export function buildSmartBargainingProposal(input: {
     suggestedOfferMax,
     message,
     openerMessage,
+    quickReplies: ["Taip, derėtis", "Ne, ačiū", "Parodyti panašius"],
   };
 }
 

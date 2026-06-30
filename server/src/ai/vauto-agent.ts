@@ -662,6 +662,18 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     finalText = wardrobeToolResult.message;
   }
 
+  const trustToolCall = toolCalls.find((t) => t.name === "getSellerTrustScore");
+  const trustToolResult = trustToolCall?.result as { message?: string; ok?: boolean } | undefined;
+  if (trustToolResult?.ok && trustToolResult.message) {
+    finalText = trustToolResult.message;
+  }
+
+  const negotiationToolCall = toolCalls.find((t) => t.name === "analyzeNegotiationTwin");
+  const negotiationToolResult = negotiationToolCall?.result as { message?: string; ok?: boolean } | undefined;
+  if (negotiationToolResult?.ok && negotiationToolResult.message) {
+    finalText = negotiationToolResult.message;
+  }
+
   const scanCall = toolCalls.find((t) => t.name === "scanListingPhotos");
   const scanResult = scanCall?.result as {
     ok?: boolean;

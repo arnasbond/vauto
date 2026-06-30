@@ -59,7 +59,7 @@ import {
   buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
-import { tryHandleAgentQuickReply } from "@/lib/agent-quick-reply-router";
+import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   mapAgentWardrobeItems,
 } from "@/lib/agent-wardrobe-bridge";
@@ -215,6 +215,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [agentGreeting]);
 
   const [busy, setBusy] = useState(false);
+  const [sessionPendingImageUrls, setSessionPendingImageUrls] = useState<string[]>([]);
+  const [lastBargainingOffer, setLastBargainingOffer] =
+    useState<AgentBargainingOffer | null>(null);
   const adminProjectContext = useAdminProjectContextForAgent();
   const includeAdminContext = Boolean(adminProjectContext);
   const [lastError, setLastError] = useState<
@@ -268,6 +271,35 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     },
     [isAuthenticated, openAuthModal, subscribeWishlist, showToast]
   );
+
+  const openBargainingChat = useCallback(() => {
+    if (!lastBargainingOffer) return false;
+    const chatId = startChat(lastBargainingOffer.listingId);
+    if (!chatId) return false;
+    router.push(chatThreadPath(chatId));
+    return true;
+  }, [lastBargainingOffer, startChat, router]);
+
+  const searchSimilarListings = useCallback(() => {
+    const q = (lastBargainingOffer?.listingTitle || searchQuery).trim();
+    goToMarketplace("agent");
+    setSearchInputMode("text");
+    if (q) {
+      setSearchQuery(q);
+      setMarketplaceFilters({
+        ...marketplaceFilters,
+        category: "all",
+      });
+    }
+  }, [
+    lastBargainingOffer,
+    searchQuery,
+    goToMarketplace,
+    setSearchInputMode,
+    setSearchQuery,
+    setMarketplaceFilters,
+    marketplaceFilters,
+  ]);
 
   const applyActions = useCallback(
     (actions: import("@/lib/vauto-agent-client").VautoAgentAction) => {
@@ -539,6 +571,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
       if (actions.type === "propose_bargaining") {
+        setLastBargainingOffer({
+          listingId: actions.listingId,
+          listingTitle: actions.listingTitle,
+          listingPrice: actions.listingPrice,
+          suggestedOfferMin: actions.suggestedOfferMin,
+          suggestedOfferMax: actions.suggestedOfferMax,
+        });
         trackEvent("agent_action", {
           action: "propose_bargaining",
           listingId: actions.listingId,
@@ -616,6 +655,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       activateWardrobeSpinta,
       trackEvent,
       startChat,
+      setLastBargainingOffer,
     ]
   );
 
@@ -666,6 +706,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         sellerStep,
         pendingWardrobeBulkItems,
         pendingWardrobeVoice,
+        lastBargainingOffer,
         publishListing,
         publishBulkClothingListings,
         applyAgentWardrobeBulk,
@@ -680,6 +721,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         broadenSearch,
         registerWantedFlow,
         openChats: () => router.push("/chats"),
+        openBargainingChat,
+        searchSimilarListings,
       });
       if (quickReply) {
         setMessages((prev) => [
@@ -700,6 +743,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       let conversationBase = messages;
       if (sessionExpired) {
+        setSessionPendingImageUrls([]);
+        setLastBargainingOffer(null);
         conversationBase = [
           {
             role: "assistant",
@@ -711,6 +756,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           },
         ];
       }
+
+      const incomingImages = options?.pendingImageUrls?.filter(Boolean).slice(0, 6);
+      if (incomingImages?.length) {
+        setSessionPendingImageUrls(incomingImages);
+      }
+      const activePendingImageUrls =
+        incomingImages ?? (sessionPendingImageUrls.length ? sessionPendingImageUrls : undefined);
 
       const userMsg: AgentChatMessage = { role: "user", text: trimmed };
       const proactiveOnly = Boolean(options?.proactiveTriggerOnly);
@@ -802,7 +854,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             sessionExpired: sessionExpired || undefined,
             sessionLastActiveAt: lastActiveAt ?? undefined,
             lastSessionTopic,
-            pendingImageUrls: options?.pendingImageUrls,
+            pendingImageUrls: activePendingImageUrls,
             lastError,
             isAuthenticated,
             searchResultCount:
@@ -959,6 +1011,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       navigateToAdd,
       broadenSearch,
       registerWantedFlow,
+      lastBargainingOffer,
+      openBargainingChat,
+      searchSimilarListings,
+      sessionPendingImageUrls,
+      setLastBargainingOffer,
       sellerAnalytics,
       buyerIntentCount,
       activateWardrobeSpinta,

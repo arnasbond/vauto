@@ -9,6 +9,14 @@ export interface AgentQuickReplyResult {
   reply: string;
 }
 
+export interface AgentBargainingOffer {
+  listingId: string;
+  listingTitle: string;
+  listingPrice: number;
+  suggestedOfferMin: number;
+  suggestedOfferMax: number;
+}
+
 export interface AgentQuickReplyDeps {
   trimmed: string;
   user: UserProfile;
@@ -17,6 +25,7 @@ export interface AgentQuickReplyDeps {
   sellerStep: SellerFlowStep;
   pendingWardrobeBulkItems: WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
+  lastBargainingOffer: AgentBargainingOffer | null;
   publishListing: () => void;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => void;
   applyAgentWardrobeBulk: (
@@ -34,6 +43,8 @@ export interface AgentQuickReplyDeps {
   broadenSearch: () => void;
   registerWantedFlow: (query: string) => void;
   openChats: () => void;
+  openBargainingChat: () => boolean;
+  searchSimilarListings: () => void;
 }
 
 function normalizeChip(text: string): string {
@@ -195,6 +206,34 @@ export function tryHandleAgentQuickReply(
   ) {
     deps.openChats();
     return { handled: true, reply: "Atidarau pokalbius su klientais." };
+  }
+
+  if (matchesChip(trimmed, [/taip, derėtis/, /taip deretis/, /suderinti nuolaidą/, /suderinti nuolaida/])) {
+    if (deps.lastBargainingOffer) {
+      const opened = deps.openBargainingChat();
+      if (opened) {
+        const { listingTitle, suggestedOfferMin, suggestedOfferMax } = deps.lastBargainingOffer;
+        return {
+          handled: true,
+          reply: `Atidarau pokalbį dėl „${listingTitle}" — siūlomas rėžis ${suggestedOfferMin}–${suggestedOfferMax} €.`,
+        };
+      }
+    }
+  }
+
+  if (matchesChip(trimmed, [/ne, ačiū/, /ne aciu/])) {
+    return {
+      handled: true,
+      reply: "Gerai — jei persigalvosite, parašykite bet kada.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/parodyti panašius/])) {
+    deps.searchSimilarListings();
+    return {
+      handled: true,
+      reply: "Ieškau panašių skelbimų pagal paskutinę paiešką.",
+    };
   }
 
   return null;
