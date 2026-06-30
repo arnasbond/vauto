@@ -79,12 +79,13 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
           };
         }
         const d = draft as Record<string, unknown>;
-        const title = asString(d.title).trim();
+        const category = asString(d.category, "other");
+        const description = asString(d.description).trim();
+        let title = asString(d.title).trim();
         if (title.length < 1) {
-          return {
-            ok: false,
-            message: "Skelbimo pavadinimas tuščias — patikslinkite, ką norite parduoti.",
-          };
+          title =
+            description.slice(0, 72) ||
+            (category === "clothing" ? "Naujas drabužio skelbimas" : "Naujas skelbimas");
         }
         return {
           ok: true,
@@ -92,7 +93,7 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
             type: "listing_draft",
             listingDraft: {
               title,
-              description: d.description ? asString(d.description) : undefined,
+              description: description || undefined,
               price: asNumber(d.price, 0),
               location: asString(d.location),
               contact: asString(d.contact, "+370 612 34567"),

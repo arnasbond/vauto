@@ -13,12 +13,10 @@ import {
 import { useVauto } from "@/context/VautoContext";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
 import { enrichClothingListingDraft } from "@/lib/clothing-catalog";
-import {
-  WARDROBE_BULK_IMPORT_CHIPS,
-  WARDROBE_BULK_IMPORT_GREETING,
-} from "@/lib/agent-wardrobe-bulk-dialogue";
+import { SafeAgentActionBoundary } from "@/components/agent/SafeAgentActionBoundary";
+import { AiConfirmationScreen } from "@/components/AiConfirmationScreen";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { notifyWardrobeBulkImportOpened } from "@/lib/vauto-agent-client";
+import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 
 export default function AddPage() {
   const router = useRouter();
@@ -69,13 +67,13 @@ export default function AddPage() {
               contact: user.phone,
             }),
             category: "clothing",
+            title: "Naujas drabužio skelbimas",
+            description: "Asortimento įkėlimas — įkelkite nuotraukas arba aprašykite prekes.",
           },
           "Asortimento įkėlimas"
         )
       );
-      notifyWardrobeBulkImportOpened(WARDROBE_BULK_IMPORT_GREETING, {
-        quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
-      });
+      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
       return;
     }
 
@@ -157,6 +155,12 @@ export default function AddPage() {
             </div>
           )}
         </HeroSection>
+
+        {fashionMode && sellerStep !== "idle" && (
+          <SafeAgentActionBoundary label="fashion-inline-wizard">
+            <AiConfirmationScreen mode="inline-full" />
+          </SafeAgentActionBoundary>
+        )}
 
         {!fashionMode && (
           <AiIntroModal

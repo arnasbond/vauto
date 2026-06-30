@@ -275,7 +275,10 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
     c.replace(/^Ieškoti\s+/i, "").trim()
   );
   if (!semanticAlternatives.length) {
-    semanticAlternatives = buildSemanticAlternatives(searchFilters, visualSummary);
+    semanticAlternatives = buildSemanticAlternatives(
+      searchFilters as Record<string, string | undefined>,
+      visualSummary
+    );
   }
   const clarificationPrompt = buildMultiObjectClarificationPrompt(
     sceneContext,

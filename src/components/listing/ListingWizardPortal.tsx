@@ -3,6 +3,9 @@
 import { useEffect, useState, type ReactNode } from "react";
 import { createPortal } from "react-dom";
 
+const PORTAL_SHELL =
+  "listing-wizard-overlay fixed inset-0 z-[240] overflow-y-auto overscroll-contain";
+
 /** Renders listing wizards on document.body to escape parent stacking contexts. */
 export function ListingWizardPortal({
   children,
@@ -17,6 +20,12 @@ export function ListingWizardPortal({
     setMounted(true);
   }, []);
 
-  if (!enabled || !mounted) return null;
-  return createPortal(children, document.body);
+  if (!enabled) return null;
+
+  /** S0.9 — never return null on first paint (was causing blank /add fashion screen). */
+  if (!mounted) {
+    return <div className={PORTAL_SHELL}>{children}</div>;
+  }
+
+  return createPortal(<div className={PORTAL_SHELL}>{children}</div>, document.body);
 }

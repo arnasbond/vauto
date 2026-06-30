@@ -4,6 +4,7 @@ import { ArrowRight, Camera, PenLine, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SELLER_CATEGORY_PROMPTS } from "@/lib/seller-category-prompts";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import {
   AiPhotoFlowSheet,
@@ -25,12 +26,14 @@ export function SellerUploadPanel({
     openManualListingWizard,
     requireAuthForListing,
   } = useVauto();
+  const { sendAgentMessage, applyAgentActions, busy: agentBusy } = useVautoAgent();
   const [query, setQuery] = useState("");
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
   const autoOpenedRef = useRef(false);
 
-  const busy = sellerStep !== "idle" && sellerStep !== "published";
+  const legacyBusy = sellerStep !== "idle" && sellerStep !== "published";
+  const busy = legacyBusy || agentBusy;
 
   useEffect(() => {
     if (!autoOpenPhotoFlow || autoOpenedRef.current || busy) return;
@@ -41,19 +44,22 @@ export function SellerUploadPanel({
     });
   }, [autoOpenPhotoFlow, busy, onPhotoFlowAutoOpened, requestMediaConsent]);
 
-  const runAi = useCallback(
-    (text?: string) => {
+  const runAgentText = useCallback(
+    async (text?: string) => {
       const trimmed = text?.trim() ?? query.trim();
-      if (!trimmed) return;
-      submitSellerContent({ text: trimmed });
+      if (!trimmed || busy) return;
       setQuery("");
+      const res = await sendAgentMessage(trimmed, { fromSearchBar: true });
+      if (res.actions && res.actions.type !== "none") {
+        applyAgentActions(res.actions);
+      }
     },
-    [query, submitSellerContent]
+    [applyAgentActions, busy, query, sendAgentMessage]
   );
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    runAi();
+    void runAgentText();
   };
 
   const openPhotoFlow = () => {
@@ -86,7 +92,7 @@ export function SellerUploadPanel({
     }
   };
 
-  const processing = sellerStep === "processing";
+  const processing = sellerStep === "processing" || agentBusy;
 
   return (
     <>
@@ -127,7 +133,7 @@ export function SellerUploadPanel({
               disabled={busy || processing}
               onClick={() => {
                 setQuery(item.prompt);
-                void submitSellerContent({ text: item.prompt });
+                void runAgentText(item.prompt);
               }}
               className="seller-upload-chip shrink-0 rounded-full border px-3 py-1.5 text-xs font-medium shadow-sm disabled:opacity-50"
             >
@@ -161,13 +167,15 @@ export function SellerUploadPanel({
         </form>
 
         <p className="mt-2 text-center text-xs text-[var(--vauto-text-muted)]">
-          Enter — Gemini atpažins kategoriją, užpildys formą ir pasiūlys kainą.
+          Enter — agentas atpažins kategoriją, užpildys formą ir pasiūlys kainą.
         </p>
       </div>
 
       {processing && (
         <p className="mt-3 text-center text-sm font-medium text-[var(--vauto-primary)]">
-          Vision AI apdoroja skelbimą — neuždarykite šio lango…
+          {agentBusy
+            ? "Agentas apdoroja užklausą — neuždarykite šio lango…"
+            : "Vision AI apdoroja skelbimą — neuždarykite šio lango…"}
         </p>
       )}
 

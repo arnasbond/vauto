@@ -1,6 +1,7 @@
 import type { AiExtractedListing, Listing, ListingCategory } from "@/lib/types";
 import type { AppView } from "@/lib/app-views";
 import { safeDraftAttributes } from "@/lib/agent-message-safe";
+import { detectSellerListingIntent } from "@/lib/scoring";
 
 export interface AgentChatMessage {
   role: "user" | "assistant";
@@ -128,6 +129,7 @@ export function isTooShortAgentQuery(
 ): boolean {
   const t = String(text ?? "").trim();
   if (!t) return true;
+  if (!opts?.fromVoice && detectSellerListingIntent(t)) return false;
   const min = opts?.fromVoice ? AGENT_VOICE_MIN_QUERY_CHARS : AGENT_MIN_QUERY_CHARS;
   return t.length < min;
 }

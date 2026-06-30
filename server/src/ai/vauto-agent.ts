@@ -31,6 +31,11 @@ import {
   resolveSecretaryNoiseReply,
 } from "./secretary-guards.js";
 import {
+  buildSellListingDraftFallback,
+  detectServerSellIntent,
+} from "./sell-intent-fallback.js";
+import { buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
+import {
   SEARCH_AGENT_BREVITY_RULES,
 } from "./search-agent.js";
 import {
@@ -307,7 +312,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
   );
 
-  if (isTooShortSecretaryQuery(lastUserText)) {
+  if (isTooShortSecretaryQuery(lastUserText) && !detectServerSellIntent(lastUserText)) {
     return {
       ok: true,
       reply: resolveSecretaryNoiseReply(lastUserText),
@@ -797,6 +802,52 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     ({ type: "none" } as const);
 
   const quickReplies = resolveAgentQuickReplies(toolCalls, resolvedAction);
+
+  if (!finalText && sideEffect?.type === "listing_draft") {
+    const ld = sideEffect.listingDraft;
+    finalText = buildCreateListingDraftFollowUp(
+      ld.category ?? "other",
+      ld.title?.trim() || "Naujas skelbimas",
+      (ld.attributes as Record<string, string> | undefined) ?? {}
+    );
+  }
+
+  if (!finalText && sideEffect?.type === "wardrobe_bulk") {
+    finalText =
+      sideEffect.voiceAnnouncement ??
+      "Paruošiau drabužių juodraščius — peržiūrėkite ir patvirtinkite formą.";
+  }
+
+  if (
+    !finalText &&
+    resolvedAction.type === "listing_draft" &&
+    "listingDraft" in resolvedAction
+  ) {
+    const ld = resolvedAction.listingDraft;
+    finalText = buildCreateListingDraftFollowUp(
+      ld.category ?? "other",
+      ld.title?.trim() || "Naujas skelbimas",
+      (ld.attributes as Record<string, string> | undefined) ?? {}
+    );
+  }
+
+  if (
+    !finalText &&
+    (req.context.fromSearchBar || hasListingDraftAction) &&
+    detectServerSellIntent(lastUserText)
+  ) {
+    const fallback = buildSellListingDraftFallback(lastUserText, {
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+    });
+    return {
+      ok: true,
+      reply: fallback.reply,
+      quickReplies: fallback.quickReplies,
+      toolCalls,
+      actions: fallback.action,
+    };
+  }
 
   if (!finalText) {
     if (lastGeminiError) {
