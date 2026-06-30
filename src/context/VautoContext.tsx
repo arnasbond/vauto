@@ -2093,6 +2093,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       setDetectedAdaptiveKey,
       setChameleonTheme,
       activateWardrobeSpinta,
+      refreshListingsCatalog,
     }),
     [
       listings,
@@ -2107,6 +2108,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       openAuthModal,
       scheduleSellerEngagementPush,
       activateWardrobeSpinta,
+      refreshListingsCatalog,
     ]
   );
 

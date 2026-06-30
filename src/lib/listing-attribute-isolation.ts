@@ -207,6 +207,48 @@ export function adaptiveVerticalChanged(
   return listingToAdaptiveKey(prevCategory) !== listingToAdaptiveKey(nextCategory);
 }
 
+/**
+ * Vision re-analysis conflict — broader than adaptiveVerticalChanged alone.
+ * Catches vehicle flow → phone (effective electronics) even when raw category lags.
+ */
+export function detectSellerPhotoCategoryConflict(
+  previousCategory: ListingCategory | null | undefined,
+  previousAttributes: CategoryAttributes | null | undefined,
+  finalized: import("@/lib/types").AiExtractedListing
+): boolean {
+  if (!previousCategory) return false;
+
+  if (adaptiveVerticalChanged(previousCategory, finalized.category)) return true;
+
+  const prevEffective = resolveEffectiveListingCategory(
+    previousCategory,
+    previousAttributes ?? {}
+  );
+  const nextEffective = resolveEffectiveListingCategory(
+    finalized.category,
+    finalized.attributes ?? {}
+  );
+  if (prevEffective !== nextEffective) return true;
+
+  if (
+    listingToAdaptiveKey(previousCategory) === "vehicles" &&
+    listingToAdaptiveKey(finalized.category) === "universal" &&
+    universalSubVerticalChanged(previousAttributes, finalized.attributes)
+  ) {
+    return true;
+  }
+
+  const sk = String(finalized.attributes?.skelbiuCategory ?? "").toLowerCase();
+  if (
+    listingToAdaptiveKey(previousCategory) === "vehicles" &&
+    /elektron|telefon|mobil|iphone|android|samsung/.test(sk)
+  ) {
+    return true;
+  }
+
+  return false;
+}
+
 /** Universal schema packs all verticals — show only fields matching skelbiuCategory. */
 export function filterFieldsForListingCategory(
   category: ListingCategory,

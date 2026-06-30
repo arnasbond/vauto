@@ -275,7 +275,7 @@ export function AdaptiveConfirmation({
   const fieldsBlock = (
     <>
       <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-slate-200 bg-white" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
-        <p className={`mb-2 text-xs font-semibold ${universalMode ? "text-slate-800" : "font-medium text-[#374151] dark:text-white/70"}`}>Jūs esate:</p>
+        <p className={`mb-2 text-xs font-semibold ${universalMode ? "text-slate-800" : "font-medium text-slate-800 dark:text-white/70"}`}>Jūs esate:</p>
         <div className="flex flex-wrap gap-2">
           {SELLER_TYPES.map((opt) => (
             <button
@@ -286,8 +286,8 @@ export function AdaptiveConfirmation({
                 (attributes.sellerType || "Privatus asmuo") === opt
                   ? "bg-[#1167b1] text-white"
                   : universalMode
-                    ? "bg-white text-slate-800 ring-1 ring-slate-300"
-                    : "bg-white text-[#374151] ring-1 ring-[#d0d7de] dark:bg-white/10 dark:text-white/80"
+                    ? "bg-white text-slate-800 ring-1 ring-slate-400"
+                    : "bg-white text-slate-800 ring-1 ring-[#d0d7de] dark:bg-white/10 dark:text-white/80"
               }`}
             >
               {opt}

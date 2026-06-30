@@ -34,6 +34,7 @@ export interface VautoBridgeValue {
   setDetectedAdaptiveKey: (key: AdaptiveCategoryKey | null) => void;
   setChameleonTheme: (theme: ChameleonThemeId) => void;
   activateWardrobeSpinta: () => void;
+  refreshListingsCatalog: () => Promise<void>;
 }
 
 const VautoBridgeContext = createContext<VautoBridgeValue | null>(null);

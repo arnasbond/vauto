@@ -114,6 +114,7 @@ import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, evaluateListingPublishValidation } from "@/lib/adaptive-categories";
 import {
   adaptiveVerticalChanged,
+  detectSellerPhotoCategoryConflict,
   finalizeListingDraft,
   resolveEffectiveListingCategory,
   sanitizeAttributesForCategory,
@@ -232,6 +233,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     scheduleSellerEngagementPush,
     setDetectedAdaptiveKey,
     setChameleonTheme,
+    refreshListingsCatalog,
   } = useVautoBridge();
   const { trackEvent } = useUserBehavior();
 
@@ -470,8 +472,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           listingToAdaptiveKey(next.category) === "universal" && next.category !== "vehicles";
         const photoReplace =
           mode === "upload" && Boolean(aiDraftRef.current);
+        const previousDraftCategory = aiDraftRef.current?.category ?? null;
+        const visionSkelbiu = String(next.attributes?.skelbiuCategory ?? "").toLowerCase();
+        const visionImpliesElectronics =
+          next.category === "electronics" ||
+          /elektron|telefon|mobil|iphone|android|samsung/.test(visionSkelbiu) ||
+          /telefon|iphone|samsung|mobilus/i.test(
+            `${next.title ?? ""} ${next.description ?? ""}`
+          );
+        /** Vision trumps vehicle heuristics when user replaces photo in auto flow. */
+        const visionRejectsVehicleDraft =
+          photoReplace &&
+          previousDraftCategory === "vehicles" &&
+          (next.category !== "vehicles" || visionImpliesElectronics);
         const allowVehicleHeuristic =
-          looksLikeVehicle && !(photoReplace && visionSaysUniversal);
+          looksLikeVehicle &&
+          !visionRejectsVehicleDraft &&
+          !(photoReplace && visionSaysUniversal);
 
         if (looksLikeRealEstate) {
           const attrs = { ...(next.attributes ?? {}) };
@@ -611,12 +628,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         const previousAttributes = previousDraft?.attributes ?? null;
         const finalized = finalizeListingDraft(next, previousCategory, previousAttributes);
 
-        const photoCategoryMismatch =
+        const hasPhotoCategoryMismatch =
           Boolean(previousDraft) &&
           mode === "upload" &&
-          adaptiveVerticalChanged(previousCategory, finalized.category);
+          detectSellerPhotoCategoryConflict(
+            previousCategory,
+            previousAttributes,
+            finalized
+          );
 
-        if (photoCategoryMismatch && previousDraft && previousCategory) {
+        if (hasPhotoCategoryMismatch && previousDraft && previousCategory) {
           categoryMismatchRollbackRef.current = {
             draft: finalizeListingDraft(previousDraft, previousCategory, previousAttributes),
             previewImage: sellerPreviewImageRef.current,
@@ -1172,12 +1193,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
       published = withDefaultExpiry({
         ...createRes.data,
+        category: publishCategory,
+        tags: newListing.tags,
+        images: newListing.images.length ? newListing.images : createRes.data.images,
         slug: createRes.data.slug ?? newListing.slug,
       });
       setListings((prev) =>
         prev.map((l) => (l.id === newListing.id ? published : l))
       );
       setLastPublishedListing(published);
+      await refreshListingsCatalog();
     }
 
     scheduleSellerEngagementPush(published.id, published.location, published.title);
@@ -1189,7 +1214,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Anonser.lt sinchronizacija suplanuota.", "info");
       }
     });
-    notifyListingPublishComplete(aiDraft.category, 1);
+    notifyListingPublishComplete(publishCategory, 1);
   }, [
     aiDraft,
     sellerPreviewImage,
@@ -1208,6 +1233,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     editingListingId,
     resetSellerFlow,
     listingSocialPublish,
+    refreshListingsCatalog,
   ]);
 
   const publishBulkClothingListings = useCallback(
