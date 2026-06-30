@@ -11,6 +11,7 @@ import {
   type ReactNode,
 } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiVautoAgent } from "@/lib/api/client";
 import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
@@ -126,13 +127,20 @@ const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
 export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const { trackEvent, getBehaviorSnapshot } = useUserBehavior();
   const {
-    listings,
-    user,
     setSearchQuery,
     setSearchInputMode,
     setSearchVoiceMode,
     searchInputMode,
     searchVoiceMode,
+    searchQuery,
+    setAgentPinnedListings,
+    setViewMode,
+    setMarketplaceFilters,
+    marketplaceFilters,
+  } = useVautoSearch();
+  const {
+    listings,
+    user,
     applyAgentListingDraft,
     setListingBanned,
     markListingSold,
@@ -141,11 +149,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     openAuthModal,
     subscribeWishlist,
     rankedListings,
-    searchQuery,
-    setAgentPinnedListings,
-    setViewMode,
-    setMarketplaceFilters,
-    marketplaceFilters,
     clearVisualSearch,
     toggleSave,
     aiDraft,

@@ -2046,3 +2046,34 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 .top-ai-command-chrome {
   border-color: var(--vauto-border);
 }
+
+.ai-wizard-fab-preview {
+  animation: wizardPreviewIn 0.32s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.ai-wizard-fab-preview-pulse {
+  animation:
+    wizardPreviewIn 0.32s cubic-bezier(0.22, 1, 0.36, 1),
+    wizardPreviewPulse 2.4s ease-in-out;
+}
+
+@keyframes wizardPreviewIn {
+  from {
+    transform: translateY(0.35rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+@keyframes wizardPreviewPulse {
+  0%,
+  100% {
+    box-shadow: 0 8px 24px -8px rgba(30, 102, 202, 0.2);
+  }
+  40% {
+    box-shadow: 0 10px 28px -6px rgba(255, 107, 0, 0.28);
+  }
+}

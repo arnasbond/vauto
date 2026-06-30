@@ -43,6 +43,7 @@ import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
+import { hapticImpactLight } from "@/lib/haptic-feedback";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -110,6 +111,7 @@ export function AiCommandBar({
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
+  const [previewPulse, setPreviewPulse] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
 
@@ -241,7 +243,10 @@ export function AiCommandBar({
         const msg = trimmed;
         setDraftQuery("");
         await sendAgentMessage(msg);
-        if (collapsible) setWizardExpanded(false);
+        if (collapsible) {
+          void hapticImpactLight();
+          setWizardExpanded(false);
+        }
         return;
       }
       void commitSearch(draftQuery);
@@ -435,13 +440,22 @@ export function AiCommandBar({
   const busy = agentBusy || searchLoading || isPhotoSearching;
   const hasAssistantPing = Boolean(lastAssistant) || busy;
 
+  const toggleWizardExpanded = useCallback((next: boolean) => {
+    void hapticImpactLight();
+    setWizardExpanded(next);
+    if (next) {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  }, []);
+
   useEffect(() => {
-    if (!isWizard || !collapsible) return;
+    if (!isWizard || !collapsible || wizardExpanded) return;
     if (!lastAssistant || lastAssistant === prevAssistantRef.current) return;
     prevAssistantRef.current = lastAssistant;
-    setWizardExpanded(true);
-    requestAnimationFrame(() => inputRef.current?.focus());
-  }, [lastAssistant, isWizard, collapsible]);
+    setPreviewPulse(true);
+    const t = window.setTimeout(() => setPreviewPulse(false), 2400);
+    return () => window.clearTimeout(t);
+  }, [lastAssistant, isWizard, collapsible, wizardExpanded]);
 
   const wizardPlaceholder =
     phase === "listing_processing"
@@ -473,37 +487,61 @@ export function AiCommandBar({
     : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] transition disabled:opacity-40";
 
   if (isWizard && collapsible && !wizardExpanded) {
+    const previewLine = lastAssistant.replace(/\s+/g, " ").trim();
+    const previewSnippet =
+      previewLine.length > 88 ? `${previewLine.slice(0, 88)}…` : previewLine;
+
     return (
-      <button
-        type="button"
+      <div
         className={cn(
-          "ai-wizard-fab pointer-events-auto fixed z-50 flex h-14 w-14 items-center justify-center rounded-full border shadow-xl transition-transform duration-300 hover:scale-105 active:scale-95",
+          "ai-wizard-fab-stack pointer-events-none fixed z-50 flex flex-col items-end",
           "bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4",
-          skin.composerBorder,
-          skin.composerBg,
           className
         )}
-        onClick={() => {
-          setWizardExpanded(true);
-          requestAnimationFrame(() => inputRef.current?.focus());
-        }}
-        aria-label="Atidaryti VAUTO asistentą"
-        aria-expanded={false}
       >
-        {busy ? (
-          <Loader2 className={cn("h-6 w-6 animate-spin", skin.composerAccentIcon)} />
-        ) : (
-          <MessageCircle className={cn("h-6 w-6", skin.composerAccentIcon)} />
-        )}
-        {hasAssistantPing && !busy && (
-          <span
-            className="ai-wizard-fab-ping absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--vauto-accent)] ring-2 ring-[var(--vauto-bg)]"
-            aria-hidden
+        {previewSnippet && (
+          <div
+            className={cn(
+              "ai-wizard-fab-preview pointer-events-none mb-2 max-w-[min(17rem,calc(100vw-5.5rem))] rounded-2xl border px-3 py-2 text-left text-[11px] leading-snug shadow-lg backdrop-blur-md vauto-body-text",
+              "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)]/95 text-[var(--vauto-text-muted)]",
+              previewPulse && "ai-wizard-fab-preview-pulse"
+            )}
+            role="status"
+            aria-live="polite"
           >
-            <Sparkles className="h-2.5 w-2.5 text-white" />
-          </span>
+            <Sparkles
+              className={cn("mb-0.5 inline h-3 w-3 text-[var(--vauto-primary)]")}
+              aria-hidden
+            />{" "}
+            {previewSnippet}
+          </div>
         )}
-      </button>
+        <button
+          type="button"
+          className={cn(
+            "ai-wizard-fab pointer-events-auto relative flex h-14 w-14 items-center justify-center rounded-full border shadow-xl transition-transform duration-300 hover:scale-105 active:scale-95",
+            skin.composerBorder,
+            skin.composerBg
+          )}
+          onClick={() => toggleWizardExpanded(true)}
+          aria-label="Atidaryti VAUTO asistentą"
+          aria-expanded={false}
+        >
+          {busy ? (
+            <Loader2 className={cn("h-6 w-6 animate-spin", skin.composerAccentIcon)} />
+          ) : (
+            <MessageCircle className={cn("h-6 w-6", skin.composerAccentIcon)} />
+          )}
+          {hasAssistantPing && !busy && (
+            <span
+              className="ai-wizard-fab-ping absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--vauto-accent)] ring-2 ring-[var(--vauto-bg)]"
+              aria-hidden
+            >
+              <Sparkles className="h-2.5 w-2.5 text-white" />
+            </span>
+          )}
+        </button>
+      </div>
     );
   }
 
@@ -528,7 +566,7 @@ export function AiCommandBar({
               <div className="pointer-events-auto mb-2 flex justify-end">
                 <button
                   type="button"
-                  onClick={() => setWizardExpanded(false)}
+                  onClick={() => toggleWizardExpanded(false)}
                   className="flex items-center gap-1 rounded-full border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-1 text-[11px] text-[var(--vauto-text-muted)] shadow-sm transition hover:bg-[var(--vauto-bg)]"
                   aria-label="Suskleisti asistentą"
                 >
