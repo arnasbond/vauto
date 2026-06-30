@@ -113,7 +113,6 @@ import {
 import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
-import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
 import type {
@@ -669,8 +668,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
-      const key = listingToAdaptiveKey(enriched.category);
-      setChameleonTheme(adaptiveKeyToTheme(key));
+      setChameleonTheme("flux");
       setSellerStep("confirmation");
       const vehicleAttrs = enriched.attributes;
       const prefilled =
@@ -721,7 +719,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerInputMode("upload");
       setSellerUserPrompt(opts?.voiceAnnouncement ?? firstDraft.title);
       if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
-      setChameleonTheme(adaptiveKeyToTheme("clothing"));
+      setChameleonTheme("flux");
       setSellerStep("confirmation");
       showToast(
         opts?.voiceAnnouncement ??
@@ -783,8 +781,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           setAiDraft(enriched);
           setSellerInputMode("text");
           setSellerUserPrompt(enriched.description ?? "");
-          const key = listingToAdaptiveKey(enriched.category);
-          setChameleonTheme(adaptiveKeyToTheme(key));
+          setChameleonTheme("flux");
           setSellerStep("confirmation");
         } else {
           setSellerStep("idle");
@@ -1254,9 +1251,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         sellerStep === "processing" ||
         sellerStep === "published")
     ) {
-      const key = listingToAdaptiveKey(aiDraft.category);
-      setDetectedAdaptiveKey(key);
-      setChameleonTheme(adaptiveKeyToTheme(key));
+      setDetectedAdaptiveKey(listingToAdaptiveKey(aiDraft.category));
+      setChameleonTheme("flux");
       return;
     }
     if (sellerStep === "idle") {

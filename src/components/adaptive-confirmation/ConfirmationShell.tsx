@@ -90,9 +90,8 @@ export function ConfirmationShell({
 }
 
 export function PublishedOverlay() {
-  const { chameleonTheme } = useVauto();
   const { lastPublishedListing, finishPublishedFlow } = useSellerFlow();
-  const theme = getChameleonTheme(chameleonTheme);
+  const theme = getChameleonTheme("flux");
   const p = theme.published;
 
   return (
@@ -133,12 +132,7 @@ export function PublishedOverlay() {
         <button
           type="button"
           onClick={finishPublishedFlow}
-          className={cn(
-            "w-full rounded-xl py-3 text-sm font-semibold",
-            chameleonTheme === "flux"
-              ? "bg-[var(--vauto-teal)] text-white"
-              : "bg-[#1565c0] text-white"
-          )}
+          className="w-full rounded-xl bg-[var(--vauto-teal)] py-3 text-sm font-semibold text-white"
         >
           Baigti
         </button>

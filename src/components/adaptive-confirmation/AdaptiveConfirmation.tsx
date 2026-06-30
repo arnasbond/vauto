@@ -30,12 +30,15 @@ interface AdaptiveConfirmationProps {
   userPrompt: string | null;
   speakEnabled: boolean;
   manualFallback?: boolean;
+  /** P8 — universal magistralė: vienas layout visoms kategorijoms, be chameleon šakų */
+  universalMode?: boolean;
   onUpdate: (patch: Partial<AiExtractedListing>) => void;
   onAttributeChange: (key: string, value: string | string[]) => void;
   onMediaChange: (patch: { imageDataUrl?: string | null; videoUrl?: string }) => void;
   requestMediaConsent: (onGranted: () => void) => void;
   onCancel: () => void;
   onPublish: () => void;
+  onPhotoCaptured?: (dataUrl: string) => void;
 }
 
 export function AdaptiveConfirmation({
@@ -45,15 +48,17 @@ export function AdaptiveConfirmation({
   userPrompt,
   speakEnabled,
   manualFallback = false,
+  universalMode = false,
   onUpdate,
   onAttributeChange,
   onMediaChange,
   requestMediaConsent,
   onCancel,
   onPublish,
+  onPhotoCaptured,
 }: AdaptiveConfirmationProps) {
   const { chameleonTheme } = useVauto();
-  const theme = getChameleonTheme(chameleonTheme);
+  const theme = getChameleonTheme(universalMode ? "flux" : chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
   const config = getAdaptiveConfig(adaptiveKey);
@@ -163,8 +168,9 @@ export function AdaptiveConfirmation({
     (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
   );
 
-  const baseFields =
-    chameleonTheme === "skelbiu" || chameleonTheme === "aruodas"
+  const baseFields = universalMode
+    ? (["title", "price", "location", "contact", "description"] as const)
+    : chameleonTheme === "skelbiu" || chameleonTheme === "aruodas"
       ? (["price", "title", "location", "contact", "description"] as const)
       : config.baseFields;
 
@@ -238,12 +244,15 @@ export function AdaptiveConfirmation({
   );
 
   const mediaBlock = (
-    <div className={chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
+    <div className={universalMode ? "rounded-2xl border border-slate-700 bg-[#131c38] p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
       <ListingPhotoRequiredBanner visible={needsPhotoForPublish} />
       <DraftMediaEditor
         previewImage={previewImage}
         videoUrl={videoUrl}
-        onImageChange={(imageDataUrl) => onMediaChange({ imageDataUrl })}
+        onImageChange={(imageDataUrl) => {
+          onMediaChange({ imageDataUrl });
+          if (imageDataUrl && onPhotoCaptured) void onPhotoCaptured(imageDataUrl);
+        }}
         onVideoUrlChange={(url) => onMediaChange({ videoUrl: url })}
         requestMediaConsent={requestMediaConsent}
       />
@@ -252,7 +261,7 @@ export function AdaptiveConfirmation({
 
   const fieldsBlock = (
     <>
-      <div className="mb-4 rounded-xl border border-[#d0d7de] bg-[#f9fafb] p-3 dark:border-white/10 dark:bg-white/5">
+      <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-slate-700 bg-[#131c38]" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
         <p className="mb-2 text-xs font-medium text-[#374151] dark:text-white/70">Jūs esate:</p>
         <div className="flex flex-wrap gap-2">
           {SELLER_TYPES.map((opt) => (
@@ -288,7 +297,20 @@ export function AdaptiveConfirmation({
         )}
       </div>
 
-      {adaptiveKey === "vehicles" && chameleonTheme === "autoplius" ? (
+      {universalMode ? (
+        <>
+          <BaseFieldsEditor
+            draft={draft}
+            fields={[...baseFields]}
+            needsPrice={needsPrice}
+            onUpdate={onUpdate}
+            variant="inline"
+            showAiFilled={showAiFilledBadges}
+            aiFilledKeys={aiFilledBase}
+          />
+          {categorySection}
+        </>
+      ) : adaptiveKey === "vehicles" && chameleonTheme === "autoplius" ? (
         <>
           {categorySection}
           <BaseFieldsEditor
