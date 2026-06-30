@@ -13,6 +13,7 @@ import {
   parseChoiceChips,
   parseDetectedObjects,
 } from "./vision-multi-object.js";
+import { STRUCTURED_INPUT_VISION_RULES } from "./structured-input-pipeline.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -34,6 +35,8 @@ Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOT
 Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė, o pilnas skelbimo tekstas su nauda pirkėjui, būkle, komplektacija ir kita svarbia informacija iš vartotojo žinutės.
 Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
 
+${STRUCTURED_INPUT_VISION_RULES}
+
 KATEGORIJŲ TAISYKLĖS (griežtai):
 - NT (nekilnojamasis turtas): jei tekste yra butas/butą/butai, namas/namą/namai, žemė/žeme, sklypas, sodyba, kotedžas, patalpos, garažas, nekilnojamasis — category PRIVALO būti „NT“, NE „NAMAI“ (NAMAI = buitinės prekės).
 - AUTOMOBILIAI: jei tekste yra auto/automobilis/automobili, mašina/masina, transportas, rida, markė — category „AUTOMOBILIAI“, net be konkretaus modelio.
@@ -42,7 +45,7 @@ KATEGORIJŲ TAISYKLĖS (griežtai):
 - DAUgiatikslė ANALIZĖ: jei nuotraukoje keli objektai (pvz. kambarys + televizorius + stalas) — detectedObjects masyve išvardyk VISUS matomus objektus su confidence.
 - choiceChips: sugeneruok 2–4 mygtukų etiketes lietuviškai (pvz. „Parduoti televizorių“, „Parduoti stalą“) — po vieną kiekvienam aiškiam objektui.
 - NEAIŠKUS KAMBARIO VAIZDAS: NEPRISKIR PASLAUGOS. sceneContext aprašyk aplinką; technicalFields gali turėti clarificationPrompt.
-- Jei negali tiksliai nustatyti vieno objekto — confidence < 0.5, choiceChips privalomi, description — šiltas patikslinimo klausimas, ne išgalvotas skelbimas.
+- Jei negali tiksliai nustatyti vieno objekto — confidence < 0.5, choiceChips privalomi, clarificationPrompt — disambiguation klausimas (ar teisingai suprantu, kurį objektą ruošiame?), ne išgalvotas skelbimas.
 
 Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
 NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;

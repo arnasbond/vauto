@@ -54,6 +54,11 @@ import {
   extractVisionChoiceChips,
   shouldClarifyPhotoUpload,
 } from "@/lib/vision-choice-chips";
+import {
+  buildPostValidationQuickReplies,
+  buildPostValidationReport,
+  shouldRunPostValidationReport,
+} from "@/lib/listing-field-confirmation";
 import { detectVehicleMake } from "@/lib/vehicle-keywords";
 import {
   enrichVehicleListingDraft,
@@ -542,12 +547,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         if (isProcessingStale(epoch)) return;
 
-        if (
+        const needsClarification =
           shouldClarifyPhotoUpload(next) &&
-          (mode === "upload" || mode === "combined")
-        ) {
+          (mode === "upload" || mode === "combined");
+
+        if (needsClarification) {
           pushAgentGreeting(buildPhotoClarificationMessage(next), {
             quickReplies: extractVisionChoiceChips(next, "sell"),
+          });
+        } else if (
+          shouldRunPostValidationReport(next, false) &&
+          (mode === "upload" || mode === "combined" || mode === "voice" || mode === "text")
+        ) {
+          pushAgentGreeting(buildPostValidationReport(next), {
+            quickReplies: buildPostValidationQuickReplies(),
           });
         }
 

@@ -104,10 +104,16 @@ export function buildMultiObjectClarificationPrompt(
   const labels = objects.map((o) => o.label).filter(Boolean);
   if (labels.length >= 2) {
     const joined = labels.slice(0, 3).join(", ");
-    const verb = mode === "sell" ? "parduodate" : "ieškote";
+    const primary = labels[0];
+    const verb = mode === "sell" ? "ruošiame skelbimą" : "ieškome";
+    if (mode === "sell") {
+      return scene
+        ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${joined}). Ar teisingai suprantu, kad ${verb} „${primary}"? Pasirinkite objektą žemiau.`
+        : `Nuotraukoje matau kelis objektus: ${joined}. Ar teisingai suprantu, kad ${verb} „${primary}"? Pasirinkite objektą žemiau.`;
+    }
     return scene
-      ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${joined}). Ką norite ${verb}?`
-      : `Nuotraukoje matau kelis objektus: ${joined}. Ką norite ${verb}?`;
+      ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${joined}). Ką norite ieškoti?`
+      : `Nuotraukoje matau kelis objektus: ${joined}. Ką norite ieškoti?`;
   }
   return "";
 }

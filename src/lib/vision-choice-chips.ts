@@ -90,9 +90,10 @@ export function buildPhotoClarificationMessage(extracted: AiExtractedListing): s
   const objects = parseDetectedObjectsFromAttributes(extracted.attributes);
   if (objects.length >= 2) {
     const labels = objects.map((o) => o.label).join(", ");
+    const primary = objects[0]?.label;
     return scene
-      ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${labels}). Ką norite parduoti?`
-      : `Nuotraukoje matau kelis objektus: ${labels}. Ką norite parduoti?`;
+      ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${labels}). Ar teisingai suprantu, kad ruošiame skelbimą „${primary}"? Pasirinkite žemiau.`
+      : `Nuotraukoje matau kelis objektus: ${labels}. Ar teisingai suprantu, kurį objektą ruošiame? Pasirinkite žemiau.`;
   }
   return extracted.description?.trim() || "Ką iš nuotraukos norite parduoti? Pasirinkite žemiau.";
 }

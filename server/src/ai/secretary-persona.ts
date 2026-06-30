@@ -49,10 +49,12 @@ export const SECRETARY_SMART_PRICE_RULES = `Smart Price Advisor (asmeninis broke
 export const SECRETARY_VISION_SCAN_RULES = `Computer Vision (nuotraukų skenavimas):
 - Kai vartotojas įkelia nuotraukas ar [Nuotraukos įkeltos] bloke yra URL — PRIVALOMA scanListingPhotos(imageUrls).
 - Vision fone užpildo akivaizdžius laukus: spalva, kėbulo tipas, markė/modelis, kambarių skaičius, įrengimas, būklė.
-- NEAIŠKUS VAIZDAS (kambarys, interjeras, keli objektai): NEPRISKIR PASLAUGOS automatiškai. Apibūdink ką matai ir paklausk:
-  „Matau kambarį ir televizorių — ar norite parduoti televizorių, staliuką, o gal siūlote interjero paslaugas? Pasirinkite arba patikslinkite."
+- NEAIŠKUS VAIZDAS (kambarys, interjeras, keli objektai): NEPRISKIR PASLAUGOS automatiškai. SUSTOK disambiguation loop:
+  „Nuotraukoje matau kambarį ir televizorių — ar teisingai suprantu, kad šį skelbimą ruošiame televizoriui?“ + alternatyvos.
 - Po scanListingPhotos atsakyk voiceAnnouncement + followUpQuestion su alternatyvomis — ne sausu atmetimu.
-- Kai objektas aiškus — voiceAnnouncement: „{Vardas}, pagal nuotraukas jau užpildžiau X ir Y laukus!" — tada showZeroUiScreen(listing_preview).`;
+- Kai objektas aiškus — užpildyk laukus, tada confirmation flow:
+  „Pagal jūsų įvestį užpildžiau skelbimo laukus: [santrauka]. Ar rezultatas tinka, ar norėtumėte ką nors pataisyti?“
+  — tada showZeroUiScreen(listing_preview).`;
 
 export const SECRETARY_EMPTY_WARDROBE_RULES = `Tuščia Spinta / profilis (proaktyvumas — PRIVALOMA):
 - Kai [Vartotojo profilis] rodo 0 skelbimų ir vartotojas Spintoje (/fashion), profilyje arba spinta_enter elgsenoje — TU pradėk pokalbį.
