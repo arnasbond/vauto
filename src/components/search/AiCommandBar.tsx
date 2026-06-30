@@ -1,6 +1,6 @@
 "use client";
 
-import { ArrowUp, Camera, Loader2, Sparkles } from "lucide-react";
+import { ArrowUp, Camera, ChevronDown, Loader2, MessageCircle, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
@@ -46,7 +46,7 @@ import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 
 const GEMINI_BLUE = "#1167b1";
 
-export type AiCommandBarPlacement = "hero" | "inline" | "dock" | "wizard";
+export type AiCommandBarPlacement = "hero" | "top" | "inline" | "dock" | "wizard";
 
 export interface AiCommandBarProps {
   placement?: AiCommandBarPlacement;
@@ -54,10 +54,12 @@ export interface AiCommandBarProps {
   seedQuery?: string | null;
   onSeedConsumed?: () => void;
   className?: string;
+  /** Wizard mode — collapsed FAB until tap or new assistant reply. */
+  collapsible?: boolean;
 }
 
 /**
- * P9 — unified AI Command Bar: hero search, inline search, and fixed bottom dock.
+ * P10 — unified AI Command Bar: top search, hero, inline, and collapsible wizard FAB.
  */
 export function AiCommandBar({
   placement = "inline",
@@ -65,9 +67,11 @@ export function AiCommandBar({
   seedQuery,
   onSeedConsumed,
   className,
+  collapsible = false,
 }: AiCommandBarProps) {
-  const isDock = placement === "dock" || placement === "wizard";
-  const isHero = placement === "hero";
+  const isWizard = placement === "wizard";
+  const isBrowseDock = placement === "dock";
+  const isTopBar = placement === "hero" || placement === "top";
 
   const {
     requestMediaConsent,
@@ -105,7 +109,9 @@ export function AiCommandBar({
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
+  const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
   const inputRef = useRef<HTMLInputElement>(null);
+  const prevAssistantRef = useRef("");
 
   useEffect(() => {
     setDraftQuery(searchQuery);
@@ -235,12 +241,13 @@ export function AiCommandBar({
         const msg = trimmed;
         setDraftQuery("");
         await sendAgentMessage(msg);
+        if (collapsible) setWizardExpanded(false);
         return;
       }
       void commitSearch(draftQuery);
       inputRef.current?.blur();
     },
-    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch]
+    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch, collapsible]
   );
 
   const handlePhotoSearch = () => {
@@ -425,80 +432,129 @@ export function AiCommandBar({
     return sanitizeAgentReplyForDisplay(m.text) || m.text;
   }, [messages]);
 
-  const dockPlaceholder =
+  const busy = agentBusy || searchLoading || isPhotoSearching;
+  const hasAssistantPing = Boolean(lastAssistant) || busy;
+
+  useEffect(() => {
+    if (!isWizard || !collapsible) return;
+    if (!lastAssistant || lastAssistant === prevAssistantRef.current) return;
+    prevAssistantRef.current = lastAssistant;
+    setWizardExpanded(true);
+    requestAnimationFrame(() => inputRef.current?.focus());
+  }, [lastAssistant, isWizard, collapsible]);
+
+  const wizardPlaceholder =
     phase === "listing_processing"
       ? "Agentas apdoroja — galite rašyti patikslinimus…"
-      : placement === "wizard"
-        ? skin.variant === "spinta"
-          ? "Rašykite Spintos sekretorei — pvz. „pakeisk dydį į M“"
-          : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“"
-        : AI_FIRST_SEARCH_PLACEHOLDER;
+      : skin.variant === "spinta"
+        ? "Rašykite Spintos sekretorei — pvz. „pakeisk dydį į M“"
+        : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“";
 
-  const inputPlaceholder = isDock
-    ? dockPlaceholder
-    : isHero
+  const inputPlaceholder = isWizard || isBrowseDock
+    ? wizardPlaceholder
+    : isTopBar
       ? AI_FIRST_SEARCH_PLACEHOLDER
       : "Rašykite paiešką arba įkelkite nuotrauką…";
 
-  const busy = agentBusy || searchLoading || isPhotoSearching;
-  const showAssistantBubble =
-    isDock &&
-    lastAssistant &&
-    (placement === "wizard" || phase === "idle" || phase === "agent_chat");
-
-  const dockFormClass = cn(
+  const composerFormClass = cn(
     "pointer-events-auto flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
-    placement === "wizard" ? skin.composerBorder : "border-[var(--vauto-border)]",
-    placement === "wizard" ? skin.composerBg : "bg-[var(--vauto-card-bg)]"
+    isWizard ? skin.composerBorder : "border-[var(--vauto-border)]",
+    isWizard ? skin.composerBg : "bg-[var(--vauto-card-bg)]"
   );
 
-  const dockInputClass =
-    "min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)]";
+  const composerInputClass =
+    "min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] vauto-body-text";
 
-  const dockButtonClass =
-    placement === "wizard"
-      ? cn(
-          "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-40",
-          skin.composerButton
-        )
-      : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] transition disabled:opacity-40";
+  const composerButtonClass = isWizard
+    ? cn(
+        "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl transition disabled:opacity-40",
+        skin.composerButton
+      )
+    : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] transition disabled:opacity-40";
 
-  if (isDock) {
+  if (isWizard && collapsible && !wizardExpanded) {
+    return (
+      <button
+        type="button"
+        className={cn(
+          "ai-wizard-fab pointer-events-auto fixed z-50 flex h-14 w-14 items-center justify-center rounded-full border shadow-xl transition-transform duration-300 hover:scale-105 active:scale-95",
+          "bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4",
+          skin.composerBorder,
+          skin.composerBg,
+          className
+        )}
+        onClick={() => {
+          setWizardExpanded(true);
+          requestAnimationFrame(() => inputRef.current?.focus());
+        }}
+        aria-label="Atidaryti VAUTO asistentą"
+        aria-expanded={false}
+      >
+        {busy ? (
+          <Loader2 className={cn("h-6 w-6 animate-spin", skin.composerAccentIcon)} />
+        ) : (
+          <MessageCircle className={cn("h-6 w-6", skin.composerAccentIcon)} />
+        )}
+        {hasAssistantPing && !busy && (
+          <span
+            className="ai-wizard-fab-ping absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-[var(--vauto-accent)] ring-2 ring-[var(--vauto-bg)]"
+            aria-hidden
+          >
+            <Sparkles className="h-2.5 w-2.5 text-white" />
+          </span>
+        )}
+      </button>
+    );
+  }
+
+  if (isWizard || isBrowseDock) {
     return (
       <>
         <div
           className={cn(
-            "ai-command-dock pointer-events-none fixed inset-x-0 bottom-0 z-40",
+            isWizard
+              ? cn(
+                  "ai-wizard-composer pointer-events-none fixed inset-x-0 bottom-0 z-50",
+                  collapsible && "ai-wizard-composer-expanded"
+                )
+              : "ai-command-dock pointer-events-none fixed inset-x-0 bottom-0 z-40",
             "pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
             className
           )}
           aria-label="VAUTO AI komandų juosta"
         >
           <div className="mx-auto max-w-lg px-3">
-            {showAssistantBubble && (
+            {isWizard && collapsible && (
+              <div className="pointer-events-auto mb-2 flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => setWizardExpanded(false)}
+                  className="flex items-center gap-1 rounded-full border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-1 text-[11px] text-[var(--vauto-text-muted)] shadow-sm transition hover:bg-[var(--vauto-bg)]"
+                  aria-label="Suskleisti asistentą"
+                >
+                  <ChevronDown className="h-3.5 w-3.5" aria-hidden />
+                  Suskleisti
+                </button>
+              </div>
+            )}
+            {lastAssistant && isWizard && (
               <p
                 className={cn(
-                  "pointer-events-auto mb-1.5 line-clamp-2 rounded-xl border px-3 py-2 text-[11px] leading-snug shadow-md backdrop-blur-md",
-                  placement === "wizard"
-                    ? cn(skin.composerBorder, skin.composerBg)
-                    : "border-[var(--vauto-border)] bg-[var(--vauto-card-bg)]",
+                  "pointer-events-auto mb-1.5 line-clamp-3 rounded-xl border px-3 py-2 text-[12px] leading-relaxed shadow-md backdrop-blur-md vauto-body-text",
+                  skin.composerBorder,
+                  skin.composerBg,
                   "text-[var(--vauto-text-muted)]"
                 )}
               >
                 <Sparkles
-                  className={cn(
-                    "mr-1 inline h-3 w-3",
-                    placement === "wizard"
-                      ? skin.composerAccentIcon
-                      : "text-[var(--vauto-primary)]"
-                  )}
+                  className={cn("mr-1 inline h-3 w-3", skin.composerAccentIcon)}
                   aria-hidden
                 />
-                {lastAssistant.slice(0, 180)}
-                {lastAssistant.length > 180 ? "…" : ""}
+                {lastAssistant.slice(0, 220)}
+                {lastAssistant.length > 220 ? "…" : ""}
               </p>
             )}
-            <form onSubmit={(e) => void handleSubmit(e)} className={dockFormClass}>
+            <form onSubmit={(e) => void handleSubmit(e)} className={composerFormClass}>
               <input
                 ref={inputRef}
                 type="text"
@@ -506,11 +562,11 @@ export function AiCommandBar({
                 onChange={(e) => setDraftQuery(e.target.value)}
                 placeholder={inputPlaceholder}
                 disabled={phase === "listing_processing" && agentBusy}
-                className={dockInputClass}
-                enterKeyHint={placement === "wizard" ? "send" : "search"}
+                className={composerInputClass}
+                enterKeyHint={isWizard ? "send" : "search"}
                 aria-label="VAUTO AI komanda"
               />
-              {placement === "dock" && (
+              {isBrowseDock && (
                 <button
                   type="button"
                   onClick={handlePhotoSearch}
@@ -528,12 +584,12 @@ export function AiCommandBar({
               <button
                 type="submit"
                 disabled={!draftQuery.trim() || busy}
-                className={dockButtonClass}
-                aria-label={placement === "wizard" ? "Siųsti žinutę" : "Ieškoti"}
+                className={composerButtonClass}
+                aria-label={isWizard ? "Siųsti žinutę" : "Ieškoti"}
               >
                 {busy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
-                ) : placement === "wizard" ? (
+                ) : isWizard ? (
                   <ArrowUp className="h-4 w-4" />
                 ) : (
                   <Sparkles className="h-4 w-4" />
@@ -542,7 +598,7 @@ export function AiCommandBar({
             </form>
           </div>
         </div>
-        {placement === "dock" && (
+        {isBrowseDock && (
           <AiPhotoFlowSheet
             open={photoFlowOpen}
             mode="search"
@@ -560,13 +616,13 @@ export function AiCommandBar({
       <form
         className={cn(
           "flex items-center gap-2 border shadow-sm transition-colors",
-          isHero
+          isTopBar
             ? "home-ai-hero-search rounded-[1.35rem] py-2.5 pl-4 pr-2"
             : "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
           zeroUiActive && "zero-ui-search-active",
           className
         )}
-        style={{ borderColor: isHero ? "var(--vauto-border)" : ui.searchBorder }}
+        style={{ borderColor: isTopBar ? "var(--vauto-border)" : ui.searchBorder }}
         onSubmit={(e) => void handleSubmit(e)}
         role="search"
         aria-label="Skelbimų paieška"
@@ -574,10 +630,10 @@ export function AiCommandBar({
         <Sparkles
           className={cn(
             "shrink-0 transition-opacity",
-            isHero ? "h-5 w-5" : "h-4 w-4",
+            isTopBar ? "h-5 w-5" : "h-4 w-4",
             agentBusy && "zero-ui-icon-pulse"
           )}
-          style={{ color: isHero ? "var(--vauto-primary)" : GEMINI_BLUE }}
+          style={{ color: isTopBar ? "var(--vauto-primary)" : GEMINI_BLUE }}
           aria-hidden
         />
 
@@ -591,8 +647,8 @@ export function AiCommandBar({
           placeholder={inputPlaceholder}
           enterKeyHint="search"
           className={cn(
-            "min-w-0 flex-1 border-none bg-transparent outline-none",
-            isHero
+            "min-w-0 flex-1 border-none bg-transparent outline-none vauto-body-text",
+            isTopBar
               ? "text-[15px] text-[var(--vauto-text-main)] placeholder:text-[var(--vauto-text-muted)]"
               : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[var(--vauto-text-muted)]"
           )}
@@ -606,7 +662,7 @@ export function AiCommandBar({
           disabled={isPhotoSearching || photoFlowOpen}
           className={cn(
             "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
-            isHero ? "h-11 w-11" : "h-10 w-10 rounded-lg"
+            isTopBar ? "h-11 w-11" : "h-10 w-10 rounded-lg"
           )}
           aria-label="Vision AI paieška pagal nuotrauką"
           title="Vision AI — nuotrauka"
@@ -619,7 +675,7 @@ export function AiCommandBar({
         </button>
       </form>
 
-      {!isHero && (
+      {!isTopBar && (
         <>
           <p className="mt-2 text-center text-[11px] text-[var(--vauto-text-muted)]">
             📷 Vision AI — nuotraukos paieška ir analizė. Tekstas — greitas Gemini chat.

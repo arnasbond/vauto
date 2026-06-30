@@ -5,18 +5,13 @@ import { useAgentFlowPhase } from "@/hooks/useAgentFlowPhase";
 import { useShellChrome } from "@/hooks/useShellChrome";
 
 /**
- * P9 — single fixed AI command dock (browse + wizard). BottomNav hidden via shell chrome.
+ * P10 — collapsible wizard FAB; browse search lives in TopAiCommandChrome.
  */
 export function AgentChromeHost() {
   const shell = useShellChrome();
   const phase = useAgentFlowPhase();
 
-  if (!shell.showCommandDock) return null;
+  if (!shell.showWizardBubble) return null;
 
-  return (
-    <AiCommandBar
-      placement={shell.dockPlacement === "wizard" ? "wizard" : "dock"}
-      phase={phase}
-    />
-  );
+  return <AiCommandBar placement="wizard" phase={phase} collapsible />;
 }

@@ -25,18 +25,20 @@ export function HomeAiHero({
     return (
       <div className="mb-2">
         <Header />
-        {shell.showHeroCommand && (
-          <div className="mt-3">
-            <AiCommandBar
-              placement="hero"
-              seedQuery={seedQuery}
-              onSeedConsumed={onSeedConsumed}
-            />
-          </div>
-        )}
-        {!shell.showCommandDock && <AgentChatStrip />}
+        <div className="mt-3">
+          <AiCommandBar
+            placement="top"
+            seedQuery={seedQuery}
+            onSeedConsumed={onSeedConsumed}
+          />
+        </div>
+        <AgentChatStrip />
       </div>
     );
+  }
+
+  if (!shell.showHomeHero) {
+    return null;
   }
 
   return (
@@ -57,21 +59,19 @@ export function HomeAiHero({
             className="h-4 w-4 shrink-0 text-[var(--vauto-primary)]"
             aria-hidden
           />
-          <p className="home-ai-hero-greeting font-display text-[15px] font-medium leading-snug sm:text-base">
+          <p className="home-ai-hero-greeting vauto-body-text text-[15px] font-medium sm:text-base">
             Sveiki, aš esu VAUTO asistentas. Ko ieškote šiandien?
           </p>
         </div>
       </div>
 
-      {shell.showHeroCommand && (
-        <div className="mt-2">
-          <AiCommandBar
-            placement="hero"
-            seedQuery={seedQuery}
-            onSeedConsumed={onSeedConsumed}
-          />
-        </div>
-      )}
+      <div className="mt-2">
+        <AiCommandBar
+          placement="hero"
+          seedQuery={seedQuery}
+          onSeedConsumed={onSeedConsumed}
+        />
+      </div>
     </div>
   );
 }

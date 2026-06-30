@@ -20,6 +20,8 @@
   --vauto-accent: #ff6b00;
   --vauto-primary-contrast: #ffffff;
   --vauto-border: rgba(94, 110, 130, 0.22);
+  --vauto-leading: 1.55;
+  --vauto-tracking: -0.011em;
 
   /* Legacy aliases — keep existing components working */
   --vauto-text: var(--vauto-text-main);
@@ -38,9 +40,15 @@
 }
 
 body {
-  font-family: var(--font-sans), system-ui, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
+  font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
   color: var(--vauto-text-main);
   background: var(--vauto-bg);
+  line-height: var(--vauto-leading, 1.55);
+  letter-spacing: var(--vauto-tracking, -0.011em);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
   transition: background-color 0.25s ease, color 0.25s ease;
 }
 
@@ -1977,4 +1985,64 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 [data-app-theme="light-minimal"] .listing-card-tier-plus {
   border-color: rgba(125, 211, 252, 0.55);
   background: linear-gradient(to bottom, rgba(224, 242, 254, 0.7), #ffffff);
+}
+
+/* ── P10 typography + wizard FAB ── */
+.vauto-body-text {
+  line-height: 1.6;
+  letter-spacing: -0.01em;
+}
+
+.home-ai-hero-greeting {
+  line-height: 1.5;
+  letter-spacing: -0.012em;
+}
+
+.ai-wizard-fab {
+  box-shadow:
+    0 10px 28px -6px rgba(30, 102, 202, 0.35),
+    0 4px 12px -4px rgba(15, 23, 42, 0.2);
+}
+
+.ai-wizard-fab-ping {
+  animation: wizardFabPing 2s ease-in-out infinite;
+}
+
+@keyframes wizardFabPing {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 0.85;
+  }
+}
+
+.ai-wizard-composer {
+  background: linear-gradient(
+    to top,
+    color-mix(in srgb, var(--vauto-bg) 98%, transparent),
+    transparent 40%
+  );
+}
+
+.ai-wizard-composer-expanded {
+  animation: wizardComposerIn 0.28s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+@keyframes wizardComposerIn {
+  from {
+    transform: translateY(1.25rem);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.top-ai-command-chrome {
+  border-color: var(--vauto-border);
 }

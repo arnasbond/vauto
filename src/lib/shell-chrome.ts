@@ -1,18 +1,25 @@
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
-import {
-  shouldShowBrowseAgentComposer,
-  shouldShowFlowAgentComposer,
-} from "@/lib/agent-flow-phase";
+import { shouldShowFlowAgentComposer } from "@/lib/agent-flow-phase";
 import type { SellerFlowStep } from "@/lib/types";
 
-export type CommandBarPlacement = "hero" | "dock" | "wizard" | "none";
+export type CommandBarPlacement = "hero" | "top" | "inline" | "wizard" | "none";
+
+const TOP_COMMAND_PREFIXES = ["/", "/search", "/discover", "/fashion"];
+
+function isTopCommandRoute(pathname: string): boolean {
+  if (pathname === "/" || pathname === "") return true;
+  return TOP_COMMAND_PREFIXES.some(
+    (p) => p !== "/" && (pathname === p || pathname.startsWith(`${p}/`))
+  );
+}
 
 export interface ShellChromeState {
-  /** Fixed bottom AI command dock (browse or wizard). */
-  showCommandDock: boolean;
-  dockPlacement: "dock" | "wizard";
-  /** Hero-only command bar on home (no active search). */
-  showHeroCommand: boolean;
+  /** Sticky top AI command on browse routes (home, search, discover, fashion). */
+  showTopCommand: boolean;
+  /** Full home hero (logo + greeting) — only idle home without active search. */
+  showHomeHero: boolean;
+  /** Collapsed wizard FAB during listing flow. */
+  showWizardBubble: boolean;
   hideBottomNav: boolean;
   hideSiteFooter: boolean;
   contentBottomClass: string;
@@ -27,39 +34,31 @@ export function resolveShellChrome(opts: {
 }): ShellChromeState {
   const homeHasSearch = opts.searchQuery.trim().length >= 3;
   const isHome = opts.pathname === "/" || opts.pathname === "";
-  const wizardDock = shouldShowFlowAgentComposer(opts.phase);
-  const browseDock = shouldShowBrowseAgentComposer(
-    opts.pathname,
-    opts.sellerStep,
-    opts.phase,
-    { homeHasSearch }
-  );
+  const wizardBubble = shouldShowFlowAgentComposer(opts.phase);
+  const browseIdle = opts.sellerStep === "idle" && !opts.agentSheetOpen;
 
-  const showCommandDock = wizardDock || browseDock;
-  const showHeroCommand =
-    isHome &&
-    opts.sellerStep === "idle" &&
-    !homeHasSearch &&
-    !showCommandDock;
+  const showTopCommand = browseIdle && isTopCommandRoute(opts.pathname);
+  const showHomeHero =
+    isHome && browseIdle && !homeHasSearch;
 
   const hideBottomNav =
-    showCommandDock ||
+    wizardBubble ||
     opts.agentSheetOpen ||
     opts.sellerStep === "processing" ||
     opts.sellerStep === "confirmation";
 
-  const hideSiteFooter = showCommandDock || opts.sellerStep === "confirmation";
+  const hideSiteFooter = wizardBubble || opts.sellerStep === "confirmation";
 
-  const contentBottomClass = showCommandDock
-    ? "pb-[calc(6.25rem+env(safe-area-inset-bottom))]"
+  const contentBottomClass = wizardBubble
+    ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
     : hideBottomNav
       ? "pb-8"
       : "pb-28";
 
   return {
-    showCommandDock,
-    dockPlacement: wizardDock ? "wizard" : "dock",
-    showHeroCommand,
+    showTopCommand,
+    showHomeHero,
+    showWizardBubble: wizardBubble,
     hideBottomNav,
     hideSiteFooter,
     contentBottomClass,

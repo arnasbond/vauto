@@ -2,8 +2,7 @@
 
 import { useEffect } from "react";
 import { AppShell } from "@/components/AppShell";
-import { Header } from "@/components/Header";
-import { SearchBar } from "@/components/SearchBar";
+import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
@@ -28,12 +27,10 @@ export default function SearchPage() {
         <PortalPageChrome
           minimal
           header={
-            <>
-              <Header />
-              <div className="mt-3">
-                <SearchBar />
-              </div>
-            </>
+            <TopAiCommandChrome
+              sticky={false}
+              className="mb-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
+            />
           }
         >
           <div className="search-hero-card mt-4 rounded-2xl p-4 shadow-sm">

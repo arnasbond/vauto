@@ -1,8 +1,7 @@
 "use client";
 
 import { AppShell } from "@/components/AppShell";
-import { Header } from "@/components/Header";
-import { SearchBar } from "@/components/SearchBar";
+import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { ListingGrid } from "@/components/ListingGrid";
 import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
@@ -22,14 +21,7 @@ export default function DiscoverPage() {
     <AppShell>
       <HeroSection>
         <PortalPageChrome
-          header={
-            <>
-              <Header />
-              <div className="mt-3">
-                <SearchBar />
-              </div>
-            </>
-          }
+          header={<TopAiCommandChrome sticky={false} className="mb-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none" />}
         >
           {isFluxHome && (
             <div className="mt-5 rounded-2xl border border-[#dde5ef] bg-white p-4 shadow-sm">

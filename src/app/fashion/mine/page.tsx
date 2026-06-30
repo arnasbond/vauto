@@ -3,6 +3,7 @@
 import { useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { WardrobeCabinetSection } from "@/components/clothing/WardrobeCabinetSection";
 import { useVauto } from "@/context/VautoContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
@@ -63,7 +64,8 @@ export default function FashionMinePage() {
 
   return (
     <AppShell variant="plain">
-      <div className="chameleon-wardrobe pb-8 pt-4 text-[var(--vauto-text-main)]">
+      <TopAiCommandChrome variant="wardrobe" />
+      <div className="chameleon-wardrobe pb-8 text-[var(--vauto-text-main)]">
         <WardrobeCabinetSection
           user={user}
           listings={myClothing}

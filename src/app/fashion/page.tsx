@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
+import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { GuestFashionCabinet } from "@/components/clothing/GuestFashionCabinet";
 import { useVauto } from "@/context/VautoContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
@@ -32,6 +33,7 @@ export default function FashionPage() {
 
   return (
     <AppShell variant="plain">
+      <TopAiCommandChrome variant="wardrobe" />
       <GuestFashionCabinet />
     </AppShell>
   );

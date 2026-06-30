@@ -8,13 +8,15 @@ export function SearchBar({
   seedQuery,
   onSeedConsumed,
 }: {
-  variant?: "default" | "hero";
+  variant?: "default" | "hero" | "top";
   seedQuery?: string | null;
   onSeedConsumed?: () => void;
 }) {
+  const placement =
+    variant === "hero" ? "hero" : variant === "top" ? "top" : "inline";
   return (
     <AiCommandBar
-      placement={variant === "hero" ? "hero" : "inline"}
+      placement={placement}
       seedQuery={seedQuery}
       onSeedConsumed={onSeedConsumed}
     />

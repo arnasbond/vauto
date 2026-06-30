@@ -20,6 +20,7 @@ export function FlowAgentComposer({
       placement={dockMode ? "dock" : "wizard"}
       phase={phase}
       className={className}
+      collapsible={!dockMode}
     />
   );
 }
