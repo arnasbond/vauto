@@ -276,6 +276,7 @@ interface VautoContextValue {
     /** Set when input came from microphone — preserves voice mode + TTS */
     voiceCapture?: boolean;
   }) => Promise<void>;
+  reprocessConfirmationPhoto: (imageDataUrl: string) => Promise<void>;
   applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
   applyAgentWardrobeBulk: (
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],

@@ -11,6 +11,7 @@ interface DraftMediaEditorProps {
   onImageChange: (dataUrl: string | null) => void;
   onVideoUrlChange: (url: string) => void;
   requestMediaConsent: (onGranted: () => void) => void;
+  appearance?: "dark" | "light";
 }
 
 export function DraftMediaEditor({
@@ -19,6 +20,7 @@ export function DraftMediaEditor({
   onImageChange,
   onVideoUrlChange,
   requestMediaConsent,
+  appearance = "dark",
 }: DraftMediaEditorProps) {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -51,9 +53,38 @@ export function DraftMediaEditor({
     }
   };
 
+  const shellClass =
+    appearance === "light"
+      ? "rounded-2xl border border-slate-200 bg-white p-4"
+      : "rounded-2xl border border-white/5 bg-black/20 p-4";
+  const headingClass =
+    appearance === "light"
+      ? "mb-3 text-xs font-semibold uppercase tracking-wider text-slate-800"
+      : "mb-3 text-xs font-semibold uppercase tracking-wider text-white/50";
+  const uploadBtnClass =
+    appearance === "light"
+      ? "mb-3 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-6 transition hover:border-[var(--vauto-primary)] hover:bg-slate-100"
+      : "mb-3 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-6 transition hover:border-[var(--flux-teal)]/40 hover:bg-white/[0.06]";
+  const uploadTextClass =
+    appearance === "light" ? "text-sm font-medium text-slate-800" : "text-sm font-medium text-white/80";
+  const uploadHintClass =
+    appearance === "light" ? "text-xs text-slate-500" : "text-xs text-white/40";
+  const actionBtnClass =
+    appearance === "light"
+      ? "inline-flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-medium text-slate-800 hover:bg-slate-100"
+      : "inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/80 hover:bg-white/10";
+  const videoRowClass =
+    appearance === "light"
+      ? "mt-3 flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3 py-2.5"
+      : "mt-3 flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2.5";
+  const videoInputClass =
+    appearance === "light"
+      ? "min-w-0 flex-1 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-400"
+      : "min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30";
+
   return (
-    <div className="rounded-2xl border border-white/5 bg-black/20 p-4">
-      <p className="mb-3 text-xs font-semibold uppercase tracking-wider text-white/50">
+    <div className={shellClass}>
+      <p className={headingClass}>
         Nuotraukos ir video
       </p>
 
@@ -78,13 +109,13 @@ export function DraftMediaEditor({
         <button
           type="button"
           onClick={openFilePicker}
-          className="mb-3 flex w-full flex-col items-center gap-2 rounded-xl border border-dashed border-white/15 bg-white/[0.03] px-4 py-6 transition hover:border-[var(--flux-teal)]/40 hover:bg-white/[0.06]"
+          className={uploadBtnClass}
         >
           <Upload className="h-8 w-8 text-[var(--flux-teal)]" />
-          <span className="text-sm font-medium text-white/80">
+          <span className={uploadTextClass}>
             Įkelkite nuotrauką
           </span>
-          <span className="text-xs text-white/40">Vilkite arba paspauskite čia</span>
+          <span className={uploadHintClass}>Vilkite arba paspauskite čia</span>
         </button>
       )}
 
@@ -92,7 +123,7 @@ export function DraftMediaEditor({
         <button
           type="button"
           onClick={openFilePicker}
-          className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/80 hover:bg-white/10"
+          className={actionBtnClass}
         >
           <Camera className="h-3.5 w-3.5" />
           {previewImage ? "Keisti nuotrauką" : "Kamera / galerija"}
@@ -101,7 +132,7 @@ export function DraftMediaEditor({
           <button
             type="button"
             onClick={() => onImageChange(null)}
-            className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-3 py-2 text-xs font-medium text-white/60 hover:bg-white/10"
+            className={actionBtnClass}
           >
             <ImagePlus className="h-3.5 w-3.5" />
             Be nuotraukos
@@ -124,14 +155,14 @@ export function DraftMediaEditor({
         }}
       />
 
-      <div className="mt-3 flex items-center gap-2 rounded-xl border border-white/5 bg-white/5 px-3 py-2.5">
-        <Link2 className="h-4 w-4 shrink-0 text-white/40" />
+      <div className={videoRowClass}>
+        <Link2 className={`h-4 w-4 shrink-0 ${appearance === "light" ? "text-slate-400" : "text-white/40"}`} />
         <input
           type="url"
           value={videoUrl}
           onChange={(e) => handleVideoChange(e.target.value)}
           placeholder="YouTube / TikTok nuoroda (neprivaloma)"
-          className="min-w-0 flex-1 bg-transparent text-sm text-white outline-none placeholder:text-white/30"
+          className={videoInputClass}
         />
       </div>
     </div>

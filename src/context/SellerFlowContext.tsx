@@ -115,9 +115,7 @@ import { listingToAdaptiveKey, evaluateListingPublishValidation } from "@/lib/ad
 import {
   adaptiveVerticalChanged,
   finalizeListingDraft,
-  resolveEffectiveListingCategory,
   sanitizeAttributesForCategory,
-  universalSubVerticalChanged,
 } from "@/lib/listing-attribute-isolation";
 import {
   buildSellerPhotoCategoryMismatchMessage,
@@ -204,6 +202,8 @@ export interface SellerFlowContextValue {
     videoUrl?: string;
     voiceCapture?: boolean;
   }) => Promise<void>;
+  /** Re-run vision on a new photo while the confirmation wizard is open. */
+  reprocessConfirmationPhoto: (imageDataUrl: string) => Promise<void>;
   applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
   applyAgentWardrobeBulk: (
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
@@ -475,6 +475,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             Boolean(next.attributes?.make) ||
             Boolean(detectVehicleMake(next.title ?? "")));
 
+        const visionSaysUniversal =
+          listingToAdaptiveKey(next.category) === "universal" && next.category !== "vehicles";
+        const photoReplace =
+          mode === "upload" && Boolean(aiDraftRef.current);
+        const allowVehicleHeuristic =
+          looksLikeVehicle && !(photoReplace && visionSaysUniversal);
+
         if (looksLikeRealEstate) {
           const attrs = { ...(next.attributes ?? {}) };
           const propertyType =
@@ -501,7 +508,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             title: smartTitle,
             attributes: attrs,
           };
-        } else if (looksLikeVehicle) {
+        } else if (allowVehicleHeuristic) {
           next = enrichVehicleListingDraft(next, [textForHeuristics]);
         } else {
           const title = next.title ?? textForHeuristics;
@@ -716,6 +723,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     [runAiProcessing, requireAuthForListing]
   );
 
+  const reprocessConfirmationPhoto = useCallback(
+    async (imageDataUrl: string) => {
+      if (!requireAuthForListing("/add")) return;
+      if (!imageDataUrl.trim()) return;
+      setSellerPreviewImage(imageDataUrl);
+      setSellerInputMode("upload");
+      setSellerUserPrompt("Įkelta nuotrauka — analizuoju…");
+      await runAiProcessing("upload", { previewImage: imageDataUrl });
+    },
+    [requireAuthForListing, runAiProcessing]
+  );
+
   const applyAgentListingDraft = useCallback(
     (draft: AiExtractedListing, imageUrl?: string) => {
       if (!requireAuthForListing("/add")) return;
@@ -900,42 +919,30 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
     setAiDraft((prev) => {
       if (!prev) return prev;
-      let nextCategory = patch.category ?? prev.category;
-      const verticalChanged = patch.category
-        ? adaptiveVerticalChanged(prev.category, nextCategory)
-        : false;
-      const mergedAttrsPreview = {
-        ...(prev.attributes ?? {}),
-        ...(patch.attributes ?? {}),
-      };
-      const reconciledCategory = resolveEffectiveListingCategory(
-        nextCategory,
-        mergedAttrsPreview
-      );
-      const categoryReconciled =
-        reconciledCategory !== nextCategory &&
-        listingToAdaptiveKey(prev.category) === "vehicles";
-      if (categoryReconciled) {
-        nextCategory = reconciledCategory;
-      }
-      const subVerticalChanged =
-        listingToAdaptiveKey(nextCategory) === "universal" &&
-        patch.attributes?.skelbiuCategory !== undefined &&
-        universalSubVerticalChanged(prev.attributes, mergedAttrsPreview);
-      const baseAttrs =
-        verticalChanged || categoryReconciled || subVerticalChanged
-          ? {}
-          : (prev.attributes ?? {});
-      const mergedAttrs = patch.attributes
-        ? { ...baseAttrs, ...patch.attributes }
-        : baseAttrs;
-      const next: AiExtractedListing = {
+
+      const nextCategory = patch.category ?? prev.category;
+      const verticalChanged =
+        patch.category !== undefined &&
+        adaptiveVerticalChanged(prev.category, nextCategory);
+
+      const prevAttrs = prev.attributes ?? {};
+      const baseAttrs = verticalChanged ? {} : prevAttrs;
+      const hasAttrPatch = patch.attributes !== undefined;
+
+      const attributes = hasAttrPatch || verticalChanged
+        ? sanitizeAttributesForCategory(
+            nextCategory,
+            baseAttrs,
+            hasAttrPatch ? patch.attributes : {}
+          )
+        : prevAttrs;
+
+      return {
         ...prev,
         ...patch,
         category: nextCategory,
-        attributes: sanitizeAttributesForCategory(nextCategory, {}, mergedAttrs),
+        attributes,
       };
-      return next;
     });
   }, []);
 
@@ -1400,6 +1407,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       lastPublishedListing,
       finishPublishedFlow,
       submitSellerContent,
+      reprocessConfirmationPhoto,
       applyAgentListingDraft,
       applyAgentWardrobeBulk,
       stageWardrobeBulkPreview,
@@ -1436,6 +1444,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       lastPublishedListing,
       finishPublishedFlow,
       submitSellerContent,
+      reprocessConfirmationPhoto,
       applyAgentListingDraft,
       applyAgentWardrobeBulk,
       stageWardrobeBulkPreview,

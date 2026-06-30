@@ -108,10 +108,10 @@ export function getMissingCriticalFieldsForListing(
   attributes: CategoryAttributes = {},
   extras?: { price?: number; description?: string }
 ): string[] {
-  const effectiveCategory = resolveEffectiveListingCategory(category, attributes);
-  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
+  const validationCategory = resolveEffectiveListingCategory(category, attributes);
+  const adaptiveKey = listingToAdaptiveKey(validationCategory);
   const config = getAdaptiveConfig(adaptiveKey);
-  const activeFields = filterFieldsForListingCategory(effectiveCategory, attributes, config.fields);
+  const activeFields = filterFieldsForListingCategory(validationCategory, attributes, config.fields);
   const missing: string[] = [];
 
   if (extras?.price !== undefined && extras.price <= 0) missing.push("price");
@@ -199,18 +199,18 @@ export function evaluateListingPublishValidation(
   },
   opts: { hasPhoto: boolean }
 ): ListingPublishValidation {
-  const effectiveCategory = resolveEffectiveListingCategory(category, draft.attributes ?? {});
+  const validationCategory = resolveEffectiveListingCategory(category, draft.attributes ?? {});
   const sanitizedAttributes = sanitizeAttributesForCategory(
-    effectiveCategory,
+    category,
     {},
     draft.attributes ?? {}
   );
-  const adaptiveKey = listingToAdaptiveKey(effectiveCategory);
-  const missingKeys = getMissingCriticalFieldsForListing(effectiveCategory, sanitizedAttributes, {
+  const adaptiveKey = listingToAdaptiveKey(validationCategory);
+  const missingKeys = getMissingCriticalFieldsForListing(validationCategory, sanitizedAttributes, {
     price: draft.price,
     description: draft.description,
   });
-  const staleRaw = findStaleForeignAttributes(effectiveCategory, sanitizedAttributes);
+  const staleRaw = findStaleForeignAttributes(category, sanitizedAttributes);
   const staleKeys = staleRaw.map((item) => ({
     ...item,
     label: getFieldLabel(item.sourceVertical, item.key),

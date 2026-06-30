@@ -1,10 +1,11 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useCallback, useEffect } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { PublishedOverlay } from "@/components/adaptive-confirmation/ConfirmationShell";
 import { UniversalListingWizard } from "@/components/listing/UniversalListingWizard";
 import { ListingWizardPortal } from "@/components/listing/ListingWizardPortal";
+import type { AiExtractedListing } from "@/lib/types";
 
 export type AiConfirmationMode = "overlay" | "inline-preview" | "inline-full";
 
@@ -29,14 +30,12 @@ export function AiConfirmationScreen({
     publishBulkClothingListings,
     cancelSellerFlow,
     requestMediaConsent,
-    submitSellerContent,
+    reprocessConfirmationPhoto,
     user,
     pendingWardrobeBulkItems,
     pendingWardrobeVoice,
     stageWardrobeBulkPreview,
   } = useVauto();
-
-  const reconciledDraftRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (sellerStep === "confirmation") {
@@ -48,21 +47,37 @@ export function AiConfirmationScreen({
   }, [sellerStep]);
 
   useEffect(() => {
-    if (sellerStep !== "confirmation" || !aiDraft) {
-      reconciledDraftRef.current = null;
-      return;
-    }
-    const fingerprint = `${aiDraft.category}|${JSON.stringify(aiDraft.attributes ?? {})}`;
-    if (reconciledDraftRef.current === fingerprint) return;
-    reconciledDraftRef.current = fingerprint;
-    updateAiDraft({ attributes: { ...(aiDraft.attributes ?? {}) } });
-  }, [sellerStep, aiDraft, updateAiDraft]);
-
-  useEffect(() => {
     if (sellerStep === "confirmation" && aiDraft && !aiDraft.attributes) {
       updateAiDraft({ attributes: {} });
     }
   }, [sellerStep, aiDraft, updateAiDraft]);
+
+  useEffect(() => {
+    if (sellerStep !== "confirmation" || !aiDraft) return;
+    if (String(aiDraft.attributes?.sellerType ?? "").trim()) return;
+    updateAiDraft({ attributes: { sellerType: "Privatus asmuo" } });
+  }, [sellerStep, aiDraft, updateAiDraft]);
+
+  const bindListingPatch = useCallback(
+    (patch: Partial<AiExtractedListing>) => {
+      updateAiDraft(patch);
+    },
+    [updateAiDraft]
+  );
+
+  const bindAttribute = useCallback(
+    (key: string, value: string | string[]) => {
+      updateAiDraft({ attributes: { [key]: value } });
+    },
+    [updateAiDraft]
+  );
+
+  const handlePhotoReplaced = useCallback(
+    (dataUrl: string) => {
+      void reprocessConfirmationPhoto(dataUrl);
+    },
+    [reprocessConfirmationPhoto]
+  );
 
   const portalWrap = (node: React.ReactNode) =>
     mode === "overlay" ? <ListingWizardPortal>{node}</ListingWizardPortal> : node;
@@ -70,14 +85,11 @@ export function AiConfirmationScreen({
   if (sellerStep === "published") return portalWrap(<PublishedOverlay />);
   if (sellerStep !== "confirmation" || !aiDraft) return null;
 
-  const handleAttributeChange = (key: string, value: string | string[]) => {
-    updateAiDraft({
-      attributes: { [key]: value },
-    });
-  };
+  const wizardKey = `${aiDraft.category}|${sellerUserPrompt ?? ""}|${sellerPreviewImage?.slice(0, 48) ?? ""}`;
 
   return portalWrap(
     <UniversalListingWizard
+      key={wizardKey}
       draft={aiDraft}
       previewImage={sellerPreviewImage}
       videoUrl={sellerVideoUrl}
@@ -88,15 +100,15 @@ export function AiConfirmationScreen({
       userPhone={user.phone}
       pendingWardrobeBulkItems={pendingWardrobeBulkItems}
       pendingWardrobeVoice={pendingWardrobeVoice}
-      onUpdate={updateAiDraft}
-      onAttributeChange={handleAttributeChange}
+      onUpdate={bindListingPatch}
+      onAttributeChange={bindAttribute}
       onMediaChange={updateSellerMedia}
       requestMediaConsent={requestMediaConsent}
       onCancel={cancelSellerFlow}
       onPublish={publishListing}
       onPublishBulk={(drafts) => void publishBulkClothingListings(drafts)}
       onStageWardrobeBulk={stageWardrobeBulkPreview}
-      onPhotoCaptured={(dataUrl) => submitSellerContent({ imageDataUrl: dataUrl })}
+      onPhotoCaptured={handlePhotoReplaced}
     />
   );
 }

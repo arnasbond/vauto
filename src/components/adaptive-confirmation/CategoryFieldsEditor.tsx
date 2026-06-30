@@ -212,7 +212,8 @@ export function CategoryFieldsEditor({
             >
               <label className={inlineLabelClass}>
                 {field.label}
-                {field.critical && <span className="text-amber-400"> *</span>}
+                {missing && <span className="ml-1 text-amber-500">●</span>}
+                {field.critical && !missing && <span className="text-amber-500"> *</span>}
               </label>
               <input
                 type="text"

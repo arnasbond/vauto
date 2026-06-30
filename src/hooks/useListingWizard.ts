@@ -45,6 +45,7 @@ export function useListingWizard({
   const { listings, user, isAuthenticated, openAuthModal } = useVauto();
   const kickedOff = useRef(false);
   const appraisalFetched = useRef(false);
+  const draftRevisionRef = useRef("");
   const [thread, setThread] = useState<WizardThreadMessage[]>([]);
   const [agentEnhancement, setAgentEnhancement] = useState<string | null>(null);
   const [appraisalAdvice, setAppraisalAdvice] = useState<PriceAdvice | null>(null);
@@ -69,6 +70,18 @@ export function useListingWizard({
   );
 
   const priceAdvice: PriceAdvice = appraisalAdvice ?? localPriceAdvice;
+
+  const draftRevision = `${draft.category}|${userPrompt ?? ""}|${draft.title}`;
+
+  useEffect(() => {
+    if (draftRevisionRef.current === draftRevision) return;
+    draftRevisionRef.current = draftRevision;
+    kickedOff.current = false;
+    appraisalFetched.current = false;
+    setAgentEnhancement(null);
+    setThread([]);
+    setAppraisalAdvice(null);
+  }, [draftRevision]);
 
   useEffect(() => {
     if (manualFallback || appraisalFetched.current) return;

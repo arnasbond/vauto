@@ -8,7 +8,6 @@ import {
 } from "@/lib/adaptive-categories";
 import {
   filterFieldsForListingCategory,
-  resolveEffectiveListingCategory,
 } from "@/lib/listing-attribute-isolation";
 import { LISTING_PUBLISH_CTA } from "@/components/listing/ListingValidationBanner";
 import type { AiExtractedListing } from "@/lib/types";
@@ -66,14 +65,7 @@ export function AdaptiveConfirmation({
   const theme = getChameleonTheme(universalMode ? "flux" : chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
-  const effectiveCategory = useMemo(
-    () => resolveEffectiveListingCategory(draft.category, draft.attributes ?? {}),
-    [draft.category, draft.attributes]
-  );
-  const effectiveAdaptiveKey = listingToAdaptiveKey(effectiveCategory);
-  const config = getAdaptiveConfig(
-    effectiveAdaptiveKey === adaptiveKey ? adaptiveKey : effectiveAdaptiveKey
-  );
+  const config = getAdaptiveConfig(adaptiveKey);
   const attributes = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const needsPrice = draft.price <= 0;
   const hasPhoto = Boolean(previewImage);
@@ -180,10 +172,10 @@ export function AdaptiveConfirmation({
   const vinOk = vinValue ? verifyVin(vinValue) : false;
 
   const categoryFields = filterFieldsForListingCategory(
-    effectiveCategory,
+    draft.category,
     attributes,
     config.fields.filter(
-      (f) => !(effectiveAdaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+      (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
     )
   );
 
@@ -222,7 +214,7 @@ export function AdaptiveConfirmation({
   );
 
   const categorySection = categoryFields.length > 0 && (
-    <div className={theme.panel}>
+    <div className={universalMode ? "mt-4 border-t border-slate-100 pt-4" : theme.panel}>
       {adaptiveKey === "vehicles" && vinValue && (
         <div className="mb-3 flex flex-col gap-2 border-b border-[#d0d7de] pb-3 dark:border-white/5">
           <div className="flex items-center justify-between">
@@ -264,11 +256,12 @@ export function AdaptiveConfirmation({
   );
 
   const mediaBlock = (
-    <div className={universalMode ? "rounded-2xl border border-slate-700 bg-[#131c38] p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
+    <div className={universalMode ? "rounded-2xl border border-slate-200 bg-white p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined}>
       <ListingPhotoRequiredBanner visible={needsPhotoForPublish} />
       <DraftMediaEditor
         previewImage={previewImage}
         videoUrl={videoUrl}
+        appearance={universalMode ? "light" : "dark"}
         onImageChange={(imageDataUrl) => {
           onMediaChange({ imageDataUrl });
           if (imageDataUrl && onPhotoCaptured) void onPhotoCaptured(imageDataUrl);
@@ -281,7 +274,7 @@ export function AdaptiveConfirmation({
 
   const fieldsBlock = (
     <>
-      <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-slate-700 bg-[#131c38]" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
+      <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-slate-200 bg-white" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
         <p className={`mb-2 text-xs font-semibold ${universalMode ? "text-slate-800" : "font-medium text-[#374151] dark:text-white/70"}`}>Jūs esate:</p>
         <div className="flex flex-wrap gap-2">
           {SELLER_TYPES.map((opt) => (
@@ -318,7 +311,7 @@ export function AdaptiveConfirmation({
       </div>
 
       {universalMode ? (
-        <>
+        <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <BaseFieldsEditor
             draft={draft}
             fields={[...baseFields]}
@@ -330,7 +323,7 @@ export function AdaptiveConfirmation({
             aiFilledKeys={aiFilledBase}
           />
           {categorySection}
-        </>
+        </div>
       ) : adaptiveKey === "vehicles" && chameleonTheme === "autoplius" ? (
         <>
           {categorySection}
