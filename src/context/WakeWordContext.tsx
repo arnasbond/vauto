@@ -38,6 +38,17 @@ import {
 import { requestNotificationPermission } from "@/lib/push-alerts";
 import { usePathname } from "next/navigation";
 import { useZeroUiScreenOptional } from "@/context/ZeroUiScreenContext";
+import { VAUTO_VOICE_INPUT_ENABLED } from "@/lib/feature-flags";
+
+const DISABLED_WAKE_WORD_VALUE: WakeWordContextValue = {
+  wakeWordEnabled: false,
+  wakeWordPhase: "off",
+  wakeWordStatusText: undefined,
+  wakeWordTranscript: undefined,
+  setWakeWordEnabled: () => {},
+  requestWakeWordConsent: () => {},
+  disableWakeWordInstantly: () => {},
+};
 
 export interface WakeWordContextValue {
   wakeWordEnabled: boolean;
@@ -68,6 +79,29 @@ export interface WakeWordActions {
 const WakeWordContext = createContext<WakeWordContextValue | null>(null);
 
 export function WakeWordProvider({
+  deps,
+  actionsRef,
+  children,
+}: {
+  deps: WakeWordDeps;
+  actionsRef: MutableRefObject<WakeWordActions | null>;
+  children: ReactNode;
+}) {
+  if (!VAUTO_VOICE_INPUT_ENABLED) {
+    return (
+      <WakeWordContext.Provider value={DISABLED_WAKE_WORD_VALUE}>
+        {children}
+      </WakeWordContext.Provider>
+    );
+  }
+  return (
+    <WakeWordProviderActive deps={deps} actionsRef={actionsRef}>
+      {children}
+    </WakeWordProviderActive>
+  );
+}
+
+function WakeWordProviderActive({
   deps,
   actionsRef,
   children,

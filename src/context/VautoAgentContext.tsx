@@ -58,6 +58,10 @@ import {
   buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
+import {
+  mapAgentWardrobeItems,
+  wardrobeBulkToDrafts,
+} from "@/lib/agent-wardrobe-bridge";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
 import { chatThreadPath } from "@/lib/chat-routes";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
@@ -135,6 +139,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerStep,
     activateWardrobeSpinta,
     startChat,
+    applyAgentWardrobeBulk,
+    pendingWardrobeBulkItems,
+    publishBulkClothingListings,
   } = useVauto();
   const pathname = usePathname();
   const router = useRouter();
@@ -288,6 +295,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         applyAgentListingDraft(draft, actions.imageUrl);
         navigateToAdd(draft.category === "clothing");
         setOpen(false);
+      }
+      if (actions.type === "wardrobe_bulk") {
+        const items = mapAgentWardrobeItems(actions.items);
+        if (items.length) {
+          applyAgentWardrobeBulk(items, {
+            imageUrl: actions.imageUrl,
+            voiceAnnouncement: actions.voiceAnnouncement,
+          });
+          setOpen(false);
+        }
       }
       if (actions.type === "block_listing" && actions.listingId) {
         setListingBanned(actions.listingId, true);
@@ -540,6 +557,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [
       markListingSold,
       applyAgentListingDraft,
+      applyAgentWardrobeBulk,
       goToMarketplace,
       isAuthenticated,
       navigateTo,
@@ -604,6 +622,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         speakReply(reply);
         touchAgentSessionActivity();
         return { ok: true, reply };
+      }
+
+      if (
+        /patvirtinti visus/i.test(trimmed) &&
+        pendingWardrobeBulkItems &&
+        pendingWardrobeBulkItems.length > 1
+      ) {
+        const drafts = wardrobeBulkToDrafts(
+          pendingWardrobeBulkItems,
+          user.phone,
+          user.city || "Vilnius"
+        );
+        const confirmText = `Puiku — publikuoju ${drafts.length} drabužių skelbimus!`;
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: confirmText },
+        ]);
+        void publishBulkClothingListings(drafts);
+        touchAgentSessionActivity();
+        return { ok: true, reply: confirmText };
       }
 
       const lastActiveAt = readAgentSessionLastActiveAt();
@@ -857,6 +896,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       clearSearchFilters,
       activeBoost,
       openMicroPayment,
+      pendingWardrobeBulkItems,
+      publishBulkClothingListings,
       myListingsForAgent,
       currentPageContext,
       toggleSave,

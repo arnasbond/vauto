@@ -4,6 +4,8 @@ import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 
 /** Complete mic + TTS queue teardown after AI-driven UI mutation. */
 export async function completeVoiceTeardown(): Promise<void> {
+  const { VAUTO_VOICE_INPUT_ENABLED } = await import("@/lib/feature-flags");
+  if (!VAUTO_VOICE_INPUT_ENABLED) return;
   cancelActiveVoiceSearch();
   stopLocaleSpeech();
   clearSessionLocaleLock();

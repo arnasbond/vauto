@@ -58,6 +58,8 @@ import {
   buildPostValidationReport,
   shouldRunPostValidationReport,
 } from "@/lib/listing-field-confirmation";
+import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
+import { wardrobeItemToDraft } from "@/lib/wardrobe-vision";
 import { detectVehicleMake } from "@/lib/vehicle-keywords";
 import {
   enrichVehicleListingDraft,
@@ -192,6 +194,12 @@ export interface SellerFlowContextValue {
     voiceCapture?: boolean;
   }) => Promise<void>;
   applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
+  applyAgentWardrobeBulk: (
+    items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
+    opts?: { imageUrl?: string; voiceAnnouncement?: string }
+  ) => void;
+  pendingWardrobeBulkItems: import("@/lib/wardrobe-vision").WardrobeDraftItem[] | null;
+  pendingWardrobeVoice: string | null;
   importListingFromUrl: (url: string) => Promise<void>;
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
@@ -236,6 +244,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
   const [listingSocialPublish, setListingSocialPublish] =
     useState<ListingSocialPublishOptions>(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
+  const [pendingWardrobeBulkItems, setPendingWardrobeBulkItems] = useState<
+    WardrobeDraftItem[] | null
+  >(null);
+  const [pendingWardrobeVoice, setPendingWardrobeVoice] = useState<string | null>(null);
   const processingEpochRef = useRef(0);
 
   const abortSellerProcessing = useCallback(() => {
@@ -267,6 +279,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setLastPublishedListing(null);
     setEditingListingId(null);
     setListingSocialPublish(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
+    setPendingWardrobeBulkItems(null);
+    setPendingWardrobeVoice(null);
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -672,6 +686,42 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
     },
     [requireAuthForListing, setChameleonTheme, showToast, router]
+  );
+
+  const applyAgentWardrobeBulk = useCallback(
+    (
+      items: WardrobeDraftItem[],
+      opts?: { imageUrl?: string; voiceAnnouncement?: string }
+    ) => {
+      if (!items.length) return;
+      if (!requireAuthForListing("/add")) return;
+      setAiManualFallback(false);
+      setPendingWardrobeBulkItems(items.length > 1 ? items : null);
+      setPendingWardrobeVoice(opts?.voiceAnnouncement?.trim() || null);
+      const firstDraft = wardrobeItemToDraft(
+        items[0]!,
+        user.phone,
+        user.city || "Vilnius"
+      );
+      setAiDraft(firstDraft);
+      setSellerInputMode("upload");
+      setSellerUserPrompt(opts?.voiceAnnouncement ?? firstDraft.title);
+      if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
+      setChameleonTheme(adaptiveKeyToTheme("clothing"));
+      setSellerStep("confirmation");
+      showToast(
+        opts?.voiceAnnouncement ??
+          (items.length > 1
+            ? `AI aptiko ${items.length} drabužius — patvirtinkite skelbimus.`
+            : "AI paruošė drabužio skelbimą — patvirtinkite arba pataisykite."),
+        "success"
+      );
+      const addPath = "/add/?vertical=fashion";
+      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
+        router.push(addPath);
+      }
+    },
+    [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city]
   );
 
   const importListingFromUrl = useCallback(
@@ -1214,6 +1264,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       finishPublishedFlow,
       submitSellerContent,
       applyAgentListingDraft,
+      applyAgentWardrobeBulk,
+      pendingWardrobeBulkItems,
+      pendingWardrobeVoice,
       importListingFromUrl,
       startListingFromQuery,
       pendingSellerQuery,
@@ -1244,6 +1297,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       finishPublishedFlow,
       submitSellerContent,
       applyAgentListingDraft,
+      applyAgentWardrobeBulk,
+      pendingWardrobeBulkItems,
+      pendingWardrobeVoice,
       importListingFromUrl,
       startListingFromQuery,
       pendingSellerQuery,

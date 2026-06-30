@@ -242,12 +242,42 @@ export function SearchBar({
       }
 
       const searchChips = vision.intent.choiceChips?.filter(Boolean) ?? [];
+      const sellChips = searchChips.filter((c) => /^parduoti/i.test(c.trim()));
+      if (sellChips.length >= 2) {
+        openWithGreeting(
+          vision.intent.clarificationPrompt ||
+            "Nuotraukoje matau kelis objektus. Ką norite parduoti?",
+          { quickReplies: sellChips }
+        );
+        clearPhotoSearchSession();
+        setPhotoFlowOpen(false);
+        return true;
+      }
       if (searchChips.length >= 2) {
         openWithGreeting(
           vision.intent.clarificationPrompt ||
             "Nuotraukoje matau kelis objektus. Ką norite ieškoti?",
           { quickReplies: searchChips }
         );
+        clearPhotoSearchSession();
+        setPhotoFlowOpen(false);
+        return true;
+      }
+
+      if (wardrobeSearchOnly) {
+        const photoUrls = result.photos?.filter(Boolean).slice(0, 6) ?? [];
+        setSearchLoading(true);
+        void sendAgentMessage(
+          "Nufotografavau drabužius — paruošk atskirus skelbimus.",
+          {
+            fromSearchBar: true,
+            pendingImageUrls: photoUrls,
+          }
+        )
+          .then((res) => {
+            if (res.actions) syncGridFromAgentActions(res.actions);
+          })
+          .finally(() => setSearchLoading(false));
         clearPhotoSearchSession();
         setPhotoFlowOpen(false);
         return true;

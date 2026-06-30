@@ -42,6 +42,8 @@ export function AiConfirmationScreen({
     showToast,
     submitSellerContent,
     user,
+    pendingWardrobeBulkItems,
+    pendingWardrobeVoice,
   } = useVauto();
 
   useEffect(() => {
@@ -157,6 +159,8 @@ export function AiConfirmationScreen({
         onPublish={publishListing}
         onPublishBulk={(drafts) => void publishBulkClothingListings(drafts)}
         onToast={showToast}
+        initialWardrobeItems={pendingWardrobeBulkItems ?? undefined}
+        initialWardrobeVoice={pendingWardrobeVoice}
       />
     );
   }

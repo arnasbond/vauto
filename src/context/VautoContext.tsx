@@ -273,6 +273,12 @@ interface VautoContextValue {
     voiceCapture?: boolean;
   }) => Promise<void>;
   applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
+  applyAgentWardrobeBulk: (
+    items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
+    opts?: { imageUrl?: string; voiceAnnouncement?: string }
+  ) => void;
+  pendingWardrobeBulkItems: import("@/lib/wardrobe-vision").WardrobeDraftItem[] | null;
+  pendingWardrobeVoice: string | null;
   importListingFromUrl: (url: string) => Promise<void>;
   /** Voice/text on home search that expresses sell/post intent → listing flow */
   startListingFromQuery: (text: string) => boolean;

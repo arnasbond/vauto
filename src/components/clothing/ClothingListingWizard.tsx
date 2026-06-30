@@ -58,6 +58,8 @@ interface ClothingListingWizardProps {
   onPublish: () => void;
   onPublishBulk?: (drafts: AiExtractedListing[]) => void;
   onToast?: (message: string, type?: "success" | "error" | "info") => void;
+  initialWardrobeItems?: WardrobeDraftItem[];
+  initialWardrobeVoice?: string | null;
 }
 
 function attr(attrs: Record<string, string | string[] | undefined>, key: string): string {
@@ -131,12 +133,18 @@ export function ClothingListingWizard({
   onPublish,
   onPublishBulk,
   onToast,
+  initialWardrobeItems,
+  initialWardrobeVoice,
 }: ClothingListingWizardProps) {
   const inSpintaCabinet = false;
   const [showCategoryPicker, setShowCategoryPicker] = useState(false);
-  const [wardrobeItems, setWardrobeItems] = useState<WardrobeDraftItem[]>([]);
+  const [wardrobeItems, setWardrobeItems] = useState<WardrobeDraftItem[]>(
+    () => initialWardrobeItems ?? []
+  );
   const [wardrobeAnalyzing, setWardrobeAnalyzing] = useState(false);
-  const [wardrobeVoice, setWardrobeVoice] = useState<string | null>(null);
+  const [wardrobeVoice, setWardrobeVoice] = useState<string | null>(
+    initialWardrobeVoice ?? null
+  );
   const attrs = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
 
   const categoryValue = readFashionCategory(attrs);
@@ -306,6 +314,15 @@ export function ClothingListingWizard({
   useEffect(() => {
     window.scrollTo(0, 0);
   }, []);
+
+  useEffect(() => {
+    if (initialWardrobeItems?.length) {
+      setWardrobeItems(initialWardrobeItems);
+    }
+    if (initialWardrobeVoice) {
+      setWardrobeVoice(initialWardrobeVoice);
+    }
+  }, [initialWardrobeItems, initialWardrobeVoice]);
 
   return (
     <div className="listing-wizard-overlay chameleon-wizard-shell spinta-listing-wizard bg-[#0a1128] text-white min-h-screen">

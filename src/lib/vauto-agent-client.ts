@@ -347,6 +347,24 @@ export type VautoAgentAction =
       label?: string;
       wardrobeMode?: boolean;
       openChat?: boolean;
+    }
+  | {
+      type: "wardrobe_bulk";
+      items: Array<{
+        id: string;
+        title: string;
+        categoryGroup: string;
+        categorySub: string;
+        size: string;
+        color: string;
+        brand: string;
+        condition: string;
+        suggestedPrice: number;
+        description: string;
+        descriptionVariants?: Record<string, string>;
+      }>;
+      imageUrl?: string;
+      voiceAnnouncement?: string;
     };
 
 export interface VautoAgentResponse {

@@ -1845,22 +1845,10 @@ export async function executeAgentTool(
           ...(count > 0
             ? {
                 sideEffect: {
-                  type: "listing_draft" as const,
-                  listingDraft: {
-                    title: result.items[0]!.title,
-                    description: result.items[0]!.description,
-                    price: result.items[0]!.suggestedPrice,
-                    location: ctx.userCity,
-                    contact: ctx.contact,
-                    category: "clothing",
-                    confidence: 0.88,
-                    attributes: {
-                      size: result.items[0]!.size,
-                      color: result.items[0]!.color,
-                      brand: result.items[0]!.brand,
-                      wardrobeBulkCount: String(count),
-                    },
-                  },
+                  type: "wardrobe_bulk" as const,
+                  items: result.items,
+                  imageUrl,
+                  voiceAnnouncement: result.voiceAnnouncement,
                 },
               }
             : {}),
@@ -1886,6 +1874,18 @@ export async function executeAgentTool(
           userName: ctx.userName,
           defaultLocation: ctx.userCity,
         });
+        const importItems = result.items.map((item, idx) => ({
+          id: item.id || `import-${idx + 1}`,
+          title: item.title,
+          categoryGroup: "Moterims",
+          categorySub: item.category,
+          size: item.size,
+          color: item.color,
+          brand: item.brand,
+          condition: item.condition,
+          suggestedPrice: item.price,
+          description: item.description,
+        }));
         return {
           result: {
             ok: result.items.length > 0,
@@ -1897,6 +1897,15 @@ export async function executeAgentTool(
                 ? ["Peržiūrėti importą", "Patvirtinti visus", "Atidaryti Spintą"]
                 : ["Bandyti kitą nuorodą"],
           },
+          ...(importItems.length > 0
+            ? {
+                sideEffect: {
+                  type: "wardrobe_bulk" as const,
+                  items: importItems,
+                  voiceAnnouncement: result.voiceAnnouncement,
+                },
+              }
+            : {}),
         };
       } catch (e) {
         return {
@@ -2148,4 +2157,22 @@ export type AgentSideEffect =
       label?: string;
       wardrobeMode?: boolean;
       openChat?: boolean;
+    }
+  | {
+      type: "wardrobe_bulk";
+      items: Array<{
+        id: string;
+        title: string;
+        categoryGroup: string;
+        categorySub: string;
+        size: string;
+        color: string;
+        brand: string;
+        condition: string;
+        suggestedPrice: number;
+        description: string;
+        descriptionVariants?: Record<string, string>;
+      }>;
+      imageUrl?: string;
+      voiceAnnouncement?: string;
     };

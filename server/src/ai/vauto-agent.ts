@@ -586,6 +586,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
           else if (
             fx.type === "mark_listing_sold" ||
             fx.type === "listing_draft" ||
+            fx.type === "wardrobe_bulk" ||
             !sideEffect
           ) {
             sideEffect = fx;
@@ -631,6 +632,14 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   const soldResult = soldCall?.result as { message?: string; ok?: boolean } | undefined;
   if (soldResult?.ok && soldResult.message) {
     finalText = soldResult.message;
+  }
+
+  const wardrobeToolCall = toolCalls.find(
+    (t) => t.name === "analyzeWardrobePhoto" || t.name === "importWardrobeProfile"
+  );
+  const wardrobeToolResult = wardrobeToolCall?.result as { message?: string } | undefined;
+  if (wardrobeToolResult?.message) {
+    finalText = wardrobeToolResult.message;
   }
 
   const scanCall = toolCalls.find((t) => t.name === "scanListingPhotos");
@@ -704,8 +713,13 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
 
   const hasListingDraftAction =
     sideEffect?.type === "listing_draft" ||
+    sideEffect?.type === "wardrobe_bulk" ||
     toolCalls.some(
-      (t) => t.name === "create_listing_draft" || t.name === "postNewListing"
+      (t) =>
+        t.name === "create_listing_draft" ||
+        t.name === "postNewListing" ||
+        t.name === "analyzeWardrobePhoto" ||
+        t.name === "importWardrobeProfile"
     );
 
   const hasUiDrivingTool = Boolean(uiFilterCall || navigateScreenCall);
