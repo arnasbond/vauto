@@ -13,7 +13,7 @@ import {
   parseChoiceChips,
   parseDetectedObjects,
 } from "./vision-multi-object.js";
-import { STRUCTURED_INPUT_VISION_RULES } from "./structured-input-pipeline.js";
+import { STRUCTURED_INPUT_VISION_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -34,6 +34,8 @@ Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
 Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė, o pilnas skelbimo tekstas su nauda pirkėjui, būkle, komplektacija ir kita svarbia informacija iš vartotojo žinutės.
 Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
+
+${TEXT_AND_VISION_INPUT_ONLY}
 
 ${STRUCTURED_INPUT_VISION_RULES}
 

@@ -9,15 +9,15 @@ export interface UiFilterPayload {
   categoryAttributes?: Record<string, string>;
 }
 
-/** Semantinis žodynas — klaidinga balso įvestis Spintos režime (Gemini, ne klientas). */
+/** Semantinis žodynas — neaiškūs tekstiniai užklausimai Spintos režime. */
 export const WARDROBE_VOICE_SEMANTIC_HINT = `SPINTOS KLAIDŲ TOLERAVIMAS (updateUIFilters — PRIVALOMA):
 - Jei elgsena rodo /fashion, spinta_enter, wardrobe ar theme_change wardrobe — vartotojas VAUTO Spintoje.
-- Klaidinga STT (pvz. „rozni kedai", „batai 42", „suknele") → updateUIFilters, NE searchListings su žodžiu „other".
+- Neaiškūs ar trumpi tekstai (pvz. „rozni kedai", „batai 42", „suknele") → updateUIFilters, NE searchListings su žodžiu „other".
 - Pavyzdžiai:
   • „rozni kedai" / „raudoni kedai" → category clothing, subcategory shoes, atsakymas: „Supratau, filtruoju batelius tavo spintoje!"
   • „suknele" / „suknelė raudona" → category clothing, subcategory dresses
   • „striuke" → category clothing, subcategory jackets
-- Po updateUIFilters — trumpas šiltas lietuviškas TTS atsakymas (label laukas).`;
+- Po updateUIFilters — trumpas šiltas lietuviškas patvirtinimas (label laukas).`;
 
 const SUBCATEGORY_ALIASES: Record<
   string,

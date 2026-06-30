@@ -1,21 +1,16 @@
 "use client";
 
 import { useState } from "react";
-import { Camera, Mic, Zap } from "lucide-react";
+import { Camera, Zap } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
-import { extractFromImage, extractFromText } from "@/lib/client-api";
+import { extractFromImage } from "@/lib/client-api";
 import { buildPhotoSearchQuery, buildPhotoSearchToast } from "@/lib/photo-search";
 import { buildVisualSearchProfile } from "@/lib/visual-search";
-import { isVoiceSearchSupported } from "@/lib/voice-search";
 import { SERVICE_REQUEST_TEMPLATES } from "@/lib/service-leads";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
-import {
-  VoiceClarifyFlowSheet,
-  type VoiceClarifyResult,
-} from "@/components/voice/VoiceClarifyFlowSheet";
 
 export function ServiceRequestCard() {
   const {
@@ -24,15 +19,12 @@ export function ServiceRequestCard() {
     showToast,
     requestMediaConsent,
     setSearchInputMode,
-    setSearchVoiceMode,
     applyVisualSearch,
     user,
   } = useVauto();
 
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
-  const [voiceFlowOpen, setVoiceFlowOpen] = useState(false);
   const [photoBusy, setPhotoBusy] = useState(false);
-  const [voiceBusy, setVoiceBusy] = useState(false);
 
   const scrollToResults = () => {
     document
@@ -41,53 +33,20 @@ export function ServiceRequestCard() {
   };
 
   const applyServiceSearch = async (
-    extracted: Awaited<ReturnType<typeof extractFromText>>,
-    mode: "voice" | "photo",
+    extracted: Awaited<ReturnType<typeof extractFromImage>>,
     previewImage?: string | null
   ) => {
     const query = buildPhotoSearchQuery(extracted) || "reikia meistro Vilniuje";
-    setSearchInputMode(mode);
-    setSearchVoiceMode(mode === "voice");
+    setSearchInputMode("photo");
     setSearchQuery(query);
-    void applyVisualSearch(buildVisualSearchProfile(extracted, mode, previewImage));
+    void applyVisualSearch(buildVisualSearchProfile(extracted, "photo", previewImage));
     showToast(buildPhotoSearchToast(extracted), "success");
     scrollToResults();
   };
 
-  const startVoiceStyleRequest = () => {
-    if (voiceBusy || photoBusy || voiceFlowOpen) return;
-    if (!isVoiceSearchSupported()) {
-      showToast("Ši naršyklė nepalaiko balso įvedimo", "error");
-      return;
-    }
-    requestMediaConsent(() => setVoiceFlowOpen(true));
-  };
-
   const startPhotoStyleRequest = () => {
-    if (voiceBusy || photoBusy || photoFlowOpen) return;
+    if (photoBusy || photoFlowOpen) return;
     requestMediaConsent(() => setPhotoFlowOpen(true));
-  };
-
-  const handleVoiceComplete = async (result: VoiceClarifyResult) => {
-    setVoiceBusy(true);
-    try {
-      const extracted = await extractFromText({
-        transcript: result.mergedTranscript,
-        userCity: user.city || "Lietuva",
-        contact: user.phone || "+370 612 34567",
-      });
-      await applyServiceSearch(extracted, "voice");
-      setVoiceFlowOpen(false);
-    } catch (error) {
-      showToast(
-        error instanceof Error
-          ? `Balso užklausa nepavyko: ${error.message}`
-          : "Balso užklausa nepavyko",
-        "error"
-      );
-    } finally {
-      setVoiceBusy(false);
-    }
   };
 
   const handlePhotoSubmit = async (result: AiPhotoFlowResult) => {
@@ -101,7 +60,7 @@ export function ServiceRequestCard() {
         userCity: user.city || "Lietuva",
         contact: user.phone || "+370 612 34567",
       });
-      await applyServiceSearch(extracted, "photo", result.photos[0]);
+      await applyServiceSearch(extracted, result.photos[0]);
       setPhotoFlowOpen(false);
     } catch (error) {
       showToast(
@@ -127,32 +86,21 @@ export function ServiceRequestCard() {
               Reikia paslaugos?
             </p>
             <h2 className="mt-1 text-base font-extrabold text-[#111827]">
-              Pasakyk problemą — VAUTO suras meistrą
+              Aprašyk problemą — VAUTO suras meistrą
             </h2>
             <p className="mt-2 text-sm text-[#6b7280]">
               Kliento užklausa tampa aktyviu lead’u: meistrai gauna pranešimą ir
               gali vienu mygtuku atidaryti pokalbį.
             </p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              <button
-                type="button"
-                onClick={startVoiceStyleRequest}
-                disabled={voiceBusy || photoBusy}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl bg-[#f97316] px-3 py-2.5 text-xs font-bold text-white disabled:opacity-60"
-              >
-                <Mic className="h-3.5 w-3.5" />
-                Balsu
-              </button>
-              <button
-                type="button"
-                onClick={startPhotoStyleRequest}
-                disabled={voiceBusy || photoBusy}
-                className="inline-flex items-center justify-center gap-1.5 rounded-xl border border-[#f97316] bg-white px-3 py-2.5 text-xs font-bold text-[#f97316] disabled:opacity-60"
-              >
-                <Camera className="h-3.5 w-3.5" />
-                Foto
-              </button>
-            </div>
+            <button
+              type="button"
+              onClick={startPhotoStyleRequest}
+              disabled={photoBusy}
+              className="mt-3 inline-flex w-full items-center justify-center gap-1.5 rounded-xl bg-[#f97316] px-3 py-2.5 text-xs font-bold text-white disabled:opacity-60"
+            >
+              <Camera className="h-3.5 w-3.5" />
+              Įkelti nuotrauką
+            </button>
           </div>
         </div>
 
@@ -178,15 +126,6 @@ export function ServiceRequestCard() {
         busy={photoBusy}
         onClose={() => setPhotoFlowOpen(false)}
         onSubmit={handlePhotoSubmit}
-      />
-
-      <VoiceClarifyFlowSheet
-        open={voiceFlowOpen}
-        mode="search"
-        userCity={user.city || "Lietuva"}
-        busy={voiceBusy}
-        onClose={() => setVoiceFlowOpen(false)}
-        onComplete={handleVoiceComplete}
       />
     </>
   );

@@ -31,9 +31,7 @@ import {
   resolveSecretaryNoiseReply,
 } from "./secretary-guards.js";
 import {
-  enforceVoiceReplyBrevity,
   SEARCH_AGENT_BREVITY_RULES,
-  SEARCH_AGENT_VOICE_INPUT_RULES,
 } from "./search-agent.js";
 import {
   buildUserContextInjectionBlock,
@@ -290,9 +288,7 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       : req.messages;
 
   const systemInstruction = buildAgentSystemInstruction(
-    `${buildVautoAgentSystemInstruction()}\n\n${SEARCH_AGENT_BREVITY_RULES}${
-      req.context.fromVoice ? `\n\n${SEARCH_AGENT_VOICE_INPUT_RULES}` : ""
-    }`,
+    `${buildVautoAgentSystemInstruction()}\n\n${SEARCH_AGENT_BREVITY_RULES}`,
     req.adminProjectContext
   );
 
@@ -375,10 +371,6 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
   const wizardBits: string[] = [];
   if (req.context.fromSearchBar) {
     wizardBits.push("fromSearchBar=true");
-  }
-  if (req.context.fromVoice) {
-    wizardBits.push("responseLocale=lt-LT");
-    wizardBits.push("languageLock=lietuviu_kalba_naturali_fonetika");
   }
   if (req.context.wizardMode) wizardBits.push(`wizardMode=${req.context.wizardMode}`);
   if (req.context.isAuthenticated === false) wizardBits.push("isAuthenticated=false");
@@ -780,10 +772,6 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
     !finalText.includes(listingResult.voiceFollowUp.slice(0, 24))
   ) {
     finalText = listingResult.voiceFollowUp;
-  }
-
-  if (req.context.fromVoice) {
-    finalText = enforceVoiceReplyBrevity(finalText);
   }
 
   return {

@@ -1,7 +1,6 @@
 import {
   mockExtractFromImage,
   mockExtractFromText,
-  mockExtractFromVoice,
 } from "@/lib/ai-mocks";
 import { apiVautoServer } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
@@ -154,12 +153,7 @@ export async function extractFromImage(
 export async function extractFromVoice(
   ctx: ExtractContext = {}
 ): Promise<AiExtractedListing> {
-  const transcript = sanitizeSpeechTranscript(
-    ctx.transcript ?? "Parduodu maišą obuolių, dešimt eurų, Lietuvoje"
-  );
-  const unified = await tryUnifiedExtract({ ...ctx, transcript }, "text");
-  if (unified) return unified;
-  return mockExtractFromVoice(transcript);
+  return extractFromText(ctx);
 }
 
 export async function extractFromText(

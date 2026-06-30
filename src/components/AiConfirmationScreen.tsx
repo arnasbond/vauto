@@ -33,7 +33,6 @@ export function AiConfirmationScreen({
     sellerPreviewImage,
     sellerVideoUrl,
     sellerUserPrompt,
-    sellerInputMode,
     updateSellerMedia,
     updateAiDraft,
     publishListing,
@@ -216,7 +215,7 @@ export function AiConfirmationScreen({
       previewImage={sellerPreviewImage}
       videoUrl={sellerVideoUrl}
       userPrompt={sellerUserPrompt}
-      speakEnabled={sellerInputMode === "voice" || sellerInputMode === "combined"}
+      speakEnabled={false}
       manualFallback={aiManualFallback}
       onUpdate={updateAiDraft}
       onAttributeChange={handleAttributeChange}

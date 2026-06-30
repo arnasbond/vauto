@@ -1,11 +1,9 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { Flag, Mic, X } from "lucide-react";
+import { useState } from "react";
+import { Flag, X } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { REPORT_CATEGORIES } from "@/lib/reports";
-import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
-import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
 import type { ReportCategory } from "@/lib/types";
 
 interface ReportModalProps {
@@ -30,52 +28,9 @@ export function ReportModal({
   const { submitReport } = useVauto();
   const [category, setCategory] = useState<ReportCategory | null>(null);
   const [comment, setComment] = useState("");
-  const [recording, setRecording] = useState(false);
-  const [voiceError, setVoiceError] = useState<string | null>(null);
   const [submitted, setSubmitted] = useState(false);
-  const voiceSessionRef = useRef<ReturnType<typeof startVoiceSearch> | null>(null);
-
-  useEffect(() => {
-    return () => {
-      voiceSessionRef.current?.cancel();
-      voiceSessionRef.current = null;
-    };
-  }, []);
-
-  useEffect(() => {
-    if (!open) {
-      voiceSessionRef.current?.cancel();
-      voiceSessionRef.current = null;
-      setRecording(false);
-      setVoiceError(null);
-    }
-  }, [open]);
 
   if (!open) return null;
-
-  const handleVoice = () => {
-    if (recording) {
-      voiceSessionRef.current?.stop();
-      return;
-    }
-    if (!isVoiceSearchSupported()) {
-      setVoiceError("Ši naršyklė nepalaiko balso įvedimo.");
-      return;
-    }
-    setVoiceError(null);
-    setRecording(true);
-    const session = startVoiceSearch({
-      onInterim: (text) => {
-        if (text.trim()) setComment(sanitizeSpeechTranscript(text));
-      },
-    });
-    voiceSessionRef.current = session;
-    void session.promise.then((text) => {
-      setRecording(false);
-      voiceSessionRef.current = null;
-      if (text?.trim()) setComment(sanitizeSpeechTranscript(text));
-    });
-  };
 
   const handleSubmit = () => {
     if (!category) return;
@@ -109,6 +64,7 @@ export function ReportModal({
             type="button"
             onClick={onClose}
             className="rounded-full p-1 text-slate-500 hover:bg-slate-100"
+            aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
           </button>
@@ -152,24 +108,8 @@ export function ReportModal({
               onChange={(e) => setComment(e.target.value)}
               rows={3}
               placeholder="Papildomas komentaras (neprivaloma)…"
-              className="mb-3 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[var(--vauto-teal)]"
+              className="mb-4 w-full rounded-xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-900 outline-none placeholder:text-slate-400 focus:border-[var(--vauto-teal)]"
             />
-
-            {voiceError && (
-              <p className="mb-2 text-xs text-red-700">{voiceError}</p>
-            )}
-
-            <button
-              type="button"
-              onClick={handleVoice}
-              disabled={!isVoiceSearchSupported() && !recording}
-              className="mb-4 flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-slate-300 py-2.5 text-xs text-slate-600 disabled:opacity-50"
-            >
-              <Mic
-                className={`h-4 w-4 ${recording ? "animate-pulse text-[var(--vauto-teal)]" : ""}`}
-              />
-              {recording ? "Kalbate… (spauskite sustabdyti)" : "Įrašyti balso komentarą"}
-            </button>
 
             <button
               type="button"

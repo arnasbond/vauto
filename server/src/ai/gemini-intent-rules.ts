@@ -3,7 +3,7 @@
  * Jokio runtime regex / stop-word filtravimo kode — tik system prompt.
  */
 
-import { STRUCTURED_INPUT_PIPELINE_RULES } from "./structured-input-pipeline.js";
+import { STRUCTURED_INPUT_PIPELINE_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
 
 export const GEMINI_EMPATHY_RULES = `BENDRAVIMO PSICHOLOGIJA (PRIVALOMA — gyva AI sekretorė, ChatGPT stiliaus partneris, ne robotas):
 - Kalbėk empatiškai, šiltai ir gyvai — kaip asmeninis sekretorius, kuris tikrai padeda ir siūlo kelius į priekį.
@@ -32,6 +32,8 @@ TUŠČIA SPINTA / 0 SKELBIMŲ:
 - Paieška su rezultatais → trumpas šiltas komentaras („Radau kelis variantus — pasižiūrėkim!"), ne sausa statistika.`;
 
 export const GEMINI_INTENT_RULES = `GEMINI FUNCTION CALLING (PRIVALOMA — joks tekstinis spėliojimas):
+
+${TEXT_AND_VISION_INPUT_ONLY}
 
 ${STRUCTURED_INPUT_PIPELINE_RULES}
 

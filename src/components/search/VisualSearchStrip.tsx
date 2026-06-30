@@ -12,7 +12,7 @@ export function VisualSearchStrip() {
     searchInputMode,
   } = useVauto();
 
-  if (!visualSearchProfile || (searchInputMode !== "photo" && searchInputMode !== "voice")) {
+  if (!visualSearchProfile || searchInputMode !== "photo") {
     return null;
   }
 
@@ -25,12 +25,8 @@ export function VisualSearchStrip() {
         </p>
         <p className="mt-0.5 text-[11px] text-[#6b7280]">
           {visualSearchRefining
-            ? visualSearchProfile.source === "photo"
-              ? "AI analizuoja nuotrauką ir lygina su skelbimų vaizdais…"
-              : "AI tikslina panašumą su skelbimais…"
-            : visualSearchProfile.source === "photo"
-              ? "Rezultatai: vaizdo, semantinis ir AI panašumas."
-              : "Rezultatai surikiuoti pagal semantinį ir AI panašumą."}
+            ? "AI analizuoja nuotrauką ir lygina su skelbimų vaizdais…"
+            : "Rezultatai: vaizdo, semantinis ir AI panašumas."}
         </p>
       </div>
       {visualSearchProfile.source === "photo" && (

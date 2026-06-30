@@ -66,7 +66,7 @@ export function SecretaryWarmGreeting({
   const { openWithGreeting } = useVautoAgent();
 
   const message = isGuest
-    ? "Paspausk čia — pradėsiu pokalbį balsu ir padėsiu su spinta, derybomis ar stiliaus patarimais."
+    ? "Paspausk čia — pradėsiu pokalbį ir padėsiu su spinta, derybomis ar stiliaus patarimais."
     : buildSummary(getFirstName(userName || "Drauge"), listings, deals);
 
   const handleActivate = () => {

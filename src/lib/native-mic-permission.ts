@@ -1,10 +1,12 @@
 import { Capacitor } from "@capacitor/core";
 
+import { VAUTO_VOICE_INPUT_ENABLED } from "@/lib/feature-flags";
+
 /**
- * Android WebView: trigger system mic dialog via getUserMedia before SpeechRecognition.
- * Capacitor BridgeWebChromeClient maps this to RECORD_AUDIO runtime permission.
+ * Android WebView mic permission — disabled when voice input is off (silent no-op).
  */
 export async function ensureNativeMicrophonePermission(): Promise<boolean> {
+  if (!VAUTO_VOICE_INPUT_ENABLED) return false;
   if (!Capacitor.isNativePlatform()) return true;
   if (typeof navigator === "undefined" || !navigator.mediaDevices?.getUserMedia) {
     return false;

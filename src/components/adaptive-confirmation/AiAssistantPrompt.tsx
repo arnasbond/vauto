@@ -19,7 +19,7 @@ export function AiAssistantPrompt({ message }: AiAssistantPromptProps) {
         </p>
         {message}
         <span className="mt-2 block text-xs text-slate-400">
-          Galite įvesti žemiau arba pasakyti balsu kitame žingsnyje.
+          Galite įvesti ar patikslinti informaciją žemiau.
         </span>
       </div>
     </div>

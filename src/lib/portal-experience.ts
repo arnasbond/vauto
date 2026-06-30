@@ -79,7 +79,7 @@ const EXPERIENCES: Record<ChameleonThemeId, PortalExperience> = {
     portalName: "Paslaugos",
     headline: "Greitas paslaugos užsakymas",
     description:
-      "Pasakyk problemą balsu ar įkelk foto — asistentas suves su meistru pagal miestą ir spindulį.",
+      "Aprašyk problemą tekstu ar įkelk foto — asistentas suves su meistru pagal miestą ir spindulį.",
     primaryCta: "Reikia paslaugos",
     color: "#0f766e",
     bg: "#e6fffb",

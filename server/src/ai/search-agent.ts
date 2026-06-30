@@ -3,15 +3,9 @@
 export const SEARCH_AGENT_BREVITY_RULES = `Atsakymų formatas (PRIVALOMA visiems paieškos ir derybų atsakymams):
 - Maksimaliai 2–3 sakiniai. Jokio ilgo teksto sienos ar sąrašų.
 - Gyvas, derybinis tonas — tarsi kalbėtum su klientu, ne rašytum ataskaitą.
-- Pritaikyta klausymuisi (TTS) — trumpi sakiniai, aiškūs veiksmai.
+- Trumpi sakiniai, aiškūs veiksmai.
 - NIEKADA neišvardink skelbimų tekstu — atidaryk paiešką arba pasiūlyk kitą žingsnį.
 - Pardavimo intencija → create_listing_draft, NE „Rezultatų nerasta".`;
-
-export const SEARCH_AGENT_VOICE_INPUT_RULES = `[Balso įvestis — fromVoice]
-- Vartotojas kalbėjo mikrofonu lietuviškai. Atsakyk TIK 1–2 sakiniais LIETUVIŲ kalba.
-- Naudok natūralią lietuvišką intonaciją ir fonetiką — tarsi gyva sekretorė VAUTO Spintoje, ne vertėjas iš anglų.
-- Pabaigoje vienas aiškus klausimas arba pasiūlymas (pvz. „Ar ieškome iki 20 000 €?").
-- Jokio markdown, numeruotų sąrašų, angliškų žodžių ar techninių paaiškinimų.`;
 
 export function enforceVoiceReplyBrevity(text: string, maxSentences = 3): string {
   const trimmed = text.replace(/\s+/g, " ").trim();

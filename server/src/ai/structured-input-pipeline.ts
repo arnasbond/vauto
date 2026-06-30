@@ -3,10 +3,15 @@
  * into structured listing fields with mandatory disambiguation and confirmation loops.
  */
 
-export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUTAS (PRIVALOMA — visiems kanalams: tekstas, balsas, nuotrauka):
+export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
+- Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
+- NĖRA balso įvesties (STT), mikrofono ar garso įrašų — NIEKADA nesiūlyk „pasakyti balsu“, „įrašyti balsu“ ar prašyti mikrofono leidimo.
+- Jei vartotojas mini balsą — mandagiai nukreipk į tekstinę įvestį arba nuotraukos įkėlimą.`;
+
+export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUTAS (PRIVALOMA — tekstas ir vaizdo analizė):
 
 1) ĮVESTIES APdorojimas (User Raw Input → Structured Listing Fields):
-- Bet kokia vartotojo įvestis — tekstas, balso transkriptas ar nuotraukos kontekstas — yra neapdorota žaliava.
+- Bet kokia vartotojo įvestis — tekstas ar nuotraukos kontekstas — yra neapdorota žaliava.
 - Tavo paskirtis: ištraukti objektus ir faktus iš įvesties ir juos tvarkingai priskirti struktūrizuotiems skelbimo laukams:
   category, title, description, price, location (+ kategorijai būdingi attributes).
 - NIEKADA nepalik laukų „atspėtų“ be pakankamo pagrindo iš įvesties. Jei duomenų trūksta — confidence mažink ir užduok klausimą.

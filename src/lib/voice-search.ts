@@ -11,6 +11,7 @@ import {
   lockSessionLocale,
 } from "@/lib/SpeechEngine";
 import { ensureNativeMicrophonePermission } from "@/lib/native-mic-permission";
+import { VAUTO_VOICE_INPUT_ENABLED, disabledVoiceSession } from "@/lib/feature-flags";
 
 type SpeechResults = {
   length: number;
@@ -69,6 +70,7 @@ export function cancelActiveVoiceSearch(): void {
  * Flush WebKit SpeechRecognition state after a completed chat turn — not before recording.
  */
 export function recycleSpeechRecognitionEngine(): Promise<void> {
+  if (!VAUTO_VOICE_INPUT_ENABLED) return Promise.resolve();
   cancelActiveVoiceSearch();
   const SpeechRecognition = getSpeechRecognition();
   if (!SpeechRecognition) return Promise.resolve();
@@ -115,6 +117,10 @@ export function recycleSpeechRecognitionEngine(): Promise<void> {
 export function startVoiceSearch(
   options: VoiceSearchOptions = {}
 ): VoiceSearchSession {
+  if (!VAUTO_VOICE_INPUT_ENABLED) {
+    return disabledVoiceSession();
+  }
+
   cancelActiveVoiceSearch();
 
   const { onInterim, onStart, maxMs = DEFAULT_MAX_MS } = options;
@@ -279,7 +285,5 @@ export function startVoiceSearch(
 }
 
 export function isVoiceSearchSupported(): boolean {
-  if (getSpeechRecognition()) return true;
-  if (typeof navigator === "undefined") return false;
-  return Boolean(navigator.mediaDevices?.getUserMedia);
+  return VAUTO_VOICE_INPUT_ENABLED;
 }

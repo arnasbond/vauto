@@ -17,7 +17,6 @@ import {
   extractCombined,
   extractFromImage,
   extractFromText,
-  extractFromVoice,
 } from "@/lib/client-api";
 import { isDuplicateListing } from "@/lib/dedup";
 import { moderateListing } from "@/lib/moderation";
@@ -113,10 +112,8 @@ import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, getMissingCriticalFields } from "@/lib/adaptive-categories";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { adaptiveKeyToTheme } from "@/lib/chameleon-themes";
-import { speakBuddyMessage } from "@/lib/buddy-voice";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
-import { buildPartialListingVoicePromptFromDraft } from "@/lib/voice-listing-context";
-import { BUDDY_REPEAT_PROMPT, isUnclearTranscript } from "@/lib/voice-graceful";
+import { isUnclearTranscript } from "@/lib/voice-graceful";
 import type {
   AiExtractedListing,
   Listing,
@@ -374,8 +371,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
           if (mode === "combined") return extractCombined(ctx);
           if (mode === "upload") return extractFromImage(ctx);
-          if (mode === "text") return extractFromText(ctx);
-          return extractFromVoice(ctx);
+          if (mode === "text" || mode === "voice") return extractFromText(ctx);
+          return extractFromText(ctx);
         });
 
         const [locationHint, extracted] = await Promise.all([
@@ -557,7 +554,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           });
         } else if (
           shouldRunPostValidationReport(next, false) &&
-          (mode === "upload" || mode === "combined" || mode === "voice" || mode === "text")
+          (mode === "upload" || mode === "combined" || mode === "text")
         ) {
           pushAgentGreeting(buildPostValidationReport(next), {
             quickReplies: buildPostValidationQuickReplies(),
@@ -569,11 +566,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         if (next.requiresReview && next.reviewNotice?.trim()) {
           showToast(next.reviewNotice.trim(), "info");
-        }
-
-        const voicePrompt = buildPartialListingVoicePromptFromDraft(next);
-        if (voicePrompt && (mode === "voice" || opts?.transcript?.trim())) {
-          speakBuddyMessage(voicePrompt, { enabled: true });
         }
 
         logAiSafeguard("processing_success", {
@@ -673,10 +665,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           : "AI paruošė skelbimą — patvirtinkite arba pataisykite.",
         "success"
       );
-      const voicePrompt = buildPartialListingVoicePromptFromDraft(enriched);
-      if (voicePrompt) {
-        speakBuddyMessage(voicePrompt, { enabled: true });
-      }
       const addPath =
         enriched.category === "clothing" ? "/add/?vertical=fashion" : "/add/";
       if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
@@ -762,13 +750,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     (transcript: string | null) => {
       const cleaned = transcript?.trim() ?? "";
       if (isUnclearTranscript(cleaned)) {
-        speakBuddyMessage(BUDDY_REPEAT_PROMPT, { enabled: true });
-        setSellerStep("recording");
+        showToast("Nepavyko atpažinti teksto — bandykite įvesti ranka.", "info");
+        setSellerStep("idle");
         return;
       }
-      void runAiProcessing("voice", { transcript: cleaned });
+      void runAiProcessing("text", { transcript: cleaned });
     },
-    [runAiProcessing]
+    [runAiProcessing, showToast]
   );
 
   const cancelVoiceRecording = useCallback(() => {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { BuddyAvatar } from "@/components/conversational/BuddyAvatar";
 import { BuddyQuickActions } from "@/components/conversational/BuddyQuickActions";
@@ -10,17 +10,13 @@ import {
   isBuddySearchQuery,
   type BuddyActionId,
 } from "@/lib/buddy-messages";
-import {
-  logBuddyState,
-  speakBuddyMessage,
-  stopBuddySpeech,
-  type BuddyState,
-} from "@/lib/buddy-voice";
+import { logBuddyState } from "@/lib/buddy-voice";
 import { resolveListingPhone } from "@/lib/listing-display";
 import { getSearchMatchStatus } from "@/lib/search-match";
 import { listingPath } from "@/lib/seo";
 import { chatThreadPath } from "@/lib/chat-routes";
 import { useVauto } from "@/context/VautoContext";
+import type { BuddyState } from "@/lib/buddy-voice";
 
 export function BuddySearchAssistant() {
   const router = useRouter();
@@ -28,7 +24,6 @@ export function BuddySearchAssistant() {
     searchQuery,
     rankedListings,
     user,
-    searchVoiceMode,
     searchInputMode,
     startChat,
     trackListingCall,
@@ -45,7 +40,6 @@ export function BuddySearchAssistant() {
   const [showMessage, setShowMessage] = useState(false);
   const [message, setMessage] = useState("");
   const [targetListingId, setTargetListingId] = useState<string | null>(null);
-  const spokenRef = useRef("");
 
   const query = searchQuery.trim();
   const active = isBuddySearchQuery(query);
@@ -76,37 +70,16 @@ export function BuddySearchAssistant() {
       typeof window !== "undefined" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
     const delay = reducedMotion ? 0 : 600;
-    const shouldSpeak =
-      searchVoiceMode || searchInputMode === "voice";
 
     const timer = setTimeout(() => {
       setShowMessage(true);
-      setBuddyState("speaking");
-      if (spokenRef.current !== msg) {
-        spokenRef.current = msg;
-        speakBuddyMessage(msg, {
-          enabled: shouldSpeak,
-          onEnd: () => setBuddyState("idle"),
-        });
-        if (!shouldSpeak) {
-          setTimeout(() => setBuddyState("idle"), 400);
-        }
-      }
+      setBuddyState("idle");
     }, delay);
 
     return () => {
       clearTimeout(timer);
-      stopBuddySpeech();
     };
-  }, [
-    active,
-    query,
-    rankedListings,
-    user.city,
-    searchVoiceMode,
-    searchInputMode,
-    subscribed,
-  ]);
+  }, [active, query, rankedListings, user.city, searchInputMode, subscribed]);
 
   if (!active) return null;
 
@@ -139,7 +112,7 @@ export function BuddySearchAssistant() {
     }
 
     if (id === "refine_search") {
-      setSearchInputMode(searchInputMode === "voice" ? "voice" : "text");
+      setSearchInputMode("text");
       document.querySelector<HTMLInputElement>('input[name="q"]')?.focus();
       return;
     }
@@ -176,7 +149,7 @@ export function BuddySearchAssistant() {
         <BuddyAvatar state={buddyState} />
         <div className="min-w-0 flex-1">
           <p className="mb-1 text-xs font-semibold uppercase tracking-wide text-[var(--vauto-teal)]">
-            {buddyState === "typing" ? "Ieškoma" : buddyState === "speaking" ? "Rezultatas" : "Paieškos asistentas"}
+            {buddyState === "typing" ? "Ieškoma" : "Paieškos asistentas"}
           </p>
           <div className="agent-chat-bubble-assistant rounded-2xl rounded-tl-md border border-[var(--vauto-border)] px-4 py-3 shadow-sm">
             {!showMessage ? (

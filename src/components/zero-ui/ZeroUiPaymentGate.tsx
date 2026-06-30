@@ -1,17 +1,13 @@
 "use client";
 
-import { CreditCard, Mic, Sparkles, Wallet, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { CreditCard, Sparkles, Wallet, X } from "lucide-react";
+import { useCallback, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
-import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import {
   SMART_BOOST_B2B,
-  VOICE_PAY_CONFIRM_PHRASE,
   normalizeMicroPaymentIntent,
   type ZeroUiMicroPaymentIntent,
 } from "@/lib/monetization-engine";
-import { isVoiceSearchSupported, startVoiceSearch } from "@/lib/voice-search";
-import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
 
 type GateStep = "confirm" | "paying" | "success";
 
@@ -37,21 +33,12 @@ export function ZeroUiPaymentGate({
 }: ZeroUiPaymentGateProps) {
   const { user, updateUser, showToast } = useVauto();
   const [step, setStep] = useState<GateStep>("confirm");
-  const [recording, setRecording] = useState(false);
   const resolvedIntent = normalizeMicroPaymentIntent(intent, user);
   const walletBalance = user.walletBalance ?? 0;
   const canUseWallet = walletBalance >= resolvedIntent.price;
-  const confirmPhrase = resolvedIntent.voiceConfirmPhrase ?? VOICE_PAY_CONFIRM_PHRASE;
+  const confirmLabel = resolvedIntent.voiceConfirmPhrase ?? "Taip, apmokėti";
   const isSmartBoost = resolvedIntent.product === "smart_boost";
   const isB2bBoost = isSmartBoost && resolvedIntent.price === SMART_BOOST_B2B;
-
-  useEffect(() => {
-    speakBuddyMessage(
-      `${productTitle(resolvedIntent.product)} — ${resolvedIntent.price.toFixed(2)} €. Pasakykite „${confirmPhrase}“ arba patvirtinkite ekrane.`,
-      { enabled: true }
-    );
-    return () => stopBuddySpeech();
-  }, [resolvedIntent.price, resolvedIntent.product, confirmPhrase]);
 
   const completePayment = useCallback(() => {
     setStep("paying");
@@ -67,26 +54,6 @@ export function ZeroUiPaymentGate({
       }, 1200);
     }, 900);
   }, [canUseWallet, resolvedIntent.price, resolvedIntent.product, onSuccess, showToast, updateUser, user.walletBalance]);
-
-  const handleVoiceConfirm = () => {
-    if (!isVoiceSearchSupported() || recording) return;
-    setRecording(true);
-    const session = startVoiceSearch({});
-    void session.promise.then((text) => {
-      setRecording(false);
-      const t = sanitizeSpeechTranscript(text ?? "").toLowerCase();
-      if (
-        t.includes("taip") ||
-        t.includes("apmok") ||
-        t.includes("boost") ||
-        t.includes("iškel")
-      ) {
-        completePayment();
-      } else {
-        showToast("Pasakykite „Taip, apmokėti“", "info");
-      }
-    });
-  };
 
   const shellClass = embedded
     ? "rounded-2xl border border-[#bfdbfe] bg-gradient-to-br from-[#eef6ff] to-white p-5 shadow-sm"
@@ -147,21 +114,8 @@ export function ZeroUiPaymentGate({
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1167b1] px-4 py-3 text-sm font-semibold text-white hover:bg-[#0d5a9a]"
               >
                 <CreditCard className="h-4 w-4" />
-                {confirmPhrase}
+                {confirmLabel}
               </button>
-              {isVoiceSearchSupported() && (
-                <button
-                  type="button"
-                  onClick={handleVoiceConfirm}
-                  disabled={recording}
-                  className={`inline-flex items-center justify-center gap-2 rounded-xl border border-[#d1d5db] px-4 py-3 text-sm font-medium text-[#374151] hover:bg-[#f9fafb] ${
-                    recording ? "animate-pulse border-[#1167b1] text-[#1167b1]" : ""
-                  }`}
-                >
-                  <Mic className="h-4 w-4" />
-                  {recording ? "Klausausi…" : "Patvirtinti balsu"}
-                </button>
-              )}
               <button
                 type="button"
                 onClick={onCancel}
