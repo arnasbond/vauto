@@ -159,12 +159,14 @@ export function AdaptiveConfirmation({
     onFocusVin: scrollToDetails,
   });
 
-  const quickActions = buildSellerQuickActions({
-    missingKeys,
-    hasPhoto,
-    canPublish,
-    needsPrice,
-  });
+  const quickActions = photoCategoryMismatch
+    ? []
+    : buildSellerQuickActions({
+        missingKeys,
+        hasPhoto,
+        canPublish,
+        needsPrice,
+      });
 
   const publishLabel = LISTING_PUBLISH_CTA;
 
@@ -384,8 +386,8 @@ export function AdaptiveConfirmation({
       userPrompt={userPrompt}
       buddyMessage={buddyMessage}
       quickActions={quickActions}
-      speakEnabled={speakEnabled && !manualFallback}
-      manualFallback={manualFallback}
+      speakEnabled={speakEnabled && !manualFallback && !photoCategoryMismatch}
+      manualFallback={manualFallback || Boolean(photoCategoryMismatch)}
       canPublish={canPublish}
       publishLabel={publishLabel}
       validationIssues={validationIssues}

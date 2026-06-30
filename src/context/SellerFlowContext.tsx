@@ -47,7 +47,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete, notifyAgentFlowDialogue } from "@/lib/vauto-agent-client";
+import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete } from "@/lib/vauto-agent-client";
 import {
   buildPhotoClarificationMessage,
   extractVisionChoiceChips,
@@ -120,8 +120,7 @@ import {
   sanitizeAttributesForCategory,
 } from "@/lib/listing-attribute-isolation";
 import {
-  buildSellerPhotoCategoryMismatchMessage,
-  sellerPhotoCategoryMismatchQuickReplies,
+  pushPhotoCategoryMismatchGreeting,
 } from "@/lib/seller-photo-category-mismatch";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
@@ -613,23 +612,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         if (isProcessingStale(epoch)) return;
 
-        const needsClarification =
-          shouldClarifyPhotoUpload(next) &&
-          (mode === "upload" || mode === "combined");
-
-        if (needsClarification) {
-          pushAgentGreeting(buildPhotoClarificationMessage(next), {
-            quickReplies: extractVisionChoiceChips(next, "sell"),
-          });
-        } else if (
-          shouldRunPostValidationReport(next, false) &&
-          (mode === "upload" || mode === "combined" || mode === "text")
-        ) {
-          pushAgentGreeting(buildPostValidationReport(next), {
-            quickReplies: buildPostValidationQuickReplies(),
-          });
-        }
-
         const previousDraft = aiDraftRef.current;
         const previousCategory = previousDraft?.category ?? null;
         const previousAttributes = previousDraft?.attributes ?? null;
@@ -660,23 +642,31 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             fromCategory: previousCategory,
             toCategory: finalized.category,
           });
-          const greeting = buildSellerPhotoCategoryMismatchMessage(
-            previousCategory,
-            finalized.category
-          );
-          const quickReplies = sellerPhotoCategoryMismatchQuickReplies(previousCategory);
           setSellerUserPrompt(null);
-          pushAgentGreeting(greeting, { quickReplies, openSheet: true });
-          notifyAgentFlowDialogue(
-            { message: greeting, openSheet: true, quickReplies },
-            `photo_mismatch:${previousCategory}:${finalized.category}`
-          );
+          pushPhotoCategoryMismatchGreeting(previousCategory, finalized.category);
           trackEvent("seller_photo_category_mismatch", {
             fromCategory: previousCategory,
             toCategory: finalized.category,
           });
           setAiDraft(rollbackSnap.draft);
         } else {
+          const needsClarification =
+            shouldClarifyPhotoUpload(next) &&
+            (mode === "upload" || mode === "combined");
+
+          if (needsClarification) {
+            pushAgentGreeting(buildPhotoClarificationMessage(next), {
+              quickReplies: extractVisionChoiceChips(next, "sell"),
+            });
+          } else if (
+            shouldRunPostValidationReport(next, false) &&
+            (mode === "upload" || mode === "combined" || mode === "text")
+          ) {
+            pushAgentGreeting(buildPostValidationReport(next), {
+              quickReplies: buildPostValidationQuickReplies(),
+            });
+          }
+
           setPhotoCategoryMismatch(null);
           categoryMismatchPendingRef.current = null;
           photoReplaceSnapshotRef.current = null;

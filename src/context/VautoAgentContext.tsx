@@ -1129,17 +1129,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (options?.openSheet) setOpen(true);
       setSearchInputMode("text");
       setSearchVoiceMode(false);
-      const quickReplies = options?.quickReplies?.filter(Boolean).slice(0, 4);
-      setMessages((prev) =>
-        [
-          ...prev,
-          {
-            role: "assistant" as const,
-            text: trimmed,
-            ...(quickReplies?.length ? { quickReplies } : {}),
-          },
-        ].slice(-6)
-      );
+      const isolated = Boolean(options?.isolatedMismatch || options?.replaceThread);
+      const quickReplies = options?.isolatedMismatch
+        ? options.quickReplies?.filter(Boolean).slice(0, 2)
+        : options?.quickReplies?.filter(Boolean).slice(0, 4);
+      const assistantMsg = {
+        role: "assistant" as const,
+        text: trimmed,
+        ...(quickReplies?.length ? { quickReplies } : {}),
+      };
+      setMessages((prev) => (isolated ? [assistantMsg] : [...prev, assistantMsg].slice(-6)));
     },
     [setSearchInputMode, setSearchVoiceMode]
   );

@@ -1,11 +1,10 @@
 import { getUniversalCategoryLabel } from "@/lib/universal-listing-fields";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
+import { pushAgentGreeting } from "@/lib/vauto-agent-client";
 import type { ListingCategory } from "@/lib/types";
 
-export const SELLER_PHOTO_MISMATCH_REVERT_CHIP =
-  "Ne, pasilikti Automobilių sraute";
-export const SELLER_PHOTO_MISMATCH_ACCEPT_CHIP =
-  "Taip, keisti kategoriją į Elektroniką";
+export const SELLER_PHOTO_MISMATCH_REVERT_CHIP = "Ne, pasilikti auto sraute";
+export const SELLER_PHOTO_MISMATCH_ACCEPT_CHIP = "Taip, keisti kategoriją";
 
 function verticalLabel(category: ListingCategory): string {
   const key = listingToAdaptiveKey(category);
@@ -30,11 +29,26 @@ export function buildSellerPhotoCategoryMismatchMessage(
   toCategory: ListingCategory
 ): string {
   if (fromCategory === "vehicles" && toCategory === "electronics") {
-    return "Matau, kad pildėte automobilio skelbimą, bet įkėlėte telefono nuotrauką. Kaip norėtumėte pasielgti?";
+    return "Matau, kad pildote automobilio skelbimą, tačiau įkėlėte telefono nuotrauką. Ar norite pakeisti skelbimo kategoriją į Elektroniką?";
   }
   const from = verticalLabel(fromCategory);
   const to = verticalLabel(toCategory);
-  return `Matau, kad pildėte ${from} skelbimą, bet įkėlėte nuotrauką, kuri labiau atitinka kitą kategoriją (${to}). Kaip norėtumėte pasielgti?`;
+  return `Matau, kad pildote ${from} skelbimą, tačiau įkėlėte nuotrauką, kuri labiau atitinka kitą kategoriją (${to}). Ar norite pakeisti skelbimo kategoriją?`;
+}
+
+/** Isolated agent greeting — replaces thread, no vehicle wizard chips or VIN prompts. */
+export function pushPhotoCategoryMismatchGreeting(
+  fromCategory: ListingCategory,
+  toCategory: ListingCategory
+): void {
+  const greeting = buildSellerPhotoCategoryMismatchMessage(fromCategory, toCategory);
+  const quickReplies = sellerPhotoCategoryMismatchQuickReplies(fromCategory);
+  pushAgentGreeting(greeting, {
+    quickReplies,
+    openSheet: true,
+    replaceThread: true,
+    isolatedMismatch: true,
+  });
 }
 
 export function sellerPhotoCategoryMismatchQuickReplies(
@@ -52,20 +66,23 @@ export function sellerPhotoCategoryMismatchQuickReplies(
 export function isSellerPhotoMismatchRevertChip(text: string): boolean {
   const n = text.trim().toLowerCase();
   return (
-    (/grįžti atgal|grįžti prie|ne,\s*grįžti|atstatyti.*skelbim|automobilių sraut/.test(n) &&
+    (/grįžti atgal|grįžti prie|ne,\s*grįžti|atstatyti.*skelbim|auto sraut|automobilių sraut/.test(
+      n
+    ) &&
       !/keisti kategorij/.test(n)) ||
-    n.includes("ne, grįžti")
+    n.includes("ne, grįžti") ||
+    n.includes("pasilikti auto")
   );
 }
 
 export function isSellerPhotoMismatchAcceptChip(text: string): boolean {
   const n = text.trim().toLowerCase();
-  return /taip,\s*keisti kategorij|keisti kategoriją į elektronik/.test(n);
+  return /taip,\s*keisti kategorij|keisti kategoriją/.test(n);
 }
 
 export function isPhotoCategoryMismatchPrompt(text: string | null | undefined): boolean {
   if (!text?.trim()) return false;
-  return /kaip norėtumėte pasielgti|telefono nuotrauką|pildėte automobilio skelbimą/i.test(
+  return /ar norite pakeisti skelbimo kategoriją|telefono nuotrauką|pildote automobilio skelbimą/i.test(
     text
   );
 }

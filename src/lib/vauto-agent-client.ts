@@ -556,6 +556,10 @@ export interface AgentGreetingOptions {
   quickReplies?: string[];
   /** Open agent chat sheet when pushing proactive assistant text */
   openSheet?: boolean;
+  /** Replace the agent thread instead of appending (prevents mixed wizard contexts). */
+  replaceThread?: boolean;
+  /** Photo category mismatch — only the two supplied quick replies, no vehicle/VIN chips. */
+  isolatedMismatch?: boolean;
 }
 
 let agentGreetingHost: ((text: string, options?: AgentGreetingOptions) => void) | null = null;

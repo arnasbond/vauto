@@ -124,6 +124,7 @@ export function ConversationalReport({
     return () => {
       clearTimeout(typingTimer);
       stopBuddySpeech();
+      setBuddyState("idle");
     };
   }, [buddyMessage, speakEnabled, chameleonTheme, manualFallback]);
 
