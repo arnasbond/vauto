@@ -31,6 +31,20 @@ export interface BarcodeLookupResult {
 export const BARCODE_NOT_FOUND_MSG =
   "Kodas atpažintas, bet nerastas viešame registre. Parašykite daikto pavadinimą patys, o aš sugeneruosiu aprašymą.";
 
+export function buildUnregisteredBarcode(barcode: string): BarcodeLookupResult {
+  return {
+    source: "barcode-unregistered",
+    verified: false,
+    confidence: 0.35,
+    barcode,
+    title: "",
+    specs: [`EAN/UPC/ISBN: ${barcode}`],
+    notFoundInRegistry: true,
+    userMessage: BARCODE_NOT_FOUND_MSG,
+    technicalDescription: `${BARCODE_NOT_FOUND_MSG}\n\nKodas: ${barcode}`,
+  };
+}
+
 export async function lookupBarcode(
   identifier?: string
 ): Promise<BarcodeLookupResult | null> {
@@ -48,7 +62,7 @@ export async function lookupBarcode(
         verified: remote.verified ?? remote.source !== "barcode-unregistered",
       };
     }
-    return null;
+    return buildUnregisteredBarcode(normalized);
   }
 
   if (!isValidBarcode(normalizeBarcode(normalized))) {

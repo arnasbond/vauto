@@ -2,7 +2,9 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AiExtractedListing, CategoryAttributes, ListingCategory } from "@/lib/types";
+import { BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import {
+  buildUnregisteredBarcode,
   enrichBarcodeWithFashionCopy,
   isBarcodeLookupEligibleCategory,
   lookupBarcode,
@@ -47,18 +49,24 @@ export function useBarcodeAutoLookup(
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void lookupBarcode(barcode)
+      void Promise.race([
+        lookupBarcode(barcode),
+        new Promise<null>((resolve) =>
+          window.setTimeout(() => resolve(null), BARCODE_LOOKUP_TIMEOUT_MS)
+        ),
+      ])
         .then(async (next) => {
-          if (cancelled || !next) return;
+          if (cancelled) return;
+          const resolved = next ?? buildUnregisteredBarcode(barcode);
           lastFetchedRef.current = barcode;
-          setResult(next);
-          if (next.notFoundInRegistry) {
+          setResult(resolved);
+          if (resolved.notFoundInRegistry) {
             onNotFoundRef.current?.(
-              next.userMessage ??
+              resolved.userMessage ??
                 "Kodas atpažintas, bet nerastas viešame registre. Parašykite daikto pavadinimą patys, o aš sugeneruosiu aprašymą."
             );
           }
-          const patch = await enrichBarcodeWithFashionCopy(next, category);
+          const patch = await enrichBarcodeWithFashionCopy(resolved, category);
           onApplyRef.current(
             patch.title || patch.description
               ? patch

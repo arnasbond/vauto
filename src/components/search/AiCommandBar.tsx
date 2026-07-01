@@ -308,6 +308,7 @@ export function AiCommandBar({
       openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
       void sendAgentMessage("Analizuok šią nuotrauką ir padėk man — išorinės bazės neatsakė.", {
         fromSearchBar: true,
+        skipBusyCheck: true,
         pendingImageUrls: pending.photos,
       });
     }
@@ -318,7 +319,7 @@ export function AiCommandBar({
       setPhotoIntentChoice(null);
       setPhotoFlowOpen(false);
       clearPhotoSearchSession();
-      void sendAgentMessage(chip, { fromSearchBar: true });
+      void sendAgentMessage(chip, { fromSearchBar: true, skipBusyCheck: true });
     },
     [sendAgentMessage]
   );

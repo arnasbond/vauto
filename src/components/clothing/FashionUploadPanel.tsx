@@ -109,7 +109,7 @@ export function FashionUploadPanel() {
     (chip: string) => {
       setPhotoIntentChoice(null);
       setPhotoFlowOpen(false);
-      void sendAgentMessage(chip, { fromSearchBar: true });
+      void sendAgentMessage(chip, { fromSearchBar: true, skipBusyCheck: true });
     },
     [sendAgentMessage]
   );

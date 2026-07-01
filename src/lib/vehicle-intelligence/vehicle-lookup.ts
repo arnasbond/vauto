@@ -130,6 +130,10 @@ async function lookupVehicleByVinEuOpen(vin: string): Promise<VehicleLookupResul
   };
 }
 
+export function vehicleLookupFallback(identifier: string): VehicleLookupResult {
+  return partialShell(identifier);
+}
+
 function partialShell(identifier: string): VehicleLookupResult {
   const normalized = identifier.trim().toUpperCase();
   const plate = isLtPlate(normalized);

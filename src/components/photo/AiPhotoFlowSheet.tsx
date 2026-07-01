@@ -5,6 +5,7 @@ import { useCallback, useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 import { ImageSearchCapture } from "@/components/search/ImageSearch";
 import { PhotoSearchScanOverlay } from "@/components/search/PhotoSearchScanOverlay";
+import { AI_VISION_FETCH_TIMEOUT_MS, BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import {
   pickMultipleFromGallery,
   type CapturedPhoto,
@@ -61,6 +62,10 @@ export function AiPhotoFlowSheet({
       : mode === "listing"
         ? "Skelbti su AI"
         : "Vision AI — nuotrauka";
+
+  const scanOverlayTimeoutMs = onScanTimeout
+    ? AI_VISION_FETCH_TIMEOUT_MS
+    : BARCODE_LOOKUP_TIMEOUT_MS;
 
   useEffect(() => {
     setMounted(true);
@@ -325,7 +330,11 @@ export function AiPhotoFlowSheet({
         </div>
       </div>
 
-      <PhotoSearchScanOverlay active={busy} onTimeout={onScanTimeout} />
+      <PhotoSearchScanOverlay
+        active={busy}
+        timeoutMs={scanOverlayTimeoutMs}
+        onTimeout={onScanTimeout}
+      />
     </>
   );
 

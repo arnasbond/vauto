@@ -4,8 +4,10 @@ import { useEffect, useRef, useState } from "react";
 import type { AiExtractedListing, CategoryAttributes } from "@/lib/types";
 import { isValidVinForLookup, normalizeVin } from "@/lib/trust";
 import { isLtPlate } from "@/lib/vehicle-intelligence/vehicle-attribute-mappers";
+import { BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import {
   lookupVehicle,
+  vehicleLookupFallback,
   vehicleLookupToDraftPatch,
   type VehicleLookupResult,
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
@@ -65,7 +67,15 @@ export function useVehicleAutoLookup(
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void lookupVehicle(identifier, { vin, plate })
+      void Promise.race([
+        lookupVehicle(identifier, { vin, plate }),
+        new Promise<VehicleLookupResult>((resolve) =>
+          window.setTimeout(
+            () => resolve(vehicleLookupFallback(identifier)),
+            BARCODE_LOOKUP_TIMEOUT_MS
+          )
+        ),
+      ])
         .then((next) => {
           if (cancelled) return;
           lastFetchedRef.current = identifier;

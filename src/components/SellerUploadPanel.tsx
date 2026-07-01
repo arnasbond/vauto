@@ -158,7 +158,7 @@ export function SellerUploadPanel({
       setPhotoIntentChoice(null);
       setPhotoFlowOpen(false);
       setQuery("");
-      void sendAgentMessage(chip, { fromSearchBar: true });
+      void sendAgentMessage(chip, { fromSearchBar: true, skipBusyCheck: true });
     },
     [sendAgentMessage]
   );

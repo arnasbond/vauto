@@ -1,3 +1,3 @@
 /** Auto-generated at build time — do not edit manually. */
-export const WEB_BUILD_VERSION_CODE = 55;
-export const WEB_BUILD_VERSION_NAME = "1.6.25";
+export const WEB_BUILD_VERSION_CODE = 56;
+export const WEB_BUILD_VERSION_NAME = "1.6.26";
