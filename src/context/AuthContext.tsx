@@ -47,6 +47,23 @@ import {
 import { persistAuthBundle } from "@/lib/auth/persistence";
 
 import {
+  getMockUserIdByPhone,
+  validateMockPhoneAuth,
+} from "@/lib/auth/mock-auth-registry";
+
+import {
+  isSessionExpired,
+  sessionExpiresAtFromNow,
+} from "@/lib/auth/session-constants";
+
+import { maybeRefreshAccessToken } from "@/lib/auth/token-refresh";
+
+import {
+  activateUserScope,
+  clearUserScope,
+} from "@/lib/auth/user-scope";
+
+import {
 
   clearAuthSessionFull,
 
@@ -221,6 +238,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const pendingAuthIntentRef = useRef<AuthSignupIntent | null>(null);
 
+  const applyAuthenticatedUser = useCallback(
+    async (profile: UserProfile, session: AuthSession) => {
+      activateUserScope(profile.id);
+      await persistAuthSessionFull(session, profile);
+      setUser(profile);
+      setIsAuthenticated(true);
+    },
+    []
+  );
+
 
 
   const isAdmin = isSuperAdminUser(user);
@@ -271,11 +298,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           };
 
+          activateUserScope(updated.id);
+
           setUser(updated);
 
           setIsAuthenticated(true);
 
           await persistAuthSessionFull(session, updated);
+
+          void maybeRefreshAccessToken(updated);
 
           return;
 
@@ -295,13 +326,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         }
 
+        // Network / server errors: keep persisted session for seamless return visits.
+
+        if (auth?.isAuthenticated && storedUser && !isSessionExpired(auth.expiresAt)) {
+
+          activateUserScope(storedUser.id);
+
+          setUser(storedUser);
+
+          setIsAuthenticated(true);
+
+          return;
+
+        }
+
       }
 
 
 
       if (auth?.isAuthenticated && storedUser) {
 
-        if (auth.expiresAt && new Date(auth.expiresAt).getTime() < Date.now()) {
+        if (isSessionExpired(auth.expiresAt)) {
 
           await clearAuthSessionFull();
 
@@ -312,6 +357,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
 
+
+        activateUserScope(storedUser.id);
 
         setUser(storedUser);
 
@@ -342,6 +389,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
               updated
 
             );
+
+            void maybeRefreshAccessToken(updated);
 
           } else if (refreshed.status === 401) {
 
@@ -675,6 +724,18 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (isAuthApiAvailable()) {
 
+          const phoneDigits = data.phone?.replace(/\D/g, "") ?? "";
+
+          const isNewRegistration =
+
+            data.provider === "phone" &&
+
+            Boolean(phoneDigits) &&
+
+            !getMockUserIdByPhone(data.phone ?? "");
+
+
+
           const apiResult =
 
             data.provider === "phone" && data.phone && data.otp
@@ -690,6 +751,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   city: data.city ?? user.city,
 
                   referralCode,
+
+                  isRegistration: isNewRegistration,
 
                 })
 
@@ -747,11 +810,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
 
 
-          await persistAuthSessionFull(session, profile);
-
-          setUser(profile);
-
-          setIsAuthenticated(true);
+          await applyAuthenticatedUser(profile, session);
 
           applySignupIntentAfterLogin(data.signupIntent);
 
@@ -763,6 +822,24 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const profile = loginLocal(data);
 
+        const mockError = validateMockPhoneAuth(profile.phone, profile.id, {
+
+          isNewRegistration: Boolean(
+
+            data.phone && !getMockUserIdByPhone(data.phone)
+
+          ),
+
+        });
+
+        if (mockError) {
+
+          setAuthError(mockError);
+
+          return;
+
+        }
+
         const session = {
 
           isAuthenticated: true as const,
@@ -771,13 +848,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           loggedInAt: new Date().toISOString(),
 
+          expiresAt: sessionExpiresAtFromNow(),
+
         };
 
-        await persistAuthSessionFull(session, profile);
-
-        setUser(profile);
-
-        setIsAuthenticated(true);
+        await applyAuthenticatedUser(profile, session);
 
         applyReferralOnSignup(profile.id, referralCode);
 
@@ -791,7 +866,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     },
 
-    [loginLocal, user.city, applyReferralOnSignup, applySignupIntentAfterLogin]
+    [loginLocal, user.city, applyReferralOnSignup, applySignupIntentAfterLogin, applyAuthenticatedUser]
 
   );
 
@@ -949,15 +1024,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       loggedInAt: new Date().toISOString(),
 
+      expiresAt: sessionExpiresAtFromNow(),
+
     };
 
-    await persistAuthSessionFull(session, profile);
+    await applyAuthenticatedUser(profile, session);
 
-    setUser(profile);
-
-    setIsAuthenticated(true);
-
-  }, []);
+  }, [applyAuthenticatedUser]);
 
 
 
@@ -971,9 +1044,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     clearUser();
 
+    clearUserScope();
+
     setUser(ANONYMOUS_USER);
 
   }, []);
+
+
+
+  useEffect(() => {
+
+    if (!hydrated || !isAuthenticated) return;
+
+    const interval = window.setInterval(() => {
+
+      void maybeRefreshAccessToken(user);
+
+    }, 60 * 60 * 1000);
+
+    void maybeRefreshAccessToken(user);
+
+    return () => window.clearInterval(interval);
+
+  }, [hydrated, isAuthenticated, user]);
 
 
 

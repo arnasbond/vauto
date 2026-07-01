@@ -94,6 +94,7 @@ export async function apiVerifyOtp(params: {
   serviceNationwide?: boolean;
   serviceSpecialties?: string[];
   referralCode?: string;
+  isRegistration?: boolean;
 }): Promise<ApiResult<AuthApiSession>> {
   return authFetch<AuthApiSession>("/api/auth/otp/verify", {
     method: "POST",
@@ -127,6 +128,15 @@ export async function apiFetchAuthSession(
   token: string
 ): Promise<ApiResult<{ user: AuthApiSession["user"]; role: UserRole }>> {
   return authFetch("/api/auth/session", {
+    headers: { Authorization: `Bearer ${token}` },
+  });
+}
+
+export async function apiRefreshAccessToken(
+  token: string
+): Promise<ApiResult<{ token: string; expiresAt: string }>> {
+  return authFetch("/api/auth/refresh", {
+    method: "POST",
     headers: { Authorization: `Bearer ${token}` },
   });
 }

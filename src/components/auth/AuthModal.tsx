@@ -19,6 +19,10 @@ import {
   qaTestCredentialsSummary,
   QA_DEMO_OTP,
 } from "@/lib/qa-test-mode";
+import {
+  REMEMBER_ME_KEY,
+  REMEMBER_PHONE_KEY,
+} from "@/lib/auth/session-constants";
 
 type AuthStep = "methods" | "phone" | "otp" | "admin";
 
@@ -100,8 +104,32 @@ export function AuthModal({
     AUTH_FORM_INITIAL.googleIdToken
   );
   const [smsCooldown, setSmsCooldown] = useState(0);
+  const [rememberMe, setRememberMe] = useState(true);
   const googleBtnRef = useRef<HTMLDivElement>(null);
   const showQaBanner = isQaTestModeActive();
+
+  const loadRememberedPhone = () => {
+    if (typeof window === "undefined") return AUTH_FORM_INITIAL.phone;
+    try {
+      const savedRemember = localStorage.getItem(REMEMBER_ME_KEY);
+      if (savedRemember === "0") return AUTH_FORM_INITIAL.phone;
+      const savedPhone = localStorage.getItem(REMEMBER_PHONE_KEY);
+      if (savedPhone) return formatLtPhoneInput(savedPhone);
+    } catch {
+      /* ignore */
+    }
+    return AUTH_FORM_INITIAL.phone;
+  };
+
+  const persistRememberedPhone = (value: string) => {
+    if (typeof window === "undefined" || !rememberMe) return;
+    try {
+      localStorage.setItem(REMEMBER_ME_KEY, "1");
+      localStorage.setItem(REMEMBER_PHONE_KEY, normalizeLtPhoneForApi(value));
+    } catch {
+      /* ignore */
+    }
+  };
 
   const resetAuthForm = () => {
     setStep(AUTH_FORM_INITIAL.step);
@@ -125,7 +153,20 @@ export function AuthModal({
 
   useEffect(() => {
     if (open) {
-      resetAuthForm();
+      setStep(AUTH_FORM_INITIAL.step);
+      setOtp(AUTH_FORM_INITIAL.otp);
+      setRole(AUTH_FORM_INITIAL.role);
+      setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
+      setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
+      setOtpError(AUTH_FORM_INITIAL.otpError);
+      setGoogleIdToken(AUTH_FORM_INITIAL.googleIdToken);
+      setSmsCooldown(0);
+      setPhone(loadRememberedPhone());
+      try {
+        setRememberMe(localStorage.getItem(REMEMBER_ME_KEY) !== "0");
+      } catch {
+        setRememberMe(true);
+      }
       return;
     }
     resetAuthForm();
@@ -223,6 +264,7 @@ export function AuthModal({
       return;
     }
     blockNativeClickThrough();
+    persistRememberedPhone(phone);
     finish("phone");
   };
 
@@ -462,19 +504,45 @@ export function AuthModal({
         )}
 
         {step === "phone" && (
-          <div className="space-y-4">
+          <form
+            className="space-y-4"
+            autoComplete="on"
+            onSubmit={(e) => {
+              e.preventDefault();
+              void sendOtp();
+            }}
+          >
             <input
               type="tel"
-              name="phone"
-              autoComplete="off"
+              name="tel"
+              id="vauto-auth-phone"
+              autoComplete="tel"
+              inputMode="tel"
               value={phone}
               onChange={(e) => setPhone(formatLtPhoneInput(e.target.value))}
               className={inputClass}
               placeholder="+370 600 00000"
             />
+            <label className="flex cursor-pointer items-center gap-2 text-xs text-[var(--vauto-text-main)]">
+              <input
+                type="checkbox"
+                checked={rememberMe}
+                onChange={(e) => {
+                  const checked = e.target.checked;
+                  setRememberMe(checked);
+                  try {
+                    localStorage.setItem(REMEMBER_ME_KEY, checked ? "1" : "0");
+                    if (!checked) localStorage.removeItem(REMEMBER_PHONE_KEY);
+                  } catch {
+                    /* ignore */
+                  }
+                }}
+                className="h-4 w-4 rounded border-[var(--vauto-border)] accent-[var(--vauto-primary)]"
+              />
+              Prisiminti mane (įrenginio autofill)
+            </label>
             <button
-              type="button"
-              onClick={() => void sendOtp()}
+              type="submit"
               disabled={otpSending || smsCooldown > 0}
               className="w-full rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
             >
@@ -491,14 +559,22 @@ export function AuthModal({
             >
               Grįžti
             </button>
-          </div>
+          </form>
         )}
 
         {step === "otp" && (
-          <div className="space-y-4">
+          <form
+            className="space-y-4"
+            autoComplete="on"
+            onSubmit={(e) => {
+              e.preventDefault();
+              verifyOtp();
+            }}
+          >
             <input
               type="text"
               name="one-time-code"
+              id="vauto-auth-otp"
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
@@ -508,12 +584,7 @@ export function AuthModal({
               placeholder="••••••"
             />
             <button
-              type="button"
-              onClick={(e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                verifyOtp();
-              }}
+              type="submit"
               disabled={loading}
               className="w-full rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
             >
@@ -526,7 +597,7 @@ export function AuthModal({
             >
               Grįžti
             </button>
-          </div>
+          </form>
         )}
       </div>
     </div>

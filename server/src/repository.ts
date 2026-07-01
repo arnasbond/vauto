@@ -156,6 +156,22 @@ export async function getUser(id: string): Promise<ApiUser | null> {
   };
 }
 
+/** Find user by normalized phone digits — used for duplicate-registration guards. */
+export async function getUserByPhoneDigits(
+  digits: string
+): Promise<ApiUser | null> {
+  const normalized = digits.replace(/\D/g, "");
+  if (normalized.length < 8) return null;
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM users
+     WHERE regexp_replace(phone, '\\D', '', 'g') = $1
+     LIMIT 1`,
+    [normalized]
+  );
+  const id = rows[0]?.id;
+  return id ? getUser(id) : null;
+}
+
 export async function ensureUser(id: string): Promise<void> {
   await query(
     `INSERT INTO users (id, name, phone, city)

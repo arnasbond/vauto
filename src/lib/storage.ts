@@ -10,6 +10,10 @@ import type { SearchIntentEvent } from "@/lib/search-intent";
 import type { ServiceLead } from "@/lib/service-leads";
 import type { SocialSyncPrefs } from "@/lib/social-share";
 import type { VautoInvoice } from "@/lib/invoices";
+import {
+  getActiveUserScope,
+  scopedStorageKey,
+} from "@/lib/auth/user-scope";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 
 const KEYS = {
@@ -55,28 +59,59 @@ function write(key: string, value: unknown): void {
   }
 }
 
-export function loadListings(): Listing[] | null {
+export function loadListings(userId?: string | null): Listing[] | null {
+  const scopeId = userId ?? getActiveUserScope();
+  if (scopeId) {
+    const scoped = read<Listing[]>(scopedStorageKey(KEYS.listings, scopeId));
+    if (scoped) return scoped;
+  }
   return read<Listing[]>(KEYS.listings);
 }
 
-export function saveListings(listings: Listing[]): void {
+export function saveListings(listings: Listing[], userId?: string | null): void {
+  const scopeId = userId ?? getActiveUserScope();
+  if (scopeId) {
+    write(scopedStorageKey(KEYS.listings, scopeId), listings);
+    return;
+  }
   write(KEYS.listings, listings);
 }
 
-export function loadChats(): ChatThread[] | null {
+export function loadChats(userId?: string | null): ChatThread[] | null {
+  const scopeId = userId ?? getActiveUserScope();
+  if (scopeId) {
+    const scoped = read<ChatThread[]>(scopedStorageKey(KEYS.chats, scopeId));
+    if (scoped) return scoped;
+  }
   return read<ChatThread[]>(KEYS.chats);
 }
 
-export function saveChats(chats: ChatThread[]): void {
+export function saveChats(chats: ChatThread[], userId?: string | null): void {
+  const scopeId = userId ?? getActiveUserScope();
+  if (scopeId) {
+    write(scopedStorageKey(KEYS.chats, scopeId), chats);
+    return;
+  }
   write(KEYS.chats, chats);
 }
 
-export function loadSavedIds(): string[] | null {
+export function loadSavedIds(userId?: string | null): string[] | null {
+  const scopeId = userId ?? getActiveUserScope();
+  if (scopeId) {
+    const scoped = read<string[]>(scopedStorageKey(KEYS.saved, scopeId));
+    if (scoped) return scoped;
+  }
   return read<string[]>(KEYS.saved);
 }
 
-export function saveSavedIds(ids: Set<string>): void {
-  write(KEYS.saved, Array.from(ids));
+export function saveSavedIds(ids: Set<string>, userId?: string | null): void {
+  const scopeId = userId ?? getActiveUserScope();
+  const payload = Array.from(ids);
+  if (scopeId) {
+    write(scopedStorageKey(KEYS.saved, scopeId), payload);
+    return;
+  }
+  write(KEYS.saved, payload);
 }
 
 export function loadUser(): UserProfile | null {

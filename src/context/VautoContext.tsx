@@ -882,8 +882,8 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         setApiActive(false);
         const storedUser = loadUser();
         const auth = loadAuthSession();
-        const storedListings = loadListings();
-        const storedSaved = loadSavedIds();
+        const storedListings = loadListings(storedUser?.id);
+        const storedSaved = loadSavedIds(storedUser?.id);
         if (auth?.isAuthenticated && storedUser) {
           patchAuthUser({ ...storedUser, role: storedUser.role ?? "private" });
         }
@@ -920,6 +920,45 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     void load();
   }, [patchAuthUser, enrichCatalogWithHiddenListings]);
 
+  const prevAuthUserIdRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!hydrated || !isAuthenticated || user.id === "guest") return;
+    const prev = prevAuthUserIdRef.current;
+    if (prev && prev !== user.id) {
+      void (async () => {
+        if (apiActive) {
+          const listingsRes = await apiFetchListings();
+          if (listingsRes.ok && Array.isArray(listingsRes.data)) {
+            const fromApi = listingsRes.data.map(withDefaultExpiry);
+            const base = normalizeListings(
+              mergeListingsForClient(fromApi, INITIAL_LISTINGS)
+            );
+            setListings(await enrichCatalogWithHiddenListings(base));
+          }
+          const savedRes = await apiFetchSaved(user.id);
+          if (savedRes.ok) setSavedIds(new Set(savedRes.data));
+        } else {
+          const scopedListings = loadListings(user.id);
+          const scopedSaved = loadSavedIds(user.id);
+          setListings(
+            normalizeListings(
+              mergeListingsForClient(scopedListings ?? [], INITIAL_LISTINGS)
+            )
+          );
+          setSavedIds(new Set(scopedSaved ?? []));
+        }
+      })();
+    }
+    prevAuthUserIdRef.current = user.id;
+  }, [
+    hydrated,
+    isAuthenticated,
+    user.id,
+    apiActive,
+    enrichCatalogWithHiddenListings,
+  ]);
+
   const syncServiceLeadsFromApi = useCallback(async () => {
     const res = await apiFetchServiceLeads();
     if (!res.ok) return;
@@ -936,13 +975,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
-    saveListings(listings);
-  }, [listings, hydrated, apiActive]);
+    if (!isAuthenticated || user.id === "guest") return;
+    saveListings(listings, user.id);
+  }, [listings, hydrated, apiActive, isAuthenticated, user.id]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;
-    saveSavedIds(savedIds);
-  }, [savedIds, hydrated, apiActive]);
+    if (!isAuthenticated || user.id === "guest") return;
+    saveSavedIds(savedIds, user.id);
+  }, [savedIds, hydrated, apiActive, isAuthenticated, user.id]);
 
   useEffect(() => {
     if (!hydrated || apiActive) return;

@@ -1,5 +1,4 @@
 import { Router } from "express";
-import crypto from "node:crypto";
 import { issueOtp, usesDemoOtp, verifyOtp } from "../auth/otp-store.js";
 import {
   demoOtpCode,
@@ -9,7 +8,7 @@ import {
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
 import { sendSmsOtp } from "../auth/sms.js";
 import { verifyGoogleIdToken } from "../auth/google-verify.js";
-import { getUser, upsertUser } from "../repository.js";
+import { getUser, getUserByPhoneDigits, upsertUser } from "../repository.js";
 import {
   applyReferralOnSignup,
   attachReferralFields,
@@ -228,7 +227,21 @@ authRouter.post("/otp/verify", async (req, res) => {
       return;
     }
 
-    const userId = stableUserId(`phone:${phone.replace(/\D/g, "")}`);
+    const phoneDigits = phone.replace(/\D/g, "");
+    const userId = stableUserId(`phone:${phoneDigits}`);
+    const existingByPhone = await getUserByPhoneDigits(phoneDigits);
+    const isRegistration = req.body?.isRegistration === true;
+
+    if (existingByPhone && existingByPhone.id !== userId) {
+      res.status(409).json({ error: "Toks vartotojas jau egzistuoja" });
+      return;
+    }
+
+    if (isRegistration && existingByPhone) {
+      res.status(409).json({ error: "Toks vartotojas jau egzistuoja" });
+      return;
+    }
+
     const session = await buildSession(
       userId,
       { id: userId, phone, city, name: providerName("phone") },
@@ -352,7 +365,9 @@ authRouter.post("/social", async (req, res) => {
       return;
     }
 
-    const seed = email ?? `${provider}:${crypto.randomUUID()}`;
+    const seed = email
+      ? `${provider}:${email.trim().toLowerCase()}`
+      : `${provider}:${String(req.body?.deviceId ?? "dev-fallback")}`;
     const userId = stableUserId(seed);
     const session = await buildSession(
       userId,
@@ -392,6 +407,29 @@ authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
       user,
       role: req.authRole ?? "private",
       userId: req.authUserId,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+authRouter.post("/refresh", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const userId = req.authUserId!;
+    const user = await getUser(userId);
+    if (!user) {
+      res.status(404).json({ error: "User not found" });
+      return;
+    }
+    const role = req.authRole ?? user.role ?? "private";
+    const token = signAccessToken({
+      sub: userId,
+      role,
+      provider: user.authProvider ?? "phone",
+    });
+    res.json({
+      token,
+      expiresAt: new Date(Date.now() + getTokenTtlMs()).toISOString(),
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
