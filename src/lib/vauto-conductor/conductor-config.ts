@@ -1,5 +1,8 @@
 /** Build-time + runtime-config toggle for VautoConductor (Phase 4 rollout). */
+import { initDataApiConfig, peekRuntimeConductorEnabled } from "@/lib/api/config";
+
 let resolved: boolean | null = null;
+let initPromise: Promise<boolean> | null = null;
 
 function buildTimeConductorEnabled(): boolean {
   return (
@@ -10,29 +13,22 @@ function buildTimeConductorEnabled(): boolean {
 /** Sync read — before init, falls back to build env. */
 export function isConductorEnabled(): boolean {
   if (resolved !== null) return resolved;
+  const runtime = peekRuntimeConductorEnabled();
+  if (runtime !== null) return runtime;
   return buildTimeConductorEnabled();
 }
 
-/** Hydrate from /runtime-config.json (overrides build when present). */
+/** Hydrate from shared runtime-config fetch (via initDataApiConfig). */
 export async function initConductorConfig(): Promise<boolean> {
   if (resolved !== null) return resolved;
+  if (initPromise) return initPromise;
 
-  let enabled = buildTimeConductorEnabled();
+  initPromise = (async () => {
+    await initDataApiConfig();
+    const runtime = peekRuntimeConductorEnabled();
+    resolved = runtime !== null ? runtime : buildTimeConductorEnabled();
+    return resolved;
+  })();
 
-  if (typeof window !== "undefined") {
-    try {
-      const res = await fetch("/runtime-config.json", { cache: "no-store" });
-      if (res.ok) {
-        const json = (await res.json()) as { conductorEnabled?: boolean };
-        if (typeof json.conductorEnabled === "boolean") {
-          enabled = json.conductorEnabled;
-        }
-      }
-    } catch {
-      /* offline or missing file */
-    }
-  }
-
-  resolved = enabled;
-  return enabled;
+  return initPromise;
 }

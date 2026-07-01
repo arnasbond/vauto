@@ -80,7 +80,7 @@ import {
   apiUpdateUserProfile,
 } from "@/lib/api/client";
 import { composeUserName } from "@/lib/profile-display";
-import { isDataApiEnabled, initDataApiConfig } from "@/lib/api/config";
+import { isDataApiEnabled } from "@/lib/api/config";
 import { initConductorConfig } from "@/lib/vauto-conductor/conductor-config";
 import type {
   AiExtractedListing,
@@ -831,7 +831,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     async function load() {
       try {
-        await initDataApiConfig();
         await initConductorConfig();
         if (isDataApiEnabled() && (await apiHealthCheck())) {
           setApiActive(true);

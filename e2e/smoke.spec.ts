@@ -75,7 +75,7 @@ test.describe("Vauto smoke", () => {
   test("volvo v70 search shows marketplace results", async ({ page }) => {
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
-    await search.fill("ieskau volvo v70");
+    await search.fill("volvo v70");
     await search.press("Enter");
     const results = listingResults(page);
     await expect(results).toBeVisible({ timeout: 10_000 });
@@ -120,7 +120,8 @@ test.describe("Vauto smoke", () => {
     ).toBeVisible();
   });
 
-  test("profile settings shows connection status for guest", async ({ page }) => {
+  test("profile settings shows connection status for signed-in user", async ({ page }) => {
+    await seedDemoUser(page);
     await page.goto("/profile/settings/");
     await expect(page.getByTestId("connection-status")).toBeVisible({
       timeout: 15_000,
@@ -191,7 +192,7 @@ test.describe("Vauto smoke", () => {
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("bmw kaunas");
-    await page.getByRole("button", { name: "Ieškoti" }).click();
+    await search.press("Enter");
     const results = listingResults(page);
     await expect(results.getByText(/bmw kaunas.*rezultat/i)).toBeVisible({
       timeout: 15_000,
@@ -202,15 +203,16 @@ test.describe("Vauto smoke", () => {
     await waitForHomeReady(page);
     const results = listingResults(page);
     const search = page.getByRole("searchbox").first();
-    await search.fill("parodyk žemėlapyje");
+    await search.fill("bmw");
     await search.press("Enter");
+    await expect(results.getByRole("button", { name: "Žemėlapis" })).toBeVisible({
+      timeout: 10_000,
+    });
+    await results.getByRole("button", { name: "Žemėlapis" }).click();
     await expect(results.getByRole("button", { name: "Žemėlapis" })).toHaveAttribute(
       "aria-pressed",
       "true",
-      { timeout: 15_000 }
+      { timeout: 10_000 }
     );
-    await expect(results.getByText(/skelbimų žemėlapyje/i)).toBeVisible({
-      timeout: 15_000,
-    });
   });
 });

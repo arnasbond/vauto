@@ -1,6 +1,6 @@
 {
   "name": "vauto",
-  "version": "1.6.45",
+  "version": "1.6.46",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -11,6 +11,8 @@
     "test:e2e": "npm run build && playwright test",
     "test:e2e:conductor": "node scripts/build-with-conductor.mjs && playwright test e2e/ai-conductor.spec.ts",
     "test:e2e:conductor-runtime": "npm run build && playwright test e2e/ai-conductor-runtime.spec.ts",
+    "test:e2e:conductor-runtime-live": "npm run sync:runtime-config && npm run build && playwright test e2e/ai-conductor-runtime-live.spec.ts",
+    "test:e2e:conductor-off": "npm run build && playwright test e2e/ai-conductor-off.spec.ts",
     "test:e2e:install": "playwright install chromium",
     "build:mobile": "next build",
     "cap:sync": "npx cap sync android",

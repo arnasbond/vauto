@@ -33,17 +33,20 @@ jobs:
         run: npm run sync:runtime-config
         env:
           NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+          NEXT_PUBLIC_VAUTO_CONDUCTOR: "1"
 
       - name: Build web app
         run: npm run build
         env:
           NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+          NEXT_PUBLIC_VAUTO_CONDUCTOR: "1"
 
       - name: Verify static export for Capacitor
         run: |
           test -f out/index.html
           test -f out/runtime-config.json
           grep -q vauto-api.onrender.com out/runtime-config.json
+          grep -q '"conductorEnabled": true' out/runtime-config.json
           echo "Static export OK ($(find out -type f | wc -l) files)"
 
       - name: Sync Capacitor Android (bundled assets — stable like vauto.vercel.apk)

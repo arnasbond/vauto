@@ -1,6 +1,9 @@
 /** Express + PostgreSQL backend (optional). */
+import type { RuntimeConfigJson } from "@/lib/runtime-config-types";
+
 let resolvedApiUrl: string | null = null;
 let resolvedGoogleClientId: string | null = null;
+let resolvedConductorEnabled: boolean | null = null;
 let resolvePromise: Promise<string | null> | null = null;
 
 function envApiUrl(): string | null {
@@ -25,16 +28,16 @@ export async function initDataApiConfig(): Promise<string | null> {
       try {
         const res = await fetch("/runtime-config.json", { cache: "no-store" });
         if (res.ok) {
-          const json = (await res.json()) as {
-            apiUrl?: string;
-            googleClientId?: string;
-          };
+          const json = (await res.json()) as RuntimeConfigJson;
           if (!resolvedApiUrl) {
             const url = json.apiUrl?.replace(/\/$/, "");
             if (url) resolvedApiUrl = url;
           }
           if (!resolvedGoogleClientId && json.googleClientId) {
             resolvedGoogleClientId = json.googleClientId;
+          }
+          if (resolvedConductorEnabled === null && typeof json.conductorEnabled === "boolean") {
+            resolvedConductorEnabled = json.conductorEnabled;
           }
         }
       } catch {
@@ -51,6 +54,11 @@ export async function initDataApiConfig(): Promise<string | null> {
   })();
 
   return resolvePromise;
+}
+
+/** Conductor flag from runtime-config.json after initDataApiConfig (null if unset). */
+export function peekRuntimeConductorEnabled(): boolean | null {
+  return resolvedConductorEnabled;
 }
 
 export function getRuntimeGoogleClientId(): string | null {

@@ -85,12 +85,22 @@ jobs:
           NEXT_PUBLIC_SHOW_DEMO_CATALOG: "true"
 
       - name: Run E2E smoke tests
-        run: npx playwright test --grep-invert "runtime-config enables conductor"
+        run: npx playwright test e2e/smoke.spec.ts
         env:
           CI: "true"
 
-      - name: Run conductor runtime-config E2E (build without CONDUCTOR flag)
+      - name: Run conductor runtime-config E2E (mocked override)
         run: npx playwright test e2e/ai-conductor-runtime.spec.ts
+        env:
+          CI: "true"
+
+      - name: Run conductor runtime-config E2E (live baked file)
+        run: npx playwright test e2e/ai-conductor-runtime-live.spec.ts
+        env:
+          CI: "true"
+
+      - name: Run conductor disabled legacy E2E
+        run: npx playwright test e2e/ai-conductor-off.spec.ts
         env:
           CI: "true"
 

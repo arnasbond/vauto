@@ -4,16 +4,16 @@ import {
   runUnregisteredBarcodeAgentFlow,
 } from "./helpers/barcode-agent-flow";
 
-/** Phase 4: runtime-config.json mock enables conductor without build flag. */
-test.describe("AI conductor runtime-config (mocked)", () => {
-  test("runtime-config enables conductor barcode execute", async ({ page }) => {
+/** Legacy path when conductor is explicitly disabled via runtime-config. */
+test.describe("AI conductor disabled (legacy fallback)", () => {
+  test("barcode flow works when conductorEnabled is false", async ({ page }) => {
     await page.route("**/runtime-config.json", async (route) => {
       await route.fulfill({
         status: 200,
         contentType: "application/json",
         body: JSON.stringify({
           apiUrl: "https://vauto-api.onrender.com",
-          conductorEnabled: true,
+          conductorEnabled: false,
         }),
       });
     });
