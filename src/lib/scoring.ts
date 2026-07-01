@@ -12,6 +12,7 @@ import {
   listingMatchesStrictBrandQuery,
   applyStrictBrandFilter,
 } from "@/lib/strict-brand-search";
+import { inferStrictCategory } from "@/lib/portal-listing-filter";
 import {
   computeVisualRelevance,
   type VisualSearchProfile,
@@ -22,11 +23,30 @@ export { isListingPublicInFeed } from "@/lib/listing-visibility";
 
 const MIN_QUERY_RELEVANCE = 0.18;
 
+const SEARCH_GEO_STOPWORDS = new Set([
+  "vilnius",
+  "vilniuje",
+  "kaunas",
+  "kaune",
+  "klaipeda",
+  "klaipėda",
+  "klaipedoje",
+  "šiauliai",
+  "siauliai",
+  "panevezys",
+  "panevėžys",
+  "alytus",
+  "marijampole",
+  "marijampolė",
+  "lietuva",
+  "lietuvoje",
+]);
+
 function tokenizeQuery(query: string): string[] {
   return query
     .toLowerCase()
     .split(/[\s,.!?]+/)
-    .filter((t) => t.length >= 2);
+    .filter((t) => t.length >= 2 && !SEARCH_GEO_STOPWORDS.has(t));
 }
 
 function clothingSubtypeSignals(query: string): {
@@ -73,7 +93,9 @@ export function computeSemanticRelevance(
     .join(" ")
     .toLowerCase();
 
-  if (tokens.length === 0) return 0.5;
+  if (tokens.length === 0) {
+    return isVehicleQuery(query) || inferStrictCategory(query) ? 0.12 : 0;
+  }
 
   const matches = tokens.filter((t) => haystack.includes(t)).length;
   let score = tokens.length > 0 ? matches / tokens.length : 0.5;
@@ -128,7 +150,7 @@ export function computeSemanticRelevance(
     listing.category === "vehicles"
   )
     score = Math.min(1, score + 0.35);
-  if (/auto|mašin|golf|opel|citroen|peugeot|bmw|audi|vw/i.test(query) && listing.category === "vehicles")
+  if (/auto|mašin|masin|automob|superku.*auto|perku.*auto/i.test(query) && listing.category === "vehicles")
     score = Math.min(1, score + 0.35);
   if (/ratlank|padang|r16|r17|felg|disk/i.test(query) && listing.category === "vehicles")
     score = Math.min(1, score + 0.45);

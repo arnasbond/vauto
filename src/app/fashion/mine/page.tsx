@@ -1,14 +1,18 @@
 "use client";
 
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { WardrobeCabinetSection } from "@/components/clothing/WardrobeCabinetSection";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
+import { useVautoSearchDispatch } from "@/context/VautoSearchContext";
 import { isBusinessProfile } from "@/lib/profile-type";
+import { dispatchHomeReset } from "@/lib/home-reset";
+import { WARDROBE_SPINTA_GREETING } from "@/lib/wardrobe-spinta-session";
 
 export default function FashionMinePage() {
   const router = useRouter();
@@ -20,12 +24,23 @@ export default function FashionMinePage() {
     user,
     startEditListingFlow,
     markListingSold,
+    clearVisualSearch,
   } = useVauto();
+  const { openWithGreeting } = useVautoAgent();
+  const {
+    setSearchQuery,
+    setSearchLoading,
+    clearAgentPinnedListings,
+    resetMarketplaceFilters,
+    setSearchInputMode,
+    setSearchVoiceMode,
+  } = useVautoSearchDispatch();
   const { chats } = useChat();
   const { trackEvent } = useUserBehavior();
+  const spintaEnteredRef = useRef(false);
 
   useEffect(() => {
-    if (!authHydrated) return;
+    if (!authHydrated || spintaEnteredRef.current) return;
     if (!isAuthenticated) {
       router.replace("/auth-gate/");
       return;
@@ -34,7 +49,17 @@ export default function FashionMinePage() {
       router.replace("/profile/");
       return;
     }
+    spintaEnteredRef.current = true;
     activateWardrobeSpinta();
+    setSearchQuery("");
+    setSearchLoading(false);
+    clearAgentPinnedListings();
+    resetMarketplaceFilters();
+    setSearchInputMode(null);
+    setSearchVoiceMode(false);
+    clearVisualSearch();
+    dispatchHomeReset();
+    openWithGreeting(WARDROBE_SPINTA_GREETING);
     trackEvent("spinta_enter", { pathname: "/fashion/mine" });
   }, [
     authHydrated,
@@ -43,6 +68,14 @@ export default function FashionMinePage() {
     activateWardrobeSpinta,
     trackEvent,
     router,
+    setSearchQuery,
+    setSearchLoading,
+    clearAgentPinnedListings,
+    resetMarketplaceFilters,
+    setSearchInputMode,
+    setSearchVoiceMode,
+    clearVisualSearch,
+    openWithGreeting,
   ]);
 
   const myClothing = useMemo(

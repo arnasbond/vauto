@@ -18,3 +18,6 @@ export function writeWardrobeSpintaForced(forced: boolean): void {
     /* ignore quota */
   }
 }
+
+export const WARDROBE_SPINTA_GREETING =
+  "Tavo AI sekretorė pasiruošusi padėti valdyti tavo spintą.";

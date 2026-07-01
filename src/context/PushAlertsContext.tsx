@@ -110,12 +110,12 @@ export function PushAlertsProvider({
       const q = normalizeQuery(rawQuery);
       if (q.length < 3) return false;
 
-      const perm = await requestNotificationPermission();
-      if (perm !== "granted") return false;
+      if (wishlistQueries.includes(q)) return true;
 
       const next = persistWishlist([...wishlistQueries, q]);
 
-      if (depsRef.current.apiActive && depsRef.current.isAuthenticated) {
+      const perm = await requestNotificationPermission();
+      if (perm === "granted" && depsRef.current.apiActive && depsRef.current.isAuthenticated) {
         await registerWebPush(next);
       }
 

@@ -1531,6 +1531,25 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   border-color: rgba(226, 232, 240, 0.28);
 }
 
+[data-app-theme="dark"] .listing-wizard-overlay [data-form-appearance="light"] select,
+[data-app-theme="dark"] .listing-wizard-overlay [data-form-appearance="light"] input,
+[data-app-theme="dark"] .listing-wizard-overlay [data-form-appearance="light"] textarea,
+body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] select,
+body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] input,
+body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] textarea {
+  color: #0f172a !important;
+  background-color: #ffffff !important;
+  -webkit-text-fill-color: #0f172a !important;
+  caret-color: #0f172a !important;
+  border-color: #cbd5e1 !important;
+}
+
+[data-app-theme="dark"] .listing-wizard-overlay [data-form-appearance="light"] select option,
+body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] select option {
+  color: #0f172a;
+  background-color: #ffffff;
+}
+
 [data-app-theme="dark"] .listing-wizard-overlay input::placeholder,
 [data-app-theme="dark"] .listing-wizard-overlay textarea::placeholder {
   color: #94a3b8;

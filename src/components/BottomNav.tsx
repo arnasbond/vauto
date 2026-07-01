@@ -163,6 +163,14 @@ export function BottomNav() {
     }
     if (isPrivateProfile(user)) {
       e.preventDefault();
+      setSearchQuery("");
+      setSearchLoading(false);
+      clearAgentPinnedListings();
+      resetMarketplaceFilters();
+      clearVisualSearch();
+      setSearchInputMode(null);
+      setSearchVoiceMode(false);
+      dispatchHomeReset();
       activateWardrobeSpinta();
       router.push("/fashion/mine/");
     }

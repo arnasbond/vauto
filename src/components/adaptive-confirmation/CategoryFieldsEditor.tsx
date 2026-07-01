@@ -79,8 +79,33 @@ export function CategoryFieldsEditor({
   const inlineLabelClass =
     appearance === "light" ? "text-xs font-semibold text-slate-800" : "text-xs text-white/40";
 
+  const checklistLabelClass =
+    appearance === "light" ? "mb-2 text-xs font-medium text-slate-700" : "mb-2 text-xs font-medium text-slate-400";
+
+  const checklistWrapperClass =
+    layout === "sheet"
+      ? "p-3"
+      : appearance === "light"
+        ? "w-full rounded-xl border border-slate-200 bg-slate-50 p-3"
+        : "w-full rounded-xl bg-white/5 p-3";
+
+  const chipUncheckedClass =
+    appearance === "light"
+      ? "border border-slate-300 bg-white text-slate-800 hover:bg-slate-100"
+      : "bg-white/10 text-slate-300 hover:bg-white/15";
+
+  const defaultSelectClass =
+    appearance === "light"
+      ? "w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:ring-1 focus:ring-[var(--vauto-primary)]"
+      : "w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-[var(--vauto-teal)]";
+
+  const defaultOptionClass = appearance === "light" ? "text-slate-900" : "bg-slate-800";
+
+  const defaultFieldLabelClass =
+    appearance === "light" ? "mb-1.5 text-xs text-slate-600" : "mb-1.5 text-xs text-slate-400";
+
   return (
-    <div className={wrapperClass}>
+    <div className={wrapperClass} data-form-appearance={appearance}>
       {fields.map((field) => {
         const missing = missingKeys.includes(field.key);
         const value = attributes[field.key];
@@ -165,7 +190,7 @@ export function CategoryFieldsEditor({
                     Metai…
                   </option>
                   {REGISTRATION_YEARS.map((y) => (
-                    <option key={y} value={y} className="bg-slate-800">
+                    <option key={y} value={y} className={appearance === "light" ? "text-slate-900" : "bg-slate-800"}>
                       {y}
                     </option>
                   ))}
@@ -228,17 +253,15 @@ export function CategoryFieldsEditor({
 
         if (field.inputType === "checklist" && field.options) {
           return (
-            <div
-              key={field.key}
-              className={
-                layout === "sheet"
-                  ? "p-3"
-                  : "w-full rounded-xl bg-white/5 p-3"
-              }
-            >
-              <p className="mb-2 text-xs font-medium text-slate-400">
+            <div key={field.key} className={checklistWrapperClass}>
+              <p className={checklistLabelClass}>
                 {field.label}
-                {field.critical && <span className="text-amber-400"> *</span>}
+                {field.critical && (
+                  <span className={appearance === "light" ? "text-amber-600" : "text-amber-400"}>
+                    {" "}
+                    *
+                  </span>
+                )}
               </p>
               <div className="flex flex-wrap gap-2">
                 {field.options.map((opt) => {
@@ -251,7 +274,7 @@ export function CategoryFieldsEditor({
                       className={`rounded-full px-3 py-1.5 text-xs font-medium transition ${
                         checked
                           ? "bg-[var(--vauto-orange)] text-white"
-                          : "bg-white/10 text-slate-300 hover:bg-white/15"
+                          : chipUncheckedClass
                       }`}
                     >
                       {opt}
@@ -272,23 +295,29 @@ export function CategoryFieldsEditor({
                   ? "rounded-full"
                   : layout === "sheet"
                     ? "p-3"
-                    : "rounded-xl bg-white/5 p-3"
+                    : appearance === "light"
+                      ? "rounded-xl border border-slate-200 bg-slate-50 p-3"
+                      : "rounded-xl bg-white/5 p-3"
               }`}
             >
-              <p className="mb-1.5 text-xs text-slate-400">
+              <p className={defaultFieldLabelClass}>
                 {field.label}
-                {missing && <span className="ml-1 text-amber-400">●</span>}
+                {missing && (
+                  <span className={appearance === "light" ? "ml-1 text-amber-600" : "ml-1 text-amber-400"}>
+                    ●
+                  </span>
+                )}
               </p>
               <select
                 value={display}
                 onChange={(e) => onChange(field.key, e.target.value)}
-                className="w-full rounded-lg bg-white/10 px-3 py-2 text-sm text-white outline-none focus:ring-1 focus:ring-[var(--vauto-teal)]"
+                className={defaultSelectClass}
               >
-                <option value="" className="bg-slate-800">
+                <option value="" className={defaultOptionClass}>
                   Pasirinkite…
                 </option>
                 {field.options.map((o) => (
-                  <option key={o} value={o} className="bg-slate-800">
+                  <option key={o} value={o} className={defaultOptionClass}>
                     {o}
                   </option>
                 ))}
