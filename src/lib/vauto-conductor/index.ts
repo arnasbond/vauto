@@ -9,6 +9,7 @@ import type {
   ConductorTextExtractInput,
   ConductorSearchExecuteMeta,
 } from "./types";
+import { conductorAgentActionRequest } from "./agent-actions";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { logAnalytics } from "@/lib/analytics";
 import { conductorRelease, conductorTryAcquire } from "./conductor-busy-gate";
