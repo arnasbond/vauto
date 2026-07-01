@@ -10,16 +10,12 @@ import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
-  applyVisualPhotoSearchToGrid,
-  runPhotoVisionSearch,
 } from "@/lib/photo-vision-search";
+import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import {
   clearPhotoSearchSession,
-  persistPhotoSearchSession,
 } from "@/lib/photo-search-session";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
-import { buildVisualSearchProfile } from "@/lib/visual-search";
-import { formatSearchAlternativeChips } from "@/lib/vision-choice-chips";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -35,10 +31,7 @@ import {
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { subscribeHomeReset } from "@/lib/home-reset";
-import type { ListingCategory } from "@/lib/types";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
-import { notifyAgentFlow } from "@/lib/vauto-agent-client";
-import { buildVisionSearchAgentAction } from "@/lib/vision-agent-bridge";
 import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
@@ -76,12 +69,10 @@ export function AiCommandBar({
   const {
     requestMediaConsent,
     setSearchInputMode,
-    applyVisualSearch,
     clearVisualSearch,
     showToast,
     user,
     chameleonTheme,
-    listings,
     startListingFromQuery,
   } = useVauto();
   const { sellerStep } = useSellerFlow();
@@ -92,7 +83,6 @@ export function AiCommandBar({
     searchLoading,
     setAgentPinnedListings,
     setViewMode,
-    marketplaceFilters,
   } = useVautoSearch();
 
   const pathname = usePathname();
@@ -263,167 +253,20 @@ export function AiCommandBar({
     result: AiPhotoFlowResult
   ): Promise<boolean> => {
     setIsPhotoSearching(true);
-    await persistPhotoSearchSession(
-      { dataUrl: result.photos[0]!, fileName: result.fileName },
-      result.extraContext
-    );
     try {
-      const vision = await runPhotoVisionSearch(result.photos[0]!, {
-        extraContext: result.extraContext || undefined,
+      const handled = await interceptPhotoUploadForIntent(result, {
         userCity: user.city,
         userName: user.name,
         wardrobeOnly: wardrobeSearchOnly,
+        openWithGreeting,
+        showToast,
+        fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
       });
-
-      if (!vision || (!vision.keywords.trim() && !vision.intent.semanticAlternatives?.length)) {
-        showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
-        return false;
-      }
-
-      if (vision.confidence < 0.35 && !vision.intent.semanticAlternatives?.length) {
-        showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
-        return false;
-      }
-
-      const searchChips = vision.intent.choiceChips?.filter(Boolean) ?? [];
-      const sellChips = searchChips.filter((c) => /^parduoti/i.test(c.trim()));
-      if (sellChips.length >= 2) {
-        openWithGreeting(
-          vision.intent.clarificationPrompt ||
-            "Nuotraukoje matau kelis objektus. Ką norite parduoti?",
-          { quickReplies: sellChips }
-        );
+      if (handled) {
         clearPhotoSearchSession();
         setPhotoFlowOpen(false);
         return true;
       }
-      if (searchChips.length >= 2) {
-        openWithGreeting(
-          vision.intent.clarificationPrompt ||
-            "Nuotraukoje matau kelis objektus. Ką norite ieškoti?",
-          { quickReplies: searchChips }
-        );
-        clearPhotoSearchSession();
-        setPhotoFlowOpen(false);
-        return true;
-      }
-
-      if (wardrobeSearchOnly) {
-        const photoUrls = result.photos?.filter(Boolean).slice(0, 6) ?? [];
-        setSearchLoading(true);
-        void sendAgentMessage(
-          "Nufotografavau drabužius — paruošk atskirus skelbimus.",
-          {
-            fromSearchBar: true,
-            pendingImageUrls: photoUrls,
-          }
-        )
-          .then((res) => {
-            if (res.actions) syncGridFromAgentActions(res.actions);
-          })
-          .finally(() => setSearchLoading(false));
-        clearPhotoSearchSession();
-        setPhotoFlowOpen(false);
-        return true;
-      }
-
-      if (result.extraContext?.trim()) {
-        setSearchInputMode("photo");
-        setDraftQuery(result.extraContext.trim());
-        setSearchLoading(true);
-        void sendAgentMessage(result.extraContext.trim(), {
-          fromSearchBar: true,
-          pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6),
-        })
-          .then((res) => {
-            if (res.actions) syncGridFromAgentActions(res.actions);
-          })
-          .finally(() => setSearchLoading(false));
-        clearPhotoSearchSession();
-        setPhotoFlowOpen(false);
-        return true;
-      }
-
-      const grid = applyVisualPhotoSearchToGrid(
-        vision,
-        listings,
-        marketplaceFilters,
-        user.name,
-        wardrobeSearchOnly
-      );
-
-      const itemLabel = vision.title ?? grid.searchQuery;
-      setSearchInputMode("photo");
-
-      if (grid.listingIds.length === 0) {
-        const altChips = formatSearchAlternativeChips(
-          vision.intent.semanticAlternatives ?? []
-        );
-        setDraftQuery(itemLabel);
-        notifyAgentFlow({
-          kind: "photo_search_applied",
-          objectLabel: itemLabel,
-          resultCount: 0,
-        });
-        if (altChips.length >= 2) {
-          openWithGreeting(
-            `Tikslaus „${itemLabel}" neradau. Pabandykime artimiausius variantus:`,
-            { quickReplies: altChips }
-          );
-          showToast("Pasiūliau panašius variantus — pasirinkite žemiau.", "info");
-        } else {
-          void sendAgentMessage(
-            `Nuotraukoje matau: ${itemLabel}. Šio daikto turguje neradau — ar norite jį įdėti pardavimui?`,
-            { pendingImageUrls: result.photos?.filter(Boolean).slice(0, 6) }
-          );
-          showToast(
-            "Tokio skelbimo neradome. Galiu padėti sukurti juodraštį pardavimui.",
-            "info"
-          );
-        }
-        clearPhotoSearchSession();
-        setPhotoFlowOpen(false);
-        return true;
-      }
-
-      const action = buildVisionSearchAgentAction(vision, grid.listingIds, {
-        wardrobeOnly: wardrobeSearchOnly,
-        label: grid.secretaryComment,
-      });
-      syncGridFromAgentActions(action);
-
-      notifyAgentFlow({
-        kind: "photo_search_applied",
-        objectLabel: itemLabel,
-        resultCount: grid.listingIds.length,
-      });
-
-      setDraftQuery(grid.searchQuery);
-      setSearchQuery(grid.searchQuery);
-
-      void applyVisualSearch(
-        buildVisualSearchProfile(
-          {
-            title: vision.title ?? grid.searchQuery,
-            price: 0,
-            location: grid.intent.cityNominative || user.city || "Lietuva",
-            contact: user.phone || "+370 612 34567",
-            category: (vision.category as ListingCategory) ?? "other",
-            confidence: vision.confidence,
-            attributes: grid.intent.searchFilters as Record<string, string>,
-          },
-          "photo",
-          result.photos[0]
-        )
-      );
-
-      showToast(grid.secretaryComment, "success");
-      scrollToResults();
-      clearPhotoSearchSession();
-      setPhotoFlowOpen(false);
-      return true;
-    } catch {
-      showToast(PHOTO_SEARCH_FALLBACK_MESSAGE, "info");
       return false;
     } finally {
       setIsPhotoSearching(false);
@@ -699,7 +542,7 @@ export function AiCommandBar({
 
       <AiPhotoFlowSheet
         open={photoFlowOpen}
-        mode="search"
+        mode="intent"
         busy={isPhotoSearching}
         onClose={() => setPhotoFlowOpen(false)}
         onSubmit={handlePhotoFlowSubmit}

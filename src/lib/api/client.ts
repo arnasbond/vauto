@@ -741,6 +741,35 @@ export async function apiAnalyzeSearchIntent(body: {
   });
 }
 
+export async function apiPhotoIntent(body: {
+  imageDataUrl: string;
+  imageDataUrls?: string[];
+  extraContext?: string;
+  userCity?: string;
+  userName?: string;
+  wardrobeOnly?: boolean;
+}): Promise<{
+  ok: boolean;
+  phase: "intent_resolution" | "multi_object";
+  objectLabel: string;
+  category: string;
+  confidence: number;
+  orderedImageUrls: string[];
+  visualPipeline?: import("@/lib/visual-pipeline-merge").VisualPipelinePayload;
+  visionIntent?: Record<string, unknown>;
+  choiceChips?: string[];
+  clarificationPrompt?: string;
+} | null> {
+  return aiFetch(
+    "/api/ai/photo-intent",
+    {
+      method: "POST",
+      body: JSON.stringify(body),
+    },
+    AI_VISION_FETCH_TIMEOUT_MS
+  );
+}
+
 export async function apiAnalyzeVisualSearchIntent(body: {
   imageDataUrl?: string;
   imageBase64?: string;

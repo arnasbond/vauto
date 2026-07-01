@@ -25,7 +25,7 @@ export interface AiPhotoFlowResult {
 
 interface AiPhotoFlowSheetProps {
   open: boolean;
-  mode: "search" | "listing";
+  mode: "search" | "listing" | "intent";
   prefillPhoto?: CapturedPhoto | null;
   onClose: () => void;
   onSubmit: (result: AiPhotoFlowResult) => boolean | void | Promise<boolean | void>;
@@ -45,7 +45,11 @@ export function AiPhotoFlowSheet({
   const [mounted, setMounted] = useState(false);
 
   const title =
-    mode === "search" ? "Ieškoti pagal nuotrauką" : "Skelbti su AI";
+    mode === "search"
+      ? "Ieškoti pagal nuotrauką"
+      : mode === "listing"
+        ? "Skelbti su AI"
+        : "Vision AI — nuotrauka";
 
   useEffect(() => {
     setMounted(true);
@@ -146,7 +150,11 @@ export function AiPhotoFlowSheet({
   if (!open || !mounted) return null;
 
   const ctaLabel =
-    mode === "search" ? "Ieškoti panašių" : "Sukurti skelbimą";
+    mode === "search"
+      ? "Ieškoti panašių"
+      : mode === "listing"
+        ? "Sukurti skelbimą"
+        : "Tęsti su AI";
 
   const showInlineSourcePickers =
     mode === "search"

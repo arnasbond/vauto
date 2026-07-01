@@ -11,6 +11,8 @@ import {
   type AiPhotoFlowResult,
 } from "@/components/photo/AiPhotoFlowSheet";
 import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCard";
+import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
+import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -25,8 +27,11 @@ export function SellerUploadPanel({
     requestMediaConsent,
     openManualListingWizard,
     requireAuthForListing,
+    user,
+    showToast,
   } = useVauto();
-  const { sendAgentMessage, applyAgentActions, busy: agentBusy } = useVautoAgent();
+  const { sendAgentMessage, applyAgentActions, busy: agentBusy, openWithGreeting } =
+    useVautoAgent();
   const [query, setQuery] = useState("");
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
@@ -79,12 +84,27 @@ export function SellerUploadPanel({
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
     setPhotoSubmitting(true);
     try {
-      await submitSellerContent({
-        imageDataUrls: result.photos,
-        imageDataUrl: result.photos[0],
-        extraContext: result.extraContext || undefined,
-        text: query.trim() || undefined,
-      });
+      const handled = await interceptPhotoUploadForIntent(
+        {
+          ...result,
+          extraContext: [result.extraContext, query.trim()].filter(Boolean).join("\n"),
+        },
+        {
+          userCity: user.city,
+          userName: user.name,
+          openWithGreeting,
+          showToast,
+          fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
+        }
+      );
+      if (!handled) {
+        await submitSellerContent({
+          imageDataUrls: result.photos,
+          imageDataUrl: result.photos[0],
+          extraContext: result.extraContext || undefined,
+          text: query.trim() || undefined,
+        });
+      }
       setQuery("");
       setPhotoFlowOpen(false);
     } finally {
@@ -185,7 +205,7 @@ export function SellerUploadPanel({
 
       <AiPhotoFlowSheet
         open={photoFlowOpen}
-        mode="listing"
+        mode="intent"
         busy={photoSubmitting}
         onClose={() => setPhotoFlowOpen(false)}
         onSubmit={handlePhotoFlowSubmit}

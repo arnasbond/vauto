@@ -33,6 +33,7 @@ import {
   registerAgentPendingImagesHost,
   registerAgentFlowHost,
   notifyWardrobeBulkImportOpened,
+  notifyAgentFlow,
   resolveAccountTypeLabel,
   resolveAgentNoiseReply,
   resolveAgentUserRole,
@@ -66,6 +67,15 @@ import {
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
+import {
+  isPhotoIntentListingChip,
+  isPhotoIntentSearchChip,
+} from "@/lib/photo-intent-resolution";
+import { consumePendingPhotoIntent } from "@/lib/photo-intent-session";
+import {
+  executePhotoIntentListing,
+  executePhotoIntentSearch,
+} from "@/lib/photo-intent-actions";
 import { sanitizeAgentAction } from "@/lib/agent-action-guard";
 import {
   WARDROBE_BULK_IMPORT_CHIPS,
@@ -154,6 +164,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerAnalytics,
     buyerIntentCount,
     startListingFromQuery,
+    applyVisualSearch,
   } = useVauto();
   const {
     aiDraft,
@@ -166,6 +177,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     publishListing,
     revertPhotoCategoryMismatch,
     acceptPhotoCategoryMismatch,
+    submitSellerContent,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -749,6 +761,73 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply };
       }
 
+      if (isPhotoIntentSearchChip(trimmed) || isPhotoIntentListingChip(trimmed)) {
+        const pending = consumePendingPhotoIntent();
+        if (pending) {
+          const wardrobeOnly =
+            pathname === "/fashion" || pathname === "/fashion/";
+          let reply: string;
+          if (isPhotoIntentSearchChip(trimmed)) {
+            reply = await executePhotoIntentSearch(pending, {
+              listings,
+              marketplaceFilters,
+              userName: user.name,
+              userCity: user.city,
+              userPhone: user.phone,
+              wardrobeOnly,
+              applyVisualSearch,
+              syncAgentAction: applyActions,
+              setSearchInputMode,
+              setSearchQuery,
+              scrollToResults: () => {
+                document
+                  .getElementById("listing-results")
+                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
+              },
+              notifyPhotoSearch: (label, count) => {
+                notifyAgentFlow({
+                  kind: "photo_search_applied",
+                  objectLabel: label,
+                  resultCount: count,
+                });
+              },
+              sendAgentMessage: (text, opts) =>
+                sendAgentMessage(text, {
+                  fromSearchBar: true,
+                  pendingImageUrls: opts?.pendingImageUrls,
+                }),
+              openWithGreeting: (text, opts) => {
+                setOpen(true);
+                const quickReplies = opts?.quickReplies?.filter(Boolean).slice(0, 4);
+                setMessages((prev) => [
+                  ...prev,
+                  {
+                    role: "assistant" as const,
+                    text,
+                    ...(quickReplies?.length ? { quickReplies } : {}),
+                  },
+                ].slice(-6));
+              },
+              showToast,
+            });
+            goToMarketplace("agent");
+          } else {
+            reply = await executePhotoIntentListing(pending, {
+              submitSellerContent,
+              showToast,
+            });
+          }
+          setOpen(true);
+          setMessages((prev) => [
+            ...prev,
+            { role: "user", text: trimmed },
+            { role: "assistant", text: reply },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: true, reply };
+        }
+      }
+
       const quickReply = tryHandleAgentQuickReply({
         trimmed,
         user,
@@ -1104,6 +1183,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       trackEvent,
       getBehaviorSnapshot,
       teardownVoiceAfterUiAction,
+      marketplaceFilters,
+      applyVisualSearch,
+      pathname,
+      submitSellerContent,
+      goToMarketplace,
+      setOpen,
+      setMessages,
+      setSearchInputMode,
+      setSearchQuery,
     ]
   );
 
@@ -1140,7 +1228,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       };
       setMessages((prev) => (isolated ? [assistantMsg] : [...prev, assistantMsg].slice(-6)));
     },
-    [setSearchInputMode, setSearchVoiceMode]
+    [setSearchInputMode, setSearchVoiceMode, setOpen]
   );
 
   useEffect(() => {

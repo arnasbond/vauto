@@ -94,6 +94,69 @@ aiRouter.post("/visual-pipeline", async (req, res) => {
   }
 });
 
+aiRouter.post("/photo-intent", async (req, res) => {
+  if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
+
+  const { imageDataUrl, imageDataUrls, extraContext, userCity, userName, wardrobeOnly } =
+    req.body as {
+      imageDataUrl?: string;
+      imageDataUrls?: string[];
+      extraContext?: string;
+      userCity?: string;
+      userName?: string;
+      wardrobeOnly?: boolean;
+    };
+
+  const images = normalizeImageInputList(
+    Array.isArray(imageDataUrls) && imageDataUrls.length
+      ? imageDataUrls
+      : imageDataUrl
+        ? [imageDataUrl]
+        : []
+  );
+
+  if (!images.length) {
+    return res.status(400).json({ error: "imageDataUrl is required" });
+  }
+
+  try {
+    const pipeline = await runVisualPipelineForExtract(images, {
+      listingTitle: extraContext?.trim(),
+    });
+    const visionImages = imagesAfterPipeline(pipeline, images);
+
+    const intent = await analyzeVisualSearchIntent({
+      imageDataUrl: visionImages[0],
+      imageDataUrls: visionImages.length > 1 ? visionImages : undefined,
+      extraContext,
+      userCity,
+      userName,
+      wardrobeOnly: Boolean(wardrobeOnly),
+    });
+
+    const objectLabel = intent.cleanQuery || intent.visualSummary || "objektą";
+    const category = intent.listingCategory ?? "other";
+    const choiceChips = intent.choiceChips ?? [];
+    const phase = choiceChips.length >= 2 ? "multi_object" : "intent_resolution";
+
+    res.json({
+      ok: true,
+      phase,
+      objectLabel,
+      category,
+      confidence: intent.confidence,
+      orderedImageUrls: visionImages,
+      visualPipeline: visualPipelineResponseSlice(pipeline),
+      visionIntent: intent,
+      choiceChips: choiceChips.length ? choiceChips : undefined,
+      clarificationPrompt: intent.clarificationPrompt,
+    });
+  } catch (e) {
+    const message = e instanceof Error ? e.message : String(e);
+    res.status(500).json({ error: message });
+  }
+});
+
 const EXTRACTION_SCHEMA = `{
   "title": "string",
   "price": "number",
