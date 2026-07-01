@@ -26,12 +26,14 @@ export function SocialSyncSettingsCard() {
   return (
     <div className="vauto-dashboard-card rounded-2xl p-4">
       <div className="mb-3 flex items-center gap-2">
-        <Share2 className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h3 className="text-sm font-semibold text-slate-900">Socialinių tinklų sinchronizacija</h3>
+        <Share2 className="h-4 w-4 text-[var(--vauto-primary)]" />
+        <h3 className="text-sm font-semibold text-[var(--vauto-text-main)]">
+          Socialinių tinklų sinchronizacija
+        </h3>
       </div>
-      <p className="text-xs leading-relaxed text-slate-400">
+      <p className="text-xs leading-relaxed text-[var(--vauto-text-muted)]">
         Papildoma reklama jūsų prekei ar paslaugai — dalinkitės Vauto skelbimu ten, kur jau
-        esate įpratę reklamuotis. Tai kelia ir pačios platformos žinomumą.
+        esate įpratę reklamuotis.
       </p>
 
       <div className="mt-4 space-y-3">
@@ -52,19 +54,23 @@ export function SocialSyncSettingsCard() {
 
       {prefs.enabled && (
         <div className="mt-4">
-          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-slate-500">
+          <p className="mb-2 text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
             Tinklai papildomai reklamai
           </p>
           <div className="space-y-2">
             {SOCIAL_PLATFORMS.map((platform) => (
               <div
                 key={platform.id}
-                className="flex items-center justify-between rounded-xl bg-white px-3 py-2.5"
+                className="vauto-settings-row flex items-center justify-between rounded-xl px-3 py-2.5"
               >
                 <div>
-                  <span className="text-xs text-slate-600">{platform.label}</span>
+                  <span className="text-xs text-[var(--vauto-text-main)]">
+                    {platform.label}
+                  </span>
                   {platform.hint && (
-                    <p className="mt-0.5 text-[10px] text-slate-500">{platform.hint}</p>
+                    <p className="mt-0.5 text-[10px] text-[var(--vauto-text-muted)]">
+                      {platform.hint}
+                    </p>
                   )}
                 </div>
                 <button
@@ -72,12 +78,14 @@ export function SocialSyncSettingsCard() {
                   disabled={!prefs.enabled}
                   onClick={() => persist(toggleNetwork(prefs, platform.id))}
                   className={`relative h-7 w-12 rounded-full transition ${
-                    prefs.networks[platform.id] ? "bg-[var(--vauto-teal)]" : "bg-slate-600"
+                    prefs.networks[platform.id]
+                      ? "bg-[var(--vauto-primary)]"
+                      : "bg-[var(--vauto-border)]"
                   } ${!prefs.enabled ? "opacity-40" : ""}`}
                   aria-label={`${platform.label} ${prefs.networks[platform.id] ? "įjungta" : "išjungta"}`}
                 >
                   <span
-                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
+                    className={`absolute top-0.5 h-6 w-6 rounded-full bg-[var(--vauto-card-bg)] shadow transition ${
                       prefs.networks[platform.id] ? "left-5" : "left-0.5"
                     }`}
                   />
@@ -88,9 +96,9 @@ export function SocialSyncSettingsCard() {
         </div>
       )}
 
-      <p className="mt-3 text-[10px] text-slate-500">
-        Fiksuotos kainos — dalijimasis nemokamas. Tinklų API prijungimas (automatinis postas)
-        bus pridėtas vėliau; dabar naudojame saugius dalijimosi langus ir nuorodų kopijavimą.
+      <p className="mt-3 text-[10px] text-[var(--vauto-text-muted)]">
+        Fiksuotos kainos — dalijimasis nemokamas. Tinklų API prijungimas bus pridėtas vėliau;
+        dabar naudojame saugius dalijimosi langus ir nuorodų kopijavimą.
       </p>
     </div>
   );
@@ -111,24 +119,26 @@ function ToggleRow({
 }) {
   return (
     <div
-      className={`flex items-center justify-between rounded-xl bg-white px-3 py-2.5 ${
+      className={`vauto-settings-row flex items-center justify-between rounded-xl px-3 py-2.5 ${
         disabled ? "opacity-50" : ""
       }`}
     >
       <div>
-        <span className="text-xs text-slate-600">{label}</span>
-        {hint && <p className="mt-0.5 text-[10px] text-slate-500">{hint}</p>}
+        <span className="text-xs text-[var(--vauto-text-main)]">{label}</span>
+        {hint && (
+          <p className="mt-0.5 text-[10px] text-[var(--vauto-text-muted)]">{hint}</p>
+        )}
       </div>
       <button
         type="button"
         disabled={disabled}
         onClick={() => onChange(!on)}
         className={`relative h-7 w-12 rounded-full transition ${
-          on ? "bg-[var(--vauto-teal)]" : "bg-slate-600"
+          on ? "bg-[var(--vauto-primary)]" : "bg-[var(--vauto-border)]"
         }`}
       >
         <span
-          className={`absolute top-0.5 h-6 w-6 rounded-full bg-white shadow transition ${
+          className={`absolute top-0.5 h-6 w-6 rounded-full bg-[var(--vauto-card-bg)] shadow transition ${
             on ? "left-5" : "left-0.5"
           }`}
         />

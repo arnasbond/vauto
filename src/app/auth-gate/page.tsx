@@ -33,7 +33,7 @@ export default function AuthGatePage() {
 
   if (!authHydrated) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-slate-400">
+      <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-[var(--vauto-text-muted)]">
         Kraunama…
       </div>
     );
@@ -41,7 +41,7 @@ export default function AuthGatePage() {
 
   if (isAuthenticated && !needsProfileTypeSelection(user)) {
     return (
-      <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-slate-400">
+      <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-[var(--vauto-text-muted)]">
         Nukreipiama…
       </div>
     );
@@ -75,7 +75,7 @@ export default function AuthGatePage() {
           Registruotis / Prisijungti
         </button>
 
-        <p className="mt-4 text-center text-xs leading-relaxed text-slate-400">
+        <p className="mt-4 text-center text-xs leading-relaxed text-[var(--vauto-text-muted)]">
           Auto, NT, paslaugos, prekyba ir asmeniniai daiktai — viena paskyra, visi portalai.
         </p>
 

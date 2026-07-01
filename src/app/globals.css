@@ -464,9 +464,28 @@ body.vauto-audio-first .vauto-dashboard-card {
 }
 
 .vauto-auth-modal {
-  background:
-    radial-gradient(ellipse 80% 60% at 50% 0%, rgba(0, 212, 170, 0.18), transparent 55%),
-    linear-gradient(160deg, var(--flux-bg) 0%, #111827 50%, var(--flux-bg) 100%);
+  background: var(--vauto-card-bg, #ffffff);
+  border: 1px solid var(--vauto-border, #e2e8f0);
+  color: var(--vauto-text-main, #0f172a);
+  box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18);
+}
+
+.vauto-settings-row {
+  background: var(--vauto-surface-muted, #f8fafc);
+  border: 1px solid var(--vauto-border, #e2e8f0);
+  color: var(--vauto-text-main, #0f172a);
+}
+
+.vauto-alert-warning {
+  border: 1px solid color-mix(in srgb, #f59e0b 35%, var(--vauto-border));
+  background: color-mix(in srgb, #f59e0b 12%, var(--vauto-card-bg));
+  color: var(--vauto-text-main);
+}
+
+.vauto-qa-test-banner {
+  border: 1px solid color-mix(in srgb, var(--vauto-primary) 40%, var(--vauto-border));
+  background: color-mix(in srgb, var(--vauto-primary) 10%, var(--vauto-card-bg));
+  color: var(--vauto-text-main);
 }
 
 .vauto-light-modal {

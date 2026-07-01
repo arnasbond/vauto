@@ -18,16 +18,16 @@ export function AppVersionStatusCard() {
 
   if (status === "error") {
     return (
-      <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2.5 text-center">
-        <p className="flex items-center justify-center gap-1.5 text-xs font-medium text-amber-200">
-          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+      <div className="vauto-alert-warning rounded-xl px-3 py-2.5 text-center">
+        <p className="flex items-center justify-center gap-1.5 text-xs font-medium">
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0 text-amber-600" />
           Versijos patikra nepavyko
         </p>
-        <p className="mt-1 text-[10px] text-amber-200/80">{error}</p>
+        <p className="mt-1 text-[10px] text-[var(--vauto-text-muted)]">{error}</p>
         <button
           type="button"
           onClick={() => void refresh()}
-          className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-100 underline"
+          className="mt-2 inline-flex items-center gap-1 text-[10px] font-semibold text-[var(--vauto-primary)] underline"
         >
           <RefreshCw className="h-3 w-3" />
           Bandyti dar kartą
@@ -50,12 +50,12 @@ export function AppVersionStatusCard() {
       <p
         className={cn(
           "flex items-center justify-center gap-1.5 py-3 text-center text-xs",
-          "text-emerald-300/90"
+          "text-emerald-600"
         )}
       >
         <CheckCircle2 className="h-3.5 w-3.5 shrink-0" />
         Aplikacija atitinka Web (v{remote.latestVersion}) — versija naujausia
-        <span className="text-[10px] text-slate-500">
+        <span className="text-[10px] text-[var(--vauto-text-muted)]">
           · APK {local.versionName} ({local.versionCode})
         </span>
       </p>
@@ -64,7 +64,7 @@ export function AppVersionStatusCard() {
 
   if (status === "outdated_minor" && remote && local) {
     return (
-      <p className="py-2 text-center text-xs text-sky-300">
+      <p className="py-2 text-center text-xs text-sky-600">
         Web atnaujinta (v{remote.latestVersion}). Patraukite ekraną žemyn, kad sinchronizuotumėte
         APK turinį — {local.versionName} ({local.versionCode})
       </p>
@@ -73,7 +73,7 @@ export function AppVersionStatusCard() {
 
   if (status === "outdated_major" && remote && local) {
     return (
-      <p className="py-2 text-center text-xs text-fuchsia-300">
+      <p className="py-2 text-center text-xs text-fuchsia-600">
         Reikalingas svarbus APK atnaujinimas: {local.versionName} ({local.versionCode}) → v
         {remote.latestVersion} ({remote.versionCode})
       </p>

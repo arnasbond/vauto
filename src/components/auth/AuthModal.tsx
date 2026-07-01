@@ -14,6 +14,11 @@ import { isAppleAuthConfigured } from "@/lib/auth/apple-client";
 import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
 import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
+import {
+  isQaTestModeActive,
+  qaTestCredentialsSummary,
+  QA_DEMO_OTP,
+} from "@/lib/qa-test-mode";
 
 type AuthStep = "methods" | "phone" | "otp" | "admin";
 
@@ -70,6 +75,9 @@ function GoogleIcon() {
   );
 }
 
+const inputClass =
+  "w-full rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-4 py-3.5 text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20";
+
 export function AuthModal({
   open,
   loading = false,
@@ -93,6 +101,7 @@ export function AuthModal({
   );
   const [smsCooldown, setSmsCooldown] = useState(0);
   const googleBtnRef = useRef<HTMLDivElement>(null);
+  const showQaBanner = isQaTestModeActive();
 
   const resetAuthForm = () => {
     setStep(AUTH_FORM_INITIAL.step);
@@ -125,7 +134,6 @@ export function AuthModal({
   useEffect(() => {
     if (!open || step !== "methods" || !googleBtnRef.current) return;
     if (!isGoogleAuthConfigured()) return;
-    // Google GSI iframe inside WebView crashes Samsung/Android renderer — phone auth only.
     if (isNativeAuthEnvironment()) return;
     void import("@/lib/auth/google-client").then(({ renderGoogleButton }) => {
       if (!googleBtnRef.current) return;
@@ -173,10 +181,6 @@ export function AuthModal({
       return;
     }
     if (isGoogleAuthConfigured()) {
-      if (isNativeAuthEnvironment()) {
-        googleBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "center" });
-        return;
-      }
       const token = await requestGoogleIdToken();
       if (token) {
         onComplete({ provider: "google", role: "private", idToken: token, signupIntent });
@@ -226,10 +230,8 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-end justify-center bg-black/75 backdrop-blur-sm sm:items-center"
-      onClick={(e) => {
-        e.stopPropagation();
-      }}
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center"
+      onClick={(e) => e.stopPropagation()}
     >
       <div
         className="vauto-auth-modal w-full max-w-md rounded-t-3xl p-6 shadow-2xl sm:rounded-3xl"
@@ -237,8 +239,10 @@ export function AuthModal({
       >
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h2 className="text-xl font-bold text-white">Prisijungti prie Vauto</h2>
-            <p className="mt-1 text-sm text-teal-200/70">
+            <h2 className="text-xl font-bold text-[var(--vauto-text-heading)]">
+              Prisijungti prie Vauto
+            </h2>
+            <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
               {step === "methods" && "Saugus prisijungimas per 30 sek."}
               {step === "phone" && "Įveskite telefono numerį"}
               {step === "otp" && "Patvirtinkite SMS kodą"}
@@ -248,23 +252,29 @@ export function AuthModal({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-full p-2 text-slate-400 hover:bg-white/10"
+            className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
             aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
           </button>
         </div>
 
+        {showQaBanner && (
+          <div className="vauto-qa-test-banner mb-4 rounded-xl px-3 py-2.5 text-xs font-medium leading-relaxed">
+            {qaTestCredentialsSummary()}
+          </div>
+        )}
+
         {displayError && (
-          <p className="mb-4 rounded-xl bg-red-500/15 px-3 py-2 text-sm text-red-200">
+          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
             {displayError}
           </p>
         )}
 
         {step === "methods" && (
           <div className="space-y-3">
-            <div className="rounded-2xl bg-white/5 p-1 ring-1 ring-white/10">
-              <p className="px-3 pb-2 pt-2 text-[11px] font-medium uppercase tracking-wide text-slate-400">
+            <div className="rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] p-1">
+              <p className="px-3 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-text-main)]">
                 Paskyros tipas
               </p>
               <div className="grid grid-cols-3 gap-1">
@@ -283,8 +293,8 @@ export function AuthModal({
                       signupIntent === key
                         ? key === "wardrobe"
                           ? "bg-fuchsia-600 text-white shadow-sm"
-                          : "bg-[var(--vauto-teal)] text-white shadow-sm"
-                        : "text-slate-400 hover:bg-white/5 hover:text-white"
+                          : "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast,#fff)] shadow-sm"
+                        : "text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-card-bg)] hover:text-[var(--vauto-text-main)]"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -293,33 +303,35 @@ export function AuthModal({
                 ))}
               </div>
             </div>
+
             <button
               type="button"
               onClick={() => void handleGoogle()}
-              disabled={
-                loading || (isAuthApiAvailable() && !isGoogleAuthConfigured())
-              }
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-white py-3.5 text-sm font-semibold text-gray-800 transition hover:bg-gray-100 disabled:cursor-not-allowed disabled:opacity-50"
+              disabled={loading || (isAuthApiAvailable() && !isGoogleAuthConfigured())}
+              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] py-3.5 text-sm font-semibold text-[var(--vauto-text-main)] transition hover:bg-[var(--vauto-surface-muted)] disabled:cursor-not-allowed disabled:opacity-50"
             >
               <GoogleIcon />
               Prisijungti su Google
             </button>
+
             {isAuthApiAvailable() && !isGoogleAuthConfigured() && (
-              <p className="text-center text-[10px] text-slate-500">
-                Google OAuth — įjunkite{" "}
-                <span className="font-mono text-slate-400">googleClientId</span>{" "}
-                runtime-config arba Vercel env.
+              <p className="text-center text-[10px] text-[var(--vauto-text-muted)]">
+                Google prisijungimas netrukus — naudokite telefono numerį.
               </p>
             )}
+
             {isGoogleAuthConfigured() && !isNativeAuthEnvironment() && (
               <div ref={googleBtnRef} className="flex justify-center" />
             )}
+
             {isNativeAuthEnvironment() && (
-              <p className="text-center text-[11px] leading-relaxed text-slate-400">
-                Google prisijungimas programėlėje laikinai išjungtas dėl Android saugumo.
-                Naudokite <span className="text-[var(--vauto-teal)]">telefono numerį</span> žemiau.
+              <p className="text-center text-[11px] leading-relaxed text-[var(--vauto-text-muted)]">
+                Google prisijungimas programėlėje laikinai išjungtas. Naudokite{" "}
+                <span className="font-medium text-[var(--vauto-primary)]">telefono numerį</span>{" "}
+                žemiau.
               </p>
             )}
+
             {isAppleAuthConfigured() ? (
               <button
                 type="button"
@@ -328,7 +340,7 @@ export function AuthModal({
                   onComplete({ provider: "apple", role: "private", signupIntent });
                 }}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-black py-3.5 text-sm font-semibold text-white ring-1 ring-white/20 transition hover:bg-gray-900 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
               >
                 <Apple className="h-5 w-5" />
                 Prisijungti su Apple
@@ -337,35 +349,40 @@ export function AuthModal({
               <button
                 type="button"
                 disabled
-                className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl bg-black/40 py-3.5 text-sm font-semibold text-white/50 ring-1 ring-white/10"
+                className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] py-3.5 text-sm font-semibold text-[var(--vauto-text-muted)]"
               >
                 <Apple className="h-5 w-5" />
                 Apple (netrukus)
               </button>
             )}
+
             <button
               type="button"
               onClick={() => setStep("phone")}
               disabled={loading}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--vauto-teal)]/20 py-3.5 text-sm font-semibold text-[var(--vauto-teal)] ring-1 ring-[var(--vauto-teal)]/40 transition hover:bg-[var(--vauto-teal)]/30 disabled:opacity-60"
+              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] transition hover:opacity-95 disabled:opacity-60"
             >
               <Phone className="h-5 w-5" />
               Prisijungti su telefonu
             </button>
+
             {isAuthApiAvailable() ? (
-              <p className="pt-2 text-center text-xs text-slate-500">
+              <p className="pt-2 text-center text-xs text-[var(--vauto-text-muted)]">
                 OTP kodas siunčiamas per Vauto serverį
               </p>
             ) : (
-              <p className="pt-2 text-center text-xs text-slate-500">
+              <p className="pt-2 text-center text-xs text-[var(--vauto-text-muted)]">
                 Demo režimas: kodas{" "}
-                <span className="font-mono text-teal-400">123456</span>
+                <span className="font-mono font-semibold text-[var(--vauto-primary)]">
+                  {QA_DEMO_OTP}
+                </span>
               </p>
             )}
+
             <button
               type="button"
               onClick={() => setStep("admin")}
-              className="flex w-full items-center justify-center gap-2 pt-1 text-xs text-slate-500 hover:text-red-400"
+              className="flex w-full items-center justify-center gap-2 pt-1 text-xs text-[var(--vauto-text-muted)] hover:text-red-600"
             >
               <Shield className="h-3.5 w-3.5" />
               Vauto Control Center (admin)
@@ -381,7 +398,7 @@ export function AuthModal({
               autoComplete="username"
               value={adminEmail}
               onChange={(e) => setAdminEmail(e.target.value)}
-              className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-red-400"
+              className={inputClass}
               placeholder="admin@vauto.com"
             />
             {isGoogleAuthConfigured() ? (
@@ -408,11 +425,16 @@ export function AuthModal({
               </button>
             ) : (
               <>
-                <p className="text-xs text-slate-400">
+                <p className="text-xs text-[var(--vauto-text-muted)]">
                   Google OAuth neaktyvus — naudokite admin telefoną{" "}
-                  <span className="font-mono text-teal-300">{ADMIN_PHONE}</span>{" "}
+                  <span className="font-mono font-semibold text-[var(--vauto-text-main)]">
+                    {ADMIN_PHONE}
+                  </span>{" "}
                   ir demo OTP{" "}
-                  <span className="font-mono text-teal-300">123456</span>.
+                  <span className="font-mono font-semibold text-[var(--vauto-text-main)]">
+                    {QA_DEMO_OTP}
+                  </span>
+                  .
                 </p>
                 <button
                   type="button"
@@ -432,7 +454,7 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => setStep("methods")}
-              className="w-full text-center text-xs text-slate-500"
+              className="w-full text-center text-xs text-[var(--vauto-text-muted)]"
             >
               Grįžti
             </button>
@@ -447,14 +469,14 @@ export function AuthModal({
               autoComplete="off"
               value={phone}
               onChange={(e) => setPhone(formatLtPhoneInput(e.target.value))}
-              className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-teal)]"
+              className={inputClass}
               placeholder="+370 600 00000"
             />
             <button
               type="button"
               onClick={() => void sendOtp()}
               disabled={otpSending || smsCooldown > 0}
-              className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="w-full rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
             >
               {otpSending
                 ? "Siunčiama…"
@@ -465,7 +487,7 @@ export function AuthModal({
             <button
               type="button"
               onClick={() => setStep("methods")}
-              className="w-full text-center text-xs text-slate-500"
+              className="w-full text-center text-xs text-[var(--vauto-text-muted)]"
             >
               Grįžti
             </button>
@@ -482,7 +504,7 @@ export function AuthModal({
               maxLength={6}
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              className="w-full rounded-2xl bg-white/10 px-4 py-3.5 text-center font-mono text-2xl tracking-[0.4em] text-white outline-none ring-1 ring-white/10 focus:ring-[var(--vauto-teal)]"
+              className={`${inputClass} text-center font-mono text-2xl tracking-[0.4em]`}
               placeholder="••••••"
             />
             <button
@@ -493,14 +515,14 @@ export function AuthModal({
                 verifyOtp();
               }}
               disabled={loading}
-              className="w-full rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white disabled:opacity-60"
+              className="w-full rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
             >
               {loading ? "Jungiamasi…" : "Patvirtinti ir prisijungti"}
             </button>
             <button
               type="button"
               onClick={() => setStep("phone")}
-              className="w-full text-center text-xs text-slate-500"
+              className="w-full text-center text-xs text-[var(--vauto-text-muted)]"
             >
               Grįžti
             </button>

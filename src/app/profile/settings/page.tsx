@@ -17,7 +17,6 @@ import {
 } from "@/components/privacy/PrivacySettingsCard";
 import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
 import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
-import { WakeWordSettingsCard } from "@/components/voice/WakeWordSettingsCard";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { AppVersionStatusCard } from "@/components/version/AppVersionStatusCard";
 import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
@@ -72,7 +71,6 @@ export default function ProfileSettingsPage() {
 
         <div className="space-y-3">
           <ThemeSettingsCard embedded />
-          <WakeWordSettingsCard />
           <PrivacySettingsCard />
           <SocialSyncSettingsCard />
           <PushAlertsSettingsCard />
