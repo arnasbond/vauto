@@ -35,6 +35,9 @@ jobs:
       - name: Server validation smoke
         run: node scripts/validation-smoke.mjs
 
+      - name: Conductor kill-switch drill
+        run: node scripts/conductor-kill-switch-drill.mjs
+
       - name: Catalog audit
         run: npm run audit:catalog
 

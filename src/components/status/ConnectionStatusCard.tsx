@@ -7,6 +7,7 @@ import {
   apiFetchHealthDetails,
   type ApiHealthDetails,
 } from "@/lib/api/client";
+import { initConductorConfig, isConductorEnabled } from "@/lib/vauto-conductor";
 
 const FEATURE_LABELS: Record<string, string> = {
   sms: "SMS OTP",
@@ -31,6 +32,11 @@ const FEATURE_LABELS: Record<string, string> = {
 export function ConnectionStatusCard() {
   const { apiActive } = useVauto();
   const [health, setHealth] = useState<ApiHealthDetails | null>(null);
+  const [conductorOn, setConductorOn] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void initConductorConfig().then(() => setConductorOn(isConductorEnabled()));
+  }, []);
 
   useEffect(() => {
     if (!apiActive) {
@@ -70,6 +76,16 @@ export function ConnectionStatusCard() {
             {live
               ? "Duomenys sinchronizuojami su serveriu"
               : "Duomenys saugomi šiame įrenginyje"}
+            {conductorOn !== null && (
+              <span
+                className={`ml-1 font-medium ${
+                  conductorOn ? "text-indigo-400" : "text-amber-500"
+                }`}
+                data-testid="conductor-status"
+              >
+                · AI Dirigentas {conductorOn ? "įjungtas" : "išjungtas"}
+              </span>
+            )}
             {health?.readiness && live && (
               <span className="ml-1 font-medium text-emerald-500">
                 · {health.readiness.score}/100

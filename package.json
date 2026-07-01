@@ -1,6 +1,6 @@
 {
   "name": "vauto",
-  "version": "1.6.48",
+  "version": "1.6.49",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -35,6 +35,8 @@
     "verify:health": "node scripts/verify-health.mjs",
     "validate:catalogs": "node scripts/validate-catalogs.mjs",
     "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness",
+    "verify:production-soak": "node scripts/verify-production-soak.mjs",
+    "drill:conductor-kill-switch": "node scripts/conductor-kill-switch-drill.mjs",
     "sync:runtime-config": "node scripts/write-runtime-config.mjs",
     "test:api-smoke": "node scripts/api-listing-smoke.mjs",
     "test:api-integration": "node scripts/verify-health.mjs && node scripts/api-listing-smoke.mjs",

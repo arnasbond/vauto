@@ -1,0 +1,31 @@
+name: Conductor production soak
+
+on:
+  schedule:
+    # Daily 08:00 UTC during 7-day soak window (Etapas D)
+    - cron: "0 8 * * *"
+  workflow_dispatch:
+    inputs:
+      expect_conductor_enabled:
+        description: "Expect conductorEnabled in runtime-config (true/false)"
+        required: false
+        default: "true"
+
+jobs:
+  soak:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Production soak probe
+        run: node scripts/verify-production-soak.mjs
+        env:
+          VAUTO_PROD_URL: https://vauto-chi.vercel.app
+          EXPECT_CONDUCTOR_ENABLED: ${{ github.event.inputs.expect_conductor_enabled || 'true' }}
+
+      - name: Kill-switch drill (config writer only)
+        run: node scripts/conductor-kill-switch-drill.mjs
