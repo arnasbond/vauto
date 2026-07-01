@@ -70,3 +70,11 @@ export function resolveConductorRequiresReviewFromLineage(
   const hasManual = lineage.sources.includes("manual");
   return hasAutomated && !hasManual;
 }
+
+export function resolveConductorRequiresReviewForListing(listing: {
+  requiresReview?: boolean;
+  attributes?: Record<string, string | string[] | undefined>;
+}): boolean {
+  if (listing.requiresReview) return true;
+  return resolveConductorRequiresReviewFromLineage(readConductorLineage(listing.attributes));
+}

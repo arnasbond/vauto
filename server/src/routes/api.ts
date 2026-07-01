@@ -82,8 +82,7 @@ import { moderateListingInput } from "../lib/listing-moderation.js";
 import { scheduleListingAiModeration } from "../lib/listing-ai-moderation.js";
 import {
   logConductorPublishLineage,
-  readConductorLineage,
-  resolveConductorRequiresReviewFromLineage,
+  resolveConductorRequiresReviewForListing,
 } from "../lib/conductor-publish.js";
 import {
   notifyNegotiationDealClosed,
@@ -402,8 +401,7 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
       res.status(422).json({ error: moderation.reason ?? "Skelbimas atmestas moderacijos." });
       return;
     }
-    const lineage = readConductorLineage(listing.attributes);
-    if (!listing.requiresReview && resolveConductorRequiresReviewFromLineage(lineage)) {
+    if (resolveConductorRequiresReviewForListing(listing)) {
       listing = { ...listing, requiresReview: true };
     }
     const clientDraftId =
@@ -478,12 +476,37 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
       }
     }
 
+    let patchValue = parsed.value;
+    let existingForReview: Awaited<ReturnType<typeof getListingForEmbedding>> = null;
+    if (patchValue.attributes !== undefined) {
+      existingForReview = await getListingForEmbedding(req.params.id);
+      if (existingForReview && existingForReview.sellerId === sellerId) {
+        const mergedAttributes = {
+          ...existingForReview.attributes,
+          ...patchValue.attributes,
+        };
+        patchValue = { ...patchValue, attributes: mergedAttributes };
+        if (resolveConductorRequiresReviewForListing({
+          requiresReview: existingForReview.requiresReview,
+          attributes: mergedAttributes,
+        }) && !existingForReview.requiresReview) {
+          patchValue = { ...patchValue, requiresReview: true };
+        }
+      }
+    }
+
     const listing = await updateListing(
       req.params.id,
       sellerId,
-      parsed.value
+      patchValue
     );
     if (!listing) return res.status(404).json({ error: "Not found" });
+    if (patchValue.attributes) {
+      logConductorPublishLineage(listing);
+    }
+    if (listing.requiresReview && existingForReview && !existingForReview.requiresReview) {
+      void notifySellerListingPendingReview(listing).catch(() => {});
+    }
     res.json(listing);
   } catch (e) {
     res.status(500).json({ error: String(e) });

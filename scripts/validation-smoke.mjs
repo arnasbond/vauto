@@ -2,7 +2,7 @@
 /** Smoke tests for compiled server validation + VIN utils (no DB). */
 import { validateAmount, validateListingPatch, validateServiceLeadCreate } from "../server/dist/validation.js";
 import { moderateListingInput } from "../server/dist/lib/listing-moderation.js";
-import { readConductorLineage, resolveConductorRequiresReviewFromLineage } from "../server/dist/lib/conductor-publish.js";
+import { readConductorLineage, resolveConductorRequiresReviewFromLineage, resolveConductorRequiresReviewForListing } from "../server/dist/lib/conductor-publish.js";
 import { runListingAiModeration } from "../server/dist/lib/listing-ai-moderation.js";
 import { PUBLIC_LISTING_VISIBILITY_SQL } from "../server/dist/repository.js";
 import { isValidVin, normalizeVin } from "../server/dist/vehicle/vin-utils.js";
@@ -65,6 +65,21 @@ assert(
 assert(
   !resolveConductorRequiresReviewFromLineage({ sources: ["agent", "manual"], mergedAt: null }),
   "manual override skips review"
+);
+
+assert(
+  resolveConductorRequiresReviewForListing({
+    requiresReview: false,
+    attributes: { conductorSources: "vehicle,seller" },
+  }),
+  "listing helper flags automated lineage for review"
+);
+assert(
+  resolveConductorRequiresReviewForListing({
+    requiresReview: true,
+    attributes: { conductorSources: "barcode" },
+  }),
+  "already requires review stays true"
 );
 
 assert(

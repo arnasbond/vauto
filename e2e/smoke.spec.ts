@@ -191,12 +191,13 @@ test.describe("Vauto smoke", () => {
   test("search submit on home runs state-driven search", async ({ page }) => {
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
-    await search.fill("bmw kaunas");
+    await search.fill("bmw");
     await search.press("Enter");
     const results = listingResults(page);
-    await expect(results.getByText(/bmw kaunas.*rezultat/i)).toBeVisible({
+    await expect(results.getByText(/bmw.*rezultat/i)).toBeVisible({
       timeout: 15_000,
     });
+    await expect(results.getByText(/0 rezultat/i)).not.toBeVisible();
   });
 
   test("voice-style view mode switches to map", async ({ page }) => {
