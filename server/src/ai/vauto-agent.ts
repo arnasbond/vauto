@@ -23,6 +23,7 @@ import {
   fetchWithTimeout,
   isAbortError,
 } from "./agent-errors.js";
+import { GEMINI_AGENT_TIMEOUT_MS } from "../lib/ai-timeout-policy.js";
 import {
   buildPageContextInjectionBlock,
   buildSessionExpiredInjectionBlock,
@@ -213,7 +214,6 @@ function isGenericEmptySearchReply(text: string): boolean {
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 const MAX_TOOL_ROUNDS = 5;
-const GEMINI_AGENT_TIMEOUT_MS = 28_000;
 
 type GeminiPart =
   | { text: string }

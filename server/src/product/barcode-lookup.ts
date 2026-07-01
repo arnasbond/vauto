@@ -6,6 +6,7 @@ import {
   normalizeBarcode,
 } from "./barcode-utils.js";
 import type { BarcodeLookupResult } from "./product-lookup-types.js";
+import { BARCODE_LOOKUP_BUDGET_MS } from "../lib/ai-timeout-policy.js";
 
 export type { BarcodeLookupResult } from "./product-lookup-types.js";
 
@@ -275,12 +276,11 @@ function buildUnregistered(barcode: string): BarcodeLookupResult {
 }
 
 export async function lookupBarcodeLive(barcode: string): Promise<BarcodeLookupResult> {
-  const LOOKUP_BUDGET_MS = 5_000;
   const chain = lookupBarcodeLiveChain(barcode);
   return Promise.race([
     chain,
     new Promise<BarcodeLookupResult>((resolve) => {
-      setTimeout(() => resolve(buildUnregistered(barcode)), LOOKUP_BUDGET_MS);
+      setTimeout(() => resolve(buildUnregistered(barcode)), BARCODE_LOOKUP_BUDGET_MS);
     }),
   ]);
 }

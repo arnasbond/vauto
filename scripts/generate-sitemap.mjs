@@ -102,3 +102,15 @@ writeFileSync(badgePath, badge, "utf8");
 console.log(
   `Wrote web build badge v${versionConfig.latestVersion} (code ${versionConfig.versionCode})`
 );
+
+const gradlePath = join(root, "android/app/build.gradle");
+let gradle = readFileSync(gradlePath, "utf8");
+const nextGradle = gradle
+  .replace(/versionCode \d+/, `versionCode ${versionConfig.versionCode}`)
+  .replace(/versionName "[^"]+"/, `versionName "${versionConfig.latestVersion}"`);
+if (nextGradle !== gradle) {
+  writeFileSync(gradlePath, nextGradle, "utf8");
+  console.log(
+    `Synced android/app/build.gradle → v${versionConfig.latestVersion} (code ${versionConfig.versionCode})`
+  );
+}

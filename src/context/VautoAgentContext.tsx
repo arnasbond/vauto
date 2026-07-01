@@ -7,6 +7,7 @@ import {
   useContext,
   useEffect,
   useMemo,
+  useRef,
   useState,
   type ReactNode,
 } from "react";
@@ -52,6 +53,11 @@ import {
   resolveSmartBoostPrice,
 } from "@/lib/monetization-engine";
 import { persistPendingZeroUiScreen } from "@/lib/zero-ui-pending";
+import {
+  AGENT_BUSY_MESSAGE,
+  AGENT_QUEUE_FULL_MESSAGE,
+  createAgentBusyGate,
+} from "@/lib/agent-busy-gate";
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import {
   filtersFromSearchAction,
@@ -253,6 +259,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [agentGreeting]);
 
   const [busy, setBusy] = useState(false);
+  const busyGateRef = useRef<ReturnType<typeof createAgentBusyGate> | null>(null);
+  if (!busyGateRef.current) {
+    busyGateRef.current = createAgentBusyGate(setBusy);
+  }
+  const busyGate = busyGateRef.current;
+  const sendAgentMessageRef = useRef<
+    (text: string, options?: AgentSendOptions) => Promise<WakeWordAgentResult>
+  >(() => Promise.resolve({ ok: false, error: "Agentas dar neinicializuotas" }));
   const [sessionPendingImageUrls, setSessionPendingImageUrls] = useState<string[]>([]);
   const [lastBargainingOffer, setLastBargainingOffer] =
     useState<AgentBargainingOffer | null>(null);
@@ -745,8 +759,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     ): Promise<WakeWordAgentResult> => {
       const trimmed = text.trim();
       if (!trimmed) return { ok: false, error: "Tuščia užklausa" };
-      if (busy && !options?.skipBusyCheck) {
-        return { ok: false, error: "AI agentas užimtas — bandykite po akimirkos" };
+
+      const drainAgentQueue = () => {
+        const next = busyGate.drainNext();
+        if (next) {
+          void sendAgentMessageRef.current(next.text, next.options).then(next.resolve);
+        }
+      };
+
+      if (!options?.skipBusyCheck && busyGate.locked) {
+        return await new Promise<WakeWordAgentResult>((resolve) => {
+          const status = busyGate.enqueue(trimmed, options, resolve);
+          if (status === "full") {
+            resolve({ ok: false, error: AGENT_QUEUE_FULL_MESSAGE });
+          }
+        });
       }
 
       const voiceReply = false;
@@ -756,7 +783,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       };
 
       if (sellerVisionRecoveryActive) {
-        setBusy(true);
+        if (!busyGate.tryAcquire(options?.skipBusyCheck)) {
+          return { ok: false, error: AGENT_BUSY_MESSAGE };
+        }
         try {
           await submitSellerClarification(trimmed);
           setOpen(true);
@@ -774,7 +803,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             reply: "Analizuoju jūsų aprašymą ir paruošiu skelbimo juodraštį…",
           };
         } finally {
-          setBusy(false);
+          busyGate.release(options?.skipBusyCheck);
+          drainAgentQueue();
         }
       }
 
@@ -984,7 +1014,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         fromVoice: voiceReply,
         fromSearchBar: Boolean(options?.fromSearchBar),
       });
-      setBusy(true);
 
       const sessionMessages = options?.fromSearchBar
         ? [{ role: "user" as const, text: trimmed }]
@@ -1024,9 +1053,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               text: viewReply,
             },
           ]);
-          setBusy(false);
           return { ok: true, reply: "Vaizdas perjungtas." };
         }
+      }
+
+      if (!options?.skipBusyCheck && !busyGate.tryAcquire()) {
+        return { ok: false, error: AGENT_BUSY_MESSAGE };
       }
 
       try {
@@ -1177,7 +1209,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: message };
       } finally {
         touchAgentSessionActivity();
-        setBusy(false);
+        busyGate.release(options?.skipBusyCheck);
+        drainAgentQueue();
       }
     },
     [
@@ -1245,6 +1278,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setSearchQuery,
     ]
   );
+
+  useEffect(() => {
+    sendAgentMessageRef.current = sendAgentMessage;
+  }, [sendAgentMessage]);
 
   const reportAgentError = useCallback((code: string, message?: string) => {
     setLastError({ code, message });

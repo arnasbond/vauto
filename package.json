@@ -1,6 +1,6 @@
 {
   "name": "vauto",
-  "version": "1.6.27",
+  "version": "1.6.28",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -33,6 +33,7 @@
     "verify:health:strict": "node scripts/verify-health.mjs --strict-readiness",
     "sync:runtime-config": "node scripts/write-runtime-config.mjs",
     "test:api-smoke": "node scripts/api-listing-smoke.mjs",
+    "test:api-integration": "node scripts/verify-health.mjs && node scripts/api-listing-smoke.mjs",
     "audit:security": "node scripts/audit-security.mjs",
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs",
     "sim:e2e": "npm run e2e:simulate --prefix server",

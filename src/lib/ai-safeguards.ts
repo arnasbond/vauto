@@ -1,17 +1,18 @@
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import type { SellerInputMode } from "@/lib/types";
+import { AI_TIMEOUT_POLICY } from "@/lib/ai-timeout-policy";
 
 /** Global ceiling for AI extraction — prevents UI freeze on slow/hung responses */
-export const AI_PROCESSING_TIMEOUT_MS = 28_000;
+export const AI_PROCESSING_TIMEOUT_MS = AI_TIMEOUT_POLICY.processingMs;
 
 /** Client fetch budget for AI proxy calls (slightly under processing ceiling) */
-export const AI_FETCH_TIMEOUT_MS = 12_000;
+export const AI_FETCH_TIMEOUT_MS = AI_TIMEOUT_POLICY.fetchMs;
 
 /** Vision / large payload calls (Render cold start + Gemini) */
-export const AI_VISION_FETCH_TIMEOUT_MS = 26_000;
+export const AI_VISION_FETCH_TIMEOUT_MS = AI_TIMEOUT_POLICY.visionFetchMs;
 
 /** Barcode / open-data product lookup — fail fast on mobile */
-export const BARCODE_LOOKUP_TIMEOUT_MS = 5_000;
+export const BARCODE_LOOKUP_TIMEOUT_MS = AI_TIMEOUT_POLICY.barcodeLookupMs;
 
 export const SCAN_NOT_RECOGNIZED_MSG =
   "Kodas arba daiktas neatpažintas. Įveskite informaciją patys, o aš padėsiu sugeneruoti aprašymą!";
@@ -25,7 +26,7 @@ export const UNREGISTERED_PRODUCT_AGENT_PROMPT =
   "Sistemoje daikto kodo nerandu, bet matau jūsų nuotrauką. Ką norite daryti toliau – ieškoti panašių skelbimų ar sukurti naują skelbimą su AI aprašymu?";
 
 /** Shorter budget for local mock extraction only */
-export const AI_MOCK_TIMEOUT_MS = 5000;
+export const AI_MOCK_TIMEOUT_MS = AI_TIMEOUT_POLICY.mockMs;
 
 export const MANUAL_FALLBACK_TOAST =
   "Atsiprašome, nepavyko automatiškai suprasti įrašo. Užpildykime trumpą formą rankiniu būdu.";
@@ -99,7 +100,7 @@ export function logAiSafeguard(
 
 export function withAiTimeout<T>(
   promise: Promise<T>,
-  ms = AI_PROCESSING_TIMEOUT_MS,
+  ms: number = AI_PROCESSING_TIMEOUT_MS,
   label = "ai_extract"
 ): Promise<T> {
   const started = performance.now();
