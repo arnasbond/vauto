@@ -183,6 +183,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     acceptPhotoCategoryMismatch,
     submitSellerContent,
     updateAiDraft,
+    sellerVisionRecoveryActive,
+    submitSellerClarification,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -753,6 +755,29 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /* v1.2 — text-only assistant, no TTS */
       };
 
+      if (sellerVisionRecoveryActive) {
+        setBusy(true);
+        try {
+          await submitSellerClarification(trimmed);
+          setOpen(true);
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed },
+            {
+              role: "assistant" as const,
+              text: "Analizuoju jūsų aprašymą ir paruošiu skelbimo juodraštį…",
+            },
+          ].slice(-6));
+          touchAgentSessionActivity();
+          return {
+            ok: true,
+            reply: "Analizuoju jūsų aprašymą ir paruošiu skelbimo juodraštį…",
+          };
+        } finally {
+          setBusy(false);
+        }
+      }
+
       if (isTooShortAgentQuery(trimmed, { fromVoice: voiceReply })) {
         const reply = resolveAgentNoiseReply(trimmed);
         const shortUserMsg: AgentChatMessage = { role: "user", text: trimmed };
@@ -1211,6 +1236,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pathname,
       submitSellerContent,
       updateAiDraft,
+      sellerVisionRecoveryActive,
+      submitSellerClarification,
       goToMarketplace,
       setOpen,
       setMessages,
@@ -1221,6 +1248,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const reportAgentError = useCallback((code: string, message?: string) => {
     setLastError({ code, message });
+    if (code === "ai_timeout" || code === "ai_invalid") return;
     if (!open) return;
     void sendAgentMessage(
       `Sistema praneša apie klaidą: ${code}. ${message ?? ""}`

@@ -5,6 +5,7 @@ import {
 } from "@/lib/vehicle-catalog";
 import {
   detectVehicleMake,
+  extractPlateFromQuery,
   extractVinFromQuery,
   isVehicleQuery,
   VEHICLE_BRAND_PATTERN,
@@ -17,6 +18,7 @@ export interface VehicleAttributePatch {
   mileage?: string;
   fuelType?: string;
   vin?: string;
+  plateNumber?: string;
 }
 
 export type VehicleDraftLike = {
@@ -174,6 +176,9 @@ export function extractVehicleAttributesFromText(text: string): VehicleAttribute
 
   const vin = extractVinFromQuery(source);
   if (vin) patch.vin = vin;
+
+  const plate = extractPlateFromQuery(source);
+  if (plate) patch.plateNumber = plate;
 
   return patch;
 }

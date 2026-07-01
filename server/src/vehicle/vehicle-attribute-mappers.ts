@@ -114,3 +114,12 @@ export function isOfficialVehicleSource(
 ): source is "vin-decoder-nhtsa" | "regitra-plate-api" {
   return source === "vin-decoder-nhtsa" || source === "regitra-plate-api";
 }
+
+export function isOpenDataVehicleSource(source: string): boolean {
+  return (
+    source === "eu-vin-opendata" ||
+    source === "lt-transeksta-opendata" ||
+    source === "lt-regitra-opendata" ||
+    source === "lt-opendata-partial"
+  );
+}

@@ -189,13 +189,14 @@ export interface ApiHealthDetails {
     stripe?: boolean;
     stripeWebhook?: boolean;
     regitraPlateApi?: boolean;
-    regitraDemo?: boolean;
+    ltOpenData?: boolean;
+    euVinOpenData?: boolean;
     vehicleLookup?: boolean;
     serviceLeads?: boolean;
   };
   readiness?: {
     score: number;
-    regitraMode: "live" | "demo";
+    regitraMode: "live" | "opendata";
     embeddingsSynced: boolean;
   };
   embeddings?: {
@@ -1111,7 +1112,8 @@ export async function apiOpenServiceLead(
 }
 
 export async function apiLookupVehicle(
-  identifier: string
+  identifier: string,
+  hints?: { vin?: string; plate?: string }
 ): Promise<import("@/lib/vehicle-intelligence/vehicle-lookup").VehicleLookupResult | null> {
   const r = await dataFetch<
     import("@/lib/vehicle-intelligence/vehicle-lookup").VehicleLookupResult & {
@@ -1119,7 +1121,11 @@ export async function apiLookupVehicle(
     }
   >("/api/vehicle/lookup", {
     method: "POST",
-    body: JSON.stringify({ identifier }),
+    body: JSON.stringify({
+      identifier,
+      vin: hints?.vin,
+      plate: hints?.plate,
+    }),
   });
   if (!r.ok) return null;
   const { identifier: _ignored, ...rest } = r.data;

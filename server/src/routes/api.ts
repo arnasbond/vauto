@@ -150,7 +150,7 @@ function computeReadiness(
   features: Record<string, boolean>,
   embeddings: { activeListings: number; textIndexed: number; imageIndexed: number } | undefined,
   serviceLeads: boolean
-): { score: number; regitraMode: "live" | "demo"; embeddingsSynced: boolean } {
+): { score: number; regitraMode: "live" | "opendata"; embeddingsSynced: boolean } {
   const embeddingsSynced = Boolean(
     embeddings &&
       embeddings.activeListings > 0 &&
@@ -165,11 +165,11 @@ function computeReadiness(
     features.vehicleLookup,
     serviceLeads,
     embeddingsSynced,
-    features.regitraPlateApi || features.regitraDemo,
+    features.regitraPlateApi || features.ltOpenData,
   ];
   return {
     score: Math.round((checks.filter(Boolean).length / checks.length) * 100),
-    regitraMode: features.regitraPlateApi ? "live" : "demo",
+    regitraMode: features.regitraPlateApi ? "live" : "opendata",
     embeddingsSynced,
   };
 }
@@ -203,7 +203,8 @@ apiRouter.get("/health", async (_req, res) => {
     stripe: Boolean(process.env.STRIPE_SECRET_KEY?.trim()),
     stripeWebhook: Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim()),
     regitraPlateApi: vehicle.regitraPlateApi,
-    regitraDemo: vehicle.regitraDemo,
+    ltOpenData: vehicle.ltOpenData,
+    euVinOpenData: vehicle.euVinOpenData,
     vehicleLookup: vehicle.nhtsaVin,
   };
 
@@ -929,14 +930,20 @@ apiRouter.post(
 
 apiRouter.post("/vehicle/lookup", async (req, res) => {
   try {
-    const identifier = String(
-      (req.body as { identifier?: string })?.identifier ?? ""
-    ).trim();
+    const body = req.body as {
+      identifier?: string;
+      vin?: string;
+      plate?: string;
+    };
+    const identifier = String(body?.identifier ?? "").trim();
     if (!identifier) {
       res.status(400).json({ error: "identifier is required" });
       return;
     }
-    const result = await lookupVehicleOnServer(identifier);
+    const result = await lookupVehicleOnServer(identifier, {
+      vin: body.vin,
+      plate: body.plate,
+    });
     if (!result) {
       res.status(404).json({ error: "Vehicle not found" });
       return;

@@ -6,6 +6,7 @@ import {
 } from "@aws-sdk/client-textract";
 import { createWorker } from "tesseract.js";
 import { logProductionWarn } from "../../../lib/production-log.js";
+import { isPlausibleVin } from "../../../vehicle/vin-utils.js";
 import { fetchImageBytes, imageBytesToBase64 } from "../image-bytes.js";
 import type {
   OcrPipelineResult,
@@ -14,10 +15,29 @@ import type {
   VisualPipelineImageInput,
 } from "../types.js";
 
-function classifyOcrLine(text: string): OcrTextBlock["kind"] {
+export function extractVinToken(text: string): string | null {
+  const bounded = text.toUpperCase().match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+  if (bounded?.[1] && isPlausibleVin(bounded[1])) return bounded[1];
+
+  // Avoid false 17-char windows when an LT plate is present in the same OCR line.
+  if (extractPlateToken(text)) return null;
+
+  const compact = text.toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "");
+  if (compact.length === 17 && isPlausibleVin(compact)) return compact;
+  const m = compact.match(/[A-HJ-NPR-Z0-9]{17}/);
+  return m && isPlausibleVin(m[0]) ? m[0] : null;
+}
+
+export function extractPlateToken(text: string): string | null {
+  const m = text.trim().toUpperCase().match(/\b([A-Z]{3})\s?(\d{3})\b/);
+  if (!m) return null;
+  return `${m[1]} ${m[2]}`;
+}
+
+export function classifyOcrLine(text: string): OcrTextBlock["kind"] {
   const t = text.trim();
-  if (/^[A-HJ-NPR-Z0-9]{17}$/i.test(t.replace(/\s/g, ""))) return "vin_plate";
-  if (/^[A-Z]{3}\s?\d{3}$/i.test(t)) return "vin_plate";
+  if (extractPlateToken(t)) return "vin_plate";
+  if (extractVinToken(t)) return "vin_plate";
   if (/\b\d{8,14}\b/.test(t)) return "serial";
   if (/\b[A-Z]{2,5}[- ]?\d{2,6}[A-Z0-9]*\b/i.test(t)) return "model_code";
   if (/€|eur|kaina|price/i.test(t)) return "price_tag";
@@ -278,5 +298,3 @@ export async function runOcrPipeline(
     return ocrTesseractFallback(images);
   }
 }
-
-export { classifyOcrLine };

@@ -128,3 +128,11 @@ export function clearServiceListingDraft(): void {
   if (typeof window === "undefined") return;
   localStorage.removeItem(SERVICE_DRAFT_KEY);
 }
+
+/** Wipe all persisted listing drafts — fresh seller flow start. */
+export function clearAllListingDrafts(): void {
+  clearClothingListingDraft();
+  clearGeneralListingDraft();
+  clearJobListingDraft();
+  clearServiceListingDraft();
+}

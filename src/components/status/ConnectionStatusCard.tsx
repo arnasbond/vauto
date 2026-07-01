@@ -19,7 +19,8 @@ const FEATURE_LABELS: Record<string, string> = {
   stripe: "Stripe mokėjimai",
   stripeWebhook: "Stripe webhook",
   regitraPlateApi: "Regitra plate API",
-  regitraDemo: "Regitra demo",
+  ltOpenData: "LT TA atviri duomenys",
+  euVinOpenData: "ES VIN atviras dekoderis",
   vehicleLookup: "Transporto lookup",
   serviceLeads: "Paslaugų lead'ai",
 };
@@ -69,7 +70,7 @@ export function ConnectionStatusCard() {
             {health?.readiness && live && (
               <span className="ml-1 font-medium text-emerald-500">
                 · {health.readiness.score}/100
-                {health.readiness.regitraMode === "demo" ? " (Regitra demo)" : ""}
+                {health.readiness.regitraMode === "opendata" ? " (LT atviri duomenys)" : ""}
               </span>
             )}
           </p>

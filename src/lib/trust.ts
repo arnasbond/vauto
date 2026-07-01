@@ -3,12 +3,31 @@ import type { Listing, UserProfile } from "@/lib/types";
 /** ISO 3779 VIN format — excludes I, O, Q */
 const VIN_REGEX = /^[A-HJ-NPR-Z0-9]{17}$/;
 
+const EU_WMI_PREFIX = /^(VF[1-8]|VR[13]|VS[678]|VN1|VSS|VWV|WBA|WBS|WDB|WDD|WAU|WVW|WV[123]|TMB|TMK|SKO|YV[14]|ZFA|ZFF)/;
+
 export function normalizeVin(vin: string): string {
   return vin.replace(/\s/g, "").toUpperCase();
 }
 
-export function isValidVin(vin: string): boolean {
+export function isPlausibleVin(vin: string): boolean {
   return VIN_REGEX.test(normalizeVin(vin));
+}
+
+export function isEuropeanWmiVin(vin: string): boolean {
+  const wmi = normalizeVin(vin).slice(0, 3);
+  return EU_WMI_PREFIX.test(wmi);
+}
+
+export function isValidVin(vin: string): boolean {
+  const normalized = normalizeVin(vin);
+  if (!VIN_REGEX.test(normalized)) return false;
+  if (isEuropeanWmiVin(normalized)) return true;
+  return true;
+}
+
+/** Lookup pipelines accept EU VINs even when US checksum would fail. */
+export function isValidVinForLookup(vin: string): boolean {
+  return isPlausibleVin(vin);
 }
 
 /** Mock VIN registry check — accepts well-formed 17-char VINs */

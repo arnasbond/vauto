@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import type { AiExtractedListing, CategoryAttributes } from "@/lib/types";
-import { isValidVin, normalizeVin } from "@/lib/trust";
+import { isValidVinForLookup, normalizeVin } from "@/lib/trust";
 import { isLtPlate } from "@/lib/vehicle-intelligence/vehicle-attribute-mappers";
 import {
   lookupVehicle,
@@ -10,14 +10,31 @@ import {
   type VehicleLookupResult,
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
 
-function resolveLookupIdentifier(attributes: CategoryAttributes): string | undefined {
+function resolveLookupIdentifier(attributes: CategoryAttributes): {
+  identifier?: string;
+  vin?: string;
+  plate?: string;
+} {
   const vin = typeof attributes.vin === "string" ? attributes.vin : "";
-  if (vin && isValidVin(normalizeVin(vin))) return normalizeVin(vin);
-
   const plate = typeof attributes.plateNumber === "string" ? attributes.plateNumber : "";
-  if (plate && isLtPlate(plate)) return plate.trim().toUpperCase();
 
-  return undefined;
+  if (vin && isValidVinForLookup(normalizeVin(vin))) {
+    return {
+      identifier: normalizeVin(vin),
+      vin: normalizeVin(vin),
+      plate: plate && isLtPlate(plate) ? plate.trim().toUpperCase() : undefined,
+    };
+  }
+
+  if (plate && isLtPlate(plate)) {
+    return {
+      identifier: plate.trim().toUpperCase(),
+      plate: plate.trim().toUpperCase(),
+      vin: vin && isValidVinForLookup(normalizeVin(vin)) ? normalizeVin(vin) : undefined,
+    };
+  }
+
+  return {};
 }
 
 export function useVehicleAutoLookup(
@@ -31,7 +48,7 @@ export function useVehicleAutoLookup(
   const onApplyRef = useRef(onApply);
   onApplyRef.current = onApply;
 
-  const identifier = enabled ? resolveLookupIdentifier(attributes) : undefined;
+  const { identifier, vin, plate } = enabled ? resolveLookupIdentifier(attributes) : {};
 
   useEffect(() => {
     if (!enabled || !identifier) {
@@ -48,7 +65,7 @@ export function useVehicleAutoLookup(
     let cancelled = false;
     const timer = window.setTimeout(() => {
       setLoading(true);
-      void lookupVehicle(identifier)
+      void lookupVehicle(identifier, { vin, plate })
         .then((next) => {
           if (cancelled) return;
           lastFetchedRef.current = identifier;
@@ -64,7 +81,7 @@ export function useVehicleAutoLookup(
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [enabled, identifier]);
+  }, [enabled, identifier, vin, plate]);
 
   return { loading, result, identifier };
 }

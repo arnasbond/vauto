@@ -5,30 +5,12 @@ import {
   mapGearbox,
   parsePowerHp,
   parsePowerKw,
-  type MileageRecord,
 } from "./vehicle-attribute-mappers.js";
-import { isValidVin, normalizeVin } from "./vin-utils.js";
+import type { VinLookupResult } from "./vehicle-lookup-types.js";
+import { lookupEuVinOpenData } from "./eu-vin-lookup.js";
+import { isPlausibleVin, normalizeVin } from "./vin-utils.js";
 
-export interface VinLookupResult {
-  source: "vin-decoder-nhtsa";
-  verified: boolean;
-  confidence: number;
-  vin: string;
-  make: string;
-  model: string;
-  year: string;
-  fuelType: string;
-  gearbox?: string;
-  engine: string;
-  bodyType: string;
-  powerKw?: string;
-  powerHp?: string;
-  mileage?: string;
-  mileageRecords: MileageRecord[];
-  taExpiry: string;
-  taValid: boolean;
-  registrationCountry: string;
-}
+export type { VinLookupResult } from "./vehicle-lookup-types.js";
 
 interface NhtsaVinRow {
   ErrorCode?: string;
@@ -55,7 +37,7 @@ function engineLabel(row: NhtsaVinRow): string {
 
 export async function lookupVinNhtsa(vin: string): Promise<VinLookupResult | null> {
   const normalized = normalizeVin(vin);
-  if (!isValidVin(normalized)) return null;
+  if (!isPlausibleVin(normalized)) return null;
 
   try {
     const res = await fetch(
@@ -94,4 +76,11 @@ export async function lookupVinNhtsa(vin: string): Promise<VinLookupResult | nul
   } catch {
     return null;
   }
+}
+
+/** NHTSA extended → EU open WMI decode (error 1+7 / EU VIN checksum). */
+export async function lookupVin(vin: string): Promise<VinLookupResult | null> {
+  const nhtsa = await lookupVinNhtsa(vin);
+  if (nhtsa) return nhtsa;
+  return lookupEuVinOpenData(vin);
 }

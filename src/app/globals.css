@@ -2033,6 +2033,19 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   }
 }
 
+.ai-wizard-composer-floating {
+  border-radius: 1.25rem;
+  box-shadow:
+    0 18px 40px -12px rgba(15, 23, 42, 0.28),
+    0 6px 16px -8px rgba(30, 102, 202, 0.2);
+  background: color-mix(in srgb, var(--vauto-card-bg) 96%, transparent);
+  backdrop-filter: blur(14px);
+}
+
+.ai-wizard-composer-floating .pointer-events-auto {
+  border-radius: 1rem;
+}
+
 .ai-wizard-composer {
   background: linear-gradient(
     to top,

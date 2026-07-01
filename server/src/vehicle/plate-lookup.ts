@@ -6,30 +6,12 @@ import {
   mapGearbox,
   parsePowerHp,
   parsePowerKw,
-  type MileageRecord,
 } from "./vehicle-attribute-mappers.js";
+import { lookupLtOpenData, type LtTaOpenData } from "./lt-ta-open-data.js";
+import { lookupVin } from "./vin-lookup.js";
+import type { PlateLookupResult } from "./vehicle-lookup-types.js";
 
-export interface PlateLookupResult {
-  source: "regitra-plate-api" | "regitra-demo";
-  verified: boolean;
-  confidence: number;
-  plateNumber: string;
-  vin?: string;
-  make: string;
-  model: string;
-  year: string;
-  fuelType: string;
-  gearbox?: string;
-  engine: string;
-  bodyType: string;
-  powerKw?: string;
-  powerHp?: string;
-  mileage?: string;
-  mileageRecords: MileageRecord[];
-  taExpiry: string;
-  taValid: boolean;
-  registrationCountry: string;
-}
+export type { PlateLookupResult } from "./vehicle-lookup-types.js";
 
 export function normalizeLtPlate(raw: string): string {
   const compact = raw.trim().toUpperCase().replace(/\s+/g, "");
@@ -81,115 +63,57 @@ function splitMakeModel(description: string, makeHint: string, modelHint: string
   return { make: makeHint || description || "Nežinoma", model: modelHint || "Modelis" };
 }
 
-const DEMO_PLATE_CATALOG: Omit<
-  PlateLookupResult,
-  "source" | "confidence" | "plateNumber" | "verified"
->[] = [
-  {
-    vin: "WVWZZZ1KZAW123456",
-    make: "Volkswagen",
-    model: "Golf",
-    year: "2015",
-    fuelType: "Dyzelinas",
-    gearbox: "Mechaninė",
-    engine: "1.6 TDI 77 kW",
-    bodyType: "Hečbekas",
-    powerKw: "77",
-    mileage: "185 000 km",
-    mileageRecords: [{ date: "2024-11", km: "185000" }],
-    taExpiry: "2027-03",
-    taValid: true,
-    registrationCountry: "LT",
-  },
-  {
-    vin: "JTDBT923503012345",
-    make: "Toyota",
-    model: "Corolla",
-    year: "2019",
-    fuelType: "Hibridas",
-    gearbox: "Automatinė",
-    engine: "1.8 Hybrid 90 kW",
-    bodyType: "Sedanas",
-    powerKw: "90",
-    mileage: "92 000 km",
-    mileageRecords: [{ date: "2025-01", km: "92000" }],
-    taExpiry: "2026-11",
-    taValid: true,
-    registrationCountry: "LT",
-  },
-  {
-    vin: "WBA3A51050F123456",
-    make: "BMW",
-    model: "320d",
-    year: "2017",
-    fuelType: "Dyzelinas",
-    gearbox: "Automatinė",
-    engine: "2.0 d 140 kW",
-    bodyType: "Universalas",
-    powerKw: "140",
-    mileage: "143 000 km",
-    mileageRecords: [{ date: "2024-09", km: "143000" }],
-    taExpiry: "2027-01",
-    taValid: true,
-    registrationCountry: "LT",
-  },
-  {
-    vin: "VF7SC8HR0AW123456",
-    make: "Peugeot",
-    model: "308",
-    year: "2014",
-    fuelType: "Benzinas",
-    gearbox: "Mechaninė",
-    engine: "1.6 VTi 88 kW",
-    bodyType: "Hečbekas",
-    powerKw: "88",
-    mileage: "201 000 km",
-    mileageRecords: [{ date: "2024-06", km: "201000" }],
-    taExpiry: "2026-08",
-    taValid: true,
-    registrationCountry: "LT",
-  },
-  {
-    vin: "KNACB81GFM5123456",
-    make: "Kia",
-    model: "Sportage",
-    year: "2021",
-    fuelType: "Dyzelinas",
-    gearbox: "Automatinė",
-    engine: "1.6 CRDi 100 kW",
-    bodyType: "Visureigis / SUV",
-    powerKw: "100",
-    mileage: "58 000 km",
-    mileageRecords: [{ date: "2025-02", km: "58000" }],
-    taExpiry: "2028-04",
-    taValid: true,
-    registrationCountry: "LT",
-  },
-  {
-    vin: "YV1DZ8256C2123456",
-    make: "Volvo",
-    model: "V60",
-    year: "2018",
-    fuelType: "Dyzelinas",
-    gearbox: "Automatinė",
-    engine: "D3 110 kW",
-    bodyType: "Universalas",
-    powerKw: "110",
-    mileage: "119 000 km",
-    mileageRecords: [{ date: "2024-12", km: "119000" }],
-    taExpiry: "2027-09",
-    taValid: true,
-    registrationCountry: "LT",
-  },
-];
+function plateFromOpenData(
+  plate: string,
+  open: LtTaOpenData,
+  vinDecode?: Awaited<ReturnType<typeof lookupVin>>
+): PlateLookupResult {
+  const source =
+    open.source === "lt-regitra-opendata"
+      ? ("lt-regitra-opendata" as const)
+      : ("lt-transeksta-opendata" as const);
 
-function hashPlate(plate: string): number {
-  const compact = plate.replace(/\s+/g, "").toUpperCase();
-  let hash = 0;
-  for (const ch of compact) {
-    hash = (hash * 31 + ch.charCodeAt(0)) >>> 0;
-  }
-  return hash;
+  return {
+    source,
+    verified: isOfficialVehicleSource(source),
+    confidence: vinDecode ? 0.82 : 0.68,
+    plateNumber: normalizeLtPlate(plate),
+    vin: open.vin ?? vinDecode?.vin,
+    make: vinDecode?.make ?? open.make ?? "Nežinoma",
+    model: vinDecode?.model ?? open.model ?? "Modelis",
+    year: vinDecode?.year ?? open.year ?? "—",
+    fuelType: vinDecode?.fuelType ?? "Nežinoma",
+    gearbox: vinDecode?.gearbox,
+    engine: vinDecode?.engine ?? "Nežinomas",
+    bodyType: vinDecode?.bodyType ?? "Nežinomas",
+    powerKw: vinDecode?.powerKw,
+    powerHp: vinDecode?.powerHp,
+    mileage: open.mileage,
+    mileageRecords: open.mileageRecords,
+    taExpiry: open.taExpiry ?? "—",
+    taValid: open.taValid ?? false,
+    registrationCountry: "LT",
+  };
+}
+
+function platePartialShell(plate: string, vinHint?: string): PlateLookupResult {
+  return {
+    source: "lt-opendata-partial",
+    verified: false,
+    confidence: 0.28,
+    plateNumber: normalizeLtPlate(plate),
+    vin: vinHint,
+    make: "Nežinoma",
+    model: "Modelis",
+    year: "—",
+    fuelType: "Nežinoma",
+    engine: "Nežinomas",
+    bodyType: "Nežinomas",
+    mileageRecords: [],
+    taExpiry: "—",
+    taValid: false,
+    registrationCountry: "LT",
+  };
 }
 
 export function regitraPlateApiConfigured(): boolean {
@@ -276,20 +200,40 @@ export async function lookupLtPlateViaApi(
   }
 }
 
-export function lookupLtPlateDemo(plate: string): PlateLookupResult {
-  const pick = DEMO_PLATE_CATALOG[hashPlate(plate) % DEMO_PLATE_CATALOG.length];
-  const source = "regitra-demo" as const;
-  return {
-    ...pick,
-    source,
-    verified: isOfficialVehicleSource(source),
-    confidence: 0.84,
-    plateNumber: normalizeLtPlate(plate),
-  };
-}
-
-export async function lookupLtPlate(plate: string): Promise<PlateLookupResult> {
+export async function lookupLtPlate(
+  plate: string,
+  opts?: { vin?: string }
+): Promise<PlateLookupResult> {
   const viaApi = await lookupLtPlateViaApi(plate);
   if (viaApi) return viaApi;
-  return lookupLtPlateDemo(plate);
+
+  const vinHint = opts?.vin?.trim();
+  const open = await lookupLtOpenData(plate, vinHint);
+  if (open) {
+    const vinDecode = vinHint ? await lookupVin(vinHint) : null;
+    return plateFromOpenData(plate, open, vinDecode ?? undefined);
+  }
+
+  if (vinHint) {
+    const vinDecode = await lookupVin(vinHint);
+    if (vinDecode) {
+      return {
+        ...platePartialShell(plate, vinDecode.vin),
+        source: "lt-opendata-partial",
+        confidence: 0.72,
+        make: vinDecode.make,
+        model: vinDecode.model,
+        year: vinDecode.year,
+        fuelType: vinDecode.fuelType,
+        gearbox: vinDecode.gearbox,
+        engine: vinDecode.engine,
+        bodyType: vinDecode.bodyType,
+        powerKw: vinDecode.powerKw,
+        powerHp: vinDecode.powerHp,
+        registrationCountry: vinDecode.registrationCountry === "—" ? "LT" : vinDecode.registrationCountry,
+      };
+    }
+  }
+
+  return platePartialShell(plate, vinHint);
 }

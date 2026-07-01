@@ -37,6 +37,7 @@ import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
+import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -75,7 +76,7 @@ export function AiCommandBar({
     chameleonTheme,
     startListingFromQuery,
   } = useVauto();
-  const { sellerStep } = useSellerFlow();
+  const { sellerStep, sellerVisionRecoveryActive, submitSellerClarification } = useSellerFlow();
   const {
     searchQuery,
     setSearchQuery,
@@ -231,17 +232,21 @@ export function AiCommandBar({
         if (!trimmed || agentBusy) return;
         const msg = trimmed;
         setDraftQuery("");
-        await sendAgentMessage(msg);
+        if (sellerVisionRecoveryActive) {
+          await submitSellerClarification(msg);
+        } else {
+          await sendAgentMessage(msg);
+        }
         if (collapsible) {
           void hapticImpactLight();
-          setWizardExpanded(false);
+          if (!sellerVisionRecoveryActive) setWizardExpanded(false);
         }
         return;
       }
       void commitSearch(draftQuery);
       inputRef.current?.blur();
     },
-    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch, collapsible]
+    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch, collapsible, sellerVisionRecoveryActive, submitSellerClarification]
   );
 
   const handlePhotoSearch = () => {
@@ -299,8 +304,22 @@ export function AiCommandBar({
     return () => window.clearTimeout(t);
   }, [lastAssistant, isWizard, collapsible, wizardExpanded]);
 
+  useEffect(() => {
+    const onExpand = () => toggleWizardExpanded(true);
+    window.addEventListener(WIZARD_AGENT_EXPAND_EVENT, onExpand);
+    return () => window.removeEventListener(WIZARD_AGENT_EXPAND_EVENT, onExpand);
+  }, [toggleWizardExpanded]);
+
+  useEffect(() => {
+    if (sellerVisionRecoveryActive && collapsible) {
+      toggleWizardExpanded(true);
+    }
+  }, [sellerVisionRecoveryActive, collapsible, toggleWizardExpanded]);
+
   const wizardPlaceholder =
-    phase === "listing_processing"
+    sellerVisionRecoveryActive
+      ? "Pvz. „Parduodu Citroen DS5, numeris NOG675“…"
+      : phase === "listing_processing"
       ? "Agentas apdoroja — galite rašyti patikslinimus…"
       : skin.variant === "spinta"
         ? "Rašykite Spintos sekretorei — pvz. „pakeisk dydį į M“"
@@ -392,16 +411,15 @@ export function AiCommandBar({
       <>
         <div
           className={cn(
-            cn(
-              "ai-wizard-composer pointer-events-none fixed inset-x-0 bottom-0 z-50",
-              collapsible && "ai-wizard-composer-expanded"
-            ),
-            "pb-[calc(0.75rem+env(safe-area-inset-bottom))]",
-            className
+            "ai-wizard-composer pointer-events-none fixed z-50",
+            collapsible
+              ? "ai-wizard-composer-floating bottom-[calc(1rem+env(safe-area-inset-bottom))] right-4 left-auto w-[min(22rem,calc(100vw-2rem))]"
+              : "inset-x-0 bottom-0",
+            collapsible && "ai-wizard-composer-expanded"
           )}
           aria-label="VAUTO AI komandų juosta"
         >
-          <div className="mx-auto max-w-lg px-3">
+          <div className={cn(collapsible ? "px-0" : "mx-auto max-w-lg px-3", "pb-0")}>
             {isWizard && collapsible && (
               <div className="pointer-events-auto mb-2 flex justify-end">
                 <button

@@ -61,6 +61,15 @@ export function isOfficialVehicleSource(
   return source === "vin-decoder-nhtsa" || source === "regitra-plate-api";
 }
 
+export function isOpenDataVehicleSource(source: string): boolean {
+  return (
+    source === "eu-vin-opendata" ||
+    source === "lt-transeksta-opendata" ||
+    source === "lt-regitra-opendata" ||
+    source === "lt-opendata-partial"
+  );
+}
+
 export function isLtPlate(raw: string): boolean {
   const compact = raw.trim().toUpperCase().replace(/\s+/g, "");
   return /^[A-Z]{3}\d{3}$/.test(compact);

@@ -1,8 +1,9 @@
 import type { AiExtractedListing, CategoryAttributes } from "@/lib/types";
-import { isValidVin, normalizeVin } from "@/lib/trust";
+import { isPlausibleVin, isValidVinForLookup, normalizeVin } from "@/lib/trust";
 import {
   isLtPlate,
   isOfficialVehicleSource,
+  isOpenDataVehicleSource,
   mapBodyTypeLt,
   mapFuelType,
   mapGearbox,
@@ -10,15 +11,18 @@ import {
   parsePowerKw,
   type MileageRecord,
 } from "./vehicle-attribute-mappers";
+import { lookupEuVinClient } from "./vin-eu";
 
 export type { MileageRecord };
 
 export interface VehicleLookupResult {
   source:
-    | "regitra-demo"
     | "regitra-plate-api"
-    | "vin-decoder-demo"
+    | "lt-transeksta-opendata"
+    | "lt-regitra-opendata"
+    | "lt-opendata-partial"
     | "vin-decoder-nhtsa"
+    | "eu-vin-opendata"
     | "vision-demo";
   verified: boolean;
   confidence: number;
@@ -39,46 +43,6 @@ export interface VehicleLookupResult {
   taValid: boolean;
   registrationCountry: string;
 }
-
-const DEMO_VEHICLE: VehicleLookupResult = {
-  source: "regitra-demo",
-  verified: false,
-  confidence: 0.94,
-  plateNumber: "KAA 123",
-  vin: "WVWZZZ1KZAW123456",
-  make: "Volkswagen",
-  model: "Golf",
-  year: "2015",
-  fuelType: "Dyzelinas",
-  gearbox: "Mechaninė",
-  engine: "1.6 TDI 77 kW",
-  bodyType: "Hečbekas",
-  powerKw: "77",
-  mileage: "185 000 km",
-  mileageRecords: [{ date: "2024-11", km: "185000" }],
-  taExpiry: "2027-03",
-  taValid: true,
-  registrationCountry: "LT",
-};
-
-const CITROEN_DS5_DEMO: VehicleLookupResult = {
-  source: "vin-decoder-demo",
-  verified: false,
-  confidence: 0.91,
-  make: "Citroën",
-  model: "DS5",
-  year: "2013",
-  fuelType: "Dyzelinas",
-  gearbox: "Automatinė",
-  engine: "1.6 e-HDi 85 kW",
-  bodyType: "Hečbekas",
-  powerKw: "85",
-  mileage: undefined,
-  mileageRecords: [],
-  taExpiry: "2027-06",
-  taValid: true,
-  registrationCountry: "LT",
-};
 
 interface NhtsaVinRow {
   ErrorCode?: string;
@@ -105,7 +69,7 @@ function engineLabel(row: NhtsaVinRow): string {
 
 export async function lookupVehicleByVinNhtsa(vin: string): Promise<VehicleLookupResult | null> {
   const normalized = normalizeVin(vin);
-  if (!isValidVin(normalized)) return null;
+  if (!isPlausibleVin(normalized)) return null;
 
   try {
     const res = await fetch(
@@ -142,46 +106,65 @@ export async function lookupVehicleByVinNhtsa(vin: string): Promise<VehicleLooku
   }
 }
 
-export function lookupVehicleDemo(
-  identifier?: string,
-  hint?: { make?: string; model?: string }
-): VehicleLookupResult {
-  const normalized = identifier?.trim().toUpperCase() ?? "";
-  const makeHint = hint?.make?.toLowerCase() ?? "";
-  const modelHint = hint?.model?.toLowerCase() ?? "";
+async function lookupVehicleByVinEuOpen(vin: string): Promise<VehicleLookupResult | null> {
+  const normalized = normalizeVin(vin);
+  if (!isValidVinForLookup(normalized)) return null;
+  const eu = await lookupEuVinClient(normalized);
+  if (!eu) return null;
+  const source = "eu-vin-opendata" as const;
+  return {
+    source,
+    verified: false,
+    confidence: 0.76,
+    vin: normalized,
+    make: eu.make,
+    model: eu.model,
+    year: eu.year,
+    fuelType: "Nežinoma",
+    engine: "Nežinomas",
+    bodyType: "Nežinomas",
+    mileageRecords: [],
+    taExpiry: "—",
+    taValid: false,
+    registrationCountry: eu.country,
+  };
+}
 
-  const citroenDs5 = makeHint.includes("citro") && modelHint.includes("ds5");
-
-  if (isValidVin(normalized)) {
-    const base = citroenDs5 ? CITROEN_DS5_DEMO : DEMO_VEHICLE;
-    return {
-      ...base,
-      source: "vin-decoder-demo",
-      verified: false,
-      vin: normalizeVin(normalized),
-    };
-  }
-  if (isLtPlate(normalized)) {
-    const base = citroenDs5 ? CITROEN_DS5_DEMO : DEMO_VEHICLE;
-    return {
-      ...base,
-      plateNumber: normalized.replace(/\s?(\d{3})$/, " $1"),
-    };
-  }
-  if (citroenDs5) return CITROEN_DS5_DEMO;
-  return DEMO_VEHICLE;
+function partialShell(identifier: string): VehicleLookupResult {
+  const normalized = identifier.trim().toUpperCase();
+  const plate = isLtPlate(normalized);
+  return {
+    source: plate ? "lt-opendata-partial" : "eu-vin-opendata",
+    verified: false,
+    confidence: 0.25,
+    plateNumber: plate ? normalized.replace(/(\d{3})$/, " $1") : undefined,
+    vin: plate ? undefined : normalizeVin(normalized),
+    make: "Nežinoma",
+    model: "Modelis",
+    year: "—",
+    fuelType: "Nežinoma",
+    engine: "Nežinomas",
+    bodyType: "Nežinomas",
+    mileageRecords: [],
+    taExpiry: "—",
+    taValid: false,
+    registrationCountry: plate ? "LT" : "—",
+  };
 }
 
 export async function lookupVehicle(
   identifier?: string,
-  hint?: { make?: string; model?: string }
+  hint?: { make?: string; model?: string; vin?: string; plate?: string }
 ): Promise<VehicleLookupResult> {
   const normalized = identifier?.trim().toUpperCase() ?? "";
 
   const { isDataApiEnabled } = await import("@/lib/api/config");
   if (isDataApiEnabled() && normalized) {
     const { apiLookupVehicle } = await import("@/lib/api/client");
-    const remote = await apiLookupVehicle(normalized);
+    const remote = await apiLookupVehicle(normalized, {
+      vin: hint?.vin,
+      plate: hint?.plate,
+    });
     if (remote) {
       return {
         ...remote,
@@ -191,11 +174,27 @@ export async function lookupVehicle(
     }
   }
 
-  if (isValidVin(normalized)) {
+  if (isValidVinForLookup(normalized)) {
     const nhtsa = await lookupVehicleByVinNhtsa(normalized);
     if (nhtsa) return nhtsa;
+    const eu = await lookupVehicleByVinEuOpen(normalized);
+    if (eu) return eu;
   }
-  return lookupVehicleDemo(identifier, hint);
+
+  if (isLtPlate(normalized) && hint?.vin && isValidVinForLookup(hint.vin)) {
+    const eu = await lookupVehicleByVinEuOpen(hint.vin);
+    if (eu) {
+      return {
+        ...eu,
+        plateNumber: normalized.replace(/(\d{3})$/, " $1"),
+        source: "lt-opendata-partial",
+        confidence: 0.72,
+        registrationCountry: "LT",
+      };
+    }
+  }
+
+  return partialShell(normalized || "—");
 }
 
 export function vehicleLookupToDraftPatch(
@@ -206,7 +205,11 @@ export function vehicleLookupToDraftPatch(
       ? "NHTSA VIN dekoderio"
       : result.source === "regitra-plate-api"
         ? "LT numerio API (Regitra duomenys)"
-        : "Regitra/VIN demo adapterio";
+        : result.source === "eu-vin-opendata"
+          ? "ES atviro VIN dekoderio (WMI)"
+          : isOpenDataVehicleSource(result.source)
+            ? "LT atvirų TA duomenų šaltinio"
+            : "transporto duomenų šaltinio";
 
   const attrs: CategoryAttributes = {
     vin: result.vin,

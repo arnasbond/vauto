@@ -1,3 +1,5 @@
+import { isEuropeanWmi } from "./wmi-eu.js";
+
 const VIN_WEIGHTS = [8, 7, 6, 5, 4, 3, 2, 10, 0, 9, 8, 7, 6, 5, 4, 3, 2];
 const VIN_TRANSLITERATION: Record<string, number> = {
   A: 1, B: 2, C: 3, D: 4, E: 5, F: 6, G: 7, H: 8,
@@ -9,7 +11,15 @@ export function normalizeVin(raw: string): string {
   return raw.trim().toUpperCase().replace(/[^A-HJ-NPR-Z0-9]/g, "");
 }
 
-export function isValidVin(raw: string): boolean {
+export function isPlausibleVin(raw: string): boolean {
+  const vin = normalizeVin(raw);
+  if (vin.length !== 17) return false;
+  if (/[IOQ]/.test(vin)) return false;
+  return /^[A-HJ-NPR-Z0-9]{17}$/.test(vin);
+}
+
+/** EU VINs may fail US checksum but remain decodable via WMI / open EU sources. */
+export function isValidVinChecksum(raw: string): boolean {
   const vin = normalizeVin(raw);
   if (vin.length !== 17) return false;
   if (/[IOQ]/.test(vin)) return false;
@@ -27,4 +37,17 @@ export function isValidVin(raw: string): boolean {
   const check = sum % 11;
   const expected = check === 10 ? "X" : String(check);
   return vin[8] === expected;
+}
+
+export function isValidVin(raw: string): boolean {
+  if (!isPlausibleVin(raw)) return false;
+  const vin = normalizeVin(raw);
+  const wmi = vin.slice(0, 3);
+  if (isEuropeanWmi(wmi)) return true;
+  return isValidVinChecksum(raw);
+}
+
+/** Accept EU VIN for lookup pipelines even when US checksum fails. */
+export function isValidVinForLookup(raw: string): boolean {
+  return isValidVin(raw) || (isPlausibleVin(raw) && isEuropeanWmi(normalizeVin(raw).slice(0, 3)));
 }

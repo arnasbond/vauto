@@ -31,6 +31,9 @@ import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
 import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
 import { resolveListingCity } from "@/lib/city-resolve";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
+import { clearAllListingDrafts } from "@/lib/listing-draft-storage";
+import { clearPhotoSearchSession } from "@/lib/photo-search-session";
+import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { defaultExpiresAt, withDefaultExpiry } from "@/lib/listing-expiry";
 import { attributesToTags } from "@/lib/listing-attributes";
@@ -47,7 +50,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete } from "@/lib/vauto-agent-client";
+import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete, notifyAgentError } from "@/lib/vauto-agent-client";
 import {
   buildPhotoClarificationMessage,
   extractVisionChoiceChips,
@@ -128,7 +131,13 @@ import {
   resolveBarcodeFromAttributes,
 } from "@/lib/product-intelligence/barcode-utils";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { notifyAgentError } from "@/lib/vauto-agent-client";
+import {
+  isWeakVisionExtraction,
+  RECOVERY_PROCESSING_TIMEOUT_MS,
+  requestWizardAgentExpand,
+  shouldEnterConversationalRecovery,
+  VISION_CONVERSATIONAL_RECOVERY_PROMPT,
+} from "@/lib/ai-conversational-recovery";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
 import { applyProfileToListingDraft, resolveDraftContact } from "@/lib/profile-listing-sync";
@@ -240,6 +249,9 @@ export interface SellerFlowContextValue {
   revertPhotoCategoryMismatch: () => boolean;
   acceptPhotoCategoryMismatch: () => void;
   photoCategoryMismatch: { fromCategory: ListingCategory; toCategory: ListingCategory } | null;
+  /** Vision timeout / weak category — agent collects clarifying text. */
+  sellerVisionRecoveryActive: boolean;
+  submitSellerClarification: (text: string) => Promise<boolean>;
 }
 
 const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
@@ -283,6 +295,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     fromCategory: ListingCategory;
     toCategory: ListingCategory;
   } | null>(null);
+  const [sellerVisionRecoveryActive, setSellerVisionRecoveryActive] = useState(false);
+  const recoveryImageRef = useRef<string | null>(null);
   const processingEpochRef = useRef(0);
   const categoryMismatchRollbackRef = useRef<{
     draft: AiExtractedListing;
@@ -337,6 +351,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerPreviewImages([]);
     setSellerVideoUrl("");
     setSellerHasVideo(false);
+    setPendingSellerQuery(null);
     setLastPublishedListing(null);
     setEditingListingId(null);
     setListingSocialPublish(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
@@ -346,6 +361,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     categoryMismatchRollbackRef.current = null;
     categoryMismatchPendingRef.current = null;
     photoReplaceSnapshotRef.current = null;
+    setSellerVisionRecoveryActive(false);
+    recoveryImageRef.current = null;
+    clearAllListingDrafts();
+    clearPhotoSearchSession();
+    clearPendingPhotoIntent();
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -385,6 +405,54 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     [user.city, user.phone, showToast, abortSellerProcessing, syncDraftWithProfile]
   );
 
+  const enterConversationalRecovery = useCallback(
+    (opts: {
+      previewImage?: string | null;
+      inputMode?: SellerInputMode;
+      partialDraft?: AiExtractedListing | null;
+      reason?: string;
+    }) => {
+      abortSellerProcessing();
+      setSellerVisionRecoveryActive(true);
+      recoveryImageRef.current = opts.previewImage ?? sellerPreviewImageRef.current;
+      setAiManualFallback(false);
+
+      const baseDraft = opts.partialDraft
+        ? syncDraftWithProfile(
+            finalizeListingDraft(opts.partialDraft, opts.partialDraft.category, opts.partialDraft.attributes ?? {})
+          )
+        : syncDraftWithProfile(
+            createManualFallbackDraft({
+              location: user.city,
+              contact: user.phone,
+            })
+          );
+
+      setAiDraft(baseDraft);
+      if (recoveryImageRef.current) {
+        setSellerPreviewImage(recoveryImageRef.current);
+      }
+      setSellerInputMode(opts.inputMode ?? "upload");
+      setSellerUserPrompt(null);
+      setSellerStep("confirmation");
+      setChameleonTheme("flux");
+
+      pushAgentGreeting(VISION_CONVERSATIONAL_RECOVERY_PROMPT, {
+        replaceThread: true,
+        openSheet: true,
+      });
+      requestWizardAgentExpand();
+
+      showToast("Asistentas padės užbaigti — parašykite kelis žodžius.", "info");
+      logAiSafeguard("fallback_triggered", {
+        mode: opts.inputMode ?? "upload",
+        reason: opts.reason ?? "conversational_recovery",
+        conversational: true,
+      });
+    },
+    [user.city, user.phone, showToast, abortSellerProcessing, syncDraftWithProfile, setChameleonTheme]
+  );
+
   const runAiProcessing = useCallback(
     async (
       mode: SellerInputMode,
@@ -394,6 +462,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         previewImages?: string[];
         extraContext?: string;
         videoUrl?: string;
+        recoveryRetry?: boolean;
       }
     ) => {
       const epoch = processingEpochRef.current;
@@ -410,6 +479,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
       const enterManualFallback = (reason: string, error?: unknown) => {
         if (isProcessingStale(epoch)) return;
+        if (shouldEnterConversationalRecovery(reason)) {
+          enterConversationalRecovery({
+            previewImage: opts?.previewImage ?? sellerPreviewImage,
+            inputMode: mode ?? undefined,
+            reason,
+          });
+          logAiSafeguard("fallback_triggered", {
+            mode,
+            reason,
+            elapsedMs: Math.round(performance.now() - started),
+            error: error instanceof Error ? error.message : String(error ?? ""),
+            conversational: true,
+          });
+          return;
+        }
         if (reason === "timeout") {
           notifyAgentError("ai_timeout", "AI analizė užtruko per ilgai");
         } else if (reason === "invalid_extraction") {
@@ -456,9 +540,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           return extractFromText(ctx);
         });
 
+        const timeoutMs = opts?.recoveryRetry
+          ? RECOVERY_PROCESSING_TIMEOUT_MS
+          : undefined;
         const [locationHint, extracted] = await Promise.all([
           locationHintPromise,
-          withAiTimeout(extractPromise, undefined, `extract_${mode ?? "unknown"}`),
+          withAiTimeout(extractPromise, timeoutMs, `extract_${mode ?? "unknown"}`),
         ]);
 
         if (isProcessingStale(epoch)) return;
@@ -469,6 +556,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         }
 
         let next = extracted;
+        if (
+          isWeakVisionExtraction(next) &&
+          (mode === "upload" || mode === "combined") &&
+          !opts?.recoveryRetry
+        ) {
+          enterConversationalRecovery({
+            previewImage: opts?.previewImage ?? sellerPreviewImage,
+            inputMode: mode,
+            partialDraft: next,
+            reason: "weak_vision",
+          });
+          return;
+        }
         if (!next.location && locationHint) {
           next = { ...next, location: locationHint };
         }
@@ -727,6 +827,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           setAiDraft(syncDraftWithProfile(finalized));
         }
 
+        setSellerVisionRecoveryActive(false);
+        recoveryImageRef.current = null;
+
         setSellerStep("confirmation");
 
         if (
@@ -757,7 +860,58 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast, trackEvent, syncDraftWithProfile]
+    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast, trackEvent, syncDraftWithProfile, enterConversationalRecovery]
+  );
+
+  const submitSellerClarification = useCallback(
+    async (text: string): Promise<boolean> => {
+      const trimmed = text.trim();
+      if (!trimmed) return false;
+
+      setSellerVisionRecoveryActive(false);
+      const image = recoveryImageRef.current ?? sellerPreviewImageRef.current;
+      recoveryImageRef.current = image;
+
+      if (looksLikeVehicleListingText(trimmed) || detectSellerListingIntent(trimmed)) {
+        setSellerStep("processing");
+        let draft = syncDraftWithProfile(
+          createManualFallbackDraft({
+            location: user.city,
+            contact: user.phone,
+          })
+        );
+        draft = enrichVehicleListingDraft(
+          { ...draft, description: trimmed, title: draft.title || trimmed.slice(0, 96) },
+          [trimmed]
+        );
+        draft = attachProductBarcodeHint(draft, trimmed);
+        const finalized = syncDraftWithProfile(
+          finalizeListingDraft(draft, null, draft.attributes ?? {})
+        );
+        if (image) setSellerPreviewImage(image);
+        setAiManualFallback(false);
+        setAiDraft(finalized);
+        setSellerInputMode("text");
+        setSellerUserPrompt(trimmed);
+        setSellerStep("confirmation");
+        setChameleonTheme(finalized.category === "clothing" ? "wardrobe" : "flux");
+        pushAgentGreeting(
+          "Puiku — užpildžiau pagal jūsų aprašymą. Patikrinkite laukus ir tęskime pokalbį.",
+          { openSheet: true }
+        );
+        requestWizardAgentExpand();
+        return true;
+      }
+
+      await runAiProcessing("combined", {
+        transcript: trimmed,
+        previewImage: image,
+        extraContext: trimmed,
+        recoveryRetry: true,
+      });
+      return true;
+    },
+    [user.city, user.phone, syncDraftWithProfile, runAiProcessing, setChameleonTheme]
   );
 
   const submitSellerContent = useCallback(
@@ -1600,6 +1754,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       revertPhotoCategoryMismatch,
       acceptPhotoCategoryMismatch,
       photoCategoryMismatch,
+      sellerVisionRecoveryActive,
+      submitSellerClarification,
     }),
     [
       sellerStep,
@@ -1639,6 +1795,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       revertPhotoCategoryMismatch,
       acceptPhotoCategoryMismatch,
       photoCategoryMismatch,
+      sellerVisionRecoveryActive,
+      submitSellerClarification,
     ]
   );
 
