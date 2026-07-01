@@ -38,6 +38,7 @@ import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
+import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -348,7 +349,8 @@ export function AiCommandBar({
     : "flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] transition disabled:opacity-40";
 
   if (isWizard && collapsible && !wizardExpanded) {
-    const previewLine = lastAssistant.replace(/\s+/g, " ").trim();
+    const barcodeOffer = peekPendingBarcodeOffer();
+    const previewLine = (barcodeOffer?.message ?? lastAssistant).replace(/\s+/g, " ").trim();
     const previewSnippet =
       previewLine.length > 88 ? `${previewLine.slice(0, 88)}…` : previewLine;
 

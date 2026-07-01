@@ -34,7 +34,7 @@ export interface OcrTextBlock {
   text: string;
   confidence: number;
   /** label | serial | model_code | price_tag | other */
-  kind: "label" | "serial" | "model_code" | "price_tag" | "vin_plate" | "other";
+  kind: "label" | "serial" | "model_code" | "price_tag" | "vin_plate" | "barcode" | "other";
 }
 
 export interface DamageFinding {

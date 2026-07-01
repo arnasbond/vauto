@@ -1,4 +1,9 @@
 import { logProductionWarn } from "../../lib/production-log.js";
+import {
+  extractBarcodesFromText,
+  isValidBarcode,
+  normalizeBarcode,
+} from "../../product/barcode-utils.js";
 import { visualPipelineFeatures } from "./features.js";
 import { runBackgroundRemoval } from "./providers/background-removal.js";
 import { runDamageDetection } from "./providers/damage-detection.js";
@@ -29,9 +34,20 @@ function buildTechnicalDescription(
   return parts.join("\n\n");
 }
 
-function buildAttributeHints(codes: string[], damageCondition: string): Record<string, string> {
+function buildAttributeHints(
+  codes: string[],
+  mergedText: string,
+  damageCondition: string
+): Record<string, string> {
   const hints: Record<string, string> = {};
-  if (codes[0]) hints.modelCode = codes[0];
+  const barcodes = extractBarcodesFromText(mergedText);
+  const barcode =
+    barcodes[0] ??
+    codes
+      .map((c) => (isValidBarcode(c) ? normalizeBarcode(c) : null))
+      .find((c): c is string => Boolean(c));
+  if (barcode) hints.barcode = barcode;
+  else if (codes[0]) hints.modelCode = codes[0];
   if (damageCondition) hints.conditionNote = damageCondition;
   return hints;
 }
@@ -235,6 +251,7 @@ export async function runVisualPipeline(
   );
   const attributeHints = buildAttributeHints(
     ocrData?.extractedCodes ?? [],
+    ocrData?.mergedText ?? "",
     damageData?.conditionHint ?? ""
   );
 

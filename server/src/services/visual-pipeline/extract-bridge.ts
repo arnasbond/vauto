@@ -56,6 +56,7 @@ export function visualPipelineResponseSlice(pipeline: VisualPipelineResult) {
     orderedImageUrls: pipeline.orderedImageUrls,
     coverImageId: pipeline.coverImageId,
     technicalDescriptionDraft: pipeline.technicalDescriptionDraft,
+    attributeHints: pipeline.attributeHints,
     conversationalHints: pipeline.conversationalHints,
     durationMs: pipeline.durationMs,
     stages: {

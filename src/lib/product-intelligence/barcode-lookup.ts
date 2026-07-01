@@ -6,7 +6,12 @@ import {
 } from "./barcode-utils";
 
 export interface BarcodeLookupResult {
-  source: "open-food-facts" | "upcitemdb" | "barcode-demo";
+  source:
+    | "open-library"
+    | "open-beauty-facts"
+    | "open-food-facts"
+    | "upcitemdb"
+    | "barcode-unregistered";
   verified: boolean;
   confidence: number;
   barcode: string;
@@ -15,9 +20,16 @@ export interface BarcodeLookupResult {
   category?: string;
   quantity?: string;
   ingredients?: string;
+  author?: string;
+  publishYear?: string;
   specs: string[];
   technicalDescription: string;
+  notFoundInRegistry?: boolean;
+  userMessage?: string;
 }
+
+export const BARCODE_NOT_FOUND_MSG =
+  "Kodas atpažintas, bet nerastas viešame registre. Parašykite daikto pavadinimą patys, o aš sugeneruosiu aprašymą.";
 
 export async function lookupBarcode(
   identifier?: string
@@ -33,9 +45,10 @@ export async function lookupBarcode(
       return {
         ...remote,
         specs: remote.specs ?? [],
-        verified: remote.verified ?? remote.source !== "barcode-demo",
+        verified: remote.verified ?? remote.source !== "barcode-unregistered",
       };
     }
+    return null;
   }
 
   if (!isValidBarcode(normalizeBarcode(normalized))) {
@@ -45,21 +58,35 @@ export async function lookupBarcode(
     return lookupBarcode(fromQr);
   }
 
-  return lookupBarcodeDemo(normalizeBarcode(normalized));
+  return null;
 }
 
-function lookupBarcodeDemo(barcode: string): BarcodeLookupResult {
-  return {
-    source: "barcode-demo",
-    verified: false,
-    confidence: 0.7,
-    barcode,
-    title: "Universalus produktas (demo)",
-    brand: "Demo",
-    category: "Buitis",
-    specs: ["Brūkšninis kodas atpažintas — demo režimas"],
-    technicalDescription: `EAN/UPC: ${barcode}\nDuomenų šaltinis: demo adapteris.`,
-  };
+export async function enrichBarcodeWithFashionCopy(
+  result: BarcodeLookupResult,
+  category: string
+): Promise<Partial<AiExtractedListing>> {
+  if (result.notFoundInRegistry) {
+    return barcodeLookupToDraftPatch(result);
+  }
+
+  const { isDataApiEnabled } = await import("@/lib/api/config");
+  if (!isDataApiEnabled() || category !== "clothing") {
+    return barcodeLookupToDraftPatch(result);
+  }
+
+  try {
+    const { apiFashionListingDescription } = await import("@/lib/api/client");
+    const copy = await apiFashionListingDescription(result, { category: "clothing" });
+    const base = barcodeLookupToDraftPatch(result);
+    return {
+      ...base,
+      title: copy?.title ?? base.title,
+      description: copy?.description ?? base.description,
+      confidence: copy?.confidence ?? base.confidence,
+    };
+  } catch {
+    return barcodeLookupToDraftPatch(result);
+  }
 }
 
 export function barcodeLookupToDraftPatch(
@@ -76,19 +103,23 @@ export function barcodeLookupToDraftPatch(
   if (result.quantity) attrs.quantity = result.quantity;
 
   const title =
-    existing?.title?.trim() && existing.title.length > 2
-      ? existing.title
-      : result.brand
-        ? `${result.brand} ${result.title}`.trim()
-        : result.title;
+    result.notFoundInRegistry
+      ? existing?.title?.trim() || ""
+      : existing?.title?.trim() && existing.title.length > 2
+        ? existing.title
+        : result.brand
+          ? `${result.brand} ${result.title}`.trim()
+          : result.title;
 
   const priorDesc = existing?.description?.trim() ?? "";
-  const description = priorDesc
-    ? `${priorDesc}\n\n---\n${result.technicalDescription}`
-    : result.technicalDescription;
+  const description = result.notFoundInRegistry
+    ? priorDesc || result.userMessage || BARCODE_NOT_FOUND_MSG
+    : priorDesc
+      ? `${priorDesc}\n\n---\n${result.technicalDescription}`
+      : result.technicalDescription;
 
   return {
-    title,
+    title: title || existing?.title,
     confidence: result.confidence,
     attributes: attrs,
     description,

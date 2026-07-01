@@ -54,7 +54,12 @@ import {
   lookupVehicleOnServer,
   vehicleLookupFeatures,
 } from "../vehicle/vehicle-lookup-route.js";
-import { lookupBarcodeOnServer } from "../product/barcode-lookup.js";
+import {
+  extractBarcodeFromImage,
+  generateProductFashionDescription,
+  lookupProductOnServer,
+  productLookupFeatures,
+} from "../product/product-lookup-route.js";
 import { notifyListingMatch } from "../push/web-push.js";
 import { scheduleWishlistMatchNotifications } from "../notifications/notifications-service.js";
 import {
@@ -163,6 +168,7 @@ function computeReadiness(
     features.stripe,
     features.stripeWebhook,
     features.vehicleLookup,
+    features.productLookup,
     serviceLeads,
     embeddingsSynced,
     features.regitraPlateApi || features.ltOpenData,
@@ -184,6 +190,7 @@ apiRouter.get("/version", (_req, res) => {
 
 apiRouter.get("/health", async (_req, res) => {
   const vehicle = vehicleLookupFeatures();
+  const product = productLookupFeatures();
   const features = {
     sms: Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
@@ -206,6 +213,9 @@ apiRouter.get("/health", async (_req, res) => {
     ltOpenData: vehicle.ltOpenData,
     euVinOpenData: vehicle.euVinOpenData,
     vehicleLookup: vehicle.nhtsaVin,
+    productLookup: product.liveOnly,
+    openLibrary: product.openLibrary,
+    openBeautyFacts: product.openBeautyFacts,
   };
 
   let embeddings: {
@@ -963,12 +973,58 @@ apiRouter.post("/product/lookup", async (req, res) => {
       res.status(400).json({ error: "identifier is required" });
       return;
     }
-    const result = await lookupBarcodeOnServer(identifier);
+    const result = await lookupProductOnServer(identifier);
     if (!result) {
-      res.status(404).json({ error: "Product not found" });
+      res.status(404).json({ error: "Invalid or unparseable barcode" });
       return;
     }
     res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/product/scan-image", async (req, res) => {
+  try {
+    const imageDataUrl = String(
+      (req.body as { imageDataUrl?: string })?.imageDataUrl ?? ""
+    ).trim();
+    if (!imageDataUrl) {
+      res.status(400).json({ error: "imageDataUrl is required" });
+      return;
+    }
+    const barcode = await extractBarcodeFromImage(imageDataUrl);
+    if (!barcode) {
+      res.status(404).json({ error: "No barcode detected in image" });
+      return;
+    }
+    res.json({ barcode });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/product/fashion-description", async (req, res) => {
+  try {
+    if (!hasAiKey()) {
+      res.status(503).json({ error: "GEMINI_API_KEY not set" });
+      return;
+    }
+    const body = req.body as {
+      product?: Record<string, unknown>;
+      category?: string;
+      hint?: string;
+    };
+    const product = body.product;
+    if (!product || typeof product.barcode !== "string") {
+      res.status(400).json({ error: "product with barcode is required" });
+      return;
+    }
+    const copy = await generateProductFashionDescription(
+      product as unknown as import("../product/product-lookup-types.js").BarcodeLookupResult,
+      { category: body.category, hint: body.hint }
+    );
+    res.json(copy);
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

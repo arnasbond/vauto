@@ -7,6 +7,10 @@ import {
 import { createWorker } from "tesseract.js";
 import { logProductionWarn } from "../../../lib/production-log.js";
 import { isPlausibleVin } from "../../../vehicle/vin-utils.js";
+import {
+  extractBarcodesFromText,
+  isValidBarcode,
+} from "../../../product/barcode-utils.js";
 import { fetchImageBytes, imageBytesToBase64 } from "../image-bytes.js";
 import type {
   OcrPipelineResult,
@@ -38,6 +42,9 @@ export function classifyOcrLine(text: string): OcrTextBlock["kind"] {
   const t = text.trim();
   if (extractPlateToken(t)) return "vin_plate";
   if (extractVinToken(t)) return "vin_plate";
+  if (extractBarcodesFromText(t).length > 0 || (/\b\d{13}\b/.test(t) && isValidBarcode(t))) {
+    return "barcode";
+  }
   if (/\b\d{8,14}\b/.test(t)) return "serial";
   if (/\b[A-Z]{2,5}[- ]?\d{2,6}[A-Z0-9]*\b/i.test(t)) return "model_code";
   if (/€|eur|kaina|price/i.test(t)) return "price_tag";
@@ -54,12 +61,12 @@ function mergeBlocks(
     .join("\n")
     .trim();
   const extractedCodes = [
-    ...new Set(
-      blocks
-        .filter((b) => b.kind !== "other" && b.kind !== "price_tag")
-        .map((b) => b.text.trim())
-        .filter(Boolean)
-    ),
+    ...new Set([
+      ...extractBarcodesFromText(mergedText),
+      ...blocks
+        .filter((b) => b.kind === "barcode" || b.kind === "serial" || b.kind === "label")
+        .flatMap((b) => extractBarcodesFromText(b.text)),
+    ]),
   ];
   return {
     blocks,

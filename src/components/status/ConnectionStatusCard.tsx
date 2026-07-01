@@ -22,6 +22,9 @@ const FEATURE_LABELS: Record<string, string> = {
   ltOpenData: "LT TA atviri duomenys",
   euVinOpenData: "ES VIN atviras dekoderis",
   vehicleLookup: "Transporto lookup",
+  productLookup: "Prekių brūkšninis lookup",
+  openLibrary: "Open Library (ISBN)",
+  openBeautyFacts: "Open Beauty Facts",
   serviceLeads: "Paslaugų lead'ai",
 };
 

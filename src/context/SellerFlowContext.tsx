@@ -130,6 +130,7 @@ import {
   isBarcodeLookupEligibleCategory,
   resolveBarcodeFromAttributes,
 } from "@/lib/product-intelligence/barcode-utils";
+import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import {
   isWeakVisionExtraction,
@@ -1027,6 +1028,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (imageUrl) setSellerPreviewImage(imageUrl);
       setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
       setSellerStep("confirmation");
+      const detectedBarcode = resolveBarcodeFromAttributes(
+        enriched.attributes ?? {},
+        sourceText
+      );
+      if (detectedBarcode && isBarcodeLookupEligibleCategory(enriched.category)) {
+        setPendingBarcodeOffer(detectedBarcode);
+      }
       const vehicleAttrs = enriched.attributes;
       const prefilled =
         enriched.category === "vehicles" &&

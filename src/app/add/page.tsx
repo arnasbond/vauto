@@ -6,6 +6,7 @@ import { AppShell } from "@/components/AppShell";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
+import { FashionUploadPanel } from "@/components/clothing/FashionUploadPanel";
 import {
   AiIntroModal,
   hasSeenAiIntro,
@@ -155,6 +156,11 @@ export default function AddPage() {
                   autoOpenPhotoFlow={startAiAfterIntro}
                   onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
                 />
+              </div>
+            )}
+            {fashionMode && (
+              <div className="mt-5">
+                <FashionUploadPanel />
               </div>
             )}
           </HeroSection>

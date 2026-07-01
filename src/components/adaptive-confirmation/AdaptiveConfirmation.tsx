@@ -23,6 +23,7 @@ import { DraftMediaEditor } from "./DraftMediaEditor";
 import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import { ConversationalReport } from "@/components/conversational/ConversationalReport";
 import { VehicleLookupCard } from "@/components/vehicle/VehicleLookupCard";
+import { BarcodeLookupCard } from "@/components/product/BarcodeLookupCard";
 import { useVehicleAutoLookup } from "@/hooks/useVehicleAutoLookup";
 import { useBarcodeAutoLookup } from "@/hooks/useBarcodeAutoLookup";
 import { isBarcodeLookupEligibleCategory } from "@/lib/product-intelligence/barcode-utils";
@@ -74,7 +75,7 @@ export function AdaptiveConfirmation({
   onPhotoMismatchRevert,
   onPhotoMismatchAccept,
 }: AdaptiveConfirmationProps) {
-  const { chameleonTheme, user, isAuthenticated } = useVauto();
+  const { chameleonTheme, user, isAuthenticated, showToast } = useVauto();
   const theme = getChameleonTheme(universalMode ? "flux" : chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
@@ -206,12 +207,13 @@ export function AdaptiveConfirmation({
     onUpdate
   );
 
-  useBarcodeAutoLookup(
+  const barcodeLookup = useBarcodeAutoLookup(
     draft.category,
     attributes,
     { title: draft.title, description: draft.description },
     isBarcodeLookupEligibleCategory(draft.category) && !manualFallback,
-    onUpdate
+    onUpdate,
+    (msg) => showToast(msg)
   );
 
   const isVinVerified = draft.isVinVerified === true;
@@ -297,6 +299,14 @@ export function AdaptiveConfirmation({
           loading={vehicleLookup.loading}
           result={vehicleLookup.result}
           isVinVerified={isVinVerified}
+        />
+      )}
+
+      {isBarcodeLookupEligibleCategory(draft.category) && (
+        <BarcodeLookupCard
+          loading={barcodeLookup.loading}
+          result={barcodeLookup.result}
+          barcode={barcodeLookup.barcode}
         />
       )}
 

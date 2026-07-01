@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import type { AiExtractedListing, CategoryAttributes, ListingCategory } from "@/lib/types";
 import {
-  barcodeLookupToDraftPatch,
+  enrichBarcodeWithFashionCopy,
   isBarcodeLookupEligibleCategory,
   lookupBarcode,
   type BarcodeLookupResult,
@@ -15,13 +15,16 @@ export function useBarcodeAutoLookup(
   attributes: CategoryAttributes,
   draft: Pick<AiExtractedListing, "title" | "description">,
   enabled: boolean,
-  onApply: (patch: Partial<AiExtractedListing>) => void
+  onApply: (patch: Partial<AiExtractedListing>) => void,
+  onNotFound?: (message: string) => void
 ) {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<BarcodeLookupResult | null>(null);
   const lastFetchedRef = useRef("");
   const onApplyRef = useRef(onApply);
   onApplyRef.current = onApply;
+  const onNotFoundRef = useRef(onNotFound);
+  onNotFoundRef.current = onNotFound;
   const draftRef = useRef(draft);
   draftRef.current = draft;
   const attributesRef = useRef(attributes);
@@ -45,16 +48,29 @@ export function useBarcodeAutoLookup(
     const timer = window.setTimeout(() => {
       setLoading(true);
       void lookupBarcode(barcode)
-        .then((next) => {
+        .then(async (next) => {
           if (cancelled || !next) return;
           lastFetchedRef.current = barcode;
           setResult(next);
+          if (next.notFoundInRegistry) {
+            onNotFoundRef.current?.(
+              next.userMessage ??
+                "Kodas atpažintas, bet nerastas viešame registre. Parašykite daikto pavadinimą patys, o aš sugeneruosiu aprašymą."
+            );
+          }
+          const patch = await enrichBarcodeWithFashionCopy(next, category);
           onApplyRef.current(
-            barcodeLookupToDraftPatch(next, {
-              title: draftRef.current.title,
-              description: draftRef.current.description,
-              attributes: attributesRef.current,
-            })
+            patch.title || patch.description
+              ? patch
+              : {
+                  ...patch,
+                  title: draftRef.current.title,
+                  description: draftRef.current.description,
+                  attributes: {
+                    ...attributesRef.current,
+                    ...patch.attributes,
+                  },
+                }
           );
         })
         .finally(() => {
@@ -66,7 +82,7 @@ export function useBarcodeAutoLookup(
       cancelled = true;
       window.clearTimeout(timer);
     };
-  }, [eligible, barcode]);
+  }, [eligible, barcode, category]);
 
   return { loading, result, barcode };
 }

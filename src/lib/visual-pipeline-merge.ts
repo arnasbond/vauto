@@ -10,6 +10,7 @@ export interface VisualPipelinePayload {
   orderedImageUrls?: string[];
   coverImageId?: string;
   technicalDescriptionDraft?: string;
+  attributeHints?: Record<string, string>;
   conversationalHints?: VisualPipelineConversationalHints;
 }
 
@@ -36,6 +37,10 @@ export function applyVisualPipelineToDraft(
     attrs.visualDamagePending = "true";
     attrs.isDamageVerified = pipeline.conversationalHints.isDamageVerified ? "true" : "false";
   }
+
+  const hints = pipeline.attributeHints ?? {};
+  if (hints.barcode && !attrs.barcode) attrs.barcode = hints.barcode;
+  if (hints.modelCode && !attrs.modelCode) attrs.modelCode = hints.modelCode;
 
   return {
     ...draft,

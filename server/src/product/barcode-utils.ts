@@ -24,6 +24,22 @@ function checkEanChecksum(code: string): boolean {
   return check === expected;
 }
 
+/** ISBN-13 book prefix (978/979) or valid ISBN-13 EAN. */
+export function isIsbnBarcode(raw: string): boolean {
+  const code = normalizeBarcode(raw);
+  if (code.length !== 13 || !isValidBarcode(code)) return false;
+  return code.startsWith("978") || code.startsWith("979");
+}
+
+export type BarcodeKind = "isbn" | "ean" | "upc";
+
+export function classifyBarcode(raw: string): BarcodeKind {
+  if (isIsbnBarcode(raw)) return "isbn";
+  const code = normalizeBarcode(raw);
+  if (code.length === 12) return "upc";
+  return "ean";
+}
+
 export function extractBarcodesFromText(text: string): string[] {
   const found = new Set<string>();
   for (const match of text.match(/\b\d{8,14}\b/g) ?? []) {
@@ -42,7 +58,7 @@ export function extractBarcodeFromQrPayload(payload: string): string | undefined
     const url = new URL(trimmed);
     const pathCode = url.pathname.match(/(\d{8,14})/)?.[1];
     if (pathCode && isValidBarcode(pathCode)) return normalizeBarcode(pathCode);
-    for (const key of ["ean", "gtin", "upc", "barcode"]) {
+    for (const key of ["ean", "gtin", "upc", "barcode", "isbn"]) {
       const v = url.searchParams.get(key);
       if (v && isValidBarcode(v)) return normalizeBarcode(v);
     }

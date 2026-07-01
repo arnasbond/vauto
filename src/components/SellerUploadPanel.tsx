@@ -1,11 +1,13 @@
 "use client";
 
-import { ArrowRight, Camera, PenLine, Sparkles } from "lucide-react";
+import { ArrowRight, Barcode, Camera, PenLine, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { SELLER_CATEGORY_PROMPTS } from "@/lib/seller-category-prompts";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { AiModeBadge } from "@/components/AiModeBadge";
+import { BarcodeScanSheet } from "@/components/product/BarcodeScanSheet";
+import { useBarcodeScanFlow } from "@/hooks/useBarcodeScanFlow";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
@@ -32,8 +34,10 @@ export function SellerUploadPanel({
   } = useVauto();
   const { sendAgentMessage, applyAgentActions, busy: agentBusy, openWithGreeting } =
     useVautoAgent();
+  const { applyScannedBarcode } = useBarcodeScanFlow();
   const [query, setQuery] = useState("");
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
   const autoOpenedRef = useRef(false);
 
@@ -120,6 +124,19 @@ export function SellerUploadPanel({
         className={`seller-upload-panel${processing ? " pointer-events-none opacity-50" : ""}`}
       >
         <QuickImportFromUrlCard />
+        <button
+          type="button"
+          onClick={() => {
+            if (busy || processing) return;
+            if (!requireAuthForListing("/add")) return;
+            setBarcodeOpen(true);
+          }}
+          disabled={busy || processing}
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#7c3aed] bg-[#faf5ff] py-3.5 text-sm font-bold text-[#6d28d9] shadow-sm disabled:opacity-50"
+        >
+          <Barcode className="h-5 w-5" />
+          📊 Skenuoti brūkšninį / QR kodą
+        </button>
         <button
           type="button"
           onClick={openPhotoFlow}
@@ -209,6 +226,12 @@ export function SellerUploadPanel({
         busy={photoSubmitting}
         onClose={() => setPhotoFlowOpen(false)}
         onSubmit={handlePhotoFlowSubmit}
+      />
+
+      <BarcodeScanSheet
+        open={barcodeOpen}
+        onClose={() => setBarcodeOpen(false)}
+        onBarcodeResolved={(code) => void applyScannedBarcode(code, { category: "other" })}
       />
     </>
   );
