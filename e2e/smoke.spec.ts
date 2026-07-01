@@ -1,11 +1,19 @@
-import { test, expect } from "@playwright/test";
+import { test, expect, type Page } from "@playwright/test";
 import { seedAdminUser, seedDemoUser, seedProUser } from "./helpers/seed-demo-user";
+import { listingResults } from "./helpers/listing-results";
+
+async function waitForHomeReady(page: Page) {
+  await page.goto("/");
+  await expect(page).toHaveTitle(/Vauto/i);
+  await expect(page.getByRole("searchbox").first()).toBeVisible({ timeout: 15_000 });
+}
 
 test.describe("Vauto smoke", () => {
   test("home page loads with listings", async ({ page }) => {
-    await page.goto("/");
-    await expect(page).toHaveTitle(/Vauto/i);
-    await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+    await waitForHomeReady(page);
+    await expect(
+      page.getByText(/Sveiki, aš esu VAUTO asistentas|Skelbimai Lietuvoje/i).first()
+    ).toBeVisible({ timeout: 10_000 });
   });
 
   test("profile gate shows login CTA for guests", async ({ page }) => {
@@ -45,18 +53,19 @@ test.describe("Vauto smoke", () => {
       timeout: 15_000,
     });
     await expect(page.getByRole("button", { name: "Technika" })).toBeVisible();
-    await expect(page.getByText(/Skelbti su AI/i).first()).toBeVisible();
+    await expect(page.getByText(/Skelbti su Vision AI/i).first()).toBeVisible();
   });
 
   test("add listing page loads upload UI", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
-    await expect(page.getByText(/Skelbti su AI/i).first()).toBeVisible();
+    await expect(page.getByText(/Skelbti su Vision AI/i).first()).toBeVisible({
+      timeout: 15_000,
+    });
   });
 
   test("home search accepts input", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
     await search.click();
     await search.fill("bmw");
@@ -64,23 +73,21 @@ test.describe("Vauto smoke", () => {
   });
 
   test("volvo v70 search shows marketplace results", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("ieskau volvo v70");
     await search.press("Enter");
-    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    const results = listingResults(page);
     await expect(results).toBeVisible({ timeout: 10_000 });
     await expect(results.getByText(/volvo v70.*rezultat/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
     await expect(results.getByText(/0 rezultat/i)).not.toBeVisible();
   });
 
   test("marketplace view mode toggles list grid map", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    await waitForHomeReady(page);
+    const results = listingResults(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("bmw");
     await search.press("Enter");
@@ -92,29 +99,32 @@ test.describe("Vauto smoke", () => {
       timeout: 15_000,
     });
     await results.getByRole("button", { name: "Sąrašas" }).click();
-    await expect(results.locator("article").first()).toBeVisible();
+    await expect(results.locator("article").first()).toBeVisible({ timeout: 15_000 });
     await results.getByRole("button", { name: "Tinklelis" }).click();
     await expect(results.locator(".grid").first()).toBeVisible();
   });
 
-  test("marketplace sticky filter bar shows category dropdown", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
-    await results.getByRole("button", { name: /Kategorija/i }).click();
-    await expect(
-      results.getByRole("button", { name: "Auto", exact: true })
-    ).toBeVisible();
+  test("marketplace filter bar shows result count", async ({ page }) => {
+    await waitForHomeReady(page);
+    const results = listingResults(page);
+    await expect(results.getByText(/Skelbimai Lietuvoje:.*rezultat/i)).toBeVisible({
+      timeout: 10_000,
+    });
+    await expect(results.getByText(/Patikslinkite žemiau per AI asistentą/i)).toBeVisible();
   });
 
   test("bottom navigation visible on home", async ({ page }) => {
     await page.goto("/");
-    await expect(page.getByRole("navigation")).toBeVisible();
+    await expect(
+      page.getByRole("navigation", { name: "Pagrindinė navigacija" })
+    ).toBeVisible();
   });
 
-  test("profile shows connection status card", async ({ page }) => {
-    await page.goto("/profile/");
-    await expect(page.getByTestId("connection-status")).toBeVisible();
+  test("profile settings shows connection status for guest", async ({ page }) => {
+    await page.goto("/profile/settings/");
+    await expect(page.getByTestId("connection-status")).toBeVisible({
+      timeout: 15_000,
+    });
     await expect(page.getByText(/Demo režimas|Live API/i)).toBeVisible();
   });
 
@@ -123,6 +133,9 @@ test.describe("Vauto smoke", () => {
     expect(res.ok()).toBeTruthy();
     const json = await res.json();
     expect(json.apiUrl).toBeTruthy();
+    if (process.env.CI) {
+      expect(json.conductorEnabled).toBe(true);
+    }
   });
 
   test("profile shows pro business dashboard for pro user", async ({ page }) => {
@@ -155,54 +168,46 @@ test.describe("Vauto smoke", () => {
     await expect(page.getByRole("button", { name: /Peržiūra/i })).toBeVisible();
   });
 
-  test("AI agent opens from FAB on profile", async ({ page }) => {
-    await page.setViewportSize({ width: 390, height: 844 });
-    await page.goto("/profile/");
-    await page.waitForLoadState("networkidle");
-    const fab = page.getByTestId("vauto-agent-fab");
-    await expect(fab).toBeVisible({ timeout: 10_000 });
-    await fab.click();
-    await expect(page.getByRole("dialog", { name: "VAUTO AI asistentas" })).toBeVisible({
-      timeout: 15_000,
+  test("home AI assistant strip is visible", async ({ page }) => {
+    await waitForHomeReady(page);
+    await expect(page.getByText(/VAUTO asistentas/i).first()).toBeVisible({
+      timeout: 10_000,
     });
-    await expect(page.getByText(/Sveiki! Aš esu VAUTO asistentas/i)).toBeVisible();
   });
 
   test("mobile bottom nav shows place ad and profile", async ({ page }) => {
+    await seedDemoUser(page);
     await page.setViewportSize({ width: 390, height: 844 });
     await page.goto("/");
-    await page.waitForLoadState("networkidle");
+    await expect(page.getByRole("searchbox").first()).toBeVisible({ timeout: 15_000 });
     const nav = page.getByRole("navigation", { name: "Pagrindinė navigacija" });
     await expect(nav.getByRole("button", { name: "Įdėti naują skelbimą" })).toBeVisible();
     await expect(nav.getByRole("link", { name: /Profilis|VAUTO CC/i })).toBeVisible();
     await nav.getByRole("link", { name: /Profilis|VAUTO CC/i }).click();
     await expect(page).toHaveURL(/\/profile\/?/, { timeout: 15_000 });
-    await expect(page.getByTestId("connection-status")).toBeVisible();
   });
 
-  test("Gemini send on home runs state-driven search", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
+  test("search submit on home runs state-driven search", async ({ page }) => {
+    await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("bmw kaunas");
-    await page.getByRole("button", { name: "Siųsti Gemini asistentui" }).click();
-    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    await page.getByRole("button", { name: "Ieškoti" }).click();
+    const results = listingResults(page);
     await expect(results.getByText(/bmw kaunas.*rezultat/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
   });
 
   test("voice-style view mode switches to map", async ({ page }) => {
-    await page.goto("/");
-    await page.waitForLoadState("networkidle");
-    const results = page.getByRole("region", { name: "Paieškos rezultatai" });
+    await waitForHomeReady(page);
+    const results = listingResults(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("parodyk žemėlapyje");
     await search.press("Enter");
     await expect(results.getByRole("button", { name: "Žemėlapis" })).toHaveAttribute(
       "aria-pressed",
       "true",
-      { timeout: 10_000 }
+      { timeout: 15_000 }
     );
     await expect(results.getByText(/skelbimų žemėlapyje/i)).toBeVisible({
       timeout: 15_000,

@@ -14,7 +14,6 @@ import {
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import {
   executeConductorRoute,
-  routeConductorAgentAction,
   conductorPhotoUploadSource,
   conductorSearchQuerySource,
   readConductorSearchExecute,
@@ -158,7 +157,6 @@ export function AiCommandBar({
   const syncGridFromAgentActions = useCallback(
     (actions: VautoAgentAction | undefined) => {
       if (!actions || actions.type === "none") return;
-      void routeConductorAgentAction(actions, "AiCommandBar.syncGridFromAgentActions");
       applyAgentActions(actions);
       if (actions.type === "search") {
         setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));

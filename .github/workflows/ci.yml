@@ -81,6 +81,8 @@ jobs:
 
       - name: Build static export
         run: npm run build
+        env:
+          NEXT_PUBLIC_SHOW_DEMO_CATALOG: "true"
 
       - name: Run E2E smoke tests
         run: npx playwright test --grep-invert "runtime-config enables conductor"

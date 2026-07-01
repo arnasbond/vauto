@@ -106,12 +106,7 @@ async function tryRouteAgentAction(request: ConductorRequest): Promise<Conductor
     });
   }
   try {
-    const agentExecute = await executeConductorAgentAction(agentAction, {
-      userCity:
-        typeof request.payload?.userCity === "string" ? request.payload.userCity : undefined,
-      userPhone:
-        typeof request.payload?.userPhone === "string" ? request.payload.userPhone : undefined,
-    });
+    const agentExecute = await executeConductorAgentAction(agentAction);
     return logConductor(request, {
       handled: true,
       phase: "complete",

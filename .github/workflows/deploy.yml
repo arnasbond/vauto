@@ -1,7 +1,9 @@
 name: Deploy to Vercel
 
 on:
-  push:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
     branches: [master]
   workflow_dispatch:
 
@@ -11,6 +13,10 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push')
     steps:
       - uses: actions/checkout@v4
 
@@ -43,6 +49,7 @@ jobs:
         run: |
           test -f public/runtime-config.json
           grep -q vauto-api.onrender.com public/runtime-config.json
+          grep -q '"conductorEnabled": true' public/runtime-config.json
           test -f out/admin/ai/index.html
           test -f out/profile/index.html
           echo "Build OK"
