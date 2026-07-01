@@ -68,17 +68,13 @@ export function GuestFashionCabinet() {
   return (
     <div className="chameleon-wardrobe pb-6">
       <div className="mb-5 flex items-center gap-3">
-        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow-md">
+        <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
           <LayoutGrid className="h-6 w-6" />
         </span>
         <div>
-          <p className="text-xs font-medium uppercase tracking-wide text-fuchsia-600">
-            Viešas demo režimas
-          </p>
-          <h1 className="text-xl font-semibold text-[var(--vauto-text-main)]">
-            Mano asortimentas
-          </h1>
-          <p className="text-xs text-[var(--vauto-text-muted)]">
+          <p className="vauto-demo-badge text-xs">Viešas demo režimas</p>
+          <h1 className="text-xl font-semibold text-foreground">Mano asortimentas</h1>
+          <p className="text-xs text-muted-foreground">
             Auto, NT, paslaugos ir prekės — peržiūrai be privalomo prisijungimo
           </p>
         </div>
@@ -102,7 +98,7 @@ export function GuestFashionCabinet() {
         <button
           type="button"
           onClick={handleSaveAndStart}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-fuchsia-600 to-violet-600 py-3.5 text-sm font-semibold text-white shadow-md"
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl vauto-btn-primary py-3.5 text-sm shadow-sm"
         >
           <Sparkles className="h-4 w-4" />
           Išsaugoti ir pradėti prekybą
@@ -113,7 +109,7 @@ export function GuestFashionCabinet() {
         <button
           type="button"
           onClick={handlePublishAfterAuth}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3.5 text-sm font-semibold text-white shadow-md"
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl vauto-btn-primary py-3.5 text-sm shadow-sm"
         >
           <Sparkles className="h-4 w-4" />
           Publikuoti {guestDrafts.length} importuotus skelbimus
@@ -124,7 +120,7 @@ export function GuestFashionCabinet() {
         <button
           type="button"
           onClick={() => openAuthModal("/fashion/")}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl border border-fuchsia-500/50 bg-[#131c38] py-2.5 text-sm font-medium text-fuchsia-300"
+          className="mb-6 flex w-full items-center justify-center gap-2 rounded-xl vauto-btn-secondary py-2.5 text-sm"
         >
           <LogIn className="h-4 w-4" />
           Jau turi paskyrą? Prisijunk
@@ -132,8 +128,8 @@ export function GuestFashionCabinet() {
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-[var(--vauto-text-main)]">
-          <LayoutGrid className="h-4 w-4 text-fuchsia-600" />
+        <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-foreground">
+          <LayoutGrid className="h-4 w-4 text-primary" />
           Prekės ir paslaugos
         </h2>
       </div>

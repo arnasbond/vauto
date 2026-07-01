@@ -1,55 +1,176 @@
 @import "tailwindcss";
 
-/* ── Vauto Flux 2026 design tokens ── */
+/* ═══════════════════════════════════════════════════════════════════════════
+   VAUTO Design System — world-class semantic tokens (Light + Dark)
+   Premium, restrained palette. Map components to semantic tokens first.
+   ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  --flux-bg: #f4f7fc;
-  --flux-teal: #1e66ca;
-  --flux-cyan: #1d8fe8;
-  --flux-indigo: #1e66ca;
-  --flux-coral: #ff6b00;
-  --flux-coral-light: #ff8f65;
-  --flux-price-start: #ff8a65;
-  --flux-price-end: #ffb74d;
+  /* ── Semantic (shadcn-compatible) ── */
+  --background: #f6f7f9;
+  --foreground: #0c0e12;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted-foreground: #5c6573;
+  --border: rgba(12, 14, 18, 0.1);
+  --accent: #eef2ff;
+  --accent-foreground: #0c0e12;
+  --primary: #1e4ed8;
+  --primary-foreground: #ffffff;
+  --ring: #1e4ed8;
+  --radius: 0.75rem;
 
-  /* Canonical theme tokens (default = VAUTO Original light) */
-  --vauto-bg: #f4f7fc;
-  --vauto-card-bg: #ffffff;
-  --vauto-text-main: #0b0f19;
-  --vauto-text-muted: #5e6e82;
-  --vauto-primary: #1e66ca;
-  --vauto-accent: #ff6b00;
-  --vauto-primary-contrast: #ffffff;
-  --vauto-border: rgba(94, 110, 130, 0.22);
+  /* ── Legacy Flux mesh (toned down for light) ── */
+  --flux-bg: var(--background);
+  --flux-teal: var(--primary);
+  --flux-cyan: #3b82f6;
+  --flux-indigo: #4338ca;
+  --flux-coral: #c2410c;
+  --flux-coral-light: #ea580c;
+  --flux-price-start: #1e4ed8;
+  --flux-price-end: #6366f1;
+
+  /* ── Canonical VAUTO tokens (alias semantic) ── */
+  --vauto-bg: var(--background);
+  --vauto-card-bg: var(--card);
+  --vauto-surface-muted: #f1f3f6;
+  --vauto-text-main: var(--foreground);
+  --vauto-text-heading: var(--foreground);
+  --vauto-text-muted: var(--muted-foreground);
+  --vauto-primary: var(--primary);
+  --vauto-accent: #4338ca;
+  --vauto-primary-contrast: var(--primary-foreground);
+  --vauto-border: var(--border);
   --vauto-leading: 1.55;
-  --vauto-tracking: -0.011em;
+  --vauto-tracking: -0.014em;
+  --vauto-motion: 0.22s cubic-bezier(0.22, 1, 0.36, 1);
 
-  /* Legacy aliases — keep existing components working */
   --vauto-text: var(--vauto-text-main);
   --vauto-surface: var(--vauto-card-bg);
   --vauto-teal: var(--vauto-primary);
   --vauto-blue: var(--vauto-primary);
-  --vauto-orange: var(--vauto-accent);
-  --vauto-orange-light: #ff8f65;
-  --vauto-red: #ef4444;
+  --vauto-orange: var(--flux-coral);
+  --vauto-orange-light: var(--flux-coral-light);
+  --vauto-red: #dc2626;
 }
 
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
   --font-display: var(--font-outfit);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-popover: var(--popover);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-border: var(--border);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-ring: var(--ring);
+  --radius-lg: var(--radius);
 }
 
 body {
   font-family: var(--font-geist-sans), system-ui, -apple-system, sans-serif;
   font-feature-settings: "kern" 1, "liga" 1, "calt" 1;
-  color: var(--vauto-text-main);
-  background: var(--vauto-bg);
+  color: var(--foreground);
+  background: var(--background);
   line-height: var(--vauto-leading, 1.55);
-  letter-spacing: var(--vauto-tracking, -0.011em);
+  letter-spacing: var(--vauto-tracking, -0.014em);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   text-rendering: optimizeLegibility;
-  transition: background-color 0.25s ease, color 0.25s ease;
+  transition:
+    background-color var(--vauto-motion, 0.22s ease),
+    color var(--vauto-motion, 0.22s ease);
+}
+
+/* Semantic utility aliases (use in new / refactored components) */
+.bg-background { background-color: var(--background); }
+.bg-card { background-color: var(--card); }
+.bg-popover { background-color: var(--popover); }
+.bg-accent { background-color: var(--accent); }
+.text-foreground { color: var(--foreground); }
+.text-muted-foreground { color: var(--muted-foreground); }
+.border-border { border-color: var(--border); }
+
+.vauto-onboarding-card {
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--foreground);
+  box-shadow: 0 1px 2px rgba(12, 14, 18, 0.04), 0 8px 24px -12px rgba(12, 14, 18, 0.08);
+  transition:
+    box-shadow var(--vauto-motion),
+    border-color var(--vauto-motion);
+}
+
+.vauto-demo-badge {
+  color: var(--primary);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.vauto-btn-primary {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  border-radius: var(--radius);
+  font-weight: 600;
+  transition: opacity var(--vauto-motion), transform var(--vauto-motion);
+}
+
+.vauto-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+}
+
+.vauto-btn-secondary {
+  background: var(--card);
+  color: var(--foreground);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-weight: 500;
+  transition:
+    background-color var(--vauto-motion),
+    border-color var(--vauto-motion);
+}
+
+.vauto-capture-tile {
+  display: flex;
+  aspect-ratio: 1;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: var(--radius);
+  padding: 0.5rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+  color: var(--foreground);
+  transition:
+    background-color var(--vauto-motion),
+    border-color var(--vauto-motion),
+    opacity var(--vauto-motion);
+}
+
+.vauto-capture-tile--camera {
+  border: 2px dashed color-mix(in srgb, var(--primary) 45%, var(--border));
+  background: color-mix(in srgb, var(--primary) 6%, var(--card));
+}
+
+.vauto-capture-tile--camera:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--primary) 11%, var(--card));
+}
+
+.vauto-capture-tile--gallery {
+  border: 1px solid var(--border);
+  background: var(--card);
+}
+
+.vauto-capture-tile--gallery:hover:not(:disabled) {
+  background: var(--accent);
 }
 
 /* Ambient mesh — Flux signature background */
@@ -1229,19 +1350,32 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 /* ── Global app themes (Profilis → Programėlės tema) ── */
 [data-app-theme="vauto-original"] {
-  --flux-bg: #f4f7fc;
-  --flux-teal: #1e66ca;
-  --flux-cyan: #1d8fe8;
-  --flux-indigo: #1e66ca;
-  --flux-coral: #ff6b00;
-  --vauto-bg: #f4f7fc;
-  --vauto-card-bg: #ffffff;
-  --vauto-text-main: #0b0f19;
-  --vauto-text-muted: #5e6e82;
-  --vauto-primary: #1e66ca;
-  --vauto-accent: #ff6b00;
-  --vauto-primary-contrast: #ffffff;
-  --vauto-border: rgba(94, 110, 130, 0.22);
+  --background: #f6f7f9;
+  --foreground: #0c0e12;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted-foreground: #5c6573;
+  --border: rgba(12, 14, 18, 0.1);
+  --accent: #eef2ff;
+  --accent-foreground: #0c0e12;
+  --primary: #1e4ed8;
+  --primary-foreground: #ffffff;
+  --ring: #1e4ed8;
+  --flux-bg: var(--background);
+  --flux-teal: var(--primary);
+  --flux-cyan: #3b82f6;
+  --flux-indigo: #4338ca;
+  --flux-coral: #c2410c;
+  --vauto-bg: var(--background);
+  --vauto-card-bg: var(--card);
+  --vauto-surface-muted: #f1f3f6;
+  --vauto-text-main: var(--foreground);
+  --vauto-text-heading: var(--foreground);
+  --vauto-text-muted: var(--muted-foreground);
+  --vauto-primary: var(--primary);
+  --vauto-accent: #4338ca;
+  --vauto-primary-contrast: var(--primary-foreground);
+  --vauto-border: var(--border);
 }
 
 [data-app-theme="vauto-original"] body,
@@ -1252,34 +1386,47 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 [data-app-theme="vauto-original"] .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 102, 202, 0.1), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(255, 107, 0, 0.08), transparent 50%),
-    var(--vauto-bg);
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 78, 216, 0.07), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(67, 56, 202, 0.05), transparent 50%),
+    var(--background);
 }
 
 [data-app-theme="vauto-original"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #1e66ca, #1d8fe8);
-  box-shadow: 0 12px 32px -8px rgba(30, 102, 202, 0.45);
-  border-color: #ffffff;
+  background: linear-gradient(135deg, #1e4ed8, #3b82f6);
+  box-shadow: 0 12px 32px -8px rgba(30, 78, 216, 0.35);
+  border-color: var(--card);
 }
 
 [data-app-theme="dark"] {
-  --flux-bg: #0b0f19;
-  --flux-teal: #00f2fe;
+  --background: #0a0c10;
+  --foreground: #f1f5f9;
+  --card: #141820;
+  --popover: #181c26;
+  --muted-foreground: #94a3b8;
+  --border: rgba(241, 245, 249, 0.1);
+  --accent: #1e293b;
+  --accent-foreground: #f1f5f9;
+  --primary: #60a5fa;
+  --primary-foreground: #0a0c10;
+  --ring: #60a5fa;
+  --flux-bg: var(--background);
+  --flux-teal: #38bdf8;
   --flux-cyan: #22d3ee;
-  --flux-indigo: #6366f1;
-  --flux-coral: #ff6b00;
-  --vauto-bg: #0b0f19;
-  --vauto-card-bg: #161c2a;
-  --vauto-text-main: #ffffff;
-  --vauto-text-muted: #e2e8f0;
-  --vauto-primary: #00f2fe;
-  --vauto-accent: #ff6b00;
-  --vauto-primary-contrast: #0b0f19;
-  --vauto-border: rgba(226, 232, 240, 0.22);
-  --portal-text: #ffffff;
-  --portal-wizard-surface: #1e293b;
-  --portal-wizard-bg: #0f172a;
+  --flux-indigo: #818cf8;
+  --flux-coral: #fb923c;
+  --vauto-bg: var(--background);
+  --vauto-card-bg: var(--card);
+  --vauto-surface-muted: #1a1f2b;
+  --vauto-text-main: var(--foreground);
+  --vauto-text-heading: var(--foreground);
+  --vauto-text-muted: var(--muted-foreground);
+  --vauto-primary: var(--primary);
+  --vauto-accent: #818cf8;
+  --vauto-primary-contrast: var(--primary-foreground);
+  --vauto-border: var(--border);
+  --portal-text: var(--foreground);
+  --portal-wizard-surface: var(--card);
+  --portal-wizard-bg: var(--background);
 }
 
 [data-app-theme="dark"] body,
@@ -1598,19 +1745,32 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 }
 
 [data-app-theme="light-minimal"] {
-  --flux-bg: #fafafa;
-  --flux-teal: #111111;
-  --flux-cyan: #111111;
-  --flux-indigo: #111111;
-  --flux-coral: #ff6b00;
-  --vauto-bg: #fafafa;
-  --vauto-card-bg: #ffffff;
-  --vauto-text-main: #111111;
-  --vauto-text-muted: #777777;
-  --vauto-primary: #111111;
-  --vauto-accent: #ff6b00;
-  --vauto-primary-contrast: #ffffff;
-  --vauto-border: transparent;
+  --background: #fafafa;
+  --foreground: #111111;
+  --card: #ffffff;
+  --popover: #ffffff;
+  --muted-foreground: #6b7280;
+  --border: rgba(17, 17, 17, 0.08);
+  --accent: #f4f4f5;
+  --accent-foreground: #111111;
+  --primary: #18181b;
+  --primary-foreground: #ffffff;
+  --ring: #18181b;
+  --flux-bg: var(--background);
+  --flux-teal: var(--primary);
+  --flux-cyan: var(--primary);
+  --flux-indigo: var(--primary);
+  --flux-coral: #c2410c;
+  --vauto-bg: var(--background);
+  --vauto-card-bg: var(--card);
+  --vauto-surface-muted: #f4f4f5;
+  --vauto-text-main: var(--foreground);
+  --vauto-text-heading: var(--foreground);
+  --vauto-text-muted: var(--muted-foreground);
+  --vauto-primary: var(--primary);
+  --vauto-accent: #4338ca;
+  --vauto-primary-contrast: var(--primary-foreground);
+  --vauto-border: var(--border);
 }
 
 [data-app-theme="light-minimal"] body,

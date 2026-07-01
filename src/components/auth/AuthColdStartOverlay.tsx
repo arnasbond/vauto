@@ -24,23 +24,23 @@ export function AuthColdStartOverlay() {
 
   return (
     <div
-      className="fixed inset-0 z-[300] flex items-center justify-center bg-[#0b0f17]/96 px-6 backdrop-blur-md"
+      className="fixed inset-0 z-[300] flex items-center justify-center bg-background/95 px-6 backdrop-blur-md"
       role="status"
       aria-live="polite"
       aria-label="VAUTO kraunasi"
     >
       <div className="max-w-sm text-center">
-        <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--vauto-teal,#0d9488)]/20 ring-1 ring-[var(--vauto-teal,#0d9488)]/40">
-          <Sparkles className="h-7 w-7 text-[var(--vauto-teal,#14b8a6)]" />
+        <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-accent ring-1 ring-border">
+          <Sparkles className="h-7 w-7 text-primary" />
         </span>
-        <div className="mb-3 flex items-center justify-center gap-2 text-sm text-slate-400">
-          <Loader2 className="h-4 w-4 animate-spin text-[var(--vauto-teal,#14b8a6)]" />
+        <div className="mb-3 flex items-center justify-center gap-2 text-sm text-muted-foreground">
+          <Loader2 className="h-4 w-4 animate-spin text-primary" />
           <span>Kraunama…</span>
         </div>
-        <p className="text-base font-semibold leading-relaxed text-white">
+        <p className="text-base font-semibold leading-relaxed text-foreground">
           VAUTO AI žadina serverį...
         </p>
-        <p className="mt-2 text-sm leading-relaxed text-slate-400">
+        <p className="mt-2 text-sm leading-relaxed text-muted-foreground">
           Tai gali užtrukti iki 30 sekundžių.
         </p>
       </div>

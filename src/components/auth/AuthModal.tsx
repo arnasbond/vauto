@@ -272,7 +272,7 @@ export function AuthModal({
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-end justify-center bg-slate-900/40 backdrop-blur-sm sm:items-center"
+      className="fixed inset-0 z-[200] flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center"
       onClick={(e) => e.stopPropagation()}
     >
       <div
@@ -333,10 +333,8 @@ export function AuthModal({
                     onClick={() => setSignupIntent(key)}
                     className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-semibold transition ${
                       signupIntent === key
-                        ? key === "wardrobe"
-                          ? "bg-fuchsia-600 text-white shadow-sm"
-                          : "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast,#fff)] shadow-sm"
-                        : "text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-card-bg)] hover:text-[var(--vauto-text-main)]"
+                        ? "bg-primary text-primary-foreground shadow-sm"
+                        : "text-muted-foreground hover:bg-card hover:text-foreground"
                     }`}
                   >
                     <Icon className="h-4 w-4" />
@@ -382,7 +380,7 @@ export function AuthModal({
                   onComplete({ provider: "apple", role: "private", signupIntent });
                 }}
                 disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-slate-900 py-3.5 text-sm font-semibold text-white transition hover:bg-slate-800 disabled:opacity-60"
+                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-foreground py-3.5 text-sm font-semibold text-background transition hover:opacity-90 disabled:opacity-60"
               >
                 <Apple className="h-5 w-5" />
                 Prisijungti su Apple

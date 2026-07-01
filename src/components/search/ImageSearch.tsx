@@ -2,20 +2,14 @@
 
 import { Camera, ImageIcon, Loader2 } from "lucide-react";
 import { useCallback, useState } from "react";
+import { Capacitor } from "@capacitor/core";
 import {
   capturePhotoFromSource,
   pickCameraPhotoWeb,
   pickGalleryPhotoWeb,
   type CapturedPhoto,
 } from "@/lib/native-media";
-import { Capacitor } from "@capacitor/core";
-
-const TILE_BASE =
-  "flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 transition disabled:opacity-50";
-
-const TILE_CAMERA = `${TILE_BASE} border-2 border-dashed border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] text-[var(--vauto-text-main)] hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)]`;
-
-const TILE_GALLERY = `${TILE_BASE} border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] text-[var(--vauto-text-main)] hover:bg-[color-mix(in_srgb,var(--vauto-primary)_6%,transparent)]`;
+import { cn } from "@/lib/cn";
 
 export interface ImageSearchCaptureProps {
   disabled?: boolean;
@@ -24,8 +18,7 @@ export interface ImageSearchCaptureProps {
 }
 
 /**
- * Photo search capture — camera and gallery use isolated handlers.
- * Native: Capacitor Camera (Camera vs Photos). Web: capture="environment" vs gallery picker.
+ * Vision AI capture tiles — camera and gallery use isolated handlers.
  */
 export function ImageSearchCapture({
   disabled,
@@ -77,15 +70,18 @@ export function ImageSearchCapture({
         onClick={handleCamera}
         disabled={disabled || cameraBusy}
         data-testid="image-search-camera"
-        className={TILE_CAMERA}
+        className={cn(
+          "vauto-capture-tile vauto-capture-tile--camera",
+          (disabled || cameraBusy) && "pointer-events-none opacity-50"
+        )}
         aria-label={cameraLabel}
       >
         {cameraBusy ? (
-          <Loader2 className="h-7 w-7 animate-spin" />
+          <Loader2 className="h-7 w-7 animate-spin text-primary" />
         ) : (
-          <Camera className="h-7 w-7" />
+          <Camera className="h-7 w-7 text-primary" />
         )}
-        <span className="text-center text-xs font-semibold leading-tight">{cameraLabel}</span>
+        <span>{cameraLabel}</span>
       </button>
 
       <button
@@ -93,15 +89,18 @@ export function ImageSearchCapture({
         onClick={handleGallery}
         disabled={disabled || galleryBusy}
         data-testid="image-search-gallery"
-        className={TILE_GALLERY}
+        className={cn(
+          "vauto-capture-tile vauto-capture-tile--gallery",
+          (disabled || galleryBusy) && "pointer-events-none opacity-50"
+        )}
         aria-label={galleryLabel}
       >
         {galleryBusy ? (
-          <Loader2 className="h-7 w-7 animate-spin" />
+          <Loader2 className="h-7 w-7 animate-spin text-muted-foreground" />
         ) : (
-          <ImageIcon className="h-7 w-7" />
+          <ImageIcon className="h-7 w-7 text-muted-foreground" />
         )}
-        <span className="text-center text-xs font-semibold leading-tight">{galleryLabel}</span>
+        <span>{galleryLabel}</span>
       </button>
     </>
   );

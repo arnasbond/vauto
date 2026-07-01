@@ -10,12 +10,12 @@ export const APP_THEMES: AppThemeMeta[] = [
   {
     id: "vauto-original",
     label: "VAUTO Originali",
-    description: "Švari balta su mėlynais ir oranžiniais akcentais",
+    description: "Premium šviesi tema — gilus mėlynas akcentas, švarus fonas",
   },
   {
     id: "dark",
     label: "Tamsi tema",
-    description: "Deep Navy, neoniniai mėlyni akcentai",
+    description: "Gilus navy fonas, subtilūs neoniniai AI akcentai",
   },
   {
     id: "light-minimal",
