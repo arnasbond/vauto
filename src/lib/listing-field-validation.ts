@@ -189,16 +189,57 @@ export function buildPublishBlockMessage(params: {
   return issues.slice(0, 4).join(" · ");
 }
 
+/** Facebook-style seller flow — only photo, contact, and category block publish. */
+export function evaluateConversationalPublishValidation(
+  category: ListingCategory,
+  draft: {
+    contact?: string;
+    attributes?: CategoryAttributes;
+  },
+  opts: { hasPhoto: boolean }
+): ListingPublishValidation {
+  const validationCategory = resolveEffectiveListingCategory(
+    category,
+    draft.attributes ?? {}
+  );
+  const needsPhoto = !opts.hasPhoto;
+  const needsContact = isEmpty(draft.contact);
+  const needsCategory = !validationCategory;
+
+  const validationIssues: string[] = [];
+  if (needsPhoto) validationIssues.push("Pridėkite nuotrauką");
+  if (needsContact) validationIssues.push("Įveskite kontaktą");
+  if (needsCategory) validationIssues.push("Pasirinkite kategoriją");
+
+  const canPublish = !needsPhoto && !needsContact && !needsCategory;
+
+  return {
+    missingKeys: [],
+    staleKeys: [],
+    needsPrice: false,
+    needsPhoto,
+    needsSellerType: false,
+    needsTitle: false,
+    canPublish,
+    blockMessage: validationIssues.join(" · ") || "Užpildykite privalomus laukus",
+    validationIssues,
+  };
+}
+
 export function evaluateListingPublishValidation(
   category: ListingCategory,
   draft: {
     title: string;
     price: number;
     description?: string;
+    contact?: string;
     attributes?: CategoryAttributes;
   },
-  opts: { hasPhoto: boolean }
+  opts: { hasPhoto: boolean; conversational?: boolean }
 ): ListingPublishValidation {
+  if (opts.conversational) {
+    return evaluateConversationalPublishValidation(category, draft, opts);
+  }
   const validationCategory = resolveEffectiveListingCategory(category, draft.attributes ?? {});
   const sanitizedAttributes = sanitizeAttributesForCategory(
     category,

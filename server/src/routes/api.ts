@@ -54,6 +54,7 @@ import {
   lookupVehicleOnServer,
   vehicleLookupFeatures,
 } from "../vehicle/vehicle-lookup-route.js";
+import { lookupBarcodeOnServer } from "../product/barcode-lookup.js";
 import { notifyListingMatch } from "../push/web-push.js";
 import { scheduleWishlistMatchNotifications } from "../notifications/notifications-service.js";
 import {
@@ -938,6 +939,26 @@ apiRouter.post("/vehicle/lookup", async (req, res) => {
     const result = await lookupVehicleOnServer(identifier);
     if (!result) {
       res.status(404).json({ error: "Vehicle not found" });
+      return;
+    }
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/product/lookup", async (req, res) => {
+  try {
+    const identifier = String(
+      (req.body as { identifier?: string })?.identifier ?? ""
+    ).trim();
+    if (!identifier) {
+      res.status(400).json({ error: "identifier is required" });
+      return;
+    }
+    const result = await lookupBarcodeOnServer(identifier);
+    if (!result) {
+      res.status(404).json({ error: "Product not found" });
       return;
     }
     res.json(result);

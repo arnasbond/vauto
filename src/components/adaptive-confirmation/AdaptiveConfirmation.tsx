@@ -23,6 +23,8 @@ import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoReq
 import { ConversationalReport } from "@/components/conversational/ConversationalReport";
 import { VehicleLookupCard } from "@/components/vehicle/VehicleLookupCard";
 import { useVehicleAutoLookup } from "@/hooks/useVehicleAutoLookup";
+import { useBarcodeAutoLookup } from "@/hooks/useBarcodeAutoLookup";
+import { isBarcodeLookupEligibleCategory } from "@/lib/product-intelligence/barcode-utils";
 import { useListingWizard } from "@/hooks/useListingWizard";
 import { buildSellerQuickActions, type BuddyActionId } from "@/lib/buddy-messages";
 import { capturePhoto } from "@/lib/native-media";
@@ -87,11 +89,12 @@ export function AdaptiveConfirmation({
           title: draft.title,
           price: draft.price,
           description: draft.description,
+          contact: draft.contact,
           attributes,
         },
-        { hasPhoto }
+        { hasPhoto, conversational: !manualFallback }
       ),
-    [draft.category, draft.title, draft.price, draft.description, attributes, hasPhoto]
+    [draft.category, draft.title, draft.price, draft.description, draft.contact, attributes, hasPhoto, manualFallback]
   );
 
   const { missingKeys, canPublish, needsPhotoForPublish, validationIssues } =
@@ -191,6 +194,14 @@ export function AdaptiveConfirmation({
   const vehicleLookup = useVehicleAutoLookup(
     attributes,
     adaptiveKey === "vehicles",
+    onUpdate
+  );
+
+  useBarcodeAutoLookup(
+    draft.category,
+    attributes,
+    { title: draft.title, description: draft.description },
+    isBarcodeLookupEligibleCategory(draft.category) && !manualFallback,
     onUpdate
   );
 

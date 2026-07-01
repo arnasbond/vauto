@@ -1082,6 +1082,18 @@ export async function apiLookupVehicle(
   return rest;
 }
 
+export async function apiLookupBarcode(
+  identifier: string
+): Promise<import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult | null> {
+  const r = await dataFetch<
+    import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult
+  >("/api/product/lookup", {
+    method: "POST",
+    body: JSON.stringify({ identifier }),
+  });
+  return r.ok ? r.data : null;
+}
+
 export async function apiEscrowBillingStatus(): Promise<{ live: boolean } | null> {
   const r = await dataFetch<{ live: boolean }>("/api/escrow-billing/status");
   return r.ok ? r.data : null;

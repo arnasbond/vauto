@@ -1010,9 +1010,10 @@ export async function executeAgentTool(
       );
 
       const missingFields: string[] = [];
-      if (!normalizedCity?.trim() || normalizedCity.toLowerCase() === "miestas") missingFields.push("city");
+      if (!normalizedCity?.trim() || normalizedCity.toLowerCase() === "miestas") {
+        missingFields.push("city");
+      }
       if (price <= 0) missingFields.push("price");
-      if (!description.trim()) missingFields.push("description");
       const attributes = enriched.attributes;
       const sellerType = String(attributes.sellerType ?? "").trim();
       if (!sellerType) missingFields.push("sellerType");
@@ -1020,7 +1021,6 @@ export async function executeAgentTool(
         if (!String(attributes.make ?? "").trim()) missingFields.push("make");
         if (!String(attributes.model ?? "").trim()) missingFields.push("model");
         if (!String(attributes.year ?? "").trim()) missingFields.push("year");
-        if (!String(attributes.vin ?? "").trim()) missingFields.push("vin");
       }
 
       const draft = {
@@ -1041,11 +1041,8 @@ export async function executeAgentTool(
         );
       }
       if (missingFields.includes("price")) {
-        suggestedQuestions.push("Kokios kainos tikitės? Galiu patarti pagal rinką.");
-      }
-      if (enriched.category === "vehicles" && missingFields.includes("vin")) {
         suggestedQuestions.push(
-          "Ar norėtumėte įvesti VIN kodą, kad Regitra duomenys užsipildytų automatiškai?"
+          "Jei žinote kainą — parašykite. Galite ir praleisti, nurodysite vėliau."
         );
       }
       if (enriched.category === "vehicles" && missingFields.includes("make")) {

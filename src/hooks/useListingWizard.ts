@@ -22,6 +22,10 @@ import {
   type WizardQuickReply,
 } from "@/lib/listing-wizard";
 import {
+  conversationalSkipAck,
+  isConversationalSkipReply,
+} from "@/lib/conversational-skip";
+import {
   compactListingsForAgent,
   resolveAgentUserRole,
 } from "@/lib/vauto-agent-client";
@@ -265,6 +269,13 @@ export function useListingWizard({
         setThread((prev) => [
           ...prev,
           { role: "assistant", text: "Gerai, VIN galėsite pridėti vėliau." },
+        ]);
+        return;
+      }
+      if (reply.id === "attr-skip" || isConversationalSkipReply(reply.label)) {
+        setThread((prev) => [
+          ...prev,
+          { role: "assistant", text: conversationalSkipAck() },
         ]);
         return;
       }

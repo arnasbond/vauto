@@ -123,6 +123,10 @@ import {
   pushPhotoCategoryMismatchGreeting,
   hasActivePhotoCategoryMismatch,
 } from "@/lib/seller-photo-category-mismatch";
+import {
+  isBarcodeLookupEligibleCategory,
+  resolveBarcodeFromAttributes,
+} from "@/lib/product-intelligence/barcode-utils";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
@@ -134,6 +138,22 @@ import type {
   SellerFlowStep,
   SellerInputMode,
 } from "@/lib/types";
+
+function attachProductBarcodeHint(
+  draft: AiExtractedListing,
+  sourceText: string
+): AiExtractedListing {
+  if (!isBarcodeLookupEligibleCategory(draft.category)) return draft;
+  const barcode = resolveBarcodeFromAttributes(draft.attributes ?? {}, sourceText);
+  if (!barcode) return draft;
+  return {
+    ...draft,
+    attributes: {
+      ...(draft.attributes ?? {}),
+      barcode,
+    },
+  };
+}
 
 function hasExplicitServiceKeywords(text: string): boolean {
   return /\b(meistr|paslaug|elektrik|santechn|valym|remont|statyb|plytel|gro[žz]|kirp|transport)/i.test(
@@ -616,7 +636,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         const previousDraft = aiDraftRef.current;
         const previousCategory = previousDraft?.category ?? null;
         const previousAttributes = previousDraft?.attributes ?? null;
-        const finalized = finalizeListingDraft(next, previousCategory, previousAttributes);
+        const withBarcode = attachProductBarcodeHint(next, sourceBlob);
+        const finalized = finalizeListingDraft(
+          withBarcode,
+          previousCategory,
+          previousAttributes
+        );
 
         const hasPhotoCategoryMismatch =
           Boolean(previousDraft) &&
@@ -1057,12 +1082,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       openAuthModal("/add");
       return;
     }
-    if (!aiDraft.title.trim()) {
-      showToast("Įveskite pavadinimą prieš publikuojant.", "error");
-      return;
-    }
-    if (aiDraft.price <= 0) {
-      showToast("Įveskite kainą prieš publikuojant.", "error");
+    if (!hasListingPhoto(sellerPreviewImage) && !editingListingId) {
+      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
       return;
     }
 
@@ -1072,9 +1093,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         title: aiDraft.title,
         price: aiDraft.price,
         description: aiDraft.description,
+        contact: aiDraft.contact || user.phone,
         attributes: aiDraft.attributes,
       },
-      { hasPhoto: Boolean(sellerPreviewImage) }
+      { hasPhoto: Boolean(sellerPreviewImage), conversational: true }
     );
 
     if (!validation.canPublish) {
@@ -1082,7 +1104,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
-    const priceSanity = evaluatePriceSanity(aiDraft.category, aiDraft.price);
+    const priceSanity =
+      aiDraft.price > 0
+        ? evaluatePriceSanity(aiDraft.category, aiDraft.price)
+        : { suspicious: false as const };
     if (priceSanity.suspicious) {
       const priceDisplay = formatPriceForConfirm(aiDraft.price, aiDraft.priceLabel);
       const confirmed = await showConfirm({
@@ -1199,16 +1224,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       aiDraft.category,
       aiDraft.attributes ?? {}
     );
-    const publishDraft = { ...aiDraft, category: publishCategory };
+    const publishTitle = aiDraft.title.trim() || "Skelbimas";
+    const publishContact = aiDraft.contact.trim() || user.phone || "";
+    const publishDraft = { ...aiDraft, category: publishCategory, title: publishTitle, contact: publishContact };
 
     const newListing: Listing = enrichListingCoords({
       id: listingId,
-      title: aiDraft.title,
+      title: publishTitle,
       price: aiDraft.price,
       priceLabel: aiDraft.priceLabel,
       location: listingCity,
       distanceKm: distKm,
-      slug: generateListingSlug(aiDraft.title, listingCity),
+      slug: generateListingSlug(publishTitle, listingCity),
       images: [listingImage],
       category: publishCategory,
       tags: attributesToTags(publishDraft),
@@ -1218,7 +1245,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       sellerId: user.id,
       createdAt,
       expiresAt: defaultExpiresAt(createdAt),
-      contact: aiDraft.contact,
+      contact: publishContact,
       hasVideo: sellerHasVideo,
       vinVerified: vinOk,
       providerVerified:

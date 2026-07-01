@@ -5,6 +5,7 @@ import {
 import { isPlaceholderCity, resolveListingCity } from "@/lib/city-resolve";
 import type { AiExtractedListing } from "@/lib/types";
 import type { PriceAdvice } from "@/lib/price-advisor";
+import { CONVERSATIONAL_SKIP_QUICK_REPLY } from "@/lib/conversational-skip";
 
 export type WizardPromptKind =
   | "missing_city"
@@ -52,8 +53,13 @@ export function analyzeListingWizard(
   const quickReplies: WizardQuickReply[] = [];
   const prompts: WizardPromptKind[] = [];
 
+  const offerSkip = () => {
+    if (!quickReplies.some((r) => r.id === CONVERSATIONAL_SKIP_QUICK_REPLY.id)) {
+      quickReplies.push({ ...CONVERSATIONAL_SKIP_QUICK_REPLY });
+    }
+  };
+
   if (isPlaceholderCity(draft.location) || !draft.location?.trim()) {
-    missingFields.push("city");
     prompts.push("missing_city");
     questions.push(`Matau, kad nenurodėte miesto. Ar skelbiame ${userCity}?`);
     quickReplies.push(
@@ -61,18 +67,19 @@ export function analyzeListingWizard(
       { id: "city-vilnius", label: "Vilnius", patch: { location: "Vilnius" } },
       { id: "city-kaunas", label: "Kaunas", patch: { location: "Kaunas" } }
     );
+    offerSkip();
   }
 
   if (draft.price <= 0 || missingKeys.includes("price")) {
-    missingFields.push("price");
     prompts.push("missing_price");
     if (opts.priceAdvice?.medianPrice) {
       questions.push(
-        `Kainos dar nėra. Rinkoje panašūs skelbimai ~${opts.priceAdvice.medianPrice} €. Kokią kainą norite nurodyti?`
+        `Jei žinote kainą — rinkoje panašūs skelbimai ~${opts.priceAdvice.medianPrice} €. Kokią norite nurodyti? (galite praleisti)`
       );
     } else {
-      questions.push("Kokios kainos tikitės? Galiu patarti pagal rinką.");
+      questions.push("Kokios kainos tikitės? Galite praleisti ir nurodyti vėliau.");
     }
+    offerSkip();
   }
 
   const condition = String(draft.attributes?.condition ?? "").trim();
@@ -80,14 +87,14 @@ export function analyzeListingWizard(
     (adaptiveKey === "clothing" || adaptiveKey === "universal") &&
     !condition
   ) {
-    missingFields.push("condition");
     prompts.push("missing_condition");
-    questions.push("Ar prekė nauja, ar naudota?");
+    questions.push('Ar prekė nauja, ar naudota? (galite atsakyti „nežinau")');
     quickReplies.push(
       { id: "cond-new", label: "Nauja", attributePatch: { condition: "Nauja" } },
       { id: "cond-good", label: "Labai gera", attributePatch: { condition: "Labai gera" } },
       { id: "cond-used", label: "Naudota", attributePatch: { condition: "Naudota" } }
     );
+    offerSkip();
   }
 
   if (adaptiveKey === "vehicles") {
@@ -107,7 +114,7 @@ export function analyzeListingWizard(
   const sellerType = String(draft.attributes?.sellerType ?? "").trim();
   if (!sellerType) {
     prompts.push("account_type");
-    questions.push("Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?");
+    questions.push("Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė? (galite praleisti)");
     quickReplies.push(
       {
         id: "seller-private",
@@ -120,6 +127,7 @@ export function analyzeListingWizard(
         attributePatch: { sellerType: "Įmonė / verslas" },
       }
     );
+    offerSkip();
   }
 
   if (!opts.isAuthenticated) {
@@ -146,9 +154,11 @@ export function analyzeListingWizard(
     intro += ` Jūsų užklausa: „${opts.userPrompt.trim().slice(0, 120)}".`;
   }
 
-  if (missingFields.length === 0 && opts.isAuthenticated && sellerType) {
+  if (missingFields.length === 0 && opts.isAuthenticated) {
     prompts.push("ready_to_publish");
-    intro += " Viskas paruošta — galite publikuoti arba patikslinti detales žemiau.";
+    intro += " Galite publikuoti bet kada — likę laukai neprivalomi.";
+  } else if (questions.length === 0) {
+    intro += " Galite publikuoti bet kada — paklausiu tik jei norėsite patikslinti.";
   }
 
   return {
