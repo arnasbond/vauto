@@ -83,6 +83,14 @@ export function conductorSellerSubmitSource(component: string): ConductorRequest
   };
 }
 
+export function conductorWardrobeBulkSource(component: string): ConductorRequest {
+  return {
+    intent: "photo_upload",
+    source: component,
+    payload: { wardrobeBulk: true },
+  };
+}
+
 export { conductorAgentActionRequest } from "./agent-actions";
 export {
   adoptConductorDraft,
@@ -90,7 +98,12 @@ export {
   getConductorDraft,
   resetConductorDraft,
 } from "./conductor-draft-store";
-export { buildConductorPublishSnapshot, enrichListingWithConductorMeta } from "./conductor-publish";
+export {
+  buildConductorPublishSnapshot,
+  enrichListingWithConductorMeta,
+  resolveConductorRequiresReview,
+  resolveListingRequiresReview,
+} from "./conductor-publish";
 export type { ConductorPublishSnapshot } from "./conductor-publish";
 export {
   CONDUCTOR_MERGED_AT_ATTR,

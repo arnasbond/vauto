@@ -28,6 +28,7 @@ import {
   getUser,
   insertListing,
   findListingByClientDraftId,
+  getListingForEmbedding,
   insertReport,
   insertReview,
   insertServiceLead,
@@ -71,7 +72,11 @@ import {
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
 import { moderateListingInput } from "../lib/listing-moderation.js";
-import { logConductorPublishLineage } from "../lib/conductor-publish.js";
+import {
+  logConductorPublishLineage,
+  readConductorLineage,
+  resolveConductorRequiresReviewFromLineage,
+} from "../lib/conductor-publish.js";
 import {
   notifyNegotiationDealClosed,
   notifyNegotiationStarted,
@@ -366,7 +371,7 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const parsed = validateListing(req.body);
     if (badRequest(res, parsed)) return;
-    const listing = parsed.value;
+    let listing = parsed.value;
     if (!canActForUser(req, listing.sellerId)) {
       res.status(403).json({ error: "Forbidden" });
       return;
@@ -379,6 +384,10 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     if (!moderation.allowed) {
       res.status(422).json({ error: moderation.reason ?? "Skelbimas atmestas moderacijos." });
       return;
+    }
+    const lineage = readConductorLineage(listing.attributes);
+    if (!listing.requiresReview && resolveConductorRequiresReviewFromLineage(lineage)) {
+      listing = { ...listing, requiresReview: true };
     }
     const clientDraftId =
       typeof listing.attributes?.clientDraftId === "string"
@@ -427,6 +436,26 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
     const parsed = validateListingPatch(req.body);
     if (badRequest(res, parsed)) return;
     const sellerId = routeActorId(req);
+
+    if (
+      parsed.value.title !== undefined ||
+      parsed.value.description !== undefined ||
+      parsed.value.location !== undefined
+    ) {
+      const existing = await getListingForEmbedding(req.params.id);
+      if (existing && existing.sellerId === sellerId) {
+        const moderation = moderateListingInput({
+          title: parsed.value.title ?? existing.title,
+          description: parsed.value.description ?? existing.description ?? "",
+          location: parsed.value.location ?? existing.location,
+        });
+        if (!moderation.allowed) {
+          res.status(422).json({ error: moderation.reason ?? "Skelbimas atmestas moderacijos." });
+          return;
+        }
+      }
+    }
+
     const listing = await updateListing(
       req.params.id,
       sellerId,

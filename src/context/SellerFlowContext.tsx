@@ -140,8 +140,10 @@ import {
   buildConductorPublishSnapshot,
   commitConductorDraft,
   conductorSellerSubmitSource,
+  conductorWardrobeBulkSource,
   enrichListingWithConductorMeta,
   resetConductorDraft,
+  resolveListingRequiresReview,
   routeConductorRequest,
 } from "@/lib/vauto-conductor";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
@@ -1132,6 +1134,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     ) => {
       if (!items.length) return;
       if (!requireAuthForListing("/add")) return;
+      void routeConductorRequest({
+        ...conductorWardrobeBulkSource("SellerFlowContext.applyAgentWardrobeBulk"),
+        payload: { itemCount: items.length },
+      });
       setAiManualFallback(false);
       setPendingWardrobeBulkItems(items.length > 1 ? items : null);
       setPendingWardrobeVoice(opts?.voiceAnnouncement?.trim() || null);
@@ -1140,9 +1146,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         user.phone,
         user.city || "Vilnius"
       );
-      setAiDraft(syncDraftWithProfile(firstDraft));
+      const { draft: merged } = commitConductorDraft(firstDraft, "agent", null);
+      const mergedDraft = { ...firstDraft, ...merged } as AiExtractedListing;
+      setAiDraft(syncDraftWithProfile(mergedDraft));
       setSellerInputMode("upload");
-      setSellerUserPrompt(opts?.voiceAnnouncement ?? firstDraft.title);
+      setSellerUserPrompt(opts?.voiceAnnouncement ?? mergedDraft.title);
       if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
       setChameleonTheme("wardrobe");
       setSellerStep("confirmation");
@@ -1580,7 +1588,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       minNegotiationPrice: aiDraft.minNegotiationPrice,
       appraisalScore: aiDraft.appraisalScore,
       isVerified: aiDraft.isVerified ?? true,
-      requiresReview: aiDraft.requiresReview ?? false,
+      requiresReview: resolveListingRequiresReview(publishDraft, conductorPublish),
       imageAlt: aiDraft.imageAlt,
       imageTitle: aiDraft.imageTitle,
     }),
@@ -1685,10 +1693,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
 
       const coords = buyerCoords ?? (await getUserCoords({ requestPermission: true }));
+      const bulkSnapshot = buildConductorPublishSnapshot(drafts[0]!);
+      if (bulkSnapshot.sources.length) {
+        trackEvent("conductor_publish", {
+          sources: bulkSnapshot.sources.join(","),
+          category: "clothing",
+          mergedAt: bulkSnapshot.mergedAt,
+          bulk: true,
+          count: drafts.length,
+        });
+      }
       let published = 0;
 
       for (const draft of drafts) {
         if (!draft.title.trim() || draft.price <= 0) continue;
+        const snapshot = buildConductorPublishSnapshot(draft);
         const listingCity = resolveListingCity(draft.location, user.city || "Vilnius");
         const listingCoords = geocodeLocation(listingCity);
         let distKm = 0.5;
@@ -1702,7 +1721,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         }
 
         const createdAt = new Date().toISOString();
-        const newListing: Listing = enrichListingCoords({
+        const newListing: Listing = enrichListingWithConductorMeta(
+          enrichListingCoords({
           id: `l-${Date.now()}-${published}`,
           title: draft.title,
           price: draft.price,
@@ -1724,10 +1744,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           vinVerified: false,
           providerVerified: false,
           isVerified: draft.isVerified ?? true,
-          requiresReview: draft.requiresReview ?? false,
+          requiresReview: resolveListingRequiresReview(draft, snapshot),
           imageAlt: draft.imageAlt,
           imageTitle: draft.imageTitle,
-        });
+        }),
+          snapshot
+        );
 
         setListings((prev) => [newListing, ...prev]);
         published += 1;
@@ -1768,6 +1790,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setListings,
       showToast,
       resetSellerFlow,
+      trackEvent,
     ]
   );
 

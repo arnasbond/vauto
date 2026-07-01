@@ -2,7 +2,7 @@
 /** Smoke tests for compiled server validation + VIN utils (no DB). */
 import { validateAmount, validateListingPatch, validateServiceLeadCreate } from "../server/dist/validation.js";
 import { moderateListingInput } from "../server/dist/lib/listing-moderation.js";
-import { readConductorLineage } from "../server/dist/lib/conductor-publish.js";
+import { readConductorLineage, resolveConductorRequiresReviewFromLineage } from "../server/dist/lib/conductor-publish.js";
 import { isValidVin, normalizeVin } from "../server/dist/vehicle/vin-utils.js";
 
 function assert(cond, msg) {
@@ -51,5 +51,18 @@ const lineage = readConductorLineage({
   conductorMergedAt: "1710000000000",
 });
 assert(lineage.sources.join(",") === "barcode,seller", "readConductorLineage parses sources");
+
+assert(
+  resolveConductorRequiresReviewFromLineage(lineage),
+  "automated sources without manual require review"
+);
+assert(
+  !resolveConductorRequiresReviewFromLineage({ sources: ["manual"], mergedAt: null }),
+  "manual-only skips review"
+);
+assert(
+  !resolveConductorRequiresReviewFromLineage({ sources: ["agent", "manual"], mergedAt: null }),
+  "manual override skips review"
+);
 
 console.log("Server validation smoke: OK");

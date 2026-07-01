@@ -57,3 +57,16 @@ export function logConductorPublishLineage(listing: {
     mergedAt: lineage.mergedAt,
   });
 }
+
+const AUTOMATED_SOURCES = new Set(["seller", "barcode", "agent", "vehicle"]);
+
+/** Mirror client resolveConductorRequiresReview for server-side publish. */
+export function resolveConductorRequiresReviewFromLineage(
+  lineage: ConductorPublishLineage
+): boolean {
+  if (!lineage.sources.length) return false;
+  if (lineage.sources.length === 1 && lineage.sources[0] === "manual") return false;
+  const hasAutomated = lineage.sources.some((s) => AUTOMATED_SOURCES.has(s));
+  const hasManual = lineage.sources.includes("manual");
+  return hasAutomated && !hasManual;
+}
