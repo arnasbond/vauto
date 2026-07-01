@@ -98,6 +98,11 @@ export function conductorUseBarcodePipeline(result: ConductorResult): boolean {
   return Boolean(result.meta?.barcodePipeline);
 }
 
+/** When false, conductor owns execution — caller must skip legacy path. */
+export function conductorShouldDelegateLegacy(result: ConductorResult): boolean {
+  return result.delegated !== false;
+}
+
 export function conductorPhotoUploadSource(component: string): ConductorRequest {
   return {
     intent: "photo_upload",

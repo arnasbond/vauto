@@ -7,9 +7,12 @@ import { isLtPlate } from "@/lib/vehicle-intelligence/vehicle-attribute-mappers"
 import { BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import {
   commitConductorDraft,
+  conductorShouldDelegateLegacy,
   conductorVehicleLookupSource,
   executeConductorRoute,
+  getConductorDraft,
   isConductorEnabled,
+  mergeVehicleLookupDraft,
 } from "@/lib/vauto-conductor";
 import {
   lookupVehicle,
@@ -71,13 +74,15 @@ export function useVehicleAutoLookup(
     if (lastFetchedRef.current === identifier) return;
 
     let cancelled = false;
-    void executeConductorRoute({
-      ...conductorVehicleLookupSource("useVehicleAutoLookup"),
-      payload: { identifier, vin, plate },
-    });
-    const timer = window.setTimeout(() => {
+    void (async () => {
+      const route = await executeConductorRoute({
+        ...conductorVehicleLookupSource("useVehicleAutoLookup"),
+        payload: { identifier, vin, plate },
+      });
+      if (!conductorShouldDelegateLegacy(route) || cancelled) return;
+
       setLoading(true);
-      void Promise.race([
+      const next = await Promise.race([
         lookupVehicle(identifier, { vin, plate }),
         new Promise<VehicleLookupResult>((resolve) =>
           window.setTimeout(
@@ -85,25 +90,25 @@ export function useVehicleAutoLookup(
             BARCODE_LOOKUP_TIMEOUT_MS
           )
         ),
-      ])
-        .then((next) => {
-          if (cancelled) return;
-          lastFetchedRef.current = identifier;
-          setResult(next);
-          const patch = vehicleLookupToDraftPatch(next);
-          if (isConductorEnabled()) {
-            commitConductorDraft(patch, "vehicle");
-          }
-          onApplyRef.current(patch);
-        })
-        .finally(() => {
-          if (!cancelled) setLoading(false);
-        });
-    }, 500);
+      ]);
+      if (cancelled) return;
+      lastFetchedRef.current = identifier;
+      setResult(next);
+      const patch = vehicleLookupToDraftPatch(next);
+      if (isConductorEnabled()) {
+        const mergedDraft = mergeVehicleLookupDraft(
+          getConductorDraft()?.draft,
+          next,
+          getConductorDraft()?.sources ?? []
+        ).draft;
+        commitConductorDraft(mergedDraft, "vehicle");
+      }
+      onApplyRef.current(patch);
+      setLoading(false);
+    })();
 
     return () => {
       cancelled = true;
-      window.clearTimeout(timer);
     };
   }, [enabled, identifier, vin, plate]);
 

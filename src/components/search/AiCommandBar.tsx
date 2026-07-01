@@ -17,6 +17,7 @@ import {
   routeConductorAgentAction,
   conductorPhotoUploadSource,
   conductorSearchQuerySource,
+  conductorShouldDelegateLegacy,
 } from "@/lib/vauto-conductor";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
 import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
@@ -281,10 +282,14 @@ export function AiCommandBar({
   const handlePhotoFlowSubmit = async (
     result: AiPhotoFlowResult
   ): Promise<boolean> => {
-    void executeConductorRoute({
+    const route = await executeConductorRoute({
       ...conductorPhotoUploadSource("AiCommandBar"),
       payload: { photoCount: result.photos.length, wardrobeSearchOnly },
     });
+    if (!conductorShouldDelegateLegacy(route)) {
+      setPhotoFlowOpen(false);
+      return true;
+    }
     pendingPhotoSubmitRef.current = result;
     photoScanTimedOutRef.current = false;
     setIsPhotoSearching(true);

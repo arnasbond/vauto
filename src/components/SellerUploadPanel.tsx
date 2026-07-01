@@ -14,7 +14,7 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCard";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { executeConductorRoute, conductorPhotoUploadSource, conductorSearchQuerySource } from "@/lib/vauto-conductor";
+import { executeConductorRoute, conductorPhotoUploadSource, conductorSearchQuerySource, conductorShouldDelegateLegacy } from "@/lib/vauto-conductor";
 import type { AiPhotoIntentChoice } from "@/components/photo/AiPhotoFlowSheet";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
@@ -99,10 +99,14 @@ export function SellerUploadPanel({
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
-    void executeConductorRoute({
+    const route = await executeConductorRoute({
       ...conductorPhotoUploadSource("SellerUploadPanel"),
       payload: { photoCount: result.photos.length },
     });
+    if (!conductorShouldDelegateLegacy(route)) {
+      setPhotoFlowOpen(false);
+      return;
+    }
     pendingPhotoSubmitRef.current = result;
     photoScanTimedOutRef.current = false;
     setPhotoSubmitting(true);

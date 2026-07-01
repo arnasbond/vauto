@@ -139,7 +139,9 @@ import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-inten
 import {
   buildConductorPublishSnapshot,
   commitConductorDraft,
+  conductorPhotoUploadSource,
   conductorSellerSubmitSource,
+  conductorShouldDelegateLegacy,
   conductorWardrobeBulkSource,
   enrichListingWithConductorMeta,
   resetConductorDraft,
@@ -502,6 +504,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (promptText) setSellerUserPrompt(promptText);
 
       logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
+
+      if (mode === "upload" || mode === "combined") {
+        const route = await executeConductorRoute({
+          ...conductorPhotoUploadSource("SellerFlowContext.runAiProcessing"),
+          payload: {
+            mode,
+            hasImage: Boolean(opts?.previewImage),
+            imageCount: opts?.previewImages?.length ?? (opts?.previewImage ? 1 : 0),
+          },
+        });
+        if (!conductorShouldDelegateLegacy(route)) {
+          if (isProcessingStale(epoch)) return;
+          return;
+        }
+      }
 
       const enterManualFallback = (reason: string, error?: unknown) => {
         if (isProcessingStale(epoch)) return;

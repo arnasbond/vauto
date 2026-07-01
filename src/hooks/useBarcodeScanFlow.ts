@@ -21,6 +21,7 @@ import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 import {
   commitConductorDraft,
   conductorBarcodeSource,
+  conductorShouldDelegateLegacy,
   executeConductorRoute,
   getConductorDraft,
   isConductorEnabled,
@@ -55,10 +56,11 @@ export function useBarcodeScanFlow() {
     ) => {
       const category: ListingCategory = opts?.category ?? (opts?.fashion ? "clothing" : "other");
 
-      void executeConductorRoute({
+      const route = await executeConductorRoute({
         ...conductorBarcodeSource("useBarcodeScanFlow"),
         payload: { barcode, category },
       });
+      if (!conductorShouldDelegateLegacy(route)) return;
 
       const result = await Promise.race([
         lookupBarcode(barcode),
