@@ -369,7 +369,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const actions = sanitized.action;
       if (actions.type === "none") return;
 
-      void routeConductorAgentAction(actions, "VautoAgentContext.applyActions");
+      void routeConductorAgentAction(actions, "VautoAgentContext.applyActions", {
+        userCity: user.city,
+        userPhone: user.phone,
+      });
 
       try {
       if (actions.type === "search") {

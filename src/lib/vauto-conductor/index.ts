@@ -8,12 +8,14 @@ import type {
   ConductorTextExecuteMeta,
   ConductorTextExtractInput,
   ConductorSearchExecuteMeta,
+  ConductorAgentExecuteMeta,
 } from "./types";
 import { conductorAgentActionRequest } from "./agent-actions";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { logAnalytics } from "@/lib/analytics";
 import { conductorRelease, conductorTryAcquire } from "./conductor-busy-gate";
 import {
+  executeConductorAgentAction,
   executeConductorBarcodeLookup,
   executeConductorSearchQuery,
   executeConductorTextExtract,
@@ -36,7 +38,92 @@ export type {
   ConductorTextExtractInput,
   ConductorTextMode,
   ConductorSearchExecuteMeta,
+  ConductorAgentExecuteMeta,
 } from "./types";
+
+function readAgentActionPayload(
+  payload: Record<string, unknown> | undefined
+): VautoAgentAction | null {
+  const action = payload?.agentAction;
+  if (!action || typeof action !== "object" || !("type" in action)) return null;
+  return action as VautoAgentAction;
+}
+
+async function routeConductorVisionExecute(
+  request: ConductorRequest,
+  visionInput: ConductorVisionExtractInput
+): Promise<ConductorResult> {
+  if (!conductorTryAcquire()) {
+    return logConductor(request, {
+      handled: false,
+      phase: "route",
+      delegated: true,
+      meta: { conductorBusy: true, visionPipeline: true },
+    });
+  }
+  try {
+    const visionExecute = await executeConductorVisionExtract(visionInput);
+    return logConductor(request, {
+      handled: true,
+      phase: "complete",
+      delegated: false,
+      meta: {
+        intent: request.intent,
+        source: request.source,
+        visionPipeline: true,
+        visionExecute,
+      },
+    });
+  } catch (error) {
+    return logConductor(request, {
+      handled: false,
+      phase: "fallback",
+      delegated: true,
+      meta: {
+        intent: request.intent,
+        source: request.source,
+        visionPipeline: true,
+        visionError: error instanceof Error ? error.message : String(error),
+      },
+    });
+  } finally {
+    conductorRelease();
+  }
+}
+
+async function tryRouteAgentAction(request: ConductorRequest): Promise<ConductorResult | null> {
+  const agentAction = readAgentActionPayload(request.payload);
+  if (!agentAction || agentAction.type === "none") return null;
+  if (!conductorTryAcquire()) {
+    return logConductor(request, {
+      handled: false,
+      phase: "route",
+      delegated: true,
+      meta: { conductorBusy: true, agentActionPipeline: true },
+    });
+  }
+  try {
+    const agentExecute = await executeConductorAgentAction(agentAction, {
+      userCity:
+        typeof request.payload?.userCity === "string" ? request.payload.userCity : undefined,
+      userPhone:
+        typeof request.payload?.userPhone === "string" ? request.payload.userPhone : undefined,
+    });
+    return logConductor(request, {
+      handled: true,
+      phase: "complete",
+      delegated: true,
+      meta: {
+        intent: request.intent,
+        source: request.source,
+        agentActionPipeline: true,
+        agentExecute,
+      },
+    });
+  } finally {
+    conductorRelease();
+  }
+}
 
 function readTextExtractInput(
   payload: Record<string, unknown> | undefined
@@ -198,44 +285,12 @@ export async function routeConductorRequest(
           },
         });
       }
-      if (!conductorTryAcquire()) {
-        return logConductor(request, {
-          handled: false,
-          phase: "route",
-          delegated: true,
-          meta: { conductorBusy: true, visionPipeline: true },
-        });
-      }
-      try {
-        const visionExecute = await executeConductorVisionExtract(visionInput);
-        return logConductor(request, {
-          handled: true,
-          phase: "complete",
-          delegated: false,
-          meta: {
-            intent: request.intent,
-            source: request.source,
-            visionPipeline: true,
-            visionExecute,
-          },
-        });
-      } catch (error) {
-        return logConductor(request, {
-          handled: false,
-          phase: "fallback",
-          delegated: true,
-          meta: {
-            intent: request.intent,
-            source: request.source,
-            visionPipeline: true,
-            visionError: error instanceof Error ? error.message : String(error),
-          },
-        });
-      } finally {
-        conductorRelease();
-      }
+      return routeConductorVisionExecute(request, visionInput);
     }
     case "search_query": {
+      const agentRoute = await tryRouteAgentAction(request);
+      if (agentRoute) return agentRoute;
+
       const query = typeof request.payload?.query === "string" ? request.payload.query.trim() : "";
       if (!query) {
         return logConductor(request, {
@@ -291,6 +346,14 @@ export async function routeConductorRequest(
       }
     }
     case "seller_submit": {
+      const agentRoute = await tryRouteAgentAction(request);
+      if (agentRoute) return agentRoute;
+
+      const visionInput = readVisionExtractInput(request.payload);
+      if (visionInput) {
+        return routeConductorVisionExecute(request, visionInput);
+      }
+
       const textInput = readTextExtractInput(request.payload);
       if (!textInput) {
         return logConductor(request, {
@@ -341,15 +404,16 @@ export async function routeConductorRequest(
   }
 }
 
-/** Telemetry + hook for fromSearchBar agent actions before legacy applyActions. */
+/** Agent action orchestration + draft commit before legacy applyActions UI. */
 export async function routeConductorAgentAction(
   action: VautoAgentAction,
-  source: string
+  source: string,
+  context?: { userCity?: string; userPhone?: string }
 ): Promise<ConductorResult> {
   if (action.type === "none") {
     return { handled: false, phase: "route", delegated: true };
   }
-  return executeConductorRoute(conductorAgentActionRequest(action, source));
+  return executeConductorRoute(conductorAgentActionRequest(action, source, context));
 }
 
 /** Phase 3 — route + centralized analytics telemetry. */
@@ -368,6 +432,7 @@ export async function executeConductorRoute(
       visionPipeline: Boolean(result.meta?.visionPipeline),
       barcodePipeline: Boolean(result.meta?.barcodePipeline),
       searchPipeline: Boolean(result.meta?.searchPipeline),
+      agentActionPipeline: Boolean(result.meta?.agentActionPipeline),
       conductorBusy: Boolean(result.meta?.conductorBusy),
     });
   }
@@ -425,6 +490,14 @@ export function readConductorSearchExecute(
   const meta = result.meta?.searchExecute;
   if (!meta || typeof meta !== "object") return null;
   return meta as ConductorSearchExecuteMeta;
+}
+
+export function readConductorAgentExecute(
+  result: ConductorResult
+): ConductorAgentExecuteMeta | null {
+  const meta = result.meta?.agentExecute;
+  if (!meta || typeof meta !== "object") return null;
+  return meta as ConductorAgentExecuteMeta;
 }
 
 export { registerConductorSearchExecutor } from "./conductor-agent-bridge";

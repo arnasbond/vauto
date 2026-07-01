@@ -139,7 +139,6 @@ import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-inten
 import {
   buildConductorPublishSnapshot,
   commitConductorDraft,
-  conductorPhotoUploadSource,
   conductorSellerSubmitSource,
   conductorShouldDelegateLegacy,
   conductorWardrobeBulkSource,
@@ -509,9 +508,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
       let conductorVision = null as ReturnType<typeof readConductorVisionExecute>;
       let conductorText = null as ReturnType<typeof readConductorTextExecute>;
-      if (mode === "upload" || mode === "combined") {
+      const shouldRouteSeller =
+        (mode === "upload" || mode === "combined") &&
+        Boolean(opts?.previewImage || opts?.previewImages?.length);
+      const shouldRouteText =
+        (mode === "text" || mode === "voice") && Boolean(opts?.transcript?.trim());
+      if (shouldRouteSeller || shouldRouteText) {
         const route = await executeConductorRoute({
-          ...conductorPhotoUploadSource("SellerFlowContext.runAiProcessing"),
+          ...conductorSellerSubmitSource("SellerFlowContext.runAiProcessing"),
           payload: {
             mode,
             imageDataUrl: opts?.previewImage,
@@ -525,24 +529,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         });
         if (!conductorShouldDelegateLegacy(route)) {
           conductorVision = readConductorVisionExecute(route);
-        }
-      } else if (mode === "text" || mode === "voice") {
-        const transcript = opts?.transcript?.trim();
-        if (transcript) {
-          const route = await executeConductorRoute({
-            ...conductorSellerSubmitSource("SellerFlowContext.runAiProcessing"),
-            payload: {
-              mode,
-              transcript,
-              extraContext: opts?.extraContext,
-              userCity: user.city,
-              contact: user.phone,
-              recoveryRetry: opts?.recoveryRetry,
-            },
-          });
-          if (!conductorShouldDelegateLegacy(route)) {
-            conductorText = readConductorTextExecute(route);
-          }
+          conductorText = readConductorTextExecute(route);
         }
       }
 
@@ -1014,18 +1001,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       voiceCapture?: boolean;
     }) => {
       if (!requireAuthForListing("/add")) return;
-
-      void executeConductorRoute({
-        ...conductorSellerSubmitSource("SellerFlowContext.submitSellerContent"),
-        payload: {
-          hasText: Boolean(payload.text?.trim()),
-          hasImages: Boolean(
-            payload.imageDataUrl ??
-              payload.imageDataUrls?.length ??
-              parseVideoUrl(payload.videoUrl ?? "").thumbnail
-          ),
-        },
-      });
 
       setPhotoCategoryMismatch(null);
       categoryMismatchRollbackRef.current = null;

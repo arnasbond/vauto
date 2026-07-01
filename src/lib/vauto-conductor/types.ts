@@ -78,3 +78,9 @@ export interface ConductorSearchExecuteMeta {
   query: string;
   agentResult: import("@/lib/voice-intent-engine").WakeWordAgentResult;
 }
+
+export interface ConductorAgentExecuteMeta {
+  actionType: string;
+  action: import("@/lib/vauto-agent-client").VautoAgentAction;
+  draftCommitted: boolean;
+}

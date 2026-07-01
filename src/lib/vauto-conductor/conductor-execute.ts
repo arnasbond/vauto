@@ -17,7 +17,11 @@ import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { withAiTimeout } from "@/lib/ai-safeguards";
 import { RECOVERY_PROCESSING_TIMEOUT_MS } from "@/lib/ai-conversational-recovery";
 import { runConductorSearchExecutor } from "./conductor-agent-bridge";
+import { mapAgentDraftToListing, type VautoAgentAction } from "@/lib/vauto-agent-client";
+import { mapAgentWardrobeItems } from "@/lib/agent-wardrobe-bridge";
+import { wardrobeItemToDraft } from "@/lib/wardrobe-vision";
 import type {
+  ConductorAgentExecuteMeta,
   ConductorBarcodeExecuteMeta,
   ConductorSearchExecuteMeta,
   ConductorTextExecuteMeta,
@@ -83,6 +87,34 @@ export async function executeConductorSearchQuery(
   const agentResult = await runConductorSearchExecutor(query);
   if (!agentResult) return null;
   return { query, agentResult };
+}
+
+export async function executeConductorAgentAction(
+  action: VautoAgentAction,
+  context?: { userCity?: string; userPhone?: string }
+): Promise<ConductorAgentExecuteMeta> {
+  switch (action.type) {
+    case "listing_draft": {
+      const draft = mapAgentDraftToListing(action.listingDraft);
+      commitConductorDraft(draft, "agent", null);
+      return { actionType: action.type, action, draftCommitted: true };
+    }
+    case "wardrobe_bulk": {
+      const items = mapAgentWardrobeItems(action.items);
+      if (items.length) {
+        const firstDraft = wardrobeItemToDraft(
+          items[0]!,
+          context?.userPhone ?? "",
+          context?.userCity || "Vilnius"
+        );
+        commitConductorDraft(firstDraft, "agent", null);
+        return { actionType: action.type, action, draftCommitted: true };
+      }
+      return { actionType: action.type, action, draftCommitted: false };
+    }
+    default:
+      return { actionType: action.type, action, draftCommitted: false };
+  }
 }
 
 export async function executeConductorVehicleLookup(

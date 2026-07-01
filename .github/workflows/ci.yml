@@ -85,3 +85,8 @@ jobs:
         run: npx playwright test
         env:
           CI: "true"
+
+      - name: Run conductor E2E (NEXT_PUBLIC_VAUTO_CONDUCTOR=1)
+        run: npm run test:e2e:conductor
+        env:
+          CI: "true"

@@ -16,10 +16,11 @@ function intentForAgentAction(action: VautoAgentAction): ConductorIntent {
   }
 }
 
-/** Map agent tool output to conductor telemetry request (Phase 1.5). */
+/** Map agent tool output to conductor request (Phase 1.5+). */
 export function conductorAgentActionRequest(
   action: VautoAgentAction,
-  source: string
+  source: string,
+  context?: { userCity?: string; userPhone?: string }
 ): ConductorRequest {
   return {
     intent: intentForAgentAction(action),
@@ -27,6 +28,9 @@ export function conductorAgentActionRequest(
     payload: {
       actionType: action.type,
       fromSearchBar: true,
+      agentAction: action,
+      userCity: context?.userCity,
+      userPhone: context?.userPhone,
     },
   };
 }
