@@ -13,7 +13,8 @@ export type AnalyticsEvent =
   | "checkout_b2b_plan"
   | "checkout_wardrobe_style_boost"
   | "checkout_wardrobe_power"
-  | "chat_message_sent";
+  | "chat_message_sent"
+  | "conductor_route";
 
 export function logAnalytics(
   event: AnalyticsEvent,

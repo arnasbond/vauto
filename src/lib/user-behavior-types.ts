@@ -13,6 +13,7 @@ export type UserBehaviorActionType =
   | "agent_message"
   | "agent_action"
   | "conductor_publish"
+  | "conductor_route"
   | "seller_photo_category_mismatch";
 
 export interface UserBehaviorEvent {

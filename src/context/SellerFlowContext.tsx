@@ -144,7 +144,7 @@ import {
   enrichListingWithConductorMeta,
   resetConductorDraft,
   resolveListingRequiresReview,
-  routeConductorRequest,
+  executeConductorRoute,
 } from "@/lib/vauto-conductor";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import {
@@ -959,7 +959,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }) => {
       if (!requireAuthForListing("/add")) return;
 
-      void routeConductorRequest({
+      void executeConductorRoute({
         ...conductorSellerSubmitSource("SellerFlowContext.submitSellerContent"),
         payload: {
           hasText: Boolean(payload.text?.trim()),
@@ -1061,7 +1061,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       draftSource: import("@/lib/vauto-conductor").UnifiedDraftSource = "agent"
     ) => {
       if (!requireAuthForListing("/add")) return;
-      void routeConductorRequest({
+      void executeConductorRoute({
         ...conductorSellerSubmitSource("SellerFlowContext.applyAgentListingDraft"),
         payload: { category: draft.category },
       });
@@ -1134,7 +1134,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     ) => {
       if (!items.length) return;
       if (!requireAuthForListing("/add")) return;
-      void routeConductorRequest({
+      void executeConductorRoute({
         ...conductorWardrobeBulkSource("SellerFlowContext.applyAgentWardrobeBulk"),
         payload: { itemCount: items.length },
       });

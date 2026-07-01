@@ -19,8 +19,12 @@ import {
 import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
 import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 import {
+  commitConductorDraft,
   conductorBarcodeSource,
-  routeConductorRequest,
+  executeConductorRoute,
+  getConductorDraft,
+  isConductorEnabled,
+  mergeBarcodeLookupDraft,
 } from "@/lib/vauto-conductor";
 
 export function useBarcodeScanFlow() {
@@ -51,7 +55,7 @@ export function useBarcodeScanFlow() {
     ) => {
       const category: ListingCategory = opts?.category ?? (opts?.fashion ? "clothing" : "other");
 
-      void routeConductorRequest({
+      void executeConductorRoute({
         ...conductorBarcodeSource("useBarcodeScanFlow"),
         payload: { barcode, category },
       });
@@ -97,6 +101,16 @@ export function useBarcodeScanFlow() {
       }
 
       const patch = await enrichBarcodeWithFashionCopy(result, category);
+      const mergedDraft = isConductorEnabled()
+        ? mergeBarcodeLookupDraft(
+            getConductorDraft()?.draft ?? draftBase,
+            result,
+            getConductorDraft()?.sources ?? []
+          ).draft
+        : null;
+      if (isConductorEnabled() && mergedDraft) {
+        commitConductorDraft(mergedDraft, "barcode", draftBase);
+      }
       applyAgentListingDraft(
         {
           ...draftBase,

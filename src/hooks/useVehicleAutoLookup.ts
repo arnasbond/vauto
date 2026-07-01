@@ -6,6 +6,12 @@ import { isValidVinForLookup, normalizeVin } from "@/lib/trust";
 import { isLtPlate } from "@/lib/vehicle-intelligence/vehicle-attribute-mappers";
 import { BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import {
+  commitConductorDraft,
+  conductorVehicleLookupSource,
+  executeConductorRoute,
+  isConductorEnabled,
+} from "@/lib/vauto-conductor";
+import {
   lookupVehicle,
   vehicleLookupFallback,
   vehicleLookupToDraftPatch,
@@ -65,6 +71,10 @@ export function useVehicleAutoLookup(
     if (lastFetchedRef.current === identifier) return;
 
     let cancelled = false;
+    void executeConductorRoute({
+      ...conductorVehicleLookupSource("useVehicleAutoLookup"),
+      payload: { identifier, vin, plate },
+    });
     const timer = window.setTimeout(() => {
       setLoading(true);
       void Promise.race([
@@ -80,7 +90,11 @@ export function useVehicleAutoLookup(
           if (cancelled) return;
           lastFetchedRef.current = identifier;
           setResult(next);
-          onApplyRef.current(vehicleLookupToDraftPatch(next));
+          const patch = vehicleLookupToDraftPatch(next);
+          if (isConductorEnabled()) {
+            commitConductorDraft(patch, "vehicle");
+          }
+          onApplyRef.current(patch);
         })
         .finally(() => {
           if (!cancelled) setLoading(false);

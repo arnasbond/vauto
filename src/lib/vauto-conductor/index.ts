@@ -1,6 +1,7 @@
 import type { ConductorRequest, ConductorResult } from "./types";
 import { conductorAgentActionRequest } from "./agent-actions";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
+import { logAnalytics } from "@/lib/analytics";
 
 export type { ConductorIntent, ConductorPhase, ConductorRequest, ConductorResult } from "./types";
 
@@ -67,7 +68,34 @@ export async function routeConductorAgentAction(
   if (action.type === "none") {
     return { handled: false, phase: "route", delegated: true };
   }
-  return routeConductorRequest(conductorAgentActionRequest(action, source));
+  return executeConductorRoute(conductorAgentActionRequest(action, source));
+}
+
+/** Phase 3 — route + centralized analytics telemetry. */
+export async function executeConductorRoute(
+  request: ConductorRequest
+): Promise<ConductorResult> {
+  const result = await routeConductorRequest(request);
+  if (CONDUCTOR_ENABLED) {
+    logAnalytics("conductor_route", {
+      intent: request.intent,
+      source: request.source,
+      phase: result.phase,
+      handled: result.handled,
+      delegated: result.delegated ?? true,
+      visionPipeline: Boolean(result.meta?.visionPipeline),
+      barcodePipeline: Boolean(result.meta?.barcodePipeline),
+    });
+  }
+  return result;
+}
+
+export function conductorUseVisionPipeline(result: ConductorResult): boolean {
+  return Boolean(result.meta?.visionPipeline);
+}
+
+export function conductorUseBarcodePipeline(result: ConductorResult): boolean {
+  return Boolean(result.meta?.barcodePipeline);
 }
 
 export function conductorPhotoUploadSource(component: string): ConductorRequest {
@@ -103,6 +131,13 @@ export function conductorWardrobeBulkSource(component: string): ConductorRequest
     intent: "photo_upload",
     source: component,
     payload: { wardrobeBulk: true },
+  };
+}
+
+export function conductorVehicleLookupSource(component: string): ConductorRequest {
+  return {
+    intent: "vehicle_lookup",
+    source: component,
   };
 }
 

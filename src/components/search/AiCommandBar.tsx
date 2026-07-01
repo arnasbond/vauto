@@ -13,7 +13,7 @@ import {
 } from "@/lib/photo-vision-search";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import {
-  routeConductorRequest,
+  executeConductorRoute,
   routeConductorAgentAction,
   conductorPhotoUploadSource,
   conductorSearchQuerySource,
@@ -212,7 +212,7 @@ export function AiCommandBar({
       setDraftQuery(q);
       setAgentPinnedListings(null);
       clearVisualSearch({ keepInputMode: true });
-      void routeConductorRequest({
+      void executeConductorRoute({
         ...conductorSearchQuerySource("AiCommandBar"),
         payload: { query: q, wardrobeSearchOnly },
       });
@@ -281,7 +281,7 @@ export function AiCommandBar({
   const handlePhotoFlowSubmit = async (
     result: AiPhotoFlowResult
   ): Promise<boolean> => {
-    void routeConductorRequest({
+    void executeConductorRoute({
       ...conductorPhotoUploadSource("AiCommandBar"),
       payload: { photoCount: result.photos.length, wardrobeSearchOnly },
     });
