@@ -36,7 +36,7 @@ export function WakeWordSettingsCard() {
       </div>
 
       <p className="text-xs leading-relaxed text-slate-600">
-        Budintis režimas — pasakykite &ldquo;Vauto&rdquo; kompiuterio naršyklėje.
+        Budintis režimas — pasakykite &ldquo;VAUTO&rdquo; kompiuterio naršyklėje.
         Telefone naudokite balso mygtuką paieškoje arba push pranešimus.
       </p>
 
@@ -100,7 +100,7 @@ export function WakeWordSettingsCard() {
         Būsena:{" "}
         {wakeWordEnabled
           ? wakeWordPhase === "passive"
-            ? 'Klausoma — pasakykite "Vauto"'
+            ? 'Klausoma — pasakykite "VAUTO"'
             : wakeWordPhase === "suspended"
               ? "Pristabdyta (programėlė fone — mikrofonas išjungtas)"
             : wakeWordPhase === "active"

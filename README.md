@@ -1,4 +1,4 @@
-# Vauto
+# VAUTO
 
 Lietuviška AI-first skelbimų platforma — PWA ir Android aplikacija.
 
@@ -119,7 +119,7 @@ Patikrinti: Profilis → „Testuoti Gemini“.
 ## Admin ir moderacija
 
 - Prisijunkite kaip **admin@vauto.com** (bet koks slaptažodis demo režime)
-- Profilyje atsiras **Vauto Control Center** (arba apačioje **VAUTO CC**)
+- Profilyje atsiras **VAUTO Control Center** (arba apačioje **VAUTO CC**)
 - Peržiūrėkite pranešimus, įspėkite, užblokuokite arba uždarykite ticketus
 - Skelbimuose ir pokalbiuose — **Pranešti apie pažeidimą**
 

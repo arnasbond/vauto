@@ -1,4 +1,4 @@
-/** Vauto Flux 2026 wordmark — Outfit display + gradient accent */
+/** VAUTO Flux 2026 wordmark — Outfit display + gradient accent */
 export function VautoLogo({
   className = "",
   color,
@@ -13,7 +13,7 @@ export function VautoLogo({
       className={`font-display text-2xl font-extrabold tracking-tight ${className || (!color ? "text-white" : "")}`}
       style={color ? { color } : undefined}
     >
-      vauto<span style={{ color: dotColor }}>.</span>
+      VAUTO<span style={{ color: dotColor }}>.</span>
     </div>
   );
 }

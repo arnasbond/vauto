@@ -95,7 +95,7 @@ export async function lookupLtTaByVinOpenData(vin: string): Promise<LtTaOpenData
       const res = await fetch(url, {
         headers: {
           Accept: "text/html,application/json",
-          "User-Agent": "vAuto/1.6.21 (+https://vauto.lt; opendata-ta-check)",
+          "User-Agent": "VAUTO/1.6.21 (+https://vauto.lt; opendata-ta-check)",
         },
         signal: AbortSignal.timeout(12_000),
       });
@@ -144,7 +144,7 @@ export async function lookupLtRegitraOpenData(
     const res = await fetch(url, {
       headers: {
         Accept: "text/html,application/json",
-        "User-Agent": "vAuto/1.6.21 (+https://vauto.lt; regitra-opendata)",
+        "User-Agent": "VAUTO/1.6.21 (+https://vauto.lt; regitra-opendata)",
       },
       signal: AbortSignal.timeout(12_000),
     });

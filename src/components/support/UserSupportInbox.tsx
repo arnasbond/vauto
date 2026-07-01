@@ -138,7 +138,7 @@ export function UserSupportInbox() {
               className={cn("rounded-xl border p-2.5 text-xs", roleStyles(msg.role))}
             >
               <p className="mb-1 font-semibold text-slate-600">
-                {msg.role === "admin" ? "Vauto komanda" : msg.senderName}
+                {msg.role === "admin" ? "VAUTO komanda" : msg.senderName}
                 {msg.auto && (
                   <span className="ml-1 text-[10px] text-slate-500">(automatinis)</span>
                 )}

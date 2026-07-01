@@ -28,7 +28,7 @@ async function sendEmail(opts: {
   if (!apiKey || !opts.to.length) return;
 
   const from =
-    process.env.EMAIL_FROM?.trim() ?? "Vauto <onboarding@resend.dev>";
+    process.env.EMAIL_FROM?.trim() ?? "VAUTO <onboarding@resend.dev>";
 
   const res = await fetch("https://api.resend.com/emails", {
     method: "POST",
@@ -67,7 +67,7 @@ export async function emailAdminsNewReport(
   const url = reportAdminUrl(report.id);
   await sendEmail({
     to,
-    subject: `[Vauto] Naujas pranešimas — ${report.reporterName}`,
+    subject: `[VAUTO] Naujas pranešimas — ${report.reporterName}`,
     html: `
       <h2>Naujas vartotojo pranešimas</h2>
       ${contactBlock(report)}
@@ -88,7 +88,7 @@ export async function emailAdminsUserFollowUp(
 
   await sendEmail({
     to,
-    subject: `[Vauto] Papildymas — ${report.reporterName}`,
+    subject: `[VAUTO] Papildymas — ${report.reporterName}`,
     html: `
       <h2>Vartotojas papildė pranešimą</h2>
       ${contactBlock(report)}
@@ -106,9 +106,9 @@ export async function emailReporterReply(
 
   await sendEmail({
     to: [report.reporterEmail.trim()],
-    subject: "[Vauto] Atsakymas į jūsų pranešimą",
+    subject: "[VAUTO] Atsakymas į jūsų pranešimą",
     html: `
-      <h2>Gavote atsakymą iš Vauto komandos</h2>
+      <h2>Gavote atsakymą iš VAUTO komandos</h2>
       <blockquote>${escapeHtml(replyPreview)}</blockquote>
       <p><a href="${reportUserUrl(report.id)}">Peržiūrėti visą pokalbio giją</a></p>
     `,

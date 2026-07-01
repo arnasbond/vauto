@@ -15,7 +15,7 @@ function appendAutoAdminReply(
   const message = {
     id: `rm-${Date.now()}-ai-auto`,
     senderId: "vauto-admin-ai",
-    senderName: "Vauto komanda",
+    senderName: "VAUTO komanda",
     role: "ai",
     text,
     timestamp: new Date().toISOString(),

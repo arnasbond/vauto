@@ -23,7 +23,7 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
-  title: "Vauto — AI skelbimai ir paslaugos visoje Lietuvoje",
+  title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
   description:
     "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
   manifest: "/manifest.json",
@@ -40,7 +40,7 @@ export const metadata: Metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",
-    title: "Vauto",
+    title: "VAUTO",
   },
 };
 

@@ -37,11 +37,11 @@ export function validateProductionEnv(): EnvCheckResult {
   }
 
   for (const w of warnings) {
-    console.warn(`[Vauto Env] ${w}`);
+    console.warn(`[VAUTO Env] ${w}`);
   }
 
   for (const e of errors) {
-    console.error(`[Vauto Env] FATAL: ${e}`);
+    console.error(`[VAUTO Env] FATAL: ${e}`);
   }
 
   return { ok: errors.length === 0, warnings, errors };

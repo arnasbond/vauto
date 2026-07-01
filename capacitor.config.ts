@@ -13,7 +13,7 @@ const useRemoteShell =
 
 const config: CapacitorConfig = {
   appId: "com.vauto.app",
-  appName: "Vauto",
+  appName: "VAUTO",
   webDir: "out",
   android: {
     allowMixedContent: true,

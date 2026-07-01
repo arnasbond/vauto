@@ -630,7 +630,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         id: "admin-1",
 
-        name: "Vauto Admin",
+        name: "VAUTO Admin",
 
         email: ADMIN_EMAIL,
 

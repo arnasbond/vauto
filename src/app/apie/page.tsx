@@ -89,7 +89,7 @@ export default function ApiePage() {
     }
 
     const payload = {
-      title: "vAuto — išmanioji skelbimų ekosistema",
+      title: "VAUTO — išmanioji skelbimų ekosistema",
       text: "Pamiršk formų pildymą — įkelk nuotrauką ar nuorodą, o AI padarys viską už tave. Visoje Lietuvoje!",
       url: SITE_URL,
       dialogTitle: "Pasidalinti su draugais",
@@ -123,7 +123,7 @@ export default function ApiePage() {
             Apie projektą
           </p>
           <h1 className="mt-2 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
-            vAuto — pirmoji išmanioji skelbimų ekosistema Lietuvoje
+            VAUTO — pirmoji išmanioji skelbimų ekosistema Lietuvoje
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
             Pamirškite varginantį formų pildymą. Įkelkite skelbimą arba suraskite
@@ -257,7 +257,7 @@ export default function ApiePage() {
             Pakviesk draugą — gauk TOP iškėlimą nemokamai
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-xs text-[var(--vauto-text-muted)]">
-            Pasidalink vAuto su draugais per Messenger, Viber ar SMS — vienu
+            Pasidalink VAUTO su draugais per Messenger, Viber ar SMS — vienu
             paspaudimu, visoje Lietuvoje.
           </p>
           <button

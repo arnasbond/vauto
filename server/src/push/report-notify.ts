@@ -28,13 +28,13 @@ export async function notifyAdminsNewReport(
   if (adminIds.length) {
     tasks.push(
       sendWebPushToUsers(adminIds, {
-        title: "Vauto — naujas pranešimas",
+        title: "VAUTO — naujas pranešimas",
         body: `${report.reporterName}: ${report.comment.slice(0, 120)}`,
         url: `/profile/?report=${encodeURIComponent(report.id)}`,
         tag: `report-${report.id}`,
       }),
       notifyUsersFcm(adminIds, {
-        title: "Vauto — naujas pranešimas",
+        title: "VAUTO — naujas pranešimas",
         body: `${report.reporterName}: ${report.comment.slice(0, 120)}`,
         url: `/profile/?report=${encodeURIComponent(report.id)}`,
       })
@@ -51,13 +51,13 @@ export async function notifyReporterReply(
 
   await Promise.allSettled([
     sendWebPushToUsers([report.reporterId], {
-      title: "Vauto — atsakymas į pranešimą",
+      title: "VAUTO — atsakymas į pranešimą",
       body: preview.slice(0, 140),
       url: `/profile/?support=${encodeURIComponent(report.id)}`,
       tag: `report-reply-${report.id}`,
     }),
     notifyUsersFcm([report.reporterId], {
-      title: "Vauto — atsakymas į pranešimą",
+      title: "VAUTO — atsakymas į pranešimą",
       body: preview.slice(0, 140),
       url: `/profile/?support=${encodeURIComponent(report.id)}`,
     }),
@@ -73,13 +73,13 @@ export async function notifyAdminsUserFollowUp(
   if (adminIds.length) {
     tasks.push(
       sendWebPushToUsers(adminIds, {
-        title: "Vauto — papildymas prie pranešimo",
+        title: "VAUTO — papildymas prie pranešimo",
         body: `${report.reporterName}: ${report.comment.slice(0, 120)}`,
         url: `/profile/?report=${encodeURIComponent(report.id)}`,
         tag: `report-followup-${report.id}`,
       }),
       notifyUsersFcm(adminIds, {
-        title: "Vauto — papildymas prie pranešimo",
+        title: "VAUTO — papildymas prie pranešimo",
         body: `${report.reporterName}: ${report.comment.slice(0, 120)}`,
         url: `/profile/?report=${encodeURIComponent(report.id)}`,
       })

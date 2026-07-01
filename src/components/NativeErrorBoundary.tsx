@@ -41,7 +41,7 @@ export class NativeErrorBoundary extends Component<Props, State> {
 
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0b0f17] px-6 text-center text-white">
-        <p className="text-lg font-semibold text-[#00BFA5]">Vauto</p>
+        <p className="text-lg font-semibold text-[#00BFA5]">VAUTO</p>
         <h1 className="mt-4 text-xl font-bold">Programėlė sustojo</h1>
         <p className="mt-3 max-w-sm text-sm leading-relaxed text-slate-400">
           {native

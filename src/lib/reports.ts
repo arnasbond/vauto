@@ -23,7 +23,7 @@ export const REPORT_CATEGORIES: {
   {
     id: "general_feedback",
     label: "Bendras atsiliepimas",
-    description: "Pasiūlymai ar klausimai Vauto komandai",
+    description: "Pasiūlymai ar klausimai VAUTO komandai",
   },
   {
     id: "technical_issue",

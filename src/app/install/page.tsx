@@ -27,7 +27,7 @@ export default function InstallPage() {
             V
           </div>
           <h1 className="text-2xl font-bold text-[var(--vauto-text)]">
-            Įdiekite Vauto
+            Įdiekite VAUTO
           </h1>
           <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
             Android — APK failas. iPhone — pridėkite į pradžios ekraną per Safari.
@@ -38,7 +38,7 @@ export default function InstallPage() {
           <div className="card-shadow mb-6 rounded-2xl bg-green-50 p-5 text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-green-600" />
             <p className="mt-3 font-semibold text-green-800">
-              Vauto jau įdiegta šiame įrenginyje
+              VAUTO jau įdiegta šiame įrenginyje
             </p>
             <Link
               href="/"
@@ -51,13 +51,13 @@ export default function InstallPage() {
           <div className="card-shadow mb-6 rounded-2xl bg-white p-5 text-center">
             <CheckCircle2 className="mx-auto h-10 w-10 text-[var(--vauto-blue)]" />
             <p className="mt-3 font-semibold text-[var(--vauto-text)]">
-              Vauto jau pridėta į pradžios ekraną
+              VAUTO jau pridėta į pradžios ekraną
             </p>
             <Link
               href="/"
               className="mt-4 inline-block rounded-xl bg-[var(--vauto-blue)] px-6 py-3 text-sm font-medium text-white"
             >
-              Atidaryti Vauto
+              Atidaryti VAUTO
             </Link>
           </div>
         ) : null}
@@ -102,7 +102,7 @@ export default function InstallPage() {
                       4
                     </span>
                     <span>
-                      Paspauskite <strong>Pridėti</strong> — Vauto atsiras kaip
+                      Paspauskite <strong>Pridėti</strong> — VAUTO atsiras kaip
                       programėlė
                     </span>
                   </li>
@@ -155,7 +155,7 @@ export default function InstallPage() {
             <li>1. Atidarykite <a href={SITE_URL} className="text-[var(--vauto-blue)] underline">{SITE_URL.replace("https://", "")}</a> per <strong>Safari</strong></li>
             <li>2. Paspauskite <strong>Dalintis</strong> (□↑) apačioje</li>
             <li>3. <strong>Pridėti į pradžios ekraną</strong></li>
-            <li>4. <strong>Pridėti</strong> — Vauto ikona atsiras pradžios ekrane</li>
+            <li>4. <strong>Pridėti</strong> — VAUTO ikona atsiras pradžios ekrane</li>
           </ol>
         </div>
 
@@ -170,7 +170,7 @@ export default function InstallPage() {
           </a>
           {" · "}
           <Link href="/" className="underline">
-            Grįžti į Vauto
+            Grįžti į VAUTO
           </Link>
         </p>
       </div>

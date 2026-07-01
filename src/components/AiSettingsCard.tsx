@@ -80,7 +80,7 @@ export function AiSettingsCard() {
 
       {mode === "server" && (
         <p className="vauto-badge-success mb-3 rounded-xl px-3 py-2 text-xs">
-          Visos AI funkcijos veikia per Vauto serverį (Gemini).
+          Visos AI funkcijos veikia per VAUTO serverį (Gemini).
         </p>
       )}
 

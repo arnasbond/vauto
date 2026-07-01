@@ -6,7 +6,7 @@ interface AiAssistantPromptProps {
   message: string;
 }
 
-/** Friendly Vauto AI chat-bubble when category-specific fields are missing */
+/** Friendly VAUTO AI chat-bubble when category-specific fields are missing */
 export function AiAssistantPrompt({ message }: AiAssistantPromptProps) {
   return (
     <div className="mb-4 flex gap-2.5 transition-opacity duration-300">
@@ -15,7 +15,7 @@ export function AiAssistantPrompt({ message }: AiAssistantPromptProps) {
       </div>
       <div className="relative max-w-[90%] rounded-2xl rounded-tl-md bg-[var(--vauto-teal)]/15 px-4 py-3 text-sm leading-relaxed text-teal-100">
         <p className="mb-0.5 text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-teal)]">
-          Vauto AI
+          VAUTO AI
         </p>
         {message}
         <span className="mt-2 block text-xs text-slate-400">

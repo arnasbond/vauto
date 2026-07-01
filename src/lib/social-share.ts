@@ -90,7 +90,7 @@ export function buildListingSharePayload(listing: Listing): ListingSharePayload 
   const path = listingPath(listing);
   const url = `${SITE_URL}${path}`;
   const priceText = listing.priceLabel ?? `${listing.price} €`;
-  const text = `${meta.og.title} — ${priceText}. Peržiūrėkite Vauto: ${url}`;
+  const text = `${meta.og.title} — ${priceText}. Peržiūrėkite VAUTO: ${url}`;
   return {
     url,
     title: meta.og.title,

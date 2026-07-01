@@ -28,7 +28,7 @@ export function InstallAppBanner() {
       ? "iPhone: Safari → Pridėti į pradžios ekraną"
       : platform === "android"
         ? "Android: atsisiųskite APK vienu paspaudimu"
-        : "Įdiekite Vauto į telefoną";
+        : "Įdiekite VAUTO į telefoną";
 
   return (
     <div className="fixed inset-x-0 bottom-[calc(4.5rem+env(safe-area-inset-bottom))] z-40 mx-3">
@@ -38,7 +38,7 @@ export function InstallAppBanner() {
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-sm font-semibold text-[var(--vauto-text)]">
-            Įdiekite Vauto į telefoną
+            Įdiekite VAUTO į telefoną
           </p>
           <p className="text-xs text-[var(--vauto-text-muted)]">{subtitle}</p>
         </div>

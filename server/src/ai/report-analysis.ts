@@ -111,7 +111,7 @@ async function analyzeWithGemini(input: {
   const raw = await geminiChatJson([
     {
       role: "system",
-      content: `Tu esi Vauto moderacijos asistentas. Analizuok vartotojo pranešimą lietuviškai.
+      content: `Tu esi VAUTO moderacijos asistentas. Analizuok vartotojo pranešimą lietuviškai.
 Grąžink JSON:
 {
   "category": "fraud|bad_info|chat_abuse|general_feedback|technical_issue|account_billing",

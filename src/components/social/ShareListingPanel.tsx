@@ -81,7 +81,7 @@ export function ShareListingPanel({
       {showVautoPromo && !compact && (
         <p className="text-xs leading-relaxed text-slate-400">
           Pasidalykite skelbimu socialiniuose tinkluose — papildoma reklama jūsų prekei
-          ar paslaugai ir didesnis Vauto žinomumas.
+          ar paslaugai ir didesnis VAUTO žinomumas.
         </p>
       )}
 

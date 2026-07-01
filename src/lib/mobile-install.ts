@@ -142,8 +142,8 @@ async function shareInstallPackage(payload: NativeSharePayload): Promise<boolean
 export async function shareAndroidApk(): Promise<boolean> {
   if (isNativeApp()) return false;
   return shareInstallPackage({
-    title: "Vauto Android programėlė",
-    text: "Atsisiųsk Vauto APK — lietuviška išmani skelbimų programėlė visoje Lietuvoje.",
+    title: "VAUTO Android programėlė",
+    text: "Atsisiųsk VAUTO APK — lietuviška išmani skelbimų programėlė visoje Lietuvoje.",
     url: APK_GITHUB_DOWNLOAD_URL,
     dialogTitle: "Dalintis APK",
   });
@@ -151,7 +151,7 @@ export async function shareAndroidApk(): Promise<boolean> {
 
 export async function shareIosPwa(): Promise<boolean> {
   return shareInstallPackage({
-    title: "Vauto iPhone",
+    title: "VAUTO iPhone",
     text: "Atidaryk Safari → Pridėti į pradžios ekraną. VAUTO — skelbimai visoje Lietuvoje.",
     url: INSTALL_PAGE_URL,
     dialogTitle: "Dalintis su iPhone vartotoju",

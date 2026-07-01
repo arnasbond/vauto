@@ -17,7 +17,7 @@ const AUTO_ACK: Record<ReportCategory, string> = {
   chat_abuse:
     "Gavome pranešimą apie pokalbio pažeidimą. Peržiūrėsime pokalbio istoriją ir imsimės veiksmų.",
   general_feedback:
-    "Ačiū už atsiliepimą! Jūsų pasiūlymas padeda tobulinti Vauto. Atsakysime, kai turėsime naujienų.",
+    "Ačiū už atsiliepimą! Jūsų pasiūlymas padeda tobulinti VAUTO. Atsakysime, kai turėsime naujienų.",
   technical_issue:
     "Gavome techninės problemos pranešimą. Palaikymo komanda peržiūrės ir atsakys per 24 val.",
   account_billing:
@@ -131,7 +131,7 @@ export function enrichNewReport(
   const systemMessage: ReportMessage = {
     id: `rm-${Date.now()}-auto`,
     senderId: "vauto-system",
-    senderName: "Vauto",
+    senderName: "VAUTO",
     role: "system",
     text: autoAck,
     timestamp: new Date(Date.now() + 500).toISOString(),

@@ -331,7 +331,7 @@ aiRouter.post("/analyze-voice", async (req: AuthedRequest, res) => {
 
 ${userProfileBlock}
 
-Esi Vauto balso sekretorius Lietuvoje (tik Gemini). ${modeHint}
+Esi VAUTO balso sekretorius Lietuvoje (tik Gemini). ${modeHint}
 understoodSummary — lietuviškai, suasmenintai vardu, BE žodžių „ieškoti“ jei vartotojas kelia skelbimą.
 imageSearchQuery — tik kai vartotojas IEŠKO, angliški raktažodžiai.
 Jei vartotojas sako „pardaviau“ / „jau parduota“ — needsClarification=false, understoodSummary patvirtina archyvavimą (klientas vėliau kvies agentą).
@@ -1041,7 +1041,7 @@ ${listText}`;
       {
         role: "system",
         content:
-          "Esi Vauto paieškos rerankeris. Grąžink tik JSON su scores objektu.",
+          "Esi VAUTO paieškos rerankeris. Grąžink tik JSON su scores objektu.",
       },
       { role: "user", content: prompt },
     ]);

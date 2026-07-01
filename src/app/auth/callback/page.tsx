@@ -16,7 +16,7 @@ export default function AuthCallbackPage() {
   return (
     <main className="flex min-h-[50vh] flex-col items-center justify-center gap-2 px-6 text-center">
       <p className="text-sm font-medium text-slate-700">Prisijungiama…</p>
-      <p className="text-xs text-slate-500">Palaukite, nukreipiame atgal į Vauto.</p>
+      <p className="text-xs text-slate-500">Palaukite, nukreipiame atgal į VAUTO.</p>
     </main>
   );
 }

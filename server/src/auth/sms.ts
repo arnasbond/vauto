@@ -8,7 +8,7 @@ export async function sendSmsOtp(phone: string, code: string): Promise<boolean> 
 
   if (!sid || !token || !from) {
     if (process.env.NODE_ENV !== "production") {
-      console.log(`[Vauto SMS] OTP for ${phone}: ${code} (Twilio not configured)`);
+      console.log(`[VAUTO SMS] OTP for ${phone}: ${code} (Twilio not configured)`);
     } else {
       logProductionWarn("sms", "Twilio not configured — OTP not sent", {
         phoneSuffix: phone.slice(-4),
@@ -17,7 +17,7 @@ export async function sendSmsOtp(phone: string, code: string): Promise<boolean> 
     return false;
   }
 
-  const body = `Vauto patvirtinimo kodas: ${code}. Galioja 10 min.`;
+  const body = `VAUTO patvirtinimo kodas: ${code}. Galioja 10 min.`;
   const auth = Buffer.from(`${sid}:${token}`).toString("base64");
 
   try {

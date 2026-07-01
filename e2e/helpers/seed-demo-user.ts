@@ -48,7 +48,7 @@ export async function seedDemoUser(page: Page) {
 export async function seedAdminUser(page: Page) {
   await seedAuthSession(page, {
     id: "admin-1",
-    name: "Vauto Admin",
+    name: "VAUTO Admin",
     email: "admin@vauto.com",
     phone: "+37060000099",
     city: "Vilnius",

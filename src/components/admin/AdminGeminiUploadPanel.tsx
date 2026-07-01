@@ -42,7 +42,7 @@ export function AdminGeminiUploadPanel({
   if (!isAdmin) {
     return (
       <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
-        Tik administratoriams. Prisijunkite per „Vauto Control Center (admin)“.
+        Tik administratoriams. Prisijunkite per „VAUTO Control Center (admin)“.
       </div>
     );
   }

@@ -92,11 +92,11 @@ app.listen(port, async () => {
     startPortalSyncCron();
     const gemini = Boolean(resolveGeminiApiKey());
     console.log(
-      `Vauto API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
+      `VAUTO API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
     );
   } catch {
     console.warn(
-      `Vauto API http://localhost:${port} — PostgreSQL nepasiekiamas. Paleiskite: docker compose up -d`
+      `VAUTO API http://localhost:${port} — PostgreSQL nepasiekiamas. Paleiskite: docker compose up -d`
     );
   }
 });

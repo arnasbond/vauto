@@ -21,7 +21,7 @@ export const APP_VIEW_LABELS: Record<AppView, string> = {
   add_listing: "Įdėti skelbimą",
   seller_wizard: "Pardavėjo vedlys",
   chats: "Pokalbiai",
-  profile: "Mano Vauto",
+  profile: "Mano VAUTO",
   admin_ai: "Admin AI",
 };
 

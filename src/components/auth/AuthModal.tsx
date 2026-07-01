@@ -282,13 +282,13 @@ export function AuthModal({
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h2 className="text-xl font-bold text-[var(--vauto-text-heading)]">
-              Prisijungti prie Vauto
+              Prisijungti prie VAUTO
             </h2>
             <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
               {step === "methods" && "Saugus prisijungimas per 30 sek."}
               {step === "phone" && "Įveskite telefono numerį"}
               {step === "otp" && "Patvirtinkite SMS kodą"}
-              {step === "admin" && "Vauto moderatorių prieiga"}
+              {step === "admin" && "VAUTO moderatorių prieiga"}
             </p>
           </div>
           <button
@@ -410,7 +410,7 @@ export function AuthModal({
 
             {isAuthApiAvailable() ? (
               <p className="pt-2 text-center text-xs text-[var(--vauto-text-muted)]">
-                OTP kodas siunčiamas per Vauto serverį
+                OTP kodas siunčiamas per VAUTO serverį
               </p>
             ) : (
               <p className="pt-2 text-center text-xs text-[var(--vauto-text-muted)]">
@@ -427,7 +427,7 @@ export function AuthModal({
               className="flex w-full items-center justify-center gap-2 pt-1 text-xs text-[var(--vauto-text-muted)] hover:text-red-600"
             >
               <Shield className="h-3.5 w-3.5" />
-              Vauto Control Center (admin)
+              VAUTO Control Center (admin)
             </button>
           </div>
         )}

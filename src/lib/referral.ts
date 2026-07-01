@@ -74,7 +74,7 @@ export function grantReferralCredit(userId: string): void {
 export function referralSharePayload(user: UserProfile): NativeSharePayload {
   const url = buildReferralUrl(user);
   return {
-    title: "Vauto — skelbimai visoje Lietuvoje",
+    title: "VAUTO — skelbimai visoje Lietuvoje",
     text: `Prisijunk prie VAUTO ir gauk TOP iškėlimą! Naudok mano pakvietimo nuorodą:`,
     url,
     dialogTitle: "Pakviesti draugą",

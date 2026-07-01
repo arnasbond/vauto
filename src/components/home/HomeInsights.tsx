@@ -67,7 +67,7 @@ export function SocialProofStrip() {
       <div className="mb-2 flex items-center gap-2">
         <TrendingUp className="h-4 w-4 text-[var(--flux-teal)]" />
         <h2 className="text-xs font-bold uppercase tracking-wider text-[#1167b1]">
-          Parduota per Vauto
+          Parduota per VAUTO
         </h2>
       </div>
       <ul className="space-y-1.5">

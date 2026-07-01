@@ -243,7 +243,7 @@ async function generateGeminiListing(merged: MergedVehicleRecord): Promise<{
     return { ...fb, fallbackUsed: true, error: "GEMINI_API_KEY not configured" };
   }
 
-  const prompt = `Tu esi profesionalus lietuviškų automobilių skelbimų rašytojas portale vAuto.lt.
+  const prompt = `Tu esi profesionalus lietuviškų automobilių skelbimų rašytojas portale VAUTO.lt.
 Remdamasis TIK žemiau pateiktais patvirtintais duomenimis (neišgalvok papildomų faktų), sugeneruok patrauklų skelbimą.
 
 Duomenys:

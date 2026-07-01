@@ -4,11 +4,11 @@ import { listingResults } from "./helpers/listing-results";
 
 async function waitForHomeReady(page: Page) {
   await page.goto("/");
-  await expect(page).toHaveTitle(/Vauto/i);
+  await expect(page).toHaveTitle(/VAUTO/i);
   await expect(page.getByRole("searchbox").first()).toBeVisible({ timeout: 15_000 });
 }
 
-test.describe("Vauto smoke", () => {
+test.describe("VAUTO smoke", () => {
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
     await expect(
@@ -40,7 +40,7 @@ test.describe("Vauto smoke", () => {
   test("add listing page shows guest gate for visitors", async ({ page }) => {
     await page.goto("/add/");
     await expect(
-      page.getByText(/Prisijunkite|Prisijungti prie Vauto/i).first()
+      page.getByText(/Prisijunkite|Prisijungti prie VAUTO/i).first()
     ).toBeVisible({ timeout: 15_000 });
   });
 

@@ -33,7 +33,7 @@ export const DEMO_REPORTS: SupportReport[] = [
       {
         id: "rep-1-s",
         senderId: "vauto-system",
-        senderName: "Vauto",
+        senderName: "VAUTO",
         role: "system",
         text: "Gavome jūsų pranešimą apie sukčiavimą. Moderacija peržiūrės per 24 val.",
         timestamp: "2026-06-18T11:30:05Z",
@@ -71,7 +71,7 @@ export const DEMO_REPORTS: SupportReport[] = [
       {
         id: "rep-2-s",
         senderId: "vauto-system",
-        senderName: "Vauto",
+        senderName: "VAUTO",
         role: "system",
         text: "Gavome pranešimą apie pokalbio pažeidimą. Peržiūrėsime pokalbio istoriją.",
         timestamp: "2026-06-18T12:00:02Z",
@@ -80,7 +80,7 @@ export const DEMO_REPORTS: SupportReport[] = [
       {
         id: "rep-2-a",
         senderId: "admin",
-        senderName: "Vauto komanda",
+        senderName: "VAUTO komanda",
         role: "admin",
         text: "Sveiki, peržiūrėjome pokalbio fragmentą. Jei situacija kartosis — praneškite dar kartą.",
         timestamp: "2026-06-19T09:15:00Z",
@@ -113,7 +113,7 @@ export const DEMO_REPORTS: SupportReport[] = [
       {
         id: "rep-3-s",
         senderId: "vauto-system",
-        senderName: "Vauto",
+        senderName: "VAUTO",
         role: "system",
         text: "Ačiū už pranešimą apie neteisingą informaciją. Patikrinsime skelbimą.",
         timestamp: "2026-06-18T10:15:03Z",
@@ -144,7 +144,7 @@ export const DEMO_REPORTS: SupportReport[] = [
       {
         id: "rep-4-s",
         senderId: "vauto-system",
-        senderName: "Vauto",
+        senderName: "VAUTO",
         role: "system",
         text: "Gavome techninės problemos pranešimą. Palaikymo komanda peržiūrės per 24 val.",
         timestamp: "2026-06-18T09:45:01Z",
@@ -174,7 +174,7 @@ export const DEMO_REPORTS: SupportReport[] = [
       {
         id: "rep-5-s",
         senderId: "vauto-system",
-        senderName: "Vauto",
+        senderName: "VAUTO",
         role: "system",
         text: "Gavome pranešimą dėl paskyros ar mokėjimų. Palaikymo komanda susisieks per 1–2 darbo dienas.",
         timestamp: "2026-06-17T16:20:02Z",

@@ -1,5 +1,5 @@
 /**
- * One-shot Stripe setup for Vauto (test or live key in env).
+ * One-shot Stripe setup for VAUTO (test or live key in env).
  *
  * Usage:
  *   STRIPE_SECRET_KEY=sk_test_... npx tsx scripts/setup-stripe.ts
@@ -20,7 +20,7 @@ async function main() {
   }
 
   const account = await stripe.accounts.retrieve();
-  console.log(`Stripe account: ${account.id} (${account.settings?.dashboard?.display_name ?? "Vauto"})`);
+  console.log(`Stripe account: ${account.id} (${account.settings?.dashboard?.display_name ?? "VAUTO"})`);
 
   const portalOk = await ensureStripePortalConfiguration();
   console.log(portalOk ? "✓ Customer Portal ready" : "✗ Portal setup failed");

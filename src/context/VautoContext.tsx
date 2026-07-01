@@ -2224,7 +2224,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       showToast(`Naujas pranešimas: ${report.reporterName} — ${cat}`, "info");
       if (typeof window !== "undefined" && "Notification" in window) {
         if (Notification.permission === "granted") {
-          const notification = new Notification("Vauto — naujas pranešimas", {
+          const notification = new Notification("VAUTO — naujas pranešimas", {
             body: report.comment.slice(0, 140),
             tag: report.id,
           });
@@ -2243,7 +2243,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       showToast("Gavote atsakymą į pranešimą", "info");
       if (typeof window !== "undefined" && "Notification" in window) {
         if (Notification.permission === "granted") {
-          const notification = new Notification("Vauto — atsakymas į pranešimą", {
+          const notification = new Notification("VAUTO — atsakymas į pranešimą", {
             body: preview.slice(0, 140),
             tag: `reply-${report.id}`,
           });

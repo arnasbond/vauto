@@ -41,7 +41,7 @@ export async function ensureStripePortalConfiguration(): Promise<boolean> {
 
   await stripe.billingPortal.configurations.create({
     business_profile: {
-      headline: "Vauto — prenumeratos valdymas",
+      headline: "VAUTO — prenumeratos valdymas",
     },
     default_return_url: `${appOrigin()}/profile`,
     features: PORTAL_FEATURES,
@@ -70,7 +70,7 @@ export async function ensureStripeWebhookEndpoint(): Promise<{
   const endpoint = await stripe.webhookEndpoints.create({
     url,
     enabled_events: WEBHOOK_EVENTS,
-    description: "Vauto billing (checkout + subscription cancel)",
+    description: "VAUTO billing (checkout + subscription cancel)",
   });
 
   console.log(`[Stripe] Webhook endpoint created: ${url}`);

@@ -46,7 +46,7 @@ function assertAuthOrigin(): void {
   if (typeof window === "undefined") return;
   if (!isAllowedAuthOrigin()) {
     console.warn(
-      `[Vauto] Auth origin "${getAuthOrigin()}" is not in authorized list. ` +
+      `[VAUTO] Auth origin "${getAuthOrigin()}" is not in authorized list. ` +
         `Add it to Google Cloud Console → Authorized JavaScript origins.`
     );
   }

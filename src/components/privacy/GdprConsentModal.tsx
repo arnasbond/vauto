@@ -39,7 +39,7 @@ export function GdprConsentModal({
           AI analizei ir nėra naudojami reklamai.
         </p>
         <p className="mt-3 rounded-xl bg-[var(--vauto-orange)]/10 px-3 py-2.5 text-sm leading-relaxed text-orange-100 ring-1 ring-[var(--vauto-orange)]/20">
-          VAUTO fone analizuoja tik raktažodį &ldquo;Vauto&rdquo; ir jokių kitų jūsų pokalbių
+          VAUTO fone analizuoja tik raktažodį &ldquo;VAUTO&rdquo; ir jokių kitų jūsų pokalbių
           neįrašinėja. Budintis režimas reikalauja nuolatinės mikrofono prieigos.
         </p>
         <p className="mt-2 text-xs text-slate-500">

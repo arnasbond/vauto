@@ -32,7 +32,7 @@ export function SocialSyncSettingsCard() {
         </h3>
       </div>
       <p className="text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-        Papildoma reklama jūsų prekei ar paslaugai — dalinkitės Vauto skelbimu ten, kur jau
+        Papildoma reklama jūsų prekei ar paslaugai — dalinkitės VAUTO skelbimu ten, kur jau
         esate įpratę reklamuotis.
       </p>
 

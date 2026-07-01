@@ -27,7 +27,7 @@ export function AuthColdStartOverlay() {
       className="fixed inset-0 z-[300] flex items-center justify-center bg-[#0b0f17]/96 px-6 backdrop-blur-md"
       role="status"
       aria-live="polite"
-      aria-label="Vauto kraunasi"
+      aria-label="VAUTO kraunasi"
     >
       <div className="max-w-sm text-center">
         <span className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--vauto-teal,#0d9488)]/20 ring-1 ring-[var(--vauto-teal,#0d9488)]/40">
@@ -38,7 +38,7 @@ export function AuthColdStartOverlay() {
           <span>Kraunama…</span>
         </div>
         <p className="text-base font-semibold leading-relaxed text-white">
-          Vauto AI žadina serverį...
+          VAUTO AI žadina serverį...
         </p>
         <p className="mt-2 text-sm leading-relaxed text-slate-400">
           Tai gali užtrukti iki 30 sekundžių.
