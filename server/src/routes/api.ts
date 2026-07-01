@@ -70,6 +70,8 @@ import {
 } from "../push/report-notify.js";
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
+import { moderateListingInput } from "../lib/listing-moderation.js";
+import { logConductorPublishLineage } from "../lib/conductor-publish.js";
 import {
   notifyNegotiationDealClosed,
   notifyNegotiationStarted,
@@ -369,6 +371,15 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
       res.status(403).json({ error: "Forbidden" });
       return;
     }
+    const moderation = moderateListingInput({
+      title: listing.title,
+      description: listing.description,
+      location: listing.location,
+    });
+    if (!moderation.allowed) {
+      res.status(422).json({ error: moderation.reason ?? "Skelbimas atmestas moderacijos." });
+      return;
+    }
     const clientDraftId =
       typeof listing.attributes?.clientDraftId === "string"
         ? listing.attributes.clientDraftId.trim()
@@ -381,6 +392,7 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
       }
     }
     await insertListing(listing);
+    logConductorPublishLineage(listing);
     void notifyListingMatch(listing).catch(() => {});
     scheduleWishlistMatchNotifications(listing);
     res.status(201).json(listing);

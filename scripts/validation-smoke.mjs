@@ -1,6 +1,8 @@
 #!/usr/bin/env node
 /** Smoke tests for compiled server validation + VIN utils (no DB). */
 import { validateAmount, validateListingPatch, validateServiceLeadCreate } from "../server/dist/validation.js";
+import { moderateListingInput } from "../server/dist/lib/listing-moderation.js";
+import { readConductorLineage } from "../server/dist/lib/conductor-publish.js";
 import { isValidVin, normalizeVin } from "../server/dist/vehicle/vin-utils.js";
 
 function assert(cond, msg) {
@@ -37,5 +39,17 @@ assert(!badPatch.ok, "validateListingPatch rejects unknown fields");
 
 assert(!isValidVin("NOT_A_VIN"), "isValidVin rejects invalid VIN");
 assert(normalizeVin(" wvw-zzz ") === "WVWZZZ", "normalizeVin strips noise");
+
+const modOk = moderateListingInput({ title: "Naudotas iPhone 13" });
+assert(modOk.allowed, "moderateListingInput allows clean title");
+
+const modBad = moderateListingInput({ title: "ginklas pardavimui" });
+assert(!modBad.allowed, "moderateListingInput blocks weapons");
+
+const lineage = readConductorLineage({
+  conductorSources: "barcode,seller",
+  conductorMergedAt: "1710000000000",
+});
+assert(lineage.sources.join(",") === "barcode,seller", "readConductorLineage parses sources");
 
 console.log("Server validation smoke: OK");

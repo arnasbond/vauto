@@ -140,6 +140,7 @@ import {
   buildConductorPublishSnapshot,
   commitConductorDraft,
   conductorSellerSubmitSource,
+  enrichListingWithConductorMeta,
   resetConductorDraft,
   routeConductorRequest,
 } from "@/lib/vauto-conductor";
@@ -1553,7 +1554,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       contact: publishContact,
     };
 
-    const newListing: Listing = enrichListingCoords({
+    const newListing: Listing = enrichListingWithConductorMeta(
+      enrichListingCoords({
       id: listingId,
       title: publishTitle,
       price: aiDraft.price,
@@ -1581,7 +1583,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       requiresReview: aiDraft.requiresReview ?? false,
       imageAlt: aiDraft.imageAlt,
       imageTitle: aiDraft.imageTitle,
-    });
+    }),
+      conductorPublish
+    );
 
     let published = newListing;
     setListings((prev) => [newListing, ...prev]);

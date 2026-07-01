@@ -1,6 +1,9 @@
-import type { AiExtractedListing } from "@/lib/types";
+import type { AiExtractedListing, Listing } from "@/lib/types";
 import { getConductorDraft } from "./conductor-draft-store";
 import type { UnifiedDraftSource } from "./unified-draft";
+
+export const CONDUCTOR_SOURCES_ATTR = "conductorSources";
+export const CONDUCTOR_MERGED_AT_ATTR = "conductorMergedAt";
 
 export interface ConductorPublishSnapshot {
   draft: AiExtractedListing;
@@ -17,5 +20,23 @@ export function buildConductorPublishSnapshot(
     draft,
     sources: unified?.sources ?? [],
     mergedAt: unified?.mergedAt ?? null,
+  };
+}
+
+/** Stamp conductor lineage onto listing attributes before API publish. */
+export function enrichListingWithConductorMeta(
+  listing: Listing,
+  snapshot: ConductorPublishSnapshot
+): Listing {
+  if (!snapshot.sources.length) return listing;
+  return {
+    ...listing,
+    attributes: {
+      ...(listing.attributes ?? {}),
+      [CONDUCTOR_SOURCES_ATTR]: snapshot.sources.join(","),
+      ...(snapshot.mergedAt != null
+        ? { [CONDUCTOR_MERGED_AT_ATTR]: String(snapshot.mergedAt) }
+        : {}),
+    },
   };
 }

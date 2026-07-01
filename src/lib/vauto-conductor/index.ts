@@ -90,7 +90,11 @@ export {
   getConductorDraft,
   resetConductorDraft,
 } from "./conductor-draft-store";
-export { buildConductorPublishSnapshot } from "./conductor-publish";
+export { buildConductorPublishSnapshot, enrichListingWithConductorMeta } from "./conductor-publish";
 export type { ConductorPublishSnapshot } from "./conductor-publish";
+export {
+  CONDUCTOR_MERGED_AT_ATTR,
+  CONDUCTOR_SOURCES_ATTR,
+} from "./conductor-publish";
 export { mergeListingDraft, mergeBarcodeLookupDraft, mergeVehicleLookupDraft } from "./unified-draft";
 export type { UnifiedDraftSource, UnifiedListingDraft } from "./unified-draft";
