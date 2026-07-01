@@ -35,10 +35,9 @@ export async function extractBarcodeFromImage(
   if (features.ocr === "none") return null;
 
   try {
-    const provider = features.ocr === "none" ? "tesseract" : features.ocr;
     const ocr = await runOcrPipeline(
       [{ id: "0", sourceUrl: imageDataUrl.trim() }],
-      provider
+      features.ocr
     );
     const fromText = extractBarcodesFromText(ocr.mergedText);
     if (fromText[0]) return fromText[0];
