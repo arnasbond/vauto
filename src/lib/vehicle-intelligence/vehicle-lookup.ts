@@ -1,8 +1,26 @@
-import type { AiExtractedListing } from "@/lib/types";
+import type { AiExtractedListing, CategoryAttributes } from "@/lib/types";
 import { isValidVin, normalizeVin } from "@/lib/trust";
+import {
+  isLtPlate,
+  isOfficialVehicleSource,
+  mapBodyTypeLt,
+  mapFuelType,
+  mapGearbox,
+  parsePowerHp,
+  parsePowerKw,
+  type MileageRecord,
+} from "./vehicle-attribute-mappers";
+
+export type { MileageRecord };
 
 export interface VehicleLookupResult {
-  source: "regitra-demo" | "regitra-plate-api" | "vin-decoder-demo" | "vin-decoder-nhtsa" | "vision-demo";
+  source:
+    | "regitra-demo"
+    | "regitra-plate-api"
+    | "vin-decoder-demo"
+    | "vin-decoder-nhtsa"
+    | "vision-demo";
+  verified: boolean;
   confidence: number;
   plateNumber?: string;
   vin?: string;
@@ -10,9 +28,13 @@ export interface VehicleLookupResult {
   model: string;
   year: string;
   fuelType: string;
+  gearbox?: string;
   engine: string;
   bodyType: string;
+  powerKw?: string;
+  powerHp?: string;
   mileage?: string;
+  mileageRecords: MileageRecord[];
   taExpiry: string;
   taValid: boolean;
   registrationCountry: string;
@@ -20,6 +42,7 @@ export interface VehicleLookupResult {
 
 const DEMO_VEHICLE: VehicleLookupResult = {
   source: "regitra-demo",
+  verified: false,
   confidence: 0.94,
   plateNumber: "KAA 123",
   vin: "WVWZZZ1KZAW123456",
@@ -27,9 +50,12 @@ const DEMO_VEHICLE: VehicleLookupResult = {
   model: "Golf",
   year: "2015",
   fuelType: "Dyzelinas",
+  gearbox: "Mechaninė",
   engine: "1.6 TDI 77 kW",
   bodyType: "Hečbekas",
+  powerKw: "77",
   mileage: "185 000 km",
+  mileageRecords: [{ date: "2024-11", km: "185000" }],
   taExpiry: "2027-03",
   taValid: true,
   registrationCountry: "LT",
@@ -37,14 +63,18 @@ const DEMO_VEHICLE: VehicleLookupResult = {
 
 const CITROEN_DS5_DEMO: VehicleLookupResult = {
   source: "vin-decoder-demo",
+  verified: false,
   confidence: 0.91,
   make: "Citroën",
   model: "DS5",
   year: "2013",
   fuelType: "Dyzelinas",
+  gearbox: "Automatinė",
   engine: "1.6 e-HDi 85 kW",
   bodyType: "Hečbekas",
+  powerKw: "85",
   mileage: undefined,
+  mileageRecords: [],
   taExpiry: "2027-06",
   taValid: true,
   registrationCountry: "LT",
@@ -58,22 +88,18 @@ interface NhtsaVinRow {
   FuelTypePrimary?: string;
   DisplacementL?: string;
   EngineHP?: string;
+  EngineKW?: string;
   BodyClass?: string;
-}
-
-function mapFuel(raw?: string): string {
-  const v = (raw ?? "").toLowerCase();
-  if (/diesel/i.test(v)) return "Dyzelinas";
-  if (/electric/i.test(v)) return "Elektra";
-  if (/hybrid/i.test(v)) return "Hibridas";
-  if (/gasoline|petrol/i.test(v)) return "Benzinas";
-  return raw?.trim() || "Nežinoma";
+  TransmissionStyle?: string;
 }
 
 function engineLabel(row: NhtsaVinRow): string {
   const parts: string[] = [];
   if (row.DisplacementL) parts.push(`${row.DisplacementL} L`);
-  if (row.EngineHP) parts.push(`${row.EngineHP} AG`);
+  const kw = parsePowerKw(row.EngineKW);
+  const hp = parsePowerHp(row.EngineHP);
+  if (kw) parts.push(`${kw} kW`);
+  else if (hp) parts.push(`${hp} AG`);
   return parts.join(" ") || "Nežinomas";
 }
 
@@ -90,16 +116,23 @@ export async function lookupVehicleByVinNhtsa(vin: string): Promise<VehicleLooku
     const row = json.Results?.[0];
     if (!row || row.ErrorCode !== "0" || !row.Make) return null;
 
+    const source = "vin-decoder-nhtsa" as const;
     return {
-      source: "vin-decoder-nhtsa",
+      source,
+      verified: isOfficialVehicleSource(source),
       confidence: 0.88,
       vin: normalized,
       make: row.Make.trim(),
       model: (row.Model ?? "").trim() || "Modelis",
       year: String(row.ModelYear ?? "").trim() || "—",
-      fuelType: mapFuel(row.FuelTypePrimary),
+      fuelType: mapFuelType(row.FuelTypePrimary),
+      gearbox: mapGearbox(row.TransmissionStyle),
       engine: engineLabel(row),
-      bodyType: (row.BodyClass ?? "Nežinomas").trim(),
+      bodyType: mapBodyTypeLt(row.BodyClass),
+      powerKw: parsePowerKw(row.EngineKW),
+      powerHp: parsePowerHp(row.EngineHP),
+      mileage: undefined,
+      mileageRecords: [],
       taExpiry: "—",
       taValid: false,
       registrationCountry: "—",
@@ -117,18 +150,18 @@ export function lookupVehicleDemo(
   const makeHint = hint?.make?.toLowerCase() ?? "";
   const modelHint = hint?.model?.toLowerCase() ?? "";
 
-  const citroenDs5 =
-    makeHint.includes("citro") && modelHint.includes("ds5");
+  const citroenDs5 = makeHint.includes("citro") && modelHint.includes("ds5");
 
   if (isValidVin(normalized)) {
     const base = citroenDs5 ? CITROEN_DS5_DEMO : DEMO_VEHICLE;
     return {
       ...base,
       source: "vin-decoder-demo",
+      verified: false,
       vin: normalizeVin(normalized),
     };
   }
-  if (/^[A-Z]{3}\s?\d{3}$/.test(normalized)) {
+  if (isLtPlate(normalized)) {
     const base = citroenDs5 ? CITROEN_DS5_DEMO : DEMO_VEHICLE;
     return {
       ...base,
@@ -149,7 +182,13 @@ export async function lookupVehicle(
   if (isDataApiEnabled() && normalized) {
     const { apiLookupVehicle } = await import("@/lib/api/client");
     const remote = await apiLookupVehicle(normalized);
-    if (remote) return remote;
+    if (remote) {
+      return {
+        ...remote,
+        verified: remote.verified ?? isOfficialVehicleSource(remote.source),
+        mileageRecords: remote.mileageRecords ?? [],
+      };
+    }
   }
 
   if (isValidVin(normalized)) {
@@ -169,24 +208,31 @@ export function vehicleLookupToDraftPatch(
         ? "LT numerio API (Regitra duomenys)"
         : "Regitra/VIN demo adapterio";
 
+  const attrs: CategoryAttributes = {
+    vin: result.vin,
+    plateNumber: result.plateNumber,
+    make: result.make,
+    model: result.model,
+    year: result.year,
+    fuelType: result.fuelType,
+    engine: result.engine,
+    bodyType: result.bodyType,
+    taExpiry: result.taExpiry,
+    taStatus: result.taValid ? "TA galioja" : "TA nežinoma",
+    vehicleDataSource: result.source,
+  };
+
+  if (result.gearbox) attrs.gearbox = result.gearbox;
+  if (result.powerKw) attrs.powerKw = result.powerKw;
+  if (result.powerHp) attrs.powerHp = result.powerHp;
+  if (result.mileage) attrs.mileage = result.mileage;
+
   return {
     title: `${result.make} ${result.model} ${result.year}`,
     category: "vehicles",
     confidence: result.confidence,
-    attributes: {
-      vin: result.vin,
-      plateNumber: result.plateNumber,
-      make: result.make,
-      model: result.model,
-      year: result.year,
-      fuelType: result.fuelType,
-      engine: result.engine,
-      bodyType: result.bodyType,
-      mileage: result.mileage,
-      taExpiry: result.taExpiry,
-      taStatus: result.taValid ? "TA galioja" : "TA nežinoma",
-      vehicleDataSource: result.source,
-    },
-    description: `${result.make} ${result.model}, ${result.year} m., ${result.fuelType}, ${result.engine}. Duomenys iš ${sourceLabel}.`,
+    isVinVerified: result.verified === true,
+    attributes: attrs,
+    description: `${result.make} ${result.model}, ${result.year} m., ${result.fuelType}${result.gearbox ? `, ${result.gearbox}` : ""}. Duomenys iš ${sourceLabel}.`,
   };
 }

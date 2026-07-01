@@ -108,6 +108,8 @@ export interface AiExtractedListing {
     optimalPrice: number;
   };
   isVerified?: boolean;
+  /** Oficialūs NHTSA / Regitra duomenys po VIN ar numerio lookup */
+  isVinVerified?: boolean;
   requiresReview?: boolean;
   reviewNotice?: string;
   imageAlt?: string;

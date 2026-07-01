@@ -22,6 +22,7 @@ import { DraftMediaEditor } from "./DraftMediaEditor";
 import { ListingPhotoRequiredBanner } from "@/components/listing/ListingPhotoRequiredBanner";
 import { ConversationalReport } from "@/components/conversational/ConversationalReport";
 import { VehicleLookupCard } from "@/components/vehicle/VehicleLookupCard";
+import { useVehicleAutoLookup } from "@/hooks/useVehicleAutoLookup";
 import { useListingWizard } from "@/hooks/useListingWizard";
 import { buildSellerQuickActions, type BuddyActionId } from "@/lib/buddy-messages";
 import { capturePhoto } from "@/lib/native-media";
@@ -185,13 +186,31 @@ export function AdaptiveConfirmation({
 
   const vinValue =
     typeof attributes.vin === "string" ? attributes.vin : undefined;
-  const vinOk = vinValue ? verifyVin(vinValue) : false;
+  const vinFormatOk = vinValue ? verifyVin(vinValue) : false;
+
+  const vehicleLookup = useVehicleAutoLookup(
+    attributes,
+    adaptiveKey === "vehicles",
+    onUpdate
+  );
+
+  const isVinVerified = draft.isVinVerified === true;
+  const vehicleDataSource =
+    typeof attributes.vehicleDataSource === "string"
+      ? attributes.vehicleDataSource
+      : undefined;
+  const officialVinBadge =
+    isVinVerified && vehicleDataSource === "regitra-plate-api"
+      ? "Oficialūs Regitros duomenys"
+      : isVinVerified && vehicleDataSource === "vin-decoder-nhtsa"
+        ? "Oficialūs NHTSA duomenys"
+        : null;
 
   const categoryFields = filterFieldsForListingCategory(
     draft.category,
     attributes,
     config.fields.filter(
-      (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinOk)
+      (f) => !(adaptiveKey === "vehicles" && f.key === "vin" && vinFormatOk)
     )
   );
 
@@ -233,10 +252,12 @@ export function AdaptiveConfirmation({
     <div className={universalMode ? "mt-4 border-t border-slate-100 pt-4" : theme.panel}>
       {adaptiveKey === "vehicles" && vinValue && (
         <div className="mb-3 flex flex-col gap-2 border-b border-[#d0d7de] pb-3 dark:border-white/5">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-2">
             <span className="text-xs text-[#6b7280]">Kėbulo numeris (VIN)</span>
-            {vinOk && (
-              <span className="text-xs font-bold text-[#1a56db]">✅ Patikrintas fone</span>
+            {officialVinBadge && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-[#dcfce7] px-2 py-0.5 text-[10px] font-semibold text-[#15803d]">
+                ✓ {officialVinBadge}
+              </span>
             )}
           </div>
           <input
@@ -248,7 +269,11 @@ export function AdaptiveConfirmation({
         </div>
       )}
       {adaptiveKey === "vehicles" && (
-        <VehicleLookupCard vin={vinValue} onApply={onUpdate} />
+        <VehicleLookupCard
+          loading={vehicleLookup.loading}
+          result={vehicleLookup.result}
+          isVinVerified={isVinVerified}
+        />
       )}
 
       {adaptiveKey === "services" && (

@@ -1168,7 +1168,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     const vin =
       typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
-    const vinOk = vin ? verifyVin(vin) : false;
+    const vinOk =
+      aiDraft.isVinVerified === true ||
+      (vin ? verifyVin(vin) && aiDraft.isVinVerified !== false : false);
 
     const createdAt = new Date().toISOString();
     const listingId = `l-${Date.now()}`;

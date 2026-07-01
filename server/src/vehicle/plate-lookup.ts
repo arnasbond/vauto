@@ -1,5 +1,17 @@
+import {
+  extractMileageRecords,
+  isOfficialVehicleSource,
+  mapBodyTypeLt,
+  mapFuelType,
+  mapGearbox,
+  parsePowerHp,
+  parsePowerKw,
+  type MileageRecord,
+} from "./vehicle-attribute-mappers.js";
+
 export interface PlateLookupResult {
   source: "regitra-plate-api" | "regitra-demo";
+  verified: boolean;
   confidence: number;
   plateNumber: string;
   vin?: string;
@@ -7,9 +19,13 @@ export interface PlateLookupResult {
   model: string;
   year: string;
   fuelType: string;
+  gearbox?: string;
   engine: string;
   bodyType: string;
+  powerKw?: string;
+  powerHp?: string;
   mileage?: string;
+  mileageRecords: MileageRecord[];
   taExpiry: string;
   taValid: boolean;
   registrationCountry: string;
@@ -24,15 +40,6 @@ export function normalizeLtPlate(raw: string): string {
 export function isLtPlate(raw: string): boolean {
   const compact = raw.trim().toUpperCase().replace(/\s+/g, "");
   return /^[A-Z]{3}\d{3}$/.test(compact);
-}
-
-function mapFuel(raw?: string): string {
-  const v = (raw ?? "").toLowerCase();
-  if (/dyzel|diesel/i.test(v)) return "Dyzelinas";
-  if (/elektr/i.test(v)) return "Elektra";
-  if (/hibrid|hybrid/i.test(v)) return "Hibridas";
-  if (/benzin|petrol|gasoline/i.test(v)) return "Benzinas";
-  return raw?.trim() || "Nežinoma";
 }
 
 function extractVehicleJson(xml: string): Record<string, unknown> | null {
@@ -76,7 +83,7 @@ function splitMakeModel(description: string, makeHint: string, modelHint: string
 
 const DEMO_PLATE_CATALOG: Omit<
   PlateLookupResult,
-  "source" | "confidence" | "plateNumber"
+  "source" | "confidence" | "plateNumber" | "verified"
 >[] = [
   {
     vin: "WVWZZZ1KZAW123456",
@@ -84,9 +91,12 @@ const DEMO_PLATE_CATALOG: Omit<
     model: "Golf",
     year: "2015",
     fuelType: "Dyzelinas",
+    gearbox: "Mechaninė",
     engine: "1.6 TDI 77 kW",
     bodyType: "Hečbekas",
+    powerKw: "77",
     mileage: "185 000 km",
+    mileageRecords: [{ date: "2024-11", km: "185000" }],
     taExpiry: "2027-03",
     taValid: true,
     registrationCountry: "LT",
@@ -97,9 +107,12 @@ const DEMO_PLATE_CATALOG: Omit<
     model: "Corolla",
     year: "2019",
     fuelType: "Hibridas",
+    gearbox: "Automatinė",
     engine: "1.8 Hybrid 90 kW",
     bodyType: "Sedanas",
+    powerKw: "90",
     mileage: "92 000 km",
+    mileageRecords: [{ date: "2025-01", km: "92000" }],
     taExpiry: "2026-11",
     taValid: true,
     registrationCountry: "LT",
@@ -110,9 +123,12 @@ const DEMO_PLATE_CATALOG: Omit<
     model: "320d",
     year: "2017",
     fuelType: "Dyzelinas",
+    gearbox: "Automatinė",
     engine: "2.0 d 140 kW",
     bodyType: "Universalas",
+    powerKw: "140",
     mileage: "143 000 km",
+    mileageRecords: [{ date: "2024-09", km: "143000" }],
     taExpiry: "2027-01",
     taValid: true,
     registrationCountry: "LT",
@@ -123,9 +139,12 @@ const DEMO_PLATE_CATALOG: Omit<
     model: "308",
     year: "2014",
     fuelType: "Benzinas",
+    gearbox: "Mechaninė",
     engine: "1.6 VTi 88 kW",
     bodyType: "Hečbekas",
+    powerKw: "88",
     mileage: "201 000 km",
+    mileageRecords: [{ date: "2024-06", km: "201000" }],
     taExpiry: "2026-08",
     taValid: true,
     registrationCountry: "LT",
@@ -136,9 +155,12 @@ const DEMO_PLATE_CATALOG: Omit<
     model: "Sportage",
     year: "2021",
     fuelType: "Dyzelinas",
+    gearbox: "Automatinė",
     engine: "1.6 CRDi 100 kW",
-    bodyType: "Visureigis",
+    bodyType: "Visureigis / SUV",
+    powerKw: "100",
     mileage: "58 000 km",
+    mileageRecords: [{ date: "2025-02", km: "58000" }],
     taExpiry: "2028-04",
     taValid: true,
     registrationCountry: "LT",
@@ -149,9 +171,12 @@ const DEMO_PLATE_CATALOG: Omit<
     model: "V60",
     year: "2018",
     fuelType: "Dyzelinas",
+    gearbox: "Automatinė",
     engine: "D3 110 kW",
     bodyType: "Universalas",
+    powerKw: "110",
     mileage: "119 000 km",
+    mileageRecords: [{ date: "2024-12", km: "119000" }],
     taExpiry: "2027-09",
     taValid: true,
     registrationCountry: "LT",
@@ -212,18 +237,36 @@ export async function lookupLtPlateViaApi(
 
     if (!split.make && !description) return null;
 
+    const engine =
+      pickString(json, "EngineSize", "Engine", "engine") || "Nežinomas";
+    const mileageRecords = extractMileageRecords(json);
+    const mileage =
+      pickString(json, "Mileage", "mileage", "Odometer") || undefined;
+    const source = "regitra-plate-api" as const;
+
     return {
-      source: "regitra-plate-api",
+      source,
+      verified: isOfficialVehicleSource(source),
       confidence: 0.92,
       plateNumber: normalized,
       vin: pickString(json, "VIN", "Vin", "vin") || undefined,
       make: split.make,
       model: split.model,
       year: year || "—",
-      fuelType: mapFuel(pickString(json, "FuelType", "Fuel", "fuelType")),
-      engine: pickString(json, "EngineSize", "Engine", "engine") || "Nežinomas",
-      bodyType: pickString(json, "BodyType", "Body", "bodyType") || "Nežinomas",
-      mileage: pickString(json, "Mileage", "mileage") || undefined,
+      fuelType: mapFuelType(pickString(json, "FuelType", "Fuel", "fuelType")),
+      gearbox: mapGearbox(
+        pickString(json, "Transmission", "Gearbox", "gearbox", "TransmissionType")
+      ),
+      engine,
+      bodyType: mapBodyTypeLt(
+        pickString(json, "BodyType", "Body", "bodyType")
+      ),
+      powerKw:
+        parsePowerKw(pickString(json, "EngineKW", "PowerKW", "powerKw")) ??
+        parsePowerKw(engine),
+      powerHp: parsePowerHp(engine),
+      mileage,
+      mileageRecords,
       taExpiry: pickString(json, "MotExpiryDate", "MotExpiry", "taExpiry") || "—",
       taValid: Boolean(pickString(json, "MotExpiryDate", "MotExpiry")),
       registrationCountry: "LT",
@@ -235,9 +278,11 @@ export async function lookupLtPlateViaApi(
 
 export function lookupLtPlateDemo(plate: string): PlateLookupResult {
   const pick = DEMO_PLATE_CATALOG[hashPlate(plate) % DEMO_PLATE_CATALOG.length];
+  const source = "regitra-demo" as const;
   return {
     ...pick,
-    source: "regitra-demo",
+    source,
+    verified: isOfficialVehicleSource(source),
     confidence: 0.84,
     plateNumber: normalizeLtPlate(plate),
   };
