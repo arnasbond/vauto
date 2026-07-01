@@ -1228,7 +1228,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     },
     [
       applyActions,
-      busy,
       busyGate,
       lastError,
       listings,

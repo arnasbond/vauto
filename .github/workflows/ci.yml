@@ -77,12 +77,18 @@ jobs:
         run: npm run sync:runtime-config
         env:
           NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
+          NEXT_PUBLIC_VAUTO_CONDUCTOR: "1"
 
       - name: Build static export
         run: npm run build
 
       - name: Run E2E smoke tests
-        run: npx playwright test
+        run: npx playwright test --grep-invert "runtime-config enables conductor"
+        env:
+          CI: "true"
+
+      - name: Run conductor runtime-config E2E (build without CONDUCTOR flag)
+        run: npx playwright test e2e/ai-conductor-runtime.spec.ts
         env:
           CI: "true"
 

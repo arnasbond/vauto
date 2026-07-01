@@ -919,7 +919,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
     }
     void load();
-  }, [patchAuthUser]);
+  }, [patchAuthUser, enrichCatalogWithHiddenListings]);
 
   const syncServiceLeadsFromApi = useCallback(async () => {
     const res = await apiFetchServiceLeads();
