@@ -37,3 +37,22 @@ export interface ConductorBarcodeExecuteMeta {
   notFoundInRegistry: boolean;
   mergedDraft: Partial<import("@/lib/types").AiExtractedListing>;
 }
+
+export type ConductorVisionMode = "upload" | "combined";
+
+export interface ConductorVisionExtractInput {
+  mode: ConductorVisionMode;
+  imageDataUrl?: string | null;
+  imageDataUrls?: string[];
+  transcript?: string;
+  extraContext?: string;
+  userCity: string;
+  contact: string;
+  recoveryRetry?: boolean;
+}
+
+export interface ConductorVisionExecuteMeta {
+  mode: ConductorVisionMode;
+  extracted: import("@/lib/types").AiExtractedListing;
+  locationHint: string;
+}

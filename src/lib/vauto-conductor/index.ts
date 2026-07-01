@@ -1,4 +1,11 @@
-import type { ConductorRequest, ConductorResult, ConductorBarcodeExecuteMeta, ConductorVehicleExecuteMeta } from "./types";
+import type {
+  ConductorRequest,
+  ConductorResult,
+  ConductorBarcodeExecuteMeta,
+  ConductorVehicleExecuteMeta,
+  ConductorVisionExecuteMeta,
+  ConductorVisionExtractInput,
+} from "./types";
 import { conductorAgentActionRequest } from "./agent-actions";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { logAnalytics } from "@/lib/analytics";
@@ -6,6 +13,7 @@ import { conductorRelease, conductorTryAcquire } from "./conductor-busy-gate";
 import {
   executeConductorBarcodeLookup,
   executeConductorVehicleLookup,
+  executeConductorVisionExtract,
 } from "./conductor-execute";
 import type { ListingCategory } from "@/lib/types";
 
@@ -16,7 +24,35 @@ export type {
   ConductorResult,
   ConductorBarcodeExecuteMeta,
   ConductorVehicleExecuteMeta,
+  ConductorVisionExecuteMeta,
+  ConductorVisionExtractInput,
+  ConductorVisionMode,
 } from "./types";
+
+function readVisionExtractInput(
+  payload: Record<string, unknown> | undefined
+): ConductorVisionExtractInput | null {
+  const mode = payload?.mode;
+  if (mode !== "upload" && mode !== "combined") return null;
+  const hasImage = Boolean(
+    payload?.imageDataUrl ||
+      (Array.isArray(payload?.imageDataUrls) && payload.imageDataUrls.length > 0)
+  );
+  if (!hasImage) return null;
+  return {
+    mode,
+    imageDataUrl:
+      typeof payload?.imageDataUrl === "string" ? payload.imageDataUrl : null,
+    imageDataUrls: Array.isArray(payload?.imageDataUrls)
+      ? payload.imageDataUrls.filter((u): u is string => typeof u === "string")
+      : undefined,
+    transcript: typeof payload?.transcript === "string" ? payload.transcript : undefined,
+    extraContext: typeof payload?.extraContext === "string" ? payload.extraContext : undefined,
+    userCity: typeof payload?.userCity === "string" ? payload.userCity : "Lietuva",
+    contact: typeof payload?.contact === "string" ? payload.contact : "",
+    recoveryRetry: Boolean(payload?.recoveryRetry),
+  };
+}
 
 const CONDUCTOR_ENABLED =
   typeof process !== "undefined" &&
@@ -121,17 +157,57 @@ export async function routeConductorRequest(
         conductorRelease();
       }
     }
-    case "photo_upload":
-      return logConductor(request, {
-        handled: true,
-        phase: "execute",
-        delegated: true,
-        meta: {
-          intent: request.intent,
-          source: request.source,
-          visionPipeline: true,
-        },
-      });
+    case "photo_upload": {
+      const visionInput = readVisionExtractInput(request.payload);
+      if (!visionInput) {
+        return logConductor(request, {
+          handled: true,
+          phase: "execute",
+          delegated: true,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            visionPipeline: true,
+          },
+        });
+      }
+      if (!conductorTryAcquire()) {
+        return logConductor(request, {
+          handled: false,
+          phase: "route",
+          delegated: true,
+          meta: { conductorBusy: true, visionPipeline: true },
+        });
+      }
+      try {
+        const visionExecute = await executeConductorVisionExtract(visionInput);
+        return logConductor(request, {
+          handled: true,
+          phase: "complete",
+          delegated: false,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            visionPipeline: true,
+            visionExecute,
+          },
+        });
+      } catch (error) {
+        return logConductor(request, {
+          handled: false,
+          phase: "fallback",
+          delegated: true,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            visionPipeline: true,
+            visionError: error instanceof Error ? error.message : String(error),
+          },
+        });
+      } finally {
+        conductorRelease();
+      }
+    }
     case "search_query":
     case "seller_submit":
       return logConductor(request, {
@@ -207,7 +283,20 @@ export function readConductorBarcodeExecute(
   return meta as ConductorBarcodeExecuteMeta;
 }
 
-export { conductorIsBusy, conductorTryAcquire, conductorRelease } from "./conductor-busy-gate";
+export function readConductorVisionExecute(
+  result: ConductorResult
+): ConductorVisionExecuteMeta | null {
+  const meta = result.meta?.visionExecute;
+  if (!meta || typeof meta !== "object") return null;
+  return meta as ConductorVisionExecuteMeta;
+}
+
+export {
+  conductorIsBusy,
+  conductorSetAgentBusy,
+  conductorTryAcquire,
+  conductorRelease,
+} from "./conductor-busy-gate";
 
 export function conductorPhotoUploadSource(component: string): ConductorRequest {
   return {

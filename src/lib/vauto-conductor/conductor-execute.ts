@@ -12,7 +12,47 @@ import {
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
 import { commitConductorDraft, getConductorDraft } from "./conductor-draft-store";
 import { mergeBarcodeLookupDraft, mergeVehicleLookupDraft } from "./unified-draft";
-import type { ConductorBarcodeExecuteMeta, ConductorVehicleExecuteMeta } from "./types";
+import { extractCombined, extractFromImage } from "@/lib/client-api";
+import { distanceToCity, getUserCoords } from "@/lib/geolocation";
+import { withAiTimeout } from "@/lib/ai-safeguards";
+import { RECOVERY_PROCESSING_TIMEOUT_MS } from "@/lib/ai-conversational-recovery";
+import type {
+  ConductorBarcodeExecuteMeta,
+  ConductorVehicleExecuteMeta,
+  ConductorVisionExecuteMeta,
+  ConductorVisionExtractInput,
+} from "./types";
+
+function resolveLocationHint(userCity: string): Promise<string> {
+  return getUserCoords({ requestPermission: true }).then((coords) => {
+    if (!coords) return userCity;
+    const d = distanceToCity(coords, userCity);
+    return d !== null && d < 50 ? userCity : userCity;
+  });
+}
+
+export async function executeConductorVisionExtract(
+  input: ConductorVisionExtractInput
+): Promise<ConductorVisionExecuteMeta> {
+  const locationHint = await resolveLocationHint(input.userCity);
+  const ctx = {
+    imageDataUrl: input.imageDataUrl,
+    imageDataUrls: input.imageDataUrls,
+    transcript: input.transcript,
+    extraContext: input.extraContext,
+    userCity: locationHint,
+    contact: input.contact,
+  };
+  const timeoutMs = input.recoveryRetry ? RECOVERY_PROCESSING_TIMEOUT_MS : undefined;
+  const extractPromise =
+    input.mode === "combined" ? extractCombined(ctx) : extractFromImage(ctx);
+  const extracted = await withAiTimeout(
+    extractPromise,
+    timeoutMs,
+    `conductor_extract_${input.mode}`
+  );
+  return { mode: input.mode, extracted, locationHint };
+}
 
 export async function executeConductorVehicleLookup(
   identifier: string,

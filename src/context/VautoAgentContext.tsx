@@ -43,7 +43,7 @@ import {
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
-import { routeConductorAgentAction } from "@/lib/vauto-conductor";
+import { routeConductorAgentAction, conductorSetAgentBusy } from "@/lib/vauto-conductor";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
@@ -265,6 +265,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     busyGateRef.current = createAgentBusyGate(setBusy);
   }
   const busyGate = busyGateRef.current;
+
+  useEffect(() => {
+    conductorSetAgentBusy(busy);
+  }, [busy]);
+
   const sendAgentMessageRef = useRef<
     (text: string, options?: AgentSendOptions) => Promise<WakeWordAgentResult>
   >(() => Promise.resolve({ ok: false, error: "Agentas dar neinicializuotas" }));

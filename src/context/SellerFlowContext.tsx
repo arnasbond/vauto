@@ -147,6 +147,7 @@ import {
   resetConductorDraft,
   resolveListingRequiresReview,
   executeConductorRoute,
+  readConductorVisionExecute,
 } from "@/lib/vauto-conductor";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import {
@@ -505,18 +506,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
       logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
 
+      let conductorVision = null as ReturnType<typeof readConductorVisionExecute>;
       if (mode === "upload" || mode === "combined") {
         const route = await executeConductorRoute({
           ...conductorPhotoUploadSource("SellerFlowContext.runAiProcessing"),
           payload: {
             mode,
-            hasImage: Boolean(opts?.previewImage),
-            imageCount: opts?.previewImages?.length ?? (opts?.previewImage ? 1 : 0),
+            imageDataUrl: opts?.previewImage,
+            imageDataUrls: opts?.previewImages,
+            transcript: opts?.transcript,
+            extraContext: opts?.extraContext,
+            userCity: user.city,
+            contact: user.phone,
+            recoveryRetry: opts?.recoveryRetry,
           },
         });
         if (!conductorShouldDelegateLegacy(route)) {
-          if (isProcessingStale(epoch)) return;
-          return;
+          conductorVision = readConductorVisionExecute(route);
         }
       }
 
@@ -560,36 +566,45 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       };
 
       try {
-        const coordsPromise = getUserCoords({ requestPermission: true });
-        const locationHintPromise = coordsPromise.then((coords) => {
-          if (!coords) return user.city;
-          const d = distanceToCity(coords, user.city);
-          return d !== null && d < 50 ? user.city : user.city;
-        });
+        let locationHint: string;
+        let extracted: Awaited<ReturnType<typeof extractFromImage>>;
 
-        const extractPromise = locationHintPromise.then((locationHint) => {
-          const ctx = {
-            imageDataUrl: opts?.previewImage,
-            imageDataUrls: opts?.previewImages,
-            transcript: opts?.transcript,
-            extraContext: opts?.extraContext,
-            userCity: locationHint,
-            contact: user.phone,
-          };
+        if (conductorVision) {
+          if (isProcessingStale(epoch)) return;
+          locationHint = conductorVision.locationHint;
+          extracted = conductorVision.extracted;
+        } else {
+          const coordsPromise = getUserCoords({ requestPermission: true });
+          const locationHintPromise = coordsPromise.then((coords) => {
+            if (!coords) return user.city;
+            const d = distanceToCity(coords, user.city);
+            return d !== null && d < 50 ? user.city : user.city;
+          });
 
-          if (mode === "combined") return extractCombined(ctx);
-          if (mode === "upload") return extractFromImage(ctx);
-          if (mode === "text" || mode === "voice") return extractFromText(ctx);
-          return extractFromText(ctx);
-        });
+          const extractPromise = locationHintPromise.then((hint) => {
+            const ctx = {
+              imageDataUrl: opts?.previewImage,
+              imageDataUrls: opts?.previewImages,
+              transcript: opts?.transcript,
+              extraContext: opts?.extraContext,
+              userCity: hint,
+              contact: user.phone,
+            };
 
-        const timeoutMs = opts?.recoveryRetry
-          ? RECOVERY_PROCESSING_TIMEOUT_MS
-          : undefined;
-        const [locationHint, extracted] = await Promise.all([
-          locationHintPromise,
-          withAiTimeout(extractPromise, timeoutMs, `extract_${mode ?? "unknown"}`),
-        ]);
+            if (mode === "combined") return extractCombined(ctx);
+            if (mode === "upload") return extractFromImage(ctx);
+            if (mode === "text" || mode === "voice") return extractFromText(ctx);
+            return extractFromText(ctx);
+          });
+
+          const timeoutMs = opts?.recoveryRetry
+            ? RECOVERY_PROCESSING_TIMEOUT_MS
+            : undefined;
+          [locationHint, extracted] = await Promise.all([
+            locationHintPromise,
+            withAiTimeout(extractPromise, timeoutMs, `extract_${mode ?? "unknown"}`),
+          ]);
+        }
 
         if (isProcessingStale(epoch)) return;
 
