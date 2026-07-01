@@ -147,6 +147,7 @@ import {
   resetConductorDraft,
   resolveListingRequiresReview,
   executeConductorRoute,
+  readConductorTextExecute,
   readConductorVisionExecute,
 } from "@/lib/vauto-conductor";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
@@ -507,6 +508,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       logAiSafeguard("processing_start", { mode, hasImage: Boolean(opts?.previewImage) });
 
       let conductorVision = null as ReturnType<typeof readConductorVisionExecute>;
+      let conductorText = null as ReturnType<typeof readConductorTextExecute>;
       if (mode === "upload" || mode === "combined") {
         const route = await executeConductorRoute({
           ...conductorPhotoUploadSource("SellerFlowContext.runAiProcessing"),
@@ -523,6 +525,24 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         });
         if (!conductorShouldDelegateLegacy(route)) {
           conductorVision = readConductorVisionExecute(route);
+        }
+      } else if (mode === "text" || mode === "voice") {
+        const transcript = opts?.transcript?.trim();
+        if (transcript) {
+          const route = await executeConductorRoute({
+            ...conductorSellerSubmitSource("SellerFlowContext.runAiProcessing"),
+            payload: {
+              mode,
+              transcript,
+              extraContext: opts?.extraContext,
+              userCity: user.city,
+              contact: user.phone,
+              recoveryRetry: opts?.recoveryRetry,
+            },
+          });
+          if (!conductorShouldDelegateLegacy(route)) {
+            conductorText = readConductorTextExecute(route);
+          }
         }
       }
 
@@ -573,6 +593,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           if (isProcessingStale(epoch)) return;
           locationHint = conductorVision.locationHint;
           extracted = conductorVision.extracted;
+        } else if (conductorText) {
+          if (isProcessingStale(epoch)) return;
+          locationHint = conductorText.locationHint;
+          extracted = conductorText.extracted;
         } else {
           const coordsPromise = getUserCoords({ requestPermission: true });
           const locationHintPromise = coordsPromise.then((coords) => {

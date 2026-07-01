@@ -14,7 +14,7 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCard";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { executeConductorRoute, conductorPhotoUploadSource, conductorSearchQuerySource, conductorShouldDelegateLegacy } from "@/lib/vauto-conductor";
+import { executeConductorRoute, conductorPhotoUploadSource, conductorSearchQuerySource, readConductorSearchExecute, conductorShouldDelegateLegacy } from "@/lib/vauto-conductor";
 import type { AiPhotoIntentChoice } from "@/components/photo/AiPhotoFlowSheet";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
@@ -67,10 +67,17 @@ export function SellerUploadPanel({
       const trimmed = text?.trim() ?? query.trim();
       if (!trimmed || busy) return;
       setQuery("");
-      void executeConductorRoute({
+      const route = await executeConductorRoute({
         ...conductorSearchQuerySource("SellerUploadPanel"),
         payload: { query: trimmed },
       });
+      if (!conductorShouldDelegateLegacy(route)) {
+        const exec = readConductorSearchExecute(route);
+        if (exec?.agentResult.actions && exec.agentResult.actions.type !== "none") {
+          applyAgentActions(exec.agentResult.actions);
+        }
+        return;
+      }
       const res = await sendAgentMessage(trimmed, { fromSearchBar: true });
       if (res.actions && res.actions.type !== "none") {
         applyAgentActions(res.actions);
@@ -99,14 +106,10 @@ export function SellerUploadPanel({
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
-    const route = await executeConductorRoute({
+    void executeConductorRoute({
       ...conductorPhotoUploadSource("SellerUploadPanel"),
       payload: { photoCount: result.photos.length },
     });
-    if (!conductorShouldDelegateLegacy(route)) {
-      setPhotoFlowOpen(false);
-      return;
-    }
     pendingPhotoSubmitRef.current = result;
     photoScanTimedOutRef.current = false;
     setPhotoSubmitting(true);

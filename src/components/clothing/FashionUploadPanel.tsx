@@ -13,7 +13,7 @@ import {
   type AiPhotoIntentChoice,
 } from "@/components/photo/AiPhotoFlowSheet";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { executeConductorRoute, conductorPhotoUploadSource, conductorShouldDelegateLegacy } from "@/lib/vauto-conductor";
+import { executeConductorRoute, conductorPhotoUploadSource } from "@/lib/vauto-conductor";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
 import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
@@ -54,14 +54,10 @@ export function FashionUploadPanel() {
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
-    const route = await executeConductorRoute({
+    void executeConductorRoute({
       ...conductorPhotoUploadSource("FashionUploadPanel"),
       payload: { photoCount: result.photos.length, wardrobe: true },
     });
-    if (!conductorShouldDelegateLegacy(route)) {
-      setPhotoFlowOpen(false);
-      return;
-    }
     pendingPhotoSubmitRef.current = result;
     photoScanTimedOutRef.current = false;
     setPhotoSubmitting(true);

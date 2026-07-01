@@ -12,12 +12,16 @@ import {
 } from "@/lib/vehicle-intelligence/vehicle-lookup";
 import { commitConductorDraft, getConductorDraft } from "./conductor-draft-store";
 import { mergeBarcodeLookupDraft, mergeVehicleLookupDraft } from "./unified-draft";
-import { extractCombined, extractFromImage } from "@/lib/client-api";
+import { extractCombined, extractFromImage, extractFromText } from "@/lib/client-api";
 import { distanceToCity, getUserCoords } from "@/lib/geolocation";
 import { withAiTimeout } from "@/lib/ai-safeguards";
 import { RECOVERY_PROCESSING_TIMEOUT_MS } from "@/lib/ai-conversational-recovery";
+import { runConductorSearchExecutor } from "./conductor-agent-bridge";
 import type {
   ConductorBarcodeExecuteMeta,
+  ConductorSearchExecuteMeta,
+  ConductorTextExecuteMeta,
+  ConductorTextExtractInput,
   ConductorVehicleExecuteMeta,
   ConductorVisionExecuteMeta,
   ConductorVisionExtractInput,
@@ -52,6 +56,33 @@ export async function executeConductorVisionExtract(
     `conductor_extract_${input.mode}`
   );
   return { mode: input.mode, extracted, locationHint };
+}
+
+export async function executeConductorTextExtract(
+  input: ConductorTextExtractInput
+): Promise<ConductorTextExecuteMeta> {
+  const locationHint = await resolveLocationHint(input.userCity);
+  const ctx = {
+    transcript: input.transcript,
+    extraContext: input.extraContext,
+    userCity: locationHint,
+    contact: input.contact,
+  };
+  const timeoutMs = input.recoveryRetry ? RECOVERY_PROCESSING_TIMEOUT_MS : undefined;
+  const extracted = await withAiTimeout(
+    extractFromText(ctx),
+    timeoutMs,
+    `conductor_extract_${input.mode}`
+  );
+  return { mode: input.mode, extracted, locationHint };
+}
+
+export async function executeConductorSearchQuery(
+  query: string
+): Promise<ConductorSearchExecuteMeta | null> {
+  const agentResult = await runConductorSearchExecutor(query);
+  if (!agentResult) return null;
+  return { query, agentResult };
 }
 
 export async function executeConductorVehicleLookup(

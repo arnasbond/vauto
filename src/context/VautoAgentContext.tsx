@@ -43,7 +43,7 @@ import {
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
-import { routeConductorAgentAction, conductorSetAgentBusy } from "@/lib/vauto-conductor";
+import { routeConductorAgentAction, conductorSetAgentBusy, registerConductorSearchExecutor } from "@/lib/vauto-conductor";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
@@ -1290,6 +1290,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     sendAgentMessageRef.current = sendAgentMessage;
   }, [sendAgentMessage]);
+
+  useEffect(() => {
+    registerConductorSearchExecutor(async (query) =>
+      sendAgentMessageRef.current(query, { fromSearchBar: true, skipBusyCheck: true })
+    );
+    return () => registerConductorSearchExecutor(null);
+  }, []);
 
   const reportAgentError = useCallback((code: string, message?: string) => {
     setLastError({ code, message });

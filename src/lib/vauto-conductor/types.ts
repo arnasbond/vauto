@@ -56,3 +56,25 @@ export interface ConductorVisionExecuteMeta {
   extracted: import("@/lib/types").AiExtractedListing;
   locationHint: string;
 }
+
+export type ConductorTextMode = "text" | "voice";
+
+export interface ConductorTextExtractInput {
+  mode: ConductorTextMode;
+  transcript: string;
+  extraContext?: string;
+  userCity: string;
+  contact: string;
+  recoveryRetry?: boolean;
+}
+
+export interface ConductorTextExecuteMeta {
+  mode: ConductorTextMode;
+  extracted: import("@/lib/types").AiExtractedListing;
+  locationHint: string;
+}
+
+export interface ConductorSearchExecuteMeta {
+  query: string;
+  agentResult: import("@/lib/voice-intent-engine").WakeWordAgentResult;
+}

@@ -17,6 +17,7 @@ import {
   routeConductorAgentAction,
   conductorPhotoUploadSource,
   conductorSearchQuerySource,
+  readConductorSearchExecute,
   conductorShouldDelegateLegacy,
 } from "@/lib/vauto-conductor";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
@@ -213,17 +214,27 @@ export function AiCommandBar({
       setDraftQuery(q);
       setAgentPinnedListings(null);
       clearVisualSearch({ keepInputMode: true });
-      void executeConductorRoute({
-        ...conductorSearchQuerySource("AiCommandBar"),
-        payload: { query: q, wardrobeSearchOnly },
-      });
       setSearchLoading(true);
-      void sendAgentMessage(q, { fromSearchBar: true })
-        .then((res) => {
-          if (res.actions) syncGridFromAgentActions(res.actions);
-          else if (res.ok) scrollToResults();
-        })
-        .finally(() => setSearchLoading(false));
+      try {
+        const route = await executeConductorRoute({
+          ...conductorSearchQuerySource("AiCommandBar"),
+          payload: { query: q, wardrobeSearchOnly },
+        });
+        if (!conductorShouldDelegateLegacy(route)) {
+          const exec = readConductorSearchExecute(route);
+          if (exec?.agentResult.actions) {
+            syncGridFromAgentActions(exec.agentResult.actions);
+          } else if (exec?.agentResult.ok) {
+            scrollToResults();
+          }
+          return;
+        }
+        const res = await sendAgentMessage(q, { fromSearchBar: true });
+        if (res.actions) syncGridFromAgentActions(res.actions);
+        else if (res.ok) scrollToResults();
+      } finally {
+        setSearchLoading(false);
+      }
     },
     [
       clearVisualSearch,
@@ -282,14 +293,10 @@ export function AiCommandBar({
   const handlePhotoFlowSubmit = async (
     result: AiPhotoFlowResult
   ): Promise<boolean> => {
-    const route = await executeConductorRoute({
+    void executeConductorRoute({
       ...conductorPhotoUploadSource("AiCommandBar"),
       payload: { photoCount: result.photos.length, wardrobeSearchOnly },
     });
-    if (!conductorShouldDelegateLegacy(route)) {
-      setPhotoFlowOpen(false);
-      return true;
-    }
     pendingPhotoSubmitRef.current = result;
     photoScanTimedOutRef.current = false;
     setIsPhotoSearching(true);

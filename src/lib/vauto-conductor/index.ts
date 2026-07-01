@@ -5,13 +5,17 @@ import type {
   ConductorVehicleExecuteMeta,
   ConductorVisionExecuteMeta,
   ConductorVisionExtractInput,
+  ConductorTextExecuteMeta,
+  ConductorTextExtractInput,
+  ConductorSearchExecuteMeta,
 } from "./types";
-import { conductorAgentActionRequest } from "./agent-actions";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { logAnalytics } from "@/lib/analytics";
 import { conductorRelease, conductorTryAcquire } from "./conductor-busy-gate";
 import {
   executeConductorBarcodeLookup,
+  executeConductorSearchQuery,
+  executeConductorTextExtract,
   executeConductorVehicleLookup,
   executeConductorVisionExtract,
 } from "./conductor-execute";
@@ -27,7 +31,29 @@ export type {
   ConductorVisionExecuteMeta,
   ConductorVisionExtractInput,
   ConductorVisionMode,
+  ConductorTextExecuteMeta,
+  ConductorTextExtractInput,
+  ConductorTextMode,
+  ConductorSearchExecuteMeta,
 } from "./types";
+
+function readTextExtractInput(
+  payload: Record<string, unknown> | undefined
+): ConductorTextExtractInput | null {
+  const mode = payload?.mode;
+  if (mode !== "text" && mode !== "voice") return null;
+  const transcript =
+    typeof payload?.transcript === "string" ? payload.transcript.trim() : "";
+  if (!transcript) return null;
+  return {
+    mode,
+    transcript,
+    extraContext: typeof payload?.extraContext === "string" ? payload.extraContext : undefined,
+    userCity: typeof payload?.userCity === "string" ? payload.userCity : "Lietuva",
+    contact: typeof payload?.contact === "string" ? payload.contact : "",
+    recoveryRetry: Boolean(payload?.recoveryRetry),
+  };
+}
 
 function readVisionExtractInput(
   payload: Record<string, unknown> | undefined
@@ -208,14 +234,106 @@ export async function routeConductorRequest(
         conductorRelease();
       }
     }
-    case "search_query":
-    case "seller_submit":
-      return logConductor(request, {
-        handled: true,
-        phase: "execute",
-        delegated: true,
-        meta: { intent: request.intent, source: request.source },
-      });
+    case "search_query": {
+      const query = typeof request.payload?.query === "string" ? request.payload.query.trim() : "";
+      if (!query) {
+        return logConductor(request, {
+          handled: true,
+          phase: "execute",
+          delegated: true,
+          meta: { intent: request.intent, source: request.source },
+        });
+      }
+      if (!conductorTryAcquire()) {
+        return logConductor(request, {
+          handled: false,
+          phase: "route",
+          delegated: true,
+          meta: { conductorBusy: true, searchPipeline: true },
+        });
+      }
+      try {
+        const searchExecute = await executeConductorSearchQuery(query);
+        if (!searchExecute) {
+          return logConductor(request, {
+            handled: false,
+            phase: "route",
+            delegated: true,
+            meta: { intent: request.intent, source: request.source, searchPipeline: true },
+          });
+        }
+        return logConductor(request, {
+          handled: true,
+          phase: "complete",
+          delegated: false,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            searchPipeline: true,
+            searchExecute,
+          },
+        });
+      } catch (error) {
+        return logConductor(request, {
+          handled: false,
+          phase: "fallback",
+          delegated: true,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            searchPipeline: true,
+            searchError: error instanceof Error ? error.message : String(error),
+          },
+        });
+      } finally {
+        conductorRelease();
+      }
+    }
+    case "seller_submit": {
+      const textInput = readTextExtractInput(request.payload);
+      if (!textInput) {
+        return logConductor(request, {
+          handled: true,
+          phase: "execute",
+          delegated: true,
+          meta: { intent: request.intent, source: request.source },
+        });
+      }
+      if (!conductorTryAcquire()) {
+        return logConductor(request, {
+          handled: false,
+          phase: "route",
+          delegated: true,
+          meta: { conductorBusy: true },
+        });
+      }
+      try {
+        const textExecute = await executeConductorTextExtract(textInput);
+        return logConductor(request, {
+          handled: true,
+          phase: "complete",
+          delegated: false,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            textExecute,
+          },
+        });
+      } catch (error) {
+        return logConductor(request, {
+          handled: false,
+          phase: "fallback",
+          delegated: true,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            textError: error instanceof Error ? error.message : String(error),
+          },
+        });
+      } finally {
+        conductorRelease();
+      }
+    }
     case "chat":
     default:
       return logConductor(request, { handled: false, phase: "route", delegated: true });
@@ -248,6 +366,7 @@ export async function executeConductorRoute(
       executed: result.delegated === false,
       visionPipeline: Boolean(result.meta?.visionPipeline),
       barcodePipeline: Boolean(result.meta?.barcodePipeline),
+      searchPipeline: Boolean(result.meta?.searchPipeline),
       conductorBusy: Boolean(result.meta?.conductorBusy),
     });
   }
@@ -290,6 +409,24 @@ export function readConductorVisionExecute(
   if (!meta || typeof meta !== "object") return null;
   return meta as ConductorVisionExecuteMeta;
 }
+
+export function readConductorTextExecute(
+  result: ConductorResult
+): ConductorTextExecuteMeta | null {
+  const meta = result.meta?.textExecute;
+  if (!meta || typeof meta !== "object") return null;
+  return meta as ConductorTextExecuteMeta;
+}
+
+export function readConductorSearchExecute(
+  result: ConductorResult
+): ConductorSearchExecuteMeta | null {
+  const meta = result.meta?.searchExecute;
+  if (!meta || typeof meta !== "object") return null;
+  return meta as ConductorSearchExecuteMeta;
+}
+
+export { registerConductorSearchExecutor } from "./conductor-agent-bridge";
 
 export {
   conductorIsBusy,
