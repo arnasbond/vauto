@@ -186,6 +186,7 @@ export function AiPhotoFlowSheet({
         role="dialog"
         aria-modal="true"
         aria-label={title}
+        data-testid="ai-photo-flow-sheet"
       >
         <header className="ai-photo-flow-header shrink-0 flex items-center gap-3 border-b px-4 py-3">
           <button
@@ -336,6 +337,7 @@ export function AiPhotoFlowSheet({
                 }
                 disabled={busy}
                 className="mb-3 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
+                data-testid="ai-photo-barcode-scan"
               >
                 📊 Skenuoti brūkšninį / QR kodą iš etiketės
               </button>

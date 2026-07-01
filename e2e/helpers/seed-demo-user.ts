@@ -7,6 +7,7 @@ export interface SeedAuthProfile {
   phone?: string;
   city?: string;
   role?: "private" | "pro" | "admin" | "super_admin";
+  profileType?: "private" | "business";
   businessType?: "dealer" | "services" | "general";
   companyName?: string;
   companyCode?: string;
@@ -38,6 +39,7 @@ export async function seedDemoUser(page: Page) {
     phone: "+37060000001",
     city: "Vilnius",
     role: "private",
+    profileType: "private",
     walletBalance: 0,
   });
 }
@@ -63,6 +65,7 @@ export async function seedProUser(page: Page) {
     phone: "+37060000002",
     city: "Vilnius",
     role: "pro",
+    profileType: "business",
     businessType: "dealer",
     companyName: "E2E Autocentras UAB",
     companyCode: "123456789",

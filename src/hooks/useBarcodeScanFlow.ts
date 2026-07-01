@@ -3,9 +3,10 @@
 import { useCallback } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import type { ListingCategory } from "@/lib/types";
+import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import {
   enrichBarcodeWithFashionCopy,
+  buildUnregisteredBarcode,
   lookupBarcode,
 } from "@/lib/product-intelligence/barcode-lookup";
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
@@ -16,6 +17,12 @@ import {
 } from "@/lib/ai-safeguards";
 import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
 import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
+import {
+  conductorBarcodeSource,
+  mergeBarcodeLookupDraft,
+  mergeListingDraft,
+  routeConductorRequest,
+} from "@/lib/vauto-conductor";
 
 export function useBarcodeScanFlow() {
   const { applyAgentListingDraft, user } = useVauto();
@@ -45,6 +52,11 @@ export function useBarcodeScanFlow() {
     ) => {
       const category: ListingCategory = opts?.category ?? (opts?.fashion ? "clothing" : "other");
 
+      void routeConductorRequest({
+        ...conductorBarcodeSource("useBarcodeScanFlow"),
+        payload: { barcode, category },
+      });
+
       const result = await Promise.race([
         lookupBarcode(barcode),
         new Promise<null>((resolve) =>
@@ -52,7 +64,7 @@ export function useBarcodeScanFlow() {
         ),
       ]);
 
-      const draftBase = {
+      const draftBase: Partial<AiExtractedListing> = {
         ...createManualFallbackDraft({
           location: user.city || "Lietuva",
           contact: user.phone,
@@ -65,26 +77,35 @@ export function useBarcodeScanFlow() {
       };
 
       if (!result || result.notFoundInRegistry) {
-        showUnregisteredProductPrompt(opts?.pendingImageUrls);
-        applyAgentListingDraft(draftBase);
+        const lookupResult = result ?? buildUnregisteredBarcode(barcode);
+        const { draft } = mergeBarcodeLookupDraft(draftBase, lookupResult);
+        applyAgentListingDraft({ ...draftBase, ...draft } as AiExtractedListing);
         if (result?.notFoundInRegistry) {
           setPendingBarcodeOffer(barcode);
         }
+        queueMicrotask(() => {
+          showUnregisteredProductPrompt(opts?.pendingImageUrls);
+        });
         return;
       }
 
       const patch = await enrichBarcodeWithFashionCopy(result, category);
-
-      applyAgentListingDraft({
-        ...draftBase,
-        title: patch.title || draftBase.title,
-        description: patch.description || "",
-        attributes: {
-          barcode,
-          ...(patch.attributes ?? {}),
+      const { draft: barcodeDraft } = mergeBarcodeLookupDraft(draftBase, result);
+      const { draft } = mergeListingDraft(
+        barcodeDraft,
+        {
+          title: patch.title || barcodeDraft.title,
+          description: patch.description || "",
+          attributes: {
+            barcode,
+            ...(patch.attributes ?? {}),
+          },
+          confidence: patch.confidence ?? 0.75,
         },
-        confidence: patch.confidence ?? 0.75,
-      });
+        "barcode"
+      );
+
+      applyAgentListingDraft({ ...draftBase, ...draft } as AiExtractedListing);
 
       setPendingBarcodeOffer(barcode);
     },
