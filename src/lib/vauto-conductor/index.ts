@@ -23,6 +23,9 @@ import {
   executeConductorVisionExtract,
 } from "./conductor-execute";
 import type { ListingCategory } from "@/lib/types";
+import { isConductorEnabled } from "./conductor-config";
+
+export { initConductorConfig, isConductorEnabled } from "./conductor-config";
 
 export type {
   ConductorIntent,
@@ -168,14 +171,6 @@ function readVisionExtractInput(
   };
 }
 
-const CONDUCTOR_ENABLED =
-  typeof process !== "undefined" &&
-  process.env.NEXT_PUBLIC_VAUTO_CONDUCTOR === "1";
-
-export function isConductorEnabled(): boolean {
-  return CONDUCTOR_ENABLED;
-}
-
 function logConductor(request: ConductorRequest, result: ConductorResult): ConductorResult {
   if (process.env.NODE_ENV !== "production") {
     console.debug("[VautoConductor]", request.intent, request.source, result.phase, request.payload);
@@ -190,7 +185,7 @@ function logConductor(request: ConductorRequest, result: ConductorResult): Condu
 export async function routeConductorRequest(
   request: ConductorRequest
 ): Promise<ConductorResult> {
-  if (!CONDUCTOR_ENABLED) {
+  if (!isConductorEnabled()) {
     return logConductor(request, { handled: false, phase: "route", delegated: true });
   }
 
@@ -421,7 +416,7 @@ export async function executeConductorRoute(
   request: ConductorRequest
 ): Promise<ConductorResult> {
   const result = await routeConductorRequest(request);
-  if (CONDUCTOR_ENABLED) {
+  if (isConductorEnabled()) {
     logAnalytics("conductor_route", {
       intent: request.intent,
       source: request.source,

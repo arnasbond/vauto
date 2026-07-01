@@ -5,6 +5,7 @@
  * Env:
  *   NEXT_PUBLIC_API_URL | PUBLIC_API_URL
  *   NEXT_PUBLIC_GOOGLE_CLIENT_ID | GOOGLE_CLIENT_ID
+ *   NEXT_PUBLIC_VAUTO_CONDUCTOR | VAUTO_CONDUCTOR (1 = enable conductor)
  */
 import { writeFileSync } from "node:fs";
 import { resolve } from "node:path";
@@ -20,7 +21,10 @@ const googleClientId =
   process.env.GOOGLE_CLIENT_ID?.trim() ||
   "";
 
-const config = { apiUrl };
+const conductorEnabled =
+  process.env.NEXT_PUBLIC_VAUTO_CONDUCTOR === "1" || process.env.VAUTO_CONDUCTOR === "1";
+
+const config = { apiUrl, conductorEnabled };
 if (googleClientId) config.googleClientId = googleClientId;
 
 const out = resolve("public/runtime-config.json");

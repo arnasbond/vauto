@@ -750,6 +750,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       trackEvent,
       startChat,
       setLastBargainingOffer,
+      user.city,
+      user.phone,
     ]
   );
 
@@ -1227,6 +1229,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [
       applyActions,
       busy,
+      busyGate,
       lastError,
       listings,
       messages,
