@@ -210,6 +210,7 @@ export function AiCommandBar({
       }
 
       setDraftQuery(q);
+      setSearchQuery(q);
       setAgentPinnedListings(null);
       clearVisualSearch({ keepInputMode: true });
       setSearchLoading(true);
