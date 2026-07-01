@@ -14,7 +14,7 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCard";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { routeConductorRequest, conductorPhotoUploadSource } from "@/lib/vauto-conductor";
+import { routeConductorRequest, conductorPhotoUploadSource, conductorSearchQuerySource } from "@/lib/vauto-conductor";
 import type { AiPhotoIntentChoice } from "@/components/photo/AiPhotoFlowSheet";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
@@ -67,6 +67,10 @@ export function SellerUploadPanel({
       const trimmed = text?.trim() ?? query.trim();
       if (!trimmed || busy) return;
       setQuery("");
+      void routeConductorRequest({
+        ...conductorSearchQuerySource("SellerUploadPanel"),
+        payload: { query: trimmed },
+      });
       const res = await sendAgentMessage(trimmed, { fromSearchBar: true });
       if (res.actions && res.actions.type !== "none") {
         applyAgentActions(res.actions);

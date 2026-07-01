@@ -136,6 +136,11 @@ import {
   resolveBarcodeFromAttributes,
 } from "@/lib/product-intelligence/barcode-utils";
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
+import {
+  conductorSellerSubmitSource,
+  mergeListingDraft,
+  routeConductorRequest,
+} from "@/lib/vauto-conductor";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import {
   isWeakVisionExtraction,
@@ -774,7 +779,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         const previousDraft = aiDraftRef.current;
         const previousCategory = previousDraft?.category ?? null;
         const previousAttributes = previousDraft?.attributes ?? null;
-        const withBarcode = attachProductBarcodeHint(next, sourceBlob);
+        const { draft: conductorMerged } = mergeListingDraft(
+          mode === "upload" || mode === "combined" ? previousDraft : null,
+          next,
+          "seller"
+        );
+        const withBarcode = attachProductBarcodeHint(
+          conductorMerged as AiExtractedListing,
+          sourceBlob
+        );
         const finalized = finalizeListingDraft(
           withBarcode,
           previousCategory,
@@ -936,6 +949,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }) => {
       if (!requireAuthForListing("/add")) return;
 
+      void routeConductorRequest({
+        ...conductorSellerSubmitSource("SellerFlowContext.submitSellerContent"),
+        payload: {
+          hasText: Boolean(payload.text?.trim()),
+          hasImages: Boolean(
+            payload.imageDataUrl ??
+              payload.imageDataUrls?.length ??
+              parseVideoUrl(payload.videoUrl ?? "").thumbnail
+          ),
+        },
+      });
+
       setPhotoCategoryMismatch(null);
       categoryMismatchRollbackRef.current = null;
       categoryMismatchPendingRef.current = null;
@@ -1022,16 +1047,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const applyAgentListingDraft = useCallback(
     (draft: AiExtractedListing, imageUrl?: string) => {
       if (!requireAuthForListing("/add")) return;
+      void routeConductorRequest({
+        ...conductorSellerSubmitSource("SellerFlowContext.applyAgentListingDraft"),
+        payload: { category: draft.category },
+      });
       setPhotoCategoryMismatch(null);
       categoryMismatchRollbackRef.current = null;
       categoryMismatchPendingRef.current = null;
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
-      const sourceText = [draft.title, draft.description].filter(Boolean).join(" ");
-      let enriched = enrichVehicleListingDraft(draft, [sourceText]);
+      const previousDraft = aiDraftRef.current;
+      const { draft: merged } = mergeListingDraft(previousDraft, draft, "agent");
+      const mergedDraft = { ...draft, ...merged } as AiExtractedListing;
+      const sourceText = [mergedDraft.title, mergedDraft.description].filter(Boolean).join(" ");
+      let enriched = enrichVehicleListingDraft(mergedDraft, [sourceText]);
       enriched = enrichClothingListingDraft(enriched, sourceText);
-      const previousCategory = aiDraftRef.current?.category ?? null;
-      const previousAttributes = aiDraftRef.current?.attributes ?? null;
+      const previousCategory = previousDraft?.category ?? null;
+      const previousAttributes = previousDraft?.attributes ?? null;
       setAiDraft(
         syncDraftWithProfile(
           ensureClientDraftId(

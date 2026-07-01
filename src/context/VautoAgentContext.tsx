@@ -43,6 +43,7 @@ import {
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
+import { routeConductorAgentAction } from "@/lib/vauto-conductor";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
@@ -362,6 +363,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       const actions = sanitized.action;
       if (actions.type === "none") return;
+
+      void routeConductorAgentAction(actions, "VautoAgentContext.applyActions");
 
       try {
       if (actions.type === "search") {

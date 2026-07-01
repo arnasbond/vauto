@@ -12,7 +12,12 @@ import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
 } from "@/lib/photo-vision-search";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { routeConductorRequest, conductorPhotoUploadSource } from "@/lib/vauto-conductor";
+import {
+  routeConductorRequest,
+  routeConductorAgentAction,
+  conductorPhotoUploadSource,
+  conductorSearchQuerySource,
+} from "@/lib/vauto-conductor";
 import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
 import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
 import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
@@ -151,6 +156,7 @@ export function AiCommandBar({
   const syncGridFromAgentActions = useCallback(
     (actions: VautoAgentAction | undefined) => {
       if (!actions || actions.type === "none") return;
+      void routeConductorAgentAction(actions, "AiCommandBar.syncGridFromAgentActions");
       applyAgentActions(actions);
       if (actions.type === "search") {
         setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
@@ -206,6 +212,10 @@ export function AiCommandBar({
       setDraftQuery(q);
       setAgentPinnedListings(null);
       clearVisualSearch({ keepInputMode: true });
+      void routeConductorRequest({
+        ...conductorSearchQuerySource("AiCommandBar"),
+        payload: { query: q, wardrobeSearchOnly },
+      });
       setSearchLoading(true);
       void sendAgentMessage(q, { fromSearchBar: true })
         .then((res) => {
