@@ -12,7 +12,11 @@ import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
 } from "@/lib/photo-vision-search";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { AI_SCAN_SOFT_HANDOFF_MSG } from "@/lib/ai-safeguards";
+import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
+import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
+import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
+import { BarcodeScanSheet } from "@/components/product/BarcodeScanSheet";
+import { useBarcodeScanFlow } from "@/hooks/useBarcodeScanFlow";
 import {
   clearPhotoSearchSession,
 } from "@/lib/photo-search-session";
@@ -98,6 +102,7 @@ export function AiCommandBar({
     applyAgentActions,
     openWithGreeting,
   } = useVautoAgent();
+  const { applyScannedBarcode } = useBarcodeScanFlow();
   const skin = useFlowUiSkin();
 
   const [draftQuery, setDraftQuery] = useState(searchQuery);
@@ -106,6 +111,8 @@ export function AiCommandBar({
   const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
   const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
   const photoScanTimedOutRef = useRef(false);
+  const barcodePhotoContextRef = useRef<string[]>([]);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
   const [previewPulse, setPreviewPulse] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -305,14 +312,13 @@ export function AiCommandBar({
     setPhotoIntentChoice(null);
     setPhotoFlowOpen(false);
     if (pending?.photos[0]) {
-      openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
-      void sendAgentMessage("Analizuok šią nuotrauką ir padėk man — išorinės bazės neatsakė.", {
-        fromSearchBar: true,
-        skipBusyCheck: true,
-        pendingImageUrls: pending.photos,
-      });
+      notifyAgentPendingImages(pending.photos);
+      openWithGreeting(
+        UNREGISTERED_PRODUCT_AGENT_PROMPT,
+        unregisteredProductAgentGreetingOptions()
+      );
     }
-  }, [isPhotoSearching, openWithGreeting, sendAgentMessage]);
+  }, [isPhotoSearching, openWithGreeting]);
 
   const handlePhotoIntentChip = useCallback(
     (chip: string) => {
@@ -612,11 +618,25 @@ export function AiCommandBar({
         intentChoice={photoIntentChoice}
         onIntentChip={handlePhotoIntentChip}
         onScanTimeout={handlePhotoScanTimeout}
+        onOpenBarcodeScan={({ photos }) => {
+          barcodePhotoContextRef.current = photos;
+          setBarcodeOpen(true);
+        }}
         onClose={() => {
           setPhotoIntentChoice(null);
           setPhotoFlowOpen(false);
         }}
         onSubmit={handlePhotoFlowSubmit}
+      />
+
+      <BarcodeScanSheet
+        open={barcodeOpen}
+        onClose={() => setBarcodeOpen(false)}
+        onBarcodeResolved={(code) =>
+          void applyScannedBarcode(code, {
+            pendingImageUrls: barcodePhotoContextRef.current,
+          })
+        }
       />
     </>
   );

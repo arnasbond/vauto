@@ -72,3 +72,11 @@ export function isPhotoIntentListingChip(text: string): boolean {
     n === "skelbti"
   );
 }
+
+/** Agent greeting when product code is missing from external registries */
+export function unregisteredProductAgentGreetingOptions() {
+  return {
+    openSheet: true as const,
+    quickReplies: [...PHOTO_INTENT_QUICK_REPLIES],
+  };
+}

@@ -39,6 +39,8 @@ interface AiPhotoFlowSheetProps {
   intentChoice?: AiPhotoIntentChoice | null;
   onIntentChip?: (chip: string) => void;
   onScanTimeout?: () => void;
+  /** Opens barcode/QR scanner; receives current sheet photos for agent context */
+  onOpenBarcodeScan?: (ctx: { photos: string[] }) => void;
 }
 
 export function AiPhotoFlowSheet({
@@ -51,6 +53,7 @@ export function AiPhotoFlowSheet({
   intentChoice = null,
   onIntentChip,
   onScanTimeout,
+  onOpenBarcodeScan,
 }: AiPhotoFlowSheetProps) {
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [extraContext, setExtraContext] = useState("");
@@ -278,6 +281,19 @@ export function AiPhotoFlowSheet({
             </p>
           )}
 
+          {onOpenBarcodeScan && photos.length > 0 && (
+            <button
+              type="button"
+              onClick={() =>
+                onOpenBarcodeScan({ photos: photos.map((p) => p.dataUrl) })
+              }
+              disabled={busy}
+              className="mt-4 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
+            >
+              📊 Skenuoti brūkšninį / QR kodą iš etiketės
+            </button>
+          )}
+
           <label className="mt-6 block text-sm font-medium text-[var(--vauto-text-main)]">
             Kas nematoma nuotraukose?{" "}
             <span className="font-normal text-[var(--vauto-text-muted)]">(Neprivaloma)</span>
@@ -313,6 +329,19 @@ export function AiPhotoFlowSheet({
               </div>
             </div>
           ) : (
+          <>
+            {onOpenBarcodeScan && (
+              <button
+                type="button"
+                onClick={() =>
+                  onOpenBarcodeScan({ photos: photos.map((p) => p.dataUrl) })
+                }
+                disabled={busy}
+                className="mb-3 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
+              >
+                📊 Skenuoti brūkšninį / QR kodą iš etiketės
+              </button>
+            )}
           <button
             type="button"
             onClick={() => void handleSubmit()}
@@ -326,6 +355,7 @@ export function AiPhotoFlowSheet({
             )}
             {busy ? "Analizuojama…" : ctaLabel}
           </button>
+          </>
           )}
         </div>
       </div>

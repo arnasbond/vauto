@@ -14,7 +14,9 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
-import { AI_SCAN_SOFT_HANDOFF_MSG } from "@/lib/ai-safeguards";
+import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
+import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
+import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 
 export function FashionUploadPanel() {
@@ -35,6 +37,7 @@ export function FashionUploadPanel() {
   const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
   const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
   const photoScanTimedOutRef = useRef(false);
+  const barcodePhotoContextRef = useRef<string[]>([]);
 
   const busy = (sellerStep !== "idle" && sellerStep !== "published") || agentBusy;
 
@@ -95,7 +98,11 @@ export function FashionUploadPanel() {
     setPhotoIntentChoice(null);
     setPhotoFlowOpen(false);
     if (pending?.photos[0]) {
-      openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
+      notifyAgentPendingImages(pending.photos);
+      openWithGreeting(
+        UNREGISTERED_PRODUCT_AGENT_PROMPT,
+        unregisteredProductAgentGreetingOptions()
+      );
       void submitSellerContent({
         imageDataUrls: pending.photos,
         imageDataUrl: pending.photos[0],
@@ -166,7 +173,12 @@ export function FashionUploadPanel() {
       <BarcodeScanSheet
         open={barcodeOpen}
         onClose={() => setBarcodeOpen(false)}
-        onBarcodeResolved={(code) => void applyScannedBarcode(code, { fashion: true })}
+        onBarcodeResolved={(code) =>
+          void applyScannedBarcode(code, {
+            fashion: true,
+            pendingImageUrls: barcodePhotoContextRef.current,
+          })
+        }
         title="Skenuoti brūkšninį kodą nuo etiketės"
         subtitle="Kvepalai, kosmetika, drabužiai, avalynė — nufotografuokite brūkšninį kodą arba įveskite ranka."
       />
@@ -178,6 +190,10 @@ export function FashionUploadPanel() {
         intentChoice={photoIntentChoice}
         onIntentChip={handlePhotoIntentChip}
         onScanTimeout={handlePhotoScanTimeout}
+        onOpenBarcodeScan={({ photos }) => {
+          barcodePhotoContextRef.current = photos;
+          setBarcodeOpen(true);
+        }}
         onClose={() => {
           setPhotoIntentChoice(null);
           setPhotoFlowOpen(false);

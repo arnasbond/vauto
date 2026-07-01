@@ -16,7 +16,9 @@ import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCa
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import type { AiPhotoIntentChoice } from "@/components/photo/AiPhotoFlowSheet";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
-import { AI_SCAN_SOFT_HANDOFF_MSG } from "@/lib/ai-safeguards";
+import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
+import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
+import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -44,6 +46,7 @@ export function SellerUploadPanel({
   const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
   const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
   const photoScanTimedOutRef = useRef(false);
+  const barcodePhotoContextRef = useRef<string[]>([]);
   const autoOpenedRef = useRef(false);
 
   const legacyBusy = sellerStep !== "idle" && sellerStep !== "published";
@@ -142,7 +145,11 @@ export function SellerUploadPanel({
     setPhotoIntentChoice(null);
     setPhotoFlowOpen(false);
     if (pending?.photos[0]) {
-      openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
+      notifyAgentPendingImages(pending.photos);
+      openWithGreeting(
+        UNREGISTERED_PRODUCT_AGENT_PROMPT,
+        unregisteredProductAgentGreetingOptions()
+      );
       void submitSellerContent({
         imageDataUrls: pending.photos,
         imageDataUrl: pending.photos[0],
@@ -274,6 +281,10 @@ export function SellerUploadPanel({
         intentChoice={photoIntentChoice}
         onIntentChip={handlePhotoIntentChip}
         onScanTimeout={handlePhotoScanTimeout}
+        onOpenBarcodeScan={({ photos }) => {
+          barcodePhotoContextRef.current = photos;
+          setBarcodeOpen(true);
+        }}
         onClose={() => {
           setPhotoIntentChoice(null);
           setPhotoFlowOpen(false);
@@ -284,7 +295,12 @@ export function SellerUploadPanel({
       <BarcodeScanSheet
         open={barcodeOpen}
         onClose={() => setBarcodeOpen(false)}
-        onBarcodeResolved={(code) => void applyScannedBarcode(code, { category: "other" })}
+        onBarcodeResolved={(code) =>
+          void applyScannedBarcode(code, {
+            category: "other",
+            pendingImageUrls: barcodePhotoContextRef.current,
+          })
+        }
       />
     </>
   );

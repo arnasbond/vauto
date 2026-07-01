@@ -20,6 +20,10 @@ export const SCAN_NOT_RECOGNIZED_MSG =
 export const AI_SCAN_SOFT_HANDOFF_MSG =
   "Išorinės bazės tyli — tęsiu su nuotraukos analize. Užpildykite arba patikslinkite laukus, o aš sugeneruosiu aprašymą.";
 
+/** Proactive agent question when barcode registry miss or vision fallback */
+export const UNREGISTERED_PRODUCT_AGENT_PROMPT =
+  "Sistemoje daikto kodo nerandu, bet matau jūsų nuotrauką. Ką norite daryti toliau – ieškoti panašių skelbimų ar sukurti naują skelbimą su AI aprašymu?";
+
 /** Shorter budget for local mock extraction only */
 export const AI_MOCK_TIMEOUT_MS = 5000;
 

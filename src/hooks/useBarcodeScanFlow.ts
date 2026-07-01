@@ -2,6 +2,7 @@
 
 import { useCallback } from "react";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import type { ListingCategory } from "@/lib/types";
 import {
   enrichBarcodeWithFashionCopy,
@@ -10,15 +11,38 @@ import {
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
   BARCODE_LOOKUP_TIMEOUT_MS,
-  SCAN_NOT_RECOGNIZED_MSG,
   createManualFallbackDraft,
+  UNREGISTERED_PRODUCT_AGENT_PROMPT,
 } from "@/lib/ai-safeguards";
+import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
+import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 
 export function useBarcodeScanFlow() {
-  const { applyAgentListingDraft, showToast, user } = useVauto();
+  const { applyAgentListingDraft, user } = useVauto();
+  const { openWithGreeting } = useVautoAgent();
+
+  const showUnregisteredProductPrompt = useCallback(
+    (pendingImageUrls?: string[]) => {
+      if (pendingImageUrls?.length) {
+        notifyAgentPendingImages(pendingImageUrls);
+      }
+      openWithGreeting(
+        UNREGISTERED_PRODUCT_AGENT_PROMPT,
+        unregisteredProductAgentGreetingOptions()
+      );
+    },
+    [openWithGreeting]
+  );
 
   const applyScannedBarcode = useCallback(
-    async (barcode: string, opts?: { category?: ListingCategory; fashion?: boolean }) => {
+    async (
+      barcode: string,
+      opts?: {
+        category?: ListingCategory;
+        fashion?: boolean;
+        pendingImageUrls?: string[];
+      }
+    ) => {
       const category: ListingCategory = opts?.category ?? (opts?.fashion ? "clothing" : "other");
 
       const result = await Promise.race([
@@ -28,42 +52,32 @@ export function useBarcodeScanFlow() {
         ),
       ]);
 
-      if (!result) {
-        showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
-        applyAgentListingDraft({
-          ...createManualFallbackDraft({
-            location: user.city || "Lietuva",
-            contact: user.phone,
-          }),
-          category,
-          title: opts?.fashion ? "Naujas drabužio skelbimas" : "Naujas skelbimas",
-          description: "",
-          attributes: { barcode },
-          confidence: 0.5,
-        });
-        return;
-      }
-
-      if (result?.notFoundInRegistry) {
-        showToast(
-          result.userMessage ??
-            "Kodas atpažintas, bet nerastas viešame registre. Parašykite daikto pavadinimą patys, o aš sugeneruosiu aprašymą."
-        );
-      }
-
-      const patch = result
-        ? await enrichBarcodeWithFashionCopy(result, category)
-        : {
-            attributes: { barcode },
-          };
-
-      applyAgentListingDraft({
+      const draftBase = {
         ...createManualFallbackDraft({
           location: user.city || "Lietuva",
           contact: user.phone,
         }),
         category,
-        title: patch.title || (opts?.fashion ? "Naujas drabužio skelbimas" : "Naujas skelbimas"),
+        title: opts?.fashion ? "Naujas drabužio skelbimas" : "Naujas skelbimas",
+        description: "",
+        attributes: { barcode },
+        confidence: 0.5,
+      };
+
+      if (!result || result.notFoundInRegistry) {
+        showUnregisteredProductPrompt(opts?.pendingImageUrls);
+        applyAgentListingDraft(draftBase);
+        if (result?.notFoundInRegistry) {
+          setPendingBarcodeOffer(barcode);
+        }
+        return;
+      }
+
+      const patch = await enrichBarcodeWithFashionCopy(result, category);
+
+      applyAgentListingDraft({
+        ...draftBase,
+        title: patch.title || draftBase.title,
         description: patch.description || "",
         attributes: {
           barcode,
@@ -74,7 +88,7 @@ export function useBarcodeScanFlow() {
 
       setPendingBarcodeOffer(barcode);
     },
-    [applyAgentListingDraft, showToast, user.city, user.phone]
+    [applyAgentListingDraft, showUnregisteredProductPrompt, user.city, user.phone]
   );
 
   return { applyScannedBarcode };

@@ -79,7 +79,7 @@ export function BarcodeScanSheet({
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[120] flex items-end justify-center bg-black/45 p-4 sm:items-center">
+    <div className="fixed inset-0 z-[10050] flex items-end justify-center bg-black/45 p-4 sm:items-center">
       <div
         className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-[#1a1f2e]"
         role="dialog"
