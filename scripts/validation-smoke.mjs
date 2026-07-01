@@ -3,6 +3,8 @@
 import { validateAmount, validateListingPatch, validateServiceLeadCreate } from "../server/dist/validation.js";
 import { moderateListingInput } from "../server/dist/lib/listing-moderation.js";
 import { readConductorLineage, resolveConductorRequiresReviewFromLineage } from "../server/dist/lib/conductor-publish.js";
+import { runListingAiModeration } from "../server/dist/lib/listing-ai-moderation.js";
+import { PUBLIC_LISTING_VISIBILITY_SQL } from "../server/dist/repository.js";
 import { isValidVin, normalizeVin } from "../server/dist/vehicle/vin-utils.js";
 
 function assert(cond, msg) {
@@ -64,5 +66,24 @@ assert(
   !resolveConductorRequiresReviewFromLineage({ sources: ["agent", "manual"], mergedAt: null }),
   "manual override skips review"
 );
+
+assert(
+  PUBLIC_LISTING_VISIBILITY_SQL.includes("requires_review"),
+  "public feed SQL excludes pending review"
+);
+
+const aiReject = await runListingAiModeration({
+  id: "smoke-1",
+  sellerId: "seller-1",
+  title: "ginklas pardavimui",
+  price: 100,
+  location: "Vilnius",
+  category: "other",
+  images: [],
+  tags: [],
+  status: "active",
+  createdAt: new Date().toISOString(),
+});
+assert(aiReject.action === "reject", "listing AI moderation rejects weapons");
 
 console.log("Server validation smoke: OK");

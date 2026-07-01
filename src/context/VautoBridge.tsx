@@ -29,7 +29,8 @@ export interface VautoBridgeValue {
   scheduleSellerEngagementPush: (
     listingId: string,
     location: string,
-    title: string
+    title: string,
+    opts?: { pendingReview?: boolean }
   ) => void;
   setDetectedAdaptiveKey: (key: AdaptiveCategoryKey | null) => void;
   setChameleonTheme: (theme: ChameleonThemeId) => void;

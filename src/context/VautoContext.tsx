@@ -15,6 +15,7 @@ import { INITIAL_LISTINGS } from "@/data/mockListings";
 import {
   markListingDemoFlags,
   mergeListingsForClient,
+  mergeHiddenListingsIntoCatalog,
   shouldShowDemoCatalog,
 } from "@/lib/demo-catalog";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
@@ -63,6 +64,8 @@ import {
   apiDeleteListing,
   apiCreateServiceLead,
   apiFetchListings,
+  apiFetchAdminReviewQueue,
+  apiFetchMyListings,
   apiFetchSaved,
   apiFetchServiceLeads,
   apiFetchUser,
@@ -799,6 +802,31 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     setDetectedAdaptiveKey("clothing");
   }, []);
 
+  const enrichCatalogWithHiddenListings = useCallback(
+    async (catalog: Listing[]): Promise<Listing[]> => {
+      if (!isDataApiEnabled()) return catalog;
+      const extras: Listing[] = [];
+      if (isAuthenticated && user.id && user.id !== "guest") {
+        const mineRes = await apiFetchMyListings(user.id);
+        if (mineRes.ok) {
+          extras.push(
+            ...mineRes.data
+              .map(withDefaultExpiry)
+              .filter((l) => l.requiresReview && !l.banned)
+          );
+        }
+      }
+      if (isAdmin) {
+        const reviewRes = await apiFetchAdminReviewQueue();
+        if (reviewRes.ok) {
+          extras.push(...reviewRes.data.map(withDefaultExpiry));
+        }
+      }
+      return normalizeListings(mergeHiddenListingsIntoCatalog(catalog, extras));
+    },
+    [isAuthenticated, user.id, isAdmin]
+  );
+
   useEffect(() => {
     async function load() {
       try {
@@ -819,11 +847,10 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           const errors: string[] = [];
           if (listingsRes.ok && Array.isArray(listingsRes.data)) {
             const fromApi = listingsRes.data.map(withDefaultExpiry);
-            setListings(
-              normalizeListings(
-                mergeListingsForClient(fromApi, INITIAL_LISTINGS)
-              )
+            const base = normalizeListings(
+              mergeListingsForClient(fromApi, INITIAL_LISTINGS)
             );
+            setListings(await enrichCatalogWithHiddenListings(base));
           } else {
             if (!listingsRes.ok) errors.push(listingsRes.error);
             setListings(
@@ -1340,16 +1367,29 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const scheduleSellerEngagementPush = useCallback(
-    (listingId: string, location: string, listingTitle: string) => {
+    (
+      listingId: string,
+      location: string,
+      listingTitle: string,
+      opts?: { pendingReview?: boolean }
+    ) => {
       if (engagementTimerRef.current) clearTimeout(engagementTimerRef.current);
       if (buddyFollowUpTimerRef.current) clearTimeout(buddyFollowUpTimerRef.current);
 
       engagementTimerRef.current = setTimeout(() => {
         const city = location.split(",")[0]?.trim() || "jūsų regione";
-        const msg = `Skelbimas „${listingTitle}" publikuotas ${city}. Stebėkite peržiūras profilyje.`;
-        logAnalytics("seller_engagement_push", { listingId, location, type: "publish_confirm" });
-        setToast({ message: msg, type: "success" });
+        const msg = opts?.pendingReview
+          ? `Skelbimas „${listingTitle}" laukia moderatoriaus peržiūros — pranešime, kai bus patvirtintas.`
+          : `Skelbimas „${listingTitle}" publikuotas ${city}. Stebėkite peržiūras profilyje.`;
+        logAnalytics("seller_engagement_push", {
+          listingId,
+          location,
+          type: opts?.pendingReview ? "publish_pending_review" : "publish_confirm",
+        });
+        setToast({ message: msg, type: opts?.pendingReview ? "info" : "success" });
       }, 8000);
+
+      if (opts?.pendingReview) return;
 
       buddyFollowUpTimerRef.current = setTimeout(() => {
         const followUp = buildBuddySoldFollowUp(user.name, listingTitle);
@@ -1456,12 +1496,13 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       return;
     }
     const fromApi = listingsRes.data.map(withDefaultExpiry);
-    const merged = normalizeListings(
+    const base = normalizeListings(
       mergeListingsForClient(fromApi, INITIAL_LISTINGS)
     );
+    const merged = await enrichCatalogWithHiddenListings(base);
     setListings(merged);
     saveListings(merged);
-  }, []);
+  }, [enrichCatalogWithHiddenListings]);
 
   const showToast = useCallback(
     (message: string, type: "success" | "error" | "info" | "buddy" = "success") => {

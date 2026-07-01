@@ -25,6 +25,8 @@ import {
   getReviews,
   getSavedIds,
   getServiceLeadsForProvider,
+  getListingsPendingReview,
+  getSellerListings,
   getUser,
   insertListing,
   findListingByClientDraftId,
@@ -72,6 +74,7 @@ import {
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
 import { moderateListingInput } from "../lib/listing-moderation.js";
+import { scheduleListingAiModeration } from "../lib/listing-ai-moderation.js";
 import {
   logConductorPublishLineage,
   readConductorLineage,
@@ -351,6 +354,15 @@ apiRouter.post("/admin/setup-stripe", requireAdmin, async (_req, res) => {
   }
 });
 
+apiRouter.get("/listings/mine", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const sellerId = routeActorId(req);
+    res.json(await getSellerListings(sellerId));
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.get("/listings", async (req, res) => {
   try {
     const page = await fetchListingsFeed({
@@ -402,6 +414,7 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     }
     await insertListing(listing);
     logConductorPublishLineage(listing);
+    scheduleListingAiModeration(listing);
     void notifyListingMatch(listing).catch(() => {});
     scheduleWishlistMatchNotifications(listing);
     res.status(201).json(listing);
@@ -586,6 +599,14 @@ apiRouter.put("/banned-users", requireAdmin, async (req, res) => {
     if (badRequest(res, parsed)) return;
     await setBannedUserIds(parsed.value);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.get("/admin/listings/review-queue", requireAdmin, async (_req, res) => {
+  try {
+    res.json(await getListingsPendingReview(100));
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

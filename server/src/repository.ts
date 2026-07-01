@@ -92,6 +92,9 @@ const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, locatio
   is_verified, requires_review, image_alt, image_title
   FROM listings`;
 
+/** Public catalog — excludes banned and pending moderation review. */
+export const PUBLIC_LISTING_VISIBILITY_SQL = `NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')`;
+
 export async function getUser(id: string): Promise<ApiUser | null> {
   const rows = await query<{
     id: string;
@@ -281,13 +284,13 @@ export async function getListingsPage(options: {
 
   try {
     const countRows = await query<{ count: string }>(
-      `SELECT count(*)::text AS count FROM listings WHERE COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')`
+      `SELECT count(*)::text AS count FROM listings WHERE ${PUBLIC_LISTING_VISIBILITY_SQL}`
     );
     const total = Number(countRows[0]?.count ?? 0);
 
     const rows = await query<ListingRow>(
       `${LISTING_SELECT}
-       WHERE COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')
+       WHERE ${PUBLIC_LISTING_VISIBILITY_SQL}
        ORDER BY created_at DESC
        LIMIT $1 OFFSET $2`,
       [limit, offset]
@@ -331,6 +334,41 @@ export async function getListingsLegacyFull(): Promise<ApiListing[]> {
     return mergeDbListingsWithDemoCatalog(fromDb);
   } catch {
     return isServerDemoCatalogEnabled() ? getDemoApiListings() : [];
+  }
+}
+
+export async function getListingsPendingReview(limit = 100): Promise<ApiListing[]> {
+  try {
+    const rows = await query<ListingRow>(
+      `${LISTING_SELECT}
+       WHERE requires_review = true AND NOT banned
+         AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')
+       ORDER BY created_at DESC
+       LIMIT $1`,
+      [Math.min(Math.max(limit, 1), 200)]
+    );
+    return rows.map(mapListingRow);
+  } catch {
+    const all = await getListingsLegacyFull();
+    return all
+      .filter((l) => l.requiresReview && !l.banned && l.status !== "sold")
+      .slice(0, limit);
+  }
+}
+
+export async function getSellerListings(sellerId: string): Promise<ApiListing[]> {
+  try {
+    const rows = await query<ListingRow>(
+      `${LISTING_SELECT}
+       WHERE seller_id = $1
+         AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')
+       ORDER BY created_at DESC`,
+      [sellerId]
+    );
+    return rows.map(mapListingRow);
+  } catch {
+    const all = await getListingsLegacyFull();
+    return all.filter((l) => l.sellerId === sellerId && l.status !== "sold");
   }
 }
 
@@ -461,6 +499,7 @@ export async function searchListingsFiltered(
   const conditions = [
     "(status IS NULL OR status IS DISTINCT FROM 'sold')",
     "banned = false",
+    "COALESCE(requires_review, false) = false",
     "price > 0",
   ];
   const values: unknown[] = [];
@@ -519,7 +558,9 @@ export async function searchListingsFiltered(
       return [];
     }
     rows = await getListings();
-    rows = rows.filter((l) => l.status !== "sold" && !l.banned && l.price > 0);
+    rows = rows.filter(
+      (l) => l.status !== "sold" && !l.banned && !l.requiresReview && l.price > 0
+    );
     if (params.category && !softCategoryOnly) {
       rows = rows.filter((l) => l.category === params.category);
     }
@@ -1934,7 +1975,7 @@ export async function searchListingsByEmbeddingRows(): Promise<
 > {
   const rows = await query<{ id: string; search_embedding: unknown }>(
     `SELECT id, search_embedding FROM listings
-     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+     WHERE NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') = 'active'
        AND search_embedding IS NOT NULL`
   );
   return rows
@@ -1950,7 +1991,7 @@ export async function listListingsMissingEmbeddings(
 ): Promise<string[]> {
   const rows = await query<{ id: string }>(
     `SELECT id FROM listings
-     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+     WHERE NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') = 'active'
        AND search_embedding IS NULL
      ORDER BY created_at DESC
      LIMIT $1`,
@@ -1974,7 +2015,7 @@ export async function searchListingsByImageEmbeddingRows(): Promise<
 > {
   const rows = await query<{ id: string; image_embedding: unknown }>(
     `SELECT id, image_embedding FROM listings
-     WHERE NOT banned AND COALESCE(status, 'active') = 'active'
+     WHERE NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') = 'active'
        AND image_embedding IS NOT NULL`
   );
   return rows

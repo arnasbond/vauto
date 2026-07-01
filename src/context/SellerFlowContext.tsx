@@ -1599,7 +1599,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setListings((prev) => [newListing, ...prev]);
     setLastPublishedListing(newListing);
     setSellerStep("published");
-    showToast("Skelbimas sėkmingai įkeltas!", "success");
+    showToast(
+      newListing.requiresReview
+        ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
+        : "Skelbimas sėkmingai įkeltas!",
+      newListing.requiresReview ? "info" : "success"
+    );
 
     if (isDataApiEnabled()) {
       void apiUpdateUser({
@@ -1632,7 +1637,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       await refreshListingsCatalog();
     }
 
-    scheduleSellerEngagementPush(published.id, published.location, published.title);
+    scheduleSellerEngagementPush(published.id, published.location, published.title, {
+      pendingReview: Boolean(published.requiresReview),
+    });
     scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {
         showToast("Facebook dalijimasis inicijuotas.", "info");
@@ -1769,9 +1776,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
 
       if (published > 0) {
+        const anyPending = drafts.some((d, i) => {
+          const snapshot = buildConductorPublishSnapshot(drafts[i]!);
+          return resolveListingRequiresReview(d, snapshot);
+        });
         showToast(
-          `${published} drabužių skelbim${published === 1 ? "as" : "ai"} sėkmingai įkelti!`,
-          "success"
+          anyPending
+            ? `${published} skelbim${published === 1 ? "as" : "ai"} laukia moderatoriaus peržiūros.`
+            : `${published} drabužių skelbim${published === 1 ? "as" : "ai"} sėkmingai įkelti!`,
+          anyPending ? "info" : "success"
         );
         notifyListingPublishComplete("clothing", published);
         resetSellerFlow();

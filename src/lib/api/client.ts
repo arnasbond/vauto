@@ -349,6 +349,14 @@ export async function apiFetchListings(
   return dataFetch<Listing[]>(`/api/listings?${params.toString()}`);
 }
 
+export async function apiFetchAdminReviewQueue(): Promise<ApiResult<Listing[]>> {
+  return dataFetch<Listing[]>("/api/admin/listings/review-queue");
+}
+
+export async function apiFetchMyListings(userId: string): Promise<ApiResult<Listing[]>> {
+  return dataFetch<Listing[]>("/api/listings/mine", { userId });
+}
+
 export async function apiCreateListing(
   listing: Listing,
   userId: string
