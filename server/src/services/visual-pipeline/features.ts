@@ -16,7 +16,9 @@ export function resolveOcrProvider(): OcrProvider {
   ) {
     return "textract";
   }
-  return "tesseract";
+  // Local tesseract is opt-in — avoids 30–60s server hangs when no cloud OCR is configured.
+  if (process.env.TESSERACT_OCR_ENABLED === "1") return "tesseract";
+  return "none";
 }
 
 export function visualPipelineFeatures(): VisualPipelineFeatures {

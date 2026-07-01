@@ -1,3 +1,4 @@
+import { logProductionWarn } from "../../../lib/production-log.js";
 import { fetchImageBytes } from "../image-bytes.js";
 import type {
   BackgroundRemovalProvider,
@@ -91,13 +92,28 @@ export async function runBackgroundRemoval(
 
   const out: BackgroundRemovalResult["images"] = [];
   for (const img of images) {
-    const bytes = await fetchImageBytes(img.processedUrl ?? img.sourceUrl);
-    const cleaned = await removeFn(bytes);
-    out.push({
-      id: img.id,
-      originalUrl: img.sourceUrl,
-      processedUrl: toDataUrlPng(cleaned),
-    });
+    const sourceUrl = img.processedUrl ?? img.sourceUrl;
+    try {
+      const bytes = await fetchImageBytes(sourceUrl);
+      const cleaned = await removeFn(bytes);
+      out.push({
+        id: img.id,
+        originalUrl: img.sourceUrl,
+        processedUrl: toDataUrlPng(cleaned),
+      });
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      logProductionWarn("visual-pipeline", "Background removal failed for image — using original", {
+        imageId: img.id,
+        provider,
+        error: msg,
+      });
+      out.push({
+        id: img.id,
+        originalUrl: img.sourceUrl,
+        processedUrl: sourceUrl,
+      });
+    }
   }
 
   return { provider, images: out };

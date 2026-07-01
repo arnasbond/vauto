@@ -71,11 +71,15 @@ import {
   isPhotoIntentListingChip,
   isPhotoIntentSearchChip,
 } from "@/lib/photo-intent-resolution";
-import { consumePendingPhotoIntent } from "@/lib/photo-intent-session";
+import {
+  clearPendingPhotoIntent,
+  peekPendingPhotoIntent,
+} from "@/lib/photo-intent-session";
 import {
   executePhotoIntentListing,
   executePhotoIntentSearch,
 } from "@/lib/photo-intent-actions";
+import { tryHandleVisualDamageReply } from "@/lib/visual-damage-replies";
 import { sanitizeAgentAction } from "@/lib/agent-action-guard";
 import {
   WARDROBE_BULK_IMPORT_CHIPS,
@@ -178,6 +182,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     revertPhotoCategoryMismatch,
     acceptPhotoCategoryMismatch,
     submitSellerContent,
+    updateAiDraft,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -762,60 +767,66 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       if (isPhotoIntentSearchChip(trimmed) || isPhotoIntentListingChip(trimmed)) {
-        const pending = consumePendingPhotoIntent();
+        const pending = peekPendingPhotoIntent();
         if (pending) {
           const wardrobeOnly =
             pathname === "/fashion" || pathname === "/fashion/";
           let reply: string;
-          if (isPhotoIntentSearchChip(trimmed)) {
-            reply = await executePhotoIntentSearch(pending, {
-              listings,
-              marketplaceFilters,
-              userName: user.name,
-              userCity: user.city,
-              userPhone: user.phone,
-              wardrobeOnly,
-              applyVisualSearch,
-              syncAgentAction: applyActions,
-              setSearchInputMode,
-              setSearchQuery,
-              scrollToResults: () => {
-                document
-                  .getElementById("listing-results")
-                  ?.scrollIntoView({ behavior: "smooth", block: "start" });
-              },
-              notifyPhotoSearch: (label, count) => {
-                notifyAgentFlow({
-                  kind: "photo_search_applied",
-                  objectLabel: label,
-                  resultCount: count,
-                });
-              },
-              sendAgentMessage: (text, opts) =>
-                sendAgentMessage(text, {
-                  fromSearchBar: true,
-                  pendingImageUrls: opts?.pendingImageUrls,
-                }),
-              openWithGreeting: (text, opts) => {
-                setOpen(true);
-                const quickReplies = opts?.quickReplies?.filter(Boolean).slice(0, 4);
-                setMessages((prev) => [
-                  ...prev,
-                  {
-                    role: "assistant" as const,
-                    text,
-                    ...(quickReplies?.length ? { quickReplies } : {}),
-                  },
-                ].slice(-6));
-              },
-              showToast,
-            });
-            goToMarketplace("agent");
-          } else {
-            reply = await executePhotoIntentListing(pending, {
-              submitSellerContent,
-              showToast,
-            });
+          try {
+            if (isPhotoIntentSearchChip(trimmed)) {
+              reply = await executePhotoIntentSearch(pending, {
+                listings,
+                marketplaceFilters,
+                userName: user.name,
+                userCity: user.city,
+                userPhone: user.phone,
+                wardrobeOnly,
+                applyVisualSearch,
+                syncAgentAction: applyActions,
+                setSearchInputMode,
+                setSearchQuery,
+                scrollToResults: () => {
+                  document
+                    .getElementById("listing-results")
+                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
+                },
+                notifyPhotoSearch: (label, count) => {
+                  notifyAgentFlow({
+                    kind: "photo_search_applied",
+                    objectLabel: label,
+                    resultCount: count,
+                  });
+                },
+                sendAgentMessage: (text, opts) =>
+                  sendAgentMessage(text, {
+                    fromSearchBar: true,
+                    pendingImageUrls: opts?.pendingImageUrls,
+                  }),
+                openWithGreeting: (text, opts) => {
+                  setOpen(true);
+                  const quickReplies = opts?.quickReplies?.filter(Boolean).slice(0, 4);
+                  setMessages((prev) => [
+                    ...prev,
+                    {
+                      role: "assistant" as const,
+                      text,
+                      ...(quickReplies?.length ? { quickReplies } : {}),
+                    },
+                  ].slice(-6));
+                },
+                showToast,
+              });
+              goToMarketplace("agent");
+            } else {
+              reply = await executePhotoIntentListing(pending, {
+                submitSellerContent,
+                showToast,
+              });
+            }
+            clearPendingPhotoIntent();
+          } catch {
+            showToast("Nepavyko apdoroti nuotraukos — bandykite dar kartą.", "error");
+            reply = "Įvyko klaida — pasirinkite veiksmą dar kartą arba įkelkite nuotrauką iš naujo.";
           }
           setOpen(true);
           setMessages((prev) => [
@@ -826,6 +837,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           touchAgentSessionActivity();
           return { ok: true, reply };
         }
+      }
+
+      const damageReply = tryHandleVisualDamageReply(trimmed, aiDraft, updateAiDraft);
+      if (damageReply) {
+        setOpen(true);
+        setMessages((prev) => [
+          ...prev,
+          { role: "user", text: trimmed },
+          { role: "assistant", text: damageReply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply: damageReply };
       }
 
       const quickReply = tryHandleAgentQuickReply({
@@ -1187,6 +1210,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       applyVisualSearch,
       pathname,
       submitSellerContent,
+      updateAiDraft,
       goToMarketplace,
       setOpen,
       setMessages,

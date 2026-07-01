@@ -981,7 +981,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             fallback.title,
             fallback.description ?? "",
           ]);
-          setAiDraft(enriched);
+          setAiDraft(syncDraftWithProfile(enriched));
           setSellerInputMode("text");
           setSellerUserPrompt(enriched.description ?? "");
           setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
@@ -997,6 +997,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       requireAuthForListing,
       showToast,
       setChameleonTheme,
+      syncDraftWithProfile,
       user.city,
       user.phone,
     ]

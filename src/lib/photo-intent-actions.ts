@@ -9,7 +9,6 @@ import { buildVisualSearchProfile } from "@/lib/visual-search";
 import { buildVisionSearchAgentAction } from "@/lib/vision-agent-bridge";
 import { formatSearchAlternativeChips } from "@/lib/vision-choice-chips";
 import type { PendingPhotoIntent } from "@/lib/photo-intent-resolution";
-import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
 
 export interface PhotoIntentSearchDeps {
   listings: Listing[];
@@ -54,8 +53,6 @@ export async function executePhotoIntentSearch(
   pending: PendingPhotoIntent,
   deps: PhotoIntentSearchDeps
 ): Promise<string> {
-  clearPendingPhotoIntent();
-
   if (!pending.analysis.visionIntent) {
     deps.showToast("Nepavyko pritaikyti paieškos filtrų.", "info");
     return "Bandykite dar kartą arba įveskite paiešką tekstu.";
@@ -165,7 +162,6 @@ export async function executePhotoIntentListing(
   pending: PendingPhotoIntent,
   deps: PhotoIntentListingDeps
 ): Promise<string> {
-  clearPendingPhotoIntent();
   const photos = pending.analysis.orderedImageUrls.length
     ? pending.analysis.orderedImageUrls
     : pending.photos;
