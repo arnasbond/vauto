@@ -278,7 +278,11 @@ interface VautoContextValue {
     voiceCapture?: boolean;
   }) => Promise<void>;
   reprocessConfirmationPhoto: (imageDataUrl: string) => Promise<void>;
-  applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
+  applyAgentListingDraft: (
+    draft: AiExtractedListing,
+    imageUrl?: string,
+    draftSource?: import("@/lib/vauto-conductor").UnifiedDraftSource
+  ) => void;
   applyAgentWardrobeBulk: (
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
     opts?: { imageUrl?: string; voiceAnnouncement?: string }

@@ -137,8 +137,10 @@ import {
 } from "@/lib/product-intelligence/barcode-utils";
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
+  buildConductorPublishSnapshot,
+  commitConductorDraft,
   conductorSellerSubmitSource,
-  mergeListingDraft,
+  resetConductorDraft,
   routeConductorRequest,
 } from "@/lib/vauto-conductor";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
@@ -234,7 +236,11 @@ export interface SellerFlowContextValue {
   }) => Promise<void>;
   /** Re-run vision on a new photo while the confirmation wizard is open. */
   reprocessConfirmationPhoto: (imageDataUrl: string) => Promise<void>;
-  applyAgentListingDraft: (draft: AiExtractedListing, imageUrl?: string) => void;
+  applyAgentListingDraft: (
+    draft: AiExtractedListing,
+    imageUrl?: string,
+    draftSource?: import("@/lib/vauto-conductor").UnifiedDraftSource
+  ) => void;
   applyAgentWardrobeBulk: (
     items: import("@/lib/wardrobe-vision").WardrobeDraftItem[],
     opts?: { imageUrl?: string; voiceAnnouncement?: string }
@@ -382,6 +388,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     clearPhotoSearchSession();
     clearPendingPhotoIntent();
     sellerDraftIdRef.current = null;
+    resetConductorDraft();
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -779,10 +786,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         const previousDraft = aiDraftRef.current;
         const previousCategory = previousDraft?.category ?? null;
         const previousAttributes = previousDraft?.attributes ?? null;
-        const { draft: conductorMerged } = mergeListingDraft(
-          mode === "upload" || mode === "combined" ? previousDraft : null,
+        const { draft: conductorMerged } = commitConductorDraft(
           next,
-          "seller"
+          "seller",
+          mode === "upload" || mode === "combined" ? previousDraft : null
         );
         const withBarcode = attachProductBarcodeHint(
           conductorMerged as AiExtractedListing,
@@ -1045,7 +1052,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const applyAgentListingDraft = useCallback(
-    (draft: AiExtractedListing, imageUrl?: string) => {
+    (
+      draft: AiExtractedListing,
+      imageUrl?: string,
+      draftSource: import("@/lib/vauto-conductor").UnifiedDraftSource = "agent"
+    ) => {
       if (!requireAuthForListing("/add")) return;
       void routeConductorRequest({
         ...conductorSellerSubmitSource("SellerFlowContext.applyAgentListingDraft"),
@@ -1057,7 +1068,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const previousDraft = aiDraftRef.current;
-      const { draft: merged } = mergeListingDraft(previousDraft, draft, "agent");
+      const { draft: merged } = commitConductorDraft(draft, draftSource, previousDraft);
       const mergedDraft = { ...draft, ...merged } as AiExtractedListing;
       const sourceText = [mergedDraft.title, mergedDraft.description].filter(Boolean).join(" ");
       let enriched = enrichVehicleListingDraft(mergedDraft, [sourceText]);
@@ -1333,6 +1344,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     if (!hasListingPhoto(sellerPreviewImage) && !editingListingId) {
       showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
       return;
+    }
+
+    const conductorPublish = buildConductorPublishSnapshot(aiDraft);
+    if (conductorPublish.sources.length) {
+      trackEvent("conductor_publish", {
+        sources: conductorPublish.sources.join(","),
+        category: aiDraft.category,
+        mergedAt: conductorPublish.mergedAt,
+      });
     }
 
     const validation = evaluateListingPublishValidation(
@@ -1635,6 +1655,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     listingSocialPublish,
     photoCategoryMismatch,
     refreshListingsCatalog,
+    trackEvent,
   ]);
 
   const publishBulkClothingListings = useCallback(

@@ -12,6 +12,7 @@ export type UserBehaviorActionType =
   | "spinta_enter"
   | "agent_message"
   | "agent_action"
+  | "conductor_publish"
   | "seller_photo_category_mismatch";
 
 export interface UserBehaviorEvent {

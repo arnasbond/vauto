@@ -8,6 +8,7 @@ import {
   enrichBarcodeWithFashionCopy,
   buildUnregisteredBarcode,
   lookupBarcode,
+  barcodeLookupToDraftPatch,
 } from "@/lib/product-intelligence/barcode-lookup";
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
@@ -19,8 +20,6 @@ import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-reso
 import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 import {
   conductorBarcodeSource,
-  mergeBarcodeLookupDraft,
-  mergeListingDraft,
   routeConductorRequest,
 } from "@/lib/vauto-conductor";
 
@@ -78,8 +77,16 @@ export function useBarcodeScanFlow() {
 
       if (!result || result.notFoundInRegistry) {
         const lookupResult = result ?? buildUnregisteredBarcode(barcode);
-        const { draft } = mergeBarcodeLookupDraft(draftBase, lookupResult);
-        applyAgentListingDraft({ ...draftBase, ...draft } as AiExtractedListing);
+        const patch = barcodeLookupToDraftPatch(lookupResult, {
+          title: draftBase.title ?? "",
+          description: draftBase.description,
+          attributes: draftBase.attributes,
+        });
+        applyAgentListingDraft(
+          { ...draftBase, ...patch } as AiExtractedListing,
+          undefined,
+          "barcode"
+        );
         if (result?.notFoundInRegistry) {
           setPendingBarcodeOffer(barcode);
         }
@@ -90,22 +97,20 @@ export function useBarcodeScanFlow() {
       }
 
       const patch = await enrichBarcodeWithFashionCopy(result, category);
-      const { draft: barcodeDraft } = mergeBarcodeLookupDraft(draftBase, result);
-      const { draft } = mergeListingDraft(
-        barcodeDraft,
+      applyAgentListingDraft(
         {
-          title: patch.title || barcodeDraft.title,
+          ...draftBase,
+          title: patch.title || draftBase.title,
           description: patch.description || "",
           attributes: {
             barcode,
             ...(patch.attributes ?? {}),
           },
           confidence: patch.confidence ?? 0.75,
-        },
+        } as AiExtractedListing,
+        undefined,
         "barcode"
       );
-
-      applyAgentListingDraft({ ...draftBase, ...draft } as AiExtractedListing);
 
       setPendingBarcodeOffer(barcode);
     },
