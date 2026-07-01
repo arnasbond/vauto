@@ -37,15 +37,19 @@ export function SmartOnboardingCarousel({ className }: SmartOnboardingCarouselPr
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="rounded-3xl border border-white/10 bg-white/5 p-6 text-left shadow-lg backdrop-blur-sm">
+      <div className="rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-6 text-left shadow-sm">
         <span className="mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[var(--vauto-teal)] text-white shadow-md">
           <Icon className="h-7 w-7" aria-hidden />
         </span>
-        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-teal)]">
+        <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-text-muted)]">
           {index + 1} / {SMART_ONBOARDING_SLIDES.length}
         </p>
-        <h2 className="mt-2 text-lg font-semibold leading-snug text-white">{slide.title}</h2>
-        <p className="mt-3 text-sm leading-relaxed text-slate-300">{slide.body}</p>
+        <h2 className="mt-2 text-lg font-semibold leading-snug text-[var(--vauto-text-main)]">
+          {slide.title}
+        </h2>
+        <p className="mt-3 text-sm leading-relaxed text-[var(--vauto-text-muted)]">
+          {slide.body}
+        </p>
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-3">
@@ -60,7 +64,9 @@ export function SmartOnboardingCarousel({ className }: SmartOnboardingCarouselPr
               onClick={() => setIndex(i)}
               className={cn(
                 "h-2 rounded-full transition-all",
-                i === index ? "w-6 bg-[var(--vauto-teal)]" : "w-2 bg-white/25 hover:bg-white/40"
+                i === index
+                  ? "w-6 bg-[var(--vauto-teal)]"
+                  : "w-2 bg-[var(--vauto-border)] hover:bg-[color-mix(in_srgb,var(--vauto-teal)_35%,var(--vauto-border))]"
               )}
             />
           ))}
@@ -68,7 +74,7 @@ export function SmartOnboardingCarousel({ className }: SmartOnboardingCarouselPr
         <button
           type="button"
           onClick={() => goTo(index + 1)}
-          className="text-xs font-semibold text-[var(--vauto-teal)] hover:text-teal-300"
+          className="text-xs font-semibold text-[var(--vauto-teal)] hover:opacity-80"
         >
           Toliau →
         </button>

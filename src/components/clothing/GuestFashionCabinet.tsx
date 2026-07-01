@@ -75,8 +75,10 @@ export function GuestFashionCabinet() {
           <p className="text-xs font-medium uppercase tracking-wide text-fuchsia-600">
             Viešas demo režimas
           </p>
-          <h1 className="text-xl font-semibold text-white">Mano asortimentas</h1>
-          <p className="text-xs text-slate-400">
+          <h1 className="text-xl font-semibold text-[var(--vauto-text-main)]">
+            Mano asortimentas
+          </h1>
+          <p className="text-xs text-[var(--vauto-text-muted)]">
             Auto, NT, paslaugos ir prekės — peržiūrai be privalomo prisijungimo
           </p>
         </div>
@@ -130,7 +132,7 @@ export function GuestFashionCabinet() {
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        <h2 className="flex items-center gap-2 text-sm font-light tracking-wide text-slate-200">
+        <h2 className="flex items-center gap-2 text-sm font-medium tracking-wide text-[var(--vauto-text-main)]">
           <LayoutGrid className="h-4 w-4 text-fuchsia-600" />
           Prekės ir paslaugos
         </h2>

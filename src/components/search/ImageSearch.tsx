@@ -1,28 +1,21 @@
 "use client";
 
-import { Camera, ImageIcon } from "lucide-react";
+import { Camera, ImageIcon, Loader2 } from "lucide-react";
+import { useCallback, useState } from "react";
 import {
-  isMobilePhotoCaptureDevice,
+  capturePhotoFromSource,
+  pickCameraPhotoWeb,
+  pickGalleryPhotoWeb,
   type CapturedPhoto,
 } from "@/lib/native-media";
-
-function readFileAsCapturedPhoto(file: File): Promise<CapturedPhoto | null> {
-  return new Promise((resolve) => {
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (typeof reader.result !== "string") {
-        resolve(null);
-        return;
-      }
-      resolve({ dataUrl: reader.result, fileName: file.name });
-    };
-    reader.onerror = () => resolve(null);
-    reader.readAsDataURL(file);
-  });
-}
+import { Capacitor } from "@capacitor/core";
 
 const TILE_BASE =
   "flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl px-2 transition disabled:opacity-50";
+
+const TILE_CAMERA = `${TILE_BASE} border-2 border-dashed border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] text-[var(--vauto-text-main)] hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)]`;
+
+const TILE_GALLERY = `${TILE_BASE} border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] text-[var(--vauto-text-main)] hover:bg-[color-mix(in_srgb,var(--vauto-primary)_6%,transparent)]`;
 
 export interface ImageSearchCaptureProps {
   disabled?: boolean;
@@ -31,80 +24,85 @@ export interface ImageSearchCaptureProps {
 }
 
 /**
- * Photo search capture — label-wrapped file inputs keep the mobile user-gesture chain
- * so capture="environment" opens the rear camera instead of the gallery.
+ * Photo search capture — camera and gallery use isolated handlers.
+ * Native: Capacitor Camera (Camera vs Photos). Web: capture="environment" vs gallery picker.
  */
 export function ImageSearchCapture({
   disabled,
   onCapture,
   replaceMode = false,
 }: ImageSearchCaptureProps) {
-  const mobileCapture = isMobilePhotoCaptureDevice();
-
-  const applyFile = async (file: File | undefined) => {
-    if (!file || disabled) return;
-    const photo = await readFileAsCapturedPhoto(file);
-    if (photo) onCapture(photo);
-  };
+  const [cameraBusy, setCameraBusy] = useState(false);
+  const [galleryBusy, setGalleryBusy] = useState(false);
 
   const cameraLabel = replaceMode ? "Fotografuoti iš naujo" : "Fotografuoti";
   const galleryLabel = replaceMode ? "Kita iš galerijos" : "Galerija";
 
+  const handleCamera = useCallback(() => {
+    if (disabled || cameraBusy) return;
+
+    setCameraBusy(true);
+    void (async () => {
+      try {
+        const photo = Capacitor.isNativePlatform()
+          ? await capturePhotoFromSource("camera")
+          : await pickCameraPhotoWeb();
+        if (photo) onCapture(photo);
+      } finally {
+        setCameraBusy(false);
+      }
+    })();
+  }, [cameraBusy, disabled, onCapture]);
+
+  const handleGallery = useCallback(() => {
+    if (disabled || galleryBusy) return;
+
+    setGalleryBusy(true);
+    void (async () => {
+      try {
+        const photo = Capacitor.isNativePlatform()
+          ? await capturePhotoFromSource("gallery")
+          : await pickGalleryPhotoWeb();
+        if (photo) onCapture(photo);
+      } finally {
+        setGalleryBusy(false);
+      }
+    })();
+  }, [disabled, galleryBusy, onCapture]);
+
   return (
     <>
-      {mobileCapture ? (
-        <label className={`${TILE_BASE} cursor-pointer border-2 border-dashed border-[#00f2fe]/60 bg-[#1e293b] text-[#00f2fe] hover:bg-[#334155] ${disabled ? "pointer-events-none opacity-50" : ""}`}>
-          <input
-            type="file"
-            accept="image/*"
-            capture="environment"
-            disabled={disabled}
-            tabIndex={-1}
-            aria-hidden
-            className="sr-only"
-            onChange={(e) => {
-              void applyFile(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
+      <button
+        type="button"
+        onClick={handleCamera}
+        disabled={disabled || cameraBusy}
+        data-testid="image-search-camera"
+        className={TILE_CAMERA}
+        aria-label={cameraLabel}
+      >
+        {cameraBusy ? (
+          <Loader2 className="h-7 w-7 animate-spin" />
+        ) : (
           <Camera className="h-7 w-7" />
-          <span className="text-center text-xs font-semibold leading-tight">{cameraLabel}</span>
-        </label>
-      ) : (
-        <label className={`${TILE_BASE} cursor-pointer border-2 border-dashed border-[#00f2fe]/60 bg-[#1e293b] text-[#00f2fe] hover:bg-[#334155] ${disabled ? "pointer-events-none opacity-50" : ""}`}>
-          <input
-            type="file"
-            accept="image/*"
-            disabled={disabled}
-            tabIndex={-1}
-            aria-hidden
-            className="sr-only"
-            onChange={(e) => {
-              void applyFile(e.target.files?.[0]);
-              e.target.value = "";
-            }}
-          />
-          <Camera className="h-7 w-7" />
-          <span className="text-center text-xs font-semibold leading-tight">{cameraLabel}</span>
-        </label>
-      )}
+        )}
+        <span className="text-center text-xs font-semibold leading-tight">{cameraLabel}</span>
+      </button>
 
-      <label className={`${TILE_BASE} cursor-pointer border border-slate-600 bg-[#1e293b] text-slate-200 hover:bg-[#334155] ${disabled ? "pointer-events-none opacity-50" : ""}`}>
-        <input
-          type="file"
-          accept="image/*"
-          disabled={disabled}
-          tabIndex={-1}
-          aria-hidden
-          className="sr-only"
-          onChange={(e) => {
-            void applyFile(e.target.files?.[0]);
-            e.target.value = "";
-          }}
-        />
-        <ImageIcon className="h-7 w-7" />
+      <button
+        type="button"
+        onClick={handleGallery}
+        disabled={disabled || galleryBusy}
+        data-testid="image-search-gallery"
+        className={TILE_GALLERY}
+        aria-label={galleryLabel}
+      >
+        {galleryBusy ? (
+          <Loader2 className="h-7 w-7 animate-spin" />
+        ) : (
+          <ImageIcon className="h-7 w-7" />
+        )}
         <span className="text-center text-xs font-semibold leading-tight">{galleryLabel}</span>
-      </label>
+      </button>
     </>
   );
 }
