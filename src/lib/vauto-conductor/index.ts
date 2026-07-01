@@ -8,6 +8,10 @@ const CONDUCTOR_ENABLED =
   typeof process !== "undefined" &&
   process.env.NEXT_PUBLIC_VAUTO_CONDUCTOR === "1";
 
+export function isConductorEnabled(): boolean {
+  return CONDUCTOR_ENABLED;
+}
+
 function logConductor(request: ConductorRequest, result: ConductorResult): ConductorResult {
   if (process.env.NODE_ENV !== "production") {
     console.debug("[VautoConductor]", request.intent, request.source, result.phase, request.payload);
@@ -29,12 +33,23 @@ export async function routeConductorRequest(
   switch (request.intent) {
     case "photo_upload":
     case "barcode_scan":
+      return logConductor(request, {
+        handled: true,
+        phase: "execute",
+        delegated: true,
+        meta: {
+          intent: request.intent,
+          source: request.source,
+          visionPipeline: request.intent === "photo_upload",
+          barcodePipeline: request.intent === "barcode_scan",
+        },
+      });
     case "search_query":
     case "seller_submit":
     case "vehicle_lookup":
       return logConductor(request, {
         handled: true,
-        phase: "route",
+        phase: "execute",
         delegated: true,
         meta: { intent: request.intent, source: request.source },
       });

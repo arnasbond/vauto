@@ -1,4 +1,8 @@
 import { chatJson, hasAiKey } from "../ai/llm-provider.js";
+import { runVisionAntiFraudGuard } from "../ai/vision-anti-fraud.js";
+import {
+  notifySellerListingRejected,
+} from "../push/listing-moderation-notify.js";
 import { adminPatchListing } from "../repository.js";
 import type { ApiListing } from "../types.js";
 import { readConductorLineage } from "./conductor-publish.js";
@@ -23,6 +27,46 @@ function analyzeListingWithRules(listing: ApiListing): ListingAiModerationResult
     return { action: "reject", reason: mod.reason, aiPowered: false };
   }
   return { action: "allow", aiPowered: false };
+}
+
+function mergeModerationResults(
+  primary: ListingAiModerationResult,
+  secondary: ListingAiModerationResult | null
+): ListingAiModerationResult {
+  if (!secondary) return primary;
+  if (primary.action === "reject" || secondary.action === "reject") {
+    return primary.action === "reject" ? primary : secondary;
+  }
+  if (primary.action === "review" || secondary.action === "review") {
+    return primary.action === "review" ? primary : secondary;
+  }
+  return primary;
+}
+
+async function analyzeListingVision(
+  listing: ApiListing
+): Promise<ListingAiModerationResult | null> {
+  const images = listing.image?.trim() ? [listing.image.trim()] : [];
+  if (!images.length) return null;
+  const vision = await runVisionAntiFraudGuard(images, {
+    title: listing.title,
+    category: listing.category,
+  });
+  if (vision.riskScore >= 80) {
+    return {
+      action: "reject",
+      reason: vision.userNotice || "Nuotrauka neatitinka platformos reikalavimų",
+      aiPowered: true,
+    };
+  }
+  if (vision.requiresReview) {
+    return {
+      action: "review",
+      reason: vision.userNotice || "Nuotrauka reikalauja papildomos peržiūros",
+      aiPowered: true,
+    };
+  }
+  return null;
 }
 
 async function analyzeListingWithAi(
@@ -74,21 +118,38 @@ export async function runListingAiModeration(
 ): Promise<ListingAiModerationResult> {
   const rules = analyzeListingWithRules(listing);
   if (rules.action === "reject") return rules;
+
+  let visionResult: ListingAiModerationResult | null = null;
+  if (hasAiKey()) {
+    try {
+      visionResult = await analyzeListingVision(listing);
+      if (visionResult?.action === "reject") return visionResult;
+    } catch (e) {
+      logProductionWarn("listing_ai_moderation", "vision check failed", {
+        listingId: listing.id,
+        error: String(e),
+      });
+    }
+  }
+
   if (!hasAiKey()) {
-    return listing.requiresReview
-      ? { action: "review", aiPowered: false }
-      : rules;
+    return mergeModerationResults(
+      listing.requiresReview ? { action: "review", aiPowered: false } : rules,
+      visionResult
+    );
   }
   try {
-    return await analyzeListingWithAi(listing);
+    const textResult = await analyzeListingWithAi(listing);
+    return mergeModerationResults(textResult, visionResult);
   } catch (e) {
     logProductionWarn("listing_ai_moderation", "AI moderation failed", {
       listingId: listing.id,
       error: String(e),
     });
-    return listing.requiresReview
-      ? { action: "review", aiPowered: false }
-      : rules;
+    return mergeModerationResults(
+      listing.requiresReview ? { action: "review", aiPowered: false } : rules,
+      visionResult
+    );
   }
 }
 
@@ -101,6 +162,7 @@ export function scheduleListingAiModeration(listing: ApiListing): void {
         banned: true,
         requiresReview: false,
       });
+      void notifySellerListingRejected(listing, result.reason);
     } else if (result.action === "review" && !listing.requiresReview) {
       await adminPatchListing(listing.id, { requiresReview: true });
     }

@@ -65,6 +65,11 @@ import {
   productLookupFeatures,
 } from "../product/product-lookup-route.js";
 import { notifyListingMatch } from "../push/web-push.js";
+import {
+  notifySellerListingApproved,
+  notifySellerListingPendingReview,
+  notifySellerListingRejected,
+} from "../push/listing-moderation-notify.js";
 import { scheduleWishlistMatchNotifications } from "../notifications/notifications-service.js";
 import {
   notifyAdminsNewReport,
@@ -415,8 +420,12 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     await insertListing(listing);
     logConductorPublishLineage(listing);
     scheduleListingAiModeration(listing);
-    void notifyListingMatch(listing).catch(() => {});
-    scheduleWishlistMatchNotifications(listing);
+    if (listing.requiresReview) {
+      void notifySellerListingPendingReview(listing).catch(() => {});
+    } else {
+      void notifyListingMatch(listing).catch(() => {});
+      scheduleWishlistMatchNotifications(listing);
+    }
     res.status(201).json(listing);
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -626,8 +635,16 @@ apiRouter.patch("/admin/listings/:id", requireAdmin, async (req, res) => {
       res.status(400).json({ error: "Provide banned, status, and/or requiresReview" });
       return;
     }
+    const existing = await getListingForEmbedding(req.params.id);
     const listing = await adminPatchListing(req.params.id, patch);
     if (!listing) return res.status(404).json({ error: "Not found" });
+    if (existing) {
+      if (existing.requiresReview && !listing.requiresReview && !listing.banned) {
+        void notifySellerListingApproved(listing).catch(() => {});
+      } else if (!existing.banned && listing.banned) {
+        void notifySellerListingRejected(listing).catch(() => {});
+      }
+    }
     res.json(listing);
   } catch (e) {
     res.status(500).json({ error: String(e) });
