@@ -95,7 +95,7 @@ export function AgentChatStrip() {
 
   return (
     <div
-      className="agent-chat-strip relative z-20 mt-3 rounded-2xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-card-bg)] px-3.5 py-3 shadow-sm"
+      className="agent-chat-strip relative z-20 mt-3 mb-[max(0.5rem,env(safe-area-inset-bottom,0px))] rounded-2xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-card-bg)] px-3.5 py-3 shadow-sm"
       aria-live="polite"
       aria-label="VAUTO asistento atsakymas"
     >

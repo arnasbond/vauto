@@ -10,6 +10,12 @@ export const AI_FETCH_TIMEOUT_MS = 12_000;
 /** Vision / large payload calls (Render cold start + Gemini) */
 export const AI_VISION_FETCH_TIMEOUT_MS = 26_000;
 
+/** Barcode / open-data product lookup — fail fast on mobile */
+export const BARCODE_LOOKUP_TIMEOUT_MS = 5_000;
+
+export const SCAN_NOT_RECOGNIZED_MSG =
+  "Kodas arba daiktas neatpažintas. Įveskite informaciją patys, o aš padėsiu sugeneruoti aprašymą!";
+
 /** Shorter budget for local mock extraction only */
 export const AI_MOCK_TIMEOUT_MS = 5000;
 

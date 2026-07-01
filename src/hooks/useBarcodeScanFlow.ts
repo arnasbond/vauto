@@ -8,7 +8,11 @@ import {
   lookupBarcode,
 } from "@/lib/product-intelligence/barcode-lookup";
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
-import { createManualFallbackDraft } from "@/lib/ai-safeguards";
+import {
+  BARCODE_LOOKUP_TIMEOUT_MS,
+  SCAN_NOT_RECOGNIZED_MSG,
+  createManualFallbackDraft,
+} from "@/lib/ai-safeguards";
 
 export function useBarcodeScanFlow() {
   const { applyAgentListingDraft, showToast, user } = useVauto();
@@ -17,7 +21,29 @@ export function useBarcodeScanFlow() {
     async (barcode: string, opts?: { category?: ListingCategory; fashion?: boolean }) => {
       const category: ListingCategory = opts?.category ?? (opts?.fashion ? "clothing" : "other");
 
-      const result = await lookupBarcode(barcode);
+      const result = await Promise.race([
+        lookupBarcode(barcode),
+        new Promise<null>((resolve) =>
+          window.setTimeout(() => resolve(null), BARCODE_LOOKUP_TIMEOUT_MS)
+        ),
+      ]);
+
+      if (!result) {
+        showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
+        applyAgentListingDraft({
+          ...createManualFallbackDraft({
+            location: user.city || "Lietuva",
+            contact: user.phone,
+          }),
+          category,
+          title: opts?.fashion ? "Naujas drabužio skelbimas" : "Naujas skelbimas",
+          description: "",
+          attributes: { barcode },
+          confidence: 0.5,
+        });
+        return;
+      }
+
       if (result?.notFoundInRegistry) {
         showToast(
           result.userMessage ??

@@ -14,7 +14,9 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCard";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
+import type { AiPhotoIntentChoice } from "@/components/photo/AiPhotoFlowSheet";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
+import { SCAN_NOT_RECOGNIZED_MSG } from "@/lib/ai-safeguards";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -39,6 +41,7 @@ export function SellerUploadPanel({
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
+  const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
   const autoOpenedRef = useRef(false);
 
   const legacyBusy = sellerStep !== "idle" && sellerStep !== "published";
@@ -87,8 +90,9 @@ export function SellerUploadPanel({
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
     setPhotoSubmitting(true);
+    setPhotoIntentChoice(null);
     try {
-      const handled = await interceptPhotoUploadForIntent(
+      const intercept = await interceptPhotoUploadForIntent(
         {
           ...result,
           extraContext: [result.extraContext, query.trim()].filter(Boolean).join("\n"),
@@ -96,12 +100,17 @@ export function SellerUploadPanel({
         {
           userCity: user.city,
           userName: user.name,
+          inlineInSheet: true,
           openWithGreeting,
           showToast,
           fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
         }
       );
-      if (!handled) {
+      if (intercept.handled && intercept.inline) {
+        setPhotoIntentChoice(intercept.inline);
+        return;
+      }
+      if (!intercept.handled) {
         await submitSellerContent({
           imageDataUrls: result.photos,
           imageDataUrl: result.photos[0],
@@ -115,6 +124,23 @@ export function SellerUploadPanel({
       setPhotoSubmitting(false);
     }
   };
+
+  const handlePhotoScanTimeout = useCallback(() => {
+    if (!photoSubmitting) return;
+    setPhotoSubmitting(false);
+    showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
+    openWithGreeting(SCAN_NOT_RECOGNIZED_MSG, { openSheet: true });
+  }, [photoSubmitting, showToast, openWithGreeting]);
+
+  const handlePhotoIntentChip = useCallback(
+    (chip: string) => {
+      setPhotoIntentChoice(null);
+      setPhotoFlowOpen(false);
+      setQuery("");
+      void sendAgentMessage(chip, { fromSearchBar: true });
+    },
+    [sendAgentMessage]
+  );
 
   const processing = sellerStep === "processing" || agentBusy;
 
@@ -224,7 +250,13 @@ export function SellerUploadPanel({
         open={photoFlowOpen}
         mode="intent"
         busy={photoSubmitting}
-        onClose={() => setPhotoFlowOpen(false)}
+        intentChoice={photoIntentChoice}
+        onIntentChip={handlePhotoIntentChip}
+        onScanTimeout={handlePhotoScanTimeout}
+        onClose={() => {
+          setPhotoIntentChoice(null);
+          setPhotoFlowOpen(false);
+        }}
         onSubmit={handlePhotoFlowSubmit}
       />
 

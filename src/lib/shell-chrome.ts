@@ -51,9 +51,11 @@ export function resolveShellChrome(opts: {
 
   const contentBottomClass = wizardBubble
     ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
-    : hideBottomNav
-      ? "pb-8"
-      : "pb-28";
+    : opts.agentSheetOpen
+      ? "pb-[calc(7rem+env(safe-area-inset-bottom))]"
+      : hideBottomNav
+        ? "pb-[calc(2rem+env(safe-area-inset-bottom))]"
+        : "pb-28";
 
   return {
     showTopCommand,

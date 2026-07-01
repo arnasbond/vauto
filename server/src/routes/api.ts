@@ -27,6 +27,7 @@ import {
   getServiceLeadsForProvider,
   getUser,
   insertListing,
+  findListingByClientDraftId,
   insertReport,
   insertReview,
   insertServiceLead,
@@ -367,6 +368,17 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     if (!canActForUser(req, listing.sellerId)) {
       res.status(403).json({ error: "Forbidden" });
       return;
+    }
+    const clientDraftId =
+      typeof listing.attributes?.clientDraftId === "string"
+        ? listing.attributes.clientDraftId.trim()
+        : "";
+    if (clientDraftId) {
+      const existing = await findListingByClientDraftId(listing.sellerId, clientDraftId);
+      if (existing) {
+        res.status(200).json(existing);
+        return;
+      }
     }
     await insertListing(listing);
     void notifyListingMatch(listing).catch(() => {});

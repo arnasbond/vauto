@@ -3,8 +3,17 @@
 import { Loader2, Sparkles } from "lucide-react";
 import { createPortal } from "react-dom";
 import { useEffect, useState } from "react";
+import { BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 
-export function PhotoSearchScanOverlay({ active }: { active: boolean }) {
+export function PhotoSearchScanOverlay({
+  active,
+  timeoutMs = BARCODE_LOOKUP_TIMEOUT_MS,
+  onTimeout,
+}: {
+  active: boolean;
+  timeoutMs?: number;
+  onTimeout?: () => void;
+}) {
   const [mounted, setMounted] = useState(false);
 
   useEffect(() => {
@@ -19,6 +28,14 @@ export function PhotoSearchScanOverlay({ active }: { active: boolean }) {
       document.body.style.overflow = prev;
     };
   }, [active]);
+
+  useEffect(() => {
+    if (!active || !onTimeout || timeoutMs <= 0) return;
+    const timer = window.setTimeout(() => {
+      onTimeout();
+    }, timeoutMs);
+    return () => window.clearTimeout(timer);
+  }, [active, onTimeout, timeoutMs]);
 
   if (!active || !mounted) return null;
 

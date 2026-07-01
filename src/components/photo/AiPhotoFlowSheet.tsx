@@ -23,6 +23,11 @@ export interface AiPhotoFlowResult {
   fileName?: string;
 }
 
+export interface AiPhotoIntentChoice {
+  prompt: string;
+  quickReplies: string[];
+}
+
 interface AiPhotoFlowSheetProps {
   open: boolean;
   mode: "search" | "listing" | "intent";
@@ -30,6 +35,9 @@ interface AiPhotoFlowSheetProps {
   onClose: () => void;
   onSubmit: (result: AiPhotoFlowResult) => boolean | void | Promise<boolean | void>;
   busy?: boolean;
+  intentChoice?: AiPhotoIntentChoice | null;
+  onIntentChip?: (chip: string) => void;
+  onScanTimeout?: () => void;
 }
 
 export function AiPhotoFlowSheet({
@@ -39,6 +47,9 @@ export function AiPhotoFlowSheet({
   onClose,
   onSubmit,
   busy = false,
+  intentChoice = null,
+  onIntentChip,
+  onScanTimeout,
 }: AiPhotoFlowSheetProps) {
   const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
   const [extraContext, setExtraContext] = useState("");
@@ -165,12 +176,12 @@ export function AiPhotoFlowSheet({
   const sheet = (
     <>
       <div
-        className="ai-photo-flow-sheet fixed inset-0 z-[9998] flex h-full min-h-screen w-full flex-col overflow-y-auto"
+        className="ai-photo-flow-sheet fixed inset-0 z-[9998] flex max-h-[100dvh] min-h-[100dvh] w-full flex-col"
         role="dialog"
         aria-modal="true"
         aria-label={title}
       >
-        <header className="ai-photo-flow-header sticky top-0 z-10 flex shrink-0 items-center gap-3 border-b px-4 py-3">
+        <header className="ai-photo-flow-header shrink-0 flex items-center gap-3 border-b px-4 py-3">
           <button
             type="button"
             onClick={handleClose}
@@ -185,7 +196,7 @@ export function AiPhotoFlowSheet({
           </h2>
         </header>
 
-        <div className="flex-1 px-4 py-5 pb-28">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-6">
           <p className="mb-3 text-sm font-medium text-[var(--vauto-text-main)]">Nuotraukos</p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -276,7 +287,27 @@ export function AiPhotoFlowSheet({
           />
         </div>
 
-        <div className="ai-photo-flow-footer sticky bottom-0 border-t p-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
+        <div className="ai-photo-flow-footer shrink-0 border-t p-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]">
+          {intentChoice && intentChoice.quickReplies.length > 0 ? (
+            <div className="space-y-3">
+              <p className="text-center text-sm font-medium leading-snug text-[var(--vauto-text-main)]">
+                {intentChoice.prompt}
+              </p>
+              <div className="flex flex-col gap-2">
+                {intentChoice.quickReplies.map((chip) => (
+                  <button
+                    key={chip}
+                    type="button"
+                    onClick={() => onIntentChip?.(chip)}
+                    disabled={busy}
+                    className="flex min-h-[48px] w-full touch-manipulation items-center justify-center rounded-xl border border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_12%,transparent)] px-4 py-3 text-sm font-semibold text-[var(--vauto-text-main)] transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_18%,transparent)] disabled:opacity-50"
+                  >
+                    {chip}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
           <button
             type="button"
             onClick={() => void handleSubmit()}
@@ -290,10 +321,11 @@ export function AiPhotoFlowSheet({
             )}
             {busy ? "Analizuojama…" : ctaLabel}
           </button>
+          )}
         </div>
       </div>
 
-      <PhotoSearchScanOverlay active={busy} />
+      <PhotoSearchScanOverlay active={busy} onTimeout={onScanTimeout} />
     </>
   );
 

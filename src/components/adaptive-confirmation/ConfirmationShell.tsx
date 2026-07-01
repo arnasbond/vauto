@@ -38,6 +38,7 @@ export function ConfirmationShell({
   children,
 }: ConfirmationShellProps) {
   const { chameleonTheme } = useVauto();
+  const { isPublishingListing } = useSellerFlow();
   const theme = getChameleonTheme(chameleonTheme);
   const t = theme.confirmation;
 
@@ -82,14 +83,14 @@ export function ConfirmationShell({
         <button
           type="button"
           onClick={onPublish}
-          disabled={!canPublish}
+          disabled={!canPublish || isPublishingListing}
           className={cn(
             "mt-4 w-full rounded-xl p-3 font-bold transition duration-300",
             t.publishBtn,
             t.publishBtnDisabled
           )}
         >
-          {publishLabel}
+          {isPublishingListing ? "Įkeliama…" : publishLabel}
         </button>
         </div>
     </div>

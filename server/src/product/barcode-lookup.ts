@@ -41,7 +41,7 @@ async function lookupOpenLibrary(barcode: string): Promise<BarcodeLookupResult |
     const isbn = normalizeBarcode(barcode);
     const res = await fetch(
       `https://openlibrary.org/api/books?bibkeys=ISBN:${encodeURIComponent(isbn)}&format=json&jscmd=data`,
-      { signal: AbortSignal.timeout(12_000) }
+      { signal: AbortSignal.timeout(4_000) }
     );
     if (!res.ok) return null;
     const json = (await res.json()) as Record<
@@ -97,7 +97,7 @@ async function lookupOpenBeautyFacts(barcode: string): Promise<BarcodeLookupResu
   try {
     const res = await fetch(
       `https://world.openbeautyfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
-      { signal: AbortSignal.timeout(12_000) }
+      { signal: AbortSignal.timeout(4_000) }
     );
     if (!res.ok) return null;
     const json = (await res.json()) as {
@@ -155,7 +155,7 @@ async function lookupOpenFoodFacts(barcode: string): Promise<BarcodeLookupResult
   try {
     const res = await fetch(
       `https://world.openfoodfacts.org/api/v2/product/${encodeURIComponent(barcode)}.json`,
-      { signal: AbortSignal.timeout(12_000) }
+      { signal: AbortSignal.timeout(4_000) }
     );
     if (!res.ok) return null;
     const json = (await res.json()) as {
@@ -217,7 +217,7 @@ async function lookupUpcItemDb(barcode: string): Promise<BarcodeLookupResult | n
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify({ upc: barcode }),
-      signal: AbortSignal.timeout(12_000),
+      signal: AbortSignal.timeout(4_000),
     });
     if (!res.ok) return null;
     const json = (await res.json()) as {
@@ -275,6 +275,17 @@ function buildUnregistered(barcode: string): BarcodeLookupResult {
 }
 
 export async function lookupBarcodeLive(barcode: string): Promise<BarcodeLookupResult> {
+  const LOOKUP_BUDGET_MS = 5_000;
+  const chain = lookupBarcodeLiveChain(barcode);
+  return Promise.race([
+    chain,
+    new Promise<BarcodeLookupResult>((resolve) => {
+      setTimeout(() => resolve(buildUnregistered(barcode)), LOOKUP_BUDGET_MS);
+    }),
+  ]);
+}
+
+async function lookupBarcodeLiveChain(barcode: string): Promise<BarcodeLookupResult> {
   const kind = classifyBarcode(barcode);
 
   if (kind === "isbn" || isIsbnBarcode(barcode)) {

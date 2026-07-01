@@ -12,6 +12,7 @@ import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
 } from "@/lib/photo-vision-search";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
+import { SCAN_NOT_RECOGNIZED_MSG } from "@/lib/ai-safeguards";
 import {
   clearPhotoSearchSession,
 } from "@/lib/photo-search-session";
@@ -27,6 +28,7 @@ import {
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
+  type AiPhotoIntentChoice,
 } from "@/components/photo/AiPhotoFlowSheet";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
@@ -101,6 +103,7 @@ export function AiCommandBar({
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
+  const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
   const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
   const [previewPulse, setPreviewPulse] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -259,16 +262,22 @@ export function AiCommandBar({
     result: AiPhotoFlowResult
   ): Promise<boolean> => {
     setIsPhotoSearching(true);
+    setPhotoIntentChoice(null);
     try {
-      const handled = await interceptPhotoUploadForIntent(result, {
+      const intercept = await interceptPhotoUploadForIntent(result, {
         userCity: user.city,
         userName: user.name,
         wardrobeOnly: wardrobeSearchOnly,
+        inlineInSheet: true,
         openWithGreeting,
         showToast,
         fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
       });
-      if (handled) {
+      if (intercept.handled && intercept.inline) {
+        setPhotoIntentChoice(intercept.inline);
+        return true;
+      }
+      if (intercept.handled) {
         clearPhotoSearchSession();
         setPhotoFlowOpen(false);
         return true;
@@ -278,6 +287,23 @@ export function AiCommandBar({
       setIsPhotoSearching(false);
     }
   };
+
+  const handlePhotoScanTimeout = useCallback(() => {
+    if (!isPhotoSearching) return;
+    setIsPhotoSearching(false);
+    showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
+    openWithGreeting(SCAN_NOT_RECOGNIZED_MSG, { openSheet: true });
+  }, [isPhotoSearching, showToast, openWithGreeting]);
+
+  const handlePhotoIntentChip = useCallback(
+    (chip: string) => {
+      setPhotoIntentChoice(null);
+      setPhotoFlowOpen(false);
+      clearPhotoSearchSession();
+      void sendAgentMessage(chip, { fromSearchBar: true });
+    },
+    [sendAgentMessage]
+  );
 
   const lastAssistant = useMemo(() => {
     const m = [...messages].reverse().find((x) => x.role === "assistant");
@@ -564,7 +590,13 @@ export function AiCommandBar({
         open={photoFlowOpen}
         mode="intent"
         busy={isPhotoSearching}
-        onClose={() => setPhotoFlowOpen(false)}
+        intentChoice={photoIntentChoice}
+        onIntentChip={handlePhotoIntentChip}
+        onScanTimeout={handlePhotoScanTimeout}
+        onClose={() => {
+          setPhotoIntentChoice(null);
+          setPhotoFlowOpen(false);
+        }}
         onSubmit={handlePhotoFlowSubmit}
       />
     </>

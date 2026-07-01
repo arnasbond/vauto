@@ -1,7 +1,7 @@
 "use client";
 
 import { Barcode, Camera, PenLine, Sparkles } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { AiModeBadge } from "@/components/AiModeBadge";
@@ -10,9 +10,11 @@ import { useBarcodeScanFlow } from "@/hooks/useBarcodeScanFlow";
 import {
   AiPhotoFlowSheet,
   type AiPhotoFlowResult,
+  type AiPhotoIntentChoice,
 } from "@/components/photo/AiPhotoFlowSheet";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
+import { SCAN_NOT_RECOGNIZED_MSG } from "@/lib/ai-safeguards";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 
 export function FashionUploadPanel() {
@@ -30,6 +32,7 @@ export function FashionUploadPanel() {
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
+  const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
 
   const busy = (sellerStep !== "idle" && sellerStep !== "published") || agentBusy;
 
@@ -46,27 +49,50 @@ export function FashionUploadPanel() {
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
     setPhotoSubmitting(true);
+    setPhotoIntentChoice(null);
     try {
-      const handled = await interceptPhotoUploadForIntent(result, {
+      const intercept = await interceptPhotoUploadForIntent(result, {
         userCity: user.city,
         userName: user.name,
+        wardrobeOnly: true,
+        inlineInSheet: true,
         openWithGreeting,
         showToast,
         fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
       });
-      if (!handled) {
+      if (intercept.handled && intercept.inline) {
+        setPhotoIntentChoice(intercept.inline);
+        return;
+      }
+      if (!intercept.handled) {
         await submitSellerContent({
           imageDataUrls: result.photos,
           imageDataUrl: result.photos[0],
           extraContext: result.extraContext || undefined,
         });
+        notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
       }
       setPhotoFlowOpen(false);
-      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
     } finally {
       setPhotoSubmitting(false);
     }
   };
+
+  const handlePhotoScanTimeout = useCallback(() => {
+    if (!photoSubmitting) return;
+    setPhotoSubmitting(false);
+    showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
+    openWithGreeting(SCAN_NOT_RECOGNIZED_MSG, { openSheet: true });
+  }, [photoSubmitting, showToast, openWithGreeting]);
+
+  const handlePhotoIntentChip = useCallback(
+    (chip: string) => {
+      setPhotoIntentChoice(null);
+      setPhotoFlowOpen(false);
+      void sendAgentMessage(chip, { fromSearchBar: true });
+    },
+    [sendAgentMessage]
+  );
 
   return (
     <>
@@ -129,7 +155,13 @@ export function FashionUploadPanel() {
         open={photoFlowOpen}
         mode="intent"
         busy={photoSubmitting}
-        onClose={() => setPhotoFlowOpen(false)}
+        intentChoice={photoIntentChoice}
+        onIntentChip={handlePhotoIntentChip}
+        onScanTimeout={handlePhotoScanTimeout}
+        onClose={() => {
+          setPhotoIntentChoice(null);
+          setPhotoFlowOpen(false);
+        }}
         onSubmit={handlePhotoFlowSubmit}
       />
     </>

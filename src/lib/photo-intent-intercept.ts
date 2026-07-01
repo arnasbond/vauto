@@ -10,6 +10,8 @@ export interface PhotoIntentInterceptContext {
   userCity?: string;
   userName?: string;
   wardrobeOnly?: boolean;
+  /** When true, return chips for inline sheet footer instead of opening agent greeting. */
+  inlineInSheet?: boolean;
   openWithGreeting: (
     text: string,
     options?: {
@@ -22,6 +24,15 @@ export interface PhotoIntentInterceptContext {
   fallbackMessage: string;
 }
 
+export type PhotoIntentInlineResolution = {
+  prompt: string;
+  quickReplies: string[];
+};
+
+export type PhotoIntentInterceptResult =
+  | { handled: false }
+  | { handled: true; inline?: PhotoIntentInlineResolution };
+
 /**
  * v1.6.18 — Intent Interceptor: pipeline + vision, then ask search vs listing.
  * Returns true when handled (greeting shown or multi-object branch).
@@ -29,9 +40,9 @@ export interface PhotoIntentInterceptContext {
 export async function interceptPhotoUploadForIntent(
   result: AiPhotoFlowResult,
   ctx: PhotoIntentInterceptContext
-): Promise<boolean> {
+): Promise<PhotoIntentInterceptResult> {
   const photos = result.photos.filter(Boolean).slice(0, 6);
-  if (!photos[0]) return false;
+  if (!photos[0]) return { handled: false };
 
   let analysis;
   try {
@@ -44,21 +55,30 @@ export async function interceptPhotoUploadForIntent(
     });
   } catch {
     ctx.showToast(ctx.fallbackMessage, "info");
-    return false;
+    return { handled: false };
   }
 
   if (!analysis?.ok) {
     ctx.showToast(ctx.fallbackMessage, "info");
-    return false;
+    return { handled: false };
   }
 
   if (analysis.phase === "multi_object" && (analysis.choiceChips?.length ?? 0) >= 2) {
-    ctx.openWithGreeting(
+    const prompt =
       analysis.clarificationPrompt ||
-        "Nuotraukoje matau kelis objektus. Ką norite daryti?",
-      { quickReplies: analysis.choiceChips, openSheet: true }
-    );
-    return true;
+      "Nuotraukoje matau kelis objektus. Ką norite daryti?";
+    const quickReplies = analysis.choiceChips!.slice(0, 4);
+    if (ctx.inlineInSheet) {
+      setPendingPhotoIntent({
+        photos,
+        extraContext: result.extraContext || undefined,
+        analysis,
+        wardrobeOnly: ctx.wardrobeOnly,
+      });
+      return { handled: true, inline: { prompt, quickReplies } };
+    }
+    ctx.openWithGreeting(prompt, { quickReplies, openSheet: true });
+    return { handled: true };
   }
 
   setPendingPhotoIntent({
@@ -68,14 +88,18 @@ export async function interceptPhotoUploadForIntent(
     wardrobeOnly: ctx.wardrobeOnly,
   });
 
-  ctx.openWithGreeting(
-    buildPhotoIntentPrompt(analysis.objectLabel, analysis.categoryLabel),
-    {
-      quickReplies: [...PHOTO_INTENT_QUICK_REPLIES],
-      isolatedMismatch: true,
-      openSheet: true,
-    }
-  );
+  const prompt = buildPhotoIntentPrompt(analysis.objectLabel, analysis.categoryLabel);
+  const quickReplies = [...PHOTO_INTENT_QUICK_REPLIES];
 
-  return true;
+  if (ctx.inlineInSheet) {
+    return { handled: true, inline: { prompt, quickReplies } };
+  }
+
+  ctx.openWithGreeting(prompt, {
+    quickReplies,
+    isolatedMismatch: true,
+    openSheet: true,
+  });
+
+  return { handled: true };
 }

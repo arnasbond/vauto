@@ -1136,13 +1136,23 @@ export async function apiLookupVehicle(
 export async function apiLookupBarcode(
   identifier: string
 ): Promise<import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult | null> {
-  const r = await dataFetch<
-    import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult
-  >("/api/product/lookup", {
-    method: "POST",
-    body: JSON.stringify({ identifier }),
-  });
-  return r.ok ? r.data : null;
+  const { BARCODE_LOOKUP_TIMEOUT_MS } = await import("@/lib/ai-safeguards");
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), BARCODE_LOOKUP_TIMEOUT_MS);
+  try {
+    const r = await dataFetch<
+      import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult
+    >("/api/product/lookup", {
+      method: "POST",
+      body: JSON.stringify({ identifier }),
+      signal: controller.signal,
+    });
+    return r.ok ? r.data : null;
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 export async function apiScanBarcodeImage(imageDataUrl: string): Promise<string | null> {

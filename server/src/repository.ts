@@ -675,6 +675,23 @@ export async function insertListing(listing: ApiListing): Promise<void> {
     .catch(() => {});
 }
 
+/** Idempotent publish guard — same seller + clientDraftId cannot create duplicates. */
+export async function findListingByClientDraftId(
+  sellerId: string,
+  clientDraftId: string
+): Promise<ApiListing | null> {
+  const rows = await query<ListingRow>(
+    `${LISTING_SELECT}
+     WHERE seller_id = $1
+       AND attributes->>'clientDraftId' = $2
+       AND COALESCE(status, 'active') NOT IN ('deleted')
+     ORDER BY created_at DESC
+     LIMIT 1`,
+    [sellerId, clientDraftId]
+  );
+  return rows[0] ? mapListingRow(rows[0]) : null;
+}
+
 export async function updateListing(
   id: string,
   sellerId: string,

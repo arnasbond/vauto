@@ -19,6 +19,11 @@ import {
   extractFromText,
 } from "@/lib/client-api";
 import { isDuplicateListing } from "@/lib/dedup";
+import {
+  ensureClientDraftId,
+  listingIdFromClientDraftId,
+  readClientDraftId,
+} from "@/lib/listing-draft-id";
 import { moderateListing } from "@/lib/moderation";
 import { compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
 import { distanceToCity, getUserCoords } from "@/lib/geolocation";
@@ -208,6 +213,7 @@ export interface SellerFlowContextValue {
   completeVoiceRecording: (transcript: string | null) => void;
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
+  isPublishingListing: boolean;
   publishListing: () => void;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
@@ -297,6 +303,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     toCategory: ListingCategory;
   } | null>(null);
   const [sellerVisionRecoveryActive, setSellerVisionRecoveryActive] = useState(false);
+  const [isPublishingListing, setIsPublishingListing] = useState(false);
+  const isPublishingRef = useRef(false);
+  const sellerDraftIdRef = useRef<string | null>(null);
   const recoveryImageRef = useRef<string | null>(null);
   const processingEpochRef = useRef(0);
   const categoryMismatchRollbackRef = useRef<{
@@ -367,6 +376,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     clearAllListingDrafts();
     clearPhotoSearchSession();
     clearPendingPhotoIntent();
+    sellerDraftIdRef.current = null;
   }, []);
 
   const finishPublishedFlow = useCallback(() => {
@@ -1022,7 +1032,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       enriched = enrichClothingListingDraft(enriched, sourceText);
       const previousCategory = aiDraftRef.current?.category ?? null;
       const previousAttributes = aiDraftRef.current?.attributes ?? null;
-      setAiDraft(syncDraftWithProfile(finalizeListingDraft(enriched, previousCategory, previousAttributes)));
+      setAiDraft(
+        syncDraftWithProfile(
+          ensureClientDraftId(
+            finalizeListingDraft(enriched, previousCategory, previousAttributes)
+          )
+        )
+      );
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
@@ -1262,6 +1278,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   }, [showToast, syncDraftWithProfile]);
 
   const publishListing = useCallback(async () => {
+    if (isPublishingRef.current) return;
     if (!aiDraft) {
       showToast("Klaida: nėra skelbimo duomenų. Bandykite iš naujo.", "error");
       return;
@@ -1333,6 +1350,43 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
+    isPublishingRef.current = true;
+    setIsPublishingListing(true);
+
+    try {
+    const clientDraftId =
+      sellerDraftIdRef.current ??
+      readClientDraftId(aiDraft.attributes) ??
+      (() => {
+        const id =
+          typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
+            ? crypto.randomUUID()
+            : `draft-${Date.now()}`;
+        sellerDraftIdRef.current = id;
+        return id;
+      })();
+    sellerDraftIdRef.current = clientDraftId;
+
+    const draftWithClientId = ensureClientDraftId({
+      ...aiDraft,
+      attributes: { ...(aiDraft.attributes ?? {}), clientDraftId },
+    });
+    if (readClientDraftId(aiDraft.attributes) !== clientDraftId) {
+      setAiDraft(draftWithClientId);
+    }
+
+    if (
+      clientDraftId &&
+      listings.some(
+        (l) =>
+          l.sellerId === user.id &&
+          readClientDraftId(l.attributes) === clientDraftId
+      )
+    ) {
+      showToast("Šis skelbimas jau publikuotas — atnaujinkite esamą.", "info");
+      return;
+    }
+
     if (editingListingId) {
       const existing = listings.find((l) => l.id === editingListingId);
       if (!existing || existing.sellerId !== user.id) {
@@ -1378,7 +1432,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
-    if (isDuplicateListing(aiDraft.title, user.id, listings)) {
+    if (isDuplicateListing(draftWithClientId.title, user.id, listings)) {
       showToast(
         "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.",
         "error"
@@ -1401,7 +1455,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       (vin ? verifyVin(vin) && aiDraft.isVinVerified !== false : false);
 
     const createdAt = new Date().toISOString();
-    const listingId = `l-${Date.now()}`;
+    const listingId = clientDraftId
+      ? listingIdFromClientDraftId(clientDraftId)
+      : `l-${Date.now()}`;
 
     const [listingImage, extraImages, coords] = await Promise.all([
       prepareListingImageForApi(sellerPreviewImage, listingId),
@@ -1437,8 +1493,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       aiDraft.attributes ?? {}
     );
     const publishTitle = aiDraft.title.trim() || "Skelbimas";
-    const publishContact = resolveDraftContact(aiDraft, user) || user.phone || "";
-    const publishDraft = { ...aiDraft, category: publishCategory, title: publishTitle, contact: publishContact };
+    const publishContact = resolveDraftContact(draftWithClientId, user) || user.phone || "";
+    const publishDraft = {
+      ...draftWithClientId,
+      category: publishCategory,
+      title: publishTitle,
+      contact: publishContact,
+    };
 
     const newListing: Listing = enrichListingCoords({
       id: listingId,
@@ -1452,7 +1513,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       category: publishCategory,
       tags: attributesToTags(publishDraft),
       description: aiDraft.description,
-      attributes: mergeSocialPublishAttributes(aiDraft.attributes, listingSocialPublish),
+      attributes: mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
       status: "active",
       sellerId: user.id,
       createdAt,
@@ -1517,6 +1578,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
     });
     notifyListingPublishComplete(publishCategory, 1);
+    } finally {
+      isPublishingRef.current = false;
+      setIsPublishingListing(false);
+    }
   }, [
     aiDraft,
     sellerPreviewImage,
@@ -1739,6 +1804,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       completeVoiceRecording,
       cancelVoiceRecording,
       updateAiDraft,
+      isPublishingListing,
       publishListing,
       publishBulkClothingListings,
       cancelSellerFlow,
@@ -1780,6 +1846,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       completeVoiceRecording,
       cancelVoiceRecording,
       updateAiDraft,
+      isPublishingListing,
       publishListing,
       publishBulkClothingListings,
       cancelSellerFlow,
