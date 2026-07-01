@@ -590,7 +590,11 @@ export async function apiExtractImage(body: {
   userCity: string;
   contact: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {
-  return aiFetch(
+  const raw = await aiFetch<
+    import("@/lib/types").AiExtractedListing & {
+      visualPipeline?: import("@/lib/visual-pipeline-merge").VisualPipelinePayload;
+    }
+  >(
     "/api/ai/extract-image",
     {
       method: "POST",
@@ -598,6 +602,10 @@ export async function apiExtractImage(body: {
     },
     AI_VISION_FETCH_TIMEOUT_MS
   );
+  if (!raw) return null;
+  const { visualPipeline, ...listing } = raw;
+  const { applyVisualPipelineToDraft } = await import("@/lib/visual-pipeline-merge");
+  return applyVisualPipelineToDraft(listing, visualPipeline);
 }
 
 export async function apiExtractText(body: {
@@ -620,7 +628,11 @@ export async function apiExtractCombined(body: {
   userCity: string;
   contact: string;
 }): Promise<import("@/lib/types").AiExtractedListing | null> {
-  return aiFetch(
+  const raw = await aiFetch<
+    import("@/lib/types").AiExtractedListing & {
+      visualPipeline?: import("@/lib/visual-pipeline-merge").VisualPipelinePayload;
+    }
+  >(
     "/api/ai/extract-combined",
     {
       method: "POST",
@@ -628,6 +640,10 @@ export async function apiExtractCombined(body: {
     },
     AI_VISION_FETCH_TIMEOUT_MS
   );
+  if (!raw) return null;
+  const { visualPipeline, ...listing } = raw;
+  const { applyVisualPipelineToDraft } = await import("@/lib/visual-pipeline-merge");
+  return applyVisualPipelineToDraft(listing, visualPipeline);
 }
 
 export async function apiVisualRank(body: {

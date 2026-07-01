@@ -37,6 +37,13 @@ import {
   resolveNegotiationProfileType,
 } from "../services/ai-negotiator.js";
 import { logProductionError } from "../lib/production-log.js";
+import {
+  imagesAfterPipeline,
+  mergePipelineIntoListingFields,
+  runVisualPipelineForExtract,
+  visualPipelineFeatures,
+  visualPipelineResponseSlice,
+} from "../services/visual-pipeline.js";
 import { VOICE_SECRETARY_PERSONA } from "../ai/secretary-persona.js";
 import {
   isTooShortSecretaryQuery,
@@ -55,7 +62,36 @@ aiRouter.get("/health", (_req, res) => {
     gemini: provider !== null,
     provider,
     mode: provider ?? "demo",
+    visualPipeline: visualPipelineFeatures(),
   });
+});
+
+aiRouter.post("/visual-pipeline", async (req, res) => {
+  const { imageDataUrl, imageDataUrls, category, listingTitle } = req.body as {
+    imageDataUrl?: string;
+    imageDataUrls?: string[];
+    category?: string;
+    listingTitle?: string;
+  };
+  const images = normalizeImageInputList(
+    Array.isArray(imageDataUrls) && imageDataUrls.length
+      ? imageDataUrls
+      : imageDataUrl
+        ? [imageDataUrl]
+        : []
+  );
+  if (!images.length) {
+    return res.status(400).json({ error: "imageDataUrl is required" });
+  }
+  try {
+    const pipeline = await runVisualPipelineForExtract(images, {
+      category,
+      listingTitle,
+    });
+    res.json({ ok: true, ...visualPipelineResponseSlice(pipeline) });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
 });
 
 const EXTRACTION_SCHEMA = `{
@@ -129,11 +165,20 @@ aiRouter.post("/extract-image", async (req, res) => {
     : "";
 
   try {
+    const pipeline = await runVisualPipelineForExtract(images, {
+      listingTitle: extraContext?.trim(),
+    });
+    const visionImages = imagesAfterPipeline(pipeline, images);
     const raw = await visionExtractJson(
       `Ištrauk skelbimo duomenis iš nuotraukos taip, kad vartotojas galėtų iškart rasti panašią prekę arba publikuoti skelbimą. ${VEHICLE_VISION_RULES} Atpažink tiksliai pagrindinį objektą — category ir title turi atitikti tai, ką realiai matai. Kaina EUR.${imageCountNote}${contextNote} JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
-      images
+      visionImages
     );
-    res.json(toListing(raw, city, phone));
+    const listing = toListing(raw, city, phone);
+    mergePipelineIntoListingFields(listing, pipeline);
+    res.json({
+      ...listing,
+      visualPipeline: visualPipelineResponseSlice(pipeline),
+    });
   } catch (e) {
     const message = e instanceof Error ? e.message : String(e);
     const status = /invalid image|required|decode/i.test(message) ? 400 : 500;
@@ -691,11 +736,20 @@ aiRouter.post("/extract-combined", async (req, res) => {
       : "";
 
   try {
+    const pipeline = await runVisualPipelineForExtract(images, {
+      listingTitle: transcript.slice(0, 120),
+    });
+    const visionImages = imagesAfterPipeline(pipeline, images);
     const raw = await visionExtractJson(
       `Ištrauk skelbimo duomenis iš nuotraukos IR vartotojo balso/teksto aprašymo vienu kartu. ${VEHICLE_VISION_RULES} Tekstas turi prioritetą kainai, vietai ir detalėms; nuotrauka — objekto atpažinimui ir kategorijai.${imageCountNote} Vartotojo aprašymas: "${transcript}" JSON: ${EXTRACTION_SCHEMA}. Miestas: ${city}`,
-      images
+      visionImages
     );
-    res.json(toListing(raw, city, phone));
+    const listing = toListing(raw, city, phone);
+    mergePipelineIntoListingFields(listing, pipeline);
+    res.json({
+      ...listing,
+      visualPipeline: visualPipelineResponseSlice(pipeline),
+    });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

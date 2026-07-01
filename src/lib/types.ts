@@ -118,6 +118,14 @@ export interface AiExtractedListing {
   choiceChips?: string[];
   clarificationPrompt?: string;
   semanticAlternatives?: string[];
+  /** Visual AI Pipeline (v1.6.17) — smart-sorted gallery order */
+  orderedImageUrls?: string[];
+  coverImageId?: string;
+  conversationalHints?: {
+    hasVisibleDefects: boolean;
+    assistantPrompt?: string;
+    isDamageVerified?: boolean;
+  };
 }
 
 /** Seller flow states */

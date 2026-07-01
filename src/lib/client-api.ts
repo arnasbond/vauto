@@ -64,7 +64,7 @@ async function tryUnifiedExtract(
       contact,
     });
     if (res && "listing" in res)
-      return mapVautoServerListing(res.listing, city);
+      return mapVautoServerListing(res.listing, city, res.visualPipeline);
   }
 
   if (mode === "image" && images[0]) {
@@ -77,7 +77,7 @@ async function tryUnifiedExtract(
       contact,
     });
     if (res && "listing" in res)
-      return mapVautoServerListing(res.listing, city);
+      return mapVautoServerListing(res.listing, city, res.visualPipeline);
   }
 
   if (mode === "combined" && images[0] && text) {
@@ -91,7 +91,7 @@ async function tryUnifiedExtract(
       contact,
     });
     if (res && "listing" in res)
-      return mapVautoServerListing(res.listing, city);
+      return mapVautoServerListing(res.listing, city, res.visualPipeline);
   }
 
   return null;

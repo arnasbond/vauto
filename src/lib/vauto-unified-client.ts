@@ -3,6 +3,8 @@ import { resolveListingCity } from "@/lib/city-resolve";
 import {
   extractVisionChoiceChips,
 } from "@/lib/vision-choice-chips";
+import type { VisualPipelinePayload } from "@/lib/visual-pipeline-merge";
+import { applyVisualPipelineToDraft } from "@/lib/visual-pipeline-merge";
 
 export type VautoServerAction =
   | "parse_text"
@@ -50,6 +52,7 @@ export interface VautoServerParseResponse {
     riskScore: number;
     userNotice: string;
   };
+  visualPipeline?: VisualPipelinePayload;
 }
 
 export interface VautoServerUploadResponse {
@@ -74,7 +77,8 @@ const VALID_CATEGORIES: ListingCategory[] = [
 /** Map unified server listing → existing AiExtractedListing for confirmation UI */
 export function mapVautoServerListing(
   listing: VautoServerListingPayload,
-  fallbackCity = "Vilnius"
+  fallbackCity = "Vilnius",
+  visualPipeline?: VisualPipelinePayload | null
 ): AiExtractedListing {
   const category = VALID_CATEGORIES.includes(listing.category as ListingCategory)
     ? (listing.category as ListingCategory)
@@ -99,21 +103,24 @@ export function mapVautoServerListing(
     delete attrs.choiceChips;
   }
 
-  return {
-    title: listing.title,
-    price: listing.price,
-    location: resolveListingCity(listing.location, fallbackCity),
-    contact: listing.contact,
-    category,
-    description: listing.description,
-    confidence: listing.confidence,
-    attributes: attrs,
-    isVerified: listing.isVerified ?? true,
-    requiresReview: listing.requiresReview ?? false,
-    reviewNotice: listing.reviewNotice,
-    imageAlt,
-    imageTitle,
-    choiceChips: choiceChips.length ? choiceChips : undefined,
-    clarificationPrompt,
-  };
+  return applyVisualPipelineToDraft(
+    {
+      title: listing.title,
+      price: listing.price,
+      location: resolveListingCity(listing.location, fallbackCity),
+      contact: listing.contact,
+      category,
+      description: listing.description,
+      confidence: listing.confidence,
+      attributes: attrs,
+      isVerified: listing.isVerified ?? true,
+      requiresReview: listing.requiresReview ?? false,
+      reviewNotice: listing.reviewNotice,
+      imageAlt,
+      imageTitle,
+      choiceChips: choiceChips.length ? choiceChips : undefined,
+      clarificationPrompt,
+    },
+    visualPipeline
+  );
 }

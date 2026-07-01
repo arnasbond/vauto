@@ -132,6 +132,7 @@ import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
 import { applyProfileToListingDraft, resolveDraftContact } from "@/lib/profile-listing-sync";
+import { resolveSellerGalleryImages } from "@/lib/visual-pipeline-merge";
 import type {
   AiExtractedListing,
   Listing,
@@ -185,6 +186,8 @@ export interface SellerFlowContextValue {
   aiDraft: AiExtractedListing | null;
   aiManualFallback: boolean;
   sellerPreviewImage: string | null;
+  /** Smart-sorted gallery from Visual AI Pipeline (v1.6.17). */
+  sellerPreviewImages: string[];
   sellerVideoUrl: string;
   updateSellerMedia: (patch: {
     imageDataUrl?: string | null;
@@ -264,6 +267,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [aiDraft, setAiDraft] = useState<AiExtractedListing | null>(null);
   const [aiManualFallback, setAiManualFallback] = useState(false);
   const [sellerPreviewImage, setSellerPreviewImage] = useState<string | null>(null);
+  const [sellerPreviewImages, setSellerPreviewImages] = useState<string[]>([]);
   const [sellerVideoUrl, setSellerVideoUrl] = useState("");
   const [sellerHasVideo, setSellerHasVideo] = useState(false);
   const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(null);
@@ -330,6 +334,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setAiDraft(null);
     setAiManualFallback(false);
     setSellerPreviewImage(null);
+    setSellerPreviewImages([]);
     setSellerVideoUrl("");
     setSellerHasVideo(false);
     setLastPublishedListing(null);
@@ -642,6 +647,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
         if (isProcessingStale(epoch)) return;
 
+        const galleryImages = resolveSellerGalleryImages(
+          { orderedImageUrls: next.orderedImageUrls },
+          opts?.previewImages?.length
+            ? opts.previewImages
+            : opts?.previewImage
+              ? [opts.previewImage]
+              : []
+        );
+        if (galleryImages.length) {
+          setSellerPreviewImages(galleryImages);
+          setSellerPreviewImage(galleryImages[0] ?? null);
+        }
+
         const previousDraft = aiDraftRef.current;
         const previousCategory = previousDraft?.category ?? null;
         const previousAttributes = previousDraft?.attributes ?? null;
@@ -710,6 +728,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         }
 
         setSellerStep("confirmation");
+
+        if (
+          finalized.conversationalHints?.hasVisibleDefects &&
+          finalized.conversationalHints.assistantPrompt?.trim()
+        ) {
+          pushAgentGreeting(finalized.conversationalHints.assistantPrompt.trim(), {
+            quickReplies: ["Taip, įtrauk", "Ne, praleisti"],
+          });
+        }
 
         if (next.requiresReview && next.reviewNotice?.trim()) {
           showToast(next.reviewNotice.trim(), "info");
@@ -1213,11 +1240,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const createdAt = new Date().toISOString();
     const listingId = `l-${Date.now()}`;
 
-    const [listingImage, coords] = await Promise.all([
+    const [listingImage, extraImages, coords] = await Promise.all([
       prepareListingImageForApi(sellerPreviewImage, listingId),
+      sellerPreviewImages.length > 1
+        ? Promise.all(
+            sellerPreviewImages.slice(1).map((src) => prepareListingImageForApi(src, listingId))
+          )
+        : Promise.resolve([] as (string | null)[]),
       coordsPromise,
     ]);
-    if (!listingImage) {
+    const galleryImages = [
+      listingImage,
+      ...extraImages.filter((img): img is string => Boolean(img)),
+    ].filter((img): img is string => Boolean(img));
+    if (!galleryImages.length) {
       showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
       return;
     }
@@ -1249,7 +1285,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       location: listingCity,
       distanceKm: distKm,
       slug: generateListingSlug(publishTitle, listingCity),
-      images: [listingImage],
+      images: galleryImages,
       category: publishCategory,
       tags: attributesToTags(publishDraft),
       description: aiDraft.description,
@@ -1321,6 +1357,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   }, [
     aiDraft,
     sellerPreviewImage,
+    sellerPreviewImages,
     sellerHasVideo,
     user,
     listings,
@@ -1531,6 +1568,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       aiDraft,
       aiManualFallback,
       sellerPreviewImage,
+      sellerPreviewImages,
       sellerVideoUrl,
       updateSellerMedia,
       startUploadFlow,
@@ -1569,6 +1607,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       aiDraft,
       aiManualFallback,
       sellerPreviewImage,
+      sellerPreviewImages,
       sellerVideoUrl,
       updateSellerMedia,
       startUploadFlow,

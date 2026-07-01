@@ -14,6 +14,12 @@ import {
   parseDetectedObjects,
 } from "./vision-multi-object.js";
 import { STRUCTURED_INPUT_VISION_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
+import {
+  imagesAfterPipeline,
+  mergePipelineIntoListingFields,
+  runVisualPipelineForExtract,
+  visualPipelineResponseSlice,
+} from "../services/visual-pipeline.js";
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -266,14 +272,19 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
     }
     const combinedText = body.text?.trim() ?? "";
+    const pipeline = await runVisualPipelineForExtract(images, {
+      listingTitle: combinedText || body.extraContext?.trim(),
+    });
+    const visionImages = imagesAfterPipeline(pipeline, images);
     const rawParsed = await unifiedLlmJson({
       prompt: buildImagePrompt(city, body.text, body.extraContext),
-      imageDataUrls: images,
+      imageDataUrls: visionImages,
     });
     const raw = combinedText
       ? enrichSellerListingFromText(combinedText, rawParsed)
       : rawParsed;
     const listing = toListingPayload(raw, city, contact);
+    mergePipelineIntoListingFields(listing, pipeline);
 
     const [visualSeo, antiFraud] = await Promise.all([
       generateImageMetadata({
@@ -281,13 +292,13 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
         category: listing.category,
         city: listing.location,
         attributes: listing.attributes as Record<string, unknown>,
-        imageDataUrl: images[0],
+        imageDataUrl: visionImages[0],
       }).catch(() => ({
         alt: listing.title,
         title: listing.title,
         description: listing.description,
       })),
-      runVisionAntiFraudGuard(images, {
+      runVisionAntiFraudGuard(visionImages, {
         title: listing.title,
         category: listing.category,
       }),
@@ -313,6 +324,7 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       listing,
       visualSeo,
       antiFraud,
+      visualPipeline: visualPipelineResponseSlice(pipeline),
     };
   }
 
