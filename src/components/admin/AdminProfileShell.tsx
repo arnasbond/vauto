@@ -1,6 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useState } from "react";
+import { Suspense, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { ChevronDown, Pencil, Sparkles } from "lucide-react";
@@ -12,6 +12,7 @@ import {
   ADMIN_GEMINI_BUILD,
   AdminGeminiUploadPanel,
 } from "@/components/admin/AdminGeminiUploadPanel";
+import { useVauto } from "@/context/VautoContext";
 import { useAdminProjectContext } from "@/context/AdminProjectContext";
 import { useAuth } from "@/context/AuthContext";
 
@@ -40,7 +41,13 @@ export function AdminProfileShell() {
   const [tab, setTab] = useState<AdminTab>(initialTab);
   const [geminiCollapsed, setGeminiCollapsed] = useState(false);
   const { logout } = useAuth();
+  const { listings } = useVauto();
   const geminiCtx = useAdminProjectContext();
+
+  const pendingReviewCount = useMemo(
+    () => listings.filter((l) => l.requiresReview && !l.banned).length,
+    [listings]
+  );
 
   useEffect(() => {
     const fromUrl = parseAdminTab(searchParams.get("tab"));
@@ -141,6 +148,11 @@ export function AdminProfileShell() {
               >
                 <span className="sm:hidden">{item.shortLabel}</span>
                 <span className="hidden sm:inline">{item.label}</span>
+                {item.id === "listings" && pendingReviewCount > 0 ? (
+                  <span className="ml-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
+                    {pendingReviewCount}
+                  </span>
+                ) : null}
               </button>
             ))}
           </div>

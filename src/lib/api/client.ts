@@ -460,7 +460,7 @@ export async function apiSetBannedUsers(
 
 export async function apiAdminModerateListing(
   id: string,
-  patch: { banned?: boolean; status?: Listing["status"] }
+  patch: { banned?: boolean; status?: Listing["status"]; requiresReview?: boolean }
 ): Promise<ApiResult<Listing>> {
   return dataFetch<Listing>(`/api/admin/listings/${id}`, {
     method: "PATCH",

@@ -152,7 +152,7 @@ test.describe("Vauto smoke", () => {
     await expect(
       page.getByPlaceholder(/Ieškoti pagal pavadinimą, miestą, pardavėją/i)
     ).toBeVisible();
-    await expect(page.getByRole("button", { name: /Visi/i })).toBeVisible();
+    await expect(page.getByRole("button", { name: /Peržiūra/i })).toBeVisible();
   });
 
   test("AI agent opens from FAB on profile", async ({ page }) => {

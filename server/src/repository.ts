@@ -780,7 +780,7 @@ export async function updateListing(
 /** Admin-only patch — does not require seller_id match. */
 export async function adminPatchListing(
   id: string,
-  patch: Partial<Pick<ApiListing, "banned" | "status">>
+  patch: Partial<Pick<ApiListing, "banned" | "status" | "requiresReview">>
 ): Promise<ApiListing | null> {
   const rows = await query<{ id: string }>(
     "SELECT id FROM listings WHERE id = $1",
@@ -799,6 +799,7 @@ export async function adminPatchListing(
 
   if (patch.banned !== undefined) set("banned", patch.banned);
   if (patch.status !== undefined) set("status", patch.status);
+  if (patch.requiresReview !== undefined) set("requires_review", patch.requiresReview);
 
   if (fields.length === 0) {
     const all = await getListings();

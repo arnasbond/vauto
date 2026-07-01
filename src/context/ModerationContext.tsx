@@ -71,6 +71,8 @@ export interface ModerationContextValue {
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
   setListingBanned: (listingId: string, banned: boolean) => void;
+  setListingRequiresReview: (listingId: string, requiresReview: boolean) => void;
+  resolveListingReview: (listingId: string, action: "approve" | "reject") => void;
   setSellerBanned: (sellerId: string, banned: boolean) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
   replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
@@ -89,6 +91,7 @@ export interface ModerationDeps {
   onBanListing: (listingId: string) => void;
   onBanSeller: (sellerId: string) => void;
   onSetListingBanned: (listingId: string, banned: boolean) => void;
+  onSetListingRequiresReview: (listingId: string, requiresReview: boolean) => void;
   setSyncError: (msg: string | null) => void;
   showToast: (
     message: string,
@@ -630,6 +633,49 @@ export function ModerationProvider({
     [canUseAdminApi]
   );
 
+  const setListingRequiresReview = useCallback(
+    (listingId: string, requiresReview: boolean) => {
+      depsRef.current.onSetListingRequiresReview(listingId, requiresReview);
+      if (canUseAdminApi) {
+        void apiAdminModerateListing(listingId, { requiresReview }).then((r) => {
+          if (!r.ok) {
+            depsRef.current.setSyncError(`Nepavyko atnaujinti peržiūros: ${r.error}`);
+          }
+        });
+      }
+      depsRef.current.showToast(
+        requiresReview
+          ? "Skelbimas pažymėtas peržiūrai"
+          : "Skelbimas patvirtintas — rodomas viešai",
+        "success"
+      );
+    },
+    [canUseAdminApi]
+  );
+
+  const resolveListingReview = useCallback(
+    (listingId: string, action: "approve" | "reject") => {
+      if (action === "approve") {
+        setListingRequiresReview(listingId, false);
+        return;
+      }
+      depsRef.current.onSetListingRequiresReview(listingId, false);
+      depsRef.current.onSetListingBanned(listingId, true);
+      if (canUseAdminApi) {
+        void apiAdminModerateListing(listingId, {
+          requiresReview: false,
+          banned: true,
+        }).then((r) => {
+          if (!r.ok) {
+            depsRef.current.setSyncError(`Nepavyko atmesti skelbimo: ${r.error}`);
+          }
+        });
+      }
+      depsRef.current.showToast("Skelbimas atmestas ir užblokuotas", "success");
+    },
+    [canUseAdminApi, setListingRequiresReview]
+  );
+
   const setSellerBanned = useCallback(
     (sellerId: string, banned: boolean) => {
       if (banned) {
@@ -683,6 +729,8 @@ export function ModerationProvider({
       warnFromReport,
       banFromReport,
       setListingBanned,
+      setListingRequiresReview,
+      resolveListingReview,
       setSellerBanned,
       resolveReport,
       replyToReport,
@@ -703,6 +751,8 @@ export function ModerationProvider({
       warnFromReport,
       banFromReport,
       setListingBanned,
+      setListingRequiresReview,
+      resolveListingReview,
       setSellerBanned,
       resolveReport,
       replyToReport,

@@ -353,6 +353,8 @@ interface VautoContextValue {
   warnFromReport: (reportId: string) => void;
   banFromReport: (reportId: string) => void;
   setListingBanned: (listingId: string, banned: boolean) => void;
+  setListingRequiresReview: (listingId: string, requiresReview: boolean) => void;
+  resolveListingReview: (listingId: string, action: "approve" | "reject") => void;
   setSellerBanned: (sellerId: string, banned: boolean) => void;
   resolveReport: (reportId: string, status: ReportStatus) => void;
   replyToReport: (reportId: string, text: string, options?: { auto?: boolean }) => void;
@@ -453,6 +455,8 @@ type VautoCatalogSlice = Omit<
   | "warnFromReport"
   | "banFromReport"
   | "setListingBanned"
+  | "setListingRequiresReview"
+  | "resolveListingReview"
   | "setSellerBanned"
   | "resolveReport"
   | "replyToReport"
@@ -594,6 +598,7 @@ function VautoFacade({
       catalog.listings.filter(
         (l) =>
           !l.banned &&
+          !l.requiresReview &&
           !moderation.bannedUserIds.has(l.sellerId) &&
           (!l.isDemo || shouldShowDemoCatalog())
       ),
@@ -1908,6 +1913,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     }
   }, []);
 
+  const onSetListingRequiresReview = useCallback(
+    (listingId: string, requiresReview: boolean) => {
+      setListings((prev) =>
+        prev.map((l) => (l.id === listingId ? { ...l, requiresReview } : l))
+      );
+    },
+    []
+  );
+
   const onBanSeller = useCallback((sellerId: string) => {
     setListings((prev) =>
       prev.map((l) => (l.sellerId === sellerId ? { ...l, banned: true } : l))
@@ -2166,6 +2180,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       onBanListing,
       onBanSeller,
       onSetListingBanned,
+      onSetListingRequiresReview,
       setSyncError,
       showToast,
       patchAuthUser,
@@ -2173,7 +2188,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       onNewAdminReport: handleNewAdminReport,
       onNewUserReportReply: handleNewUserReportReply,
     }),
-    [onBanListing, onBanSeller, onSetListingBanned, showToast, patchAuthUser, isAdmin, handleNewAdminReport, handleNewUserReportReply]
+    [onBanListing, onBanSeller, onSetListingBanned, onSetListingRequiresReview, showToast, patchAuthUser, isAdmin, handleNewAdminReport, handleNewUserReportReply]
   );
 
   const pushAlertsDeps = useMemo<PushAlertsDeps>(

@@ -595,11 +595,14 @@ apiRouter.patch("/admin/listings/:id", requireAdmin, async (req, res) => {
   try {
     const parsed = validateListingPatch(req.body);
     if (badRequest(res, parsed)) return;
-    const patch: Partial<{ banned: boolean; status: string }> = {};
+    const patch: Partial<{ banned: boolean; status: string; requiresReview: boolean }> = {};
     if (parsed.value.banned !== undefined) patch.banned = parsed.value.banned;
     if (parsed.value.status !== undefined) patch.status = parsed.value.status;
+    if (parsed.value.requiresReview !== undefined) {
+      patch.requiresReview = parsed.value.requiresReview;
+    }
     if (Object.keys(patch).length === 0) {
-      res.status(400).json({ error: "Provide banned and/or status" });
+      res.status(400).json({ error: "Provide banned, status, and/or requiresReview" });
       return;
     }
     const listing = await adminPatchListing(req.params.id, patch);
