@@ -196,7 +196,7 @@ export function AiPhotoFlowSheet({
           </h2>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-6">
+        <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-32">
           <p className="mb-3 text-sm font-medium text-[var(--vauto-text-main)]">Nuotraukos</p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -287,7 +287,7 @@ export function AiPhotoFlowSheet({
           />
         </div>
 
-        <div className="ai-photo-flow-footer shrink-0 border-t p-4 pb-[max(1.25rem,env(safe-area-inset-bottom,0px))]">
+        <div className="ai-photo-flow-footer shrink-0 border-t p-4 pb-[max(8rem,env(safe-area-inset-bottom,0px))]">
           {intentChoice && intentChoice.quickReplies.length > 0 ? (
             <div className="space-y-3">
               <p className="text-center text-sm font-medium leading-snug text-[var(--vauto-text-main)]">

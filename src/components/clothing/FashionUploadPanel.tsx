@@ -1,7 +1,7 @@
 "use client";
 
 import { Barcode, Camera, PenLine, Sparkles } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useRef, useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { AiModeBadge } from "@/components/AiModeBadge";
@@ -14,7 +14,7 @@ import {
 } from "@/components/photo/AiPhotoFlowSheet";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
-import { SCAN_NOT_RECOGNIZED_MSG } from "@/lib/ai-safeguards";
+import { AI_SCAN_SOFT_HANDOFF_MSG } from "@/lib/ai-safeguards";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 
 export function FashionUploadPanel() {
@@ -33,6 +33,8 @@ export function FashionUploadPanel() {
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
   const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
+  const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
+  const photoScanTimedOutRef = useRef(false);
 
   const busy = (sellerStep !== "idle" && sellerStep !== "published") || agentBusy;
 
@@ -48,6 +50,8 @@ export function FashionUploadPanel() {
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
+    pendingPhotoSubmitRef.current = result;
+    photoScanTimedOutRef.current = false;
     setPhotoSubmitting(true);
     setPhotoIntentChoice(null);
     try {
@@ -60,6 +64,7 @@ export function FashionUploadPanel() {
         showToast,
         fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
       });
+      if (photoScanTimedOutRef.current) return;
       if (intercept.handled && intercept.inline) {
         setPhotoIntentChoice(intercept.inline);
         return;
@@ -74,16 +79,31 @@ export function FashionUploadPanel() {
       }
       setPhotoFlowOpen(false);
     } finally {
-      setPhotoSubmitting(false);
+      if (!photoScanTimedOutRef.current) {
+        setPhotoSubmitting(false);
+        pendingPhotoSubmitRef.current = null;
+      }
     }
   };
 
   const handlePhotoScanTimeout = useCallback(() => {
     if (!photoSubmitting) return;
+    const pending = pendingPhotoSubmitRef.current;
+    photoScanTimedOutRef.current = true;
     setPhotoSubmitting(false);
-    showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
-    openWithGreeting(SCAN_NOT_RECOGNIZED_MSG, { openSheet: true });
-  }, [photoSubmitting, showToast, openWithGreeting]);
+    pendingPhotoSubmitRef.current = null;
+    setPhotoIntentChoice(null);
+    setPhotoFlowOpen(false);
+    if (pending?.photos[0]) {
+      openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
+      void submitSellerContent({
+        imageDataUrls: pending.photos,
+        imageDataUrl: pending.photos[0],
+        extraContext: pending.extraContext || undefined,
+      });
+      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
+    }
+  }, [photoSubmitting, openWithGreeting, submitSellerContent]);
 
   const handlePhotoIntentChip = useCallback(
     (chip: string) => {

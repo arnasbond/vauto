@@ -17,6 +17,7 @@ import {
   type BuddyState,
 } from "@/lib/buddy-voice";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 import { isPhotoCategoryMismatchPrompt } from "@/lib/seller-photo-category-mismatch";
@@ -67,6 +68,7 @@ export function ConversationalReport({
   children,
 }: ConversationalReportProps) {
   const { chameleonTheme } = useVauto();
+  const { isPublishingListing } = useSellerFlow();
   const theme = getChameleonTheme(chameleonTheme);
   const t = theme.confirmation;
   const classic = theme.classicLayout;
@@ -345,7 +347,7 @@ export function ConversationalReport({
         <button
           type="button"
           onClick={onPublish}
-          disabled={!canPublish}
+          disabled={!canPublish || isPublishingListing}
           className={cn(
             "w-full min-h-[56px] rounded-2xl text-lg font-bold transition duration-300",
             classic && chameleonTheme === "skelbiu" && "min-h-[60px] rounded-lg",
@@ -354,7 +356,7 @@ export function ConversationalReport({
             t.publishBtnDisabled
           )}
         >
-          {publishLabel}
+          {isPublishingListing ? "Įkeliama…" : publishLabel}
         </button>
       </div>
     </div>

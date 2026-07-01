@@ -16,7 +16,7 @@ import { QuickImportFromUrlCard } from "@/components/seller/QuickImportFromUrlCa
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
 import type { AiPhotoIntentChoice } from "@/components/photo/AiPhotoFlowSheet";
 import { PHOTO_SEARCH_FALLBACK_MESSAGE } from "@/lib/photo-vision-search";
-import { SCAN_NOT_RECOGNIZED_MSG } from "@/lib/ai-safeguards";
+import { AI_SCAN_SOFT_HANDOFF_MSG } from "@/lib/ai-safeguards";
 
 export function SellerUploadPanel({
   autoOpenPhotoFlow = false,
@@ -42,6 +42,8 @@ export function SellerUploadPanel({
   const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [photoSubmitting, setPhotoSubmitting] = useState(false);
   const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
+  const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
+  const photoScanTimedOutRef = useRef(false);
   const autoOpenedRef = useRef(false);
 
   const legacyBusy = sellerStep !== "idle" && sellerStep !== "published";
@@ -89,6 +91,8 @@ export function SellerUploadPanel({
   };
 
   const handlePhotoFlowSubmit = async (result: AiPhotoFlowResult) => {
+    pendingPhotoSubmitRef.current = result;
+    photoScanTimedOutRef.current = false;
     setPhotoSubmitting(true);
     setPhotoIntentChoice(null);
     try {
@@ -106,6 +110,7 @@ export function SellerUploadPanel({
           fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
         }
       );
+      if (photoScanTimedOutRef.current) return;
       if (intercept.handled && intercept.inline) {
         setPhotoIntentChoice(intercept.inline);
         return;
@@ -121,16 +126,32 @@ export function SellerUploadPanel({
       setQuery("");
       setPhotoFlowOpen(false);
     } finally {
-      setPhotoSubmitting(false);
+      if (!photoScanTimedOutRef.current) {
+        setPhotoSubmitting(false);
+        pendingPhotoSubmitRef.current = null;
+      }
     }
   };
 
   const handlePhotoScanTimeout = useCallback(() => {
     if (!photoSubmitting) return;
+    const pending = pendingPhotoSubmitRef.current;
+    photoScanTimedOutRef.current = true;
     setPhotoSubmitting(false);
-    showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
-    openWithGreeting(SCAN_NOT_RECOGNIZED_MSG, { openSheet: true });
-  }, [photoSubmitting, showToast, openWithGreeting]);
+    pendingPhotoSubmitRef.current = null;
+    setPhotoIntentChoice(null);
+    setPhotoFlowOpen(false);
+    if (pending?.photos[0]) {
+      openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
+      void submitSellerContent({
+        imageDataUrls: pending.photos,
+        imageDataUrl: pending.photos[0],
+        extraContext: pending.extraContext || undefined,
+        text: query.trim() || undefined,
+      });
+      setQuery("");
+    }
+  }, [photoSubmitting, openWithGreeting, submitSellerContent, query]);
 
   const handlePhotoIntentChip = useCallback(
     (chip: string) => {

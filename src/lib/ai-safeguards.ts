@@ -16,6 +16,10 @@ export const BARCODE_LOOKUP_TIMEOUT_MS = 5_000;
 export const SCAN_NOT_RECOGNIZED_MSG =
   "Kodas arba daiktas neatpažintas. Įveskite informaciją patys, o aš padėsiu sugeneruoti aprašymą!";
 
+/** Soft handoff when external DB lookup times out — never blocks the AI flow */
+export const AI_SCAN_SOFT_HANDOFF_MSG =
+  "Išorinės bazės tyli — tęsiu su nuotraukos analize. Užpildykite arba patikslinkite laukus, o aš sugeneruosiu aprašymą.";
+
 /** Shorter budget for local mock extraction only */
 export const AI_MOCK_TIMEOUT_MS = 5000;
 

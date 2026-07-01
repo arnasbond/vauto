@@ -12,7 +12,7 @@ import {
   PHOTO_SEARCH_FALLBACK_MESSAGE,
 } from "@/lib/photo-vision-search";
 import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import { SCAN_NOT_RECOGNIZED_MSG } from "@/lib/ai-safeguards";
+import { AI_SCAN_SOFT_HANDOFF_MSG } from "@/lib/ai-safeguards";
 import {
   clearPhotoSearchSession,
 } from "@/lib/photo-search-session";
@@ -104,6 +104,8 @@ export function AiCommandBar({
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
   const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
+  const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
+  const photoScanTimedOutRef = useRef(false);
   const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
   const [previewPulse, setPreviewPulse] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -261,6 +263,8 @@ export function AiCommandBar({
   const handlePhotoFlowSubmit = async (
     result: AiPhotoFlowResult
   ): Promise<boolean> => {
+    pendingPhotoSubmitRef.current = result;
+    photoScanTimedOutRef.current = false;
     setIsPhotoSearching(true);
     setPhotoIntentChoice(null);
     try {
@@ -273,6 +277,7 @@ export function AiCommandBar({
         showToast,
         fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
       });
+      if (photoScanTimedOutRef.current) return true;
       if (intercept.handled && intercept.inline) {
         setPhotoIntentChoice(intercept.inline);
         return true;
@@ -284,16 +289,29 @@ export function AiCommandBar({
       }
       return false;
     } finally {
-      setIsPhotoSearching(false);
+      if (!photoScanTimedOutRef.current) {
+        setIsPhotoSearching(false);
+        pendingPhotoSubmitRef.current = null;
+      }
     }
   };
 
   const handlePhotoScanTimeout = useCallback(() => {
     if (!isPhotoSearching) return;
+    const pending = pendingPhotoSubmitRef.current;
+    photoScanTimedOutRef.current = true;
     setIsPhotoSearching(false);
-    showToast(SCAN_NOT_RECOGNIZED_MSG, "info");
-    openWithGreeting(SCAN_NOT_RECOGNIZED_MSG, { openSheet: true });
-  }, [isPhotoSearching, showToast, openWithGreeting]);
+    pendingPhotoSubmitRef.current = null;
+    setPhotoIntentChoice(null);
+    setPhotoFlowOpen(false);
+    if (pending?.photos[0]) {
+      openWithGreeting(AI_SCAN_SOFT_HANDOFF_MSG, { openSheet: true });
+      void sendAgentMessage("Analizuok šią nuotrauką ir padėk man — išorinės bazės neatsakė.", {
+        fromSearchBar: true,
+        pendingImageUrls: pending.photos,
+      });
+    }
+  }, [isPhotoSearching, openWithGreeting, sendAgentMessage]);
 
   const handlePhotoIntentChip = useCallback(
     (chip: string) => {
