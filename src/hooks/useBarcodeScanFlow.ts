@@ -5,10 +5,10 @@ import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import {
-  enrichBarcodeWithFashionCopy,
-  buildUnregisteredBarcode,
-  lookupBarcode,
   barcodeLookupToDraftPatch,
+  buildUnregisteredBarcode,
+  enrichBarcodeWithFashionCopy,
+  lookupBarcode,
 } from "@/lib/product-intelligence/barcode-lookup";
 import { setPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
@@ -19,13 +19,10 @@ import {
 import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
 import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
 import {
-  commitConductorDraft,
   conductorBarcodeSource,
   conductorShouldDelegateLegacy,
   executeConductorRoute,
-  getConductorDraft,
-  isConductorEnabled,
-  mergeBarcodeLookupDraft,
+  readConductorBarcodeExecute,
 } from "@/lib/vauto-conductor";
 
 export function useBarcodeScanFlow() {
@@ -60,14 +57,6 @@ export function useBarcodeScanFlow() {
         ...conductorBarcodeSource("useBarcodeScanFlow"),
         payload: { barcode, category },
       });
-      if (!conductorShouldDelegateLegacy(route)) return;
-
-      const result = await Promise.race([
-        lookupBarcode(barcode),
-        new Promise<null>((resolve) =>
-          window.setTimeout(() => resolve(null), BARCODE_LOOKUP_TIMEOUT_MS)
-        ),
-      ]);
 
       const draftBase: Partial<AiExtractedListing> = {
         ...createManualFallbackDraft({
@@ -80,6 +69,53 @@ export function useBarcodeScanFlow() {
         attributes: { barcode },
         confidence: 0.5,
       };
+
+      if (!conductorShouldDelegateLegacy(route)) {
+        const exec = readConductorBarcodeExecute(route);
+        if (!exec) return;
+        if (exec.notFoundInRegistry) {
+          const patch = barcodeLookupToDraftPatch(exec.lookupResult, {
+            title: draftBase.title ?? "",
+            description: draftBase.description,
+            attributes: draftBase.attributes,
+          });
+          applyAgentListingDraft(
+            { ...draftBase, ...patch } as AiExtractedListing,
+            undefined,
+            "barcode"
+          );
+          if (exec.lookupResult.notFoundInRegistry) {
+            setPendingBarcodeOffer(barcode);
+          }
+          queueMicrotask(() => {
+            showUnregisteredProductPrompt(opts?.pendingImageUrls);
+          });
+          return;
+        }
+        applyAgentListingDraft(
+          {
+            ...draftBase,
+            title: exec.patch.title || draftBase.title,
+            description: exec.patch.description || "",
+            attributes: {
+              barcode,
+              ...(exec.patch.attributes ?? {}),
+            },
+            confidence: exec.patch.confidence ?? 0.75,
+          } as AiExtractedListing,
+          undefined,
+          "barcode"
+        );
+        setPendingBarcodeOffer(barcode);
+        return;
+      }
+
+      const result = await Promise.race([
+        lookupBarcode(barcode),
+        new Promise<null>((resolve) =>
+          window.setTimeout(() => resolve(null), BARCODE_LOOKUP_TIMEOUT_MS)
+        ),
+      ]);
 
       if (!result || result.notFoundInRegistry) {
         const lookupResult = result ?? buildUnregisteredBarcode(barcode);
@@ -103,16 +139,6 @@ export function useBarcodeScanFlow() {
       }
 
       const patch = await enrichBarcodeWithFashionCopy(result, category);
-      const mergedDraft = isConductorEnabled()
-        ? mergeBarcodeLookupDraft(
-            getConductorDraft()?.draft ?? draftBase,
-            result,
-            getConductorDraft()?.sources ?? []
-          ).draft
-        : null;
-      if (isConductorEnabled() && mergedDraft) {
-        commitConductorDraft(mergedDraft, "barcode", draftBase);
-      }
       applyAgentListingDraft(
         {
           ...draftBase,

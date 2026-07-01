@@ -22,3 +22,18 @@ export interface ConductorResult {
   delegated?: boolean;
   meta?: Record<string, unknown>;
 }
+
+export interface ConductorVehicleExecuteMeta {
+  identifier: string;
+  lookupResult: import("@/lib/vehicle-intelligence/vehicle-lookup").VehicleLookupResult;
+  patch: Partial<import("@/lib/types").AiExtractedListing>;
+}
+
+export interface ConductorBarcodeExecuteMeta {
+  barcode: string;
+  category: string;
+  lookupResult: import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult;
+  patch: Partial<import("@/lib/types").AiExtractedListing>;
+  notFoundInRegistry: boolean;
+  mergedDraft: Partial<import("@/lib/types").AiExtractedListing>;
+}

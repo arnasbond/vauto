@@ -6,13 +6,10 @@ import { isValidVinForLookup, normalizeVin } from "@/lib/trust";
 import { isLtPlate } from "@/lib/vehicle-intelligence/vehicle-attribute-mappers";
 import { BARCODE_LOOKUP_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import {
-  commitConductorDraft,
   conductorShouldDelegateLegacy,
   conductorVehicleLookupSource,
   executeConductorRoute,
-  getConductorDraft,
-  isConductorEnabled,
-  mergeVehicleLookupDraft,
+  readConductorVehicleExecute,
 } from "@/lib/vauto-conductor";
 import {
   lookupVehicle,
@@ -79,7 +76,15 @@ export function useVehicleAutoLookup(
         ...conductorVehicleLookupSource("useVehicleAutoLookup"),
         payload: { identifier, vin, plate },
       });
-      if (!conductorShouldDelegateLegacy(route) || cancelled) return;
+      if (!conductorShouldDelegateLegacy(route)) {
+        if (cancelled) return;
+        const exec = readConductorVehicleExecute(route);
+        if (!exec) return;
+        lastFetchedRef.current = identifier;
+        setResult(exec.lookupResult);
+        onApplyRef.current(exec.patch);
+        return;
+      }
 
       setLoading(true);
       const next = await Promise.race([
@@ -95,14 +100,6 @@ export function useVehicleAutoLookup(
       lastFetchedRef.current = identifier;
       setResult(next);
       const patch = vehicleLookupToDraftPatch(next);
-      if (isConductorEnabled()) {
-        const mergedDraft = mergeVehicleLookupDraft(
-          getConductorDraft()?.draft,
-          next,
-          getConductorDraft()?.sources ?? []
-        ).draft;
-        commitConductorDraft(mergedDraft, "vehicle");
-      }
       onApplyRef.current(patch);
       setLoading(false);
     })();

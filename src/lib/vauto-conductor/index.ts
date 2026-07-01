@@ -1,9 +1,22 @@
-import type { ConductorRequest, ConductorResult } from "./types";
+import type { ConductorRequest, ConductorResult, ConductorBarcodeExecuteMeta, ConductorVehicleExecuteMeta } from "./types";
 import { conductorAgentActionRequest } from "./agent-actions";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { logAnalytics } from "@/lib/analytics";
+import { conductorRelease, conductorTryAcquire } from "./conductor-busy-gate";
+import {
+  executeConductorBarcodeLookup,
+  executeConductorVehicleLookup,
+} from "./conductor-execute";
+import type { ListingCategory } from "@/lib/types";
 
-export type { ConductorIntent, ConductorPhase, ConductorRequest, ConductorResult } from "./types";
+export type {
+  ConductorIntent,
+  ConductorPhase,
+  ConductorRequest,
+  ConductorResult,
+  ConductorBarcodeExecuteMeta,
+  ConductorVehicleExecuteMeta,
+} from "./types";
 
 const CONDUCTOR_ENABLED =
   typeof process !== "undefined" &&
@@ -32,8 +45,83 @@ export async function routeConductorRequest(
   }
 
   switch (request.intent) {
+    case "barcode_scan": {
+      const barcode = typeof request.payload?.barcode === "string" ? request.payload.barcode.trim() : "";
+      const category =
+        (typeof request.payload?.category === "string"
+          ? request.payload.category
+          : "other") as ListingCategory;
+      if (!barcode) {
+        return logConductor(request, {
+          handled: true,
+          phase: "execute",
+          delegated: true,
+          meta: { intent: request.intent, source: request.source, barcodePipeline: true },
+        });
+      }
+      if (!conductorTryAcquire()) {
+        return logConductor(request, {
+          handled: false,
+          phase: "route",
+          delegated: true,
+          meta: { conductorBusy: true, barcodePipeline: true },
+        });
+      }
+      try {
+        const barcodeExecute = await executeConductorBarcodeLookup(barcode, category);
+        return logConductor(request, {
+          handled: true,
+          phase: "complete",
+          delegated: false,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            barcodePipeline: true,
+            barcodeExecute,
+          },
+        });
+      } finally {
+        conductorRelease();
+      }
+    }
+    case "vehicle_lookup": {
+      const identifier =
+        typeof request.payload?.identifier === "string" ? request.payload.identifier.trim() : "";
+      if (!identifier) {
+        return logConductor(request, {
+          handled: true,
+          phase: "execute",
+          delegated: true,
+          meta: { intent: request.intent, source: request.source },
+        });
+      }
+      if (!conductorTryAcquire()) {
+        return logConductor(request, {
+          handled: false,
+          phase: "route",
+          delegated: true,
+          meta: { conductorBusy: true },
+        });
+      }
+      try {
+        const vin = typeof request.payload?.vin === "string" ? request.payload.vin : undefined;
+        const plate = typeof request.payload?.plate === "string" ? request.payload.plate : undefined;
+        const vehicleExecute = await executeConductorVehicleLookup(identifier, { vin, plate });
+        return logConductor(request, {
+          handled: true,
+          phase: "complete",
+          delegated: false,
+          meta: {
+            intent: request.intent,
+            source: request.source,
+            vehicleExecute,
+          },
+        });
+      } finally {
+        conductorRelease();
+      }
+    }
     case "photo_upload":
-    case "barcode_scan":
       return logConductor(request, {
         handled: true,
         phase: "execute",
@@ -41,13 +129,11 @@ export async function routeConductorRequest(
         meta: {
           intent: request.intent,
           source: request.source,
-          visionPipeline: request.intent === "photo_upload",
-          barcodePipeline: request.intent === "barcode_scan",
+          visionPipeline: true,
         },
       });
     case "search_query":
     case "seller_submit":
-    case "vehicle_lookup":
       return logConductor(request, {
         handled: true,
         phase: "execute",
@@ -83,8 +169,10 @@ export async function executeConductorRoute(
       phase: result.phase,
       handled: result.handled,
       delegated: result.delegated ?? true,
+      executed: result.delegated === false,
       visionPipeline: Boolean(result.meta?.visionPipeline),
       barcodePipeline: Boolean(result.meta?.barcodePipeline),
+      conductorBusy: Boolean(result.meta?.conductorBusy),
     });
   }
   return result;
@@ -102,6 +190,24 @@ export function conductorUseBarcodePipeline(result: ConductorResult): boolean {
 export function conductorShouldDelegateLegacy(result: ConductorResult): boolean {
   return result.delegated !== false;
 }
+
+export function readConductorVehicleExecute(
+  result: ConductorResult
+): ConductorVehicleExecuteMeta | null {
+  const meta = result.meta?.vehicleExecute;
+  if (!meta || typeof meta !== "object") return null;
+  return meta as ConductorVehicleExecuteMeta;
+}
+
+export function readConductorBarcodeExecute(
+  result: ConductorResult
+): ConductorBarcodeExecuteMeta | null {
+  const meta = result.meta?.barcodeExecute;
+  if (!meta || typeof meta !== "object") return null;
+  return meta as ConductorBarcodeExecuteMeta;
+}
+
+export { conductorIsBusy, conductorTryAcquire, conductorRelease } from "./conductor-busy-gate";
 
 export function conductorPhotoUploadSource(component: string): ConductorRequest {
   return {
