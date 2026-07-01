@@ -1,4 +1,5 @@
 import type { CategoryAttributes, ListingCategory } from "@/lib/types";
+import { resolveDraftContact } from "@/lib/profile-listing-sync";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories/types";
 import { getAdaptiveConfig } from "@/lib/adaptive-categories/config";
 import {
@@ -196,14 +197,18 @@ export function evaluateConversationalPublishValidation(
     contact?: string;
     attributes?: CategoryAttributes;
   },
-  opts: { hasPhoto: boolean }
+  opts: { hasPhoto: boolean; profileContact?: string }
 ): ListingPublishValidation {
   const validationCategory = resolveEffectiveListingCategory(
     category,
     draft.attributes ?? {}
   );
   const needsPhoto = !opts.hasPhoto;
-  const needsContact = isEmpty(draft.contact);
+  const resolvedContact =
+    opts.profileContact?.trim() ||
+    resolveDraftContact(draft) ||
+    String(draft.attributes?.contact ?? "").trim();
+  const needsContact = !resolvedContact;
   const needsCategory = !validationCategory;
 
   const validationIssues: string[] = [];
@@ -235,7 +240,7 @@ export function evaluateListingPublishValidation(
     contact?: string;
     attributes?: CategoryAttributes;
   },
-  opts: { hasPhoto: boolean; conversational?: boolean }
+  opts: { hasPhoto: boolean; conversational?: boolean; profileContact?: string }
 ): ListingPublishValidation {
   if (opts.conversational) {
     return evaluateConversationalPublishValidation(category, draft, opts);

@@ -16,6 +16,7 @@ import { PriceAdviceCard } from "@/components/listing/PriceAdviceCard";
 import { SELLER_TYPES } from "@/lib/general-catalog";
 import { verifyVin } from "@/lib/trust";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
+import { ProfileContactReviewCard } from "./ProfileContactReviewCard";
 import { BaseFieldsEditor } from "./BaseFieldsEditor";
 import { CategoryFieldsEditor } from "./CategoryFieldsEditor";
 import { DraftMediaEditor } from "./DraftMediaEditor";
@@ -31,6 +32,7 @@ import { capturePhoto } from "@/lib/native-media";
 import { logBuddyState } from "@/lib/buddy-voice";
 import { cn } from "@/lib/cn";
 import { hasActivePhotoCategoryMismatch } from "@/lib/seller-photo-category-mismatch";
+import { resolveDraftContact, hasProfileListingContact } from "@/lib/profile-listing-sync";
 
 interface AdaptiveConfirmationProps {
   draft: AiExtractedListing;
@@ -72,7 +74,7 @@ export function AdaptiveConfirmation({
   onPhotoMismatchRevert,
   onPhotoMismatchAccept,
 }: AdaptiveConfirmationProps) {
-  const { chameleonTheme } = useVauto();
+  const { chameleonTheme, user, isAuthenticated } = useVauto();
   const theme = getChameleonTheme(universalMode ? "flux" : chameleonTheme);
   const detailsAnchorRef = useRef<HTMLDivElement>(null);
   const adaptiveKey = listingToAdaptiveKey(draft.category);
@@ -80,6 +82,13 @@ export function AdaptiveConfirmation({
   const attributes = useMemo(() => draft.attributes ?? {}, [draft.attributes]);
   const needsPrice = draft.price <= 0;
   const hasPhoto = Boolean(previewImage);
+  const profileContactReady =
+    isAuthenticated && hasProfileListingContact(user) && !manualFallback;
+  const profilePhone =
+    String(attributes.phone ?? user.phone ?? "").trim() || user.phone?.trim() || "";
+  const profileEmail =
+    String(attributes.email ?? user.email ?? "").trim() || user.email?.trim() || "";
+  const resolvedContact = resolveDraftContact(draft, user);
 
   const publishValidation = useMemo(
     () =>
@@ -89,12 +98,12 @@ export function AdaptiveConfirmation({
           title: draft.title,
           price: draft.price,
           description: draft.description,
-          contact: draft.contact,
+          contact: resolvedContact,
           attributes,
         },
-        { hasPhoto, conversational: !manualFallback }
+        { hasPhoto, conversational: !manualFallback, profileContact: resolvedContact }
       ),
-    [draft.category, draft.title, draft.price, draft.description, draft.contact, attributes, hasPhoto, manualFallback]
+    [draft.category, draft.title, draft.price, draft.description, resolvedContact, attributes, hasPhoto, manualFallback]
   );
 
   const { missingKeys, canPublish, needsPhotoForPublish, validationIssues } =
@@ -230,6 +239,10 @@ export function AdaptiveConfirmation({
     : chameleonTheme === "skelbiu" || chameleonTheme === "aruodas"
       ? (["price", "title", "location", "contact", "description"] as const)
       : config.baseFields;
+
+  const visibleBaseFields = profileContactReady
+    ? baseFields.filter((key) => key !== "contact" && key !== "location")
+    : baseFields;
 
   const handlePhotoCapture = useCallback(() => {
     requestMediaConsent(async () => {
@@ -368,11 +381,21 @@ export function AdaptiveConfirmation({
         )}
       </div>
 
+      {profileContactReady && (
+        <ProfileContactReviewCard
+          draft={draft}
+          phone={profilePhone}
+          email={profileEmail}
+          appearance={universalMode ? "light" : "dark"}
+          onUpdate={onUpdate}
+        />
+      )}
+
       {universalMode ? (
         <div className="rounded-2xl border border-slate-200 bg-white p-4">
           <BaseFieldsEditor
             draft={draft}
-            fields={[...baseFields]}
+            fields={[...visibleBaseFields]}
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
@@ -387,7 +410,7 @@ export function AdaptiveConfirmation({
           {categorySection}
           <BaseFieldsEditor
             draft={draft}
-            fields={[...baseFields]}
+            fields={[...visibleBaseFields]}
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
@@ -400,7 +423,7 @@ export function AdaptiveConfirmation({
           {categorySection}
           <BaseFieldsEditor
             draft={draft}
-            fields={[...baseFields]}
+            fields={[...visibleBaseFields]}
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"
@@ -412,7 +435,7 @@ export function AdaptiveConfirmation({
         <>
           <BaseFieldsEditor
             draft={draft}
-            fields={[...baseFields]}
+            fields={[...visibleBaseFields]}
             needsPrice={needsPrice}
             onUpdate={onUpdate}
             variant="inline"

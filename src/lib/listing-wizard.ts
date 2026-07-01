@@ -37,6 +37,7 @@ export function analyzeListingWizard(
   opts: {
     userCity?: string;
     isAuthenticated?: boolean;
+    userHasProfileContact?: boolean;
     priceAdvice?: PriceAdvice | null;
     userPrompt?: string | null;
   } = {}
@@ -157,6 +158,9 @@ export function analyzeListingWizard(
   if (missingFields.length === 0 && opts.isAuthenticated) {
     prompts.push("ready_to_publish");
     intro += " Galite publikuoti bet kada — likę laukai neprivalomi.";
+  }
+  if (opts.isAuthenticated && opts.userHasProfileContact) {
+    intro += " Kontaktai ir miestas jau užpildyti iš profilio — patikrinkite ir publikuokite.";
   } else if (questions.length === 0) {
     intro += " Galite publikuoti bet kada — paklausiu tik jei norėsite patikslinti.";
   }

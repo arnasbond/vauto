@@ -21,6 +21,7 @@ import {
   type WizardAnalysis,
   type WizardQuickReply,
 } from "@/lib/listing-wizard";
+import { hasProfileListingContact } from "@/lib/profile-listing-sync";
 import {
   conversationalSkipAck,
   isConversationalSkipReply,
@@ -171,13 +172,14 @@ export function useListingWizard({
         : analyzeListingWizard(draft, {
             userCity: user.city,
             isAuthenticated,
+            userHasProfileContact: isAuthenticated && hasProfileListingContact(user),
             priceAdvice,
             userPrompt,
           })),
     [
       mismatchAnalysis,
       draft,
-      user.city,
+      user,
       isAuthenticated,
       priceAdvice,
       userPrompt,

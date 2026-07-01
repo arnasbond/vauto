@@ -131,6 +131,7 @@ import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { notifyAgentError } from "@/lib/vauto-agent-client";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
+import { applyProfileToListingDraft, resolveDraftContact } from "@/lib/profile-listing-sync";
 import type {
   AiExtractedListing,
   Listing,
@@ -299,6 +300,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     sellerPreviewImageRef.current = sellerPreviewImage;
   }, [sellerPreviewImage]);
 
+  const syncDraftWithProfile = useCallback(
+    (draft: AiExtractedListing): AiExtractedListing =>
+      applyProfileToListingDraft(draft, user, isAuthenticated),
+    [user, isAuthenticated]
+  );
+
   const abortSellerProcessing = useCallback(() => {
     processingEpochRef.current += 1;
     void completeVoiceTeardown();
@@ -349,10 +356,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       abortSellerProcessing();
       setAiManualFallback(true);
       setAiDraft(
-        createManualFallbackDraft({
-          location: user.city,
-          contact: user.phone,
-        })
+        syncDraftWithProfile(
+          createManualFallbackDraft({
+            location: user.city,
+            contact: user.phone,
+          })
+        )
       );
       if (opts?.previewImage) {
         setSellerPreviewImage(opts.previewImage);
@@ -368,7 +377,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         "info"
       );
     },
-    [user.city, user.phone, showToast, abortSellerProcessing]
+    [user.city, user.phone, showToast, abortSellerProcessing, syncDraftWithProfile]
   );
 
   const runAiProcessing = useCallback(
@@ -697,7 +706,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           categoryMismatchPendingRef.current = null;
           photoReplaceSnapshotRef.current = null;
           setSellerUserPrompt(opts?.transcript?.trim() || null);
-          setAiDraft(finalized);
+          setAiDraft(syncDraftWithProfile(finalized));
         }
 
         setSellerStep("confirmation");
@@ -721,7 +730,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast, trackEvent]
+    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast, trackEvent, syncDraftWithProfile]
   );
 
   const submitSellerContent = useCallback(
@@ -831,7 +840,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       enriched = enrichClothingListingDraft(enriched, sourceText);
       const previousCategory = aiDraftRef.current?.category ?? null;
       const previousAttributes = aiDraftRef.current?.attributes ?? null;
-      setAiDraft(finalizeListingDraft(enriched, previousCategory, previousAttributes));
+      setAiDraft(syncDraftWithProfile(finalizeListingDraft(enriched, previousCategory, previousAttributes)));
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
@@ -864,7 +873,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         notifyAgentFlow({ kind: "listing_wizard_opened", category: enriched.category });
       }
     },
-    [requireAuthForListing, setChameleonTheme, showToast, router]
+    [requireAuthForListing, setChameleonTheme, showToast, router, syncDraftWithProfile]
   );
 
   const applyAgentWardrobeBulk = useCallback(
@@ -882,7 +891,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         user.phone,
         user.city || "Vilnius"
       );
-      setAiDraft(firstDraft);
+      setAiDraft(syncDraftWithProfile(firstDraft));
       setSellerInputMode("upload");
       setSellerUserPrompt(opts?.voiceAnnouncement ?? firstDraft.title);
       if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
@@ -901,7 +910,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
       notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
     },
-    [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city]
+    [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city, syncDraftWithProfile]
   );
 
   const stageWardrobeBulkPreview = useCallback(
@@ -1051,7 +1060,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const acceptPhotoCategoryMismatch = useCallback(() => {
     const pending = categoryMismatchPendingRef.current;
     if (pending) {
-      setAiDraft(pending);
+      setAiDraft(syncDraftWithProfile(pending));
     }
     categoryMismatchRollbackRef.current = null;
     categoryMismatchPendingRef.current = null;
@@ -1060,7 +1069,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setSellerUserPrompt(null);
     setSellerStep("confirmation");
     showToast("Kategorija pakeista į elektroniką.", "info");
-  }, [showToast]);
+  }, [showToast, syncDraftWithProfile]);
 
   const publishListing = useCallback(async () => {
     if (!aiDraft) {
@@ -1093,10 +1102,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         title: aiDraft.title,
         price: aiDraft.price,
         description: aiDraft.description,
-        contact: aiDraft.contact || user.phone,
+        contact: resolveDraftContact(aiDraft, user),
         attributes: aiDraft.attributes,
       },
-      { hasPhoto: Boolean(sellerPreviewImage), conversational: true }
+      {
+        hasPhoto: Boolean(sellerPreviewImage),
+        conversational: true,
+        profileContact: resolveDraftContact(aiDraft, user),
+      }
     );
 
     if (!validation.canPublish) {
@@ -1225,7 +1238,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       aiDraft.attributes ?? {}
     );
     const publishTitle = aiDraft.title.trim() || "Skelbimas";
-    const publishContact = aiDraft.contact.trim() || user.phone || "";
+    const publishContact = resolveDraftContact(aiDraft, user) || user.phone || "";
     const publishDraft = { ...aiDraft, category: publishCategory, title: publishTitle, contact: publishContact };
 
     const newListing: Listing = enrichListingCoords({
