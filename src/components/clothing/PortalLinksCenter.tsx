@@ -255,15 +255,10 @@ export function PortalLinksCenter({
     }
   };
 
-  const subtitle =
-    profileType === "business"
-      ? "Skelbiu, Autoplius, Aruodas, Paslaugos.lt — automatinis atnaujinimas kas"
-      : profileType === "private"
-        ? "Vinted, Marktplaats, Depop — automatinis atnaujinimas kas"
-        : "Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted, Marktplaats — automatinis atnaujinimas kas";
+  const subtitle = "Automatinis skelbimų atnaujinimas kas";
 
   return (
-    <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-500/50 bg-[#131c38] p-4 shadow-lg">
+    <div className="mb-6 overflow-hidden rounded-3xl border border-border bg-card p-4 shadow-sm">
       {valueCard && !guestMode && sectionOpen && (
         <WardrobeValueShareCard
           wardrobeValueTotal={valueCard.total}
@@ -282,20 +277,20 @@ export function PortalLinksCenter({
           aria-controls="portal-sync-panel"
         >
           <div className="flex items-center gap-2">
-            <p className="text-sm font-semibold text-white">Portalų sinchronizacija</p>
+            <p className="text-sm font-semibold text-foreground">Portalų sinchronizacija</p>
             <ChevronDown
               className={cn(
-                "h-4 w-4 shrink-0 text-slate-400 transition-transform duration-200",
+                "h-4 w-4 shrink-0 text-muted-foreground transition-transform duration-200",
                 sectionOpen && "rotate-180"
               )}
               aria-hidden
             />
           </div>
-          <p className="mt-0.5 text-[11px] text-slate-400">
+          <p className="mt-0.5 text-[11px] text-muted-foreground">
             {subtitle}{" "}
-            <span className="text-fuchsia-300">3 dienas</span>
+            <span className="font-medium text-primary">3 dienas</span>
             {!sectionOpen && syncedCount > 0 && (
-              <span className="text-emerald-400/90">
+              <span className="text-emerald-600 dark:text-emerald-400">
                 {" "}
                 · {syncedCount} sinchronizuota
               </span>
@@ -309,7 +304,7 @@ export function PortalLinksCenter({
               e.stopPropagation();
               void refreshLinks();
             }}
-            className="shrink-0 rounded-lg p-2 text-slate-400 hover:bg-white/5 hover:text-white"
+            className="shrink-0 rounded-lg p-2 text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label="Atnaujinti būseną"
           >
             <RefreshCw className="h-4 w-4" />
@@ -333,12 +328,12 @@ export function PortalLinksCenter({
               return (
                 <div
                   key={portal.key}
-                  className="flex items-center gap-2 rounded-2xl border border-emerald-500/20 bg-[#0a1128]/60 px-3 py-2.5"
+                  className="flex items-center gap-2 rounded-2xl border border-border bg-accent px-3 py-2.5"
                 >
                   <div className="min-w-0 flex-1">
-                    <p className="text-xs font-medium text-slate-200">{portal.label}</p>
+                    <p className="text-xs font-medium text-foreground">{portal.label}</p>
                     {!isSyncing && linked && (
-                      <p className="truncate text-[10px] text-slate-500">
+                      <p className="truncate text-[10px] text-muted-foreground">
                         {linked.itemCount > 0 && `${linked.itemCount} prekės · `}
                         {shortenProfileUrl(linked.profileUrl)}
                       </p>
@@ -346,12 +341,12 @@ export function PortalLinksCenter({
                   </div>
                   <div className="flex shrink-0 items-center gap-1">
                     {isSyncing ? (
-                      <span className="inline-flex items-center gap-1 text-[11px] text-fuchsia-300">
+                      <span className="inline-flex items-center gap-1 text-[11px] text-primary">
                         <Loader2 className="h-3 w-3 animate-spin" />
                         Sinchronizuojama…
                       </span>
                     ) : (
-                      <span className="text-[11px] font-medium text-emerald-400/95">
+                      <span className="text-[11px] font-medium text-emerald-600 dark:text-emerald-400">
                         🟢 Sinchronizuota
                       </span>
                     )}
@@ -362,7 +357,7 @@ export function PortalLinksCenter({
                           onClick={() =>
                             void handleResync(portal.key, linked.profileUrl)
                           }
-                          className="rounded-md p-1 text-slate-400 opacity-70 transition hover:bg-white/5 hover:text-fuchsia-300 hover:opacity-100"
+                          className="rounded-md p-1 text-muted-foreground opacity-70 transition hover:bg-background hover:text-primary hover:opacity-100"
                           aria-label={`Sinchronizuoti ${portal.label} dar kartą`}
                         >
                           <RefreshCw className="h-3.5 w-3.5" />
@@ -370,7 +365,7 @@ export function PortalLinksCenter({
                         <button
                           type="button"
                           onClick={() => void handleUnlink(portal.key)}
-                          className="rounded-md p-1 text-slate-500 opacity-70 transition hover:bg-white/5 hover:text-slate-300 hover:opacity-100"
+                          className="rounded-md p-1 text-muted-foreground opacity-70 transition hover:bg-background hover:text-foreground hover:opacity-100"
                           aria-label={`Atjungti ${portal.label}`}
                         >
                           <X className="h-3.5 w-3.5" />
@@ -386,9 +381,9 @@ export function PortalLinksCenter({
               return (
                 <div
                   key={portal.key}
-                  className="rounded-2xl border border-fuchsia-500/40 bg-[#0a1128] p-3"
+                  className="rounded-2xl border border-border bg-accent p-3"
                 >
-                  <p className="mb-2 text-xs font-medium text-fuchsia-200">
+                  <p className="mb-2 text-xs font-medium text-foreground">
                     {portal.label} profilio nuoroda
                   </p>
                   <input
@@ -396,14 +391,14 @@ export function PortalLinksCenter({
                     value={draftUrl}
                     onChange={(e) => setDraftUrl(e.target.value)}
                     placeholder={portal.placeholder}
-                    className="mb-2 w-full rounded-xl border border-fuchsia-500/50 bg-[#060b1a] px-3 py-2 text-sm text-white placeholder:text-slate-500 outline-none focus:ring-2 focus:ring-fuchsia-500/30"
+                    className="mb-2 w-full rounded-xl border border-border bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
                   />
                   <div className="flex gap-2">
                     <button
                       type="button"
                       disabled={loading || !draftUrl.trim()}
                       onClick={() => void handleConnect(portal.key)}
-                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-fuchsia-600 py-2 text-xs font-semibold text-white disabled:opacity-50"
+                      className="vauto-btn-primary flex flex-1 items-center justify-center gap-2 rounded-xl py-2 text-xs disabled:opacity-50"
                     >
                       {loading && syncingKey === portal.key ? (
                         <Loader2 className="h-3.5 w-3.5 animate-spin" />
@@ -418,7 +413,7 @@ export function PortalLinksCenter({
                         setExpandedKey(null);
                         setDraftUrl("");
                       }}
-                      className="rounded-xl border border-white/10 px-3 py-2 text-xs text-slate-400"
+                      className="rounded-xl border border-border px-3 py-2 text-xs text-muted-foreground hover:text-foreground"
                     >
                       Atšaukti
                     </button>
@@ -435,10 +430,10 @@ export function PortalLinksCenter({
                   setExpandedKey(portal.key);
                   setDraftUrl("");
                 }}
-                className="flex w-full items-center justify-between rounded-2xl border border-dashed border-fuchsia-500/30 bg-[#0a1128]/60 px-3 py-2.5 text-left transition hover:border-fuchsia-500/50"
+                className="flex w-full items-center justify-between rounded-2xl border border-dashed border-border bg-accent px-3 py-2.5 text-left transition hover:border-primary/50"
               >
-                <span className="text-xs text-slate-300">{portal.label}</span>
-                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-fuchsia-300">
+                <span className="text-xs text-foreground">{portal.label}</span>
+                <span className="inline-flex items-center gap-1 text-[11px] font-medium text-primary">
                   <Plus className="h-3.5 w-3.5" />
                   Prijungti
                 </span>

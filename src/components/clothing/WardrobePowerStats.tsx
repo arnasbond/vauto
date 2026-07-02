@@ -8,10 +8,8 @@ import { buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardr
 import { resolveWardrobeSubscriptionAccess } from "@/lib/SubscriptionGuard";
 import type { Listing, UserProfile } from "@/lib/types";
 
-const ACCENT = "var(--chameleon-accent, #09b1a8)";
-
 const CARD_CLASS =
-  "mb-6 rounded-3xl border border-slate-800 bg-slate-900 p-4 text-white";
+  "mb-6 rounded-3xl border border-border bg-card p-4 text-foreground";
 
 interface WardrobePowerStatsProps {
   user: UserProfile;
@@ -49,10 +47,10 @@ export function WardrobePowerStats({
     return (
       <div className={`${CARD_CLASS} border-dashed`}>
         <div className="flex items-start gap-3">
-          <Crown className="h-5 w-5 shrink-0" style={{ color: ACCENT }} />
+          <Crown className="h-5 w-5 shrink-0 text-primary" />
           <div className="min-w-0 flex-1">
-            <p className="text-sm font-light text-white">Power-User statistika</p>
-            <p className="mt-1 text-xs font-light text-slate-300">
+            <p className="text-sm font-semibold text-foreground">Power-User statistika</p>
+            <p className="mt-1 text-xs text-muted-foreground">
               Gilesnė analitika ir neribotas spintos importas —{" "}
               {access.importsRemaining === 0
                 ? "nemokamas importas išnaudotas"
@@ -61,8 +59,7 @@ export function WardrobePowerStats({
             <button
               type="button"
               onClick={() => openCheckout(buildWardrobePowerSubscriptionCheckout())}
-              className="mt-3 rounded-full px-4 py-2 text-xs font-medium text-white"
-              style={{ backgroundColor: ACCENT }}
+              className="vauto-btn-primary mt-3 rounded-full px-4 py-2 text-xs"
             >
               Tapti Power-User · 4,99 € / mėn.
             </button>
@@ -75,8 +72,8 @@ export function WardrobePowerStats({
   return (
     <section className={CARD_CLASS}>
       <div className="mb-3 flex items-center gap-2">
-        <BarChart3 className="h-4 w-4" style={{ color: ACCENT }} />
-        <p className="text-sm font-light text-white">Spintos analitika · Power-User</p>
+        <BarChart3 className="h-4 w-4 text-primary" />
+        <p className="text-sm font-semibold text-foreground">Spintos analitika · Power-User</p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatChip label="Peržiūros" value={String(stats.views)} />
@@ -84,7 +81,7 @@ export function WardrobePowerStats({
         <StatChip label="Pokalbiai" value={String(stats.chats)} />
         <StatChip label="Domėjimasis" value={`${stats.conversion}%`} />
       </div>
-      <p className="mt-2 text-[10px] font-light text-slate-400">
+      <p className="mt-2 text-[10px] text-muted-foreground">
         {stats.count} prek{stats.count === 1 ? "ė" : "ės"} spintoje · neribotas importas aktyvus
       </p>
     </section>
@@ -93,9 +90,9 @@ export function WardrobePowerStats({
 
 function StatChip({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-slate-800 bg-slate-950 px-3 py-2.5 text-center">
-      <p className="text-lg font-medium text-white">{value}</p>
-      <p className="text-[10px] font-light uppercase tracking-wide text-slate-400">
+    <div className="rounded-2xl border border-border bg-accent px-3 py-2.5 text-center">
+      <p className="text-lg font-semibold text-foreground">{value}</p>
+      <p className="text-[10px] uppercase tracking-wide text-muted-foreground">
         {label}
       </p>
     </div>
