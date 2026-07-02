@@ -150,7 +150,7 @@ export function WardrobeProfileImporter({
   };
 
   return (
-    <div className="mb-6 overflow-hidden rounded-3xl border border-fuchsia-500/50 bg-[#131c38] p-4 shadow-lg">
+    <div className="mb-6 overflow-hidden rounded-3xl border border-border bg-card p-4 text-foreground shadow-sm">
       {valueCard && !isGuest && (
         <WardrobeValueShareCard
           wardrobeValueTotal={valueCard.total}
@@ -161,12 +161,12 @@ export function WardrobeProfileImporter({
       )}
 
       <div className="mb-3 flex items-center gap-2">
-        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow">
+        <div className="flex h-9 w-9 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
           <UploadCloud className="h-4 w-4" />
         </div>
         <div>
-          <p className="text-sm font-semibold text-white">Spintos perkėlimas</p>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-sm font-semibold text-foreground">Spintos perkėlimas</p>
+          <p className="text-[11px] text-muted-foreground">
             {isGuest
               ? "Demo režimas — įklijuok profilio URL ir AI paruoš tavo spintą"
               : "Vienas URL — AI sukuria visus VAUTO skelbimus automatiškai"}
@@ -178,12 +178,12 @@ export function WardrobeProfileImporter({
       </div>
 
       {linkedProfile ? (
-        <div className="mb-3 flex items-center gap-2 rounded-2xl border border-fuchsia-500/40 bg-[#0a1128] px-3 py-2.5">
+        <div className="mb-3 flex items-center gap-2 rounded-2xl border border-border bg-accent px-3 py-2.5">
           <span
             className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-medium ${
               linkedProfile.status === "syncing"
-                ? "bg-amber-500/20 text-amber-200"
-                : "bg-fuchsia-600/25 text-fuchsia-100"
+                ? "bg-amber-500/15 text-amber-700"
+                : "bg-primary/10 text-primary"
             }`}
           >
             {linkedProfile.status === "syncing" ? (
@@ -198,13 +198,13 @@ export function WardrobeProfileImporter({
               </>
             )}
           </span>
-          <span className="min-w-0 flex-1 truncate text-[11px] text-slate-500">
+          <span className="min-w-0 flex-1 truncate text-[11px] text-muted-foreground">
             {shortenProfileUrl(linkedProfile.url)}
           </span>
           <button
             type="button"
             onClick={clearLinkedProfile}
-            className="shrink-0 rounded-lg p-1 text-slate-400 hover:bg-white/5 hover:text-white"
+            className="shrink-0 rounded-lg p-1 text-muted-foreground hover:bg-background hover:text-foreground"
             aria-label="Pašalinti susietą profilį"
           >
             <X className="h-4 w-4" />
@@ -216,7 +216,7 @@ export function WardrobeProfileImporter({
           value={url}
           onChange={(e) => setUrl(e.target.value)}
           placeholder="https://www.vinted.lt/member/... arba /invite/..."
-          className="mb-3 w-full rounded-2xl border border-fuchsia-500/60 bg-[#0a1128] px-3 py-2.5 text-sm text-white placeholder:text-slate-400 outline-none focus:ring-2 focus:ring-fuchsia-500/40"
+          className="mb-3 w-full rounded-2xl border border-border bg-background px-3 py-2.5 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:ring-2 focus:ring-primary/30"
         />
       )}
 
@@ -225,7 +225,7 @@ export function WardrobeProfileImporter({
           type="button"
           disabled={loading || !url.trim()}
           onClick={() => void handleImport()}
-          className="flex w-full items-center justify-center gap-2 rounded-2xl bg-fuchsia-600 py-3 text-sm font-semibold text-white disabled:opacity-50"
+          className="vauto-btn-primary flex w-full items-center justify-center gap-2 rounded-2xl py-3 text-sm disabled:opacity-50"
         >
           {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />}
           {isGuest
@@ -238,7 +238,7 @@ export function WardrobeProfileImporter({
 
       {isGuest && preview.length > 0 && <GuestWardrobePreviewGrid items={preview} />}
       {!isGuest && preview.length > 0 && (
-        <p className="mt-2 text-center text-[11px] text-fuchsia-300">
+        <p className="mt-2 text-center text-[11px] text-primary">
           Paruošta {preview.length} skelbimų — patvirtinkite žemiau
         </p>
       )}

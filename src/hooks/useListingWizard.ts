@@ -48,6 +48,31 @@ export interface UseListingWizardOptions {
   onFocusVin?: () => void;
 }
 
+function normalizeWizardText(text: string): string {
+  return text.toLowerCase().replace(/\s+/g, " ").trim();
+}
+
+function shouldAppendAgentEnhancement(
+  enhancement: string | null,
+  draft: AiExtractedListing,
+  intro: string
+): enhancement is string {
+  const text = enhancement?.trim();
+  if (!text) return false;
+  if (text.length > 320) return false;
+
+  const normalized = normalizeWizardText(text);
+  if (normalized.includes("paruošiau profesionalų aprašym")) return false;
+  if (normalized.includes(normalizeWizardText(intro).slice(0, 70))) return false;
+
+  const description = draft.description?.trim();
+  if (description && normalized.includes(normalizeWizardText(description).slice(0, 80))) {
+    return false;
+  }
+
+  return true;
+}
+
 export function useListingWizard({
   draft,
   userPrompt,
@@ -199,9 +224,11 @@ export function useListingWizard({
       parts.push(draft.reviewNotice.trim());
     }
     if (analysis.questions.length) parts.push(...analysis.questions.slice(0, 2));
-    if (agentEnhancement) parts.push(agentEnhancement);
+    if (shouldAppendAgentEnhancement(agentEnhancement, draft, analysis.intro)) {
+      parts.push(agentEnhancement);
+    }
     return parts.join(" ");
-  }, [analysis, agentEnhancement, draft.requiresReview, draft.reviewNotice, activePhotoMismatch, photoCategoryMismatch]);
+  }, [analysis, agentEnhancement, draft, activePhotoMismatch, photoCategoryMismatch]);
 
   useEffect(() => {
     if (manualFallback || kickedOff.current || activePhotoMismatch) return;
@@ -216,7 +243,7 @@ export function useListingWizard({
       messages: [
         {
           role: "user",
-          text: `Peržiūriu skelbimo juodraštį: „${draft.title}". Padėk man užbaigti vedlį ir užduok trūkstamus klausimus.`,
+          text: `Peržiūriu skelbimo juodraštį: „${draft.title}". Padėk užbaigti vedlį. Atsakyk tik vienu trumpu praktiniu klausimu arba vienu trumpu patvirtinimu. Nekartok skelbimo aprašymo, pavadinimo, kainos ar kategorijos.`,
         },
       ],
       context: {

@@ -94,7 +94,7 @@ export function AiProcessingOverlay() {
         hint={
           isMediaMode
             ? "Objekto atpažinimas ir laukų ištraukimas"
-            : "Balso konvertavimas į tekstą ir kategorijos nustatymas"
+            : "Teksto analizė ir kategorijos nustatymas"
         }
       />
     </div>

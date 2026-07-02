@@ -234,7 +234,7 @@ export default function ApiePage() {
             <AudienceCard
               icon={Search}
               title="Pirkėjams"
-              description="Ieškokite bet ko — automobilio, buto, paslaugos ar drabužio — vienu sakiniu, nuotrauka ar balsu. AI supras, ko norite, ir suras geriausius pasiūlymus už jus."
+              description="Ieškokite bet ko — automobilio, buto, paslaugos ar drabužio — vienu sakiniu arba nuotrauka. AI supras, ko norite, ir suras geriausius pasiūlymus už jus."
             />
             <AudienceCard
               icon={Heart}
@@ -315,8 +315,8 @@ export default function ApiePage() {
             <JourneyStep
               step={1}
               icon={Link2}
-              title="Nuotrauka, nuoroda ar balsas"
-              description="Tiesiog įkelkite daikto nuotrauką, įklijuokite skelbimo nuorodą arba pasakykite, ko ieškote — vos per kelias sekundes."
+              title="Nuotrauka, nuoroda ar tekstas"
+              description="Tiesiog įkelkite daikto nuotrauką, įklijuokite skelbimo nuorodą arba parašykite, ko ieškote — vos per kelias sekundes."
             />
             <JourneyStep
               step={2}

@@ -3,8 +3,6 @@ import {
   createVoiceSession,
   type VoiceSession,
 } from "@/lib/audio-session";
-import { handleSpeechRecognitionResult, sanitizeSpeechTranscript, teardownSpeechRecognition } from "@/lib/speech-transcript";
-import { getLockedSttLang, lockSessionLocale } from "@/lib/SpeechEngine";
 
 export interface CapturedPhoto {
   dataUrl: string;
@@ -478,109 +476,6 @@ function pickPhotoSourceOnWeb(): Promise<CapturedPhoto | null> {
   });
 }
 
-type SpeechRecognitionCtor = new () => {
-  lang: string;
-  continuous: boolean;
-  interimResults: boolean;
-  onstart: (() => void) | null;
-  onresult:
-    | ((e: {
-        resultIndex: number;
-        results: {
-          length: number;
-          [i: number]: { [j: number]: { transcript: string }; isFinal: boolean };
-        };
-      }) => void)
-    | null;
-  onerror: ((e: { error: string }) => void) | null;
-  onend: (() => void) | null;
-  start: () => void;
-  stop: () => void;
-};
-
-function getSpeechRecognition(): SpeechRecognitionCtor | null {
-  if (typeof window === "undefined") return null;
-  const w = window as Window & {
-    SpeechRecognition?: SpeechRecognitionCtor;
-    webkitSpeechRecognition?: SpeechRecognitionCtor;
-  };
-  return w.SpeechRecognition ?? w.webkitSpeechRecognition ?? null;
-}
-
-async function speechRecognitionTranscript(): Promise<string | null> {
-  const SpeechRecognition = getSpeechRecognition();
-  if (!SpeechRecognition) return null;
-
-  return new Promise((resolve) => {
-    lockSessionLocale("lt-LT");
-    const rec = new SpeechRecognition();
-    rec.lang = getLockedSttLang();
-    rec.continuous = true;
-    rec.interimResults = true;
-
-    let resolved = false;
-    let currentTranscript = "";
-    let silenceTimer: ReturnType<typeof setTimeout> | null = null;
-
-    const finish = (text: string | null) => {
-      if (resolved) return;
-      resolved = true;
-      if (silenceTimer) clearTimeout(silenceTimer);
-      clearTimeout(maxTimeout);
-      teardownSpeechRecognition(rec);
-      resolve(text);
-    };
-
-    const scheduleSilence = () => {
-      if (!currentTranscript.trim()) return;
-      if (silenceTimer) clearTimeout(silenceTimer);
-      silenceTimer = setTimeout(
-        () => finish(sanitizeSpeechTranscript(currentTranscript.trim()) || null),
-        2_000
-      );
-    };
-
-    const maxTimeout = setTimeout(() => {
-      finish(sanitizeSpeechTranscript(currentTranscript.trim()) || null);
-    }, 20_000);
-
-    rec.onstart = () => {
-      currentTranscript = "";
-    };
-
-    rec.onresult = (event) => {
-      handleSpeechRecognitionResult(event, {
-        setInputValue: (value) => {
-          currentTranscript = value;
-        },
-        setInterimCaption: () => {
-          /* interim ignored — only final transcript is committed */
-        },
-        onFinalTranscript: (value) => {
-          currentTranscript = value;
-          finish(sanitizeSpeechTranscript(value.trim()) || null);
-        },
-      });
-      if (currentTranscript && !resolved) scheduleSilence();
-    };
-    rec.onerror = (ev: { error: string }) => {
-      if (ev.error === "no-speech" || ev.error === "aborted") return;
-      if (ev.error === "not-allowed") finish(null);
-    };
-    rec.onend = () => {
-      if (!resolved && currentTranscript.trim()) {
-        finish(sanitizeSpeechTranscript(currentTranscript.trim()));
-      }
-    };
-
-    try {
-      rec.start();
-    } catch {
-      finish(null);
-    }
-  });
-}
-
 const DEMO_TRANSCRIPT = "Parduodu maišą obuolių, dešimt eurų, Kaune";
 
 /** @deprecated Demo transcript no longer injected silently — kept for tests only */
@@ -594,8 +489,6 @@ export async function recordWithSession(
   session: VoiceSession
 ): Promise<string | null> {
   session.release();
-  const speech = await speechRecognitionTranscript();
-  if (speech) return speech;
   return null;
 }
 
@@ -603,17 +496,7 @@ export async function recordWithSession(
  * Record voice → transcript (creates & releases session internally).
  */
 export async function recordVoiceTranscript(): Promise<string | null> {
-  const session = await createVoiceSession();
-  if (!session) {
-    const speech = await speechRecognitionTranscript();
-    return speech;
-  }
-
-  try {
-    return await recordWithSession(session);
-  } finally {
-    session.release();
-  }
+  return null;
 }
 
 export async function listenForSearchQuery(): Promise<string | null> {

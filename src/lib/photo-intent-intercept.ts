@@ -33,6 +33,22 @@ export type PhotoIntentInterceptResult =
   | { handled: false }
   | { handled: true; inline?: PhotoIntentInlineResolution };
 
+function needsVisualClarification(analysis: {
+  objectLabel?: string;
+  category?: string;
+  confidence?: number;
+}): boolean {
+  const label = (analysis.objectLabel ?? "").trim().toLowerCase();
+  return (
+    (analysis.confidence ?? 0) < 0.45 ||
+    analysis.category === "other" ||
+    !label ||
+    label === "objektą" ||
+    label === "kita" ||
+    label === "other"
+  );
+}
+
 /**
  * v1.6.18 — Intent Interceptor: pipeline + vision, then ask search vs listing.
  * Returns true when handled (greeting shown or multi-object branch).
@@ -75,6 +91,24 @@ export async function interceptPhotoUploadForIntent(
         analysis,
         wardrobeOnly: ctx.wardrobeOnly,
       });
+      return { handled: true, inline: { prompt, quickReplies } };
+    }
+    ctx.openWithGreeting(prompt, { quickReplies, openSheet: true });
+    return { handled: true };
+  }
+
+  if (needsVisualClarification(analysis)) {
+    const prompt =
+      analysis.clarificationPrompt ||
+      "Nuotrauką gavau, bet nesu pakankamai tikras, kas joje yra. Parašykite trumpai, ką matote arba ką norite padaryti.";
+    const quickReplies = ["Patikslinti tekstu", ...PHOTO_INTENT_QUICK_REPLIES];
+    setPendingPhotoIntent({
+      photos,
+      extraContext: result.extraContext || undefined,
+      analysis,
+      wardrobeOnly: ctx.wardrobeOnly,
+    });
+    if (ctx.inlineInSheet) {
       return { handled: true, inline: { prompt, quickReplies } };
     }
     ctx.openWithGreeting(prompt, { quickReplies, openSheet: true });

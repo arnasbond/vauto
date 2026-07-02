@@ -19,23 +19,18 @@ export function DynamicAttributeBasket({
   attributes,
   onChange,
   missingKeys = [],
-  skin,
 }: DynamicAttributeBasketProps) {
   if (!fields.length) return null;
-
-  const isSpinta = skin?.variant === "spinta";
 
   return (
     <div
       className={cn(
-        "mb-4 rounded-2xl border p-4",
-        isSpinta ? "border-fuchsia-500/25 bg-[#131c38]" : "border-sky-500/25 bg-[#131c38]"
+        "mb-4 rounded-2xl border border-border bg-card p-4 text-foreground"
       )}
     >
       <p
         className={cn(
-          "mb-3 text-xs font-semibold uppercase tracking-wide",
-          isSpinta ? "text-fuchsia-300" : "text-sky-300"
+          "mb-3 text-xs font-semibold uppercase tracking-wide text-primary"
         )}
       >
         AI išgauti atributai

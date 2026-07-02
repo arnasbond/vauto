@@ -155,7 +155,7 @@ export function ConversationalReport({
     : buddyState === "typing"
       ? "rašo…"
       : buddyState === "speaking"
-        ? "kalba…"
+        ? "atsako…"
         : "VAUTO draugas";
 
   const headerTitle = classic ? theme.portalLabel : "VAUTO draugas";
@@ -273,7 +273,7 @@ export function ConversationalReport({
                       className={cn(
                         "rounded-2xl px-4 py-2.5 text-sm leading-relaxed",
                         m.role === "user"
-                          ? "ml-8 rounded-tr-md bg-[#1a56db]/10 text-[#1e3a5f]"
+                          ? "ml-8 rounded-tr-md bg-primary text-primary-foreground"
                           : cn("rounded-tl-md", t.aiBubble)
                       )}
                     >
@@ -290,7 +290,7 @@ export function ConversationalReport({
                       key={r.id}
                       type="button"
                       onClick={() => onWizardReply(r)}
-                      className="min-h-[44px] rounded-full border border-[#93c5fd] bg-white px-4 py-2 text-sm font-medium text-[#1d4ed8] transition hover:bg-[#eff6ff]"
+                      className="min-h-[44px] rounded-full border border-border bg-card px-4 py-2 text-sm font-medium text-primary transition hover:bg-accent"
                     >
                       {r.label}
                     </button>

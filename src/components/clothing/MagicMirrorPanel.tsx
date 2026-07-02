@@ -25,12 +25,12 @@ export function MagicMirrorPanel({
   ];
 
   return (
-    <div className="mb-6 rounded-3xl border border-fuchsia-500/30 bg-[#131c38] p-4">
+    <div className="mb-6 rounded-3xl border border-border bg-card p-4 text-foreground">
       <div className="mb-3 flex items-center gap-2">
-        <ScanFace className="h-5 w-5 text-fuchsia-400" />
+        <ScanFace className="h-5 w-5 text-primary" />
         <div>
-          <p className="text-sm font-semibold text-white">Magic Mirror</p>
-          <p className="text-[11px] text-slate-400">
+          <p className="text-sm font-semibold text-foreground">Magic Mirror</p>
+          <p className="text-[11px] text-muted-foreground">
             Virtuali kabina — AI palygins matmenis su pirkėjos profiliu pokalbyje
           </p>
         </div>
@@ -38,7 +38,7 @@ export function MagicMirrorPanel({
       <div className="grid grid-cols-2 gap-2">
         {fields.map((f) => (
           <label key={f.key} className="block">
-            <span className="mb-1 block text-[10px] uppercase tracking-wide text-slate-400">
+            <span className="mb-1 block text-[10px] uppercase tracking-wide text-muted-foreground">
               {f.label}
             </span>
             <input
@@ -46,7 +46,7 @@ export function MagicMirrorPanel({
               min={0}
               value={f.value}
               onChange={(e) => onChange(f.key, e.target.value)}
-              className="w-full rounded-xl border border-fuchsia-500/40 bg-[#0a1128] px-2.5 py-2 text-sm text-white outline-none placeholder:text-slate-500 focus:border-fuchsia-400"
+              className="w-full rounded-xl border border-border bg-background px-2.5 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-primary"
             />
           </label>
         ))}

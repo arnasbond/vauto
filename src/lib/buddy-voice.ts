@@ -1,13 +1,3 @@
-import { truncateVoiceReply } from "@/lib/agent-reply-display";
-import {
-  DEFAULT_LOCALE,
-  ensureSpeechVoicesReady,
-  getLockedLocale,
-  hasLocaleVoice,
-  speakWithLocale,
-  stopLocaleSpeech,
-} from "@/lib/SpeechEngine";
-
 export type BuddyState =
   | "idle"
   | "typing"
@@ -32,9 +22,6 @@ export function getFirstName(fullName: string): string {
   return trimmed.split(/\s+/)[0]?.replace(/\.$/, "") ?? "drauge";
 }
 
-export { hasLocaleVoice as hasLithuanianVoice } from "@/lib/SpeechEngine";
-export { selectBestVoice as pickLithuanianVoice } from "@/lib/SpeechEngine";
-
 export interface SpeakBuddyOptions {
   enabled?: boolean;
   /** Always speak — ignores voice_mode_off (used after voice agent replies) */
@@ -45,53 +32,20 @@ export interface SpeakBuddyOptions {
   onEnd?: () => void;
 }
 
-/** Read buddy message aloud — native Lithuanian TTS voice only. */
+/**
+ * Voice output is intentionally disabled across VAUTO.
+ * Keep the public function as an inert compatibility shim so older flows can
+ * finish callbacks without triggering SpeechSynthesis.
+ */
 export function speakBuddyMessage(
-  text: string,
+  _text: string,
   options: SpeakBuddyOptions = {}
 ): SpeechSynthesisUtterance | null {
-  if (typeof window === "undefined" || !window.speechSynthesis) {
-    logBuddyState("idle", { event: "speech_unavailable" });
-    return null;
-  }
-  if (options.enabled === false && !options.force) {
-    logBuddyState("idle", { event: "speech_skipped", reason: "voice_mode_off" });
-    return null;
-  }
-
-  const clean = truncateVoiceReply(text.trim());
-  if (!clean) return null;
-
-  if (!hasLocaleVoice(getLockedLocale())) {
-    logBuddyState("idle", { event: "speech_skipped", reason: "no_lt_voice" });
-    return null;
-  }
-
-  void ensureSpeechVoicesReady();
-
-  return speakWithLocale(clean, {
-    lang: getLockedLocale(),
-    rate: options.rate ?? 0.9,
-    pitch: options.pitch ?? 1,
-    onStart: () => {
-      logBuddyState("speaking", {
-        textPreview: clean.slice(0, 80),
-        locale: getLockedLocale(),
-      });
-      options.onStart?.();
-    },
-    onEnd: () => {
-      logBuddyState("idle", { event: "speech_end" });
-      options.onEnd?.();
-    },
-    onError: (error) => {
-      logBuddyState("idle", { event: "speech_error", error, locale: DEFAULT_LOCALE });
-      options.onEnd?.();
-    },
-  });
+  logBuddyState("idle", { event: "speech_disabled" });
+  options.onEnd?.();
+  return null;
 }
 
 export function stopBuddySpeech() {
-  stopLocaleSpeech();
-  logBuddyState("idle", { event: "speech_cancelled" });
+  logBuddyState("idle", { event: "speech_disabled_cancel" });
 }

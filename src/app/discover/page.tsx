@@ -32,7 +32,7 @@ export default function DiscoverPage() {
                 Išmanioji paieška ir rekomendacijos
               </h1>
               <p className="mt-2 text-sm text-[#6b7280]">
-                Ieškok tekstu, balsu arba nuotrauka. VAUTO surikiuoja skelbimus ir
+                Ieškok tekstu arba nuotrauka. VAUTO surikiuoja skelbimus ir
                 siūlo rinkos kainų patarimus visoje Lietuvoje.
               </p>
             </div>

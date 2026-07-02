@@ -27,16 +27,16 @@ const VARIANT_STYLES: Record<
   { border: string; bg: string; accent: string; spinner: string }
 > = {
   default: {
-    border: "border-sky-500/35",
-    bg: "bg-[#131c38]",
-    accent: "text-sky-300",
-    spinner: "text-sky-400",
+    border: "border-border",
+    bg: "bg-card",
+    accent: "text-primary",
+    spinner: "text-primary",
   },
   spinta: {
-    border: "border-fuchsia-500/35",
-    bg: "bg-[#131c38]",
-    accent: "text-fuchsia-300",
-    spinner: "text-fuchsia-400",
+    border: "border-border",
+    bg: "bg-card",
+    accent: "text-primary",
+    spinner: "text-primary",
   },
 };
 

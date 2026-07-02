@@ -167,8 +167,6 @@ import {
 } from "@/lib/chameleon-themes";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
-import { WakeWordHost } from "@/components/voice/WakeWordHost";
-import { WakeWordAgentBridge } from "@/components/voice/WakeWordAgentBridge";
 import type { WakeWordGeminiAgent } from "@/lib/voice-intent-engine";
 import { ChameleonThemeHost } from "@/components/theme/ChameleonThemeHost";
 import {
@@ -278,7 +276,7 @@ interface VautoContextValue {
     imageDataUrls?: string[];
     extraContext?: string;
     videoUrl?: string;
-    /** Set when input came from microphone — preserves voice mode + TTS */
+    /** Legacy compatibility flag; voice capture is disabled in VAUTO UI. */
     voiceCapture?: boolean;
   }) => Promise<void>;
   reprocessConfirmationPhoto: (imageDataUrl: string) => Promise<void>;
@@ -543,7 +541,6 @@ function VautoFacade({
   gdprModalOpen,
   acceptGdprConsent,
   declineGdprConsent,
-  wakeWordAgentRef,
   hydrated,
   registerServiceLead,
   onSearchIntent,
@@ -553,7 +550,6 @@ function VautoFacade({
   gdprModalOpen: boolean;
   acceptGdprConsent: () => void;
   declineGdprConsent: () => void;
-  wakeWordAgentRef: React.MutableRefObject<WakeWordGeminiAgent | null>;
   hydrated: boolean;
   registerServiceLead: (query: string) => void;
   onSearchIntent: (clean: string) => void;
@@ -684,7 +680,6 @@ function VautoFacade({
       <AdminProjectContextProvider>
         <ZeroUiMemoryProvider>
           <VautoAgentProvider>
-            <WakeWordAgentBridge agentRef={wakeWordAgentRef} />
             <FleetMatchBuddyHost />
             <LiveInterventionHost />
             <SearchRefinementHost />
@@ -697,7 +692,6 @@ function VautoFacade({
       <ZeroUiSellerBridge />
       <ChameleonThemeHost />
       <ReviewPromptHost />
-      <WakeWordHost />
       <GdprConsentModal
         open={gdprModalOpen}
         onAccept={acceptGdprConsent}
@@ -2311,7 +2305,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
                   gdprModalOpen={gdprModalOpen}
                   acceptGdprConsent={acceptGdprConsent}
                   declineGdprConsent={declineGdprConsent}
-                  wakeWordAgentRef={wakeWordAgentRef}
                 >
                   {children}
                 </VautoFacade>

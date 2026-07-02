@@ -334,7 +334,7 @@ export function AdaptiveConfirmation({
     <div
       className={cn(
         "relative z-10 pointer-events-auto",
-        universalMode ? "rounded-2xl border border-slate-200 bg-white p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined
+        universalMode ? "rounded-2xl border border-border bg-card p-3" : chameleonTheme === "wardrobe" ? "chameleon-wardrobe-media" : chameleonTheme === "aruodas" ? "chameleon-aruodas-media" : undefined
       )}
     >
       <ListingPhotoRequiredBanner visible={needsPhotoForPublish} />
@@ -353,8 +353,8 @@ export function AdaptiveConfirmation({
 
   const fieldsBlock = (
     <>
-      <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-slate-200 bg-white" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
-        <p className={`mb-2 text-xs font-semibold ${universalMode ? "text-slate-800" : "font-medium text-slate-800 dark:text-white/70"}`}>Jūs esate:</p>
+      <div className={`mb-4 rounded-xl border p-3 ${universalMode ? "border-border bg-card" : "border-[#d0d7de] bg-[#f9fafb] dark:border-white/10 dark:bg-white/5"}`}>
+        <p className={`mb-2 text-xs font-semibold ${universalMode ? "text-foreground" : "font-medium text-slate-800 dark:text-white/70"}`}>Jūs esate:</p>
         <div className="flex flex-wrap gap-2">
           {SELLER_TYPES.map((opt) => (
             <button
@@ -365,7 +365,7 @@ export function AdaptiveConfirmation({
                 (attributes.sellerType || "Privatus asmuo") === opt
                   ? "bg-[#1167b1] text-white"
                   : universalMode
-                    ? "bg-white text-slate-800 ring-1 ring-slate-400"
+                    ? "bg-card text-foreground ring-1 ring-border"
                     : "bg-white text-slate-800 ring-1 ring-[#d0d7de] dark:bg-white/10 dark:text-white/80"
               }`}
             >
@@ -375,7 +375,7 @@ export function AdaptiveConfirmation({
         </div>
         {(attributes.sellerType || "").includes("Įmonė") && (
           <div className="mt-3">
-            <label className="mb-1 block text-xs text-[#6b7280] dark:text-white/50">
+            <label className="mb-1 block text-xs text-muted-foreground">
               Įmonės pavadinimas
             </label>
             <input
@@ -385,7 +385,7 @@ export function AdaptiveConfirmation({
               value={String(attributes.companyName ?? "")}
               onChange={(e) => onAttributeChange("companyName", e.target.value)}
               placeholder="UAB Pavadinimas"
-              className="w-full rounded-lg border border-[#d0d7de] bg-white px-3 py-2 text-sm outline-none focus:border-[#1167b1] dark:border-white/10 dark:bg-white/5 dark:text-white"
+              className="w-full rounded-lg border border-border bg-background px-3 py-2 text-sm text-foreground outline-none focus:border-primary"
             />
           </div>
         )}
@@ -402,7 +402,7 @@ export function AdaptiveConfirmation({
       )}
 
       {universalMode ? (
-        <div className="rounded-2xl border border-slate-200 bg-white p-4">
+        <div className="rounded-2xl border border-border bg-card p-4">
           <BaseFieldsEditor
             draft={draft}
             fields={[...visibleBaseFields]}

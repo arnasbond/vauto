@@ -1,15 +1,8 @@
-import { cancelActiveVoiceSearch, recycleSpeechRecognitionEngine } from "@/lib/voice-search";
-import { clearSessionLocaleLock, stopLocaleSpeech } from "@/lib/SpeechEngine";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 
-/** Complete mic + TTS queue teardown after AI-driven UI mutation. */
+/** Voice stack removed: kept as an async no-op for legacy call sites. */
 export async function completeVoiceTeardown(): Promise<void> {
-  const { VAUTO_VOICE_INPUT_ENABLED } = await import("@/lib/feature-flags");
-  if (!VAUTO_VOICE_INPUT_ENABLED) return;
-  cancelActiveVoiceSearch();
-  stopLocaleSpeech();
-  clearSessionLocaleLock();
-  await recycleSpeechRecognitionEngine();
+  return;
 }
 
 export function isUiDrivingAgentAction(action: VautoAgentAction): boolean {

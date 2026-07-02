@@ -18,8 +18,8 @@ export function BarcodeScanSheet({
   open,
   onClose,
   onBarcodeResolved,
-  title = "📊 Skenuoti brūkšninį / QR kodą",
-  subtitle = "Nufotografuokite etiketę arba įveskite kodą ranka.",
+  title = "Skenuoti brūkšninį / QR kodą",
+  subtitle = "Nufotografuokite aiškiai matomą etiketę arba įveskite kodą ranka.",
 }: BarcodeScanSheetProps) {
   const [manual, setManual] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -50,6 +50,15 @@ export function BarcodeScanSheet({
         return;
       }
 
+      const { decodeBarcodeOrQrFromImage } = await import(
+        "@/lib/product-intelligence/browser-code-decoder"
+      );
+      const localCode = await decodeBarcodeOrQrFromImage(photo.dataUrl);
+      if (localCode) {
+        submitCode(localCode);
+        return;
+      }
+
       if (isDataApiEnabled()) {
         const { apiScanBarcodeImage } = await import("@/lib/api/client");
         const code = await apiScanBarcodeImage(photo.dataUrl);
@@ -59,17 +68,8 @@ export function BarcodeScanSheet({
         }
       }
 
-      const { extractBarcodesFromText } = await import(
-        "@/lib/product-intelligence/barcode-utils"
-      );
-      const local = extractBarcodesFromText(photo.fileName ?? "");
-      if (local[0]) {
-        submitCode(local[0]);
-        return;
-      }
-
       setError(
-        "Brūkšninio kodo nuotraukoje nepavyko aptikti. Bandykite arčiau, geresniu apšvietimu, arba įveskite kodą ranka."
+        "Kodo nuotraukoje nepavyko aptikti. Priartinkite etiketę, pagerinkite apšvietimą arba įveskite kodą ranka."
       );
     } finally {
       setScanning(false);
@@ -81,7 +81,7 @@ export function BarcodeScanSheet({
   return (
     <div className="fixed inset-0 z-[10050] flex items-end justify-center bg-black/45 p-4 sm:items-center">
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl dark:bg-[#1a1f2e]"
+        className="w-full max-w-md rounded-2xl border border-border bg-card p-5 text-foreground shadow-xl"
         role="dialog"
         aria-label="Brūkšninio kodo skaitymas"
       >
@@ -93,7 +93,7 @@ export function BarcodeScanSheet({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg p-1 text-[var(--vauto-text-muted)] hover:bg-black/5"
+            className="rounded-lg p-1 text-muted-foreground hover:bg-accent hover:text-foreground"
             aria-label="Uždaryti"
           >
             <X className="h-5 w-5" />
@@ -104,7 +104,7 @@ export function BarcodeScanSheet({
           type="button"
           disabled={scanning}
           onClick={() => void handlePhotoScan()}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[#1167b1] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
+          className="vauto-btn-primary mb-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm disabled:opacity-50"
         >
           {scanning ? (
             <Loader2 className="h-5 w-5 animate-spin" />
@@ -114,28 +114,28 @@ export function BarcodeScanSheet({
           Fotografuoti etiketę
         </button>
 
-        <div className="flex items-center gap-2 rounded-xl border border-[#d0d7de] px-3 py-2 dark:border-white/10">
-          <Barcode className="h-5 w-5 shrink-0 text-[#1167b1]" />
+        <div className="flex items-center gap-2 rounded-xl border border-border bg-background px-3 py-2">
+          <Barcode className="h-5 w-5 shrink-0 text-primary" />
           <input
             type="text"
             inputMode="numeric"
             value={manual}
             onChange={(e) => setManual(e.target.value)}
             placeholder="EAN / UPC / ISBN kodas"
-            className="min-w-0 flex-1 border-none bg-transparent text-sm outline-none"
+            className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
           />
           <button
             type="button"
             disabled={!manual.trim()}
             onClick={() => submitCode(manual)}
-            className="rounded-lg bg-[#1167b1] px-3 py-1.5 text-xs font-semibold text-white disabled:opacity-40"
+            className="rounded-lg bg-primary px-3 py-1.5 text-xs font-semibold text-primary-foreground disabled:opacity-40"
           >
             OK
           </button>
         </div>
 
         {error && (
-          <p className="mt-3 text-xs leading-relaxed text-[#b45309]" role="alert">
+          <p className="mt-3 text-xs leading-relaxed text-amber-700" role="alert">
             {error}
           </p>
         )}
