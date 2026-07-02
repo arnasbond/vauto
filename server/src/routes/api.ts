@@ -115,6 +115,7 @@ import {
   saveUserProfile,
 } from "../controllers/user-controller.js";
 import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
+import { getInfraReadiness } from "../lib/infra-readiness.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
 import { resolveAppVersionPayload } from "../lib/app-version-config.js";
@@ -208,6 +209,7 @@ apiRouter.get("/health", async (_req, res) => {
   const vehicle = vehicleLookupFeatures();
   const product = productLookupFeatures();
   const visualPipeline = visualPipelineFeatures();
+  const infra = getInfraReadiness();
   const features = {
     sms: Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
@@ -257,6 +259,7 @@ apiRouter.get("/health", async (_req, res) => {
       db: "connected",
       features: { ...features, serviceLeads },
       visualPipeline,
+      infra,
       embeddings,
       readiness,
     });
@@ -267,6 +270,7 @@ apiRouter.get("/health", async (_req, res) => {
       db: "unavailable",
       features,
       visualPipeline,
+      infra,
       error: String(e),
     });
   }

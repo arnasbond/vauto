@@ -33,20 +33,41 @@ import { shareReferralInvite } from "@/lib/referral";
 import { SITE_URL } from "@/lib/social-share";
 import { shareViaCapacitor, canUseCapacitorShare } from "@/lib/native-share";
 import { cn } from "@/lib/cn";
+import { useFeatureReadiness } from "@/hooks/useFeatureReadiness";
+import {
+  claimBadgeClass,
+  featureClaimStateLabel,
+  type FeatureClaimState,
+} from "@/lib/feature-readiness";
+import { FeatureClaimsPanel } from "@/components/status/FeatureClaimsPanel";
 
 function FeatureCard({
   icon: Icon,
   title,
   description,
+  claimState,
 }: {
   icon: React.ComponentType<{ className?: string }>;
   title: string;
   description: string;
+  claimState?: FeatureClaimState;
 }) {
   return (
     <div className="rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-5 shadow-sm transition hover:border-[var(--vauto-teal)]/30">
-      <div className="mb-3 flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--vauto-teal)]/12">
-        <Icon className="h-5 w-5 text-[var(--vauto-teal)]" />
+      <div className="mb-3 flex items-start justify-between gap-2">
+        <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--vauto-teal)]/12">
+          <Icon className="h-5 w-5 text-[var(--vauto-teal)]" />
+        </div>
+        {claimState ? (
+          <span
+            className={cn(
+              "inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold",
+              claimBadgeClass(claimState)
+            )}
+          >
+            {featureClaimStateLabel(claimState)}
+          </span>
+        ) : null}
       </div>
       <h3 className="text-sm font-bold leading-snug text-[var(--vauto-text)]">
         {title}
@@ -143,6 +164,8 @@ function JourneyStep({
 export default function ApiePage() {
   const { user, isAuthenticated, openAuthModal } = useAuth();
   const { showToast } = useVauto();
+  const { claims } = useFeatureReadiness();
+  const claimById = Object.fromEntries(claims.map((c) => [c.id, c.state]));
 
   const handleShare = async () => {
     if (isAuthenticated && user.id !== "guest") {
@@ -194,9 +217,9 @@ export default function ApiePage() {
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
             Sveiki atvykę! VAUTO sujungia automobilių, nekilnojamojo turto, paslaugų,
             mados ir įvairius kitus skelbimus į vieną jaukią, išmanią platformą.
-            Nufotografuokite, įklijuokite nuorodą arba tiesiog parašykite — o AI paruoš
-            skelbimą, sujungs jį su kitais portalais ir net derėsis su pirkėjais jūsų
-            vardu. Jūs ilsitės, VAUTO dirba.
+            Nufotografuokite, įklijuokite nuorodą arba tiesiog parašykite — AI padės
+            paruošti skelbimą, stebėti kitų portalų profilius ir derėtis su pirkėjais
+            pagal jūsų taisykles.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -260,39 +283,46 @@ export default function ApiePage() {
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
               Visą sunkų darbą — atpažinimą, aprašymus, derybas ir sinchronizaciją —
-              perima protingas AI.
+              perima protingas AI. Žemiau matote realią kiekvienos funkcijos būseną.
             </p>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
+          <FeatureClaimsPanel claims={claims} />
+          <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <FeatureCard
               icon={Sparkles}
               title="Universalus vaizdo atpažinimas"
-              description="Įkelta nuotrauka akimirksniu išanalizuojama. AI nustato, ką matote — objektą, markę, modelį ar kategoriją — ir jums nebereikia rankiniu būdu naršyti po katalogus."
+              claimState={claimById.ai_vision}
+              description="Įkelta nuotrauka išanalizuojama — AI nustato objektą, markę, modelį ar kategoriją, kad nereiktų rankiniu būdu naršyti katalogų."
             />
             <FeatureCard
               icon={Eraser}
               title="Profesionalesnės nuotraukos"
-              description="VAUTO padeda išsirinkti geriausią kadrą ir paruošti švaresnį skelbimo pateikimą. Studio BG fono valymas įsijungia, kai serveryje prijungtas fono valymo tiekėjas."
+              claimState={claimById.studio_bg}
+              description="VAUTO padeda išsirinkti geriausią kadrą. Studio BG fono valymas įsijungia, kai serveryje prijungtas fono valymo tiekėjas."
             />
             <FeatureCard
               icon={ScanLine}
               title="VIN ir numerių atpažinimas"
-              description="AI gali padėti atpažinti VIN ar valstybinį numerį iš nuotraukos ir paruošti techninius laukus. Oficialūs registrų duomenys prijungiami tik tada, kai aktyvūs atitinkami serverio tiekėjai."
+              claimState={claimById.code_scan}
+              description="AI gali padėti atpažinti VIN ar valstybinį numerį iš nuotraukos. Oficialūs registrų duomenys — tik su aktyviais serverio tiekėjais."
             />
             <FeatureCard
               icon={Bot}
               title="AI derybininkas 24/7"
-              description="Kai pirkėjas rašo ar dera dėl kainos, jūsų AI dvynys atsako mandagiai ir pagal jūsų taisykles — dieną ir naktį, nė vieno kliento nepraleisdamas."
+              claimState={claimById.negotiator}
+              description="Kai pirkėjas dera dėl kainos, AI dvynys atsako pagal jūsų sutikimą, minimalią kainą ir saugos taisykles."
             />
             <FeatureCard
               icon={Globe2}
-              title="Skelbimai visur, kur reikia"
-              description="Įkeltą skelbimą galite automatiškai palaikyti aktualų ir kituose skelbimų portaluose — VAUTO reguliariai jį atnaujina, kad jis nepaskęstų."
+              title="Portalų importas ir stebėjimas"
+              claimState={claimById.portal_sync}
+              description="Importuokite profilio nuorodą — VAUTO stebi pokyčius ir atnaujina skelbimus. Tai ne pilnas autopublish į visus portalus."
             />
             <FeatureCard
               icon={Wallet}
               title="Saugūs mokėjimai ir kainų patarėjas"
-              description="Apsaugoti sandoriai su saugumo laikmačiu, siuntų sekimas ir rinkos analize pagrįsta rekomenduojama kaina — parduodate ramiai ir teisingai."
+              claimState={claimById.escrow}
+              description="Escrow sandoriai per Stripe, siuntų lipdukai per carrier adapterį ir rinkos rekomendacijos — ne garantuota kaina."
             />
           </div>
         </section>

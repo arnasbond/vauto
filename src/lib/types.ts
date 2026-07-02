@@ -216,6 +216,10 @@ export interface NegotiationTwinConfig {
   minPrice: number;
   /** Pardavėjo išankstinis patvirtinimas autonominėms deryboms */
   sellerApproved?: boolean;
+  /** Aiškus sutikimas leisti AI atsakyti šiame pokalbyje */
+  sellerConsentAt?: string;
+  /** Maks. nuolaida % nuo skelbimo kainos */
+  maxDiscountPercent?: number;
 }
 
 export interface SellerReview {

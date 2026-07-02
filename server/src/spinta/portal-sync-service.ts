@@ -1,20 +1,10 @@
-import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
 import { logProductionError } from "../lib/production-log.js";
-import { getUser } from "../repository.js";
-import { notifyPortalSyncNewItems } from "../services/push-service.js";
 import {
   getPortalLinksDueForSync,
-  markPortalLinkError,
-  markPortalLinkSyncing,
   type UserPortalLink,
-  upsertPortalLink,
 } from "../repository-portal-links.js";
-import { upsertPortalListing } from "../repository.js";
-import {
-  hashWardrobeItems,
-  portalSyncIntervalMs,
-  wardrobeItemsToListings,
-} from "./portal-listing-mapper.js";
+import { portalSyncIntervalMs } from "./portal-listing-mapper.js";
+import { runPortalSyncViaAdapter } from "./adapters/wardrobe-profile-adapter.js";
 
 const BATCH_DEFAULT = 6;
 const DELAY_BETWEEN_MS = 2500;
@@ -35,81 +25,18 @@ export async function syncSinglePortalLink(
   link: UserPortalLink,
   options: { force?: boolean } = {}
 ): Promise<{ status: "updated" | "skipped" | "error"; itemCount: number }> {
-  const user = await getUser(link.userId);
-  if (!user) {
-    await markPortalLinkError(link.userId, link.portalKey, "Vartotojas nerastas");
-    return { status: "error", itemCount: 0 };
-  }
-
-  await markPortalLinkSyncing(link.userId, link.portalKey);
-
   try {
-    const result = await importWardrobeProfile({
-      profileUrl: link.profileUrl,
-      userName: user.name,
-      defaultLocation: user.city,
-    });
-
-    const itemHash = hashWardrobeItems(result.items);
-    if (
-      !options.force &&
-      itemHash === link.lastItemHash &&
-      link.itemCount > 0
-    ) {
-      await upsertPortalLink({
-        userId: link.userId,
-        portalKey: link.portalKey,
-        portalLabel: link.portalLabel,
-        profileUrl: result.profileUrl || link.profileUrl,
-        status: "synced",
-        itemCount: link.itemCount,
-        lastItemHash: itemHash,
-        scheduleNextSync: true,
-      });
-      return { status: "skipped", itemCount: link.itemCount };
-    }
-
-    const listings = wardrobeItemsToListings(
-      user,
-      result.items,
-      link.portalKey,
-      result.profileUrl || link.profileUrl
-    );
-
-    for (const listing of listings) {
-      await upsertPortalListing(listing);
-    }
-
-    await upsertPortalLink({
-      userId: link.userId,
-      portalKey: link.portalKey,
-      portalLabel: link.portalLabel,
-      profileUrl: result.profileUrl || link.profileUrl,
-      status: "synced",
-      itemCount: result.items.length,
-      lastItemHash: itemHash,
-      scheduleNextSync: true,
-    });
-
-    const previousCount = link.itemCount;
-    const newCount = result.items.length;
-    if (newCount > previousCount) {
-      void notifyPortalSyncNewItems(link.userId, {
-        portalLabel: link.portalLabel,
-        newCount: newCount - previousCount,
-        totalCount: newCount,
-      });
-    }
-
-    return { status: "updated", itemCount: result.items.length };
+    const outcome = await runPortalSyncViaAdapter(link, options);
+    return {
+      status: outcome.status,
+      itemCount: outcome.itemCount,
+    };
   } catch (e) {
-    const message = e instanceof Error ? e.message : String(e);
     logProductionError("portal-sync", e, {
       userId: link.userId,
       portalKey: link.portalKey,
       profileUrl: link.profileUrl.slice(0, 120),
     });
-    await markPortalLinkError(link.userId, link.portalKey, message);
     return { status: "error", itemCount: 0 };
   }
 }

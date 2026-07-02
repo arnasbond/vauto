@@ -50,6 +50,13 @@ async function main() {
     console.log("Embeddings:", JSON.stringify(body.embeddings));
   }
 
+  if (body.infra) {
+    console.log("Infra:", JSON.stringify(body.infra, null, 2));
+    if (body.infra.warnings?.length) {
+      console.warn("Infra warnings:", body.infra.warnings.join("; "));
+    }
+  }
+
   if (body.readiness) {
     console.log("Readiness:", JSON.stringify(body.readiness));
     if (strictReadiness && body.readiness.score < 100) {
