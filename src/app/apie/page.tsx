@@ -2,15 +2,26 @@
 
 import Link from "next/link";
 import {
+  Bot,
   Camera,
+  Car,
   Eraser,
   Globe2,
+  Heart,
+  Home,
   Link2,
   MessageCircle,
+  Package,
   ScanLine,
+  Search,
   Share2,
+  Shirt,
+  ShieldCheck,
   Sparkles,
   UserCheck,
+  Users,
+  Wallet,
+  Wrench,
   Zap,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
@@ -44,6 +55,61 @@ function FeatureCard({
         {description}
       </p>
     </div>
+  );
+}
+
+function AudienceCard({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex flex-col rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-bg)] p-5">
+      <div className="mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-[var(--vauto-teal)] text-white shadow-sm">
+        <Icon className="h-6 w-6" />
+      </div>
+      <h3 className="text-base font-bold text-[var(--vauto-text)]">{title}</h3>
+      <p className="mt-2 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
+        {description}
+      </p>
+    </div>
+  );
+}
+
+function CategoryRow({
+  icon: Icon,
+  title,
+  description,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  title: string;
+  description: string;
+}) {
+  return (
+    <div className="flex items-start gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-4">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-[var(--vauto-teal)]/12 text-[var(--vauto-teal)]">
+        <Icon className="h-5 w-5" />
+      </span>
+      <div>
+        <h3 className="text-sm font-bold text-[var(--vauto-text)]">{title}</h3>
+        <p className="mt-0.5 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
+          {description}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function BenefitItem({ children }: { children: React.ReactNode }) {
+  return (
+    <li className="flex items-start gap-2.5 text-sm leading-relaxed text-[var(--vauto-text)]">
+      <ShieldCheck className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vauto-teal)]" />
+      <span>{children}</span>
+    </li>
   );
 }
 
@@ -120,15 +186,17 @@ export default function ApiePage() {
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[var(--vauto-teal)]/10 blur-2xl" />
           <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-[var(--vauto-orange)]/10 blur-2xl" />
           <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--vauto-teal)]">
-            Apie projektą
+            Apie VAUTO
           </p>
           <h1 className="mt-2 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
-            VAUTO — pirmoji išmanioji skelbimų ekosistema Lietuvoje
+            VAUTO — viskas viename AI prekybos asistente
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
-            Pamirškite varginantį formų pildymą. Įkelkite skelbimą arba suraskite
-            norimą daiktą naudodami tik vieną kameros fiksavimą arba nuorodą. AI fone
-            atliks visą sunkų darbą už jus.
+            Sveiki atvykę! VAUTO sujungia automobilių, nekilnojamojo turto, paslaugų,
+            mados ir įvairius kitus skelbimus į vieną jaukią, išmanią platformą.
+            Nufotografuokite, įklijuokite nuorodą arba tiesiog parašykite — o AI paruoš
+            skelbimą, sujungs jį su kitais portalais ir net derėsis su pirkėjais jūsų
+            vardu. Jūs ilsitės, VAUTO dirba.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -148,40 +216,83 @@ export default function ApiePage() {
           </div>
         </section>
 
-        {/* Esminės nauovės */}
+        {/* Kam skirta */}
         <section className="mt-10">
           <div className="mb-5">
             <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
-              v1.6.14 — v1.6.18
+              Kam skirta
             </p>
             <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
-              Esminės AI nauovės
+              VAUTO — kiekvienam, kas perka ar parduoda
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-              Vizualinis konvejeris, automatinis atpažinimas ir pokalbių sąsaja — be
-              rankinio katalogų naršymo.
+              Nesvarbu, ar tik ieškote, ar parduodate iš namų, ar valdote verslą —
+              atrasite savo vietą.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-3">
+            <AudienceCard
+              icon={Search}
+              title="Pirkėjams"
+              description="Ieškokite bet ko — automobilio, buto, paslaugos ar drabužio — vienu sakiniu, nuotrauka ar balsu. AI supras, ko norite, ir suras geriausius pasiūlymus už jus."
+            />
+            <AudienceCard
+              icon={Heart}
+              title="Privatiems pardavėjams"
+              description="Ypač patogu mados ir asmeninių daiktų pardavėjams: paprasta „spinta“, automatinis skelbimų kūrimas ir šiltos AI derybos su pirkėjais, kol jūs užsiimate savo dienomis."
+            />
+            <AudienceCard
+              icon={Users}
+              title="Verslui ir profesionalams"
+              description="Auto pardavėjams, nekilnojamojo turto ir paslaugų teikėjams — verslo kabinetas, analitika, masinis valdymas ir profesionalus AI derybininkas."
+            />
+          </div>
+        </section>
+
+        {/* Esminės AI galimybės */}
+        <section className="mt-10">
+          <div className="mb-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
+              Galimybės
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
+              Ką VAUTO padarys už jus
+            </h2>
+            <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
+              Visą sunkų darbą — atpažinimą, aprašymus, derybas ir sinchronizaciją —
+              perima protingas AI.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
             <FeatureCard
               icon={Sparkles}
               title="Universalus vaizdo atpažinimas"
-              description="Įkelta nuotrauka akimirksniu išanalizuojama. AI nustato objekto tipą, markę, modelį ar kategoriją, pašalindamas poreikį rankiniu būdu naršyti po katalogus."
+              description="Įkelta nuotrauka akimirksniu išanalizuojama. AI nustato, ką matote — objektą, markę, modelį ar kategoriją — ir jums nebereikia rankiniu būdu naršyti po katalogus."
             />
             <FeatureCard
               icon={Eraser}
               title="Automatinis fono valymas (Studio BG)"
-              description="Mūsų integruotas AI konvejeris automatiškai ištrina netvarkingą nuotraukos foną ir pakeičia jį švariu, profesionaliu studijiniu vaizdu."
+              description="AI švelniai ištrina netvarkingą nuotraukos foną ir pakeičia jį švariu, profesionaliu studijiniu vaizdu — jūsų prekės atrodo gražiausiai."
             />
             <FeatureCard
               icon={ScanLine}
-              title="VIN & Numerių OCR skenavimas"
-              description="Vienu kadru nufotografuokite automobilio VIN kodą arba valstybinį numerį – sistema automatiškai ištrauks duomenis iš NHTSA bei Regitros bazių (įskaitant ridos istoriją bei TA)."
+              title="VIN ir numerių atpažinimas"
+              description="Nufotografuokite automobilio VIN kodą ar valstybinį numerį — sistema pati ištrauks duomenis iš oficialių registrų, įskaitant ridos istoriją bei techninę apžiūrą."
+            />
+            <FeatureCard
+              icon={Bot}
+              title="AI derybininkas 24/7"
+              description="Kai pirkėjas rašo ar dera dėl kainos, jūsų AI dvynys atsako mandagiai ir pagal jūsų taisykles — dieną ir naktį, nė vieno kliento nepraleisdamas."
             />
             <FeatureCard
               icon={Globe2}
-              title="Globali portalų sinchronizacija"
-              description="Įkėlę skelbimą pas mus, galite jį automatiškai eksportuoti ir kas 3 dienas atnaujinti didžiausiuose vietiniuose bei tarptautiniuose portaluose (eBay, Vinted, OLX, Skelbiu)."
+              title="Skelbimai visur, kur reikia"
+              description="Įkeltą skelbimą galite automatiškai palaikyti aktualų ir kituose skelbimų portaluose — VAUTO reguliariai jį atnaujina, kad jis nepaskęstų."
+            />
+            <FeatureCard
+              icon={Wallet}
+              title="Saugūs mokėjimai ir kainų patarėjas"
+              description="Apsaugoti sandoriai su saugumo laikmačiu, siuntų sekimas ir rinkos analize pagrįsta rekomenduojama kaina — parduodate ramiai ir teisingai."
             />
           </div>
         </section>
@@ -189,11 +300,11 @@ export default function ApiePage() {
         {/* Idealus vartotojo kelias */}
         <section className="mt-10 rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-6 shadow-sm sm:p-8">
           <h2 className="text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
-            Idealus vartotojo kelias
+            Kaip tai veikia
           </h2>
           <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-            Trys žingsniai — nuo nuotraukos iki skelbimo ar paieškos be formų galvos
-            skausmo.
+            Trys paprasti žingsniai — nuo nuotraukos iki skelbimo ar paieškos, be jokių
+            formų.
           </p>
 
           <div className="relative mt-8 grid gap-10 sm:grid-cols-3 sm:gap-6">
@@ -204,20 +315,20 @@ export default function ApiePage() {
             <JourneyStep
               step={1}
               icon={Link2}
-              title="Nuotrauka arba Nuoroda"
-              description="Tiesiog įkelkite daikto foto arba įklijuokite skelbimo URL iš kito portalo per 5 sekundes."
+              title="Nuotrauka, nuoroda ar balsas"
+              description="Tiesiog įkelkite daikto nuotrauką, įklijuokite skelbimo nuorodą arba pasakykite, ko ieškote — vos per kelias sekundes."
             />
             <JourneyStep
               step={2}
               icon={MessageCircle}
-              title="Protingas ketinimo pasirinkimas"
-              description='AI paklaus: „Matau [Daiktą], ką norite daryti?“ ir pasiūlys du kelius: „🔍 Ieškoti šio daikto“ arba „➕ Įkelti skelbimą“.'
+              title="AI supranta, ko norite"
+              description='AI paklaus: „Matau [daiktą] — ką norite daryti?“ ir pasiūlys: „🔍 Ieškoti šio daikto“ arba „➕ Įkelti skelbimą“.'
             />
             <JourneyStep
               step={3}
               icon={UserCheck}
-              title="Laisvas patvirtinimas"
-              description="Jokių privalomų laukų pančių. Kontaktai įkrenta iš profilio automatiškai, o su AI asistentu bendraujate laisvu pokalbiu."
+              title="Patvirtinate — ir baigta"
+              description="Jokių privalomų laukų. Kontaktai įsikelia iš profilio patys, o su AI asistentu bendraujate paprastu, laisvu pokalbiu."
             />
           </div>
 
@@ -231,6 +342,84 @@ export default function ApiePage() {
               </span>
             ))}
           </div>
+        </section>
+
+        {/* Kategorijos */}
+        <section className="mt-10">
+          <div className="mb-5">
+            <p className="text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-orange)]">
+              Kategorijos
+            </p>
+            <h2 className="mt-1 text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
+              Viena platforma — visos skelbimų kategorijos
+            </h2>
+            <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
+              Viskas, ką norite parduoti ar rasti, jau telpa čia.
+            </p>
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <CategoryRow
+              icon={Car}
+              title="Automobilių skelbimai"
+              description="Su VIN atpažinimu, ridos istorija ir patogiu auto pardavėjų valdymu."
+            />
+            <CategoryRow
+              icon={Home}
+              title="Nekilnojamojo turto skelbimai"
+              description="Butai, namai, sklypai ir nuoma — aiškiai ir be painiavos."
+            />
+            <CategoryRow
+              icon={Wrench}
+              title="Paslaugų skelbimai"
+              description="Remontas, grožis, transportas ir kita — su patogiu teritorijos filtru."
+            />
+            <CategoryRow
+              icon={Shirt}
+              title="Mados ir drabužių skelbimai"
+              description="Asmeninė „spinta“ su AI atpažinimu — parduokite lengvai ir greitai."
+            />
+            <CategoryRow
+              icon={Package}
+              title="Įvairūs skelbimai"
+              description="Elektronika, buičiai ir bet kokie kiti daiktai — universalus atpažinimas viskam."
+            />
+            <CategoryRow
+              icon={Search}
+              title="Išmanioji paieška"
+              description="Aprašykite, ko ieškote, savais žodžiais — AI supras ir suras už jus."
+            />
+          </div>
+        </section>
+
+        {/* Kodėl VAUTO */}
+        <section className="mt-10 rounded-3xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] p-6 shadow-sm sm:p-8">
+          <h2 className="text-lg font-bold text-[var(--vauto-text)] sm:text-xl">
+            Kodėl verta rinktis VAUTO
+          </h2>
+          <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
+            Mažiau rankinio darbo, daugiau ramybės — ir viskas vienoje vietoje.
+          </p>
+          <ul className="mt-5 grid gap-3 sm:grid-cols-2">
+            <BenefitItem>
+              <strong>Viena paskyra</strong> vietoj daugybės atskirų svetainių.
+            </BenefitItem>
+            <BenefitItem>
+              <strong>AI vietoj rankinio darbo</strong> — skelbimas per minutę, ne
+              valandą.
+            </BenefitItem>
+            <BenefitItem>
+              <strong>Derybos fone</strong> — nepraleisite nė vieno pirkėjo, net miegodami.
+            </BenefitItem>
+            <BenefitItem>
+              <strong>Skelbimai visada aktualūs</strong> — sistema pasirūpina atnaujinimais.
+            </BenefitItem>
+            <BenefitItem>
+              <strong>Saugūs sandoriai</strong> — apsauga ir patikimumo įvertinimai.
+            </BenefitItem>
+            <BenefitItem>
+              <strong>Sukurta Lietuvai</strong> — supranta vietinę rinką ir kalbą.
+            </BenefitItem>
+          </ul>
         </section>
 
         {/* Mobile install */}
@@ -254,10 +443,10 @@ export default function ApiePage() {
           )}
         >
           <h2 className="text-lg font-bold text-[var(--vauto-text)]">
-            Pakviesk draugą — gauk TOP iškėlimą nemokamai
+            Pakvieskite draugą — gaukite TOP iškėlimą nemokamai
           </h2>
           <p className="mx-auto mt-2 max-w-sm text-xs text-[var(--vauto-text-muted)]">
-            Pasidalink VAUTO su draugais per Messenger, Viber ar SMS — vienu
+            Pasidalinkite VAUTO su draugais per Messenger, Viber ar SMS — vienu
             paspaudimu, visoje Lietuvoje.
           </p>
           <button

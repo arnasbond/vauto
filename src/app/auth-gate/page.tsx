@@ -61,7 +61,7 @@ export default function AuthGatePage() {
     <AppShell variant="plain">
       <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-8">
         <p className="mb-5 text-center text-[10px] font-bold uppercase tracking-[0.2em] text-[var(--vauto-teal)]">
-          Smart Onboarding
+          Trumpa pažintis
         </p>
 
         <SmartOnboardingCarousel />
@@ -76,7 +76,8 @@ export default function AuthGatePage() {
         </button>
 
         <p className="mt-4 text-center text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-          Auto, NT, paslaugos, prekyba ir asmeniniai daiktai — viena paskyra, visi portalai.
+          Automobilių, nekilnojamojo turto, paslaugų, mados ir įvairūs skelbimai — viena
+          paskyra viskam. Prisijunk ir leisk AI padaryti sunkų darbą už tave.
         </p>
 
         <Link

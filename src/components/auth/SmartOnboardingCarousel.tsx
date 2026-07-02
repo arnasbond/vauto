@@ -1,24 +1,34 @@
 "use client";
 
 import { useCallback, useState } from "react";
-import { Bot, Link2, Zap } from "lucide-react";
+import { Bot, Camera, Link2, ShieldCheck, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export const SMART_ONBOARDING_SLIDES = [
   {
+    icon: Sparkles,
+    title: "Sveiki atvykę į VAUTO",
+    body: "Čia automobilių, nekilnojamojo turto, paslaugų, mados ir įvairūs kiti skelbimai gyvena vienoje išmanioje vietoje. Nesvarbu, ar parduodi, ar ieškai – viską padarysime kartu, be jokio streso.",
+  },
+  {
     icon: Link2,
-    title: "Automatinis paskyrų sinchronizavimas fone",
-    body: "Sujunkite savo paskyras iš Skelbiu, Autoplius, Aruodas, Paslaugos.lt, Vinted ar Marktplaats. Sistema fone pati stebi ir atnaujina jūsų skelbimus.",
+    title: "Tavo skelbimai – visur, kur reikia",
+    body: "Sujunk savo esamus skelbimus iš įvairių portalų, o VAUTO tyliai fone juos stebės ir atnaujins. Nebereikės to paties kopijuoti dešimt kartų – tuo pasirūpinsime mes.",
   },
   {
     icon: Bot,
-    title: "Išmanusis AI agentas deryboms 24/7",
-    body: "Nesvarbu, ar tai automobilis, nekilnojamasis turtas, teikiamos paslaugos, ar asmeniniai daiktai – jūsų AI dvynys profesionaliai derybose gina jūsų kainą.",
+    title: "AI asistentas, kuris niekada nemiega",
+    body: "Kai pirkėjas parašo naktį ar dera dėl kainos, tavo AI dvynys atsako už tave – mandagiai, šiltai ir pagal tavo taisykles. Tu ilsėsies, o derybos vyks 24 valandas per parą.",
   },
   {
-    icon: Zap,
-    title: "0% streso, 100% efektyvumas",
-    body: "Pažangus srautų valdymas ir automatizuotas pelnas tiek privatininkams, tiek verslui.",
+    icon: Camera,
+    title: "Nufotografuok – o kita palik mums",
+    body: "Įkelk daikto, automobilio ar drabužio nuotrauką, ir AI pats atpažins, ką matai, parašys aprašymą bei pasiūlys kainą. Jokių ilgų formų – tik viena nuotrauka.",
+  },
+  {
+    icon: ShieldCheck,
+    title: "Saugu, paprasta ir be rūpesčių",
+    body: "Saugūs mokėjimai, siuntų sekimas ir patikimumo įvertinimai saugo kiekvieną sandorį. Tiek parduodant iš namų, tiek valdant didelį verslą – VAUTO prisitaiko prie tavęs.",
   },
 ] as const;
 

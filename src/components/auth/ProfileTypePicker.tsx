@@ -38,18 +38,19 @@ export function ProfileTypePicker({ onComplete, className }: ProfileTypePickerPr
 
   return (
     <div className={cn("w-full", className)}>
-      <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-[var(--vauto-teal)]">
+      <p className="mb-2 text-center text-[10px] font-bold uppercase tracking-[0.18em] text-primary">
         Paskutinis žingsnis
       </p>
-      <h2 className="text-center text-lg font-semibold text-white">
-        Kaip naudosite VAUTO?
+      <h2 className="text-center text-lg font-semibold text-foreground">
+        Kaip naudosi VAUTO?
       </h2>
-      <p className="mt-2 text-center text-sm text-slate-400">
-        Pasirinkimas pritaikys kabinetą ir portalų integracijas.
+      <p className="mt-2 text-center text-sm text-muted-foreground">
+        Nesijaudink – pasirinkimą visada galėsi pakeisti. Jis tik pritaikys tavo
+        kabinetą ir įrankius.
       </p>
 
       {error && (
-        <p className="mt-4 rounded-xl bg-red-500/15 px-3 py-2 text-center text-sm text-red-200">
+        <p className="mt-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-center text-sm text-red-700">
           {error}
         </p>
       )}
@@ -59,21 +60,22 @@ export function ProfileTypePicker({ onComplete, className }: ProfileTypePickerPr
           type="button"
           disabled={Boolean(loading)}
           onClick={() => void handleSelect("private")}
-          className="flex w-full items-center gap-4 rounded-3xl border border-fuchsia-500/40 bg-fuchsia-600/10 p-5 text-left transition hover:border-fuchsia-400 hover:bg-fuchsia-600/20 disabled:opacity-60"
+          className="flex w-full items-center gap-4 rounded-3xl border border-border bg-card p-5 text-left transition hover:border-primary/50 hover:bg-accent disabled:opacity-60"
         >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-fuchsia-600 text-white shadow-md">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-primary text-primary-foreground shadow-sm">
             <Shirt className="h-7 w-7" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-base font-semibold text-white">
-              Aš parduodu asmeninius daiktus
+            <span className="block text-base font-semibold text-foreground">
+              Parduodu asmeninius daiktus
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-slate-300">
-              Vinted, Marktplaats, Depop — supaprastinta spinta ir daiktų valdymas.
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              Madą, drabužius, avalynę ir kitus asmeninius daiktus – supaprastinta
+              „spinta“, AI atpažinimas ir šiltos derybos su pirkėjais už tave.
             </span>
           </span>
           {loading === "private" && (
-            <span className="text-xs text-fuchsia-200">Saugoma…</span>
+            <span className="text-xs text-muted-foreground">Saugoma…</span>
           )}
         </button>
 
@@ -81,21 +83,22 @@ export function ProfileTypePicker({ onComplete, className }: ProfileTypePickerPr
           type="button"
           disabled={Boolean(loading)}
           onClick={() => void handleSelect("business")}
-          className="flex w-full items-center gap-4 rounded-3xl border border-[var(--vauto-teal)]/40 bg-[var(--vauto-teal)]/10 p-5 text-left transition hover:border-[var(--vauto-teal)] hover:bg-[var(--vauto-teal)]/20 disabled:opacity-60"
+          className="flex w-full items-center gap-4 rounded-3xl border border-border bg-card p-5 text-left transition hover:border-primary/50 hover:bg-accent disabled:opacity-60"
         >
-          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-[var(--vauto-teal)] text-white shadow-md">
+          <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-foreground text-background shadow-sm">
             <Briefcase className="h-7 w-7" />
           </span>
           <span className="min-w-0 flex-1">
-            <span className="block text-base font-semibold text-white">
-              Aš esu Verslas / Teikiu paslaugas
+            <span className="block text-base font-semibold text-foreground">
+              Turiu verslą ar teikiu paslaugas
             </span>
-            <span className="mt-1 block text-xs leading-relaxed text-slate-300">
-              Skelbiu, Autoplius, Aruodas, Paslaugos.lt — analitika ir masinis valdymas.
+            <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
+              Automobilių, nekilnojamojo turto ar paslaugų skelbimai – verslo
+              kabinetas, analitika ir masinis valdymas visoje Lietuvoje.
             </span>
           </span>
           {loading === "business" && (
-            <span className="text-xs text-teal-200">Saugoma…</span>
+            <span className="text-xs text-muted-foreground">Saugoma…</span>
           )}
         </button>
       </div>

@@ -54,15 +54,18 @@ export function HomeAiHero({
           />
         </Link>
 
-        <div className="mb-4 flex items-center gap-2 px-2">
+        <div className="mb-2 flex items-center gap-2 px-2">
           <Sparkles
             className="h-4 w-4 shrink-0 text-[var(--vauto-primary)]"
             aria-hidden
           />
           <p className="home-ai-hero-greeting vauto-body-text text-[15px] font-medium sm:text-base">
-            Sveiki, aš esu VAUTO asistentas. Ko ieškote šiandien?
+            Sveiki, aš esu VAUTO asistentas. Ko ieškote ar ką parduodate šiandien?
           </p>
         </div>
+        <p className="mb-4 px-2 text-center text-xs text-[var(--vauto-text-muted)]">
+          Automobiliai · nekilnojamasis turtas · paslaugos · mada · įvairūs skelbimai
+        </p>
       </div>
 
       <div className="mt-2">
