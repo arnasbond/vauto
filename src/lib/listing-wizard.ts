@@ -103,7 +103,7 @@ export function analyzeListingWizard(
     if (!vin) {
       prompts.push("enter_vin");
       questions.push(
-        "Ar norėtumėte įvesti VIN kodą, kad Regitra duomenys užsipildytų automatiškai?"
+        "Ar norėtumėte įvesti VIN kodą, kad VAUTO tiksliau paruoštų automobilio techninius laukus?"
       );
       quickReplies.push(
         { id: "vin-yes", label: "Įvesti VIN", attributePatch: {} },

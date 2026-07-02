@@ -40,6 +40,8 @@ export function applyVisualPipelineToDraft(
 
   const hints = pipeline.attributeHints ?? {};
   if (hints.barcode && !attrs.barcode) attrs.barcode = hints.barcode;
+  if (hints.vin && !attrs.vin) attrs.vin = hints.vin;
+  if (hints.plateNumber && !attrs.plateNumber) attrs.plateNumber = hints.plateNumber;
   if (hints.modelCode && !attrs.modelCode) attrs.modelCode = hints.modelCode;
 
   return {

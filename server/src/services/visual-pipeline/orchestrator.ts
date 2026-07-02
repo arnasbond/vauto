@@ -7,7 +7,7 @@ import {
 import { visualPipelineFeatures } from "./features.js";
 import { runBackgroundRemoval } from "./providers/background-removal.js";
 import { runDamageDetection } from "./providers/damage-detection.js";
-import { runOcrPipeline } from "./providers/ocr.js";
+import { extractPlateToken, extractVinToken, runOcrPipeline } from "./providers/ocr.js";
 import { runSmartSort } from "./providers/smart-sort.js";
 import type {
   VisualPipelineImageInput,
@@ -41,6 +41,11 @@ function buildAttributeHints(
 ): Record<string, string> {
   const hints: Record<string, string> = {};
   const barcodes = extractBarcodesFromText(mergedText);
+  const lines = mergedText.split(/\n+/).map((line) => line.trim()).filter(Boolean);
+  const vin = lines.map(extractVinToken).find((v): v is string => Boolean(v));
+  const plateNumber = lines
+    .map(extractPlateToken)
+    .find((v): v is string => Boolean(v));
   const barcode =
     barcodes[0] ??
     codes
@@ -48,6 +53,8 @@ function buildAttributeHints(
       .find((c): c is string => Boolean(c));
   if (barcode) hints.barcode = barcode;
   else if (codes[0]) hints.modelCode = codes[0];
+  if (vin) hints.vin = vin;
+  if (plateNumber) hints.plateNumber = plateNumber;
   if (damageCondition) hints.conditionNote = damageCondition;
   return hints;
 }

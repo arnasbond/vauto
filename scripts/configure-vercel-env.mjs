@@ -92,9 +92,9 @@ async function main() {
 
   for (const target of TARGETS) {
     await deleteEnv("OPENAI_API_KEY", target);
+    await deleteEnv("NEXT_PUBLIC_GEMINI_API_KEY", target);
     if (GEMINI) {
       await upsertEnv("GEMINI_API_KEY", GEMINI, target);
-      await upsertEnv("NEXT_PUBLIC_GEMINI_API_KEY", GEMINI, target);
     } else {
       console.warn(`⚠ GEMINI_API_KEY not set — skipping upsert for ${target}`);
     }

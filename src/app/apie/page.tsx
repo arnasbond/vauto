@@ -271,13 +271,13 @@ export default function ApiePage() {
             />
             <FeatureCard
               icon={Eraser}
-              title="Automatinis fono valymas (Studio BG)"
-              description="AI švelniai ištrina netvarkingą nuotraukos foną ir pakeičia jį švariu, profesionaliu studijiniu vaizdu — jūsų prekės atrodo gražiausiai."
+              title="Profesionalesnės nuotraukos"
+              description="VAUTO padeda išsirinkti geriausią kadrą ir paruošti švaresnį skelbimo pateikimą. Studio BG fono valymas įsijungia, kai serveryje prijungtas fono valymo tiekėjas."
             />
             <FeatureCard
               icon={ScanLine}
               title="VIN ir numerių atpažinimas"
-              description="Nufotografuokite automobilio VIN kodą ar valstybinį numerį — sistema pati ištrauks duomenis iš oficialių registrų, įskaitant ridos istoriją bei techninę apžiūrą."
+              description="AI gali padėti atpažinti VIN ar valstybinį numerį iš nuotraukos ir paruošti techninius laukus. Oficialūs registrų duomenys prijungiami tik tada, kai aktyvūs atitinkami serverio tiekėjai."
             />
             <FeatureCard
               icon={Bot}
@@ -361,7 +361,7 @@ export default function ApiePage() {
             <CategoryRow
               icon={Car}
               title="Automobilių skelbimai"
-              description="Su VIN atpažinimu, ridos istorija ir patogiu auto pardavėjų valdymu."
+              description="Su VIN atpažinimu, techniniais laukais ir patogiu auto pardavėjų valdymu."
             />
             <CategoryRow
               icon={Home}

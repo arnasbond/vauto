@@ -43,7 +43,6 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
           NEXT_PUBLIC_VAUTO_CONDUCTOR: "1"
-          NEXT_PUBLIC_GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Verify build output
         run: |

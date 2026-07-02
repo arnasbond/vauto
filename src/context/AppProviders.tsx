@@ -13,6 +13,7 @@ import { NativeErrorBoundary } from "@/components/NativeErrorBoundary";
 import { AppVersionProvider } from "@/context/AppVersionContext";
 import { WebAutoUpdateHost } from "@/components/version/WebAutoUpdateHost";
 import { UserBehaviorNavigationTracker } from "@/components/agent/UserBehaviorNavigationTracker";
+import { ApiWarmupHost } from "@/components/ApiWarmupHost";
 
 /**
  * Application provider tree — UserBehaviorProvider feeds global Gemini agent context.
@@ -22,6 +23,7 @@ export function AppProviders({ children }: { children: ReactNode }) {
     <NativeErrorBoundary>
       <AppVersionProvider>
         <WebAutoUpdateHost />
+        <ApiWarmupHost />
         <AppThemeProvider>
           <AuthProvider>
             <UserBehaviorProvider>

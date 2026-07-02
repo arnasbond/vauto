@@ -289,7 +289,7 @@ export function useListingWizard({
           ...prev,
           {
             role: "assistant",
-            text: "Puiku — įveskite VIN žemiau, ir Regitra duomenys užsipildys automatiškai.",
+            text: "Puiku — įveskite VIN žemiau, ir VAUTO tiksliau paruoš techninius laukus.",
           },
         ]);
         return;
