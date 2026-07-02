@@ -169,7 +169,7 @@ export function WardrobeProfileImporter({
           <p className="text-[11px] text-muted-foreground">
             {isGuest
               ? "Demo režimas — įklijuok profilio URL ir AI paruoš tavo spintą"
-              : "Vienas URL — AI sukuria visus VAUTO skelbimus automatiškai"}
+              : "Importas ir stebėjimas iš kito portalo — ne pilnas autopublish visur"}
             {!isGuest && access?.active && !access.canImportUnlimited && (
               <> · liko {access.importsRemaining} nemokamas importas</>
             )}

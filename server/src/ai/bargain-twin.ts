@@ -4,6 +4,11 @@ import {
   buildNegotiationSystemPrompt,
   type NegotiationProfileType,
 } from "../services/ai-negotiator.js";
+import { logNegotiationAudit } from "./negotiation-audit.js";
+import {
+  applyMaxDiscountRule,
+  evaluateNegotiationGuards,
+} from "./negotiation-guards.js";
 
 export interface BargainTwinRules {
   minPrice: number;
@@ -12,6 +17,10 @@ export interface BargainTwinRules {
   sellerApproved: boolean;
   /** Įjungta per UI (Negotiation Twin toggle) */
   autoNegotiationEnabled: boolean;
+  /** Aiškus sutikimas per skelbimą (ISO data arba true) */
+  sellerConsent?: boolean | string;
+  /** Maks. nuolaida % nuo skelbimo kainos */
+  maxDiscountPercent?: number;
 }
 
 export interface BargainTwinInput {
@@ -22,6 +31,9 @@ export interface BargainTwinInput {
   sellerName: string;
   profileType?: NegotiationProfileType;
   rules?: BargainTwinRules;
+  threadId?: string;
+  listingId?: string;
+  sellerUserId?: string;
 }
 
 export interface BargainTwinResult {
@@ -55,10 +67,20 @@ function counterPrice(listingPrice: number, minPrice: number, offered: number): 
   return Math.max(minPrice, Math.min(listingPrice - 1, mid));
 }
 
+function hasSellerConsent(rules: BargainTwinRules): boolean {
+  if (rules.sellerConsent === false) return false;
+  if (rules.sellerConsent === true) return true;
+  if (typeof rules.sellerConsent === "string" && rules.sellerConsent.trim()) {
+    return true;
+  }
+  return rules.sellerApproved;
+}
+
 /** Ar AI dvyniui leidžiama autonomiškai derėtis */
 export function canAutoNegotiate(rules: BargainTwinRules): boolean {
   return (
     rules.autoNegotiationEnabled &&
+    hasSellerConsent(rules) &&
     rules.sellerApproved &&
     rules.minPrice > 0 &&
     rules.listingPrice >= rules.minPrice
@@ -115,34 +137,101 @@ export async function runAutoNegotiation(
     autoNegotiationEnabled: true,
   };
 
+  const guard = evaluateNegotiationGuards(input.buyerMessage);
+  if (guard.escalate) {
+    const escalated: BargainTwinResult = {
+      shouldReply: false,
+      dealReady: false,
+      autoReply: "",
+      sellerNotification: guard.sellerNotification ?? "",
+      blockedReason: `escalated_${guard.reason}`,
+    };
+    void logNegotiationAudit({
+      threadId: input.threadId,
+      listingId: input.listingId,
+      sellerUserId: input.sellerUserId,
+      buyerMessage: input.buyerMessage,
+      escalated: true,
+      escalateReason: guard.reason,
+      ruleApplied: "negotiation_guard",
+    });
+    return escalated;
+  }
+
   if (!canAutoNegotiate(rules)) {
-    return {
+    const blocked: BargainTwinResult = {
       shouldReply: false,
       dealReady: false,
       autoReply: "",
       sellerNotification: "",
       blockedReason: !rules.autoNegotiationEnabled
         ? "auto_negotiation_disabled"
-        : !rules.sellerApproved
-          ? "seller_not_approved"
-          : "invalid_price_range",
+        : !hasSellerConsent(rules)
+          ? "seller_consent_missing"
+          : !rules.sellerApproved
+            ? "seller_not_approved"
+            : "invalid_price_range",
     };
+    void logNegotiationAudit({
+      threadId: input.threadId,
+      listingId: input.listingId,
+      sellerUserId: input.sellerUserId,
+      buyerMessage: input.buyerMessage,
+      escalated: false,
+      ruleApplied: blocked.blockedReason,
+    });
+    return blocked;
   }
 
-  const local = localBargainTwin(input);
+  const offered = extractOfferedPrice(input.buyerMessage);
+  const discountRule = applyMaxDiscountRule({
+    listingPrice: input.listingPrice,
+    minPrice: input.minPrice,
+    offeredPrice: offered,
+    maxDiscountPercent: rules.maxDiscountPercent,
+  });
+  const effectiveMin = discountRule.floorPrice;
+
+  const local = localBargainTwin({
+    ...input,
+    minPrice: effectiveMin,
+  });
   if (!local.shouldReply) return local;
+
+  if (offered && !discountRule.allowed) {
+    const blocked: BargainTwinResult = {
+      shouldReply: true,
+      offeredPrice: offered,
+      counterPrice: discountRule.floorPrice,
+      dealReady: false,
+      autoReply: `Ačiū už pasiūlymą. Minimali galima kaina šiam skelbimui yra ${discountRule.floorPrice} €.`,
+      sellerNotification: `AI Dvynys atmetė per žemą pasiūlymą (${offered} €) — grindis ${discountRule.floorPrice} €.`,
+      blockedReason: "max_discount_exceeded",
+    };
+    void logNegotiationAudit({
+      threadId: input.threadId,
+      listingId: input.listingId,
+      sellerUserId: input.sellerUserId,
+      buyerMessage: input.buyerMessage,
+      autoReply: blocked.autoReply,
+      offeredPrice: offered,
+      counterPrice: discountRule.floorPrice,
+      ruleApplied: "max_discount",
+    });
+    return blocked;
+  }
 
   try {
     const raw = await unifiedLlmJson({
       systemInstruction: buildNegotiationSystemPrompt(input.profileType),
       prompt: `Pardavėja: ${input.sellerName}
 Skelbimas: ${input.listingTitle}
-Kaina: ${input.listingPrice} €, minimumas: ${input.minPrice} €
+Kaina: ${input.listingPrice} €, minimumas: ${effectiveMin} €
 Profilio tipas: ${input.profileType ?? "nežinomas"}
 Pirkėjo žinutė: "${input.buyerMessage}"`,
     });
 
-    return {
+    const result: BargainTwinResult = {
       shouldReply: Boolean(raw.shouldReply ?? true),
       offeredPrice: Number(raw.offeredPrice) || local.offeredPrice,
       counterPrice:
@@ -153,10 +242,33 @@ Pirkėjo žinutė: "${input.buyerMessage}"`,
         String(raw.sellerNotification ?? local.sellerNotification).trim() ||
         local.sellerNotification,
     };
+    void logNegotiationAudit({
+      threadId: input.threadId,
+      listingId: input.listingId,
+      sellerUserId: input.sellerUserId,
+      buyerMessage: input.buyerMessage,
+      autoReply: result.autoReply,
+      offeredPrice: result.offeredPrice,
+      counterPrice: result.counterPrice,
+      dealReady: result.dealReady,
+      ruleApplied: "llm_negotiation",
+    });
+    return result;
   } catch (err) {
     logProductionError("negotiation-twin", err, {
       listingTitle: input.listingTitle,
       profileType: input.profileType,
+    });
+    void logNegotiationAudit({
+      threadId: input.threadId,
+      listingId: input.listingId,
+      sellerUserId: input.sellerUserId,
+      buyerMessage: input.buyerMessage,
+      autoReply: local.autoReply,
+      offeredPrice: local.offeredPrice,
+      counterPrice: local.counterPrice,
+      dealReady: local.dealReady,
+      ruleApplied: "local_fallback",
     });
     return local;
   }

@@ -9,7 +9,8 @@
     "build": "tsc",
     "seed": "tsx src/seed.ts",
     "e2e:simulate": "tsx src/test/vauto-e2e-simulation.ts",
-    "setup-stripe": "tsx scripts/setup-stripe.ts"
+    "setup-stripe": "tsx scripts/setup-stripe.ts",
+    "test:visual-pipeline-qa": "npm run build && node scripts/run-visual-pipeline-qa.mjs"
   },
   "dependencies": {
     "@aws-sdk/client-textract": "^3.1077.0",

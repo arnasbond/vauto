@@ -7,6 +7,8 @@ import {
   apiFetchHealthDetails,
   type ApiHealthDetails,
 } from "@/lib/api/client";
+import { deriveFeatureClaims } from "@/lib/feature-readiness";
+import { FeatureClaimsPanel } from "@/components/status/FeatureClaimsPanel";
 import { initConductorConfig, isConductorEnabled } from "@/lib/vauto-conductor";
 
 const FEATURE_LABELS: Record<string, string> = {
@@ -59,6 +61,7 @@ export function ConnectionStatusCard() {
   }, [apiActive]);
 
   const live = apiActive && health?.ok && health.db === "connected";
+  const claims = deriveFeatureClaims(health, apiActive);
 
   return (
     <section
@@ -179,6 +182,23 @@ export function ConnectionStatusCard() {
           </div>
         </div>
       )}
+
+      <div className="mt-3">
+        <FeatureClaimsPanel claims={claims} compact />
+      </div>
+
+      {health?.infra?.warnings?.length ? (
+        <div className="mt-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-2.5">
+          <p className="text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:text-amber-300">
+            Infrastruktūros perspėjimai
+          </p>
+          <ul className="mt-1 space-y-0.5 text-[10px] text-amber-800 dark:text-amber-200">
+            {health.infra.warnings.map((w) => (
+              <li key={w}>{w}</li>
+            ))}
+          </ul>
+        </div>
+      ) : null}
 
       {health?.embeddings && live && (
         <p

@@ -56,6 +56,10 @@ export async function requestNegotiationTwin(body: {
   profileType?: "private" | "business";
   sellerApproved?: boolean;
   autoNegotiationEnabled?: boolean;
+  sellerConsent?: boolean | string;
+  maxDiscountPercent?: number;
+  threadId?: string;
+  listingId?: string;
 }): Promise<NegotiationTwinReply | null> {
   if (isAiProxyAvailable()) {
     const remote = await apiNegotiationTwin(body);

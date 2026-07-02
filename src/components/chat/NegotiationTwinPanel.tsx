@@ -12,6 +12,8 @@ interface NegotiationTwinPanelProps {
     enabled: boolean;
     minPrice: number;
     sellerApproved: boolean;
+    sellerConsentAt?: string;
+    maxDiscountPercent?: number;
   }) => void;
 }
 
@@ -27,7 +29,11 @@ export function NegotiationTwinPanel({
     listingMinNegotiationPrice ??
     Math.max(1, Math.round(listingPrice * 0.85));
   const [minPrice, setMinPrice] = useState(defaultMin);
+  const [maxDiscountPercent, setMaxDiscountPercent] = useState(
+    twin?.maxDiscountPercent ?? 25
+  );
   const [sellerApproved, setSellerApproved] = useState(twin?.sellerApproved ?? false);
+  const [sellerConsent, setSellerConsent] = useState(Boolean(twin?.sellerConsentAt));
   const enabled = twin?.enabled ?? false;
 
   const save = (nextEnabled: boolean) => {
@@ -35,6 +41,11 @@ export function NegotiationTwinPanel({
       enabled: nextEnabled,
       minPrice,
       sellerApproved: nextEnabled ? sellerApproved : false,
+      sellerConsentAt:
+        nextEnabled && sellerConsent && sellerApproved
+          ? twin?.sellerConsentAt ?? new Date().toISOString()
+          : undefined,
+      maxDiscountPercent,
     });
   };
 
@@ -47,8 +58,9 @@ export function NegotiationTwinPanel({
             Derybų dvynys (AI Twin)
           </p>
           <p className="mt-0.5 text-[11px] text-emerald-800 dark:text-emerald-200">
-            Nustatyk minimalią kainą — asistentas derasi autonomiškai tik gavęs tavo
-            patvirtinimą.
+            AI atsakys tik gavęs jūsų sutikimą, minimalią kainą ir neviršys maks.
+            nuolaidos ribos. Asmeniniai duomenys ir ne kainos klausimai perduodami
+            jums.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1.5 text-xs text-emerald-900">
@@ -72,6 +84,20 @@ export function NegotiationTwinPanel({
               />
               <span className="text-[11px] text-emerald-700">€</span>
             </div>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-emerald-700">Maks. nuolaida</span>
+              <input
+                type="number"
+                min={0}
+                max={50}
+                value={maxDiscountPercent}
+                onChange={(e) =>
+                  setMaxDiscountPercent(Math.min(50, Number(e.target.value) || 0))
+                }
+                className="w-12 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs"
+              />
+              <span className="text-[11px] text-emerald-700">%</span>
+            </div>
           </div>
           <label className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-900 dark:text-emerald-100">
             <input
@@ -80,13 +106,22 @@ export function NegotiationTwinPanel({
               onChange={(e) => setSellerApproved(e.target.checked)}
               className="mt-0.5 accent-emerald-600"
             />
-            Patvirtinu, kad AI dvynys gali autonomiškai atsakyti pirkėjams šiame
-            kainų rėžiuje
+            Patvirtinu autonomines derybas šiame pokalbyje
+          </label>
+          <label className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-900 dark:text-emerald-100">
+            <input
+              type="checkbox"
+              checked={sellerConsent}
+              onChange={(e) => setSellerConsent(e.target.checked)}
+              className="mt-0.5 accent-emerald-600"
+            />
+            Sutinku, kad AI dvynys atsakytų pirkėjams mano vardu pagal aukščiau nurodytas
+            taisykles
           </label>
           <button
             type="button"
             onClick={() => save(true)}
-            disabled={!sellerApproved}
+            disabled={!sellerApproved || !sellerConsent}
             className="mt-2 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
           >
             Išsaugoti taisykles

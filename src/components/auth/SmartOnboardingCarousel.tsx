@@ -12,8 +12,8 @@ export const SMART_ONBOARDING_SLIDES = [
   },
   {
     icon: Link2,
-    title: "Tavo skelbimai – visur, kur reikia",
-    body: "Sujunk savo esamus skelbimus iš įvairių portalų, o VAUTO tyliai fone juos stebės ir atnaujins. Nebereikės to paties kopijuoti dešimt kartų – tuo pasirūpinsime mes.",
+    title: "Portalų importas ir stebėjimas",
+    body: "Sujunk profilio nuorodą iš kito portalo — VAUTO importuos skelbimus ir stebės atnaujinimus. Tai importas ir monitoringas, ne automatinis publikavimas visur.",
   },
   {
     icon: Bot,
@@ -28,7 +28,7 @@ export const SMART_ONBOARDING_SLIDES = [
   {
     icon: ShieldCheck,
     title: "Saugu, paprasta ir be rūpesčių",
-    body: "Saugūs mokėjimai, siuntų sekimas ir patikimumo įvertinimai saugo kiekvieną sandorį. Tiek parduodant iš namų, tiek valdant didelį verslą – VAUTO prisitaiko prie tavęs.",
+    body: "Escrow mokėjimai per Stripe, siuntų lipdukai per carrier adapterį ir patikimumo įvertinimai — kai atitinkami serverio tiekėjai. VAUTO prisitaiko tiek namų, tiek verslo poreikiams.",
   },
 ] as const;
 

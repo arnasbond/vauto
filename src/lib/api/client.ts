@@ -201,6 +201,18 @@ export interface ApiHealthDetails {
     damageDetection: boolean;
     smartSort: boolean;
   };
+  infra?: {
+    ocrConfigured: boolean;
+    studioBgConfigured: boolean;
+    geminiConfigured: boolean;
+    stripeConfigured: boolean;
+    stripeWebhookConfigured: boolean;
+    shippingCarrierLive: boolean;
+    shippingCarrierProvider: string;
+    pushConfigured: boolean;
+    emailConfigured: boolean;
+    warnings: string[];
+  };
   readiness?: {
     score: number;
     regitraMode: "live" | "opendata";
@@ -962,6 +974,10 @@ export async function apiNegotiationTwin(body: {
   profileType?: "private" | "business";
   sellerApproved?: boolean;
   autoNegotiationEnabled?: boolean;
+  sellerConsent?: boolean | string;
+  maxDiscountPercent?: number;
+  threadId?: string;
+  listingId?: string;
 }): Promise<import("@/lib/chat-agent-client").NegotiationTwinReply | null> {
   return aiFetch("/api/ai/negotiation-twin", {
     method: "POST",

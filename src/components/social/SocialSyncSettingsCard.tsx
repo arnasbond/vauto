@@ -33,7 +33,8 @@ export function SocialSyncSettingsCard() {
       </div>
       <p className="text-xs leading-relaxed text-[var(--vauto-text-muted)]">
         Papildoma reklama jūsų prekei ar paslaugai — dalinkitės VAUTO skelbimu ten, kur jau
-        esate įpratę reklamuotis.
+        esate įpratę reklamuotis. Portalų profilio importas ir stebėjimas valdomi atskirai
+        Spintos skiltyje.
       </p>
 
       <div className="mt-4 space-y-3">
@@ -97,8 +98,8 @@ export function SocialSyncSettingsCard() {
       )}
 
       <p className="mt-3 text-[10px] text-[var(--vauto-text-muted)]">
-        Fiksuotos kainos — dalijimasis nemokamas. Tinklų API prijungimas bus pridėtas vėliau;
-        dabar naudojame saugius dalijimosi langus ir nuorodų kopijavimą.
+        Dalijimasis per sisteminį Share langą — ne automatinis skelbimų publikavimas į socialinius
+        tinklus. Tinklų API prijungimas planuojamas vėliau.
       </p>
     </div>
   );

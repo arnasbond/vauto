@@ -602,6 +602,10 @@ aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
     sellerUserId?: string;
     sellerApproved?: boolean;
     autoNegotiationEnabled?: boolean;
+    sellerConsent?: boolean | string;
+    maxDiscountPercent?: number;
+    threadId?: string;
+    listingId?: string;
     profileType?: string;
   };
   if (!body.buyerMessage?.trim()) {
@@ -633,11 +637,16 @@ aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
       listingTitle: body.listingTitle?.trim() || "Skelbimas",
       sellerName: body.sellerName?.trim() || "Pardavėja",
       profileType,
+      threadId: body.threadId?.trim(),
+      listingId: body.listingId?.trim(),
+      sellerUserId: sellerUserId ?? req.authUserId,
       rules: {
         minPrice,
         listingPrice,
         sellerApproved: body.sellerApproved !== false,
         autoNegotiationEnabled: body.autoNegotiationEnabled !== false,
+        sellerConsent: body.sellerConsent,
+        maxDiscountPercent: body.maxDiscountPercent,
       },
     });
     res.json(result);

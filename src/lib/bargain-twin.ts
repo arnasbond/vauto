@@ -18,7 +18,9 @@ export function canRunAutoNegotiation(
   if (!twin?.enabled) return false;
   const min = twin.minPrice || listingMinPrice || 0;
   if (min <= 0) return false;
-  return twin.sellerApproved !== false;
+  if (!twin.sellerApproved) return false;
+  if (!twin.sellerConsentAt) return false;
+  return true;
 }
 
 export function resolveTwinMinPrice(

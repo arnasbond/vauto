@@ -387,8 +387,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               sellerUserId: sellerId,
               sellerApproved: twin?.sellerApproved !== false,
               autoNegotiationEnabled: twin?.enabled ?? false,
+              sellerConsent: twin?.sellerConsentAt,
+              maxDiscountPercent: twin?.maxDiscountPercent,
+              threadId: chatId,
+              listingId: listing.id,
             }).then((negotiation) => {
-              if (!negotiation?.shouldReply || !negotiation.autoReply?.trim()) return;
+              if (!negotiation?.shouldReply || !negotiation.autoReply?.trim()) {
+                if (negotiation?.sellerNotification && userRef.current.id === sellerId) {
+                  showToast(`🤖 ${negotiation.sellerNotification}`, "info");
+                }
+                return;
+              }
 
               const autoId = `m-twin-${Date.now()}`;
               const autoMsg: ChatMessage = {

@@ -23,6 +23,8 @@ import {
 } from "../referral/referral-service.js";
 import type { ApiEscrowTransaction } from "../types.js";
 import type { Response } from "express";
+import { resolveCarrierAdapter } from "../shipping/providers/carrier-adapters.js";
+import type { ShippingProviderId } from "../shipping/shipping-routing.js";
 
 export const escrowBillingRouter = Router();
 
@@ -166,17 +168,23 @@ escrowBillingRouter.post("/shipping-label", requireAuth, async (req: AuthedReque
       return res.status(403).json({ error: "Forbidden" });
     }
 
-    const provider = body.providerId ?? "omniva";
-    const suffix = Math.floor(100000 + Math.random() * 900000);
-    const labelId = `${provider.toUpperCase().replace("_", "")}-${suffix}`;
-    const trackingCode = labelId;
+    const provider = (body.providerId ?? "omniva") as ShippingProviderId;
+    const adapter = resolveCarrierAdapter(provider);
+    const label = await adapter.createLabel({
+      escrowId,
+      listingId: escrow.listingId,
+      providerId: provider,
+      lockerId: body.lockerId ?? escrow.shippingLockerId,
+      lockerName: body.lockerName ?? escrow.shippingLockerName,
+      parcelSize: body.parcelSize ?? "M",
+    });
     const now = new Date().toISOString();
 
     const next: ApiEscrowTransaction = {
       ...escrow,
       status: "label_sent",
-      shippingLabelId: labelId,
-      trackingCode,
+      shippingLabelId: label.id,
+      trackingCode: label.trackingCode,
       shippingProvider: provider,
       shippingLockerId: body.lockerId ?? escrow.shippingLockerId,
       shippingLockerName: body.lockerName ?? escrow.shippingLockerName,
@@ -188,12 +196,31 @@ escrowBillingRouter.post("/shipping-label", requireAuth, async (req: AuthedReque
       ok: true,
       escrow: next,
       label: {
-        id: labelId,
-        trackingCode,
-        qrPayload: `VAUTO-SHIP:${labelId}:${escrow.listingId}`,
-        instructions: `Nueikite į ${body.lockerName ?? "pasirinktą paštomatą"}, nuskenuokite QR ir įdėkite ${body.parcelSize ?? "M"} dydžio siuntą.`,
+        id: label.id,
+        trackingCode: label.trackingCode,
+        qrPayload: label.qrPayload,
+        instructions: label.instructions,
+        mode: label.mode,
+        trackingUrl: label.trackingUrl,
       },
     });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+escrowBillingRouter.get("/shipping-tracking/:trackingCode", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const trackingCode = String(req.params.trackingCode ?? "").trim();
+    if (!trackingCode) return res.status(400).json({ error: "trackingCode is required" });
+
+    const provider = (String(req.query.provider ?? "omniva") as ShippingProviderId) || "omniva";
+    const adapter = resolveCarrierAdapter(provider);
+    if (!adapter.getTrackingStatus) {
+      return res.status(501).json({ error: "Tracking not supported for this carrier" });
+    }
+    const status = await adapter.getTrackingStatus(trackingCode);
+    res.json({ ok: true, trackingCode, provider, ...status });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
