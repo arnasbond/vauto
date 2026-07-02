@@ -74,6 +74,13 @@ export function visualPipelineResponseSlice(pipeline: VisualPipelineResult) {
             skipped: pipeline.ocr.skipped,
           }
         : undefined,
+      visionExtract: pipeline.visionExtract
+        ? {
+            ok: pipeline.visionExtract.ok,
+            provider: pipeline.visionExtract.provider,
+            skipped: pipeline.visionExtract.skipped,
+          }
+        : undefined,
       damage: pipeline.damage
         ? { ok: pipeline.damage.ok, hasVisibleDefects: pipeline.damage.data?.hasVisibleDefects }
         : undefined,

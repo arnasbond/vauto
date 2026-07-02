@@ -9,6 +9,7 @@ import { runBackgroundRemoval } from "./providers/background-removal.js";
 import { runDamageDetection } from "./providers/damage-detection.js";
 import { extractPlateToken, extractVinToken, runOcrPipeline } from "./providers/ocr.js";
 import { runSmartSort } from "./providers/smart-sort.js";
+import { runVisionCodeExtract } from "./providers/vision-extract.js";
 import type {
   VisualPipelineImageInput,
   VisualPipelineOptions,
@@ -97,6 +98,9 @@ export async function runVisualPipeline(
     import("./types.js").BackgroundRemovalResult
   > | undefined;
   let ocr: VisualPipelineStageResult<import("./types.js").OcrPipelineResult> | undefined;
+  let visionExtract:
+    | VisualPipelineStageResult<import("./types.js").VisionExtractResult>
+    | undefined;
   let damage: VisualPipelineStageResult<import("./types.js").DamageDetectionResult> | undefined;
   let smartSort: VisualPipelineStageResult<import("./types.js").SmartSortResult> | undefined;
 
@@ -220,6 +224,44 @@ export async function runVisualPipeline(
 
   await Promise.all(parallelJobs);
 
+  const ocrHasSignals = Boolean(
+    ocr?.data?.mergedText?.trim() || ocr?.data?.extractedCodes?.length
+  );
+  const wantVisionExtract =
+    options.runOcr !== false && features.visionExtract && !ocrHasSignals;
+
+  if (wantVisionExtract) {
+    const t0 = Date.now();
+    try {
+      const data = await runVisionCodeExtract(images);
+      visionExtract = {
+        stage: "vision_extract",
+        ok: true,
+        provider: "gemini-vision",
+        durationMs: Date.now() - t0,
+        data,
+      };
+    } catch (e) {
+      const msg = e instanceof Error ? e.message : String(e);
+      visionExtract = {
+        stage: "vision_extract",
+        ok: false,
+        provider: "gemini-vision",
+        durationMs: Date.now() - t0,
+        error: msg,
+      };
+    }
+  } else {
+    visionExtract = {
+      stage: "vision_extract",
+      ok: true,
+      provider: features.visionExtract ? "gemini-vision" : "none",
+      durationMs: 0,
+      skipped: true,
+      skipReason: features.visionExtract ? "ocr_already_provided_signals" : "gemini_not_configured",
+    };
+  }
+
   // —— Stage 3: Smart sort ——
   if (wantSort) {
     const t0 = Date.now();
@@ -250,17 +292,41 @@ export async function runVisualPipeline(
   const coverImageId = smartSort?.data?.coverImageId ?? images[0]?.id ?? "0";
 
   const ocrData = ocr?.data;
+  const visionData = visionExtract?.data;
   const damageData = damage?.data;
+  const mergedText = [ocrData?.mergedText, visionData?.mergedText]
+    .map((text) => text?.trim())
+    .filter(Boolean)
+    .join("\n");
+  const extractedCodes = [
+    ...(ocrData?.extractedCodes ?? []),
+    ...(visionData?.extractedCodes ?? []),
+  ];
   const technicalDescriptionDraft = buildTechnicalDescription(
-    ocrData?.mergedText ?? "",
+    mergedText,
     damageData?.conditionHint ?? "",
-    ocrData?.extractedCodes ?? []
+    extractedCodes
   );
   const attributeHints = buildAttributeHints(
-    ocrData?.extractedCodes ?? [],
-    ocrData?.mergedText ?? "",
+    extractedCodes,
+    mergedText,
     damageData?.conditionHint ?? ""
   );
+  if (visionData?.barcode && !attributeHints.barcode) {
+    attributeHints.barcode = visionData.barcode;
+  }
+  if (visionData?.vin && !attributeHints.vin) {
+    attributeHints.vin = visionData.vin;
+  }
+  if (visionData?.plateNumber && !attributeHints.plateNumber) {
+    attributeHints.plateNumber = visionData.plateNumber;
+  }
+  if (visionData?.qrPayload && !attributeHints.qrPayload) {
+    attributeHints.qrPayload = visionData.qrPayload;
+  }
+  if (visionData?.modelCode && !attributeHints.modelCode) {
+    attributeHints.modelCode = visionData.modelCode;
+  }
 
   return {
     ok: true,
@@ -270,6 +336,7 @@ export async function runVisualPipeline(
     orderedImageUrls,
     backgroundRemoval,
     ocr,
+    visionExtract,
     damage,
     smartSort,
     technicalDescriptionDraft: technicalDescriptionDraft || undefined,

@@ -158,6 +158,16 @@ export function ConnectionStatusCard() {
             </span>
             <span
               className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                health.visualPipeline.visionExtract
+                  ? "vauto-badge-success"
+                  : "vauto-badge-muted"
+              }`}
+            >
+              Code Vision:{" "}
+              {health.visualPipeline.visionExtract ? "įjungta" : "demo"}
+            </span>
+            <span
+              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
                 health.visualPipeline.damageDetection
                   ? "vauto-badge-success"
                   : "vauto-badge-muted"

@@ -21,13 +21,23 @@ export function resolveOcrProvider(): OcrProvider {
   return "none";
 }
 
+function hasGeminiVisionKey(): boolean {
+  return Boolean(
+    process.env.GEMINI_API_KEY?.trim() ||
+      process.env.AI_KEY?.trim() ||
+      process.env.GOOGLE_AI_API_KEY?.trim()
+  );
+}
+
 export function visualPipelineFeatures(): VisualPipelineFeatures {
   const bg = resolveBackgroundRemovalProvider();
   const ocr = resolveOcrProvider();
+  const geminiVision = hasGeminiVisionKey();
   return {
     backgroundRemoval: bg,
     ocr,
-    damageDetection: Boolean(process.env.GEMINI_API_KEY?.trim() || process.env.AI_KEY?.trim()),
-    smartSort: Boolean(process.env.GEMINI_API_KEY?.trim() || process.env.AI_KEY?.trim()),
+    visionExtract: geminiVision,
+    damageDetection: geminiVision,
+    smartSort: geminiVision,
   };
 }

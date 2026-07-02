@@ -197,6 +197,7 @@ export interface ApiHealthDetails {
   visualPipeline?: {
     backgroundRemoval: "photoroom" | "clipdrop" | "removebg" | "none";
     ocr: "google_vision" | "textract" | "tesseract" | "none";
+    visionExtract: boolean;
     damageDetection: boolean;
     smartSort: boolean;
   };

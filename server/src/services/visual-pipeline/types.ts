@@ -90,6 +90,17 @@ export interface SmartSortResult {
   coverImageId: string;
 }
 
+export interface VisionExtractResult {
+  mergedText: string;
+  extractedCodes: string[];
+  vin?: string;
+  plateNumber?: string;
+  barcode?: string;
+  qrPayload?: string;
+  modelCode?: string;
+  confidence: number;
+}
+
 export interface VisualPipelineOptions {
   category?: string;
   listingTitle?: string;
@@ -111,6 +122,7 @@ export interface VisualPipelineResult {
   orderedImageUrls: string[];
   backgroundRemoval?: VisualPipelineStageResult<BackgroundRemovalResult>;
   ocr?: VisualPipelineStageResult<OcrPipelineResult>;
+  visionExtract?: VisualPipelineStageResult<VisionExtractResult>;
   damage?: VisualPipelineStageResult<DamageDetectionResult>;
   smartSort?: VisualPipelineStageResult<SmartSortResult>;
   /** Tekstas techniniam aprašymui (OCR + defektai). */
@@ -128,6 +140,7 @@ export interface VisualPipelineResult {
 export interface VisualPipelineFeatures {
   backgroundRemoval: BackgroundRemovalProvider;
   ocr: OcrProvider;
+  visionExtract: boolean;
   damageDetection: boolean;
   smartSort: boolean;
 }
