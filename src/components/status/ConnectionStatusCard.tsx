@@ -29,6 +29,16 @@ const FEATURE_LABELS: Record<string, string> = {
   serviceLeads: "Paslaugų lead'ai",
 };
 
+const VISUAL_PROVIDER_LABELS: Record<string, string> = {
+  photoroom: "PhotoRoom",
+  clipdrop: "Clipdrop",
+  removebg: "Remove.bg",
+  google_vision: "Google Vision OCR",
+  textract: "AWS Textract OCR",
+  tesseract: "Tesseract OCR",
+  none: "neprijungta",
+};
+
 export function ConnectionStatusCard() {
   const { apiActive } = useVauto();
   const [health, setHealth] = useState<ApiHealthDetails | null>(null);
@@ -110,6 +120,54 @@ export function ConnectionStatusCard() {
             </li>
           ))}
         </ul>
+      )}
+
+      {health?.visualPipeline && (
+        <div className="mt-3 rounded-2xl border border-border bg-card/70 p-3">
+          <p className="text-[10px] font-bold uppercase tracking-[0.16em] text-muted-foreground">
+            Vision pipeline
+          </p>
+          <div className="mt-2 flex flex-wrap gap-2">
+            <span
+              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                health.visualPipeline.ocr !== "none"
+                  ? "vauto-badge-success"
+                  : "vauto-badge-muted"
+              }`}
+            >
+              OCR: {VISUAL_PROVIDER_LABELS[health.visualPipeline.ocr]}
+            </span>
+            <span
+              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                health.visualPipeline.backgroundRemoval !== "none"
+                  ? "vauto-badge-success"
+                  : "vauto-badge-muted"
+              }`}
+            >
+              Studio BG:{" "}
+              {VISUAL_PROVIDER_LABELS[health.visualPipeline.backgroundRemoval]}
+            </span>
+            <span
+              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                health.visualPipeline.smartSort
+                  ? "vauto-badge-success"
+                  : "vauto-badge-muted"
+              }`}
+            >
+              Smart Sort: {health.visualPipeline.smartSort ? "įjungta" : "demo"}
+            </span>
+            <span
+              className={`inline-flex rounded-full px-2.5 py-1 text-[10px] font-medium ${
+                health.visualPipeline.damageDetection
+                  ? "vauto-badge-success"
+                  : "vauto-badge-muted"
+              }`}
+            >
+              Defektų AI:{" "}
+              {health.visualPipeline.damageDetection ? "įjungta" : "demo"}
+            </span>
+          </div>
+        </div>
       )}
 
       {health?.embeddings && live && (

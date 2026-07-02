@@ -114,6 +114,7 @@ import {
   saveUserAvatarFromImage,
   saveUserProfile,
 } from "../controllers/user-controller.js";
+import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
 import { resolveAppVersionPayload } from "../lib/app-version-config.js";
@@ -206,6 +207,7 @@ apiRouter.get("/version", (_req, res) => {
 apiRouter.get("/health", async (_req, res) => {
   const vehicle = vehicleLookupFeatures();
   const product = productLookupFeatures();
+  const visualPipeline = visualPipelineFeatures();
   const features = {
     sms: Boolean(
       process.env.TWILIO_ACCOUNT_SID &&
@@ -254,6 +256,7 @@ apiRouter.get("/health", async (_req, res) => {
       service: "vauto-api",
       db: "connected",
       features: { ...features, serviceLeads },
+      visualPipeline,
       embeddings,
       readiness,
     });
@@ -263,6 +266,7 @@ apiRouter.get("/health", async (_req, res) => {
       service: "vauto-api",
       db: "unavailable",
       features,
+      visualPipeline,
       error: String(e),
     });
   }

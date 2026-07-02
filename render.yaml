@@ -57,6 +57,16 @@ services:
         value: "1"
       - key: PUBLIC_API_URL
         value: https://vauto-api.onrender.com
+      - key: GOOGLE_CLOUD_VISION_CREDENTIALS_JSON
+        sync: false
+      - key: TESSERACT_OCR_ENABLED
+        value: "0"
+      - key: PHOTOROOM_API_KEY
+        sync: false
+      - key: CLIPDROP_API_KEY
+        sync: false
+      - key: REMOVEBG_API_KEY
+        sync: false
       - key: REGITRA_PLATE_API_USERNAME
         sync: false
       - key: REGITRA_PLATE_API_PASSWORD

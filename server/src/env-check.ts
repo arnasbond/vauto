@@ -36,6 +36,26 @@ export function validateProductionEnv(): EnvCheckResult {
     warnings.push("Gemini agent disabled (GEMINI_API_KEY / AI_KEY / GOOGLE_AI_API_KEY missing)");
   }
 
+  if (
+    !process.env.GOOGLE_CLOUD_VISION_CREDENTIALS_JSON?.trim() &&
+    !process.env.GOOGLE_APPLICATION_CREDENTIALS?.trim() &&
+    !(
+      process.env.AWS_ACCESS_KEY_ID?.trim() &&
+      process.env.AWS_SECRET_ACCESS_KEY?.trim()
+    ) &&
+    process.env.TESSERACT_OCR_ENABLED !== "1"
+  ) {
+    warnings.push("Visual OCR disabled (set Google Vision, AWS Textract, or TESSERACT_OCR_ENABLED=1)");
+  }
+
+  if (
+    !process.env.PHOTOROOM_API_KEY?.trim() &&
+    !process.env.CLIPDROP_API_KEY?.trim() &&
+    !process.env.REMOVEBG_API_KEY?.trim()
+  ) {
+    warnings.push("Studio background removal disabled (PhotoRoom / Clipdrop / Remove.bg key missing)");
+  }
+
   for (const w of warnings) {
     console.warn(`[VAUTO Env] ${w}`);
   }

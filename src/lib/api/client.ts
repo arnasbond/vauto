@@ -194,6 +194,12 @@ export interface ApiHealthDetails {
     vehicleLookup?: boolean;
     serviceLeads?: boolean;
   };
+  visualPipeline?: {
+    backgroundRemoval: "photoroom" | "clipdrop" | "removebg" | "none";
+    ocr: "google_vision" | "textract" | "tesseract" | "none";
+    damageDetection: boolean;
+    smartSort: boolean;
+  };
   readiness?: {
     score: number;
     regitraMode: "live" | "opendata";
