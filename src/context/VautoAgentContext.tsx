@@ -17,6 +17,7 @@ import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiVautoAgent } from "@/lib/api/client";
+import { apiVautoAgentStream } from "@/lib/api/vauto-agent-stream";
 import {
   BUDDY_REPEAT_PROMPT,
   buddyMessageForAgentFailure,
@@ -141,6 +142,8 @@ interface VautoAgentContextValue {
   busy: boolean;
   /** Alias for busy — ChatGPT-style „thinking" state */
   isAgentThinking: boolean;
+  /** Live SSE progress label while agent works */
+  streamThinkingLabel: string;
   sendAgentMessage: (
     text: string,
     options?: AgentSendOptions
@@ -252,6 +255,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [aiDraft, sellerStep]);
 
   const [open, setOpen] = useState(false);
+  const [streamThinkingLabel, setStreamThinkingLabel] = useState("Galvoju…");
   const [messages, setMessages] = useState<AgentChatMessage[]>(() => [
     {
       role: "assistant",
@@ -1072,7 +1076,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       try {
-        const res = await apiVautoAgent({
+        setStreamThinkingLabel("Galvoju…");
+        const agentBody = {
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
           context: {
             ...memoryContext,
@@ -1120,7 +1125,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             },
           },
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
-        });
+        };
+
+        let res =
+          (await apiVautoAgentStream(agentBody, {
+            onEvent: (event) => {
+              if (event.type === "status") setStreamThinkingLabel(event.message);
+              if (event.type === "tool_call") setStreamThinkingLabel(event.message);
+            },
+          })) ?? (await apiVautoAgent(agentBody));
+
+        setStreamThinkingLabel("Galvoju…");
 
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error, res.code);
@@ -1360,11 +1375,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       messages,
       busy,
       isAgentThinking: busy,
+      streamThinkingLabel,
       sendAgentMessage,
       applyAgentActions: applyActions,
       reportAgentError,
     }),
-    [open, openWithGreeting, messages, busy, sendAgentMessage, applyActions, reportAgentError]
+    [open, openWithGreeting, messages, busy, streamThinkingLabel, sendAgentMessage, applyActions, reportAgentError]
   );
 
   return (

@@ -18,6 +18,8 @@ import { apiFetchChats, apiUpsertChat, apiUpsertEscrow } from "@/lib/api/client"
 import { isDataApiEnabled } from "@/lib/api/config";
 import { loadChats, saveChats } from "@/lib/storage";
 import { CHAT_MESSAGE_SENT_CONFIRMATION } from "@/lib/empathy-copy";
+import { connectChatStream } from "@/lib/api/chat-stream";
+import { CHAT_SAFETY_POLL_MS } from "@/lib/notification-bell-poll";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import { requestChatShieldAnalysis } from "@/lib/chat-shield-client";
 import { requestNegotiationTwin } from "@/lib/chat-agent-client";
@@ -37,7 +39,6 @@ import {
   publishChatEvent,
   subscribeChatEvents,
 } from "@/lib/chat-realtime";
-import { chatPollInterval } from "@/lib/notification-bell-poll";
 import { playChatIncomingSound } from "@/lib/chat-incoming-alert";
 import { requestChatPushPermission } from "@/lib/chat-push";
 import type { ChatMessage, ChatThread, EscrowTransaction, Listing, NegotiationTwinConfig } from "@/lib/types";
@@ -205,12 +206,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     });
   }, [showToast]);
 
-  /** Live P2P sync — poll server so recipient sees messages without page reload. */
+  /** Live P2P sync — SSE stream with safety poll fallback. */
   useEffect(() => {
     if (!hydrated || !apiActive || !user.id || user.id === "guest") return;
 
     const knownMsgIdsRef = new Map<string, Set<string>>();
-    let pollTimer: ReturnType<typeof setInterval> | null = null;
+    let safetyTimer: ReturnType<typeof setInterval> | null = null;
 
     const snapshotKnown = (threads: ChatThread[]) => {
       for (const t of threads) {
@@ -220,10 +221,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     snapshotKnown(chatsRef.current);
 
-    const poll = async () => {
-      const res = await apiFetchChats(user.id);
-      if (!res.ok || !Array.isArray(res.data)) return;
-
+    const mergeRemoteThreads = (remoteThreads: ChatThread[]) => {
       const uid = userRef.current.id;
       const alerts: Array<{
         chatId: string;
@@ -232,7 +230,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         senderId: string;
       }> = [];
 
-      for (const remote of res.data) {
+      for (const remote of remoteThreads) {
         const prevIds = knownMsgIdsRef.get(remote.id) ?? new Set<string>();
         const newMsgs = remote.messages.filter((m) => !prevIds.has(m.id));
         knownMsgIdsRef.set(remote.id, new Set(remote.messages.map((m) => m.id)));
@@ -251,7 +249,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
       setChats((prev) => {
         const byId = new Map(prev.map((t) => [t.id, t]));
-        for (const remote of res.data!) {
+        for (const remote of remoteThreads) {
           const local = byId.get(remote.id);
           if (!local || remote.messages.length > local.messages.length) {
             byId.set(remote.id, remote);
@@ -269,20 +267,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
     };
 
-    const schedule = () => {
-      if (pollTimer) clearInterval(pollTimer);
-      pollTimer = setInterval(() => void poll(), chatPollInterval());
+    const poll = async () => {
+      const res = await apiFetchChats(user.id);
+      if (!res.ok || !Array.isArray(res.data)) return;
+      mergeRemoteThreads(res.data);
+    };
+
+  const handleStreamEvent = (event: import("@/lib/api/chat-stream").ChatStreamEvent) => {
+      if (event.type === "chat_message" || event.type === "chat_updated") {
+        mergeRemoteThreads([event.thread]);
+      }
     };
 
     void poll();
-    schedule();
+    const disconnectStream = connectChatStream(handleStreamEvent);
+    safetyTimer = setInterval(() => void poll(), CHAT_SAFETY_POLL_MS);
 
-    const onVis = () => schedule();
+    const onVis = () => void poll();
     window.addEventListener("focus", onVis);
     document.addEventListener("visibilitychange", onVis);
 
     return () => {
-      if (pollTimer) clearInterval(pollTimer);
+      disconnectStream();
+      if (safetyTimer) clearInterval(safetyTimer);
       window.removeEventListener("focus", onVis);
       document.removeEventListener("visibilitychange", onVis);
     };

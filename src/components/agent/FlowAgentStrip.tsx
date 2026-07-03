@@ -47,7 +47,7 @@ export function FlowAgentStrip({
   category,
   className,
 }: FlowAgentStripProps) {
-  const { messages, busy, sendAgentMessage } = useVautoAgent();
+  const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
   const styles = VARIANT_STYLES[variant];
 
   const visibleMessages = useMemo(
@@ -151,7 +151,9 @@ export function FlowAgentStrip({
           );
         })}
 
-        {busy && <AgentTypingIndicator className="text-slate-300" />}
+        {busy && (
+          <AgentTypingIndicator className="text-slate-300" label={streamThinkingLabel} />
+        )}
       </div>
     </div>
   );

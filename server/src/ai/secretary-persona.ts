@@ -19,10 +19,19 @@ export function hasMeaningfulShortToken(text: string): boolean {
   return SHORT_QUERY_ALLOWLIST_RE.test(normalized);
 }
 
-export const SECRETARY_NOISE_REPLIES = [
+export const TEXT_SECRETARY_NOISE_REPLIES = [
   "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau?",
   "Galite tiesiog parašyti — padėsiu surasti ar sukurti skelbimą.",
   "Aplink triukšmo — parašykite, ką ieškote ar norite parduoti, ir tęsime.",
+] as const;
+
+/** @deprecated Use TEXT_SECRETARY_NOISE_REPLIES */
+export const SECRETARY_NOISE_REPLIES = TEXT_SECRETARY_NOISE_REPLIES;
+
+export const VOICE_SECRETARY_NOISE_REPLIES = [
+  "Atsiprašau, neišgirdau — pakartokite prašau?",
+  "Gal gali pakartoti trumpai? Esu pasiruošęs padėti.",
+  "Aplink triukšmo — pasakykite, ką ieškote ar norite parduoti.",
 ] as const;
 
 /** Agent chat memory window — after this idle gap, history is reset. */

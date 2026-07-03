@@ -25,6 +25,18 @@
       "destination": "https://vauto-api.onrender.com/api/vauto-agent"
     },
     {
+      "source": "/api/vauto-agent/stream",
+      "destination": "https://vauto-api.onrender.com/api/vauto-agent/stream"
+    },
+    {
+      "source": "/api/chats/stream",
+      "destination": "https://vauto-api.onrender.com/api/chats/stream"
+    },
+    {
+      "source": "/api/chats/:path*",
+      "destination": "https://vauto-api.onrender.com/api/chats/:path*"
+    },
+    {
       "source": "/api/vauto-agent/",
       "destination": "https://vauto-api.onrender.com/api/vauto-agent"
     },

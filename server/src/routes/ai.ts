@@ -293,7 +293,7 @@ aiRouter.post("/analyze-voice", async (req: AuthedRequest, res) => {
 
   const cleanedTranscript = normalizeSecretaryQuery(transcript);
   if (isTooShortSecretaryQuery(cleanedTranscript)) {
-    const followUp = resolveSecretaryNoiseReply(cleanedTranscript);
+    const followUp = resolveSecretaryNoiseReply(cleanedTranscript, "voice");
     return res.json({
       understoodSummary: followUp,
       needsClarification: true,

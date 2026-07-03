@@ -53,6 +53,11 @@ import {
   setUserProfileType,
   updateUserAvatar,
   warnUser,
+  getUserPreferences,
+  upsertUserPreferences,
+  insertUserBehaviorEvents,
+  getUserOnboarding,
+  upsertUserOnboarding,
 } from "../repository.js";
 import { seedIfEmpty } from "../seed-runtime.js";
 import {
@@ -78,6 +83,8 @@ import {
   notifyReporterReply,
 } from "../push/report-notify.js";
 import { publishReportEvent, subscribeReportStream } from "../reports/report-bus.js";
+import { publishChatStreamEvent, subscribeChatStream } from "../chat/chat-bus.js";
+import { buildProactiveNudgesForUser } from "../ai/proactive-nudges.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
 import { moderateListingInput } from "../lib/listing-moderation.js";
 import { scheduleListingAiModeration } from "../lib/listing-ai-moderation.js";
@@ -785,6 +792,94 @@ apiRouter.post("/user/profile-type", requireAuth, async (req: AuthedRequest, res
   }
 });
 
+apiRouter.get("/user/preferences", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const prefs = await getUserPreferences(req.authUserId!);
+    res.json({ preferences: prefs });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.put("/user/preferences", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = req.body ?? {};
+    const prefs = await upsertUserPreferences(req.authUserId!, {
+      defaultRegion: body.defaultRegion,
+      preferredCategories: Array.isArray(body.preferredCategories)
+        ? body.preferredCategories.map(String)
+        : undefined,
+      preferredSizes: Array.isArray(body.preferredSizes)
+        ? body.preferredSizes.map(String)
+        : undefined,
+      primaryVehicle: body.primaryVehicle,
+      wardrobeMode: body.wardrobeMode,
+      notificationPrefs: body.notificationPrefs,
+      usageIntent: body.usageIntent,
+    });
+    res.json({ preferences: prefs });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/user/behavior-events", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const events = Array.isArray(req.body?.events) ? req.body.events : [];
+    await insertUserBehaviorEvents(
+      req.authUserId!,
+      events.map((e: { type?: string; payload?: Record<string, unknown>; at?: number }) => ({
+        type: String(e.type ?? "unknown"),
+        payload: e.payload,
+        at: e.at,
+      }))
+    );
+    res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.get("/user/nudges", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const nudges = await buildProactiveNudgesForUser(req.authUserId!);
+    res.json({ nudges });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.get("/user/onboarding", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const onboarding = await getUserOnboarding(req.authUserId!);
+    res.json({ onboarding });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.put("/user/onboarding", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = req.body ?? {};
+    const onboarding = await upsertUserOnboarding(req.authUserId!, {
+      step: typeof body.step === "number" ? body.step : undefined,
+      completedAt:
+        body.completed === true
+          ? new Date().toISOString()
+          : body.completed === false
+            ? null
+            : undefined,
+      answers: body.answers,
+    });
+    if (body.preferences && typeof body.preferences === "object") {
+      await upsertUserPreferences(req.authUserId!, body.preferences);
+    }
+    res.json({ onboarding });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.post("/user/push-token", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const token = String(req.body?.token ?? "").trim();
@@ -892,6 +987,14 @@ apiRouter.put("/saved/:userId", requireAuth, async (req: AuthedRequest, res) => 
   }
 });
 
+apiRouter.get("/chats/stream", requireAuth, (req: AuthedRequest, res: Response) => {
+  if (!req.authUserId) {
+    res.status(401).json({ error: "Authentication required" });
+    return;
+  }
+  subscribeChatStream(req.authUserId, res);
+});
+
 apiRouter.get("/chats/:userId", requireAuth, async (req: AuthedRequest, res) => {
   try {
     if (!canActForUser(req, req.params.userId)) {
@@ -920,6 +1023,11 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
 
     await upsertChat(thread);
     res.json(thread);
+
+    publishChatStreamEvent([thread.buyerId, thread.sellerId], {
+      type: "chat_message",
+      thread,
+    });
 
     void (async () => {
       if (nextMsgCount > prevMsgCount) {

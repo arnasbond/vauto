@@ -51,6 +51,10 @@ import {
   buildNoMatchLeadPrompt,
 } from "../offer-engine.js";
 import { EMPTY_SEARCH_QUICK_REPLIES } from "./structured-input-pipeline.js";
+import {
+  getRecentUserBehaviorEvents,
+  getUserPreferences,
+} from "../repository.js";
 
 export interface AgentMessage {
   role: "user" | "assistant";
@@ -154,6 +158,45 @@ export interface VautoAgentResponse {
   quickReplies?: string[];
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
+}
+
+export type VautoAgentStreamEvent =
+  | { type: "status"; message: string }
+  | { type: "tool_call"; name: string; message: string }
+  | { type: "tool_result"; name: string }
+  | { type: "error"; code: string; message: string };
+
+export interface RunVautoAgentOptions {
+  onEvent?: (event: VautoAgentStreamEvent) => void;
+}
+
+function emitAgentEvent(
+  onEvent: RunVautoAgentOptions["onEvent"],
+  event: VautoAgentStreamEvent
+): void {
+  try {
+    onEvent?.(event);
+  } catch {
+    /* stream consumer error */
+  }
+}
+
+function toolProgressMessage(name: string): string {
+  const labels: Record<string, string> = {
+    searchListings: "Ieškau turguje…",
+    createUserRequirement: "Užfiksuoju jūsų norą…",
+    create_listing_draft: "Ruošiu skelbimo juodraštį…",
+    postNewListing: "Kuriu skelbimą…",
+    analyzeWardrobePhoto: "Analizuoju nuotrauką…",
+    importWardrobeProfile: "Importuoju spintą…",
+    updateUIFilters: "Tikslinu paiešką…",
+    navigateToScreen: "Atidarau ekraną…",
+    proposeSmartBargaining: "Derinuosi…",
+    markListingSold: "Archyvuoju skelbimą…",
+    analyzeMarketPrice: "Tikrinu rinkos kainą…",
+    scanListingPhotos: "Skenuoju nuotraukas…",
+  };
+  return labels[name] ?? "Dirbu su jūsų užklausa…";
 }
 
 function pickQuickReplies(candidates: unknown): string[] | undefined {
@@ -311,9 +354,12 @@ async function geminiAgentTurn(
   }
 }
 
-export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentResponse> {
+export async function runVautoAgent(
+  req: VautoAgentRequest,
+  options?: RunVautoAgentOptions
+): Promise<VautoAgentResponse> {
   try {
-    return await runVautoAgentInner(req);
+    return await runVautoAgentInner(req, options?.onEvent);
   } catch (e) {
     if (e instanceof AgentRouteError) throw e;
     throw new AgentRouteError(
@@ -324,7 +370,51 @@ export async function runVautoAgent(req: VautoAgentRequest): Promise<VautoAgentR
   }
 }
 
-async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentResponse> {
+async function runVautoAgentInner(
+  req: VautoAgentRequest,
+  onEvent?: RunVautoAgentOptions["onEvent"]
+): Promise<VautoAgentResponse> {
+  emitAgentEvent(onEvent, { type: "status", message: "Galvoju…" });
+
+  if (req.authUserId) {
+    const [prefs, dbBehavior] = await Promise.all([
+      getUserPreferences(req.authUserId),
+      getRecentUserBehaviorEvents(req.authUserId, 15),
+    ]);
+    if (prefs) {
+      if (!req.context.defaultRegion && prefs.defaultRegion) {
+        req.context.defaultRegion = prefs.defaultRegion;
+      }
+      if (!req.context.primaryVehicle && prefs.primaryVehicle) {
+        req.context.primaryVehicle = prefs.primaryVehicle as {
+          make: string;
+          model: string;
+          year: number;
+        };
+      }
+      if (prefs.preferredSizes?.length) {
+        const existing = req.context.activeSearchFilters ?? {};
+        const hasSize = existing.refinements?.some((r) => r.startsWith("size:"));
+        if (!hasSize) {
+          req.context.activeSearchFilters = {
+            ...existing,
+            refinements: [
+              ...(existing.refinements ?? []),
+              `size:${prefs.preferredSizes[0]}`,
+            ],
+          };
+        }
+      }
+    }
+    if (dbBehavior.length && (!req.context.behaviorHistory?.length)) {
+      req.context.behaviorHistory = dbBehavior.map((e) => ({
+        type: e.type,
+        at: e.at,
+        payload: e.payload,
+      }));
+    }
+  }
+
   const lastUserText = normalizeSecretaryQuery(
     [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
   );
@@ -579,6 +669,11 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       let parts: GeminiPart[] = [];
       let text = "";
 
+      emitAgentEvent(onEvent, {
+        type: "status",
+        message: round === 0 ? "Analizuoju užklausą…" : "Tęsiu darbą…",
+      });
+
       for (const model of GEMINI_MODELS) {
         let succeeded = false;
         for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
@@ -628,7 +723,13 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       const responseParts: GeminiPart[] = [];
       for (const fc of functionCalls) {
         const { name, args } = fc.functionCall;
+        emitAgentEvent(onEvent, {
+          type: "tool_call",
+          name,
+          message: toolProgressMessage(name),
+        });
         const { result, sideEffect: fx } = await executeAgentTool(name, args ?? {}, ctx);
+        emitAgentEvent(onEvent, { type: "tool_result", name });
         toolCalls.push({ name, result });
         if (fx) {
           if (fx.type === "micro_payment") microPaymentEffect = fx;

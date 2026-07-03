@@ -4,6 +4,7 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -14,6 +15,9 @@ import {
   type UserBehaviorActionType,
   type UserBehaviorEvent,
 } from "@/lib/user-behavior-types";
+import { apiPostBehaviorEvents } from "@/lib/api/user-intelligence";
+import { isDataApiEnabled } from "@/lib/api/config";
+import { useAuth } from "@/context/AuthContext";
 
 export interface UserBehaviorContextValue {
   events: UserBehaviorEvent[];
@@ -32,8 +36,10 @@ function nextEventId(): string {
 }
 
 export function UserBehaviorProvider({ children }: { children: ReactNode }) {
+  const { isAuthenticated } = useAuth();
   const [events, setEvents] = useState<UserBehaviorEvent[]>([]);
   const interventionsRef = useRef<Set<string>>(new Set());
+  const syncTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const trackEvent = useCallback(
     (actionType: UserBehaviorActionType, payload: Record<string, unknown> = {}) => {
@@ -55,6 +61,19 @@ export function UserBehaviorProvider({ children }: { children: ReactNode }) {
     interventionsRef.current.add(key);
     return true;
   }, []);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isDataApiEnabled() || !events.length) return;
+    if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    syncTimerRef.current = setTimeout(() => {
+      void apiPostBehaviorEvents(
+        events.map((e) => ({ type: e.type, payload: e.payload, at: e.at }))
+      );
+    }, 2500);
+    return () => {
+      if (syncTimerRef.current) clearTimeout(syncTimerRef.current);
+    };
+  }, [events, isAuthenticated]);
 
   const value = useMemo(
     () => ({

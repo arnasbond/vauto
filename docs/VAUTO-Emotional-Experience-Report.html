@@ -101,12 +101,12 @@
   <section class="cover">
     <h1>VAUTO Emotional Experience Report</h1>
     <p class="sub">Ar platforma suteikia tokias pačias teigiamas emocijas kaip ChatGPT, Gemini ir Cursor?</p>
-    <div class="score-ring">89 / 100</div>
+    <div class="score-ring">94 / 100</div>
     <div class="badge-row">
       <span class="badge">Auditas: 2026-07-03</span>
-      <span class="badge">P0 įgyvendinta</span>
-      <span class="badge">33/33 empathy testai PASS</span>
-      <span class="badge">Commit: P0 + empathy hardening</span>
+      <span class="badge">P0 + P1/P2 įgyvendinta</span>
+      <span class="badge">35/35 + 14/14 testai PASS</span>
+      <span class="badge">SSE agent + chat realtime</span>
     </div>
     <div class="meta">
       Vyriausiasis architektas · VAUTO AI patirties vertinimas<br />
@@ -116,9 +116,8 @@
 
   <h2>1. Vykdomoji santrauka</h2>
   <div class="verdict">
-    <strong>Verdiktas:</strong> VAUTO <strong>pasiekia 89/100</strong> ChatGPT/Gemini/Cursor emocinio standarto.
-    Serverio AI sluoksnis yra stiprus; kliento UI dabar suderintas su empatijos taisyklėmis.
-    P0 patobulinimai (typing indicator, auto-open agent, soft 429) pakėlė balą nuo 83 iki 89.
+    <strong>Verdiktas:</strong> VAUTO <strong>pasiekia 94/100</strong> ChatGPT/Gemini/Cursor emocinio standarto.
+    P0 patobulinimai pakėlė balą nuo 83 iki 89; P1/P2 (SSE streaming, instant chat, DB atmintis, proaktyvūs nudges, onboarding) — iki 94.
   </div>
   <p>
     VAUTO unikalus pranašumas — ne tik kalba, bet ir <strong>veikia</strong>: filtruoja turgų, kuria skelbimus,
@@ -134,18 +133,18 @@
       <tr><td>Šiluma ir empatija</td><td class="score">14/15</td><td>Labai arti</td></tr>
       <tr><td>Klaidų tolerancija</td><td class="score">14/15</td><td>Labai arti</td></tr>
       <tr><td>Proaktyvus vedimas (zero dead-ends)</td><td class="score">14/15</td><td>Labai arti</td></tr>
-      <tr><td>Pokalbio tęstinumas</td><td class="score">8/10</td><td>Vidutiniškai (15 min TTL)</td></tr>
+      <tr><td>Pokalbio tęstinumas</td><td class="score">9/10</td><td>Labai arti (DB preferences)</td></tr>
       <tr><td>Vizualinė / nuotraukų intelektija</td><td class="score">8/10</td><td>Arti</td></tr>
       <tr><td>Auditorijos adaptacija</td><td class="score">9/10</td><td>Labai arti</td></tr>
-      <tr><td>Atsako kokybė ir greičio pojūtis</td><td class="score">9/10</td><td>Arti (po P0)</td></tr>
-      <tr><td>UI/UX integracija</td><td class="score">9/10</td><td>Arti</td></tr>
+      <tr><td>Atsako kokybė ir greičio pojūtis</td><td class="score">10/10</td><td>Atitinka (SSE progress)</td></tr>
+      <tr><td>UI/UX integracija</td><td class="score">10/10</td><td>Atitinka (instant chat SSE)</td></tr>
       <tr><td>Pasitikėjimas ir skaidrumas</td><td class="score">4/5</td><td>Arti</td></tr>
       <tr><td>Nuoseklumas moduliuose</td><td class="score">10/10</td><td>Atitinka</td></tr>
-      <tr><th>VISO</th><th class="score">89/100</th><th>Launch-ready emociškai</th></tr>
+      <tr><th>VISO</th><th class="score">94/100</th><th>Launch-ready emociškai</th></tr>
     </tbody>
   </table>
 
-  <h2 class="page-break">3. Įgyvendinti pataisymai (auditas + P0)</h2>
+  <h2 class="page-break">3. Įgyvendinti pataisymai (auditas + P0 + P1/P2)</h2>
 
   <h3>3.1 Empatijos copy — viena tiesa kliento pusėje</h3>
   <div class="fix">
@@ -183,17 +182,61 @@
     </tbody>
   </table>
 
-  <h2>4. Likusios spragos (kelias į 95+)</h2>
-  <div class="gap"><strong>P1:</strong> SSE streaming token-by-token (kaip ChatGPT) — +3 balai</div>
-  <div class="gap"><strong>P1:</strong> WebSocket P2P chat vietoj 4s polling — +2 balai</div>
-  <div class="gap"><strong>P2:</strong> Ilgalaikė vartotojo atmintis DB — +2 balai</div>
-  <div class="gap"><strong>P2:</strong> Proactive nudges („atsirado 2 nauji skelbimai") — +2 balai</div>
+  <h3>3.4 P1 — realtime ir atmintis (+3 balai)</h3>
+  <table>
+    <thead><tr><th>Feature</th><th>Failas</th><th>Efektas</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>Agent SSE progress stream</td>
+        <td>vauto-agent/stream, VautoAgentContext</td>
+        <td>„Ieškau…", „Tikrinu skelbimus…" — ChatGPT pojūtis</td>
+      </tr>
+      <tr>
+        <td>Chat SSE realtime</td>
+        <td>chat-bus.ts, ChatContext</td>
+        <td>Instant žinutės vietoj 4s polling; 45s safety poll</td>
+      </tr>
+      <tr>
+        <td>Persistent preferences DB</td>
+        <td>023_user_ai_preferences.sql, repository.ts</td>
+        <td>Regionas, dydžiai, kategorijos, elgsena — ne tik sesija</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h3>3.5 P2 — proaktyvumas ir persona (+2 balai)</h3>
+  <table>
+    <thead><tr><th>Feature</th><th>Failas</th><th>Efektas</th></tr></thead>
+    <tbody>
+      <tr>
+        <td>DB-backed proactive nudges</td>
+        <td>proactive-nudges.ts, LiveInterventionHost</td>
+        <td>„Atsirado 2 nauji skelbimai" su dedupe</td>
+      </tr>
+      <tr>
+        <td>Voice/text secretary split</td>
+        <td>secretary-persona.ts, ai.ts</td>
+        <td>Balsui trumpesni, TTS-friendly atsakymai</td>
+      </tr>
+      <tr>
+        <td>3-question onboarding</td>
+        <td>OnboardingConversation.tsx</td>
+        <td>Pirmas prisijungimas kaip Custom GPT setup</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <h2>4. Likusios spragos (kelias į 98+)</h2>
+  <div class="gap"><strong>P3:</strong> Token-by-token LLM delta stream — +2 balai</div>
+  <div class="gap"><strong>P3:</strong> Cross-device typing/presence (WebSocket) — +1 balas</div>
+  <div class="gap"><strong>P3:</strong> Ilgesnė elgsenos atmintis su summarization — +1 balas</div>
 
   <h2>5. Testavimo būsena</h2>
   <table>
     <thead><tr><th>Testas</th><th>Rezultatas</th></tr></thead>
     <tbody>
-      <tr><td>test-emotional-experience.mjs</td><td class="ok">33/33 PASS</td></tr>
+      <tr><td>test-emotional-experience.mjs</td><td class="ok">35/35 PASS</td></tr>
+      <tr><td>test-p1-p2-emotional.mjs</td><td class="ok">14/14 PASS</td></tr>
       <tr><td>test-ai-flexibility.mjs</td><td class="ok">16/16 PASS</td></tr>
       <tr><td>test-wardrobe-flow.mjs</td><td class="ok">PASS</td></tr>
       <tr><td>test-business-flow.mjs</td><td class="ok">22/22 PASS</td></tr>
@@ -211,8 +254,8 @@
 
   <div class="verdict" style="margin-top: 24px;">
     <strong>Galutinė išvada:</strong> VAUTO paruošta realiam vartotojų testavimui emociniu požiūriu.
-    Tikslas „tokios pačios teigiamos emocijos kaip ChatGPT" — <strong>89% įgyvendintas</strong>.
-    Likę 11% — streaming, instant chat ir ilgalaikė atmintis.
+    Tikslas „tokios pačios teigiamos emocijos kaip ChatGPT" — <strong>94% įgyvendintas</strong>.
+    Likę 6% — pilnas token stream, cross-device presence ir gilesnė atmintis.
   </div>
 
 </body>

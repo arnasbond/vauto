@@ -2,7 +2,8 @@ import type { AgentMessage } from "./vauto-agent.js";
 import { detectServerSellIntent } from "./sell-intent-fallback.js";
 import {
   SECRETARY_MIN_QUERY_CHARS,
-  SECRETARY_NOISE_REPLIES,
+  TEXT_SECRETARY_NOISE_REPLIES,
+  VOICE_SECRETARY_NOISE_REPLIES,
   SECRETARY_SESSION_TTL_MS,
   hasMeaningfulShortToken,
 } from "./secretary-persona.js";
@@ -28,18 +29,25 @@ export function isTooShortSecretaryQuery(text: string | null | undefined): boole
 }
 
 /** VAD-style guard — never call Gemini on empty/noise input. */
-export function resolveSecretaryNoiseReply(seed?: string): string {
-  if (!SECRETARY_NOISE_REPLIES.length) {
-    return "Atsiprašau, neišgirdau — pakartokite prašau?";
+export function resolveSecretaryNoiseReply(
+  seed?: string,
+  mode: "text" | "voice" = "text"
+): string {
+  const replies =
+    mode === "voice" ? VOICE_SECRETARY_NOISE_REPLIES : TEXT_SECRETARY_NOISE_REPLIES;
+  if (!replies.length) {
+    return mode === "voice"
+      ? "Atsiprašau, neišgirdau — pakartokite prašau?"
+      : "Galite parašyti — padėsiu surasti ar sukurti skelbimą.";
   }
   if (!seed?.trim()) {
-    return SECRETARY_NOISE_REPLIES[0]!;
+    return replies[0]!;
   }
   let hash = 0;
   for (let i = 0; i < seed.length; i++) {
-    hash = (hash + seed.charCodeAt(i) * (i + 1)) % SECRETARY_NOISE_REPLIES.length;
+    hash = (hash + seed.charCodeAt(i) * (i + 1)) % replies.length;
   }
-  return SECRETARY_NOISE_REPLIES[hash]!;
+  return replies[hash]!;
 }
 
 export function isSecretarySessionExpired(

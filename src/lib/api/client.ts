@@ -20,7 +20,7 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status?: number };
 
-async function dataFetch<T>(
+export async function dataFetch<T>(
   path: string,
   opts?: RequestInit & { userId?: string }
 ): Promise<ApiResult<T>> {

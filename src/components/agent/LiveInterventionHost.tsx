@@ -5,6 +5,8 @@ import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
+import { apiFetchUserNudges } from "@/lib/api/user-intelligence";
+import { isDataApiEnabled } from "@/lib/api/config";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
 import { AGENT_MIN_QUERY_CHARS } from "@/lib/vauto-agent-client";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
@@ -55,6 +57,23 @@ export function LiveInterventionHost() {
   const noMatchTriggeredRef = useRef<string | null>(null);
   const emptyWardrobeTriggeredRef = useRef(false);
   const proBusinessNudgeRef = useRef(false);
+  const dbNudgeHandledRef = useRef<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !isDataApiEnabled() || open || agentBusy) return;
+    void (async () => {
+      const res = await apiFetchUserNudges();
+      if (!res.ok || !res.data?.nudges?.length) return;
+      const nudge = res.data.nudges[0]!;
+      if (dbNudgeHandledRef.current === nudge.key) return;
+      if (!shouldFireIntervention(nudge.key)) return;
+      dbNudgeHandledRef.current = nudge.key;
+      openWithGreeting(nudge.message, {
+        quickReplies: nudge.quickReplies,
+        openSheet: true,
+      });
+    })();
+  }, [isAuthenticated, open, agentBusy, shouldFireIntervention, openWithGreeting]);
 
   const myClothingCount = listings.filter(
     (l) => l.sellerId === user.id && l.category === "clothing" && l.status !== "sold"

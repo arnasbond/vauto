@@ -109,6 +109,7 @@ export function AiCommandBar({
     busy: agentBusy,
     applyAgentActions,
     openWithGreeting,
+    streamThinkingLabel,
   } = useVautoAgent();
   const { applyScannedBarcode } = useBarcodeScanFlow();
   const skin = useFlowUiSkin();
@@ -515,7 +516,7 @@ export function AiCommandBar({
             )}
             {busy && isWizard && (
               <div className="pointer-events-auto mb-1.5">
-                <AgentTypingIndicator variant="inline" />
+                <AgentTypingIndicator variant="inline" label={streamThinkingLabel} />
               </div>
             )}
             {lastAssistant && isWizard && !busy && (

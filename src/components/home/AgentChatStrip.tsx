@@ -22,7 +22,7 @@ import { notifyAgentFlow } from "@/lib/vauto-agent-client";
  */
 export function AgentChatStrip() {
   const router = useRouter();
-  const { messages, busy, sendAgentMessage } = useVautoAgent();
+  const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
 
   const visibleMessages = useMemo(
     () =>
@@ -147,7 +147,7 @@ export function AgentChatStrip() {
           );
         })}
 
-        {busy && <AgentTypingIndicator />}
+        {busy && <AgentTypingIndicator label={streamThinkingLabel} />}
       </div>
 
       {sellCta && (

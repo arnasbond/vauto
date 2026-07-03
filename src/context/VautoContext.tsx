@@ -129,6 +129,7 @@ import {
   useVautoSearchState,
 } from "@/context/VautoSearchContext";
 import { LiveInterventionHost } from "@/components/agent/LiveInterventionHost";
+import { OnboardingConversation } from "@/components/auth/OnboardingConversation";
 import { SearchRefinementHost } from "@/components/agent/SearchRefinementHost";
 import { AgentChromeHost } from "@/components/agent/AgentChromeHost";
 import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
@@ -683,6 +684,7 @@ function VautoFacade({
           <VautoAgentProvider>
             <FleetMatchBuddyHost />
             <LiveInterventionHost />
+            <OnboardingConversation />
             <SearchRefinementHost />
             <SellerFlowOverlays />
             <AgentChromeHost />

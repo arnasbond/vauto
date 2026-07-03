@@ -2473,3 +2473,227 @@ export async function setAdminAgentContext(
   );
   return trimmed;
 }
+
+export interface UserPreferencesRow {
+  userId: string;
+  defaultRegion?: string;
+  preferredCategories: string[];
+  preferredSizes: string[];
+  primaryVehicle?: Record<string, unknown>;
+  wardrobeMode: boolean;
+  notificationPrefs: Record<string, unknown>;
+  usageIntent?: string;
+}
+
+export async function getUserPreferences(
+  userId: string
+): Promise<UserPreferencesRow | null> {
+  const rows = await query<{
+    user_id: string;
+    default_region: string | null;
+    preferred_categories: string[] | null;
+    preferred_sizes: string[] | null;
+    primary_vehicle: Record<string, unknown> | null;
+    wardrobe_mode: boolean;
+    notification_prefs: Record<string, unknown> | null;
+    usage_intent: string | null;
+  }>(
+    `SELECT user_id, default_region, preferred_categories, preferred_sizes,
+            primary_vehicle, wardrobe_mode, notification_prefs, usage_intent
+     FROM user_preferences WHERE user_id = $1`,
+    [userId]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    userId: row.user_id,
+    defaultRegion: row.default_region ?? undefined,
+    preferredCategories: row.preferred_categories ?? [],
+    preferredSizes: row.preferred_sizes ?? [],
+    primaryVehicle: row.primary_vehicle ?? undefined,
+    wardrobeMode: row.wardrobe_mode,
+    notificationPrefs: row.notification_prefs ?? {},
+    usageIntent: row.usage_intent ?? undefined,
+  };
+}
+
+export async function upsertUserPreferences(
+  userId: string,
+  prefs: Partial<Omit<UserPreferencesRow, "userId">>
+): Promise<UserPreferencesRow> {
+  await ensureUser(userId);
+  const existing = await getUserPreferences(userId);
+  const merged: UserPreferencesRow = {
+    userId,
+    defaultRegion: prefs.defaultRegion ?? existing?.defaultRegion,
+    preferredCategories:
+      prefs.preferredCategories ?? existing?.preferredCategories ?? [],
+    preferredSizes: prefs.preferredSizes ?? existing?.preferredSizes ?? [],
+    primaryVehicle: prefs.primaryVehicle ?? existing?.primaryVehicle,
+    wardrobeMode: prefs.wardrobeMode ?? existing?.wardrobeMode ?? false,
+    notificationPrefs:
+      prefs.notificationPrefs ?? existing?.notificationPrefs ?? {},
+    usageIntent: prefs.usageIntent ?? existing?.usageIntent,
+  };
+  await query(
+    `INSERT INTO user_preferences (
+       user_id, default_region, preferred_categories, preferred_sizes,
+       primary_vehicle, wardrobe_mode, notification_prefs, usage_intent, updated_at
+     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       default_region = COALESCE(EXCLUDED.default_region, user_preferences.default_region),
+       preferred_categories = EXCLUDED.preferred_categories,
+       preferred_sizes = EXCLUDED.preferred_sizes,
+       primary_vehicle = COALESCE(EXCLUDED.primary_vehicle, user_preferences.primary_vehicle),
+       wardrobe_mode = EXCLUDED.wardrobe_mode,
+       notification_prefs = EXCLUDED.notification_prefs,
+       usage_intent = COALESCE(EXCLUDED.usage_intent, user_preferences.usage_intent),
+       updated_at = NOW()`,
+    [
+      userId,
+      merged.defaultRegion ?? null,
+      JSON.stringify(merged.preferredCategories),
+      JSON.stringify(merged.preferredSizes),
+      merged.primaryVehicle ? JSON.stringify(merged.primaryVehicle) : null,
+      merged.wardrobeMode,
+      JSON.stringify(merged.notificationPrefs),
+      merged.usageIntent ?? null,
+    ]
+  );
+  return merged;
+}
+
+export async function insertUserBehaviorEvents(
+  userId: string,
+  events: { type: string; payload?: Record<string, unknown>; at?: number }[]
+): Promise<void> {
+  if (!events.length) return;
+  await ensureUser(userId);
+  for (const event of events.slice(0, 30)) {
+    const id = `beh-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+    await query(
+      `INSERT INTO user_behavior_events (id, user_id, type, payload, created_at)
+       VALUES ($1, $2, $3, $4, to_timestamp($5 / 1000.0))`,
+      [
+        id,
+        userId,
+        event.type,
+        event.payload ? JSON.stringify(event.payload) : null,
+        event.at ?? Date.now(),
+      ]
+    );
+  }
+}
+
+export async function getRecentUserBehaviorEvents(
+  userId: string,
+  limit = 20
+): Promise<{ type: string; at: number; payload?: Record<string, unknown> }[]> {
+  const rows = await query<{
+    type: string;
+    payload: Record<string, unknown> | null;
+    created_at: Date;
+  }>(
+    `SELECT type, payload, created_at
+     FROM user_behavior_events
+     WHERE user_id = $1
+     ORDER BY created_at DESC
+     LIMIT $2`,
+    [userId, limit]
+  );
+  return rows.map((row) => ({
+    type: row.type,
+    at: row.created_at.getTime(),
+    payload: row.payload ?? undefined,
+  }));
+}
+
+export async function shouldFireUserNudge(
+  userId: string,
+  nudgeKey: string,
+  cooldownMs: number
+): Promise<boolean> {
+  const rows = await query<{ last_fired_at: Date }>(
+    `SELECT last_fired_at FROM user_nudges WHERE user_id = $1 AND nudge_key = $2`,
+    [userId, nudgeKey]
+  );
+  const last = rows[0]?.last_fired_at;
+  if (!last) return true;
+  return Date.now() - last.getTime() >= cooldownMs;
+}
+
+export async function markUserNudgeFired(
+  userId: string,
+  nudgeKey: string,
+  payload?: Record<string, unknown>
+): Promise<void> {
+  await ensureUser(userId);
+  await query(
+    `INSERT INTO user_nudges (user_id, nudge_key, last_fired_at, payload)
+     VALUES ($1, $2, NOW(), $3)
+     ON CONFLICT (user_id, nudge_key) DO UPDATE SET
+       last_fired_at = NOW(),
+       payload = EXCLUDED.payload`,
+    [userId, nudgeKey, payload ? JSON.stringify(payload) : null]
+  );
+}
+
+export interface UserOnboardingRow {
+  userId: string;
+  step: number;
+  completedAt?: string;
+  answers: Record<string, unknown>;
+}
+
+export async function getUserOnboarding(userId: string): Promise<UserOnboardingRow | null> {
+  const rows = await query<{
+    user_id: string;
+    step: number;
+    completed_at: Date | null;
+    answers: Record<string, unknown> | null;
+  }>(
+    `SELECT user_id, step, completed_at, answers FROM user_onboarding WHERE user_id = $1`,
+    [userId]
+  );
+  const row = rows[0];
+  if (!row) return null;
+  return {
+    userId: row.user_id,
+    step: row.step,
+    completedAt: row.completed_at?.toISOString(),
+    answers: row.answers ?? {},
+  };
+}
+
+export async function upsertUserOnboarding(
+  userId: string,
+  patch: { step?: number; completedAt?: string | null; answers?: Record<string, unknown> }
+): Promise<UserOnboardingRow> {
+  await ensureUser(userId);
+  const existing = await getUserOnboarding(userId);
+  const merged = {
+    userId,
+    step: patch.step ?? existing?.step ?? 0,
+    completedAt:
+      patch.completedAt === null
+        ? undefined
+        : patch.completedAt ?? existing?.completedAt,
+    answers: { ...(existing?.answers ?? {}), ...(patch.answers ?? {}) },
+  };
+  await query(
+    `INSERT INTO user_onboarding (user_id, step, completed_at, answers, updated_at)
+     VALUES ($1, $2, $3, $4, NOW())
+     ON CONFLICT (user_id) DO UPDATE SET
+       step = EXCLUDED.step,
+       completed_at = EXCLUDED.completed_at,
+       answers = EXCLUDED.answers,
+       updated_at = NOW()`,
+    [
+      userId,
+      merged.step,
+      merged.completedAt ? new Date(merged.completedAt) : null,
+      JSON.stringify(merged.answers),
+    ]
+  );
+  return merged;
+}
