@@ -35,7 +35,7 @@ export function VautoAdaptiveLayout({
 
   if (isDesktop) {
     return (
-      <div className="flex min-h-dvh flex-col bg-[var(--anonser-bg)] text-[var(--anonser-text)]">
+      <div className="vauto-desktop-portal flex min-h-dvh flex-col bg-[var(--anonser-bg)] text-[var(--anonser-text)]">
         <DesktopHeader />
         <div className="vauto-adaptive-content mx-auto flex w-full flex-1 flex-col px-6 py-6">
           <SyncErrorBanner />

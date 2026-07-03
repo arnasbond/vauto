@@ -74,6 +74,73 @@
   }
 }
 
+/* ───────────────────────────────────────────────────────────────────────────
+   Desktop (web) portal is ALWAYS the light Anonser B2B palette.
+   The mobile dynamic theme (data-app-theme=dark/light) lives on <html>, so its
+   --vauto-* tokens would otherwise bleed into the desktop content and clash
+   with the light chrome. Re-declaring the token set on this wrapper pins the
+   whole desktop subtree to light — WITHOUT touching the mobile experience
+   (mobile never renders .vauto-desktop-portal).
+   ─────────────────────────────────────────────────────────────────────────── */
+.vauto-desktop-portal {
+  color-scheme: light;
+
+  /* semantic (shadcn) */
+  --background: var(--anonser-bg);
+  --foreground: var(--anonser-text);
+  --card: var(--anonser-card);
+  --popover: var(--anonser-card);
+  --muted-foreground: var(--anonser-text-muted);
+  --border: var(--anonser-border);
+  --accent: var(--anonser-primary-soft);
+  --accent-foreground: var(--anonser-text);
+  --primary: var(--anonser-primary);
+  --primary-foreground: #ffffff;
+  --ring: var(--anonser-primary);
+
+  /* legacy flux */
+  --flux-bg: var(--anonser-bg);
+  --flux-teal: var(--anonser-primary);
+  --flux-cyan: #3b82f6;
+  --flux-indigo: #4338ca;
+  --flux-coral: #c2410c;
+
+  /* canonical VAUTO tokens */
+  --vauto-bg: var(--anonser-bg);
+  --vauto-card-bg: var(--anonser-card);
+  --vauto-surface: var(--anonser-card);
+  --vauto-surface-muted: var(--anonser-surface-muted);
+  --vauto-text-main: var(--anonser-text);
+  --vauto-text: var(--anonser-text);
+  --vauto-text-heading: var(--anonser-text);
+  --vauto-text-body: var(--anonser-text);
+  --vauto-text-muted: var(--anonser-text-muted);
+  --vauto-text-subtle: var(--anonser-text-muted);
+  --vauto-primary: var(--anonser-primary);
+  --vauto-primary-contrast: #ffffff;
+  --vauto-accent: var(--anonser-accent);
+  --vauto-border: var(--anonser-border);
+
+  /* portal / wizard surfaces */
+  --portal-text: var(--anonser-text);
+  --portal-bg: var(--anonser-bg);
+  --portal-wizard-surface: var(--anonser-card);
+  --portal-wizard-bg: var(--anonser-bg);
+
+  /* home AI hero token family */
+  --home-ai-input-text: var(--anonser-text);
+  --home-ai-input-placeholder: var(--anonser-text-muted);
+  --home-ai-input-caret: var(--anonser-primary);
+  --home-ai-heading: var(--anonser-text);
+  --home-ai-body: var(--anonser-text);
+  --home-ai-muted: var(--anonser-text-muted);
+  --home-ai-glass-bg: var(--anonser-card);
+  --home-ai-glass-border: var(--anonser-border);
+  --home-ai-chip-bg: var(--anonser-surface-muted);
+  --home-ai-chip-text: var(--anonser-text);
+  --home-ai-panel-bg: var(--anonser-card);
+}
+
 @theme inline {
   --font-sans: var(--font-geist-sans);
   --font-mono: var(--font-geist-mono);
