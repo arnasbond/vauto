@@ -1,32 +1,36 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useSyncExternalStore } from "react";
 
 const MOBILE_QUERY = "(max-width: 767px)";
 
-function readIsMobile(): boolean {
-  if (typeof window === "undefined") return true;
+function subscribeMobile(onChange: () => void): () => void {
+  const mq = window.matchMedia(MOBILE_QUERY);
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
+}
+
+function getMobileSnapshot(): boolean {
   return window.matchMedia(MOBILE_QUERY).matches;
+}
+
+function getServerMobileSnapshot(): boolean {
+  return true;
 }
 
 /**
  * SSR-safe mobile detector aligned with Tailwind `md` (768px).
- * Defaults to mobile until mounted to avoid desktop flash on phones.
+ * Uses useSyncExternalStore so the first client paint matches the real viewport.
  */
 export function useIsMobile(defaultMobile = true): boolean {
-  const [isMobile, setIsMobile] = useState(defaultMobile);
-
-  useEffect(() => {
-    const mq = window.matchMedia(MOBILE_QUERY);
-    const sync = () => setIsMobile(mq.matches);
-    sync();
-    mq.addEventListener("change", sync);
-    return () => mq.removeEventListener("change", sync);
-  }, []);
-
-  return isMobile;
+  return useSyncExternalStore(
+    subscribeMobile,
+    getMobileSnapshot,
+    defaultMobile ? getServerMobileSnapshot : () => false
+  );
 }
 
 export function getIsMobileSnapshot(): boolean {
-  return readIsMobile();
+  if (typeof window === "undefined") return true;
+  return getMobileSnapshot();
 }

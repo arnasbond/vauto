@@ -500,7 +500,7 @@ export function AiCommandBar({
           )}
           aria-label="VAUTO AI komandų juosta"
         >
-          <div className={cn(collapsible ? "px-0" : "mx-auto max-w-lg px-3", "pb-0")}>
+          <div className={cn(collapsible ? "px-0" : "mx-auto w-full max-w-lg px-3 md:max-w-3xl md:px-0", "pb-0")}>
             {isWizard && collapsible && (
               <div className="pointer-events-auto mb-2 flex justify-end">
                 <button

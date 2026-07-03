@@ -42,7 +42,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
   return (
     <div className="flex gap-8">
       <aside
-        className="hidden w-[var(--anonser-sidebar-width)] shrink-0 lg:block"
+        className="hidden w-[var(--anonser-sidebar-width)] shrink-0 md:block"
         aria-label="Filtrai ir B2B"
       >
         <div className="sticky top-[calc(var(--anonser-header-height)+1.5rem)] space-y-5">
@@ -122,7 +122,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
 
       <div className="min-w-0 flex-1">
         {header}
-        <div className="mt-4 lg:mt-0">{children}</div>
+        <div className="mt-4 md:mt-0">{children}</div>
       </div>
     </div>
   );

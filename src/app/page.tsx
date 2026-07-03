@@ -4,7 +4,6 @@
 
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { DesktopHomeLayout } from "@/components/layout/desktop/DesktopHomeLayout";
-import { useLayoutMode } from "@/context/LayoutModeContext";
 
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 
@@ -47,7 +46,6 @@ function MarketplaceView() {
   const { rankedListings } = useVauto();
   const { sellerStep } = useSellerFlow();
   const { searchQuery, searchLoading } = useVautoSearch();
-  const { isDesktop } = useLayoutMode();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
@@ -100,22 +98,20 @@ function MarketplaceView() {
     </>
   );
 
-  if (isDesktop) {
-    return (
-      <>
-        <SearchResultsFocus />
-        <DesktopHomeLayout header={<HeroSection>{heroBlock}</HeroSection>}>
-          <ContentSection>{browseSection}</ContentSection>
-        </DesktopHomeLayout>
-      </>
-    );
-  }
-
   return (
     <>
       <SearchResultsFocus />
-      <HeroSection>{heroBlock}</HeroSection>
-      <ContentSection>{browseSection}</ContentSection>
+      {/* Mobile — narrow column + bottom nav */}
+      <div className="md:hidden">
+        <HeroSection>{heroBlock}</HeroSection>
+        <ContentSection>{browseSection}</ContentSection>
+      </div>
+      {/* Desktop — B2B sidebar + wide grid (CSS breakpoint, no JS flash) */}
+      <div className="hidden md:block">
+        <DesktopHomeLayout header={<HeroSection>{heroBlock}</HeroSection>}>
+          <ContentSection>{browseSection}</ContentSection>
+        </DesktopHomeLayout>
+      </div>
     </>
   );
 }

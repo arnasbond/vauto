@@ -24,8 +24,10 @@ export function HomeAiHero({
   if (compact) {
     return (
       <div className="mb-2">
-        <Header />
-        <div className="mt-3">
+        <div className="md:hidden">
+          <Header />
+        </div>
+        <div className="mt-3 md:mt-0">
           <AiCommandBar
             placement="top"
             seedQuery={seedQuery}
@@ -43,18 +45,24 @@ export function HomeAiHero({
 
   return (
     <div className="mb-2">
-      <Header />
+      <div className="md:hidden">
+        <Header />
+      </div>
 
-      <div className="mt-8 flex flex-col items-center text-center">
-        <Link href="/" className="mb-6 inline-block" aria-label="VAUTO pradžia">
+      <div className="mt-8 flex flex-col items-center text-center md:mt-2 md:items-stretch md:text-left">
+        <Link
+          href="/"
+          className="mb-6 inline-block md:mb-4"
+          aria-label="VAUTO pradžia"
+        >
           <VautoLogo
-            className="text-[2.35rem] sm:text-[2.75rem]"
+            className="text-[2.35rem] sm:text-[2.75rem] md:text-[2.5rem]"
             color="var(--vauto-text-main)"
             dotColor="var(--vauto-accent)"
           />
         </Link>
 
-        <div className="mb-2 flex items-center gap-2 px-2">
+        <div className="mb-2 flex items-center gap-2 px-2 md:px-0">
           <Sparkles
             className="h-4 w-4 shrink-0 text-[var(--vauto-primary)]"
             aria-hidden
@@ -63,12 +71,12 @@ export function HomeAiHero({
             Sveiki, aš esu VAUTO asistentas. Ko ieškote ar ką parduodate šiandien?
           </p>
         </div>
-        <p className="mb-4 px-2 text-center text-xs text-[var(--vauto-text-muted)]">
+        <p className="mb-4 px-2 text-center text-xs text-[var(--vauto-text-muted)] md:px-0 md:text-left">
           Automobiliai · nekilnojamasis turtas · paslaugos · mada · įvairūs skelbimai
         </p>
       </div>
 
-      <div className="mt-2">
+      <div className="mt-2 md:max-w-3xl">
         <AiCommandBar
           placement="hero"
           seedQuery={seedQuery}

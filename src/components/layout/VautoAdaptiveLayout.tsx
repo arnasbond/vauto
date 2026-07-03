@@ -46,8 +46,8 @@ export function VautoAdaptiveLayout({
       {/* Shared content — single mount */}
       <div
         className={cn(
-          "mx-auto flex w-full flex-1 flex-col",
-          "max-w-lg md:max-w-[var(--anonser-desktop-max)]",
+          "vauto-adaptive-content mx-auto flex w-full flex-1 flex-col",
+          "max-w-lg md:max-w-none",
           isPlain ? "px-4 pt-4 md:px-6 md:py-6" : "md:px-6 md:py-6",
           shell.contentBottomClass
         )}

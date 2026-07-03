@@ -37,8 +37,8 @@ for (const f of files) {
 }
 
 check(read("src/context/AppProviders.tsx").includes("LayoutModeProvider"), "AppProviders mounts LayoutModeProvider");
-check(read("src/app/page.tsx").includes("VautoAdaptiveLayout"), "home page uses VautoAdaptiveLayout");
-check(read("src/app/page.tsx").includes("DesktopHomeLayout"), "home page uses DesktopHomeLayout");
+check(read("src/app/page.tsx").includes("hidden md:block"), "home page uses CSS desktop breakpoint");
+check(read("src/components/layout/VautoAdaptiveLayout.tsx").includes("vauto-adaptive-content"), "adaptive content uses desktop width class");
 check(read("src/context/AuthContext.tsx").includes("bootstrapTokenHandoff"), "AuthContext token handoff");
 check(read("src/app/globals.css").includes("--anonser-desktop-max"), "desktop design tokens in globals.css");
 check(read("src/lib/site-url.ts").includes("https://www.vauto.lt"), "canonical site URL in site-url.ts");
