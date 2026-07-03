@@ -8,6 +8,7 @@ import { SyncErrorBanner } from "@/components/SyncErrorBanner";
 import { DesktopHeader } from "@/components/layout/desktop/DesktopHeader";
 import { DesktopFooter } from "@/components/layout/desktop/DesktopFooter";
 import { useShellChrome } from "@/hooks/useShellChrome";
+import { useLayoutMode } from "@/context/LayoutModeContext";
 import { cn } from "@/lib/cn";
 
 interface VautoAdaptiveLayoutProps {
@@ -18,8 +19,9 @@ interface VautoAdaptiveLayoutProps {
 }
 
 /**
- * Adaptive shell: mobile AppShell chrome below md, desktop Anonser portal above md.
- * Children mount once — shared SSE/search/agent data streams.
+ * Adaptive shell — renders EITHER the desktop Anonser portal chrome OR the
+ * mobile chrome, never both. Single-mount keeps SSE/search/agent streams and
+ * avoids duplicate/hidden DOM (which broke query selectors & added weight).
  */
 export function VautoAdaptiveLayout({
   children,
@@ -27,54 +29,42 @@ export function VautoAdaptiveLayout({
   variant = "home",
 }: VautoAdaptiveLayoutProps) {
   const shell = useShellChrome();
+  const { isDesktop } = useLayoutMode();
   const navHidden = hideNav || shell.hideBottomNav;
   const isPlain = variant === "plain";
 
-  return (
-    <div
-      className={cn(
-        "flex min-h-dvh flex-col transition-colors duration-300",
-        "bg-[var(--vauto-bg)] text-[var(--vauto-text-main)]",
-        "md:bg-[var(--anonser-bg)] md:text-[var(--anonser-text)]"
-      )}
-    >
-      {/* Desktop header */}
-      <div className="hidden md:block">
+  if (isDesktop) {
+    return (
+      <div className="flex min-h-dvh flex-col bg-[var(--anonser-bg)] text-[var(--anonser-text)]">
         <DesktopHeader />
+        <div className="vauto-adaptive-content mx-auto flex w-full flex-1 flex-col px-6 py-6">
+          <SyncErrorBanner />
+          {children}
+        </div>
+        <DesktopFooter />
       </div>
+    );
+  }
 
-      {/* Shared content — single mount */}
+  return (
+    <div className="flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)] transition-colors duration-300">
       <div
         className={cn(
-          "vauto-adaptive-content mx-auto flex w-full flex-1 flex-col",
-          "max-w-lg md:max-w-none",
-          isPlain ? "px-4 pt-4 md:px-6 md:py-6" : "md:px-6 md:py-6",
+          "mx-auto flex w-full max-w-lg flex-1 flex-col",
+          isPlain && "px-4 pt-4",
           shell.contentBottomClass
         )}
       >
-        <div className={cn(!isPlain && "px-4 pt-2 md:px-0 md:pt-0")}>
+        <div className={cn(!isPlain && "px-4 pt-2")}>
           <SyncErrorBanner />
         </div>
         {children}
         {!shell.hideSiteFooter && (
-          <div className="md:hidden">
-            <SiteFooter className={isPlain ? "-mx-4 mt-6" : undefined} />
-          </div>
+          <SiteFooter className={isPlain ? "-mx-4 mt-6" : undefined} />
         )}
       </div>
-
-      {/* Desktop footer */}
-      <div className="hidden md:block">
-        <DesktopFooter />
-      </div>
-
-      {/* Mobile bottom nav */}
-      {!navHidden && (
-        <div className="md:hidden">
-          <BottomNav />
-          <InstallAppBanner />
-        </div>
-      )}
+      {!navHidden && <BottomNav />}
+      {!navHidden && <InstallAppBanner />}
     </div>
   );
 }

@@ -9,6 +9,11 @@ async function waitForHomeReady(page: Page) {
 }
 
 test.describe("VAUTO smoke", () => {
+  // Smoke suite asserts the mobile chrome (bottom nav, in-grid filter bar,
+  // view toggles) which the adaptive layout renders below the md breakpoint.
+  // Pin a phone viewport so these run against the primary mobile UX.
+  test.use({ viewport: { width: 412, height: 915 } });
+
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
     await expect(

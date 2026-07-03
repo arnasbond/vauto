@@ -37,7 +37,7 @@ for (const f of files) {
 }
 
 check(read("src/context/AppProviders.tsx").includes("LayoutModeProvider"), "AppProviders mounts LayoutModeProvider");
-check(read("src/app/page.tsx").includes("hidden md:block"), "home page uses CSS desktop breakpoint");
+check(read("src/app/page.tsx").includes("useLayoutMode"), "home page single-mounts via useLayoutMode");
 check(read("src/components/layout/VautoAdaptiveLayout.tsx").includes("vauto-adaptive-content"), "adaptive content uses desktop width class");
 check(read("src/context/AuthContext.tsx").includes("bootstrapTokenHandoff"), "AuthContext token handoff");
 check(read("src/app/globals.css").includes("--anonser-desktop-max"), "desktop design tokens in globals.css");
