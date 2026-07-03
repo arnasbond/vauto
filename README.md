@@ -2,8 +2,8 @@
 
 Lietuviška AI-first skelbimų platforma — PWA ir Android aplikacija.
 
-**Live:** https://vauto-chi.vercel.app  
-**APK:** https://vauto-chi.vercel.app/install/
+**Live:** https://www.vauto.lt  
+**APK:** https://www.vauto.lt/install/
 
 ## Greitas startas (tik frontend)
 

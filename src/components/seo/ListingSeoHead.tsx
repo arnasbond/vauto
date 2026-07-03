@@ -15,6 +15,16 @@ function setMeta(name: string, content: string, property = false) {
   el.setAttribute("content", content);
 }
 
+function setLinkCanonical(href: string) {
+  let el = document.querySelector('link[rel="canonical"]');
+  if (!el) {
+    el = document.createElement("link");
+    el.setAttribute("rel", "canonical");
+    document.head.appendChild(el);
+  }
+  el.setAttribute("href", href);
+}
+
 interface ListingSeoHeadProps {
   listing: Listing;
 }
@@ -30,6 +40,7 @@ export function ListingSeoHead({ listing }: ListingSeoHeadProps) {
     setMeta("og:url", meta.og.url, true);
     setMeta("og:type", meta.og.type, true);
     setMeta("og:site_name", meta.og.siteName, true);
+    setLinkCanonical(meta.og.url);
     setMeta("twitter:card", "summary_large_image");
     setMeta("twitter:title", meta.og.title);
     setMeta("twitter:description", meta.og.description);

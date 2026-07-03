@@ -26,9 +26,9 @@ if (-not (Test-Path "out\index.html")) {
     exit 1
 }
 
-Write-Host "==> Syncing Capacitor Android (live web: vauto-chi.vercel.app)..." -ForegroundColor Cyan
+Write-Host "==> Syncing Capacitor Android (live web: www.vauto.lt)..." -ForegroundColor Cyan
 $env:CAPACITOR_USE_REMOTE = "1"
-$env:CAPACITOR_REMOTE_URL = "https://vauto-chi.vercel.app"
+$env:CAPACITOR_REMOTE_URL = "https://www.vauto.lt"
 npx cap sync android
 if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 

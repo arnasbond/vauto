@@ -6,7 +6,7 @@ export default function PrivatumasPage() {
       <section>
         <h2 className="text-base font-semibold text-[var(--vauto-text)]">1. Duomenų valdytojas</h2>
         <p>
-          VAUTO platforma (vauto.lt / vauto-chi.vercel.app) tvarko asmens duomenis pagal
+          VAUTO platforma (www.vauto.lt) tvarko asmens duomenis pagal
           Bendrąjį duomenų apsaugos reglamentą (BDAR) ir LR įstatymus. Platforma veikia
           nacionaliniu mastu — visoje Lietuvoje.
         </p>

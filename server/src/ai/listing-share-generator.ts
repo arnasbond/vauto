@@ -10,7 +10,7 @@ export interface ListingShareCopy {
 }
 
 function listingUrl(slug: string, listingId: string): string {
-  const origin = (process.env.APP_ORIGIN ?? "https://vauto.lt").replace(/\/$/, "");
+  const origin = (process.env.APP_ORIGIN ?? "https://www.vauto.lt").replace(/\/$/, "");
   const path = slug ? `/listing/${slug}/` : `/listing/${listingId}/`;
   return `${origin}${path}`;
 }

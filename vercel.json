@@ -4,11 +4,15 @@
   "buildCommand": "npm run build",
   "outputDirectory": "out",
   "env": {
-    "NEXT_PUBLIC_API_URL": "https://vauto-api.onrender.com"
+    "NEXT_PUBLIC_API_URL": "https://vauto-api.onrender.com",
+    "NEXT_PUBLIC_APP_ORIGIN": "https://www.vauto.lt",
+    "NEXT_PUBLIC_VAUTO_URL": "https://www.vauto.lt"
   },
   "build": {
     "env": {
-      "NEXT_PUBLIC_API_URL": "https://vauto-api.onrender.com"
+      "NEXT_PUBLIC_API_URL": "https://vauto-api.onrender.com",
+      "NEXT_PUBLIC_APP_ORIGIN": "https://www.vauto.lt",
+      "NEXT_PUBLIC_VAUTO_URL": "https://www.vauto.lt"
     }
   },
   "rewrites": [

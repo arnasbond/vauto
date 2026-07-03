@@ -1,6 +1,7 @@
 import type { Listing } from "@/lib/types";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { getDataApiBaseUrl } from "@/lib/api/config";
+import { SITE_URL } from "@/lib/site-url";
 
 export interface ListingShareCopy {
   facebook: string;
@@ -10,9 +11,7 @@ export interface ListingShareCopy {
 }
 
 function fallbackShareCopy(listing: Listing): ListingShareCopy {
-  const origin = (
-    process.env.NEXT_PUBLIC_APP_ORIGIN ?? "https://vauto.lt"
-  ).replace(/\/$/, "");
+  const origin = SITE_URL;
   const path = listing.slug ? `/listing/${listing.slug}/` : `/listing/${listing.id}/`;
   const url = `${origin}${path}`;
   const price =

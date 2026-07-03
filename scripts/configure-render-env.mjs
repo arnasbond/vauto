@@ -145,7 +145,7 @@ async function main() {
 
   await setEnvVar("STRIPE_AUTO_WEBHOOK", "1");
   await setEnvVar("PUBLIC_API_URL", "https://vauto-api.onrender.com");
-  await setEnvVar("APP_ORIGIN", "https://vauto-chi.vercel.app");
+  await setEnvVar("APP_ORIGIN", "https://www.vauto.lt");
 
   // Beta-friendly AI limits — avoids shared-IP/NAT false 429s (default was 8/min).
   await setEnvVar(

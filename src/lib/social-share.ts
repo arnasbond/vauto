@@ -1,11 +1,12 @@
 import type { Listing } from "@/lib/types";
 import { generateListingMetadata, listingPath } from "@/lib/seo";
+import { SITE_URL } from "@/lib/site-url";
 import {
   canUseCapacitorShare,
   shareViaCapacitor,
 } from "@/lib/native-share";
 
-export const SITE_URL = "https://vauto-chi.vercel.app";
+export { SITE_URL } from "@/lib/site-url";
 
 export type SocialPlatformId =
   | "facebook"

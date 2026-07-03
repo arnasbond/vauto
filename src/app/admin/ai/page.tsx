@@ -21,11 +21,8 @@ export default function AdminAiPage() {
         <AdminGeminiUploadPanel />
         <p className="mt-4 text-center text-[11px] text-slate-400">
           Jei nematote šio bloko programėlėje — atnaujinkite iš{" "}
-          <a
-            href="https://vauto-chi.vercel.app/install/"
-            className="text-indigo-600 underline"
-          >
-            vauto-chi.vercel.app/install
+          <a href="/install/" className="text-indigo-600 underline">
+            www.vauto.lt/install
           </a>{" "}
           (Android APK arba iPhone — instrukcijos /install/).
         </p>

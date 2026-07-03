@@ -8,7 +8,7 @@ import { fileURLToPath } from "node:url";
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const root = join(__dirname, "..");
-const SITE_URL = "https://vauto-chi.vercel.app";
+const SITE_URL = process.env.NEXT_PUBLIC_APP_ORIGIN?.replace(/\/$/, "") || "https://www.vauto.lt";
 
 const LT_CHAR_MAP = {
   ą: "a", č: "c", ę: "e", ė: "e", į: "i", š: "s", ų: "u", ū: "u", ž: "z",

@@ -1,5 +1,5 @@
 import { Capacitor } from "@capacitor/core";
-import { SITE_URL } from "@/lib/social-share";
+import { SITE_URL } from "@/lib/site-url";
 
 /** Android/iOS custom URL scheme — register in Google/Apple consoles + AndroidManifest. */
 export const VAUTO_APP_SCHEME = "com.vauto.app";
@@ -12,7 +12,6 @@ export const OAUTH_PENDING_STORAGE_KEY = "vauto_oauth_pending";
 export function getGoogleAuthorizedOrigins(): string[] {
   return [
     SITE_URL,
-    "https://vauto-chi.vercel.app",
     "http://localhost:3000",
     "https://localhost",
     "capacitor://localhost",

@@ -5,10 +5,10 @@
  * Checks live frontend runtime-config, version manifest, and API health.
  *
  * Env:
- *   VAUTO_PROD_URL — default https://vauto-chi.vercel.app
+ *   VAUTO_PROD_URL — default https://www.vauto.lt
  *   EXPECT_CONDUCTOR_ENABLED — "true" (default during soak) or "false" (post kill-switch)
  */
-const prodUrl = (process.env.VAUTO_PROD_URL || "https://vauto-chi.vercel.app").replace(
+const prodUrl = (process.env.VAUTO_PROD_URL || "https://www.vauto.lt").replace(
   /\/$/,
   ""
 );

@@ -3,17 +3,17 @@
   "googleClientId": "YOUR_CLIENT_ID.apps.googleusercontent.com",
   "_oauthNotes": {
     "googleAuthorizedOrigins": [
-      "https://vauto-chi.vercel.app",
+      "https://www.vauto.lt",
       "http://localhost:3000",
       "https://localhost",
       "capacitor://localhost"
     ],
     "googleRedirectUris": [
-      "https://vauto-chi.vercel.app/auth/callback/",
+      "https://www.vauto.lt/auth/callback/",
       "com.vauto.app://auth/callback"
     ],
     "appleRedirectUris": [
-      "https://vauto-chi.vercel.app/auth/callback/",
+      "https://www.vauto.lt/auth/callback/",
       "com.vauto.app://auth/callback"
     ]
   }

@@ -83,7 +83,7 @@ jobs:
           body: |
             **v${{ steps.appver.outputs.version }}** (versionCode ${{ steps.appver.outputs.code }})
 
-            **Rekomenduojama nuoroda:** https://vauto-chi.vercel.app/download/vauto.apk
+            **Rekomenduojama nuoroda:** https://www.vauto.lt/download/vauto.apk
 
             1. Atsisiųskite **vauto.apk**
             2. **Ištrinkite senesnę versiją** prieš diegiant

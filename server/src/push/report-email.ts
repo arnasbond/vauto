@@ -1,7 +1,7 @@
 import { getAdminNotifyEmails } from "../repository.js";
 import type { ApiSupportReport } from "../types.js";
 
-const APP_ORIGIN = process.env.APP_ORIGIN ?? "https://vauto-chi.vercel.app";
+const APP_ORIGIN = process.env.APP_ORIGIN ?? "https://www.vauto.lt";
 
 function reportAdminUrl(reportId: string): string {
   return `${APP_ORIGIN}/profile/?report=${encodeURIComponent(reportId)}`;

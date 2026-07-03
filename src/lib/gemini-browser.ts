@@ -2,7 +2,7 @@
 
  * Browser-direct Gemini calls — bypasses Render IP blocks.
 
- * Restrict the API key to HTTP referrers (vauto-chi.vercel.app, localhost) in Google Cloud.
+ * Restrict the API key to HTTP referrers (www.vauto.lt, localhost) in Google Cloud.
 
  */
 

@@ -858,7 +858,7 @@ aiRouter.post("/import-url", async (req, res) => {
       pageRes = await fetch(url.trim(), {
         headers: {
           "User-Agent":
-            "Mozilla/5.0 (compatible; VautoBot/1.0; +https://vauto-chi.vercel.app)",
+            "Mozilla/5.0 (compatible; VautoBot/1.0; +https://www.vauto.lt)",
           Accept: "text/html,application/xhtml+xml",
         },
         signal: AbortSignal.timeout(12_000),

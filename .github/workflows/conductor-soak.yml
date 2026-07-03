@@ -24,7 +24,7 @@ jobs:
       - name: Production soak probe
         run: node scripts/verify-production-soak.mjs
         env:
-          VAUTO_PROD_URL: https://vauto-chi.vercel.app
+          VAUTO_PROD_URL: https://www.vauto.lt
           EXPECT_CONDUCTOR_ENABLED: ${{ github.event.inputs.expect_conductor_enabled || 'true' }}
 
       - name: Kill-switch drill (config writer only)

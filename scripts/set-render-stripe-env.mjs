@@ -76,7 +76,7 @@ async function main() {
   );
   await upsertEnv("STRIPE_AUTO_WEBHOOK", "1");
   await upsertEnv("PUBLIC_API_URL", "https://vauto-api.onrender.com");
-  await upsertEnv("APP_ORIGIN", "https://vauto-chi.vercel.app");
+  await upsertEnv("APP_ORIGIN", "https://www.vauto.lt");
 
   const deploy = await api(`/services/${SERVICE_ID}/deploys`, {
     method: "POST",

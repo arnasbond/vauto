@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from "@capacitor/cli";
 
 const productionWebUrl =
-  process.env.CAPACITOR_REMOTE_URL?.trim() || "https://vauto-chi.vercel.app";
+  process.env.CAPACITOR_REMOTE_URL?.trim() || "https://www.vauto.lt";
 
 /**
  * Production APK = bundled `out/` assets (stable login, works offline at launch).
@@ -28,7 +28,8 @@ const config: CapacitorConfig = {
         iosScheme: "capacitor",
         cleartext: false,
         allowNavigation: [
-          "vauto-chi.vercel.app",
+          "www.vauto.lt",
+          "vauto.lt",
           "vauto-api.onrender.com",
           "checkout.stripe.com",
           "billing.stripe.com",

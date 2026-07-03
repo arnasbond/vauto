@@ -2,6 +2,7 @@
 
 import { Component, type ErrorInfo, type ReactNode } from "react";
 import { Capacitor } from "@capacitor/core";
+import { SITE_URL } from "@/lib/site-url";
 
 interface Props {
   children: ReactNode;
@@ -29,7 +30,7 @@ export class NativeErrorBoundary extends Component<Props, State> {
   };
 
   handleOpenWeb = () => {
-    window.location.href = "https://vauto-chi.vercel.app/";
+    window.location.href = `${SITE_URL}/`;
   };
 
   render() {
@@ -62,7 +63,7 @@ export class NativeErrorBoundary extends Component<Props, State> {
             onClick={this.handleOpenWeb}
             className="mt-3 text-sm text-slate-400 underline"
           >
-            Atidaryti vauto-chi.vercel.app naršyklėje
+            Atidaryti www.vauto.lt naršyklėje
           </button>
         )}
         {!native && (

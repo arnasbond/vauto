@@ -48,7 +48,7 @@ services:
       - key: EMAIL_FROM
         sync: false
       - key: APP_ORIGIN
-        value: https://vauto.anonser.lt
+        value: https://www.vauto.lt
       - key: STRIPE_SECRET_KEY
         sync: false
       - key: STRIPE_WEBHOOK_SECRET

@@ -41,7 +41,9 @@ check(read("src/app/page.tsx").includes("VautoAdaptiveLayout"), "home page uses 
 check(read("src/app/page.tsx").includes("DesktopHomeLayout"), "home page uses DesktopHomeLayout");
 check(read("src/context/AuthContext.tsx").includes("bootstrapTokenHandoff"), "AuthContext token handoff");
 check(read("src/app/globals.css").includes("--anonser-desktop-max"), "desktop design tokens in globals.css");
-check(read("server/.env.example").includes("vauto.anonser.lt"), "env.example documents anonser subdomain");
+check(read("src/lib/site-url.ts").includes("https://www.vauto.lt"), "canonical site URL in site-url.ts");
+check(read("public/manifest.json").includes("www.vauto.lt"), "manifest uses www.vauto.lt");
+check(read("vercel.json").includes("NEXT_PUBLIC_APP_ORIGIN"), "vercel.json sets NEXT_PUBLIC_APP_ORIGIN");
 
 // Migrated pages use the adaptive layout (no leftover AppShell)
 const migrated = [
@@ -64,7 +66,7 @@ check(
   "DashboardShell (profile) uses VautoAdaptiveLayout"
 );
 
-const passed = files.length + 6 + migrated.length + 1;
+const passed = files.length + 8 + migrated.length + 1;
 console.log(
   failures === 0
     ? `\n--- ${passed} passed, 0 failed ---\n`

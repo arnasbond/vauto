@@ -4,6 +4,7 @@ import { AppProviders } from "@/context/AppProviders";
 import { NativeShell } from "@/components/NativeShell";
 import { BackButtonHandler } from "@/components/BackButtonHandler";
 import { ToastHost } from "@/components/ui/ToastHost";
+import { SITE_URL } from "@/lib/site-url";
 import "./globals.css";
 
 const geistSans = Geist({
@@ -23,10 +24,29 @@ const outfit = Outfit({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(SITE_URL),
   title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
   description:
     "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
   manifest: "/manifest.json",
+  alternates: {
+    canonical: "/",
+  },
+  openGraph: {
+    type: "website",
+    locale: "lt_LT",
+    url: "/",
+    siteName: "VAUTO",
+    title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
+    description:
+      "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
+    description:
+      "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+  },
   other: {
     google: "notranslate",
   },

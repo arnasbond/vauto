@@ -1,7 +1,7 @@
 /** anonser.lt portal integration — logo, back links, B2B nav. */
 
 const DEFAULT_ANONSER_URL = "https://anonser.lt";
-const DEFAULT_VAUTO_SUBDOMAIN_URL = "https://vauto.anonser.lt";
+const DEFAULT_VAUTO_URL = "https://www.vauto.lt";
 
 export function getAnonserPortalUrl(): string {
   return (
@@ -13,7 +13,7 @@ export function getAnonserPortalUrl(): string {
 export function getVautoPortalUrl(): string {
   return (
     process.env.NEXT_PUBLIC_VAUTO_URL?.replace(/\/$/, "") ||
-    (typeof window !== "undefined" ? window.location.origin : DEFAULT_VAUTO_SUBDOMAIN_URL)
+    (typeof window !== "undefined" ? window.location.origin : DEFAULT_VAUTO_URL)
   );
 }
 

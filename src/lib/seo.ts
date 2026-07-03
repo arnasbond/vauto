@@ -1,5 +1,8 @@
 import type { Listing } from "@/lib/types";
 import { regionalizeTitle } from "@/lib/local-seo";
+import { SITE_URL } from "@/lib/site-url";
+
+export { SITE_URL } from "@/lib/site-url";
 
 const LT_CHAR_MAP: Record<string, string> = {
   ą: "a",
@@ -52,8 +55,6 @@ export interface ListingSeoMetadata {
     siteName: string;
   };
 }
-
-export const SITE_URL = "https://vauto-chi.vercel.app";
 
 export function findListingBySlug(
   listings: readonly Listing[],

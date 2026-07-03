@@ -9,10 +9,10 @@ import type { UserProfile } from "@/lib/types";
 const REFERRAL_STORAGE_KEY = "vauto_pending_referral_v1";
 const REFERRAL_CREDITS_KEY = "vauto_referral_credits_v1";
 
-/** Vieša registracijos nuoroda su ref parametru (nacionalinis domenas). */
+/** Vieša registracijos nuoroda su ref parametru. */
 export const REFERRAL_SIGNUP_BASE =
   process.env.NEXT_PUBLIC_REFERRAL_BASE?.replace(/\/$/, "") ||
-  "https://vauto.lt/registracija";
+  `${SITE_URL}/registracija`;
 
 export function buildReferralUrl(user: Pick<UserProfile, "id" | "referralCode"> | string): string {
   const ref = typeof user === "string" ? user : user.referralCode ?? user.id;
