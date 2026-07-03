@@ -61,9 +61,11 @@ jobs:
           echo "Listings on API: $COUNT"
 
       - name: Bootstrap catalog and embeddings
+        env:
+          VAUTO_OPS_SECRET: ${{ secrets.VAUTO_OPS_SECRET }}
         run: |
           for i in $(seq 1 12); do
-            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" || true)
+            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" -H "X-Vauto-Ops-Secret: ${VAUTO_OPS_SECRET}" || true)
             CODE=$(echo "$RESP" | tail -1)
             BODY=$(echo "$RESP" | sed '$d')
             echo "Bootstrap attempt $i/12 — HTTP $CODE: $BODY"

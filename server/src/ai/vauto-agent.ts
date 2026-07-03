@@ -214,6 +214,21 @@ function isGenericEmptySearchReply(text: string): boolean {
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 const MAX_TOOL_ROUNDS = 5;
+/** Transient Gemini overload (503 UNAVAILABLE / 429) — retry same model before failover. */
+const GEMINI_RETRY_STATUSES = new Set([429, 503]);
+const GEMINI_MAX_RETRIES = 2;
+const GEMINI_RETRY_BASE_MS = 400;
+
+function isRetriableAgentError(e: unknown): boolean {
+  return (
+    e instanceof AgentRouteError &&
+    typeof e.geminiStatus === "number" &&
+    GEMINI_RETRY_STATUSES.has(e.geminiStatus)
+  );
+}
+
+const sleepMs = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
 
 type GeminiPart =
   | { text: string }
@@ -264,7 +279,8 @@ async function geminiAgentTurn(
       throw new AgentRouteError(
         "gemini_error",
         `Gemini ${model} returned ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
-        res.status >= 500 ? 502 : 503
+        res.status >= 500 ? 502 : 503,
+        res.status
       );
     }
 
@@ -565,23 +581,35 @@ async function runVautoAgentInner(req: VautoAgentRequest): Promise<VautoAgentRes
       let text = "";
 
       for (const model of GEMINI_MODELS) {
-        try {
-          const turn = await geminiAgentTurn(contents, model, systemInstruction);
-          parts = turn.parts;
-          text = turn.text;
-          lastGeminiError = null;
-          break;
-        } catch (e) {
-          lastGeminiError =
-            e instanceof AgentRouteError
-              ? e
-              : new AgentRouteError(
-                  "gemini_error",
-                  e instanceof Error ? e.message : "Gemini API klaida",
-                  502
-                );
-          console.warn(`[vauto-agent] ${model}:`, lastGeminiError.message);
+        let succeeded = false;
+        for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+          try {
+            const turn = await geminiAgentTurn(contents, model, systemInstruction);
+            parts = turn.parts;
+            text = turn.text;
+            lastGeminiError = null;
+            succeeded = true;
+            break;
+          } catch (e) {
+            lastGeminiError =
+              e instanceof AgentRouteError
+                ? e
+                : new AgentRouteError(
+                    "gemini_error",
+                    e instanceof Error ? e.message : "Gemini API klaida",
+                    502
+                  );
+            const canRetry =
+              attempt < GEMINI_MAX_RETRIES && isRetriableAgentError(lastGeminiError);
+            console.warn(
+              `[vauto-agent] ${model} attempt ${attempt + 1}${canRetry ? " (will retry)" : ""}:`,
+              lastGeminiError.message
+            );
+            if (!canRetry) break;
+            await sleepMs(GEMINI_RETRY_BASE_MS * 2 ** attempt);
+          }
         }
+        if (succeeded) break;
       }
 
       if (!parts.length) break;

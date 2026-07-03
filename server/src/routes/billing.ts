@@ -20,6 +20,7 @@ import {
   resolveStripeCustomerId,
 } from "../billing/stripe-client.js";
 import type { StripePlanId } from "../billing/stripe-plans.js";
+import { claimStripeWebhookEvent } from "../billing/webhook-idempotency.js";
 
 export const billingRouter = Router();
 
@@ -169,6 +170,19 @@ export async function handleStripeWebhook(
     event = stripe.webhooks.constructEvent(req.body, signature, secret);
   } catch (e) {
     res.status(400).send(`Webhook Error: ${String(e)}`);
+    return;
+  }
+
+  // Idempotency: Stripe retries webhooks; process each event id at most once.
+  try {
+    const isNew = await claimStripeWebhookEvent(event.id, event.type);
+    if (!isNew) {
+      res.json({ received: true, duplicate: true });
+      return;
+    }
+  } catch (e) {
+    console.error("Webhook idempotency check failed:", e);
+    res.status(500).send("Webhook idempotency error");
     return;
   }
 

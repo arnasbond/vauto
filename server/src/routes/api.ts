@@ -6,6 +6,7 @@ import { analyzeVisualSearchIntent } from "../ai/search-intent.js";
 import { normalizeImageDataUrl } from "../ai/image-input.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { demoWalletTopUpAllowed } from "../demo-guards.js";
+import { requireOpsSecret } from "../middleware/ops-secret.js";
 import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { fetchListingsFeed } from "../controllers/listing-controller.js";
@@ -277,7 +278,7 @@ apiRouter.get("/health", async (_req, res) => {
 });
 
 /** Centralized buyer/seller session simulation for QA and production smoke checks. */
-apiRouter.get("/test/e2e-simulation", async (_req, res) => {
+apiRouter.get("/test/e2e-simulation", requireOpsSecret, async (_req, res) => {
   try {
     const result = await runVautoE2eSimulation();
     res.json(result);
@@ -287,7 +288,7 @@ apiRouter.get("/test/e2e-simulation", async (_req, res) => {
 });
 
 /** Idempotent demo catalog upsert — safe to call after deploy without Render API key. */
-apiRouter.post("/bootstrap", async (_req, res) => {
+apiRouter.post("/bootstrap", requireOpsSecret, async (_req, res) => {
   try {
     await seedIfEmpty();
     const listings = await getListings();

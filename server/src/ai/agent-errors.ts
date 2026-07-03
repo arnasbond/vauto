@@ -8,7 +8,9 @@ export class AgentRouteError extends Error {
   constructor(
     public readonly code: AgentErrorCode,
     message: string,
-    public readonly status = 503
+    public readonly status = 503,
+    /** Upstream Gemini HTTP status, when this error wraps a Gemini API response. */
+    public readonly geminiStatus?: number
   ) {
     super(message);
     this.name = "AgentRouteError";

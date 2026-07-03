@@ -10,11 +10,13 @@ on:
 jobs:
   bootstrap:
     runs-on: ubuntu-latest
+    env:
+      VAUTO_OPS_SECRET: ${{ secrets.VAUTO_OPS_SECRET }}
     steps:
       - name: Wake API and seed demo catalog
         run: |
           for i in $(seq 1 18); do
-            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" || true)
+            RESP=$(curl -s -w "\n%{http_code}" -X POST "https://vauto-api.onrender.com/api/bootstrap" -H "X-Vauto-Ops-Secret: ${VAUTO_OPS_SECRET}" || true)
             CODE=$(echo "$RESP" | tail -1)
             BODY=$(echo "$RESP" | sed '$d')
             if [ "$CODE" = "200" ]; then
