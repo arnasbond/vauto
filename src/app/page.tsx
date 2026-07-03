@@ -2,7 +2,9 @@
 
 
 
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
+import { DesktopHomeLayout } from "@/components/layout/desktop/DesktopHomeLayout";
+import { useLayoutMode } from "@/context/LayoutModeContext";
 
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 
@@ -45,6 +47,7 @@ function MarketplaceView() {
   const { rankedListings } = useVauto();
   const { sellerStep } = useSellerFlow();
   const { searchQuery, searchLoading } = useVautoSearch();
+  const { isDesktop } = useLayoutMode();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
@@ -53,67 +56,68 @@ function MarketplaceView() {
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
 
-
   useEffect(() => {
     return subscribeHomeReset(() => setSeedQuery(null));
   }, []);
 
-
-
-  return (
-
-    <>
-
-      <SearchResultsFocus />
-
-      <HeroSection>
-
-        <PortalPageChrome
-          minimal
-          header={
-            <>
-              {inSellerFlow ? (
-                <TopAiCommandChrome
-                  sticky={false}
-                  className="mb-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
-                />
-              ) : (
-                <HomeAiHero
-                  compact={hasSearch}
-                  seedQuery={seedQuery}
-                  onSeedConsumed={() => setSeedQuery(null)}
-                />
-              )}
-              {emptySearchMode && (
-                <SearchEmptyAssistantBanner searchQuery={searchQuery.trim()} />
-              )}
-            </>
-          }
-        >
-          <span className="sr-only">VAUTO pagrindinis puslapis</span>
-        </PortalPageChrome>
-
-      </HeroSection>
-
-
-
-      <ContentSection>
-
-        {!hasSearch && !inSellerFlow && (
-          <div id="browse-section" className="scroll-mt-24">
-            <AiFirstBrowsePrompt />
-          </div>
-        )}
-
-        <div>
-          <ListingGrid hideEmptyAssistant={emptySearchMode} />
-        </div>
-      </ContentSection>
-
-    </>
-
+  const heroBlock = (
+    <PortalPageChrome
+      minimal
+      header={
+        <>
+          {inSellerFlow ? (
+            <TopAiCommandChrome
+              sticky={false}
+              className="mb-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
+            />
+          ) : (
+            <HomeAiHero
+              compact={hasSearch}
+              seedQuery={seedQuery}
+              onSeedConsumed={() => setSeedQuery(null)}
+            />
+          )}
+          {emptySearchMode && (
+            <SearchEmptyAssistantBanner searchQuery={searchQuery.trim()} />
+          )}
+        </>
+      }
+    >
+      <span className="sr-only">VAUTO pagrindinis puslapis</span>
+    </PortalPageChrome>
   );
 
+  const browseSection = (
+    <>
+      {!hasSearch && !inSellerFlow && (
+        <div id="browse-section" className="scroll-mt-24">
+          <AiFirstBrowsePrompt />
+        </div>
+      )}
+      <div>
+        <ListingGrid hideEmptyAssistant={emptySearchMode} />
+      </div>
+    </>
+  );
+
+  if (isDesktop) {
+    return (
+      <>
+        <SearchResultsFocus />
+        <DesktopHomeLayout header={<HeroSection>{heroBlock}</HeroSection>}>
+          <ContentSection>{browseSection}</ContentSection>
+        </DesktopHomeLayout>
+      </>
+    );
+  }
+
+  return (
+    <>
+      <SearchResultsFocus />
+      <HeroSection>{heroBlock}</HeroSection>
+      <ContentSection>{browseSection}</ContentSection>
+    </>
+  );
 }
 
 
@@ -152,11 +156,11 @@ export default function HomePage() {
 
   return (
 
-    <AppShell>
+    <VautoAdaptiveLayout>
 
       <ZeroUiViewTransition view={currentView} renderView={renderView} />
 
-    </AppShell>
+    </VautoAdaptiveLayout>
 
   );
 

@@ -51,6 +51,21 @@
   --vauto-orange: var(--flux-coral);
   --vauto-orange-light: var(--flux-coral-light);
   --vauto-red: #dc2626;
+
+  /* anonser.lt desktop portal (md+, >=768px) */
+  --anonser-bg: #eef1f6;
+  --anonser-card: #ffffff;
+  --anonser-text: #0f172a;
+  --anonser-text-muted: #64748b;
+  --anonser-primary: #1e40af;
+  --anonser-primary-soft: #dbeafe;
+  --anonser-accent: #0d9488;
+  --anonser-border: rgba(15, 23, 42, 0.1);
+  --anonser-surface-muted: #e2e8f0;
+  --anonser-header-bg: #ffffff;
+  --anonser-header-height: 4rem;
+  --anonser-desktop-max: 80rem;
+  --anonser-sidebar-width: 17.5rem;
 }
 
 @theme inline {

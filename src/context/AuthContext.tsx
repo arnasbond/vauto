@@ -73,6 +73,8 @@ import {
 
   restorePersistedAuth,
 
+  saveAccessToken,
+
 } from "@/lib/auth/session";
 
 import {
@@ -118,6 +120,7 @@ import { AuthColdStartOverlay } from "@/components/auth/AuthColdStartOverlay";
 import { SessionAutoLoginGuard } from "@/components/auth/SessionAutoLoginGuard";
 
 import { consumeOAuthPendingPayload } from "@/lib/auth/oauth-redirect";
+import { bootstrapTokenHandoff } from "@/lib/auth/token-handoff";
 import { registerNativePush } from "@/lib/native-push";
 
 
@@ -252,7 +255,30 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAdmin = isSuperAdminUser(user);
 
+  /** anonser.lt → vauto.anonser.lt JWT handoff (URL param or postMessage). */
+  useEffect(() => {
+    const applyHandoff = async (token: string) => {
+      saveAccessToken(token);
+      if (!isAuthApiAvailable()) return;
+      const refreshed = await apiFetchAuthSession(token);
+      if (!refreshed.ok) return;
+      const updated = mapApiUserToProfile(refreshed.data.user, {
+        role: refreshed.data.role,
+        provider: "phone",
+      });
+      const session: AuthSession = {
+        isAuthenticated: true,
+        provider: updated.authProvider ?? "phone",
+        loggedInAt: new Date().toISOString(),
+        accessToken: token,
+      };
+      await applyAuthenticatedUser(updated, session);
+    };
 
+    return bootstrapTokenHandoff((token) => {
+      void applyHandoff(token);
+    });
+  }, [applyAuthenticatedUser]);
 
   useEffect(() => {
 

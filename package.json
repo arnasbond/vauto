@@ -32,6 +32,7 @@
     "report:emotional-pdf": "node scripts/generate-emotional-experience-pdf.mjs",
     "test:emotional": "node scripts/test-emotional-experience.mjs",
     "test:p1p2": "node scripts/test-p1-p2-emotional.mjs",
+    "test:adaptive": "node scripts/test-adaptive-layout.mjs",
     "verify:gemini-live": "node scripts/verify-gemini-live.mjs",
     "provision:render": "node scripts/provision-render.mjs",
     "redeploy:render": "node scripts/redeploy-render.mjs",

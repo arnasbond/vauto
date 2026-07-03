@@ -9,6 +9,7 @@ import { ReviewsProvider } from "@/context/ReviewsContext";
 import { VautoSearchProvider } from "@/context/VautoSearchContext";
 import { VautoProvider } from "@/context/VautoContext";
 import { UserBehaviorProvider } from "@/context/UserBehaviorContext";
+import { LayoutModeProvider } from "@/context/LayoutModeContext";
 import { NativeErrorBoundary } from "@/components/NativeErrorBoundary";
 import { AppVersionProvider } from "@/context/AppVersionContext";
 import { WebAutoUpdateHost } from "@/components/version/WebAutoUpdateHost";
@@ -25,7 +26,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
         <WebAutoUpdateHost />
         <ApiWarmupHost />
         <AppThemeProvider>
-          <AuthProvider>
+          <LayoutModeProvider>
+            <AuthProvider>
             <UserBehaviorProvider>
               <ReviewsProvider>
                 <NavigationProvider>
@@ -38,7 +40,8 @@ export function AppProviders({ children }: { children: ReactNode }) {
                 </NavigationProvider>
               </ReviewsProvider>
             </UserBehaviorProvider>
-          </AuthProvider>
+            </AuthProvider>
+          </LayoutModeProvider>
         </AppThemeProvider>
       </AppVersionProvider>
     </NativeErrorBoundary>
