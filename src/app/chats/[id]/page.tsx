@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { ChatThreadView } from "@/components/ChatThreadView";
 import { INITIAL_CHATS } from "@/data/mockListings";
 
@@ -15,7 +15,7 @@ export default async function ChatDetailPage({ params }: Props) {
   const { id } = await params;
 
   return (
-    <AppShell variant="plain" hideNav>
+    <VautoAdaptiveLayout variant="plain" hideNav>
       <Suspense
         fallback={
           <p className="py-12 text-center text-[var(--vauto-text-muted)]">
@@ -25,6 +25,6 @@ export default async function ChatDetailPage({ params }: Props) {
       >
         <ChatThreadView chatId={id} />
       </Suspense>
-    </AppShell>
+    </VautoAdaptiveLayout>
   );
 }

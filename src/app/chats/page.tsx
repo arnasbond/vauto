@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { LogIn, MessageCircle } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import {
@@ -20,15 +20,15 @@ export default function ChatsPage() {
 
   if (!authHydrated) {
     return (
-      <AppShell variant="plain">
+      <VautoAdaptiveLayout variant="plain">
         <p className="py-16 text-center text-sm text-slate-500">Kraunama…</p>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <AppShell variant="plain">
+      <VautoAdaptiveLayout variant="plain">
         <div className="flex min-h-[50dvh] flex-col items-center justify-center px-6 text-center">
           <MessageCircle className="mb-4 h-12 w-12 text-[var(--vauto-teal)]" />
           <h1 className="text-xl font-bold text-slate-900">Pokalbiai</h1>
@@ -44,12 +44,12 @@ export default function ChatsPage() {
             Prisijungti
           </button>
         </div>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   return (
-    <AppShell variant="plain">
+    <VautoAdaptiveLayout variant="plain">
       <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
         Pokalbiai
       </h1>
@@ -99,6 +99,6 @@ export default function ChatsPage() {
       <p className="mt-6 text-center text-xs text-slate-400">
         Parašykite „perku“ arba „tinka“ — AI pasiūlys saugų mokėjimą.
       </p>
-    </AppShell>
+    </VautoAdaptiveLayout>
   );
 }

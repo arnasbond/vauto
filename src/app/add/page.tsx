@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
@@ -98,7 +98,7 @@ export default function AddPage() {
 
   if (!authHydrated) {
     return (
-      <AppShell>
+      <VautoAdaptiveLayout>
         <div className="seller-flow-page min-h-full">
           <HeroSection>
             <Header />
@@ -107,13 +107,13 @@ export default function AddPage() {
             </p>
           </HeroSection>
         </div>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <AppShell>
+      <VautoAdaptiveLayout>
         <div className="seller-flow-page min-h-full">
           <HeroSection>
             <Header />
@@ -132,12 +132,12 @@ export default function AddPage() {
             </button>
           </HeroSection>
         </div>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   return (
-    <AppShell>
+    <VautoAdaptiveLayout>
       <div className="seller-flow-page min-h-full">
         {!blockStaticUi && (
           <HeroSection>
@@ -177,6 +177,6 @@ export default function AddPage() {
           />
         )}
       </div>
-    </AppShell>
+    </VautoAdaptiveLayout>
   );
 }

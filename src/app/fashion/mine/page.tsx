@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { WardrobeCabinetSection } from "@/components/clothing/WardrobeCabinetSection";
 import { useVauto } from "@/context/VautoContext";
@@ -88,16 +88,16 @@ export default function FashionMinePage() {
 
   if (!authHydrated || !isAuthenticated) {
     return (
-      <AppShell variant="plain">
+      <VautoAdaptiveLayout variant="plain">
         <div className="flex min-h-[40vh] items-center justify-center text-sm text-slate-400">
           Kraunama…
         </div>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   return (
-    <AppShell variant="plain">
+    <VautoAdaptiveLayout variant="plain">
       <TopAiCommandChrome variant="wardrobe" />
       <div className="chameleon-wardrobe pb-8 text-[var(--vauto-text-main)]">
         <WardrobeCabinetSection
@@ -109,6 +109,6 @@ export default function FashionMinePage() {
           onMarkSold={(listing) => markListingSold(listing.id)}
         />
       </div>
-    </AppShell>
+    </VautoAdaptiveLayout>
   );
 }

@@ -43,9 +43,31 @@ check(read("src/context/AuthContext.tsx").includes("bootstrapTokenHandoff"), "Au
 check(read("src/app/globals.css").includes("--anonser-desktop-max"), "desktop design tokens in globals.css");
 check(read("server/.env.example").includes("vauto.anonser.lt"), "env.example documents anonser subdomain");
 
+// Migrated pages use the adaptive layout (no leftover AppShell)
+const migrated = [
+  "src/app/chats/page.tsx",
+  "src/app/pokalbiai/page.tsx",
+  "src/app/chats/thread/page.tsx",
+  "src/app/chats/[id]/page.tsx",
+  "src/app/add/page.tsx",
+  "src/app/fashion/mine/page.tsx",
+];
+for (const f of migrated) {
+  const src = read(f);
+  check(
+    src.includes("VautoAdaptiveLayout") && !src.includes("AppShell"),
+    `${f} migrated to VautoAdaptiveLayout`
+  );
+}
+check(
+  read("src/components/dashboard/DashboardShell.tsx").includes("VautoAdaptiveLayout"),
+  "DashboardShell (profile) uses VautoAdaptiveLayout"
+);
+
+const passed = files.length + 6 + migrated.length + 1;
 console.log(
   failures === 0
-    ? `\n--- ${files.length + 6} passed, 0 failed ---\n`
+    ? `\n--- ${passed} passed, 0 failed ---\n`
     : `\n--- ${failures} failed ---\n`
 );
 process.exit(failures === 0 ? 0 : 1);

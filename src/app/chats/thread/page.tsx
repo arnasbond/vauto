@@ -1,5 +1,5 @@
 import { Suspense } from "react";
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { ChatThreadFromQuery } from "@/components/ChatThreadView";
 
 function ChatThreadLoader() {
@@ -18,8 +18,8 @@ function ChatThreadLoader() {
 
 export default function ChatThreadPage() {
   return (
-    <AppShell variant="plain" hideNav>
+    <VautoAdaptiveLayout variant="plain" hideNav>
       <ChatThreadLoader />
-    </AppShell>
+    </VautoAdaptiveLayout>
   );
 }

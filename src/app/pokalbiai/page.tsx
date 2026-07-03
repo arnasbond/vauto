@@ -2,7 +2,7 @@
 
 import { Suspense } from "react";
 import { LogIn, MessageCircle } from "lucide-react";
-import { AppShell } from "@/components/AppShell";
+import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { ChatThreadFromQuery } from "@/components/ChatThreadView";
 import { useAuth } from "@/context/AuthContext";
 
@@ -11,15 +11,15 @@ export default function PokalbiaiPage() {
 
   if (!authHydrated) {
     return (
-      <AppShell variant="plain">
+      <VautoAdaptiveLayout variant="plain">
         <p className="py-16 text-center text-sm text-slate-500">Kraunama…</p>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   if (!isAuthenticated) {
     return (
-      <AppShell variant="plain">
+      <VautoAdaptiveLayout variant="plain">
         <div className="flex min-h-[50dvh] flex-col items-center justify-center px-6 text-center">
           <MessageCircle className="mb-4 h-12 w-12 text-[var(--vauto-teal)]" />
           <h1 className="text-xl font-bold text-slate-900">Pokalbiai</h1>
@@ -35,12 +35,12 @@ export default function PokalbiaiPage() {
             Prisijungti
           </button>
         </div>
-      </AppShell>
+      </VautoAdaptiveLayout>
     );
   }
 
   return (
-    <AppShell variant="plain">
+    <VautoAdaptiveLayout variant="plain">
       <Suspense
         fallback={
           <p className="py-12 text-center text-sm text-[var(--vauto-text-muted)]">
@@ -50,6 +50,6 @@ export default function PokalbiaiPage() {
       >
         <ChatThreadFromQuery />
       </Suspense>
-    </AppShell>
+    </VautoAdaptiveLayout>
   );
 }
