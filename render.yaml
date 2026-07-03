@@ -57,10 +57,14 @@ services:
         value: "1"
       - key: PUBLIC_API_URL
         value: https://vauto-api.onrender.com
+      - key: API_RATE_LIMIT_PER_MIN
+        value: "300"
+      - key: ACTION_RATE_LIMIT_PER_MIN
+        value: "120"
       - key: AI_RATE_LIMIT_PER_MIN
         value: "30"
       - key: SEARCH_RATE_LIMIT_PER_MIN
-        value: "30"
+        value: "40"
       - key: GOOGLE_CLOUD_VISION_CREDENTIALS_JSON
         sync: false
       - key: TESSERACT_OCR_ENABLED

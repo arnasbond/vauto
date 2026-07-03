@@ -147,14 +147,24 @@ async function main() {
   await setEnvVar("PUBLIC_API_URL", "https://vauto-api.onrender.com");
   await setEnvVar("APP_ORIGIN", "https://www.vauto.lt");
 
-  // Beta-friendly AI limits — avoids shared-IP/NAT false 429s (default was 8/min).
+  // Beta-friendly rate limits — avoids shared-IP/NAT false 429s and lets the
+  // read-heavy SPA breathe. General API is the tier that was throwing
+  // "Per daug užklausų per minutę" during normal browsing (default was 30/min).
+  await setEnvVar(
+    "API_RATE_LIMIT_PER_MIN",
+    process.env.API_RATE_LIMIT_PER_MIN?.trim() || "300"
+  );
+  await setEnvVar(
+    "ACTION_RATE_LIMIT_PER_MIN",
+    process.env.ACTION_RATE_LIMIT_PER_MIN?.trim() || "120"
+  );
   await setEnvVar(
     "AI_RATE_LIMIT_PER_MIN",
     process.env.AI_RATE_LIMIT_PER_MIN?.trim() || "30"
   );
   await setEnvVar(
     "SEARCH_RATE_LIMIT_PER_MIN",
-    process.env.SEARCH_RATE_LIMIT_PER_MIN?.trim() || "30"
+    process.env.SEARCH_RATE_LIMIT_PER_MIN?.trim() || "40"
   );
 
   for (const key of [

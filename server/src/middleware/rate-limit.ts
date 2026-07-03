@@ -2,11 +2,15 @@ import rateLimit from "express-rate-limit";
 import type { AuthedRequest } from "./auth.js";
 
 const WINDOW_MS = 60 * 1000;
-const DEFAULT_API_LIMIT = 30;
-const DEFAULT_AUTH_LIMIT = 30;
-const DEFAULT_AI_LIMIT = 8;
-const DEFAULT_ACTION_LIMIT = 50;
-const DEFAULT_SEARCH_LIMIT = 10;
+// Beta-friendly defaults. General browsing is read-heavy (listings, chats,
+// notifications, preferences, nudges) so a single active user + polling can
+// fire well over 100 cheap GETs/min. Keep AI/auth tighter (cost/abuse), let
+// general reads breathe. Overridable per-tier via *_RATE_LIMIT_PER_MIN env.
+const DEFAULT_API_LIMIT = 300;
+const DEFAULT_AUTH_LIMIT = 60;
+const DEFAULT_AI_LIMIT = 30;
+const DEFAULT_ACTION_LIMIT = 120;
+const DEFAULT_SEARCH_LIMIT = 40;
 
 const MAX_REQUESTS_PER_WINDOW = Number(
   process.env.API_RATE_LIMIT_PER_MIN ?? DEFAULT_API_LIMIT
