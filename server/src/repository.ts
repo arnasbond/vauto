@@ -1969,6 +1969,31 @@ export async function getUserNotifications(
   }));
 }
 
+export async function markUserNotificationRead(
+  userId: string,
+  notificationId: string
+): Promise<boolean> {
+  const rows = await query<{ id: string }>(
+    `UPDATE user_notifications
+     SET read_at = COALESCE(read_at, now())
+     WHERE id = $1 AND user_id = $2
+     RETURNING id`,
+    [notificationId, userId]
+  );
+  return rows.length > 0;
+}
+
+export async function markAllUserNotificationsRead(userId: string): Promise<number> {
+  const rows = await query<{ id: string }>(
+    `UPDATE user_notifications
+     SET read_at = now()
+     WHERE user_id = $1 AND read_at IS NULL
+     RETURNING id`,
+    [userId]
+  );
+  return rows.length;
+}
+
 export async function getListingForEmbedding(
   id: string
 ): Promise<ApiListing | null> {

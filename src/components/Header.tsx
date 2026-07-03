@@ -2,25 +2,16 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { Bell } from "lucide-react";
 import { GuestAvatar } from "@/components/auth/GuestAvatar";
 import { VautoLogo } from "@/components/VautoLogo";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useVauto } from "@/context/VautoContext";
-import { countUnreadChats } from "@/lib/chat-helpers";
 
 import { useActivePortal } from "@/hooks/useActivePortal";
 
 export function Header() {
-  const { user, chats, isAuthenticated, openAuthModal } = useVauto();
+  const { user, isAuthenticated, openAuthModal } = useVauto();
   const { ui } = useActivePortal();
-  const unreadChats = isAuthenticated ? countUnreadChats(chats, user.id) : 0;
-
-  const handleChats = (e: React.MouseEvent) => {
-    if (!isAuthenticated) {
-      e.preventDefault();
-      openAuthModal("/chats/");
-    }
-  };
 
   const handleProfile = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
@@ -42,24 +33,9 @@ export function Header() {
         >
           Apie
         </Link>
-        <Link
-          href="/chats/"
-          onClick={handleChats}
-          className="vauto-surface-panel relative flex h-10 w-10 items-center justify-center rounded-[14px] border shadow-sm transition hover:opacity-90"
-          style={{ borderColor: ui.border, color: ui.accent }}
-          aria-label={
-            isAuthenticated && unreadChats > 0
-              ? `Pokalbiai, ${unreadChats} neperskaityti`
-              : "Pokalbiai"
-          }
-        >
-          <Bell className="h-[17px] w-[17px]" strokeWidth={1.75} />
-          {isAuthenticated && unreadChats > 0 && (
-            <span className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-[var(--vauto-red)] px-1 text-[9px] font-bold text-white">
-              {unreadChats > 9 ? "9+" : unreadChats}
-            </span>
-          )}
-        </Link>
+        <div style={{ borderColor: ui.border, color: ui.accent }}>
+          <NotificationBell />
+        </div>
         <Link
           href="/profile/"
           onClick={handleProfile}

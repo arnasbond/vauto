@@ -67,6 +67,43 @@ export async function notifyWishlistRequirementMatch(
   await markRequirementNotified(req.id, listing.id);
 }
 
+/** P2P žinutė — DB varpelis + Web Push + FCM (veikia net kai push atmestas). */
+export async function notifyIncomingChatMessage(
+  recipientId: string,
+  opts: {
+    chatId: string;
+    listingTitle: string;
+    senderLabel: string;
+    preview: string;
+    isBuyerMessage?: boolean;
+  }
+): Promise<void> {
+  const url = `/pokalbiai/?id=${encodeURIComponent(opts.chatId)}`;
+  const excerpt =
+    opts.preview.length > 80 ? `${opts.preview.slice(0, 77)}…` : opts.preview;
+  const title = opts.isBuyerMessage
+    ? "VAUTO: naujos derybos"
+    : opts.senderLabel;
+  const body = `${opts.listingTitle}: „${excerpt}"`;
+
+  await insertUserNotification({
+    userId: recipientId,
+    kind: "chat_message",
+    title,
+    body,
+    url,
+  });
+
+  const { deliverRealtimeToUsers } = await import("../services/push-service.js");
+  await deliverRealtimeToUsers([recipientId], {
+    title,
+    body,
+    url,
+    type: "chat_message",
+    chatId: opts.chatId,
+  });
+}
+
 /**
  * Background wishlist match cycle — stebi naujus skelbimus vs user_requirements.
  */

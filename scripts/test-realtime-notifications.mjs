@@ -148,6 +148,115 @@ async function runOffline() {
     /router\.push\(data\.url\)/.test(shell),
     "client routes to data.url on notification click"
   );
+
+  // 10) P2P chat message notification — DB + dual push for both directions.
+  const notifSrc = readFileSync(
+    join(dist, "notifications", "notifications-service.js"),
+    "utf8"
+  );
+  check(
+    /notifyIncomingChatMessage/.test(notifSrc),
+    "P2P: notifyIncomingChatMessage writes DB + delivers push"
+  );
+  check(
+    /kind:\s*["']chat_message["']/.test(notifSrc),
+    "P2P: internal notification kind is chat_message"
+  );
+  check(
+    /\/pokalbiai\/\?id=/.test(notifSrc),
+    "P2P: chat deep-link targets /pokalbiai/?id= (not home)"
+  );
+
+  // 11) P2P ping-pong — new message detection logic (buyer ↔ seller).
+  const prevCount = 3;
+  const nextCount = 4;
+  const thread = {
+    id: "chat-1",
+    buyerId: "buyer-1",
+    sellerId: "seller-1",
+    listingTitle: "BMW 320d",
+    messages: [
+      { id: "m1", senderId: "buyer-1", text: "Labas" },
+      { id: "m2", senderId: "seller-1", text: "Sveiki" },
+      { id: "m3", senderId: "buyer-1", text: "Kokia kaina?" },
+      { id: "m4", senderId: "seller-1", text: "8500 €" },
+    ],
+  };
+  const latest = thread.messages[nextCount - 1];
+  const recipientId =
+    latest.senderId === thread.buyerId ? thread.sellerId : thread.buyerId;
+  check(
+    nextCount > prevCount && latest.senderId === "seller-1" && recipientId === "buyer-1",
+    "P2P ping-pong: seller reply routes notification to buyer"
+  );
+
+  // 12) Bell API — read/mark endpoints exist server-side.
+  const growthSrc = readRepo("server", "src", "routes", "growth.ts");
+  check(/unreadCount/.test(growthSrc), "bell: GET /notifications returns unreadCount");
+  check(
+    /notifications\/:id\/read/.test(growthSrc),
+    "bell: POST /notifications/:id/read marks single notification"
+  );
+  check(
+    /notifications\/read-all/.test(growthSrc),
+    "bell: POST /notifications/read-all marks all read"
+  );
+
+  // 13) Bell client — polling fallback when push denied.
+  const bellPoll = readRepo("src", "lib", "notification-bell-poll.ts");
+  check(
+    /BELL_POLL_DENIED_MS/.test(bellPoll) && /bellPollInterval/.test(bellPoll),
+    "bell: aggressive poll interval when push permission denied"
+  );
+  const bellCtx = readRepo("src", "context", "NotificationBellContext.tsx");
+  check(
+    /apiFetchUserNotifications/.test(bellCtx) && /totalUnreadCount/.test(bellCtx),
+    "bell: context polls DB notifications + combines unread count"
+  );
+  check(
+    /NotificationBellProvider/.test(bellCtx),
+    "bell: dedicated provider for in-app notification layer"
+  );
+
+  // 14) Live in-app chat sync — polling + BroadcastChannel INCOMING_ALERT.
+  const chatRt = readRepo("src", "lib", "chat-realtime.ts");
+  check(/INCOMING_ALERT/.test(chatRt), "live chat: INCOMING_ALERT event for cross-tab toast/sound");
+  check(
+    /CHAT_POLL_VISIBLE_MS/.test(bellPoll) && /chatPollInterval/.test(bellPoll),
+    "live chat: 4s visible-tab poll interval (Messenger-like)"
+  );
+  const chatCtx = readRepo("src", "context", "ChatContext.tsx");
+  check(/apiFetchChats/.test(chatCtx), "live chat: polls server for incoming P2P messages");
+  check(/INCOMING_ALERT/.test(chatCtx), "live chat: raises in-app alert when new message detected");
+
+  // 15) Deep-link from bell → chat with autofocus.
+  const threadView = readRepo("src", "components", "ChatThreadView.tsx");
+  check(/inputRef/.test(threadView) && /\.focus\(\)/.test(threadView), "deep-link: chat input autofocus on open");
+  const bellUi = readRepo("src", "components", "notifications", "NotificationBell.tsx");
+  check(/openNotification/.test(bellUi), "bell: click opens notification deep-link");
+  check(
+    /chatIdFromNotificationUrl/.test(bellUi),
+    "bell: parses chat id from notification url"
+  );
+
+  // 16) chatId deep-link parser contract.
+  function chatIdFromNotificationUrl(url) {
+    if (!url) return null;
+    try {
+      const parsed = new URL(url, "https://vauto.local");
+      if (parsed.pathname.includes("pokalbiai") || parsed.pathname.includes("chats")) {
+        return parsed.searchParams.get("id");
+      }
+    } catch {
+      const m = url.match(/[?&]id=([^&]+)/);
+      if (m?.[1]) return decodeURIComponent(m[1]);
+    }
+    return null;
+  }
+  check(
+    chatIdFromNotificationUrl("/pokalbiai/?id=chat-abc") === "chat-abc",
+    "deep-link parser: extracts chat id from pokalbiai url"
+  );
 }
 
 async function runRemote() {

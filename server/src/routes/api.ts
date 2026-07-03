@@ -71,7 +71,7 @@ import {
   notifySellerListingPendingReview,
   notifySellerListingRejected,
 } from "../push/listing-moderation-notify.js";
-import { scheduleWishlistMatchNotifications } from "../notifications/notifications-service.js";
+import { scheduleWishlistMatchNotifications, notifyIncomingChatMessage } from "../notifications/notifications-service.js";
 import {
   notifyAdminsNewReport,
   notifyAdminsUserFollowUp,
@@ -87,7 +87,6 @@ import {
 } from "../lib/conductor-publish.js";
 import {
   notifyNegotiationDealClosed,
-  notifyNegotiationStarted,
 } from "../services/push-service.js";
 import { requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
@@ -916,28 +915,33 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
     }
 
     const prev = await getChatThreadMeta(thread.id);
-    const prevBuyerMsgs = prev?.buyerMessageCount ?? 0;
-    const nextBuyerMsgs = thread.messages.filter(
-      (m) => m.senderId === thread.buyerId
-    ).length;
-    const latestBuyerMsg = [...thread.messages]
-      .reverse()
-      .find((m) => m.senderId === thread.buyerId);
+    const prevMsgCount = prev?.messageCount ?? 0;
+    const nextMsgCount = thread.messages.length;
 
     await upsertChat(thread);
     res.json(thread);
 
     void (async () => {
-      if (
-        nextBuyerMsgs > prevBuyerMsgs &&
-        latestBuyerMsg &&
-        thread.sellerId
-      ) {
-        await notifyNegotiationStarted(thread.sellerId, {
-          chatId: thread.id,
-          listingTitle: thread.listingTitle,
-          preview: latestBuyerMsg.text,
-        });
+      if (nextMsgCount > prevMsgCount) {
+        const latest = thread.messages[nextMsgCount - 1];
+        if (latest && latest.senderId !== "vauto-system") {
+          const recipientId =
+            latest.senderId === thread.buyerId
+              ? thread.sellerId
+              : thread.buyerId;
+          if (recipientId) {
+            await notifyIncomingChatMessage(recipientId, {
+              chatId: thread.id,
+              listingTitle: thread.listingTitle,
+              senderLabel:
+                latest.senderId === thread.buyerId
+                  ? "Nauja žinutė nuo pirkėjo"
+                  : "Nauja žinutė nuo pardavėjo",
+              preview: latest.text,
+              isBuyerMessage: latest.senderId === thread.buyerId,
+            });
+          }
+        }
       }
 
       if (thread.escrowOffered && prev && !prev.escrowOffered) {

@@ -1311,19 +1311,39 @@ export async function apiApplyReferralCode(
 
 export interface UserNotification {
   id: string;
-  userId: string;
+  userId?: string;
   kind: string;
   title: string;
   body: string;
   url?: string;
+  readAt?: string;
   createdAt: string;
 }
 
 export async function apiFetchUserNotifications(
   userId: string,
   limit = 40
-): Promise<ApiResult<{ notifications: UserNotification[] }>> {
+): Promise<ApiResult<{ notifications: UserNotification[]; unreadCount?: number }>> {
   return dataFetch(`/api/growth/notifications?limit=${limit}`, { userId });
+}
+
+export async function apiMarkNotificationRead(
+  notificationId: string,
+  userId: string
+): Promise<ApiResult<{ ok: boolean }>> {
+  return dataFetch(`/api/growth/notifications/${encodeURIComponent(notificationId)}/read`, {
+    method: "POST",
+    userId,
+  });
+}
+
+export async function apiMarkAllNotificationsRead(
+  userId: string
+): Promise<ApiResult<{ ok: boolean; marked?: number }>> {
+  return dataFetch("/api/growth/notifications/read-all", {
+    method: "POST",
+    userId,
+  });
 }
 
 export async function apiSearchParcelLockers(params: {

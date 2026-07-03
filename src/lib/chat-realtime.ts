@@ -5,7 +5,14 @@ const CHANNEL_NAME = "vauto-chat-realtime-v1";
 export type ChatRealtimeEvent =
   | { type: "CHAT_UPSERT"; thread: ChatThread }
   | { type: "MESSAGE_STATUS"; chatId: string; messageId: string; status: ChatMessage["status"] }
-  | { type: "CHAT_READ"; chatId: string; viewerId: string; at: string };
+  | { type: "CHAT_READ"; chatId: string; viewerId: string; at: string }
+  | {
+      type: "INCOMING_ALERT";
+      chatId: string;
+      listingTitle: string;
+      preview: string;
+      senderId: string;
+    };
 
 let channel: BroadcastChannel | null = null;
 

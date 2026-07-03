@@ -3,7 +3,7 @@
 import { ArrowLeft, Send } from "lucide-react";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageStatusTicks } from "@/components/chat/MessageStatusTicks";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
 import { AiTrustScoreBanner } from "@/components/trust/AiTrustScoreBanner";
@@ -37,6 +37,8 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   } = useVauto();
   const [draft, setDraft] = useState("");
   const [magicMirror, setMagicMirror] = useState<MagicMirrorFit | null>(null);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
   const chat = chats.find((c) => c.id === chatId);
   const listing = listings.find((l) => l.id === chat?.listingId);
   const quickQuestions = getQuickQuestions(listing);
@@ -66,8 +68,16 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   useEffect(() => {
     if (!chatId) return;
     setActiveChatId(chatId);
-    return () => setActiveChatId(null);
+    const t = window.setTimeout(() => inputRef.current?.focus(), 80);
+    return () => {
+      window.clearTimeout(t);
+      setActiveChatId(null);
+    };
   }, [chatId, setActiveChatId]);
+
+  useEffect(() => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [chat?.messages.length]);
 
   useEffect(() => {
     if (!isBuyer || !listing || listing.category !== "clothing") {
@@ -170,6 +180,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
         {chat.escrowOffered && (
           <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />
         )}
+        <div ref={messagesEndRef} />
       </div>
 
       {isBuyer && chat.messages.length <= 2 && (
@@ -222,11 +233,13 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
           Žinutė
         </label>
         <input
+          ref={inputRef}
           id="chat-message-input"
           value={draft}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder='Parašykite... (bandykite "perku" arba "tinka")'
+          autoComplete="off"
           className="flex-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] px-4 py-3 text-sm text-[var(--vauto-text)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
         />
         <button

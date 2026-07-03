@@ -1,6 +1,11 @@
 import { Router } from "express";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
-import { getUser, getUserNotifications } from "../repository.js";
+import {
+  getUser,
+  getUserNotifications,
+  markAllUserNotificationsRead,
+  markUserNotificationRead,
+} from "../repository.js";
 import {
   applyReferralOnSignup,
   ensureUserReferralCode,
@@ -12,12 +17,44 @@ export const growthRouter = Router();
 
 growthRouter.get("/notifications", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const items = await getUserNotifications(req.authUserId!, 40);
-    res.json({ ok: true, notifications: items });
+    const limit = Math.min(60, Math.max(1, Number(req.query.limit) || 40));
+    const items = await getUserNotifications(req.authUserId!, limit);
+    const unreadCount = items.filter((n) => !n.readAt).length;
+    res.json({ ok: true, notifications: items, unreadCount });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
 });
+
+growthRouter.post(
+  "/notifications/:id/read",
+  requireAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const ok = await markUserNotificationRead(
+        req.authUserId!,
+        req.params.id
+      );
+      if (!ok) return res.status(404).json({ error: "Notification not found" });
+      res.json({ ok: true });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  }
+);
+
+growthRouter.post(
+  "/notifications/read-all",
+  requireAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const count = await markAllUserNotificationsRead(req.authUserId!);
+      res.json({ ok: true, marked: count });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
+    }
+  }
+);
 
 growthRouter.get("/referral/me", requireAuth, async (req: AuthedRequest, res) => {
   try {

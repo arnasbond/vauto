@@ -121,6 +121,7 @@ import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { useAuth, type LoginPayload } from "@/context/AuthContext";
 import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
+import { NotificationBellProvider } from "@/context/NotificationBellContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
 import {
@@ -2296,6 +2297,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         <WakeWordProvider deps={wakeWordDeps} actionsRef={wakeWordActionsRef}>
           <VautoBridgeProvider value={bridgeValue}>
             <ChatProvider>
+              <NotificationBellProvider>
               <SellerFlowContextProvider>
                 <VautoFacade
                   catalog={catalogValue}
@@ -2309,6 +2311,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
                   {children}
                 </VautoFacade>
               </SellerFlowContextProvider>
+              </NotificationBellProvider>
             </ChatProvider>
           </VautoBridgeProvider>
         </WakeWordProvider>
