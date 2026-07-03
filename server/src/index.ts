@@ -1,3 +1,5 @@
+import fs from "node:fs";
+import path from "node:path";
 import cors from "cors";
 import express from "express";
 import { pool } from "./db.js";
@@ -50,6 +52,53 @@ app.use("/api/billing", billingRouter);
 app.use("/api/escrow-billing", escrowBillingRouter);
 app.use("/api/growth", growthRouter);
 app.use("/api/shipping", shippingRouter);
+
+// --- Frontend hosting ------------------------------------------------------
+// The Next.js UI is a static export (`output: "export"`) hosted on Vercel;
+// this Express service is API-only under /api/*. Two safety nets so the root
+// host never returns a bare "Cannot GET /":
+//   1. If a built static bundle is present (STATIC_DIR or ./out), serve it —
+//      this enables optional single-service hosting straight from Render.
+//   2. Otherwise redirect non-API browser traffic to the real frontend origin
+//      (APP_ORIGIN), so the site opens instead of erroring.
+const staticDir = path.resolve(
+  process.env.STATIC_DIR || path.join(process.cwd(), "out")
+);
+const hasStaticBundle = fs.existsSync(path.join(staticDir, "index.html"));
+const frontendOrigin = (process.env.APP_ORIGIN ?? "").replace(/\/+$/, "");
+
+if (hasStaticBundle) {
+  app.use(express.static(staticDir, { extensions: ["html"] }));
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      next();
+      return;
+    }
+    res.sendFile(path.join(staticDir, "index.html"));
+  });
+  console.log(`Static frontend served from ${staticDir}`);
+} else if (frontendOrigin) {
+  const frontendHost = (() => {
+    try {
+      return new URL(frontendOrigin).host.toLowerCase();
+    } catch {
+      return "";
+    }
+  })();
+  app.get("*", (req, res, next) => {
+    if (req.path.startsWith("/api/")) {
+      next();
+      return;
+    }
+    // Avoid a redirect loop if this host already IS the frontend origin.
+    const host = req.headers.host?.toLowerCase();
+    if (host && frontendHost && host === frontendHost) {
+      next();
+      return;
+    }
+    res.redirect(302, frontendOrigin + req.originalUrl);
+  });
+}
 
 app.use(
   (
