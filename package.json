@@ -50,6 +50,8 @@
     "test:ai-flexibility:local": "npm run server:build && node scripts/test-ai-flexibility.mjs --local",
     "test:wardrobe-flow": "npm run server:build && node scripts/test-wardrobe-flow.mjs",
     "test:wardrobe-flow:local": "npm run server:build && node scripts/test-wardrobe-flow.mjs --local",
+    "test:business-flow": "npm run server:build && node scripts/test-business-flow.mjs",
+    "test:business-flow:local": "npm run server:build && node scripts/test-business-flow.mjs --local",
     "sim:e2e": "npm run e2e:simulate --prefix server",
     "generate:mock-catalog": "node scripts/generate-mock-catalog.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",

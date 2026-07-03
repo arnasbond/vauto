@@ -43,11 +43,19 @@ function listingStatusLabel(status: string | undefined): string {
   return status ?? "aktyvus";
 }
 
-export function summarizeMyListings(listings: MyListingForAgent[], firstName: string): string {
+export function summarizeMyListings(
+  listings: MyListingForAgent[],
+  firstName: string,
+  userRole?: UserAgentContextPayload["userRole"]
+): string {
   const active = listings.filter((l) => l.status !== "sold");
   const sold = listings.filter((l) => l.status === "sold");
+  const isBusiness = userRole === "business" || userRole === "admin";
 
   if (!listings.length) {
+    if (isBusiness) {
+      return `${firstName} dar neturi aktyvių skelbimų. Kaip verslo partneris proaktyviai padėk: pasiūlyk paruošti pirmą profesionalų skelbimą (create_listing_draft / navigateToScreen add_listing), priminti apie kokybiškas nuotraukas, konkurencingą kainą (analyzeMarketPrice) ir matomumą (Smart Boost). Taip pat pasiūlyk peržiūrėti verslo skydelį ir leadus (getBusinessInsights / listServiceLeads).`;
+    }
     return `${firstName} neturi skelbimų — Spinta tuščia. Proaktyviai paskatink: nufotografuoti drabužius/techniką ir paruošti skelbimą per kelias sekundes (create_listing_draft / navigateToScreen add_listing).`;
   }
   if (active.length === 1) {
@@ -125,7 +133,7 @@ export async function resolveAuthenticatedAgentContext(
       myListings,
       myListingsSummary:
         clientFallback?.myListingsSummary ??
-        summarizeMyListings(myListings, firstName),
+        summarizeMyListings(myListings, firstName, clientFallback?.userRole),
     };
   }
 
@@ -145,15 +153,16 @@ export async function resolveAuthenticatedAgentContext(
   }
 
   const firstName = user.name.split(/\s+/)[0] || user.name;
+  const resolvedRole = resolveAgentRole(user);
 
   return {
     userName: user.name,
     accountType: resolveAccountTypeLabel(user),
     userCity: user.city || clientFallback?.userCity || "Lietuva",
     contact: user.phone || clientFallback?.contact || "+370 612 34567",
-    userRole: resolveAgentRole(user),
+    userRole: resolvedRole,
     isAuthenticated: true,
     myListings,
-    myListingsSummary: summarizeMyListings(myListings, firstName),
+    myListingsSummary: summarizeMyListings(myListings, firstName, resolvedRole),
   };
 }
