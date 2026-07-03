@@ -17,6 +17,10 @@ export class AgentRouteError extends Error {
   }
 }
 
+export function isRetriableGeminiStatus(status?: number): boolean {
+  return status === 429 || status === 503;
+}
+
 export function isAbortError(e: unknown): boolean {
   return (
     e instanceof Error &&

@@ -2,6 +2,10 @@
 
 import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
 import { isStripeEscrowLive } from "../billing/stripe-b2b.js";
+import {
+  getAllCarrierReadiness,
+  type CarrierProviderReadiness,
+} from "../shipping/carrier-readiness.js";
 
 export interface InfraReadiness {
   ocrConfigured: boolean;
@@ -11,6 +15,8 @@ export interface InfraReadiness {
   stripeWebhookConfigured: boolean;
   shippingCarrierLive: boolean;
   shippingCarrierProvider: string;
+  /** Per-provider carrier status (omniva, dpd, lp_express). */
+  shippingCarriers: CarrierProviderReadiness[];
   pushConfigured: boolean;
   emailConfigured: boolean;
   warnings: string[];
@@ -29,14 +35,13 @@ export function getInfraReadiness(): InfraReadiness {
   );
   const stripeConfigured = Boolean(process.env.STRIPE_SECRET_KEY?.trim());
   const stripeWebhookConfigured = Boolean(process.env.STRIPE_WEBHOOK_SECRET?.trim());
-  const omnivaKey = Boolean(process.env.OMNIVA_API_KEY?.trim());
-  const dpdKey = Boolean(process.env.DPD_API_KEY?.trim());
-  const shippingCarrierLive = omnivaKey || dpdKey;
-  const shippingCarrierProvider = omnivaKey
-    ? "omniva"
-    : dpdKey
-      ? "dpd"
-      : "simulated";
+  const shippingCarriers = getAllCarrierReadiness();
+  const shippingCarrierLive = shippingCarriers.some(
+    (c) => c.keyConfigured && c.mode === "live"
+  );
+  const shippingCarrierProvider = shippingCarriers.find(
+    (c) => c.keyConfigured && c.mode === "live"
+  )?.providerId ?? "simulated";
   const pushConfigured = Boolean(
     (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) ||
       process.env.FIREBASE_SERVICE_ACCOUNT_JSON
@@ -75,6 +80,7 @@ export function getInfraReadiness(): InfraReadiness {
     stripeWebhookConfigured,
     shippingCarrierLive,
     shippingCarrierProvider,
+    shippingCarriers,
     pushConfigured,
     emailConfigured,
     warnings,

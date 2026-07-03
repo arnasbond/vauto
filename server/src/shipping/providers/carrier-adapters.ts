@@ -138,11 +138,99 @@ export class OmnivaCarrierAdapter implements CarrierAdapter {
   }
 }
 
+export class DpdCarrierAdapter implements CarrierAdapter {
+  readonly providerId = "dpd" as const;
+  readonly mode = "live" as const;
+  private fallback = new SimulatedCarrierAdapter("dpd");
+
+  async createLabel(req: ShippingLabelRequest): Promise<ShippingLabelResult> {
+    const apiKey = process.env.DPD_API_KEY?.trim();
+    const apiUrl = process.env.DPD_API_URL?.trim() || "https://api.dpd.lt";
+    if (!apiKey) {
+      return this.fallback.createLabel(req);
+    }
+
+    try {
+      const res = await fetch(`${apiUrl.replace(/\/$/, "")}/shipments`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          parcelSize: req.parcelSize ?? "M",
+          pickupPointId: req.lockerId,
+          reference: req.escrowId,
+        }),
+        signal: AbortSignal.timeout(20_000),
+      });
+      if (!res.ok) throw new Error(`DPD HTTP ${res.status}`);
+      const data = (await res.json()) as {
+        id?: string;
+        trackingCode?: string;
+        qrPayload?: string;
+        instructions?: string;
+        trackingUrl?: string;
+      };
+      const labelId = String(data.id ?? data.trackingCode ?? "").trim();
+      if (!labelId) throw new Error("DPD response missing label id");
+      return {
+        id: labelId,
+        trackingCode: String(data.trackingCode ?? labelId),
+        qrPayload: String(data.qrPayload ?? `DPD:${labelId}`),
+        instructions:
+          String(data.instructions ?? "").trim() ||
+          `DPD lipdukas ${labelId} paruoštas.`,
+        provider: "dpd",
+        mode: "live",
+        trackingUrl: data.trackingUrl,
+      };
+    } catch {
+      const simulated = await this.fallback.createLabel(req);
+      return {
+        ...simulated,
+        instructions: `${simulated.instructions} (DPD API nepasiekiamas — simuliacija.)`,
+      };
+    }
+  }
+
+  async getTrackingStatus(trackingCode: string): Promise<{
+    status: string;
+    summaryLt: string;
+  }> {
+    const apiKey = process.env.DPD_API_KEY?.trim();
+    const apiUrl = process.env.DPD_API_URL?.trim() || "https://api.dpd.lt";
+    if (!apiKey) {
+      return this.fallback.getTrackingStatus!(trackingCode);
+    }
+    try {
+      const res = await fetch(
+        `${apiUrl.replace(/\/$/, "")}/tracking/${encodeURIComponent(trackingCode)}`,
+        {
+          headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(12_000),
+        }
+      );
+      if (!res.ok) throw new Error(`DPD tracking HTTP ${res.status}`);
+      const data = (await res.json()) as { status?: string; summary?: string };
+      return {
+        status: String(data.status ?? "in_transit"),
+        summaryLt: String(data.summary ?? `Siuntos ${trackingCode} sekimas atnaujintas.`),
+      };
+    } catch {
+      return this.fallback.getTrackingStatus!(trackingCode);
+    }
+  }
+}
+
 export function resolveCarrierAdapter(
   providerId: ShippingProviderId = "omniva"
 ): CarrierAdapter {
   if (providerId === "omniva" && process.env.OMNIVA_API_KEY?.trim()) {
     return new OmnivaCarrierAdapter();
+  }
+  if (providerId === "dpd" && process.env.DPD_API_KEY?.trim()) {
+    return new DpdCarrierAdapter();
   }
   return new SimulatedCarrierAdapter(providerId);
 }

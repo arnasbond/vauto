@@ -129,6 +129,7 @@ export function EscrowModal({
   const [qrPayload, setQrPayload] = useState("");
   const [paymentLabel, setPaymentLabel] = useState("Stripe saugus mokėjimas");
   const [shipmentInstructions, setShipmentInstructions] = useState("");
+  const [labelMode, setLabelMode] = useState<"live" | "simulated" | null>(null);
   const [claimRemaining, setClaimRemaining] = useState(() =>
     escrow ? expressClaimRemainingMs(escrow) : 0
   );
@@ -280,6 +281,7 @@ export function EscrowModal({
         setTrackingCode(res.data.label.trackingCode);
         setQrPayload(res.data.label.qrPayload);
         setShipmentInstructions(res.data.label.instructions);
+        setLabelMode(res.data.label.mode ?? "simulated");
         onUpdate(res.data.escrow);
         setStep("shipping");
         return;
@@ -295,6 +297,7 @@ export function EscrowModal({
     setTrackingCode(label.trackingCode);
     setQrPayload(label.qrPayload);
     setShipmentInstructions(label.instructions);
+    setLabelMode("simulated");
     persist("label_sent", label.trackingCode, {
       shippingLabelId: label.trackingCode,
       deliveryStatus: "label_created",
@@ -538,6 +541,15 @@ export function EscrowModal({
 
         {step === "shipping" && (
           <>
+            {labelMode === "simulated" && (
+              <div
+                className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-3 py-2 text-xs text-amber-900"
+                role="status"
+              >
+                <strong>Simuliuotas siuntimo lipdukas.</strong> Carrier API dar neaktyvus —
+                tai nėra tikras Omniva/DPD lipdukas. Sekimas ir pristatymas nėra live.
+              </div>
+            )}
             <div className="rounded-2xl border border-[#bfdbfe] bg-[#eef6ff] p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white text-[#1167b1] shadow-sm">

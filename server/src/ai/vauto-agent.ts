@@ -214,7 +214,6 @@ function isGenericEmptySearchReply(text: string): boolean {
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 const MAX_TOOL_ROUNDS = 5;
-/** Transient Gemini overload (503 UNAVAILABLE / 429) — retry same model before failover. */
 const GEMINI_RETRY_STATUSES = new Set([429, 503]);
 const GEMINI_MAX_RETRIES = 2;
 const GEMINI_RETRY_BASE_MS = 400;

@@ -14,6 +14,9 @@ const strictReadiness =
 const strictAnalyzeSearch =
   process.argv.includes("--strict-analyze-search") ||
   process.env.STRICT_ANALYZE_SEARCH === "1";
+const strictAgent =
+  process.argv.includes("--strict-agent") ||
+  process.env.STRICT_AGENT === "1";
 
 const base =
   args[0]?.replace(/\/$/, "") ||
@@ -52,6 +55,14 @@ async function main() {
 
   if (body.infra) {
     console.log("Infra:", JSON.stringify(body.infra, null, 2));
+    if (body.infra.shippingCarriers?.length) {
+      console.log("Carriers:");
+      for (const c of body.infra.shippingCarriers) {
+        console.log(
+          `  ${c.providerId}: ${c.status} (mode=${c.mode}, key=${c.keyConfigured ? "yes" : "no"})`
+        );
+      }
+    }
     if (body.infra.warnings?.length) {
       console.warn("Infra warnings:", body.infra.warnings.join("; "));
     }
@@ -72,7 +83,7 @@ async function main() {
     console.log(`Strict check passed — readiness ${body.readiness?.score ?? "?"}/100`);
   }
 
-  await checkAiEndpoints(base);
+  await checkAiEndpoints(base, strictAgent);
   const analyzeOk = await checkAnalyzeSearch(base);
   if (strictAnalyzeSearch && !analyzeOk) {
     console.error("analyze-search check FAILED (strict mode)");
@@ -102,7 +113,7 @@ async function checkAnalyzeSearch(base) {
   }
 }
 
-async function checkAiEndpoints(base) {
+async function checkAiEndpoints(base, strictAgent = false) {
   const checks = [
     { path: "/api/ai/health", expectOk: true },
     { path: "/api/vauto-server", method: "POST", body: {}, expectStatus: 400 },
@@ -146,10 +157,10 @@ async function checkAiEndpoints(base) {
     }
   }
 
-  await smokeTestVautoAgent(base);
+  await smokeTestVautoAgent(base, strictAgent);
 }
 
-async function smokeTestVautoAgent(base) {
+async function smokeTestVautoAgent(base, strictAgent = false) {
   const url = `${base}/api/vauto-agent`;
   const body = {
     messages: [{ role: "user", text: "Sveiki" }],
@@ -172,12 +183,19 @@ async function smokeTestVautoAgent(base) {
       console.log("vauto-agent smoke: OK");
       return;
     }
-    console.warn(
-      `vauto-agent smoke: HTTP ${res.status}`,
-      payload?.error || payload?.code || ""
-    );
+    const msg = `vauto-agent smoke: HTTP ${res.status} ${payload?.error || payload?.code || ""}`;
+    if (strictAgent) {
+      console.error(msg);
+      process.exit(1);
+    }
+    console.warn(msg);
   } catch (e) {
-    console.warn("vauto-agent smoke failed:", e.message ?? e);
+    const msg = `vauto-agent smoke failed: ${e.message ?? e}`;
+    if (strictAgent) {
+      console.error(msg);
+      process.exit(1);
+    }
+    console.warn(msg);
   }
 }
 

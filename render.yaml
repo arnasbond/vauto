@@ -73,6 +73,8 @@ services:
         sync: false
       - key: DPD_API_KEY
         sync: false
+      - key: DPD_API_URL
+        sync: false
       - key: REGITRA_PLATE_API_USERNAME
         sync: false
       - key: REGITRA_PLATE_API_PASSWORD

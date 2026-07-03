@@ -1263,6 +1263,8 @@ export async function apiEscrowShippingLabel(body: {
       trackingCode: string;
       qrPayload: string;
       instructions: string;
+      mode?: "live" | "simulated";
+      trackingUrl?: string;
     };
   }>
 > {
