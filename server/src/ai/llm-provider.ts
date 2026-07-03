@@ -135,6 +135,58 @@ const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as c
 const DEFAULT_JSON_SYSTEM =
   "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų.";
 
+/** Gemini high-demand statuses worth retrying before failing over to the next model. */
+const GEMINI_RETRY_STATUSES = new Set([429, 503]);
+const GEMINI_JSON_MAX_RETRIES = 2;
+const GEMINI_JSON_RETRY_BASE_MS = 400;
+
+const sleep = (ms: number): Promise<void> =>
+  new Promise((resolve) => setTimeout(resolve, ms));
+
+/** Extract HTTP status from a thrown `Gemini <model> <status>: ...` error message. */
+function parseGeminiStatus(err: unknown): number | null {
+  const msg = err instanceof Error ? err.message : String(err);
+  const m = /\b(4\d{2}|5\d{2})\b/.exec(msg);
+  if (m) return Number(m[1]);
+  if (/UNAVAILABLE|overloaded|rate.?limit|high demand|too many/i.test(msg)) return 503;
+  return null;
+}
+
+/**
+ * Run a Gemini call across the model fallback chain with per-model 429/503
+ * retry + exponential backoff. Keeps the whole AI pipeline (wardrobe vision,
+ * persona copy, profile import, search intent) resilient under high demand.
+ */
+async function callGeminiWithRetry<T>(
+  fn: (model: string) => Promise<T>,
+  label: string
+): Promise<T> {
+  let lastError: unknown;
+  for (const model of UNIFIED_GEMINI_MODELS) {
+    for (let attempt = 0; attempt <= GEMINI_JSON_MAX_RETRIES; attempt++) {
+      try {
+        return await fn(model);
+      } catch (e) {
+        lastError = e;
+        const status = parseGeminiStatus(e);
+        const canRetry =
+          attempt < GEMINI_JSON_MAX_RETRIES &&
+          status !== null &&
+          GEMINI_RETRY_STATUSES.has(status);
+        console.warn(
+          `[${label}] ${model} attempt ${attempt + 1}${canRetry ? " (will retry)" : ""}:`,
+          e instanceof Error ? e.message : e
+        );
+        if (!canRetry) break;
+        await sleep(GEMINI_JSON_RETRY_BASE_MS * 2 ** attempt);
+      }
+    }
+  }
+  throw lastError instanceof Error
+    ? lastError
+    : new Error("Gemini API nepavyko");
+}
+
 /** VAUTO unified parser — Gemini 2.5 Flash, then 2.5 Flash Lite. */
 export async function unifiedLlmJson(
   input: UnifiedLlmJsonInput
@@ -150,26 +202,10 @@ export async function unifiedLlmJson(
     throw new Error("GEMINI_API_KEY not configured on server");
   }
 
-  let lastError: unknown;
-  for (const model of UNIFIED_GEMINI_MODELS) {
-    try {
-      return await geminiChatJson(
-        prompt,
-        imageDataUrls,
-        model,
-        systemInstruction,
-        temperature
-      );
-    } catch (e) {
-      lastError = e;
-      console.warn(`[vauto-unified] ${model} failed:`, e);
-    }
-  }
-
-  throw new Error(
-    lastError instanceof Error
-      ? `Gemini API nepavyko: ${lastError.message}`
-      : "Gemini API nepavyko"
+  return callGeminiWithRetry(
+    (model) =>
+      geminiChatJson(prompt, imageDataUrls, model, systemInstruction, temperature),
+    "vauto-unified"
   );
 }
 
@@ -190,19 +226,10 @@ export async function chatJson(
     })
     .join("\n\n");
 
-  let lastError: unknown;
-  for (const model of UNIFIED_GEMINI_MODELS) {
-    try {
-      return await geminiChatJson(prompt, [], model, DEFAULT_JSON_SYSTEM);
-    } catch (e) {
-      lastError = e;
-      console.warn(`[chatJson] ${model} failed:`, e);
-    }
-  }
-
-  throw lastError instanceof Error
-    ? lastError
-    : new Error("Gemini API nepavyko");
+  return callGeminiWithRetry(
+    (model) => geminiChatJson(prompt, [], model, DEFAULT_JSON_SYSTEM),
+    "chatJson"
+  );
 }
 
 export async function visionExtractJson(
@@ -226,8 +253,7 @@ async function geminiGeneratePlainText(
     if (inline) parts.push(inline);
   }
 
-  let lastError: unknown;
-  for (const model of UNIFIED_GEMINI_MODELS) {
+  return callGeminiWithRetry(async (model) => {
     const res = await fetch(
       `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
       {
@@ -244,21 +270,15 @@ async function geminiGeneratePlainText(
       }
     );
     if (!res.ok) {
-      lastError = new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
-      continue;
+      throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
     }
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];
     };
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
-    if (!text) {
-      lastError = new Error("Empty Gemini response");
-      continue;
-    }
+    if (!text) throw new Error("Empty Gemini response");
     return text;
-  }
-
-  throw lastError instanceof Error ? lastError : new Error("Gemini API nepavyko");
+  }, "geminiText");
 }
 
 export async function visionDescribe(

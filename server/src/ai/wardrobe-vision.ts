@@ -77,15 +77,34 @@ export async function analyzeWardrobePhoto(params: {
   const systemInstruction = `Tu esi VAUTO drabužių vedlio AI. Nuotraukoje gali būti KELI atskiri drabužiai (spinta, lentyna).
 Kiekvienam matomam objektui sukurk atskirą įrašą su unikaliu id (wardrobe-1, wardrobe-2…).
 Kategorijos universalios drabužiams. Aprašymai emocingi, šilti tonu.
+SVARBU (be prielaidų): categoryGroup nustatyk pagal patį drabužį — Moterims, Vyrams ARBA Vaikams. Vyriški ir vaikų drabužiai NĖRA „Moterims". Jei tikrai neaišku — rink pagal kirpimą/dydį, ne pagal numatytą lytį.
+Toleruok neaiškias detales — jei ženklas/dydis nematomas, naudok „Be ženklo" / spėk dydį pagal proporcijas, bet nefantazuok faktų.
 ${WARDROBE_ANTI_HALLUCINATION_RULE}
 Grąžink tik JSON: ${WARDROBE_SCHEMA}`;
 
-  const prompt = `Analizuok drabužių nuotrauką. Vartotoja: ${name}.
+  const prompt = `Analizuok drabužių nuotrauką. Vartotojas: ${name}.
 Jei matai kelis drabužius — grąžink kiekvieną atskirai items masyve.
 voiceAnnouncement: „${name}, tavo nuotraukoje matau N drabužius. Paruošiau N atskirus skelbimus, tau beliko vienu paspaudimu juos patvirtinti!"`;
 
   const fullPrompt = `${systemInstruction}\n\n${prompt}`;
-  const raw = await visionExtractJson(fullPrompt, [params.imageDataUrl]);
+
+  // Never let a Gemini outage / unparseable response crash the wardrobe flow:
+  // always return a friendly, structured result the client can render.
+  let raw: Record<string, unknown>;
+  try {
+    raw = await visionExtractJson(fullPrompt, [params.imageDataUrl], 0.35);
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    const busy = /\b(429|503)\b|UNAVAILABLE|overloaded|rate.?limit|high demand/i.test(msg);
+    console.warn("[analyzeWardrobePhoto] vision failed:", msg);
+    return {
+      items: [],
+      voiceAnnouncement: busy
+        ? `${name}, AI šiuo metu labai užimtas — pabandykite įkelti nuotrauką dar kartą po kelių sekundžių.`
+        : `${name}, nepavyko atpažinti drabužio šioje nuotraukoje — įkelkite kitą, ryškesnę nuotrauką.`,
+    };
+  }
+
   const explicitError = String(raw.error ?? "").trim();
   if (/prekė neatpažinta|neatpažinta/i.test(explicitError)) {
     return {

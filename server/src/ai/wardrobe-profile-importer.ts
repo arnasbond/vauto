@@ -217,23 +217,40 @@ export async function importWardrobeProfile(params: {
     ? `Numatyta vieta (tik jei profilyje nematoma): ${params.defaultLocation.trim()}`
     : "Vietos lauką palik tuščią arba naudok tik tai, kas aiškiai matoma profilyje — nefantazuok geografijos.";
 
-  const raw = await chatJson([
-    {
-      role: "system",
-      content: `Tu esi VAUTO Spintos Importo AI. Iš ${portalLabel} profilio HTML ištrauk VISUS matomus aktyvius skelbimus/prekes.
+  let raw: Record<string, unknown> = {};
+  try {
+    raw = (await chatJson([
+      {
+        role: "system",
+        content: `Tu esi VAUTO Spintos Importo AI. Iš ${portalLabel} profilio HTML ištrauk VISUS matomus aktyvius skelbimus/prekes.
 Grąžink JSON: ${IMPORT_SCHEMA}
 SVARBU: jokių geografinių apribojimų — location tik jei aiškiai profilyje. Kategorijos universalios, ne portalų UI kopija.
 Kiekvienam item id naudok skaitinį ID iš portalo URL arba unikalų identifikatorių jei matomas HTML.`,
-    },
-    {
-      role: "user",
-      content: `Portalo tipas: ${portalLabel} (${portalKey})
+      },
+      {
+        role: "user",
+        content: `Portalo tipas: ${portalLabel} (${portalKey})
 Profilio URL: ${resolvedProfileUrl}
 ${locationHint}
 HTML tekstas:
 """${pageText}"""`,
-    },
-  ]);
+      },
+    ])) as Record<string, unknown>;
+  } catch (err) {
+    // Gemini outage / parse failure must not crash the import — fall back to drafts.
+    logProductionWarn("portal-import", "Gemini extract failed — using demo items", {
+      profileUrl: resolvedProfileUrl.slice(0, 120),
+      portalKey,
+      error: err instanceof Error ? err.message : String(err),
+    });
+    const items = demoProfileItems(params.userName);
+    return withImportMeta({
+      profileUrl: resolvedProfileUrl,
+      portalKey,
+      items,
+      voiceAnnouncement: `${firstName}, AI šiuo metu užimtas — paruošiau ${items.length} juodraščius redagavimui, pabandykite sinchronizuoti dar kartą vėliau.`,
+    });
+  }
 
   let items = parseItems(raw as Record<string, unknown>);
   if (!items.length) items = demoProfileItems(params.userName);
