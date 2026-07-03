@@ -1127,7 +1127,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         };
 
-        let res =
+        const res =
           (await apiVautoAgentStream(agentBody, {
             onEvent: (event) => {
               if (event.type === "status") setStreamThinkingLabel(event.message);
