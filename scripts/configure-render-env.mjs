@@ -147,6 +147,16 @@ async function main() {
   await setEnvVar("PUBLIC_API_URL", "https://vauto-api.onrender.com");
   await setEnvVar("APP_ORIGIN", "https://vauto-chi.vercel.app");
 
+  // Beta-friendly AI limits — avoids shared-IP/NAT false 429s (default was 8/min).
+  await setEnvVar(
+    "AI_RATE_LIMIT_PER_MIN",
+    process.env.AI_RATE_LIMIT_PER_MIN?.trim() || "30"
+  );
+  await setEnvVar(
+    "SEARCH_RATE_LIMIT_PER_MIN",
+    process.env.SEARCH_RATE_LIMIT_PER_MIN?.trim() || "30"
+  );
+
   for (const key of [
     "STRIPE_SECRET_KEY",
     "STRIPE_WEBHOOK_SECRET",
