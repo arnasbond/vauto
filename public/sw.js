@@ -1,4 +1,4 @@
-const CACHE = "vauto-shell-v17";
+const CACHE = "vauto-shell-v18";
 const PRECACHE = ["/", "/manifest.json", "/icon-192.png", "/icon-512.png"];
 
 /** @type {{ listings: object[]; savedQueries: string[]; seenIds: Set<string> }} */
@@ -244,19 +244,21 @@ self.addEventListener("notificationclick", (event) => {
     self.clients
       .matchAll({ type: "window", includeUncontrolled: true })
       .then((clients) => {
+        // Prefer an already-open app window: SPA-navigate via postMessage
+        // (Messenger-like, no full reload). The client always deep-links to the
+        // exact target (listing/chat) and plays voice when provided.
         for (const client of clients) {
-          client.postMessage({
-            type: data.type === "VAUTO_CHAT_MESSAGE" ? "VAUTO_NAVIGATE" : "VAUTO_PLAY_VOICE",
-            voiceText: data.voiceText,
-            url,
-          });
           if ("focus" in client) {
-            if ("navigate" in client && typeof client.navigate === "function") {
-              client.navigate(url);
-            }
+            client.postMessage({
+              type: "VAUTO_NAVIGATE",
+              url,
+              voiceText: data.voiceText,
+            });
             return client.focus();
           }
         }
+        // No open window — open the app directly on the deep-link target so the
+        // user lands on the specific listing/chat, never just the home page.
         return self.clients.openWindow(url);
       })
   );

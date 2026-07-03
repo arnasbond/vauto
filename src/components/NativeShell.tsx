@@ -44,12 +44,18 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
         voiceText?: string;
         url?: string;
       };
-      if (data?.type === "VAUTO_PLAY_VOICE" && data.voiceText) {
+      // Deep-link navigation: always route to the exact target when a url is
+      // present (wishlist match, chat, deal), and speak the voice line if any.
+      if (
+        (data?.type === "VAUTO_NAVIGATE" || data?.type === "VAUTO_PLAY_VOICE") &&
+        data.url
+      ) {
+        logWakeEvent("notification_navigate", { url: data.url });
+        router.push(data.url);
+      }
+      if (data?.voiceText) {
         logWakeEvent("notification_voice_playback", { url: data.url });
         speakBuddyMessage(data.voiceText, { enabled: true });
-      }
-      if (data?.type === "VAUTO_NAVIGATE" && data.url) {
-        router.push(data.url);
       }
     };
 

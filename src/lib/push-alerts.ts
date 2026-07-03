@@ -134,7 +134,35 @@ export function startPushAlertPolling(
 
   tick();
   const id = setInterval(tick, ALERT_CHECK_MS);
-  return () => clearInterval(id);
+
+  // Resilience: after connectivity returns or the tab becomes visible again,
+  // catch up immediately instead of waiting up to ALERT_CHECK_MS. This mirrors
+  // Messenger-style reconnect — no missed matches linger after a brief outage.
+  const onWake = () => {
+    if (typeof document !== "undefined" && document.visibilityState === "hidden") {
+      return;
+    }
+    tick();
+  };
+
+  if (typeof window !== "undefined") {
+    window.addEventListener("online", onWake);
+    window.addEventListener("focus", onWake);
+  }
+  if (typeof document !== "undefined") {
+    document.addEventListener("visibilitychange", onWake);
+  }
+
+  return () => {
+    clearInterval(id);
+    if (typeof window !== "undefined") {
+      window.removeEventListener("online", onWake);
+      window.removeEventListener("focus", onWake);
+    }
+    if (typeof document !== "undefined") {
+      document.removeEventListener("visibilitychange", onWake);
+    }
+  };
 }
 
 export async function showLocalPushNotification(payload: PushAlertPayload): Promise<void> {

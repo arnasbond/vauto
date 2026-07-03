@@ -37,6 +37,43 @@ function chatThreadPath(chatId: string): string {
   return `/pokalbiai/?id=${encodeURIComponent(chatId)}`;
 }
 
+/**
+ * Cross-channel fan-out: deliver over BOTH Web Push (browser) and FCM (native)
+ * so a recipient gets the notification instantly on whatever device they use.
+ * Both channels run in parallel and never block each other or the caller.
+ */
+export async function deliverRealtimeToUsers(
+  userIds: string[],
+  payload: PushPayload
+): Promise<void> {
+  const ids = [...new Set(userIds.filter(Boolean))];
+  if (!ids.length) return;
+
+  await Promise.allSettled([
+    sendPushToUsers(ids, payload),
+    sendWebPushForPayload(ids, payload),
+  ]);
+}
+
+async function sendWebPushForPayload(
+  userIds: string[],
+  payload: PushPayload
+): Promise<void> {
+  try {
+    // Lazy import breaks the web-push <-> fcm module cycle.
+    const { sendWebPushToUsers } = await import("../push/web-push.js");
+    await sendWebPushToUsers(userIds, {
+      title: payload.title,
+      body: payload.body,
+      url: payload.url,
+      tag: payload.chatId ? `vauto-chat-${payload.chatId}` : payload.type,
+      voiceText: payload.body,
+    });
+  } catch (err) {
+    console.error("web push fan-out failed:", err);
+  }
+}
+
 export async function sendPushToUsers(
   userIds: string[],
   payload: PushPayload
@@ -78,7 +115,7 @@ export async function notifyNegotiationStarted(
     ? `${opts.listingTitle}: „${preview.slice(0, 80)}${preview.length > 80 ? "…" : ""}"`
     : opts.listingTitle;
 
-  await sendPushToUsers([sellerId], {
+  await deliverRealtimeToUsers([sellerId], {
     title: "VAUTO: naujos derybos",
     body,
     url: chatThreadPath(opts.chatId),
@@ -95,7 +132,7 @@ export async function notifyNegotiationDealClosed(
   const ids = [...new Set(userIds.filter(Boolean))];
   if (!ids.length) return;
 
-  await sendPushToUsers(ids, {
+  await deliverRealtimeToUsers(ids, {
     title: "VAUTO: sandoris paruoštas",
     body: `${opts.listingTitle} — galite užbaigti pirkimą per escrow.`,
     url: chatThreadPath(opts.chatId),
