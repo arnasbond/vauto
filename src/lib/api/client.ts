@@ -133,7 +133,9 @@ async function aiFetchOnce<T>(
       const code =
         res.status === 413
           ? "payload_too_large"
-          : errBody?.code;
+          : res.status === 429
+            ? "ai_rate_limit_exceeded"
+            : errBody?.code;
       const error =
         res.status === 413
           ? "Užklausa per didelė. Sutrumpinkite žinutę arba pokalbio istoriją."

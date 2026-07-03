@@ -38,8 +38,7 @@ import type { MarketplaceFilterState } from "@/lib/marketplace-view";
 
 
 export const PHOTO_SEARCH_FALLBACK_MESSAGE =
-
-  "Nepavyko automatiškai atpažinti nuotraukos. Įveskite tekstą rankiniu būdu";
+  "Nuotrauka ne visai aiški — pabandykite geresnį apšvietimą arba tiesiog parašykite, ką ieškote, ir padėsiu toliau.";
 
 
 

@@ -1,8 +1,9 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
+import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
   extractAgentQuickReplies,
@@ -150,12 +151,7 @@ export function FlowAgentStrip({
           );
         })}
 
-        {busy && (
-          <p className="flex items-center gap-2 px-1 text-[12px] text-slate-300">
-            <Loader2 className={cn("h-3.5 w-3.5 animate-spin shrink-0", styles.spinner)} />
-            Galvoju…
-          </p>
-        )}
+        {busy && <AgentTypingIndicator className="text-slate-300" />}
       </div>
     </div>
   );

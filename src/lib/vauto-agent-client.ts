@@ -118,7 +118,8 @@ export const AGENT_MIN_QUERY_CHARS = 5;
 export const AGENT_VOICE_MIN_QUERY_CHARS = 2;
 
 export const AGENT_NOISE_REPLIES = [
-  "Atsiprašau, neišgirdau — pakartokite prašau?",
+  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau?",
+  "Galite tiesiog parašyti — padėsiu surasti ar sukurti skelbimą.",
 ] as const;
 
 const AGENT_SESSION_ACTIVITY_KEY = "vauto_agent_last_activity_v1";

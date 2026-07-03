@@ -17,7 +17,11 @@ import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiVautoAgent } from "@/lib/api/client";
-import { BUDDY_REPEAT_PROMPT, buddyMessageForAgentFailure } from "@/lib/voice-graceful";
+import {
+  BUDDY_REPEAT_PROMPT,
+  buddyMessageForAgentFailure,
+} from "@/lib/voice-graceful";
+import { requestWizardAgentExpand } from "@/lib/ai-conversational-recovery";
 import {
   buildCurrentPageContext,
   buildPersonalizedAgentGreeting,
@@ -135,6 +139,8 @@ interface VautoAgentContextValue {
   openWithGreeting: (text: string, options?: AgentGreetingOptions) => void;
   messages: AgentChatMessage[];
   busy: boolean;
+  /** Alias for busy — ChatGPT-style „thinking" state */
+  isAgentThinking: boolean;
   sendAgentMessage: (
     text: string,
     options?: AgentSendOptions
@@ -415,12 +421,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           query: displayQuery,
           resultCount: actions.listingIds.length,
         });
-        showToast(
-          actions.listingIds.length
-            ? `Rasta ${actions.listingIds.length} skelbimų`
-            : "Rezultatų nerasta",
-          actions.listingIds.length ? "success" : "info"
-        );
+        if (actions.listingIds.length) {
+          showToast(`Rasta ${actions.listingIds.length} skelbimų`, "success");
+        }
         window.setTimeout(() => focusSearchOutcome(actions.listingIds.length), 120);
       }
       if (actions.type === "listing_draft") {
@@ -449,7 +452,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       if (actions.type === "empty_search") {
         goToMarketplace("agent");
-        setOpen(false);
+        setOpen(true);
+        requestWizardAgentExpand();
         setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
@@ -1119,7 +1123,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         });
 
         if (!res.ok) {
-          const message = buddyMessageForAgentFailure(res.error);
+          const message = buddyMessageForAgentFailure(res.error, res.code);
           if (!options?.fromSearchBar) {
             setMessages((prev) => [
               ...prev,
@@ -1355,6 +1359,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       openWithGreeting,
       messages,
       busy,
+      isAgentThinking: busy,
       sendAgentMessage,
       applyAgentActions: applyActions,
       reportAgentError,

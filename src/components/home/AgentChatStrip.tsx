@@ -1,9 +1,10 @@
 "use client";
 
-import { Loader2, Sparkles } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
+import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
   extractAgentQuickReplies,
@@ -146,12 +147,7 @@ export function AgentChatStrip() {
           );
         })}
 
-        {busy && (
-          <p className="flex items-center gap-2 px-1 text-[12px] text-[var(--vauto-text-muted)]">
-            <Loader2 className="h-3.5 w-3.5 animate-spin shrink-0" />
-            Galvoju…
-          </p>
-        )}
+        {busy && <AgentTypingIndicator />}
       </div>
 
       {sellCta && (

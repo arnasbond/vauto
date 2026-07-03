@@ -43,9 +43,34 @@ export function createGracefulVoiceIntentFallback(
   };
 }
 
-export function buddyMessageForAgentFailure(error?: string): string {
-  if (!error?.trim()) return BUDDY_REPEAT_PROMPT;
-  if (/json|parse|invalid|unexpected token/i.test(error)) return BUDDY_REPEAT_PROMPT;
-  if (/tuščia|empty|neaišk/i.test(error)) return BUDDY_REPEAT_PROMPT;
+export function buddyMessageForAgentFailure(error?: string, code?: string): string {
+  const err = error?.trim() ?? "";
+  const normalizedCode = code?.trim().toLowerCase() ?? "";
+
+  if (
+    normalizedCode === "ai_rate_limit_exceeded" ||
+    normalizedCode === "rate_limited" ||
+    /rate.?limit|429|limitas pasiektas|per daug.*užklaus|bandykite po minutės/i.test(err)
+  ) {
+    return (
+      err ||
+      "Dabar daug užklausų — bandau dar kartą po minutės. Kol kas galite parašyti kitą klausimą."
+    );
+  }
+
+  if (
+    normalizedCode === "agent_unavailable" ||
+    /503|unavailable|nepasiekiamas|overloaded|high demand/i.test(err)
+  ) {
+    return "Trumpam užimtas — bandykite dar kartą po kelių sekundžių.";
+  }
+
+  if (normalizedCode === "timeout" || /timeout|laiko limit/i.test(err)) {
+    return "Užtruko ilgiau nei įprastai — bandykite dar kartą, aš pasiruošęs padėti.";
+  }
+
+  if (!err) return BUDDY_REPEAT_PROMPT;
+  if (/json|parse|invalid|unexpected token/i.test(err)) return BUDDY_REPEAT_PROMPT;
+  if (/tuščia|empty|neaišk/i.test(err)) return BUDDY_REPEAT_PROMPT;
   return BUDDY_REPEAT_PROMPT;
 }

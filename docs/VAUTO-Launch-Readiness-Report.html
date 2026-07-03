@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="lt">
+<head>
+  <meta charset="UTF-8" />
+  <title>VAUTO Launch Readiness Report</title>
+  <style>
+    @page { size: A4; margin: 18mm 16mm; }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", system-ui, sans-serif;
+      font-size: 10.5pt;
+      line-height: 1.45;
+      color: #1a2332;
+      background: #fff;
+    }
+    .cover {
+      min-height: 250mm;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      padding: 24mm 8mm;
+      page-break-after: always;
+      background: linear-gradient(145deg, #0d9488 0%, #0f766e 45%, #134e4a 100%);
+      color: #fff;
+    }
+    .cover h1 { font-size: 28pt; font-weight: 800; letter-spacing: -0.5px; }
+    .cover .sub { font-size: 14pt; margin-top: 12px; opacity: 0.95; }
+    .cover .meta { margin-top: 48px; font-size: 10pt; opacity: 0.85; line-height: 1.8; }
+    .badge-row { display: flex; gap: 10px; margin-top: 28px; flex-wrap: wrap; }
+    .badge {
+      background: rgba(255,255,255,0.18);
+      border: 1px solid rgba(255,255,255,0.35);
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 9pt;
+      font-weight: 600;
+    }
+    h2 {
+      font-size: 14pt;
+      color: #0d9488;
+      margin: 22px 0 10px;
+      padding-bottom: 4px;
+      border-bottom: 2px solid #ccfbf1;
+      page-break-after: avoid;
+    }
+    h3 { font-size: 11pt; color: #334155; margin: 14px 0 6px; }
+    p { margin-bottom: 8px; }
+    .section { page-break-inside: avoid; margin-bottom: 14px; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 10px 0 16px;
+      font-size: 9.5pt;
+    }
+    th, td {
+      border: 1px solid #e2e8f0;
+      padding: 7px 9px;
+      text-align: left;
+      vertical-align: top;
+    }
+    th { background: #f0fdfa; color: #0f766e; font-weight: 700; }
+    tr:nth-child(even) td { background: #f8fafc; }
+    .ok { color: #059669; font-weight: 700; }
+    .warn { color: #d97706; font-weight: 700; }
+    .fail { color: #dc2626; font-weight: 700; }
+    ul { margin: 6px 0 12px 18px; }
+    li { margin-bottom: 4px; }
+    .verdict {
+      background: #ecfdf5;
+      border: 1px solid #6ee7b7;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin: 16px 0;
+    }
+    .verdict strong { color: #047857; font-size: 11pt; }
+    .risk-yellow {
+      background: #fffbeb;
+      border-left: 4px solid #f59e0b;
+      padding: 10px 12px;
+      margin: 8px 0;
+      font-size: 9.5pt;
+    }
+    .footer-note {
+      margin-top: 24px;
+      padding-top: 12px;
+      border-top: 1px solid #e2e8f0;
+      font-size: 8.5pt;
+      color: #64748b;
+    }
+    .page-break { page-break-before: always; }
+    .stat-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 10px;
+      margin: 14px 0;
+    }
+    .stat-card {
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 8px;
+      padding: 12px;
+      text-align: center;
+    }
+    .stat-card .num { font-size: 20pt; font-weight: 800; color: #0d9488; }
+    .stat-card .lbl { font-size: 8.5pt; color: #64748b; margin-top: 4px; }
+  </style>
+</head>
+<body>
+
+<div class="cover">
+  <h1>VAUTO</h1>
+  <div class="sub">Launch Readiness Report<br/>Pre-Launch Smoke Test &amp; Parengties Vertinimas</div>
+  <div class="meta">
+    Data: 2026-07-03<br/>
+    Commit: 8dd7296<br/>
+    API: https://vauto-api.onrender.com<br/>
+    Versija: v1.6.62
+  </div>
+  <div class="badge-row">
+    <span class="badge">72/72 offline PASS</span>
+    <span class="badge">DB connected</span>
+    <span class="badge">Readiness 100/100</span>
+    <span class="badge">Web Push LIVE</span>
+  </div>
+</div>
+
+<h2>1. Santrauka</h2>
+<div class="verdict">
+  <strong>Išvada: platforma PARUOŠTA ribotam beta testavimui per web.</strong>
+  Visi esminiai moduliai (AI lankstumas, Spinta, B2B kabinetas, realtime pranešimai, P2P chat, Notification Bell)
+  sėkmingai sutvirtinti. Offline logika — 100% žaliai. Gamybinė DB ir health — OK.
+  Prieš pilną viešą launch reikia: FCM (Android), carrier API raktų, optional frontend tsc deps.
+</div>
+
+<div class="stat-grid">
+  <div class="stat-card"><div class="num">72</div><div class="lbl">Offline patikros PASS</div></div>
+  <div class="stat-card"><div class="num">100</div><div class="lbl">Prod readiness score</div></div>
+  <div class="stat-card"><div class="num">0</div><div class="lbl">Server TS klaidų</div></div>
+</div>
+
+<h2>2. Integraciniai testai</h2>
+<table>
+  <thead>
+    <tr><th>Testas</th><th>Offline</th><th>Remote (prod)</th><th>Statusas</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>AI lankstumas (test-ai-flexibility)</td><td class="ok">16/16 PASS</td><td>6/10 (4× HTTP 429)</td><td class="ok">OK</td></tr>
+    <tr><td>Spinta (test-wardrobe-flow)</td><td class="ok">3/3 PASS</td><td class="ok">4/4 PASS, ne 500</td><td class="ok">OK</td></tr>
+    <tr><td>B2B verslas (test-business-flow)</td><td class="ok">22/22 PASS</td><td class="ok">health 200</td><td class="ok">OK</td></tr>
+    <tr><td>Realtime + P2P + Bell</td><td class="ok">31/31 PASS</td><td class="ok">Web Push enabled</td><td class="ok">OK</td></tr>
+    <tr><td>validation-smoke</td><td colspan="2" class="ok">PASS</td><td class="ok">OK</td></tr>
+    <tr><td>critical-smoke</td><td colspan="2" class="ok">PASS</td><td class="ok">OK</td></tr>
+  </tbody>
+</table>
+
+<h2>3. Gamybinis build ir infrastruktūra</h2>
+<table>
+  <thead><tr><th>Patikra</th><th>Rezultatas</th></tr></thead>
+  <tbody>
+    <tr><td>npm run server:build</td><td class="ok">PASS — 0 TypeScript klaidų</td></tr>
+    <tr><td>tsc --noEmit (frontend)</td><td class="warn">2 išankstinės klaidos (@capacitor/haptics, @zxing/browser)</td></tr>
+    <tr><td>DB connection (prod)</td><td class="ok">connected</td></tr>
+    <tr><td>Readiness score</td><td class="ok">100/100</td></tr>
+    <tr><td>Embeddings</td><td class="ok">126/126 synced</td></tr>
+    <tr><td>Web Push (VAPID)</td><td class="ok">configured + enabled</td></tr>
+    <tr><td>Gemini API + callGeminiWithRetry</td><td class="ok">configured, retry visuose LLM keliuose</td></tr>
+    <tr><td>Stripe</td><td class="ok">configured + webhook</td></tr>
+    <tr><td>FCM (native Android)</td><td class="warn">false — nekonfigūruotas</td></tr>
+    <tr><td>Carriers (Omniva/DPD/LP)</td><td class="warn">simulated — laukiami API raktai</td></tr>
+    <tr><td>Google OAuth / SMS</td><td class="warn">false — optional</td></tr>
+  </tbody>
+</table>
+
+<div class="page-break"></div>
+
+<h2>A) Kas veikia tobulai — paruošta testuotojams</h2>
+
+<h3>AI ir klaidų tolerancija</h3>
+<ul>
+  <li>Trumpų prekės ženklų guard'ai (vw, bmw, nike) — neblokuoja</li>
+  <li>Gemini interpretuoja rašybos klaidas, slangą, be diakritikų</li>
+  <li>callGeminiWithRetry su exponential backoff (429/503)</li>
+  <li>Zero-result apsauga, audience adaptation, B2B partner playbook</li>
+</ul>
+
+<h3>Spinta (Wardrobe)</h3>
+<ul>
+  <li>Neaiškios nuotraukos → 200 + draugiškas pranešimas (ne 500 crash)</li>
+  <li>Kategorijų grupė be „Moterims" bias</li>
+  <li>Profilio importas su graceful fallback</li>
+</ul>
+
+<h3>B2B verslo kabinetas</h3>
+<ul>
+  <li>Proaktyvus verslo partnerio vedimas (ne „Spinta tuščia")</li>
+  <li>Monetizacija: B2B boost 29.99€, lead 14.99€, Pro upsell</li>
+  <li>Insights, leads, Smart Boost — 22/22 deterministiniai testai</li>
+</ul>
+
+<h3>Pranešimai ir P2P pokalbiai</h3>
+<ul>
+  <li>Wishlist → deep-link /listing/&lt;slug&gt;/ (ne home)</li>
+  <li>P2P abiem kryptimis → DB chat_message + Web Push + FCM fan-out</li>
+  <li>Notification Bell — polling fallback 8s (push denied) / 20s (granted)</li>
+  <li>Live chat — 4s server polling + BroadcastChannel + toast + garsas</li>
+  <li>SW deep-link → VAUTO_NAVIGATE → tikslus pokalbis + input autofocus</li>
+  <li>Pristatymas neblokuoja serverio (setImmediate, Promise.allSettled)</li>
+</ul>
+
+<h3>Infrastruktūra</h3>
+<ul>
+  <li>Ops-secret middleware, carrier adapter contract, webhook idempotency</li>
+  <li>DB connected, embeddings synced, Stripe live</li>
+</ul>
+
+<h2>B) Įžvalgos / ko dar trūksta</h2>
+
+<div class="risk-yellow"><strong>Gemini 429 burst metu:</strong> Per testų seriją 4/10 AI probe'ų gavo HTTP 429. Retry veikia, bet per didelė apkrova vis tiek grąžina limitą. Beta metu stebėti rate limit.</div>
+<div class="risk-yellow"><strong>FCM nekonfigūruotas:</strong> Android native push neveiks. Web Push veikia. Prieš APK beta — FIREBASE_SERVICE_ACCOUNT_JSON.</div>
+<div class="risk-yellow"><strong>P2P latency ~4s:</strong> Nėra WebSocket — cross-device sync per polling. Messenger „akimirksniu" tik same-browser tab'uose. v1.1 — WebSocket/SSE.</div>
+<div class="risk-yellow"><strong>Frontend tsc:</strong> 2 optional dep klaidos. Pridėti peer deps arba ts-expect-error.</div>
+<div class="risk-yellow"><strong>Carrier API:</strong> Omniva/DPD/LP simulated — laukiami raktai (planuota).</div>
+<div class="risk-yellow"><strong>Google OAuth / SMS:</strong> Neįjungta prod. Email/JWT auth veikia.</div>
+
+<h2>4. Galutinė rekomendacija</h2>
+<table>
+  <thead><tr><th>Kriterijus</th><th>Vertinimas</th></tr></thead>
+  <tbody>
+    <tr><td>Offline logika ir guard'ai</td><td class="ok">100% PASS (72/72)</td></tr>
+    <tr><td>Serverio build</td><td class="ok">Žalias</td></tr>
+    <tr><td>Prod DB + health</td><td class="ok">Connected, score 100</td></tr>
+    <tr><td>Beta testuotojams (web)</td><td class="ok">PARUOŠTA</td></tr>
+    <tr><td>Pilnas launch (native + carriers + OAuth)</td><td class="warn">Laukia FCM, carrier keys, OAuth</td></tr>
+  </tbody>
+</table>
+
+<div class="footer-note">
+  Ataskaita sugeneruota automatiškai po Pre-Launch Smoke Test ciklo.<br/>
+  VAUTO · Launch Readiness · 2026-07-03 · commit 8dd7296
+</div>
+
+</body>
+</html>

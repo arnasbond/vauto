@@ -906,14 +906,14 @@ export async function executeAgentTool(
 
       const summary =
         results.length === 0
-          ? "Nerasta atitinkančių skelbimų."
+          ? "Šiuo metu atitikmenų neradau — galiu užfiksuoti norą arba padėti patikslinti paiešką."
           : `Rasta ${results.length} skelbimų.`;
 
       const proactiveMessage = ctx.searchSessionReset
         ? buildProactiveSearchResetMessage(
             results.length > 0
               ? undefined
-              : "Rezultatų su naujais kriterijais nerasta.",
+              : "Kol kas su naujais kriterijais nieko neradau — galime patikslinti ar užregistruoti norą.",
             searchQuery || query || undefined
           )
         : undefined;

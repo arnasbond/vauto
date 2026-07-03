@@ -20,8 +20,9 @@ export function hasMeaningfulShortToken(text: string): boolean {
 }
 
 export const SECRETARY_NOISE_REPLIES = [
-  "Atsiprašau, neišgirdau — pakartokite prašau?",
-  "Aplink per daug triukšmo — galite parašyti?",
+  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau?",
+  "Galite tiesiog parašyti — padėsiu surasti ar sukurti skelbimą.",
+  "Aplink triukšmo — parašykite, ką ieškote ar norite parduoti, ir tęsime.",
 ] as const;
 
 /** Agent chat memory window — after this idle gap, history is reset. */

@@ -13,6 +13,7 @@ import {
 } from "@/components/marketplace/MarketplaceListingCards";
 import { ListingMapView } from "@/components/marketplace/ListingMapView";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
+import { buildEmptySearchBannerMessage } from "@/lib/empathy-copy";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -161,7 +162,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
                 className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
                 style={{ borderColor: ui.border, color: ui.textMuted }}
               >
-                Rezultatų nerasta. Patikslinkite per AI asistentą žemiau.
+                {buildEmptySearchBannerMessage(searchQuery)}
               </p>
             )
           ) : searchQuery.trim().length < 3 ? (

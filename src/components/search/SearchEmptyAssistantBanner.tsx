@@ -2,6 +2,7 @@
 
 import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
 import { useVauto } from "@/context/VautoContext";
+import { buildEmptySearchBannerMessage } from "@/lib/empathy-copy";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 
 interface SearchEmptyAssistantBannerProps {
@@ -21,7 +22,7 @@ export function SearchEmptyAssistantBanner({
         id="search-empty-assistant"
         className="mt-3 scroll-mt-20 rounded-2xl border border-dashed border-[#d1d5db] bg-white p-4 text-center text-sm text-[#6b7280]"
       >
-        Rezultatų nerasta. Pabandykite kitą paieškos frazę arba pašalinkite filtrus.
+        {buildEmptySearchBannerMessage(searchQuery)}
       </div>
     );
   }

@@ -29,11 +29,11 @@ export const UNREGISTERED_PRODUCT_AGENT_PROMPT =
 export const AI_MOCK_TIMEOUT_MS = AI_TIMEOUT_POLICY.mockMs;
 
 export const MANUAL_FALLBACK_TOAST =
-  "Atsiprašome, nepavyko automatiškai suprasti įrašo. Užpildykime trumpą formą rankiniu būdu.";
+  "Automatinis atpažinimas šį kartą nepavyko — užpildysime formą kartu, o aš padėsiu su aprašymu.";
 
 /** Marktplaats-style vision failure — shown before manual category/brand fields */
 export const VISION_RECOGNITION_FAILED_MESSAGE =
-  "Nepavyko automatiškai atpažinti nuotraukos";
+  "Nuotrauka ne visai aiški — galite pabandyti kitą kadrą arba užpildyti laukus kartu su manimi.";
 
 /** Titles returned when vision AI is unavailable — must not pass as valid extraction */
 export const DEMO_AI_PLACEHOLDER_TITLES = new Set([

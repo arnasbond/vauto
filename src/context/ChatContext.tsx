@@ -17,6 +17,7 @@ import { detectPurchaseIntent } from "@/lib/scoring";
 import { apiFetchChats, apiUpsertChat, apiUpsertEscrow } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { loadChats, saveChats } from "@/lib/storage";
+import { CHAT_MESSAGE_SENT_CONFIRMATION } from "@/lib/empathy-copy";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import { requestChatShieldAnalysis } from "@/lib/chat-shield-client";
 import { requestNegotiationTwin } from "@/lib/chat-agent-client";
@@ -527,7 +528,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const reply: ChatMessage = {
           id: replyId,
           senderId: "vauto-system",
-          text: "Žinutė išsiųsta pardavėjui. Atsakymą matysite šiame pokalbyje.",
+          text: CHAT_MESSAGE_SENT_CONFIRMATION,
           timestamp: new Date().toISOString(),
         };
         upsertChats((prev) =>

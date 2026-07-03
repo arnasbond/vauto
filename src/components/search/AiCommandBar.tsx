@@ -51,6 +51,7 @@ import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
+import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 
 const GEMINI_BLUE = "#1167b1";
@@ -512,7 +513,12 @@ export function AiCommandBar({
                 </button>
               </div>
             )}
-            {lastAssistant && isWizard && (
+            {busy && isWizard && (
+              <div className="pointer-events-auto mb-1.5">
+                <AgentTypingIndicator variant="inline" />
+              </div>
+            )}
+            {lastAssistant && isWizard && !busy && (
               <p
                 className={cn(
                   "pointer-events-auto mb-1.5 line-clamp-3 rounded-xl border px-3 py-2 text-[12px] leading-relaxed shadow-md backdrop-blur-md vauto-body-text",
