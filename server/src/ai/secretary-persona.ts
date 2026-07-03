@@ -1,7 +1,23 @@
 /** Shared VAUTO Zero-UI secretary tone — warm curator, not a bureaucratic filter. */
 
-/** Minimum meaningful user utterance before Gemini is invoked (VAD-style guard). */
-export const SECRETARY_MIN_QUERY_CHARS = 5;
+/** Minimum meaningful user utterance before Gemini is invoked (VAD-style guard).
+ * Text-only input (no voice noise) — keep low so short brand/product queries
+ * like "vw", "bmw", "kia", "a4" are never rejected as noise. */
+export const SECRETARY_MIN_QUERY_CHARS = 2;
+
+/** Short but meaningful tokens (brands, models, categories) that must bypass the
+ * VAD noise guard even below the min-length threshold. Typo/diacritic tolerant. */
+const SHORT_QUERY_ALLOWLIST_RE =
+  /\b(vw|bmw|kia|a[1-8]|q[1-8]|x[1-6]|e\d{2}|golf|audi|seat|opel|saab|mini|fiat|jeep|nt|butas|namas|batai|kedai|suknel|dzins|striuk|palt|megzt|telefon|iphone|ipad|tv|ps[45]|xbox|nike|puma|adidas|zara)\b/i;
+
+/** True when a short input still carries a recognizable brand/product token. */
+export function hasMeaningfulShortToken(text: string): boolean {
+  const normalized = text
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "");
+  return SHORT_QUERY_ALLOWLIST_RE.test(normalized);
+}
 
 export const SECRETARY_NOISE_REPLIES = [
   "Atsiprašau, neišgirdau — pakartokite prašau?",

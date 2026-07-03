@@ -78,7 +78,8 @@ async function geminiChatJson(
   prompt: string,
   imageDataUrls: string[] = [],
   model = "gemini-2.5-flash",
-  systemInstruction = "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų."
+  systemInstruction = "Grąžink tik vieną galiojantį JSON objektą. Jokio markdown, jokių paaiškinimų.",
+  temperature = 0.2
 ): Promise<Record<string, unknown>> {
   const key = resolveGeminiApiKey();
   if (!key) throw new Error("GEMINI_API_KEY not configured");
@@ -104,7 +105,10 @@ async function geminiChatJson(
     body: JSON.stringify({
       systemInstruction: { parts: [{ text: systemInstruction }] },
       contents: [{ role: "user", parts: userParts }],
-      generationConfig: { temperature: 0.2, responseMimeType: "application/json" },
+      generationConfig: {
+        temperature: Math.min(1, Math.max(0, temperature)),
+        responseMimeType: "application/json",
+      },
     }),
     signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
   });
@@ -122,6 +126,8 @@ export interface UnifiedLlmJsonInput {
   prompt: string;
   systemInstruction?: string;
   imageDataUrls?: string[];
+  /** Higher (~0.35) lets the model interpret typos/slang/no-diacritics more freely. */
+  temperature?: number;
 }
 
 const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
@@ -137,6 +143,7 @@ export async function unifiedLlmJson(
     prompt,
     systemInstruction = DEFAULT_JSON_SYSTEM,
     imageDataUrls = [],
+    temperature = 0.2,
   } = input;
   const geminiKey = resolveGeminiApiKey();
   if (!geminiKey) {
@@ -150,7 +157,8 @@ export async function unifiedLlmJson(
         prompt,
         imageDataUrls,
         model,
-        systemInstruction
+        systemInstruction,
+        temperature
       );
     } catch (e) {
       lastError = e;
@@ -199,10 +207,11 @@ export async function chatJson(
 
 export async function visionExtractJson(
   prompt: string,
-  imageDataUrls: string[]
+  imageDataUrls: string[],
+  temperature?: number
 ): Promise<Record<string, unknown>> {
   if (!hasAiKey()) throw new Error("GEMINI_API_KEY not configured");
-  return unifiedLlmJson({ prompt, imageDataUrls });
+  return unifiedLlmJson({ prompt, imageDataUrls, temperature });
 }
 
 async function geminiGeneratePlainText(

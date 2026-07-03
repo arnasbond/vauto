@@ -46,6 +46,8 @@
     "test:api-integration": "node scripts/verify-health.mjs && node scripts/api-listing-smoke.mjs",
     "audit:security": "node scripts/audit-security.mjs",
     "test:server-smoke": "npm run server:build && node scripts/validation-smoke.mjs && node scripts/critical-smoke.mjs",
+    "test:ai-flexibility": "npm run server:build && node scripts/test-ai-flexibility.mjs",
+    "test:ai-flexibility:local": "npm run server:build && node scripts/test-ai-flexibility.mjs --local",
     "sim:e2e": "npm run e2e:simulate --prefix server",
     "generate:mock-catalog": "node scripts/generate-mock-catalog.mjs",
     "generate:sitemap": "node scripts/generate-sitemap.mjs",

@@ -13,6 +13,12 @@ import {
   type DetectedVisionObject,
 } from "./vision-multi-object.js";
 
+const SEARCH_ERROR_TOLERANCE_RULE = `KLAIDŲ TOLERANCIJA (PRIVALOMA — suprask „iš pusės žodžio"):
+- Toleruok korektūros/gramatikos klaidas, sukeistas raides, trūkstamas lietuviškas raides (č,š,ž,ę,ė,į,ų,ū,ą): „volwo"→Volvo, „suknele"→suknelė, „batai 42 dydzio".
+- Toleruok žargoną ir šnekamąją kalbą: „bemvė"/„bimeris"→BMW, „mersas"→Mercedes, „folkė"→VW, „padai"/„kedai"→batai, „skudurai"→drabužiai.
+- Toleruok trumpinius/mišrią kalbą: „nt"→NT, „vw golf 4", „bmw e46", „ieskau sneakers 43".
+- Į cleanQuery įrašyk ištaisytą, normalią prekės formą (pvz. „Volvo V70", „suknelė", „batai 42 dydžio"). NIEKADA negrąžink tuščio cleanQuery vien dėl klaidų — interpretuok geriausią tikėtiną prasmę.`;
+
 const SPINTA_SEARCH_SYSTEM_RULE = `
 GRIEŽTA SPINTOS TAISYKLĖ: Vartotojas yra VAUTO Spintoje (drabužių ir batų portalas).
 category VISADA turi būti "Drabužiai" (listingCategory: clothing).
@@ -37,6 +43,8 @@ const VISUAL_SEARCH_INTENT_SCHEMA = `{
   "confidence": "number 0-1",
   "visualSummary": "string — 1 sakinys, ką matai nuotraukoje",
   "sceneContext": "string — aplinkos kontekstas",
+  "imageQuality": "clear | blurry | partial | dark | too_far — nuotraukos kokybė paieškai",
+  "qualityHint": "string — jei kokybė prasta, DRAUGIŠKAS lietuviškas prašymas ką pafotografuoti papildomai (pvz. „Matau, kad tai Volvo V70 detalė, bet ar galėtumėte nufotografuoti kodą kitoje pusėje, kad rasčiau tiksliai?"). Jei clear — tuščia eilutė.",
   "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
   "choiceChips": ["string — pvz. Ieškoti televizoriaus, Ieškoti sofos"],
   "semanticAlternatives": ["string — artimos semantinės paieškos pagal spalvą/tipą/formą"],
@@ -190,10 +198,49 @@ export interface AnalyzeVisualSearchResult {
   visualSummary: string;
   searchFilters: VisualSearchFilters;
   sceneContext?: string;
+  imageQuality?: "clear" | "blurry" | "partial" | "dark" | "too_far";
+  qualityHint?: string;
   detectedObjects?: DetectedVisionObject[];
   choiceChips?: string[];
   semanticAlternatives?: string[];
   clarificationPrompt?: string;
+}
+
+const IMAGE_QUALITY_VALUES = new Set([
+  "clear",
+  "blurry",
+  "partial",
+  "dark",
+  "too_far",
+]);
+
+function normalizeImageQuality(
+  raw: unknown
+): "clear" | "blurry" | "partial" | "dark" | "too_far" | undefined {
+  const v = String(raw ?? "").trim().toLowerCase();
+  return IMAGE_QUALITY_VALUES.has(v)
+    ? (v as "clear" | "blurry" | "partial" | "dark" | "too_far")
+    : undefined;
+}
+
+/** Friendly fallback when the model flags poor quality but gives no hint. */
+function buildQualityFallbackHint(
+  quality: string | undefined,
+  subject: string
+): string {
+  const what = subject.trim() || "prekę";
+  switch (quality) {
+    case "blurry":
+      return `Nuotrauka šiek tiek išsiliejusi — ar galėtumėte pafotografuoti ${what} ryškiau ar iš arčiau, kad rasčiau tiksliai?`;
+    case "partial":
+      return `Matau tik dalį objekto — ar galėtumėte nufotografuoti visą ${what} arba kodą/etiketę kitoje pusėje?`;
+    case "dark":
+      return `Nuotrauka tamsoka — ar galėtumėte perfotografuoti ${what} geresniame apšvietime?`;
+    case "too_far":
+      return `Objektas nutolęs — ar galėtumėte prisiartinti prie ${what}, kad matyčiau detales?`;
+    default:
+      return "";
+  }
 }
 
 /** Gemini structured buyer search intent (server-side; may 403 from Render IP). */
@@ -203,6 +250,7 @@ export async function analyzeSearchIntent(
   const query = input.query.trim();
   const systemInstruction = `Esi VAUTO pirkėjo paieškos intent analizatorius. Semantiškai suprask lietuvių kalbą.
 Vartotojas IEŠKO skelbimų — nekelia skelbimo.
+${SEARCH_ERROR_TOLERANCE_RULE}
 ${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Grąžink tik JSON pagal schemą: ${SEARCH_INTENT_SCHEMA}`;
 
@@ -212,6 +260,7 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}`;
   const raw = await unifiedLlmJson({
     prompt: userPrompt,
     systemInstruction,
+    temperature: 0.35,
   });
 
   return {
@@ -250,6 +299,7 @@ Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
 Identifikuok VISUS matomus objektus (detectedObjects), aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1.
 Jei tikslaus daikto/modelio nėra — sugeneruok semanticAlternatives pagal vizualinius atributus (spalva, tipas, forma).
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
+NEAIŠKI / IŠSILIEJUSI / PRASTA NUOTRAUKA (blurry, partial, dark, too_far): NEBLOKUOK užklausos. Nustatyk imageQuality ir parašyk draugišką qualityHint su KONKREČIU prašymu (pvz. pafotografuoti kodą/etiketę kitoje pusėje, prisiartinti, geresnį apšvietimą). Vis tiek pateik geriausią spėjimą per searchFilters/semanticAlternatives, kad vartotojas gautų kelią į priekį, ne tuščią ekraną.
 ${VISION_ANTI_HALLUCINATION_RULE}
 ${input.wardrobeOnly ? SPINTA_SEARCH_SYSTEM_RULE : ""}
 Jei nuotraukoje visas automobilis — category "Auto", searchFilters.make/model/bodyType/color.
@@ -260,12 +310,14 @@ Grąžink tik JSON: ${VISUAL_SEARCH_INTENT_SCHEMA}`;
   const userPrompt = `Analizuok paieškos nuotrauką ir suformuok filtrus.
 Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
 
-  const raw = await visionExtractJson(userPrompt, images);
+  const raw = await visionExtractJson(userPrompt, images, 0.35);
   const category = input.wardrobeOnly ? "Drabužiai" : normalizeCategory(raw.category);
   const searchFilters = normalizeSearchFilters(raw.searchFilters);
   const confidence = Math.min(1, Math.max(0, Number(raw.confidence) || 0.5));
   const visualSummary = String(raw.visualSummary ?? "").trim();
   const sceneContext = String(raw.sceneContext ?? "").trim();
+  const imageQuality = normalizeImageQuality(raw.imageQuality);
+  const rawQualityHint = String(raw.qualityHint ?? "").trim();
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
   let choiceChips = parseChoiceChips(raw.choiceChips, "search");
   if (choiceChips.length < 2 && detectedObjects.length >= 2) {
@@ -280,11 +332,19 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
       visualSummary
     );
   }
-  const clarificationPrompt = buildMultiObjectClarificationPrompt(
+  const multiObjectPrompt = buildMultiObjectClarificationPrompt(
     sceneContext,
     detectedObjects,
     "search"
   );
+  const poorQuality = Boolean(imageQuality && imageQuality !== "clear");
+  const qualitySubject =
+    searchFilters.make || searchFilters.brand || searchFilters.clothingType || visualSummary;
+  const qualityHint = poorQuality
+    ? rawQualityHint || buildQualityFallbackHint(imageQuality, qualitySubject)
+    : rawQualityHint;
+  // Prefer a smart follow-up (quality > multi-object) so the user is never blocked.
+  const clarificationPrompt = qualityHint || multiObjectPrompt;
   const rejected =
     confidence < 0.2 ||
     /prekė neatpažinta|neatpažinta|logotip|tik tekst/i.test(visualSummary);
@@ -303,13 +363,18 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
       radiusKm: snapSearchRadius(raw.radiusKm),
       condition: normalizeCondition(raw.condition),
       confidence: 0,
-      visualSummary: "Prekė neatpažinta",
+      visualSummary: poorQuality ? visualSummary || "Nuotrauka neaiški" : "Prekė neatpažinta",
       searchFilters: {},
       sceneContext,
+      imageQuality,
+      qualityHint: qualityHint || undefined,
       detectedObjects,
       choiceChips,
       semanticAlternatives,
-      clarificationPrompt,
+      clarificationPrompt:
+        clarificationPrompt ||
+        buildQualityFallbackHint("partial", qualitySubject) ||
+        undefined,
     };
   }
 
@@ -332,6 +397,8 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
     visualSummary: visualSummary || cleanQuery,
     searchFilters,
     sceneContext: sceneContext || undefined,
+    imageQuality,
+    qualityHint: qualityHint || undefined,
     detectedObjects: detectedObjects.length ? detectedObjects : undefined,
     choiceChips: choiceChips.length ? choiceChips : undefined,
     semanticAlternatives: semanticAlternatives.length ? semanticAlternatives : undefined,

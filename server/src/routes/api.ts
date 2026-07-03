@@ -1292,15 +1292,20 @@ apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
       extraContext,
       userCity,
     });
-    if (!intent.cleanQuery?.trim() || intent.confidence < 0.2) {
-      const alt = intent.semanticAlternatives?.[0]?.trim();
-      if (!alt) {
-        return res.status(422).json({ ok: false, error: "Prekė neatpažinta" });
-      }
-    }
+    // Never dead-end a blurry/low-confidence photo: fall back to the best guess
+    // and surface a friendly clarification so the user always gets a path forward.
+    const bestKeywords =
+      intent.cleanQuery?.trim() ||
+      intent.semanticAlternatives?.[0]?.trim() ||
+      intent.visualSummary?.trim() ||
+      "";
+    const needsClarification =
+      !intent.cleanQuery?.trim() ||
+      intent.confidence < 0.2 ||
+      Boolean(intent.imageQuality && intent.imageQuality !== "clear");
     res.json({
       ok: true,
-      keywords: intent.cleanQuery || intent.semanticAlternatives?.[0] || "",
+      keywords: bestKeywords,
       confidence: intent.confidence,
       category: intent.listingCategory ?? intent.category ?? "other",
       title: intent.visualSummary || intent.cleanQuery,
@@ -1311,6 +1316,9 @@ apiRouter.post("/search/vision", visionSearchBodyParser, async (req, res) => {
       choiceChips: intent.choiceChips,
       semanticAlternatives: intent.semanticAlternatives,
       clarificationPrompt: intent.clarificationPrompt,
+      imageQuality: intent.imageQuality,
+      qualityHint: intent.qualityHint,
+      needsClarification,
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });

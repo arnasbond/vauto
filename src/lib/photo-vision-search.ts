@@ -180,6 +180,12 @@ async function postVisionApi(
 
         clarificationPrompt?: string;
 
+        qualityHint?: string;
+
+        imageQuality?: string;
+
+        needsClarification?: boolean;
+
         error?: string;
 
       };
@@ -250,7 +256,7 @@ async function postVisionApi(
 
         semanticAlternatives: json.semanticAlternatives,
 
-        clarificationPrompt: json.clarificationPrompt,
+        clarificationPrompt: json.clarificationPrompt || json.qualityHint,
 
       };
 

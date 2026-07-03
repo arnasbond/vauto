@@ -267,7 +267,7 @@ async function geminiAgentTurn(
           contents,
           tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
           toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-          generationConfig: { temperature: 0.55 },
+          generationConfig: { temperature: 0.6 },
         }),
       },
       GEMINI_AGENT_TIMEOUT_MS

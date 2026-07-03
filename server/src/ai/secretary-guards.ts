@@ -4,6 +4,7 @@ import {
   SECRETARY_MIN_QUERY_CHARS,
   SECRETARY_NOISE_REPLIES,
   SECRETARY_SESSION_TTL_MS,
+  hasMeaningfulShortToken,
 } from "./secretary-persona.js";
 
 export interface CurrentPageContextPayload {
@@ -21,6 +22,8 @@ export function isTooShortSecretaryQuery(text: string | null | undefined): boole
   const t = normalizeSecretaryQuery(text);
   if (!t) return true;
   if (detectServerSellIntent(t)) return false;
+  // Short brand/product tokens (vw, bmw, kia, a4, nike…) are meaningful searches.
+  if (hasMeaningfulShortToken(t)) return false;
   return t.length < SECRETARY_MIN_QUERY_CHARS;
 }
 
