@@ -42,8 +42,16 @@ public class MainActivity extends BridgeActivity {
     private BroadcastReceiver apkDownloadReceiver;
     private boolean majorUpdateDialogVisible = false;
 
-    private static final String HOST_LOCALHOST = "localhost";
-    private static final String HOST_VERCEL = "vauto-chi.vercel.app";
+    private static final String[] ALLOWED_IN_APP_HOSTS = {
+        "localhost",
+        "www.vauto.lt",
+        "vauto.lt",
+        "vauto-chi.vercel.app",
+        "checkout.stripe.com",
+        "billing.stripe.com",
+        "accounts.google.com",
+        "appleid.apple.com",
+    };
 
     @Override
     public void onCreate(Bundle savedInstanceState) {
@@ -440,7 +448,10 @@ public class MainActivity extends BridgeActivity {
         if (host == null) return false;
         host = host.toLowerCase();
 
-        return HOST_LOCALHOST.equals(host) || HOST_VERCEL.equals(host);
+        for (String allowed : ALLOWED_IN_APP_HOSTS) {
+            if (allowed.equals(host)) return true;
+        }
+        return false;
     }
 
     private static final class VautoUrlGuardWebViewClient extends BridgeWebViewClient {

@@ -1,19 +1,23 @@
 {
   "project_info": {
-    "project_number": "REPLACE_ME",
-    "project_id": "REPLACE_ME",
-    "storage_bucket": "REPLACE_ME.appspot.com"
+    "project_number": "YOUR_FIREBASE_PROJECT_NUMBER",
+    "project_id": "YOUR_FIREBASE_PROJECT_ID",
+    "storage_bucket": "YOUR_FIREBASE_PROJECT_ID.appspot.com"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "REPLACE_ME",
+        "mobilesdk_app_id": "1:YOUR_FIREBASE_PROJECT_NUMBER:android:YOUR_APP_HASH",
         "android_client_info": {
           "package_name": "com.vauto.app"
         }
       },
       "oauth_client": [],
-      "api_key": [{ "current_key": "REPLACE_ME" }],
+      "api_key": [
+        {
+          "current_key": "YOUR_FIREBASE_ANDROID_API_KEY"
+        }
+      ],
       "services": {
         "appinvite_service": {
           "other_platform_oauth_client": []

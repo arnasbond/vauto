@@ -26,6 +26,10 @@ if (-not (Test-Path "out\index.html")) {
     exit 1
 }
 
+Write-Host "==> Generating app icons and splash screens..." -ForegroundColor Cyan
+npm run cap:assets
+if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 Write-Host "==> Syncing Capacitor Android (live web: www.vauto.lt)..." -ForegroundColor Cyan
 $env:CAPACITOR_USE_REMOTE = "1"
 $env:CAPACITOR_REMOTE_URL = "https://www.vauto.lt"

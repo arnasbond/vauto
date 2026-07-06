@@ -1,0 +1,43 @@
+{
+  "appId": "com.vauto.app",
+  "appName": "VAUTO",
+  "webDir": "out",
+  "android": {
+    "allowMixedContent": true
+  },
+  "ios": {
+    "contentInset": "automatic"
+  },
+  "server": {
+    "url": "https://www.vauto.lt",
+    "androidScheme": "https",
+    "iosScheme": "capacitor",
+    "cleartext": false,
+    "allowNavigation": [
+      "www.vauto.lt",
+      "vauto.lt",
+      "vauto-api.onrender.com",
+      "checkout.stripe.com",
+      "billing.stripe.com",
+      "accounts.google.com",
+      "appleid.apple.com"
+    ]
+  },
+  "plugins": {
+    "SplashScreen": {
+      "launchShowDuration": 2000,
+      "launchAutoHide": true,
+      "backgroundColor": "#0a0f18",
+      "androidSplashResourceName": "splash",
+      "showSpinner": false
+    },
+    "StatusBar": {
+      "style": "DARK",
+      "backgroundColor": "#0a0f18"
+    },
+    "PushNotifications": {
+      "presentationOptions": ["badge", "sound", "alert"]
+    },
+    "Share": {}
+  }
+}

@@ -1,6 +1,6 @@
 <?xml version='1.0' encoding='utf-8'?>
 <resources>
-    <string name="app_name">Vauto</string>
+    <string name="app_name">VAUTO</string>
     <string name="title_activity_main">Vauto</string>
     <string name="package_name">com.vauto.app</string>
     <string name="custom_url_scheme">com.vauto.app</string>

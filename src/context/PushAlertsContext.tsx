@@ -27,7 +27,7 @@ import {
   savePushAlertsEnabled,
   savePushAlertsSeen,
 } from "@/lib/storage";
-import { registerWebPush } from "@/lib/web-push";
+import { registerPushNotifications } from "@/lib/push-registration";
 import type { Listing } from "@/lib/types";
 import type { SearchIntentEvent } from "@/lib/search-intent";
 
@@ -116,7 +116,7 @@ export function PushAlertsProvider({
 
       const perm = await requestNotificationPermission();
       if (perm === "granted" && depsRef.current.apiActive && depsRef.current.isAuthenticated) {
-        await registerWebPush(next);
+        await registerPushNotifications(next);
       }
 
       setPushAlertsEnabledState(true);
@@ -145,7 +145,7 @@ export function PushAlertsProvider({
       savePushAlertsEnabled(enabled);
       if (!enabled) return;
       void requestNotificationPermission().then(() => {
-        void registerWebPush(wishlistQueries);
+        void registerPushNotifications(wishlistQueries);
       });
     },
     [wishlistQueries]
@@ -157,7 +157,7 @@ export function PushAlertsProvider({
 
     if (deps.apiActive && deps.isAuthenticated) {
       void requestNotificationPermission().then(() => {
-        void registerWebPush(wishlistQueries);
+        void registerPushNotifications(wishlistQueries);
       });
       return;
     }
