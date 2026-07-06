@@ -1,7 +1,7 @@
 "use client";
 
-import { Loader2, Sparkles, Trash2, X } from "lucide-react";
-import { useCallback, useEffect, useState } from "react";
+import { Images, Loader2, Sparkles, Trash2, Wand2, X } from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { ImageSearchCapture } from "@/components/search/ImageSearch";
 import { PhotoSearchScanOverlay } from "@/components/search/PhotoSearchScanOverlay";
@@ -15,6 +15,7 @@ import {
   persistPhotoSearchSession,
   sessionToCapturedPhoto,
 } from "@/lib/photo-search-session";
+import { processStudioPhotos } from "@/lib/studio-photo";
 
 export const MAX_AI_PHOTOS = 6;
 
@@ -29,6 +30,14 @@ export interface AiPhotoIntentChoice {
   quickReplies: string[];
 }
 
+type StudioStatus = "idle" | "processing" | "ready" | "skipped";
+
+interface PhotoEntry {
+  photo: CapturedPhoto;
+  studioUrl?: string | null;
+  studioStatus: StudioStatus;
+}
+
 interface AiPhotoFlowSheetProps {
   open: boolean;
   mode: "search" | "listing" | "intent";
@@ -39,7 +48,6 @@ interface AiPhotoFlowSheetProps {
   intentChoice?: AiPhotoIntentChoice | null;
   onIntentChip?: (chip: string) => void;
   onScanTimeout?: () => void;
-  /** Opens barcode/QR scanner; receives current sheet photos for agent context */
   onOpenBarcodeScan?: (ctx: { photos: string[] }) => void;
 }
 
@@ -55,9 +63,16 @@ export function AiPhotoFlowSheet({
   onScanTimeout,
   onOpenBarcodeScan,
 }: AiPhotoFlowSheetProps) {
-  const [photos, setPhotos] = useState<CapturedPhoto[]>([]);
+  const [entries, setEntries] = useState<PhotoEntry[]>([]);
   const [extraContext, setExtraContext] = useState("");
   const [mounted, setMounted] = useState(false);
+  const [studioProgress, setStudioProgress] = useState<{
+    completed: number;
+    total: number;
+  } | null>(null);
+  const studioRunRef = useRef(0);
+
+  const photos = entries.map((e) => e.photo);
 
   const title =
     mode === "search"
@@ -67,25 +82,67 @@ export function AiPhotoFlowSheet({
         : "Vision AI — nuotrauka";
 
   const overlayTimeoutMs = resolveScanOverlayTimeout(!!onScanTimeout);
+  const progressPct =
+    studioProgress && studioProgress.total > 0
+      ? Math.round((studioProgress.completed / studioProgress.total) * 100)
+      : 0;
 
   useEffect(() => {
     setMounted(true);
   }, []);
 
+  const runStudioPass = useCallback(
+    async (nextEntries: PhotoEntry[]) => {
+      if (mode !== "listing" || !nextEntries.length) return;
+      const runId = ++studioRunRef.current;
+      setStudioProgress({ completed: 0, total: nextEntries.length });
+      setEntries((prev) =>
+        prev.map((e) => ({ ...e, studioStatus: "processing" as const, studioUrl: null }))
+      );
+
+      const results = await processStudioPhotos(
+        nextEntries.map((e) => e.photo.dataUrl),
+        (p) => {
+          if (studioRunRef.current === runId) {
+            setStudioProgress({ completed: p.completed, total: p.total });
+          }
+        }
+      );
+
+      if (studioRunRef.current !== runId) return;
+
+      setEntries((prev) =>
+        prev.map((entry, index) => {
+          const result = results[index];
+          const applied = Boolean(result?.studioApplied);
+          return {
+            ...entry,
+            studioUrl: applied ? result!.processedUrl : null,
+            studioStatus: applied ? "ready" : "skipped",
+          };
+        })
+      );
+      setStudioProgress(null);
+    },
+    [mode]
+  );
+
   useEffect(() => {
     if (!open) return;
     if (prefillPhoto) {
-      setPhotos([prefillPhoto]);
+      const initial = [{ photo: prefillPhoto, studioStatus: "idle" as const }];
+      setEntries(initial);
+      if (mode === "listing") void runStudioPass(initial);
       return;
     }
     if (mode === "search") {
       const saved = loadPhotoSearchSession();
       if (saved) {
-        setPhotos([sessionToCapturedPhoto(saved)]);
+        setEntries([{ photo: sessionToCapturedPhoto(saved), studioStatus: "idle" }]);
         if (saved.extraContext) setExtraContext(saved.extraContext);
       }
     }
-  }, [open, prefillPhoto, mode]);
+  }, [open, prefillPhoto, mode, runStudioPass]);
 
   const syncSearchSession = useCallback(
     (nextPhotos: CapturedPhoto[], context = extraContext) => {
@@ -96,8 +153,10 @@ export function AiPhotoFlowSheet({
   );
 
   const reset = useCallback(() => {
-    setPhotos([]);
+    studioRunRef.current += 1;
+    setEntries([]);
     setExtraContext("");
+    setStudioProgress(null);
   }, []);
 
   const handleClose = () => {
@@ -108,18 +167,24 @@ export function AiPhotoFlowSheet({
 
   const addPhotos = (incoming: CapturedPhoto[]) => {
     if (!incoming.length) return;
-    setPhotos((prev) => {
+    setEntries((prev) => {
       const room = MAX_AI_PHOTOS - prev.length;
       if (room <= 0) return prev;
-      const next = [...prev, ...incoming.slice(0, room)];
-      syncSearchSession(next);
+      const added = incoming.slice(0, room).map((photo) => ({
+        photo,
+        studioStatus: "idle" as const,
+      }));
+      const next = [...prev, ...added];
+      syncSearchSession(next.map((e) => e.photo));
+      if (mode === "listing") void runStudioPass(next);
       return next;
     });
   };
 
   const applyCapturedPhoto = (shot: CapturedPhoto) => {
     if (mode === "search") {
-      setPhotos([shot]);
+      const next = [{ photo: shot, studioStatus: "idle" as const }];
+      setEntries(next);
       syncSearchSession([shot]);
       return;
     }
@@ -129,7 +194,7 @@ export function AiPhotoFlowSheet({
   const triggerListingGallery = () => {
     if (busy) return;
     void (async () => {
-      const remaining = MAX_AI_PHOTOS - photos.length;
+      const remaining = MAX_AI_PHOTOS - entries.length;
       const picked = await pickMultipleFromGallery(remaining);
       addPhotos(picked);
     })();
@@ -143,19 +208,20 @@ export function AiPhotoFlowSheet({
   };
 
   const removePhoto = (index: number) => {
-    setPhotos((prev) => {
+    setEntries((prev) => {
       const next = prev.filter((_, i) => i !== index);
-      syncSearchSession(next);
+      syncSearchSession(next.map((e) => e.photo));
+      if (mode === "listing" && next.length > 0) void runStudioPass(next);
       return next;
     });
   };
 
   const handleSubmit = async () => {
-    if (!photos.length || busy) return;
+    if (!entries.length || busy) return;
     const result = {
-      photos: photos.map((p) => p.dataUrl),
+      photos: entries.map((e) => e.studioUrl ?? e.photo.dataUrl),
       extraContext: extraContext.trim(),
-      fileName: photos[0]?.fileName,
+      fileName: entries[0]?.photo.fileName,
     };
     syncSearchSession(photos, extraContext.trim());
     const ok = await onSubmit(result);
@@ -174,15 +240,14 @@ export function AiPhotoFlowSheet({
         : "Tęsti su AI";
 
   const showInlineSourcePickers =
-    mode === "search"
-      ? photos.length === 0
-      : photos.length < MAX_AI_PHOTOS;
+    mode === "search" ? photos.length === 0 : photos.length < MAX_AI_PHOTOS;
   const showSearchReplacePickers = mode === "search" && photos.length > 0;
+  const studioBusy = Boolean(studioProgress);
 
   const sheet = (
     <>
       <div
-        className="ai-photo-flow-sheet fixed inset-0 z-[9998] flex max-h-[100dvh] min-h-[100dvh] w-full flex-col"
+        className="ai-photo-flow-sheet fixed inset-0 z-[9998] flex max-h-[100dvh] min-h-[100dvh] w-full flex-col touch-manipulation"
         role="dialog"
         aria-modal="true"
         aria-label={title}
@@ -204,50 +269,82 @@ export function AiPhotoFlowSheet({
         </header>
 
         <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 py-5 pb-32">
+          {mode === "listing" && entries.length > 0 && (
+            <div className="ai-photo-studio-progress mb-4" aria-live="polite">
+              <div className="mb-2 flex items-center justify-between gap-2 text-xs font-medium text-[var(--vauto-text-main)]">
+                <span className="inline-flex items-center gap-1.5">
+                  <Wand2 className="h-3.5 w-3.5 text-[var(--vauto-primary)]" />
+                  {studioBusy
+                    ? `Studio fonas: ${studioProgress!.completed}/${studioProgress!.total}`
+                    : "Studio fonas paruoštas"}
+                </span>
+                {studioBusy && <span>{progressPct}%</span>}
+              </div>
+              <div className="ai-photo-studio-progress-track h-1.5 overflow-hidden rounded-full">
+                <div
+                  className="ai-photo-studio-progress-bar h-full rounded-full transition-all duration-300"
+                  style={{ width: `${studioBusy ? progressPct : 100}%` }}
+                />
+              </div>
+            </div>
+          )}
+
           <p className="mb-3 text-sm font-medium text-[var(--vauto-text-main)]">Nuotraukos</p>
 
           <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
-            {photos.map((photo, index) => (
-              <div
-                key={`${photo.dataUrl.slice(0, 32)}-${index}`}
-                className="ai-photo-flow-card relative aspect-square overflow-hidden rounded-xl border"
-              >
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={photo.dataUrl}
-                  alt={`Nuotrauka ${index + 1}`}
-                  className="h-full w-full object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removePhoto(index)}
-                  disabled={busy}
-                  className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--vauto-bg)]/90 text-[var(--vauto-text-muted)] shadow-sm hover:text-[var(--vauto-red,#ef4444)] disabled:opacity-50"
-                  aria-label="Pašalinti nuotrauką"
+            {entries.map((entry, index) => {
+              const displayUrl = entry.studioUrl ?? entry.photo.dataUrl;
+              const isProcessing = entry.studioStatus === "processing";
+              return (
+                <div
+                  key={`${entry.photo.dataUrl.slice(0, 32)}-${index}`}
+                  className="ai-photo-flow-card relative aspect-square overflow-hidden rounded-xl border"
                 >
-                  <Trash2 className="h-3.5 w-3.5" />
-                </button>
-              </div>
-            ))}
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img
+                    src={displayUrl}
+                    alt={`Nuotrauka ${index + 1}`}
+                    className="h-full w-full object-cover"
+                  />
+                  {entry.studioStatus === "ready" && (
+                    <span className="ai-photo-studio-badge absolute left-1.5 top-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide">
+                      Studio
+                    </span>
+                  )}
+                  {isProcessing && (
+                    <div className="absolute inset-0 flex items-center justify-center bg-[var(--vauto-bg)]/55 backdrop-blur-[1px]">
+                      <Loader2 className="h-6 w-6 animate-spin text-[var(--vauto-primary)]" />
+                    </div>
+                  )}
+                  <button
+                    type="button"
+                    onClick={() => removePhoto(index)}
+                    disabled={busy || studioBusy}
+                    className="absolute right-1.5 top-1.5 flex h-7 w-7 items-center justify-center rounded-full bg-[var(--vauto-bg)]/90 text-[var(--vauto-text-muted)] shadow-sm hover:text-[var(--vauto-red,#ef4444)] disabled:opacity-50"
+                    aria-label="Pašalinti nuotrauką"
+                  >
+                    <Trash2 className="h-3.5 w-3.5" />
+                  </button>
+                </div>
+              );
+            })}
 
             {showInlineSourcePickers &&
               (mode === "search" ? (
-                <ImageSearchCapture
-                  disabled={busy}
-                  onCapture={applyCapturedPhoto}
-                />
+                <ImageSearchCapture disabled={busy || studioBusy} onCapture={applyCapturedPhoto} />
               ) : (
                 <>
                   <ImageSearchCapture
-                    disabled={busy}
+                    disabled={busy || studioBusy}
                     onCapture={applyCapturedPhoto}
                   />
                   <button
                     type="button"
                     onClick={triggerListingGallery}
-                    disabled={busy}
-                    className="ai-photo-flow-card flex aspect-square flex-col items-center justify-center gap-1.5 rounded-xl border px-2 text-[var(--vauto-text-main)] transition hover:opacity-90 disabled:opacity-50"
+                    disabled={busy || studioBusy}
+                    className="ai-photo-flow-card flex aspect-square flex-col items-center justify-center gap-2 rounded-xl border px-2 text-[var(--vauto-text-main)] transition hover:opacity-90 disabled:opacity-50"
                   >
+                    <Images className="h-6 w-6 text-[var(--vauto-primary)]" />
                     <span className="text-center text-xs font-semibold leading-tight">
                       Kelios iš galerijos
                     </span>
@@ -259,7 +356,7 @@ export function AiPhotoFlowSheet({
           {showSearchReplacePickers && (
             <div className="mt-3 grid grid-cols-2 gap-3">
               <ImageSearchCapture
-                disabled={busy}
+                disabled={busy || studioBusy}
                 onCapture={applyCapturedPhoto}
                 replaceMode
               />
@@ -267,11 +364,11 @@ export function AiPhotoFlowSheet({
           )}
 
           <p className="mt-3 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-            {mode === "search" && photos.length === 0
-              ? "Pasirinkite „Fotografuoti“ (kamera) arba „Galerija“ — nuotrauka bus iš karto naudojama paieškai."
-              : mode === "search"
-                ? "Norėdami pakeisti nuotrauką, pasirinkite „Fotografuoti iš naujo“ arba „Kita iš galerijos“."
-                : "Pridėkite nuotraukas iš skirtingų kampų — fotografuokite arba pasirinkite iš galerijos."}
+            {mode === "listing"
+              ? "Pasirinkite kelias nuotraukas iš karto — fonas automatiškai išvalomas į neutralų automobilių salono stilių."
+              : mode === "search" && photos.length === 0
+                ? "Pasirinkite „Fotografuoti“ arba „Galerija“."
+                : "Pridėkite nuotraukas iš skirtingų kampų."}
           </p>
 
           {photos.length > 0 && photos.length < 4 && mode === "listing" && (
@@ -284,10 +381,12 @@ export function AiPhotoFlowSheet({
             <button
               type="button"
               onClick={() =>
-                onOpenBarcodeScan({ photos: photos.map((p) => p.dataUrl) })
+                onOpenBarcodeScan({
+                  photos: entries.map((e) => e.studioUrl ?? e.photo.dataUrl),
+                })
               }
-              disabled={busy}
-              className="mt-4 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
+              disabled={busy || studioBusy}
+              className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
             >
               📊 Skenuoti brūkšninį / QR kodą iš etiketės
             </button>
@@ -300,7 +399,7 @@ export function AiPhotoFlowSheet({
           <textarea
             value={extraContext}
             onChange={(e) => handleExtraContextChange(e.target.value)}
-            disabled={busy}
+            disabled={busy || studioBusy}
             rows={4}
             placeholder="Pvz.: prekės ženklas ir modelis, matmenys, būklė, kas įeina į komplektą."
             className="mt-2 w-full resize-none rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:border-[var(--vauto-primary)] focus:ring-1 focus:ring-[var(--vauto-primary)] disabled:opacity-60"
@@ -328,34 +427,21 @@ export function AiPhotoFlowSheet({
               </div>
             </div>
           ) : (
-          <>
-            {onOpenBarcodeScan && (
+            <>
               <button
                 type="button"
-                onClick={() =>
-                  onOpenBarcodeScan({ photos: photos.map((p) => p.dataUrl) })
-                }
-                disabled={busy}
-                className="mb-3 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
-                data-testid="ai-photo-barcode-scan"
+                onClick={() => void handleSubmit()}
+                disabled={!entries.length || busy || studioBusy}
+                className="flex w-full min-h-[52px] touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast)] shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
               >
-                📊 Skenuoti brūkšninį / QR kodą iš etiketės
+                {busy ? (
+                  <Loader2 className="h-5 w-5 animate-spin" />
+                ) : (
+                  <Sparkles className="h-4 w-4" />
+                )}
+                {busy ? "Analizuojama…" : studioBusy ? "Ruošiamas studio fonas…" : ctaLabel}
               </button>
-            )}
-          <button
-            type="button"
-            onClick={() => void handleSubmit()}
-            disabled={!photos.length || busy}
-            className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast)] shadow-sm hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
-          >
-            {busy ? (
-              <Loader2 className="h-5 w-5 animate-spin" />
-            ) : (
-              <Sparkles className="h-4 w-4" />
-            )}
-            {busy ? "Analizuojama…" : ctaLabel}
-          </button>
-          </>
+            </>
           )}
         </div>
       </div>

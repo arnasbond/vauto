@@ -244,15 +244,31 @@ export async function capturePhotoFromSource(
   return capturePhoto(source);
 }
 
-/** Pick multiple images from gallery (web multi-select; native picks one at a time). */
+/** Pick multiple images from gallery (web + Capacitor WebView multi-select). */
 export async function pickMultipleFromGallery(
   maxCount: number
 ): Promise<CapturedPhoto[]> {
   if (maxCount <= 0) return [];
 
   if (Capacitor.isNativePlatform()) {
-    const one = await capturePhoto("gallery");
-    return one ? [one] : [];
+    const files = await mountTransientMultiFileInput((input) => {
+      input.accept = "image/*";
+      input.multiple = true;
+    });
+    if (!files.length) return [];
+    const picked = (
+      await Promise.all(
+        files.slice(0, maxCount).map(async (file) => {
+          const dataUrl = await blobToDataUrl(file);
+          if (!dataUrl) return null;
+          return normalizeCapturedPhoto({
+            dataUrl,
+            fileName: file.name,
+          });
+        })
+      )
+    ).filter((photo): photo is CapturedPhoto => photo !== null);
+    return picked;
   }
 
   return pickFilesAsDataUrls("image/*", maxCount);

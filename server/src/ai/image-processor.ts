@@ -11,8 +11,32 @@ function parseDataUrl(dataUrl: string): { buffer: Buffer; mime: string } {
   };
 }
 
-function toDataUrl(buffer: Buffer, mime = "image/jpeg"): string {
+function toDataUrl(buffer: Buffer, mime = "image/webp"): string {
   return `data:${mime};base64,${buffer.toString("base64")}`;
+}
+
+function listingOutputFormat(): "webp" | "jpeg" {
+  const raw = process.env.LISTING_IMAGE_FORMAT?.trim().toLowerCase();
+  return raw === "jpeg" || raw === "jpg" ? "jpeg" : "webp";
+}
+
+function encodeListingImage(sharpInstance: sharp.Sharp): Promise<Buffer> {
+  if (listingOutputFormat() === "jpeg") {
+    return sharpInstance.jpeg({ quality: 86, mozjpeg: true }).toBuffer();
+  }
+  return sharpInstance.webp({ quality: 82, effort: 4 }).toBuffer();
+}
+
+/** Optimize raw image bytes for listing storage (WebP by default). */
+export async function optimizeListingImageBuffer(buffer: Buffer): Promise<Buffer> {
+  const pipeline = sharp(buffer)
+    .rotate()
+    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true });
+  return encodeListingImage(pipeline);
+}
+
+export function listingImageMime(): string {
+  return listingOutputFormat() === "jpeg" ? "image/jpeg" : "image/webp";
 }
 
 function buildWatermarkSvg(width: number, height: number, listingId: string): Buffer {
@@ -55,22 +79,16 @@ export async function applyVautoWatermark(
   const height = meta.height ?? 960;
 
   const watermark = buildWatermarkSvg(width, height, listingId);
-  const output = await sharp(buffer)
-    .rotate()
-    .composite([{ input: watermark, blend: "over" }])
-    .jpeg({ quality: 86, mozjpeg: true })
-    .toBuffer();
+  const output = await encodeListingImage(
+    sharp(buffer).rotate().composite([{ input: watermark, blend: "over" }])
+  );
 
-  return toDataUrl(output, "image/jpeg");
+  return toDataUrl(output, listingImageMime());
 }
 
 export async function optimizeListingImage(imageDataUrl: string): Promise<string> {
   if (!imageDataUrl.startsWith("data:image")) return imageDataUrl;
   const { buffer } = parseDataUrl(imageDataUrl);
-  const output = await sharp(buffer)
-    .rotate()
-    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true })
-    .jpeg({ quality: 86, mozjpeg: true })
-    .toBuffer();
-  return toDataUrl(output, "image/jpeg");
+  const output = await optimizeListingImageBuffer(buffer);
+  return toDataUrl(output, listingImageMime());
 }

@@ -1,73 +1,80 @@
-import { logProductionWarn } from "../../../lib/production-log.js";
 import { fetchImageBytes } from "../image-bytes.js";
+import { logProductionWarn } from "../../../lib/production-log.js";
+import {
+  isPhotoroomConfigured,
+  listingImageBytesToDataUrl,
+  safeProcessListingPhoto,
+} from "../../photoroom.js";
+import { removeBackgroundClipdrop, removeBackgroundRemoveBg } from "./background-removal-fallback.js";
 import type {
   BackgroundRemovalProvider,
   BackgroundRemovalResult,
   VisualPipelineImageInput,
 } from "../types.js";
 
-const STUDIO_BG = "#FFFFFF";
+const FALLBACK_STUDIO_BG = "#F0F1F3";
 
-async function removeBackgroundPhotoroom(imageBytes: Buffer): Promise<Buffer> {
-  const key = process.env.PHOTOROOM_API_KEY?.trim();
-  if (!key) throw new Error("PHOTOROOM_API_KEY not configured");
-
-  const form = new FormData();
-  form.append("image_file", new Blob([imageBytes]), "upload.jpg");
-  form.append("bg_color", STUDIO_BG);
-  form.append("format", "png");
-
-  const res = await fetch("https://sdk.photoroom.com/v1/segment", {
-    method: "POST",
-    headers: { "x-api-key": key },
-    body: form,
-    signal: AbortSignal.timeout(25_000),
-  });
-  if (!res.ok) throw new Error(`Photoroom HTTP ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+async function processWithFallbackProvider(
+  imageBytes: Buffer,
+  provider: Exclude<BackgroundRemovalProvider, "photoroom" | "none">
+): Promise<Buffer> {
+  if (provider === "clipdrop") return removeBackgroundClipdrop(imageBytes);
+  return removeBackgroundRemoveBg(imageBytes);
 }
 
-async function removeBackgroundClipdrop(imageBytes: Buffer): Promise<Buffer> {
-  const key = process.env.CLIPDROP_API_KEY?.trim();
-  if (!key) throw new Error("CLIPDROP_API_KEY not configured");
+async function processOneImage(
+  img: VisualPipelineImageInput,
+  provider: BackgroundRemovalProvider
+): Promise<BackgroundRemovalResult["images"][number]> {
+  const sourceUrl = img.processedUrl ?? img.sourceUrl;
+  try {
+    const bytes = await fetchImageBytes(sourceUrl);
 
-  const form = new FormData();
-  form.append("image_file", new Blob([imageBytes]), "upload.jpg");
-  form.append("bg_color", STUDIO_BG);
+    if (provider === "photoroom" && isPhotoroomConfigured()) {
+      const result = await safeProcessListingPhoto(bytes, sourceUrl);
+      return {
+        id: img.id,
+        originalUrl: img.sourceUrl,
+        processedUrl: result.dataUrl,
+        studioApplied: result.ok,
+      };
+    }
 
-  const res = await fetch("https://clipdrop-api.co/remove-background/v1", {
-    method: "POST",
-    headers: { "x-api-key": key },
-    body: form,
-    signal: AbortSignal.timeout(25_000),
-  });
-  if (!res.ok) throw new Error(`Clipdrop HTTP ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
+    if (provider === "clipdrop" || provider === "removebg") {
+      const cleaned = await processWithFallbackProvider(bytes, provider);
+      const { optimizeListingImageBuffer } = await import("../../../ai/image-processor.js");
+      const optimized = await optimizeListingImageBuffer(cleaned);
+      return {
+        id: img.id,
+        originalUrl: img.sourceUrl,
+        processedUrl: listingImageBytesToDataUrl(optimized),
+        studioApplied: true,
+      };
+    }
+
+    return {
+      id: img.id,
+      originalUrl: img.sourceUrl,
+      processedUrl: sourceUrl,
+      studioApplied: false,
+    };
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e);
+    logProductionWarn("visual-pipeline", "Background removal failed for image — using original", {
+      imageId: img.id,
+      provider,
+      error: msg,
+    });
+    return {
+      id: img.id,
+      originalUrl: img.sourceUrl,
+      processedUrl: sourceUrl,
+      studioApplied: false,
+    };
+  }
 }
 
-async function removeBackgroundRemoveBg(imageBytes: Buffer): Promise<Buffer> {
-  const key = process.env.REMOVEBG_API_KEY?.trim();
-  if (!key) throw new Error("REMOVEBG_API_KEY not configured");
-
-  const form = new FormData();
-  form.append("image_file", new Blob([imageBytes]), "upload.jpg");
-  form.append("bg_color", STUDIO_BG);
-  form.append("size", "auto");
-
-  const res = await fetch("https://api.remove.bg/v1.0/removebg", {
-    method: "POST",
-    headers: { "X-Api-Key": key },
-    body: form,
-    signal: AbortSignal.timeout(25_000),
-  });
-  if (!res.ok) throw new Error(`remove.bg HTTP ${res.status}`);
-  return Buffer.from(await res.arrayBuffer());
-}
-
-function toDataUrlPng(bytes: Buffer): string {
-  return `data:image/png;base64,${bytes.toString("base64")}`;
-}
-
+/** Process images in parallel (concurrency-limited) for faster multi-photo uploads. */
 export async function runBackgroundRemoval(
   images: VisualPipelineImageInput[],
   provider: BackgroundRemovalProvider
@@ -79,42 +86,26 @@ export async function runBackgroundRemoval(
         id: img.id,
         originalUrl: img.sourceUrl,
         processedUrl: img.sourceUrl,
+        studioApplied: false,
       })),
     };
   }
 
-  const removeFn =
-    provider === "photoroom"
-      ? removeBackgroundPhotoroom
-      : provider === "clipdrop"
-        ? removeBackgroundClipdrop
-        : removeBackgroundRemoveBg;
+  const concurrency = Math.min(3, Math.max(1, images.length));
+  const out: BackgroundRemovalResult["images"] = new Array(images.length);
+  let cursor = 0;
 
-  const out: BackgroundRemovalResult["images"] = [];
-  for (const img of images) {
-    const sourceUrl = img.processedUrl ?? img.sourceUrl;
-    try {
-      const bytes = await fetchImageBytes(sourceUrl);
-      const cleaned = await removeFn(bytes);
-      out.push({
-        id: img.id,
-        originalUrl: img.sourceUrl,
-        processedUrl: toDataUrlPng(cleaned),
-      });
-    } catch (e) {
-      const msg = e instanceof Error ? e.message : String(e);
-      logProductionWarn("visual-pipeline", "Background removal failed for image — using original", {
-        imageId: img.id,
-        provider,
-        error: msg,
-      });
-      out.push({
-        id: img.id,
-        originalUrl: img.sourceUrl,
-        processedUrl: sourceUrl,
-      });
+  async function worker() {
+    while (cursor < images.length) {
+      const index = cursor++;
+      const img = images[index]!;
+      out[index] = await processOneImage(img, provider);
     }
   }
 
+  await Promise.all(Array.from({ length: concurrency }, () => worker()));
+
   return { provider, images: out };
 }
+
+export { FALLBACK_STUDIO_BG };

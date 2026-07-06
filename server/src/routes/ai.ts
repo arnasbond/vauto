@@ -94,6 +94,44 @@ aiRouter.post("/visual-pipeline", async (req, res) => {
   }
 });
 
+/** Fast studio BG + WebP for listing upload preview (PhotoRoom / fallback). */
+aiRouter.post("/studio-photos", async (req, res) => {
+  const { imageDataUrls } = req.body as { imageDataUrls?: string[] };
+  const images = normalizeImageInputList(
+    Array.isArray(imageDataUrls) ? imageDataUrls : []
+  );
+  if (!images.length) {
+    return res.status(400).json({ error: "imageDataUrls is required" });
+  }
+  if (images.length > 12) {
+    return res.status(400).json({ error: "Maximum 12 images per batch" });
+  }
+
+  try {
+    const { runBackgroundRemoval } = await import(
+      "../services/visual-pipeline/providers/background-removal.js"
+    );
+    const { resolveBackgroundRemovalProvider } = await import(
+      "../services/visual-pipeline/features.js"
+    );
+    const provider = resolveBackgroundRemovalProvider();
+    const inputs = images.map((url, index) => ({
+      id: String(index),
+      sourceUrl: url,
+    }));
+    const result = await runBackgroundRemoval(inputs, provider);
+    res.json({
+      ok: true,
+      provider: result.provider,
+      format: process.env.LISTING_IMAGE_FORMAT?.trim().toLowerCase() === "jpeg" ? "jpeg" : "webp",
+      images: result.images,
+    });
+  } catch (e) {
+    logProductionError("studio-photos", e);
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 aiRouter.post("/photo-intent", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 

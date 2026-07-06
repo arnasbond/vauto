@@ -65,7 +65,12 @@ export interface VisualPipelineStageResult<T> {
 }
 
 export interface BackgroundRemovalResult {
-  images: Array<{ id: string; originalUrl: string; processedUrl: string }>;
+  images: Array<{
+    id: string;
+    originalUrl: string;
+    processedUrl: string;
+    studioApplied?: boolean;
+  }>;
   provider: BackgroundRemovalProvider;
 }
 

@@ -1789,6 +1789,24 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   background: var(--vauto-bg);
 }
 
+.ai-photo-studio-progress-track {
+  background: color-mix(in srgb, var(--vauto-border) 80%, transparent);
+}
+
+.ai-photo-studio-progress-bar {
+  background: linear-gradient(
+    90deg,
+    var(--vauto-primary),
+    color-mix(in srgb, var(--vauto-primary) 65%, #93c5fd)
+  );
+}
+
+.ai-photo-studio-badge {
+  background: color-mix(in srgb, var(--vauto-primary) 88%, #000);
+  color: #fff;
+  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
+}
+
 .ai-scan-overlay-backdrop {
   background: color-mix(in srgb, var(--vauto-bg) 92%, transparent);
 }
