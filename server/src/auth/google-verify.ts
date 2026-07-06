@@ -1,4 +1,5 @@
 import { OAuth2Client } from "google-auth-library";
+import { maybeParseE2eGoogleToken } from "./e2e-mock-auth.js";
 
 export interface GoogleTokenPayload {
   email?: string;
@@ -11,6 +12,16 @@ export interface GoogleTokenPayload {
 export async function verifyGoogleIdToken(
   idToken: string
 ): Promise<GoogleTokenPayload | null> {
+  const e2e = maybeParseE2eGoogleToken(idToken);
+  if (e2e?.sub) {
+    return {
+      sub: e2e.sub,
+      email: e2e.email,
+      name: e2e.name,
+      picture: e2e.picture,
+    };
+  }
+
   const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
   if (!idToken || !clientId) return null;
 

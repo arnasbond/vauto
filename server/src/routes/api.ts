@@ -127,6 +127,11 @@ import {
 import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
 import { getInfraReadiness } from "../lib/infra-readiness.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
+import { runAuthFlowSelfTest } from "../test/auth-flow-selftest.js";
+import {
+  getAuthHygieneSnapshot,
+  resetAuthState,
+} from "../services/auth-reset.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
 import { resolveAppVersionPayload } from "../lib/app-version-config.js";
 
@@ -291,6 +296,43 @@ apiRouter.get("/test/e2e-simulation", requireOpsSecret, async (_req, res) => {
   try {
     const result = await runVautoE2eSimulation();
     res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+/** Auth hygiene snapshot — users by provider, OTP store, stale roles. */
+apiRouter.get("/ops/auth-hygiene", requireOpsSecret, async (_req, res) => {
+  try {
+    const hygiene = await getAuthHygieneSnapshot();
+    res.json({ ok: true, hygiene });
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+/**
+ * Reset auth state for production launch — removes OAuth/phone test users,
+ * clears in-memory OTP. Preserves catalog demo sellers by default.
+ */
+apiRouter.post("/ops/auth-reset", requireOpsSecret, async (req, res) => {
+  try {
+    const result = await resetAuthState({
+      dryRun: req.body?.dryRun === true,
+      preserveCatalog: req.body?.preserveCatalog !== false,
+      preserveAdmin: req.body?.preserveAdmin === true,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+/** Self-test Google, Apple (mock), and SMS OTP flows — requires VAUTO_E2E_AUTH=1. */
+apiRouter.post("/test/auth-flow", requireOpsSecret, async (_req, res) => {
+  try {
+    const result = await runAuthFlowSelfTest();
+    res.status(result.ok ? 200 : 500).json(result);
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });
   }

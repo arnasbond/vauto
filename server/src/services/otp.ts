@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { E2E_TEST_OTP, isE2eTestPhone } from "../auth/e2e-mock-auth.js";
 import { verifyDemoBypassOtp } from "../auth/demo-phones.js";
 import { getSmsProvider } from "./sms.js";
 
@@ -48,9 +49,11 @@ export function getOtpCodeLength(): number {
 
 export function issueOtp(phone: string): { code: string; expiresAt: number } {
   const key = normalizePhone(phone);
-  const code = usesDemoOtp()
-    ? process.env.VAUTO_DEMO_OTP ?? "123456"
-    : generateOtpCode();
+  const code = isE2eTestPhone(phone)
+    ? E2E_TEST_OTP
+    : usesDemoOtp()
+      ? process.env.VAUTO_DEMO_OTP ?? "123456"
+      : generateOtpCode();
   const expiresAt = Date.now() + OTP_TTL_MS;
   store.set(key, { code, expiresAt });
   return { code, expiresAt };
@@ -68,6 +71,17 @@ export function verifyOtp(phone: string, code: string): boolean {
   const ok = entry.code === code.trim();
   if (ok) store.delete(key);
   return ok;
+}
+
+export function getOtpStoreSize(): number {
+  return store.size;
+}
+
+/** Wipe all in-memory OTP codes (auth reset / clean launch). */
+export function clearAllOtps(): number {
+  const count = store.size;
+  store.clear();
+  return count;
 }
 
 /** Background cleanup for expired OTP entries (called opportunistically). */

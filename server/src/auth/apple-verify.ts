@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { maybeParseE2eAppleToken } from "./e2e-mock-auth.js";
 
 export interface AppleTokenPayload {
   sub: string;
@@ -66,6 +67,15 @@ async function getApplePublicKey(kid: string): Promise<crypto.KeyObject | null> 
 export async function verifyAppleIdToken(
   idToken: string
 ): Promise<AppleTokenPayload | null> {
+  const e2e = maybeParseE2eAppleToken(idToken);
+  if (e2e?.sub) {
+    return {
+      sub: e2e.sub,
+      email: e2e.email,
+      emailVerified: Boolean(e2e.email),
+    };
+  }
+
   const clientId = resolveAppleClientId();
   if (!idToken || !clientId) return null;
 

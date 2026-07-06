@@ -35,6 +35,9 @@ jobs:
       - name: Server validation smoke
         run: node scripts/validation-smoke.mjs
 
+      - name: Auth E2E offline checks
+        run: npm run test:auth-e2e
+
       - name: Conductor kill-switch drill
         run: node scripts/conductor-kill-switch-drill.mjs
 
@@ -89,6 +92,11 @@ jobs:
 
       - name: Run E2E smoke tests
         run: npx playwright test e2e/smoke.spec.ts
+        env:
+          CI: "true"
+
+      - name: Run auth ops guard E2E
+        run: npx playwright test e2e/auth.spec.ts
         env:
           CI: "true"
 
