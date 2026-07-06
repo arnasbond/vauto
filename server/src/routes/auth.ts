@@ -1,13 +1,20 @@
 import { Router } from "express";
-import { issueOtp, usesDemoOtp, verifyOtp } from "../auth/otp-store.js";
 import {
   demoOtpCode,
   isDemoBypassPhone,
   verifyDemoBypassOtp,
 } from "../auth/demo-phones.js";
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
-import { sendSmsOtp } from "../auth/sms.js";
+import { verifyAppleIdToken } from "../auth/apple-verify.js";
 import { verifyGoogleIdToken } from "../auth/google-verify.js";
+import {
+  getOtpCodeLength,
+  issueOtp,
+  purgeExpiredOtps,
+  usesDemoOtp,
+  verifyOtp,
+} from "../services/otp.js";
+import { sendOtpSms } from "../services/sms.js";
 import { getUser, getUserByPhoneDigits, upsertUser } from "../repository.js";
 import {
   applyReferralOnSignup,
@@ -124,7 +131,7 @@ async function buildSession(
     name: profile.name ?? existing?.name ?? providerName(meta.provider),
     phone: profile.phone ?? existing?.phone ?? "+370",
     city: profile.city ?? existing?.city ?? "Vilnius",
-    avatar: existing?.avatar ?? profile.avatar ?? defaultAvatar(meta.provider),
+    avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
     email,
     warned: existing?.warned ?? false,
     role,
@@ -186,14 +193,16 @@ authRouter.post("/otp/send", (req, res) => {
     res.status(429).json({ error: "Per daug OTP užklausų. Bandykite vėliau." });
     return;
   }
+  purgeExpiredOtps();
   const { code, expiresAt } = issueOtp(phone);
-  void sendSmsOtp(phone, code);
+  void sendOtpSms(phone, code);
   if (usesDemoOtp() && exposeOtpDevHint()) {
     console.log(`[VAUTO Auth] Demo OTP for ${phone}: ${demoOtpCode()}`);
   }
   res.json({
     ok: true,
     expiresAt: new Date(expiresAt).toISOString(),
+    codeLength: getOtpCodeLength(),
     ...(usesDemoOtp() && exposeOtpDevHint()
       ? { devHint: `Demo OTP: ${demoOtpCode()}` }
       : {}),
@@ -288,7 +297,11 @@ authRouter.post("/social", async (req, res) => {
       ? String(req.body.referralCode).trim()
       : undefined;
 
-    if (provider === "google" && idToken) {
+    if (provider === "google") {
+      if (!idToken) {
+        res.status(401).json({ error: "Google patvirtinimas privalomas" });
+        return;
+      }
       const google = await verifyGoogleIdToken(idToken);
       if (!google) {
         res.status(401).json({ error: "Netinkamas Google token" });
@@ -314,6 +327,45 @@ authRouter.post("/social", async (req, res) => {
         {
           role,
           provider: "google",
+          businessType,
+          companyName,
+          companyCode,
+          vatCode,
+          serviceBaseCity,
+          serviceRadiusKm,
+          serviceNationwide,
+          serviceSpecialties,
+        }
+      );
+      res.json(await finalizeSessionWithReferral(userId, session, referralCode));
+      return;
+    }
+
+    if (provider === "apple") {
+      if (!idToken) {
+        res.status(401).json({ error: "Apple patvirtinimas privalomas" });
+        return;
+      }
+      const apple = await verifyAppleIdToken(idToken);
+      if (!apple) {
+        res.status(401).json({ error: "Netinkamas Apple token" });
+        return;
+      }
+      const displayName =
+        req.body?.name ? String(req.body.name).trim() : undefined;
+      const userId = stableUserId(`apple:${apple.sub}`);
+      const session = await buildSession(
+        userId,
+        {
+          id: userId,
+          email: apple.email ?? email,
+          name: displayName || providerName("apple"),
+          avatar: defaultAvatar("apple"),
+          city,
+        },
+        {
+          role,
+          provider: "apple",
           businessType,
           companyName,
           companyCode,
@@ -362,6 +414,11 @@ authRouter.post("/social", async (req, res) => {
         }
       );
       res.json(await finalizeSessionWithReferral("admin-1", session, referralCode));
+      return;
+    }
+
+    if (process.env.NODE_ENV === "production") {
+      res.status(401).json({ error: "OAuth patvirtinimas privalomas" });
       return;
     }
 

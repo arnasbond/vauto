@@ -2,5 +2,6 @@
 export type RuntimeConfigJson = {
   apiUrl?: string;
   googleClientId?: string;
+  appleClientId?: string;
   conductorEnabled?: boolean;
 };

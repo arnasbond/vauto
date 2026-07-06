@@ -1,6 +1,9 @@
 import { Router } from "express";
 import express from "express";
 import { hasAgentAiKey } from "../load-env.js";
+import { isAppleOAuthConfigured } from "../auth/apple-verify.js";
+import { isGoogleOAuthConfigured } from "../auth/google-verify.js";
+import { getSmsProvider, isSmsLive } from "../services/sms.js";
 import { hasAiKey } from "../ai/llm-provider.js";
 import { analyzeVisualSearchIntent } from "../ai/search-intent.js";
 import { normalizeImageDataUrl } from "../ai/image-input.js";
@@ -217,13 +220,11 @@ apiRouter.get("/health", async (_req, res) => {
   const product = productLookupFeatures();
   const visualPipeline = visualPipelineFeatures();
   const infra = getInfraReadiness();
+  const smsMode = getSmsProvider();
   const features = {
-    sms: Boolean(
-      process.env.TWILIO_ACCOUNT_SID &&
-        process.env.TWILIO_AUTH_TOKEN &&
-        process.env.TWILIO_FROM_NUMBER
-    ),
-    googleOAuth: Boolean(process.env.GOOGLE_CLIENT_ID),
+    sms: isSmsLive(),
+    googleOAuth: isGoogleOAuthConfigured(),
+    appleOAuth: isAppleOAuthConfigured(),
     webPush: Boolean(
       process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY
     ),
@@ -264,6 +265,7 @@ apiRouter.get("/health", async (_req, res) => {
       ok: true,
       service: "vauto-api",
       db: "connected",
+      smsMode,
       features: { ...features, serviceLeads },
       visualPipeline,
       infra,
@@ -275,6 +277,7 @@ apiRouter.get("/health", async (_req, res) => {
       ok: false,
       service: "vauto-api",
       db: "unavailable",
+      smsMode,
       features,
       visualPipeline,
       infra,

@@ -672,12 +672,184 @@ body.vauto-audio-first .vauto-dashboard-card {
   box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
 }
 
+.vauto-auth-overlay {
+  background: color-mix(in srgb, #0f172a 42%, transparent);
+  backdrop-filter: blur(10px);
+}
+
 .vauto-auth-modal {
   background: var(--vauto-card-bg, #ffffff);
   border: 1px solid var(--vauto-border, #e2e8f0);
   color: var(--vauto-text-main, #0f172a);
   box-shadow: 0 25px 50px -12px rgba(15, 23, 42, 0.18);
 }
+
+.vauto-auth-luxury {
+  background: linear-gradient(
+    168deg,
+    color-mix(in srgb, var(--vauto-card-bg) 98%, #fff) 0%,
+    color-mix(in srgb, var(--vauto-surface-muted) 88%, #fff) 100%
+  );
+  border: 1px solid color-mix(in srgb, var(--vauto-border) 70%, transparent);
+  box-shadow:
+    0 32px 64px -24px rgba(15, 23, 42, 0.22),
+    0 0 0 1px color-mix(in srgb, #fff 60%, transparent) inset;
+}
+
+.vauto-auth-luxury-mark {
+  width: 36px;
+  height: 4px;
+  border-radius: 999px;
+  background: linear-gradient(
+    90deg,
+    var(--vauto-primary, #2563eb),
+    color-mix(in srgb, var(--vauto-primary, #2563eb) 40%, #c4b5fd)
+  );
+}
+
+.vauto-auth-error {
+  border: 1px solid color-mix(in srgb, #ef4444 28%, var(--vauto-border));
+  background: color-mix(in srgb, #ef4444 8%, var(--vauto-card-bg));
+  color: #b91c1c;
+}
+
+.vauto-auth-intent-picker {
+  border-radius: 16px;
+  border: 1px solid color-mix(in srgb, var(--vauto-border) 80%, transparent);
+  background: color-mix(in srgb, var(--vauto-surface-muted) 55%, transparent);
+  padding: 10px;
+}
+
+.vauto-auth-intent-label {
+  padding: 0 6px 8px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vauto-text-muted);
+}
+
+.vauto-auth-intent-btn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  border-radius: 12px;
+  padding: 8px 4px;
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--vauto-text-muted);
+  transition: background 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vauto-auth-intent-btn:hover {
+  color: var(--vauto-text-main);
+  background: color-mix(in srgb, var(--vauto-card-bg) 80%, transparent);
+}
+
+.vauto-auth-intent-btn--active {
+  color: var(--vauto-primary-contrast, #fff);
+  background: var(--vauto-primary);
+  box-shadow: 0 4px 12px color-mix(in srgb, var(--vauto-primary) 35%, transparent);
+}
+
+.vauto-auth-provider-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 14px;
+  border-radius: 14px;
+  border: 1px solid color-mix(in srgb, var(--vauto-border) 90%, transparent);
+  background: var(--vauto-card-bg);
+  padding: 13px 16px;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--vauto-text-main);
+  transition:
+    border-color 0.15s ease,
+    box-shadow 0.15s ease,
+    transform 0.12s ease,
+    opacity 0.15s ease;
+}
+
+.vauto-auth-provider-btn:hover:not(:disabled) {
+  border-color: color-mix(in srgb, var(--vauto-text-main) 18%, var(--vauto-border));
+  box-shadow: 0 6px 18px rgba(15, 23, 42, 0.06);
+}
+
+.vauto-auth-provider-btn:active:not(:disabled) {
+  transform: scale(0.995);
+}
+
+.vauto-auth-provider-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.vauto-auth-provider-icon {
+  display: flex;
+  height: 36px;
+  width: 36px;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  background: var(--vauto-surface-muted);
+}
+
+.vauto-auth-provider-label {
+  flex: 1;
+  text-align: left;
+  letter-spacing: -0.01em;
+}
+
+.vauto-auth-provider-btn--apple {
+  border-color: #111827;
+  background: #111827;
+  color: #fff;
+}
+
+.vauto-auth-provider-btn--apple:hover:not(:disabled) {
+  border-color: #000;
+  background: #000;
+  box-shadow: 0 8px 20px rgba(0, 0, 0, 0.18);
+}
+
+.vauto-auth-provider-icon--apple {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+.vauto-auth-provider-btn--phone {
+  border-color: transparent;
+  background: var(--vauto-primary);
+  color: var(--vauto-primary-contrast, #fff);
+}
+
+.vauto-auth-provider-btn--phone:hover:not(:disabled) {
+  border-color: transparent;
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--vauto-primary) 38%, transparent);
+}
+
+.vauto-auth-provider-icon--phone {
+  background: rgba(255, 255, 255, 0.18);
+  color: inherit;
+}
+
+.vauto-auth-submit-btn {
+  border-radius: 14px;
+  background: var(--vauto-primary);
+  padding: 14px 16px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--vauto-primary-contrast, #fff);
+  transition: opacity 0.15s ease, box-shadow 0.15s ease;
+}
+
+.vauto-auth-submit-btn:hover:not(:disabled) {
+  box-shadow: 0 8px 22px color-mix(in srgb, var(--vauto-primary) 35%, transparent);
+}
+
 
 .vauto-settings-row {
   background: var(--vauto-surface-muted, #f8fafc);

@@ -109,6 +109,7 @@ export async function apiSocialLogin(params: {
   email?: string;
   city?: string;
   idToken?: string;
+  name?: string;
   companyName?: string;
   companyCode?: string;
   vatCode?: string;

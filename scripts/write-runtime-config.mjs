@@ -5,6 +5,7 @@
  * Env:
  *   NEXT_PUBLIC_API_URL | PUBLIC_API_URL
  *   NEXT_PUBLIC_GOOGLE_CLIENT_ID | GOOGLE_CLIENT_ID
+ *   NEXT_PUBLIC_APPLE_AUTH_CLIENT_ID | APPLE_CLIENT_ID
  *   NEXT_PUBLIC_VAUTO_CONDUCTOR | VAUTO_CONDUCTOR (1 = enable conductor)
  */
 import { writeFileSync } from "node:fs";
@@ -21,11 +22,17 @@ const googleClientId =
   process.env.GOOGLE_CLIENT_ID?.trim() ||
   "";
 
+const appleClientId =
+  process.env.NEXT_PUBLIC_APPLE_AUTH_CLIENT_ID?.trim() ||
+  process.env.APPLE_CLIENT_ID?.trim() ||
+  "";
+
 const conductorEnabled =
   process.env.NEXT_PUBLIC_VAUTO_CONDUCTOR === "1" || process.env.VAUTO_CONDUCTOR === "1";
 
 const config = { apiUrl, conductorEnabled };
 if (googleClientId) config.googleClientId = googleClientId;
+if (appleClientId) config.appleClientId = appleClientId;
 
 const out = resolve("public/runtime-config.json");
 writeFileSync(out, `${JSON.stringify(config, null, 2)}\n`, "utf8");

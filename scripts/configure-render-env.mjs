@@ -186,6 +186,9 @@ async function main() {
     "GEMINI_API_KEY",
     "AI_KEY",
     "GOOGLE_CLIENT_ID",
+    "GOOGLE_CLIENT_SECRET",
+    "APPLE_CLIENT_ID",
+    "APPLE_CLIENT_SECRET",
     "REGITRA_PLATE_API_USERNAME",
     "REGITRA_PLATE_API_PASSWORD",
   ]) {

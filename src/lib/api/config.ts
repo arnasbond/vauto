@@ -3,6 +3,7 @@ import type { RuntimeConfigJson } from "@/lib/runtime-config-types";
 
 let resolvedApiUrl: string | null = null;
 let resolvedGoogleClientId: string | null = null;
+let resolvedAppleClientId: string | null = null;
 let resolvedConductorEnabled: boolean | null = null;
 let resolvePromise: Promise<string | null> | null = null;
 
@@ -14,6 +15,10 @@ function envGoogleClientId(): string | null {
   return process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID ?? null;
 }
 
+function envAppleClientId(): string | null {
+  return process.env.NEXT_PUBLIC_APPLE_AUTH_CLIENT_ID ?? null;
+}
+
 /** Load API URL and optional Google client id from build env or /runtime-config.json. */
 export async function initDataApiConfig(): Promise<string | null> {
   if (resolvedApiUrl) return resolvedApiUrl;
@@ -22,7 +27,9 @@ export async function initDataApiConfig(): Promise<string | null> {
   resolvePromise = (async () => {
     const fromEnv = envApiUrl();
     const googleFromEnv = envGoogleClientId();
+    const appleFromEnv = envAppleClientId();
     if (googleFromEnv) resolvedGoogleClientId = googleFromEnv;
+    if (appleFromEnv) resolvedAppleClientId = appleFromEnv;
 
     if (typeof window !== "undefined") {
       try {
@@ -35,6 +42,9 @@ export async function initDataApiConfig(): Promise<string | null> {
           }
           if (!resolvedGoogleClientId && json.googleClientId) {
             resolvedGoogleClientId = json.googleClientId;
+          }
+          if (!resolvedAppleClientId && json.appleClientId) {
+            resolvedAppleClientId = json.appleClientId;
           }
           if (resolvedConductorEnabled === null && typeof json.conductorEnabled === "boolean") {
             resolvedConductorEnabled = json.conductorEnabled;
@@ -63,6 +73,10 @@ export function peekRuntimeConductorEnabled(): boolean | null {
 
 export function getRuntimeGoogleClientId(): string | null {
   return resolvedGoogleClientId || envGoogleClientId();
+}
+
+export function getRuntimeAppleClientId(): string | null {
+  return resolvedAppleClientId || envAppleClientId();
 }
 
 export function getDataApiBaseUrl(): string | null {

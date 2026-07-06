@@ -33,6 +33,7 @@ jobs:
         env:
           NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
           NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_APPLE_AUTH_CLIENT_ID: ${{ secrets.APPLE_CLIENT_ID }}
           NEXT_PUBLIC_VAUTO_CONDUCTOR: "1"
 
       - name: Lint

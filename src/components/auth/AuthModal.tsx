@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { Apple, Building2, LayoutGrid, Phone, Shield, UserRound, X } from "lucide-react";
 import type { AuthProvider, UserRole } from "@/lib/types";
 import type { AuthSignupIntent } from "@/context/AuthContext";
@@ -10,7 +10,10 @@ import {
   isGoogleAuthConfigured,
   requestGoogleIdToken,
 } from "@/lib/auth/google-client";
-import { isAppleAuthConfigured } from "@/lib/auth/apple-client";
+import {
+  isAppleAuthConfigured,
+  requestAppleIdToken,
+} from "@/lib/auth/apple-client";
 import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
 import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
@@ -34,10 +37,11 @@ const AUTH_FORM_INITIAL = {
   signupIntent: "private" as AuthSignupIntent,
   adminEmail: ADMIN_EMAIL,
   otpError: null as string | null,
-  googleIdToken: null as string | null,
 };
 
 const SMS_COOLDOWN_SECONDS = 60;
+const OTP_MIN_LENGTH = 4;
+const OTP_MAX_LENGTH = 6;
 
 interface AuthModalProps {
   open: boolean;
@@ -50,6 +54,7 @@ interface AuthModalProps {
     phone?: string;
     role: UserRole;
     email?: string;
+    name?: string;
     otp?: string;
     idToken?: string;
     signupIntent?: AuthSignupIntent;
@@ -58,7 +63,7 @@ interface AuthModalProps {
 
 function GoogleIcon() {
   return (
-    <svg className="h-5 w-5" viewBox="0 0 24 24" aria-hidden>
+    <svg className="h-[18px] w-[18px]" viewBox="0 0 24 24" aria-hidden>
       <path
         fill="#4285F4"
         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
@@ -80,7 +85,7 @@ function GoogleIcon() {
 }
 
 const inputClass =
-  "w-full rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-4 py-3.5 text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20";
+  "w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-4 py-3.5 text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/15 transition";
 
 export function AuthModal({
   open,
@@ -99,14 +104,15 @@ export function AuthModal({
   );
   const [adminEmail, setAdminEmail] = useState(AUTH_FORM_INITIAL.adminEmail);
   const [otpSending, setOtpSending] = useState(false);
+  const [socialLoading, setSocialLoading] = useState<AuthProvider | null>(null);
   const [otpError, setOtpError] = useState<string | null>(AUTH_FORM_INITIAL.otpError);
-  const [googleIdToken, setGoogleIdToken] = useState<string | null>(
-    AUTH_FORM_INITIAL.googleIdToken
-  );
   const [smsCooldown, setSmsCooldown] = useState(0);
   const [rememberMe, setRememberMe] = useState(true);
-  const googleBtnRef = useRef<HTMLDivElement>(null);
   const showQaBanner = isQaTestModeActive();
+
+  const googleReady = isGoogleAuthConfigured();
+  const appleReady = isAppleAuthConfigured();
+  const nativeEnv = isNativeAuthEnvironment();
 
   const loadRememberedPhone = () => {
     if (typeof window === "undefined") return AUTH_FORM_INITIAL.phone;
@@ -139,8 +145,8 @@ export function AuthModal({
     setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
     setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
     setOtpError(AUTH_FORM_INITIAL.otpError);
-    setGoogleIdToken(AUTH_FORM_INITIAL.googleIdToken);
     setSmsCooldown(0);
+    setSocialLoading(null);
   };
 
   useEffect(() => {
@@ -159,8 +165,8 @@ export function AuthModal({
       setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
       setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
       setOtpError(AUTH_FORM_INITIAL.otpError);
-      setGoogleIdToken(AUTH_FORM_INITIAL.googleIdToken);
       setSmsCooldown(0);
+      setSocialLoading(null);
       setPhone(loadRememberedPhone());
       try {
         setRememberMe(localStorage.getItem(REMEMBER_ME_KEY) !== "0");
@@ -172,25 +178,6 @@ export function AuthModal({
     resetAuthForm();
   }, [open]);
 
-  useEffect(() => {
-    if (!open || step !== "methods" || !googleBtnRef.current) return;
-    if (!isGoogleAuthConfigured()) return;
-    if (isNativeAuthEnvironment()) return;
-    void import("@/lib/auth/google-client").then(({ renderGoogleButton }) => {
-      if (!googleBtnRef.current) return;
-      void renderGoogleButton(googleBtnRef.current, (credential) => {
-        setGoogleIdToken(credential);
-        onClearError?.();
-        onComplete({
-          provider: "google",
-          role: "private",
-          idToken: credential,
-          signupIntent,
-        });
-      });
-    });
-  }, [open, step, onComplete, onClearError, signupIntent]);
-
   if (!open) return null;
 
   const finish = (provider: AuthProvider) => {
@@ -199,7 +186,6 @@ export function AuthModal({
       provider,
       phone: provider === "phone" ? normalizeLtPhoneForApi(phone) : undefined,
       otp: provider === "phone" ? otp : undefined,
-      idToken: provider === "google" ? googleIdToken ?? undefined : undefined,
       role: role === "admin" ? "admin" : "private",
       email: role === "admin" ? ADMIN_EMAIL : undefined,
       signupIntent: role === "admin" ? undefined : signupIntent,
@@ -208,32 +194,72 @@ export function AuthModal({
 
   const handleGoogle = async () => {
     onClearError?.();
-    if (isNativeAuthEnvironment()) {
+    setOtpError(null);
+    if (nativeEnv) {
       setOtpError(
-        "Programėlėje saugiausias būdas — prisijungti su telefonu (SMS). Google WebView gali sudrebinti sistemą."
+        "Programėlėje saugiausias būdas — prisijungti su telefonu (SMS)."
       );
       setStep("phone");
       return;
     }
-    if (isAuthApiAvailable() && !isGoogleAuthConfigured()) {
-      setOtpError(
-        "Google prisijungimas dar neaktyvuotas serveryje. Naudokite telefoną arba admin OTP."
-      );
+    if (isAuthApiAvailable() && !googleReady) {
+      setOtpError("Google prisijungimas dar neaktyvuotas. Naudokite telefoną.");
       return;
     }
-    if (isGoogleAuthConfigured()) {
-      const token = await requestGoogleIdToken();
-      if (token) {
-        onComplete({ provider: "google", role: "private", idToken: token, signupIntent });
-        return;
+    setSocialLoading("google");
+    try {
+      if (googleReady) {
+        const token = await requestGoogleIdToken();
+        if (token) {
+          onComplete({
+            provider: "google",
+            role: "private",
+            idToken: token,
+            signupIntent,
+          });
+          return;
+        }
+        if (isAuthApiAvailable()) {
+          setOtpError("Nepavyko gauti Google patvirtinimo. Bandykite dar kartą.");
+          return;
+        }
       }
-      if (isAuthApiAvailable()) {
-        setOtpError("Nepavyko gauti Google patvirtinimo. Bandykite dar kartą.");
-        return;
+      if (!isAuthApiAvailable()) {
+        onComplete({ provider: "google", role: "private", signupIntent });
       }
+    } finally {
+      setSocialLoading(null);
     }
-    if (!isAuthApiAvailable()) {
-      onComplete({ provider: "google", role: "private", signupIntent });
+  };
+
+  const handleApple = async () => {
+    onClearError?.();
+    setOtpError(null);
+    if (!appleReady) {
+      setOtpError("Apple prisijungimas dar neaktyvuotas.");
+      return;
+    }
+    if (nativeEnv) {
+      setOtpError("Programėlėje naudokite Apple per sistemos dialogą arba telefoną.");
+      return;
+    }
+    setSocialLoading("apple");
+    try {
+      const result = await requestAppleIdToken();
+      if (!result?.idToken) {
+        setOtpError("Nepavyko gauti Apple patvirtinimo. Bandykite dar kartą.");
+        return;
+      }
+      onComplete({
+        provider: "apple",
+        role: "private",
+        idToken: result.idToken,
+        email: result.email,
+        name: result.name,
+        signupIntent,
+      });
+    } finally {
+      setSocialLoading(null);
     }
   };
 
@@ -259,8 +285,12 @@ export function AuthModal({
 
   const verifyOtp = () => {
     onClearError?.();
-    if (!otp.trim() || otp.length !== 6) {
-      setOtpError("Įveskite 6 skaitmenų kodą");
+    if (
+      !otp.trim() ||
+      otp.length < OTP_MIN_LENGTH ||
+      otp.length > OTP_MAX_LENGTH
+    ) {
+      setOtpError(`Įveskite ${OTP_MIN_LENGTH}–${OTP_MAX_LENGTH} skaitmenų kodą`);
       return;
     }
     blockNativeClickThrough();
@@ -269,36 +299,38 @@ export function AuthModal({
   };
 
   const displayError = error ?? otpError;
+  const socialBusy = loading || socialLoading !== null;
 
   return (
     <div
-      className="fixed inset-0 z-[200] flex items-end justify-center bg-foreground/40 backdrop-blur-sm sm:items-center"
+      className="vauto-auth-overlay fixed inset-0 z-[200] flex items-end justify-center sm:items-center"
       onClick={(e) => e.stopPropagation()}
     >
       <div
-        className="vauto-auth-modal w-full max-w-md rounded-t-3xl p-6 shadow-2xl sm:rounded-3xl"
+        className="vauto-auth-modal vauto-auth-luxury w-full max-w-[400px] rounded-t-[28px] p-7 shadow-2xl sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-6 flex items-center justify-between">
-          <div>
-            <h2 className="text-xl font-bold text-[var(--vauto-text-heading)]">
-              Prisijungti prie VAUTO
-            </h2>
-            <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
-              {step === "methods" && "Saugus prisijungimas per 30 sek."}
-              {step === "phone" && "Įveskite telefono numerį"}
-              {step === "otp" && "Patvirtinkite SMS kodą"}
-              {step === "admin" && "VAUTO moderatorių prieiga"}
-            </p>
+        <div className="vauto-auth-luxury-header mb-7">
+          <div className="mb-5 flex items-start justify-between">
+            <div className="vauto-auth-luxury-mark" aria-hidden />
+            <button
+              type="button"
+              onClick={onClose}
+              className="rounded-full p-2 text-[var(--vauto-text-muted)] transition hover:bg-[var(--vauto-surface-muted)]"
+              aria-label="Uždaryti"
+            >
+              <X className="h-5 w-5" />
+            </button>
           </div>
-          <button
-            type="button"
-            onClick={onClose}
-            className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
-            aria-label="Uždaryti"
-          >
-            <X className="h-5 w-5" />
-          </button>
+          <h2 className="text-[1.35rem] font-semibold tracking-tight text-[var(--vauto-text-heading)]">
+            Prisijungti
+          </h2>
+          <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
+            {step === "methods" && "Pasirinkite patogiausią būdą"}
+            {step === "phone" && "Įveskite telefono numerį"}
+            {step === "otp" && "Patvirtinkite SMS kodą"}
+            {step === "admin" && "VAUTO moderatorių prieiga"}
+          </p>
         </div>
 
         {showQaBanner && (
@@ -308,22 +340,20 @@ export function AuthModal({
         )}
 
         {displayError && (
-          <p className="mb-4 rounded-xl border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <p className="vauto-auth-error mb-5 rounded-xl px-3.5 py-2.5 text-sm">
             {displayError}
           </p>
         )}
 
         {step === "methods" && (
-          <div className="space-y-3">
-            <div className="rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] p-1">
-              <p className="px-3 pb-2 pt-2 text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-text-main)]">
-                Paskyros tipas
-              </p>
-              <div className="grid grid-cols-3 gap-1">
+          <div className="space-y-5">
+            <div className="vauto-auth-intent-picker">
+              <p className="vauto-auth-intent-label">Paskyros tipas</p>
+              <div className="grid grid-cols-3 gap-1.5">
                 {(
                   [
                     ["private", "Privatus", UserRound],
-                    ["pro", "Verslas PRO", Building2],
+                    ["pro", "Verslas", Building2],
                     ["wardrobe", "Asortimentas", LayoutGrid],
                   ] as const
                 ).map(([key, label, Icon]) => (
@@ -331,101 +361,85 @@ export function AuthModal({
                     key={key}
                     type="button"
                     onClick={() => setSignupIntent(key)}
-                    className={`flex flex-col items-center gap-1 rounded-xl px-2 py-2.5 text-[10px] font-semibold transition ${
-                      signupIntent === key
-                        ? "bg-primary text-primary-foreground shadow-sm"
-                        : "text-muted-foreground hover:bg-card hover:text-foreground"
+                    className={`vauto-auth-intent-btn ${
+                      signupIntent === key ? "vauto-auth-intent-btn--active" : ""
                     }`}
                   >
-                    <Icon className="h-4 w-4" />
-                    {label}
+                    <Icon className="h-3.5 w-3.5" />
+                    <span>{label}</span>
                   </button>
                 ))}
               </div>
             </div>
 
-            <button
-              type="button"
-              onClick={() => void handleGoogle()}
-              disabled={loading || (isAuthApiAvailable() && !isGoogleAuthConfigured())}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] py-3.5 text-sm font-semibold text-[var(--vauto-text-main)] transition hover:bg-[var(--vauto-surface-muted)] disabled:cursor-not-allowed disabled:opacity-50"
-            >
-              <GoogleIcon />
-              Prisijungti su Google
-            </button>
-
-            {isAuthApiAvailable() && !isGoogleAuthConfigured() && (
-              <p className="text-center text-[10px] text-[var(--vauto-text-muted)]">
-                Google prisijungimas netrukus — naudokite telefono numerį.
-              </p>
-            )}
-
-            {isGoogleAuthConfigured() && !isNativeAuthEnvironment() && (
-              <div ref={googleBtnRef} className="flex justify-center" />
-            )}
-
-            {isNativeAuthEnvironment() && (
-              <p className="text-center text-[11px] leading-relaxed text-[var(--vauto-text-muted)]">
-                Google prisijungimas programėlėje laikinai išjungtas. Naudokite{" "}
-                <span className="font-medium text-[var(--vauto-primary)]">telefono numerį</span>{" "}
-                žemiau.
-              </p>
-            )}
-
-            {isAppleAuthConfigured() ? (
+            <div className="vauto-auth-providers space-y-2.5">
               <button
                 type="button"
-                onClick={() => {
-                  onClearError?.();
-                  onComplete({ provider: "apple", role: "private", signupIntent });
-                }}
-                disabled={loading}
-                className="flex w-full items-center justify-center gap-3 rounded-2xl bg-foreground py-3.5 text-sm font-semibold text-background transition hover:opacity-90 disabled:opacity-60"
+                onClick={() => void handleGoogle()}
+                disabled={
+                  socialBusy ||
+                  (isAuthApiAvailable() && !googleReady && !nativeEnv)
+                }
+                className="vauto-auth-provider-btn"
               >
-                <Apple className="h-5 w-5" />
-                Prisijungti su Apple
-              </button>
-            ) : (
-              <button
-                type="button"
-                disabled
-                className="flex w-full cursor-not-allowed items-center justify-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)] py-3.5 text-sm font-semibold text-[var(--vauto-text-muted)]"
-              >
-                <Apple className="h-5 w-5" />
-                Apple (netrukus)
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={() => setStep("phone")}
-              disabled={loading}
-              className="flex w-full items-center justify-center gap-3 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] transition hover:opacity-95 disabled:opacity-60"
-            >
-              <Phone className="h-5 w-5" />
-              Prisijungti su telefonu
-            </button>
-
-            {isAuthApiAvailable() ? (
-              <p className="pt-2 text-center text-xs text-[var(--vauto-text-muted)]">
-                OTP kodas siunčiamas per VAUTO serverį
-              </p>
-            ) : (
-              <p className="pt-2 text-center text-xs text-[var(--vauto-text-muted)]">
-                Demo režimas: kodas{" "}
-                <span className="font-mono font-semibold text-[var(--vauto-primary)]">
-                  {QA_DEMO_OTP}
+                <span className="vauto-auth-provider-icon">
+                  <GoogleIcon />
                 </span>
+                <span className="vauto-auth-provider-label">
+                  {socialLoading === "google" ? "Jungiamasi…" : "Prisijungti su Google"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => void handleApple()}
+                disabled={socialBusy || !appleReady}
+                className="vauto-auth-provider-btn vauto-auth-provider-btn--apple"
+              >
+                <span className="vauto-auth-provider-icon vauto-auth-provider-icon--apple">
+                  <Apple className="h-[18px] w-[18px]" />
+                </span>
+                <span className="vauto-auth-provider-label">
+                  {socialLoading === "apple"
+                    ? "Jungiamasi…"
+                    : appleReady
+                      ? "Prisijungti su Apple"
+                      : "Apple (netrukus)"}
+                </span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setStep("phone")}
+                disabled={socialBusy}
+                className="vauto-auth-provider-btn vauto-auth-provider-btn--phone"
+              >
+                <span className="vauto-auth-provider-icon vauto-auth-provider-icon--phone">
+                  <Phone className="h-[18px] w-[18px]" />
+                </span>
+                <span className="vauto-auth-provider-label">Prisijungti telefonu</span>
+              </button>
+            </div>
+
+            {nativeEnv && (
+              <p className="text-center text-[11px] leading-relaxed text-[var(--vauto-text-muted)]">
+                Google ir Apple web prisijungimas programėlėje ribotas — rekomenduojame SMS.
               </p>
             )}
+
+            <p className="text-center text-[11px] text-[var(--vauto-text-muted)]">
+              {isAuthApiAvailable()
+                ? "SMS kodas siunčiamas saugiai per VAUTO serverį"
+                : `Demo režimas: kodas ${QA_DEMO_OTP}`}
+            </p>
 
             <button
               type="button"
               onClick={() => setStep("admin")}
-              className="flex w-full items-center justify-center gap-2 pt-1 text-xs text-[var(--vauto-text-muted)] hover:text-red-600"
+              className="flex w-full items-center justify-center gap-1.5 pt-1 text-[11px] text-[var(--vauto-text-muted)] transition hover:text-red-600"
             >
-              <Shield className="h-3.5 w-3.5" />
-              VAUTO Control Center (admin)
+              <Shield className="h-3 w-3" />
+              VAUTO Control Center
             </button>
           </div>
         )}
@@ -441,7 +455,7 @@ export function AuthModal({
               className={inputClass}
               placeholder="admin@vauto.com"
             />
-            {isGoogleAuthConfigured() ? (
+            {googleReady ? (
               <button
                 type="button"
                 onClick={async () => {
@@ -459,7 +473,7 @@ export function AuthModal({
                   });
                 }}
                 disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
-                className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
+                className="w-full rounded-xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
               >
                 Prisijungti su Google (admin)
               </button>
@@ -467,14 +481,8 @@ export function AuthModal({
               <>
                 <p className="text-xs text-[var(--vauto-text-muted)]">
                   Google OAuth neaktyvus — naudokite admin telefoną{" "}
-                  <span className="font-mono font-semibold text-[var(--vauto-text-main)]">
-                    {ADMIN_PHONE}
-                  </span>{" "}
-                  ir demo OTP{" "}
-                  <span className="font-mono font-semibold text-[var(--vauto-text-main)]">
-                    {QA_DEMO_OTP}
-                  </span>
-                  .
+                  <span className="font-mono font-semibold">{ADMIN_PHONE}</span> ir demo OTP{" "}
+                  <span className="font-mono font-semibold">{QA_DEMO_OTP}</span>.
                 </p>
                 <button
                   type="button"
@@ -485,7 +493,7 @@ export function AuthModal({
                     setStep("phone");
                   }}
                   disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
-                  className="w-full rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
+                  className="w-full rounded-xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
                 >
                   Tęsti su admin telefonu
                 </button>
@@ -537,12 +545,12 @@ export function AuthModal({
                 }}
                 className="h-4 w-4 rounded border-[var(--vauto-border)] accent-[var(--vauto-primary)]"
               />
-              Prisiminti mane (įrenginio autofill)
+              Prisiminti mane
             </label>
             <button
               type="submit"
               disabled={otpSending || smsCooldown > 0}
-              className="w-full rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
+              className="vauto-auth-submit-btn w-full disabled:opacity-60"
             >
               {otpSending
                 ? "Siunčiama…"
@@ -575,16 +583,16 @@ export function AuthModal({
               id="vauto-auth-otp"
               inputMode="numeric"
               autoComplete="one-time-code"
-              maxLength={6}
+              maxLength={OTP_MAX_LENGTH}
               value={otp}
               onChange={(e) => setOtp(e.target.value.replace(/\D/g, ""))}
-              className={`${inputClass} text-center font-mono text-2xl tracking-[0.4em]`}
+              className={`${inputClass} text-center font-mono text-2xl tracking-[0.35em]`}
               placeholder="••••••"
             />
             <button
               type="submit"
               disabled={loading}
-              className="w-full rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
+              className="vauto-auth-submit-btn w-full disabled:opacity-60"
             >
               {loading ? "Jungiamasi…" : "Patvirtinti ir prisijungti"}
             </button>

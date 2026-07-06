@@ -143,6 +143,8 @@ export interface LoginPayload {
 
   idToken?: string;
 
+  name?: string;
+
   signupIntent?: AuthSignupIntent;
 
 }
@@ -789,6 +791,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
                   role: data.role === "admin" ? "admin" : "private",
 
                   email: data.email,
+
+                  name: data.name,
 
                   city: data.city ?? user.city,
 
