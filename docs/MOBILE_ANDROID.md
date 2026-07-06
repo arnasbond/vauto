@@ -13,11 +13,29 @@ Gamybiniam APK paruošimas Android Studio.
 ```powershell
 npm install
 npm run cap:assets    # ikonos + splash iš assets/
-npm run apk           # debug APK
+npm run apk           # debug APK (lokalus)
 npm run apk -Release  # release APK (nepasirašytas)
 ```
 
 Arba atidarykite `android/` Android Studio: **File → Open → android**.
+
+## Automatinis CI build (GitHub Actions)
+
+Kiekvienas **push į `master`** paleidžia workflow `.github/workflows/android-build.yml`:
+
+1. Surinkia Next.js eksportą + Capacitor Android
+2. Sugeneruoja debug APK
+3. Publikuoja į **GitHub Releases** su tag `android-latest`
+
+### Nuolatinės atsisiuntimo nuorodos
+
+| Kanalas | URL |
+|---------|-----|
+| **GitHub Releases (tiesiogiai)** | https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk |
+| **Per svetainę (telefonui)** | https://www.vauto.lt/download/vauto.apk |
+| **Releases puslapis** | https://github.com/arnasbond/vauto/releases/tag/android-latest |
+
+Rankinis paleidimas: GitHub → **Actions** → **Android APK Build & Release** → **Run workflow**.
 
 ## Konfigūracija
 
