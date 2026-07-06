@@ -4,6 +4,7 @@
 import type { ShippingLabelResult } from "./carrier-adapter.js";
 import type { ShippingProviderId } from "./shipping-routing.js";
 import { resolveCarrierAdapter } from "./providers/carrier-adapters.js";
+import { isOmnivaLiveConfigured } from "../services/omniva.js";
 
 export type CarrierProviderStatus =
   | "missing_key"
@@ -37,8 +38,8 @@ function envForProvider(providerId: ShippingProviderId): {
   switch (providerId) {
     case "omniva":
       return {
-        keyConfigured: Boolean(process.env.OMNIVA_API_KEY?.trim()),
-        urlConfigured: Boolean(process.env.OMNIVA_API_URL?.trim()),
+        keyConfigured: isOmnivaLiveConfigured(),
+        urlConfigured: true,
       };
     case "dpd":
       return {

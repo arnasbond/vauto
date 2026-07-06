@@ -75,10 +75,12 @@ services:
         sync: false
       - key: REMOVEBG_API_KEY
         sync: false
-      - key: OMNIVA_API_KEY
+      - key: OMNIVA_USERNAME
+        sync: false
+      - key: OMNIVA_PASSWORD
         sync: false
       - key: OMNIVA_API_URL
-        sync: false
+        value: https://omx.omniva.eu/api/v01/omx
       - key: DPD_API_KEY
         sync: false
       - key: DPD_API_URL

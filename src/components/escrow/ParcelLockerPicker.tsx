@@ -1,7 +1,9 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { MapPin, Search, Truck } from "lucide-react";
+import { apiSearchParcelLockers } from "@/lib/api/client";
+import { isDataApiEnabled } from "@/lib/api/config";
 import type { ShippingProviderId } from "@/lib/shipping/shipping-provider";
 import {
   estimateNationalShippingRoute,
@@ -25,17 +27,66 @@ export function ParcelLockerPicker({
 }: ParcelLockerPickerProps) {
   const [query, setQuery] = useState("");
   const [cityFilter, setCityFilter] = useState("");
+  const [remoteLockers, setRemoteLockers] = useState<ParcelLocker[] | null>(null);
+  const [liveSource, setLiveSource] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [loadError, setLoadError] = useState<string | null>(null);
 
-  const lockers = useMemo(
-    () =>
-      searchParcelLockers({
+  const useApi = isDataApiEnabled() && providerId === "omniva";
+
+  useEffect(() => {
+    if (!useApi) {
+      setRemoteLockers(null);
+      setLiveSource(false);
+      setLoadError(null);
+      return;
+    }
+
+    let cancelled = false;
+    const timer = window.setTimeout(() => {
+      setLoading(true);
+      setLoadError(null);
+      void apiSearchParcelLockers({
         providerId,
-        query: query || undefined,
         city: cityFilter || undefined,
-        limit: 40,
-      }),
-    [providerId, query, cityFilter]
-  );
+        q: query || undefined,
+        limit: 60,
+      }).then((res) => {
+        if (cancelled) return;
+        if (res.ok) {
+          setRemoteLockers(res.data.lockers);
+          setLiveSource(true);
+          setLoadError(null);
+        } else {
+          setRemoteLockers(null);
+          setLiveSource(false);
+          setLoadError(res.error || "Nepavyko gauti paštomatų sąrašo");
+        }
+      }).catch(() => {
+        if (cancelled) return;
+        setRemoteLockers(null);
+        setLiveSource(false);
+        setLoadError("Nepavyko prisijungti prie VAUTO API");
+      }).finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+    }, query || cityFilter ? 280 : 0);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+  }, [useApi, providerId, query, cityFilter]);
+
+  const lockers = useMemo(() => {
+    if (remoteLockers) return remoteLockers;
+    return searchParcelLockers({
+      providerId,
+      query: query || undefined,
+      city: cityFilter || undefined,
+      limit: 40,
+    });
+  }, [remoteLockers, providerId, query, cityFilter]);
 
   const selectedLocker = lockers.find((l) => l.id === selectedId);
 
@@ -55,7 +106,7 @@ export function ParcelLockerPicker({
           Pristatymo paštomatas (pirkėjo)
         </p>
         <span className="text-[10px] font-medium text-emerald-600">
-          {NATIONAL_COVERAGE_LABEL}
+          {liveSource ? "Omniva · gyvas sąrašas" : NATIONAL_COVERAGE_LABEL}
         </span>
       </div>
 
@@ -82,6 +133,15 @@ export function ParcelLockerPicker({
         </label>
       </div>
 
+      {loading && (
+        <p className="text-xs text-slate-500">Kraunami Omniva paštomatai…</p>
+      )}
+      {loadError && !loading && !remoteLockers && (
+        <p className="rounded-xl border border-amber-200 bg-amber-50 p-2 text-xs text-amber-800">
+          {loadError} — rodomas atsarginis sąrašas.
+        </p>
+      )}
+
       <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
         {lockers.map((locker) => {
           const active = selectedId === locker.id;
@@ -105,7 +165,7 @@ export function ParcelLockerPicker({
             </button>
           );
         })}
-        {lockers.length === 0 && (
+        {!loading && lockers.length === 0 && (
           <p className="rounded-xl border border-dashed border-slate-200 p-3 text-xs text-slate-500">
             Paštomatų nerasta — pabandykite kitą miestą ar paiešką.
           </p>

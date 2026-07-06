@@ -147,7 +147,20 @@ async function main() {
   await setEnvVar("PUBLIC_API_URL", "https://vauto-api.onrender.com");
   await setEnvVar("APP_ORIGIN", "https://www.vauto.lt");
 
-  // Beta-friendly rate limits — avoids shared-IP/NAT false 429s and lets the
+  // Omniva OMX production (username/password from account manager)
+  if (process.env.OMNIVA_USERNAME?.trim()) {
+    await setEnvVar("OMNIVA_USERNAME", process.env.OMNIVA_USERNAME.trim());
+  }
+  if (process.env.OMNIVA_PASSWORD?.trim()) {
+    await setEnvVar("OMNIVA_PASSWORD", process.env.OMNIVA_PASSWORD.trim());
+  }
+  await setEnvVar(
+    "OMNIVA_API_URL",
+    process.env.OMNIVA_API_URL?.trim() ||
+      "https://omx.omniva.eu/api/v01/omx"
+  );
+
+  // Beta-friendly rate limits
   // read-heavy SPA breathe. General API is the tier that was throwing
   // "Per daug užklausų per minutę" during normal browsing (default was 30/min).
   await setEnvVar(
