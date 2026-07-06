@@ -32,7 +32,7 @@ function applyThemeToDocument(theme: AppThemeId): void {
   const meta = document.querySelector('meta[name="theme-color"]');
   const colors: Record<AppThemeId, string> = {
     "vauto-original": "#F4F7FC",
-    dark: "#0B0F19",
+    dark: "#0a0f18",
     "light-minimal": "#FAFAFA",
   };
   if (meta) meta.setAttribute("content", colors[theme]);

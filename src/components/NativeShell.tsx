@@ -71,8 +71,8 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
         const { StatusBar, Style } = await import("@capacitor/status-bar");
         // overlay:true crashes WebView on some Samsung foldables (One UI edge-to-edge)
         await StatusBar.setOverlaysWebView({ overlay: false });
-        await StatusBar.setStyle({ style: Style.Light });
-        await StatusBar.setBackgroundColor({ color: "#00bfa5" });
+        await StatusBar.setStyle({ style: Style.Dark });
+        await StatusBar.setBackgroundColor({ color: "#0a0f18" });
       } catch {
         /* plugin unavailable in browser */
       }

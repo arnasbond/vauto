@@ -56,15 +56,16 @@ export function HomeAiHero({
           aria-label="VAUTO pradžia"
         >
           <VautoLogo
-            className="text-[2.35rem] sm:text-[2.75rem] md:text-[2.5rem]"
-            color="var(--vauto-text-main)"
-            dotColor="var(--vauto-accent)"
+            variant="brand"
+            markSize="lg"
+            showTagline
+            className="justify-center md:justify-start"
           />
         </Link>
 
         <div className="mb-2 flex items-center gap-2 px-2 md:px-0">
           <Sparkles
-            className="h-4 w-4 shrink-0 text-[var(--vauto-primary)]"
+            className="h-4 w-4 shrink-0 text-[var(--vauto-neon,var(--flux-cyan))]"
             aria-hidden
           />
           <p className="home-ai-hero-greeting vauto-body-text text-[15px] font-medium sm:text-base">

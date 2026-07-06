@@ -7,11 +7,8 @@ import { VautoLogo } from "@/components/VautoLogo";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useVauto } from "@/context/VautoContext";
 
-import { useActivePortal } from "@/hooks/useActivePortal";
-
 export function Header() {
   const { user, isAuthenticated, openAuthModal } = useVauto();
-  const { ui } = useActivePortal();
 
   const handleProfile = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
@@ -21,19 +18,16 @@ export function Header() {
   };
 
   return (
-    <header className="flex items-center justify-between">
-      <Link href="/">
-        <VautoLogo color={ui.accent} dotColor={ui.cta} />
+    <header className="vauto-app-header flex items-center justify-between gap-3 py-1">
+      <Link href="/" className="min-w-0 shrink" aria-label="VAUTO pradžia">
+        <VautoLogo variant="brand" markSize="sm" />
       </Link>
 
-      <div className="flex items-center gap-3">
-        <Link
-          href="/apie/"
-          className="text-xs font-semibold text-[var(--vauto-text-muted,#6b7280)] transition hover:text-[var(--vauto-teal,#0d9488)]"
-        >
+      <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
+        <Link href="/apie/" className="vauto-header-link text-xs font-semibold">
           Apie
         </Link>
-        <div style={{ borderColor: ui.border, color: ui.accent }}>
+        <div className="vauto-header-icon-ring">
           <NotificationBell />
         </div>
         <Link
@@ -43,7 +37,7 @@ export function Header() {
           aria-label={isAuthenticated ? "Profilis" : "Anoniminis naršymas — prisijungti"}
         >
           {isAuthenticated && user.avatar ? (
-            <span className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-[#d7dde5]">
+            <span className="vauto-header-avatar h-9 w-9 overflow-hidden rounded-full ring-2">
               <Image
                 src={user.avatar}
                 alt={user.name}

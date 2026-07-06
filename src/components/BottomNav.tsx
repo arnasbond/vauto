@@ -177,7 +177,7 @@ export function BottomNav() {
   };
 
   const tabColor = (active: boolean) =>
-    active ? "var(--vauto-primary)" : "var(--vauto-text-muted)";
+    active ? "var(--vauto-neon, var(--flux-cyan))" : "var(--vauto-text-muted)";
 
   return (
     <nav
@@ -212,16 +212,12 @@ export function BottomNav() {
           type="button"
           onClick={handlePlaceAd}
           disabled={placeAdBusy}
-          className="relative -mt-7 flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 text-[10px] font-bold disabled:opacity-50"
-          style={{ color: "var(--vauto-accent)" }}
+          className="vauto-bottom-nav-fab relative -mt-7 flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 text-[10px] font-bold disabled:opacity-50"
+          style={{ color: "var(--vauto-neon, var(--vauto-accent))" }}
           aria-label="Įdėti naują skelbimą"
         >
           <span
-            className="flex h-14 w-14 items-center justify-center rounded-full border-[4px] border-[var(--vauto-card-bg)] text-[var(--vauto-primary-contrast,#fff)] shadow-lg"
-            style={{
-              backgroundColor: "var(--vauto-accent)",
-              boxShadow: "0 10px 28px color-mix(in srgb, var(--vauto-accent) 35%, transparent)",
-            }}
+            className="vauto-bottom-nav-fab-btn flex h-14 w-14 items-center justify-center rounded-full border-[4px] border-[var(--vauto-card-bg)] text-[var(--vauto-primary-contrast,#0a0f18)]"
           >
             <Plus className="h-7 w-7" strokeWidth={2.5} />
           </span>

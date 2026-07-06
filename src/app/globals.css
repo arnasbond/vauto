@@ -14,20 +14,20 @@
   --border: rgba(12, 14, 18, 0.1);
   --accent: #eef2ff;
   --accent-foreground: #0c0e12;
-  --primary: #1e4ed8;
+  --primary: #0891b2;
   --primary-foreground: #ffffff;
-  --ring: #1e4ed8;
+  --ring: #00d4ff;
   --radius: 0.75rem;
 
-  /* ── Legacy Flux mesh (toned down for light) ── */
+  /* ── Legacy Flux mesh (neon cyan family) ── */
   --flux-bg: var(--background);
-  --flux-teal: var(--primary);
-  --flux-cyan: #3b82f6;
-  --flux-indigo: #4338ca;
+  --flux-teal: #06b6d4;
+  --flux-cyan: #00d4ff;
+  --flux-indigo: #0284c7;
   --flux-coral: #c2410c;
   --flux-coral-light: #ea580c;
-  --flux-price-start: #1e4ed8;
-  --flux-price-end: #6366f1;
+  --flux-price-start: #00d4ff;
+  --flux-price-end: #0369a1;
 
   /* ── Canonical VAUTO tokens (alias semantic) ── */
   --vauto-bg: var(--background);
@@ -37,7 +37,10 @@
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #4338ca;
+  --vauto-accent: #00d4ff;
+  --vauto-neon: #00d4ff;
+  --vauto-neon-soft: rgba(0, 212, 255, 0.14);
+  --vauto-navy: #0a0f18;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
   --vauto-leading: 1.55;
@@ -264,9 +267,9 @@ body {
 /* Ambient mesh — Flux signature background */
 .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 170, 0.22), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(99, 102, 241, 0.2), transparent 50%),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(255, 107, 74, 0.12), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 255, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(2, 132, 199, 0.08), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(0, 212, 255, 0.06), transparent 55%),
     var(--flux-bg);
 }
 
@@ -316,7 +319,7 @@ body {
 
 .vauto-flux-gradient-btn {
   background: linear-gradient(135deg, var(--flux-teal) 0%, var(--flux-cyan) 50%, var(--flux-indigo) 100%);
-  box-shadow: 0 8px 24px -6px rgba(0, 212, 170, 0.55);
+  box-shadow: 0 8px 24px -6px color-mix(in srgb, var(--vauto-neon, #00d4ff) 55%, transparent);
 }
 
 .vauto-flux-chip-on {
@@ -666,10 +669,59 @@ body.vauto-audio-first .vauto-dashboard-card {
 }
 
 .vauto-bottom-nav {
-  border-color: var(--vauto-border);
-  background: color-mix(in srgb, var(--vauto-card-bg) 92%, transparent);
+  border-color: color-mix(in srgb, var(--vauto-neon, var(--flux-cyan)) 18%, var(--vauto-border));
+  background: color-mix(in srgb, var(--vauto-card-bg) 90%, transparent);
   color: var(--vauto-text-main);
-  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
+  box-shadow:
+    0 -1px 0 color-mix(in srgb, var(--vauto-neon, var(--flux-cyan)) 22%, transparent),
+    0 -12px 32px rgba(10, 15, 24, 0.12);
+}
+
+.vauto-bottom-nav-fab-btn {
+  background: linear-gradient(145deg, #22d3ee 0%, #00d4ff 45%, #0284c7 100%);
+  box-shadow:
+    0 10px 28px color-mix(in srgb, var(--vauto-neon, #00d4ff) 42%, transparent),
+    0 0 0 1px color-mix(in srgb, var(--vauto-neon, #00d4ff) 35%, transparent);
+}
+
+.vauto-app-header {
+  position: relative;
+}
+
+.vauto-brand-wordmark {
+  background: linear-gradient(165deg, #0c4a6e 0%, #0891b2 38%, #00d4ff 72%, #7dd3fc 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.vauto-brand-tagline {
+  color: color-mix(in srgb, var(--vauto-neon, #00d4ff) 72%, var(--vauto-text-muted));
+}
+
+.vauto-hex-mark {
+  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--vauto-neon, #00d4ff) 55%, transparent));
+}
+
+.vauto-header-link {
+  color: var(--vauto-text-muted);
+  transition: color var(--vauto-motion);
+}
+
+.vauto-header-link:hover {
+  color: var(--vauto-neon, var(--flux-cyan));
+}
+
+.vauto-header-icon-ring {
+  color: var(--vauto-neon, var(--flux-cyan));
+}
+
+.vauto-header-avatar {
+  --tw-ring-color: color-mix(in srgb, var(--vauto-neon, #00d4ff) 45%, #d7dde5);
+}
+
+.vauto-top-chrome {
+  box-shadow: 0 1px 0 color-mix(in srgb, var(--vauto-neon, #00d4ff) 12%, transparent);
 }
 
 .vauto-auth-overlay {
@@ -1610,30 +1662,33 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 /* ── Global app themes (Profilis → Programėlės tema) ── */
 [data-app-theme="vauto-original"] {
-  --background: #f6f7f9;
-  --foreground: #0c0e12;
+  --background: #f4f7fb;
+  --foreground: #0a0f18;
   --card: #ffffff;
   --popover: #ffffff;
   --muted-foreground: #5c6573;
-  --border: rgba(12, 14, 18, 0.1);
-  --accent: #eef2ff;
-  --accent-foreground: #0c0e12;
-  --primary: #1e4ed8;
+  --border: rgba(10, 15, 24, 0.1);
+  --accent: #e0f7ff;
+  --accent-foreground: #0a0f18;
+  --primary: #0891b2;
   --primary-foreground: #ffffff;
-  --ring: #1e4ed8;
+  --ring: #00d4ff;
   --flux-bg: var(--background);
-  --flux-teal: var(--primary);
-  --flux-cyan: #3b82f6;
-  --flux-indigo: #4338ca;
+  --flux-teal: #06b6d4;
+  --flux-cyan: #00d4ff;
+  --flux-indigo: #0284c7;
   --flux-coral: #c2410c;
   --vauto-bg: var(--background);
   --vauto-card-bg: var(--card);
-  --vauto-surface-muted: #f1f3f6;
+  --vauto-surface-muted: #eef4f8;
   --vauto-text-main: var(--foreground);
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #4338ca;
+  --vauto-accent: #00d4ff;
+  --vauto-neon: #00d4ff;
+  --vauto-neon-soft: rgba(0, 212, 255, 0.12);
+  --vauto-navy: #0a0f18;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
 }
@@ -1646,42 +1701,49 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 [data-app-theme="vauto-original"] .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(30, 78, 216, 0.07), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(67, 56, 202, 0.05), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 255, 0.1), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(2, 132, 199, 0.07), transparent 50%),
     var(--background);
 }
 
 [data-app-theme="vauto-original"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #1e4ed8, #3b82f6);
-  box-shadow: 0 12px 32px -8px rgba(30, 78, 216, 0.35);
+  background: linear-gradient(135deg, #06b6d4, #00d4ff);
+  box-shadow: 0 12px 32px -8px rgba(0, 212, 255, 0.38);
   border-color: var(--card);
 }
 
+[data-app-theme="vauto-original"] .vauto-brand-wordmark {
+  background: linear-gradient(165deg, #0c4a6e 0%, #0891b2 38%, #00d4ff 72%, #7dd3fc 100%);
+}
+
 [data-app-theme="dark"] {
-  --background: #0a0c10;
+  --background: #0a0f18;
   --foreground: #f1f5f9;
-  --card: #141820;
-  --popover: #181c26;
+  --card: #111827;
+  --popover: #141c2b;
   --muted-foreground: #94a3b8;
-  --border: rgba(241, 245, 249, 0.1);
-  --accent: #1e293b;
+  --border: rgba(0, 212, 255, 0.12);
+  --accent: #132033;
   --accent-foreground: #f1f5f9;
-  --primary: #60a5fa;
-  --primary-foreground: #0a0c10;
-  --ring: #60a5fa;
+  --primary: #00d4ff;
+  --primary-foreground: #0a0f18;
+  --ring: #00d4ff;
   --flux-bg: var(--background);
-  --flux-teal: #38bdf8;
-  --flux-cyan: #22d3ee;
-  --flux-indigo: #818cf8;
+  --flux-teal: #22d3ee;
+  --flux-cyan: #00d4ff;
+  --flux-indigo: #0284c7;
   --flux-coral: #fb923c;
   --vauto-bg: var(--background);
   --vauto-card-bg: var(--card);
-  --vauto-surface-muted: #1a1f2b;
+  --vauto-surface-muted: #151d2e;
   --vauto-text-main: var(--foreground);
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #818cf8;
+  --vauto-accent: #00d4ff;
+  --vauto-neon: #00d4ff;
+  --vauto-neon-soft: rgba(0, 212, 255, 0.16);
+  --vauto-navy: #0a0f18;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
   --portal-text: var(--foreground);
@@ -1698,14 +1760,25 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 [data-app-theme="dark"] .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 242, 254, 0.14), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(99, 102, 241, 0.16), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 255, 0.16), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(2, 132, 199, 0.14), transparent 50%),
     var(--vauto-bg);
 }
 
 [data-app-theme="dark"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #00f2fe 0%, #6366f1 50%, #22d3ee 100%);
-  box-shadow: 0 12px 36px -8px rgba(0, 242, 254, 0.45);
+  background: linear-gradient(135deg, #00d4ff 0%, #0284c7 55%, #22d3ee 100%);
+  box-shadow: 0 12px 36px -8px rgba(0, 212, 255, 0.48);
+}
+
+[data-app-theme="dark"] .vauto-brand-wordmark {
+  background: linear-gradient(165deg, #e0f7ff 0%, #7dd3fc 35%, #00d4ff 70%, #22d3ee 100%);
+}
+
+[data-app-theme="dark"] .vauto-bottom-nav {
+  background: color-mix(in srgb, var(--vauto-navy) 88%, #111827);
+  box-shadow:
+    0 -1px 0 rgba(0, 212, 255, 0.22),
+    0 -16px 40px rgba(0, 0, 0, 0.35);
 }
 
 [data-app-theme="dark"] .text-xs,

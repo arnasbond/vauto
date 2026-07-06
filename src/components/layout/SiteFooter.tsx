@@ -20,7 +20,7 @@ export function SiteFooter({ className = "" }: { className?: string }) {
           <Link
             key={link.href}
             href={link.href}
-            className="transition hover:text-[var(--vauto-teal,#0d9488)]"
+            className="transition hover:text-[var(--vauto-neon,var(--flux-cyan))]"
           >
             {link.label}
           </Link>

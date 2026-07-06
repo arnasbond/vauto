@@ -115,7 +115,7 @@ export function PullToRefreshHost({ children }: { children: ReactNode }) {
         <div className="mt-2 flex flex-col items-center gap-1">
           <Loader2
             className={cn(
-              "h-5 w-5 text-[var(--vauto-primary,#00bfa5)]",
+              "h-5 w-5 text-[var(--vauto-neon,var(--flux-cyan))]",
               refreshing ? "animate-spin" : ""
             )}
             style={{
