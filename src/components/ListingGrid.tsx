@@ -1,4 +1,5 @@
 "use client";
+// @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
 import { useState, useEffect } from "react";
 import { useVauto } from "@/context/VautoContext";
@@ -13,13 +14,9 @@ import {
 } from "@/components/marketplace/MarketplaceListingCards";
 import { ListingMapView } from "@/components/marketplace/ListingMapView";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
-import { buildEmptySearchBannerMessage } from "@/lib/empathy-copy";
+import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import {
-  agentHasSupervisorReply,
-  isSyntheticAgentQuery,
-} from "@/lib/agent-chat-layout";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -78,11 +75,10 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const theme = portal.theme;
   const ui = getPortalUi(theme);
   const browseAllActive = resolveBrowseAllIntent(searchQuery);
-  const suppressEmptyFallback =
-    hideEmptyAssistant ||
+  const supervisorContext =
     agentBusy ||
     agentHasSupervisorReply(messages) ||
-    isSyntheticAgentQuery(searchQuery);
+    messages.some((m) => m.role === "assistant");
 
   const renderListingCards = (items: typeof displayListings, showLoadMore = false) => {
     const visible = sliceForNative(items);
@@ -167,21 +163,15 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         <>
           {!browseAllActive &&
           searchQuery.trim().length >= 3 &&
-          !suppressEmptyFallback ? (
+          !hideEmptyAssistant &&
+          !supervisorContext ? (
             isAbsurdSearchQuery(searchQuery, listings) ? (
               <WantedEmptyState
                 searchQuery={searchQuery}
                 borderColor={ui.border}
                 textMuted={ui.textMuted}
               />
-            ) : (
-              <p
-                className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"
-                style={{ borderColor: ui.border, color: ui.textMuted }}
-              >
-                {buildEmptySearchBannerMessage(searchQuery)}
-              </p>
-            )
+            ) : null
           ) : searchQuery.trim().length < 3 ? (
             <p
               className="vauto-surface-panel mt-4 rounded-2xl border border-dashed p-6 text-center text-sm"

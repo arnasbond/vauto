@@ -5,6 +5,10 @@
 
 import type { UserProfile } from "@/lib/types";
 import { loadAccessToken } from "@/lib/auth/session";
+import {
+  toLithuanianDative,
+  toLithuanianVocative,
+} from "@/lib/lithuanian-name-case";
 
 const AUTH_USER_KEY = "vauto_user_v1";
 const AUTH_SESSION_KEY = "vauto_auth_v1";
@@ -13,6 +17,8 @@ export interface SupervisorCurrentUser {
   id?: string;
   name: string;
   firstName: string;
+  firstNameVocative: string;
+  firstNameDative: string;
   status: "authenticated" | "guest";
   accountType?: string;
   role?: string;
@@ -83,6 +89,8 @@ export function buildSupervisorCurrentUser(params: {
     id: authenticated ? id : undefined,
     name: authenticated ? name : name === "Svečias" ? "Svečias" : name,
     firstName: authenticated ? firstName : firstName === "Svečias" ? "Svečias" : firstName,
+    firstNameVocative: toLithuanianVocative(firstName),
+    firstNameDative: toLithuanianDative(firstName),
     status: authenticated ? "authenticated" : "guest",
     accountType: params.accountType,
     role: params.userRole || params.user?.role || persisted?.role,

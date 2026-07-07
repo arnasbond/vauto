@@ -6,19 +6,32 @@ import {
 } from "@/lib/agent-reply-display";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 
+const BLOCKED_FALLBACK_FRAGMENTS = [
+  "šiuo metu neturime",
+  "rinkoje neradau",
+  "turguje neradau",
+  "atsiprašau, ne viską",
+  "tiesioginio atitikmens",
+  "deja, pagal",
+  "nieko tinkamo neradau",
+  "nieko neradau",
+  "pabandykime kitą frazę",
+] as const;
+
 const GENERIC_FALLBACK_RE =
   /^(deja,|šiuo metu|atsiprašau, ne viską|pabandykime kitą frazę|nerasta atitinkančių|rezultat[uų]\s+nerasta)/i;
 
-const GENERIC_FALLBACK_CONTAINS_RE =
-  /(nieko (tinkamo )?neradau|šiuo metu .+ neradau|deja, pagal)/i;
-
-/** Client-side generic fallbacks that must never stack with supervisor broker text. */
-export function isGenericFallbackAgentText(text: string): boolean {
-  const t = text.trim();
+/** Brutal substring filter — skip stacked legacy fallback bubbles in DOM. */
+export function isBlockedFallbackBubble(text: string): boolean {
+  const t = text.trim().toLowerCase();
   if (!t) return true;
   if (GENERIC_FALLBACK_RE.test(t)) return true;
-  if (GENERIC_FALLBACK_CONTAINS_RE.test(t)) return true;
-  return false;
+  return BLOCKED_FALLBACK_FRAGMENTS.some((frag) => t.includes(frag));
+}
+
+/** @deprecated use isBlockedFallbackBubble */
+export function isGenericFallbackAgentText(text: string): boolean {
+  return isBlockedFallbackBubble(text);
 }
 
 export function stripGenericFallbackAssistants(
@@ -27,7 +40,7 @@ export function stripGenericFallbackAssistants(
   return messages.filter(
     (m) =>
       m.role !== "assistant" ||
-      !isGenericFallbackAgentText(sanitizeAgentReplyForDisplay(m.text) || m.text)
+      !isBlockedFallbackBubble(sanitizeAgentReplyForDisplay(m.text) || m.text)
   );
 }
 
@@ -51,7 +64,7 @@ export function resolveSupervisorChatTurn(
     .reverse()
     .find((m) => {
       const display = sanitizeAgentReplyForDisplay(m.text) || m.text;
-      return display.trim() && !isGenericFallbackAgentText(display);
+      return display.trim() && !isBlockedFallbackBubble(display);
     });
 
   const assistant = preferred ?? assistants[assistants.length - 1] ?? null;
@@ -62,7 +75,7 @@ export function resolveSupervisorChatTurn(
 
   const display =
     sanitizeAgentReplyForDisplay(assistant.text) || assistant.text;
-  if (!display.trim() || isGenericFallbackAgentText(display)) {
+  if (!display.trim() || isBlockedFallbackBubble(display)) {
     return { user: lastUser, assistant: null };
   }
 

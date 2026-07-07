@@ -1,18 +1,21 @@
 "use client";
+// @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
 import { Sparkles } from "lucide-react";
-import { useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import {
+  isBlockedFallbackBubble,
+  resolveVisibleAgentBubbles,
+} from "@/lib/agent-chat-layout";
 import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
-import { resolveVisibleAgentBubbles } from "@/lib/agent-chat-layout";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { pushAddListing } from "@/lib/listing-navigation";
 import { detectSellerListingIntent } from "@/lib/scoring";
-import { notifyAgentFlow } from "@/lib/vauto-agent-client";
+import { notifyAgentFlow, type AgentChatMessage } from "@/lib/vauto-agent-client";
 
 /**
  * Organiškas AI dialogas namų ekrane — vienas supervisor burbulas per turną.
@@ -21,31 +24,31 @@ export function AgentChatStrip() {
   const router = useRouter();
   const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
 
-  const visibleMessages = useMemo(
-    () => resolveVisibleAgentBubbles(messages),
-    [messages]
-  );
+  const assistantCount = messages.filter((m) => m.role === "assistant").length;
+  const domMessages: AgentChatMessage[] = resolveVisibleAgentBubbles(messages);
+  // Short-circuit: supervisor broker exists → never render stacked assistant chunks.
+  const supervisorBroker = domMessages.find((m) => m.role === "assistant") ?? null;
+  const renderMessages: AgentChatMessage[] =
+    supervisorBroker && assistantCount > 1
+      ? domMessages.filter(
+          (m) => m.role === "user" || m === supervisorBroker
+        )
+      : domMessages;
 
-  const lastUser = useMemo(
-    () => visibleMessages.find((m) => m.role === "user")?.text ?? "",
-    [visibleMessages]
-  );
+  const lastUserMsg = renderMessages.find((m) => m.role === "user");
+  const lastAssistantMessage = renderMessages.find((m) => m.role === "assistant");
 
-  const lastAssistantMessage = useMemo(
-    () => [...visibleMessages].reverse().find((m) => m.role === "assistant"),
-    [visibleMessages]
-  );
-
+  const lastUser = lastUserMsg?.text ?? "";
   const lastAssistant = lastAssistantMessage?.text ?? "";
 
-  const quickReplies = useMemo(() => {
-    if (busy) return [];
-    const structured = lastAssistantMessage?.quickReplies?.filter(Boolean) ?? [];
-    if (structured.length >= 2) return structured.slice(0, 4);
-    return extractAgentQuickReplies(lastAssistant);
-  }, [busy, lastAssistant, lastAssistantMessage?.quickReplies]);
+  const quickReplies =
+    busy || !lastAssistantMessage
+      ? []
+      : (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
+        ? lastAssistantMessage.quickReplies!.slice(0, 4)
+        : extractAgentQuickReplies(lastAssistant);
 
-  const sellCta = useMemo(() => {
+  const sellCta = (() => {
     if (busy) return null;
     const userWantsSell = detectSellerListingIntent(lastUser);
     const assistantSuggestsSell =
@@ -63,7 +66,7 @@ export function AgentChatStrip() {
       fashion,
       label: fashion ? "Atidaryti Spintos įkėlimą" : "Atidaryti skelbimo formą",
     };
-  }, [busy, lastUser, lastAssistant, quickReplies.length]);
+  })();
 
   const handleSellCta = () => {
     const query = lastUser.trim();
@@ -80,7 +83,7 @@ export function AgentChatStrip() {
     void sendAgentMessage(option);
   };
 
-  if (!visibleMessages.length && !busy) return null;
+  if (!renderMessages.length && !busy) return null;
 
   return (
     <div
@@ -94,8 +97,11 @@ export function AgentChatStrip() {
       </div>
 
       <div className="space-y-2.5">
-        {visibleMessages.map((m, i) => {
+        {renderMessages.map((m, i) => {
           const display = safeMessageText(m.text);
+          if (m.role === "assistant" && isBlockedFallbackBubble(display)) {
+            return null;
+          }
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
           const messageChips =

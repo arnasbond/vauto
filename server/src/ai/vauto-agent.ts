@@ -15,6 +15,10 @@ import {
 } from "./agent-errors.js";
 import { resolveGeminiApiKey } from "../load-env.js";
 import {
+  buildAgentSystemInstruction,
+  buildVautoAgentSystemInstruction,
+} from "./agent-system-instruction.js";
+import {
   buildPageContextInjectionBlock,
   buildSessionExpiredInjectionBlock,
   isTooShortSecretaryQuery,
@@ -609,7 +613,7 @@ async function runVautoAgentInner(
 
   const hasGemini = Boolean(resolveGeminiApiKey());
   let lastGeminiError: AgentRouteError | null = null;
-  let activeModel = GEMINI_MODELS[0];
+  let activeModel: (typeof GEMINI_MODELS)[number] = GEMINI_MODELS[0];
 
   if (!hasGemini) {
     throw new AgentRouteError(

@@ -17,8 +17,8 @@ export function usePortalSearchSubmit() {
       setBusy(true);
       setSearchLoading(true);
       setSearchInputMode("text");
+      setSearchQuery("");
       try {
-        setSearchQuery(q);
         await sendAgentMessage(q, { skipBusyCheck: true });
       } finally {
         setBusy(false);

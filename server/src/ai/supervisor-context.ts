@@ -3,6 +3,10 @@
  */
 
 import type { AgentSearchFilters } from "./agent-memory-context.js";
+import {
+  toLithuanianDative,
+  toLithuanianVocative,
+} from "./lithuanian-name-case.js";
 
 export interface SupervisorUploadMetadata {
   pendingImageUrls?: string[];
@@ -15,6 +19,10 @@ export interface SupervisorCurrentUser {
   id?: string;
   name: string;
   firstName: string;
+  /** Šauksmininkas — tiesioginis kreipinys („Arnai“). */
+  firstNameVocative: string;
+  /** Naudininkas — nuosavybė / nauda („Arnui“). */
+  firstNameDative: string;
   status: "authenticated" | "guest";
   accountType?: string;
   role?: string;
@@ -49,7 +57,13 @@ export function resolveSupervisorCurrentUser(
   authUserId?: string
 ): SupervisorCurrentUser {
   if (context.supervisorState?.current_user) {
-    return context.supervisorState.current_user;
+    const u = context.supervisorState.current_user;
+    return {
+      ...u,
+      firstNameVocative:
+        u.firstNameVocative || toLithuanianVocative(u.firstName),
+      firstNameDative: u.firstNameDative || toLithuanianDative(u.firstName),
+    };
   }
 
   const name = context.userName?.trim() || "Svečias";
@@ -60,6 +74,8 @@ export function resolveSupervisorCurrentUser(
     id: authUserId,
     name,
     firstName,
+    firstNameVocative: toLithuanianVocative(firstName),
+    firstNameDative: toLithuanianDative(firstName),
     status: authenticated ? "authenticated" : "guest",
     accountType: context.accountType,
     role: context.userRole,
@@ -72,12 +88,21 @@ export function resolveSupervisorStateFromRequest(
   context: SupervisorContextSource,
   authUserId?: string
 ): SupervisorApplicationState {
-  const current_user = resolveSupervisorCurrentUser(context, authUserId);
+  const resolvedUser = resolveSupervisorCurrentUser(context, authUserId);
 
   if (context.supervisorState) {
+    const mergedUser = context.supervisorState.current_user ?? resolvedUser;
+    const current_user = {
+      ...mergedUser,
+      firstNameVocative:
+        mergedUser.firstNameVocative ||
+        toLithuanianVocative(mergedUser.firstName),
+      firstNameDative:
+        mergedUser.firstNameDative || toLithuanianDative(mergedUser.firstName),
+    };
     return {
       ...context.supervisorState,
-      current_user: context.supervisorState.current_user ?? current_user,
+      current_user,
     };
   }
 
@@ -96,7 +121,7 @@ export function resolveSupervisorStateFromRequest(
       pendingImageUrls: context.pendingImageUrls?.slice(0, 6),
       pendingImageCount: context.pendingImageUrls?.length ?? 0,
     },
-    current_user,
+    current_user: resolvedUser,
   };
 }
 
@@ -107,6 +132,8 @@ export function buildSupervisorStateInjectionBlock(
     id: state.current_user.id,
     name: state.current_user.name,
     firstName: state.current_user.firstName,
+    firstNameVocative: state.current_user.firstNameVocative,
+    firstNameDative: state.current_user.firstNameDative,
     status: state.current_user.status,
     accountType: state.current_user.accountType,
     role: state.current_user.role,

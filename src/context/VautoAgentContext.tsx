@@ -82,11 +82,6 @@ import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { resolveAgentChatReply } from "@/lib/agent-chat-reply";
 import {
-  applySearchBarSyncPlan,
-  resolveSearchBarSyncFromAction,
-  stripGenericFallbackAssistants,
-} from "@/lib/agent-chat-layout";
-import {
   buildBrowseAllReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
@@ -434,16 +429,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const actions = sanitized.action;
       if (actions.type === "none") return;
 
+      setSearchQuery("");
+
       try {
       if (actions.type === "search") {
         goToMarketplace("agent");
         setOpen(false);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        applySearchBarSyncPlan(
-          resolveSearchBarSyncFromAction(actions, searchQuery),
-          setSearchQuery
-        );
+        setSearchQuery("");
         setAgentPinnedListings(actions.listingIds);
         if (actions.filters) {
           setMarketplaceFilters(
@@ -535,10 +529,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        applySearchBarSyncPlan(
-          resolveSearchBarSyncFromAction(actions, searchQuery),
-          setSearchQuery
-        );
+        setSearchQuery("");
         if (actions.filters) {
           setMarketplaceFilters(
             mergeAgentIntoMarketplaceFilters(
@@ -612,10 +603,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setSearchInputMode("text");
         setSearchVoiceMode(false);
         setAgentPinnedListings(null);
-        applySearchBarSyncPlan(
-          resolveSearchBarSyncFromAction(actions, searchQuery),
-          setSearchQuery
-        );
+        setSearchQuery("");
         setMarketplaceFilters(
           mergeVoiceUiFilters(
             marketplaceFilters,
@@ -655,10 +643,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           );
         }
         if (actions.query?.trim() || actions.filters?.query?.trim()) {
-          applySearchBarSyncPlan(
-            resolveSearchBarSyncFromAction(actions, searchQuery),
-            setSearchQuery
-          );
+          setSearchQuery("");
         }
         if (actions.zeroUi) {
           routeZeroUiScreen(actions.zeroUi);
@@ -1170,13 +1155,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               : viewIntent === "list"
                 ? "Perjungiu į sąrašo vaizdą."
                 : "Perjungiu į tinklelio vaizdą.";
-          setMessages((prev) => [
-            ...prev,
-            {
-              role: "assistant",
-              text: viewReply,
-            },
-          ]);
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
+              { role: "assistant" as const, text: viewReply },
+            ].slice(-6);
+          });
           return { ok: true, reply: "Vaizdas perjungtas." };
         }
       }
@@ -1284,15 +1269,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error, res.code);
-          setMessages((prev) =>
-            [
-              ...prev,
-              {
-                role: "assistant" as const,
-                text: message,
-              },
-            ].slice(-6)
-          );
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
+              { role: "assistant" as const, text: message },
+            ].slice(-6);
+          });
           speakReply(message);
           if (open && !options?.fromSearchBar) showToast(message, "info");
           return { ok: true, reply: message };
@@ -1310,10 +1293,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ) => {
           const text = assistantText.trim();
           if (!text) return;
+          if (
+            text.startsWith("Šiuo metu") ||
+            text.startsWith("Deja, pagal") ||
+            text.startsWith("Atsiprašau")
+          ) {
+            return;
+          }
           const structuredReplies = quickReplies?.filter(Boolean).slice(0, 4);
-          setMessages((prev) =>
-            [
-              ...stripGenericFallbackAssistants(prev),
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
               {
                 role: "assistant" as const,
                 text,
@@ -1321,8 +1312,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                   ? { quickReplies: structuredReplies }
                   : {}),
               },
-            ].slice(-6)
-          );
+            ].slice(-6);
+          });
         };
 
         if (browseAllOutcome && res.actions.type === "empty_search") {
@@ -1363,10 +1354,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         });
 
         if (assistantText.trim()) {
-          appendSupervisorAssistant(assistantText, res.quickReplies);
+          if (
+            !assistantText.startsWith("Šiuo metu") &&
+            !assistantText.startsWith("Deja, pagal") &&
+            !assistantText.startsWith("Atsiprašau")
+          ) {
+            appendSupervisorAssistant(assistantText, res.quickReplies);
+          }
         }
         speakReply(assistantText);
         if (hasExecutableAction) {
+          setSearchQuery("");
           if (
             res.actions.type === "listing_draft" &&
             resolveBrowseAllIntent(trimmed)
@@ -1402,12 +1400,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: res.reply || assistantText, actions: res.actions };
       } catch {
         const message = BUDDY_REPEAT_PROMPT;
-        setMessages((prev) =>
-          [
-            ...prev,
+        setMessages((prev) => {
+          const usersOnly = prev.filter((m) => m.role === "user");
+          return [
+            ...usersOnly,
             { role: "assistant" as const, text: message },
-          ].slice(-6)
-        );
+          ].slice(-6);
+        });
         speakReply(message);
         if (open) showToast(message, "info");
         return { ok: true, reply: message };
@@ -1543,7 +1542,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         text: trimmed,
         ...(quickReplies?.length ? { quickReplies } : {}),
       };
-      setMessages((prev) => (isolated ? [assistantMsg] : [...prev, assistantMsg].slice(-6)));
+      setMessages((prev) => {
+        if (isolated) return [assistantMsg];
+        const usersOnly = prev.filter((m) => m.role === "user");
+        return [...usersOnly, assistantMsg].slice(-6);
+      });
     },
     [setSearchInputMode, setSearchVoiceMode, setOpen]
   );

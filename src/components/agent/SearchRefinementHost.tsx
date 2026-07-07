@@ -7,6 +7,7 @@ import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
+import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
 import { evaluateSearchRefinement } from "@/lib/ai-first-search-vision";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
@@ -32,7 +33,7 @@ export function SearchRefinementHost() {
   const { rankedListings } = useVauto();
   const { sellerStep } = useSellerFlow();
   const { searchQuery, searchLoading, marketplaceFilters } = useVautoSearch();
-  const { openWithGreeting, busy: agentBusy, sendAgentMessage } = useVautoAgent();
+  const { openWithGreeting, busy: agentBusy, sendAgentMessage, messages } = useVautoAgent();
   const { shouldFireIntervention } = useUserBehavior();
   const lastFiredRef = useRef<{ key: string; at: number } | null>(null);
 
@@ -44,6 +45,7 @@ export function SearchRefinementHost() {
   useEffect(() => {
     if (sellerStep !== "idle") return;
     if (agentBusy || searchLoading) return;
+    if (agentHasSupervisorReply(messages)) return;
 
     const q = searchQuery.trim();
     if (!q || q.length < 4) return;
@@ -92,6 +94,7 @@ export function SearchRefinementHost() {
     openWithGreeting,
     sendAgentMessage,
     marketplaceFilters,
+    messages,
   ]);
 
   return null;

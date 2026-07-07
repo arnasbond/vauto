@@ -1,4 +1,5 @@
 "use client";
+// @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
 import { ArrowUp, Camera, ChevronDown, Loader2, MessageCircle, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
@@ -49,11 +50,7 @@ import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
-import {
-  applySearchBarSyncPlan,
-  resolveSearchBarSyncFromAction,
-  resolveSupervisorChatTurn,
-} from "@/lib/agent-chat-layout";
+import { resolveSupervisorChatTurn } from "@/lib/agent-chat-layout";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
@@ -133,8 +130,21 @@ export function AiCommandBar({
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
 
+  const forceBlankSearchInput = useCallback(() => {
+    setSearchQuery("");
+    setDraftQuery("");
+    if (inputRef.current) {
+      inputRef.current.value = "";
+    }
+  }, [setSearchQuery]);
+
   useEffect(() => {
-    setDraftQuery(searchQuery);
+    if (!searchQuery.trim()) {
+      setDraftQuery("");
+      if (inputRef.current) {
+        inputRef.current.value = "";
+      }
+    }
   }, [searchQuery]);
 
   useEffect(() => {
@@ -163,14 +173,10 @@ export function AiCommandBar({
   };
 
   const syncGridFromAgentActions = useCallback(
-    (actions: VautoAgentAction | undefined, userQuery?: string) => {
+    (actions: VautoAgentAction | undefined) => {
       if (!actions || actions.type === "none") return;
+      forceBlankSearchInput();
       applyAgentActions(actions);
-      const barSync = resolveSearchBarSyncFromAction(actions, userQuery);
-      applySearchBarSyncPlan(barSync, (q) => {
-        setSearchQuery(q);
-        setDraftQuery(q);
-      });
       if (actions.type === "search") {
         focusSearchOutcome(actions.listingIds.length);
       } else if (actions.type === "browse_all") {
@@ -184,7 +190,7 @@ export function AiCommandBar({
         focusSearchOutcome(0);
       }
     },
-    [applyAgentActions, setSearchQuery]
+    [applyAgentActions, forceBlankSearchInput]
   );
 
   const commitSearch = useCallback(
@@ -239,7 +245,6 @@ export function AiCommandBar({
       clearVisualSearch({ keepInputMode: true });
       setSearchLoading(true);
       try {
-        setSearchQuery(q);
         setAgentPinnedListings(null);
         const route = await executeConductorRoute({
           ...conductorSearchQuerySource("AiCommandBar"),
@@ -248,17 +253,18 @@ export function AiCommandBar({
         if (!conductorShouldDelegateLegacy(route)) {
           const exec = readConductorSearchExecute(route);
           if (exec?.agentResult.actions) {
-            syncGridFromAgentActions(exec.agentResult.actions, q);
+            syncGridFromAgentActions(exec.agentResult.actions);
           } else if (exec?.agentResult.ok) {
             scrollToResults();
           }
           return;
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });
-        if (res.actions) syncGridFromAgentActions(res.actions, q);
+        if (res.actions) syncGridFromAgentActions(res.actions);
+        else if (res.ok) forceBlankSearchInput();
         else if (res.reply) {
           scrollToResults();
-        } else if (res.ok) scrollToResults();
+        }
       } finally {
         setSearchLoading(false);
       }
@@ -272,6 +278,7 @@ export function AiCommandBar({
       setViewMode,
       sendAgentMessage,
       syncGridFromAgentActions,
+      forceBlankSearchInput,
       pathname,
       trackEvent,
       wardrobeSearchOnly,
