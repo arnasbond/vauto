@@ -5,8 +5,8 @@ import {
   verifyDemoBypassOtp,
 } from "../auth/demo-phones.js";
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
-import { verifyAppleIdToken } from "../auth/apple-verify.js";
-import { verifyGoogleIdToken } from "../auth/google-verify.js";
+import { verifyAppleIdToken, isAppleOAuthConfigured } from "../auth/apple-verify.js";
+import { verifyGoogleIdToken, isGoogleOAuthConfigured } from "../auth/google-verify.js";
 import {
   getOtpCodeLength,
   issueOtp,
@@ -25,6 +25,18 @@ import { exposeOtpDevHint } from "../demo-guards.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
 
 export const authRouter = Router();
+
+/** Public OAuth client ids for the frontend (not secrets). */
+authRouter.get("/public-config", (_req, res) => {
+  const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || undefined;
+  const appleClientId = process.env.APPLE_CLIENT_ID?.trim() || undefined;
+  res.json({
+    googleClientId,
+    appleClientId,
+    googleEnabled: isGoogleOAuthConfigured(),
+    appleEnabled: isAppleOAuthConfigured(),
+  });
+});
 
 const OTP_SEND_WINDOW_MS = 60_000;
 const OTP_SEND_MAX_PER_WINDOW = 5;

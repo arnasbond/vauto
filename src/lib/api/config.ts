@@ -7,6 +7,50 @@ let resolvedAppleClientId: string | null = null;
 let resolvedConductorEnabled: boolean | null = null;
 let resolvePromise: Promise<string | null> | null = null;
 
+const authConfigListeners = new Set<() => void>();
+
+function notifyAuthConfigListeners(): void {
+  for (const listener of authConfigListeners) {
+    try {
+      listener();
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+/** Subscribe when Google/Apple client ids hydrate from runtime-config or API. */
+export function onAuthConfigReady(listener: () => void): () => void {
+  authConfigListeners.add(listener);
+  return () => authConfigListeners.delete(listener);
+}
+
+async function hydrateAuthPublicConfig(apiUrl: string): Promise<void> {
+  if (resolvedGoogleClientId && resolvedAppleClientId) return;
+  try {
+    const res = await fetch(`${apiUrl.replace(/\/$/, "")}/api/auth/public-config`, {
+      cache: "no-store",
+    });
+    if (!res.ok) return;
+    const json = (await res.json()) as {
+      googleClientId?: string;
+      appleClientId?: string;
+    };
+    let changed = false;
+    if (!resolvedGoogleClientId && json.googleClientId) {
+      resolvedGoogleClientId = json.googleClientId;
+      changed = true;
+    }
+    if (!resolvedAppleClientId && json.appleClientId) {
+      resolvedAppleClientId = json.appleClientId;
+      changed = true;
+    }
+    if (changed) notifyAuthConfigListeners();
+  } catch {
+    /* offline */
+  }
+}
+
 function envApiUrl(): string | null {
   return process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") || null;
 }
@@ -55,6 +99,11 @@ export async function initDataApiConfig(): Promise<string | null> {
       }
     }
 
+    const apiCandidate = fromEnv || resolvedApiUrl;
+    if (apiCandidate && (!resolvedGoogleClientId || !resolvedAppleClientId)) {
+      await hydrateAuthPublicConfig(apiCandidate);
+    }
+
     if (fromEnv) {
       resolvedApiUrl = fromEnv;
       return fromEnv;
@@ -77,6 +126,14 @@ export function getRuntimeGoogleClientId(): string | null {
 
 export function getRuntimeAppleClientId(): string | null {
   return resolvedAppleClientId || envAppleClientId();
+}
+
+/** Force-fetch OAuth client ids from API (e.g. when opening auth modal). */
+export async function ensureAuthPublicConfig(): Promise<void> {
+  await initDataApiConfig();
+  const base = getDataApiBaseUrl();
+  if (!base) return;
+  await hydrateAuthPublicConfig(base);
 }
 
 export function getDataApiBaseUrl(): string | null {

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Apple, Building2, LayoutGrid, Phone, Shield, UserRound, X } from "lucide-react";
 import type { AuthProvider, UserRole } from "@/lib/types";
 import type { AuthSignupIntent } from "@/context/AuthContext";
@@ -8,12 +8,14 @@ import { ADMIN_EMAIL, ADMIN_PHONE } from "@/lib/reports";
 import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 import {
   isGoogleAuthConfigured,
+  renderGoogleButton,
   requestGoogleIdToken,
 } from "@/lib/auth/google-client";
 import {
   isAppleAuthConfigured,
   requestAppleIdToken,
 } from "@/lib/auth/apple-client";
+import { ensureAuthPublicConfig, onAuthConfigReady } from "@/lib/api/config";
 import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
 import { blockNativeClickThrough } from "@/lib/native-click-guard";
 import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
@@ -108,9 +110,13 @@ export function AuthModal({
   const [otpError, setOtpError] = useState<string | null>(AUTH_FORM_INITIAL.otpError);
   const [smsCooldown, setSmsCooldown] = useState(0);
   const [rememberMe, setRememberMe] = useState(true);
+  const [authConfigTick, setAuthConfigTick] = useState(0);
+  const [nativeGoogleOpen, setNativeGoogleOpen] = useState(false);
+  const nativeGoogleMountRef = useRef<HTMLDivElement>(null);
   const showQaBanner = isQaTestModeActive();
 
   const googleReady = isGoogleAuthConfigured();
+  void authConfigTick;
   const appleReady = isAppleAuthConfigured();
   const nativeEnv = isNativeAuthEnvironment();
 
@@ -158,24 +164,56 @@ export function AuthModal({
   }, [smsCooldown]);
 
   useEffect(() => {
-    if (open) {
-      setStep(AUTH_FORM_INITIAL.step);
-      setOtp(AUTH_FORM_INITIAL.otp);
-      setRole(AUTH_FORM_INITIAL.role);
-      setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
-      setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
-      setOtpError(AUTH_FORM_INITIAL.otpError);
-      setSmsCooldown(0);
-      setSocialLoading(null);
-      setPhone(loadRememberedPhone());
-      try {
-        setRememberMe(localStorage.getItem(REMEMBER_ME_KEY) !== "0");
-      } catch {
-        setRememberMe(true);
+    if (!nativeGoogleOpen || !googleReady) return;
+    const mount = nativeGoogleMountRef.current;
+    if (!mount) return;
+    let cancelled = false;
+    void renderGoogleButton(mount, (token) => {
+      if (cancelled) return;
+      setNativeGoogleOpen(false);
+      onComplete({
+        provider: "google",
+        role: "private",
+        idToken: token,
+        signupIntent,
+      });
+    }).catch(() => {
+      if (!cancelled) {
+        setOtpError("Nepavyko atidaryti Google prisijungimo. Bandykite dar kartą.");
+        setNativeGoogleOpen(false);
       }
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [nativeGoogleOpen, googleReady, signupIntent, onComplete]);
+
+  useEffect(() => {
+    if (!open) {
+      setNativeGoogleOpen(false);
+      resetAuthForm();
       return;
     }
-    resetAuthForm();
+    setStep(AUTH_FORM_INITIAL.step);
+    setOtp(AUTH_FORM_INITIAL.otp);
+    setRole(AUTH_FORM_INITIAL.role);
+    setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
+    setAdminEmail(AUTH_FORM_INITIAL.adminEmail);
+    setOtpError(AUTH_FORM_INITIAL.otpError);
+    setSmsCooldown(0);
+    setSocialLoading(null);
+    setPhone(loadRememberedPhone());
+    try {
+      setRememberMe(localStorage.getItem(REMEMBER_ME_KEY) !== "0");
+    } catch {
+      setRememberMe(true);
+    }
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    void ensureAuthPublicConfig().then(() => setAuthConfigTick((n) => n + 1));
+    return onAuthConfigReady(() => setAuthConfigTick((n) => n + 1));
   }, [open]);
 
   if (!open) return null;
@@ -195,19 +233,16 @@ export function AuthModal({
   const handleGoogle = async () => {
     onClearError?.();
     setOtpError(null);
-    if (nativeEnv) {
-      setOtpError(
-        "Programėlėje saugiausias būdas — prisijungti su telefonu (SMS)."
-      );
-      setStep("phone");
-      return;
-    }
     if (isAuthApiAvailable() && !googleReady) {
       setOtpError("Google prisijungimas dar neaktyvuotas. Naudokite telefoną.");
       return;
     }
     setSocialLoading("google");
     try {
+      if (nativeEnv && googleReady) {
+        setNativeGoogleOpen(true);
+        return;
+      }
       if (googleReady) {
         const token = await requestGoogleIdToken();
         if (token) {
@@ -376,10 +411,7 @@ export function AuthModal({
               <button
                 type="button"
                 onClick={() => void handleGoogle()}
-                disabled={
-                  socialBusy ||
-                  (isAuthApiAvailable() && !googleReady && !nativeEnv)
-                }
+                disabled={socialBusy || (isAuthApiAvailable() && !googleReady)}
                 className="vauto-auth-provider-btn"
               >
                 <span className="vauto-auth-provider-icon">
@@ -421,10 +453,31 @@ export function AuthModal({
               </button>
             </div>
 
-            {nativeEnv && (
+            {nativeEnv && !googleReady && (
               <p className="text-center text-[11px] leading-relaxed text-[var(--vauto-text-muted)]">
-                Google ir Apple web prisijungimas programėlėje ribotas — rekomenduojame SMS.
+                Jei Google mygtukas neaktyvus, palaukite akimirką arba naudokite SMS.
               </p>
+            )}
+
+            {nativeGoogleOpen && (
+              <div className="fixed inset-0 z-[10001] flex items-center justify-center bg-black/50 p-4">
+                <div className="w-full max-w-sm rounded-2xl bg-[var(--vauto-card-bg)] p-5 shadow-xl">
+                  <div className="mb-3 flex items-center justify-between">
+                    <p className="text-sm font-semibold text-[var(--vauto-text-main)]">
+                      Prisijungti su Google
+                    </p>
+                    <button
+                      type="button"
+                      onClick={() => setNativeGoogleOpen(false)}
+                      className="rounded-full p-1 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-surface-muted)]"
+                      aria-label="Uždaryti"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
+                  </div>
+                  <div ref={nativeGoogleMountRef} className="flex justify-center" />
+                </div>
+              </div>
             )}
 
             <p className="text-center text-[11px] text-[var(--vauto-text-muted)]">
