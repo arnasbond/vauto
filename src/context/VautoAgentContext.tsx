@@ -50,6 +50,7 @@ import {
 import { registerWanted } from "@/lib/matching-service";
 import {
   buildSupervisorApplicationState,
+  buildSupervisorCurrentUser,
   resolveClientPageUrl,
 } from "@/lib/supervisor-agent-state";
 import { conductorSetAgentBusy, registerConductorSearchExecutor } from "@/lib/vauto-conductor";
@@ -78,12 +79,18 @@ import {
 import { mergeVoiceUiFilters } from "@/lib/voice-ui-actions";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
+import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
+import { resolveAgentChatReply } from "@/lib/agent-chat-reply";
 import {
   buildBrowseAllReply,
-  buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
-import { isBrowseAllIntent, resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
+import {
+  isBrowseAllIntent,
+  resolveBrowseAllIntent,
+  createBrowseAllAction,
+} from "@/lib/browse-all-intent";
+import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   isPhotoIntentListingChip,
@@ -347,6 +354,28 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     }
   }, [cancelSellerFlow, goToMarketplace, setOpen, pathname, router]);
 
+  const dispatchBrowseAllMarketplaceState = useCallback(() => {
+    applyBrowseAllMarketplaceState({
+      setSearchQuery,
+      setAgentPinnedListings,
+      clearSearchFilters,
+      resetMarketplaceFilters,
+      clearVisualSearch,
+      setSearchInputMode,
+      setSearchVoiceMode,
+      setViewMode,
+    });
+  }, [
+    setSearchQuery,
+    setAgentPinnedListings,
+    clearSearchFilters,
+    resetMarketplaceFilters,
+    clearVisualSearch,
+    setSearchInputMode,
+    setSearchVoiceMode,
+    setViewMode,
+  ]);
+
   const registerWantedFlow = useCallback(
     (query: string) => {
       void registerWanted({
@@ -406,8 +435,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setOpen(false);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        const displayQuery = stripLegacyCategorySuffixes(
-          actions.filters?.query?.trim() || actions.searchQuery
+        const displayQuery = resolveAgentDisplayQuery(
+          actions.filters,
+          actions.searchQuery
         );
         setSearchQuery(displayQuery);
         setAgentPinnedListings(actions.listingIds);
@@ -453,14 +483,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       if (actions.type === "browse_all") {
         exitListingPipelineForMarketplaceSearch();
-        clearVisualSearch({ keepInputMode: true });
-        setSearchInputMode("text");
-        setSearchVoiceMode(false);
-        setSearchQuery("");
-        setAgentPinnedListings(null);
-        resetMarketplaceFilters();
-        clearSearchFilters();
-        setViewMode("grid");
+        dispatchBrowseAllMarketplaceState();
         trackEvent("agent_action", {
           action: "browse_all",
           listingCount: actions.listingCount ?? null,
@@ -496,14 +519,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         );
       }
       if (actions.type === "empty_search") {
+        if (resolveBrowseAllIntent(actions.searchQuery)) {
+          dispatchBrowseAllMarketplaceState();
+          return;
+        }
         goToMarketplace("agent");
         setOpen(true);
         requestWizardAgentExpand();
         setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        const displayQuery = stripLegacyCategorySuffixes(
-          actions.filters?.query?.trim() || actions.searchQuery
+        const displayQuery = resolveAgentDisplayQuery(
+          actions.filters,
+          actions.searchQuery
         );
         setSearchQuery(displayQuery);
         if (actions.filters) {
@@ -573,10 +601,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setSearchVoiceMode(false);
         setAgentPinnedListings(null);
         const displayQuery =
-          actions.query?.trim() ||
-          actions.filters?.query?.trim();
+          resolveAgentDisplayQuery(actions.filters, actions.query);
         if (displayQuery) {
-          setSearchQuery(stripLegacyCategorySuffixes(displayQuery));
+          setSearchQuery(displayQuery);
         }
         setMarketplaceFilters(
           mergeVoiceUiFilters(
@@ -617,7 +644,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           );
         }
         if (actions.query?.trim()) {
-          setSearchQuery(stripLegacyCategorySuffixes(actions.query.trim()));
+          const q = resolveAgentDisplayQuery(actions.filters, actions.query);
+          if (q) setSearchQuery(q);
         }
         if (actions.zeroUi) {
           routeZeroUiScreen(actions.zeroUi);
@@ -796,6 +824,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setLastBargainingOffer,
       resetMarketplaceFilters,
       exitListingPipelineForMarketplaceSearch,
+      dispatchBrowseAllMarketplaceState,
       searchQuery,
     ]
   );
@@ -841,6 +870,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       };
 
       if (resolveBrowseAllIntent(trimmed)) {
+        dispatchBrowseAllMarketplaceState();
         const activeCount = listings.filter(
           (l) => !l.banned && l.price > 0 && l.status !== "sold"
         ).length;
@@ -853,9 +883,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ].slice(-6)
         );
         speakReply(actions.replyMessage);
-        if (!options?.fromSearchBar) {
-          applyActions(actions);
-        }
+        applyActions(actions);
         touchAgentSessionActivity();
         return { ok: true, reply: actions.replyMessage, actions };
       }
@@ -1146,6 +1174,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       try {
         setStreamThinkingLabel("Galvoju…");
+        const browseAllTurn = resolveBrowseAllIntent(trimmed);
+        if (browseAllTurn) {
+          dispatchBrowseAllMarketplaceState();
+        }
+        const catalogCount = listings.filter(
+          (l) => !l.banned && l.price > 0 && l.status !== "sold"
+        ).length;
         const pageUrl =
           typeof window !== "undefined"
             ? resolveClientPageUrl(
@@ -1156,12 +1191,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const effectiveFilters = searchSessionReset
           ? resetFilters
           : memoryContext.activeSearchFilters;
+        const currentUser = buildSupervisorCurrentUser({
+          user,
+          isAuthenticated,
+          accountType: resolveAccountTypeLabel(user),
+          userRole: resolveAgentUserRole(user),
+        });
         const supervisorState = buildSupervisorApplicationState({
           pageUrl,
-          searchQuery,
+          searchQuery: browseAllTurn ? "" : searchQuery,
           activeSearchFilters: effectiveFilters,
-          totalListingsCount: rankedListings.length,
+          totalListingsCount: browseAllTurn ? catalogCount : rankedListings.length,
           pendingImageUrls: activePendingImageUrls,
+          currentUser,
         });
         const agentBody = {
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
@@ -1188,15 +1230,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             pendingImageUrls: activePendingImageUrls,
             lastError,
             isAuthenticated,
-            searchResultCount:
-              options?.proactiveOffer?.kind === "no_match"
+            searchResultCount: browseAllTurn
+              ? catalogCount
+              : options?.proactiveOffer?.kind === "no_match"
                 ? 0
                 : options?.proactiveOffer?.kind === "search_refine"
                   ? options.proactiveOffer.resultCount ?? rankedListings.length
                   : searchQuery.trim()
                     ? rankedListings.length
                     : undefined,
-            lastSearchQuery: searchQuery.trim() || undefined,
+            lastSearchQuery: browseAllTurn
+              ? undefined
+              : searchQuery.trim() || undefined,
             currentView: zeroUiScreen,
             fromVoice: voiceReply,
             fromSearchBar: options?.fromSearchBar,
@@ -1241,6 +1286,36 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         const hasExecutableAction = res.actions.type !== "none";
+        const browseAllOutcome =
+          res.actions.type === "browse_all" ||
+          (res.actions.type === "empty_search" &&
+            resolveBrowseAllIntent(trimmed, res.actions.searchQuery));
+
+        if (browseAllOutcome && res.actions.type === "empty_search") {
+          const coerced = createBrowseAllAction(catalogCount);
+          if (!options?.fromSearchBar) {
+            applyActions(coerced);
+          }
+          const browseReply =
+            sanitizeAgentReplyForDisplay(res.reply) || coerced.replyMessage;
+          if (browseReply.trim() && !options?.fromSearchBar) {
+            setMessages((prev) =>
+              [
+                ...prev,
+                {
+                  role: "assistant" as const,
+                  text: browseReply,
+                },
+              ].slice(-6)
+            );
+          }
+          speakReply(browseReply);
+          return {
+            ok: true,
+            reply: browseReply,
+            actions: coerced,
+          };
+        }
 
         if (!res.reply && !hasExecutableAction) {
           const fallback = BUDDY_REPEAT_PROMPT;
@@ -1259,19 +1334,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         setLastError(undefined);
+        const assistantText = resolveAgentChatReply({
+          serverReply: res.reply,
+          actions: res.actions,
+          userQuery: trimmed,
+          catalogCount,
+          toolCalls: res.toolCalls,
+        });
+
         const isStateSearch =
           res.actions.type === "search" ||
-          res.actions.type === "empty_search" ||
-          res.actions.type === "browse_all";
-        const assistantText = isStateSearch
-          ? res.actions.type === "browse_all"
-            ? sanitizeAgentReplyForDisplay(res.reply) ||
-              res.actions.replyMessage ||
-              buildBrowseAllReply(res.actions.listingCount)
-            : res.actions.type === "search"
-            ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
-            : buildEmptySearchReply(trimmed)
-          : sanitizeAgentReplyForDisplay(res.reply) || res.reply || "Atlikta.";
+          (res.actions.type === "empty_search" && !browseAllOutcome) ||
+          res.actions.type === "browse_all" ||
+          res.actions.type === "apply_ui_filters";
 
         const lastAssistantText = [...messages]
           .reverse()
@@ -1352,6 +1427,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     },
     [
       applyActions,
+      dispatchBrowseAllMarketplaceState,
       busyGate,
       lastError,
       listings,

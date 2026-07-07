@@ -4,6 +4,7 @@ import { WantedEmptyState } from "@/components/wishlist/WantedEmptyState";
 import { useVauto } from "@/context/VautoContext";
 import { buildEmptySearchBannerMessage } from "@/lib/empathy-copy";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 
 interface SearchEmptyAssistantBannerProps {
   searchQuery: string;
@@ -15,6 +16,10 @@ export function SearchEmptyAssistantBanner({
 }: SearchEmptyAssistantBannerProps) {
   const { listings } = useVauto();
   const absurd = isAbsurdSearchQuery(searchQuery, listings);
+
+  if (resolveBrowseAllIntent(searchQuery)) {
+    return null;
+  }
 
   if (!absurd) {
     return (

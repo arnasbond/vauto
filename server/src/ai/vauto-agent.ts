@@ -1,16 +1,8 @@
 import {
-  AGENT_FUNCTION_DECLARATIONS,
   executeAgentTool,
   type AgentSideEffect,
   type AgentToolContext,
 } from "./agent-tools.js";
-import {
-  buildAgentSystemInstruction,
-  buildVautoAgentSystemInstruction,
-} from "./agent-system-instruction.js";
-import {
-  resolveGeminiApiKey,
-} from "../load-env.js";
 import {
   buildAgentMemoryContextBlock,
   type AgentMemoryPayload,
@@ -20,10 +12,8 @@ import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
 import { resolveMonetizationState } from "./monetization-engine.js";
 import {
   AgentRouteError,
-  fetchWithTimeout,
-  isAbortError,
 } from "./agent-errors.js";
-import { GEMINI_AGENT_TIMEOUT_MS } from "../lib/ai-timeout-policy.js";
+import { resolveGeminiApiKey } from "../load-env.js";
 import {
   buildPageContextInjectionBlock,
   buildSessionExpiredInjectionBlock,
@@ -46,12 +36,22 @@ import {
   resolveSupervisorStateFromRequest,
   type SupervisorApplicationState,
 } from "./supervisor-context.js";
+import {
+  extractGeminiFunctionCalls,
+  geminiSupervisorTurn,
+  isGenericEmptySearchReply,
+  resolveSupervisorFinalReply,
+  runDeterministicSupervisorSearch,
+  shouldForceSupervisorTools,
+  shouldReplaceSideEffect,
+  type GeminiContent,
+  type GeminiPart,
+} from "./supervisor-tool-runner.js";
 import { buildUserBehaviorContextBlock } from "./user-behavior-context.js";
 import {
   NO_MATCH_LEAD_HINT,
   SEARCH_REFINE_HINT,
   SMART_BARGAINING_HINT,
-  buildNoMatchLeadPrompt,
 } from "../offer-engine.js";
 import { EMPTY_SEARCH_QUICK_REPLIES } from "./structured-input-pipeline.js";
 import {
@@ -235,8 +235,6 @@ function resolveAgentQuickReplies(
 const BUDDY_REPEAT_PROMPT =
   "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
 
-const STATE_SEARCH_REPLY = "Radau variantus — pasižiūrėkim ekrane!";
-
 function humanizeSearchItem(searchQuery: string): string {
   const q = searchQuery.trim().toLowerCase();
   if (/bat|aul|bas/.test(q)) return "tokių batelių";
@@ -251,17 +249,6 @@ function humanizeSearchItem(searchQuery: string): string {
 function buildEmptySearchReply(searchQuery?: string): string {
   const item = humanizeSearchItem(searchQuery ?? "");
   return `Šiuo metu ${item} turguje neturime, bet galiu užfiksuoti jūsų norą ir pranešti, kai kas nors juos įkels. Norite, kad užsiregistruočiau paiešką?`;
-}
-
-function isGenericEmptySearchReply(text: string): boolean {
-  const t = text.trim().toLowerCase();
-  return (
-    !t ||
-    t === "rezultatų nerasta." ||
-    t === "rezultatų nerasta" ||
-    t === "nerasta atitinkančių skelbimų." ||
-    t.startsWith("nerasta ")
-  );
 }
 
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
@@ -280,88 +267,6 @@ function isRetriableAgentError(e: unknown): boolean {
 
 const sleepMs = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
-
-type GeminiPart =
-  | { text: string }
-  | { functionCall: { name: string; args: Record<string, unknown> } }
-  | { functionResponse: { name: string; response: unknown } };
-
-interface GeminiContent {
-  role: "user" | "model";
-  parts: GeminiPart[];
-}
-
-async function geminiAgentTurn(
-  contents: GeminiContent[],
-  model: string,
-  systemInstruction: string
-): Promise<{ parts: GeminiPart[]; text: string }> {
-  const key = resolveGeminiApiKey();
-  if (!key) {
-    throw new AgentRouteError(
-      "agent_unavailable",
-      "GEMINI_API_KEY not configured on server",
-      503
-    );
-  }
-
-  try {
-    const res = await fetchWithTimeout(
-      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": key,
-        },
-        body: JSON.stringify({
-          systemInstruction: { parts: [{ text: systemInstruction }] },
-          contents,
-          tools: [{ functionDeclarations: AGENT_FUNCTION_DECLARATIONS }],
-          toolConfig: { functionCallingConfig: { mode: "AUTO" } },
-          generationConfig: { temperature: 0.6 },
-        }),
-      },
-      GEMINI_AGENT_TIMEOUT_MS
-    );
-
-    if (!res.ok) {
-      const detail = await res.text().catch(() => "");
-      throw new AgentRouteError(
-        "gemini_error",
-        `Gemini ${model} returned ${res.status}${detail ? `: ${detail.slice(0, 200)}` : ""}`,
-        res.status >= 500 ? 502 : 503,
-        res.status
-      );
-    }
-
-    const data = (await res.json()) as {
-      candidates?: { content?: { parts?: GeminiPart[] } }[];
-    };
-    const parts = data.candidates?.[0]?.content?.parts ?? [];
-    const text = parts
-      .filter((p): p is { text: string } => "text" in p && Boolean(p.text))
-      .map((p) => p.text)
-      .join("\n")
-      .trim();
-
-    return { parts, text };
-  } catch (e) {
-    if (e instanceof AgentRouteError) throw e;
-    if (isAbortError(e)) {
-      throw new AgentRouteError(
-        "timeout",
-        "Gemini API užklausa užtruko. Sumažinkite admin kontekstą arba bandykite vėliau.",
-        504
-      );
-    }
-    throw new AgentRouteError(
-      "gemini_error",
-      e instanceof Error ? e.message : "Gemini API klaida",
-      502
-    );
-  }
-}
 
 export async function runVautoAgent(
   req: VautoAgentRequest,
@@ -493,11 +398,14 @@ async function runVautoAgentInner(
     sellerMetrics: req.context.sellerMetrics,
   };
 
-  const memoryBlock = buildAgentMemoryContextBlock({
-    defaultRegion: req.context.defaultRegion ?? ctx.userCity,
-    primaryVehicle: req.context.primaryVehicle,
-    activeSearchFilters: req.context.activeSearchFilters ?? null,
-  } satisfies AgentMemoryPayload);
+  const memoryBlock = buildAgentMemoryContextBlock(
+    {
+      defaultRegion: req.context.defaultRegion ?? ctx.userCity,
+      primaryVehicle: req.context.primaryVehicle,
+      activeSearchFilters: req.context.activeSearchFilters ?? null,
+    } satisfies AgentMemoryPayload,
+    lastUserText
+  );
 
   const behaviorBlock = buildUserBehaviorContextBlock(
     req.context.behaviorHistory?.map((e) => ({
@@ -614,8 +522,10 @@ async function runVautoAgentInner(
   }
 
   if (
-    req.context.proactiveOffer?.kind === "no_match" ||
-    req.context.searchResultCount === 0
+    !resolveBrowseAllIntent(lastUserText) &&
+    !resolveBrowseAllIntent(req.context.lastSearchQuery ?? "") &&
+    (req.context.proactiveOffer?.kind === "no_match" ||
+      req.context.searchResultCount === 0)
   ) {
     const q =
       req.context.proactiveOffer?.query ??
@@ -671,7 +581,17 @@ async function runVautoAgentInner(
     parts: [{ text: userProfileBlock }],
   });
 
-  const supervisorState = resolveSupervisorStateFromRequest(req.context);
+  const supervisorState = resolveSupervisorStateFromRequest(
+    {
+      ...req.context,
+      userName: req.context.userName,
+      isAuthenticated: req.context.isAuthenticated,
+      accountType: req.context.accountType,
+      userRole: req.context.userRole,
+      userCity: req.context.userCity,
+    },
+    req.authUserId
+  );
   contents.unshift({
     role: "user",
     parts: [{ text: buildSupervisorStateInjectionBlock(supervisorState) }],
@@ -684,10 +604,12 @@ async function runVautoAgentInner(
   let uiFilterEffect: AgentSideEffect | undefined;
   let navigateScreenEffect: AgentSideEffect | undefined;
   let offerEffect: AgentSideEffect | undefined;
-  let finalText = "";
+  let draftText = "";
+  const forceSupervisorTools = shouldForceSupervisorTools(lastUserText);
 
   const hasGemini = Boolean(resolveGeminiApiKey());
   let lastGeminiError: AgentRouteError | null = null;
+  let activeModel = GEMINI_MODELS[0];
 
   if (!hasGemini) {
     throw new AgentRouteError(
@@ -697,101 +619,154 @@ async function runVautoAgentInner(
     );
   }
 
-  if (hasGemini) {
-    for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
-      let parts: GeminiPart[] = [];
-      let text = "";
+  for (let round = 0; round < MAX_TOOL_ROUNDS; round++) {
+    let parts: GeminiPart[] = [];
+    let text = "";
+    const toolMode = round === 0 && forceSupervisorTools ? "ANY" : "AUTO";
 
-      emitAgentEvent(onEvent, {
-        type: "status",
-        message: round === 0 ? "Analizuoju užklausą…" : "Tęsiu darbą…",
-      });
+    emitAgentEvent(onEvent, {
+      type: "status",
+      message: round === 0 ? "Analizuoju užklausą…" : "Tęsiu darbą…",
+    });
 
-      for (const model of GEMINI_MODELS) {
-        let succeeded = false;
-        for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
-          try {
-            const turn = await geminiAgentTurn(contents, model, systemInstruction);
-            parts = turn.parts;
-            text = turn.text;
-            lastGeminiError = null;
-            succeeded = true;
-            break;
-          } catch (e) {
-            lastGeminiError =
-              e instanceof AgentRouteError
-                ? e
-                : new AgentRouteError(
-                    "gemini_error",
-                    e instanceof Error ? e.message : "Gemini API klaida",
-                    502
-                  );
-            const canRetry =
-              attempt < GEMINI_MAX_RETRIES && isRetriableAgentError(lastGeminiError);
-            console.warn(
-              `[vauto-agent] ${model} attempt ${attempt + 1}${canRetry ? " (will retry)" : ""}:`,
-              lastGeminiError.message
-            );
-            if (!canRetry) break;
-            await sleepMs(GEMINI_RETRY_BASE_MS * 2 ** attempt);
-          }
+    let succeeded = false;
+    for (const model of GEMINI_MODELS) {
+      for (let attempt = 0; attempt <= GEMINI_MAX_RETRIES; attempt++) {
+        try {
+          const turn = await geminiSupervisorTurn(
+            contents,
+            model,
+            systemInstruction,
+            toolMode
+          );
+          parts = turn.parts;
+          text = turn.text;
+          activeModel = model;
+          lastGeminiError = null;
+          succeeded = true;
+          break;
+        } catch (e) {
+          lastGeminiError =
+            e instanceof AgentRouteError
+              ? e
+              : new AgentRouteError(
+                  "gemini_error",
+                  e instanceof Error ? e.message : "Gemini API klaida",
+                  502
+                );
+          const canRetry =
+            attempt < GEMINI_MAX_RETRIES && isRetriableAgentError(lastGeminiError);
+          console.warn(
+            `[vauto-agent] ${model} attempt ${attempt + 1}${canRetry ? " (will retry)" : ""}:`,
+            lastGeminiError.message
+          );
+          if (!canRetry) break;
+          await sleepMs(GEMINI_RETRY_BASE_MS * 2 ** attempt);
         }
-        if (succeeded) break;
       }
+      if (succeeded) break;
+    }
 
-      if (!parts.length) break;
+    if (!succeeded) break;
 
-      const functionCalls = parts.filter(
-        (p): p is { functionCall: { name: string; args: Record<string, unknown> } } =>
-          "functionCall" in p
-      );
+    const functionCalls = extractGeminiFunctionCalls(parts);
 
-      if (!functionCalls.length) {
-        finalText = text || "Supratau. Kuo dar galiu padėti?";
-        break;
-      }
-
-      contents.push({ role: "model", parts: functionCalls });
-
-      const responseParts: GeminiPart[] = [];
-      for (const fc of functionCalls) {
-        const { name, args } = fc.functionCall;
+    if (!functionCalls.length) {
+      if (round === 0 && forceSupervisorTools) {
         emitAgentEvent(onEvent, {
           type: "tool_call",
-          name,
-          message: toolProgressMessage(name),
+          name: "searchListings",
+          message: "Atfiltruoju katalogą…",
         });
-        const { result, sideEffect: fx } = await executeAgentTool(name, args ?? {}, ctx);
-        emitAgentEvent(onEvent, { type: "tool_result", name });
-        toolCalls.push({ name, result });
-        if (fx) {
-          if (fx.type === "micro_payment") microPaymentEffect = fx;
-          else if (fx.type === "navigate") navigateEffect = fx;
-          else if (fx.type === "apply_ui_filters") uiFilterEffect = fx;
-          else if (fx.type === "navigate_to_screen") navigateScreenEffect = fx;
-          else if (
-            fx.type === "create_user_requirement" ||
-            fx.type === "propose_bargaining"
-          ) {
-            offerEffect = fx;
-          }
-          else if (
-            fx.type === "mark_listing_sold" ||
-            fx.type === "listing_draft" ||
-            fx.type === "wardrobe_bulk" ||
-            !sideEffect
-          ) {
-            sideEffect = fx;
+        const deterministic = await runDeterministicSupervisorSearch(
+          lastUserText,
+          ctx
+        );
+        toolCalls.push({
+          name: deterministic.toolName,
+          result: deterministic.result,
+        });
+        if (deterministic.sideEffect) {
+          if (deterministic.sideEffect.type === "apply_ui_filters") {
+            uiFilterEffect = deterministic.sideEffect;
+          } else if (shouldReplaceSideEffect(sideEffect, deterministic.sideEffect)) {
+            sideEffect = deterministic.sideEffect;
           }
         }
-        responseParts.push({ functionResponse: { name, response: result } });
+        emitAgentEvent(onEvent, {
+          type: "tool_result",
+          name: deterministic.toolName,
+        });
       }
+      draftText = text || draftText;
+      break;
+    }
 
-      contents.push({ role: "user", parts: responseParts });
+    contents.push({ role: "model", parts: functionCalls });
 
-      if (text) finalText = text;
+    const responseParts: GeminiPart[] = [];
+    for (const fc of functionCalls) {
+      const { name, args } = fc.functionCall;
+      emitAgentEvent(onEvent, {
+        type: "tool_call",
+        name,
+        message: toolProgressMessage(name),
+      });
+      const { result, sideEffect: fx } = await executeAgentTool(
+        name,
+        args ?? {},
+        ctx
+      );
+      emitAgentEvent(onEvent, { type: "tool_result", name });
+      toolCalls.push({ name, result });
+      if (fx) {
+        if (fx.type === "micro_payment") microPaymentEffect = fx;
+        else if (fx.type === "navigate") navigateEffect = fx;
+        else if (fx.type === "apply_ui_filters") uiFilterEffect = fx;
+        else if (fx.type === "navigate_to_screen") navigateScreenEffect = fx;
+        else if (
+          fx.type === "create_user_requirement" ||
+          fx.type === "propose_bargaining"
+        ) {
+          offerEffect = fx;
+        } else if (shouldReplaceSideEffect(sideEffect, fx)) {
+          sideEffect = fx;
+        }
+      }
+      responseParts.push({ functionResponse: { name, response: result } });
+    }
+
+    contents.push({ role: "user", parts: responseParts });
+    if (text) draftText = text;
+  }
+
+  const ranSupervisorSearch =
+    forceSupervisorTools ||
+    toolCalls.some((t) =>
+      ["searchListings", "applyFilter", "clearAllFilters", "updateUIFilters"].includes(
+        t.name
+      )
+    );
+  if (
+    ranSupervisorSearch &&
+    (!draftText.trim() || isGenericEmptySearchReply(draftText))
+  ) {
+    try {
+      const polish = await geminiSupervisorTurn(
+        contents,
+        activeModel,
+        systemInstruction,
+        "NONE"
+      );
+      if (polish.text.trim() && !isGenericEmptySearchReply(polish.text)) {
+        draftText = polish.text;
+      }
+    } catch {
+      // keep tool-driven labels
     }
   }
+
+  let finalText = draftText;
 
   if (!finalText) {
     const listingCall = [...toolCalls]
@@ -936,43 +911,33 @@ async function runVautoAgentInner(
         t.name === "importWardrobeProfile"
     );
 
-  const hasUiDrivingTool = Boolean(uiFilterCall || navigateScreenCall);
+  const applyFilterCall = toolCalls.find(
+    (t) => t.name === "applyFilter" || t.name === "clearAllFilters"
+  );
+  const hasUiDrivingTool = Boolean(
+    uiFilterCall || navigateScreenCall || applyFilterCall || searchToolCall
+  );
   const hasOfferTool = Boolean(requirementCall || bargainCall);
 
   if (
     !hasListingDraftAction &&
-    !hasUiDrivingTool &&
     !hasOfferTool &&
-    (searchToolCall || searchSideEffect || emptySearchSideEffect || browseAllSideEffect)
+    (searchToolCall ||
+      searchSideEffect ||
+      emptySearchSideEffect ||
+      browseAllSideEffect ||
+      uiFilterEffect ||
+      applyFilterCall)
   ) {
-    if (browseAllSideEffect) {
-      finalText =
-        browseAllSideEffect.replyMessage?.trim() ||
-        buildBrowseAllReply(browseAllSideEffect.listingCount);
-    } else {
-    const emptyQuery =
-      emptySearchSideEffect?.searchQuery ??
-      (searchToolCall?.result &&
-      typeof searchToolCall.result === "object" &&
-      "filters" in searchToolCall.result
-        ? String(
-            (searchToolCall.result as { filters?: { query?: string } }).filters
-              ?.query ?? ""
-          )
-        : "");
-
-    if (searchToolCount > 0 || searchSideEffect) {
-      finalText =
-        finalText.trim() && !isGenericEmptySearchReply(finalText)
-          ? finalText
-          : STATE_SEARCH_REPLY;
-    } else {
-      finalText =
-        finalText.trim() && !isGenericEmptySearchReply(finalText)
-          ? finalText
-          : buildNoMatchLeadPrompt(emptyQuery);
-    }
-    }
+    finalText = resolveSupervisorFinalReply({
+      draftText: finalText,
+      toolCalls,
+      sideEffect,
+      uiFilterEffect,
+      browseAllSideEffect,
+      searchToolCount,
+      lastUserQuery: lastUserText,
+    });
   }
 
   const resolvedAction =

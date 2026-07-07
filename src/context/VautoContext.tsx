@@ -164,9 +164,8 @@ import { ReviewPromptHost } from "@/components/reviews/ReviewPromptHost";
 import {
   buildBuddySoldFollowUp,
 } from "@/lib/buddy-messages";
-import {
-  type ChameleonThemeId,
-} from "@/lib/chameleon-themes";
+import { effectiveMarketplaceSearchQuery } from "@/lib/browse-all-intent";
+import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories";
 import { ConfirmDialog } from "@/components/ui/ConfirmDialog";
 import type { WakeWordGeminiAgent } from "@/lib/voice-intent-engine";
@@ -611,7 +610,7 @@ function VautoFacade({
     () =>
       buildDisplayListings({
         visibleListings,
-        searchQuery: searchState.searchQuery,
+        searchQuery: effectiveMarketplaceSearchQuery(searchState.searchQuery),
         agentPinnedListingIds: searchState.agentPinnedListingIds,
         marketplaceFilters: searchState.marketplaceFilters,
         activeFilterIds: catalog.activeFilterIds,

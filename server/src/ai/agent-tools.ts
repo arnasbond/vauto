@@ -1,5 +1,6 @@
 import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
+import { normalizeProductSearchQuery } from "./product-search-query.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -980,7 +981,7 @@ export async function executeAgentTool(
         case "query":
         case "paieska":
         case "search":
-          filterArgs.query = valueRaw;
+          filterArgs.query = normalizeProductSearchQuery(valueRaw);
           break;
         case "category":
         case "kategorija":
@@ -1183,7 +1184,7 @@ export async function executeAgentTool(
     case "searchListings": {
       const rawQuery = String(args.query ?? "").trim();
       const fallbackQuery = ctx.lastUserQuery?.trim() ?? "";
-      const query = rawQuery || fallbackQuery;
+      const query = normalizeProductSearchQuery(rawQuery || fallbackQuery);
       const category = args.category ? String(args.category) : undefined;
 
       if (resolveBrowseAllIntent(rawQuery, fallbackQuery, query)) {

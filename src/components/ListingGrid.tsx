@@ -14,6 +14,7 @@ import {
 import { ListingMapView } from "@/components/marketplace/ListingMapView";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 import { buildEmptySearchBannerMessage } from "@/lib/empathy-copy";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -70,6 +71,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const portal = portalExperienceForQuery(searchQuery);
   const theme = portal.theme;
   const ui = getPortalUi(theme);
+  const browseAllActive = resolveBrowseAllIntent(searchQuery);
 
   const renderListingCards = (items: typeof displayListings, showLoadMore = false) => {
     const visible = sliceForNative(items);
@@ -152,7 +154,9 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         </p>
       ) : displayListings.length === 0 ? (
         <>
-          {searchQuery.trim().length >= 3 && !hideEmptyAssistant ? (
+          {!browseAllActive &&
+          searchQuery.trim().length >= 3 &&
+          !hideEmptyAssistant ? (
             isAbsurdSearchQuery(searchQuery, listings) ? (
               <WantedEmptyState
                 searchQuery={searchQuery}

@@ -135,5 +135,12 @@ export function createBrowseAllAction(
   };
 }
 
+/** Strip browse-all command phrases so ranking/sidebar never treat them as product queries. */
+export function effectiveMarketplaceSearchQuery(searchQuery: string): string {
+  if (!searchQuery.trim()) return "";
+  if (resolveBrowseAllIntent(searchQuery)) return "";
+  return searchQuery;
+}
+
 /** @deprecated Use isBrowseAllIntent */
 export const BROWSE_ALL_RE = BROWSE_PHRASE_RE;

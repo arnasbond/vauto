@@ -218,6 +218,7 @@ export function AiCommandBar({
         ).length;
         const actions = createBrowseAllAction(activeCount);
         setDraftQuery("");
+        setSearchQuery("");
         setSearchLoading(true);
         try {
           syncGridFromAgentActions(actions);

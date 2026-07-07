@@ -10,6 +10,7 @@ import { coordsForLtCity, detectCityInText } from "@/lib/lt-cities";
 import { sortListingsFast } from "@/lib/fast-agent-search";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 
 export type MarketplaceViewMode = "list" | "grid" | "map";
 
@@ -319,6 +320,8 @@ export function applyMarketplaceSort<T extends Listing>(
 
 export function formatResultsLabel(searchQuery: string, count: number): string {
   const q = searchQuery.trim();
-  if (!q) return `Skelbimai Lietuvoje: ${count} rezultatų`;
+  if (!q || resolveBrowseAllIntent(q)) {
+    return `Skelbimai Lietuvoje: ${count} rezultatų`;
+  }
   return `${q}: ${count} ${count === 1 ? "rezultatas" : "rezultatai"}`;
 }

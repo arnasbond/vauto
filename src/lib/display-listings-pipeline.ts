@@ -33,7 +33,7 @@ import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { prioritizeFeedTiers } from "@/lib/feed-tier";
 
 import type { VisualSearchProfile } from "@/lib/visual-search";
-import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
+import { resolveBrowseAllIntent, effectiveMarketplaceSearchQuery } from "@/lib/browse-all-intent";
 
 
 
@@ -155,7 +155,12 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
 
 
 
-  let results = rankListings(pool, input.searchQuery, sortMode, rankOpts);
+  let results = rankListings(
+    pool,
+    effectiveMarketplaceSearchQuery(input.searchQuery),
+    sortMode,
+    rankOpts
+  );
 
 
 
@@ -201,7 +206,7 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
 
 
 
-  const q = input.searchQuery.trim();
+  const q = effectiveMarketplaceSearchQuery(input.searchQuery).trim();
 
   if (q && portalThemeForQuery(q) !== "flux") {
 
