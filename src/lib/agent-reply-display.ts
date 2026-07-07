@@ -22,7 +22,7 @@ export function sanitizeAgentReplyForDisplay(text: string): string {
 
   if (!cleaned) return "";
   if (/^rezultat[uų]\s+nerasta\.?$/i.test(cleaned)) {
-    return buildEmptySearchReply();
+    return "";
   }
   return cleaned;
 }

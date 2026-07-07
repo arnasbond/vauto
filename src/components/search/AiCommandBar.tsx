@@ -48,8 +48,12 @@ import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
-import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
 import { resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
+import {
+  applySearchBarSyncPlan,
+  resolveSearchBarSyncFromAction,
+  resolveSupervisorChatTurn,
+} from "@/lib/agent-chat-layout";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
@@ -159,31 +163,28 @@ export function AiCommandBar({
   };
 
   const syncGridFromAgentActions = useCallback(
-    (actions: VautoAgentAction | undefined) => {
+    (actions: VautoAgentAction | undefined, userQuery?: string) => {
       if (!actions || actions.type === "none") return;
       applyAgentActions(actions);
+      const barSync = resolveSearchBarSyncFromAction(actions, userQuery);
+      applySearchBarSyncPlan(barSync, (q) => {
+        setSearchQuery(q);
+        setDraftQuery(q);
+      });
       if (actions.type === "search") {
-        setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(actions.listingIds.length);
       } else if (actions.type === "browse_all") {
-        setDraftQuery("");
         focusSearchOutcome(actions.listingCount ?? 1);
         scrollToResults();
-      } else if (actions.type === "empty_search") {
-        setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
-        focusSearchOutcome(0);
-      } else if (actions.type === "apply_ui_filters") {
-        const q = actions.query?.trim() || actions.filters?.query?.trim();
-        if (q) setDraftQuery(stripLegacyCategorySuffixes(q));
-        focusSearchOutcome(0);
-      } else if (actions.type === "navigate_to_screen") {
-        if (actions.query?.trim()) {
-          setDraftQuery(stripLegacyCategorySuffixes(actions.query.trim()));
-        }
+      } else if (
+        actions.type === "empty_search" ||
+        actions.type === "apply_ui_filters" ||
+        actions.type === "navigate_to_screen"
+      ) {
         focusSearchOutcome(0);
       }
     },
-    [applyAgentActions]
+    [applyAgentActions, setSearchQuery]
   );
 
   const commitSearch = useCallback(
@@ -247,14 +248,14 @@ export function AiCommandBar({
         if (!conductorShouldDelegateLegacy(route)) {
           const exec = readConductorSearchExecute(route);
           if (exec?.agentResult.actions) {
-            syncGridFromAgentActions(exec.agentResult.actions);
+            syncGridFromAgentActions(exec.agentResult.actions, q);
           } else if (exec?.agentResult.ok) {
             scrollToResults();
           }
           return;
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });
-        if (res.actions) syncGridFromAgentActions(res.actions);
+        if (res.actions) syncGridFromAgentActions(res.actions, q);
         else if (res.reply) {
           scrollToResults();
         } else if (res.ok) scrollToResults();
@@ -395,9 +396,7 @@ export function AiCommandBar({
   );
 
   const lastAssistant = useMemo(() => {
-    const m = [...messages].reverse().find((x) => x.role === "assistant");
-    if (!m?.text) return "";
-    return sanitizeAgentReplyForDisplay(m.text) || m.text;
+    return resolveSupervisorChatTurn(messages).assistant?.text ?? "";
   }, [messages]);
 
   const busy = agentBusy || searchLoading || isPhotoSearching;

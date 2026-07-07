@@ -6,11 +6,8 @@ import { useRouter } from "next/navigation";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import {
-  extractAgentQuickReplies,
-  isProactiveInternalAgentText,
-  sanitizeAgentReplyForDisplay,
-} from "@/lib/agent-reply-display";
+import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
+import { resolveVisibleAgentBubbles } from "@/lib/agent-chat-layout";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { pushAddListing } from "@/lib/listing-navigation";
@@ -18,37 +15,28 @@ import { detectSellerListingIntent } from "@/lib/scoring";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 
 /**
- * Organiškas AI dialogas namų ekrane — burbulai, greiti atsakymai, veikiantys CTA.
+ * Organiškas AI dialogas namų ekrane — vienas supervisor burbulas per turną.
  */
 export function AgentChatStrip() {
   const router = useRouter();
   const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
 
   const visibleMessages = useMemo(
-    () =>
-      messages
-        .filter((m) => !isProactiveInternalAgentText(safeMessageText(m.text)))
-        .slice(-3),
+    () => resolveVisibleAgentBubbles(messages),
     [messages]
   );
 
   const lastUser = useMemo(
-    () =>
-      [...messages]
-        .reverse()
-        .find((m) => m.role === "user" && !isProactiveInternalAgentText(m.text))?.text ?? "",
-    [messages]
+    () => visibleMessages.find((m) => m.role === "user")?.text ?? "",
+    [visibleMessages]
   );
 
   const lastAssistantMessage = useMemo(
-    () => [...messages].reverse().find((m) => m.role === "assistant"),
-    [messages]
+    () => [...visibleMessages].reverse().find((m) => m.role === "assistant"),
+    [visibleMessages]
   );
 
-  const lastAssistant = useMemo(() => {
-    const raw = lastAssistantMessage?.text;
-    return raw ? sanitizeAgentReplyForDisplay(raw) || raw : "";
-  }, [lastAssistantMessage]);
+  const lastAssistant = lastAssistantMessage?.text ?? "";
 
   const quickReplies = useMemo(() => {
     if (busy) return [];
@@ -107,11 +95,7 @@ export function AgentChatStrip() {
 
       <div className="space-y-2.5">
         {visibleMessages.map((m, i) => {
-          const rawText = safeMessageText(m.text);
-          const display =
-            m.role === "assistant"
-              ? sanitizeAgentReplyForDisplay(rawText) || rawText
-              : rawText;
+          const display = safeMessageText(m.text);
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
           const messageChips =

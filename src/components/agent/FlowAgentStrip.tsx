@@ -5,11 +5,8 @@ import { useMemo } from "react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import {
-  extractAgentQuickReplies,
-  isProactiveInternalAgentText,
-  sanitizeAgentReplyForDisplay,
-} from "@/lib/agent-reply-display";
+import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
+import { resolveVisibleAgentBubbles } from "@/lib/agent-chat-layout";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import type { ListingCategory } from "@/lib/types";
 import { cn } from "@/lib/cn";
@@ -18,7 +15,6 @@ export type FlowAgentStripVariant = "default" | "spinta";
 
 interface FlowAgentStripProps {
   variant?: FlowAgentStripVariant;
-  /** Optional category hint for aria-label */
   category?: ListingCategory;
   className?: string;
 }
@@ -41,7 +37,7 @@ const VARIANT_STYLES: Record<
   },
 };
 
-/** Embedded agent dialogue during listing / flow wizards — global P7 strip. */
+/** Embedded agent dialogue — single supervisor bubble per turn. */
 export function FlowAgentStrip({
   variant = "default",
   category,
@@ -51,22 +47,16 @@ export function FlowAgentStrip({
   const styles = VARIANT_STYLES[variant];
 
   const visibleMessages = useMemo(
-    () =>
-      messages
-        .filter((m) => !isProactiveInternalAgentText(safeMessageText(m.text)))
-        .slice(-4),
+    () => resolveVisibleAgentBubbles(messages),
     [messages]
   );
 
   const lastAssistantMessage = useMemo(
-    () => [...messages].reverse().find((m) => m.role === "assistant"),
-    [messages]
+    () => [...visibleMessages].reverse().find((m) => m.role === "assistant"),
+    [visibleMessages]
   );
 
-  const lastAssistant = useMemo(() => {
-    const raw = lastAssistantMessage?.text;
-    return raw ? sanitizeAgentReplyForDisplay(raw) || raw : "";
-  }, [lastAssistantMessage]);
+  const lastAssistant = lastAssistantMessage?.text ?? "";
 
   const quickReplies = useMemo(() => {
     if (busy) return [];
@@ -111,11 +101,7 @@ export function FlowAgentStrip({
 
       <div className="space-y-2.5">
         {visibleMessages.map((m, i) => {
-          const rawText = safeMessageText(m.text);
-          const display =
-            m.role === "assistant"
-              ? sanitizeAgentReplyForDisplay(rawText) || rawText
-              : rawText;
+          const display = safeMessageText(m.text);
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
           const messageChips =

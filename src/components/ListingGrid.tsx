@@ -15,6 +15,11 @@ import { ListingMapView } from "@/components/marketplace/ListingMapView";
 import { isAbsurdSearchQuery } from "@/lib/search-query-match";
 import { buildEmptySearchBannerMessage } from "@/lib/empathy-copy";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
+import { useVautoAgent } from "@/context/VautoAgentContext";
+import {
+  agentHasSupervisorReply,
+  isSyntheticAgentQuery,
+} from "@/lib/agent-chat-layout";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { buildSmartBrokerSignal } from "@/lib/smart-broker";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
@@ -46,6 +51,7 @@ function emptyMessage(theme: ChameleonThemeId): string {
 
 export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant?: boolean }) {
   const { displayListings, fallbackListings, listings } = useVauto();
+  const { messages, busy: agentBusy } = useVautoAgent();
   const {
     searchQuery,
     viewMode,
@@ -72,6 +78,11 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const theme = portal.theme;
   const ui = getPortalUi(theme);
   const browseAllActive = resolveBrowseAllIntent(searchQuery);
+  const suppressEmptyFallback =
+    hideEmptyAssistant ||
+    agentBusy ||
+    agentHasSupervisorReply(messages) ||
+    isSyntheticAgentQuery(searchQuery);
 
   const renderListingCards = (items: typeof displayListings, showLoadMore = false) => {
     const visible = sliceForNative(items);
@@ -156,7 +167,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         <>
           {!browseAllActive &&
           searchQuery.trim().length >= 3 &&
-          !hideEmptyAssistant ? (
+          !suppressEmptyFallback ? (
             isAbsurdSearchQuery(searchQuery, listings) ? (
               <WantedEmptyState
                 searchQuery={searchQuery}

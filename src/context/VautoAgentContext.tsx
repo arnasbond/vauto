@@ -82,6 +82,11 @@ import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { resolveAgentChatReply } from "@/lib/agent-chat-reply";
 import {
+  applySearchBarSyncPlan,
+  resolveSearchBarSyncFromAction,
+  stripGenericFallbackAssistants,
+} from "@/lib/agent-chat-layout";
+import {
   buildBrowseAllReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
@@ -435,11 +440,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setOpen(false);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        const displayQuery = resolveAgentDisplayQuery(
-          actions.filters,
-          actions.searchQuery
+        applySearchBarSyncPlan(
+          resolveSearchBarSyncFromAction(actions, searchQuery),
+          setSearchQuery
         );
-        setSearchQuery(displayQuery);
         setAgentPinnedListings(actions.listingIds);
         if (actions.filters) {
           setMarketplaceFilters(
@@ -473,7 +477,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (nextFilters) recordSearchFilters(nextFilters);
         trackEvent("agent_action", {
           action: "search",
-          query: displayQuery,
+          query:
+            resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
+            searchQuery,
           resultCount: actions.listingIds.length,
         });
         if (actions.listingIds.length) {
@@ -529,11 +535,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        const displayQuery = resolveAgentDisplayQuery(
-          actions.filters,
-          actions.searchQuery
+        applySearchBarSyncPlan(
+          resolveSearchBarSyncFromAction(actions, searchQuery),
+          setSearchQuery
         );
-        setSearchQuery(displayQuery);
         if (actions.filters) {
           setMarketplaceFilters(
             mergeAgentIntoMarketplaceFilters(
@@ -548,10 +553,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           );
         }
         trackEvent("search_empty", {
-          query: displayQuery,
+          query:
+            resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
+            searchQuery,
           filters: actions.filters ?? null,
         });
-        trackEvent("agent_action", { action: "empty_search", query: displayQuery });
+        trackEvent("agent_action", {
+          action: "empty_search",
+          query:
+            resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
+            searchQuery,
+        });
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
       if (actions.type === "register_wanted") {
@@ -600,11 +612,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setSearchInputMode("text");
         setSearchVoiceMode(false);
         setAgentPinnedListings(null);
-        const displayQuery =
-          resolveAgentDisplayQuery(actions.filters, actions.query);
-        if (displayQuery) {
-          setSearchQuery(displayQuery);
-        }
+        applySearchBarSyncPlan(
+          resolveSearchBarSyncFromAction(actions, searchQuery),
+          setSearchQuery
+        );
         setMarketplaceFilters(
           mergeVoiceUiFilters(
             marketplaceFilters,
@@ -643,9 +654,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             )
           );
         }
-        if (actions.query?.trim()) {
-          const q = resolveAgentDisplayQuery(actions.filters, actions.query);
-          if (q) setSearchQuery(q);
+        if (actions.query?.trim() || actions.filters?.query?.trim()) {
+          applySearchBarSyncPlan(
+            resolveSearchBarSyncFromAction(actions, searchQuery),
+            setSearchQuery
+          );
         }
         if (actions.zeroUi) {
           routeZeroUiScreen(actions.zeroUi);
@@ -1291,6 +1304,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           (res.actions.type === "empty_search" &&
             resolveBrowseAllIntent(trimmed, res.actions.searchQuery));
 
+        const appendSupervisorAssistant = (
+          assistantText: string,
+          quickReplies?: string[]
+        ) => {
+          const text = assistantText.trim();
+          if (!text) return;
+          const structuredReplies = quickReplies?.filter(Boolean).slice(0, 4);
+          setMessages((prev) =>
+            [
+              ...stripGenericFallbackAssistants(prev),
+              {
+                role: "assistant" as const,
+                text,
+                ...(structuredReplies && structuredReplies.length >= 2
+                  ? { quickReplies: structuredReplies }
+                  : {}),
+              },
+            ].slice(-6)
+          );
+        };
+
         if (browseAllOutcome && res.actions.type === "empty_search") {
           const coerced = createBrowseAllAction(catalogCount);
           if (!options?.fromSearchBar) {
@@ -1298,16 +1332,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
           const browseReply =
             sanitizeAgentReplyForDisplay(res.reply) || coerced.replyMessage;
-          if (browseReply.trim() && !options?.fromSearchBar) {
-            setMessages((prev) =>
-              [
-                ...prev,
-                {
-                  role: "assistant" as const,
-                  text: browseReply,
-                },
-              ].slice(-6)
-            );
+          if (!options?.fromSearchBar) {
+            appendSupervisorAssistant(browseReply);
           }
           speakReply(browseReply);
           return {
@@ -1320,13 +1346,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (!res.reply && !hasExecutableAction) {
           const fallback = BUDDY_REPEAT_PROMPT;
           if (!options?.fromSearchBar) {
-            setMessages((prev) => [
-              ...prev,
-              {
-                role: "assistant",
-                text: fallback,
-              },
-            ]);
+            appendSupervisorAssistant(fallback);
           }
           speakReply(fallback);
           if (open && !options?.fromSearchBar) showToast(fallback, "info");
@@ -1342,36 +1362,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           toolCalls: res.toolCalls,
         });
 
-        const isStateSearch =
-          res.actions.type === "search" ||
-          (res.actions.type === "empty_search" && !browseAllOutcome) ||
-          res.actions.type === "browse_all" ||
-          res.actions.type === "apply_ui_filters";
-
-        const lastAssistantText = [...messages]
-          .reverse()
-          .find((m) => m.role === "assistant")?.text
-          ?.trim();
-        const shouldAppendAssistant =
-          assistantText.trim() &&
-          (options?.fromSearchBar && isStateSearch
-            ? true
-            : assistantText.trim() !== lastAssistantText);
-
-        if (shouldAppendAssistant) {
-          const structuredReplies = res.quickReplies?.filter(Boolean).slice(0, 4);
-          setMessages((prev) =>
-            [
-              ...prev,
-              {
-                role: "assistant" as const,
-                text: assistantText,
-                ...(structuredReplies && structuredReplies.length >= 2
-                  ? { quickReplies: structuredReplies }
-                  : {}),
-              },
-            ].slice(-6)
-          );
+        if (assistantText.trim()) {
+          appendSupervisorAssistant(assistantText, res.quickReplies);
         }
         speakReply(assistantText);
         if (hasExecutableAction) {
@@ -1420,6 +1412,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (open) showToast(message, "info");
         return { ok: true, reply: message };
       } finally {
+        setStreamThinkingLabel("");
         touchAgentSessionActivity();
         busyGate.release(options?.skipBusyCheck);
         drainAgentQueue();

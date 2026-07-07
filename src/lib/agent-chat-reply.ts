@@ -1,9 +1,9 @@
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import {
   sanitizeAgentReplyForDisplay,
-  buildEmptySearchReply,
 } from "@/lib/agent-reply-display";
 import { buildBrowseAllReply } from "@/lib/browse-all-intent";
+import { isGenericFallbackAgentText } from "@/lib/agent-chat-layout";
 
 const SUPERVISOR_TOOL_NAMES = new Set([
   "applyFilter",
@@ -28,9 +28,14 @@ export function resolveAgentChatReply(input: {
   catalogCount?: number;
   toolCalls?: { name: string }[];
 }): string {
-  const { serverReply, actions, userQuery, catalogCount, toolCalls } = input;
+  const { serverReply, actions, catalogCount, toolCalls } = input;
   const sanitized = sanitizeAgentReplyForDisplay(serverReply ?? "");
   const ranTools = agentRanSupervisorTools(toolCalls);
+  const serverText = serverReply?.trim() ?? "";
+
+  if (serverText && !isGenericFallbackAgentText(sanitized || serverText)) {
+    return sanitized || serverText;
+  }
 
   if (actions.type === "browse_all") {
     return (
@@ -43,14 +48,16 @@ export function resolveAgentChatReply(input: {
   if (actions.type === "search" || actions.type === "apply_ui_filters") {
     if (sanitized) return sanitized;
     if (ranTools) {
-      return serverReply?.trim() || "Atfiltravau — žiūrėk rezultatus ekrane.";
+      return serverText || "Atfiltravau — žiūrėk rezultatus ekrane.";
     }
     return "Atidarau skelbimus ekrane.";
   }
 
   if (actions.type === "empty_search") {
-    return sanitized || buildEmptySearchReply(userQuery);
+    if (sanitized) return sanitized;
+    if (ranTools && serverText) return serverText;
+    return sanitized || serverText || "Kol kas atitikmenų neradau — galime patikslinti paiešką.";
   }
 
-  return sanitized || serverReply?.trim() || "Atlikta.";
+  return sanitized || serverText || "Atlikta.";
 }
