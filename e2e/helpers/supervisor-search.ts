@@ -1,4 +1,4 @@
-import { expect, type Page, type Route } from "@playwright/test";
+import { expect, type Page } from "@playwright/test";
 import { listingResults } from "./listing-results";
 
 /** Supervisor chat strip — single broker bubble per turn. */
@@ -10,16 +10,18 @@ const SEARCH_MOCKS = {
   bmw: {
     listingIds: ["lt-auto-001", "lt-auto-002"],
     reply: "Radau kelis BMW variantus — peržiūrėkite tinklelyje.",
+    searchQuery: "bmw",
   },
   volvo: {
     listingIds: ["lt-auto-016"],
     reply: "Radau Volvo V70 variantus — peržiūrėkite tinklelyje.",
+    searchQuery: "volvo v70",
   },
 } as const;
 
 export type SupervisorSearchMockVariant = keyof typeof SEARCH_MOCKS;
 
-/** Deterministic supervisor search — avoids live Render latency in static E2E. */
+/** Deterministic supervisor search — stubs fetch before static serve can return SPA HTML. */
 export async function installSupervisorSearchMocks(
   page: Page,
   variant: SupervisorSearchMockVariant
@@ -31,39 +33,39 @@ export async function installSupervisorSearchMocks(
     actions: {
       type: "search",
       listingIds: spec.listingIds,
-      searchQuery: variant === "bmw" ? "bmw" : "volvo v70",
+      searchQuery: spec.searchQuery,
     },
     toolCalls: [],
   };
 
-  const streamBody = `data: ${JSON.stringify({
-    type: "final",
-    result: agentResult,
-  })}\n\n`;
-
-  const fulfillAgent = async (route: Route) => {
-    if (route.request().method() !== "POST") {
-      await route.continue();
-      return;
-    }
-    const url = route.request().url();
-    if (url.includes("/stream")) {
-      await route.fulfill({
+  await page.addInitScript((mock) => {
+    const streamBody = `data: ${JSON.stringify({
+      type: "final",
+      result: mock,
+    })}\n\n`;
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url =
+        typeof input === "string"
+          ? input
+          : input instanceof URL
+            ? input.href
+            : input.url;
+      if (!url.includes("/api/vauto-agent")) {
+        return originalFetch(input, init);
+      }
+      if (url.includes("/stream")) {
+        return new Response(streamBody, {
+          status: 200,
+          headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+        });
+      }
+      return new Response(JSON.stringify(mock), {
         status: 200,
-        headers: { "Content-Type": "text/event-stream; charset=utf-8" },
-        body: streamBody,
+        headers: { "Content-Type": "application/json" },
       });
-      return;
-    }
-    await route.fulfill({
-      status: 200,
-      contentType: "application/json",
-      body: JSON.stringify(agentResult),
-    });
-  };
-
-  await page.route("**/api/vauto-agent**", fulfillAgent);
-  await page.route("**/vauto-api.onrender.com/api/vauto-agent**", fulfillAgent);
+    };
+  }, agentResult);
 }
 
 /**
