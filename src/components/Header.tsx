@@ -6,9 +6,11 @@ import { GuestAvatar } from "@/components/auth/GuestAvatar";
 import { VautoLogo } from "@/components/VautoLogo";
 import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useVauto } from "@/context/VautoContext";
+import { useActivePortal } from "@/hooks/useActivePortal";
 
 export function Header() {
   const { user, isAuthenticated, openAuthModal } = useVauto();
+  const { ui } = useActivePortal();
 
   const handleProfile = (e: React.MouseEvent) => {
     if (!isAuthenticated) {
@@ -18,16 +20,19 @@ export function Header() {
   };
 
   return (
-    <header className="vauto-app-header flex items-center justify-between gap-3 py-1">
-      <Link href="/" className="min-w-0 shrink" aria-label="VAUTO pradžia">
-        <VautoLogo variant="brand" markSize="sm" />
+    <header className="flex items-center justify-between">
+      <Link href="/" aria-label="VAUTO pradžia">
+        <VautoLogo color={ui.accent} dotColor={ui.cta} />
       </Link>
 
-      <div className="flex shrink-0 items-center gap-2.5 sm:gap-3">
-        <Link href="/apie/" className="vauto-header-link text-xs font-semibold">
+      <div className="flex items-center gap-3">
+        <Link
+          href="/apie/"
+          className="text-xs font-semibold text-[var(--vauto-text-muted,#6b7280)] transition hover:text-[var(--vauto-primary,#0891b2)]"
+        >
           Apie
         </Link>
-        <div className="vauto-header-icon-ring">
+        <div style={{ borderColor: ui.border, color: ui.accent }}>
           <NotificationBell />
         </div>
         <Link
@@ -37,7 +42,7 @@ export function Header() {
           aria-label={isAuthenticated ? "Profilis" : "Anoniminis naršymas — prisijungti"}
         >
           {isAuthenticated && user.avatar ? (
-            <span className="vauto-header-avatar h-9 w-9 overflow-hidden rounded-full ring-2">
+            <span className="h-9 w-9 overflow-hidden rounded-full ring-2 ring-[#d7dde5]">
               <Image
                 src={user.avatar}
                 alt={user.name}

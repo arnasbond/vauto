@@ -669,59 +669,10 @@ body.vauto-audio-first .vauto-dashboard-card {
 }
 
 .vauto-bottom-nav {
-  border-color: color-mix(in srgb, var(--vauto-neon, var(--flux-cyan)) 18%, var(--vauto-border));
-  background: color-mix(in srgb, var(--vauto-card-bg) 90%, transparent);
+  border-color: var(--vauto-border);
+  background: color-mix(in srgb, var(--vauto-card-bg) 92%, transparent);
   color: var(--vauto-text-main);
-  box-shadow:
-    0 -1px 0 color-mix(in srgb, var(--vauto-neon, var(--flux-cyan)) 22%, transparent),
-    0 -12px 32px rgba(10, 15, 24, 0.12);
-}
-
-.vauto-bottom-nav-fab-btn {
-  background: linear-gradient(145deg, #22d3ee 0%, #00d4ff 45%, #0284c7 100%);
-  box-shadow:
-    0 10px 28px color-mix(in srgb, var(--vauto-neon, #00d4ff) 42%, transparent),
-    0 0 0 1px color-mix(in srgb, var(--vauto-neon, #00d4ff) 35%, transparent);
-}
-
-.vauto-app-header {
-  position: relative;
-}
-
-.vauto-brand-wordmark {
-  background: linear-gradient(165deg, #0c4a6e 0%, #0891b2 38%, #00d4ff 72%, #7dd3fc 100%);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-.vauto-brand-tagline {
-  color: color-mix(in srgb, var(--vauto-neon, #00d4ff) 72%, var(--vauto-text-muted));
-}
-
-.vauto-hex-mark {
-  filter: drop-shadow(0 0 6px color-mix(in srgb, var(--vauto-neon, #00d4ff) 55%, transparent));
-}
-
-.vauto-header-link {
-  color: var(--vauto-text-muted);
-  transition: color var(--vauto-motion);
-}
-
-.vauto-header-link:hover {
-  color: var(--vauto-neon, var(--flux-cyan));
-}
-
-.vauto-header-icon-ring {
-  color: var(--vauto-neon, var(--flux-cyan));
-}
-
-.vauto-header-avatar {
-  --tw-ring-color: color-mix(in srgb, var(--vauto-neon, #00d4ff) 45%, #d7dde5);
-}
-
-.vauto-top-chrome {
-  box-shadow: 0 1px 0 color-mix(in srgb, var(--vauto-neon, #00d4ff) 12%, transparent);
+  box-shadow: 0 -8px 24px rgba(15, 23, 42, 0.08);
 }
 
 .vauto-auth-overlay {
@@ -1712,10 +1663,6 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   border-color: var(--card);
 }
 
-[data-app-theme="vauto-original"] .vauto-brand-wordmark {
-  background: linear-gradient(165deg, #0c4a6e 0%, #0891b2 38%, #00d4ff 72%, #7dd3fc 100%);
-}
-
 [data-app-theme="dark"] {
   --background: #0a0f18;
   --foreground: #f1f5f9;
@@ -1768,17 +1715,6 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 [data-app-theme="dark"] .vauto-flux-fab {
   background: linear-gradient(135deg, #00d4ff 0%, #0284c7 55%, #22d3ee 100%);
   box-shadow: 0 12px 36px -8px rgba(0, 212, 255, 0.48);
-}
-
-[data-app-theme="dark"] .vauto-brand-wordmark {
-  background: linear-gradient(165deg, #e0f7ff 0%, #7dd3fc 35%, #00d4ff 70%, #22d3ee 100%);
-}
-
-[data-app-theme="dark"] .vauto-bottom-nav {
-  background: color-mix(in srgb, var(--vauto-navy) 88%, #111827);
-  box-shadow:
-    0 -1px 0 rgba(0, 212, 255, 0.22),
-    0 -16px 40px rgba(0, 0, 0, 0.35);
 }
 
 [data-app-theme="dark"] .text-xs,

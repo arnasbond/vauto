@@ -27,7 +27,7 @@ export function TopAiCommandChrome({
       className={cn(
         "top-ai-command-chrome mb-3",
         sticky &&
-          "sticky top-0 z-30 -mx-4 border-b border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-bg)_88%,transparent)] px-4 pb-3 pt-2 backdrop-blur-xl vauto-top-chrome",
+          "sticky top-0 z-30 -mx-4 border-b border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-bg)_92%,transparent)] px-4 pb-3 pt-2 backdrop-blur-xl",
         variant === "wardrobe" && "chameleon-wardrobe",
         className
       )}
