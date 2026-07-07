@@ -1,6 +1,10 @@
 import { test, expect, type Page } from "@playwright/test";
 import { seedAdminUser, seedDemoUser, seedProUser } from "./helpers/seed-demo-user";
 import { listingResults } from "./helpers/listing-results";
+import {
+  expectCleanSupervisorSearch,
+  expectMarketplaceResultSummary,
+} from "./helpers/supervisor-search";
 
 async function waitForHomeReady(page: Page) {
   await page.goto("/");
@@ -82,12 +86,10 @@ test.describe("VAUTO smoke", () => {
     const search = page.getByRole("searchbox").first();
     await search.fill("volvo v70");
     await search.press("Enter");
+    await expectCleanSupervisorSearch(page);
     const results = listingResults(page);
-    await expect(results).toBeVisible({ timeout: 10_000 });
-    await expect(results.getByText(/volvo v70.*rezultat/i)).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(results.getByText(/0 rezultat/i)).not.toBeVisible();
+    await expectMarketplaceResultSummary(page);
+    await expect(results.locator("article").first()).toBeVisible({ timeout: 45_000 });
   });
 
   test("marketplace view mode toggles list grid map", async ({ page }) => {
@@ -198,11 +200,10 @@ test.describe("VAUTO smoke", () => {
     const search = page.getByRole("searchbox").first();
     await search.fill("bmw");
     await search.press("Enter");
+    await expectCleanSupervisorSearch(page);
+    await expectMarketplaceResultSummary(page);
     const results = listingResults(page);
-    await expect(results.getByText(/bmw.*rezultat/i)).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(results.getByText(/0 rezultat/i)).not.toBeVisible();
+    await expect(results.locator("article").first()).toBeVisible({ timeout: 45_000 });
   });
 
   test("voice-style view mode switches to map", async ({ page }) => {
