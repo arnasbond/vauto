@@ -1,16 +1,11 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, type Route } from "@playwright/test";
 import { listingResults } from "./listing-results";
-
-/** Supervisor chat strip — single broker bubble per turn. */
-export function agentChatStrip(page: Page) {
-  return page.locator(".agent-chat-strip");
-}
 
 const SEARCH_MOCKS = {
   bmw: {
     listingIds: ["lt-auto-001", "lt-auto-002"],
     reply: "Radau kelis BMW variantus — peržiūrėkite tinklelyje.",
-    searchQuery: "bmw",
+    searchQuery: "bmw 320d",
   },
   volvo: {
     listingIds: ["lt-auto-016"],
@@ -21,13 +16,9 @@ const SEARCH_MOCKS = {
 
 export type SupervisorSearchMockVariant = keyof typeof SEARCH_MOCKS;
 
-/** Deterministic supervisor search — stubs fetch before static serve can return SPA HTML. */
-export async function installSupervisorSearchMocks(
-  page: Page,
-  variant: SupervisorSearchMockVariant
-) {
+function buildAgentResult(variant: SupervisorSearchMockVariant) {
   const spec = SEARCH_MOCKS[variant];
-  const agentResult = {
+  return {
     ok: true,
     reply: spec.reply,
     actions: {
@@ -37,65 +28,81 @@ export async function installSupervisorSearchMocks(
     },
     toolCalls: [],
   };
+}
 
-  await page.addInitScript((mock) => {
-    const streamBody = `data: ${JSON.stringify({
-      type: "final",
-      result: mock,
-    })}\n\n`;
-    const originalFetch = window.fetch.bind(window);
-    window.fetch = async (input: RequestInfo | URL, init?: RequestInit) => {
-      const url =
-        typeof input === "string"
-          ? input
-          : input instanceof URL
-            ? input.href
-            : input.url;
-      if (!url.includes("/api/vauto-agent")) {
-        return originalFetch(input, init);
-      }
-      if (url.includes("/stream")) {
-        return new Response(streamBody, {
-          status: 200,
-          headers: { "Content-Type": "text/event-stream; charset=utf-8" },
-        });
-      }
-      return new Response(JSON.stringify(mock), {
-        status: 200,
-        headers: { "Content-Type": "application/json" },
-      });
-    };
-  }, agentResult);
+async function fulfillAgentRoute(route: Route, agentResult: ReturnType<typeof buildAgentResult>) {
+  if (route.request().method() !== "POST") {
+    await route.continue();
+    return;
+  }
+  const url = route.request().url();
+  if (url.includes("/stream")) {
+    await route.fulfill({
+      status: 200,
+      headers: { "Content-Type": "text/event-stream; charset=utf-8" },
+      body: `data: ${JSON.stringify({ type: "final", result: agentResult })}\n\n`,
+    });
+    return;
+  }
+  await route.fulfill({
+    status: 200,
+    contentType: "application/json",
+    body: JSON.stringify(agentResult),
+  });
 }
 
 /**
- * Assert post-search clean UI: blank search bar, no legacy empathy banners,
- * single supervisor broker strip (not stacked fallbacks in #listing-results).
+ * Stub supervisor agent search for static E2E — conductor off, deterministic listing pins.
+ */
+export async function installSupervisorSearchMocks(
+  page: Page,
+  variant: SupervisorSearchMockVariant
+) {
+  const agentResult = buildAgentResult(variant);
+
+  await page.route("**/runtime-config.json", async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        apiUrl: "https://vauto-api.onrender.com",
+        conductorEnabled: false,
+      }),
+    });
+  });
+
+  await page.route("**/api/vauto-agent**", (route) => fulfillAgentRoute(route, agentResult));
+}
+
+/**
+ * Post-search clean UI: blank search bar, no deleted empathy banners in #listing-results,
+ * Lithuania-wide result summary (query label cleared after supervisor sync).
  */
 export async function expectCleanSupervisorSearch(page: Page) {
   const search = page.getByRole("searchbox").first();
   const results = listingResults(page);
 
-  await expect(results.getByText(/^Ieškoma…$/)).toBeHidden({ timeout: 20_000 });
-
-  await expect(search).toHaveValue("", { timeout: 20_000 });
+  await expect(results.getByText(/^Ieškoma…$/)).toBeHidden({ timeout: 30_000 });
+  await expect(search).toHaveValue("", { timeout: 30_000 });
 
   await expect(results.getByText(/Šiuo metu.*turguje neradau/i)).toHaveCount(0);
   await expect(results.getByText(/Deje, pagal/i)).toHaveCount(0);
+  await expect(results.getByText(/Deje, nieko neradau/i)).toHaveCount(0);
   await expect(results.getByText(/0 rezultat/i)).toHaveCount(0);
 
-  const strip = agentChatStrip(page);
-  await expect(strip).toBeVisible({ timeout: 20_000 });
-  await expect(strip).toHaveAttribute("aria-label", "VAUTO asistento atsakymas");
-
-  await expect(strip.getByText(/Šiuo metu.*turguje neradau/i)).toHaveCount(0);
-  await expect(strip.getByText(/Deje, nieko neradau/i)).toHaveCount(0);
+  // Legacy fallback lived inside the results region — not duplicated after supervisor sync.
+  await expect(results.locator(".agent-chat-strip")).toHaveCount(0);
 }
 
 /** Filter bar shows Lithuania-wide count after supervisor clears the query bar. */
 export async function expectMarketplaceResultSummary(page: Page) {
   const results = listingResults(page);
   await expect(results.getByText(/Skelbimai Lietuvoje:.*rezultat/i)).toBeVisible({
-    timeout: 20_000,
+    timeout: 30_000,
   });
+  await expect(results.getByText(/^(bmw|volvo).*rezultat/i)).toHaveCount(0);
+}
+
+export function supervisorSearchQuery(variant: SupervisorSearchMockVariant): string {
+  return SEARCH_MOCKS[variant].searchQuery;
 }

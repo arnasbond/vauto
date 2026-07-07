@@ -5,6 +5,7 @@ import {
   expectCleanSupervisorSearch,
   expectMarketplaceResultSummary,
   installSupervisorSearchMocks,
+  supervisorSearchQuery,
 } from "./helpers/supervisor-search";
 
 async function waitForHomeReady(page: Page) {
@@ -87,7 +88,7 @@ test.describe("VAUTO smoke", () => {
     await installSupervisorSearchMocks(page, "volvo");
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
-    await search.fill("volvo v70");
+    await search.fill(supervisorSearchQuery("volvo"));
     await search.press("Enter");
     await expectCleanSupervisorSearch(page);
     const results = listingResults(page);
@@ -203,7 +204,7 @@ test.describe("VAUTO smoke", () => {
     await installSupervisorSearchMocks(page, "bmw");
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
-    await search.fill("bmw");
+    await search.fill(supervisorSearchQuery("bmw"));
     await search.press("Enter");
     await expectCleanSupervisorSearch(page);
     await expectMarketplaceResultSummary(page);
