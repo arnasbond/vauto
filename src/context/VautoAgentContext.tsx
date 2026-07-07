@@ -48,6 +48,10 @@ import {
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import { registerWanted } from "@/lib/matching-service";
+import {
+  buildSupervisorApplicationState,
+  resolveClientPageUrl,
+} from "@/lib/supervisor-agent-state";
 import { conductorSetAgentBusy, registerConductorSearchExecutor } from "@/lib/vauto-conductor";
 import { useAdminProjectContextForAgent } from "@/context/AdminProjectContext";
 import { useNavigation, viewTitle } from "@/context/NavigationContext";
@@ -75,9 +79,11 @@ import { mergeVoiceUiFilters } from "@/lib/voice-ui-actions";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import {
+  buildBrowseAllReply,
   buildEmptySearchReply,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
+import { isBrowseAllIntent, resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   isPhotoIntentListingChip,
@@ -166,6 +172,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setAgentPinnedListings,
     setViewMode,
     setMarketplaceFilters,
+    resetMarketplaceFilters,
     marketplaceFilters,
   } = useVautoSearch();
   const {
@@ -201,6 +208,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     updateAiDraft,
     sellerVisionRecoveryActive,
     submitSellerClarification,
+    cancelSellerFlow,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -326,6 +334,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     });
   }, [goToMarketplace, clearSearchFilters, setMarketplaceFilters, marketplaceFilters]);
 
+  /** Search/browse commands must never leave seller wizard or /add listing pipeline active. */
+  const exitListingPipelineForMarketplaceSearch = useCallback(() => {
+    cancelSellerFlow();
+    goToMarketplace("agent");
+    setOpen(false);
+    if (
+      pathname?.startsWith("/add") ||
+      pathname?.startsWith("/fashion/mine")
+    ) {
+      router.push("/");
+    }
+  }, [cancelSellerFlow, goToMarketplace, setOpen, pathname, router]);
+
   const registerWantedFlow = useCallback(
     (query: string) => {
       void registerWanted({
@@ -430,7 +451,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         window.setTimeout(() => focusSearchOutcome(actions.listingIds.length), 120);
       }
+      if (actions.type === "browse_all") {
+        exitListingPipelineForMarketplaceSearch();
+        clearVisualSearch({ keepInputMode: true });
+        setSearchInputMode("text");
+        setSearchVoiceMode(false);
+        setSearchQuery("");
+        setAgentPinnedListings(null);
+        resetMarketplaceFilters();
+        clearSearchFilters();
+        setViewMode("grid");
+        trackEvent("agent_action", {
+          action: "browse_all",
+          listingCount: actions.listingCount ?? null,
+        });
+        showToast(actions.replyMessage, "success");
+        window.setTimeout(() => focusSearchOutcome(actions.listingCount ?? 1), 120);
+      }
       if (actions.type === "listing_draft") {
+        if (resolveBrowseAllIntent(searchQuery)) {
+          return;
+        }
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
         navigateToAdd(draft.category === "clothing");
@@ -753,6 +794,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       trackEvent,
       startChat,
       setLastBargainingOffer,
+      resetMarketplaceFilters,
+      exitListingPipelineForMarketplaceSearch,
+      searchQuery,
     ]
   );
 
@@ -796,7 +840,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /* v1.2 — text-only assistant, no TTS */
       };
 
-      if (sellerVisionRecoveryActive) {
+      if (resolveBrowseAllIntent(trimmed)) {
+        const activeCount = listings.filter(
+          (l) => !l.banned && l.price > 0 && l.status !== "sold"
+        ).length;
+        const actions = createBrowseAllAction(activeCount);
+        setMessages((prev) =>
+          [
+            ...prev,
+            { role: "user" as const, text: trimmed },
+            { role: "assistant" as const, text: actions.replyMessage },
+          ].slice(-6)
+        );
+        speakReply(actions.replyMessage);
+        if (!options?.fromSearchBar) {
+          applyActions(actions);
+        }
+        touchAgentSessionActivity();
+        return { ok: true, reply: actions.replyMessage, actions };
+      }
+
+      if (sellerVisionRecoveryActive && !resolveBrowseAllIntent(trimmed)) {
         if (!busyGate.tryAcquire(options?.skipBusyCheck)) {
           return { ok: false, error: AGENT_BUSY_MESSAGE };
         }
@@ -958,7 +1022,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: quickReply.reply };
       }
 
-      if (detectSellerListingIntent(trimmed) && sellerStep === "idle") {
+      if (
+        !options?.fromSearchBar &&
+        !resolveBrowseAllIntent(trimmed) &&
+        detectSellerListingIntent(trimmed) &&
+        sellerStep === "idle"
+      ) {
         const fashion = looksLikeClothingListing(trimmed);
         const started = startListingFromQuery(trimmed);
         if (started) {
@@ -1077,6 +1146,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       try {
         setStreamThinkingLabel("Galvoju…");
+        const pageUrl =
+          typeof window !== "undefined"
+            ? resolveClientPageUrl(
+                window.location.pathname,
+                window.location.search
+              )
+            : resolveClientPageUrl(pathname ?? "/");
+        const effectiveFilters = searchSessionReset
+          ? resetFilters
+          : memoryContext.activeSearchFilters;
+        const supervisorState = buildSupervisorApplicationState({
+          pageUrl,
+          searchQuery,
+          activeSearchFilters: effectiveFilters,
+          totalListingsCount: rankedListings.length,
+          pendingImageUrls: activePendingImageUrls,
+        });
         const agentBody = {
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
           context: {
@@ -1086,6 +1172,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               ? resetFilters
               : memoryContext.activeSearchFilters,
             searchSessionReset,
+            supervisorState,
             monetization: resolveClientMonetizationState(user, activeBoost),
             userRole: resolveAgentUserRole(user),
             contact: user.phone || "+370 612 34567",
@@ -1139,15 +1226,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error, res.code);
-          if (!options?.fromSearchBar) {
-            setMessages((prev) => [
+          setMessages((prev) =>
+            [
               ...prev,
               {
-                role: "assistant",
+                role: "assistant" as const,
                 text: message,
               },
-            ]);
-          }
+            ].slice(-6)
+          );
           speakReply(message);
           if (open && !options?.fromSearchBar) showToast(message, "info");
           return { ok: true, reply: message };
@@ -1173,9 +1260,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         setLastError(undefined);
         const isStateSearch =
-          res.actions.type === "search" || res.actions.type === "empty_search";
+          res.actions.type === "search" ||
+          res.actions.type === "empty_search" ||
+          res.actions.type === "browse_all";
         const assistantText = isStateSearch
-          ? res.actions.type === "search"
+          ? res.actions.type === "browse_all"
+            ? sanitizeAgentReplyForDisplay(res.reply) ||
+              res.actions.replyMessage ||
+              buildBrowseAllReply(res.actions.listingCount)
+            : res.actions.type === "search"
             ? sanitizeAgentReplyForDisplay(res.reply) || "Atidarau skelbimus ekrane."
             : buildEmptySearchReply(trimmed)
           : sanitizeAgentReplyForDisplay(res.reply) || res.reply || "Atlikta.";
@@ -1186,7 +1279,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ?.trim();
         const shouldAppendAssistant =
           assistantText.trim() &&
-          assistantText.trim() !== lastAssistantText;
+          (options?.fromSearchBar && isStateSearch
+            ? true
+            : assistantText.trim() !== lastAssistantText);
 
         if (shouldAppendAssistant) {
           const structuredReplies = res.quickReplies?.filter(Boolean).slice(0, 4);
@@ -1205,6 +1300,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         speakReply(assistantText);
         if (hasExecutableAction) {
+          if (
+            res.actions.type === "listing_draft" &&
+            resolveBrowseAllIntent(trimmed)
+          ) {
+            const activeCount = listings.filter(
+              (l) => !l.banned && l.price > 0 && l.status !== "sold"
+            ).length;
+            const browseActions = createBrowseAllAction(activeCount);
+            if (!options?.fromSearchBar) {
+              applyActions(browseActions);
+            }
+            return {
+              ok: true,
+              reply: browseActions.replyMessage,
+              actions: browseActions,
+            };
+          }
           if (!options?.fromSearchBar) {
             applyActions(res.actions);
           }
@@ -1250,6 +1362,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       rankedListings,
       searchQuery,
+      pathname,
       includeAdminContext,
       buildAgentContext,
       noteUserMessage,
@@ -1309,11 +1422,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [sendAgentMessage]);
 
   useEffect(() => {
-    registerConductorSearchExecutor(async (query) =>
-      sendAgentMessageRef.current(query, { fromSearchBar: true, skipBusyCheck: true })
-    );
+    registerConductorSearchExecutor(async (query) => {
+      if (resolveBrowseAllIntent(query)) {
+        const activeCount = listings.filter(
+          (l) => !l.banned && l.price > 0 && l.status !== "sold"
+        ).length;
+        const actions = createBrowseAllAction(activeCount);
+        return {
+          ok: true,
+          reply: actions.replyMessage,
+          actions,
+        };
+      }
+      return sendAgentMessageRef.current(query, {
+        fromSearchBar: true,
+        skipBusyCheck: true,
+      });
+    });
     return () => registerConductorSearchExecutor(null);
-  }, []);
+  }, [listings]);
 
   const reportAgentError = useCallback((code: string, message?: string) => {
     setLastError({ code, message });

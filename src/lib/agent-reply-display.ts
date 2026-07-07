@@ -1,5 +1,7 @@
 /** Strip internal tool codes from user-visible agent chat text. */
 
+import { buildBrowseAllReply as buildBrowseAllIntentReply } from "@/lib/browse-all-intent";
+
 const INTERNAL_TOOL_RE =
   /\b(searchListings|SEARCHLISTINGS|triggerMicroPayment|block_listing|register_wanted|listing_draft|empty_search|micro_payment)\b/gi;
 
@@ -61,6 +63,10 @@ export function buildEmptySearchReply(query?: string): string {
     return `Deja, pagal „${q}" nieko tinkamo neradau. Gal pabandyti elektroniką, drabužius ar platesnę paiešką? Galiu ir užfiksuoti tavo norą fone.`;
   }
   return "Deja, šiuo metu nieko neradau. Pabandykime kitą frazę — arba pasakyk, ką tiksliai ieškai, ir pasiūlysiu alternatyvų.";
+}
+
+export function buildBrowseAllReply(listingCount?: number): string {
+  return buildBrowseAllIntentReply(listingCount);
 }
 
 /** Voice TTS — max 2–3 sentences for APK/WebView clarity. */

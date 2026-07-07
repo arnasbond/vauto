@@ -35,14 +35,17 @@ import {
   buildSellListingDraftFallback,
   detectServerSellIntent,
 } from "./sell-intent-fallback.js";
+import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
 import { buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
-import {
-  SEARCH_AGENT_BREVITY_RULES,
-} from "./search-agent.js";
 import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
+import {
+  buildSupervisorStateInjectionBlock,
+  resolveSupervisorStateFromRequest,
+  type SupervisorApplicationState,
+} from "./supervisor-context.js";
 import { buildUserBehaviorContextBlock } from "./user-behavior-context.js";
 import {
   NO_MATCH_LEAD_HINT,
@@ -146,6 +149,8 @@ export interface VautoAgentRequest {
       resultCount?: number;
       filters?: AgentSearchFilters | null;
     };
+    /** Pilna programos būsena — supervisor akys ir ausys (kiekvienam Gemini kvietimui). */
+    supervisorState?: SupervisorApplicationState;
   };
   /** Set by route from JWT — used for DB writes (mark sold, etc.) */
   authUserId?: string;
@@ -183,6 +188,10 @@ function emitAgentEvent(
 
 function toolProgressMessage(name: string): string {
   const labels: Record<string, string> = {
+    clearAllFilters: "Atidarau visą katalogą…",
+    applyFilter: "Pritaikau filtrus…",
+    openListingForm: "Ruošiu skelbimo formą…",
+    navigateTo: "Perkeliu jus…",
     searchListings: "Ieškau turguje…",
     createUserRequirement: "Užfiksuoju jūsų norą…",
     create_listing_draft: "Ruošiu skelbimo juodraštį…",
@@ -434,7 +443,7 @@ async function runVautoAgentInner(
       : req.messages;
 
   const systemInstruction = buildAgentSystemInstruction(
-    `${buildVautoAgentSystemInstruction()}\n\n${SEARCH_AGENT_BREVITY_RULES}`,
+    buildVautoAgentSystemInstruction(),
     req.adminProjectContext
   );
 
@@ -473,6 +482,7 @@ async function runVautoAgentInner(
         }
       : undefined,
     listingsSnapshot: req.context.listings,
+    lastUserQuery: lastUserText || undefined,
     searchSessionReset: Boolean(req.context.searchSessionReset),
     monetization: resolveMonetizationState({
       userRole: req.context.userRole,
@@ -497,7 +507,24 @@ async function runVautoAgentInner(
     }))
   );
 
-  // Gemini function calling owns all intent routing — no programmed fast-search bypass.
+  // Deterministic browse-all — skip Gemini for generic “show everything” queries.
+  if (lastUserText && resolveBrowseAllIntent(lastUserText)) {
+    emitAgentEvent(onEvent, { type: "tool_call", name: "searchListings", message: "Ruošiu visus skelbimus…" });
+    const { result, sideEffect } = await executeAgentTool(
+      "searchListings",
+      { query: lastUserText },
+      ctx
+    );
+    emitAgentEvent(onEvent, { type: "tool_result", name: "searchListings" });
+    if (sideEffect?.type === "browse_all") {
+      return {
+        ok: true,
+        reply: sideEffect.replyMessage || buildBrowseAllReply(sideEffect.listingCount),
+        toolCalls: [{ name: "searchListings", result }],
+        actions: sideEffect,
+      };
+    }
+  }
 
   const contents: GeminiContent[] = sessionMessages.map((m) => ({
     role: m.role === "user" ? "user" : "model",
@@ -642,6 +669,12 @@ async function runVautoAgentInner(
   contents.unshift({
     role: "user",
     parts: [{ text: userProfileBlock }],
+  });
+
+  const supervisorState = resolveSupervisorStateFromRequest(req.context);
+  contents.unshift({
+    role: "user",
+    parts: [{ text: buildSupervisorStateInjectionBlock(supervisorState) }],
   });
 
   const toolCalls: { name: string; result: unknown }[] = [];
@@ -880,6 +913,8 @@ async function runVautoAgentInner(
 
   const searchSideEffect =
     sideEffect?.type === "search" ? sideEffect : undefined;
+  const browseAllSideEffect =
+    sideEffect?.type === "browse_all" ? sideEffect : undefined;
   const emptySearchSideEffect =
     sideEffect?.type === "empty_search" ? sideEffect : undefined;
   const searchToolCall = toolCalls.find((t) => t.name === "searchListings");
@@ -908,8 +943,13 @@ async function runVautoAgentInner(
     !hasListingDraftAction &&
     !hasUiDrivingTool &&
     !hasOfferTool &&
-    (searchToolCall || searchSideEffect || emptySearchSideEffect)
+    (searchToolCall || searchSideEffect || emptySearchSideEffect || browseAllSideEffect)
   ) {
+    if (browseAllSideEffect) {
+      finalText =
+        browseAllSideEffect.replyMessage?.trim() ||
+        buildBrowseAllReply(browseAllSideEffect.listingCount);
+    } else {
     const emptyQuery =
       emptySearchSideEffect?.searchQuery ??
       (searchToolCall?.result &&
@@ -931,6 +971,7 @@ async function runVautoAgentInner(
         finalText.trim() && !isGenericEmptySearchReply(finalText)
           ? finalText
           : buildNoMatchLeadPrompt(emptyQuery);
+    }
     }
   }
 

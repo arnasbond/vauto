@@ -70,6 +70,17 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
           },
         };
 
+      case "browse_all":
+        return {
+          ok: true,
+          action: {
+            type: "browse_all",
+            replyMessage: asString(action.replyMessage, "Štai visi naujausi skelbimai. Galbūt ieškote kažko specifinio?"),
+            listingCount:
+              action.listingCount != null ? asNumber(action.listingCount, 0) : undefined,
+          },
+        };
+
       case "listing_draft": {
         const draft = action.listingDraft;
         if (!draft || typeof draft !== "object") {

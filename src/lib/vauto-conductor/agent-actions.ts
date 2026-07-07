@@ -8,6 +8,7 @@ function intentForAgentAction(action: VautoAgentAction): ConductorIntent {
       return "seller_submit";
     case "search":
     case "empty_search":
+    case "browse_all":
     case "apply_ui_filters":
     case "navigate_to_screen":
       return "search_query";

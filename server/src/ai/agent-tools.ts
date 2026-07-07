@@ -1,4 +1,5 @@
 import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
+import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -56,6 +57,7 @@ import {
   fetchServiceLeadStats,
   formatServiceLeadsMessage,
 } from "./business-agent-tools.js";
+import { detectServerSellIntent } from "./sell-intent-fallback.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -116,6 +118,8 @@ export interface AgentToolContext {
   activeListingTitle?: string;
   myListings?: MyListingForAgent[];
   listingsSnapshot?: AgentListingSummary[];
+  /** Latest user utterance — used when Gemini omits query in searchListings. */
+  lastUserQuery?: string;
   searchSessionReset?: boolean;
   monetization?: MonetizationState;
   listingDraft?: {
@@ -315,6 +319,82 @@ JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.catego
 
 export const AGENT_FUNCTION_DECLARATIONS = [
   {
+    name: "clearAllFilters",
+    description:
+      "Išvalo visus UI filtrus ir parodo visą katalogą. Kviesti kai vartotojas nori matyti viską: parodyk visus, rodyk viską, be filtrų, visas turgus, show all.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        label: {
+          type: "STRING",
+          description: "Trumpas lietuviškas patvirtinimas vartotojui",
+        },
+      },
+    },
+  },
+  {
+    name: "applyFilter",
+    description:
+      "Pritaiko vieną filtrą pagal pokalbio prasmę. category: query | category | city | maxPrice | minPrice | subcategory | size | condition. value — filtro reikšmė.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        category: {
+          type: "STRING",
+          description:
+            "query | category | city | maxPrice | minPrice | subcategory | size | condition",
+        },
+        value: {
+          type: "STRING",
+          description: "Filtruojama reikšmė (tekstas ar skaičius kaip string)",
+        },
+        label: {
+          type: "STRING",
+          description: "Trumpas lietuviškas patvirtinimas",
+        },
+      },
+      required: ["category", "value"],
+    },
+  },
+  {
+    name: "openListingForm",
+    description:
+      "Atidaro skelbimo kūrimo formą. TIK kai vartotojas AIŠKIAI nori parduoti ar įkelti skelbimą (parduodu, įdėti skelbimą, noriu parduoti). NIEKADA paieškos ar naršymo komandoms.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        explicitSellConfirm: {
+          type: "BOOLEAN",
+          description:
+            "true tik jei vartotojas aiškiai išsakė pardavimo intenciją šiame ar ankstesniame sakinyje",
+        },
+        label: {
+          type: "STRING",
+          description: "Trumpas lietuviškas patvirtinimas",
+        },
+      },
+    },
+  },
+  {
+    name: "navigateTo",
+    description:
+      "Perkelia vartotoją į puslapį ar ekraną. path: /, /add, /fashion, /profile, /chats arba alias: marketplace, spinta, add_listing, profile.",
+    parameters: {
+      type: "OBJECT",
+      properties: {
+        path: {
+          type: "STRING",
+          description: "Kelias (/add) arba ekrano alias (marketplace, fashion, add_listing)",
+        },
+        label: {
+          type: "STRING",
+          description: "Trumpas lietuviškas patvirtinimas",
+        },
+      },
+      required: ["path"],
+    },
+  },
+  {
     name: "markListingSold",
     description:
       'Pažymi vartotojo skelbimą kaip parduotą / archyvuoja. Naudok kai vartotojas sako „pardaviau“, „jau parduota“, „archyvuok“. Jei vienas aktyvus skelbimas — listingId galima praleisti.',
@@ -374,13 +454,14 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "searchListings",
     description:
-      "Ieško aktyvių skelbimų. query PRIVALO turėti raktinius žodžius (pvz. Volvo, batai, namas). Kategoriją nustatyk semantiškai.",
+      "Ieško aktyvių skelbimų ARBA atidaro visą katalogą. Jei vartotojas nori matyti visus skelbimus (parodyk/rodyk/atidaryk visus|viską, show all) — perduok tą frazę query; sistema išvalys filtrus. Produktų paieškai query turi objektą (Volvo, batai, namas).",
     parameters: {
       type: "OBJECT",
       properties: {
         query: {
           type: "STRING",
-          description: "Paieškos raktiniai žodžiai — pvz. Volvo, batai, namas",
+          description:
+            "Produkto raktiniai žodžiai (Volvo, batai) ARBA naršymo komanda (parodyk visus, rodyk viską, show all)",
         },
         category: {
           type: "STRING",
@@ -855,9 +936,278 @@ export async function executeAgentTool(
   const listings = await resolveListings(ctx);
 
   switch (name) {
+    case "clearAllFilters": {
+      const limit = 500;
+      const filteredRows = await searchListingsFiltered({ limit });
+      const results = filteredRows.map((l) => toAgentListingSummary(l));
+      const replyMessage =
+        String(args.label ?? "").trim() || buildBrowseAllReply(results.length);
+
+      return {
+        result: {
+          ok: true,
+          count: results.length,
+          message: replyMessage,
+          browseAll: true,
+        },
+        sideEffect: {
+          type: "browse_all",
+          replyMessage,
+          listingCount: results.length,
+        },
+      };
+    }
+
+    case "applyFilter": {
+      const categoryKey = String(args.category ?? "")
+        .trim()
+        .toLowerCase();
+      const valueRaw = args.value != null ? String(args.value).trim() : "";
+      const filterArgs: Record<string, unknown> = {
+        label: args.label,
+      };
+
+      if (!categoryKey || !valueRaw) {
+        return {
+          result: {
+            ok: false,
+            message: "applyFilter reikalauja category ir value.",
+          },
+        };
+      }
+
+      switch (categoryKey) {
+        case "query":
+        case "paieska":
+        case "search":
+          filterArgs.query = valueRaw;
+          break;
+        case "category":
+        case "kategorija":
+          filterArgs.category = valueRaw;
+          break;
+        case "city":
+        case "miestas":
+        case "location":
+          filterArgs.city = valueRaw;
+          break;
+        case "maxprice":
+        case "kaina_max":
+        case "iki":
+          filterArgs.maxPrice = Number(valueRaw);
+          break;
+        case "minprice":
+        case "kaina_min":
+        case "nuo":
+          filterArgs.minPrice = Number(valueRaw);
+          break;
+        case "subcategory":
+        case "subkategorija":
+          filterArgs.subcategory = valueRaw;
+          break;
+        case "size":
+        case "dydis":
+          filterArgs.size = valueRaw;
+          break;
+        case "condition":
+        case "bukle":
+          filterArgs.condition = valueRaw;
+          break;
+        default:
+          filterArgs.category = categoryKey;
+          filterArgs.query = valueRaw;
+      }
+
+      const normalized = normalizeUpdateUIFiltersArgs(filterArgs);
+      const queryText =
+        normalized.query?.trim() || normalized.filters.query?.trim() || "";
+
+      const baseResult = {
+        ok: true,
+        filters: normalized.filters,
+        categoryAttributes: normalized.categoryAttributes,
+        label: normalized.label,
+        activateWardrobe: normalized.activateWardrobe,
+        query: queryText || normalized.query,
+      };
+
+      const uiSideEffect = {
+        type: "apply_ui_filters" as const,
+        filters: normalized.filters,
+        categoryAttributes: normalized.categoryAttributes,
+        label: normalized.label,
+        activateWardrobe: normalized.activateWardrobe,
+        query: queryText || normalized.query,
+      };
+
+      if (!queryText) {
+        return { result: baseResult, sideEffect: uiSideEffect };
+      }
+
+      const maxPrice =
+        normalized.filters.maxPrice != null
+          ? Number(normalized.filters.maxPrice)
+          : undefined;
+      const minPrice =
+        normalized.filters.minPrice != null
+          ? Number(normalized.filters.minPrice)
+          : undefined;
+      const cityRaw = normalized.filters.city?.trim() ?? "";
+      const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
+      const city = cityNominative ? normCity(cityNominative) : "";
+
+      const filteredRows = await searchListingsFiltered({
+        query: queryText,
+        category: normalized.filters.category,
+        city: city || undefined,
+        minPrice,
+        maxPrice,
+        limit: 500,
+      });
+      const results = filteredRows.map((l) => toAgentListingSummary(l));
+      const searchFilters = {
+        ...normalized.filters,
+        query: queryText,
+      };
+
+      if (results.length > 0) {
+        return {
+          result: {
+            ...baseResult,
+            count: results.length,
+            listingIds: results.map((r) => r.id),
+          },
+          sideEffect: {
+            type: "search",
+            searchQuery: queryText,
+            listingIds: results.map((r) => r.id),
+            filters: searchFilters,
+          },
+        };
+      }
+
+      return {
+        result: { ...baseResult, count: 0 },
+        sideEffect: {
+          type: "empty_search",
+          searchQuery: queryText,
+          filters: searchFilters,
+        },
+      };
+    }
+
+    case "openListingForm": {
+      const explicitConfirm = Boolean(args.explicitSellConfirm);
+      const lastQuery = ctx.lastUserQuery?.trim() ?? "";
+      if (!explicitConfirm && !detectServerSellIntent(lastQuery)) {
+        return {
+          result: {
+            ok: false,
+            message:
+              "Skelbimo forma atidaroma tik kai vartotojas aiškiai nori parduoti ar įkelti skelbimą. Paklausk patvirtinimo.",
+          },
+        };
+      }
+
+      const nav = resolveNavigateScreen("add_listing");
+      const label =
+        String(args.label ?? "").trim() ||
+        "Paruošiu skelbimą — pradėkime nuo pagrindų.";
+
+      return {
+        result: {
+          ok: true,
+          path: nav.path,
+          screen: "add_listing",
+          message: label,
+        },
+        sideEffect: {
+          type: "navigate_to_screen",
+          screen: "add_listing",
+          path: nav.path,
+          view: nav.view as AppView | undefined,
+          label,
+        },
+      };
+    }
+
+    case "navigateTo": {
+      const pathRaw = String(args.path ?? "").trim();
+      if (!pathRaw) {
+        return {
+          result: { ok: false, message: "navigateTo reikalauja path." },
+        };
+      }
+
+      const aliasKey = pathRaw.replace(/^\//, "");
+      const nav = resolveNavigateScreen(aliasKey);
+      const label =
+        String(args.label ?? "").trim() || nav.message || `Perkeliu į ${pathRaw}.`;
+
+      if (nav.ok) {
+        return {
+          result: {
+            ok: true,
+            path: nav.path,
+            screen: nav.screen,
+            message: label,
+          },
+          sideEffect: {
+            type: "navigate_to_screen",
+            screen: nav.screen,
+            path: nav.path,
+            view: nav.view as AppView | undefined,
+            zeroUi: nav.zeroUi as ZeroUiScreen | undefined,
+            activateWardrobe: nav.activateWardrobe,
+            label,
+          },
+        };
+      }
+
+      const normalizedPath = pathRaw.startsWith("/") ? pathRaw : `/${pathRaw}`;
+      return {
+        result: {
+          ok: true,
+          path: normalizedPath,
+          message: label,
+        },
+        sideEffect: {
+          type: "navigate_to_screen",
+          screen: normalizedPath,
+          path: normalizedPath,
+          label,
+        },
+      };
+    }
+
     case "searchListings": {
-      const query = String(args.query ?? "").trim();
+      const rawQuery = String(args.query ?? "").trim();
+      const fallbackQuery = ctx.lastUserQuery?.trim() ?? "";
+      const query = rawQuery || fallbackQuery;
       const category = args.category ? String(args.category) : undefined;
+
+      if (resolveBrowseAllIntent(rawQuery, fallbackQuery, query)) {
+        const limitRaw = Number(args.limit);
+        const limit =
+          Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 500;
+        const filteredRows = await searchListingsFiltered({ limit });
+        const results = filteredRows.map((l) => toAgentListingSummary(l));
+        const replyMessage = buildBrowseAllReply(results.length);
+
+        return {
+          result: {
+            count: results.length,
+            listings: results,
+            summary: replyMessage,
+            browseAll: true,
+          },
+          sideEffect: {
+            type: "browse_all",
+            replyMessage,
+            listingCount: results.length,
+          },
+        };
+      }
 
       if (!query) {
         const searchQuery = query || "paieška";
@@ -893,6 +1243,29 @@ export async function executeAgentTool(
       });
 
       const results = filteredRows.map((l) => toAgentListingSummary(l));
+
+      if (
+        results.length === 0 &&
+        resolveBrowseAllIntent(rawQuery, fallbackQuery, query)
+      ) {
+        const allRows = await searchListingsFiltered({ limit });
+        const allResults = allRows.map((l) => toAgentListingSummary(l));
+        const replyMessage = buildBrowseAllReply(allResults.length);
+        return {
+          result: {
+            count: allResults.length,
+            listings: allResults,
+            summary: replyMessage,
+            browseAll: true,
+          },
+          sideEffect: {
+            type: "browse_all",
+            replyMessage,
+            listingCount: allResults.length,
+          },
+        };
+      }
+
       /** UI search bar — raw user/Gemini query only; category lives in filters, never appended. */
       const searchQuery = query.trim();
 
@@ -2179,6 +2552,11 @@ export type AgentSideEffect =
       type: "empty_search";
       searchQuery: string;
       filters?: AgentSearchFilters;
+    }
+  | {
+      type: "browse_all";
+      replyMessage: string;
+      listingCount: number;
     }
   | {
       type: "register_wanted";

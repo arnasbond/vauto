@@ -2,6 +2,7 @@ import type { AiExtractedListing, Listing, ListingCategory } from "@/lib/types";
 import type { AppView } from "@/lib/app-views";
 import { safeDraftAttributes } from "@/lib/agent-message-safe";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 
 export interface AgentChatMessage {
   role: "user" | "assistant";
@@ -83,6 +84,8 @@ export interface VautoAgentContext {
   behaviorHistory?: UserBehaviorEvent[];
   /** Proactive Offer Engine triggers from client (no-match grid, listing dwell, negotiate). */
   proactiveOffer?: import("@/lib/offer-engine-client").ProactiveOfferContext;
+  /** Pilna programos būsena — supervisor kontekstas kiekvienam Gemini kvietimui. */
+  supervisorState?: import("@/lib/supervisor-agent-state").SupervisorApplicationState;
 }
 
 export interface AgentListingSnapshot {
@@ -130,6 +133,7 @@ export function isTooShortAgentQuery(
 ): boolean {
   const t = String(text ?? "").trim();
   if (!t) return true;
+  if (resolveBrowseAllIntent(t)) return false;
   if (!opts?.fromVoice && detectSellerListingIntent(t)) return false;
   const min = opts?.fromVoice ? AGENT_VOICE_MIN_QUERY_CHARS : AGENT_MIN_QUERY_CHARS;
   return t.length < min;
@@ -274,6 +278,11 @@ export type VautoAgentAction =
       type: "empty_search";
       searchQuery: string;
       filters?: AgentSearchFilters;
+    }
+  | {
+      type: "browse_all";
+      replyMessage: string;
+      listingCount?: number;
     }
   | {
       type: "register_wanted";

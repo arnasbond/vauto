@@ -49,6 +49,7 @@ import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
+import { resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
@@ -89,6 +90,7 @@ export function AiCommandBar({
     showToast,
     user,
     chameleonTheme,
+    listings,
     startListingFromQuery,
   } = useVauto();
   const { sellerStep, sellerVisionRecoveryActive, submitSellerClarification } = useSellerFlow();
@@ -163,6 +165,10 @@ export function AiCommandBar({
       if (actions.type === "search") {
         setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(actions.listingIds.length);
+      } else if (actions.type === "browse_all") {
+        setDraftQuery("");
+        focusSearchOutcome(actions.listingCount ?? 1);
+        scrollToResults();
       } else if (actions.type === "empty_search") {
         setDraftQuery(stripLegacyCategorySuffixes(actions.searchQuery));
         focusSearchOutcome(0);
@@ -206,17 +212,33 @@ export function AiCommandBar({
         return;
       }
 
+      if (resolveBrowseAllIntent(raw, q)) {
+        const activeCount = listings.filter(
+          (l) => !l.banned && l.price > 0 && l.status !== "sold"
+        ).length;
+        const actions = createBrowseAllAction(activeCount);
+        setDraftQuery("");
+        setSearchLoading(true);
+        try {
+          syncGridFromAgentActions(actions);
+          openWithGreeting(actions.replyMessage, { openSheet: false });
+        } finally {
+          setSearchLoading(false);
+        }
+        return;
+      }
+
       if (startListingFromQuery(q)) {
         setDraftQuery(q);
         return;
       }
 
       setDraftQuery(q);
-      setSearchQuery(q);
-      setAgentPinnedListings(null);
       clearVisualSearch({ keepInputMode: true });
       setSearchLoading(true);
       try {
+        setSearchQuery(q);
+        setAgentPinnedListings(null);
         const route = await executeConductorRoute({
           ...conductorSearchQuerySource("AiCommandBar"),
           payload: { query: q, wardrobeSearchOnly },
@@ -232,7 +254,9 @@ export function AiCommandBar({
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });
         if (res.actions) syncGridFromAgentActions(res.actions);
-        else if (res.ok) scrollToResults();
+        else if (res.reply) {
+          scrollToResults();
+        } else if (res.ok) scrollToResults();
       } finally {
         setSearchLoading(false);
       }
@@ -250,6 +274,8 @@ export function AiCommandBar({
       trackEvent,
       wardrobeSearchOnly,
       startListingFromQuery,
+      listings,
+      openWithGreeting,
     ]
   );
 
@@ -267,6 +293,15 @@ export function AiCommandBar({
       if (placement === "wizard" || phase === "listing_processing") {
         const trimmed = draftQuery.trim();
         if (!trimmed || agentBusy) return;
+        if (resolveBrowseAllIntent(trimmed)) {
+          setDraftQuery("");
+          void commitSearch(trimmed);
+          if (collapsible) {
+            void hapticImpactLight();
+            setWizardExpanded(false);
+          }
+          return;
+        }
         const msg = trimmed;
         setDraftQuery("");
         if (sellerVisionRecoveryActive) {

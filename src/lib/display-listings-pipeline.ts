@@ -33,6 +33,7 @@ import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { prioritizeFeedTiers } from "@/lib/feed-tier";
 
 import type { VisualSearchProfile } from "@/lib/visual-search";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 
 
 
@@ -299,6 +300,26 @@ export function buildDisplayListings(
     input.agentPinnedListingIds.length === 0
 
   ) {
+
+    if (resolveBrowseAllIntent(input.searchQuery)) {
+
+      return {
+
+        listings: runDisplayPipeline({
+
+          ...input,
+
+          agentPinnedListingIds: null,
+
+          searchQuery: "",
+
+        }),
+
+        fallbackListings: [],
+
+      };
+
+    }
 
     return { listings: [], fallbackListings: [] };
 

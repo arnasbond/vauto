@@ -4,6 +4,7 @@
  */
 
 import { STRUCTURED_INPUT_PIPELINE_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
+import { GEMINI_BROWSE_ALL_RULES } from "./browse-all-agent-rules.js";
 
 export const GEMINI_ERROR_TOLERANCE_RULES = `SUPRATIMAS „IŠ PUSĖS ŽODŽIO" (KLAIDŲ TOLERANCIJA — PRIVALOMA, kaip ChatGPT):
 - Vartotojas KLYSTA — ir tai NORMALU. Supranti prasmę, ne raidę.
@@ -75,6 +76,8 @@ ${GEMINI_AUDIENCE_ADAPTATION_RULES}
 ${GEMINI_BUSINESS_PARTNER_RULES}
 
 ${GEMINI_EMPATHY_RULES}
+
+${GEMINI_BROWSE_ALL_RULES}
 
 PARDAVIMAS → create_listing_draft(category, title)
 - „noriu parduoti kedus", „parduodu namą", „noreciau parduoti volvo v70", „padėk parduoti suknelę" → create_listing_draft

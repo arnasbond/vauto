@@ -13,6 +13,7 @@ import {
   applyStrictBrandFilter,
 } from "@/lib/strict-brand-search";
 import { inferStrictCategory } from "@/lib/portal-listing-filter";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import {
   computeVisualRelevance,
   type VisualSearchProfile,
@@ -505,8 +506,7 @@ export function isBuyerSearchIntent(text: string): boolean {
     /\bnoreciau\s+pirkti\b/i,
     /\bkas\s+turi\b/i,
     /\bar\s+(yra|turite|galite\s+parduoti)\b/i,
-    /\bparodyk\b/i,
-    /\brodyti\b/i,
+    /\b(parodyk|rodyk|atidaryk|rodyti)\b/i,
     /\bpaiešk\w*/i,
     /\bpaiesk\w*/i,
   ];
@@ -518,6 +518,7 @@ export function isBuyerSearchIntent(text: string): boolean {
 export function detectSellerListingIntent(text: string): boolean {
   const q = text.toLowerCase().trim();
   if (!q) return false;
+  if (resolveBrowseAllIntent(q)) return false;
   if (isBuyerSearchIntent(q)) return false;
 
   const sellerPatterns = [

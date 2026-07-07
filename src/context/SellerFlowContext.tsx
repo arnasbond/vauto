@@ -55,6 +55,7 @@ import {
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
+import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import { pushAgentGreeting, notifyAgentFlow, notifyListingPublishComplete, notifyAgentError } from "@/lib/vauto-agent-client";
 import {
   buildPhotoClarificationMessage,
@@ -949,6 +950,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const image = recoveryImageRef.current ?? sellerPreviewImageRef.current;
       recoveryImageRef.current = image;
 
+      if (resolveBrowseAllIntent(trimmed)) return false;
+
       if (looksLikeVehicleListingText(trimmed) || detectSellerListingIntent(trimmed)) {
         setSellerStep("processing");
         let draft = syncDraftWithProfile(
@@ -1267,7 +1270,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const startListingFromQuery = useCallback(
     (text: string) => {
       const trimmed = text.trim();
-      if (!trimmed || !detectSellerListingIntent(trimmed)) return false;
+      if (!trimmed || resolveBrowseAllIntent(trimmed)) return false;
+      if (!detectSellerListingIntent(trimmed)) return false;
       if (!requireAuthForListing("/add")) {
         setPendingSellerQuery(trimmed);
         return true;

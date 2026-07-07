@@ -11,6 +11,7 @@ export function isUiDrivingAgentAction(action: VautoAgentAction): boolean {
     case "navigate_to_screen":
     case "search":
     case "empty_search":
+    case "browse_all":
     case "navigate":
     case "zero_ui_screen":
       return true;
