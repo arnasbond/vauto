@@ -377,9 +377,10 @@ export function AiPhotoFlowSheet({
             </p>
           )}
 
-          {onOpenBarcodeScan && photos.length > 0 && (
+          {onOpenBarcodeScan && (
             <button
               type="button"
+              data-testid="ai-photo-barcode-scan"
               onClick={() =>
                 onOpenBarcodeScan({
                   photos: entries.map((e) => e.studioUrl ?? e.photo.dataUrl),
