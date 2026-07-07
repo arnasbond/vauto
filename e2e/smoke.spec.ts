@@ -4,6 +4,7 @@ import { listingResults } from "./helpers/listing-results";
 import {
   expectCleanSupervisorSearch,
   expectMarketplaceResultSummary,
+  installSupervisorSearchMocks,
 } from "./helpers/supervisor-search";
 
 async function waitForHomeReady(page: Page) {
@@ -82,6 +83,8 @@ test.describe("VAUTO smoke", () => {
   });
 
   test("volvo v70 search shows marketplace results", async ({ page }) => {
+    test.setTimeout(90_000);
+    await installSupervisorSearchMocks(page, "volvo");
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("volvo v70");
@@ -89,7 +92,7 @@ test.describe("VAUTO smoke", () => {
     await expectCleanSupervisorSearch(page);
     const results = listingResults(page);
     await expectMarketplaceResultSummary(page);
-    await expect(results.locator("article").first()).toBeVisible({ timeout: 45_000 });
+    await expect(results.locator("article").first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("marketplace view mode toggles list grid map", async ({ page }) => {
@@ -196,6 +199,8 @@ test.describe("VAUTO smoke", () => {
   });
 
   test("search submit on home runs state-driven search", async ({ page }) => {
+    test.setTimeout(90_000);
+    await installSupervisorSearchMocks(page, "bmw");
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
     await search.fill("bmw");
@@ -203,7 +208,7 @@ test.describe("VAUTO smoke", () => {
     await expectCleanSupervisorSearch(page);
     await expectMarketplaceResultSummary(page);
     const results = listingResults(page);
-    await expect(results.locator("article").first()).toBeVisible({ timeout: 45_000 });
+    await expect(results.locator("article").first()).toBeVisible({ timeout: 20_000 });
   });
 
   test("voice-style view mode switches to map", async ({ page }) => {
