@@ -1147,17 +1147,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           updateAiDraft: aiDraft ? updateAiDraft : undefined,
         });
         proactiveContactConfirmation = contactSync.confirmation;
-        profileUser = contactSync.user;
+        profileUser = { ...user, ...contactSync.user };
         if (proactiveContactConfirmation && isContactOnlyUserMessage(trimmed)) {
+          const contactReply = proactiveContactConfirmation;
           setMessages((prev) => {
             const usersOnly = prev.filter((m) => m.role === "user");
             return [
               ...usersOnly,
-              { role: "assistant" as const, text: proactiveContactConfirmation },
+              { role: "assistant" as const, text: contactReply },
             ].slice(-6);
           });
           touchAgentSessionActivity();
-          return { ok: true, reply: proactiveContactConfirmation };
+          return { ok: true, reply: contactReply };
         }
       }
 
