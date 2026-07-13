@@ -46,6 +46,7 @@ type ListingRow = {
   requires_review: boolean;
   image_alt: string | null;
   image_title: string | null;
+  allow_pastomatas: boolean | null;
 };
 
 function mapListingRow(r: ListingRow): ApiListing {
@@ -81,6 +82,7 @@ function mapListingRow(r: ListingRow): ApiListing {
     requiresReview: r.requires_review,
     imageAlt: r.image_alt ?? undefined,
     imageTitle: r.image_title ?? undefined,
+    allowPastomatas: r.allow_pastomatas ?? true,
     isDemo: false,
   };
 }
@@ -89,7 +91,8 @@ const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, locatio
   latitude, longitude, slug, image, category, tags, contact, has_video, created_at, expires_at,
   description, attributes, status, banned, vin_verified, provider_verified, promoted,
   min_negotiation_price, appraisal_score,
-  is_verified, requires_review, image_alt, image_title
+  is_verified, requires_review, image_alt, image_title,
+  allow_pastomatas
   FROM listings`;
 
 /** Public catalog — excludes banned and pending moderation review. */
@@ -117,11 +120,15 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     free_protection_credits: number | null;
     referred_by_user_id: string | null;
     profile_type: string | null;
+    age_group: string | null;
+    gender: string | null;
+    hobbies: string[] | null;
   }>(
     `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
             wallet_balance, role, business_type, sold_count, auth_provider,
             billing_plan, referral_code, free_protection_credits, referred_by_user_id,
-            profile_type
+            profile_type,
+            age_group, gender, hobbies
      FROM users WHERE id = $1`,
     [id]
   );
@@ -150,6 +157,15 @@ export async function getUser(id: string): Promise<ApiUser | null> {
       r.profile_type === "private" || r.profile_type === "business"
         ? r.profile_type
         : undefined,
+    ageGroup:
+      r.age_group === "Youth" || r.age_group === "Adult" || r.age_group === "Senior"
+        ? (r.age_group as ApiUser["ageGroup"])
+        : undefined,
+    gender:
+      r.gender === "Male" || r.gender === "Female" || r.gender === "PreferNot"
+        ? (r.gender as ApiUser["gender"])
+        : undefined,
+    hobbies: Array.isArray(r.hobbies) ? r.hobbies.filter(Boolean).map(String) : undefined,
     avatar:
       r.avatar_url ??
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
@@ -238,8 +254,9 @@ export async function setUserProfileType(
 export async function upsertUser(user: ApiUser): Promise<void> {
   await query(
     `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
-                        wallet_balance, role, business_type, sold_count, auth_provider, profile_type)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+                        wallet_balance, role, business_type, sold_count, auth_provider, profile_type,
+                        age_group, gender, hobbies)
+     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
      ON CONFLICT (id) DO UPDATE SET
        name = EXCLUDED.name,
        phone = EXCLUDED.phone,
@@ -253,6 +270,9 @@ export async function upsertUser(user: ApiUser): Promise<void> {
        sold_count = COALESCE(EXCLUDED.sold_count, users.sold_count),
        auth_provider = COALESCE(EXCLUDED.auth_provider, users.auth_provider),
        profile_type = COALESCE(users.profile_type, EXCLUDED.profile_type),
+      age_group = COALESCE(EXCLUDED.age_group, users.age_group),
+      gender = COALESCE(EXCLUDED.gender, users.gender),
+      hobbies = COALESCE(EXCLUDED.hobbies, users.hobbies),
        updated_at = now()`,
     [
       user.id,
@@ -268,6 +288,9 @@ export async function upsertUser(user: ApiUser): Promise<void> {
       user.soldCount ?? 0,
       user.authProvider ?? null,
       user.profileType ?? null,
+      user.ageGroup ?? null,
+      user.gender ?? null,
+      user.hobbies ?? null,
     ]
   );
 }
@@ -665,8 +688,9 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       latitude, longitude, slug, image, category, tags, contact, has_video,
       created_at, expires_at, description, attributes, status, banned,
       vin_verified, provider_verified, promoted, min_negotiation_price, appraisal_score,
-      is_verified, requires_review, image_alt, image_title
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::jsonb,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30)
+      is_verified, requires_review, image_alt, image_title,
+      allow_pastomatas
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13::jsonb,$14,$15,$16,$17,$18,$19::jsonb,$20,$21,$22,$23,$24,$25,$26,$27,$28,$29,$30,$31)
     ON CONFLICT (id) DO UPDATE SET
       title = EXCLUDED.title,
       price = EXCLUDED.price,
@@ -689,7 +713,8 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       is_verified = EXCLUDED.is_verified,
       requires_review = EXCLUDED.requires_review,
       image_alt = EXCLUDED.image_alt,
-      image_title = EXCLUDED.image_title`,
+      image_title = EXCLUDED.image_title,
+      allow_pastomatas = EXCLUDED.allow_pastomatas`,
     [
       listing.id,
       listing.sellerId,
@@ -721,6 +746,7 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.requiresReview ?? false,
       listing.imageAlt ?? null,
       listing.imageTitle ?? null,
+      listing.allowPastomatas ?? true,
     ]
   );
 
@@ -802,6 +828,7 @@ export async function updateListing(
   if (patch.requiresReview !== undefined) set("requires_review", patch.requiresReview);
   if (patch.imageAlt !== undefined) set("image_alt", patch.imageAlt);
   if (patch.imageTitle !== undefined) set("image_title", patch.imageTitle);
+  if (patch.allowPastomatas !== undefined) set("allow_pastomatas", patch.allowPastomatas);
 
   if (fields.length === 0) {
     const all = await getListings();

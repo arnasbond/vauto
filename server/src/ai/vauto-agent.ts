@@ -97,6 +97,7 @@ export interface VautoAgentRequest {
       location?: string;
       category?: string;
       attributes?: Record<string, string>;
+      allowPastomatas?: boolean;
     };
     missingFields?: string[];
     wizardPrompts?: string[];

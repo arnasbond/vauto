@@ -63,6 +63,10 @@ import {
   formatServiceLeadsMessage,
 } from "./business-agent-tools.js";
 import { detectServerSellIntent } from "./sell-intent-fallback.js";
+import {
+  evaluateOmnivaPastomatasGatekeeper,
+  OMNIVA_OVERSIZE_BLOCK_MESSAGE,
+} from "../shipping/omniva-gatekeeper.js";
 
 const ZERO_UI_SCREENS = [
   "marketplace",
@@ -134,6 +138,7 @@ export interface AgentToolContext {
     location?: string;
     category?: string;
     attributes?: Record<string, string>;
+    allowPastomatas?: boolean;
   };
   sellerMetrics?: {
     views: number;
@@ -1350,17 +1355,33 @@ export async function executeAgentTool(
         category,
         confidence: 0.85,
         attributes,
+        allowPastomatas: true,
       };
 
       const voiceFollowUp = buildCreateListingDraftFollowUp(category, title, attributes);
+      const gate = evaluateOmnivaPastomatasGatekeeper({
+        title,
+        description,
+        category,
+        attributes,
+      });
+      if (gate.oversized) {
+        draft.allowPastomatas = false;
+      }
 
       return {
         result: {
           ok: true,
           message: "Pradedamas skelbimo juodraštis.",
           draft,
-          voiceFollowUp,
-          suggestedQuestions: [voiceFollowUp],
+          voiceFollowUp: gate.oversized
+            ? `${voiceFollowUp}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+            : voiceFollowUp,
+          suggestedQuestions: [
+            gate.oversized
+              ? `${voiceFollowUp}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+              : voiceFollowUp,
+          ],
         },
         sideEffect: {
           type: "listing_draft",
@@ -1415,7 +1436,18 @@ export async function executeAgentTool(
         category: enriched.category,
         confidence: 0.9,
         attributes,
+        allowPastomatas: true,
       };
+
+      const gate = evaluateOmnivaPastomatasGatekeeper({
+        title: draft.title,
+        description: draft.description,
+        category: draft.category,
+        attributes: draft.attributes,
+      });
+      if (gate.oversized) {
+        draft.allowPastomatas = false;
+      }
 
       const suggestedQuestions: string[] = [];
       if (missingFields.includes("city")) {
@@ -1448,6 +1480,9 @@ export async function executeAgentTool(
         attributes,
         missingFields
       );
+      const voiceFollowUpWithGate = gate.oversized
+        ? `${voiceFollowUp}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+        : voiceFollowUp;
 
       let marketAnalysis = null;
       let proactivePricingMessage: string | null = null;
@@ -1478,7 +1513,7 @@ export async function executeAgentTool(
           draft,
           missingFields,
           suggestedQuestions,
-          voiceFollowUp,
+          voiceFollowUp: voiceFollowUpWithGate,
           marketAnalysis,
           proactivePricingMessage,
           marketAnalysisDeferred,
@@ -2549,6 +2584,7 @@ export type AgentSideEffect =
         category: string;
         confidence: number;
         attributes?: Record<string, string>;
+        allowPastomatas?: boolean;
       };
       imageUrl?: string;
     }

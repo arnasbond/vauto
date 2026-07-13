@@ -20,6 +20,10 @@ export function normalizeListing(listing: LegacyListingInput): Listing {
     isAiTwinActive:
       String((listing as Listing).attributes?.["isAiTwinActive"] ?? "").trim().toLowerCase() ===
       "true",
+    allowPastomatas:
+      typeof (listing as Listing).allowPastomatas === "boolean"
+        ? (listing as Listing).allowPastomatas
+        : true,
     // Keep real seller uploads (https, data:, blob:) — demo gallery only when empty.
     images: sellerImages.length > 0 ? sellerImages : resolveListingImages({ ...base, images: [] }),
   };

@@ -26,6 +26,9 @@ export interface SupervisorCurrentUser {
   phone?: string;
   email?: string;
   hasVerifiedContacts?: boolean;
+  ageGroup?: "Youth" | "Adult" | "Senior";
+  gender?: "Male" | "Female" | "PreferNot";
+  hobbies?: string[];
   /** True when a session token exists locally (token itself is never sent to Gemini). */
   hasSessionToken: boolean;
 }
@@ -67,7 +70,10 @@ function resolveFirstName(
  * Build supervisor user profile from React auth state + localStorage hand-off.
  */
 export function buildSupervisorCurrentUser(params: {
-  user?: Pick<UserProfile, "id" | "name" | "firstName" | "city" | "role" | "phone" | "email">;
+  user?: Pick<
+    UserProfile,
+    "id" | "name" | "firstName" | "city" | "role" | "phone" | "email" | "ageGroup" | "gender" | "hobbies"
+  >;
   isAuthenticated?: boolean;
   accountType?: string;
   userRole?: string;
@@ -85,6 +91,13 @@ export function buildSupervisorCurrentUser(params: {
   const city = params.user?.city?.trim() || persisted?.city?.trim() || undefined;
   const phone = params.user?.phone?.trim() || persisted?.phone?.trim() || undefined;
   const email = params.user?.email?.trim() || persisted?.email?.trim() || undefined;
+  const ageGroup =
+    params.user?.ageGroup || persisted?.ageGroup || undefined;
+  const gender =
+    params.user?.gender || persisted?.gender || undefined;
+  const hobbies =
+    (Array.isArray(params.user?.hobbies) ? params.user?.hobbies : null) ??
+    (Array.isArray(persisted?.hobbies) ? persisted?.hobbies : undefined);
 
   const authenticated = Boolean(
     params.isAuthenticated || sessionFlag || (token && id)
@@ -103,6 +116,9 @@ export function buildSupervisorCurrentUser(params: {
     phone: authenticated ? phone : undefined,
     email: authenticated ? email : undefined,
     hasVerifiedContacts: authenticated ? Boolean(phone || email) : false,
+    ageGroup: authenticated ? ageGroup : undefined,
+    gender: authenticated ? gender : undefined,
+    hobbies: authenticated ? hobbies : undefined,
     hasSessionToken: Boolean(token),
   };
 }

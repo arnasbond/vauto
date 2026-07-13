@@ -28,6 +28,9 @@ export interface ApiUser {
   serviceSpecialties?: string[];
   averageResponseMinutes?: number;
   profileType?: "private" | "business" | null;
+  ageGroup?: "Youth" | "Adult" | "Senior" | null;
+  gender?: "Male" | "Female" | "PreferNot" | null;
+  hobbies?: string[] | null;
 }
 
 export interface ApiReview {
@@ -74,6 +77,8 @@ export interface ApiListing {
   promoted?: boolean;
   /** Minimali kaina, kuria AI dvynys gali derėtis */
   minNegotiationPrice?: number;
+  /** Shipping gatekeeper — Omniva/paštomatas allowed */
+  allowPastomatas?: boolean;
   /** AI kainų vertinimo patikimumas 0–100 */
   appraisalScore?: number;
   /** Vision anti-fraud — ar skelbimas patvirtintas */

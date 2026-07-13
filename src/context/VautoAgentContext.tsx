@@ -291,6 +291,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         category: profileSyncedDraft.category,
         contact: profileSyncedDraft.contact || profileContact.contact,
         attributes: profileSyncedDraft.attributes as Record<string, string> | undefined,
+        allowPastomatas: profileSyncedDraft.allowPastomatas,
       },
       profileContacts: {
         userId: user.id,

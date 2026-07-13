@@ -306,6 +306,8 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
   if (!imageAlt.ok) return imageAlt;
   const imageTitle = optionalString(body, "imageTitle", 120);
   if (!imageTitle.ok) return imageTitle;
+  const allowPastomatas = optionalBoolean(body, "allowPastomatas");
+  if (!allowPastomatas.ok) return allowPastomatas;
 
   return ok({
     id: id.value,
@@ -338,6 +340,7 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
     requiresReview: requiresReview.value,
     imageAlt: imageAlt.value,
     imageTitle: imageTitle.value,
+    allowPastomatas: allowPastomatas.value,
   });
 }
 
@@ -362,6 +365,7 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     "requiresReview",
     "imageAlt",
     "imageTitle",
+    "allowPastomatas",
   ]);
   for (const key of Object.keys(body)) {
     if (!allowed.has(key)) return fail(`${key} cannot be updated`);
@@ -457,6 +461,11 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     const imageTitle = optionalString(body, "imageTitle", 120);
     if (!imageTitle.ok) return imageTitle;
     patch.imageTitle = imageTitle.value;
+  }
+  if (body.allowPastomatas !== undefined) {
+    const allowPastomatas = optionalBoolean(body, "allowPastomatas");
+    if (!allowPastomatas.ok) return allowPastomatas;
+    patch.allowPastomatas = allowPastomatas.value;
   }
   return ok(patch);
 }
@@ -592,6 +601,12 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
   if (!serviceSpecialties.ok) return serviceSpecialties;
   const averageResponseMinutes = optionalNumber(body, "averageResponseMinutes", 0, 10_000);
   if (!averageResponseMinutes.ok) return averageResponseMinutes;
+  const ageGroup = optionalEnumString(body, "ageGroup", new Set(["Youth", "Adult", "Senior"]));
+  if (!ageGroup.ok) return ageGroup;
+  const gender = optionalEnumString(body, "gender", new Set(["Male", "Female", "PreferNot"]));
+  if (!gender.ok) return gender;
+  const hobbies = optionalStringArray(body, "hobbies", 40, 80);
+  if (!hobbies.ok) return hobbies;
   return ok({
     id: id.value,
     name: name.value,
@@ -615,6 +630,9 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
     serviceNationwide: serviceNationwide.value,
     serviceSpecialties: serviceSpecialties.value,
     averageResponseMinutes: averageResponseMinutes.value,
+    ageGroup: ageGroup.value as ApiUser["ageGroup"],
+    gender: gender.value as ApiUser["gender"],
+    hobbies: hobbies.value,
   });
 }
 

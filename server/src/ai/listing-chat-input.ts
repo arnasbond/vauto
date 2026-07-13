@@ -43,6 +43,7 @@ export interface ListingDraftContext {
   location?: string;
   category?: string;
   attributes?: Record<string, string>;
+  allowPastomatas?: boolean;
 }
 
 /** Map partial wizard draft to strict listing_draft side-effect payload. */
@@ -63,6 +64,7 @@ export function normalizeListingDraftForAction(
   category: string;
   confidence: number;
   attributes?: Record<string, string>;
+  allowPastomatas?: boolean;
 } {
   return {
     title: draft.title?.trim() || "Naujas skelbimas",
@@ -73,5 +75,7 @@ export function normalizeListingDraftForAction(
     category: draft.category?.trim() || "other",
     confidence: opts?.confidence ?? 0.9,
     attributes: draft.attributes,
+    allowPastomatas:
+      typeof draft.allowPastomatas === "boolean" ? draft.allowPastomatas : true,
   };
 }

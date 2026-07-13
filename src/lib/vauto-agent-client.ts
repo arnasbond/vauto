@@ -276,6 +276,7 @@ export type VautoAgentAction =
         category: string;
         confidence: number;
         attributes?: Record<string, string | string[]>;
+        allowPastomatas?: boolean;
       };
       imageUrl?: string;
     }
@@ -535,6 +536,7 @@ export function mapAgentDraftToListing(draft: {
   category: string;
   confidence: number;
   attributes?: Record<string, string | string[]>;
+  allowPastomatas?: boolean;
 }): AiExtractedListing {
   const category = VALID.includes(draft.category as ListingCategory)
     ? (draft.category as ListingCategory)
@@ -549,6 +551,7 @@ export function mapAgentDraftToListing(draft: {
     description: draft.description,
     confidence: draft.confidence,
     attributes: safeDraftAttributes(draft.attributes),
+    allowPastomatas: typeof draft.allowPastomatas === "boolean" ? draft.allowPastomatas : true,
   };
 }
 

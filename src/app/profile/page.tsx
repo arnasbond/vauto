@@ -13,6 +13,7 @@ import { ProfileProCTA } from "@/components/profile/ProfileProCTA";
 import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle";
 import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSandboxTrigger";
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
+import { AiPersonalizationSurveyCard } from "@/components/profile/AiPersonalizationSurveyCard";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
@@ -115,6 +116,8 @@ export default function ProfilePage() {
         </Suspense>
 
         <DashboardHeader user={user} onLogout={logout} />
+
+        <AiPersonalizationSurveyCard />
 
         {isPro ? <ProfileProViewToggle /> : <ProfileProCTA />}
 

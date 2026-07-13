@@ -50,6 +50,8 @@ export interface Listing {
   minNegotiationPrice?: number;
   /** AI Dvynys–Derybininkas aktyvus šiam skelbimui */
   isAiTwinActive?: boolean;
+  /** Omniva paštomatas leidžiamas (gatekeeper) */
+  allowPastomatas?: boolean;
   /** AI kainų vertinimo patikimumas 0–100 */
   appraisalScore?: number;
   /** Vision anti-fraud patvirtinimas */
@@ -114,6 +116,8 @@ export interface AiExtractedListing {
   isVinVerified?: boolean;
   requiresReview?: boolean;
   reviewNotice?: string;
+  /** Omniva paštomatas leidžiamas (gatekeeper) */
+  allowPastomatas?: boolean;
   imageAlt?: string;
   imageTitle?: string;
   /** Multi-object vision — quick reply chips for chat UI */
@@ -203,6 +207,10 @@ export interface UserProfile {
   /** Nemokamos pirkėjo apsaugos kreditai */
   freeProtectionCredits?: number;
   profileType?: "private" | "business";
+  /** Optional personalization for Tone Chameleon */
+  ageGroup?: "Youth" | "Adult" | "Senior";
+  gender?: "Male" | "Female" | "PreferNot";
+  hobbies?: string[];
 }
 
 export interface BodyMeasurements {
