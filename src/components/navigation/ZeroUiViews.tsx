@@ -5,7 +5,6 @@ import { ArrowLeft, LogIn, MessageCircle, Sparkles } from "lucide-react";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { FilterBubbles } from "@/components/FilterBubbles";
 import { ListingGrid } from "@/components/ListingGrid";
-import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { ServiceRequestCard } from "@/components/services/ServiceRequestCard";
 import { HotKeywordsGrid } from "@/components/home/HotKeywordsGrid";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
@@ -75,7 +74,6 @@ function HomeZeroView() {
         className="mb-0 mt-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
       />
       <div className="mt-4">
-        <AiFirstBrowsePrompt />
         <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />
@@ -93,7 +91,6 @@ function DiscoverZeroView() {
         className="mb-0 mt-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
       />
       <div className="mt-4">
-        <AiFirstBrowsePrompt />
         <ServiceRequestCard />
         <HotKeywordsGrid />
         <FilterBubbles />

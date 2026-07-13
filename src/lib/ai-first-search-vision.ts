@@ -83,9 +83,3 @@ export function buildNoResultsRefinementMessage(
 
 export const AI_FIRST_SEARCH_PLACEHOLDER =
   "Aprašykite ko ieškote... pvz. „iPhone 15 nebrangiai…“";
-
-export const AI_FIRST_SEARCH_EXAMPLES = [
-  "noriu matyti visus skelbimus su mobiliais telefonais",
-  "reikia citroen generatoriaus",
-  "moteriški batai 38 dydžio iki 50 €",
-] as const;

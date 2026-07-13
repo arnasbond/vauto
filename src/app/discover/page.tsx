@@ -3,7 +3,6 @@
 import { AppShell } from "@/components/AppShell";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { ListingGrid } from "@/components/ListingGrid";
-import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { PortalExperienceStrip } from "@/components/chameleon/PortalExperienceStrip";
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
@@ -42,7 +41,6 @@ export default function DiscoverPage() {
 
       <ContentSection>
         {isFluxHome && <PortalExperienceStrip />}
-        {isFluxHome && <AiFirstBrowsePrompt />}
         <ListingGrid />
       </ContentSection>
     </AppShell>

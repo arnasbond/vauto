@@ -57,7 +57,7 @@ export function HomeQuickActions({
         break;
       case "browse":
         document
-          .getElementById("browse-section")
+          .getElementById("listing-results")
           ?.scrollIntoView({ behavior: "smooth", block: "start" });
         break;
     }

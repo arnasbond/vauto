@@ -28,6 +28,9 @@ test.describe("VAUTO smoke", () => {
     await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
       timeout: 10_000,
     });
+    await expect(
+      page.getByText(/AI paieška — rašykite laisvai/i)
+    ).toHaveCount(0);
   });
 
   test("profile gate shows login CTA for guests", async ({ page }) => {
