@@ -47,23 +47,3 @@ export function extractBarcodesFromText(text: string): string[] {
   }
   return [...found];
 }
-
-export function extractBarcodeFromQrPayload(payload: string): string | undefined {
-  const trimmed = payload.trim();
-  if (!trimmed) return undefined;
-  if (isValidBarcode(trimmed)) return normalizeBarcode(trimmed);
-  const fromText = extractBarcodesFromText(trimmed);
-  if (fromText[0]) return fromText[0];
-  try {
-    const url = new URL(trimmed);
-    const pathCode = url.pathname.match(/(\d{8,14})/)?.[1];
-    if (pathCode && isValidBarcode(pathCode)) return normalizeBarcode(pathCode);
-    for (const key of ["ean", "gtin", "upc", "barcode", "isbn"]) {
-      const v = url.searchParams.get(key);
-      if (v && isValidBarcode(v)) return normalizeBarcode(v);
-    }
-  } catch {
-    /* not a URL */
-  }
-  return undefined;
-}

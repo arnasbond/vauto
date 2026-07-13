@@ -77,19 +77,11 @@ import {
 } from "@/lib/agent-session-memory";
 import { mergeVoiceUiFilters } from "@/lib/voice-ui-actions";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
-import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { toLithuanianVocative } from "@/lib/lithuanian-name-case";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { resolveAgentChatReply } from "@/lib/agent-chat-reply";
-import {
-  buildBrowseAllReply,
-  sanitizeAgentReplyForDisplay,
-} from "@/lib/agent-reply-display";
-import {
-  isBrowseAllIntent,
-  resolveBrowseAllIntent,
-  createBrowseAllAction,
-} from "@/lib/browse-all-intent";
+import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
+import { resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
@@ -116,8 +108,6 @@ import type { AgentGreetingOptions } from "@/lib/vauto-agent-client";
 import {
   mapAgentWardrobeItems,
 } from "@/lib/agent-wardrobe-bridge";
-import { detectSellerListingIntent } from "@/lib/scoring";
-import { looksLikeClothingListing } from "@/lib/clothing-catalog";
 import { completeVoiceTeardown, isUiDrivingAgentAction } from "@/lib/voice-teardown";
 import { chatThreadPath } from "@/lib/chat-routes";
 import type { WakeWordAgentResult } from "@/lib/voice-intent-engine";
@@ -239,7 +229,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     submitSellerContent,
     updateAiDraft,
     sellerVisionRecoveryActive,
-    submitSellerClarification,
     cancelSellerFlow,
   } = useSellerFlow();
   const { startChat } = useChat();
@@ -322,6 +311,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     (text: string, options?: AgentSendOptions) => Promise<WakeWordAgentResult>
   >(() => Promise.resolve({ ok: false, error: "Agentas dar neinicializuotas" }));
   const [sessionPendingImageUrls, setSessionPendingImageUrls] = useState<string[]>([]);
+  const backgroundScanSeenRef = useRef<Set<string>>(new Set());
   const [lastBargainingOffer, setLastBargainingOffer] =
     useState<AgentBargainingOffer | null>(null);
   const adminProjectContext = useAdminProjectContextForAgent();
@@ -850,7 +840,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       trackEvent,
       startChat,
       setLastBargainingOffer,
-      resetMarketplaceFilters,
       exitListingPipelineForMarketplaceSearch,
       dispatchBrowseAllMarketplaceState,
       searchQuery,
@@ -1609,11 +1598,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       teardownVoiceAfterUiAction,
       marketplaceFilters,
       applyVisualSearch,
-      pathname,
       submitSellerContent,
       updateAiDraft,
       sellerVisionRecoveryActive,
-      submitSellerClarification,
       goToMarketplace,
       setOpen,
       setMessages,
@@ -1702,6 +1689,95 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       registerAgentPendingImagesHost(null);
     };
   }, [openWithGreeting]);
+
+  useEffect(() => {
+    if (!sessionPendingImageUrls.length) return;
+    if (!aiDraft) return;
+    if (sellerStep === "idle") return;
+
+    const first = sessionPendingImageUrls.find((u) => typeof u === "string" && u.trim());
+    if (!first) return;
+    if (!first.startsWith("data:image")) return;
+    if (backgroundScanSeenRef.current.has(first)) return;
+    backgroundScanSeenRef.current.add(first);
+
+    let cancelled = false;
+    (async () => {
+      try {
+        const { apiScanBarcodeImage, apiScanVinImage, apiLookupVehicle } = await import(
+          "@/lib/api/client"
+        );
+
+        if (aiDraft.category === "vehicles") {
+          const vin = await apiScanVinImage(first);
+          if (!cancelled && vin) {
+            const vehicle = await apiLookupVehicle(vin, { vin });
+            if (!cancelled && vehicle) {
+              const { vehicleLookupToDraftPatch } = await import(
+                "@/lib/vehicle-intelligence/vehicle-lookup"
+              );
+              const patch = vehicleLookupToDraftPatch(vehicle);
+              updateAiDraft({
+                ...aiDraft,
+                title: patch.title ?? aiDraft.title,
+                description: patch.description ?? aiDraft.description,
+                confidence: Math.max(aiDraft.confidence ?? 0, patch.confidence ?? 0),
+                attributes: {
+                  ...(aiDraft.attributes ?? {}),
+                  ...(patch.attributes ?? {}),
+                },
+              });
+              openWithGreeting(
+                "Nuskanavau jūsų įkeltą kodą ir automatiškai papildžiau techninius duomenis!",
+                { openSheet: true }
+              );
+            }
+          }
+        }
+
+        const barcode = await apiScanBarcodeImage(first);
+        if (!cancelled && barcode) {
+          const { isBarcodeLookupEligibleCategory } = await import(
+            "@/lib/product-intelligence/barcode-utils"
+          );
+          if (isBarcodeLookupEligibleCategory(aiDraft.category)) {
+            const { apiLookupBarcode } = await import("@/lib/api/client");
+            const lookup = await apiLookupBarcode(barcode);
+            if (cancelled || !lookup) return;
+            const { barcodeLookupToDraftPatch } = await import(
+              "@/lib/product-intelligence/barcode-lookup"
+            );
+            const patch = barcodeLookupToDraftPatch(lookup, {
+              title: aiDraft.title,
+              description: aiDraft.description,
+              attributes: aiDraft.attributes ?? {},
+            });
+            updateAiDraft({
+              ...aiDraft,
+              title: patch.title ?? aiDraft.title,
+              description: patch.description ?? aiDraft.description,
+              confidence: Math.max(aiDraft.confidence ?? 0, patch.confidence ?? 0),
+              attributes: {
+                ...(aiDraft.attributes ?? {}),
+                barcode,
+                ...(patch.attributes ?? {}),
+              },
+            });
+            openWithGreeting(
+              "Nuskanavau jūsų įkeltą kodą ir automatiškai papildžiau techninius duomenis!",
+              { openSheet: true }
+            );
+          }
+        }
+      } catch {
+        // Passive assistant: background scan must never break chat UX.
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [sessionPendingImageUrls, aiDraft, sellerStep, updateAiDraft, openWithGreeting]);
 
   const editSessionConsumedRef = useRef(false);
   useEffect(() => {

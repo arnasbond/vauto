@@ -2,7 +2,6 @@ import { runOcrPipeline } from "../services/visual-pipeline/providers/ocr.js";
 import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
 import {
   extractBarcodesFromText,
-  extractBarcodeFromQrPayload,
   isValidBarcode,
   normalizeBarcode,
 } from "./barcode-utils.js";
@@ -43,8 +42,6 @@ export async function extractBarcodeFromImage(
     if (fromText[0]) return fromText[0];
     for (const code of ocr.extractedCodes) {
       if (isValidBarcode(code)) return normalizeBarcode(code);
-      const fromQr = extractBarcodeFromQrPayload(code);
-      if (fromQr) return fromQr;
     }
   } catch {
     return null;

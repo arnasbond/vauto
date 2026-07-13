@@ -1,6 +1,5 @@
 import {
   extractBarcodesFromText,
-  extractBarcodeFromQrPayload,
   isValidBarcode,
   normalizeBarcode,
 } from "../product/barcode-utils.js";
@@ -25,7 +24,6 @@ function buildHintsFromText(mergedText: string, codes: string[]): Record<string,
   const barcodes = extractBarcodesFromText(mergedText);
   const barcode =
     barcodes[0] ??
-    extractBarcodeFromQrPayload(mergedText) ??
     codes
       .map((c) => (isValidBarcode(c) ? normalizeBarcode(c) : null))
       .find((c): c is string => Boolean(c));

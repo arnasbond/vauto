@@ -49,13 +49,13 @@ export function deriveFeatureClaims(
     },
     {
       id: "code_scan",
-      label: "VIN / barcode / QR",
+      label: "VIN / brūkšninis kodas",
       state: !live ? "demo" : ocrLive || codeVision ? (ocrLive ? "live" : "beta") : "beta",
       hint: ocrLive
         ? `OCR: ${visual?.ocr ?? "none"}`
         : codeVision
           ? "Code Vision fallback per Gemini."
-          : "Client-side barcode/QR; server OCR neprijungtas.",
+          : "Brūkšninis kodas (EAN) klientui; server OCR neprijungtas.",
     },
     {
       id: "studio_bg",

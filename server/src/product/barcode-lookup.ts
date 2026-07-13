@@ -1,6 +1,5 @@
 import {
   classifyBarcode,
-  extractBarcodeFromQrPayload,
   isIsbnBarcode,
   isValidBarcode,
   normalizeBarcode,
@@ -327,8 +326,7 @@ export async function lookupBarcodeOnServer(
   const raw = identifier?.trim() ?? "";
   if (!raw) return null;
 
-  let barcode = isValidBarcode(raw) ? normalizeBarcode(raw) : undefined;
-  if (!barcode) barcode = extractBarcodeFromQrPayload(raw);
+  const barcode = isValidBarcode(raw) ? normalizeBarcode(raw) : undefined;
   if (!barcode || !isValidBarcode(barcode)) return null;
 
   return lookupBarcodeLive(barcode);

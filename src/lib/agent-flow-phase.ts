@@ -29,7 +29,8 @@ export function resolveAgentFlowPhase(
 }
 
 /** Persistent bottom composer — disabled; conversation lives in HomeAiHero stream only. */
-export function shouldShowFlowAgentComposer(_phase: AgentFlowPhase): boolean {
+export function shouldShowFlowAgentComposer(phase: AgentFlowPhase): boolean {
+  void phase;
   return false;
 }
 

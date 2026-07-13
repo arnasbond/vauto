@@ -48,7 +48,7 @@ export function EscrowActionBlock({
       : escrow?.status === "paid"
         ? "Apmokėta — rinkitės siuntimą"
         : escrow?.status === "label_sent"
-          ? "QR lipdukas paruoštas"
+          ? "Siuntos lipdukas paruoštas"
           : escrow?.status === "shipped"
             ? "Siunta išsiųsta"
             : escrow?.status === "delivered"

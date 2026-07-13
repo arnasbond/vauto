@@ -26,17 +26,17 @@ import {
 } from "@/lib/listing-draft-id";
 import { moderateListing } from "@/lib/moderation";
 import { compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
-import { distanceToCity, getUserCoords } from "@/lib/geolocation";
+import { getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
-import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
+import { draftToListingPatch } from "@/lib/listing-edit";
 import { writeListingEditSession } from "@/lib/listing-edit-session";
 import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-draft";
 import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
-import { resolveListingCity, normalizeKnownListingCity } from "@/lib/city-resolve";
+import { normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
   LOCATION_MISSING_AGENT_PROMPT,
   resolveDynamicListingLocation,
@@ -124,7 +124,6 @@ import {
 import {
   DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS,
   mergeSocialPublishAttributes,
-  readSocialPublishFromAttributes,
   type ListingSocialPublishOptions,
 } from "@/lib/listing-social-publish";
 import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
@@ -162,7 +161,6 @@ import { useUserBehavior } from "@/context/UserBehaviorContext";
 import {
   isWeakVisionExtraction,
   RECOVERY_PROCESSING_TIMEOUT_MS,
-  requestWizardAgentExpand,
   shouldEnterConversationalRecovery,
   VISION_CONVERSATIONAL_RECOVERY_PROMPT,
 } from "@/lib/ai-conversational-recovery";
@@ -1270,7 +1268,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const startListingFromQuery = useCallback(
-    (_text: string) => {
+    () => {
       return false;
     },
     []

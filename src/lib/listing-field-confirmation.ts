@@ -18,8 +18,10 @@ export function buildPostValidationQuickReplies(): string[] {
 }
 
 export function shouldRunPostValidationReport(
-  _extracted: AiExtractedListing,
-  _needsClarification: boolean
+  extracted: AiExtractedListing,
+  needsClarification: boolean
 ): boolean {
+  void extracted;
+  void needsClarification;
   return false;
 }

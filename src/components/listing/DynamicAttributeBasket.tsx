@@ -12,6 +12,7 @@ interface DynamicAttributeBasketProps {
 }
 
 /** AI-extracted attributes — invisible to users; state manager only. */
-export function DynamicAttributeBasket(_: DynamicAttributeBasketProps) {
+export function DynamicAttributeBasket(props: DynamicAttributeBasketProps) {
+  void props;
   return null;
 }

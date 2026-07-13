@@ -1,6 +1,6 @@
 "use client";
 
-import { Check, Clock, CreditCard, Package, QrCode, ShieldCheck, Sparkles, Truck, X } from "lucide-react";
+import { Check, Clock, CreditCard, Package, ShieldCheck, Sparkles, Truck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import { ParcelLockerPicker } from "@/components/escrow/ParcelLockerPicker";
 import { useVauto } from "@/context/VautoContext";
@@ -126,7 +126,7 @@ export function EscrowModal({
   const [parcelSize, setParcelSize] = useState<ParcelSize>("M");
   const [selectedLocker, setSelectedLocker] = useState<ParcelLocker | null>(null);
   const [trackingCode, setTrackingCode] = useState(escrow?.trackingCode ?? "");
-  const [qrPayload, setQrPayload] = useState("");
+  const [labelPayload, setLabelPayload] = useState("");
   const [paymentLabel, setPaymentLabel] = useState("Stripe saugus mokėjimas");
   const [shipmentInstructions, setShipmentInstructions] = useState("");
   const [labelMode, setLabelMode] = useState<"live" | "simulated" | null>(null);
@@ -279,7 +279,7 @@ export function EscrowModal({
       });
       if (res.ok) {
         setTrackingCode(res.data.label.trackingCode);
-        setQrPayload(res.data.label.qrPayload);
+        setLabelPayload(res.data.label.qrPayload);
         setShipmentInstructions(res.data.label.instructions);
         setLabelMode(res.data.label.mode ?? "simulated");
         onUpdate(res.data.escrow);
@@ -295,7 +295,7 @@ export function EscrowModal({
       amount,
     });
     setTrackingCode(label.trackingCode);
-    setQrPayload(label.qrPayload);
+    setLabelPayload(label.qrPayload);
     setShipmentInstructions(label.instructions);
     setLabelMode("simulated");
     persist("label_sent", label.trackingCode, {
@@ -534,7 +534,7 @@ export function EscrowModal({
               onClick={() => void handleConfirmLabel()}
               className="mt-6 w-full rounded-2xl bg-[var(--vauto-orange)] py-3.5 text-sm font-semibold text-white"
             >
-              Generuoti QR siuntos lipduką
+              Generuoti siuntos lipduką
             </button>
           </>
         )}
@@ -553,24 +553,24 @@ export function EscrowModal({
             <div className="rounded-2xl border border-[#bfdbfe] bg-[#eef6ff] p-4">
               <div className="flex items-center gap-3">
                 <div className="flex h-14 w-14 items-center justify-center rounded-xl bg-white text-[#1167b1] shadow-sm">
-                  <QrCode className="h-8 w-8" />
+                  <Package className="h-8 w-8" />
                 </div>
                 <div>
                   <p className="text-sm font-semibold text-slate-900">
-                    QR lipdukas paruoštas
+                    Siuntos lipdukas paruoštas
                   </p>
                   <p className="text-xs text-slate-600">
                     {trackingCode || escrow?.trackingCode}
                   </p>
                   <p className="mt-1 text-xs text-slate-500">
                     {shipmentInstructions ||
-                      "Pardavėjas gali nuskenuoti QR paštomate."}
+                      "Pardavėjas gali pateikti lipduką paštomate."}
                   </p>
                 </div>
               </div>
-              {qrPayload && (
+              {labelPayload && (
                 <p className="mt-3 break-all rounded-lg bg-white p-2 font-mono text-[10px] text-slate-500">
-                  {qrPayload}
+                  {labelPayload}
                 </p>
               )}
             </div>

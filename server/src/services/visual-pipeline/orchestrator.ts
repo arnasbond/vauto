@@ -321,9 +321,6 @@ export async function runVisualPipeline(
   if (visionData?.plateNumber && !attributeHints.plateNumber) {
     attributeHints.plateNumber = visionData.plateNumber;
   }
-  if (visionData?.qrPayload && !attributeHints.qrPayload) {
-    attributeHints.qrPayload = visionData.qrPayload;
-  }
   if (visionData?.modelCode && !attributeHints.modelCode) {
     attributeHints.modelCode = visionData.modelCode;
   }

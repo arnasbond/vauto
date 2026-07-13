@@ -551,6 +551,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       isAuthenticated,
       openAuthModal,
       showToast,
+      advanceMessageStatus,
       scheduleIncomingSms,
       persistChat,
       upsertChats,

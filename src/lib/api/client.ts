@@ -1196,6 +1196,14 @@ export async function apiScanBarcodeImage(imageDataUrl: string): Promise<string 
   return r.ok && r.data.barcode ? r.data.barcode : null;
 }
 
+export async function apiScanVinImage(imageDataUrl: string): Promise<string | null> {
+  const r = await dataFetch<{ vin?: string }>("/api/vehicle/scan-image", {
+    method: "POST",
+    body: JSON.stringify({ imageDataUrl }),
+  });
+  return r.ok && r.data.vin ? r.data.vin : null;
+}
+
 export async function apiFashionListingDescription(
   product: import("@/lib/product-intelligence/barcode-lookup").BarcodeLookupResult,
   opts?: { category?: string; hint?: string }

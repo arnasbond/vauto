@@ -39,11 +39,13 @@ export function needsProfileTypeSelection(
   return user.profileType !== "private" && user.profileType !== "business";
 }
 
-export function cabinetNavLabel(_profileType?: ProfileType | null): string {
+export function cabinetNavLabel(profileType?: ProfileType | null): string {
+  void profileType;
   return "Mano skelbimai";
 }
 
-export function cabinetSectionTitle(_profileType?: ProfileType | null): string {
+export function cabinetSectionTitle(profileType?: ProfileType | null): string {
+  void profileType;
   return "Mano skelbimai";
 }
 

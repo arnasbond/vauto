@@ -43,7 +43,7 @@ export function BarcodeLookupCard({
         </div>
         <div className="min-w-0 flex-1">
           <p className="text-xs font-bold uppercase tracking-wide text-[#7c3aed]">
-            Brūkšninis / QR kodas
+            Brūkšninis kodas
           </p>
           <p className="mt-1 text-xs leading-relaxed text-[#4b5563]">
             {loading

@@ -34,26 +34,6 @@ export function extractBarcodesFromText(text: string): string[] {
   return [...found];
 }
 
-export function extractBarcodeFromQrPayload(payload: string): string | undefined {
-  const trimmed = payload.trim();
-  if (!trimmed) return undefined;
-  if (isValidBarcode(trimmed)) return normalizeBarcode(trimmed);
-  const fromText = extractBarcodesFromText(trimmed);
-  if (fromText[0]) return fromText[0];
-  try {
-    const url = new URL(trimmed);
-    const pathCode = url.pathname.match(/(\d{8,14})/)?.[1];
-    if (pathCode && isValidBarcode(pathCode)) return normalizeBarcode(pathCode);
-    for (const key of ["ean", "gtin", "upc", "barcode"]) {
-      const v = url.searchParams.get(key);
-      if (v && isValidBarcode(v)) return normalizeBarcode(v);
-    }
-  } catch {
-    /* not a URL */
-  }
-  return undefined;
-}
-
 export function isBarcodeLookupEligibleCategory(category: ListingCategory): boolean {
   return category !== "vehicles" && category !== "real_estate" && category !== "services";
 }
@@ -67,15 +47,11 @@ export function resolveBarcodeFromAttributes(
     attributes.ean,
     attributes.gtin,
     attributes.upc,
-    attributes.qrPayload,
-    attributes.qrCode,
   ];
   for (const c of candidates) {
     const v = Array.isArray(c) ? c[0] : c;
     if (!v) continue;
     if (isValidBarcode(String(v))) return normalizeBarcode(String(v));
-    const fromQr = extractBarcodeFromQrPayload(String(v));
-    if (fromQr) return fromQr;
   }
   const fromText = extractBarcodesFromText(extraText);
   return fromText[0];

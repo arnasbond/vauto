@@ -318,7 +318,16 @@ export function AiCommandBar({
       void commitSearch(draftQuery);
       inputRef.current?.blur();
     },
-    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch, collapsible]
+    [
+      placement,
+      phase,
+      draftQuery,
+      agentBusy,
+      sendAgentMessage,
+      commitSearch,
+      collapsible,
+      sellerVisionRecoveryActive,
+    ]
   );
 
   const handlePhotoSearch = () => {
@@ -441,10 +450,10 @@ export function AiCommandBar({
   const inputPlaceholder = isWizard
     ? wizardPlaceholder
     : isChatBar
-      ? "Rašykite atsakymą asistentui…"
+      ? "Rašykite atsakymą… (nuotrauka: nuskenuosiu brūkšninį kodą / VIN)"
     : isTopBar
       ? AI_FIRST_SEARCH_PLACEHOLDER
-      : "Rašykite paiešką arba įkelkite nuotrauką…";
+      : "Rašykite paiešką… (nuotrauka: nuskenuosiu brūkšninį kodą)";
 
   const composerFormClass = cn(
     "pointer-events-auto flex items-center gap-2 rounded-2xl border p-1.5 pl-3.5 shadow-lg backdrop-blur-xl",
@@ -453,7 +462,7 @@ export function AiCommandBar({
   );
 
   const composerInputClass =
-    "min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] vauto-body-text";
+    "min-w-0 flex-1 border-none bg-transparent text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[#4b5563] vauto-body-text";
 
   const composerButtonClass = isWizard
     ? cn(
@@ -644,8 +653,8 @@ export function AiCommandBar({
           className={cn(
             "min-w-0 flex-1 border-none bg-transparent outline-none vauto-body-text",
             isTopBar
-              ? "text-[15px] text-[var(--vauto-text-main)] placeholder:text-[var(--vauto-text-muted)]"
-              : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[var(--vauto-text-muted)]"
+              ? "text-[15px] text-[var(--vauto-text-main)] placeholder:text-[#4b5563]"
+              : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[#4b5563]"
           )}
           disabled={busy}
           autoComplete="off"

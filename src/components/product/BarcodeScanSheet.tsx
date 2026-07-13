@@ -18,7 +18,7 @@ export function BarcodeScanSheet({
   open,
   onClose,
   onBarcodeResolved,
-  title = "Skenuoti brūkšninį / QR kodą",
+  title = "Skenuoti brūkšninį kodą",
   subtitle = "Nufotografuokite aiškiai matomą etiketę arba įveskite kodą ranka.",
 }: BarcodeScanSheetProps) {
   const [manual, setManual] = useState("");
@@ -50,10 +50,10 @@ export function BarcodeScanSheet({
         return;
       }
 
-      const { decodeBarcodeOrQrFromImage } = await import(
+      const { decodeBarcodeFromImage } = await import(
         "@/lib/product-intelligence/browser-code-decoder"
       );
-      const localCode = await decodeBarcodeOrQrFromImage(photo.dataUrl);
+      const localCode = await decodeBarcodeFromImage(photo.dataUrl);
       if (localCode) {
         submitCode(localCode);
         return;

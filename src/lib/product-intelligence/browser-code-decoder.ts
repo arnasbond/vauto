@@ -1,8 +1,6 @@
 "use client";
 
-import { BrowserMultiFormatReader } from "@zxing/browser";
 import {
-  extractBarcodeFromQrPayload,
   isValidBarcode,
   normalizeBarcode,
 } from "@/lib/product-intelligence/barcode-utils";
@@ -16,7 +14,6 @@ type NativeBarcodeDetectorCtor = new (opts?: {
 }) => NativeBarcodeDetector;
 
 const DETECTOR_FORMATS = [
-  "aztec",
   "code_128",
   "code_39",
   "code_93",
@@ -26,7 +23,6 @@ const DETECTOR_FORMATS = [
   "ean_8",
   "itf",
   "pdf417",
-  "qr_code",
   "upc_a",
   "upc_e",
 ];
@@ -35,7 +31,7 @@ function extractSupportedPayload(raw: string | undefined): string | null {
   const payload = raw?.trim();
   if (!payload) return null;
   if (isValidBarcode(payload)) return normalizeBarcode(payload);
-  return extractBarcodeFromQrPayload(payload) ?? null;
+  return null;
 }
 
 async function imageFromDataUrl(dataUrl: string): Promise<HTMLImageElement> {
@@ -63,14 +59,7 @@ async function decodeWithNativeDetector(dataUrl: string): Promise<string | null>
   return null;
 }
 
-async function decodeWithZxing(dataUrl: string): Promise<string | null> {
-  const img = await imageFromDataUrl(dataUrl);
-  const reader = new BrowserMultiFormatReader();
-  const result = await reader.decodeFromImageElement(img);
-  return extractSupportedPayload(result.getText());
-}
-
-export async function decodeBarcodeOrQrFromImage(
+export async function decodeBarcodeFromImage(
   dataUrl: string
 ): Promise<string | null> {
   if (!dataUrl.startsWith("data:image")) return null;
@@ -79,12 +68,7 @@ export async function decodeBarcodeOrQrFromImage(
     const native = await decodeWithNativeDetector(dataUrl);
     if (native) return native;
   } catch {
-    /* fall through to ZXing */
-  }
-
-  try {
-    return await decodeWithZxing(dataUrl);
-  } catch {
     return null;
   }
+  return null;
 }

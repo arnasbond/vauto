@@ -66,10 +66,7 @@ export async function lookupBarcode(
   }
 
   if (!isValidBarcode(normalizeBarcode(normalized))) {
-    const { extractBarcodeFromQrPayload } = await import("./barcode-utils");
-    const fromQr = extractBarcodeFromQrPayload(normalized);
-    if (!fromQr) return null;
-    return lookupBarcode(fromQr);
+    return null;
   }
 
   return null;

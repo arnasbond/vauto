@@ -205,7 +205,7 @@ export function SellerUploadPanel({
           className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#7c3aed] bg-[#faf5ff] py-3.5 text-sm font-bold text-[#6d28d9] shadow-sm disabled:opacity-50"
         >
           <Barcode className="h-5 w-5" />
-          📊 Skenuoti brūkšninį / QR kodą
+          📊 Skenuoti brūkšninį kodą
         </button>
         <button
           type="button"

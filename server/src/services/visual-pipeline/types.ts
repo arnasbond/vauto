@@ -101,7 +101,6 @@ export interface VisionExtractResult {
   vin?: string;
   plateNumber?: string;
   barcode?: string;
-  qrPayload?: string;
   modelCode?: string;
   confidence: number;
 }

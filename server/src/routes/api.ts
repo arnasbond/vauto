@@ -73,6 +73,7 @@ import {
   lookupProductOnServer,
   productLookupFeatures,
 } from "../product/product-lookup-route.js";
+import { runOcrPipeline, extractVinToken } from "../services/visual-pipeline/providers/ocr.js";
 import { notifyListingMatch } from "../push/web-push.js";
 import {
   notifySellerListingApproved,
@@ -1282,6 +1283,37 @@ apiRouter.post("/product/scan-image", async (req, res) => {
       return;
     }
     res.json({ barcode });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.post("/vehicle/scan-image", async (req, res) => {
+  try {
+    const imageDataUrl = String(
+      (req.body as { imageDataUrl?: string })?.imageDataUrl ?? ""
+    ).trim();
+    if (!imageDataUrl) {
+      res.status(400).json({ error: "imageDataUrl is required" });
+      return;
+    }
+
+    const ocr = await runOcrPipeline(
+      [{ id: "0", sourceUrl: imageDataUrl }],
+      "none"
+    );
+    const vin =
+      ocr.blocks
+        .map((b) => extractVinToken(b.text))
+        .find((v): v is string => Boolean(v)) ??
+      extractVinToken(ocr.mergedText);
+
+    if (!vin) {
+      res.status(404).json({ error: "No VIN detected in image" });
+      return;
+    }
+
+    res.json({ vin });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

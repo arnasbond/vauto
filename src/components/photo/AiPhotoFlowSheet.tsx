@@ -389,7 +389,7 @@ export function AiPhotoFlowSheet({
               disabled={busy || studioBusy}
               className="mt-4 flex min-h-[48px] w-full items-center justify-center gap-2 rounded-xl border-2 border-[var(--vauto-primary)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] px-4 py-3 text-sm font-bold text-[var(--vauto-text-main)] shadow-sm transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_14%,transparent)] disabled:opacity-50"
             >
-              📊 Skenuoti brūkšninį / QR kodą iš etiketės
+              📊 Skenuoti brūkšninį kodą iš etiketės
             </button>
           )}
 
