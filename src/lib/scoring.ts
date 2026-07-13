@@ -13,6 +13,7 @@ import {
   applyStrictBrandFilter,
 } from "@/lib/strict-brand-search";
 import { inferStrictCategory } from "@/lib/portal-listing-filter";
+import { isJobSearchQuery } from "@/lib/universal-search-intent";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import {
   computeVisualRelevance,
@@ -68,6 +69,14 @@ export function computeSemanticRelevance(
   listing: Listing
 ): number {
   if (!query.trim()) return 0.5;
+
+  if (isJobSearchQuery(query)) {
+    if (listing.category !== "jobs") return 0;
+    const haystack = `${listing.title} ${listing.description ?? ""}`.toLowerCase();
+    if (/darbo\s+kėd|darbo\s+ked|ergonomin.*kėd|office\s+chair/i.test(haystack)) {
+      return 0;
+    }
+  }
 
   if (!listingMatchesStrictBrandQuery(listing, query)) return 0;
 
@@ -160,7 +169,7 @@ export function computeSemanticRelevance(
   if (/meistr|elektr|remont/i.test(query) && listing.category === "services")
     score = Math.min(1, score + 0.35);
   if (
-    /darbas|darbu|atlygin|alg|ieškau darbo|siūlau darbą/i.test(query) &&
+    /darbas|darbo|darbu|atlygin|alg|ieškau darb|ieskau darb|siūlau darbą/i.test(query) &&
     listing.category === "jobs"
   )
     score = Math.min(1, score + 0.4);

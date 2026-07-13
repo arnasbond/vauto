@@ -34,6 +34,7 @@
     "test:emotional": "node scripts/test-emotional-experience.mjs",
     "test:p1p2": "node scripts/test-p1-p2-emotional.mjs",
     "test:adaptive": "node scripts/test-adaptive-layout.mjs",
+    "test:universal-search": "npm run server:build && node scripts/test-universal-search-stress.mjs",
     "verify:gemini-live": "node scripts/verify-gemini-live.mjs",
     "provision:render": "node scripts/provision-render.mjs",
     "redeploy:render": "node scripts/redeploy-render.mjs",

@@ -1,5 +1,11 @@
 /** Normalize user text to a clean product query — never inject synthetic „dalys“. */
 
+import {
+  inferUniversalListingCategory,
+  isJobSearchQuery,
+  jobSearchKeywordQuery,
+} from "./universal-search-intent.js";
+
 function stripSearchPrefixes(raw: string): string {
   return raw
     .replace(
@@ -10,7 +16,11 @@ function stripSearchPrefixes(raw: string): string {
 }
 
 export function normalizeProductSearchQuery(raw: string): string {
-  let q = stripSearchPrefixes(raw.trim());
+  const trimmed = raw.trim();
+  if (isJobSearchQuery(trimmed)) {
+    return jobSearchKeywordQuery(trimmed);
+  }
+  let q = stripSearchPrefixes(trimmed);
   q = q.replace(/\s+(auto\s+)?dalys$/i, "").trim();
   if (!q) return raw.trim();
   return q
@@ -26,9 +36,5 @@ export function normalizeProductSearchQuery(raw: string): string {
 }
 
 export function inferSearchCategory(query: string): string | undefined {
-  if (/\b(butas|namas|nt|sklyp)\b/i.test(query)) return "real_estate";
-  if (/\b(batel|ked|sukn|drabuz|striuk)\b/i.test(query)) return "clothing";
-  if (/\b(telefon|iphone|samsung|laptop|kompiuter)\b/i.test(query)) return "electronics";
-  if (/\b(volvo|bmw|audi|v70|v60|auto|masin|transport)\b/i.test(query)) return "vehicles";
-  return undefined;
+  return inferUniversalListingCategory(query);
 }

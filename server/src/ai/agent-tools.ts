@@ -1,6 +1,10 @@
 import { adminPatchListing, getListings, searchListingsFiltered, updateListing } from "../repository.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
-import { normalizeProductSearchQuery } from "./product-search-query.js";
+import { normalizeProductSearchQuery, inferSearchCategory } from "./product-search-query.js";
+import {
+  buildJobSearchConversationalReply,
+  isJobSearchQuery,
+} from "./universal-search-intent.js";
 import {
   getDemoApiListings,
   toAgentListingSummary,
@@ -1184,8 +1188,12 @@ export async function executeAgentTool(
     case "searchListings": {
       const rawQuery = String(args.query ?? "").trim();
       const fallbackQuery = ctx.lastUserQuery?.trim() ?? "";
+      const rawForIntent = (rawQuery || fallbackQuery).trim();
+      const jobIntent = isJobSearchQuery(rawForIntent);
       const query = normalizeProductSearchQuery(rawQuery || fallbackQuery);
-      const category = args.category ? String(args.category) : undefined;
+      const category = args.category
+        ? String(args.category)
+        : inferSearchCategory(rawForIntent);
 
       if (resolveBrowseAllIntent(rawQuery, fallbackQuery, query)) {
         const limitRaw = Number(args.limit);
@@ -1210,7 +1218,7 @@ export async function executeAgentTool(
         };
       }
 
-      if (!query) {
+      if (!query && !category) {
         const searchQuery = query || "paieška";
         return {
           result: {
@@ -1278,8 +1286,9 @@ export async function executeAgentTool(
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
       };
 
-      const summary =
-        results.length === 0
+      const summary = jobIntent
+        ? buildJobSearchConversationalReply(rawForIntent, results.length, ctx.userName)
+        : results.length === 0
           ? "Šiuo metu atitikmenų neradau — galiu užfiksuoti norą arba padėti patikslinti paiešką."
           : `Rasta ${results.length} skelbimų.`;
 

@@ -28,7 +28,7 @@ const NEGOTIATION_RE =
   /\b(der[eė)tis|deryb|geresn[eę]\s+kain|sumažink|sumažinkite|per brangu)\b/i;
 
 const PRODUCT_HINT_RE =
-  /\b(bmw|audi|volvo|mercedes|toyota|vw|ford|opel|iphone|samsung|butas|namas|drabuž|batai|automob|auto\b|nt\b|darbas|meistr|paslaug)\b/i;
+  /\b(bmw|audi|volvo|mercedes|toyota|vw|ford|opel|iphone|samsung|butas|namas|drabuž|batai|automob|auto\b|nt\b|darbas|darbo|ieskau\s+darb|ieškau\s+darb|meistr|paslaug|vakancij)\b/i;
 
 const SEARCH_VERB_RE =
   /^(?:ieškau|ieskau|i\s*eškau|i\s*eskau|rask|surask|parodyk|rodyti|find|search|show)\b/i;

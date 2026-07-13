@@ -1,6 +1,7 @@
 import type { ChameleonThemeId } from "@/lib/chameleon-themes";
 import type { Listing, ListingCategory, ScoredListing } from "@/lib/types";
 import { portalExperienceForQuery } from "@/lib/portal-experience";
+import { isJobSearchQuery } from "@/lib/universal-search-intent";
 import { isVehicleQuery } from "@/lib/vehicle-keywords";
 
 /** Categories shown for each portal theme in search/buddy/broker. */
@@ -42,7 +43,10 @@ export function inferStrictCategory(query: string): ListingCategory | null {
   if (/meistr|paslaug|elektrik|santechn|valym|remont/i.test(q)) {
     return "services";
   }
-  if (/darbas|atlygin|cv\b|vairuotoj|sand[eė]l/i.test(q)) {
+  if (isJobSearchQuery(q)) {
+    return "jobs";
+  }
+  if (/darbas|darbo|atlygin|cv\b|vairuotoj|sand[eė]l|vakancij|karjer/i.test(q)) {
     return "jobs";
   }
   if (/telefon|iphone|samsung|laptop|kompiuter/i.test(q)) {

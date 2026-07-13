@@ -21,6 +21,10 @@ import { isConversationalSearchIntent } from "./search-agent.js";
 import { buildBrowseAllReply } from "../lib/browse-all-intent.js";
 import { buildNoMatchLeadPrompt } from "../offer-engine.js";
 import { inferSearchCategory, normalizeProductSearchQuery } from "./product-search-query.js";
+import {
+  buildJobSearchConversationalReply,
+  isJobSearchQuery,
+} from "./universal-search-intent.js";
 
 export type GeminiPart =
   | { text: string }
@@ -124,7 +128,8 @@ export function isGenericEmptySearchReply(text: string): boolean {
     t.startsWith("nerasta ") ||
     t.startsWith("deja,") ||
     t.includes("nieko neradau") ||
-    t.includes("nieko tinkamo neradau")
+    t.includes("nieko tinkamo neradau") ||
+    /^rasta \d+ skelbim/.test(t)
   );
 }
 
@@ -210,9 +215,9 @@ export async function runDeterministicSupervisorSearch(
   rawQuery: string,
   ctx: AgentToolContext
 ): Promise<{ result: unknown; sideEffect?: AgentSideEffect; toolName: string }> {
-  const query = normalizeProductSearchQuery(rawQuery);
-  const category = inferSearchCategory(query);
-  const label = `Atfiltravau „${query}" — žiūrėk rezultatus ekrane.`;
+  const trimmed = rawQuery.trim();
+  const query = normalizeProductSearchQuery(trimmed);
+  const category = inferSearchCategory(trimmed);
 
   const { result, sideEffect } = await executeAgentTool(
     "searchListings",
@@ -220,7 +225,7 @@ export async function runDeterministicSupervisorSearch(
       query,
       ...(category ? { category } : {}),
     },
-    ctx
+    { ...ctx, lastUserQuery: trimmed }
   );
 
   return { toolName: "searchListings", result, sideEffect };
@@ -268,6 +273,17 @@ export function resolveSupervisorFinalReply(input: SupervisorReplyInput): string
   const draft = input.draftText.trim();
   if (draft && !isGenericEmptySearchReply(draft)) return draft;
 
+  if (isJobSearchQuery(input.lastUserQuery)) {
+    const searchCall = input.toolCalls.find((t) => t.name === "searchListings");
+    const count =
+      searchCall?.result && typeof searchCall.result === "object"
+        ? Number((searchCall.result as Record<string, unknown>).count ?? input.searchToolCount)
+        : input.searchToolCount;
+    if (Number.isFinite(count)) {
+      return buildJobSearchConversationalReply(input.lastUserQuery, count, undefined);
+    }
+  }
+
   if (input.sideEffect?.type === "search" && input.searchToolCount > 0) {
     const q =
       input.sideEffect.searchQuery?.trim() ||
@@ -283,6 +299,9 @@ export function resolveSupervisorFinalReply(input: SupervisorReplyInput): string
     const q =
       input.sideEffect.searchQuery?.trim() ||
       normalizeProductSearchQuery(input.lastUserQuery);
+    if (isJobSearchQuery(input.lastUserQuery)) {
+      return buildJobSearchConversationalReply(input.lastUserQuery, 0, undefined);
+    }
     return buildNoMatchLeadPrompt(q);
   }
 
