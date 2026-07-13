@@ -11,6 +11,16 @@ const HIDDEN_ATTR_KEYS = new Set([
   "socialPublish",
   "socialPublishFacebook",
   "socialPublishInstagram",
+  "geoLat",
+  "geoLng",
+  "geolat",
+  "geolng",
+  "latitude",
+  "longitude",
+  "lat",
+  "lng",
+  "coords",
+  "coordinates",
 ]);
 
 function humanizeAttrKey(key: string): string {

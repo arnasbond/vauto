@@ -1,22 +1,62 @@
 "use client";
 
-import Link from "next/link";
 import { LogIn, MessageCircle } from "lucide-react";
+import { Suspense, useEffect, useMemo } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
+import { ChatsListPanel } from "@/components/chats/ChatsListPanel";
+import { ChatThreadView } from "@/components/ChatThreadView";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
-import {
-  countUnreadInThread,
-  hasUnreadInThread,
-} from "@/lib/chat-helpers";
+import { useLayoutMode } from "@/context/LayoutModeContext";
 
 export default function ChatsPage() {
+  return (
+    <Suspense
+      fallback={
+        <VautoAdaptiveLayout variant="plain">
+          <p className="py-16 text-center text-sm text-slate-500">Kraunama…</p>
+        </VautoAdaptiveLayout>
+      }
+    >
+      <ChatsPageContent />
+    </Suspense>
+  );
+}
+
+function ChatsPageContent() {
+  const router = useRouter();
+  const searchParams = useSearchParams();
   const { openAuthModal } = useAuth();
   const { chats, user, isAuthenticated, authHydrated } = useVauto();
+  const { isDesktop } = useLayoutMode();
 
-  const myChats = chats.filter(
-    (c) => c.buyerId === user.id || c.sellerId === user.id
+  const myChats = useMemo(
+    () => chats.filter((c) => c.buyerId === user.id || c.sellerId === user.id),
+    [chats, user.id]
   );
+
+  const selectedChatId = searchParams.get("id");
+  const activeChatId =
+    selectedChatId && myChats.some((c) => c.id === selectedChatId)
+      ? selectedChatId
+      : isDesktop
+        ? (myChats[0]?.id ?? null)
+        : null;
+
+  useEffect(() => {
+    if (!isDesktop || !isAuthenticated || myChats.length === 0) return;
+    if (selectedChatId && myChats.some((c) => c.id === selectedChatId)) return;
+    if (myChats[0]) {
+      router.replace(`/chats/?id=${encodeURIComponent(myChats[0].id)}`, {
+        scroll: false,
+      });
+    }
+  }, [isDesktop, isAuthenticated, myChats, selectedChatId, router]);
+
+  const handleSelectChat = (chatId: string) => {
+    router.push(`/chats/?id=${encodeURIComponent(chatId)}`, { scroll: false });
+  };
 
   if (!authHydrated) {
     return (
@@ -48,58 +88,55 @@ export default function ChatsPage() {
     );
   }
 
+  if (isDesktop) {
+    return (
+      <VautoAdaptiveLayout variant="plain">
+        <div className="mx-auto w-full max-w-7xl px-4 md:px-0">
+          <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
+            Pokalbiai
+          </h1>
+          <div className="grid min-h-[calc(100dvh-12rem)] gap-4 md:grid-cols-3">
+            <aside className="md:col-span-1 md:max-h-[calc(100dvh-12rem)] md:overflow-y-auto md:rounded-2xl md:border md:border-slate-200/80 md:bg-white md:p-3 md:shadow-sm">
+              <ChatsListPanel
+                chats={myChats}
+                userId={user.id}
+                selectedChatId={activeChatId}
+                onSelectChat={handleSelectChat}
+              />
+            </aside>
+            <section className="md:col-span-2 md:rounded-2xl md:border md:border-slate-200/80 md:bg-slate-50/80 md:p-2 md:shadow-sm">
+              {activeChatId ? (
+                <ChatThreadView chatId={activeChatId} embedded />
+              ) : (
+                <div className="flex h-full min-h-[320px] flex-col items-center justify-center rounded-2xl bg-white p-8 text-center">
+                  <MessageCircle className="mb-3 h-10 w-10 text-slate-300" />
+                  <p className="text-sm text-slate-500">
+                    Pasirinkite pokalbį iš sąrašo arba atidarykite skelbimą ir
+                    spauskite „Rašyti“.
+                  </p>
+                </div>
+              )}
+            </section>
+          </div>
+        </div>
+      </VautoAdaptiveLayout>
+    );
+  }
+
   return (
     <VautoAdaptiveLayout variant="plain">
       <div className="mx-auto w-full max-w-lg md:max-w-7xl">
-      <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
-        Pokalbiai
-      </h1>
-      <div className="space-y-2">
-        {myChats.length === 0 && (
-          <p className="py-8 text-center text-sm text-slate-500">
-            Dar neturite pokalbių. Atidarykite skelbimą ir spauskite „Rašyti“.
-          </p>
-        )}
-        {myChats.map((chat) => {
-          const last = chat.messages[chat.messages.length - 1];
-          const unread = hasUnreadInThread(chat, user.id);
-          const unreadCount = countUnreadInThread(chat, user.id);
-          const roleLabel =
-            chat.buyerId === user.id ? "Pardavėjas" : "Pirkėjas";
-          return (
-            <Link
-              key={chat.id}
-              href={`/pokalbiai/?id=${chat.id}`}
-              className={`vauto-glass-card block rounded-2xl p-4 transition hover:border-slate-300 ${
-                unread ? "ring-2 ring-[var(--vauto-teal)]/30" : ""
-              }`}
-            >
-              <div className="flex items-start justify-between gap-2">
-                <div>
-                  <p className="font-semibold text-slate-900">{chat.listingTitle}</p>
-                  <p className="text-[10px] text-slate-500">{roleLabel}</p>
-                </div>
-                {unread && (
-                  <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-[var(--vauto-red)] px-1.5 text-[10px] font-bold text-white">
-                    {unreadCount}
-                  </span>
-                )}
-              </div>
-              <p className="mt-1 line-clamp-1 text-sm text-slate-600">
-                {last?.text}
-              </p>
-              {chat.escrowOffered && (
-                <span className="mt-2 inline-block rounded-full bg-[var(--vauto-teal)]/10 px-2 py-0.5 text-[10px] font-medium text-[var(--vauto-teal)]">
-                  Escrow aktyvus
-                </span>
-              )}
-            </Link>
-          );
-        })}
-      </div>
-      <p className="mt-6 text-center text-xs text-slate-400">
-        Parašykite „perku“ arba „tinka“ — AI pasiūlys saugų mokėjimą.
-      </p>
+        <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
+          Pokalbiai
+        </h1>
+        <ChatsListPanel
+          chats={myChats}
+          userId={user.id}
+          linkPrefix="/pokalbiai/?id="
+        />
+        <p className="mt-6 text-center text-xs text-slate-400">
+          Parašykite „perku“ arba „tinka“ — AI pasiūlys saugų mokėjimą.
+        </p>
       </div>
     </VautoAdaptiveLayout>
   );

@@ -120,10 +120,10 @@ export function DesktopHeader() {
           })}
           {isBusinessProfile(user) && (
             <Link
-              href="/profile/"
+              href="/verslui/"
               className={cn(
                 "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition",
-                pathname.startsWith("/profile")
+                pathname.startsWith("/verslui")
                   ? "bg-[var(--anonser-primary-soft)] text-[var(--anonser-primary)]"
                   : "text-[var(--anonser-text-muted)] hover:bg-[var(--anonser-surface-muted)]"
               )}

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Heart, MapPin } from "lucide-react";
-import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
+import { formatDistanceBadge, formatPrice, isAiDiscoverListing } from "@/data/mockListings";
 import { ListingImage } from "@/components/listing/ListingImage";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
@@ -76,10 +76,9 @@ export function MarketplaceListRow({
 
 export function MarketplaceGridCard({
   listing,
-  priceColor,
 }: {
   listing: Listing;
-  priceColor: string;
+  priceColor?: string;
 }) {
   const { savedIds, toggleSave } = useVauto();
   const isSaved = savedIds.has(listing.id);
@@ -87,41 +86,50 @@ export function MarketplaceGridCard({
 
   return (
     <article
-      className={`listing-card overflow-hidden rounded-2xl border transition hover:border-[var(--vauto-primary)]/40 ${feedTierCardClass(listing)}`}
+      className={`listing-card group overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md ${feedTierCardClass(listing)}`}
     >
-      <div className="relative aspect-[4/3] bg-[#e5e7eb]">
+      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100">
         <Link href={href} className="block h-full w-full">
           <ListingImage
             listing={listing}
             alt={listing.title}
             fill
             sizes="(max-width: 512px) 50vw, 33vw"
-            className="object-cover"
+            className="object-cover transition duration-300 group-hover:scale-[1.02]"
           />
         </Link>
         <div className="absolute left-2 top-2">
           <FeedTierBadge listing={listing} />
         </div>
+        {isAiDiscoverListing(listing) && (
+          <span className="absolute bottom-2 left-2 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 px-2.5 py-1 text-[10px] font-bold text-orange-700 shadow-sm">
+            ✨ AI ATRANDA
+          </span>
+        )}
         <button
           type="button"
           onClick={() => toggleSave(listing.id)}
-          className="absolute right-2 top-2 rounded-full bg-white/90 p-1.5 shadow-sm"
+          className="absolute right-2 top-2 rounded-full bg-white/95 p-1.5 shadow-sm backdrop-blur-sm"
           aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
         >
           <Heart
             size={16}
-            className={isSaved ? "fill-[#ef4444] text-[#ef4444]" : "text-[#374151]"}
+            className={isSaved ? "fill-[#ef4444] text-[#ef4444]" : "text-slate-600"}
           />
         </button>
       </div>
       <Link href={href} className="block p-3">
-        <h3 className="listing-card-title line-clamp-2 min-h-[2.5rem] text-sm font-semibold">
+        <h3 className="listing-card-title line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-slate-900">
           {listing.title}
         </h3>
-        <p className="mt-1 text-base font-extrabold" style={{ color: priceColor }}>
-          {formatPrice(listing.price, listing.priceLabel)}
-        </p>
-        <p className="listing-card-meta mt-1 truncate text-xs">{listing.location}</p>
+        <div className="mt-2 flex items-end justify-between gap-2">
+          <p className="text-base font-bold text-orange-600">
+            {formatPrice(listing.price, listing.priceLabel)}
+          </p>
+          <p className="shrink-0 text-right text-xs text-slate-500">
+            {listing.location}
+          </p>
+        </div>
       </Link>
     </article>
   );

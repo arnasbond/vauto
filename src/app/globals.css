@@ -51,8 +51,10 @@
   --vauto-surface: var(--vauto-card-bg);
   --vauto-teal: var(--vauto-primary);
   --vauto-blue: var(--vauto-primary);
-  --vauto-orange: var(--flux-coral);
+  --vauto-orange: #ea580c;
   --vauto-orange-light: var(--flux-coral-light);
+  --vauto-premium-bg: #f8fafc;
+  --vauto-premium-border: rgba(15, 23, 42, 0.06);
   --vauto-red: #dc2626;
 
   /* anonser.lt desktop portal (md+, >=768px) */
@@ -291,7 +293,17 @@ body {
 /* Light inner pages inherit theme tokens */
 .vauto-light-page {
   color: var(--vauto-text-main);
-  background: var(--vauto-bg);
+  background: var(--vauto-premium-bg, var(--vauto-bg));
+}
+
+.vauto-premium-card {
+  border: 1px solid var(--vauto-premium-border, var(--vauto-border));
+}
+
+.home-ai-hero-search {
+  background: #ffffff;
+  border-color: var(--vauto-premium-border, var(--vauto-border)) !important;
+  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.06);
 }
 
 .vauto-flux-glass {

@@ -188,7 +188,17 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
           )}
         </>
       ) : (
-        renderListingCards(displayListings, true)
+        <>
+          {searchQuery.trim().length < 3 && (
+            <div className="mb-4 flex items-center gap-2.5">
+              <h3 className="text-lg font-bold text-slate-900">Naujausi skelbimai</h3>
+              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+                {displayListings.length} skelbimų
+              </span>
+            </div>
+          )}
+          {renderListingCards(displayListings, true)}
+        </>
       )}
 
       <VisualSearchStrip />

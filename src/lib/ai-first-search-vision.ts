@@ -82,7 +82,7 @@ export function buildNoResultsRefinementMessage(
 }
 
 export const AI_FIRST_SEARCH_PLACEHOLDER =
-  "Rašykite laisvai — pvz. „ieškau iPhone 15“ arba „parduodu Volvo V70“";
+  "Aprašykite ko ieškote... pvz. „iPhone 15 nebrangiai…“";
 
 export const AI_FIRST_SEARCH_EXAMPLES = [
   "noriu matyti visus skelbimus su mobiliais telefonais",

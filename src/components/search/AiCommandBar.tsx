@@ -618,7 +618,7 @@ export function AiCommandBar({
         className={cn(
           "flex items-center gap-2 border shadow-sm transition-colors",
           isTopBar
-            ? "home-ai-hero-search rounded-[1.35rem] py-2.5 pl-4 pr-2"
+            ? "home-ai-hero-search rounded-full py-2.5 pl-5 pr-2 shadow-md"
             : "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
           zeroUiActive && "zero-ui-search-active",
           className
@@ -656,6 +656,27 @@ export function AiCommandBar({
           disabled={busy}
           autoComplete="off"
         />
+
+        <button
+          type="submit"
+          disabled={busy || !draftQuery.trim()}
+          className={cn(
+            "flex shrink-0 items-center justify-center gap-1 rounded-xl font-semibold text-white transition disabled:opacity-40",
+            isTopBar
+              ? "h-11 bg-orange-600 px-4 hover:bg-orange-700"
+              : "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
+          )}
+          aria-label="Ieškoti"
+        >
+          {busy ? (
+            <Loader2 className="h-4 w-4 animate-spin" />
+          ) : (
+            <>
+              <Sparkles className="h-4 w-4" aria-hidden />
+              {isTopBar && <span className="hidden sm:inline">Ieškoti</span>}
+            </>
+          )}
+        </button>
 
         <button
           type="button"

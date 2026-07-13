@@ -24,7 +24,13 @@ import {
   resolveSellerDisplayName,
 } from "@/lib/user-trust-score";
 
-function ChatThreadContent({ chatId }: { chatId: string }) {
+function ChatThreadContent({
+  chatId,
+  embedded = false,
+}: {
+  chatId: string;
+  embedded?: boolean;
+}) {
   const {
     chats,
     sendMessage,
@@ -114,14 +120,22 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   };
 
   return (
-    <div className="mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6">
-      <div className="mb-4 flex items-center gap-3 border-b border-[var(--vauto-border)] pb-3">
+    <div
+      className={
+        embedded
+          ? "mx-auto flex h-[calc(100dvh-14rem)] w-full flex-col rounded-2xl bg-white px-4 py-3 md:px-6"
+          : "mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6"
+      }
+    >
+      <div className="mb-4 flex items-center gap-3 border-b border-slate-200/80 pb-3">
+        {!embedded && (
         <Link
           href="/chats/"
           className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
         >
           <ArrowLeft className="h-5 w-5" />
         </Link>
+        )}
         <div className="flex-1 min-w-0">
           <h1 className="truncate font-semibold text-[var(--vauto-text)]">
             {chat.listingTitle}
@@ -255,8 +269,14 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   );
 }
 
-export function ChatThreadView({ chatId }: { chatId: string }) {
-  return <ChatThreadContent chatId={chatId} />;
+export function ChatThreadView({
+  chatId,
+  embedded = false,
+}: {
+  chatId: string;
+  embedded?: boolean;
+}) {
+  return <ChatThreadContent chatId={chatId} embedded={embedded} />;
 }
 
 export function ChatThreadFromQuery() {
