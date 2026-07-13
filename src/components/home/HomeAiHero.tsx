@@ -89,7 +89,6 @@ export function HomeAiHero({
       </div>
 
       <HomeCategoriesBar className="mt-6" />
-      <AgentChatStrip />
     </div>
   );
 }

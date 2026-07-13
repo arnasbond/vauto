@@ -31,7 +31,6 @@ import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
 
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 
@@ -57,9 +56,7 @@ function MarketplaceView() {
   const inSellerFlow = sellerStep !== "idle";
   const hasSearch = searchQuery.trim().length >= 3;
   const hasAgentTurn =
-    agentBusy ||
-    agentHasSupervisorReply(messages) ||
-    messages.some((m) => m.role === "user");
+    agentBusy || messages.some((m) => m.role === "user");
   const compactHero = hasSearch || hasAgentTurn;
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
