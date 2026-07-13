@@ -29,6 +29,11 @@ import {
   buildSellListingDraftFallback,
   detectServerSellIntent,
 } from "./sell-intent-fallback.js";
+import {
+  buildListingChatPriceReply,
+  isListingConversationInput,
+  parsePriceFromChatInput,
+} from "./listing-chat-input.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
 import { buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
 import {
@@ -279,12 +284,14 @@ export async function runVautoAgent(
   try {
     return await runVautoAgentInner(req, options?.onEvent);
   } catch (e) {
-    if (e instanceof AgentRouteError) throw e;
-    throw new AgentRouteError(
-      "agent_unavailable",
-      e instanceof Error ? e.message : "AI agentas laikinai nepasiekiamas",
-      503
-    );
+    console.warn("[vauto-agent] run failed:", e);
+    if (e instanceof AgentRouteError && e.code === "agent_unavailable") throw e;
+    return {
+      ok: true,
+      reply: BUDDY_REPEAT_PROMPT,
+      toolCalls: [],
+      actions: { type: "none" },
+    };
   }
 }
 
@@ -337,7 +344,29 @@ async function runVautoAgentInner(
     [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
   );
 
-  if (isTooShortSecretaryQuery(lastUserText) && !detectServerSellIntent(lastUserText)) {
+  const listingDraft = req.context.listingDraft;
+  const inListingChat =
+    Boolean(listingDraft) &&
+    Boolean(lastUserText) &&
+    isListingConversationInput(lastUserText, listingDraft);
+
+  if (inListingChat && listingDraft) {
+    const price = parsePriceFromChatInput(lastUserText);
+    if (price != null) {
+      return {
+        ok: true,
+        reply: buildListingChatPriceReply(price, listingDraft.title),
+        toolCalls: [],
+        actions: {
+          type: "listing_draft",
+          listingDraft: { ...listingDraft, price },
+        },
+      };
+    }
+  } else if (
+    isTooShortSecretaryQuery(lastUserText) &&
+    !detectServerSellIntent(lastUserText)
+  ) {
     return {
       ok: true,
       reply: resolveSecretaryNoiseReply(lastUserText),

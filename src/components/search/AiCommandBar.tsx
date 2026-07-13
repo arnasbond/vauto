@@ -94,7 +94,7 @@ export function AiCommandBar({
     chameleonTheme,
     listings,
   } = useVauto();
-  const { sellerStep, sellerVisionRecoveryActive, submitSellerClarification } = useSellerFlow();
+  const { sellerStep, sellerVisionRecoveryActive } = useSellerFlow();
   const {
     searchQuery,
     setSearchQuery,
@@ -308,11 +308,7 @@ export function AiCommandBar({
         }
         const msg = trimmed;
         setDraftQuery("");
-        if (sellerVisionRecoveryActive) {
-          await submitSellerClarification(msg);
-        } else {
-          await sendAgentMessage(msg);
-        }
+        await sendAgentMessage(msg);
         if (collapsible) {
           void hapticImpactLight();
           if (!sellerVisionRecoveryActive) setWizardExpanded(false);
@@ -322,7 +318,7 @@ export function AiCommandBar({
       void commitSearch(draftQuery);
       inputRef.current?.blur();
     },
-    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch, collapsible, sellerVisionRecoveryActive, submitSellerClarification]
+    [placement, phase, draftQuery, agentBusy, sendAgentMessage, commitSearch, collapsible]
   );
 
   const handlePhotoSearch = () => {

@@ -1,5 +1,6 @@
 import { isPlaceholderCity } from "@/lib/city-resolve";
 import { verifiedProfileCity } from "@/lib/listing-location-context";
+import { normalizeLtPhoneForApi } from "@/lib/phone-input";
 import type { AiExtractedListing, CategoryAttributes, UserProfile } from "@/lib/types";
 
 /** Shown by supervisor when draft is ready — contacts come from profile, not chat. */
@@ -150,4 +151,142 @@ export function validatePublishSession(
     return { ok: false, message: PUBLISH_REQUIRES_PROFILE_CONTACT_MESSAGE };
   }
   return { ok: true };
+}
+
+const EMAIL_PATTERN =
+  /\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/;
+const LT_PHONE_PATTERN =
+  /(?:\+370[\s-]*)?(?:\(?0?\)?[\s-]*)?(?:6[\d\s-]{7,8}|8(?:6|5)\d{7})\b/;
+
+export interface ExtractedUserContacts {
+  phone?: string;
+  email?: string;
+}
+
+function isValidLtMobilePhone(phone: string): boolean {
+  const digits = phone.replace(/\D/g, "");
+  return digits.length === 11 && digits.startsWith("370") && /^370[356]/.test(digits);
+}
+
+/** Parse phone or email the user typed in free-form chat text. */
+export function extractContactsFromUserText(text: string): ExtractedUserContacts {
+  const trimmed = text.trim();
+  if (!trimmed) return {};
+
+  const emailMatch = trimmed.match(EMAIL_PATTERN);
+  const email = emailMatch?.[0]?.trim().toLowerCase();
+
+  const phoneMatch = trimmed.match(LT_PHONE_PATTERN);
+  let phone: string | undefined;
+  if (phoneMatch?.[0]) {
+    const normalized = normalizeLtPhoneForApi(phoneMatch[0].replace(/\s+/g, ""));
+    if (isValidLtMobilePhone(normalized)) {
+      phone = normalized;
+    }
+  }
+
+  return { phone, email };
+}
+
+/** Profile patch for missing contact fields discovered in chat (does not overwrite existing). */
+export function resolveProactiveProfileContactPatch(
+  user: Pick<UserProfile, "phone" | "email">,
+  text: string
+): Partial<Pick<UserProfile, "phone" | "email">> {
+  const extracted = extractContactsFromUserText(text);
+  const patch: Partial<Pick<UserProfile, "phone" | "email">> = {};
+
+  if (extracted.phone && !user.phone?.trim()) {
+    patch.phone = extracted.phone;
+  }
+  if (extracted.email && !user.email?.trim()) {
+    patch.email = extracted.email;
+  }
+
+  return patch;
+}
+
+export function buildProactiveProfileContactConfirmation(
+  saved: { phone?: boolean; email?: boolean },
+  hasListingDraft: boolean
+): string | null {
+  if (!saved.phone && !saved.email) return null;
+
+  const label = saved.phone && saved.email
+    ? "telefono numerį ir el. paštą"
+    : saved.phone
+      ? "telefono numerį"
+      : "el. paštą";
+
+  const base =
+    `Puiku, įrašiau ${label} į skelbimą ir automatiškai atnaujinau jūsų profilio duomenis, kad kitą kartą nebereikėtų vesti iš naujo!`;
+
+  return hasListingDraft
+    ? `${base} Ar dabar viskas tinka publikavimui?`
+    : base;
+}
+
+export function isContactOnlyUserMessage(text: string): boolean {
+  const extracted = extractContactsFromUserText(text);
+  if (!extracted.phone && !extracted.email) return false;
+
+  let remainder = text;
+  if (extracted.email) {
+    remainder = remainder.replace(extracted.email, " ");
+  }
+  if (extracted.phone) {
+    remainder = remainder.replace(
+      new RegExp(extracted.phone.replace(/[+]/g, "\\+"), "i"),
+      " "
+    );
+    const digits = extracted.phone.replace(/\D/g, "");
+    remainder = remainder.replace(new RegExp(digits.slice(-8), "g"), " ");
+  }
+  remainder = remainder.replace(LT_PHONE_PATTERN, " ").replace(EMAIL_PATTERN, " ");
+  return remainder.replace(/[\s,.:;!?\-–—()]+/g, "").length < 3;
+}
+
+/** Persist chat-discovered contacts to profile (+ optional listing draft) without blocking UI. */
+export async function syncProfileContactsFromChat(input: {
+  text: string;
+  user: Pick<UserProfile, "id" | "phone" | "email" | "city">;
+  isAuthenticated: boolean;
+  aiDraft: AiExtractedListing | null;
+  updateUser: (patch: Partial<UserProfile>) => Promise<boolean>;
+  updateAiDraft?: (patch: Partial<AiExtractedListing>) => void;
+}): Promise<{
+  confirmation: string | null;
+  user: Pick<UserProfile, "id" | "phone" | "email" | "city">;
+}> {
+  if (!input.isAuthenticated) {
+    return { confirmation: null, user: input.user };
+  }
+
+  const patch = resolveProactiveProfileContactPatch(input.user, input.text);
+  if (!Object.keys(patch).length) {
+    return { confirmation: null, user: input.user };
+  }
+
+  const saved = { phone: Boolean(patch.phone), email: Boolean(patch.email) };
+  const ok = await input.updateUser(patch);
+  if (!ok) {
+    return { confirmation: null, user: input.user };
+  }
+
+  const mergedUser = { ...input.user, ...patch };
+  if (input.aiDraft && input.updateAiDraft) {
+    input.updateAiDraft(
+      applyProfileToListingDraft(input.aiDraft, mergedUser, true, {
+        onlyIfEmpty: false,
+      })
+    );
+  }
+
+  return {
+    confirmation: buildProactiveProfileContactConfirmation(
+      saved,
+      Boolean(input.aiDraft)
+    ),
+    user: mergedUser,
+  };
 }

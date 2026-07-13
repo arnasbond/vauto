@@ -9,8 +9,6 @@ import { ListingGrid } from "@/components/ListingGrid";
 import { HeroSection, ContentSection } from "@/components/HeroSection";
 
 import { PortalPageChrome } from "@/components/chameleon/PortalPageChrome";
-
-import { AiFirstBrowsePrompt } from "@/components/search/AiFirstBrowsePrompt";
 import { HomeAiHero } from "@/components/home/HomeAiHero";
 
 
@@ -78,16 +76,9 @@ function MarketplaceView() {
   );
 
   const browseSection = (
-    <>
-      {!compactHero && (
-        <div id="browse-section" className="scroll-mt-24">
-          <AiFirstBrowsePrompt />
-        </div>
-      )}
-      <div>
-        <ListingGrid hideEmptyAssistant={emptySearchMode} />
-      </div>
-    </>
+    <div>
+      <ListingGrid hideEmptyAssistant={emptySearchMode} />
+    </div>
   );
 
   return (

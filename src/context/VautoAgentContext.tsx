@@ -25,7 +25,6 @@ import {
 import { requestWizardAgentExpand } from "@/lib/ai-conversational-recovery";
 import {
   buildCurrentPageContext,
-  buildPersonalizedAgentGreeting,
   buildWelcomeBackAgentGreeting,
   compactListingsForAgent,
   compactMyListingsForAgent,
@@ -140,9 +139,17 @@ import {
   readListingEditSession,
 } from "@/lib/listing-edit-session";
 import {
+  buildManualFillChatRedirectReply,
+  isListingConversationInput,
+  isManualFillIntent,
+  tryApplyListingChatInput,
+} from "@/lib/agent-listing-chat-input";
+import {
   buildProfileListingContact,
   hasProfileListingContact,
   injectProfileContactsForPublish,
+  isContactOnlyUserMessage,
+  syncProfileContactsFromChat,
   validatePublishSession,
 } from "@/lib/profile-listing-sync";
 
@@ -213,6 +220,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerAnalytics,
     buyerIntentCount,
     applyVisualSearch,
+    updateUser,
   } = useVauto();
   const {
     aiDraft,
@@ -247,11 +255,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const myListingsForAgent = useMemo(
     () => compactMyListingsForAgent(listings, user.id),
     [listings, user.id]
-  );
-
-  const agentGreeting = useMemo(
-    () => buildPersonalizedAgentGreeting(user.name, myListingsForAgent),
-    [user.name, myListingsForAgent]
   );
 
   const currentPageContext = useMemo(
@@ -298,18 +301,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const [open, setOpen] = useState(false);
   const [streamThinkingLabel, setStreamThinkingLabel] = useState("Galvoju…");
-  const [messages, setMessages] = useState<AgentChatMessage[]>(() => [
-    {
-      role: "assistant",
-      text: buildPersonalizedAgentGreeting("Svečias", []),
-    },
-  ]);
-  useEffect(() => {
-    setMessages((prev) => {
-      if (prev.length !== 1 || prev[0]?.role !== "assistant") return prev;
-      return [{ role: "assistant", text: agentGreeting }];
-    });
-  }, [agentGreeting]);
+  const [messages, setMessages] = useState<AgentChatMessage[]>([]);
 
   const [busy, setBusy] = useState(false);
   const busyGateRef = useRef<ReturnType<typeof createAgentBusyGate> | null>(null);
@@ -920,33 +912,40 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: actions.replyMessage, actions };
       }
 
-      if (sellerVisionRecoveryActive && !resolveBrowseAllIntent(trimmed)) {
-        if (!busyGate.tryAcquire(options?.skipBusyCheck)) {
-          return { ok: false, error: AGENT_BUSY_MESSAGE };
-        }
-        try {
-          await submitSellerClarification(trimmed);
-          setOpen(true);
-          setMessages((prev) => [
-            ...prev,
-            { role: "user" as const, text: trimmed },
-            {
-              role: "assistant" as const,
-              text: "Analizuoju jūsų aprašymą ir paruošiu skelbimo juodraštį…",
-            },
-          ].slice(-6));
-          touchAgentSessionActivity();
-          return {
-            ok: true,
-            reply: "Analizuoju jūsų aprašymą ir paruošiu skelbimo juodraštį…",
-          };
-        } finally {
-          busyGate.release(options?.skipBusyCheck);
-          drainAgentQueue();
-        }
+      const listingChatContext = {
+        hasListingDraft: Boolean(aiDraft),
+        sellerFlowActive:
+          sellerStep !== "idle" ||
+          sellerVisionRecoveryActive ||
+          Boolean(readListingEditSession()),
+      };
+
+      if (isManualFillIntent(trimmed)) {
+        const reply = buildManualFillChatRedirectReply();
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          { role: "assistant" as const, text: reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
       }
 
-      if (isTooShortAgentQuery(trimmed, { fromVoice: voiceReply })) {
+      const listingChatReply =
+        aiDraft && isListingConversationInput(trimmed, listingChatContext)
+          ? tryApplyListingChatInput(trimmed, aiDraft, updateAiDraft)
+          : null;
+      if (listingChatReply) {
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          { role: "assistant" as const, text: listingChatReply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply: listingChatReply };
+      }
+
+      if (isTooShortAgentQuery(trimmed, { fromVoice: voiceReply, listingChat: listingChatContext })) {
         const reply = resolveAgentNoiseReply(trimmed);
         const shortUserMsg: AgentChatMessage = { role: "user", text: trimmed };
         setMessages((prev) => [
@@ -1136,6 +1135,32 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         fromSearchBar: Boolean(options?.fromSearchBar),
       });
 
+      let proactiveContactConfirmation: string | null = null;
+      let profileUser = user;
+      if (!proactiveOnly && isAuthenticated) {
+        const contactSync = await syncProfileContactsFromChat({
+          text: trimmed,
+          user,
+          isAuthenticated,
+          aiDraft,
+          updateUser,
+          updateAiDraft: aiDraft ? updateAiDraft : undefined,
+        });
+        proactiveContactConfirmation = contactSync.confirmation;
+        profileUser = contactSync.user;
+        if (proactiveContactConfirmation && isContactOnlyUserMessage(trimmed)) {
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
+              { role: "assistant" as const, text: proactiveContactConfirmation },
+            ].slice(-6);
+          });
+          touchAgentSessionActivity();
+          return { ok: true, reply: proactiveContactConfirmation };
+        }
+      }
+
       const sessionMessages = options?.fromSearchBar
         ? [{ role: "user" as const, text: trimmed }]
         : selectAgentSessionMessages([
@@ -1202,12 +1227,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ? resetFilters
           : memoryContext.activeSearchFilters;
         const currentUser = buildSupervisorCurrentUser({
-          user,
+          user: profileUser,
           isAuthenticated,
-          accountType: resolveAccountTypeLabel(user),
-          userRole: resolveAgentUserRole(user),
+          accountType: resolveAccountTypeLabel(profileUser),
+          userRole: resolveAgentUserRole(profileUser),
         });
-        const profileContact = buildProfileListingContact(user);
+        const profileContact = buildProfileListingContact(profileUser);
         const supervisorState = buildSupervisorApplicationState({
           pageUrl,
           searchQuery: browseAllTurn ? "" : searchQuery,
@@ -1232,9 +1257,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             monetization: resolveClientMonetizationState(user, activeBoost),
             userRole: resolveAgentUserRole(user),
             contact: profileContact.contact || undefined,
-            profilePhone: user.phone?.trim() || undefined,
-            profileEmail: user.email?.trim() || undefined,
-            profileContactsVerified: hasProfileListingContact(user),
+            profilePhone: profileUser.phone?.trim() || undefined,
+            profileEmail: profileUser.email?.trim() || undefined,
+            profileContactsVerified: hasProfileListingContact(profileUser),
             listings: compactListingsForAgent(listings),
             userName: user.name,
             accountType: resolveAccountTypeLabel(user),
@@ -1368,16 +1393,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           toolCalls: res.toolCalls,
         });
 
-        if (assistantText.trim()) {
+        const mergedAssistantText = proactiveContactConfirmation
+          ? assistantText.trim()
+            ? `${proactiveContactConfirmation}\n\n${assistantText.trim()}`
+            : proactiveContactConfirmation
+          : assistantText;
+
+        if (mergedAssistantText.trim()) {
           if (
-            !assistantText.startsWith("Šiuo metu") &&
-            !assistantText.startsWith("Deja, pagal") &&
-            !assistantText.startsWith("Atsiprašau")
+            proactiveContactConfirmation ||
+            (!mergedAssistantText.startsWith("Šiuo metu") &&
+              !mergedAssistantText.startsWith("Deja, pagal") &&
+              !mergedAssistantText.startsWith("Atsiprašau"))
           ) {
-            appendSupervisorAssistant(assistantText, res.quickReplies);
+            appendSupervisorAssistant(mergedAssistantText, res.quickReplies);
           }
         }
-        speakReply(assistantText);
+        speakReply(mergedAssistantText || assistantText);
         if (hasExecutableAction) {
           setSearchQuery("");
           if (
@@ -1443,6 +1475,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setViewMode,
       user,
       isAuthenticated,
+      updateUser,
       rankedListings,
       searchQuery,
       pathname,

@@ -1,8 +1,14 @@
 import type { AiExtractedListing, Listing, ListingCategory } from "@/lib/types";
 import type { AppView } from "@/lib/app-views";
 import { safeDraftAttributes } from "@/lib/agent-message-safe";
+import {
+  isListingConversationInput,
+  type ListingChatContext,
+} from "@/lib/agent-listing-chat-input";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
+
+export type { ListingChatContext };
 
 export interface AgentChatMessage {
   role: "user" | "assistant";
@@ -131,12 +137,15 @@ const AGENT_SESSION_ACTIVITY_KEY = "vauto_agent_last_activity_v1";
 
 export function isTooShortAgentQuery(
   text: string | null | undefined,
-  opts?: { fromVoice?: boolean }
+  opts?: { fromVoice?: boolean; listingChat?: ListingChatContext }
 ): boolean {
   const t = String(text ?? "").trim();
   if (!t) return true;
   if (resolveBrowseAllIntent(t)) return false;
   if (!opts?.fromVoice && detectSellerListingIntent(t)) return false;
+  if (opts?.listingChat && isListingConversationInput(t, opts.listingChat)) {
+    return false;
+  }
   const min = opts?.fromVoice ? AGENT_VOICE_MIN_QUERY_CHARS : AGENT_MIN_QUERY_CHARS;
   return t.length < min;
 }

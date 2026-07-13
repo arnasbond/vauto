@@ -100,8 +100,8 @@ export function buildSellListingDraftFallback(
     reply: buildCreateListingDraftFollowUp(category, title, attributes),
     quickReplies:
       category === "clothing"
-        ? ["Įkelti nuotraukas", "Pildyti rankiniu būdu", "Publikuoti vėliau"]
-        : ["Įkelti nuotraukas", "Kaip užpildyti laukus?", "Publikuoti vėliau"],
+        ? ["Įkelti nuotraukas", "Ką dar reikia?", "Publikuoti vėliau"]
+        : ["Įkelti nuotraukas", "Ką dar reikia?", "Publikuoti vėliau"],
     action: { type: "listing_draft", listingDraft },
   };
 }

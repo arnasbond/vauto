@@ -23,8 +23,11 @@ test.describe("VAUTO smoke", () => {
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
     await expect(
-      page.getByText(/Sveiki, aš esu VAUTO asistentas|Skelbimai Lietuvoje/i).first()
+      page.getByRole("heading", { name: /Nauja karta skelbimų/i })
     ).toBeVisible({ timeout: 10_000 });
+    await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("profile gate shows login CTA for guests", async ({ page }) => {

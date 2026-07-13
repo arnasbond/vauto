@@ -1,0 +1,88 @@
+import type { AiExtractedListing } from "@/lib/types";
+
+const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
+const PRICE_INLINE_RE = /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)/i;
+const MANUAL_FILL_RE =
+  /pildyti\s+rankiniu\s+b[uū]du|užpildyti\s+lauk(us|ai)\s+(?:žemiau|forma|ranka)|manual\s+form/i;
+
+export interface ListingChatContext {
+  hasListingDraft: boolean;
+  sellerFlowActive: boolean;
+}
+
+export function isManualFillIntent(text: string): boolean {
+  return MANUAL_FILL_RE.test(text.trim());
+}
+
+export function buildManualFillChatRedirectReply(): string {
+  return "Gerai — tęskime pokalbyje. Parašykite kainą, aprašymą ar kitą detalę čia, ir aš paruošiu skelbimą be formų.";
+}
+
+/** Standalone price or short listing clarification — never treat as search noise. */
+export function isListingConversationInput(
+  text: string,
+  ctx: ListingChatContext
+): boolean {
+  if (!ctx.hasListingDraft && !ctx.sellerFlowActive) return false;
+  const t = text.trim();
+  if (!t) return false;
+  if (isManualFillIntent(t)) return true;
+  if (parsePriceFromChatInput(t) != null) return true;
+  if (PRICE_ONLY_RE.test(t)) return true;
+  return t.length <= 120;
+}
+
+export function parsePriceFromChatInput(text: string): number | null {
+  const t = text.trim();
+  if (!t) return null;
+
+  if (PRICE_ONLY_RE.test(t)) {
+    const raw = t.replace(/[^\d.,]/g, "").replace(",", ".");
+    const n = Number.parseFloat(raw);
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  }
+
+  const inline = t.match(PRICE_INLINE_RE);
+  if (inline?.[1]) {
+    const n = Number.parseFloat(inline[1].replace(",", "."));
+    return Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+  }
+
+  return null;
+}
+
+/** Apply price/title patch from chat; returns assistant confirmation or null. */
+export function tryApplyListingChatInput(
+  text: string,
+  aiDraft: AiExtractedListing | null,
+  updateAiDraft: (patch: Partial<AiExtractedListing>) => void
+): string | null {
+  if (!aiDraft) return null;
+
+  if (isManualFillIntent(text)) {
+    return buildManualFillChatRedirectReply();
+  }
+
+  const price = parsePriceFromChatInput(text);
+  if (price != null) {
+    updateAiDraft({ price });
+    const title = aiDraft.title?.trim();
+    return title
+      ? `Gerai — ${title}: kaina ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`
+      : `Gerai, įrašiau kainą — ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`;
+  }
+
+  const trimmed = text.trim();
+  if (trimmed.length >= 3 && trimmed.length <= 240 && !/^(taip|ne|ok|gerai)$/i.test(trimmed)) {
+    const nextDescription = aiDraft.description?.trim()
+      ? `${aiDraft.description.trim()}\n${trimmed}`
+      : trimmed;
+    updateAiDraft({
+      description: nextDescription.slice(0, 4000),
+      ...(aiDraft.title?.trim() ? {} : { title: trimmed.slice(0, 96) }),
+    });
+    return "Supratau — atnaujinau skelbimo aprašymą. Ar viskas tinka, ar dar ką nors patikslinsime?";
+  }
+
+  return null;
+}

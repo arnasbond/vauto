@@ -73,25 +73,25 @@ export function categoryFlowLabel(category?: ListingCategory): string {
 export function buildListingWizardOpenedMessage(category?: ListingCategory): string {
   const label = categoryFlowLabel(category);
   if (category === "clothing") {
-    return "Puiku, mes jau tavo spintoje! Neminkyk formos rankiniu būdu — tiesiog įkelk visas drabužių nuotraukas iškart, o aš fone pradėsiu pildyti laukus.";
+    return "Puiku, mes jau tavo spintoje! Įkelk drabužių nuotraukas čia pokalbyje — aš fone paruošiu skelbimo juodraštį.";
   }
   if (category === "vehicles") {
-    return "Puiku, atidarėme automobilio skelbimą! Įkelkite nuotraukas arba įveskite VIN — aš fone užpildysiu techninius laukus. Jūs tik patvirtinkite.";
+    return "Puiku, pradedame automobilio skelbimą! Įkelkite nuotraukas arba įveskite VIN čia pokalbyje — aš padėsiu suformuoti skelbimą. Jūs tik patvirtinkite.";
   }
   if (category === "real_estate") {
-    return "Puiku, pradedame NT skelbimą! Įkelkite objekto nuotraukas — aš padėsiu užpildyti plotą, kambarius ir kitus laukus. Peržiūrėkite ir patvirtinkite.";
+    return "Puiku, pradedame NT skelbimą! Įkelkite objekto nuotraukas arba aprašykite plotą, kambarius — viską tvarkome pokalbyje.";
   }
   if (category === "services") {
-    return "Puiku, kuriate paslaugų skelbimą! Aprašykite ką siūlote — aš padėsiu suformuluoti ir užpildysiu laukus. Kartu sutvarkysime iki publikavimo.";
+    return "Puiku, kuriate paslaugų skelbimą! Aprašykite ką siūlote čia pokalbyje — aš padėsiu suformuluoti ir paruošiu skelbimą.";
   }
-  return `Puiku, pradedame ${label} formą! Įkelkite nuotraukas arba užpildykite laukus — aš vedliuosiu kiekviename žingsnyje ir patarsiu realiu laiku.`;
+  return `Puiku, pradedame ${label} skelbimą! Įkelkite nuotraukas arba aprašykite detales pokalbyje — vedliuosiu kiekviename žingsnyje.`;
 }
 
 export function listingWizardOpenedChips(category?: ListingCategory): string[] {
   if (category === "clothing") {
-    return ["Įkelti nuotraukų krepšelį", "Kaip veikia importas?", "Pildyti rankiniu būdu"];
+    return ["Įkelti nuotraukų krepšelį", "Kaip veikia importas?", "Publikuoti vėliau"];
   }
-  return ["Įkelti nuotraukas", "Kaip užpildyti laukus?", "Publikuoti vėliau"];
+  return ["Įkelti nuotraukas", "Ką dar reikia?", "Publikuoti vėliau"];
 }
 
 export function buildListingMediaAnalyzedMessage(
@@ -100,7 +100,7 @@ export function buildListingMediaAnalyzedMessage(
 ): string {
   const label = categoryFlowLabel(category);
   const subject = objectLabel.trim() || "objektą";
-  return `Matau nuotraukoje: ${subject}. Automatiškai pritaikiau ${label} laukus — peržiūrėkite formą žemiau ir patvirtinkite, ar viskas tikslu.`;
+  return `Matau nuotraukoje: ${subject}. Automatiškai paruošiau ${label} juodraštį — peržiūrėkite pokalbyje ir patvirtinkite, ar viskas tikslu.`;
 }
 
 export function listingMediaAnalyzedChips(): string[] {
@@ -178,7 +178,7 @@ export function buildWardrobePhotosReceivedMessage(
     return "Nuotraukas gavau — analizuoju. Jei matysiu drabužius, paruošiu juodraščius.";
   }
   if (photoCount > 1) {
-    return `Matau ${itemCount} tavo drabužius iš ${photoCount} nuotraukų! Užfiksavau dydžius ir spalvas — juodraščiai paruošti. Pažvelk į formą žemiau.`;
+    return `Matau ${itemCount} tavo drabužius iš ${photoCount} nuotraukų! Užfiksavau dydžius ir spalvas — juodraščiai paruošti. Ar tęsiame?`;
   }
   if (itemCount === 1) {
     return "Nuotrauką gavau, matau vieną drabuį — ruošiu skelbimo juodraštį. Ar tęsiame?";
@@ -190,7 +190,7 @@ export function wardrobePhotosReceivedChips(itemCount: number): string[] {
   if (itemCount > 1) {
     return ["Taip, tęsti", "Redaguoti po vieną", "Įkelti kitą nuotrauką"];
   }
-  return ["Taip, tęsti", "Pildyti rankiniu būdu", "Įkelti kitą nuotrauką"];
+  return ["Taip, tęsti", "Patikslinti detales", "Įkelti kitą nuotrauką"];
 }
 
 export function buildWardrobeProfileImportedMessage(itemCount: number): string {
@@ -198,14 +198,14 @@ export function buildWardrobeProfileImportedMessage(itemCount: number): string {
   if (itemCount === 1) {
     return "Profilį gavau, matau vieną prekę — paruošiau juodraštį peržiūrai. Ar tęsiame?";
   }
-  return `Profilį gavau, matau ${itemCount} prekių — paruošiau juodraščius peržiūrai žemiau. Ar tęsiame?`;
+  return `Profilį gavau, matau ${itemCount} prekių — paruošiau juodraščius peržiūrai. Ar tęsiame?`;
 }
 
 export function wardrobeProfileImportedChips(itemCount: number): string[] {
   if (itemCount > 1) {
     return ["Taip, tęsti", "Peržiūrėti importą", "Redaguoti po vieną"];
   }
-  return ["Taip, tęsti", "Pildyti rankiniu būdu", "Kaip veikia importas?"];
+  return ["Taip, tęsti", "Patikslinti detales", "Kaip veikia importas?"];
 }
 
 /** Resolve a flow event into assistant dialogue (message + chips). */

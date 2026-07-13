@@ -1,7 +1,6 @@
 import type { SellerFlowStep } from "@/lib/types";
 import {
   WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
-  WARDROBE_BULK_MANUAL_FILL_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
   requestWardrobeBulkPhotoPick,
   scrollToWardrobeBulkReview,
@@ -103,7 +102,7 @@ export function tryHandleAgentQuickReply(
     }
     return {
       handled: true,
-      reply: "Šiuo metu neturiu ankstesnio juodraščio — tęskite formą arba pradėkite iš naujo.",
+      reply: "Šiuo metu neturiu ankstesnio juodraščio — tęskite pokalbį arba pradėkite iš naujo.",
     };
   }
 
@@ -111,7 +110,7 @@ export function tryHandleAgentQuickReply(
     deps.acceptPhotoCategoryMismatch();
     return {
       handled: true,
-      reply: "Supratau — paliekame naują kategoriją pagal įkeltą nuotrauką. Patikrinkite laukus ir publikuokite.",
+      reply: "Supratau — paliekame naują kategoriją pagal įkeltą nuotrauką. Patikrinkite detales pokalbyje ir publikuokite.",
     };
   }
 
@@ -298,7 +297,7 @@ export function tryHandleAgentQuickReply(
   if (matchesChip(trimmed, [/reikia pataisyti/])) {
     return {
       handled: true,
-      reply: "Gerai — pataisykite laukus formoje žemiau, o aš padėsiu jei prireiks.",
+      reply: "Gerai — parašykite, ką pataisyti (kaina, aprašymas, miestas), ir atnaujinsiu skelbimą pokalbyje.",
     };
   }
 
@@ -330,7 +329,11 @@ export function tryHandleAgentQuickReply(
   }
 
   if (matchesChip(trimmed, [/pildyti rankiniu būdu/, /pildyti rankiniu budu/])) {
-    return { handled: true, reply: WARDROBE_BULK_MANUAL_FILL_REPLY };
+    return {
+      handled: true,
+      reply:
+        "Gerai — tęskime pokalbyje. Parašykite kainą, aprašymą ar kitą detalę čia, ir aš paruošiu skelbimą be formų.",
+    };
   }
 
   if (matchesChip(trimmed, [/įkelti kitą nuotrauką/, /ikelti kita nuotrauka/])) {
