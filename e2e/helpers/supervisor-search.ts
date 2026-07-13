@@ -1,6 +1,11 @@
 import { expect, type Page, type Route } from "@playwright/test";
 import { listingResults } from "./listing-results";
 
+/** Supervisor chat strip — single broker bubble per turn (hero, not grid). */
+export function agentChatStrip(page: Page) {
+  return page.locator(".agent-chat-strip");
+}
+
 const SEARCH_MOCKS = {
   bmw: {
     listingIds: ["lt-auto-001", "lt-auto-002"],
@@ -88,10 +93,16 @@ export async function expectCleanSupervisorSearch(page: Page) {
   await expect(results.getByText(/Šiuo metu.*turguje neradau/i)).toHaveCount(0);
   await expect(results.getByText(/Deje, pagal/i)).toHaveCount(0);
   await expect(results.getByText(/Deje, nieko neradau/i)).toHaveCount(0);
-  await expect(results.getByText(/0 rezultat/i)).toHaveCount(0);
+  await expect(results.getByText(/^Šiuo metu.*0 rezultat/i)).toHaveCount(0);
 
-  // Legacy fallback lived inside the results region — not duplicated after supervisor sync.
+  // Legacy fallback must not render inside the results grid.
   await expect(results.locator(".agent-chat-strip")).toHaveCount(0);
+
+  // Single supervisor broker bubble lives in the hero strip.
+  const strip = agentChatStrip(page);
+  await expect(strip).toBeVisible({ timeout: 30_000 });
+  await expect(strip).toHaveAttribute("aria-label", "VAUTO asistento atsakymas");
+  await expect(strip.getByText(/Radau/i)).toBeVisible();
 }
 
 /** Filter bar shows Lithuania-wide count after supervisor clears the query bar. */

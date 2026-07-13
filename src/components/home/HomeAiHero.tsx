@@ -83,6 +83,7 @@ export function HomeAiHero({
           onSeedConsumed={onSeedConsumed}
         />
       </div>
+      <AgentChatStrip />
     </div>
   );
 }

@@ -34,7 +34,13 @@ import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } fro
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
 import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
-import { resolveListingCity } from "@/lib/city-resolve";
+import { resolveListingCity, normalizeKnownListingCity } from "@/lib/city-resolve";
+import {
+  LOCATION_MISSING_AGENT_PROMPT,
+  resolveDynamicListingLocation,
+  resolvePublishListingCity,
+  verifiedProfileCity,
+} from "@/lib/listing-location-context";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
 import { clearAllListingDrafts } from "@/lib/listing-draft-storage";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
@@ -413,7 +419,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setAiDraft(
         syncDraftWithProfile(
           createManualFallbackDraft({
-            location: user.city,
+            location: verifiedProfileCity(user.city),
             contact: user.phone,
           })
         )
@@ -586,20 +592,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           locationHint = conductorText.locationHint;
           extracted = conductorText.extracted;
         } else {
-          const coordsPromise = getUserCoords({ requestPermission: true });
-          const locationHintPromise = coordsPromise.then((coords) => {
-            if (!coords) return user.city;
-            const d = distanceToCity(coords, user.city);
-            return d !== null && d < 50 ? user.city : user.city;
+          locationHint = await resolveDynamicListingLocation({
+            profileCity: user.city,
+            requestGeo: true,
           });
 
-          const extractPromise = locationHintPromise.then((hint) => {
+          const extractPromise = (async () => {
             const ctx = {
               imageDataUrl: opts?.previewImage,
               imageDataUrls: opts?.previewImages,
               transcript: opts?.transcript,
               extraContext: opts?.extraContext,
-              userCity: hint,
+              userCity: locationHint,
               contact: user.phone,
             };
 
@@ -607,15 +611,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             if (mode === "upload") return extractFromImage(ctx);
             if (mode === "text" || mode === "voice") return extractFromText(ctx);
             return extractFromText(ctx);
-          });
+          })();
 
           const timeoutMs = opts?.recoveryRetry
             ? RECOVERY_PROCESSING_TIMEOUT_MS
             : undefined;
-          [locationHint, extracted] = await Promise.all([
-            locationHintPromise,
-            withAiTimeout(extractPromise, timeoutMs, `extract_${mode ?? "unknown"}`),
-          ]);
+          extracted = await withAiTimeout(
+            extractPromise,
+            timeoutMs,
+            `extract_${mode ?? "unknown"}`
+          );
         }
 
         if (isProcessingStale(epoch)) return;
@@ -639,7 +644,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           });
           return;
         }
-        if (!next.location && locationHint) {
+        if (!normalizeKnownListingCity(next.location) && locationHint) {
           next = { ...next, location: locationHint };
         }
 
@@ -956,7 +961,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         setSellerStep("processing");
         let draft = syncDraftWithProfile(
           createManualFallbackDraft({
-            location: user.city,
+            location: verifiedProfileCity(user.city),
             contact: user.phone,
           })
         );
@@ -1178,7 +1183,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const firstDraft = wardrobeItemToDraft(
         items[0]!,
         user.phone,
-        user.city || "Vilnius"
+        verifiedProfileCity(user.city)
       );
       const { draft: merged } = commitConductorDraft(firstDraft, "agent", null);
       const mergedDraft = { ...firstDraft, ...merged } as AiExtractedListing;
@@ -1222,7 +1227,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setAiManualFallback(false);
       try {
         const draft = await fetchListingFromPortal(url, {
-          userCity: user.city || "Lietuva",
+          userCity: verifiedProfileCity(user.city),
           contact: user.phone,
         });
         applyAgentListingDraft(draft);
@@ -1235,7 +1240,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           e instanceof ListingImportError
             ? e.fallbackDraft
             : createImportFallbackDraft(url, {
-                userCity: user.city || "Lietuva",
+                userCity: verifiedProfileCity(user.city),
                 contact: user.phone,
               });
         const msg = e instanceof Error ? e.message : "Nepavyko importuoti skelbimo";
@@ -1573,7 +1578,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
-    const listingCity = resolveListingCity(aiDraft.location, user.city || "Vilnius");
+    const listingCity = resolvePublishListingCity(aiDraft.location, user.city, coords);
+    if (!listingCity) {
+      showToast("Nurodykite miestą prieš publikuojant.", "error");
+      pushAgentGreeting(LOCATION_MISSING_AGENT_PROMPT, {
+        replaceThread: false,
+        openSheet: true,
+      });
+      setSellerStep("confirmation");
+      return;
+    }
     const listingCoords = geocodeLocation(listingCity);
     if (coords) {
       const exact = distanceToListing(coords, {
@@ -1750,7 +1764,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       for (const draft of drafts) {
         if (!draft.title.trim() || draft.price <= 0) continue;
         const snapshot = buildConductorPublishSnapshot(draft);
-        const listingCity = resolveListingCity(draft.location, user.city || "Vilnius");
+        const listingCity = resolvePublishListingCity(draft.location, user.city, coords);
+        if (!listingCity) continue;
         const listingCoords = geocodeLocation(listingCity);
         let distKm = 0.5;
         if (coords) {

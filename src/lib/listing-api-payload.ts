@@ -7,7 +7,7 @@ export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> &
   const { images, ...rest } = listing;
   return {
     ...rest,
-    location: resolveListingCity(listing.location, "Vilnius"),
+    location: resolveListingCity(listing.location),
     image: images?.[0]?.trim() ?? "",
   };
 }

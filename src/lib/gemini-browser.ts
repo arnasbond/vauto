@@ -8,7 +8,8 @@
 
 
 
-import { resolveListingCity } from "@/lib/city-resolve";
+import { normalizeKnownListingCity } from "@/lib/city-resolve";
+import { verifiedProfileCity } from "@/lib/listing-location-context";
 import { SPINTA_SEARCH_SYSTEM_RULE } from "@/lib/wardrobe-cabinet-mode";
 import { isDevClientGeminiEnabled } from "@/lib/ai-pipeline";
 
@@ -72,7 +73,7 @@ const LISTING_SCHEMA = `{
 
   "price": "number | null — kaina EUR; null jei nenurodyta",
 
-  "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …)",
+  "city": "string — Lietuvos miestas TIK jei aiškiai nurodyta vartotojo tekste ar nuotraukoje; kitaip tuščia eilutė \"\"",
 
   "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai",
 
@@ -89,7 +90,8 @@ const LISTING_SYSTEM = `${VAUTO_VISION_MULTIMODAL_PROMPT}
 Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Aprašymą sugeneruok išsamiai lietuviškai.
 KATEGORIJOS: „parduodu butą/namą/žemę/sklypą“ → NT. „parduodu auto/automobili/mašiną“ → Auto (net be markės).
-ANTRAŠTĖ: patraukli pardavimo antraštė lietuviškai. Draudžiama: „Universalus daiktas“, „Prekė“, bendri placeholderiai.`;
+ANTRAŠTĖ: patraukli pardavimo antraštė lietuviškai. Draudžiama: „Universalus daiktas“, „Prekė“, bendri placeholderiai.
+MIESTAS: neatspek ir neįrašyk miesto, jei vartotojas jo nepaminėjo — palik city kaip tuščią eilutę. Nenaudok numatytojo Vilniaus.`;
 
 
 
@@ -557,8 +559,6 @@ function mapRawListingJson(
 
   );
 
-  const userCityResolved = resolveListingCity(userCity, "Vilnius");
-
 
 
   return {
@@ -567,7 +567,7 @@ function mapRawListingJson(
 
     price,
 
-    location: resolveListingCity(String(raw.city ?? raw.location ?? ""), userCityResolved),
+    location: normalizeKnownListingCity(String(raw.city ?? raw.location ?? "")),
 
     contact,
 
@@ -617,13 +617,15 @@ function buildListingImagePrompt(
 
 
 
+  const cityNote = userCity.trim()
+    ? `\nPatvirtintas vartotojo regionas (naudok tik jei skelbime miestas aiškiai nenurodytas): ${userCity.trim()}`
+    : "\nMiestas nežinomas — palik city kaip tuščią eilutę, neatspek.";
+
   return `${VAUTO_VISION_MULTIMODAL_PROMPT}
 
 
 
-${textNote}${extra}
-
-Numatytas miestas: ${userCity}
+${textNote}${extra}${cityNote}
 
 Grąžink JSON: ${LISTING_SCHEMA}`;
 
@@ -873,7 +875,7 @@ export async function clientExtractListingFromImage(input: {
 
 
 
-  const city = resolveListingCity(input.userCity?.trim(), "Vilnius");
+  const city = verifiedProfileCity(input.userCity?.trim());
 
   const contact = input.contact?.trim() || "+370 612 34567";
 
@@ -1148,7 +1150,7 @@ export async function clientExtractListingFromPageText(input: {
 
 
 
-  const city = resolveListingCity(input.userCity?.trim(), "Lietuva");
+  const city = verifiedProfileCity(input.userCity?.trim());
 
   const contact = input.contact?.trim() || "+370 612 34567";
 
@@ -1162,7 +1164,7 @@ Nuoroda: ${input.url}
 
 ${textSlice ? `Puslapio tekstas (HTML→text):\n"""${textSlice}"""` : "Puslapio teksto nėra — ištrauk kiek galima iš URL kelio ir portalo konteksto."}
 
-Numatytas miestas: ${city}
+${city ? `Patvirtintas vartotojo regionas: ${city}` : "Miestas nežinomas — neatspek."}
 
 Grąžink JSON: ${URL_IMPORT_SCHEMA}`;
 

@@ -257,6 +257,7 @@ export function AiCommandBar({
           } else if (exec?.agentResult.ok) {
             scrollToResults();
           }
+          scrollToResults();
           return;
         }
         const res = await sendAgentMessage(q, { fromSearchBar: true });

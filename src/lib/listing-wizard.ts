@@ -2,7 +2,8 @@ import {
   getMissingCriticalFieldsForListing,
   listingToAdaptiveKey,
 } from "@/lib/adaptive-categories";
-import { isPlaceholderCity, resolveListingCity } from "@/lib/city-resolve";
+import { isPlaceholderCity } from "@/lib/city-resolve";
+import { verifiedProfileCity } from "@/lib/listing-location-context";
 import type { AiExtractedListing } from "@/lib/types";
 import type { PriceAdvice } from "@/lib/price-advisor";
 import { CONVERSATIONAL_SKIP_QUICK_REPLY } from "@/lib/conversational-skip";
@@ -43,7 +44,7 @@ export function analyzeListingWizard(
   } = {}
 ): WizardAnalysis {
   const adaptiveKey = listingToAdaptiveKey(draft.category);
-  const userCity = resolveListingCity(opts.userCity, "Vilnius");
+  const verifiedCity = verifiedProfileCity(opts.userCity);
   const missingKeys = getMissingCriticalFieldsForListing(draft.category, draft.attributes ?? {}, {
     price: draft.price,
     description: draft.description,
@@ -61,12 +62,26 @@ export function analyzeListingWizard(
   };
 
   if (isPlaceholderCity(draft.location) || !draft.location?.trim()) {
+    missingFields.push("location");
     prompts.push("missing_city");
-    questions.push(`Matau, kad nenurodėte miesto. Ar skelbiame ${userCity}?`);
+    if (verifiedCity) {
+      questions.push(
+        `Matau, kad vieta nenurodyta skelbime. Ar skelbiame ${verifiedCity}?`
+      );
+      quickReplies.push({
+        id: "city-yes",
+        label: `Taip, ${verifiedCity}`,
+        patch: { location: verifiedCity },
+      });
+    } else {
+      questions.push(
+        "Matau, kad vieta nenurodyta — patikslinkite savo miestą (pvz. Kaišiadorys, Kaunas)."
+      );
+    }
     quickReplies.push(
-      { id: "city-yes", label: `Taip, ${userCity}`, patch: { location: userCity } },
-      { id: "city-vilnius", label: "Vilnius", patch: { location: "Vilnius" } },
-      { id: "city-kaunas", label: "Kaunas", patch: { location: "Kaunas" } }
+      { id: "city-kaunas", label: "Kaunas", patch: { location: "Kaunas" } },
+      { id: "city-klaipeda", label: "Klaipėda", patch: { location: "Klaipėda" } },
+      { id: "city-vilnius", label: "Vilnius", patch: { location: "Vilnius" } }
     );
     offerSkip();
   }
@@ -207,6 +222,6 @@ export function buildWizardAgentContext(
     isAuthenticated: opts.isAuthenticated,
     searchResultCount: opts.searchResultCount,
     lastSearchQuery: opts.lastSearchQuery,
-    userCity: resolveListingCity(opts.userCity, "Vilnius"),
+    userCity: verifiedProfileCity(opts.userCity) || undefined,
   };
 }

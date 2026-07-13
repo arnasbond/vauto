@@ -1323,9 +1323,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
           const browseReply =
             sanitizeAgentReplyForDisplay(res.reply) || coerced.replyMessage;
-          if (!options?.fromSearchBar) {
-            appendSupervisorAssistant(browseReply);
-          }
+          appendSupervisorAssistant(browseReply);
           speakReply(browseReply);
           return {
             ok: true,
@@ -1336,9 +1334,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         if (!res.reply && !hasExecutableAction) {
           const fallback = BUDDY_REPEAT_PROMPT;
-          if (!options?.fromSearchBar) {
-            appendSupervisorAssistant(fallback);
-          }
+          appendSupervisorAssistant(fallback);
           speakReply(fallback);
           if (open && !options?.fromSearchBar) showToast(fallback, "info");
           return { ok: true, reply: fallback, actions: res.actions };

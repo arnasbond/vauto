@@ -1,4 +1,5 @@
-import { isPlaceholderCity, resolveListingCity } from "@/lib/city-resolve";
+import { isPlaceholderCity } from "@/lib/city-resolve";
+import { verifiedProfileCity } from "@/lib/listing-location-context";
 import type { AiExtractedListing, CategoryAttributes, UserProfile } from "@/lib/types";
 
 export interface ProfileListingContact {
@@ -19,7 +20,7 @@ export function buildProfileListingContact(
 ): ProfileListingContact {
   const phone = user.phone?.trim() ?? "";
   const email = user.email?.trim() ?? "";
-  const location = resolveListingCity(user.city, "Vilnius");
+  const location = verifiedProfileCity(user.city);
   const contact = [phone, email].filter(Boolean).join(" · ");
 
   return {
@@ -58,7 +59,7 @@ export function applyProfileToListingDraft(
   const location =
     onlyIfEmpty && !isPlaceholderCity(draft.location)
       ? draft.location
-      : profile.location || draft.location;
+      : profile.location || (onlyIfEmpty ? draft.location : "");
 
   const contact =
     onlyIfEmpty && !isEmptyValue(draft.contact)

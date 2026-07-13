@@ -1,4 +1,5 @@
 import { distanceKm, type UserCoords } from "@/lib/geolocation";
+import { isPlaceholderCity } from "@/lib/city-resolve";
 import {
   coordsForLtCity,
   detectCityInText,
@@ -18,7 +19,10 @@ export function geocodeLocation(
     base = LT_CITY_COORDS[matchedCity]!;
   } else {
     const direct = coordsForLtCity(normalized);
-    base = direct ?? { lat: 55.1694, lng: 23.8813 };
+    if (!direct) {
+      throw new Error(`Cannot geocode unknown location: ${locationText}`);
+    }
+    base = direct;
   }
 
   const neighborhoodJitter = hashJitter(
@@ -63,9 +67,10 @@ export function distanceToListing(
 export function enrichListingCoords<T extends { location: string; id?: string }>(
   listing: T
 ): T & { latitude: number; longitude: number } {
-  const coords = geocodeLocation(
-    listing.location,
-    listing.id ?? listing.location
-  );
+  const loc = listing.location?.trim();
+  if (!loc || isPlaceholderCity(loc)) {
+    throw new Error("Listing location is required for coordinates");
+  }
+  const coords = geocodeLocation(loc, listing.id ?? loc);
   return { ...listing, latitude: coords.lat, longitude: coords.lng };
 }

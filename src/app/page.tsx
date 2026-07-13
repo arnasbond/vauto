@@ -30,6 +30,8 @@ import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
+import { agentHasSupervisorReply } from "@/lib/agent-chat-layout";
 
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 
@@ -47,12 +49,18 @@ function MarketplaceView() {
   const { rankedListings } = useVauto();
   const { sellerStep } = useSellerFlow();
   const { searchQuery, searchLoading } = useVautoSearch();
+  const { messages, busy: agentBusy } = useVautoAgent();
   const { isDesktop } = useLayoutMode();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
   const inSellerFlow = sellerStep !== "idle";
   const hasSearch = searchQuery.trim().length >= 3;
+  const hasAgentTurn =
+    agentBusy ||
+    agentHasSupervisorReply(messages) ||
+    messages.some((m) => m.role === "user");
+  const compactHero = hasSearch || hasAgentTurn;
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
 
@@ -72,7 +80,7 @@ function MarketplaceView() {
             />
           ) : (
             <HomeAiHero
-              compact={hasSearch}
+              compact={compactHero}
               seedQuery={seedQuery}
               onSeedConsumed={() => setSeedQuery(null)}
             />
@@ -89,7 +97,7 @@ function MarketplaceView() {
 
   const browseSection = (
     <>
-      {!hasSearch && !inSellerFlow && (
+      {!compactHero && !inSellerFlow && (
         <div id="browse-section" className="scroll-mt-24">
           <AiFirstBrowsePrompt />
         </div>

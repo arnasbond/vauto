@@ -75,10 +75,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
   const theme = portal.theme;
   const ui = getPortalUi(theme);
   const browseAllActive = resolveBrowseAllIntent(searchQuery);
-  const supervisorContext =
-    agentBusy ||
-    agentHasSupervisorReply(messages) ||
-    messages.some((m) => m.role === "assistant");
+  const supervisorContext = agentBusy || agentHasSupervisorReply(messages);
 
   const renderListingCards = (items: typeof displayListings, showLoadMore = false) => {
     const visible = sliceForNative(items);
