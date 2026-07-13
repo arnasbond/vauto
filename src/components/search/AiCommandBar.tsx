@@ -58,7 +58,7 @@ import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-inte
 
 const GEMINI_BLUE = "#1167b1";
 
-export type AiCommandBarPlacement = "hero" | "top" | "inline" | "wizard";
+export type AiCommandBarPlacement = "hero" | "top" | "inline" | "wizard" | "chat";
 
 export interface AiCommandBarProps {
   placement?: AiCommandBarPlacement;
@@ -82,6 +82,7 @@ export function AiCommandBar({
   collapsible = false,
 }: AiCommandBarProps) {
   const isWizard = placement === "wizard";
+  const isChatBar = placement === "chat";
   const isTopBar = placement === "hero" || placement === "top";
 
   const {
@@ -293,10 +294,10 @@ export function AiCommandBar({
   const handleSubmit = useCallback(
     async (e?: React.FormEvent) => {
       e?.preventDefault();
-      if (placement === "wizard" || phase === "listing_processing") {
+      if (placement === "wizard" || placement === "chat" || phase === "listing_processing") {
         const trimmed = draftQuery.trim();
         if (!trimmed || agentBusy) return;
-        if (resolveBrowseAllIntent(trimmed)) {
+        if (placement !== "chat" && resolveBrowseAllIntent(trimmed)) {
           setDraftQuery("");
           void commitSearch(trimmed);
           if (collapsible) {
@@ -443,6 +444,8 @@ export function AiCommandBar({
 
   const inputPlaceholder = isWizard
     ? wizardPlaceholder
+    : isChatBar
+      ? "Rašykite atsakymą asistentui…"
     : isTopBar
       ? AI_FIRST_SEARCH_PLACEHOLDER
       : "Rašykite paiešką arba įkelkite nuotrauką…";
@@ -610,16 +613,18 @@ export function AiCommandBar({
       <form
         className={cn(
           "flex items-center gap-2 border shadow-sm transition-colors",
+          isChatBar &&
+            "agent-chat-composer rounded-2xl border-[var(--vauto-primary)]/20 bg-[var(--vauto-bg)] py-1.5 pl-3.5 pr-1.5 shadow-md",
           isTopBar
             ? "home-ai-hero-search rounded-full py-2.5 pl-5 pr-2 shadow-md"
-            : "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
+            : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
           zeroUiActive && "zero-ui-search-active",
           className
         )}
         style={{ borderColor: isTopBar ? "var(--vauto-border)" : ui.searchBorder }}
         onSubmit={(e) => void handleSubmit(e)}
-        role="search"
-        aria-label="Skelbimų paieška"
+        role={isChatBar ? undefined : "search"}
+        aria-label={isChatBar ? "VAUTO asistento atsakymas" : "Skelbimų paieška"}
       >
         <Sparkles
           className={cn(
@@ -627,19 +632,19 @@ export function AiCommandBar({
             isTopBar ? "h-5 w-5" : "h-4 w-4",
             agentBusy && "zero-ui-icon-pulse"
           )}
-          style={{ color: isTopBar ? "var(--vauto-primary)" : GEMINI_BLUE }}
+          style={{ color: isTopBar || isChatBar ? "var(--vauto-primary)" : GEMINI_BLUE }}
           aria-hidden
         />
 
         <input
           ref={inputRef}
-          type="search"
-          name="q"
-          role="searchbox"
+          type={isChatBar ? "text" : "search"}
+          name={isChatBar ? undefined : "q"}
+          role={isChatBar ? undefined : "searchbox"}
           value={draftQuery}
           onChange={(e) => setDraftQuery(e.target.value)}
           placeholder={inputPlaceholder}
-          enterKeyHint="search"
+          enterKeyHint={isChatBar ? "send" : "search"}
           className={cn(
             "min-w-0 flex-1 border-none bg-transparent outline-none vauto-body-text",
             isTopBar
@@ -655,14 +660,21 @@ export function AiCommandBar({
           disabled={busy || !draftQuery.trim()}
           className={cn(
             "flex shrink-0 items-center justify-center gap-1 rounded-xl font-semibold text-white transition disabled:opacity-40",
-            isTopBar
+            isChatBar
+              ? "h-10 min-w-[2.75rem] bg-[var(--vauto-primary)] px-3 text-[var(--vauto-primary-contrast)]"
+              : isTopBar
               ? "h-11 bg-orange-600 px-4 hover:bg-orange-700"
               : "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
           )}
-          aria-label="Ieškoti"
+          aria-label={isChatBar ? "Siųsti" : "Ieškoti"}
         >
           {busy ? (
             <Loader2 className="h-4 w-4 animate-spin" />
+          ) : isChatBar ? (
+            <>
+              <ArrowUp className="h-4 w-4" aria-hidden />
+              <span className="hidden sm:inline text-sm">Siųsti</span>
+            </>
           ) : (
             <>
               <Sparkles className="h-4 w-4" aria-hidden />
@@ -677,7 +689,7 @@ export function AiCommandBar({
           disabled={isPhotoSearching || photoFlowOpen}
           className={cn(
             "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
-            isTopBar ? "h-11 w-11" : "h-10 w-10 rounded-lg"
+            isTopBar || isChatBar ? "h-10 w-10" : "h-10 w-10 rounded-lg"
           )}
           aria-label="Vision AI paieška pagal nuotrauką"
           title="Vision AI — nuotrauka"
@@ -690,7 +702,7 @@ export function AiCommandBar({
         </button>
       </form>
 
-      {!isTopBar && (
+      {!isTopBar && !isChatBar && (
         <>
           <p className="mt-2 text-center text-[11px] text-[var(--vauto-text-muted)]">
             📷 Vision AI — nuotraukos paieška ir analizė. Tekstas — greitas Gemini chat.

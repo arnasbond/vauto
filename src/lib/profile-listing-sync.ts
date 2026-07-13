@@ -2,6 +2,16 @@ import { isPlaceholderCity } from "@/lib/city-resolve";
 import { verifiedProfileCity } from "@/lib/listing-location-context";
 import type { AiExtractedListing, CategoryAttributes, UserProfile } from "@/lib/types";
 
+/** Shown by supervisor when draft is ready — contacts come from profile, not chat. */
+export const PROFILE_CONTACT_VERIFICATION_MESSAGE =
+  "Kontaktai užpildyti iš jūsų profilio – patikrinkite ir patvirtinkite, ar viskas tinka prieš publikuojant.";
+
+export const PUBLISH_REQUIRES_AUTH_MESSAGE =
+  "Publikavimui reikia prisijungti prie paskyros.";
+
+export const PUBLISH_REQUIRES_PROFILE_CONTACT_MESSAGE =
+  "Profilyje nėra patvirtinto telefono ar el. pašto — užpildykite profilį prieš publikuojant.";
+
 export interface ProfileListingContact {
   contact: string;
   location: string;
@@ -97,11 +107,47 @@ export function resolveDraftContact(
   draft: { contact?: string; attributes?: CategoryAttributes },
   user?: Pick<UserProfile, "phone" | "email">
 ): string {
+  const phone = user?.phone?.trim() ?? "";
+  const email = user?.email?.trim() ?? "";
+  const fromProfile = [phone, email].filter(Boolean).join(" · ");
+  if (fromProfile) return fromProfile;
+
   const fromDraft = draft.contact?.trim();
   if (fromDraft) return fromDraft;
   const fromAttrs = String(draft.attributes?.contact ?? "").trim();
   if (fromAttrs) return fromAttrs;
-  const phone = user?.phone?.trim() ?? "";
-  const email = user?.email?.trim() ?? "";
-  return [phone, email].filter(Boolean).join(" · ");
+  return "";
+}
+
+/** Force profile phone/email/id into draft immediately before publish or agent sync. */
+export function injectProfileContactsForPublish(
+  draft: AiExtractedListing,
+  user: Pick<UserProfile, "id" | "phone" | "email" | "city">
+): AiExtractedListing {
+  const withContacts = applyProfileToListingDraft(draft, user, true, {
+    onlyIfEmpty: false,
+  });
+  const profile = buildProfileListingContact(user);
+  return {
+    ...withContacts,
+    contact: profile.contact,
+    attributes: {
+      ...(withContacts.attributes ?? {}),
+      ...profile.attributes,
+      ...(user.id?.trim() ? { sellerId: user.id.trim() } : {}),
+    },
+  };
+}
+
+export function validatePublishSession(
+  isAuthenticated: boolean,
+  user: Pick<UserProfile, "id" | "phone" | "email" | "city">
+): { ok: true } | { ok: false; message: string } {
+  if (!isAuthenticated || !user.id?.trim()) {
+    return { ok: false, message: PUBLISH_REQUIRES_AUTH_MESSAGE };
+  }
+  if (!hasProfileListingContact(user)) {
+    return { ok: false, message: PUBLISH_REQUIRES_PROFILE_CONTACT_MESSAGE };
+  }
+  return { ok: true };
 }

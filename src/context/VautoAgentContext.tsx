@@ -91,6 +91,8 @@ import {
   createBrowseAllAction,
 } from "@/lib/browse-all-intent";
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
+import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
+import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   isPhotoIntentListingChip,
@@ -137,6 +139,12 @@ import {
   buildListingEditOpener,
   readListingEditSession,
 } from "@/lib/listing-edit-session";
+import {
+  buildProfileListingContact,
+  hasProfileListingContact,
+  injectProfileContactsForPublish,
+  validatePublishSession,
+} from "@/lib/profile-listing-sync";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -169,6 +177,8 @@ interface VautoAgentContextValue {
     actions: import("@/lib/vauto-agent-client").VautoAgentAction
   ) => void;
   reportAgentError: (code: string, message?: string) => void;
+  /** Wipe chat, aiDraft, and marketplace overlays — fresh home state. */
+  resetHomeAgentSession: () => void;
 }
 
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
@@ -179,6 +189,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchQuery,
     setSearchInputMode,
     setSearchVoiceMode,
+    setSearchLoading,
     searchQuery,
     setAgentPinnedListings,
     setViewMode,
@@ -256,21 +267,34 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const sellerWizardContext = useMemo(() => {
     if (!aiDraft) return {};
+    const profileSyncedDraft =
+      isAuthenticated && hasProfileListingContact(user)
+        ? injectProfileContactsForPublish(aiDraft, user)
+        : aiDraft;
+    const profileContact = buildProfileListingContact(user);
     return {
       wizardMode:
         sellerStep === "idle"
           ? ("idle" as const)
           : ("listing_review" as const),
       listingDraft: {
-        title: aiDraft.title,
-        description: aiDraft.description,
-        price: aiDraft.price,
-        location: aiDraft.location,
-        category: aiDraft.category,
-        attributes: aiDraft.attributes as Record<string, string> | undefined,
+        title: profileSyncedDraft.title,
+        description: profileSyncedDraft.description,
+        price: profileSyncedDraft.price,
+        location: profileSyncedDraft.location,
+        category: profileSyncedDraft.category,
+        contact: profileSyncedDraft.contact || profileContact.contact,
+        attributes: profileSyncedDraft.attributes as Record<string, string> | undefined,
+      },
+      profileContacts: {
+        userId: user.id,
+        phone: user.phone?.trim() || undefined,
+        email: user.email?.trim() || undefined,
+        contact: profileContact.contact || undefined,
+        syncedFromProfile: hasProfileListingContact(user),
       },
     };
-  }, [aiDraft, sellerStep]);
+  }, [aiDraft, sellerStep, isAuthenticated, user]);
 
   const [open, setOpen] = useState(false);
   const [streamThinkingLabel, setStreamThinkingLabel] = useState("Galvoju…");
@@ -496,6 +520,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       if (actions.type === "listing_draft") {
         if (resolveBrowseAllIntent(searchQuery)) {
+          return;
+        }
+        const sessionCheck = validatePublishSession(isAuthenticated, user);
+        if (!sessionCheck.ok) {
+          if (!isAuthenticated) {
+            openAuthModal("/");
+          }
+          showToast(sessionCheck.message, "error");
           return;
         }
         const draft = mapAgentDraftToListing(actions.listingDraft);
@@ -798,6 +830,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       applyAgentWardrobeBulk,
       goToMarketplace,
       isAuthenticated,
+      user,
       navigateTo,
       openAuthModal,
       routeZeroUiScreen,
@@ -1174,6 +1207,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           accountType: resolveAccountTypeLabel(user),
           userRole: resolveAgentUserRole(user),
         });
+        const profileContact = buildProfileListingContact(user);
         const supervisorState = buildSupervisorApplicationState({
           pageUrl,
           searchQuery: browseAllTurn ? "" : searchQuery,
@@ -1197,7 +1231,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             wizardMode: listingEditSession ? ("listing_edit" as const) : sellerWizardContext.wizardMode,
             monetization: resolveClientMonetizationState(user, activeBoost),
             userRole: resolveAgentUserRole(user),
-            contact: user.phone || "+370 612 34567",
+            contact: profileContact.contact || undefined,
+            profilePhone: user.phone?.trim() || undefined,
+            profileEmail: user.email?.trim() || undefined,
+            profileContactsVerified: hasProfileListingContact(user),
             listings: compactListingsForAgent(listings),
             userName: user.name,
             accountType: resolveAccountTypeLabel(user),
@@ -1552,6 +1589,63 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     openWithGreeting(buildListingEditOpener(session.title), { replaceThread: true });
   }, [pathname, openWithGreeting]);
 
+  const clearAgentChatSession = useCallback(() => {
+    setMessages([]);
+    setSessionPendingImageUrls([]);
+    setLastBargainingOffer(null);
+    setLastError(undefined);
+    setOpen(false);
+    setBusy(false);
+    setStreamThinkingLabel("Galvoju…");
+  }, []);
+
+  const resetHomeAgentSession = useCallback(() => {
+    cancelSellerFlow();
+    applyBrowseAllMarketplaceState({
+      setSearchQuery,
+      setAgentPinnedListings,
+      clearSearchFilters,
+      resetMarketplaceFilters,
+      clearVisualSearch,
+      setSearchInputMode,
+      setSearchVoiceMode,
+      setViewMode,
+    });
+    setSearchLoading(false);
+    clearPhotoSearchSession();
+    goToMarketplace("user");
+    clearAgentChatSession();
+    dispatchHomeReset();
+    if (
+      pathname?.startsWith("/add") ||
+      pathname?.startsWith("/fashion/mine")
+    ) {
+      router.push("/");
+    }
+    if (typeof window !== "undefined") {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [
+    cancelSellerFlow,
+    setSearchQuery,
+    setAgentPinnedListings,
+    clearSearchFilters,
+    resetMarketplaceFilters,
+    clearVisualSearch,
+    setSearchInputMode,
+    setSearchVoiceMode,
+    setViewMode,
+    setSearchLoading,
+    goToMarketplace,
+    clearAgentChatSession,
+    pathname,
+    router,
+  ]);
+
+  useEffect(() => {
+    return subscribeHomeReset(clearAgentChatSession);
+  }, [clearAgentChatSession]);
+
   const value = useMemo(
     () => ({
       open,
@@ -1564,8 +1658,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       sendAgentMessage,
       applyAgentActions: applyActions,
       reportAgentError,
+      resetHomeAgentSession,
     }),
-    [open, openWithGreeting, messages, busy, streamThinkingLabel, sendAgentMessage, applyActions, reportAgentError]
+    [
+      open,
+      openWithGreeting,
+      messages,
+      busy,
+      streamThinkingLabel,
+      sendAgentMessage,
+      applyActions,
+      reportAgentError,
+      resetHomeAgentSession,
+    ]
   );
 
   return (

@@ -27,6 +27,9 @@ export interface SupervisorCurrentUser {
   accountType?: string;
   role?: string;
   city?: string;
+  phone?: string;
+  email?: string;
+  hasVerifiedContacts?: boolean;
   hasSessionToken: boolean;
 }
 
@@ -138,6 +141,9 @@ export function buildSupervisorStateInjectionBlock(
     accountType: state.current_user.accountType,
     role: state.current_user.role,
     city: state.current_user.city,
+    phone: state.current_user.phone,
+    email: state.current_user.email,
+    hasVerifiedContacts: state.current_user.hasVerifiedContacts,
   });
 
   return `[SISTEMOS BŪSENA — tavo akys ir ausys]

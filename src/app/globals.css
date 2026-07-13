@@ -68,9 +68,9 @@
   --anonser-border: rgba(15, 23, 42, 0.1);
   --anonser-surface-muted: #e2e8f0;
   --anonser-header-bg: #ffffff;
-  --anonser-header-utility-height: 2.5rem;
+  --anonser-header-utility-height: 0rem;
   --anonser-header-main-height: 4rem;
-  --anonser-header-height: calc(var(--anonser-header-utility-height) + var(--anonser-header-main-height));
+  --anonser-header-height: var(--anonser-header-main-height);
   --anonser-desktop-max: 80rem;
   --anonser-sidebar-width: 17.5rem;
 }
@@ -220,6 +220,14 @@
 
   .vauto-desktop-portal .agent-chat-strip-messages {
     scrollbar-gutter: stable;
+  }
+
+  .vauto-desktop-portal .agent-chat-strip-composer {
+    margin-top: 0.75rem;
+  }
+
+  .vauto-desktop-portal .agent-chat-composer {
+    width: 100%;
   }
 
   .vauto-desktop-portal .home-ai-hero-search {

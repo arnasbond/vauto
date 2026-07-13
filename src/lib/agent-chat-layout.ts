@@ -102,6 +102,15 @@ export function resolveVisibleAgentBubbles(
   return out;
 }
 
+/** True when home chat strip is showing — hide duplicate top search bar. */
+export function isHomeAgentChatActive(
+  messages: AgentChatMessage[],
+  busy: boolean
+): boolean {
+  if (busy) return true;
+  return resolveVisibleAgentBubbles(messages).length > 0;
+}
+
 export function agentHasSupervisorReply(messages: AgentChatMessage[]): boolean {
   return Boolean(resolveSupervisorChatTurn(messages).assistant?.text.trim());
 }

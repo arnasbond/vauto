@@ -23,6 +23,9 @@ export interface SupervisorCurrentUser {
   accountType?: string;
   role?: string;
   city?: string;
+  phone?: string;
+  email?: string;
+  hasVerifiedContacts?: boolean;
   /** True when a session token exists locally (token itself is never sent to Gemini). */
   hasSessionToken: boolean;
 }
@@ -64,7 +67,7 @@ function resolveFirstName(
  * Build supervisor user profile from React auth state + localStorage hand-off.
  */
 export function buildSupervisorCurrentUser(params: {
-  user?: Pick<UserProfile, "id" | "name" | "firstName" | "city" | "role">;
+  user?: Pick<UserProfile, "id" | "name" | "firstName" | "city" | "role" | "phone" | "email">;
   isAuthenticated?: boolean;
   accountType?: string;
   userRole?: string;
@@ -80,6 +83,8 @@ export function buildSupervisorCurrentUser(params: {
     "Svečias";
   const firstName = resolveFirstName(params.user ?? persisted ?? undefined, name);
   const city = params.user?.city?.trim() || persisted?.city?.trim() || undefined;
+  const phone = params.user?.phone?.trim() || persisted?.phone?.trim() || undefined;
+  const email = params.user?.email?.trim() || persisted?.email?.trim() || undefined;
 
   const authenticated = Boolean(
     params.isAuthenticated || sessionFlag || (token && id)
@@ -95,6 +100,9 @@ export function buildSupervisorCurrentUser(params: {
     accountType: params.accountType,
     role: params.userRole || params.user?.role || persisted?.role,
     city,
+    phone: authenticated ? phone : undefined,
+    email: authenticated ? email : undefined,
+    hasVerifiedContacts: authenticated ? Boolean(phone || email) : false,
     hasSessionToken: Boolean(token),
   };
 }

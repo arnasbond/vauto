@@ -168,7 +168,7 @@ import {
 } from "@/lib/ai-conversational-recovery";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
-import { applyProfileToListingDraft, resolveDraftContact } from "@/lib/profile-listing-sync";
+import { applyProfileToListingDraft, injectProfileContactsForPublish, resolveDraftContact, validatePublishSession, hasProfileListingContact } from "@/lib/profile-listing-sync";
 import { resolveSellerGalleryImages } from "@/lib/visual-pipeline-merge";
 import type {
   AiExtractedListing,
@@ -356,7 +356,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const syncDraftWithProfile = useCallback(
     (draft: AiExtractedListing): AiExtractedListing =>
-      applyProfileToListingDraft(draft, user, isAuthenticated),
+      isAuthenticated && hasProfileListingContact(user)
+        ? injectProfileContactsForPublish(draft, user)
+        : applyProfileToListingDraft(draft, user, isAuthenticated),
     [user, isAuthenticated]
   );
 
@@ -1318,14 +1320,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           )
         : prevAttrs;
 
-      return {
+      return syncDraftWithProfile({
         ...prev,
         ...patch,
         category: nextCategory,
         attributes,
-      };
+      });
     });
-  }, []);
+  }, [syncDraftWithProfile]);
 
   const revertPhotoCategoryMismatch = useCallback(() => {
     const snap = categoryMismatchRollbackRef.current;
@@ -1373,8 +1375,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       showToast("Palaukite — kraunama paskyra…", "info");
       return;
     }
-    if (!isAuthenticated) {
-      openAuthModal("/add");
+    const sessionCheck = validatePublishSession(isAuthenticated, user);
+    if (!sessionCheck.ok) {
+      if (!isAuthenticated) {
+        openAuthModal("/");
+      }
+      showToast(sessionCheck.message, "error");
       return;
     }
     if (!hasListingPhoto(sellerPreviewImage) && !editingListingId) {
@@ -1382,28 +1388,34 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
-    const conductorPublish = buildConductorPublishSnapshot(aiDraft);
+    const profileDraft = injectProfileContactsForPublish(aiDraft, user);
+    if (profileDraft !== aiDraft) {
+      setAiDraft(profileDraft);
+    }
+    const publishContact = resolveDraftContact(profileDraft, user);
+
+    const conductorPublish = buildConductorPublishSnapshot(profileDraft);
     if (conductorPublish.sources.length) {
       trackEvent("conductor_publish", {
         sources: conductorPublish.sources.join(","),
-        category: aiDraft.category,
+        category: profileDraft.category,
         mergedAt: conductorPublish.mergedAt,
       });
     }
 
     const validation = evaluateListingPublishValidation(
-      aiDraft.category,
+      profileDraft.category,
       {
-        title: aiDraft.title,
-        price: aiDraft.price,
-        description: aiDraft.description,
-        contact: resolveDraftContact(aiDraft, user),
-        attributes: aiDraft.attributes,
+        title: profileDraft.title,
+        price: profileDraft.price,
+        description: profileDraft.description,
+        contact: publishContact,
+        attributes: profileDraft.attributes,
       },
       {
         hasPhoto: Boolean(sellerPreviewImage),
         conversational: true,
-        profileContact: resolveDraftContact(aiDraft, user),
+        profileContact: publishContact,
       }
     );
 
@@ -1413,11 +1425,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }
 
     const priceSanity =
-      aiDraft.price > 0
-        ? evaluatePriceSanity(aiDraft.category, aiDraft.price)
+      profileDraft.price > 0
+        ? evaluatePriceSanity(profileDraft.category, profileDraft.price)
         : { suspicious: false as const };
     if (priceSanity.suspicious) {
-      const priceDisplay = formatPriceForConfirm(aiDraft.price, aiDraft.priceLabel);
+      const priceDisplay = formatPriceForConfirm(profileDraft.price, profileDraft.priceLabel);
       const confirmed = await showConfirm({
         title: "Patikrinkite kainą",
         message: `AI pastebėjo, kad kaina gali būti klaidinga. Ar tikrai norite skelbti su kaina: ${priceDisplay}?`,
@@ -1427,7 +1439,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (!confirmed) return;
     }
 
-    const mod = moderateListing(aiDraft);
+    const mod = moderateListing(profileDraft);
     if (!mod.allowed) {
       showToast(mod.reason ?? "Skelbimas atmestas moderacijos.", "error");
       return;
@@ -1444,7 +1456,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     try {
     const clientDraftId =
       sellerDraftIdRef.current ??
-      readClientDraftId(aiDraft.attributes) ??
+      readClientDraftId(profileDraft.attributes) ??
       (() => {
         const id =
           typeof crypto !== "undefined" && typeof crypto.randomUUID === "function"
@@ -1456,10 +1468,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     sellerDraftIdRef.current = clientDraftId;
 
     const draftWithClientId = ensureClientDraftId({
-      ...aiDraft,
-      attributes: { ...(aiDraft.attributes ?? {}), clientDraftId },
+      ...profileDraft,
+      contact: publishContact,
+      attributes: { ...(profileDraft.attributes ?? {}), clientDraftId },
     });
-    if (readClientDraftId(aiDraft.attributes) !== clientDraftId) {
+    if (readClientDraftId(profileDraft.attributes) !== clientDraftId) {
       setAiDraft(draftWithClientId);
     }
 
@@ -1481,7 +1494,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Skelbimas nerastas arba neturite teisių.", "error");
         return;
       }
-      const patch = draftToListingPatch(aiDraft);
+      const patch = draftToListingPatch({
+        ...profileDraft,
+        contact: publishContact,
+      });
       const imageSource = sellerPreviewImage ?? existing.images[0] ?? null;
       const listingImage = await prepareListingImageForApi(imageSource, editingListingId);
       if (!listingImage && !hasListingPhoto(existing.images[0])) {
@@ -1491,8 +1507,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const updated: Listing = enrichListingCoords({
         ...existing,
         ...patch,
+        contact: publishContact,
         attributes: mergeSocialPublishAttributes(
-          { ...(existing.attributes ?? {}), ...(patch.attributes ?? aiDraft.attributes) },
+          { ...(existing.attributes ?? {}), ...(patch.attributes ?? profileDraft.attributes) },
           listingSocialPublish
         ),
         images: listingImage
@@ -1507,6 +1524,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (isDataApiEnabled()) {
         const res = await apiUpdateListing(editingListingId, user.id, {
           ...patch,
+          contact: publishContact,
           images: updated.images,
         });
         if (!res.ok) {
@@ -1537,10 +1555,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         ]);
 
     const vin =
-      typeof aiDraft.attributes?.vin === "string" ? aiDraft.attributes.vin : undefined;
+      typeof profileDraft.attributes?.vin === "string" ? profileDraft.attributes.vin : undefined;
     const vinOk =
-      aiDraft.isVinVerified === true ||
-      (vin ? verifyVin(vin) && aiDraft.isVinVerified !== false : false);
+      profileDraft.isVinVerified === true ||
+      (vin ? verifyVin(vin) && profileDraft.isVinVerified !== false : false);
 
     const createdAt = new Date().toISOString();
     const listingId = clientDraftId
@@ -1565,7 +1583,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return;
     }
 
-    const listingCity = resolvePublishListingCity(aiDraft.location, user.city, coords);
+    const listingCity = resolvePublishListingCity(profileDraft.location, user.city, coords);
     if (!listingCity) {
       showToast("Nurodykite miestą prieš publikuojant.", "error");
       pushAgentGreeting(LOCATION_MISSING_AGENT_PROMPT, {
@@ -1586,47 +1604,47 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     }
 
     const publishCategory = resolveEffectiveListingCategory(
-      aiDraft.category,
-      aiDraft.attributes ?? {}
+      profileDraft.category,
+      profileDraft.attributes ?? {}
     );
-    const publishTitle = aiDraft.title.trim() || "Skelbimas";
-    const publishContact = resolveDraftContact(draftWithClientId, user) || user.phone || "";
+    const publishTitle = profileDraft.title.trim() || "Skelbimas";
+    const finalContact = resolveDraftContact(draftWithClientId, user);
     const publishDraft = {
       ...draftWithClientId,
       category: publishCategory,
       title: publishTitle,
-      contact: publishContact,
+      contact: finalContact,
     };
 
     const newListing: Listing = enrichListingWithConductorMeta(
       enrichListingCoords({
       id: listingId,
       title: publishTitle,
-      price: aiDraft.price,
-      priceLabel: aiDraft.priceLabel,
+      price: profileDraft.price,
+      priceLabel: profileDraft.priceLabel,
       location: listingCity,
       distanceKm: distKm,
       slug: generateListingSlug(publishTitle, listingCity),
       images: galleryImages,
       category: publishCategory,
       tags: attributesToTags(publishDraft),
-      description: aiDraft.description,
+      description: profileDraft.description,
       attributes: mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
       status: "active",
       sellerId: user.id,
       createdAt,
       expiresAt: defaultExpiresAt(createdAt),
-      contact: publishContact,
+      contact: finalContact,
       hasVideo: sellerHasVideo,
       vinVerified: vinOk,
       providerVerified:
-        aiDraft.category === "services" && isVerifiedServiceProvider(user),
-      minNegotiationPrice: aiDraft.minNegotiationPrice,
-      appraisalScore: aiDraft.appraisalScore,
-      isVerified: aiDraft.isVerified ?? true,
+        profileDraft.category === "services" && isVerifiedServiceProvider(user),
+      minNegotiationPrice: profileDraft.minNegotiationPrice,
+      appraisalScore: profileDraft.appraisalScore,
+      isVerified: profileDraft.isVerified ?? true,
       requiresReview: resolveListingRequiresReview(publishDraft, conductorPublish),
-      imageAlt: aiDraft.imageAlt,
-      imageTitle: aiDraft.imageTitle,
+      imageAlt: profileDraft.imageAlt,
+      imageTitle: profileDraft.imageTitle,
     }),
       conductorPublish
     );
