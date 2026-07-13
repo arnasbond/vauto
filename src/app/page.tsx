@@ -4,8 +4,6 @@
 
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 
-import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
-
 import { ListingGrid } from "@/components/ListingGrid";
 
 import { HeroSection, ContentSection } from "@/components/HeroSection";
@@ -27,7 +25,6 @@ import { ZeroUiViewTransition } from "@/components/zero-ui/ZeroUiViewTransition"
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
-import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 
 import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
@@ -44,13 +41,11 @@ import { subscribeHomeReset } from "@/lib/home-reset";
 function MarketplaceView() {
 
   const { rankedListings } = useVauto();
-  const { sellerStep } = useSellerFlow();
   const { searchQuery, searchLoading } = useVautoSearch();
   const { messages, busy: agentBusy } = useVautoAgent();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
-  const inSellerFlow = sellerStep !== "idle";
   const hasSearch = searchQuery.trim().length >= 3;
   const hasAgentTurn =
     agentBusy || messages.some((m) => m.role === "user");
@@ -67,18 +62,11 @@ function MarketplaceView() {
       minimal
       header={
         <>
-          {inSellerFlow ? (
-            <TopAiCommandChrome
-              sticky={false}
-              className="mb-0 border-none bg-transparent px-0 pb-0 pt-0 backdrop-blur-none"
-            />
-          ) : (
-            <HomeAiHero
-              compact={compactHero}
-              seedQuery={seedQuery}
-              onSeedConsumed={() => setSeedQuery(null)}
-            />
-          )}
+          <HomeAiHero
+            compact={compactHero}
+            seedQuery={seedQuery}
+            onSeedConsumed={() => setSeedQuery(null)}
+          />
           {emptySearchMode && (
             <SearchEmptyAssistantBanner searchQuery={searchQuery.trim()} />
           )}
@@ -91,7 +79,7 @@ function MarketplaceView() {
 
   const browseSection = (
     <>
-      {!compactHero && !inSellerFlow && (
+      {!compactHero && (
         <div id="browse-section" className="scroll-mt-24">
           <AiFirstBrowsePrompt />
         </div>

@@ -28,9 +28,9 @@ export function resolveAgentFlowPhase(
   }
 }
 
-/** Persistent bottom composer — seller wizard/processing on any route (incl. /add overlay). */
-export function shouldShowFlowAgentComposer(phase: AgentFlowPhase): boolean {
-  return phase === "listing_wizard" || phase === "listing_processing";
+/** Persistent bottom composer — disabled; conversation lives in HomeAiHero stream only. */
+export function shouldShowFlowAgentComposer(_phase: AgentFlowPhase): boolean {
+  return false;
 }
 
 const BROWSE_AI_PATH_PREFIXES = ["/", "/search", "/discover", "/fashion"];

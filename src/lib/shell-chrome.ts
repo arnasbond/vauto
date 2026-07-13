@@ -1,5 +1,4 @@
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
-import { shouldShowFlowAgentComposer } from "@/lib/agent-flow-phase";
 import type { SellerFlowStep } from "@/lib/types";
 
 export type CommandBarPlacement = "hero" | "top" | "inline" | "wizard" | "none";
@@ -34,7 +33,6 @@ export function resolveShellChrome(opts: {
 }): ShellChromeState {
   const homeHasSearch = opts.searchQuery.trim().length >= 3;
   const isHome = opts.pathname === "/" || opts.pathname === "";
-  const wizardBubble = shouldShowFlowAgentComposer(opts.phase);
   const browseIdle = opts.sellerStep === "idle" && !opts.agentSheetOpen;
 
   const showTopCommand = browseIdle && isTopCommandRoute(opts.pathname);
@@ -42,25 +40,21 @@ export function resolveShellChrome(opts: {
     isHome && browseIdle && !homeHasSearch;
 
   const hideBottomNav =
-    wizardBubble ||
     opts.agentSheetOpen ||
-    opts.sellerStep === "processing" ||
-    opts.sellerStep === "confirmation";
+    opts.sellerStep === "processing";
 
-  const hideSiteFooter = wizardBubble || opts.sellerStep === "confirmation";
+  const hideSiteFooter = false;
 
-  const contentBottomClass = wizardBubble
-    ? "pb-[calc(4.5rem+env(safe-area-inset-bottom))]"
-    : opts.agentSheetOpen
-      ? "pb-[calc(7rem+env(safe-area-inset-bottom))]"
-      : hideBottomNav
-        ? "pb-[calc(2rem+env(safe-area-inset-bottom))]"
-        : "pb-28";
+  const contentBottomClass = opts.agentSheetOpen
+    ? "pb-[calc(7rem+env(safe-area-inset-bottom))]"
+    : hideBottomNav
+      ? "pb-[calc(2rem+env(safe-area-inset-bottom))]"
+      : "pb-28";
 
   return {
     showTopCommand,
     showHomeHero,
-    showWizardBubble: wizardBubble,
+    showWizardBubble: false,
     hideBottomNav,
     hideSiteFooter,
     contentBottomClass,

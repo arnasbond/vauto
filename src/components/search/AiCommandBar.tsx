@@ -92,7 +92,6 @@ export function AiCommandBar({
     user,
     chameleonTheme,
     listings,
-    startListingFromQuery,
   } = useVauto();
   const { sellerStep, sellerVisionRecoveryActive, submitSellerClarification } = useSellerFlow();
   const {
@@ -236,11 +235,6 @@ export function AiCommandBar({
         return;
       }
 
-      if (startListingFromQuery(q)) {
-        setDraftQuery(q);
-        return;
-      }
-
       setDraftQuery(q);
       clearVisualSearch({ keepInputMode: true });
       setSearchLoading(true);
@@ -283,7 +277,6 @@ export function AiCommandBar({
       pathname,
       trackEvent,
       wardrobeSearchOnly,
-      startListingFromQuery,
       listings,
       openWithGreeting,
     ]

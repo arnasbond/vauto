@@ -34,6 +34,7 @@ import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } fro
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
 import { writeListingEditSession } from "@/lib/listing-edit-session";
+import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-draft";
 import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
 import { resolveListingCity, normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
@@ -433,7 +434,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       } else {
         setSellerInputMode((prev) => prev ?? "upload");
       }
-      setSellerStep("confirmation");
+      setSellerStep("idle");
       showToast(
         opts?.toastMessage ?? VISION_RECOGNITION_FAILED_MESSAGE,
         "info"
@@ -471,14 +472,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
       setSellerInputMode(opts.inputMode ?? "upload");
       setSellerUserPrompt(null);
-      setSellerStep("confirmation");
+      setSellerStep("idle");
       setChameleonTheme("flux");
 
       pushAgentGreeting(VISION_CONVERSATIONAL_RECOVERY_PROMPT, {
         replaceThread: true,
-        openSheet: true,
       });
-      requestWizardAgentExpand();
 
       showToast("Asistentas padės užbaigti — parašykite kelis žodžius.", "info");
       logAiSafeguard("fallback_triggered", {
@@ -908,13 +907,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           categoryMismatchPendingRef.current = null;
           photoReplaceSnapshotRef.current = null;
           setSellerUserPrompt(opts?.transcript?.trim() || null);
-          setAiDraft(syncDraftWithProfile(finalized));
+          const sourceText =
+            opts?.transcript?.trim() ||
+            opts?.extraContext?.trim() ||
+            "";
+          const cleaned = stripHallucinatedListingDefaults(
+            syncDraftWithProfile(finalized),
+            sourceText
+          );
+          setAiDraft(cleaned);
         }
 
         setSellerVisionRecoveryActive(false);
         recoveryImageRef.current = null;
 
-        setSellerStep("confirmation");
+        setSellerStep("idle");
 
         if (
           finalized.conversationalHints?.hasVisibleDefects &&
@@ -979,13 +986,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         setAiDraft(finalized);
         setSellerInputMode("text");
         setSellerUserPrompt(trimmed);
-        setSellerStep("confirmation");
+        setSellerStep("idle");
         setChameleonTheme(finalized.category === "clothing" ? "wardrobe" : "flux");
         pushAgentGreeting(
-          "Puiku — užpildžiau pagal jūsų aprašymą. Patikrinkite laukus ir tęskime pokalbį.",
-          { openSheet: true }
+          "Puiku — tęskime pokalbiu. Ką dar norėtumėte patikslinti prieš publikuojant?",
+          { replaceThread: false }
         );
-        requestWizardAgentExpand();
         return true;
       }
 
@@ -1129,7 +1135,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (imageUrl) setSellerPreviewImage(imageUrl);
       setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
-      setSellerStep("confirmation");
+      setSellerStep("idle");
       const detectedBarcode = resolveBarcodeFromAttributes(
         enriched.attributes ?? {},
         sourceText
@@ -1143,16 +1149,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         vehicleAttrs?.make &&
         vehicleAttrs?.model &&
         vehicleAttrs?.year;
-      showToast(
-        prefilled
-          ? `AI užpildė ${vehicleAttrs.make} ${vehicleAttrs.model} ${vehicleAttrs.year} — patvirtinkite arba pataisykite.`
-          : "AI paruošė skelbimą — patvirtinkite arba pataisykite.",
-        "success"
-      );
-      const addPath =
-        enriched.category === "clothing" ? "/add/?vertical=fashion" : "/add/";
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
-        router.push(addPath);
+      if (prefilled) {
+        showToast(
+          `AI atpažino ${vehicleAttrs.make} ${vehicleAttrs.model} ${vehicleAttrs.year} — tęskime pokalbį.`,
+          "success"
+        );
       }
       if (imageUrl) {
         notifyAgentFlow({
@@ -1160,11 +1161,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           objectLabel: enriched.title || enriched.description?.slice(0, 48) || "",
           category: enriched.category,
         });
-      } else if (enriched.category !== "clothing") {
-        notifyAgentFlow({ kind: "listing_wizard_opened", category: enriched.category });
       }
     },
-    [requireAuthForListing, setChameleonTheme, showToast, router, syncDraftWithProfile]
+    [requireAuthForListing, setChameleonTheme, showToast, syncDraftWithProfile]
   );
 
   const applyAgentWardrobeBulk = useCallback(
@@ -1193,21 +1192,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setSellerUserPrompt(opts?.voiceAnnouncement ?? mergedDraft.title);
       if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
       setChameleonTheme("wardrobe");
-      setSellerStep("confirmation");
+      setSellerStep("idle");
       showToast(
         opts?.voiceAnnouncement ??
           (items.length > 1
-            ? `AI aptiko ${items.length} drabužius — patvirtinkite skelbimus.`
-            : "AI paruošė drabužio skelbimą — patvirtinkite arba pataisykite."),
+            ? `AI aptiko ${items.length} drabužius — tęskime pokalbį.`
+            : "AI paruošė drabužio skelbimą — tęskime pokalbį."),
         "success"
       );
-      const addPath = "/add/?vertical=fashion";
-      if (typeof window !== "undefined" && !window.location.pathname.startsWith("/add")) {
-        router.push(addPath);
-      }
-      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
     },
-    [requireAuthForListing, setChameleonTheme, showToast, router, user.phone, user.city, syncDraftWithProfile]
+    [requireAuthForListing, setChameleonTheme, showToast, user.phone, user.city, syncDraftWithProfile]
   );
 
   const stageWardrobeBulkPreview = useCallback(
@@ -1255,7 +1249,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           setSellerInputMode("text");
           setSellerUserPrompt(enriched.description ?? "");
           setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
-          setSellerStep("confirmation");
+          setSellerStep("idle");
         } else {
           setSellerStep("idle");
         }
@@ -1274,18 +1268,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const startListingFromQuery = useCallback(
-    (text: string) => {
-      const trimmed = text.trim();
-      if (!trimmed || resolveBrowseAllIntent(trimmed)) return false;
-      if (!detectSellerListingIntent(trimmed)) return false;
-      if (!requireAuthForListing("/add")) {
-        setPendingSellerQuery(trimmed);
-        return true;
-      }
-      void submitSellerContent({ text: trimmed });
-      return true;
+    (_text: string) => {
+      return false;
     },
-    [requireAuthForListing, submitSellerContent]
+    []
   );
 
   const consumePendingSellerQuery = useCallback(() => {
@@ -1346,7 +1332,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     if (!snap) return false;
     setAiDraft(snap.draft);
     setSellerPreviewImage(snap.previewImage);
-    setSellerStep("confirmation");
+    setSellerStep("idle");
     setSellerUserPrompt(null);
     setPhotoCategoryMismatch(null);
     categoryMismatchRollbackRef.current = null;
@@ -1366,7 +1352,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     photoReplaceSnapshotRef.current = null;
     setPhotoCategoryMismatch(null);
     setSellerUserPrompt(null);
-    setSellerStep("confirmation");
+    setSellerStep("idle");
     showToast("Kategorija pakeista į elektroniką.", "info");
   }, [showToast, syncDraftWithProfile]);
 

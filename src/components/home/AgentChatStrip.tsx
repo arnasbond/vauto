@@ -42,7 +42,7 @@ export function AgentChatStrip() {
 
   const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
 
-  const { aiDraft, publishListing, isPublishingListing, sellerStep } = useSellerFlow();
+  const { aiDraft, publishListing, isPublishingListing } = useSellerFlow();
 
 
 
@@ -108,7 +108,7 @@ export function AgentChatStrip() {
 
       (draftReady || /\b(pavadinimas|aprašymas|kaina)\b/i.test(lastAssistant));
 
-    return draftReady && (assistantReady || sellerStep === "confirmation");
+    return draftReady && assistantReady;
 
   })();
 

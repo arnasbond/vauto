@@ -201,7 +201,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     activateWardrobeSpinta,
     sellerAnalytics,
     buyerIntentCount,
-    startListingFromQuery,
     applyVisualSearch,
   } = useVauto();
   const {
@@ -501,8 +500,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         const draft = mapAgentDraftToListing(actions.listingDraft);
         applyAgentListingDraft(draft, actions.imageUrl);
-        navigateToAdd(draft.category === "clothing");
-        setOpen(true);
       }
       if (actions.type === "wardrobe_bulk") {
         const items = mapAgentWardrobeItems(actions.items);
@@ -1052,28 +1049,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: quickReply.reply };
       }
 
-      if (
-        !options?.fromSearchBar &&
-        !resolveBrowseAllIntent(trimmed) &&
-        detectSellerListingIntent(trimmed) &&
-        sellerStep === "idle"
-      ) {
-        const fashion = looksLikeClothingListing(trimmed);
-        const started = startListingFromQuery(trimmed);
-        if (started) {
-          const reply = fashion
-            ? "Puiku! Pradėkime — papasakokite apie prekę arba įkelkite nuotrauką, ir aš paruošiu skelbimą pokalbiu."
-            : "Gerai, pradedame skelbimą — papasakokite laisvai, ką parduodate, ir aš viską surinksiu fone.";
-          setMessages((prev) => [
-            ...prev,
-            { role: "user", text: trimmed },
-            { role: "assistant", text: reply },
-          ]);
-          touchAgentSessionActivity();
-          return { ok: true, reply };
-        }
-      }
-
       const lastActiveAt = readAgentSessionLastActiveAt();
       const sessionExpired =
         isAgentSessionExpired(lastActiveAt) && messages.length > 1;
@@ -1469,7 +1444,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       aiDraft,
       sellerStep,
       sellerWizardContext,
-      startListingFromQuery,
       trackEvent,
       getBehaviorSnapshot,
       teardownVoiceAfterUiAction,
