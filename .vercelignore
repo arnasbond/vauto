@@ -1,3 +1,4 @@
 # Static export — all API traffic proxies to Render via vercel.json rewrites.
 # Never deploy legacy /api serverless handlers (Hobby plan: max 12 functions).
-api/
+# Root-only: do not use bare `api/` — it also strips src/lib/api/* from the build.
+/api/
