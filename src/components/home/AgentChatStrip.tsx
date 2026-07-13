@@ -96,7 +96,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     el.scrollTop = el.scrollHeight;
   }, [renderMessages.length, busy, lastAssistant]);
 
-  if (!renderMessages.length && !busy) return null;
+  const hasUserTurn = messages.some((m) => m.role === "user");
+  if (!hasUserTurn && !busy) return null;
 
   return (
     <div

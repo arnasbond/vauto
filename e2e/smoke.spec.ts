@@ -181,9 +181,14 @@ test.describe("VAUTO smoke", () => {
   });
 
   test("home AI assistant strip is visible", async ({ page }) => {
+    test.setTimeout(90_000);
+    await installSupervisorSearchMocks(page, "bmw");
     await waitForHomeReady(page);
+    const search = page.getByRole("searchbox").first();
+    await search.fill(supervisorSearchQuery("bmw"));
+    await search.press("Enter");
     await expect(page.getByText(/VAUTO asistentas/i).first()).toBeVisible({
-      timeout: 10_000,
+      timeout: 15_000,
     });
   });
 

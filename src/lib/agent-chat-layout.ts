@@ -102,13 +102,13 @@ export function resolveVisibleAgentBubbles(
   return out;
 }
 
-/** True when home chat strip is showing — hide duplicate top search bar. */
+/** True when user has started a home chat turn — hide duplicate top search bar. */
 export function isHomeAgentChatActive(
   messages: AgentChatMessage[],
   busy: boolean
 ): boolean {
   if (busy) return true;
-  return resolveVisibleAgentBubbles(messages).length > 0;
+  return messages.some((m) => m.role === "user");
 }
 
 export function agentHasSupervisorReply(messages: AgentChatMessage[]): boolean {
