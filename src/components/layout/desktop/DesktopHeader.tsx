@@ -3,7 +3,15 @@
 import Link from "next/link";
 import Image from "next/image";
 import { usePathname } from "next/navigation";
-import { Building2, Home, LayoutGrid, MessageCircle, User } from "lucide-react";
+import {
+  Building2,
+  Home,
+  LayoutGrid,
+  MessageCircle,
+  Plus,
+  User,
+} from "lucide-react";
+import { NotificationBell } from "@/components/notifications/NotificationBell";
 import { useVauto } from "@/context/VautoContext";
 import { useChat } from "@/context/ChatContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
@@ -20,9 +28,23 @@ import {
 } from "@/lib/profile-type";
 
 const VAUTO_NAV = [
-  { href: "/", label: "Turgus", icon: Home },
-  { href: "/fashion/", label: "Spinta", icon: LayoutGrid },
+  { href: "/", label: "Skelbimai", icon: Home },
+  { href: "/mano-skelbimai/", label: "Mano skelbimai", icon: LayoutGrid },
   { href: "/chats/", label: "Pokalbiai", icon: MessageCircle },
+] as const;
+
+const INTENT_NAV = [
+  { href: "/", label: "Pirkti", match: (p: string) => p === "/" || p === "" },
+  { href: "/add/", label: "Parduoti", match: (p: string) => p.startsWith("/add") },
+  { href: "/verslui/", label: "Verslui", match: (p: string) => p.startsWith("/verslui") },
+  {
+    href: "/mano-skelbimai/",
+    label: "Viskas",
+    match: (p: string) =>
+      p.startsWith("/mano-skelbimai") ||
+      p.startsWith("/fashion") ||
+      p.startsWith("/discover"),
+  },
 ] as const;
 
 export function DesktopHeader() {
@@ -35,15 +57,36 @@ export function DesktopHeader() {
   const portalLinks = getAnonserNavLinks();
 
   return (
-    <header className="sticky top-0 z-40 border-b border-[var(--anonser-border)] bg-[var(--anonser-header-bg)]/95 backdrop-blur-md">
-      <div className="mx-auto flex h-[var(--anonser-header-height)] max-w-[var(--anonser-desktop-max)] items-center gap-6 px-6">
-        {/* Logo slot — anonser.lt + VAUTO */}
+    <header className="desktop-header sticky top-0 z-40 border-b border-[var(--anonser-border)] bg-[var(--anonser-header-bg)]/95 shadow-[0_1px_0_rgba(15,23,42,0.05),0_12px_40px_-20px_rgba(15,23,42,0.18)] backdrop-blur-xl">
+      <div className="border-b border-[var(--anonser-border)]/60 bg-[var(--anonser-surface-muted)]/45">
+        <div className="mx-auto flex max-w-[var(--anonser-desktop-max)] items-center justify-center gap-1.5 px-6 py-2">
+          {INTENT_NAV.map(({ href, label, match }) => {
+            const active = match(pathname);
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "rounded-full px-4 py-1.5 text-xs font-semibold tracking-wide transition",
+                  active
+                    ? "bg-[var(--anonser-card)] text-[var(--anonser-primary)] shadow-sm ring-1 ring-[var(--anonser-border)]"
+                    : "text-[var(--anonser-text-muted)] hover:bg-[var(--anonser-card)]/70 hover:text-[var(--anonser-text)]"
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
+
+      <div className="mx-auto flex h-16 max-w-[var(--anonser-desktop-max)] items-center gap-5 px-6">
         <div className="flex shrink-0 items-center gap-3">
           <a
             href={anonserUrl}
             target="_blank"
             rel="noopener noreferrer"
-            className="flex items-center gap-2 rounded-lg px-2 py-1 text-sm font-semibold text-[var(--anonser-text-muted)] transition hover:bg-[var(--anonser-surface-muted)] hover:text-[var(--anonser-text)]"
+            className="flex items-center gap-2 rounded-lg px-2 py-1.5 text-sm font-medium text-[var(--anonser-text-muted)] transition hover:bg-[var(--anonser-surface-muted)] hover:text-[var(--anonser-text)]"
             title="Grįžti į anonser.lt"
           >
             {logoSrc ? (
@@ -62,21 +105,22 @@ export function DesktopHeader() {
             )}
             <span className="hidden lg:inline">anonser.lt</span>
           </a>
-          <span className="text-[var(--anonser-border)]">/</span>
+          <span className="text-[var(--anonser-border)]" aria-hidden>
+            /
+          </span>
           <Link
             href="/"
-            className="font-display text-lg font-bold tracking-tight text-[var(--anonser-text)]"
+            className="font-display text-xl font-bold tracking-tight text-[var(--anonser-text)]"
           >
             VAUTO
           </Link>
         </div>
 
-        {/* Portal back-links */}
         <nav
-          className="hidden items-center gap-1 xl:flex"
+          className="hidden items-center gap-0.5 xl:flex"
           aria-label="anonser.lt navigacija"
         >
-          {portalLinks.slice(1).map((link) => (
+          {portalLinks.slice(1, 5).map((link) => (
             <a
               key={link.href}
               href={link.href}
@@ -89,7 +133,6 @@ export function DesktopHeader() {
           ))}
         </nav>
 
-        {/* VAUTO primary nav */}
         <nav className="ml-auto flex items-center gap-1" aria-label="VAUTO">
           {VAUTO_NAV.map(({ href, label, icon: Icon }) => {
             const active =
@@ -102,9 +145,9 @@ export function DesktopHeader() {
                 key={href}
                 href={href}
                 className={cn(
-                  "relative flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition",
+                  "relative flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition",
                   active
-                    ? "bg-[var(--anonser-primary-soft)] text-[var(--anonser-primary)]"
+                    ? "bg-[var(--anonser-primary-soft)] text-[var(--anonser-primary)] shadow-sm"
                     : "text-[var(--anonser-text-muted)] hover:bg-[var(--anonser-surface-muted)] hover:text-[var(--anonser-text)]"
                 )}
               >
@@ -122,7 +165,7 @@ export function DesktopHeader() {
             <Link
               href="/verslui/"
               className={cn(
-                "flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition",
+                "flex items-center gap-2 rounded-xl px-3.5 py-2 text-sm font-medium transition",
                 pathname.startsWith("/verslui")
                   ? "bg-[var(--anonser-primary-soft)] text-[var(--anonser-primary)]"
                   : "text-[var(--anonser-text-muted)] hover:bg-[var(--anonser-surface-muted)]"
@@ -134,12 +177,19 @@ export function DesktopHeader() {
           )}
         </nav>
 
-        {/* Auth */}
         <div className="flex shrink-0 items-center gap-2 border-l border-[var(--anonser-border)] pl-4">
+          <Link
+            href="/add/"
+            className="hidden items-center gap-1.5 rounded-xl bg-[var(--anonser-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95 sm:inline-flex"
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Įdėti
+          </Link>
+          <NotificationBell />
           {isAuthenticated ? (
             <Link
               href={defaultCabinetPath(user?.profileType)}
-              className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium text-[var(--anonser-text)] transition hover:bg-[var(--anonser-surface-muted)]"
+              className="flex items-center gap-2 rounded-xl px-3 py-2 text-sm font-medium text-[var(--anonser-text)] transition hover:bg-[var(--anonser-surface-muted)]"
             >
               <User className="h-4 w-4" />
               <span className="max-w-[120px] truncate">
@@ -150,7 +200,7 @@ export function DesktopHeader() {
             <button
               type="button"
               onClick={() => openAuthModal("/")}
-              className="rounded-lg bg-[var(--anonser-primary)] px-4 py-2 text-sm font-semibold text-white transition hover:opacity-90"
+              className="rounded-xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] px-4 py-2 text-sm font-semibold text-[var(--anonser-text)] transition hover:border-[var(--anonser-primary)]/30 hover:text-[var(--anonser-primary)]"
             >
               Prisijungti
             </button>

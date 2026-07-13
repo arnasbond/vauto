@@ -8,20 +8,12 @@ import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { apiFetchUserNudges } from "@/lib/api/user-intelligence";
 import { isDataApiEnabled } from "@/lib/api/config";
 import type { AgentSearchFilters } from "@/lib/vauto-agent-client";
-import { AGENT_MIN_QUERY_CHARS } from "@/lib/vauto-agent-client";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import {
   buildBargainingInterventionMessage,
   buildNoMatchInterventionMessage,
 } from "@/lib/offer-engine-client";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
-
-const EMPTY_WARDROBE_GREETING =
-  "Matau, kad tavo spinta dar tuščia! Jei turi nereikalingų drabužių ar technikos — tiesiog nufotografuok, ir aš paruošiu skelbimą per 5 sekundes.";
-
-function buildWardrobeShortQueryIntervention(query: string): string {
-  return `Matau, kad ieškai kažko specifinio tavo spintoje („${query}"). Leisk man padėti — pasakyk dydį, spalvą ar prekės tipą, ir aš surasiu tau tinkamiausią variantą!`;
-}
 
 function toAgentFilters(state: MarketplaceFilterState, searchQuery: string): AgentSearchFilters {
   return {
@@ -45,7 +37,6 @@ export function LiveInterventionHost() {
     searchLoading,
     chameleonTheme,
     marketplaceFilters,
-    listings,
     user,
     isAuthenticated,
     sellerAnalytics,
@@ -55,7 +46,6 @@ export function LiveInterventionHost() {
   const { events, shouldFireIntervention } = useUserBehavior();
   const lastHandledEventId = useRef<string | null>(null);
   const noMatchTriggeredRef = useRef<string | null>(null);
-  const emptyWardrobeTriggeredRef = useRef(false);
   const proBusinessNudgeRef = useRef(false);
   const dbNudgeHandledRef = useRef<string | null>(null);
 
@@ -74,10 +64,6 @@ export function LiveInterventionHost() {
       });
     })();
   }, [isAuthenticated, open, agentBusy, shouldFireIntervention, openWithGreeting]);
-
-  const myClothingCount = listings.filter(
-    (l) => l.sellerId === user.id && l.category === "clothing" && l.status !== "sold"
-  ).length;
 
   const wardrobeMode =
     chameleonTheme === "wardrobe" ||
@@ -180,41 +166,6 @@ export function LiveInterventionHost() {
       });
       return;
     }
-
-    if (last.type === "search_submit" && last.payload.wardrobeMode) {
-      const query = String(last.payload.query ?? "").trim();
-      const len = query.length;
-      if (len >= AGENT_MIN_QUERY_CHARS && len < 12) {
-        const key = `wardrobe_short:${query}`;
-        if (!shouldFireIntervention(key)) return;
-        lastHandledEventId.current = last.id;
-        openWithGreeting(buildWardrobeShortQueryIntervention(query));
-      }
-      return;
-    }
-
-    if (
-      (last.type === "spinta_enter" || wardrobeMode) &&
-      isAuthenticated &&
-      myClothingCount === 0 &&
-      !emptyWardrobeTriggeredRef.current
-    ) {
-      const key = "empty_wardrobe";
-      if (!shouldFireIntervention(key)) return;
-      lastHandledEventId.current = last.id;
-      emptyWardrobeTriggeredRef.current = true;
-      openWithGreeting(EMPTY_WARDROBE_GREETING);
-      void sendAgentMessage(EMPTY_WARDROBE_GREETING, {
-        skipBusyCheck: true,
-        proactiveTriggerOnly: true,
-        proactiveOffer: {
-          kind: "no_match",
-          query: "spinta",
-          wardrobeMode: true,
-        },
-      });
-      return;
-    }
   }, [
     events,
     open,
@@ -227,7 +178,6 @@ export function LiveInterventionHost() {
     shouldFireIntervention,
     triggerNoMatchOffer,
     isAuthenticated,
-    myClothingCount,
   ]);
 
   useEffect(() => {

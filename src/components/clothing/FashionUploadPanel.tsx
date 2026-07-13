@@ -128,12 +128,12 @@ export function FashionUploadPanel() {
 
   return (
     <>
-      <div className={`seller-upload-panel${busy ? " pointer-events-none opacity-50" : ""}`}>
+      <div className={`seller-upload-panel fashion-upload-desktop${busy ? " pointer-events-none opacity-50" : ""}`}>
         <button
           type="button"
           onClick={openBarcodeFlow}
           disabled={busy}
-          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#7c3aed] bg-[#faf5ff] py-3.5 text-sm font-bold text-[#6d28d9] shadow-sm disabled:opacity-50"
+          className="mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 border-[#7c3aed] bg-[#faf5ff] py-3.5 text-sm font-bold text-[#6d28d9] shadow-sm disabled:opacity-50 md:mb-0"
         >
           <Barcode className="h-5 w-5" />
           Skenuoti brūkšninį kodą nuo etiketės
@@ -143,7 +143,7 @@ export function FashionUploadPanel() {
           type="button"
           onClick={openPhotoFlow}
           disabled={busy}
-          className="seller-upload-primary-btn mb-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold shadow-sm disabled:opacity-50"
+          className="seller-upload-primary-btn upload-primary mb-3 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-sm font-semibold shadow-sm disabled:opacity-50"
         >
           <Camera className="h-5 w-5" />
           Įkelti nuotraukas (Spinta AI)
@@ -160,17 +160,17 @@ export function FashionUploadPanel() {
               if (res.actions && res.actions.type !== "none") applyAgentActions(res.actions);
             });
           }}
-          className="seller-upload-manual-btn mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3.5 text-sm font-bold shadow-sm disabled:opacity-50"
+          className="seller-upload-manual-btn mb-3 flex w-full items-center justify-center gap-2 rounded-xl border-2 py-3.5 text-sm font-bold shadow-sm disabled:opacity-50 md:mb-0"
         >
           <PenLine className="h-5 w-5" />
           Užpildyti ranka
         </button>
 
-        <p className="text-center text-sm text-[var(--vauto-text-muted)]">
+        <p className="upload-primary text-center text-sm text-[var(--vauto-text-muted)] md:col-span-2">
           <Sparkles className="mr-1 inline h-4 w-4 text-[var(--vauto-primary)]" />
           Nuskenuokite etiketės kodą — AI užpildys prekės ženklą ir paruoš stilingą aprašymą.
         </p>
-        <div className="mt-3 flex justify-center">
+        <div className="upload-primary mt-3 flex justify-center">
           <AiModeBadge />
         </div>
       </div>

@@ -18,9 +18,10 @@ interface DesktopHomeLayoutProps {
 const QUICK_CATEGORIES = [
   "Automobiliai",
   "Būstas",
+  "Darbas",
+  "Paslaugos",
   "Drabužiai",
   "Technika",
-  "Paslaugos",
 ] as const;
 
 /**

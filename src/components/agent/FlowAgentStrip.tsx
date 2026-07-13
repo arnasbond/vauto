@@ -85,7 +85,7 @@ export function FlowAgentStrip({
   return (
     <div
       className={cn(
-        "flow-agent-strip relative z-20 mx-4 mb-4 mt-2 rounded-2xl border px-3.5 py-3 shadow-lg",
+        "flow-agent-strip relative z-20 mx-4 mb-4 mt-2 min-w-0 rounded-2xl border px-3.5 py-3 shadow-lg md:mx-0 md:px-4 md:py-4",
         styles.border,
         styles.bg,
         className
@@ -103,7 +103,7 @@ export function FlowAgentStrip({
         VAUTO asistentas
       </div>
 
-      <div className="space-y-2.5">
+      <div className="agent-chat-strip-messages max-h-[min(48vh,24rem)] space-y-2.5 overflow-y-auto overscroll-contain md:max-h-[min(70vh,36rem)]">
         {renderMessages.map((m, i) => {
           const display = safeMessageText(m.text);
           if (m.role === "assistant" && isBlockedFallbackBubble(display)) {

@@ -44,7 +44,7 @@ export interface VautoAgentContext {
   myListings?: MyListingForAgent[];
   myListingsSummary?: string;
   lastError?: { code: string; message?: string };
-  wizardMode?: "listing_review" | "search" | "idle";
+  wizardMode?: "listing_review" | "listing_edit" | "search" | "idle";
   listingDraft?: {
     title?: string;
     description?: string;
@@ -84,8 +84,10 @@ export interface VautoAgentContext {
   behaviorHistory?: UserBehaviorEvent[];
   /** Proactive Offer Engine triggers from client (no-match grid, listing dwell, negotiate). */
   proactiveOffer?: import("@/lib/offer-engine-client").ProactiveOfferContext;
-  /** Pilna programos būsena — supervisor kontekstas kiekvienam Gemini kvietimui. */
+  /** SupervisorState — pilna programos būsena kiekvienam Gemini kvietimui. */
   supervisorState?: import("@/lib/supervisor-agent-state").SupervisorApplicationState;
+  /** Aktyvus skelbimo redagavimo seansas — pokalbiu, be formų. */
+  listingEditSession?: import("@/lib/listing-edit-session").ListingEditSession;
 }
 
 export interface AgentListingSnapshot {

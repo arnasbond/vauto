@@ -1,9 +1,7 @@
 "use client";
 
 import type { CategoryFieldDef } from "@/lib/adaptive-categories";
-import { CategoryFieldsEditor } from "@/components/adaptive-confirmation/CategoryFieldsEditor";
 import type { FlowUiSkinTokens } from "@/lib/flow-ui-skin";
-import { cn } from "@/lib/cn";
 
 interface DynamicAttributeBasketProps {
   fields: CategoryFieldDef[];
@@ -13,37 +11,7 @@ interface DynamicAttributeBasketProps {
   skin?: FlowUiSkinTokens;
 }
 
-/** AI-extracted attributes not covered by the static schema — universal basket rows. */
-export function DynamicAttributeBasket({
-  fields,
-  attributes,
-  onChange,
-  missingKeys = [],
-}: DynamicAttributeBasketProps) {
-  if (!fields.length) return null;
-
-  return (
-    <div
-      className={cn(
-        "mb-4 rounded-2xl border border-border bg-card p-4 text-foreground"
-      )}
-    >
-      <p
-        className={cn(
-          "mb-3 text-xs font-semibold uppercase tracking-wide text-primary"
-        )}
-      >
-        AI išgauti atributai
-      </p>
-      <CategoryFieldsEditor
-        fields={fields}
-        attributes={attributes}
-        onChange={onChange}
-        layout="stack"
-        missingKeys={missingKeys}
-        variant="inline"
-        appearance="light"
-      />
-    </div>
-  );
+/** AI-extracted attributes — invisible to users; state manager only. */
+export function DynamicAttributeBasket(_: DynamicAttributeBasketProps) {
+  return null;
 }

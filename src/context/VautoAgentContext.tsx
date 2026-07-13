@@ -133,6 +133,10 @@ import {
   isOnAddListingPath,
   pushAddListing,
 } from "@/lib/listing-navigation";
+import {
+  buildListingEditOpener,
+  readListingEditSession,
+} from "@/lib/listing-edit-session";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
@@ -1058,8 +1062,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const started = startListingFromQuery(trimmed);
         if (started) {
           const reply = fashion
-            ? "Puiku! Atidarau Tavo AI Spintą — užpildykime skelbimo formą kartu."
-            : "Gerai, pradedame skelbimą — patikrinkite laukus formoje.";
+            ? "Puiku! Pradėkime — papasakokite apie prekę arba įkelkite nuotrauką, ir aš paruošiu skelbimą pokalbiu."
+            : "Gerai, pradedame skelbimą — papasakokite laisvai, ką parduodate, ir aš viską surinksiu fone.";
           setMessages((prev) => [
             ...prev,
             { role: "user", text: trimmed },
@@ -1203,6 +1207,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           pendingImageUrls: activePendingImageUrls,
           currentUser,
         });
+        const listingEditSession = readListingEditSession();
         const agentBody = {
           messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
           context: {
@@ -1213,6 +1218,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               : memoryContext.activeSearchFilters,
             searchSessionReset,
             supervisorState,
+            listingEditSession: listingEditSession ?? undefined,
+            wizardMode: listingEditSession ? ("listing_edit" as const) : sellerWizardContext.wizardMode,
             monetization: resolveClientMonetizationState(user, activeBoost),
             userRole: resolveAgentUserRole(user),
             contact: user.phone || "+370 612 34567",
@@ -1561,6 +1568,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       registerAgentPendingImagesHost(null);
     };
   }, [openWithGreeting]);
+
+  const editSessionConsumedRef = useRef(false);
+  useEffect(() => {
+    if (editSessionConsumedRef.current || pathname !== "/") return;
+    const session = readListingEditSession();
+    if (!session) return;
+    editSessionConsumedRef.current = true;
+    openWithGreeting(buildListingEditOpener(session.title), { replaceThread: true });
+  }, [pathname, openWithGreeting]);
 
   const value = useMemo(
     () => ({

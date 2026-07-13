@@ -313,7 +313,7 @@ export function PortalLinksCenter({
       </div>
 
       {sectionOpen && (
-        <div id="portal-sync-panel" className="mt-3 space-y-2">
+        <div id="portal-sync-panel" className="portal-sync-grid mt-3 space-y-2 md:space-y-0">
           {portalList.map((portal) => {
             const linked = linkByKey.get(portal.key);
             const isSynced =
@@ -328,7 +328,7 @@ export function PortalLinksCenter({
               return (
                 <div
                   key={portal.key}
-                  className="flex items-center gap-2 rounded-2xl border border-border bg-accent px-3 py-2.5"
+                  className="flex items-center gap-2 rounded-2xl border border-border bg-accent px-3 py-2.5 md:col-span-1"
                 >
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-foreground">{portal.label}</p>
@@ -381,7 +381,7 @@ export function PortalLinksCenter({
               return (
                 <div
                   key={portal.key}
-                  className="rounded-2xl border border-border bg-accent p-3"
+                  className="rounded-2xl border border-border bg-accent p-3 md:col-span-2"
                 >
                   <p className="mb-2 text-xs font-medium text-foreground">
                     {portal.label} profilio nuoroda

@@ -71,10 +71,10 @@ export default function ProfilePage() {
             Prisijungti / Registruotis
           </button>
           <Link
-            href="/fashion/"
+            href="/mano-skelbimai/"
             className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-primary)_10%,transparent)] py-3 text-sm font-semibold text-[var(--vauto-primary)]"
           >
-            Atidaryti Spintą
+            Atidaryti Mano skelbimus
           </Link>
           {!nativeApp && (
             <Link

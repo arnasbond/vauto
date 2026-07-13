@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
+import { DesktopAddAside } from "@/components/layout/desktop/DesktopAddAside";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
 import { SellerUploadPanel } from "@/components/SellerUploadPanel";
@@ -17,6 +18,7 @@ import { enrichClothingListingDraft } from "@/lib/clothing-catalog";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { notifyAgentFlow } from "@/lib/vauto-agent-client";
 import { useAgentFlowPhase } from "@/hooks/useAgentFlowPhase";
+import { useLayoutMode } from "@/context/LayoutModeContext";
 import { isSellerFlowBlockingStaticUi } from "@/lib/agent-flow-phase";
 
 export default function AddPage() {
@@ -33,6 +35,7 @@ export default function AddPage() {
   } = useVauto();
   const { sendAgentMessage } = useVautoAgent();
   const flowPhase = useAgentFlowPhase();
+  const { isDesktop } = useLayoutMode();
   const blockStaticUi = isSellerFlowBlockingStaticUi(flowPhase);
   const [introOpen, setIntroOpen] = useState(false);
   const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
@@ -99,10 +102,10 @@ export default function AddPage() {
   if (!authHydrated) {
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-7xl">
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-none">
           <HeroSection>
-            <Header />
-            <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)]">
+            {!isDesktop && <Header />}
+            <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)] md:text-left">
               Kraunama…
             </p>
           </HeroSection>
@@ -114,10 +117,10 @@ export default function AddPage() {
   if (!isAuthenticated) {
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-7xl">
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-none">
           <HeroSection>
-            <Header />
-            <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
+            {!isDesktop && <Header />}
+            <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)] md:text-left">
               {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
             </h2>
             <p className="mt-3 px-6 text-center text-sm text-[var(--vauto-text-muted)]">
@@ -136,32 +139,45 @@ export default function AddPage() {
     );
   }
 
+  const uploadPanel = (
+    <>
+      {!isDesktop && <Header />}
+      <h2 className="font-display mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)] md:mt-0 md:text-left md:text-2xl">
+        {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
+      </h2>
+      <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)] md:text-left">
+        {fashionMode
+          ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
+          : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}
+      </p>
+      {!fashionMode && (
+        <div className="mt-5">
+          <SellerUploadPanel
+            autoOpenPhotoFlow={startAiAfterIntro}
+            onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
+          />
+        </div>
+      )}
+      {fashionMode && (
+        <div className="mt-5">
+          <FashionUploadPanel />
+        </div>
+      )}
+    </>
+  );
+
   return (
     <VautoAdaptiveLayout>
-      <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-7xl">
+      <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-none">
         {!blockStaticUi && (
           <HeroSection>
-            <Header />
-            <h2 className="font-display mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
-              {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
-            </h2>
-            <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)]">
-              {fashionMode
-                ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
-                : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}
-            </p>
-            {!fashionMode && (
-              <div className="mt-5">
-                <SellerUploadPanel
-                  autoOpenPhotoFlow={startAiAfterIntro}
-                  onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
-                />
+            {isDesktop ? (
+              <div className="desktop-add-grid">
+                <div className="desktop-add-card">{uploadPanel}</div>
+                <DesktopAddAside fashionMode={fashionMode} />
               </div>
-            )}
-            {fashionMode && (
-              <div className="mt-5">
-                <FashionUploadPanel />
-              </div>
+            ) : (
+              uploadPanel
             )}
           </HeroSection>
         )}

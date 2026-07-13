@@ -68,7 +68,9 @@
   --anonser-border: rgba(15, 23, 42, 0.1);
   --anonser-surface-muted: #e2e8f0;
   --anonser-header-bg: #ffffff;
-  --anonser-header-height: 4rem;
+  --anonser-header-utility-height: 2.5rem;
+  --anonser-header-main-height: 4rem;
+  --anonser-header-height: calc(var(--anonser-header-utility-height) + var(--anonser-header-main-height));
   --anonser-desktop-max: 80rem;
   --anonser-sidebar-width: 17.5rem;
 }
@@ -144,6 +146,85 @@
   --home-ai-chip-bg: var(--anonser-surface-muted);
   --home-ai-chip-text: var(--anonser-text);
   --home-ai-panel-bg: var(--anonser-card);
+}
+
+@media (min-width: 768px) {
+  .vauto-desktop-portal .seller-flow-page {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+  }
+
+  .vauto-desktop-portal .top-ai-command-chrome {
+    margin-left: 0;
+    margin-right: 0;
+    padding-left: 0;
+    padding-right: 0;
+    position: static;
+    border-bottom: none;
+    background: transparent;
+    backdrop-filter: none;
+  }
+
+  .vauto-desktop-portal .desktop-add-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 22rem) minmax(0, 1fr);
+    gap: 2.5rem;
+    align-items: start;
+  }
+
+  .vauto-desktop-portal .desktop-add-card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--anonser-border);
+    background: var(--anonser-card);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04), 0 12px 32px -16px rgba(15, 23, 42, 0.12);
+    padding: 1.75rem;
+  }
+
+  .vauto-desktop-portal .portal-sync-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.5rem;
+  }
+
+  .vauto-desktop-portal .fashion-upload-desktop {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.75rem;
+  }
+
+  .vauto-desktop-portal .fashion-upload-desktop .upload-primary {
+    grid-column: 1 / -1;
+  }
+
+  .vauto-desktop-portal .universal-listing-wizard .wizard-inner {
+    max-width: 72rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+
+  .vauto-desktop-portal .wardrobe-section-card {
+    border-radius: 1.25rem;
+    border: 1px solid var(--anonser-border);
+    background: var(--anonser-card);
+    box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  }
+
+  .vauto-desktop-portal .agent-chat-strip,
+  .vauto-desktop-portal .flow-agent-strip {
+    width: 100%;
+    min-width: 0;
+    overflow: visible;
+  }
+
+  .vauto-desktop-portal .agent-chat-strip-messages {
+    scrollbar-gutter: stable;
+  }
+
+  .vauto-desktop-portal .home-ai-hero-search {
+    max-width: none;
+  }
 }
 
 @theme inline {

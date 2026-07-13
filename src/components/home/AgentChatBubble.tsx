@@ -23,7 +23,7 @@ export function AgentChatBubble({
     >
       <div
         className={cn(
-          "agent-chat-bubble max-w-[min(100%,18.5rem)] break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed [overflow-wrap:anywhere]",
+          "agent-chat-bubble max-w-[min(100%,18.5rem)] break-words rounded-2xl px-3.5 py-2.5 text-[13px] leading-relaxed [overflow-wrap:anywhere] md:max-w-[min(100%,36rem)] md:text-[14px] lg:max-w-[min(100%,42rem)]",
           isUser
             ? "agent-chat-bubble-user rounded-br-md"
             : "agent-chat-bubble-assistant rounded-bl-md"

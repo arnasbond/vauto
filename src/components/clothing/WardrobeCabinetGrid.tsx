@@ -97,17 +97,17 @@ export function WardrobeCabinetGrid({
 
   if (clothing.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-800 bg-slate-900 px-6 py-14 text-center">
+      <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-14 text-center">
         <Sparkles className="mx-auto mb-3 h-8 w-8 text-[#09b1a8]" />
-        <p className="text-sm font-light text-white">
-          Tavo spinta dar tuščia — įkelk pirmą prekę ir aš padėsiu viską sutvarkyti.
+        <p className="text-sm text-slate-600">
+          Dar neturite skelbimų — pradėkite pokalbį pagrindiniame puslapyje.
         </p>
       </div>
     );
   }
 
   return (
-    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+    <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6">
       {clothing.map((listing) => (
         <WardrobeShelfCard
           key={listing.id}

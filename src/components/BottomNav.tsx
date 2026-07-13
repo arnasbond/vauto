@@ -20,8 +20,6 @@ import { cn } from "@/lib/cn";
 import {
   cabinetNavLabel,
   defaultCabinetPath,
-  isBusinessProfile,
-  isPrivateProfile,
 } from "@/lib/profile-type";
 
 const TAB_CLASS =
@@ -40,7 +38,6 @@ export function BottomNav() {
     openAuthModal,
     requireAuthForListing,
     clearVisualSearch,
-    activateWardrobeSpinta,
   } = useVauto();
   const { unreadAdminCount, unreadUserReportCount } = useModeration();
   const { sellerStep, cancelSellerFlow } = useSellerFlow();
@@ -111,12 +108,12 @@ export function BottomNav() {
 
   const homeActive = pathname === "/" || pathname === "";
   const spintaActive =
+    pathname === "/mano-skelbimai" ||
+    pathname.startsWith("/mano-skelbimai/") ||
     pathname === "/fashion" ||
     pathname.startsWith("/fashion/") ||
     pathname === "/auth-gate" ||
-    pathname.startsWith("/auth-gate/") ||
-    (isBusinessProfile(user) &&
-      (pathname === "/profile" || pathname.startsWith("/profile/")));
+    pathname.startsWith("/auth-gate/");
   const messagesActive =
     pathname === "/messages" ||
     pathname.startsWith("/messages/") ||
@@ -132,10 +129,7 @@ export function BottomNav() {
 
   const handlePlaceAd = () => {
     if (placeAdBusy) return;
-    const addPath =
-      spintaActive && isPrivateProfile(user)
-        ? "/add/?vertical=fashion"
-        : "/add/";
+    const addPath = "/add/";
     if (!requireAuthForListing(addPath)) return;
     router.push(addPath);
   };
@@ -161,19 +155,16 @@ export function BottomNav() {
       router.push("/auth-gate/");
       return;
     }
-    if (isPrivateProfile(user)) {
-      e.preventDefault();
-      setSearchQuery("");
-      setSearchLoading(false);
-      clearAgentPinnedListings();
-      resetMarketplaceFilters();
-      clearVisualSearch();
-      setSearchInputMode(null);
-      setSearchVoiceMode(false);
-      dispatchHomeReset();
-      activateWardrobeSpinta();
-      router.push("/fashion/mine/");
-    }
+    e.preventDefault();
+    setSearchQuery("");
+    setSearchLoading(false);
+    clearAgentPinnedListings();
+    resetMarketplaceFilters();
+    clearVisualSearch();
+    setSearchInputMode(null);
+    setSearchVoiceMode(false);
+    dispatchHomeReset();
+    router.push("/mano-skelbimai/");
   };
 
   const tabColor = (active: boolean) =>

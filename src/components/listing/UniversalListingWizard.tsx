@@ -192,7 +192,7 @@ export function UniversalListingWizard({
       )}
       style={{ backgroundColor: skin.shellBg }}
     >
-      <div className="mx-auto w-full max-w-lg min-h-screen pb-36">
+      <div className="wizard-inner mx-auto w-full max-w-lg min-h-screen pb-36 md:max-w-6xl lg:max-w-7xl">
         <div
           className={cn(
             "sticky top-0 z-10 flex items-center justify-between border-b px-4 py-3",
@@ -224,22 +224,26 @@ export function UniversalListingWizard({
           </button>
         </div>
 
-        <FlowAgentStrip variant={stripVariant} category={draft.category} />
+        <div className="wizard-body md:grid md:grid-cols-[minmax(0,1fr)_22rem] md:gap-6 md:px-4">
+        <FlowAgentStrip
+          variant={stripVariant}
+          category={draft.category}
+          className="md:col-start-2 md:row-start-1 md:row-span-2 md:mx-0 md:sticky md:top-[calc(var(--anonser-header-height,6.5rem)+1rem)] md:self-start"
+        />
 
-        {hasActivePhotoCategoryMismatch(photoCategoryMismatch) &&
-        onPhotoMismatchRevert &&
-        onPhotoMismatchAccept ? (
-          <div className="px-4 pt-3">
-            <PhotoCategoryMismatchBanner
-              fromCategory={photoCategoryMismatch.fromCategory}
-              toCategory={photoCategoryMismatch.toCategory}
-              onRevert={onPhotoMismatchRevert}
-              onAccept={onPhotoMismatchAccept}
-            />
-          </div>
-        ) : null}
-
-        <div className="px-4 pt-3">
+        <div className="wizard-form-column px-4 pt-3 md:col-start-1 md:row-start-1 md:px-0">
+          {hasActivePhotoCategoryMismatch(photoCategoryMismatch) &&
+          onPhotoMismatchRevert &&
+          onPhotoMismatchAccept ? (
+            <div className="pb-3">
+              <PhotoCategoryMismatchBanner
+                fromCategory={photoCategoryMismatch.fromCategory}
+                toCategory={photoCategoryMismatch.toCategory}
+                onRevert={onPhotoMismatchRevert}
+                onAccept={onPhotoMismatchAccept}
+              />
+            </div>
+          ) : null}
           <PhotoClarificationPanel
             draft={draft}
             onSelectChip={(chip) => {
@@ -356,6 +360,7 @@ export function UniversalListingWizard({
             onPhotoMismatchRevert={onPhotoMismatchRevert}
             onPhotoMismatchAccept={onPhotoMismatchAccept}
           />
+        </div>
         </div>
       </div>
     </div>

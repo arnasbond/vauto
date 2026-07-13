@@ -123,7 +123,7 @@ function ChatThreadContent({
     <div
       className={
         embedded
-          ? "mx-auto flex h-[calc(100dvh-14rem)] w-full flex-col rounded-2xl bg-white px-4 py-3 md:px-6"
+          ? "mx-auto flex h-full min-h-[28rem] max-h-[calc(100dvh-14rem)] w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white px-4 py-3 md:px-6"
           : "mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6"
       }
     >

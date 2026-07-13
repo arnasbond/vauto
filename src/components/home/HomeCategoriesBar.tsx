@@ -5,8 +5,11 @@ import { cn } from "@/lib/cn";
 
 const CATEGORIES = [
   { emoji: "🚗", label: "Automobiliai", query: "Automobiliai" },
-  { emoji: "🏠", label: "Nekilnojamasis turtas", query: "Būstas" },
-  { emoji: "📱", label: "Telefonai ir technika", query: "Telefonai ir technika" },
+  { emoji: "🏠", label: "Būstas", query: "Būstas" },
+  { emoji: "💼", label: "Darbas", query: "ieškau darbo" },
+  { emoji: "🔧", label: "Paslaugos", query: "Paslaugos" },
+  { emoji: "👗", label: "Drabužiai", query: "Drabužiai" },
+  { emoji: "📱", label: "Technika", query: "Telefonai ir technika" },
 ] as const;
 
 export function HomeCategoriesBar({ className }: { className?: string }) {
@@ -14,7 +17,7 @@ export function HomeCategoriesBar({ className }: { className?: string }) {
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="flex gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <div className="flex gap-2 overflow-x-auto pb-1 md:flex-wrap md:overflow-visible [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         {CATEGORIES.map(({ emoji, label, query }) => (
           <button
             key={label}

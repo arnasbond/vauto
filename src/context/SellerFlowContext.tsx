@@ -33,6 +33,7 @@ import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch, listingToDraft } from "@/lib/listing-edit";
+import { writeListingEditSession } from "@/lib/listing-edit-session";
 import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
 import { resolveListingCity, normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
@@ -1863,17 +1864,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Neturite teisių redaguoti šio skelbimo.", "error");
         return;
       }
-      setEditingListingId(listing.id);
-      setAiDraft(listingToDraft(listing));
-      setSellerPreviewImage(listing.images[0] ?? null);
-      setSellerVideoUrl("");
-      setSellerHasVideo(Boolean(listing.hasVideo));
-      setAiManualFallback(true);
-      setSellerInputMode("upload");
-      setListingSocialPublish(readSocialPublishFromAttributes(listing.attributes));
-      setSellerStep("confirmation");
+      resetSellerFlow();
+      writeListingEditSession({
+        listingId: listing.id,
+        title: listing.title,
+        price: listing.price,
+        description: listing.description ?? "",
+        location: listing.location,
+        category: listing.category,
+        attributes: listing.attributes ?? {},
+      });
+      router.push("/");
     },
-    [user.id, showToast]
+    [user.id, showToast, resetSellerFlow, router]
   );
 
   const updateSellerMedia = useCallback(

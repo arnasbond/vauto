@@ -3,8 +3,6 @@
 
 
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
-import { DesktopHomeLayout } from "@/components/layout/desktop/DesktopHomeLayout";
-import { useLayoutMode } from "@/context/LayoutModeContext";
 
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 
@@ -49,7 +47,6 @@ function MarketplaceView() {
   const { sellerStep } = useSellerFlow();
   const { searchQuery, searchLoading } = useVautoSearch();
   const { messages, busy: agentBusy } = useVautoAgent();
-  const { isDesktop } = useLayoutMode();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
@@ -108,17 +105,8 @@ function MarketplaceView() {
   return (
     <>
       <SearchResultsFocus />
-      {/* Single content mount — desktop B2B split OR mobile column (never both) */}
-      {isDesktop ? (
-        <DesktopHomeLayout header={<HeroSection>{heroBlock}</HeroSection>}>
-          <ContentSection>{browseSection}</ContentSection>
-        </DesktopHomeLayout>
-      ) : (
-        <>
-          <HeroSection>{heroBlock}</HeroSection>
-          <ContentSection>{browseSection}</ContentSection>
-        </>
-      )}
+      <HeroSection>{heroBlock}</HeroSection>
+      <ContentSection>{browseSection}</ContentSection>
     </>
   );
 }

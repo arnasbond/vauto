@@ -39,21 +39,18 @@ export function needsProfileTypeSelection(
   return user.profileType !== "private" && user.profileType !== "business";
 }
 
-export function cabinetNavLabel(profileType?: ProfileType | null): string {
-  if (profileType === "business") return "Skelbimai";
-  if (profileType === "private") return "Mano spinta";
-  return "Asortimentas";
+export function cabinetNavLabel(_profileType?: ProfileType | null): string {
+  return "Mano skelbimai";
 }
 
-export function cabinetSectionTitle(profileType?: ProfileType | null): string {
-  if (profileType === "business") return "Mano skelbimai / Paslaugos";
-  if (profileType === "private") return "Mano spinta";
-  return "Mano asortimentas";
+export function cabinetSectionTitle(_profileType?: ProfileType | null): string {
+  return "Mano skelbimai";
 }
 
 export function defaultCabinetPath(profileType?: ProfileType | null): string {
-  if (profileType === "business") return "/profile/";
-  if (profileType === "private") return "/fashion/mine/";
+  if (profileType === "business" || profileType === "private") {
+    return "/mano-skelbimai/";
+  }
   return "/auth-gate/";
 }
 
