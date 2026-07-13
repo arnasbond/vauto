@@ -1650,15 +1650,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     );
 
     let published = newListing;
-    setListings((prev) => [newListing, ...prev]);
-    setLastPublishedListing(newListing);
-    setSellerStep("published");
-    showToast(
-      newListing.requiresReview
-        ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
-        : "Skelbimas sėkmingai įkeltas!",
-      newListing.requiresReview ? "info" : "success"
-    );
 
     if (isDataApiEnabled()) {
       void apiUpdateUser({
@@ -1667,16 +1658,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }).catch(() => {
         /* profile sync is best-effort — must not block publish */
       });
+
       const createRes = await apiCreateListing(newListing, user.id);
-      if (!createRes.ok) {
-        setListings((prev) => prev.filter((l) => l.id !== newListing.id));
-        setLastPublishedListing(null);
+      if (!createRes.ok || !createRes.data?.id?.trim()) {
         setSellerStep("confirmation");
-        const msg = `Nepavyko publikuoti: ${createRes.error}`;
+        const msg = `Nepavyko publikuoti: ${createRes.ok ? "server grąžino neteisingą atsakymą" : createRes.error}`;
         setSyncError(msg);
         showToast(msg, "error");
+        pushAgentGreeting(msg, { openSheet: true });
         return;
       }
+
       published = withDefaultExpiry({
         ...createRes.data,
         category: publishCategory,
@@ -1684,11 +1676,30 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         images: newListing.images.length ? newListing.images : createRes.data.images,
         slug: createRes.data.slug ?? newListing.slug,
       });
-      setListings((prev) =>
-        prev.map((l) => (l.id === newListing.id ? published : l))
-      );
+
+      // Only now we finalize local UI state as "published".
+      setListings((prev) => [published, ...prev]);
       setLastPublishedListing(published);
+      setSellerStep("published");
+      showToast(
+        published.requiresReview
+          ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
+          : "Skelbimas sėkmingai įkeltas!",
+        published.requiresReview ? "info" : "success"
+      );
+
       await refreshListingsCatalog();
+    } else {
+      // Demo/local mode: publish immediately.
+      setListings((prev) => [newListing, ...prev]);
+      setLastPublishedListing(newListing);
+      setSellerStep("published");
+      showToast(
+        newListing.requiresReview
+          ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
+          : "Skelbimas sėkmingai įkeltas!",
+        newListing.requiresReview ? "info" : "success"
+      );
     }
 
     scheduleSellerEngagementPush(published.id, published.location, published.title, {
