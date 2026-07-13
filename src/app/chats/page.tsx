@@ -50,6 +50,7 @@ export default function ChatsPage() {
 
   return (
     <VautoAdaptiveLayout variant="plain">
+      <div className="mx-auto w-full max-w-lg md:max-w-7xl">
       <h1 className="mb-4 font-display text-xl font-bold text-slate-900">
         Pokalbiai
       </h1>
@@ -99,6 +100,7 @@ export default function ChatsPage() {
       <p className="mt-6 text-center text-xs text-slate-400">
         Parašykite „perku“ arba „tinka“ — AI pasiūlys saugų mokėjimą.
       </p>
+      </div>
     </VautoAdaptiveLayout>
   );
 }

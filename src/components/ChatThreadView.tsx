@@ -114,7 +114,7 @@ function ChatThreadContent({ chatId }: { chatId: string }) {
   };
 
   return (
-    <div className="flex h-[calc(100dvh-2rem)] flex-col px-4">
+    <div className="mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6">
       <div className="mb-4 flex items-center gap-3 border-b border-[var(--vauto-border)] pb-3">
         <Link
           href="/chats/"

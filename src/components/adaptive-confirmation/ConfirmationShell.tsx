@@ -46,7 +46,7 @@ export function ConfirmationShell({
     <div className={cn("listing-wizard-overlay p-6 transition-colors duration-300", t.shell)}>
         <div
           className={cn(
-            "mx-auto max-w-md rounded-3xl p-6 transition-colors duration-300",
+            "mx-auto max-w-md rounded-3xl p-6 transition-colors duration-300 md:max-w-2xl lg:max-w-4xl",
             theme.classicLayout ? theme.panel : "border border-white/10 bg-white/5 backdrop-blur-xl"
           )}
         >
@@ -112,7 +112,7 @@ export function PublishedOverlay() {
       <div className="flex min-h-full items-center justify-center p-4">
         <div
           className={cn(
-            "mx-4 my-6 w-full max-w-md rounded-3xl p-6 text-left transition-colors duration-300 sm:p-8",
+            "mx-4 my-6 w-full max-w-md rounded-3xl p-6 text-left transition-colors duration-300 sm:p-8 md:max-w-lg lg:max-w-xl",
             p.card
           )}
         >

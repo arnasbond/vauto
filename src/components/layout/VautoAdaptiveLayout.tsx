@@ -37,7 +37,7 @@ export function VautoAdaptiveLayout({
     return (
       <div className="vauto-desktop-portal flex min-h-dvh flex-col bg-[var(--anonser-bg)] text-[var(--anonser-text)]">
         <DesktopHeader />
-        <div className="vauto-adaptive-content mx-auto flex w-full flex-1 flex-col px-6 py-6">
+        <div className="vauto-adaptive-content mx-auto flex w-full max-w-[var(--anonser-desktop-max)] flex-1 flex-col px-4 py-6 md:px-6">
           <SyncErrorBanner />
           {children}
         </div>
@@ -50,8 +50,8 @@ export function VautoAdaptiveLayout({
     <div className="flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)] transition-colors duration-300">
       <div
         className={cn(
-          "mx-auto flex w-full max-w-lg flex-1 flex-col",
-          isPlain && "px-4 pt-4",
+          "mx-auto flex w-full max-w-lg flex-1 flex-col md:max-w-7xl",
+          isPlain && "px-4 pt-4 md:px-6",
           shell.contentBottomClass
         )}
       >

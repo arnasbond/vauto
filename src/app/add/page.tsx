@@ -99,7 +99,7 @@ export default function AddPage() {
   if (!authHydrated) {
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page min-h-full">
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-7xl">
           <HeroSection>
             <Header />
             <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)]">
@@ -114,7 +114,7 @@ export default function AddPage() {
   if (!isAuthenticated) {
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page min-h-full">
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-7xl">
           <HeroSection>
             <Header />
             <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
@@ -138,7 +138,7 @@ export default function AddPage() {
 
   return (
     <VautoAdaptiveLayout>
-      <div className="seller-flow-page min-h-full">
+      <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-7xl">
         {!blockStaticUi && (
           <HeroSection>
             <Header />

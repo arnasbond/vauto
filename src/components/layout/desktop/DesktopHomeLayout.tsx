@@ -95,7 +95,7 @@ export function DesktopHomeLayout({ children, header }: DesktopHomeLayoutProps) 
               portale.
             </p>
             <Link
-              href="/business/"
+              href="/profile/"
               className="mb-2 block text-xs font-semibold text-[var(--anonser-primary)] hover:underline"
             >
               Atidaryti VAUTO verslo kabinetą →
