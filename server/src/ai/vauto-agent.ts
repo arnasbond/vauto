@@ -32,6 +32,7 @@ import {
 import {
   buildListingChatPriceReply,
   isListingConversationInput,
+  normalizeListingDraftForAction,
   parsePriceFromChatInput,
 } from "./listing-chat-input.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
@@ -359,7 +360,11 @@ async function runVautoAgentInner(
         toolCalls: [],
         actions: {
           type: "listing_draft",
-          listingDraft: { ...listingDraft, price },
+          listingDraft: normalizeListingDraftForAction(listingDraft, {
+            price,
+            contact: req.context.contact,
+            userCity: req.context.userCity,
+          }),
         },
       };
     }

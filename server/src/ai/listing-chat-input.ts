@@ -35,3 +35,43 @@ export function buildListingChatPriceReply(price: number, title?: string): strin
     ? `Gerai — ${label}: kaina ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`
     : `Gerai, įrašiau kainą — ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`;
 }
+
+export interface ListingDraftContext {
+  title?: string;
+  description?: string;
+  price?: number;
+  location?: string;
+  category?: string;
+  attributes?: Record<string, string>;
+}
+
+/** Map partial wizard draft to strict listing_draft side-effect payload. */
+export function normalizeListingDraftForAction(
+  draft: ListingDraftContext,
+  opts?: {
+    price?: number;
+    contact?: string;
+    confidence?: number;
+    userCity?: string;
+  }
+): {
+  title: string;
+  description?: string;
+  price: number;
+  location: string;
+  contact: string;
+  category: string;
+  confidence: number;
+  attributes?: Record<string, string>;
+} {
+  return {
+    title: draft.title?.trim() || "Naujas skelbimas",
+    description: draft.description,
+    price: opts?.price ?? draft.price ?? 0,
+    location: draft.location?.trim() || opts?.userCity?.trim() || "Lietuva",
+    contact: opts?.contact?.trim() || "",
+    category: draft.category?.trim() || "other",
+    confidence: opts?.confidence ?? 0.9,
+    attributes: draft.attributes,
+  };
+}
