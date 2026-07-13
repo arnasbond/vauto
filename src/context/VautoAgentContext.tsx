@@ -78,6 +78,7 @@ import {
 import { mergeVoiceUiFilters } from "@/lib/voice-ui-actions";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
+import { toLithuanianVocative } from "@/lib/lithuanian-name-case";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { resolveAgentChatReply } from "@/lib/agent-chat-reply";
 import {
@@ -920,6 +921,48 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           Boolean(readListingEditSession()),
       };
 
+      const firstName = user.name?.trim().split(/\s+/)[0] || "drauge";
+      const vocative = toLithuanianVocative(firstName);
+      const hasDraftImages =
+        Boolean(sessionPendingImageUrls.length) ||
+        Boolean(aiDraft?.orderedImageUrls?.length);
+
+      const requestMissingContactsReply = () =>
+        `${vocative}, pastebėjau, kad jūsų profilyje arba skelbime trūksta kontaktinių duomenų (telefono arba el. pašto). Prašome parašyti savo telefono numerį čia, pokalbio lange, ir aš iškart automatiškai atnaujinsiu jūsų profilį bei užbaigsiu skelbimą!`;
+
+      const requestMissingImagesReply = () =>
+        `${vocative}, matau, kad neįkėlėte jokių nuotraukų. Skelbimai su nuotraukomis sulaukia iki 5 kartų daugiau dėmesio! Galite tiesiog įmesti nuotrauką čia į pokalbį.`;
+
+      const requestPublishUpsell = (): { reply: string; quickReplies?: string[] } => {
+        const sessionCheck = validatePublishSession(isAuthenticated, user);
+        if (!sessionCheck.ok || !hasProfileListingContact(user)) {
+          return {
+            reply: requestMissingContactsReply(),
+          };
+        }
+        if (!hasDraftImages && sellerStep === "confirmation") {
+          return {
+            reply: requestMissingImagesReply(),
+          };
+        }
+        return {
+          reply:
+            "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį Iškelti į viršų arba Paryškinti, kad jis būtų matomas pirmame puslapyje tik už kelis eurus. Ar pritaikom reklamą?",
+          quickReplies: ["Iškelti į viršų", "Paryškinti", "Ne, be reklamos"],
+        };
+      };
+
+      const confirmPublishNow = (): { reply: string; quickReplies?: string[]; doPublish?: boolean } => {
+        const sessionCheck = validatePublishSession(isAuthenticated, user);
+        if (!sessionCheck.ok || !hasProfileListingContact(user)) {
+          return { reply: requestMissingContactsReply() };
+        }
+        if (!hasDraftImages && sellerStep === "confirmation") {
+          return { reply: requestMissingImagesReply() };
+        }
+        return { reply: "Puiku — publikuoju skelbimą!", doPublish: true };
+      };
+
       if (isManualFillIntent(trimmed)) {
         const reply = buildManualFillChatRedirectReply();
         setMessages((prev) => [
@@ -1053,6 +1096,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         pendingWardrobeVoice,
         lastBargainingOffer,
         publishListing,
+        requestPublishUpsell: () => {
+          const r = requestPublishUpsell();
+          return { handled: true, reply: r.reply, ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}) };
+        },
+        confirmPublishNow: () => {
+          const r = confirmPublishNow();
+          if (r.doPublish) publishListing();
+          return { handled: true, reply: r.reply, ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}) };
+        },
         publishBulkClothingListings,
         applyAgentWardrobeBulk,
         activateWardrobeSpinta,
@@ -1075,7 +1127,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setMessages((prev) => [
           ...prev,
           { role: "user", text: trimmed },
-          { role: "assistant", text: quickReply.reply },
+          {
+            role: "assistant",
+            text: quickReply.reply,
+            ...(quickReply.quickReplies?.length ? { quickReplies: quickReply.quickReplies } : {}),
+          },
         ]);
         touchAgentSessionActivity();
         return { ok: true, reply: quickReply.reply };

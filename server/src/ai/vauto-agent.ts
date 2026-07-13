@@ -750,6 +750,15 @@ async function runVautoAgentInner(
         name,
         message: toolProgressMessage(name),
       });
+      if (name === "postNewListing") {
+        const c = String(ctx.contact ?? "").trim();
+        const isPlaceholder = c.includes("612 34567");
+        if (!c || isPlaceholder) {
+          draftText =
+            "Pastebėjau, kad trūksta kontaktinių duomenų (telefono arba el. pašto). Parašykite savo telefono numerį čia, pokalbyje, ir aš iškart atnaujinsiu profilį bei publikuosiu skelbimą.";
+          break;
+        }
+      }
       const { result, sideEffect: fx } = await executeAgentTool(
         name,
         args ?? {},

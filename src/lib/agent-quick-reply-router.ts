@@ -18,6 +18,7 @@ import type { ZeroUiMicroPaymentIntent } from "@/lib/monetization-engine";
 export interface AgentQuickReplyResult {
   handled: true;
   reply: string;
+  quickReplies?: string[];
 }
 
 export interface AgentBargainingOffer {
@@ -38,6 +39,10 @@ export interface AgentQuickReplyDeps {
   pendingWardrobeVoice: string | null;
   lastBargainingOffer: AgentBargainingOffer | null;
   publishListing: () => void;
+  /** Returns chat reply when user tries to publish from chat chips. */
+  requestPublishUpsell: () => AgentQuickReplyResult;
+  /** Returns chat reply; only calls publish when all guards pass. */
+  confirmPublishNow: () => AgentQuickReplyResult;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => void;
   applyAgentWardrobeBulk: (
     items: WardrobeDraftItem[],
@@ -180,8 +185,7 @@ export function tryHandleAgentQuickReply(
 
   if (matchesChip(trimmed, [/viskas tinka/])) {
     if (deps.aiDraft && deps.sellerStep === "confirmation") {
-      deps.publishListing();
-      return { handled: true, reply: "Puiku — publikuoju skelbimą!" };
+      return deps.requestPublishUpsell();
     }
     if (deps.aiDraft) {
       deps.navigateToAdd(deps.aiDraft.category === "clothing");
@@ -194,6 +198,63 @@ export function tryHandleAgentQuickReply(
     return {
       handled: true,
       reply: "Atidarau skelbimo kūrimą — įkelkite nuotrauką arba aprašykite prekę.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/taip,?\s*publikuoti/, /publikuojam/])) {
+    if (deps.aiDraft) {
+      return deps.confirmPublishNow();
+    }
+    deps.navigateToAdd();
+    return {
+      handled: true,
+      reply: "Atidarau skelbimo kūrimą — įkelkite nuotrauką arba aprašykite prekę.",
+    };
+  }
+
+  if (
+    matchesChip(trimmed, [
+      /ne,?\s*be\s*reklamos/,
+      /be\s*reklamos/,
+      /nenoriu\s*reklamos/,
+      /\bne\b/,
+    ])
+  ) {
+    return {
+      handled: true,
+      reply:
+        "Supratau. Tokiu atveju skelbimas bus patalpintas bendrame lauke, kur dėl didelio srauto bus prastai matomas. Jei vėliau apsigalvosite, reklamą galėsite užsakyti per savo profilį. Skelbimą publikuojam?",
+      quickReplies: ["Taip, publikuoti", "Ne, dar pataisysiu"],
+    };
+  }
+
+  if (matchesChip(trimmed, [/iškelti į viršų/, /iskelti i virsu/, /\biškelti\b/])) {
+    const price = deps.resolveSmartBoostPrice(deps.user);
+    deps.openMicroPayment({
+      reason: "Iškelti į viršų — daugiau matomumo",
+      price,
+      product: "smart_boost",
+      voiceConfirmPhrase: "Taip, apmokėti",
+    });
+    return {
+      handled: true,
+      reply: `Atidarau iškėlimą (${price.toFixed(2)} €). Kai būsite pasiruošę — skelbimą publikuojam?`,
+      quickReplies: ["Taip, publikuoti", "Ne, be reklamos"],
+    };
+  }
+
+  if (matchesChip(trimmed, [/paryškinti/, /paryskinti/])) {
+    const price = deps.resolveSmartBoostPrice(deps.user);
+    deps.openMicroPayment({
+      reason: "Paryškinti — daugiau matomumo",
+      price,
+      product: "smart_boost",
+      voiceConfirmPhrase: "Taip, apmokėti",
+    });
+    return {
+      handled: true,
+      reply: `Atidarau paryškinimą (${price.toFixed(2)} €). Kai būsite pasiruošę — skelbimą publikuojam?`,
+      quickReplies: ["Taip, publikuoti", "Ne, be reklamos"],
     };
   }
 
