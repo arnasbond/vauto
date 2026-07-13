@@ -20,6 +20,7 @@ import {
   togglePauseStatus,
 } from "@/lib/listing-visibility";
 import { useVauto } from "@/context/VautoContext";
+import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -33,12 +34,14 @@ function ManoSkelbimaiCard({
   onDelete,
   onStats,
   onEdit,
+  onActivateAiTwin,
 }: {
   listing: Listing;
   onPause: () => void;
   onDelete: () => void;
   onStats: () => void;
   onEdit: () => void;
+  onActivateAiTwin: () => void;
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
@@ -72,6 +75,20 @@ function ManoSkelbimaiCard({
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
+          {!listing.isAiTwinActive ? (
+            <button
+              type="button"
+              onClick={onActivateAiTwin}
+              className="col-span-2 flex items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+            >
+              <Sparkles className="h-3.5 w-3.5" />
+              Aktyvuoti AI derybininką
+            </button>
+          ) : (
+            <div className="col-span-2 flex items-center justify-center rounded-xl bg-emerald-50 py-2 text-[11px] font-semibold text-emerald-800">
+              AI derybininkas aktyvus
+            </div>
+          )}
           <button
             type="button"
             onClick={onPause}
@@ -121,6 +138,7 @@ export function ManoSkelbimaiDashboard({
     showToast,
     showConfirm,
   } = useVauto();
+  const { openMicroPayment } = useZeroUiScreen();
   const [statsTarget, setStatsTarget] = useState<Listing | null>(null);
 
   const sorted = useMemo(
@@ -170,6 +188,38 @@ export function ManoSkelbimaiDashboard({
     );
   };
 
+  const handleActivateAiTwin = async (listing: Listing) => {
+    const ok = await showConfirm({
+      title: "Aktyvuoti AI derybininką?",
+      message:
+        "AI Dvynys–Derybininkas 24/7 automatiškai derėsis su pirkėjais pagal jūsų minimalią kainą. Norėsite tęsti aktyvavimą?",
+      confirmLabel: "Taip, aktyvuoti",
+      cancelLabel: "Atšaukti",
+    });
+    if (!ok) return;
+    openMicroPayment({
+      reason:
+        "AI Dvynys–Derybininkas — 24/7 automatiškos derybos su pirkėjais pagal jūsų minimalią kainą.",
+      price: 4.99,
+      product: "generic",
+      voiceConfirmPhrase: "Taip, apmokėti",
+      metadata: { kind: "ai_twin", listingId: listing.id },
+    });
+    showToast("Atidarau AI derybininko aktyvavimą", "info");
+    if (!listing.minNegotiationPrice) {
+      showToast(
+        "Patarimas: nustatykite minimalią kainą (minNegotiationPrice), kad dvynys žinotų ribas.",
+        "info"
+      );
+    }
+    updateListing(listing.id, {
+      attributes: {
+        ...(listing.attributes ?? {}),
+        isAiTwinActive: "true",
+      },
+    });
+  };
+
   return (
     <section className="pb-8">
       <div className="mb-6 flex items-center justify-between gap-3">
@@ -207,6 +257,7 @@ export function ManoSkelbimaiDashboard({
               onDelete={() => void handleDelete(listing)}
               onStats={() => handleStats(listing)}
               onEdit={() => startEditListingFlow(listing)}
+              onActivateAiTwin={() => void handleActivateAiTwin(listing)}
             />
           ))}
         </div>

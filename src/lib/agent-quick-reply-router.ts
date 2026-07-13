@@ -223,7 +223,7 @@ export function tryHandleAgentQuickReply(
     return {
       handled: true,
       reply:
-        "Supratau. Tokiu atveju skelbimas bus patalpintas bendrame lauke, kur dėl didelio srauto bus prastai matomas. Jei vėliau apsigalvosite, reklamą galėsite užsakyti per savo profilį. Skelbimą publikuojam?",
+        "Supratau. Skelbimas bus patalpintas standartiniu režimu. Jei vėliau norėsite, kad AI dvynys derėtųsi už jus, funkciją bet kada galėsite aktyvuoti skiltyje „Mano skelbimai“. Skelbimą publikuojam?",
       quickReplies: ["Taip, publikuoti", "Ne, dar pataisysiu"],
     };
   }
@@ -255,6 +255,23 @@ export function tryHandleAgentQuickReply(
       handled: true,
       reply: `Atidarau paryškinimą (${price.toFixed(2)} €). Kai būsite pasiruošę — skelbimą publikuojam?`,
       quickReplies: ["Taip, publikuoti", "Ne, be reklamos"],
+    };
+  }
+
+  if (
+    matchesChip(trimmed, [
+      /aktyvuoti\s+ai\s+derybinink/,
+      /ai\s+derybinink/,
+      /dvyn[iį]-?derybinink/,
+      /deryb[ųu]\s+dvyn/,
+      /twin\s+negoti/,
+    ])
+  ) {
+    return {
+      handled: true,
+      reply:
+        "Puiku — AI Dvynys–Derybininkas veiks 24/7. Parašykite minimalią kainą (pvz. „min 250 €“), ir aš jį aktyvuosiu skelbimui. Skelbimą publikuojam dabar, ar pirmiau nustatom ribas?",
+      quickReplies: ["Taip, publikuoti", "Nustatyti min kainą", "Ne, be reklamos"],
     };
   }
 

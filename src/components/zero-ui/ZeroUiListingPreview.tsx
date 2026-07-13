@@ -13,13 +13,15 @@ import { PublishedOverlay } from "@/components/adaptive-confirmation/Confirmatio
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { AI_PROCESSING_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import { vehicleSummaryLabel } from "@/lib/vehicle-catalog";
+import { apiUpdateListing } from "@/lib/api/client";
+import { isDataApiEnabled } from "@/lib/api/config";
 
 const PREVIEW_LOAD_TIMEOUT_MS = 5000;
 /** UI safety net — slightly above AI extract ceiling so fallback can fire first */
 const PROCESSING_UI_TIMEOUT_MS = AI_PROCESSING_TIMEOUT_MS + 4000;
 
 export function ZeroUiListingPreview() {
-  const { aiDraft, sellerStep, cancelSellerFlow, showToast, sellerPreviewImage } =
+  const { aiDraft, sellerStep, cancelSellerFlow, showToast, sellerPreviewImage, listings, user, updateListing } =
     useVauto();
   const { openManualListingWizard } = useSellerFlow();
   const { goToMarketplace, pendingMicroPayment, clearMicroPayment, setActiveBoost } =
@@ -115,7 +117,21 @@ export function ZeroUiListingPreview() {
             intent={pendingMicroPayment}
             onCancel={clearMicroPayment}
             onSuccess={() => {
-              setActiveBoost(true);
+              const meta = pendingMicroPayment.metadata;
+              if (meta?.kind === "ai_twin" && meta.listingId) {
+                const listingId = meta.listingId;
+                const existingAttrs =
+                  listings.find((l) => l.id === listingId)?.attributes ?? {};
+                const nextAttrs = { ...existingAttrs, isAiTwinActive: "true" };
+                updateListing(listingId, { attributes: nextAttrs });
+                if (isDataApiEnabled()) {
+                  void apiUpdateListing(listingId, user.id, {
+                    attributes: nextAttrs,
+                  });
+                }
+              } else {
+                setActiveBoost(true);
+              }
               clearMicroPayment();
             }}
           />

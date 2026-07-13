@@ -154,6 +154,8 @@ import {
   validatePublishSession,
 } from "@/lib/profile-listing-sync";
 
+const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
+
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
   pendingImageUrls?: string[];
@@ -947,8 +949,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         return {
           reply:
-            "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį Iškelti į viršų arba Paryškinti, kad jis būtų matomas pirmame puslapyje tik už kelis eurus. Ar pritaikom reklamą?",
-          quickReplies: ["Iškelti į viršų", "Paryškinti", "Ne, be reklamos"],
+            "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį iškelti į viršų, paryškinti arba Aktyvuoti jūsų AI Dvynį-Derybininką, kuris 24/7 automatiškai derėsis su pirkėjais dėl geriausios kainos pagal jūsų nustatytas ribas! Ar pritaikom šią premium funkciją?",
+          quickReplies: [
+            "Iškelti į viršų",
+            "Paryškinti",
+            "Aktyvuoti AI derybininką",
+            "Ne, be reklamos",
+          ],
         };
       };
 
@@ -1450,11 +1457,36 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           toolCalls: res.toolCalls,
         });
 
-        const mergedAssistantText = proactiveContactConfirmation
+        let aiTwinNudge: string | null = null;
+        if (
+          typeof window !== "undefined" &&
+          isAuthenticated &&
+          myListingsForAgent.length > 0 &&
+          !options?.fromSearchBar
+        ) {
+          const hasInactiveTwin = listings.some(
+            (l) => l.sellerId === user.id && l.status !== "sold" && !l.isAiTwinActive
+          );
+          const alreadyNudged = Boolean(window.sessionStorage.getItem(AI_TWIN_NUDGE_KEY));
+          if (!alreadyNudged && hasInactiveTwin && messages.filter((m) => m.role === "user").length <= 1) {
+            window.sessionStorage.setItem(AI_TWIN_NUDGE_KEY, String(Date.now()));
+            const firstName = user.name?.trim().split(/\s+/)[0] || "drauge";
+            const voc = toLithuanianVocative(firstName);
+            aiTwinNudge = `Labas, ${voc}! Pastebėjau, kad jūsų skelbimai sulauktų daugiau pardavimų su aktyvuotu AI Derybininku. Nurodykite minimalią kainą pokalbyje ir aš paleisiu jūsų dvynį į darbą!`;
+          }
+        }
+
+        const baseAssistantText = proactiveContactConfirmation
           ? assistantText.trim()
             ? `${proactiveContactConfirmation}\n\n${assistantText.trim()}`
             : proactiveContactConfirmation
           : assistantText;
+
+        const mergedAssistantText = aiTwinNudge
+          ? baseAssistantText.trim()
+            ? `${aiTwinNudge}\n\n${baseAssistantText.trim()}`
+            : aiTwinNudge
+          : baseAssistantText;
 
         if (mergedAssistantText.trim()) {
           if (

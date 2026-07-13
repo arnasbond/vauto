@@ -48,6 +48,8 @@ export interface Listing {
   providerVerified?: boolean;
   /** Minimali kaina AI derybų dvyniui */
   minNegotiationPrice?: number;
+  /** AI Dvynys–Derybininkas aktyvus šiam skelbimui */
+  isAiTwinActive?: boolean;
   /** AI kainų vertinimo patikimumas 0–100 */
   appraisalScore?: number;
   /** Vision anti-fraud patvirtinimas */

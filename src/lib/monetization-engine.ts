@@ -24,6 +24,10 @@ export interface ZeroUiMicroPaymentIntent {
   price: number;
   product: MicroPaymentProduct;
   voiceConfirmPhrase?: string;
+  metadata?: {
+    kind?: "ai_twin";
+    listingId?: string;
+  };
 }
 
 export const SMART_BOOST_C2C = 2.99;
