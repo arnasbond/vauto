@@ -10,7 +10,7 @@
   --foreground: #0c0e12;
   --card: #ffffff;
   --popover: #ffffff;
-  --muted-foreground: #5c6573;
+  --muted-foreground: #4b5563;
   --border: rgba(12, 14, 18, 0.1);
   --accent: #eef2ff;
   --accent-foreground: #0c0e12;
@@ -61,7 +61,7 @@
   --anonser-bg: #eef1f6;
   --anonser-card: #ffffff;
   --anonser-text: #0f172a;
-  --anonser-text-muted: #64748b;
+  --anonser-text-muted: #4b5563;
   --anonser-primary: #1e40af;
   --anonser-primary-soft: #dbeafe;
   --anonser-accent: #0d9488;
@@ -1379,7 +1379,8 @@ body.chameleon-autoplius .nt-wizard-chip-active {
 }
 
 .listing-form-label {
-  color: var(--vauto-text-muted, var(--portal-text, #64748b));
+  color: #1f2937;
+  font-weight: 600;
 }
 
 .listing-form-input,
@@ -1718,7 +1719,7 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
   --foreground: #0a0f18;
   --card: #ffffff;
   --popover: #ffffff;
-  --muted-foreground: #5c6573;
+  --muted-foreground: #4b5563;
   --border: rgba(10, 15, 24, 0.1);
   --accent: #e0f7ff;
   --accent-foreground: #0a0f18;
@@ -2137,7 +2138,7 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   --foreground: #111111;
   --card: #ffffff;
   --popover: #ffffff;
-  --muted-foreground: #6b7280;
+  --muted-foreground: #4b5563;
   --border: rgba(17, 17, 17, 0.08);
   --accent: #f4f4f5;
   --accent-foreground: #111111;
@@ -2196,11 +2197,11 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 [data-app-theme="vauto-original"],
 [data-app-theme="light-minimal"] {
   --home-ai-input-text: #1e293b;
-  --home-ai-input-placeholder: #64748b;
+  --home-ai-input-placeholder: #4b5563;
   --home-ai-input-caret: var(--vauto-primary);
   --home-ai-heading: #0f172a;
   --home-ai-body: #0f172a;
-  --home-ai-muted: #475569;
+  --home-ai-muted: #4b5563;
   --home-ai-glass-bg: #ffffff;
   --home-ai-glass-border: rgba(15, 23, 42, 0.14);
   --home-ai-chip-bg: #f1f5f9;
@@ -2588,8 +2589,33 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 
 /* ── P10 typography + wizard FAB ── */
 .vauto-body-text {
+  color: var(--vauto-text-main, #111827);
   line-height: 1.6;
   letter-spacing: -0.01em;
+}
+
+.vauto-layout-heading {
+  color: #111827;
+  font-weight: 700;
+}
+
+.vauto-layout-label {
+  color: #1f2937;
+  font-weight: 600;
+}
+
+.vauto-layout-desc {
+  color: #1f2937;
+}
+
+/* Light themes: crisp placeholders (gray-600) */
+[data-app-theme="vauto-original"] input::placeholder,
+[data-app-theme="vauto-original"] textarea::placeholder,
+[data-app-theme="light-minimal"] input::placeholder,
+[data-app-theme="light-minimal"] textarea::placeholder {
+  color: #4b5563 !important;
+  -webkit-text-fill-color: #4b5563 !important;
+  opacity: 1;
 }
 
 .home-ai-hero-greeting {

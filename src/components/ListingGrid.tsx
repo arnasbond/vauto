@@ -180,7 +180,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
 
           {fallbackListings.length > 0 && (
             <div className="mt-6">
-              <h3 className="mb-3 text-sm font-semibold text-[#111827]">
+              <h3 className="vauto-layout-label mb-3 text-sm text-gray-800">
                 Šių prekių yra kituose Lietuvos miestuose:
               </h3>
               {renderListingCards(fallbackListings)}
@@ -191,8 +191,8 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         <>
           {searchQuery.trim().length < 3 && (
             <div className="mb-4 flex items-center gap-2.5">
-              <h3 className="text-lg font-bold text-slate-900">Naujausi skelbimai</h3>
-              <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-medium text-slate-600">
+              <h3 className="vauto-layout-heading text-lg text-gray-900">Naujausi skelbimai</h3>
+              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
                 {displayListings.length} skelbimų
               </span>
             </div>

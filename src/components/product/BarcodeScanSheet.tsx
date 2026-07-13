@@ -122,7 +122,7 @@ export function BarcodeScanSheet({
             value={manual}
             onChange={(e) => setManual(e.target.value)}
             placeholder="EAN / UPC / ISBN kodas"
-            className="min-w-0 flex-1 border-none bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            className="min-w-0 flex-1 border-none bg-transparent text-sm text-gray-900 outline-none placeholder:text-[#4b5563]"
           />
           <button
             type="button"

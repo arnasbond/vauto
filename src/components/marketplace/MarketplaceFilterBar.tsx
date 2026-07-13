@@ -50,10 +50,10 @@ export function MarketplaceFilterBar({
     <div className="marketplace-filter-bar sticky top-0 z-20 -mx-4 border-b px-4 py-3 backdrop-blur">
       <div className="flex items-center justify-between gap-2">
         <div className="min-w-0">
-          <p className="marketplace-filter-title truncate text-sm font-semibold">
+          <p className="marketplace-filter-title truncate text-sm font-semibold text-gray-900">
             {formatResultsLabel(searchQuery, resultCount)}
           </p>
-          <p className="text-[10px] text-[var(--vauto-text-muted)]">
+          <p className="text-[10px] text-gray-700">
             Patikslinkite žemiau per AI asistentą
           </p>
         </div>

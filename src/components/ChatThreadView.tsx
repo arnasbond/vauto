@@ -254,7 +254,7 @@ function ChatThreadContent({
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder='Parašykite... (bandykite "perku" arba "tinka")'
           autoComplete="off"
-          className="flex-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] px-4 py-3 text-sm text-[var(--vauto-text)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
+          className="flex-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] px-4 py-3 text-sm text-gray-900 outline-none placeholder:text-[#4b5563] focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
         />
         <button
           type="button"

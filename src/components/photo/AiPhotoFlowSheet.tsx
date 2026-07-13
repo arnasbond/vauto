@@ -403,7 +403,7 @@ export function AiPhotoFlowSheet({
             disabled={busy || studioBusy}
             rows={4}
             placeholder="Pvz.: prekės ženklas ir modelis, matmenys, būklė, kas įeina į komplektą."
-            className="mt-2 w-full resize-none rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-2.5 text-sm text-[var(--vauto-text-main)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:border-[var(--vauto-primary)] focus:ring-1 focus:ring-[var(--vauto-primary)] disabled:opacity-60"
+            className="mt-2 w-full resize-none rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-3 py-2.5 text-sm text-gray-900 outline-none placeholder:text-[#4b5563] focus:border-[var(--vauto-primary)] focus:ring-1 focus:ring-[var(--vauto-primary)] disabled:opacity-60"
           />
         </div>
 
