@@ -42,9 +42,11 @@ import {
 } from "./listing-draft-preview.js";
 import {
   evaluateServerPrePublishReadiness,
-  isPublishConfirmationPhrase,
-  PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
 } from "./pre-publish-validation.js";
+import {
+  resolvePrePublishGatewayResponse,
+  resolveStructuredListingInputRoute,
+} from "./structured-input-pipeline.js";
 import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
@@ -183,6 +185,7 @@ export interface VautoAgentResponse {
   ok: true;
   reply: string;
   quickReplies?: string[];
+  prePublishCard?: import("./pre-publish-validation.js").ServerPrePublishCardPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
 }
@@ -358,9 +361,35 @@ async function runVautoAgentInner(
   );
 
   const listingDraft = req.context.listingDraft;
+
+  const inputRoute = resolveStructuredListingInputRoute(lastUserText, {
+    hasListingDraft: Boolean(listingDraft),
+  });
+
+  if (inputRoute.kind === "publish_gateway" && listingDraft && lastUserText) {
+    const gateway = resolvePrePublishGatewayResponse({
+      isAuthenticated: req.context.isAuthenticated,
+      profilePhone: req.context.profilePhone,
+      profileEmail: req.context.profileEmail,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      listingDraft,
+      pendingImageUrls: req.context.pendingImageUrls,
+    });
+    return {
+      ok: true,
+      reply: gateway.reply,
+      ...(gateway.quickReplies ? { quickReplies: gateway.quickReplies } : {}),
+      ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
+
   const inListingChat =
     Boolean(listingDraft) &&
     Boolean(lastUserText) &&
+    inputRoute.kind === "listing_field_update" &&
     isListingConversationInput(lastUserText, listingDraft);
 
   if (inListingChat && listingDraft) {
@@ -383,29 +412,6 @@ async function runVautoAgentInner(
   }
 
   if (
-    listingDraft &&
-    lastUserText &&
-    isPublishConfirmationPhrase(lastUserText)
-  ) {
-    const prePublish = evaluateServerPrePublishReadiness({
-      isAuthenticated: req.context.isAuthenticated,
-      profilePhone: req.context.profilePhone,
-      profileEmail: req.context.profileEmail,
-      userCity: req.context.userCity,
-      contact: req.context.contact,
-      listingDraft,
-      pendingImageUrls: req.context.pendingImageUrls,
-    });
-    if (!prePublish.ok) {
-      return {
-        ok: true,
-        reply: prePublish.blockMessage,
-        quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
-        toolCalls: [],
-        actions: { type: "none" },
-      };
-    }
-  } else if (
     isTooShortSecretaryQuery(lastUserText) &&
     !detectServerSellIntent(lastUserText)
   ) {

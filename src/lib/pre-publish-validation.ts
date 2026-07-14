@@ -71,12 +71,12 @@ export interface PrePublishReadiness {
   hasPhoto: boolean;
 }
 
-const PUBLISH_CONFIRM_RE =
-  /\b(taip,?\s*publikuoti|publikuojam|viskas\s+tinka|taip,?\s*viskas\s+tikslu|taip,?\s*skelbti)\b/i;
 
-export function isPublishConfirmationPhrase(text: string): boolean {
-  return PUBLISH_CONFIRM_RE.test(text.trim());
-}
+export {
+  isPublishConfirmationPhrase,
+  isPublishWorkflowCommand,
+  isListingWorkflowCommand,
+} from "@/lib/listing-workflow-intent";
 
 function resolveDraftPhone(
   draft: AiExtractedListing | null,

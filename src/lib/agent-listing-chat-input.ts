@@ -3,6 +3,7 @@ import {
   buildListingDraftUpdateReply,
   draftToPreviewInput,
 } from "@/lib/listing-draft-preview";
+import { isListingWorkflowCommand } from "@/lib/listing-workflow-intent";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_INLINE_RE = /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)/i;
@@ -30,6 +31,7 @@ export function isListingConversationInput(
   if (!ctx.hasListingDraft && !ctx.sellerFlowActive) return false;
   const t = text.trim();
   if (!t) return false;
+  if (isListingWorkflowCommand(t)) return false;
   if (isManualFillIntent(t)) return true;
   if (parsePriceFromChatInput(t) != null) return true;
   if (PRICE_ONLY_RE.test(t)) return true;
@@ -63,6 +65,8 @@ export function tryApplyListingChatInput(
 ): string | null {
   if (!aiDraft) return null;
 
+  if (isListingWorkflowCommand(text)) return null;
+
   if (isManualFillIntent(text)) {
     return buildManualFillChatRedirectReply();
   }
@@ -77,7 +81,11 @@ export function tryApplyListingChatInput(
   }
 
   const trimmed = text.trim();
-  if (trimmed.length >= 3 && trimmed.length <= 240 && !/^(taip|ne|ok|gerai)$/i.test(trimmed)) {
+  if (
+    trimmed.length >= 3 &&
+    trimmed.length <= 240 &&
+    !isListingWorkflowCommand(trimmed)
+  ) {
     const nextDescription = aiDraft.description?.trim()
       ? `${aiDraft.description.trim()}\n${trimmed}`
       : trimmed;

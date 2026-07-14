@@ -4,8 +4,11 @@ export const PRE_PUBLISH_BLOCKED_QUICK_REPLIES = [
   "Reikia pataisyti",
 ] as const;
 
-const PUBLISH_CONFIRM_RE =
-  /\b(taip,?\s*publikuoti|publikuojam|viskas\s+tinka|taip,?\s*viskas\s+tikslu|taip,?\s*skelbti)\b/i;
+export {
+  isPublishConfirmationPhrase,
+  isPublishWorkflowCommand,
+  isListingWorkflowCommand,
+} from "./listing-workflow-intent.js";
 
 const PLACEHOLDER_CITIES = new Set([
   "",
@@ -32,11 +35,7 @@ function normalizeKnownCity(raw: string | undefined | null): string {
   return t.split(",")[0]?.trim() ?? "";
 }
 
-export function isPublishConfirmationPhrase(text: string): boolean {
-  return PUBLISH_CONFIRM_RE.test(text.trim());
-}
-
-export function draftHasListingPhoto(input: {
+function draftHasListingPhoto(input: {
   pendingImageUrls?: string[];
   imageUrl?: string;
 }): boolean {
@@ -136,5 +135,46 @@ export function evaluateServerPrePublishReadiness(input: {
     ok,
     blockMessage,
     quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
+  };
+}
+
+export interface ServerPrePublishCardPayload {
+  title: string;
+  description: string;
+  price: number;
+  priceLabel?: string;
+  location: string;
+  imageUrl?: string | null;
+  category?: string;
+}
+
+export function buildServerPrePublishCardPayload(input: {
+  listingDraft?: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+  };
+  resolvedCity: string;
+  pendingImageUrls?: string[];
+  imageUrl?: string;
+}): ServerPrePublishCardPayload | null {
+  const draft = input.listingDraft;
+  if (!draft) return null;
+  const title = draft.title?.trim() || "Naujas skelbimas";
+  const price = draft.price ?? 0;
+  if (price <= 0) return null;
+  const imageUrl =
+    input.imageUrl?.trim() ||
+    input.pendingImageUrls?.[0]?.trim() ||
+    null;
+  return {
+    title,
+    description: draft.description?.trim() || "",
+    price,
+    location: input.resolvedCity.trim() || draft.location?.trim() || "",
+    imageUrl,
+    category: draft.category,
   };
 }

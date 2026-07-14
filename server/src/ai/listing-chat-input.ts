@@ -1,4 +1,5 @@
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+import { isListingWorkflowCommand } from "./listing-workflow-intent.js";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_INLINE_RE = /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)/i;
@@ -20,6 +21,7 @@ export function isListingConversationInput(
   if (!listingDraft) return false;
   const t = text.trim();
   if (!t) return false;
+  if (isListingWorkflowCommand(t)) return false;
   if (PRICE_ONLY_RE.test(t)) return true;
   if (PRICE_INLINE_RE.test(t)) return true;
   return t.length <= 160;

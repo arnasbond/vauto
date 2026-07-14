@@ -3,7 +3,7 @@
  * Jokio runtime regex / stop-word filtravimo kode — tik system prompt.
  */
 
-import { STRUCTURED_INPUT_PIPELINE_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
+import { STRUCTURED_INPUT_PIPELINE_RULES, LISTING_WORKFLOW_COMMAND_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
 import { GEMINI_BROWSE_ALL_RULES } from "./browse-all-agent-rules.js";
 
 export const GEMINI_ERROR_TOLERANCE_RULES = `SUPRATIMAS „IŠ PUSĖS ŽODŽIO" (KLAIDŲ TOLERANCIJA — PRIVALOMA, kaip ChatGPT):
@@ -68,6 +68,8 @@ export const GEMINI_INTENT_RULES = `GEMINI FUNCTION CALLING (PRIVALOMA — joks 
 ${TEXT_AND_VISION_INPUT_ONLY}
 
 ${STRUCTURED_INPUT_PIPELINE_RULES}
+
+${LISTING_WORKFLOW_COMMAND_RULES}
 
 ${GEMINI_ERROR_TOLERANCE_RULES}
 

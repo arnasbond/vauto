@@ -4,6 +4,16 @@
  */
 
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+import { isListingWorkflowCommand, isPublishWorkflowCommand } from "./listing-workflow-intent.js";
+import {
+  buildServerPrePublishCardPayload,
+  evaluateServerPrePublishReadiness,
+  PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
+  type ServerPrePublishCardPayload,
+} from "./pre-publish-validation.js";
+
+export const PRE_PUBLISH_READY_INTRO =
+  "✨ Skelbimas paruoštas publikuoti! Peržiūrėkite, kaip jis atrodys turguje:";
 
 export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
 - Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
@@ -37,6 +47,14 @@ export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta 
 - Keli objektai → choiceChips + clarificationPrompt; confidence < 0.55 → privalomas disambiguation loop.
 - Vienas aiškus objektas → užpildyk laukus, tada confirmation flow ataskaita.
 - Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą.`;
+
+export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI (PRIVALOMA — ne skelbimo laukai):
+- Frazės, atitinkančios patvirtinimo ar publikavimo komandas, yra SISTEMINIAI ĮSAKYMAI, ne skelbimo atributai.
+- Pavyzdžiai: „viskas tinka“, „gerai“, „taip“, „publikuok“, „publikuoti“, „taip, publikuoti“, „publikuojam“, „viskas gerai“, „viskas tikslu“.
+- DRAUDŽIAMA: įrašyti šias frazes į title, description, attributes ar bet kurį Prisma/DB lauką.
+- DRAUDŽIAMA: append'inti jas prie aprašymo ar pavadinimo per updateListingDraft.
+- Kai vartotojas rašo tokias frazes — SUSTOK tekstinio laukų atnaujinimo pipeline ir perjunk į pre-publish validacijos vartus (evaluatePrePublishReadiness).
+- Jei validacija praeina — parodyk PrePublishListingCard peržiūrą; jei ne — ⚠️ blokavimo pranešimą su trūkstamais laukais.`;
 
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):
 - scanListingPhotos → jei multi-object ar žema confidence: reply + followUpQuestion + choiceChips, NE updateListingDraft.
@@ -76,4 +94,86 @@ export function buildPostValidationReportMessage(fields: {
     location: fields.location,
     attributes: fields.attributes,
   });
+}
+
+export type StructuredInputRoute =
+  | { kind: "listing_field_update"; text: string }
+  | { kind: "workflow_command"; text: string }
+  | { kind: "publish_gateway"; text: string };
+
+/** Strict intent router — separates listing field updates from workflow/system commands. */
+export function resolveStructuredListingInputRoute(
+  text: string,
+  opts?: { hasListingDraft?: boolean }
+): StructuredInputRoute {
+  const trimmed = text.trim();
+  if (!trimmed) return { kind: "listing_field_update", text: trimmed };
+  if (opts?.hasListingDraft && isPublishWorkflowCommand(trimmed)) {
+    return { kind: "publish_gateway", text: trimmed };
+  }
+  if (opts?.hasListingDraft && isListingWorkflowCommand(trimmed)) {
+    return { kind: "workflow_command", text: trimmed };
+  }
+  return { kind: "listing_field_update", text: trimmed };
+}
+
+export interface PrePublishGatewayResponse {
+  reply: string;
+  quickReplies?: string[];
+  prePublishCard?: ServerPrePublishCardPayload;
+}
+
+/** Pre-publish validation gateway — invoked when publish/confirmation intent is intercepted. */
+export function resolvePrePublishGatewayResponse(input: {
+  isAuthenticated?: boolean;
+  profilePhone?: string;
+  profileEmail?: string;
+  userCity?: string;
+  contact?: string;
+  listingDraft?: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string>;
+  };
+  pendingImageUrls?: string[];
+  imageUrl?: string;
+}): PrePublishGatewayResponse {
+  const readiness = evaluateServerPrePublishReadiness(input);
+  if (!readiness.ok) {
+    return {
+      reply: readiness.blockMessage,
+      quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
+    };
+  }
+
+  const card = buildServerPrePublishCardPayload({
+    listingDraft: input.listingDraft,
+    resolvedCity:
+      input.listingDraft?.location?.trim() ||
+      input.userCity?.trim() ||
+      "",
+    pendingImageUrls: input.pendingImageUrls,
+    imageUrl: input.imageUrl,
+  });
+
+  if (card && (input.listingDraft?.price ?? 0) > 0) {
+    return {
+      reply: PRE_PUBLISH_READY_INTRO,
+      prePublishCard: card,
+    };
+  }
+
+  return {
+    reply:
+      "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį iškelti į viršų, paryškinti arba Aktyvuoti jūsų AI Dvynį-Derybininką. Ar pritaikom premium funkciją?",
+    quickReplies: [
+      "Iškelti į viršų",
+      "Paryškinti",
+      "Aktyvuoti AI derybininką",
+      "Ne, be reklamos",
+    ],
+  };
 }

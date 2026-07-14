@@ -150,6 +150,7 @@ import {
   PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
   PRE_PUBLISH_READY_INTRO,
 } from "@/lib/pre-publish-validation";
+import { isPublishWorkflowCommand } from "@/lib/listing-workflow-intent";
 import { usePublishCelebration } from "@/context/PublishCelebrationContext";
 import {
   centerScreenPublishRect,
@@ -1023,6 +1024,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply };
       }
 
+      if (aiDraft && isPublishWorkflowCommand(trimmed)) {
+        const gateway = requestPublishUpsell();
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          {
+            role: "assistant" as const,
+            text: gateway.reply,
+            ...(gateway.quickReplies?.length ? { quickReplies: gateway.quickReplies } : {}),
+            ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+          },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply: gateway.reply };
+      }
+
       const listingChatReply =
         aiDraft && isListingConversationInput(trimmed, listingChatContext)
           ? tryApplyListingChatInput(trimmed, aiDraft, updateAiDraft)
@@ -1494,7 +1511,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         const appendSupervisorAssistant = (
           assistantText: string,
-          quickReplies?: string[]
+          quickReplies?: string[],
+          prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload
         ) => {
           const text = assistantText.trim();
           if (!text) return;
@@ -1516,6 +1534,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 ...(structuredReplies && structuredReplies.length >= 2
                   ? { quickReplies: structuredReplies }
                   : {}),
+                ...(prePublishCard ? { prePublishCard } : {}),
               },
             ].slice(-6);
           });
@@ -1598,7 +1617,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               !mergedAssistantText.startsWith("Deja, pagal") &&
               !mergedAssistantText.startsWith("Atsiprašau"))
           ) {
-            appendSupervisorAssistant(mergedAssistantText, res.quickReplies);
+            appendSupervisorAssistant(mergedAssistantText, res.quickReplies, res.prePublishCard);
           }
         }
         speakReply(mergedAssistantText || assistantText);

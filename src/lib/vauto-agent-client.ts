@@ -406,6 +406,7 @@ export interface VautoAgentResponse {
   ok: true;
   reply: string;
   quickReplies?: string[];
+  prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: VautoAgentAction;
 }
