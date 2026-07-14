@@ -17,6 +17,7 @@ import { dispatchHomeReset } from "@/lib/home-reset";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { countUnreadChats } from "@/lib/chat-helpers";
 import { cn } from "@/lib/cn";
+import { usePublishCelebrationOptional } from "@/context/PublishCelebrationContext";
 import {
   cabinetNavLabel,
   defaultCabinetPath,
@@ -53,6 +54,8 @@ export function BottomNav() {
   const { goToMarketplace } = useZeroUiScreen();
   const { clearSearchFilters } = useZeroUiMemory();
   const { setOpen: setAgentOpen } = useVautoAgent();
+  const publishCelebration = usePublishCelebrationOptional();
+  const spintaPulse = publishCelebration?.spintaPulse ?? false;
 
   const resetSellerIfLeavingFlow = useCallback(() => {
     if (sellerStep !== "idle" && sellerStep !== "published") {
@@ -189,9 +192,10 @@ export function BottomNav() {
         </Link>
 
         <Link
+          id="bottom-nav-mano-skelbimai"
           href={spintaHref}
           onClick={handleSpinta}
-          className={cn(TAB_CLASS)}
+          className={cn(TAB_CLASS, spintaPulse && "bottom-nav-spinta-pulse")}
           style={{ color: tabColor(spintaActive) }}
           aria-current={spintaActive ? "page" : undefined}
         >

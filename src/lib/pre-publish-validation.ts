@@ -8,6 +8,39 @@ import {
 } from "@/lib/profile-listing-sync";
 import type { AiExtractedListing, UserProfile } from "@/lib/types";
 
+export const PRE_PUBLISH_READY_INTRO =
+  "✨ Skelbimas paruoštas publikuoti! Peržiūrėkite, kaip jis atrodys turguje:";
+
+export interface PrePublishCardPayload {
+  title: string;
+  description: string;
+  price: number;
+  priceLabel?: string;
+  location: string;
+  imageUrl?: string | null;
+  category?: string;
+}
+
+export function buildPrePublishCardPayload(
+  readiness: PrePublishReadiness,
+  previewImage?: string | null
+): PrePublishCardPayload | null {
+  if (!readiness.ok || !readiness.syncedDraft) return null;
+  const draft = readiness.syncedDraft;
+  return {
+    title: draft.title?.trim() || "Naujas skelbimas",
+    description: draft.description?.trim() || "",
+    price: draft.price ?? 0,
+    priceLabel: draft.priceLabel,
+    location: readiness.resolvedCity,
+    imageUrl:
+      previewImage ??
+      draft.orderedImageUrls?.[0] ??
+      null,
+    category: draft.category,
+  };
+}
+
 export const PRE_PUBLISH_BLOCKED_QUICK_REPLIES = [
   "Suvesti trūkstamus duomenis",
   "Įkelti nuotraukas",

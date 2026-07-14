@@ -21,6 +21,7 @@ export interface AgentQuickReplyResult {
   quickReplies?: string[];
   /** When true, caller must await publishListing() before showing final assistant reply. */
   publishAfterReply?: boolean;
+  prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
 }
 
 export interface AgentBargainingOffer {

@@ -1,16 +1,17 @@
 "use client";
 
-// @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
-
-import { useEffect, useRef } from "react";
+import { useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
+import { PrePublishListingCard } from "@/components/home/PrePublishListingCard";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useAuth } from "@/context/AuthContext";
 import { useVauto } from "@/context/VautoContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
+import { usePublishCelebration } from "@/context/PublishCelebrationContext";
 import {
   isBlockedFallbackBubble,
   resolveVisibleAgentBubbles,
@@ -19,10 +20,12 @@ import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { readListingEditSession } from "@/lib/listing-edit-session";
 import {
-  hasProfileListingContact,
-  validatePublishSession,
-} from "@/lib/profile-listing-sync";
+  buildPrePublishCardPayload,
+  evaluatePrePublishReadiness,
+} from "@/lib/pre-publish-validation";
+import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
+import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 
 export interface AgentChatStripProps {
   seedQuery?: string | null;
@@ -35,9 +38,17 @@ export interface AgentChatStripProps {
  */
 export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProps) {
   const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
-  const { aiDraft, publishListing, isPublishingListing } = useSellerFlow();
-  const { isAuthenticated, authHydrated, openAuthModal, user } = useAuth();
+  const {
+    aiDraft,
+    sellerPreviewImage,
+    publishListing,
+    isPublishingListing,
+    finishPublishedFlow,
+  } = useSellerFlow();
+  const { playPublishCelebration } = usePublishCelebration();
+  const { isAuthenticated, authHydrated, user } = useAuth();
   const { showToast } = useVauto();
+  const router = useRouter();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
 
@@ -59,31 +70,52 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         ? lastAssistantMessage.quickReplies!.slice(0, 4)
         : extractAgentQuickReplies(lastAssistant);
 
-  const publishReady = (() => {
-    if (busy || isPublishingListing || readListingEditSession()) return false;
-    if (!authHydrated || !isAuthenticated || !hasProfileListingContact(user)) return false;
-    const draftReady =
-      Boolean(aiDraft?.title?.trim()) &&
-      Boolean(aiDraft?.description?.trim()) &&
-      (aiDraft?.price ?? 0) > 0;
-    const assistantReady =
-      /\b(publikuoti|paruošiau skelbim|skelbimo pavadinimas|galite publikuoti|pasiruošęs skelbimas)\b/i.test(
-        lastAssistant
-      ) &&
-      (draftReady || /\b(pavadinimas|aprašymas|kaina)\b/i.test(lastAssistant));
-    return draftReady && assistantReady;
-  })();
+  const prePublishReadiness = useMemo(() => {
+    if (!authHydrated || !aiDraft || readListingEditSession()) return null;
+    return evaluatePrePublishReadiness({
+      isAuthenticated,
+      user,
+      draft: aiDraft,
+      previewImage: sellerPreviewImage,
+      orderedImageUrls: aiDraft.orderedImageUrls,
+    });
+  }, [authHydrated, aiDraft, isAuthenticated, user, sellerPreviewImage]);
 
-  const handlePublish = () => {
-    const sessionCheck = validatePublishSession(isAuthenticated, user);
-    if (!sessionCheck.ok) {
-      if (!isAuthenticated) {
-        openAuthModal("/");
-      }
-      showToast(sessionCheck.message, "error");
+  const livePrePublishCard: PrePublishCardPayload | null = useMemo(() => {
+    if (!prePublishReadiness?.ok || !aiDraft) return null;
+    if ((aiDraft.price ?? 0) <= 0 || !aiDraft.title?.trim()) return null;
+    return buildPrePublishCardPayload(prePublishReadiness, sellerPreviewImage);
+  }, [prePublishReadiness, sellerPreviewImage, aiDraft]);
+
+  const showPrePublishCard =
+    Boolean(livePrePublishCard) &&
+    !busy &&
+    !isPublishingListing &&
+    Boolean(aiDraft);
+
+  const handleCardPublish = async (sourceRect: DOMRect) => {
+    if (!prePublishReadiness?.ok) {
+      showToast(prePublishReadiness?.blockMessage ?? "Trūksta duomenų.", "error");
       return;
     }
-    publishListing();
+    const result = await publishListing();
+    if (result.ok) {
+      await runPublishSuccessCelebration({
+        result,
+        sourceRect,
+        playCelebration: playPublishCelebration,
+        finishPublishedFlow,
+        router,
+      });
+    } else if (result.sessionExpired) {
+      showToast(result.error ?? "Sesija nebegalioja.", "error");
+    } else {
+      showToast(result.error ?? "Nepavyko publikuoti.", "error");
+    }
+  };
+
+  const handleCardEdit = () => {
+    void sendAgentMessage("Reikia pataisyti");
   };
 
   const handleQuickReply = (option: string) => {
@@ -94,7 +126,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     const el = messagesScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [renderMessages.length, busy, lastAssistant]);
+  }, [renderMessages.length, busy, lastAssistant, showPrePublishCard]);
 
   const hasUserTurn = messages.some((m) => m.role === "user");
   if (!hasUserTurn && !busy) return null;
@@ -124,51 +156,57 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           const messageChips =
             isLastAssistant && (m.quickReplies?.length ?? 0) >= 2
               ? m.quickReplies!
-              : isLastAssistant
+              : isLastAssistant && !showPrePublishCard
                 ? quickReplies
                 : [];
+          const cardPayload =
+            isLastAssistant && showPrePublishCard && livePrePublishCard
+              ? livePrePublishCard
+              : isLastAssistant
+                ? m.prePublishCard ?? null
+                : null;
 
           return (
-            <AgentChatBubble key={safeMessageKey(m.role, i, m.text)} role={m.role}>
-              {m.role === "user" ? (
-                <>
-                  <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
-                    Jūs
-                  </span>
-                  {display}
-                </>
-              ) : (
-                <>
-                  {display}
-                  {messageChips.length > 0 && (
-                    <AgentQuickReplyChips
-                      options={messageChips}
-                      disabled={busy}
-                      onSelect={handleQuickReply}
-                      embedded
-                    />
-                  )}
-                </>
-              )}
-            </AgentChatBubble>
+            <div key={safeMessageKey(m.role, i, m.text)} className="w-full">
+              <AgentChatBubble role={m.role}>
+                {m.role === "user" ? (
+                  <>
+                    <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
+                      Jūs
+                    </span>
+                    {display}
+                  </>
+                ) : (
+                  <>
+                    {display}
+                    {messageChips.length > 0 && (
+                      <AgentQuickReplyChips
+                        options={messageChips}
+                        disabled={busy}
+                        onSelect={handleQuickReply}
+                        embedded
+                      />
+                    )}
+                  </>
+                )}
+              </AgentChatBubble>
+              {m.role === "assistant" && cardPayload ? (
+                <div className="mt-2.5 flex w-full justify-start pl-0.5">
+                  <PrePublishListingCard
+                    card={cardPayload}
+                    publishing={isPublishingListing}
+                    onPublish={handleCardPublish}
+                    onEdit={handleCardEdit}
+                  />
+                </div>
+              ) : null}
+            </div>
           );
         })}
 
         {busy && <AgentTypingIndicator label={streamThinkingLabel} />}
         <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
       </div>
-
-      {publishReady && (
-        <button
-          type="button"
-          onClick={handlePublish}
-          disabled={isPublishingListing}
-          className="relative z-30 mt-3 flex w-full min-h-[44px] shrink-0 touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-semibold text-[var(--vauto-primary-contrast)] shadow-sm transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
-        >
-          <Sparkles className="h-4 w-4 shrink-0" aria-hidden />
-          {isPublishingListing ? "Publikuojama…" : "Publikuoti skelbimą"}
-        </button>
-      )}
 
       <div className="agent-chat-strip-composer sticky bottom-0 z-30 mt-3 shrink-0 border-t border-[var(--vauto-primary)]/10 bg-[var(--vauto-card-bg)] pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]">
         <AiCommandBar

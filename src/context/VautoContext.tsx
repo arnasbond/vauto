@@ -124,6 +124,7 @@ import { ChatProvider, useChat } from "@/context/ChatContext";
 import { NotificationBellProvider } from "@/context/NotificationBellContext";
 import { SellerFlowContextProvider, useSellerFlow, type SellerFlowContextValue } from "@/context/SellerFlowContext";
 import { VautoAgentProvider } from "@/context/VautoAgentContext";
+import { PublishCelebrationProvider } from "@/context/PublishCelebrationContext";
 import {
   useVautoSearchDispatch,
   useVautoSearchState,
@@ -680,15 +681,17 @@ function VautoFacade({
     <VautoContext.Provider value={value}>
       <AdminProjectContextProvider>
         <ZeroUiMemoryProvider>
-          <VautoAgentProvider>
-            <FleetMatchBuddyHost />
-            <LiveInterventionHost />
-            <OnboardingConversation />
-            <SearchRefinementHost />
-            <SellerFlowOverlays />
-            <AgentChromeHost />
-            {children}
-          </VautoAgentProvider>
+          <PublishCelebrationProvider>
+            <VautoAgentProvider>
+              <FleetMatchBuddyHost />
+              <LiveInterventionHost />
+              <OnboardingConversation />
+              <SearchRefinementHost />
+              <SellerFlowOverlays />
+              <AgentChromeHost />
+              {children}
+            </VautoAgentProvider>
+          </PublishCelebrationProvider>
         </ZeroUiMemoryProvider>
       </AdminProjectContextProvider>
       <ZeroUiSellerBridge />

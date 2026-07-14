@@ -2767,6 +2767,44 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   }
 }
 
+@keyframes prePublishCardEnter {
+  from {
+    opacity: 0;
+    transform: translate3d(0, 12px, 0) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate3d(0, 0, 0) scale(1);
+  }
+}
+
+@keyframes bottomNavSpintaPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    filter: none;
+  }
+  45% {
+    transform: scale(1.14);
+    filter: drop-shadow(0 0 10px color-mix(in srgb, var(--vauto-primary) 55%, transparent));
+  }
+}
+
+.pre-publish-listing-card {
+  animation: prePublishCardEnter 0.45s cubic-bezier(0.22, 1, 0.36, 1) both;
+  will-change: transform, opacity;
+}
+
+.bottom-nav-spinta-pulse {
+  animation: bottomNavSpintaPulse 0.55s ease-in-out 2;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.publish-airplane {
+  will-change: transform, opacity;
+}
+
 .agent-typing-dot {
   animation: agentTypingBounce 1.2s ease-in-out infinite;
 }

@@ -16,6 +16,8 @@ export interface AgentChatMessage {
   toolCalls?: { name: string; result: unknown }[];
   /** Structured quick replies from vision / proactive flows */
   quickReplies?: string[];
+  /** Rich pre-publish listing preview card */
+  prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
 }
 
 export interface AgentSearchFilters {

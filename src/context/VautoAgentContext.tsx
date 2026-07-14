@@ -144,10 +144,17 @@ import {
   validatePublishSession,
 } from "@/lib/profile-listing-sync";
 import {
+  buildPrePublishCardPayload,
   buildPrePublishMissingGuide,
   evaluatePrePublishReadiness,
   PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
+  PRE_PUBLISH_READY_INTRO,
 } from "@/lib/pre-publish-validation";
+import { usePublishCelebration } from "@/context/PublishCelebrationContext";
+import {
+  centerScreenPublishRect,
+  runPublishSuccessCelebration,
+} from "@/lib/publish-success-celebration";
 
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
@@ -237,7 +244,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerVisionRecoveryActive,
     cancelSellerFlow,
     sellerPreviewImage,
+    finishPublishedFlow,
   } = useSellerFlow();
+  const { playPublishCelebration } = usePublishCelebration();
   const { startChat } = useChat();
   const pathname = usePathname();
   const router = useRouter();
@@ -944,7 +953,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return readiness;
       };
 
-      const requestPublishUpsell = (): { reply: string; quickReplies?: string[] } => {
+      const requestPublishUpsell = (): {
+        reply: string;
+        quickReplies?: string[];
+        prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
+      } => {
         const readiness = runPrePublishGate();
         if (!readiness.ok) {
           return {
@@ -952,9 +965,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             quickReplies: readiness.quickReplies,
           };
         }
+        const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
+        if (card && (readiness.syncedDraft?.price ?? 0) > 0) {
+          return {
+            reply: PRE_PUBLISH_READY_INTRO,
+            prePublishCard: card,
+          };
+        }
         return {
           reply:
-            "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį iškelti į viršų, paryškinti arba Aktyvuoti jūsų AI Dvynį-Derybininką, kuris 24/7 automatiškai derėsis su pirkėjais dėl geriausios kainos pagal jūsų nustatytas ribas! Ar pritaikom šią premium funkciją?",
+            "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį iškelti į viršų, paryškinti arba Aktyvuoti jūsų AI Dvynį-Derybininką. Ar pritaikom premium funkciją?",
           quickReplies: [
             "Iškelti į viršų",
             "Paryškinti",
@@ -968,12 +988,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         reply: string;
         quickReplies?: string[];
         publishAfterReply?: boolean;
+        prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
       } => {
         const readiness = runPrePublishGate();
         if (!readiness.ok) {
           return {
             reply: readiness.blockMessage,
             quickReplies: readiness.quickReplies,
+          };
+        }
+        const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
+        if (card && (readiness.syncedDraft?.price ?? 0) > 0) {
+          return {
+            reply: PRE_PUBLISH_READY_INTRO,
+            prePublishCard: card,
           };
         }
         return { reply: "Publikuoju skelbimą…", publishAfterReply: true };
@@ -1119,7 +1147,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         publishListing,
         requestPublishUpsell: () => {
           const r = requestPublishUpsell();
-          return { handled: true, reply: r.reply, ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}) };
+          return {
+            handled: true,
+            reply: r.reply,
+            ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}),
+            ...(r.prePublishCard ? { prePublishCard: r.prePublishCard } : {}),
+          };
         },
         confirmPublishNow: () => {
           const r = confirmPublishNow();
@@ -1127,6 +1160,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             handled: true,
             reply: r.reply,
             ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}),
+            ...(r.prePublishCard ? { prePublishCard: r.prePublishCard } : {}),
             ...(r.publishAfterReply ? { publishAfterReply: true } : {}),
           };
         },
@@ -1158,14 +1192,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             role: "assistant",
             text: quickReply.reply,
             ...(quickReply.quickReplies?.length ? { quickReplies: quickReply.quickReplies } : {}),
+            ...(quickReply.prePublishCard ? { prePublishCard: quickReply.prePublishCard } : {}),
           },
         ]);
         let finalReply = quickReply.reply;
         if (quickReply.publishAfterReply) {
           const result = await publishListing();
           if (result.ok) {
-            finalReply =
-              "Skelbimas sėkmingai įkeltas! Peržiūrėkite „Mano skelbimai“ arba tęskite pokalbį.";
+            await runPublishSuccessCelebration({
+              result,
+              sourceRect: centerScreenPublishRect(),
+              playCelebration: playPublishCelebration,
+              finishPublishedFlow,
+              router,
+            });
+            finalReply = "Skelbimas sėkmingai įkeltas! Perkeliame į Mano skelbimai…";
           } else if (result.sessionExpired) {
             finalReply = result.error ?? SESSION_EXPIRED_MESSAGE;
           } else if (result.prePublishBlocked) {
@@ -1644,6 +1685,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pendingWardrobeVoice,
       publishBulkClothingListings,
       publishListing,
+      finishPublishedFlow,
+      playPublishCelebration,
       applyAgentWardrobeBulk,
       applyAgentListingDraft,
       navigateToAdd,
