@@ -40,7 +40,7 @@ export interface AgentQuickReplyDeps {
   pendingWardrobeBulkItems: WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
   lastBargainingOffer: AgentBargainingOffer | null;
-  publishListing: () => Promise<{ ok: boolean; error?: string; listing?: import("@/lib/types").Listing }>;
+  publishListing: () => Promise<{ ok: boolean; error?: string; sessionExpired?: boolean; listing?: import("@/lib/types").Listing }>;
   /** Returns chat reply when user tries to publish from chat chips. */
   requestPublishUpsell: () => AgentQuickReplyResult;
   /** Returns chat reply; awaits DB save when publishAfterReply is set. */
@@ -62,6 +62,7 @@ export interface AgentQuickReplyDeps {
   registerWantedFlow: (query: string) => void;
   openChats: () => void;
   openBargainingChat: () => boolean;
+  openAuthModal: (redirectPath?: string) => void;
   searchSimilarListings: () => void;
   revertPhotoCategoryMismatch: () => boolean;
   acceptPhotoCategoryMismatch: () => void;
@@ -374,6 +375,14 @@ export function tryHandleAgentQuickReply(
     if (deps.aiDraft && deps.sellerStep === "confirmation") {
       return deps.confirmPublishNow();
     }
+  }
+
+  if (matchesChip(trimmed, [/prisijungti iš naujo/, /prisijungti is naujo/])) {
+    deps.openAuthModal("/");
+    return {
+      handled: true,
+      reply: "Atidarau prisijungimo langą — prisijunkite ir bandykite publikuoti dar kartą.",
+    };
   }
 
   if (matchesChip(trimmed, [/reikia pataisyti/])) {

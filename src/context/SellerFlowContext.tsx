@@ -30,7 +30,8 @@ import { getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
-import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia, parseApiErrorMessage } from "@/lib/api/client";
+import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
+import { loadAccessToken } from "@/lib/auth/session";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch } from "@/lib/listing-edit";
 import { writeListingEditSession } from "@/lib/listing-edit-session";
@@ -204,6 +205,26 @@ function formatPublishSaveError(raw: string): string {
   return `Nepavyko išsaugoti skelbimo: ${parseApiErrorMessage(raw)}`;
 }
 
+function resolvePublishApiFailure(
+  status: number | undefined,
+  raw: string
+): { message: string; detail: string; sessionExpired: boolean } {
+  const sessionExpired = status === 401 || status === 403;
+  if (sessionExpired) {
+    return {
+      message: SESSION_EXPIRED_MESSAGE,
+      detail: SESSION_EXPIRED_MESSAGE,
+      sessionExpired: true,
+    };
+  }
+  const detail = parseApiErrorMessage(raw);
+  return {
+    message: formatPublishSaveError(raw),
+    detail,
+    sessionExpired: false,
+  };
+}
+
 async function prepareListingImageForApi(
   src: string | null | undefined,
   listingId?: string
@@ -223,7 +244,7 @@ async function prepareListingImageForApi(
 
 export type PublishListingResult =
   | { ok: true; listing: Listing }
-  | { ok: false; error: string };
+  | { ok: false; error: string; sessionExpired?: boolean };
 
 export interface SellerFlowContextValue {
   sellerStep: SellerFlowStep;
@@ -300,7 +321,7 @@ const SellerFlowContext = createContext<SellerFlowContextValue | null>(null);
 
 export function SellerFlowContextProvider({ children }: { children: ReactNode }) {
   const router = useRouter();
-  const { user, isAuthenticated, authHydrated, openAuthModal, requireAuthForListing } = useAuth();
+  const { user, isAuthenticated, authHydrated, openAuthModal, requireAuthForListing, logout } = useAuth();
   const {
     listings,
     setListings,
@@ -1682,6 +1703,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     let published = newListing;
 
     if (isDataApiEnabled()) {
+      if (!loadAccessToken()) {
+        const msg = SESSION_EXPIRED_MESSAGE;
+        showToast(msg, "error");
+        logout();
+        openAuthModal("/");
+        return { ok: false, error: msg, sessionExpired: true };
+      }
+
       void apiUpdateUser({
         ...user,
         avatar: sanitizeAvatarForApi(user.avatar),
@@ -1689,17 +1718,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         /* profile sync is best-effort — must not block publish */
       });
 
-      const createRes = await apiCreateListing(newListing, user.id);
+      const createRes = await apiCreateListing(
+        { ...newListing, sellerId: user.id },
+        user.id
+      );
       if (!createRes.ok || !createRes.data?.id?.trim()) {
         setSellerStep("confirmation");
-        const detail = createRes.ok
-          ? "serveris grąžino neteisingą atsakymą"
-          : parseApiErrorMessage(createRes.error);
-        const msg = `Nepavyko išsaugoti skelbimo: ${detail}`;
-        setSyncError(msg);
-        showToast(msg, "error");
-        pushAgentGreeting(msg, { openSheet: true });
-        return { ok: false, error: detail };
+        const failure = resolvePublishApiFailure(createRes.ok ? undefined : createRes.status, createRes.ok ? "serveris grąžino neteisingą atsakymą" : createRes.error);
+        setSyncError(failure.message);
+        showToast(failure.message, "error");
+        pushAgentGreeting(failure.message, { openSheet: true, replaceThread: false });
+        if (failure.sessionExpired) {
+          logout();
+          openAuthModal("/");
+        }
+        return { ok: false, error: failure.detail, sessionExpired: failure.sessionExpired };
       }
 
       published = withDefaultExpiry({
@@ -1794,6 +1827,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     photoCategoryMismatch,
     refreshListingsCatalog,
     trackEvent,
+    logout,
   ]);
 
   const publishBulkClothingListings = useCallback(

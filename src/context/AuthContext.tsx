@@ -47,7 +47,6 @@ import {
 import { persistAuthBundle } from "@/lib/auth/persistence";
 
 import {
-  getMockUserIdByPhone,
   validateMockPhoneAuth,
 } from "@/lib/auth/mock-auth-registry";
 
@@ -146,6 +145,9 @@ export interface LoginPayload {
   name?: string;
 
   signupIntent?: AuthSignupIntent;
+
+  /** Explicit signup — never inferred from empty local mock registry. */
+  isRegistration?: boolean;
 
 }
 
@@ -752,18 +754,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         if (isAuthApiAvailable()) {
 
-          const phoneDigits = data.phone?.replace(/\D/g, "") ?? "";
-
-          const isNewRegistration =
-
-            data.provider === "phone" &&
-
-            Boolean(phoneDigits) &&
-
-            !getMockUserIdByPhone(data.phone ?? "");
-
-
-
           const apiResult =
 
             data.provider === "phone" && data.phone && data.otp
@@ -780,7 +770,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                   referralCode,
 
-                  isRegistration: isNewRegistration,
+                  isRegistration: data.isRegistration === true,
 
                 })
 
@@ -854,11 +844,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
         const mockError = validateMockPhoneAuth(profile.phone, profile.id, {
 
-          isNewRegistration: Boolean(
-
-            data.phone && !getMockUserIdByPhone(data.phone)
-
-          ),
+          isNewRegistration: data.isRegistration === true,
 
         });
 

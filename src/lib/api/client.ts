@@ -20,6 +20,9 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status?: number };
 
+export const SESSION_EXPIRED_MESSAGE =
+  "Prisijungimas nebegalioja. Prašome prisijungti iš naujo.";
+
 /** Parse JSON or plain-text API error bodies into a user-facing message. */
 export function parseApiErrorMessage(raw: string): string {
   const text = raw.trim();

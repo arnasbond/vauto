@@ -40,6 +40,9 @@ export function optionalAuth(
   next();
 }
 
+export const AUTH_SESSION_EXPIRED_MESSAGE =
+  "Prisijungimas nebegalioja. Prašome prisijungti iš naujo.";
+
 export function requireAuth(
   req: AuthedRequest,
   res: Response,
@@ -47,7 +50,7 @@ export function requireAuth(
 ): void {
   optionalAuth(req, res, () => {
     if (!req.authUserId) {
-      res.status(401).json({ error: "Authentication required" });
+      res.status(401).json({ error: AUTH_SESSION_EXPIRED_MESSAGE });
       return;
     }
     next();

@@ -188,6 +188,20 @@ export async function getUserByPhoneDigits(
   return id ? getUser(id) : null;
 }
 
+/** Find user by email — links OAuth sign-in to an existing account. */
+export async function getUserByEmail(email: string): Promise<ApiUser | null> {
+  const normalized = email.trim().toLowerCase();
+  if (!normalized || !normalized.includes("@")) return null;
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM users
+     WHERE lower(trim(email)) = $1
+     LIMIT 1`,
+    [normalized]
+  );
+  const id = rows[0]?.id;
+  return id ? getUser(id) : null;
+}
+
 export async function ensureUser(id: string): Promise<void> {
   await query(
     `INSERT INTO users (id, name, phone, city)

@@ -16,7 +16,7 @@ import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { apiVautoAgent } from "@/lib/api/client";
+import { apiVautoAgent, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
 import { apiVautoAgentStream } from "@/lib/api/vauto-agent-stream";
 import {
   BUDDY_REPEAT_PROMPT,
@@ -1134,6 +1134,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         registerWantedFlow,
         openChats: () => router.push("/chats"),
         openBargainingChat,
+        openAuthModal,
         searchSimilarListings,
         revertPhotoCategoryMismatch,
         acceptPhotoCategoryMismatch,
@@ -1151,12 +1152,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         let finalReply = quickReply.reply;
         if (quickReply.publishAfterReply) {
           const result = await publishListing();
-          finalReply = result.ok
-            ? "Skelbimas sėkmingai įkeltas! Peržiūrėkite „Mano skelbimai“ arba tęskite pokalbį."
-            : `Nepavyko išsaugoti skelbimo: ${result.error ?? "Nežinoma klaida"}`;
+          if (result.ok) {
+            finalReply =
+              "Skelbimas sėkmingai įkeltas! Peržiūrėkite „Mano skelbimai“ arba tęskite pokalbį.";
+          } else if (result.sessionExpired) {
+            finalReply = result.error ?? SESSION_EXPIRED_MESSAGE;
+          } else {
+            finalReply = `Nepavyko išsaugoti skelbimo: ${result.error ?? "Nežinoma klaida"}`;
+          }
           setMessages((prev) => {
             const next = [...prev];
-            next[next.length - 1] = { role: "assistant", text: finalReply };
+            next[next.length - 1] = {
+              role: "assistant",
+              text: finalReply,
+              ...(!result.ok
+                ? {
+                    quickReplies: result.sessionExpired
+                      ? ["Prisijungti iš naujo"]
+                      : ["Taip, publikuoti", "Reikia pataisyti"],
+                  }
+                : {}),
+            };
             return next.slice(-6);
           });
           if (!result.ok) {
@@ -1616,6 +1632,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       applyAgentWardrobeBulk,
       applyAgentListingDraft,
       navigateToAdd,
+      openAuthModal,
       broadenSearch,
       registerWantedFlow,
       lastBargainingOffer,

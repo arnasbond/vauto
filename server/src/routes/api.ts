@@ -99,7 +99,7 @@ import {
 import {
   notifyNegotiationDealClosed,
 } from "../services/push-service.js";
-import { requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
+import { AUTH_SESSION_EXPIRED_MESSAGE, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -448,9 +448,10 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const parsed = validateListing(req.body);
     if (badRequest(res, parsed)) return;
-    let listing = parsed.value;
+    const authUserId = req.authUserId!;
+    let listing = { ...parsed.value, sellerId: authUserId };
     if (!canActForUser(req, listing.sellerId)) {
-      res.status(403).json({ error: "Forbidden" });
+      res.status(403).json({ error: AUTH_SESSION_EXPIRED_MESSAGE });
       return;
     }
     const moderation = moderateListingInput({

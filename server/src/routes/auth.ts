@@ -15,7 +15,7 @@ import {
   verifyOtp,
 } from "../services/otp.js";
 import { sendOtpSms } from "../services/sms.js";
-import { getUser, getUserByPhoneDigits, upsertUser } from "../repository.js";
+import { getUser, getUserByEmail, getUserByPhoneDigits, upsertUser } from "../repository.js";
 import {
   applyReferralOnSignup,
   attachReferralFields,
@@ -61,6 +61,18 @@ function stableUserId(seed: string): string {
     hash = (hash * 31 + seed.charCodeAt(i)) | 0;
   }
   return `user-${Math.abs(hash)}`;
+}
+
+/** Prefer an existing DB account (phone/email) over a freshly hashed provider id. */
+async function resolveLinkedUserId(
+  providerSeed: string,
+  linkEmail?: string | null
+): Promise<string> {
+  if (linkEmail?.trim()) {
+    const byEmail = await getUserByEmail(linkEmail);
+    if (byEmail?.id) return byEmail.id;
+  }
+  return stableUserId(providerSeed);
 }
 
 function defaultAvatar(provider: string): string {
@@ -249,19 +261,16 @@ authRouter.post("/otp/verify", async (req, res) => {
     }
 
     const phoneDigits = phone.replace(/\D/g, "");
-    const userId = stableUserId(`phone:${phoneDigits}`);
     const existingByPhone = await getUserByPhoneDigits(phoneDigits);
     const isRegistration = req.body?.isRegistration === true;
-
-    if (existingByPhone && existingByPhone.id !== userId) {
-      res.status(409).json({ error: "Toks vartotojas jau egzistuoja" });
-      return;
-    }
 
     if (isRegistration && existingByPhone) {
       res.status(409).json({ error: "Toks vartotojas jau egzistuoja" });
       return;
     }
+
+    const userId =
+      existingByPhone?.id ?? stableUserId(`phone:${phoneDigits}`);
 
     const session = await buildSession(
       userId,
@@ -326,7 +335,10 @@ authRouter.post("/social", async (req, res) => {
         res.status(403).json({ error: "Admin access denied" });
         return;
       }
-      const userId = stableUserId(`google:${google.sub}`);
+      const userId = await resolveLinkedUserId(
+        `google:${google.sub}`,
+        google.email
+      );
       const session = await buildSession(
         userId,
         {
@@ -365,7 +377,10 @@ authRouter.post("/social", async (req, res) => {
       }
       const displayName =
         req.body?.name ? String(req.body.name).trim() : undefined;
-      const userId = stableUserId(`apple:${apple.sub}`);
+      const userId = await resolveLinkedUserId(
+        `apple:${apple.sub}`,
+        apple.email ?? email
+      );
       const session = await buildSession(
         userId,
         {
