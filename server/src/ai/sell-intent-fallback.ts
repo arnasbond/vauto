@@ -1,7 +1,7 @@
 /**
  * Server-side sell-intent heuristics — mirrors client scoring for fallback drafts (S0.9).
  */
-import { buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
+import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
 
 const SELL_PATTERNS = [
   /\bparduodu\b/i,
@@ -97,7 +97,14 @@ export function buildSellListingDraftFallback(
     attributes,
   };
   return {
-    reply: buildCreateListingDraftFollowUp(category, title, attributes),
+    reply: buildListingDraftUpdateReply({
+      category,
+      title,
+      description: listingDraft.description,
+      price: listingDraft.price,
+      location: listingDraft.location,
+      attributes,
+    }),
     quickReplies:
       category === "clothing"
         ? ["Įkelti nuotraukas", "Ką dar reikia?", "Publikuoti vėliau"]

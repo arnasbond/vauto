@@ -36,7 +36,10 @@ import {
   parsePriceFromChatInput,
 } from "./listing-chat-input.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
-import { buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
+import {
+  buildListingDraftUpdateReply,
+  ensureRichListingDraftReply,
+} from "./listing-draft-preview.js";
 import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
@@ -357,7 +360,7 @@ async function runVautoAgentInner(
     if (price != null) {
       return {
         ok: true,
-        reply: buildListingChatPriceReply(price, listingDraft.title),
+        reply: buildListingChatPriceReply(price, listingDraft),
         toolCalls: [],
         actions: {
           type: "listing_draft",
@@ -1001,11 +1004,14 @@ async function runVautoAgentInner(
 
   if (!finalText && sideEffect?.type === "listing_draft") {
     const ld = sideEffect.listingDraft;
-    finalText = buildCreateListingDraftFollowUp(
-      ld.category ?? "other",
-      ld.title?.trim() || "Naujas skelbimas",
-      (ld.attributes as Record<string, string> | undefined) ?? {}
-    );
+    finalText = buildListingDraftUpdateReply({
+      category: ld.category ?? "other",
+      title: ld.title?.trim() || "Naujas skelbimas",
+      description: ld.description,
+      price: ld.price,
+      location: ld.location,
+      attributes: (ld.attributes as Record<string, string> | undefined) ?? {},
+    });
   }
 
   if (!finalText && sideEffect?.type === "wardrobe_bulk") {
@@ -1020,11 +1026,33 @@ async function runVautoAgentInner(
     "listingDraft" in resolvedAction
   ) {
     const ld = resolvedAction.listingDraft;
-    finalText = buildCreateListingDraftFollowUp(
-      ld.category ?? "other",
-      ld.title?.trim() || "Naujas skelbimas",
-      (ld.attributes as Record<string, string> | undefined) ?? {}
-    );
+    finalText = buildListingDraftUpdateReply({
+      category: ld.category ?? "other",
+      title: ld.title?.trim() || "Naujas skelbimas",
+      description: ld.description,
+      price: ld.price,
+      location: ld.location,
+      attributes: (ld.attributes as Record<string, string> | undefined) ?? {},
+    });
+  }
+
+  const listingDraftForReply =
+    sideEffect?.type === "listing_draft"
+      ? sideEffect.listingDraft
+      : resolvedAction.type === "listing_draft" && "listingDraft" in resolvedAction
+        ? resolvedAction.listingDraft
+        : null;
+  if (finalText && listingDraftForReply) {
+    finalText = ensureRichListingDraftReply(finalText, {
+      category: listingDraftForReply.category ?? "other",
+      title: listingDraftForReply.title?.trim() || "Naujas skelbimas",
+      description: listingDraftForReply.description,
+      price: listingDraftForReply.price,
+      location: listingDraftForReply.location,
+      attributes:
+        (listingDraftForReply.attributes as Record<string, string> | undefined) ??
+        {},
+    });
   }
 
   if (

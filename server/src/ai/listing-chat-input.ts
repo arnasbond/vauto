@@ -1,5 +1,17 @@
+import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_INLINE_RE = /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)/i;
+
+export interface ListingDraftContext {
+  title?: string;
+  description?: string;
+  price?: number;
+  location?: string;
+  category?: string;
+  attributes?: Record<string, string>;
+  allowPastomatas?: boolean;
+}
 
 export function isListingConversationInput(
   text: string,
@@ -29,21 +41,21 @@ export function parsePriceFromChatInput(text: string): number | null {
   return null;
 }
 
-export function buildListingChatPriceReply(price: number, title?: string): string {
-  const label = title?.trim();
-  return label
-    ? `Gerai — ${label}: kaina ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`
-    : `Gerai, įrašiau kainą — ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`;
-}
-
-export interface ListingDraftContext {
-  title?: string;
-  description?: string;
-  price?: number;
-  location?: string;
-  category?: string;
-  attributes?: Record<string, string>;
-  allowPastomatas?: boolean;
+export function buildListingChatPriceReply(
+  price: number,
+  draft: ListingDraftContext
+): string {
+  return buildListingDraftUpdateReply(
+    {
+      category: draft.category,
+      title: draft.title,
+      description: draft.description,
+      price,
+      location: draft.location,
+      attributes: draft.attributes,
+    },
+    { intro: "Puiku — atnaujinau kainą!" }
+  );
 }
 
 /** Map partial wizard draft to strict listing_draft side-effect payload. */

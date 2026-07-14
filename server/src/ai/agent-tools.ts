@@ -19,6 +19,7 @@ import {
   resolveLtCityNominative,
 } from "./lithuanian-location-normalize.js";
 import { buildSellerContextualVoiceFollowUp, buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
+import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
 import { runMarketPriceAnalysis, type MarketPriceAnalysisResult } from "./market-price-analysis.js";
 import {
@@ -1358,7 +1359,12 @@ export async function executeAgentTool(
         allowPastomatas: true,
       };
 
-      const voiceFollowUp = buildCreateListingDraftFollowUp(category, title, attributes);
+      const voiceFollowUp = buildListingDraftUpdateReply({
+        category,
+        title,
+        description,
+        attributes,
+      });
       const gate = evaluateOmnivaPastomatasGatekeeper({
         title,
         description,
@@ -1616,8 +1622,10 @@ export async function executeAgentTool(
         const message = buildPostValidationReportMessage({
           category: draft.category,
           title: draft.title,
+          description: draft.description,
           price: draft.price,
           location: draft.location,
+          attributes: draft.attributes,
         });
         const quickReplies = [...POST_VALIDATION_QUICK_REPLIES];
 
@@ -1921,27 +1929,21 @@ export async function executeAgentTool(
         attributes: patch.attributes ?? {},
       };
 
-      const hasCoreFields =
-        Boolean(draft.title?.trim()) &&
-        draft.category !== "other" &&
-        (draft.price > 0 || Boolean(draft.location?.trim()));
-      const message = hasCoreFields
-        ? buildPostValidationReportMessage({
-            category: draft.category,
-            title: draft.title,
-            price: draft.price,
-            location: draft.location,
-          })
-        : "Juodraštis atnaujintas.";
+      const message = buildListingDraftUpdateReply({
+        category: draft.category,
+        title: draft.title,
+        description: draft.description,
+        price: draft.price,
+        location: draft.location,
+        attributes: draft.attributes,
+      });
 
       return {
         result: {
           ok: true,
           message,
           draft,
-          ...(hasCoreFields
-            ? { quickReplies: [...POST_VALIDATION_QUICK_REPLIES] }
-            : {}),
+          quickReplies: [...POST_VALIDATION_QUICK_REPLIES],
         },
         sideEffect: {
           type: "listing_draft",

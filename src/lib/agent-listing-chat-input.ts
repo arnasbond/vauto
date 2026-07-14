@@ -1,4 +1,8 @@
 import type { AiExtractedListing } from "@/lib/types";
+import {
+  buildListingDraftUpdateReply,
+  draftToPreviewInput,
+} from "@/lib/listing-draft-preview";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_INLINE_RE = /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)/i;
@@ -65,11 +69,11 @@ export function tryApplyListingChatInput(
 
   const price = parsePriceFromChatInput(text);
   if (price != null) {
+    const nextDraft = { ...aiDraft, price };
     updateAiDraft({ price });
-    const title = aiDraft.title?.trim();
-    return title
-      ? `Gerai — ${title}: kaina ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`
-      : `Gerai, įrašiau kainą — ${price} €. Ar dar ką nors patikslinsime prieš publikuojant?`;
+    return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
+      intro: "Puiku — atnaujinau kainą!",
+    });
   }
 
   const trimmed = text.trim();
@@ -77,11 +81,19 @@ export function tryApplyListingChatInput(
     const nextDescription = aiDraft.description?.trim()
       ? `${aiDraft.description.trim()}\n${trimmed}`
       : trimmed;
-    updateAiDraft({
+    const nextTitle = aiDraft.title?.trim() ? aiDraft.title : trimmed.slice(0, 96);
+    const nextDraft: AiExtractedListing = {
+      ...aiDraft,
       description: nextDescription.slice(0, 4000),
-      ...(aiDraft.title?.trim() ? {} : { title: trimmed.slice(0, 96) }),
+      title: nextTitle,
+    };
+    updateAiDraft({
+      description: nextDraft.description,
+      ...(aiDraft.title?.trim() ? {} : { title: nextTitle }),
     });
-    return "Supratau — atnaujinau skelbimo aprašymą. Ar viskas tinka, ar dar ką nors patikslinsime?";
+    return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
+      intro: "Supratau — papildžiau juodraštį pagal jūsų aprašymą!",
+    });
   }
 
   return null;

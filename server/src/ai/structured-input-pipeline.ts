@@ -3,6 +3,8 @@
  * into structured listing fields with mandatory disambiguation and confirmation loops.
  */
 
+import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+
 export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
 - Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
 - NĖRA balso įvesties (STT), mikrofono ar garso įrašų — NIEKADA nesiūlyk „pasakyti balsu“, „įrašyti balsu“ ar prašyti mikrofono leidimo.
@@ -25,8 +27,8 @@ export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUT
 - DRAUDŽIAMA: automatiškai priskirti PASLAUGOS kategoriją kambario vaizdui; fiksuoti kainą be įvesties; užpildyti formą išgalvotais duomenimis.
 
 3) Patvirtinimo ataskaita (Confirmation Flow — po sėkmingo laukų užpildymo):
-- Kai laukai užpildyti iš įvesties — pokalbyje pateik trumpą ataskaitą ir paklausk patvirtinimo.
-- Šablonas: „Pagal jūsų įvestį užpildžiau skelbimo laukus: [kategorija], [pavadinimas], [kaina/miestas jei žinomi]. Ar rezultatas tinka, ar norėtumėte ką nors pataisyti?“
+- Kai laukai užpildyti iš įvesties — pokalbyje PRIVALOMA pateikti vizualų juodraščio peržiūrą, spragų analizę ir pardavimo patarimą (žr. JUODRAŠČIO PERŽIŪRA).
+- DRAUDŽIAMA atsakyti vienu sakiniu be peržiūros: „Supratau — atnaujinau“, „Juodraštis atnaujintas“, „Gerai“.
 - Siūlyk konkrečius taisymo kelius: kategoriją, pavadinimą, kainą, aprašymą, miestą.
 - Jei vartotojas prašo pataisyti — updateListingDraft, ne naujas juodraštis iš nieko.`;
 
@@ -39,7 +41,7 @@ export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta 
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):
 - scanListingPhotos → jei multi-object ar žema confidence: reply + followUpQuestion + choiceChips, NE updateListingDraft.
 - updateListingDraft / postNewListing → tik po disambiguation loop arba aiškaus vieno objekto.
-- Po sėkmingo updateListingDraft → atsakymas su confirmation flow ataskaita + showZeroUiScreen(listing_preview).`;
+- Po sėkmingo updateListingDraft → atsakymas su pilna juodraščio peržiūra (✍️), spragų analize (⚠️), patarimu (💡) + showZeroUiScreen(listing_preview).`;
 
 /** Greiti atsakymai po sėkmingo laukų užpildymo (agentas + klientas). */
 export const POST_VALIDATION_QUICK_REPLIES = [
@@ -57,28 +59,21 @@ export const EMPTY_SEARCH_QUICK_REPLIES = [
   "Parodyti populiariausius",
 ] as const;
 
-const CATEGORY_LABELS: Record<string, string> = {
-  vehicles: "Automobiliai",
-  electronics: "Elektronika",
-  services: "Paslaugos",
-  jobs: "Darbas",
-  home: "Namai / buitis",
-  clothing: "Drabužiai",
-  real_estate: "NT",
-  other: "Kita",
-};
-
 /** Confirmation flow message after structured fields are populated. */
 export function buildPostValidationReportMessage(fields: {
   category: string;
   title: string;
+  description?: string;
   price?: number;
   location?: string;
+  attributes?: Record<string, string | undefined>;
 }): string {
-  const category = CATEGORY_LABELS[fields.category] ?? fields.category;
-  const title = fields.title?.trim() || "—";
-  const price =
-    fields.price && fields.price > 0 ? `${fields.price} €` : "nenurodyta";
-  const location = fields.location?.trim() || "nenurodytas";
-  return `Pagal jūsų įvestį užpildžiau skelbimo laukus: ${category}, „${title}", kaina ${price}, vieta ${location}. Ar rezultatas tinka, ar norėtumėte ką nors pataisyti?`;
+  return buildListingDraftUpdateReply({
+    category: fields.category,
+    title: fields.title,
+    description: fields.description,
+    price: fields.price,
+    location: fields.location,
+    attributes: fields.attributes,
+  });
 }
