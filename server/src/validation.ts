@@ -340,7 +340,7 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
     requiresReview: requiresReview.value,
     imageAlt: imageAlt.value,
     imageTitle: imageTitle.value,
-    allowPastomatas: allowPastomatas.value,
+    allowPastomatas: allowPastomatas.value ?? true,
   });
 }
 

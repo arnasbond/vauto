@@ -30,7 +30,7 @@ import { getUserCoords } from "@/lib/geolocation";
 import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
-import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia } from "@/lib/api/client";
+import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia, parseApiErrorMessage } from "@/lib/api/client";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch } from "@/lib/listing-edit";
 import { writeListingEditSession } from "@/lib/listing-edit-session";
@@ -198,6 +198,12 @@ function hasExplicitServiceKeywords(text: string): boolean {
   );
 }
 
+const API_MAX_IMAGE_LENGTH = 15_000_000;
+
+function formatPublishSaveError(raw: string): string {
+  return `Nepavyko išsaugoti skelbimo: ${parseApiErrorMessage(raw)}`;
+}
+
 async function prepareListingImageForApi(
   src: string | null | undefined,
   listingId?: string
@@ -208,11 +214,16 @@ async function prepareListingImageForApi(
     image = await compressDataUrl(image);
     const cloudUrl = await apiUploadMedia(image, listingId);
     if (cloudUrl) return cloudUrl;
+    if (image.length > API_MAX_IMAGE_LENGTH) return null;
     return image;
   }
   if (/^https?:\/\//i.test(image)) return image;
   return null;
 }
+
+export type PublishListingResult =
+  | { ok: true; listing: Listing }
+  | { ok: false; error: string };
 
 export interface SellerFlowContextValue {
   sellerStep: SellerFlowStep;
@@ -234,7 +245,7 @@ export interface SellerFlowContextValue {
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
   isPublishingListing: boolean;
-  publishListing: () => void;
+  publishListing: () => Promise<PublishListingResult>;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
   lastPublishedListing: Listing | null;
@@ -1356,22 +1367,25 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     showToast("Kategorija pakeista į elektroniką.", "info");
   }, [showToast, syncDraftWithProfile]);
 
-  const publishListing = useCallback(async () => {
-    if (isPublishingRef.current) return;
+  const publishListing = useCallback(async (): Promise<PublishListingResult> => {
+    if (isPublishingRef.current) {
+      return { ok: false, error: "Skelbimas jau publikuojamas — palaukite." };
+    }
     if (!aiDraft) {
-      showToast("Klaida: nėra skelbimo duomenų. Bandykite iš naujo.", "error");
-      return;
+      const msg = "Klaida: nėra skelbimo duomenų. Bandykite iš naujo.";
+      showToast(msg, "error");
+      return { ok: false, error: msg };
     }
     if (hasActivePhotoCategoryMismatch(photoCategoryMismatch)) {
-      showToast(
-        "Pirmiausia pasirinkite: grįžti į automobilių srautą arba keisti kategoriją į elektroniką.",
-        "error"
-      );
-      return;
+      const msg =
+        "Pirmiausia pasirinkite: grįžti į automobilių srautą arba keisti kategoriją į elektroniką.";
+      showToast(msg, "error");
+      return { ok: false, error: msg };
     }
     if (!authHydrated) {
-      showToast("Palaukite — kraunama paskyra…", "info");
-      return;
+      const msg = "Palaukite — kraunama paskyra…";
+      showToast(msg, "info");
+      return { ok: false, error: msg };
     }
     const sessionCheck = validatePublishSession(isAuthenticated, user);
     if (!sessionCheck.ok) {
@@ -1379,11 +1393,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         openAuthModal("/");
       }
       showToast(sessionCheck.message, "error");
-      return;
+      return { ok: false, error: sessionCheck.message };
     }
     if (!hasListingPhoto(sellerPreviewImage) && !editingListingId) {
       showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-      return;
+      return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
     }
 
     const profileDraft = injectProfileContactsForPublish(aiDraft, user);
@@ -1419,7 +1433,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     if (!validation.canPublish) {
       showToast(validation.blockMessage, "error");
-      return;
+      return { ok: false, error: validation.blockMessage };
     }
 
     const priceSanity =
@@ -1434,18 +1448,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         confirmLabel: "Taip, skelbti",
         cancelLabel: "Grįžti",
       });
-      if (!confirmed) return;
+      if (!confirmed) return { ok: false, error: "Publikavimas atšauktas." };
     }
 
     const mod = moderateListing(profileDraft);
     if (!mod.allowed) {
-      showToast(mod.reason ?? "Skelbimas atmestas moderacijos.", "error");
-      return;
+      const msg = mod.reason ?? "Skelbimas atmestas moderacijos.";
+      showToast(msg, "error");
+      return { ok: false, error: msg };
     }
 
     if (!editingListingId && !hasListingPhoto(sellerPreviewImage)) {
       showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-      return;
+      return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
     }
 
     isPublishingRef.current = true;
@@ -1483,14 +1498,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       )
     ) {
       showToast("Šis skelbimas jau publikuotas — atnaujinkite esamą.", "info");
-      return;
+      return { ok: false, error: "Šis skelbimas jau publikuotas." };
     }
 
     if (editingListingId) {
       const existing = listings.find((l) => l.id === editingListingId);
       if (!existing || existing.sellerId !== user.id) {
-        showToast("Skelbimas nerastas arba neturite teisių.", "error");
-        return;
+        const msg = "Skelbimas nerastas arba neturite teisių.";
+        showToast(msg, "error");
+        return { ok: false, error: msg };
       }
       const patch = draftToListingPatch({
         ...profileDraft,
@@ -1500,7 +1516,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const listingImage = await prepareListingImageForApi(imageSource, editingListingId);
       if (!listingImage && !hasListingPhoto(existing.images[0])) {
         showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-        return;
+        return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
       }
       const updated: Listing = enrichListingCoords({
         ...existing,
@@ -1526,22 +1542,22 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           images: updated.images,
         });
         if (!res.ok) {
-          setSyncError(`Nepavyko atnaujinti: ${res.error}`);
-          showToast(`Nepavyko atnaujinti: ${res.error}`, "error");
-          return;
+          const msg = formatPublishSaveError(res.error);
+          setSyncError(msg);
+          showToast(msg, "error");
+          return { ok: false, error: parseApiErrorMessage(res.error) };
         }
       }
       showToast("Skelbimas atnaujintas!", "success");
       resetSellerFlow();
-      return;
+      return { ok: true, listing: updated };
     }
 
     if (isDuplicateListing(draftWithClientId.title, user.id, listings)) {
-      showToast(
-        "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.",
-        "error"
-      );
-      return;
+      const msg =
+        "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.";
+      showToast(msg, "error");
+      return { ok: false, error: msg };
     }
 
     let distKm = 0.5;
@@ -1577,8 +1593,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       ...extraImages.filter((img): img is string => Boolean(img)),
     ].filter((img): img is string => Boolean(img));
     if (!galleryImages.length) {
-      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-      return;
+      const msg =
+        listingImage?.startsWith("data:image") && (listingImage.length ?? 0) > API_MAX_IMAGE_LENGTH
+          ? "Nuotrauka per didelė serveriui — bandykite mažesnę arba kitą formatą."
+          : LISTING_PHOTO_REQUIRED_MESSAGE;
+      showToast(msg, "error");
+      return { ok: false, error: msg };
+    }
+    if (
+      galleryImages.some(
+        (img) => img.startsWith("data:image") && img.length > API_MAX_IMAGE_LENGTH
+      )
+    ) {
+      const msg = "Nuotrauka per didelė serveriui — bandykite mažesnę arba kitą formatą.";
+      showToast(msg, "error");
+      return { ok: false, error: msg };
     }
 
     const listingCity = resolvePublishListingCity(profileDraft.location, user.city, coords);
@@ -1589,7 +1618,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         openSheet: true,
       });
       setSellerStep("confirmation");
-      return;
+      return { ok: false, error: "Nenurodytas miestas." };
     }
     const listingCoords = geocodeLocation(listingCity);
     if (coords) {
@@ -1643,6 +1672,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       requiresReview: resolveListingRequiresReview(publishDraft, conductorPublish),
       imageAlt: profileDraft.imageAlt,
       imageTitle: profileDraft.imageTitle,
+      allowPastomatas: profileDraft.allowPastomatas ?? true,
+      isAiTwinActive:
+        String(profileDraft.attributes?.isAiTwinActive ?? "").trim().toLowerCase() === "true",
     }),
       conductorPublish
     );
@@ -1660,11 +1692,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const createRes = await apiCreateListing(newListing, user.id);
       if (!createRes.ok || !createRes.data?.id?.trim()) {
         setSellerStep("confirmation");
-        const msg = `Nepavyko publikuoti: ${createRes.ok ? "server grąžino neteisingą atsakymą" : createRes.error}`;
+        const detail = createRes.ok
+          ? "serveris grąžino neteisingą atsakymą"
+          : parseApiErrorMessage(createRes.error);
+        const msg = `Nepavyko išsaugoti skelbimo: ${detail}`;
         setSyncError(msg);
         showToast(msg, "error");
         pushAgentGreeting(msg, { openSheet: true });
-        return;
+        return { ok: false, error: detail };
       }
 
       published = withDefaultExpiry({
@@ -1673,10 +1708,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         tags: newListing.tags,
         images: newListing.images.length ? newListing.images : createRes.data.images,
         slug: createRes.data.slug ?? newListing.slug,
+        allowPastomatas: newListing.allowPastomatas,
+        isAiTwinActive: newListing.isAiTwinActive,
       });
 
-      // Only now we finalize local UI state as "published".
-      setListings((prev) => [published, ...prev]);
+      setListings((prev) => [published, ...prev.filter((l) => l.id !== published.id)]);
       setLastPublishedListing(published);
       setSellerStep("published");
       showToast(
@@ -1687,23 +1723,34 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       );
 
       await refreshListingsCatalog();
-    } else {
-      // Demo/local mode: publish immediately.
-      setListings((prev) => [newListing, ...prev]);
-      setLastPublishedListing(newListing);
-      setSellerStep("published");
-      showToast(
-        newListing.requiresReview
-          ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
-          : "Skelbimas sėkmingai įkeltas!",
-        newListing.requiresReview ? "info" : "success"
-      );
+      scheduleSellerEngagementPush(published.id, published.location, published.title, {
+        pendingReview: Boolean(published.requiresReview),
+      });
+      scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
+        if (result.facebook === "opened") {
+          showToast("Facebook dalijimasis inicijuotas.", "info");
+        }
+        if (result.anonser === "queued") {
+          showToast("Anonser.lt sinchronizacija suplanuota.", "info");
+        }
+      });
+      notifyListingPublishComplete(publishCategory, 1);
+      return { ok: true, listing: published };
     }
 
-    scheduleSellerEngagementPush(published.id, published.location, published.title, {
-      pendingReview: Boolean(published.requiresReview),
+    setListings((prev) => [newListing, ...prev]);
+    setLastPublishedListing(newListing);
+    setSellerStep("published");
+    showToast(
+      newListing.requiresReview
+        ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
+        : "Skelbimas sėkmingai įkeltas!",
+      newListing.requiresReview ? "info" : "success"
+    );
+    scheduleSellerEngagementPush(newListing.id, newListing.location, newListing.title, {
+      pendingReview: Boolean(newListing.requiresReview),
     });
-    scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
+    scheduleListingSocialPublish(newListing, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {
         showToast("Facebook dalijimasis inicijuotas.", "info");
       }
@@ -1712,6 +1759,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
     });
     notifyListingPublishComplete(publishCategory, 1);
+    return { ok: true, listing: newListing };
+    } catch (e) {
+      const detail = e instanceof Error ? e.message : String(e);
+      const msg = formatPublishSaveError(detail);
+      setSellerStep("confirmation");
+      setSyncError(msg);
+      showToast(msg, "error");
+      pushAgentGreeting(msg, { openSheet: true });
+      return { ok: false, error: detail };
     } finally {
       isPublishingRef.current = false;
       setIsPublishingListing(false);

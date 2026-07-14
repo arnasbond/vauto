@@ -19,6 +19,8 @@ export interface AgentQuickReplyResult {
   handled: true;
   reply: string;
   quickReplies?: string[];
+  /** When true, caller must await publishListing() before showing final assistant reply. */
+  publishAfterReply?: boolean;
 }
 
 export interface AgentBargainingOffer {
@@ -38,10 +40,10 @@ export interface AgentQuickReplyDeps {
   pendingWardrobeBulkItems: WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
   lastBargainingOffer: AgentBargainingOffer | null;
-  publishListing: () => void;
+  publishListing: () => Promise<{ ok: boolean; error?: string; listing?: import("@/lib/types").Listing }>;
   /** Returns chat reply when user tries to publish from chat chips. */
   requestPublishUpsell: () => AgentQuickReplyResult;
-  /** Returns chat reply; only calls publish when all guards pass. */
+  /** Returns chat reply; awaits DB save when publishAfterReply is set. */
   confirmPublishNow: () => AgentQuickReplyResult;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => void;
   applyAgentWardrobeBulk: (
@@ -66,7 +68,10 @@ export interface AgentQuickReplyDeps {
 }
 
 function normalizeChip(text: string): string {
-  return text.trim().toLowerCase();
+  return text
+    .trim()
+    .toLowerCase()
+    .replace(/[!?.,…]+$/g, "");
 }
 
 function matchesChip(text: string, patterns: RegExp[]): boolean {
@@ -367,8 +372,7 @@ export function tryHandleAgentQuickReply(
 
   if (matchesChip(trimmed, [/taip, viskas tikslu/, /taip viskas tikslu/])) {
     if (deps.aiDraft && deps.sellerStep === "confirmation") {
-      deps.publishListing();
-      return { handled: true, reply: "Puiku — publikuoju skelbimą!" };
+      return deps.confirmPublishNow();
     }
   }
 
@@ -441,8 +445,7 @@ export function tryHandleAgentQuickReply(
       };
     }
     if (deps.aiDraft && deps.sellerStep === "confirmation") {
-      deps.publishListing();
-      return { handled: true, reply: "Puiku — publikuoju skelbimą!" };
+      return deps.confirmPublishNow();
     }
     if (deps.aiDraft) {
       deps.navigateToAdd(deps.aiDraft.category === "clothing");

@@ -268,7 +268,7 @@ interface VautoContextValue {
   completeVoiceRecording: (transcript: string | null) => void;
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
-  publishListing: () => void;
+  publishListing: () => Promise<import("@/context/SellerFlowContext").PublishListingResult>;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
   submitSellerContent: (payload: {
@@ -807,9 +807,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const mineRes = await apiFetchMyListings(user.id);
         if (mineRes.ok) {
           extras.push(
-            ...mineRes.data
-              .map(withDefaultExpiry)
-              .filter((l) => l.requiresReview && !l.banned)
+            ...mineRes.data.map(withDefaultExpiry).filter((l) => !l.banned)
           );
         }
       }

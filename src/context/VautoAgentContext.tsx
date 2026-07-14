@@ -81,7 +81,7 @@ import { toLithuanianVocative } from "@/lib/lithuanian-name-case";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
 import { resolveAgentChatReply } from "@/lib/agent-chat-reply";
 import { sanitizeAgentReplyForDisplay } from "@/lib/agent-reply-display";
-import { resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
+import { resolveBrowseAllIntent, createBrowseAllAction, isListingConfirmationPhrase } from "@/lib/browse-all-intent";
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
@@ -224,6 +224,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     pendingWardrobeVoice,
     publishBulkClothingListings,
     publishListing,
+    isPublishingListing,
     revertPhotoCategoryMismatch,
     acceptPhotoCategoryMismatch,
     submitSellerContent,
@@ -495,6 +496,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         window.setTimeout(() => focusSearchOutcome(actions.listingIds.length), 120);
       }
       if (actions.type === "browse_all") {
+        if (
+          sellerStep === "confirmation" ||
+          sellerStep === "published" ||
+          isPublishingListing
+        ) {
+          return;
+        }
         exitListingPipelineForMarketplaceSearch();
         dispatchBrowseAllMarketplaceState();
         trackEvent("agent_action", {
@@ -843,6 +851,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       exitListingPipelineForMarketplaceSearch,
       dispatchBrowseAllMarketplaceState,
       searchQuery,
+      sellerStep,
+      isPublishingListing,
     ]
   );
 
@@ -949,7 +959,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         };
       };
 
-      const confirmPublishNow = (): { reply: string; quickReplies?: string[]; doPublish?: boolean } => {
+      const confirmPublishNow = (): {
+        reply: string;
+        quickReplies?: string[];
+        publishAfterReply?: boolean;
+      } => {
         const sessionCheck = validatePublishSession(isAuthenticated, user);
         if (!sessionCheck.ok || !hasProfileListingContact(user)) {
           return { reply: requestMissingContactsReply() };
@@ -957,7 +971,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (!hasDraftImages && sellerStep === "confirmation") {
           return { reply: requestMissingImagesReply() };
         }
-        return { reply: "Puiku — publikuoju skelbimą!", doPublish: true };
+        return { reply: "Publikuoju skelbimą…", publishAfterReply: true };
       };
 
       if (isManualFillIntent(trimmed)) {
@@ -1099,8 +1113,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         },
         confirmPublishNow: () => {
           const r = confirmPublishNow();
-          if (r.doPublish) publishListing();
-          return { handled: true, reply: r.reply, ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}) };
+          return {
+            handled: true,
+            reply: r.reply,
+            ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}),
+            ...(r.publishAfterReply ? { publishAfterReply: true } : {}),
+          };
         },
         publishBulkClothingListings,
         applyAgentWardrobeBulk,
@@ -1130,8 +1148,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ...(quickReply.quickReplies?.length ? { quickReplies: quickReply.quickReplies } : {}),
           },
         ]);
+        let finalReply = quickReply.reply;
+        if (quickReply.publishAfterReply) {
+          const result = await publishListing();
+          finalReply = result.ok
+            ? "Skelbimas sėkmingai įkeltas! Peržiūrėkite „Mano skelbimai“ arba tęskite pokalbį."
+            : `Nepavyko išsaugoti skelbimo: ${result.error ?? "Nežinoma klaida"}`;
+          setMessages((prev) => {
+            const next = [...prev];
+            next[next.length - 1] = { role: "assistant", text: finalReply };
+            return next.slice(-6);
+          });
+          if (!result.ok) {
+            showToast(finalReply, "error");
+          } else {
+            speakReply(finalReply);
+          }
+        }
         touchAgentSessionActivity();
-        return { ok: true, reply: quickReply.reply };
+        return { ok: true, reply: finalReply };
       }
 
       const lastActiveAt = readAgentSessionLastActiveAt();
@@ -1414,7 +1449,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           });
         };
 
-        if (browseAllOutcome && res.actions.type === "empty_search") {
+        const browseAllBlocked =
+          sellerStep === "confirmation" ||
+          sellerStep === "published" ||
+          isPublishingListing ||
+          isListingConfirmationPhrase(trimmed);
+
+        if (browseAllOutcome && res.actions.type === "empty_search" && !browseAllBlocked) {
           const coerced = createBrowseAllAction(catalogCount);
           if (!options?.fromSearchBar) {
             applyActions(coerced);
@@ -1493,7 +1534,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           setSearchQuery("");
           if (
             res.actions.type === "listing_draft" &&
-            resolveBrowseAllIntent(trimmed)
+            resolveBrowseAllIntent(trimmed) &&
+            !isListingConfirmationPhrase(trimmed)
           ) {
             const activeCount = listings.filter(
               (l) => !l.banned && l.price > 0 && l.status !== "sold"
@@ -1592,6 +1634,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       currentPageContext,
       aiDraft,
       sellerStep,
+      isPublishingListing,
       sellerWizardContext,
       trackEvent,
       getBehaviorSnapshot,

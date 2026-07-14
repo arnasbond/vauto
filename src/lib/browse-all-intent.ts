@@ -20,9 +20,13 @@ const BROWSE_VERB_RE =
 const BROWSE_SCOPE_RE =
   /\b(visus?|viska|viskas|all|everything|catalog|catalogue|katalog|skelbimus?|skelbimus|prekes?|prekės|turgu|turgų|marketplace|market|grid|feed|naujaus)\b/;
 
+/** Seller listing confirmation — must NOT trigger browse-all (e.g. „Viskas tinka“). */
+const LISTING_CONFIRMATION_RE =
+  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|taip,?\s*viskas|viskas\s+atitinka)\b/;
+
 /** High-confidence full-phrase shortcuts (folded ASCII). */
 const BROWSE_PHRASE_RE =
-  /\b(show\s+all|browse\s+all|parodyk\s+vis\w*|rodyk\s+vis\w*|atidaryk\s+vis\w*|atverk\s+vis\w*|visi\s+skelbim\w*|visus\s+skelbim\w*|rodyti\s+visus|open\s+all|everything|viskas)\b/;
+  /\b(show\s+all|browse\s+all|parodyk\s+vis\w*|rodyk\s+vis\w*|atidaryk\s+vis\w*|atverk\s+vis\w*|visi\s+skelbim\w*|visus\s+skelbim\w*|rodyti\s+visus|open\s+all|everything)\b/;
 
 export function foldLtForBrowseMatch(raw: string): string {
   return raw
@@ -72,12 +76,19 @@ export function resolveBrowseAllIntent(
   return merged.length > 0 && isBrowseAllIntent(merged);
 }
 
+export function isListingConfirmationPhrase(raw: string): boolean {
+  const folded = foldLtForBrowseMatch(raw);
+  return Boolean(folded && LISTING_CONFIRMATION_RE.test(folded));
+}
+
 export function isBrowseAllIntent(raw: string): boolean {
   const q = raw.trim();
   if (!q) return false;
 
   const folded = foldLtForBrowseMatch(q);
   if (!folded) return false;
+
+  if (isListingConfirmationPhrase(q)) return false;
 
   if (BROWSE_PHRASE_RE.test(folded)) return true;
 

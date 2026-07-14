@@ -20,6 +20,20 @@ export type ApiResult<T> =
   | { ok: true; data: T }
   | { ok: false; error: string; status?: number };
 
+/** Parse JSON or plain-text API error bodies into a user-facing message. */
+export function parseApiErrorMessage(raw: string): string {
+  const text = raw.trim();
+  if (!text) return "Nežinoma klaida";
+  try {
+    const parsed = JSON.parse(text) as { error?: unknown; message?: unknown };
+    if (typeof parsed.error === "string" && parsed.error.trim()) return parsed.error.trim();
+    if (typeof parsed.message === "string" && parsed.message.trim()) return parsed.message.trim();
+  } catch {
+    /* plain text */
+  }
+  return text.length > 500 ? `${text.slice(0, 497)}…` : text;
+}
+
 export async function dataFetch<T>(
   path: string,
   opts?: RequestInit & { userId?: string }

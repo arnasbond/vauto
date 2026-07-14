@@ -18,6 +18,7 @@ export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> &
     attributes,
     location: resolveListingCity(listing.location),
     image: images?.[0]?.trim() ?? "",
+    allowPastomatas: listing.allowPastomatas ?? true,
   };
 }
 
