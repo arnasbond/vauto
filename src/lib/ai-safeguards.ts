@@ -19,7 +19,10 @@ export const SCAN_NOT_RECOGNIZED_MSG =
 
 /** Soft handoff when external DB lookup times out — never blocks the AI flow */
 export const AI_SCAN_SOFT_HANDOFF_MSG =
-  "Išorinės bazės tyli — tęsiu su nuotraukos analize. Užpildykite arba patikslinkite laukus, o aš sugeneruosiu aprašymą.";
+  "Išorinės bazės tyli — tęsiu su nuotraukos analize. Parašykite, ką matote, arba patikslinkite detales pokalbyje.";
+
+export const MANUAL_FALLBACK_TOAST =
+  "Automatinis atpažinimas šį kartą nepavyko — tęskime pokalbyje, o aš padėsiu su aprašymu.";
 
 /** Proactive agent question when barcode registry miss or vision fallback */
 export const UNREGISTERED_PRODUCT_AGENT_PROMPT =
@@ -28,12 +31,9 @@ export const UNREGISTERED_PRODUCT_AGENT_PROMPT =
 /** Shorter budget for local mock extraction only */
 export const AI_MOCK_TIMEOUT_MS = AI_TIMEOUT_POLICY.mockMs;
 
-export const MANUAL_FALLBACK_TOAST =
-  "Automatinis atpažinimas šį kartą nepavyko — užpildysime formą kartu, o aš padėsiu su aprašymu.";
-
 /** Marktplaats-style vision failure — shown before manual category/brand fields */
 export const VISION_RECOGNITION_FAILED_MESSAGE =
-  "Nuotrauka ne visai aiški — galite pabandyti kitą kadrą arba užpildyti laukus kartu su manimi.";
+  "Nuotrauka ne visai aiški — galite pabandyti kitą kadrą arba aprašykite prekę pokalbyje.";
 
 /** Titles returned when vision AI is unavailable — must not pass as valid extraction */
 export const DEMO_AI_PLACEHOLDER_TITLES = new Set([

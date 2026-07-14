@@ -4,7 +4,12 @@ import type { VisualPipelinePayload } from "@/lib/visual-pipeline-merge";
 import type { ResolvedVisualSearchIntent } from "@/lib/gemini-search-intent";
 
 export const PHOTO_INTENT_SEARCH_CHIP = "🔍 Ieškoti šio daikto";
-export const PHOTO_INTENT_LISTING_CHIP = "➕ Įkelti skelbimą";
+export const PHOTO_INTENT_LISTING_CHIP = "📦 Parduoti šį daiktą";
+/** @deprecated use PHOTO_INTENT_LISTING_CHIP */
+export const PHOTO_INTENT_LISTING_CHIP_LEGACY = "➕ Įkelti skelbimą";
+
+export const PHOTO_INTENT_ROUTING_REPLY =
+  "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
 
 export const PHOTO_INTENT_QUICK_REPLIES = [
   PHOTO_INTENT_SEARCH_CHIP,
@@ -66,8 +71,12 @@ export function isPhotoIntentListingChip(text: string): boolean {
   const n = normalizeChip(text);
   return (
     n === normalizeChip(PHOTO_INTENT_LISTING_CHIP) ||
+    n === normalizeChip(PHOTO_INTENT_LISTING_CHIP_LEGACY) ||
+    /^📦?\s*parduoti/.test(n) ||
     /^➕?\s*įkelti skelbim/.test(n) ||
+    /^➕?\s*ikelti skelb/.test(n) ||
     n === "įkelti skelbimą" ||
+    n === "parduoti šį daiktą" ||
     n === "parduoti" ||
     n === "skelbti"
   );

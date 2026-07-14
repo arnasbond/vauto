@@ -1,6 +1,10 @@
 import type { Page } from "@playwright/test";
 import { expect } from "@playwright/test";
-import { seedDemoUser } from "./seed-demo-user";
+import {
+  acceptGdprConsentIfPrompted,
+  dismissTransientOverlays,
+  seedDemoUser,
+} from "./seed-demo-user";
 
 export const TEST_BARCODE = "5901234123457";
 
@@ -27,13 +31,19 @@ export async function mockUnregisteredBarcodeLookup(page: Page) {
   });
 }
 
+async function waitForAddListingPage(page: Page) {
+  await expect(page.getByRole("heading", { name: /Naujas skelbimas/i })).toBeVisible({
+    timeout: 15_000,
+  });
+}
+
+/** /add barcode scan → home chat with proactive agent greeting and intent chips. */
 export async function runUnregisteredBarcodeAgentFlow(page: Page) {
   await page.setViewportSize({ width: 390, height: 844 });
   await seedDemoUser(page);
   await page.goto("/add/");
-  await expect(page.getByRole("heading", { name: /Naujas skelbimas/i })).toBeVisible({
-    timeout: 15_000,
-  });
+  await waitForAddListingPage(page);
+  await acceptGdprConsentIfPrompted(page);
 
   await page
     .getByRole("button", { name: /Skenuoti brūkšninį/i })
@@ -49,8 +59,15 @@ export async function runUnregisteredBarcodeAgentFlow(page: Page) {
     timeout: 10_000,
   });
 
-  const agentStrip = page.getByLabel(/Skelbimo vedlio metu/i);
+  await page.waitForURL((url) => url.pathname === "/" || url.pathname === "", {
+    timeout: 15_000,
+  });
+
+  await dismissTransientOverlays(page);
+
+  const agentStrip = page.getByLabel(/VAUTO asistento pokalbis/i);
   await expect(agentStrip).toBeVisible({ timeout: 20_000 });
   await expect(agentStrip.getByText(/Sistemoje daikto kodo nerandu/i)).toBeVisible();
   await expect(agentStrip.getByRole("button", { name: /Ieškoti šio daikto/i })).toBeVisible();
+  await expect(agentStrip.getByRole("button", { name: /Parduoti šį daiktą/i })).toBeVisible();
 }

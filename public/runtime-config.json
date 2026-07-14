@@ -1,3 +1,4 @@
 {
-  "apiUrl": "https://vauto-api.onrender.com"
+  "apiUrl": "https://vauto-api.onrender.com",
+  "conductorEnabled": true
 }

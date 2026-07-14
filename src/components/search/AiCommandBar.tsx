@@ -1,7 +1,7 @@
 "use client";
 // @disk-refresh 2026-07-08T00:04 — supervisor DOM fixes
 
-import { ArrowUp, Camera, ChevronDown, Loader2, MessageCircle, Sparkles } from "lucide-react";
+import { ArrowUp, Camera, ChevronDown, Loader2, MessageCircle, Plus, Sparkles } from "lucide-react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePathname } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
@@ -10,24 +10,12 @@ import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import {
-  PHOTO_SEARCH_FALLBACK_MESSAGE,
-} from "@/lib/photo-vision-search";
-import { interceptPhotoUploadForIntent } from "@/lib/photo-intent-intercept";
-import {
   executeConductorRoute,
   conductorPhotoUploadSource,
   conductorSearchQuerySource,
   readConductorSearchExecute,
   conductorShouldDelegateLegacy,
 } from "@/lib/vauto-conductor";
-import { UNREGISTERED_PRODUCT_AGENT_PROMPT } from "@/lib/ai-safeguards";
-import { unregisteredProductAgentGreetingOptions } from "@/lib/photo-intent-resolution";
-import { notifyAgentPendingImages } from "@/lib/vauto-agent-client";
-import { BarcodeScanSheet } from "@/components/product/BarcodeScanSheet";
-import { useBarcodeScanFlow } from "@/hooks/useBarcodeScanFlow";
-import {
-  clearPhotoSearchSession,
-} from "@/lib/photo-search-session";
 import { sanitizeSearchQuery } from "@/lib/portal-listing-filter";
 import { AiModeBadge } from "@/components/AiModeBadge";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
@@ -37,11 +25,6 @@ import {
   parseViewModeIntent,
   isViewModeOnlyCommand,
 } from "@/lib/marketplace-view";
-import {
-  AiPhotoFlowSheet,
-  type AiPhotoFlowResult,
-  type AiPhotoIntentChoice,
-} from "@/components/photo/AiPhotoFlowSheet";
 import { stripLegacyCategorySuffixes } from "@/lib/speech-transcript";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { subscribeHomeReset } from "@/lib/home-reset";
@@ -54,6 +37,12 @@ import { resolveSupervisorChatTurn } from "@/lib/agent-chat-layout";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
+import { ChatComposerAttachments } from "@/components/home/ChatComposerAttachments";
+import {
+  MAX_CHAT_COMPOSER_ATTACHMENTS,
+  pickNativeChatMedia,
+} from "@/lib/chat-composer-media";
+import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 
 const GEMINI_BLUE = "#1167b1";
@@ -90,7 +79,6 @@ export function AiCommandBar({
     setSearchInputMode,
     clearVisualSearch,
     showToast,
-    user,
     chameleonTheme,
     listings,
   } = useVauto();
@@ -109,25 +97,20 @@ export function AiCommandBar({
   const {
     messages,
     sendAgentMessage,
-    handleDirectAgentChip,
     busy: agentBusy,
     applyAgentActions,
     openWithGreeting,
     streamThinkingLabel,
+    setOpen,
   } = useVautoAgent();
-  const { applyScannedBarcode } = useBarcodeScanFlow();
   const skin = useFlowUiSkin();
 
   const [draftQuery, setDraftQuery] = useState(searchQuery);
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
-  const [photoFlowOpen, setPhotoFlowOpen] = useState(false);
-  const [photoIntentChoice, setPhotoIntentChoice] = useState<AiPhotoIntentChoice | null>(null);
-  const pendingPhotoSubmitRef = useRef<AiPhotoFlowResult | null>(null);
-  const photoScanTimedOutRef = useRef(false);
-  const barcodePhotoContextRef = useRef<string[]>([]);
-  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
   const [previewPulse, setPreviewPulse] = useState(false);
+  const [composerAttachments, setComposerAttachments] = useState<string[]>([]);
+  const [isPickingChatMedia, setIsPickingChatMedia] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
 
@@ -150,9 +133,9 @@ export function AiCommandBar({
 
   useEffect(() => {
     return subscribeHomeReset(() => {
-      setPhotoFlowOpen(false);
       setIsPhotoSearching(false);
       setDraftQuery("");
+      setComposerAttachments([]);
     });
   }, []);
 
@@ -162,7 +145,7 @@ export function AiCommandBar({
       : portalExperienceForQuery(searchQuery).theme;
   const ui = useMemo(() => getPortalUi(activeTheme), [activeTheme]);
 
-  const zeroUiActive = agentBusy || searchLoading || isPhotoSearching || photoFlowOpen;
+  const zeroUiActive = agentBusy || searchLoading || isPhotoSearching;
 
   const wardrobeSearchOnly =
     pathname === "/fashion" || pathname === "/fashion/";
@@ -297,7 +280,8 @@ export function AiCommandBar({
       e?.preventDefault();
       if (placement === "wizard" || placement === "chat" || phase === "listing_processing") {
         const trimmed = draftQuery.trim();
-        if (!trimmed || agentBusy) return;
+        const attachments = isChatBar ? composerAttachments : [];
+        if ((!trimmed && !attachments.length) || agentBusy) return;
         if (placement !== "chat" && resolveBrowseAllIntent(trimmed)) {
           setDraftQuery("");
           void commitSearch(trimmed);
@@ -308,8 +292,12 @@ export function AiCommandBar({
           return;
         }
         const msg = trimmed;
+        const images = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
         setDraftQuery("");
-        await sendAgentMessage(msg);
+        if (isChatBar) setComposerAttachments([]);
+        await sendAgentMessage(msg, {
+          ...(images.length ? { pendingImageUrls: images } : {}),
+        });
         if (collapsible) {
           void hapticImpactLight();
           if (!sellerVisionRecoveryActive) setWizardExpanded(false);
@@ -328,80 +316,55 @@ export function AiCommandBar({
       commitSearch,
       collapsible,
       sellerVisionRecoveryActive,
+      isChatBar,
+      composerAttachments,
     ]
   );
 
-  const handlePhotoSearch = () => {
-    if (isPhotoSearching || photoFlowOpen) return;
-    requestMediaConsent(() => setPhotoFlowOpen(true));
-  };
+  const handleChatMediaAttach = useCallback(() => {
+    if (isPickingChatMedia || agentBusy) return;
+    if (composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS) {
+      showToast(`Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`, "info");
+      return;
+    }
+    requestMediaConsent(async () => {
+      setIsPickingChatMedia(true);
+      try {
+        const picked = await pickNativeChatMedia(composerAttachments.length);
+        if (picked.length) {
+          setComposerAttachments((prev) =>
+            [...prev, ...picked].slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS)
+          );
+        }
+      } finally {
+        setIsPickingChatMedia(false);
+      }
+    });
+  }, [
+    agentBusy,
+    composerAttachments.length,
+    isPickingChatMedia,
+    requestMediaConsent,
+    showToast,
+  ]);
 
-  const handlePhotoFlowSubmit = async (
-    result: AiPhotoFlowResult
-  ): Promise<boolean> => {
+  const handlePhotoSearch = () => {
+    if (isChatBar) {
+      handleChatMediaAttach();
+      return;
+    }
+    if (isPhotoSearching || agentBusy) return;
     void executeConductorRoute({
       ...conductorPhotoUploadSource("AiCommandBar"),
-      payload: { photoCount: result.photos.length, wardrobeSearchOnly },
+      payload: { photoCount: 1, wardrobeSearchOnly },
     });
-    pendingPhotoSubmitRef.current = result;
-    photoScanTimedOutRef.current = false;
-    setIsPhotoSearching(true);
-    setPhotoIntentChoice(null);
-    try {
-      const intercept = await interceptPhotoUploadForIntent(result, {
-        userCity: user.city,
-        userName: user.name,
-        wardrobeOnly: wardrobeSearchOnly,
-        inlineInSheet: true,
-        openWithGreeting,
-        showToast,
-        fallbackMessage: PHOTO_SEARCH_FALLBACK_MESSAGE,
-      });
-      if (photoScanTimedOutRef.current) return true;
-      if (intercept.handled && intercept.inline) {
-        setPhotoIntentChoice(intercept.inline);
-        return true;
-      }
-      if (intercept.handled) {
-        clearPhotoSearchSession();
-        setPhotoFlowOpen(false);
-        return true;
-      }
-      return false;
-    } finally {
-      if (!photoScanTimedOutRef.current) {
-        setIsPhotoSearching(false);
-        pendingPhotoSubmitRef.current = null;
-      }
-    }
+    pickAndSendChatPhotos({
+      requestMediaConsent,
+      sendAgentMessage,
+      setOpen,
+      onBusyChange: setIsPhotoSearching,
+    });
   };
-
-  const handlePhotoScanTimeout = useCallback(() => {
-    if (!isPhotoSearching) return;
-    const pending = pendingPhotoSubmitRef.current;
-    photoScanTimedOutRef.current = true;
-    setIsPhotoSearching(false);
-    pendingPhotoSubmitRef.current = null;
-    setPhotoIntentChoice(null);
-    setPhotoFlowOpen(false);
-    if (pending?.photos[0]) {
-      notifyAgentPendingImages(pending.photos);
-      openWithGreeting(
-        UNREGISTERED_PRODUCT_AGENT_PROMPT,
-        unregisteredProductAgentGreetingOptions()
-      );
-    }
-  }, [isPhotoSearching, openWithGreeting]);
-
-  const handlePhotoIntentChip = useCallback(
-    (chip: string) => {
-      setPhotoIntentChoice(null);
-      setPhotoFlowOpen(false);
-      clearPhotoSearchSession();
-      void handleDirectAgentChip(chip);
-    },
-    [handleDirectAgentChip]
-  );
 
   const lastAssistant = useMemo(() => {
     return resolveSupervisorChatTurn(messages).assistant?.text ?? "";
@@ -451,7 +414,7 @@ export function AiCommandBar({
   const inputPlaceholder = isWizard
     ? wizardPlaceholder
     : isChatBar
-      ? "Rašykite atsakymą… (nuotrauka: nuskenuosiu brūkšninį kodą / VIN)"
+      ? "Rašykite atsakymą…"
     : isTopBar
       ? AI_FIRST_SEARCH_PLACEHOLDER
       : "Rašykite paiešką… (nuotrauka: nuskenuosiu brūkšninį kodą)";
@@ -614,13 +577,17 @@ export function AiCommandBar({
     );
   }
 
+  const canSendChat =
+    Boolean(draftQuery.trim()) || composerAttachments.length > 0;
+
   return (
     <>
       <form
         className={cn(
-          "flex items-center gap-2 border shadow-sm transition-colors",
+          "border shadow-sm transition-colors",
           isChatBar &&
-            "agent-chat-composer rounded-2xl border-[var(--vauto-primary)]/20 bg-[var(--vauto-bg)] py-1.5 pl-3.5 pr-1.5 shadow-md",
+            "agent-chat-composer flex w-full flex-col gap-1.5 rounded-2xl border-[var(--vauto-primary)]/20 bg-[var(--vauto-bg)] p-2 shadow-md",
+          !isChatBar && "flex items-center gap-2",
           isTopBar
             ? "home-ai-hero-search rounded-full py-2.5 pl-5 pr-2 shadow-md"
             : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
@@ -632,15 +599,43 @@ export function AiCommandBar({
         role={isChatBar ? undefined : "search"}
         aria-label={isChatBar ? "VAUTO asistento atsakymas" : "Skelbimų paieška"}
       >
-        <Sparkles
-          className={cn(
-            "shrink-0 transition-opacity",
-            isTopBar ? "h-5 w-5" : "h-4 w-4",
-            agentBusy && "zero-ui-icon-pulse"
-          )}
-          style={{ color: isTopBar || isChatBar ? "var(--vauto-primary)" : GEMINI_BLUE }}
-          aria-hidden
-        />
+        {isChatBar && composerAttachments.length > 0 ? (
+          <ChatComposerAttachments
+            urls={composerAttachments}
+            onRemove={(index) =>
+              setComposerAttachments((prev) => prev.filter((_, i) => i !== index))
+            }
+            className="px-0.5"
+          />
+        ) : null}
+
+        <div className={cn("flex min-w-0 items-center gap-2", isChatBar && "w-full")}>
+        {isChatBar ? (
+          <button
+            type="button"
+            onClick={handleChatMediaAttach}
+            disabled={busy || isPickingChatMedia || composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS}
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-primary)]/10 disabled:opacity-40"
+            aria-label="Pridėti nuotrauką"
+            title="Pridėti nuotrauką"
+          >
+            {isPickingChatMedia ? (
+              <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
+            ) : (
+              <Plus className="h-5 w-5" aria-hidden />
+            )}
+          </button>
+        ) : (
+          <Sparkles
+            className={cn(
+              "shrink-0 transition-opacity",
+              isTopBar ? "h-5 w-5" : "h-4 w-4",
+              agentBusy && "zero-ui-icon-pulse"
+            )}
+            style={{ color: isTopBar ? "var(--vauto-primary)" : GEMINI_BLUE }}
+            aria-hidden
+          />
+        )}
 
         <input
           ref={inputRef}
@@ -663,7 +658,7 @@ export function AiCommandBar({
 
         <button
           type="submit"
-          disabled={busy || !draftQuery.trim()}
+          disabled={busy || (isChatBar ? !canSendChat : !draftQuery.trim())}
           className={cn(
             "flex shrink-0 items-center justify-center gap-1 rounded-xl font-semibold text-white transition disabled:opacity-40",
             isChatBar
@@ -689,13 +684,14 @@ export function AiCommandBar({
           )}
         </button>
 
+        {!isChatBar ? (
         <button
           type="button"
           onClick={handlePhotoSearch}
-          disabled={isPhotoSearching || photoFlowOpen}
+          disabled={isPhotoSearching}
           className={cn(
             "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
-            isTopBar || isChatBar ? "h-10 w-10" : "h-10 w-10 rounded-lg"
+            isTopBar ? "h-10 w-10" : "h-10 w-10 rounded-lg"
           )}
           aria-label="Vision AI paieška pagal nuotrauką"
           title="Vision AI — nuotrauka"
@@ -706,46 +702,20 @@ export function AiCommandBar({
             <Camera className="h-5 w-5" />
           )}
         </button>
+        ) : null}
+        </div>
       </form>
 
       {!isTopBar && !isChatBar && (
         <>
           <p className="mt-2 text-center text-[11px] text-[var(--vauto-text-muted)]">
-            📷 Vision AI — nuotraukos paieška ir analizė. Tekstas — greitas Gemini chat.
+            📷 Nuotrauka — pokalbyje pasirinkite ieškoti ar parduoti. Tekstas — greitas Gemini chat.
           </p>
           <div className="mt-1.5 flex justify-center">
             <AiModeBadge compact />
           </div>
         </>
       )}
-
-      <AiPhotoFlowSheet
-        open={photoFlowOpen}
-        mode="intent"
-        busy={isPhotoSearching}
-        intentChoice={photoIntentChoice}
-        onIntentChip={handlePhotoIntentChip}
-        onScanTimeout={handlePhotoScanTimeout}
-        onOpenBarcodeScan={({ photos }) => {
-          barcodePhotoContextRef.current = photos;
-          setBarcodeOpen(true);
-        }}
-        onClose={() => {
-          setPhotoIntentChoice(null);
-          setPhotoFlowOpen(false);
-        }}
-        onSubmit={handlePhotoFlowSubmit}
-      />
-
-      <BarcodeScanSheet
-        open={barcodeOpen}
-        onClose={() => setBarcodeOpen(false)}
-        onBarcodeResolved={(code) =>
-          void applyScannedBarcode(code, {
-            pendingImageUrls: barcodePhotoContextRef.current,
-          })
-        }
-      />
     </>
   );
 }

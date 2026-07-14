@@ -14,7 +14,7 @@ import { useShellChrome } from "@/hooks/useShellChrome";
 
 import { useVautoAgent } from "@/context/VautoAgentContext";
 
-import { isHomeAgentChatActive } from "@/lib/agent-chat-layout";
+import { isEmbeddedAgentChatVisible } from "@/lib/agent-chat-layout";
 
 
 
@@ -42,9 +42,9 @@ export function HomeAiHero({
 
   const shell = useShellChrome();
 
-  const { messages, busy } = useVautoAgent();
+  const { messages, busy, open } = useVautoAgent();
 
-  const chatActive = isHomeAgentChatActive(messages, busy);
+  const chatActive = open || isEmbeddedAgentChatVisible(messages, busy);
 
   const [pillSeed, setPillSeed] = useState<string | null>(null);
 
@@ -116,7 +116,7 @@ export function HomeAiHero({
 
 
 
-  if (!shell.showHomeHero) {
+  if (!compact && !shell.showHomeHero && !chatActive) {
 
     return null;
 

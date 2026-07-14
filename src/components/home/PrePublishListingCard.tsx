@@ -1,16 +1,22 @@
 "use client";
 
-import { useRef } from "react";
+import { useState } from "react";
 import { MapPin, Loader2, Phone } from "lucide-react";
 import { formatPrice, MOCK_CATEGORY_LABELS } from "@/data/mockListings";
 import { cn } from "@/lib/cn";
+import {
+  getPrePublishVisibilityOption,
+  PRE_PUBLISH_VISIBILITY_HEADLINE,
+  PRE_PUBLISH_VISIBILITY_OPTIONS,
+  type PrePublishVisibilityId,
+} from "@/lib/listing-publish-visibility";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 import type { ListingCategory } from "@/lib/types";
 
 export interface PrePublishListingCardProps {
   card: PrePublishCardPayload;
   publishing?: boolean;
-  onPublish: (sourceRect: DOMRect) => void;
+  onPublish: (sourceRect: DOMRect, visibilityId: PrePublishVisibilityId) => void;
   onEdit: () => void;
   className?: string;
 }
@@ -33,13 +39,13 @@ export function PrePublishListingCard({
   onEdit,
   className,
 }: PrePublishListingCardProps) {
-  const publishBtnRef = useRef<HTMLButtonElement>(null);
+  const [visibilityId, setVisibilityId] =
+    useState<PrePublishVisibilityId>("standard");
+  const selected = getPrePublishVisibilityOption(visibilityId);
 
-  const handlePublish = () => {
-    const rect =
-      publishBtnRef.current?.getBoundingClientRect() ??
-      new DOMRect(window.innerWidth / 2, window.innerHeight / 2, 0, 0);
-    onPublish(rect);
+  const handlePublish = (e: React.MouseEvent<HTMLButtonElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    onPublish(rect, visibilityId);
   };
 
   return (
@@ -70,7 +76,7 @@ export function PrePublishListingCard({
         </span>
       </div>
 
-      <div className="space-y-2 p-3.5">
+      <div className="space-y-2.5 p-3.5">
         <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-[var(--vauto-text)]">
           {card.title}
         </h3>
@@ -86,13 +92,61 @@ export function PrePublishListingCard({
         {card.phone ? (
           <p className="flex items-center gap-1.5 border-t border-[var(--vauto-border)]/60 pt-2 text-xs font-semibold text-[var(--vauto-text)]">
             <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-primary)]" aria-hidden />
-            {card.phone}
+            <a
+              href={`tel:${card.phone.replace(/\s/g, "")}`}
+              className="font-bold text-blue-600 hover:underline"
+            >
+              {card.phone}
+            </a>
           </p>
         ) : null}
 
+        <div className="rounded-xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-surface-muted)]/30 p-2.5">
+          <p className="text-xs font-bold text-[var(--vauto-text)]">
+            {PRE_PUBLISH_VISIBILITY_HEADLINE}
+          </p>
+          <div className="mt-2 space-y-1.5" role="radiogroup" aria-label="Matomumo planas">
+            {PRE_PUBLISH_VISIBILITY_OPTIONS.map((opt) => {
+              const active = visibilityId === opt.id;
+              return (
+                <label
+                  key={opt.id}
+                  className={cn(
+                    "flex cursor-pointer touch-manipulation items-start gap-2.5 rounded-lg border px-2.5 py-2 transition",
+                    active
+                      ? "border-[var(--vauto-primary)] bg-[var(--vauto-primary)]/8 ring-1 ring-[var(--vauto-primary)]/25"
+                      : "border-[var(--vauto-border)]/80 bg-[var(--vauto-card-bg)] hover:border-[var(--vauto-primary)]/30"
+                  )}
+                >
+                  <input
+                    type="radio"
+                    name="pre-publish-visibility"
+                    value={opt.id}
+                    checked={active}
+                    onChange={() => setVisibilityId(opt.id)}
+                    className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--vauto-primary)]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="block text-[13px] font-semibold text-[var(--vauto-text)]">
+                      {opt.label}
+                    </span>
+                    <span className="block text-[11px] leading-snug text-[var(--vauto-text-muted)]">
+                      {opt.description}
+                    </span>
+                  </span>
+                </label>
+              );
+            })}
+          </div>
+          {selected.priceEur > 0 && (
+            <p className="mt-2 text-[11px] font-medium text-[var(--vauto-primary)]">
+              Pasirinkta: {selected.label} — {selected.priceEur.toFixed(2)} €
+            </p>
+          )}
+        </div>
+
         <div className="mt-1 flex flex-col gap-2">
           <button
-            ref={publishBtnRef}
             type="button"
             disabled={publishing}
             onClick={handlePublish}
@@ -104,7 +158,7 @@ export function PrePublishListingCard({
                 Publikuojama…
               </>
             ) : (
-              <>🚀 Patvirtinti ir publikuoti</>
+              <>🚀 Publikuoti skelbimą</>
             )}
           </button>
           <button

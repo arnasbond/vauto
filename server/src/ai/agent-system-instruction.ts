@@ -1,4 +1,5 @@
 import { buildSupervisorSystemInstruction } from "./supervisor-system-instruction.js";
+import { GEMINI_INTENT_RULES } from "./gemini-intent-rules.js";
 
 export const MAX_ADMIN_PROJECT_CONTEXT_CHARS = 12_000;
 
@@ -6,7 +7,7 @@ export const MAX_ADMIN_PROJECT_CONTEXT_CHARS = 12_000;
  * Pagrindinė VAUTO agento sistemos instrukcija — System Supervisor lygis.
  */
 export function buildVautoAgentSystemInstruction(): string {
-  return buildSupervisorSystemInstruction();
+  return `${buildSupervisorSystemInstruction()}\n\n${GEMINI_INTENT_RULES}`;
 }
 
 export function buildAgentSystemInstruction(

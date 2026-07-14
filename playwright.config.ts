@@ -21,9 +21,9 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: "npx serve out -l 4173",
+    command: "node scripts/build-e2e-static.mjs && npx serve out -l 4173",
     url: "http://127.0.0.1:4173",
     reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
+    timeout: 180_000,
   },
 });

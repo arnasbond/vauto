@@ -7,34 +7,12 @@ export interface ListingDraftPreviewInput {
   attributes?: Record<string, string | undefined>;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  vehicles: "Automobiliai",
-  electronics: "Elektronika",
-  services: "Paslaugos",
-  jobs: "Darbas",
-  home: "Namai / buitis",
-  clothing: "Drabužiai",
-  real_estate: "Nekilnojamasis turtas",
-  other: "Kita",
-};
-
 function attr(attrs: Record<string, string | undefined>, ...keys: string[]): string {
   for (const key of keys) {
     const value = attrs[key]?.trim();
     if (value) return value;
   }
   return "";
-}
-
-function truncate(text: string, max = 220): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1).trim()}…`;
-}
-
-function categoryLabel(category?: string): string {
-  if (!category) return "Kita";
-  return CATEGORY_LABELS[category] ?? category;
 }
 
 function formatPrice(price?: number): string {
@@ -89,20 +67,13 @@ export function analyzeMissingDraftFields(
 }
 
 export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string {
-  const title = draft.title?.trim() || "Naujas skelbimas";
-  const description = draft.description?.trim()
-    ? truncate(draft.description)
-    : "Dar formuojame — papildykite detales pokalbyje.";
-  const lines = [
-    "✍️ Skelbimo juodraštis paruoštas:",
-    `* Pavadinimas: ${title}`,
-    `* Aprašymas: ${description}`,
-    `* Kaina: ${formatPrice(draft.price)}`,
-    `* Kategorija: ${categoryLabel(draft.category)}`,
-  ];
+  const title = draft.title?.trim() || "naujas skelbimas";
+  const price = formatPrice(draft.price);
   const city = formatLocation(draft.location);
-  if (city) lines.push(`* Vieta: ${city}`);
-  return lines.join("\n");
+  const parts = [`Paruošiau juodraštį: «${title}»`];
+  if (price !== "nenurodyta") parts.push(`kaina ${price}`);
+  if (city) parts.push(`vieta ${city}`);
+  return `${parts.join(", ")}.`;
 }
 
 export function buildDraftGapAnalysis(draft: ListingDraftPreviewInput): string | null {
@@ -112,7 +83,7 @@ export function buildDraftGapAnalysis(draft: ListingDraftPreviewInput): string |
     missing.length === 1
       ? missing[0]
       : `${missing.slice(0, -1).join(", ")} ir ${missing[missing.length - 1]}`;
-  return `⚠️ Ko trūksta iki tobulumo: Pastebėjau, kad nenurodėte ${list}. Jei juos parašysite, pirkėjai prekę ras daug greičiau!`;
+  return `Dar trūksta ${list} — gal galite patikslinti?`;
 }
 
 export function buildDraftSalesTip(draft: ListingDraftPreviewInput): string | null {
@@ -154,7 +125,7 @@ export function buildListingDraftUpdateReply(
 export function isLazyListingDraftReply(text: string): boolean {
   const t = text.trim();
   if (!t) return true;
-  if (t.includes("✍️ Skelbimo juodraštis")) return false;
+  if (t.includes("Paruošiau juodraštį")) return false;
   if (t.length < 140) return true;
   return /^(supratau|gerai|juodraštis atnaujintas)/i.test(t);
 }

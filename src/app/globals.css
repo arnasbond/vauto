@@ -1480,11 +1480,6 @@ body.chameleon-autoplius .nt-wizard-chip-active {
   color: #fff;
 }
 
-.listing-wizard-scroll {
-  /* legacy alias — scroll lives on .listing-wizard-overlay */
-  min-height: 100%;
-}
-
 /** File inputs must stay out of display:none for mobile gallery picker */
 .listing-gallery-file-input {
   position: fixed;
@@ -1878,44 +1873,6 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 .seller-upload-panel .seller-upload-input::placeholder {
   color: var(--vauto-text-muted);
-}
-
-.ai-photo-flow-sheet {
-  background: var(--vauto-bg);
-  color: var(--vauto-text-main);
-}
-
-.ai-photo-flow-sheet .ai-photo-flow-header {
-  border-color: var(--vauto-border);
-  background: var(--vauto-bg);
-}
-
-.ai-photo-flow-sheet .ai-photo-flow-card {
-  border-color: var(--vauto-border);
-  background: var(--vauto-card-bg);
-}
-
-.ai-photo-flow-sheet .ai-photo-flow-footer {
-  border-color: var(--vauto-border);
-  background: var(--vauto-bg);
-}
-
-.ai-photo-studio-progress-track {
-  background: color-mix(in srgb, var(--vauto-border) 80%, transparent);
-}
-
-.ai-photo-studio-progress-bar {
-  background: linear-gradient(
-    90deg,
-    var(--vauto-primary),
-    color-mix(in srgb, var(--vauto-primary) 65%, #93c5fd)
-  );
-}
-
-.ai-photo-studio-badge {
-  background: color-mix(in srgb, var(--vauto-primary) 88%, #000);
-  color: #fff;
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.18);
 }
 
 .ai-scan-overlay-backdrop {

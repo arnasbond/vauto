@@ -3,6 +3,11 @@ import {
   buildListingDraftUpdateReply,
   draftToPreviewInput,
 } from "@/lib/listing-draft-preview";
+import {
+  sanitizeListingDescription,
+  sanitizeListingTitle,
+  sanitizeListingUserText,
+} from "@/lib/listing-text-sanitize";
 import { isListingWorkflowCommand } from "@/lib/listing-workflow-intent";
 import {
   isPhotoIntentListingChip,
@@ -168,16 +173,18 @@ export function tryApplyListingChatInput(
     });
   }
 
-  const trimmed = text.trim();
+  const trimmed = sanitizeListingUserText(text);
   if (
     trimmed.length >= 3 &&
     trimmed.length <= 240 &&
-    !isListingWorkflowCommand(trimmed)
+    !isListingWorkflowCommand(text)
   ) {
     const nextDescription = aiDraft.description?.trim()
-      ? `${aiDraft.description.trim()}\n${trimmed}`
+      ? `${sanitizeListingDescription(aiDraft.description)}\n${trimmed}`.trim()
       : trimmed;
-    const nextTitle = aiDraft.title?.trim() ? aiDraft.title : trimmed.slice(0, 96);
+    const nextTitle = aiDraft.title?.trim()
+      ? sanitizeListingTitle(aiDraft.title)
+      : sanitizeListingTitle(trimmed);
     const nextDraft: AiExtractedListing = {
       ...aiDraft,
       description: nextDescription.slice(0, 4000),

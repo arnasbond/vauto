@@ -4,6 +4,7 @@ type QueuedSend = {
   text: string;
   options?: {
     skipBusyCheck?: boolean;
+    skipUserBubble?: boolean;
     fromSearchBar?: boolean;
     pendingImageUrls?: string[];
   };
@@ -11,35 +12,45 @@ type QueuedSend = {
 };
 
 const MAX_QUEUE = 3;
+const MAX_BACKGROUND = 1;
 
 /**
  * Synchronous in-flight gate for sendAgentMessage — prevents React busy state races.
- * Optional FIFO queue for non-skip requests that arrive while agent is working.
+ * Foreground turns serialize; skipBusyCheck uses a bounded background lane (max 1).
  */
 export function createAgentBusyGate(onBusyChange: (busy: boolean) => void) {
-  let inFlight = 0;
+  let foregroundInFlight = 0;
+  let backgroundInFlight = 0;
   const queue: QueuedSend[] = [];
 
   const syncBusy = () => {
-    onBusyChange(inFlight > 0);
+    onBusyChange(foregroundInFlight > 0 || backgroundInFlight > 0);
   };
 
   return {
     get locked(): boolean {
-      return inFlight > 0;
+      return foregroundInFlight > 0;
     },
 
     tryAcquire(skipBusyCheck?: boolean): boolean {
-      if (skipBusyCheck) return true;
-      if (inFlight > 0) return false;
-      inFlight = 1;
+      if (skipBusyCheck) {
+        if (backgroundInFlight >= MAX_BACKGROUND) return false;
+        backgroundInFlight += 1;
+        syncBusy();
+        return true;
+      }
+      if (foregroundInFlight > 0) return false;
+      foregroundInFlight = 1;
       syncBusy();
       return true;
     },
 
     release(skipBusyCheck?: boolean): void {
-      if (skipBusyCheck) return;
-      inFlight = Math.max(0, inFlight - 1);
+      if (skipBusyCheck) {
+        backgroundInFlight = Math.max(0, backgroundInFlight - 1);
+      } else {
+        foregroundInFlight = Math.max(0, foregroundInFlight - 1);
+      }
       syncBusy();
     },
 

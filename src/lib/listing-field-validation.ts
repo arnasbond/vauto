@@ -1,5 +1,6 @@
 import type { CategoryAttributes, ListingCategory } from "@/lib/types";
 import { isPlaceholderCity } from "@/lib/city-resolve";
+import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
 import { resolveDraftContact } from "@/lib/profile-listing-sync";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories/types";
 import { getAdaptiveConfig } from "@/lib/adaptive-categories/config";
@@ -234,7 +235,13 @@ export function evaluateConversationalPublishValidation(
     needsSellerType: false,
     needsTitle: false,
     canPublish,
-    blockMessage: validationIssues.join(" · ") || "Užpildykite privalomus laukus",
+    blockMessage: buildConversationalMissingPrompt({
+      missingAuth: false,
+      missingPhoto: needsPhoto,
+      missingPhone: needsContact,
+      missingCity: needsCity,
+      missingPrice: false,
+    }),
     validationIssues,
   };
 }

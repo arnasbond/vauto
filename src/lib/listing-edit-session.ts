@@ -11,18 +11,30 @@ export interface ListingEditSession {
 
 const STORAGE_KEY = "vauto_listing_edit_session";
 
+export const LISTING_EDIT_HOST_PATHS = ["/", "/mano-skelbimai"] as const;
+
+/** Fired after writeListingEditSession — enables in-place edit bootstrap on dashboard. */
+export const LISTING_EDIT_SESSION_EVENT = "vauto:listing-edit-session";
+
+export function isListingEditHostPath(pathname: string): boolean {
+  const normalized = (pathname || "/").replace(/\/$/, "") || "/";
+  return (LISTING_EDIT_HOST_PATHS as readonly string[]).includes(normalized);
+}
+
 export function writeListingEditSession(
   session: Omit<ListingEditSession, "startedAt">
-): void {
-  if (typeof window === "undefined") return;
+): ListingEditSession {
+  const payload: ListingEditSession = { ...session, startedAt: Date.now() };
+  if (typeof window === "undefined") return payload;
   try {
-    sessionStorage.setItem(
-      STORAGE_KEY,
-      JSON.stringify({ ...session, startedAt: Date.now() })
+    sessionStorage.setItem(STORAGE_KEY, JSON.stringify(payload));
+    window.dispatchEvent(
+      new CustomEvent(LISTING_EDIT_SESSION_EVENT, { detail: payload })
     );
   } catch {
     /* ignore quota */
   }
+  return payload;
 }
 
 export function readListingEditSession(): ListingEditSession | null {

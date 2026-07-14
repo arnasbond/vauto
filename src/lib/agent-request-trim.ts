@@ -53,6 +53,18 @@ export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {
     };
   }
 
+  const lastUser = messages.filter((m) => m.role === "user").pop();
+  const photoUploadTurn = lastUser?.text?.includes("[Nuotraukos įkeltos]");
+  if (context?.pendingImageUrls?.length && !photoUploadTurn) {
+    const count = context.pendingImageCount ?? context.pendingImageUrls.length;
+    const rest = { ...context };
+    delete rest.pendingImageUrls;
+    context = {
+      ...rest,
+      pendingImageCount: count,
+    };
+  }
+
   return {
     ...body,
     messages: messages.length ? messages : body.messages?.slice(-1) ?? [],

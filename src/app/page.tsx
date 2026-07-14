@@ -22,12 +22,15 @@ import { subscribeHomeReset } from "@/lib/home-reset";
 function MarketplaceView() {
   const { rankedListings } = useVauto();
   const { searchQuery, searchLoading } = useVautoSearch();
-  const { messages, busy: agentBusy } = useVautoAgent();
+  const { messages, busy: agentBusy, open: agentOpen } = useVautoAgent();
 
   const [seedQuery, setSeedQuery] = useState<string | null>(null);
 
   const hasSearch = searchQuery.trim().length >= 3;
-  const hasAgentTurn = agentBusy || messages.some((m) => m.role === "user");
+  const hasAgentTurn =
+    agentOpen ||
+    agentBusy ||
+    messages.some((m) => m.role === "user" || m.role === "assistant");
   const compactHero = hasSearch || hasAgentTurn;
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;

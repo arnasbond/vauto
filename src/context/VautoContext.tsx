@@ -269,7 +269,9 @@ interface VautoContextValue {
   completeVoiceRecording: (transcript: string | null) => void;
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
-  publishListing: () => Promise<import("@/context/SellerFlowContext").PublishListingResult>;
+  publishListing: (
+    opts?: import("@/context/SellerFlowContext").PublishListingOptions
+  ) => Promise<import("@/context/SellerFlowContext").PublishListingResult>;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
   submitSellerContent: (payload: {
@@ -340,7 +342,10 @@ interface VautoContextValue {
   investorDemoActive: boolean;
   updateListing: (id: string, patch: ListingEditPatch) => void;
   markListingSold: (id: string) => void;
-  startEditListingFlow: (listing: Listing) => void;
+  startEditListingFlow: (
+    listing: Listing,
+    options?: { stayOnPage?: boolean }
+  ) => void;
 
   isAdmin: boolean;
   reports: SupportReport[];

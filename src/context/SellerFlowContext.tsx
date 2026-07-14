@@ -35,6 +35,7 @@ import { loadAccessToken } from "@/lib/auth/session";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
 import { draftToListingPatch } from "@/lib/listing-edit";
 import { writeListingEditSession } from "@/lib/listing-edit-session";
+import { listingToDraft } from "@/lib/listing-edit";
 import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-draft";
 import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
 import { normalizeKnownListingCity } from "@/lib/city-resolve";
@@ -48,6 +49,7 @@ import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-f
 import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
+import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
 import { clearAllListingDrafts } from "@/lib/listing-draft-storage";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
@@ -245,9 +247,24 @@ async function prepareListingImageForApi(
   return null;
 }
 
+import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
+import {
+  buildPrePublishVisibilityCheckout,
+  getPrePublishVisibilityOption,
+} from "@/lib/listing-publish-visibility";
+import {
+  sanitizeListingDescription,
+  sanitizeListingTitle,
+} from "@/lib/listing-text-sanitize";
+import type { CheckoutSession } from "@/lib/monetization-catalog";
+
 export type PublishListingResult =
-  | { ok: true; listing: Listing }
+  | { ok: true; listing: Listing; visibilityCheckout?: CheckoutSession | null }
   | { ok: false; error: string; sessionExpired?: boolean; prePublishBlocked?: boolean };
+
+export interface PublishListingOptions {
+  visibilityId?: PrePublishVisibilityId;
+}
 
 export interface SellerFlowContextValue {
   sellerStep: SellerFlowStep;
@@ -269,7 +286,7 @@ export interface SellerFlowContextValue {
   cancelVoiceRecording: () => void;
   updateAiDraft: (patch: Partial<AiExtractedListing>) => void;
   isPublishingListing: boolean;
-  publishListing: () => Promise<PublishListingResult>;
+  publishListing: (opts?: PublishListingOptions) => Promise<PublishListingResult>;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => Promise<void>;
   cancelSellerFlow: () => void;
   lastPublishedListing: Listing | null;
@@ -309,7 +326,10 @@ export interface SellerFlowContextValue {
     toastMessage?: string;
     inputMode?: SellerInputMode;
   }) => void;
-  startEditListingFlow: (listing: Listing) => void;
+  startEditListingFlow: (
+    listing: Listing,
+    options?: { stayOnPage?: boolean }
+  ) => void;
   listingSocialPublish: ListingSocialPublishOptions;
   updateListingSocialPublish: (patch: Partial<ListingSocialPublishOptions>) => void;
   revertPhotoCategoryMismatch: () => boolean;
@@ -1391,7 +1411,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     showToast("Kategorija pakeista į elektroniką.", "info");
   }, [showToast, syncDraftWithProfile]);
 
-  const publishListing = useCallback(async (): Promise<PublishListingResult> => {
+  const publishListing = useCallback(async (opts?: PublishListingOptions): Promise<PublishListingResult> => {
     if (isPublishingRef.current) {
       return { ok: false, error: "Skelbimas jau publikuojamas — palaukite." };
     }
@@ -1419,6 +1439,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       previewImage: sellerPreviewImage,
       orderedImageUrls: aiDraft.orderedImageUrls,
       editingListingId,
+      geoCoords: buyerCoords,
     });
     if (prePublish.syncedDraft && prePublish.syncedDraft !== aiDraft) {
       setAiDraft(prePublish.syncedDraft);
@@ -1427,10 +1448,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (prePublish.missingAuth && !isAuthenticated) {
         openAuthModal("/");
       }
-      showToast(prePublish.blockMessage.split("\n")[0] ?? prePublish.blockMessage, "error");
+      const conversational = buildConversationalMissingPrompt(prePublish);
+      showToast(conversational, "error");
       return {
         ok: false,
-        error: prePublish.blockMessage,
+        error: conversational,
         prePublishBlocked: true,
       };
     }
@@ -1465,9 +1487,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     );
 
     if (!validation.canPublish) {
-      const blockMessage = prePublish.blockMessage;
-      showToast(blockMessage.split("\n")[0] ?? validation.blockMessage, "error");
-      return { ok: false, error: blockMessage, prePublishBlocked: true };
+      const conversational = buildConversationalMissingPrompt(prePublish);
+      showToast(conversational, "error");
+      return { ok: false, error: conversational, prePublishBlocked: true };
     }
 
     const priceSanity =
@@ -1664,16 +1686,24 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (exact !== null) distKm = exact;
     }
 
+    const visibilityOption = getPrePublishVisibilityOption(opts?.visibilityId ?? "standard");
+    const visibilityExpiresAt =
+      visibilityOption.durationDays && visibilityOption.promoted
+        ? new Date(Date.now() + visibilityOption.durationDays * 86_400_000).toISOString()
+        : undefined;
+
     const publishCategory = resolveEffectiveListingCategory(
       profileDraft.category,
       profileDraft.attributes ?? {}
     );
-    const publishTitle = profileDraft.title.trim() || "Skelbimas";
+    const publishTitle = sanitizeListingTitle(profileDraft.title);
+    const publishDescription = sanitizeListingDescription(profileDraft.description);
     const finalContact = resolveDraftContact(draftWithClientId, user);
     const publishDraft = {
       ...draftWithClientId,
       category: publishCategory,
       title: publishTitle,
+      description: publishDescription,
       contact: finalContact,
     };
 
@@ -1689,7 +1719,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       images: galleryImages,
       category: publishCategory,
       tags: attributesToTags(publishDraft),
-      description: profileDraft.description,
+      description: publishDescription,
       attributes: mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
       status: "active",
       sellerId: user.id,
@@ -1709,6 +1739,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       allowPastomatas: profileDraft.allowPastomatas ?? true,
       isAiTwinActive:
         String(profileDraft.attributes?.isAiTwinActive ?? "").trim().toLowerCase() === "true",
+      visibilityTier: visibilityOption.visibilityTier,
+      promoted: visibilityOption.promoted,
+      visibilityExpiresAt,
+      visibilityPlanTier:
+        visibilityOption.id === "maximum" ? 5 : visibilityOption.id === "popular" ? 3 : undefined,
     }),
       conductorPublish
     );
@@ -1781,7 +1816,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         }
       });
       notifyListingPublishComplete(publishCategory, 1);
-      return { ok: true, listing: published };
+      const visibilityCheckout = buildPrePublishVisibilityCheckout(
+        published.id,
+        published.title,
+        visibilityOption
+      );
+      return { ok: true, listing: published, visibilityCheckout };
     }
 
     setListings((prev) => [newListing, ...prev]);
@@ -1805,7 +1845,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
     });
     notifyListingPublishComplete(publishCategory, 1);
-    return { ok: true, listing: newListing };
+    const visibilityCheckout = buildPrePublishVisibilityCheckout(
+      newListing.id,
+      newListing.title,
+      visibilityOption
+    );
+    return { ok: true, listing: newListing, visibilityCheckout };
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       const msg = formatPublishSaveError(detail);
@@ -1975,7 +2020,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const startEditListingFlow = useCallback(
-    (listing: Listing) => {
+    (listing: Listing, options?: { stayOnPage?: boolean }) => {
       if (listing.sellerId !== user.id) {
         showToast("Neturite teisių redaguoti šio skelbimo.", "error");
         return;
@@ -1990,9 +2035,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         category: listing.category,
         attributes: listing.attributes ?? {},
       });
+      const draft = listingToDraft(listing);
+      setEditingListingId(listing.id);
+      applyAgentListingDraft(draft, listing.images[0] ?? undefined);
+      if (options?.stayOnPage) return;
       router.push("/");
     },
-    [user.id, showToast, resetSellerFlow, router]
+    [user.id, showToast, resetSellerFlow, router, applyAgentListingDraft]
   );
 
   const updateSellerMedia = useCallback(

@@ -46,6 +46,9 @@ export interface DirectPhotoIntentChipDeps {
   wardrobeOnly?: boolean;
   onAssistantReply: (reply: string) => void;
   onError?: (message: string) => void;
+  /** Fallback when modal session was replaced by chat upload flow */
+  getFallbackPhotos?: () => string[];
+  bootstrapIntent?: (photos: string[]) => Promise<boolean>;
 }
 
 /** Execute photo intent modal chips without injecting raw text into chat. */
@@ -57,7 +60,16 @@ export async function executeDirectPhotoIntentChip(
     return false;
   }
 
-  const pending = consumePendingPhotoIntent();
+  let pending = consumePendingPhotoIntent();
+  if (!pending) {
+    const fallback = deps.getFallbackPhotos?.().filter(Boolean).slice(0, 6) ?? [];
+    if (fallback.length) {
+      const ready = deps.bootstrapIntent
+        ? await deps.bootstrapIntent(fallback)
+        : false;
+      if (ready) pending = consumePendingPhotoIntent();
+    }
+  }
   if (!pending) {
     deps.onError?.("Nuotraukos sesija nebegalioja — įkelkite nuotrauką iš naujo.");
     return true;

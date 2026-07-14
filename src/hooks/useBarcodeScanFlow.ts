@@ -1,6 +1,7 @@
 "use client";
 
 import { useCallback } from "react";
+import { usePathname, useRouter } from "next/navigation";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import type { AiExtractedListing, ListingCategory } from "@/lib/types";
@@ -28,6 +29,8 @@ import {
 export function useBarcodeScanFlow() {
   const { applyAgentListingDraft, user } = useVauto();
   const { openWithGreeting } = useVautoAgent();
+  const router = useRouter();
+  const pathname = usePathname();
 
   const showUnregisteredProductPrompt = useCallback(
     (pendingImageUrls?: string[]) => {
@@ -38,8 +41,12 @@ export function useBarcodeScanFlow() {
         UNREGISTERED_PRODUCT_AGENT_PROMPT,
         unregisteredProductAgentGreetingOptions()
       );
+      const normalized = (pathname || "/").replace(/\/$/, "") || "/";
+      if (normalized === "/add") {
+        router.push("/");
+      }
     },
-    [openWithGreeting]
+    [openWithGreeting, pathname, router]
   );
 
   const applyScannedBarcode = useCallback(

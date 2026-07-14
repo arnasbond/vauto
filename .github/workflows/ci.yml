@@ -86,9 +86,7 @@ jobs:
           NEXT_PUBLIC_VAUTO_CONDUCTOR: "1"
 
       - name: Build static export
-        run: npm run build
-        env:
-          NEXT_PUBLIC_SHOW_DEMO_CATALOG: "true"
+        run: npm run build:e2e
 
       - name: Run E2E smoke tests
         run: npx playwright test e2e/smoke.spec.ts

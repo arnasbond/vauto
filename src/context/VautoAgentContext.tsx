@@ -16,7 +16,7 @@ import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { apiVautoAgent, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
+import { SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
 import { apiVautoAgentStream } from "@/lib/api/vauto-agent-stream";
 import {
   BUDDY_REPEAT_PROMPT,
@@ -64,7 +64,6 @@ import {
 } from "@/lib/monetization-engine";
 import { persistPendingZeroUiScreen } from "@/lib/zero-ui-pending";
 import {
-  AGENT_BUSY_MESSAGE,
   AGENT_QUEUE_FULL_MESSAGE,
   createAgentBusyGate,
 } from "@/lib/agent-busy-gate";
@@ -91,13 +90,9 @@ import {
   isPhotoIntentSearchChip,
 } from "@/lib/photo-intent-resolution";
 import {
-  clearPendingPhotoIntent,
-  peekPendingPhotoIntent,
-} from "@/lib/photo-intent-session";
-import {
-  executePhotoIntentListing,
-  executePhotoIntentSearch,
-} from "@/lib/photo-intent-actions";
+  ensurePendingPhotoIntent,
+  isPhotoIntentRoutingReply,
+} from "@/lib/photo-intent-bootstrap";
 import { tryHandleVisualDamageReply } from "@/lib/visual-damage-replies";
 import { sanitizeAgentAction } from "@/lib/agent-action-guard";
 import {
@@ -127,8 +122,12 @@ import {
 } from "@/lib/listing-navigation";
 import {
   buildListingEditOpener,
+  isListingEditHostPath,
+  LISTING_EDIT_SESSION_EVENT,
   readListingEditSession,
+  type ListingEditSession,
 } from "@/lib/listing-edit-session";
+import { nearestLtCityFromCoords } from "@/lib/listing-location-context";
 import {
   buildManualFillChatRedirectReply,
   isListingConversationInput,
@@ -145,14 +144,14 @@ import {
 } from "@/lib/profile-listing-sync";
 import {
   buildPrePublishCardPayload,
-  buildPrePublishMissingGuide,
   evaluatePrePublishReadiness,
-  PRE_PUBLISH_READY_INTRO,
 } from "@/lib/pre-publish-validation";
 import {
-  buildPrePublishRequirementsPayload,
-  PRE_PUBLISH_BLOCK_INTRO,
-} from "@/lib/pre-publish-requirements";
+  buildConversationalMissingPrompt,
+  buildDraftConfirmationBubble,
+  listingConfirmationQuickReplies,
+  PRE_PUBLISH_CARD_INTRO,
+} from "@/lib/listing-conversational-flow";
 import {
   buildListingEditPrompt,
   buildListingEditQuickReplies,
@@ -182,6 +181,8 @@ const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
 export interface AgentSendOptions {
   skipBusyCheck?: boolean;
+  /** When true, user bubble was already shown (queued retry). */
+  skipUserBubble?: boolean;
   pendingImageUrls?: string[];
   /** User input came from microphone in agent sheet or search bar */
   fromVoice?: boolean;
@@ -219,6 +220,10 @@ interface VautoAgentContextValue {
   enterListingEditMode: () => void;
   /** When true, live pre-publish card is hidden (edit mode). */
   hidePrePublishCard: boolean;
+  /** User confirmed draft via „viskas tinka" — show publish card. */
+  listingPublishConfirmed: boolean;
+  /** Reset publish card state after successful listing publish. */
+  resetPublishSession: () => void;
 }
 
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
@@ -252,6 +257,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     activateWardrobeSpinta,
     sellerAnalytics,
     buyerIntentCount,
+    buyerCoords,
     applyVisualSearch,
     updateUser,
   } = useVauto();
@@ -341,6 +347,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const [streamThinkingLabel, setStreamThinkingLabel] = useState("Galvoju…");
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [hidePrePublishCard, setHidePrePublishCard] = useState(false);
+  const [listingPublishConfirmed, setListingPublishConfirmed] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const busyGateRef = useRef<ReturnType<typeof createAgentBusyGate> | null>(null);
@@ -914,13 +921,43 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [setSearchInputMode, setSearchVoiceMode]
   );
 
+  const resetPublishSessionRef = useRef<() => void>(() => {});
+
+  const resetPublishSession = useCallback(() => {
+    setListingPublishConfirmed(false);
+    setHidePrePublishCard(false);
+    setMessages((prev) => {
+      const stripped = prev.map((m) => {
+        if (m.role !== "assistant" || !m.prePublishCard) return m;
+        const { prePublishCard, ...rest } = m;
+        void prePublishCard;
+        return rest;
+      });
+      return [
+        ...stripped,
+        {
+          role: "assistant" as const,
+          text: "Skelbimas sėkmingai publikuotas! Perkeliame į Mano skelbimai…",
+        },
+      ].slice(-6);
+    });
+    touchAgentSessionActivity();
+  }, []);
+
+  useEffect(() => {
+    resetPublishSessionRef.current = resetPublishSession;
+  }, [resetPublishSession]);
+
   const sendAgentMessage = useCallback(
     async (
       text: string,
       options?: AgentSendOptions
     ): Promise<WakeWordAgentResult> => {
       const trimmed = text.trim();
-      if (!trimmed) return { ok: false, error: "Tuščia užklausa" };
+      const hasIncomingImages = Boolean(options?.pendingImageUrls?.filter(Boolean).length);
+      if (!trimmed && !hasIncomingImages) {
+        return { ok: false, error: "Tuščia užklausa" };
+      }
 
       const drainAgentQueue = () => {
         const next = busyGate.drainNext();
@@ -984,6 +1021,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           previewImage: sellerPreviewImage,
           pendingImageUrls: sessionPendingImageUrls,
           orderedImageUrls: aiDraft?.orderedImageUrls,
+          geoCoords: buyerCoords,
         });
         if (readiness.syncedDraft && aiDraft && readiness.syncedDraft !== aiDraft) {
           updateAiDraft(readiness.syncedDraft);
@@ -995,31 +1033,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         reply: string;
         quickReplies?: string[];
         prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
-        prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
       } => {
         const readiness = runPrePublishGate();
         if (!readiness.ok) {
-          return {
-            reply: PRE_PUBLISH_BLOCK_INTRO,
-            prePublishRequirements: buildPrePublishRequirementsPayload(readiness),
-          };
+          return { reply: buildConversationalMissingPrompt(readiness) };
         }
-        const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
-        if (card && (readiness.syncedDraft?.price ?? 0) > 0) {
-          return {
-            reply: PRE_PUBLISH_READY_INTRO,
-            prePublishCard: card,
-          };
-        }
+        const draft = readiness.syncedDraft;
         return {
-          reply:
-            "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį iškelti į viršų, paryškinti arba Aktyvuoti jūsų AI Dvynį-Derybininką. Ar pritaikom premium funkciją?",
-          quickReplies: [
-            "Iškelti į viršų",
-            "Paryškinti",
-            "Aktyvuoti AI derybininką",
-            "Ne, be reklamos",
-          ],
+          reply: buildDraftConfirmationBubble({
+            title: draft?.title,
+            description: draft?.description,
+            price: draft?.price,
+            location: readiness.resolvedCity,
+          }),
+          quickReplies: listingConfirmationQuickReplies(),
         };
       };
 
@@ -1028,19 +1055,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         quickReplies?: string[];
         publishAfterReply?: boolean;
         prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
-        prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
       } => {
         const readiness = runPrePublishGate();
         if (!readiness.ok) {
-          return {
-            reply: PRE_PUBLISH_BLOCK_INTRO,
-            prePublishRequirements: buildPrePublishRequirementsPayload(readiness),
-          };
+          return { reply: buildConversationalMissingPrompt(readiness) };
         }
         const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
         if (card && (readiness.syncedDraft?.price ?? 0) > 0) {
+          setListingPublishConfirmed(true);
+          setHidePrePublishCard(false);
           return {
-            reply: PRE_PUBLISH_READY_INTRO,
+            reply: PRE_PUBLISH_CARD_INTRO,
             prePublishCard: card,
           };
         }
@@ -1049,7 +1074,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       const buildPrePublishMissingGuideReply = (): string => {
         const readiness = runPrePublishGate();
-        return `${readiness.blockMessage}\n\n${buildPrePublishMissingGuide(readiness)}`;
+        return buildConversationalMissingPrompt(readiness);
       };
 
       if (isManualFillIntent(trimmed)) {
@@ -1064,8 +1089,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       if (aiDraft && isPublishWorkflowCommand(trimmed)) {
-        const gateway = requestPublishUpsell();
-        setHidePrePublishCard(false);
+        const gateway = confirmPublishNow();
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
@@ -1074,9 +1098,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             text: gateway.reply,
             ...(gateway.quickReplies?.length ? { quickReplies: gateway.quickReplies } : {}),
             ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
-            ...(gateway.prePublishRequirements
-              ? { prePublishRequirements: gateway.prePublishRequirements }
-              : {}),
           },
         ]);
         touchAgentSessionActivity();
@@ -1107,6 +1128,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ? tryApplyListingChatInput(trimmed, aiDraft, updateAiDraft)
           : null;
       if (listingChatReply) {
+        setListingPublishConfirmed(false);
         setHidePrePublishCard(false);
         setMessages((prev) => [
           ...prev,
@@ -1128,78 +1150,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         speakReply(reply);
         touchAgentSessionActivity();
         return { ok: true, reply };
-      }
-
-      if (isPhotoIntentSearchChip(trimmed) || isPhotoIntentListingChip(trimmed)) {
-        const pending = peekPendingPhotoIntent();
-        if (pending) {
-          const wardrobeOnly =
-            pathname === "/fashion" || pathname === "/fashion/";
-          let reply: string;
-          try {
-            if (isPhotoIntentSearchChip(trimmed)) {
-              reply = await executePhotoIntentSearch(pending, {
-                listings,
-                marketplaceFilters,
-                userName: user.name,
-                userCity: user.city,
-                userPhone: user.phone,
-                wardrobeOnly,
-                applyVisualSearch,
-                syncAgentAction: applyActions,
-                setSearchInputMode,
-                setSearchQuery,
-                scrollToResults: () => {
-                  document
-                    .getElementById("listing-results")
-                    ?.scrollIntoView({ behavior: "smooth", block: "start" });
-                },
-                notifyPhotoSearch: (label, count) => {
-                  notifyAgentFlow({
-                    kind: "photo_search_applied",
-                    objectLabel: label,
-                    resultCount: count,
-                  });
-                },
-                sendAgentMessage: (text, opts) =>
-                  sendAgentMessage(text, {
-                    fromSearchBar: true,
-                    pendingImageUrls: opts?.pendingImageUrls,
-                  }),
-                openWithGreeting: (text, opts) => {
-                  setOpen(true);
-                  const quickReplies = opts?.quickReplies?.filter(Boolean).slice(0, 4);
-                  setMessages((prev) => [
-                    ...prev,
-                    {
-                      role: "assistant" as const,
-                      text,
-                      ...(quickReplies?.length ? { quickReplies } : {}),
-                    },
-                  ].slice(-6));
-                },
-                showToast,
-              });
-              goToMarketplace("agent");
-            } else {
-              reply = await executePhotoIntentListing(pending, {
-                submitSellerContent,
-                showToast,
-              });
-            }
-            clearPendingPhotoIntent();
-          } catch {
-            showToast("Nepavyko apdoroti nuotraukos — bandykite dar kartą.", "error");
-            reply = "Įvyko klaida — pasirinkite veiksmą dar kartą arba įkelkite nuotrauką iš naujo.";
-          }
-          setOpen(true);
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant" as const, text: reply },
-          ]);
-          touchAgentSessionActivity();
-          return { ok: true, reply };
-        }
       }
 
       const damageReply = tryHandleVisualDamageReply(trimmed, aiDraft, updateAiDraft);
@@ -1231,9 +1181,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             reply: r.reply,
             ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}),
             ...(r.prePublishCard ? { prePublishCard: r.prePublishCard } : {}),
-            ...(r.prePublishRequirements
-              ? { prePublishRequirements: r.prePublishRequirements }
-              : {}),
           };
         },
         confirmPublishNow: () => {
@@ -1243,9 +1190,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             reply: r.reply,
             ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}),
             ...(r.prePublishCard ? { prePublishCard: r.prePublishCard } : {}),
-            ...(r.prePublishRequirements
-              ? { prePublishRequirements: r.prePublishRequirements }
-              : {}),
             ...(r.publishAfterReply ? { publishAfterReply: true } : {}),
           };
         },
@@ -1274,7 +1218,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         acceptPhotoCategoryMismatch,
       });
       if (quickReply) {
-        if (!quickReply.reply.trim() && !quickReply.prePublishRequirements && !quickReply.prePublishCard) {
+        if (quickReply.prePublishCard) {
+          setListingPublishConfirmed(true);
+          setHidePrePublishCard(false);
+        }
+        if (!quickReply.reply.trim() && !quickReply.prePublishCard) {
           touchAgentSessionActivity();
           return { ok: true, reply: "" };
         }
@@ -1285,9 +1233,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             text: quickReply.reply,
             ...(quickReply.quickReplies?.length ? { quickReplies: quickReply.quickReplies } : {}),
             ...(quickReply.prePublishCard ? { prePublishCard: quickReply.prePublishCard } : {}),
-            ...(quickReply.prePublishRequirements
-              ? { prePublishRequirements: quickReply.prePublishRequirements }
-              : {}),
           },
         ].slice(-6));
         let finalReply = quickReply.reply;
@@ -1300,28 +1245,26 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               playCelebration: playPublishCelebration,
               finishPublishedFlow,
               router,
+              resetPublishSession: () => resetPublishSessionRef.current(),
             });
-            finalReply = "Skelbimas sėkmingai įkeltas! Perkeliame į Mano skelbimai…";
+            finalReply = "Skelbimas sėkmingai publikuotas! Perkeliame į Mano skelbimai…";
           } else if (result.sessionExpired) {
             finalReply = result.error ?? SESSION_EXPIRED_MESSAGE;
           } else if (result.prePublishBlocked) {
-            finalReply = PRE_PUBLISH_BLOCK_INTRO;
+            finalReply = buildConversationalMissingPrompt(
+              evaluatePrePublishReadiness({
+                isAuthenticated,
+                user,
+                draft: aiDraft,
+                previewImage: sellerPreviewImage,
+                orderedImageUrls: aiDraft?.orderedImageUrls,
+                geoCoords: buyerCoords,
+              })
+            );
           } else {
             finalReply = `Nepavyko išsaugoti skelbimo: ${result.error ?? "Nežinoma klaida"}`;
           }
           setMessages((prev) => {
-            const blockedRequirements =
-              !result.ok && result.prePublishBlocked && aiDraft
-                ? buildPrePublishRequirementsPayload(
-                    evaluatePrePublishReadiness({
-                      isAuthenticated,
-                      user,
-                      draft: aiDraft,
-                      previewImage: sellerPreviewImage,
-                      orderedImageUrls: aiDraft.orderedImageUrls,
-                    })
-                  )
-                : undefined;
             const next = [...prev];
             next[next.length - 1] = {
               role: "assistant" as const,
@@ -1333,9 +1276,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                       : {}),
                     ...(!result.prePublishBlocked && !result.sessionExpired
                       ? { quickReplies: ["Reikia pataisyti"] as string[] }
-                      : {}),
-                    ...(blockedRequirements
-                      ? { prePublishRequirements: blockedRequirements }
                       : {}),
                   }
                 : {}),
@@ -1378,11 +1318,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const incomingImages = options?.pendingImageUrls?.filter(Boolean).slice(0, 6);
       if (incomingImages?.length) {
         setSessionPendingImageUrls(incomingImages);
+        setListingPublishConfirmed(false);
       }
       const activePendingImageUrls =
         incomingImages ?? (sessionPendingImageUrls.length ? sessionPendingImageUrls : undefined);
+      const requestPendingImageUrls = incomingImages?.length ? incomingImages : undefined;
+      const pendingImageCount =
+        sessionPendingImageUrls.length || requestPendingImageUrls?.length || 0;
+      const geoCityHint = buyerCoords
+        ? nearestLtCityFromCoords(buyerCoords) || undefined
+        : undefined;
 
-      const userMsg: AgentChatMessage = { role: "user", text: trimmed };
+      const userMsg: AgentChatMessage = {
+        role: "user",
+        text: trimmed,
+        ...(incomingImages?.length ? { imageUrls: incomingImages } : {}),
+      };
       const proactiveOnly = Boolean(options?.proactiveTriggerOnly);
       const apiUserText = proactiveOnly
         ? `[Proaktyvi intervencija: ${options?.proactiveOffer?.kind ?? "assist"} — ${
@@ -1390,13 +1341,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             options?.proactiveOffer?.listingTitle?.trim() ||
             "padėk vartotojui proaktyviai"
           }]`
-        : trimmed;
+        : trimmed || (incomingImages?.length ? "[Nuotraukos įkeltos]" : trimmed);
 
       const nextMessages = proactiveOnly
         ? conversationBase
         : [...conversationBase, userMsg];
 
-      if (!proactiveOnly) {
+      if (!proactiveOnly && !options?.skipUserBubble) {
         setMessages((prev) => [...prev, userMsg].slice(-6));
       }
       noteUserMessage(trimmed);
@@ -1479,8 +1430,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       if (!options?.skipBusyCheck && !busyGate.tryAcquire()) {
-        return { ok: false, error: AGENT_BUSY_MESSAGE };
+        return await new Promise<WakeWordAgentResult>((resolve) => {
+          const status = busyGate.enqueue(
+            trimmed,
+            { ...options, skipUserBubble: true },
+            resolve
+          );
+          if (status === "full") {
+            resolve({ ok: false, error: AGENT_QUEUE_FULL_MESSAGE });
+          }
+        });
       }
+
+      let retainPendingImageUrls = false;
 
       try {
         setStreamThinkingLabel("Galvoju…");
@@ -1513,7 +1475,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           searchQuery: browseAllTurn ? "" : searchQuery,
           activeSearchFilters: effectiveFilters,
           totalListingsCount: browseAllTurn ? catalogCount : rankedListings.length,
-          pendingImageUrls: activePendingImageUrls,
+          pendingImageCount: pendingImageCount || undefined,
           currentUser,
         });
         const listingEditSession = readListingEditSession();
@@ -1544,7 +1506,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             sessionExpired: sessionExpired || undefined,
             sessionLastActiveAt: lastActiveAt ?? undefined,
             lastSessionTopic,
-            pendingImageUrls: activePendingImageUrls,
+            pendingImageUrls: requestPendingImageUrls,
+            pendingImageCount: pendingImageCount || undefined,
+            geoCityHint,
             lastError,
             isAuthenticated,
             searchResultCount: browseAllTurn
@@ -1576,15 +1540,28 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         };
 
-        const res =
-          (await apiVautoAgentStream(agentBody, {
-            onEvent: (event) => {
-              if (event.type === "status") setStreamThinkingLabel(event.message);
-              if (event.type === "tool_call") setStreamThinkingLabel(event.message);
-            },
-          })) ?? (await apiVautoAgent(agentBody));
+        const res = await apiVautoAgentStream(agentBody, {
+          onEvent: (event) => {
+            if (event.type === "status") setStreamThinkingLabel(event.message);
+            if (event.type === "tool_call") setStreamThinkingLabel(event.message);
+          },
+        });
 
         setStreamThinkingLabel("Galvoju…");
+
+        if (!res) {
+          const message = BUDDY_REPEAT_PROMPT;
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
+              { role: "assistant" as const, text: message },
+            ].slice(-6);
+          });
+          speakReply(message);
+          if (open && !options?.fromSearchBar) showToast(message, "info");
+          return { ok: true, reply: message };
+        }
 
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error, res.code);
@@ -1600,6 +1577,26 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           return { ok: true, reply: message };
         }
 
+        if (
+          isPhotoIntentRoutingReply(res.reply, res.quickReplies) &&
+          activePendingImageUrls?.length
+        ) {
+          retainPendingImageUrls = true;
+          await ensurePendingPhotoIntent({
+            photos: activePendingImageUrls,
+            userCity: user.city,
+            userName: user.name,
+            wardrobeOnly: pathname === "/fashion" || pathname === "/fashion/",
+          });
+        } else if (
+          activePendingImageUrls?.length &&
+          (res.actions.type === "listing_draft" ||
+            isPhotoIntentSearchChip(trimmed) ||
+            isPhotoIntentListingChip(trimmed))
+        ) {
+          setSessionPendingImageUrls([]);
+        }
+
         const hasExecutableAction = res.actions.type !== "none";
         const browseAllOutcome =
           res.actions.type === "browse_all" ||
@@ -1609,8 +1606,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const appendSupervisorAssistant = (
           assistantText: string,
           quickReplies?: string[],
-          prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload,
-          prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload
+          prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload
         ) => {
           const text = assistantText.trim();
           if (!text) return;
@@ -1633,11 +1629,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                   ? { quickReplies: structuredReplies }
                   : {}),
                 ...(prePublishCard ? { prePublishCard } : {}),
-                ...(prePublishRequirements ? { prePublishRequirements } : {}),
               },
             ].slice(-6);
           });
-          if (prePublishCard) setHidePrePublishCard(false);
+          if (prePublishCard) {
+            setHidePrePublishCard(false);
+          }
         };
 
         const browseAllBlocked =
@@ -1720,8 +1717,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             appendSupervisorAssistant(
               mergedAssistantText,
               res.quickReplies,
-              res.prePublishCard,
-              res.prePublishRequirements
+              res.prePublishCard
             );
           }
         }
@@ -1776,6 +1772,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: message };
       } finally {
         setStreamThinkingLabel("");
+        if (incomingImages?.length && !retainPendingImageUrls) {
+          setSessionPendingImageUrls([]);
+        }
         touchAgentSessionActivity();
         busyGate.release(options?.skipBusyCheck);
         drainAgentQueue();
@@ -1826,6 +1825,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setLastBargainingOffer,
       sellerAnalytics,
       buyerIntentCount,
+      buyerCoords,
       activateWardrobeSpinta,
       routeZeroUiScreen,
       router,
@@ -1839,15 +1839,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       trackEvent,
       getBehaviorSnapshot,
       teardownVoiceAfterUiAction,
-      marketplaceFilters,
-      applyVisualSearch,
-      submitSellerContent,
       updateAiDraft,
       sellerVisionRecoveryActive,
-      goToMarketplace,
       setOpen,
       setMessages,
-      setSearchInputMode,
       setSearchQuery,
     ]
   );
@@ -2022,13 +2017,30 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     };
   }, [sessionPendingImageUrls, aiDraft, sellerStep, updateAiDraft, openWithGreeting]);
 
-  const editSessionConsumedRef = useRef(false);
+  const listingEditBootstrappedRef = useRef<number | null>(null);
   useEffect(() => {
-    if (editSessionConsumedRef.current || pathname !== "/") return;
-    const session = readListingEditSession();
-    if (!session) return;
-    editSessionConsumedRef.current = true;
-    openWithGreeting(buildListingEditOpener(session.title), { replaceThread: true });
+    const bootstrapEditSession = (session: ListingEditSession) => {
+      if (!isListingEditHostPath(pathname ?? "/")) return;
+      if (listingEditBootstrappedRef.current === session.startedAt) return;
+      listingEditBootstrappedRef.current = session.startedAt;
+      openWithGreeting(buildListingEditOpener(session.title), {
+        replaceThread: true,
+        openSheet: true,
+      });
+    };
+
+    const onEditSession = (event: Event) => {
+      const session = (event as CustomEvent<ListingEditSession>).detail;
+      if (session?.listingId) bootstrapEditSession(session);
+    };
+
+    window.addEventListener(LISTING_EDIT_SESSION_EVENT, onEditSession);
+    const existing = readListingEditSession();
+    if (existing) bootstrapEditSession(existing);
+
+    return () => {
+      window.removeEventListener(LISTING_EDIT_SESSION_EVENT, onEditSession);
+    };
   }, [pathname, openWithGreeting]);
 
   const clearAgentChatSession = useCallback(() => {
@@ -2043,6 +2055,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const enterListingEditMode = useCallback(() => {
     setHidePrePublishCard(true);
+    setListingPublishConfirmed(false);
     setAwaitingListingEditField(null);
     setMessages((prev) => [
       ...prev,
@@ -2064,6 +2077,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const wardrobeOnly = pathname === "/fashion" || pathname === "/fashion/";
         return executeDirectPhotoIntentChip(trimmed, {
           wardrobeOnly,
+          getFallbackPhotos: () => sessionPendingImageUrls,
+          bootstrapIntent: async (photos) => {
+            const session = await ensurePendingPhotoIntent({
+              photos,
+              userCity: user.city,
+              userName: user.name,
+              wardrobeOnly,
+            });
+            return Boolean(session);
+          },
           search: {
             listings,
             marketplaceFilters,
@@ -2111,6 +2134,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           listing: { submitSellerContent, showToast },
           onAssistantReply: (reply) => {
             setOpen(true);
+            setSessionPendingImageUrls([]);
             if (isPhotoIntentSearchChip(trimmed)) goToMarketplace("agent");
             setMessages((prev) => [...prev, { role: "assistant" as const, text: reply }].slice(-6));
             touchAgentSessionActivity();
@@ -2178,6 +2202,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       aiDraft,
       updateAiDraft,
       enterListingEditMode,
+      sessionPendingImageUrls,
     ]
   );
 
@@ -2188,6 +2213,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const resetHomeAgentSession = useCallback(() => {
     cancelSellerFlow();
     setHidePrePublishCard(false);
+    setListingPublishConfirmed(false);
     setAwaitingListingEditField(null);
     applyBrowseAllMarketplaceState({
       setSearchQuery,
@@ -2247,6 +2273,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       handleDirectAgentChip,
       enterListingEditMode,
       hidePrePublishCard,
+      listingPublishConfirmed,
+      resetPublishSession,
       applyAgentActions: applyActions,
       reportAgentError,
       resetHomeAgentSession,
@@ -2261,6 +2289,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       handleDirectAgentChip,
       enterListingEditMode,
       hidePrePublishCard,
+      listingPublishConfirmed,
+      resetPublishSession,
       applyActions,
       reportAgentError,
       resetHomeAgentSession,

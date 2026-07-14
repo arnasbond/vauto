@@ -49,6 +49,8 @@ import {
   resolveStructuredListingInputRoute,
   resolveWorkflowCommandResponse,
 } from "./structured-input-pipeline.js";
+import { resolveChatMediaAttachmentResponse } from "./chat-media-upload.js";
+import { buildConversationalMissingPrompt } from "./listing-conversational-flow.js";
 import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
@@ -142,6 +144,8 @@ export interface VautoAgentRequest {
     sessionLastActiveAt?: number;
     lastSessionTopic?: string;
     pendingImageUrls?: string[];
+    pendingImageCount?: number;
+    geoCityHint?: string;
     monetization?: {
       tier?: "free" | "business_pro";
       activeBoost?: boolean;
@@ -261,7 +265,7 @@ function resolveAgentQuickReplies(
 }
 
 const BUDDY_REPEAT_PROMPT =
-  "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
+  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau apibūdinti, ko ieškote?";
 
 function humanizeSearchItem(searchQuery: string): string {
   const q = searchQuery.trim().toLowerCase();
@@ -365,6 +369,20 @@ async function runVautoAgentInner(
 
   const listingDraft = req.context.listingDraft;
 
+  const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 6);
+  if (pendingChatImages?.length) {
+    const mediaResponse = await resolveChatMediaAttachmentResponse({
+      imageUrls: pendingChatImages,
+      listingDraft,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      userText: lastUserText,
+    });
+    if (mediaResponse) {
+      return mediaResponse;
+    }
+  }
+
   const prePublishSnapshot = listingDraft
     ? evaluateServerPrePublishReadiness({
         isAuthenticated: req.context.isAuthenticated,
@@ -374,6 +392,7 @@ async function runVautoAgentInner(
         contact: req.context.contact,
         listingDraft,
         pendingImageUrls: req.context.pendingImageUrls,
+        geoCityHint: req.context.geoCityHint,
       })
     : null;
 
@@ -413,15 +432,13 @@ async function runVautoAgentInner(
       contact: req.context.contact,
       listingDraft,
       pendingImageUrls: req.context.pendingImageUrls,
+      geoCityHint: req.context.geoCityHint,
     });
     return {
       ok: true,
       reply: gateway.reply,
       ...(gateway.quickReplies ? { quickReplies: gateway.quickReplies } : {}),
       ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
-      ...(gateway.prePublishRequirements
-        ? { prePublishRequirements: gateway.prePublishRequirements }
-        : {}),
       toolCalls: [],
       actions: { type: "none" },
     };
@@ -602,9 +619,9 @@ async function runVautoAgentInner(
     wizardBits.push(`currentView=${req.context.currentView}`);
   }
   if (req.context.pendingImageUrls?.length) {
-    wizardBits.push(
-      `pendingImageUrls=${JSON.stringify(req.context.pendingImageUrls.slice(0, 6))}`
-    );
+    wizardBits.push(`pendingImageCount=${req.context.pendingImageUrls.length}`);
+  } else if (req.context.pendingImageCount) {
+    wizardBits.push(`pendingImageCount=${req.context.pendingImageCount}`);
   }
   if (req.context.sellerMetrics) {
     wizardBits.push(`sellerMetrics=${JSON.stringify(req.context.sellerMetrics)}`);
@@ -859,16 +876,24 @@ async function runVautoAgentInner(
           listingDraft: ctx.listingDraft,
           pendingImageUrls: req.context.pendingImageUrls,
           imageUrl: imageUrls[0] ?? "",
+          geoCityHint: req.context.geoCityHint,
         });
         if (!prePublish.ok) {
-          draftText = prePublish.blockMessage;
+          const conversational = buildConversationalMissingPrompt({
+            missingAuth: prePublish.missingAuth,
+            missingPhoto: prePublish.missingPhoto,
+            missingCity: prePublish.missingCity,
+            missingPrice: prePublish.missingPrice,
+            missingPhone: prePublish.missingPhone,
+          });
+          draftText = conversational;
           responseParts.push({
             functionResponse: {
               name,
               response: {
                 ok: false,
                 blocked: true,
-                message: prePublish.blockMessage,
+                message: conversational,
               },
             },
           });

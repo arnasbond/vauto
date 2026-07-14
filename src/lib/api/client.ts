@@ -564,7 +564,7 @@ export async function apiUpdateUser(
 ): Promise<ApiResult<null>> {
   const payload = {
     ...user,
-    city: resolveListingCity(user.city, "Vilnius"),
+    city: resolveListingCity(user.city),
     avatar: sanitizeAvatarForApi(user.avatar),
   };
   return dataFetch<null>(`/api/users/${user.id}`, {

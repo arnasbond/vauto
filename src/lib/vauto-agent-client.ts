@@ -13,13 +13,13 @@ export type { ListingChatContext };
 export interface AgentChatMessage {
   role: "user" | "assistant";
   text: string;
+  /** Inline chat attachments (data URLs) shown in user bubbles */
+  imageUrls?: string[];
   toolCalls?: { name: string; result: unknown }[];
   /** Structured quick replies from vision / proactive flows */
   quickReplies?: string[];
   /** Rich pre-publish listing preview card */
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
-  /** Interactive missing-fields widget (replaces text wall + duplicate chips) */
-  prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
 }
 
 export interface AgentSearchFilters {
@@ -74,6 +74,10 @@ export interface VautoAgentContext {
   sessionLastActiveAt?: number;
   lastSessionTopic?: string;
   pendingImageUrls?: string[];
+  /** Session photo count without re-sending base64 payloads each turn. */
+  pendingImageCount?: number;
+  /** Nearest LT city from client GPS — lightweight server city hint. */
+  geoCityHint?: string;
   monetization?: {
     tier?: "free" | "business_pro";
     activeBoost?: boolean;
@@ -409,7 +413,6 @@ export interface VautoAgentResponse {
   reply: string;
   quickReplies?: string[];
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
-  prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: VautoAgentAction;
 }

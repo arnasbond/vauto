@@ -10,7 +10,7 @@ import {
 export type { SupervisorCurrentUser };
 
 export interface SupervisorUploadMetadata {
-  pendingImageUrls?: string[];
+  /** Count only — never embed base64 URLs in supervisor state (payload size). */
   pendingImageCount?: number;
   visionHint?: string;
   lastVisionSummary?: string;
@@ -29,6 +29,8 @@ export function buildSupervisorApplicationState(params: {
   searchQuery?: string;
   activeSearchFilters?: AgentSearchFilters | null;
   totalListingsCount: number;
+  pendingImageCount?: number;
+  /** @deprecated Prefer pendingImageCount — URLs bloat payloads. */
   pendingImageUrls?: string[];
   visionHint?: string;
   currentUser: SupervisorCurrentUser;
@@ -41,15 +43,17 @@ export function buildSupervisorApplicationState(params: {
     filters.query = query;
   }
 
-  const images = params.pendingImageUrls?.filter(Boolean).slice(0, 6);
+  const imageCount =
+    params.pendingImageCount ??
+    params.pendingImageUrls?.filter(Boolean).length ??
+    0;
 
   return {
     current_page_url: params.pageUrl || "/",
     active_filters: filters,
     total_listings_count: params.totalListingsCount,
     upload_metadata: {
-      pendingImageUrls: images?.length ? images : undefined,
-      pendingImageCount: images?.length ?? 0,
+      pendingImageCount: imageCount,
       visionHint: params.visionHint,
     },
     current_user: params.currentUser,

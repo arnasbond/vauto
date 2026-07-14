@@ -9,7 +9,7 @@ import {
 } from "./lithuanian-name-case.js";
 
 export interface SupervisorUploadMetadata {
-  pendingImageUrls?: string[];
+  /** Count only — never embed base64 URLs in supervisor state (payload size). */
   pendingImageCount?: number;
   visionHint?: string;
   lastVisionSummary?: string;
@@ -48,6 +48,7 @@ export interface SupervisorContextSource {
   searchResultCount?: number;
   lastSearchQuery?: string;
   pendingImageUrls?: string[];
+  pendingImageCount?: number;
   userName?: string;
   isAuthenticated?: boolean;
   accountType?: string;
@@ -116,13 +117,17 @@ export function resolveSupervisorStateFromRequest(
     filters.query = context.lastSearchQuery.trim();
   }
 
+  const imageCount =
+    context.pendingImageCount ??
+    context.pendingImageUrls?.filter(Boolean).length ??
+    0;
+
   return {
     current_page_url: context.currentPageContext?.page_id ?? "/",
     active_filters: filters,
     total_listings_count: context.searchResultCount ?? 0,
     upload_metadata: {
-      pendingImageUrls: context.pendingImageUrls?.slice(0, 6),
-      pendingImageCount: context.pendingImageUrls?.length ?? 0,
+      pendingImageCount: imageCount,
     },
     current_user: resolvedUser,
   };

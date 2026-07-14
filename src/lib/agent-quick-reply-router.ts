@@ -1,6 +1,6 @@
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
-import { buildPrePublishRequirementsPayload } from "@/lib/pre-publish-requirements";
-import type { SellerFlowStep } from "@/lib/types";import {
+import type { SellerFlowStep } from "@/lib/types";
+import {
   WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
   requestWardrobeBulkPhotoPick,
@@ -23,7 +23,6 @@ export interface AgentQuickReplyResult {
   /** When true, caller must await publishListing() before showing final assistant reply. */
   publishAfterReply?: boolean;
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
-  prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
 }
 
 export interface AgentBargainingOffer {
@@ -102,7 +101,7 @@ function seedListingDraft(
     title: "",
     description: "",
     price: 0,
-    location: user.city || "Vilnius",
+    location: user.city?.trim() || "",
     contact: user.phone || "+370 612 34567",
     confidence: 0.5,
     attributes: {},
@@ -146,7 +145,7 @@ export function tryHandleAgentQuickReply(
     const drafts = wardrobeBulkToDrafts(
       deps.pendingWardrobeBulkItems,
       deps.user.phone,
-      deps.user.city || "Vilnius"
+      deps.user.city?.trim() || ""
     );
     void deps.publishBulkClothingListings(drafts);
     return {
@@ -202,9 +201,9 @@ export function tryHandleAgentQuickReply(
     };
   }
 
-  if (matchesChip(trimmed, [/viskas tinka/])) {
+  if (matchesChip(trimmed, [/viskas tinka/, /✅\s*viskas tinka/i])) {
     if (deps.aiDraft) {
-      return deps.requestPublishUpsell();
+      return deps.confirmPublishNow();
     }
     deps.navigateToAdd();
     return {
@@ -229,7 +228,7 @@ export function tryHandleAgentQuickReply(
       /ne,?\s*be\s*reklamos/,
       /be\s*reklamos/,
       /nenoriu\s*reklamos/,
-      /\bne\b/,
+      /^ne,?\s*dar\s*pataisysiu/i,
     ])
   ) {
     return {
@@ -392,22 +391,18 @@ export function tryHandleAgentQuickReply(
   }
 
   if (matchesChip(trimmed, [/suvesti tr[uū]kstamus duomenis/])) {
-    const readiness = deps.getPrePublishReadiness();
-    if (readiness && !readiness.ok) {
-      return {
-        handled: true,
-        reply: "Trūksta kelių detalių — užpildykite žemiau ir galėsite publikuoti:",
-        prePublishRequirements: buildPrePublishRequirementsPayload(readiness),
-      };
-    }
     return {
       handled: true,
       reply: deps.buildPrePublishMissingGuide(),
     };
   }
 
-  if (matchesChip(trimmed, [/telefono numer/i, /^miestas$/, /įkelti nuotrauk/i, /ikelti nuotrauk/i, /📷/i, /📞/i, /📍/i, /💰/i])) {
-    return { handled: true, reply: "" };
+  if (matchesChip(trimmed, [/dar pataisysiu/i, /✏️/])) {
+    return {
+      handled: true,
+      reply: "Gerai — ką norėtumėte pataisyti? Parašykite pokalbyje arba pasirinkite.",
+      quickReplies: ["Pataisyti kainą", "Pataisyti aprašymą", "✅ Viskas tinka"],
+    };
   }
 
   if (matchesChip(trimmed, [/pataisyti kain/i])) {
@@ -495,7 +490,7 @@ export function tryHandleAgentQuickReply(
       const drafts = wardrobeBulkToDrafts(
         deps.pendingWardrobeBulkItems,
         deps.user.phone,
-        deps.user.city || "Vilnius"
+        deps.user.city?.trim() || ""
       );
       void deps.publishBulkClothingListings(drafts);
       return {

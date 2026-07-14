@@ -712,7 +712,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
       phone: data.phone ?? "",
 
-      city: data.city || user.city || "Vilnius",
+      city: data.city || user.city || "",
 
       authProvider: data.provider,
 

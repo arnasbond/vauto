@@ -84,11 +84,14 @@ export async function installSupervisorSearchMocks(
  * Lithuania-wide result summary (query label cleared after supervisor sync).
  */
 export async function expectCleanSupervisorSearch(page: Page) {
-  const search = page.getByRole("searchbox").first();
   const results = listingResults(page);
+  const search = page.getByRole("searchbox").first();
 
   await expect(results.getByText(/^Ieškoma…$/)).toBeHidden({ timeout: 30_000 });
-  await expect(search).toHaveValue("", { timeout: 30_000 });
+
+  if (await search.isVisible({ timeout: 2_000 }).catch(() => false)) {
+    await expect(search).toHaveValue("", { timeout: 30_000 });
+  }
 
   await expect(results.getByText(/Šiuo metu.*turguje neradau/i)).toHaveCount(0);
   await expect(results.getByText(/Deje, pagal/i)).toHaveCount(0);
@@ -98,10 +101,13 @@ export async function expectCleanSupervisorSearch(page: Page) {
   // Legacy fallback must not render inside the results grid.
   await expect(results.locator(".agent-chat-strip")).toHaveCount(0);
 
-  // Single supervisor broker bubble lives in the hero strip.
+  // Single supervisor broker bubble lives in the hero strip (chat strip or collapsed command bar).
   const strip = agentChatStrip(page);
   await expect(strip).toBeVisible({ timeout: 30_000 });
-  await expect(strip).toHaveAttribute("aria-label", "VAUTO asistento atsakymas");
+  await expect(strip).toHaveAttribute(
+    "aria-label",
+    /VAUTO asistento (atsakymas|pokalbis)/i
+  );
   await expect(strip.getByText(/Radau/i)).toBeVisible();
 }
 

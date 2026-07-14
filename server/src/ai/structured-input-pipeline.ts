@@ -12,17 +12,16 @@ import {
 } from "./listing-contact-parse.js";
 import { isListingWorkflowCommand, isPublishWorkflowCommand } from "./listing-workflow-intent.js";
 import {
+  buildConversationalMissingPrompt,
+  buildDraftConfirmationBubble,
+  listingConfirmationQuickReplies,
+  PRE_PUBLISH_CARD_INTRO,
+} from "./listing-conversational-flow.js";
+import {
   buildServerPrePublishCardPayload,
   evaluateServerPrePublishReadiness,
   type ServerPrePublishCardPayload,
-  type ServerPrePublishRequirementsPayload,
 } from "./pre-publish-validation.js";
-
-export const PRE_PUBLISH_READY_INTRO =
-  "✨ Skelbimas paruoštas publikuoti! Peržiūrėkite, kaip jis atrodys turguje:";
-
-export const PRE_PUBLISH_BLOCK_INTRO =
-  "Trūksta kelių detalių — užpildykite žemiau ir galėsite publikuoti:";
 
 export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
 - Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
@@ -63,7 +62,7 @@ export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI
 - DRAUDŽIAMA: įrašyti šias frazes į title, description, attributes ar bet kurį Prisma/DB lauką.
 - DRAUDŽIAMA: append'inti jas prie aprašymo ar pavadinimo per updateListingDraft.
 - Kai vartotojas rašo tokias frazes — SUSTOK tekstinio laukų atnaujinimo pipeline ir perjunk į pre-publish validacijos vartus (evaluatePrePublishReadiness).
-- Jei validacija praeina — parodyk PrePublishListingCard peržiūrą; jei ne — ⚠️ blokavimo pranešimą su trūkstamais laukais.`;
+- Jei validacija praeina — parodyk PrePublishListingCard peržiūrą; jei ne — konversacinį klausimą apie trūkstamus duomenis (ne ⚠️ bloką).`;
 
 export const LISTING_CONTACT_CAPTURE_RULES = `KONTAKTŲ LAUKŲ GAVIMAS (blokavimo / patvirtinimo fazė — PRIVALOMA):
 - Kai trūksta telefono ar miesto, vartotojo laisvas tekstas gali turėti kontaktus (pvz. „068876808 Arnoldas Kaišiadorys“).
@@ -83,7 +82,7 @@ export const LISTING_CONTACT_CAPTURE_RULES = `KONTAKTŲ LAUKŲ GAVIMAS (blokavim
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):
 - scanListingPhotos → jei multi-object ar žema confidence: reply + followUpQuestion + choiceChips, NE updateListingDraft.
 - updateListingDraft / postNewListing → tik po disambiguation loop arba aiškaus vieno objekto.
-- Po sėkmingo updateListingDraft → atsakymas su pilna juodraščio peržiūra (✍️), spragų analize (⚠️), patarimu (💡) + showZeroUiScreen(listing_preview).`;
+- Po sėkmingo updateListingDraft → natūrali juodraščio santrauka (Kelrodės tonas) + showZeroUiScreen(listing_preview).`;
 
 /** Greiti atsakymai po sėkmingo laukų užpildymo (agentas + klientas). */
 export const POST_VALIDATION_QUICK_REPLIES = [
@@ -195,32 +194,9 @@ export interface PrePublishGatewayResponse {
   reply: string;
   quickReplies?: string[];
   prePublishCard?: ServerPrePublishCardPayload;
-  prePublishRequirements?: ServerPrePublishRequirementsPayload;
 }
 
-function buildServerPrePublishRequirementsPayload(input: {
-  missingPhoto: boolean;
-  missingPhone: boolean;
-  missingCity: boolean;
-  missingPrice: boolean;
-  missingAuth: boolean;
-  resolvedPhone: string;
-  resolvedCity: string;
-  hasPhoto: boolean;
-}): ServerPrePublishRequirementsPayload {
-  return {
-    missingPhoto: input.missingPhoto,
-    missingPhone: input.missingPhone,
-    missingCity: input.missingCity,
-    missingPrice: input.missingPrice,
-    missingAuth: input.missingAuth,
-    resolvedPhone: input.resolvedPhone,
-    resolvedCity: input.resolvedCity,
-    hasPhoto: input.hasPhoto,
-  };
-}
-
-/** Pre-publish validation gateway — invoked when publish/confirmation intent is intercepted. */
+/** Pre-publish gateway — conversational prompts only; card after confirmation. */
 export function resolvePrePublishGatewayResponse(input: {
   isAuthenticated?: boolean;
   profilePhone?: string;
@@ -237,51 +213,48 @@ export function resolvePrePublishGatewayResponse(input: {
   };
   pendingImageUrls?: string[];
   imageUrl?: string;
+  geoCityHint?: string;
 }): PrePublishGatewayResponse {
   const readiness = evaluateServerPrePublishReadiness(input);
   if (!readiness.ok) {
     return {
-      reply: PRE_PUBLISH_BLOCK_INTRO,
-      prePublishRequirements: buildServerPrePublishRequirementsPayload({
+      reply: buildConversationalMissingPrompt({
+        missingAuth: readiness.missingAuth,
         missingPhoto: readiness.missingPhoto,
-        missingPhone: readiness.missingPhone,
         missingCity: readiness.missingCity,
         missingPrice: readiness.missingPrice,
-        missingAuth: readiness.missingAuth,
-        resolvedPhone: readiness.resolvedPhone,
-        resolvedCity: readiness.resolvedCity,
-        hasPhoto: readiness.hasPhoto,
+        missingPhone: readiness.missingPhone,
       }),
     };
   }
 
+  const draft = input.listingDraft;
+  const resolvedCity =
+    draft?.location?.trim() || input.userCity?.trim() || readiness.resolvedCity;
+
   const card = buildServerPrePublishCardPayload({
     listingDraft: input.listingDraft,
-    resolvedCity:
-      input.listingDraft?.location?.trim() ||
-      input.userCity?.trim() ||
-      "",
+    resolvedCity,
     resolvedPhone: readiness.resolvedPhone,
     pendingImageUrls: input.pendingImageUrls,
     imageUrl: input.imageUrl,
   });
 
-  if (card && (input.listingDraft?.price ?? 0) > 0) {
+  if (card && (draft?.price ?? 0) > 0) {
     return {
-      reply: PRE_PUBLISH_READY_INTRO,
+      reply: PRE_PUBLISH_CARD_INTRO,
       prePublishCard: card,
     };
   }
 
   return {
-    reply:
-      "Skelbimo juodraštis paruoštas! Norite, kad jūsų skelbimas parduotų greičiau? Galiu jį iškelti į viršų, paryškinti arba Aktyvuoti jūsų AI Dvynį-Derybininką. Ar pritaikom premium funkciją?",
-    quickReplies: [
-      "Iškelti į viršų",
-      "Paryškinti",
-      "Aktyvuoti AI derybininką",
-      "Ne, be reklamos",
-    ],
+    reply: buildDraftConfirmationBubble({
+      title: draft?.title,
+      description: draft?.description,
+      price: draft?.price,
+      location: resolvedCity,
+    }),
+    quickReplies: listingConfirmationQuickReplies(),
   };
 }
 
@@ -326,7 +299,9 @@ export function resolveWorkflowCommandResponse(text: string): {
   }
   if (/suvesti\s+tr[uū]kstamus/.test(folded)) {
     return {
-      reply: PRE_PUBLISH_BLOCK_INTRO,
+      reply:
+        "Padėsiu užbaigti — parašykite trūkstamą informaciją pokalbyje (nuotrauka, kaina, miestas ar telefonas).",
+      quickReplies: ["✅ Viskas tinka"],
     };
   }
 

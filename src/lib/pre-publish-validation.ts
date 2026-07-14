@@ -1,15 +1,13 @@
 import { isPlaceholderCity } from "@/lib/city-resolve";
 import { hasListingPhoto, isValidListingPhone } from "@/lib/listing-form-validation";
 import { resolvePublishListingCity } from "@/lib/listing-location-context";
+import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
 import {
   injectProfileContactsForPublish,
-  PUBLISH_REQUIRES_AUTH_MESSAGE,
   resolveDraftContact,
 } from "@/lib/profile-listing-sync";
+import type { UserCoords } from "@/lib/geolocation";
 import type { AiExtractedListing, UserProfile } from "@/lib/types";
-
-export const PRE_PUBLISH_READY_INTRO =
-  "✨ Skelbimas paruoštas publikuoti! Peržiūrėkite, kaip jis atrodys turguje:";
 
 export interface PrePublishCardPayload {
   title: string;
@@ -29,8 +27,8 @@ export function buildPrePublishCardPayload(
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
   return {
-    title: draft.title?.trim() || "Naujas skelbimas",
-    description: draft.description?.trim() || "",
+    title: sanitizeListingTitle(draft.title),
+    description: sanitizeListingDescription(draft.description),
     price: draft.price ?? 0,
     priceLabel: draft.priceLabel,
     location: readiness.resolvedCity,
@@ -43,7 +41,7 @@ export function buildPrePublishCardPayload(
   };
 }
 
-import { buildGapQuickReplies } from "@/lib/pre-publish-requirements";
+import { draftTextImpliesMissingPhoto, sanitizeListingTitle, sanitizeListingDescription } from "@/lib/listing-text-sanitize";
 
 export interface PrePublishCheckInput {
   isAuthenticated: boolean;
@@ -53,6 +51,7 @@ export interface PrePublishCheckInput {
   pendingImageUrls?: string[];
   orderedImageUrls?: string[];
   editingListingId?: string | null;
+  geoCoords?: UserCoords | null;
 }
 
 export interface PrePublishReadiness {
@@ -103,41 +102,18 @@ export function buildPrePublishBlockMessage(opts: {
   missingPhone: boolean;
   missingCity: boolean;
   missingAuth: boolean;
+  missingPrice?: boolean;
   resolvedPhone?: string;
   resolvedCity?: string;
   hasPhoto?: boolean;
 }): string {
-  const photoLine = opts.hasPhoto
-    ? "Įkelta"
-    : opts.missingPhoto
-      ? "Įkelkite bent 1 nuotrauką"
-      : "Įkelta";
-  const phoneLine =
-    opts.resolvedPhone?.trim() && !opts.missingPhone
-      ? opts.resolvedPhone.trim()
-      : "Nenurodytas";
-  const cityLine =
-    opts.resolvedCity?.trim() && !opts.missingCity
-      ? opts.resolvedCity.trim()
-      : "Nenurodytas";
-
-  const lines = [
-    "⚠️ Negalime publikuoti skelbimo, nes trūksta svarbių duomenų:",
-    `* Nuotraukos: ${photoLine}`,
-    `* Kontaktinis telefonas: ${phoneLine}`,
-    `* Miestas: ${cityLine}`,
-  ];
-
-  if (opts.missingAuth) {
-    lines.push("* Prisijungimas: reikalinga aktyvi paskyra");
-  }
-
-  lines.push(
-    "",
-    "Prašome dabar pokalbyje parašyti savo telefono numerį, miestą arba paspausti fotoaparato piktogramą ir įkelti nuotrauką!"
-  );
-
-  return lines.join("\n");
+  return buildConversationalMissingPrompt({
+    missingAuth: opts.missingAuth,
+    missingPhoto: opts.missingPhoto,
+    missingPhone: opts.missingPhone,
+    missingCity: opts.missingCity,
+    missingPrice: opts.missingPrice ?? false,
+  });
 }
 
 export function evaluatePrePublishReadiness(
@@ -151,42 +127,39 @@ export function evaluatePrePublishReadiness(
   }
 
   const hasPhoto = draftHasPhoto(input);
+  const photoClaimedInText = draftTextImpliesMissingPhoto({
+    title: syncedDraft?.title,
+    description: syncedDraft?.description,
+    hasPhoto,
+  });
+  const missingPhoto = !hasPhoto || photoClaimedInText;
   const resolvedPhone = resolveDraftPhone(syncedDraft, input.user);
   const resolvedCity = resolvePublishListingCity(
     syncedDraft?.location,
-    input.user.city
+    input.user.city,
+    input.geoCoords
   );
 
-  const missingPhoto = !hasPhoto;
   const missingPhone = !isValidListingPhone(resolvedPhone);
   const missingCity =
     !resolvedCity.trim() || isPlaceholderCity(resolvedCity);
   const missingPrice = (syncedDraft?.price ?? 0) <= 0;
 
   const ok =
-    !missingAuth && hasPhoto && !missingPhone && !missingCity && !missingPrice;
+    !missingAuth && !missingPhoto && !missingPhone && !missingCity && !missingPrice;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,
     missingPhone,
     missingCity,
     missingAuth,
+    missingPrice,
     resolvedPhone,
     resolvedCity,
     hasPhoto,
   });
 
-  const gapPayload = {
-    missingPhoto,
-    missingPhone,
-    missingCity,
-    missingPrice,
-    missingAuth,
-    resolvedPhone,
-    resolvedCity,
-    hasPhoto,
-  };
-  const quickReplies = buildGapQuickReplies(gapPayload);
+  const quickReplies: string[] = [];
 
   if (missingAuth) {
     return {
@@ -196,7 +169,7 @@ export function evaluatePrePublishReadiness(
       missingCity,
       missingPrice,
       missingAuth: true,
-      blockMessage: `${PUBLISH_REQUIRES_AUTH_MESSAGE}\n\n${blockMessage}`,
+      blockMessage,
       quickReplies,
       syncedDraft,
       resolvedPhone,

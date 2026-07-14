@@ -31,8 +31,45 @@ export async function seedAuthSession(page: Page, profile: SeedAuthProfile) {
   }, profile);
 }
 
+/** Skip onboarding carousel when data API is enabled in static e2e builds. */
+export async function stubOnboardingComplete(page: Page) {
+  await page.route("**/api/user/onboarding**", async (route) => {
+    const body = JSON.stringify({
+      onboarding: {
+        step: 3,
+        completedAt: new Date().toISOString(),
+        answers: {},
+      },
+    });
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body,
+    });
+  });
+}
+
+/** GDPR consent hydrates after async catalog init — accept modal if it blocks media flows. */
+export async function acceptGdprConsentIfPrompted(page: Page) {
+  const accept = page.getByRole("button", { name: "Sutinku" });
+  if (await accept.isVisible({ timeout: 3_000 }).catch(() => false)) {
+    await accept.click();
+  }
+}
+
+/** Close transient error/info toasts that can block e2e assertions. */
+export async function dismissTransientOverlays(page: Page) {
+  const closeToast = page.getByRole("button", { name: "Uždaryti" });
+  if (await closeToast.isVisible({ timeout: 1_000 }).catch(() => false)) {
+    await closeToast.click();
+  }
+}
+
 /** Seed demo private seller session (no JWT — local demo mode). */
-export async function seedDemoUser(page: Page) {
+export async function seedDemoUser(page: Page, opts?: { stubOnboarding?: boolean }) {
+  if (opts?.stubOnboarding !== false) {
+    await stubOnboardingComplete(page);
+  }
   await seedAuthSession(page, {
     id: "user-e2e-test",
     name: "E2E Tester",
@@ -45,7 +82,10 @@ export async function seedDemoUser(page: Page) {
 }
 
 /** Seed demo admin session for Control Center smoke tests. */
-export async function seedAdminUser(page: Page) {
+export async function seedAdminUser(page: Page, opts?: { stubOnboarding?: boolean }) {
+  if (opts?.stubOnboarding !== false) {
+    await stubOnboardingComplete(page);
+  }
   await seedAuthSession(page, {
     id: "admin-1",
     name: "VAUTO Admin",
@@ -58,7 +98,10 @@ export async function seedAdminUser(page: Page) {
 }
 
 /** Seed demo pro business session for dashboard smoke tests. */
-export async function seedProUser(page: Page) {
+export async function seedProUser(page: Page, opts?: { stubOnboarding?: boolean }) {
+  if (opts?.stubOnboarding !== false) {
+    await stubOnboardingComplete(page);
+  }
   await seedAuthSession(page, {
     id: "user-e2e-pro",
     name: "E2E Pro Verslas",

@@ -1,8 +1,4 @@
-export const PRE_PUBLISH_BLOCKED_QUICK_REPLIES = [
-  "Suvesti trūkstamus duomenis",
-  "Įkelti nuotraukas",
-  "Reikia pataisyti",
-] as const;
+import { buildConversationalMissingPrompt } from "./listing-conversational-flow.js";
 
 export {
   isPublishConfirmationPhrase,
@@ -48,41 +44,18 @@ export function buildPrePublishBlockMessage(opts: {
   missingPhone: boolean;
   missingCity: boolean;
   missingAuth?: boolean;
+  missingPrice?: boolean;
   resolvedPhone?: string;
   resolvedCity?: string;
   hasPhoto?: boolean;
 }): string {
-  const photoLine = opts.hasPhoto
-    ? "Įkelta"
-    : opts.missingPhoto
-      ? "Įkelkite bent 1 nuotrauką"
-      : "Įkelta";
-  const phoneLine =
-    opts.resolvedPhone?.trim() && !opts.missingPhone
-      ? opts.resolvedPhone.trim()
-      : "Nenurodytas";
-  const cityLine =
-    opts.resolvedCity?.trim() && !opts.missingCity
-      ? opts.resolvedCity.trim()
-      : "Nenurodytas";
-
-  const lines = [
-    "⚠️ Negalime publikuoti skelbimo, nes trūksta svarbių duomenų:",
-    `* Nuotraukos: ${photoLine}`,
-    `* Kontaktinis telefonas: ${phoneLine}`,
-    `* Miestas: ${cityLine}`,
-  ];
-
-  if (opts.missingAuth) {
-    lines.push("* Prisijungimas: reikalinga aktyvi paskyra");
-  }
-
-  lines.push(
-    "",
-    "Prašome dabar pokalbyje parašyti savo telefono numerį, miestą arba paspausti fotoaparato piktogramą ir įkelti nuotrauką!"
-  );
-
-  return lines.join("\n");
+  return buildConversationalMissingPrompt({
+    missingAuth: opts.missingAuth ?? false,
+    missingPhoto: opts.missingPhoto,
+    missingPhone: opts.missingPhone,
+    missingCity: opts.missingCity,
+    missingPrice: opts.missingPrice ?? false,
+  });
 }
 
 export function evaluateServerPrePublishReadiness(input: {
@@ -98,6 +71,8 @@ export function evaluateServerPrePublishReadiness(input: {
   };
   pendingImageUrls?: string[];
   imageUrl?: string;
+  /** GPS-derived city hint from client (no coords payload). */
+  geoCityHint?: string;
 }): {
   ok: boolean;
   blockMessage: string;
@@ -121,7 +96,8 @@ export function evaluateServerPrePublishReadiness(input: {
 
   const resolvedCity =
     normalizeKnownCity(input.listingDraft?.location) ||
-    normalizeKnownCity(input.userCity);
+    normalizeKnownCity(input.userCity) ||
+    normalizeKnownCity(input.geoCityHint);
 
   const hasPhoto = draftHasListingPhoto(input);
   const missingPhoto = !hasPhoto;
@@ -137,6 +113,7 @@ export function evaluateServerPrePublishReadiness(input: {
     missingPhone,
     missingCity,
     missingAuth,
+    missingPrice,
     resolvedPhone,
     resolvedCity,
     hasPhoto,
@@ -145,7 +122,7 @@ export function evaluateServerPrePublishReadiness(input: {
   return {
     ok,
     blockMessage,
-    quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
+    quickReplies: [],
     missingPhoto,
     missingPhone,
     missingCity,

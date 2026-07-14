@@ -2,8 +2,10 @@
 
 import { useMemo, useState } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import {
   BarChart3,
+  ExternalLink,
   LayoutGrid,
   Pause,
   Pencil,
@@ -45,10 +47,11 @@ function ManoSkelbimaiCard({
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
+  const publicHref = `/listing/${listing.slug?.trim() || listing.id}`;
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] shadow-sm transition hover:shadow-md">
-      <div className="relative aspect-[4/3] overflow-hidden bg-[var(--anonser-surface-muted)]">
+      <Link href={publicHref} className="relative block aspect-[4/3] overflow-hidden bg-[var(--anonser-surface-muted)]">
         <Image
           src={getListingCoverImage(listing)}
           alt={listing.title}
@@ -64,7 +67,7 @@ function ManoSkelbimaiCard({
         >
           {dashboardStateLabel(state)}
         </span>
-      </div>
+      </Link>
 
       <div className="p-3">
         <h3 className="line-clamp-2 text-sm font-semibold text-[var(--anonser-text)]">
@@ -75,6 +78,13 @@ function ManoSkelbimaiCard({
         </p>
 
         <div className="mt-3 grid grid-cols-2 gap-2">
+          <Link
+            href={publicHref}
+            className="col-span-2 flex items-center justify-center gap-1 rounded-xl border border-[var(--anonser-border)] py-2 text-xs font-semibold text-[var(--anonser-primary)] transition hover:bg-[var(--anonser-surface-muted)]"
+          >
+            <ExternalLink className="h-3.5 w-3.5" />
+            Peržiūrėti skelbimą
+          </Link>
           {!listing.isAiTwinActive ? (
             <button
               type="button"
@@ -256,7 +266,7 @@ export function ManoSkelbimaiDashboard({
               onPause={() => handlePause(listing)}
               onDelete={() => void handleDelete(listing)}
               onStats={() => handleStats(listing)}
-              onEdit={() => startEditListingFlow(listing)}
+              onEdit={() => startEditListingFlow(listing, { stayOnPage: true })}
               onActivateAiTwin={() => void handleActivateAiTwin(listing)}
             />
           ))}

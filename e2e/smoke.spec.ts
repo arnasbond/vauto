@@ -45,8 +45,14 @@ test.describe("VAUTO smoke", () => {
   });
 
   test("listing detail page renders", async ({ page }) => {
-    await page.goto("/listing/bmw-320d-2003-kaunas/");
-    await expect(page.locator("body")).toContainText(/BMW|320d/i);
+    await waitForHomeReady(page);
+    const firstListing = listingResults(page).locator("article").first();
+    await expect(firstListing).toBeVisible({ timeout: 15_000 });
+    await firstListing.getByRole("link").first().click();
+    await expect(page.locator("body")).not.toContainText(/Skelbimas nerastas/i, {
+      timeout: 15_000,
+    });
+    await expect(page.locator("body")).toContainText(/€/, { timeout: 15_000 });
   });
 
   test("install page accessible", async ({ page }) => {

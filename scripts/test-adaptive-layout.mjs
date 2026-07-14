@@ -37,7 +37,7 @@ for (const f of files) {
 }
 
 check(read("src/context/AppProviders.tsx").includes("LayoutModeProvider"), "AppProviders mounts LayoutModeProvider");
-check(read("src/app/page.tsx").includes("useLayoutMode"), "home page single-mounts via useLayoutMode");
+check(read("src/app/page.tsx").includes("VautoAdaptiveLayout"), "home page uses VautoAdaptiveLayout");
 check(read("src/components/layout/VautoAdaptiveLayout.tsx").includes("vauto-adaptive-content"), "adaptive content uses desktop width class");
 check(read("src/context/AuthContext.tsx").includes("bootstrapTokenHandoff"), "AuthContext token handoff");
 check(read("src/app/globals.css").includes("--anonser-desktop-max"), "desktop design tokens in globals.css");
@@ -52,7 +52,6 @@ const migrated = [
   "src/app/chats/thread/page.tsx",
   "src/app/chats/[id]/page.tsx",
   "src/app/add/page.tsx",
-  "src/app/fashion/mine/page.tsx",
 ];
 for (const f of migrated) {
   const src = read(f);
@@ -62,11 +61,15 @@ for (const f of migrated) {
   );
 }
 check(
+  read("src/app/fashion/mine/page.tsx").includes("/mano-skelbimai/"),
+  "fashion/mine redirects to mano-skelbimai"
+);
+check(
   read("src/components/dashboard/DashboardShell.tsx").includes("VautoAdaptiveLayout"),
   "DashboardShell (profile) uses VautoAdaptiveLayout"
 );
 
-const passed = files.length + 8 + migrated.length + 1;
+const passed = files.length + 8 + migrated.length + 2;
 console.log(
   failures === 0
     ? `\n--- ${passed} passed, 0 failed ---\n`

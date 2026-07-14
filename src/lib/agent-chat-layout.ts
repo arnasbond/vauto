@@ -111,6 +111,15 @@ export function isHomeAgentChatActive(
   return messages.some((m) => m.role === "user");
 }
 
+/** Embedded agent chat on dashboard / secondary pages (includes assistant-only edit opener). */
+export function isEmbeddedAgentChatVisible(
+  messages: AgentChatMessage[],
+  busy: boolean
+): boolean {
+  if (busy) return true;
+  return messages.some((m) => m.role === "user" || m.role === "assistant");
+}
+
 export function agentHasSupervisorReply(messages: AgentChatMessage[]): boolean {
   return Boolean(resolveSupervisorChatTurn(messages).assistant?.text.trim());
 }

@@ -33,13 +33,27 @@ export function trimVautoAgentRequest(req: VautoAgentRequest): VautoAgentRequest
 
   const myListings = req.context?.myListings?.slice(0, AGENT_MAX_MY_LISTINGS);
 
+  let context = {
+    ...req.context,
+    listings: trimmedListings,
+    myListings,
+  };
+
+  const lastUser = messages.filter((m) => m.role === "user").pop();
+  const photoUploadTurn = lastUser?.text?.includes("[Nuotraukos įkeltos]");
+  if (context.pendingImageUrls?.length && !photoUploadTurn) {
+    const count = context.pendingImageCount ?? context.pendingImageUrls.length;
+    const rest = { ...context };
+    delete rest.pendingImageUrls;
+    context = {
+      ...rest,
+      pendingImageCount: count,
+    };
+  }
+
   return {
     ...req,
     messages: messages.length ? messages : req.messages.slice(-1),
-    context: {
-      ...req.context,
-      listings: trimmedListings,
-      myListings,
-    },
+    context,
   };
 }

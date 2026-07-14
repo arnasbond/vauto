@@ -1,7 +1,7 @@
 import type { VoiceIntentAnalysis } from "@/lib/voice-intent";
 
 export const BUDDY_REPEAT_PROMPT =
-  "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?";
+  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau apibūdinti, ko ieškote?";
 
 /** Detect garbled STT noise or unusable transcript before AI. */
 export function isUnclearTranscript(text: string | null | undefined): boolean {

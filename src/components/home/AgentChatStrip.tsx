@@ -1,12 +1,11 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { PrePublishListingCard } from "@/components/home/PrePublishListingCard";
-import { PrePublishRequirementsWidget } from "@/components/home/PrePublishRequirementsWidget";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useAuth } from "@/context/AuthContext";
@@ -15,29 +14,19 @@ import { useSellerFlow } from "@/context/SellerFlowContext";
 import { usePublishCelebration } from "@/context/PublishCelebrationContext";
 import {
   isBlockedFallbackBubble,
+  isEmbeddedAgentChatVisible,
   resolveVisibleAgentBubbles,
 } from "@/lib/agent-chat-layout";
 import { extractAgentQuickReplies } from "@/lib/agent-reply-display";
 import { safeMessageKey, safeMessageText } from "@/lib/agent-message-safe";
 import { readListingEditSession } from "@/lib/listing-edit-session";
+import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
 import {
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
-import {
-  buildGapStatusSummary,
-  buildPrePublishRequirementsPayload,
-  mergeRequirementsWithReadiness,
-  PRE_PUBLISH_BLOCK_INTRO,
-} from "@/lib/pre-publish-requirements";
-import {
-  gapFieldFromChip,
-  isGapActionChip,
-  type ListingWizardGapField,
-} from "@/lib/listing-wizard-flow";
-import {
-  isDirectAgentActionChip,
-} from "@/lib/direct-agent-actions";
+import { isDirectAgentActionChip } from "@/lib/direct-agent-actions";
+import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
@@ -48,8 +37,8 @@ export interface AgentChatStripProps {
 }
 
 /**
- * Organiškas AI dialogas namų ekrane — vienas supervisor burbulas per turną.
- * Įvesties laukas fiksuotas pokalbio apačioje (ne viršuje).
+ * Organiškas AI dialogas — grynas pokalbis burbuliukais, be formų ir blokavimo widgetų.
+ * PrePublishCard rodoma tik po „viskas tinka" patvirtinimo (live draft, ne užšaldyta snapshot).
  */
 export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProps) {
   const {
@@ -60,6 +49,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     handleDirectAgentChip,
     enterListingEditMode,
     hidePrePublishCard,
+    listingPublishConfirmed,
+    resetPublishSession,
   } = useVautoAgent();
   const {
     aiDraft,
@@ -67,16 +58,13 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     publishListing,
     isPublishingListing,
     finishPublishedFlow,
-    updateAiDraft,
-    updateSellerMedia,
   } = useSellerFlow();
   const { playPublishCelebration } = usePublishCelebration();
-  const { isAuthenticated, authHydrated, user, updateUser } = useAuth();
-  const { showToast } = useVauto();
+  const { isAuthenticated, authHydrated, user } = useAuth();
+  const { showToast, openCheckout, buyerCoords } = useVauto();
   const router = useRouter();
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const [activeGapField, setActiveGapField] = useState<ListingWizardGapField | null>(null);
 
   const assistantCount = messages.filter((m) => m.role === "assistant").length;
   const domMessages: AgentChatMessage[] = resolveVisibleAgentBubbles(messages);
@@ -97,8 +85,9 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       draft: aiDraft,
       previewImage: sellerPreviewImage,
       orderedImageUrls: aiDraft.orderedImageUrls,
+      geoCoords: buyerCoords,
     });
-  }, [authHydrated, aiDraft, isAuthenticated, user, sellerPreviewImage]);
+  }, [authHydrated, aiDraft, isAuthenticated, user, sellerPreviewImage, buyerCoords]);
 
   const livePrePublishCard: PrePublishCardPayload | null = useMemo(() => {
     if (!prePublishReadiness?.ok || !aiDraft) return null;
@@ -106,31 +95,35 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     return buildPrePublishCardPayload(prePublishReadiness, sellerPreviewImage);
   }, [prePublishReadiness, sellerPreviewImage, aiDraft]);
 
-  const showPrePublishCard =
+  const showLivePrePublishCard =
     Boolean(livePrePublishCard) &&
+    listingPublishConfirmed &&
     !busy &&
     !isPublishingListing &&
     !hidePrePublishCard &&
     Boolean(aiDraft);
 
-  const liveRequirements = useMemo(() => {
-    if (!prePublishReadiness || prePublishReadiness.ok) return null;
-    return buildPrePublishRequirementsPayload(prePublishReadiness);
-  }, [prePublishReadiness]);
-
   const quickReplies =
-    busy || !lastAssistantMessage || showPrePublishCard
+    busy || !lastAssistantMessage || showLivePrePublishCard
       ? []
       : (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
         ? lastAssistantMessage.quickReplies!.slice(0, 4)
         : extractAgentQuickReplies(lastAssistant);
 
-  const handleCardPublish = async (sourceRect: DOMRect) => {
+  const handleCardPublish = async (
+    sourceRect: DOMRect,
+    visibilityId: PrePublishVisibilityId = "standard"
+  ) => {
     if (!prePublishReadiness?.ok) {
-      showToast(PRE_PUBLISH_BLOCK_INTRO, "info");
+      showToast(
+        prePublishReadiness
+          ? buildConversationalMissingPrompt(prePublishReadiness)
+          : "Papildykime skelbimą — parašykite trūkstamas detales.",
+        "info"
+      );
       return;
     }
-    const result = await publishListing();
+    const result = await publishListing({ visibilityId });
     if (result.ok) {
       await runPublishSuccessCelebration({
         result,
@@ -138,6 +131,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         playCelebration: playPublishCelebration,
         finishPublishedFlow,
         router,
+        resetPublishSession,
+        openCheckout,
       });
     } else if (result.sessionExpired) {
       showToast(result.error ?? "Sesija nebegalioja.", "error");
@@ -151,13 +146,6 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   };
 
   const handleDirectChip = async (option: string) => {
-    if (isGapActionChip(option)) {
-      const field = gapFieldFromChip(option);
-      if (field && field !== "photo") {
-        setActiveGapField(field);
-        return;
-      }
-    }
     if (isDirectAgentActionChip(option)) {
       const handled = await handleDirectAgentChip(option);
       if (handled) return;
@@ -166,17 +154,12 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   };
 
   useEffect(() => {
-    if (prePublishReadiness?.ok) setActiveGapField(null);
-  }, [prePublishReadiness?.ok]);
-
-  useEffect(() => {
     const el = messagesScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [renderMessages.length, busy, lastAssistant, showPrePublishCard, liveRequirements, activeGapField]);
+  }, [renderMessages.length, busy, lastAssistant, showLivePrePublishCard]);
 
-  const hasUserTurn = messages.some((m) => m.role === "user");
-  if (!hasUserTurn && !busy) return null;
+  if (!isEmbeddedAgentChatVisible(messages, busy)) return null;
 
   return (
     <div
@@ -201,35 +184,17 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
 
-          const requirementsPayload = isLastAssistant
-            ? mergeRequirementsWithReadiness(
-                m.prePublishRequirements ?? liveRequirements,
-                prePublishReadiness
-              )
-            : null;
-
-          const showRequirementsWidget = Boolean(isLastAssistant && requirementsPayload);
-
-          const displayText =
-            m.role === "assistant" && showRequirementsWidget && requirementsPayload
-              ? buildGapStatusSummary(requirementsPayload)
-              : display;
-
           const messageChips =
-            isLastAssistant && !showPrePublishCard
-              ? showRequirementsWidget && requirementsPayload
-                ? prePublishReadiness?.quickReplies ?? []
-                : (m.quickReplies?.length ?? 0) >= 2
-                  ? m.quickReplies!
-                  : quickReplies
+            isLastAssistant && !showLivePrePublishCard
+              ? (m.quickReplies?.length ?? 0) >= 2
+                ? m.quickReplies!
+                : quickReplies
               : [];
 
           const cardPayload =
-            isLastAssistant && showPrePublishCard && livePrePublishCard
+            isLastAssistant && showLivePrePublishCard && livePrePublishCard
               ? livePrePublishCard
-              : isLastAssistant && !showRequirementsWidget && !hidePrePublishCard
-                ? m.prePublishCard ?? null
-                : null;
+              : null;
 
           return (
             <div key={safeMessageKey(m.role, i, m.text)} className="w-full">
@@ -239,12 +204,25 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
                       Jūs
                     </span>
-                    {display}
+                    {m.imageUrls?.length ? (
+                      <div className="mb-1.5 flex flex-wrap gap-1.5">
+                        {m.imageUrls.map((url, imgIdx) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            key={`${url.slice(0, 32)}-${imgIdx}`}
+                            src={url}
+                            alt={`Nuotrauka ${imgIdx + 1}`}
+                            className="h-16 w-16 rounded-lg border border-white/20 object-cover"
+                          />
+                        ))}
+                      </div>
+                    ) : null}
+                    {display ? <span>{display}</span> : null}
                   </>
                 ) : (
                   <>
-                    {displayText}
-                    {messageChips.length > 0 && !showRequirementsWidget && (
+                    {display}
+                    {messageChips.length > 0 && !cardPayload && (
                       <AgentQuickReplyChips
                         options={messageChips}
                         disabled={busy}
@@ -255,20 +233,6 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                   </>
                 )}
               </AgentChatBubble>
-              {m.role === "assistant" && showRequirementsWidget && requirementsPayload ? (
-                <div className="mt-2.5 flex w-full justify-start pl-0.5">
-                  <PrePublishRequirementsWidget
-                    requirements={requirementsPayload}
-                    aiDraft={aiDraft}
-                    updateAiDraft={updateAiDraft}
-                    updateSellerMedia={updateSellerMedia}
-                    updateUser={updateUser}
-                    activeGapField={activeGapField}
-                    onGapChipSelect={setActiveGapField}
-                    onGapChipAction={(chip) => void handleDirectChip(chip)}
-                  />
-                </div>
-              ) : null}
               {m.role === "assistant" && cardPayload ? (
                 <div className="mt-2.5 flex w-full justify-start pl-0.5">
                   <PrePublishListingCard

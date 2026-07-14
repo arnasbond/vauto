@@ -36,8 +36,10 @@ import {
   getCategoryLabel,
   getListingDetailRows,
   isDemoListingPhone,
+  listingPhoneTelHref,
   resolveListingPhone,
 } from "@/lib/listing-display";
+import { filterPublicListingTags } from "@/lib/listing-attributes";
 import { LISTING_DWELL_MS } from "@/lib/offer-engine-client";
 
 interface ListingDetailPageProps {
@@ -148,10 +150,12 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const isOwn = listing.sellerId === user.id;
   const phone = resolveListingPhone(listing);
   const phoneDisplay = formatListingPhoneDisplay(phone);
+  const phoneTel = listingPhoneTelHref(phone);
   const demoPhone = isDemoListingPhone(listing);
   const detailRows = getListingDetailRows(listing);
   const categoryLabel = getCategoryLabel(listing);
   const similarListings = getSimilarListings(listing, listings);
+  const publicTags = filterPublicListingTags(listing.tags);
 
   const handleNegotiate = () => {
     if (isOwn) {
@@ -260,21 +264,35 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
 
         {!isOwn && (
           <div className="mt-5 flex flex-col gap-3">
-            <button
-              type="button"
-              onClick={handleCall}
-              className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
-            >
-              <Phone className="h-6 w-6" />
-              Skambinti
-            </button>
+            {!demoPhone && phoneTel ? (
+              <a
+                href={phoneTel}
+                onClick={() => trackListingCall(listing.id)}
+                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
+              >
+                <Phone className="h-6 w-6" />
+                Skambinti ·{" "}
+                <span className="font-semibold underline decoration-white/40 underline-offset-2">
+                  {phoneDisplay}
+                </span>
+              </a>
+            ) : (
+              <button
+                type="button"
+                onClick={handleCall}
+                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
+              >
+                <Phone className="h-6 w-6" />
+                Skambinti
+              </button>
+            )}
             <button
               type="button"
               onClick={handleChat}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-slate-200 bg-slate-50 py-3 text-sm font-semibold text-slate-900"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
             >
               <MessageCircle className="h-5 w-5" />
-              Rašyti pardavėjui
+              💬 Rašyti žinutę
             </button>
             {wardrobeContext && (
               <button
@@ -289,9 +307,16 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </div>
         )}
 
-        <p className="mt-2 text-center text-xs text-slate-400">
-          {phoneDisplay}
-        </p>
+        {!isOwn && !demoPhone && phoneTel && (
+          <p className="mt-2 text-center">
+            <a
+              href={phoneTel}
+              className="text-sm font-semibold text-blue-600 hover:underline"
+            >
+              {phoneDisplay}
+            </a>
+          </p>
+        )}
 
         {(listing.description || detailRows.length > 0) && (
           <section className="vauto-glass-card mt-6 rounded-2xl p-4">
@@ -317,14 +342,14 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </section>
         )}
 
-        {listing.tags.length > 0 && (
+        {publicTags.length > 0 && (
           <section className="mt-4">
             <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
               <Tag className="h-3.5 w-3.5" />
               Žymos
             </h2>
             <div className="flex flex-wrap gap-2">
-              {listing.tags.map((tag) => (
+              {publicTags.map((tag) => (
                 <span
                   key={tag}
                   className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"

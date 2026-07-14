@@ -1,4 +1,9 @@
 import type { AiExtractedListing } from "@/lib/types";
+import {
+  buildDraftConfirmationBubble,
+  buildConversationalMissingPrompt,
+} from "@/lib/listing-conversational-flow";
+import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
 
 export interface ListingDraftPreviewInput {
   category?: string;
@@ -9,16 +14,6 @@ export interface ListingDraftPreviewInput {
   attributes?: Record<string, string | undefined>;
 }
 
-const CATEGORY_LABELS: Record<string, string> = {
-  vehicles: "Automobiliai",
-  electronics: "Elektronika",
-  services: "Paslaugos",
-  jobs: "Darbas",
-  home: "Namai / buitis",
-  clothing: "Drabužiai",
-  real_estate: "Nekilnojamasis turtas",
-  other: "Kita",
-};
 
 function attr(attrs: Record<string, string | undefined>, ...keys: string[]): string {
   for (const key of keys) {
@@ -26,17 +21,6 @@ function attr(attrs: Record<string, string | undefined>, ...keys: string[]): str
     if (value) return value;
   }
   return "";
-}
-
-function truncate(text: string, max = 220): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1).trim()}…`;
-}
-
-function categoryLabel(category?: string): string {
-  if (!category) return "Kita";
-  return CATEGORY_LABELS[category] ?? category;
 }
 
 function formatPrice(price?: number): string {
@@ -90,20 +74,13 @@ export function analyzeMissingDraftFields(
 }
 
 export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string {
-  const title = draft.title?.trim() || "Naujas skelbimas";
-  const description = draft.description?.trim()
-    ? truncate(draft.description)
-    : "Dar formuojame — papildykite detales pokalbyje.";
-  const lines = [
-    "✍️ Skelbimo juodraštis paruoštas:",
-    `* Pavadinimas: ${title}`,
-    `* Aprašymas: ${description}`,
-    `* Kaina: ${formatPrice(draft.price)}`,
-    `* Kategorija: ${categoryLabel(draft.category)}`,
-  ];
+  const title = draft.title?.trim() || "naujas skelbimas";
+  const price = formatPrice(draft.price);
   const city = formatLocation(draft.location);
-  if (city) lines.push(`* Vieta: ${city}`);
-  return lines.join("\n");
+  const parts = [`Paruošiau juodraštį: «${title}»`];
+  if (price !== "nenurodyta") parts.push(`kaina ${price}`);
+  if (city) parts.push(`vieta ${city}`);
+  return `${parts.join(", ")}.`;
 }
 
 export function buildDraftGapAnalysis(draft: ListingDraftPreviewInput): string | null {
@@ -113,7 +90,7 @@ export function buildDraftGapAnalysis(draft: ListingDraftPreviewInput): string |
     missing.length === 1
       ? missing[0]
       : `${missing.slice(0, -1).join(", ")} ir ${missing[missing.length - 1]}`;
-  return `⚠️ Ko trūksta iki tobulumo: Pastebėjau, kad nenurodėte ${list}. Jei juos parašysite, pirkėjai prekę ras daug greičiau!`;
+  return `Dar trūksta ${list} — gal galite patikslinti?`;
 }
 
 export function buildDraftSalesTip(draft: ListingDraftPreviewInput): string | null {
@@ -140,15 +117,32 @@ export function buildDraftSalesTip(draft: ListingDraftPreviewInput): string | nu
 
 export function buildListingDraftUpdateReply(
   draft: ListingDraftPreviewInput,
-  opts?: { intro?: string; outro?: string }
+  opts?: { intro?: string; readiness?: Pick<
+    PrePublishReadiness,
+    | "ok"
+    | "missingAuth"
+    | "missingPhoto"
+    | "missingCity"
+    | "missingPrice"
+    | "missingPhone"
+  > }
 ): string {
-  const parts = [
-    opts?.intro?.trim(),
-    buildDraftPreviewBlock(draft),
-    buildDraftGapAnalysis(draft),
-    buildDraftSalesTip(draft),
-    opts?.outro?.trim() ?? "Ar viskas tinka, ar dar ką nors patikslinsime?",
-  ].filter(Boolean);
+  const intro = opts?.intro?.trim();
+  const readiness = opts?.readiness;
+
+  if (readiness && !readiness.ok) {
+    const ask = buildConversationalMissingPrompt(readiness);
+    return intro ? `${intro}\n\n${ask}` : ask;
+  }
+
+  const confirmation = buildDraftConfirmationBubble({
+    title: draft.title,
+    description: draft.description,
+    price: draft.price,
+    location: draft.location,
+  });
+  const tip = buildDraftSalesTip(draft);
+  const parts = [intro, confirmation, tip].filter(Boolean);
   return parts.join("\n\n");
 }
 
