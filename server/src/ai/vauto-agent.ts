@@ -788,6 +788,10 @@ async function runVautoAgentInner(
         message: toolProgressMessage(name),
       });
       if (name === "postNewListing") {
+        const toolArgs = (args ?? {}) as Record<string, unknown>;
+        const imageUrls = Array.isArray(toolArgs.imageUrls)
+          ? toolArgs.imageUrls.map(String)
+          : [];
         const prePublish = evaluateServerPrePublishReadiness({
           isAuthenticated: req.context.isAuthenticated,
           profilePhone: req.context.profilePhone,
@@ -796,7 +800,7 @@ async function runVautoAgentInner(
           contact: ctx.contact,
           listingDraft: ctx.listingDraft,
           pendingImageUrls: req.context.pendingImageUrls,
-          imageUrl: String(args.imageUrls?.[0] ?? ""),
+          imageUrl: imageUrls[0] ?? "",
         });
         if (!prePublish.ok) {
           draftText = prePublish.blockMessage;
