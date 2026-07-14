@@ -143,6 +143,11 @@ import {
   syncProfileContactsFromChat,
   validatePublishSession,
 } from "@/lib/profile-listing-sync";
+import {
+  buildPrePublishMissingGuide,
+  evaluatePrePublishReadiness,
+  PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
+} from "@/lib/pre-publish-validation";
 
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
@@ -231,6 +236,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     updateAiDraft,
     sellerVisionRecoveryActive,
     cancelSellerFlow,
+    sellerPreviewImage,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -923,28 +929,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           Boolean(readListingEditSession()),
       };
 
-      const firstName = user.name?.trim().split(/\s+/)[0] || "drauge";
-      const vocative = toLithuanianVocative(firstName);
-      const hasDraftImages =
-        Boolean(sessionPendingImageUrls.length) ||
-        Boolean(aiDraft?.orderedImageUrls?.length);
-
-      const requestMissingContactsReply = () =>
-        `${vocative}, pastebėjau, kad jūsų profilyje arba skelbime trūksta kontaktinių duomenų (telefono arba el. pašto). Prašome parašyti savo telefono numerį čia, pokalbio lange, ir aš iškart automatiškai atnaujinsiu jūsų profilį bei užbaigsiu skelbimą!`;
-
-      const requestMissingImagesReply = () =>
-        `${vocative}, matau, kad neįkėlėte jokių nuotraukų. Skelbimai su nuotraukomis sulaukia iki 5 kartų daugiau dėmesio! Galite tiesiog įmesti nuotrauką čia į pokalbį.`;
+      const runPrePublishGate = () => {
+        const readiness = evaluatePrePublishReadiness({
+          isAuthenticated,
+          user,
+          draft: aiDraft,
+          previewImage: sellerPreviewImage,
+          pendingImageUrls: sessionPendingImageUrls,
+          orderedImageUrls: aiDraft?.orderedImageUrls,
+        });
+        if (readiness.syncedDraft && aiDraft && readiness.syncedDraft !== aiDraft) {
+          updateAiDraft(readiness.syncedDraft);
+        }
+        return readiness;
+      };
 
       const requestPublishUpsell = (): { reply: string; quickReplies?: string[] } => {
-        const sessionCheck = validatePublishSession(isAuthenticated, user);
-        if (!sessionCheck.ok || !hasProfileListingContact(user)) {
+        const readiness = runPrePublishGate();
+        if (!readiness.ok) {
           return {
-            reply: requestMissingContactsReply(),
-          };
-        }
-        if (!hasDraftImages && sellerStep === "confirmation") {
-          return {
-            reply: requestMissingImagesReply(),
+            reply: readiness.blockMessage,
+            quickReplies: readiness.quickReplies,
           };
         }
         return {
@@ -964,14 +969,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         quickReplies?: string[];
         publishAfterReply?: boolean;
       } => {
-        const sessionCheck = validatePublishSession(isAuthenticated, user);
-        if (!sessionCheck.ok || !hasProfileListingContact(user)) {
-          return { reply: requestMissingContactsReply() };
-        }
-        if (!hasDraftImages && sellerStep === "confirmation") {
-          return { reply: requestMissingImagesReply() };
+        const readiness = runPrePublishGate();
+        if (!readiness.ok) {
+          return {
+            reply: readiness.blockMessage,
+            quickReplies: readiness.quickReplies,
+          };
         }
         return { reply: "Publikuoju skelbimą…", publishAfterReply: true };
+      };
+
+      const buildPrePublishMissingGuideReply = (): string => {
+        const readiness = runPrePublishGate();
+        return `${readiness.blockMessage}\n\n${buildPrePublishMissingGuide(readiness)}`;
       };
 
       if (isManualFillIntent(trimmed)) {
@@ -1120,6 +1130,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ...(r.publishAfterReply ? { publishAfterReply: true } : {}),
           };
         },
+        buildPrePublishMissingGuide: buildPrePublishMissingGuideReply,
         publishBulkClothingListings,
         applyAgentWardrobeBulk,
         activateWardrobeSpinta,
@@ -1157,6 +1168,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               "Skelbimas sėkmingai įkeltas! Peržiūrėkite „Mano skelbimai“ arba tęskite pokalbį.";
           } else if (result.sessionExpired) {
             finalReply = result.error ?? SESSION_EXPIRED_MESSAGE;
+          } else if (result.prePublishBlocked) {
+            finalReply = result.error ?? "Trūksta duomenų publikavimui.";
           } else {
             finalReply = `Nepavyko išsaugoti skelbimo: ${result.error ?? "Nežinoma klaida"}`;
           }
@@ -1169,7 +1182,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 ? {
                     quickReplies: result.sessionExpired
                       ? ["Prisijungti iš naujo"]
-                      : ["Taip, publikuoti", "Reikia pataisyti"],
+                      : result.prePublishBlocked
+                        ? [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES]
+                        : ["Reikia pataisyti"],
                   }
                 : {}),
             };
@@ -1651,6 +1666,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       currentPageContext,
       aiDraft,
       sellerStep,
+      sellerPreviewImage,
       isPublishingListing,
       sellerWizardContext,
       trackEvent,

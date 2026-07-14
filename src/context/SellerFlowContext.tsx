@@ -45,6 +45,9 @@ import {
   verifiedProfileCity,
 } from "@/lib/listing-location-context";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
+import {
+  evaluatePrePublishReadiness,
+} from "@/lib/pre-publish-validation";
 import { clearAllListingDrafts } from "@/lib/listing-draft-storage";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
@@ -167,7 +170,7 @@ import {
 } from "@/lib/ai-conversational-recovery";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
 import { isUnclearTranscript } from "@/lib/voice-graceful";
-import { applyProfileToListingDraft, injectProfileContactsForPublish, resolveDraftContact, validatePublishSession, hasProfileListingContact } from "@/lib/profile-listing-sync";
+import { applyProfileToListingDraft, injectProfileContactsForPublish, resolveDraftContact, hasProfileListingContact } from "@/lib/profile-listing-sync";
 import { resolveSellerGalleryImages } from "@/lib/visual-pipeline-merge";
 import type {
   AiExtractedListing,
@@ -244,7 +247,7 @@ async function prepareListingImageForApi(
 
 export type PublishListingResult =
   | { ok: true; listing: Listing }
-  | { ok: false; error: string; sessionExpired?: boolean };
+  | { ok: false; error: string; sessionExpired?: boolean; prePublishBlocked?: boolean };
 
 export interface SellerFlowContextValue {
   sellerStep: SellerFlowStep;
@@ -1408,23 +1411,31 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       showToast(msg, "info");
       return { ok: false, error: msg };
     }
-    const sessionCheck = validatePublishSession(isAuthenticated, user);
-    if (!sessionCheck.ok) {
-      if (!isAuthenticated) {
+
+    const prePublish = evaluatePrePublishReadiness({
+      isAuthenticated,
+      user,
+      draft: aiDraft,
+      previewImage: sellerPreviewImage,
+      orderedImageUrls: aiDraft.orderedImageUrls,
+      editingListingId,
+    });
+    if (prePublish.syncedDraft && prePublish.syncedDraft !== aiDraft) {
+      setAiDraft(prePublish.syncedDraft);
+    }
+    if (!prePublish.ok) {
+      if (prePublish.missingAuth && !isAuthenticated) {
         openAuthModal("/");
       }
-      showToast(sessionCheck.message, "error");
-      return { ok: false, error: sessionCheck.message };
-    }
-    if (!hasListingPhoto(sellerPreviewImage) && !editingListingId) {
-      showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-      return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
+      showToast(prePublish.blockMessage.split("\n")[0] ?? prePublish.blockMessage, "error");
+      return {
+        ok: false,
+        error: prePublish.blockMessage,
+        prePublishBlocked: true,
+      };
     }
 
-    const profileDraft = injectProfileContactsForPublish(aiDraft, user);
-    if (profileDraft !== aiDraft) {
-      setAiDraft(profileDraft);
-    }
+    const profileDraft = prePublish.syncedDraft ?? injectProfileContactsForPublish(aiDraft, user);
     const publishContact = resolveDraftContact(profileDraft, user);
 
     const conductorPublish = buildConductorPublishSnapshot(profileDraft);
@@ -1443,18 +1454,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         price: profileDraft.price,
         description: profileDraft.description,
         contact: publishContact,
+        location: prePublish.resolvedCity || profileDraft.location,
         attributes: profileDraft.attributes,
       },
       {
-        hasPhoto: Boolean(sellerPreviewImage),
+        hasPhoto: prePublish.hasPhoto,
         conversational: true,
         profileContact: publishContact,
       }
     );
 
     if (!validation.canPublish) {
-      showToast(validation.blockMessage, "error");
-      return { ok: false, error: validation.blockMessage };
+      const blockMessage = prePublish.blockMessage;
+      showToast(blockMessage.split("\n")[0] ?? validation.blockMessage, "error");
+      return { ok: false, error: blockMessage, prePublishBlocked: true };
     }
 
     const priceSanity =

@@ -1,4 +1,5 @@
 import type { CategoryAttributes, ListingCategory } from "@/lib/types";
+import { isPlaceholderCity } from "@/lib/city-resolve";
 import { resolveDraftContact } from "@/lib/profile-listing-sync";
 import type { AdaptiveCategoryKey } from "@/lib/adaptive-categories/types";
 import { getAdaptiveConfig } from "@/lib/adaptive-categories/config";
@@ -190,11 +191,12 @@ export function buildPublishBlockMessage(params: {
   return issues.slice(0, 4).join(" · ");
 }
 
-/** Facebook-style seller flow — only photo, contact, and category block publish. */
+/** Facebook-style seller flow — photo, contact, city, and category block publish. */
 export function evaluateConversationalPublishValidation(
   category: ListingCategory,
   draft: {
     contact?: string;
+    location?: string;
     attributes?: CategoryAttributes;
   },
   opts: { hasPhoto: boolean; profileContact?: string }
@@ -210,13 +212,19 @@ export function evaluateConversationalPublishValidation(
     String(draft.attributes?.contact ?? "").trim();
   const needsContact = !resolvedContact;
   const needsCategory = !validationCategory;
+  const locationRaw =
+    draft.location?.trim() ||
+    String(draft.attributes?.location ?? "").trim();
+  const needsCity = !locationRaw || isPlaceholderCity(locationRaw);
 
   const validationIssues: string[] = [];
   if (needsPhoto) validationIssues.push("Pridėkite nuotrauką");
   if (needsContact) validationIssues.push("Įveskite kontaktą");
+  if (needsCity) validationIssues.push("Nurodykite miestą");
   if (needsCategory) validationIssues.push("Pasirinkite kategoriją");
 
-  const canPublish = !needsPhoto && !needsContact && !needsCategory;
+  const canPublish =
+    !needsPhoto && !needsContact && !needsCategory && !needsCity;
 
   return {
     missingKeys: [],
@@ -238,6 +246,7 @@ export function evaluateListingPublishValidation(
     price: number;
     description?: string;
     contact?: string;
+    location?: string;
     attributes?: CategoryAttributes;
   },
   opts: { hasPhoto: boolean; conversational?: boolean; profileContact?: string }

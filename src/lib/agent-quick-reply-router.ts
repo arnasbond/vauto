@@ -40,11 +40,19 @@ export interface AgentQuickReplyDeps {
   pendingWardrobeBulkItems: WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
   lastBargainingOffer: AgentBargainingOffer | null;
-  publishListing: () => Promise<{ ok: boolean; error?: string; sessionExpired?: boolean; listing?: import("@/lib/types").Listing }>;
+  publishListing: () => Promise<{
+    ok: boolean;
+    error?: string;
+    sessionExpired?: boolean;
+    prePublishBlocked?: boolean;
+    listing?: import("@/lib/types").Listing;
+  }>;
   /** Returns chat reply when user tries to publish from chat chips. */
   requestPublishUpsell: () => AgentQuickReplyResult;
   /** Returns chat reply; awaits DB save when publishAfterReply is set. */
   confirmPublishNow: () => AgentQuickReplyResult;
+  /** Detailed guide when user taps „Suvesti trūkstamus duomenis“. */
+  buildPrePublishMissingGuide: () => string;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => void;
   applyAgentWardrobeBulk: (
     items: WardrobeDraftItem[],
@@ -190,15 +198,8 @@ export function tryHandleAgentQuickReply(
   }
 
   if (matchesChip(trimmed, [/viskas tinka/])) {
-    if (deps.aiDraft && deps.sellerStep === "confirmation") {
-      return deps.requestPublishUpsell();
-    }
     if (deps.aiDraft) {
-      deps.navigateToAdd(deps.aiDraft.category === "clothing");
-      return {
-        handled: true,
-        reply: "Atidarau skelbimo peržiūrą — patvirtinkite publikavimą.",
-      };
+      return deps.requestPublishUpsell();
     }
     deps.navigateToAdd();
     return {
@@ -382,6 +383,14 @@ export function tryHandleAgentQuickReply(
     return {
       handled: true,
       reply: "Atidarau prisijungimo langą — prisijunkite ir bandykite publikuoti dar kartą.",
+    };
+  }
+
+  if (matchesChip(trimmed, [/suvesti tr[uū]kstamus duomenis/])) {
+    return {
+      handled: true,
+      reply: deps.buildPrePublishMissingGuide(),
+      quickReplies: ["Įkelti nuotraukas", "Reikia pataisyti"],
     };
   }
 

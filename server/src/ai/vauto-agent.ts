@@ -41,6 +41,11 @@ import {
   ensureRichListingDraftReply,
 } from "./listing-draft-preview.js";
 import {
+  evaluateServerPrePublishReadiness,
+  isPublishConfirmationPhrase,
+  PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
+} from "./pre-publish-validation.js";
+import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
@@ -104,6 +109,9 @@ export interface VautoAgentRequest {
     };
     missingFields?: string[];
     wizardPrompts?: string[];
+    profilePhone?: string;
+    profileEmail?: string;
+    profileContactsVerified?: boolean;
     isAuthenticated?: boolean;
     userName?: string;
     accountType?: string;
@@ -370,6 +378,31 @@ async function runVautoAgentInner(
             userCity: req.context.userCity,
           }),
         },
+      };
+    }
+  }
+
+  if (
+    listingDraft &&
+    lastUserText &&
+    isPublishConfirmationPhrase(lastUserText)
+  ) {
+    const prePublish = evaluateServerPrePublishReadiness({
+      isAuthenticated: req.context.isAuthenticated,
+      profilePhone: req.context.profilePhone,
+      profileEmail: req.context.profileEmail,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      listingDraft,
+      pendingImageUrls: req.context.pendingImageUrls,
+    });
+    if (!prePublish.ok) {
+      return {
+        ok: true,
+        reply: prePublish.blockMessage,
+        quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
+        toolCalls: [],
+        actions: { type: "none" },
       };
     }
   } else if (
@@ -755,12 +788,29 @@ async function runVautoAgentInner(
         message: toolProgressMessage(name),
       });
       if (name === "postNewListing") {
-        const c = String(ctx.contact ?? "").trim();
-        const isPlaceholder = c.includes("612 34567");
-        if (!c || isPlaceholder) {
-          draftText =
-            "Pastebėjau, kad trūksta kontaktinių duomenų (telefono arba el. pašto). Parašykite savo telefono numerį čia, pokalbyje, ir aš iškart atnaujinsiu profilį bei publikuosiu skelbimą.";
-          break;
+        const prePublish = evaluateServerPrePublishReadiness({
+          isAuthenticated: req.context.isAuthenticated,
+          profilePhone: req.context.profilePhone,
+          profileEmail: req.context.profileEmail,
+          userCity: req.context.userCity,
+          contact: ctx.contact,
+          listingDraft: ctx.listingDraft,
+          pendingImageUrls: req.context.pendingImageUrls,
+          imageUrl: String(args.imageUrls?.[0] ?? ""),
+        });
+        if (!prePublish.ok) {
+          draftText = prePublish.blockMessage;
+          responseParts.push({
+            functionResponse: {
+              name,
+              response: {
+                ok: false,
+                blocked: true,
+                message: prePublish.blockMessage,
+              },
+            },
+          });
+          continue;
         }
       }
       const { result, sideEffect: fx } = await executeAgentTool(
