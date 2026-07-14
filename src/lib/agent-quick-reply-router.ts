@@ -1,10 +1,5 @@
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
-import {
-  buildMissingContactFieldsPrompt,
-  CONTACT_CAPTURE_CITY_PROMPT,
-  CONTACT_CAPTURE_PHONE_PROMPT,
-  setAwaitingContactField,
-} from "@/lib/listing-contact-parse";
+import { buildPrePublishRequirementsPayload } from "@/lib/pre-publish-requirements";
 import type { SellerFlowStep } from "@/lib/types";import {
   WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
@@ -28,6 +23,7 @@ export interface AgentQuickReplyResult {
   /** When true, caller must await publishListing() before showing final assistant reply. */
   publishAfterReply?: boolean;
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
+  prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
 }
 
 export interface AgentBargainingOffer {
@@ -398,38 +394,20 @@ export function tryHandleAgentQuickReply(
   if (matchesChip(trimmed, [/suvesti tr[uū]kstamus duomenis/])) {
     const readiness = deps.getPrePublishReadiness();
     if (readiness && !readiness.ok) {
-      const guided = buildMissingContactFieldsPrompt({
-        missingPhone: readiness.missingPhone,
-        missingCity: readiness.missingCity,
-        missingPhoto: readiness.missingPhoto,
-      });
       return {
         handled: true,
-        reply: guided.reply,
-        quickReplies: guided.quickReplies,
+        reply: "Trūksta kelių detalių — užpildykite žemiau ir galėsite publikuoti:",
+        prePublishRequirements: buildPrePublishRequirementsPayload(readiness),
       };
     }
     return {
       handled: true,
       reply: deps.buildPrePublishMissingGuide(),
-      quickReplies: ["Telefono numeris", "Miestas", "Įkelti nuotraukas", "Reikia pataisyti"],
     };
   }
 
-  if (matchesChip(trimmed, [/telefono numer/i])) {
-    setAwaitingContactField("phone");
-    return {
-      handled: true,
-      reply: CONTACT_CAPTURE_PHONE_PROMPT,
-    };
-  }
-
-  if (matchesChip(trimmed, [/^miestas$/])) {
-    setAwaitingContactField("city");
-    return {
-      handled: true,
-      reply: CONTACT_CAPTURE_CITY_PROMPT,
-    };
+  if (matchesChip(trimmed, [/telefono numer/i, /^miestas$/, /įkelti nuotrauk/i, /ikelti nuotrauk/i])) {
+    return { handled: true, reply: "" };
   }
 
   if (matchesChip(trimmed, [/reikia pataisyti/])) {

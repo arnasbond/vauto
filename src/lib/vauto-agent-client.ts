@@ -18,6 +18,8 @@ export interface AgentChatMessage {
   quickReplies?: string[];
   /** Rich pre-publish listing preview card */
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
+  /** Interactive missing-fields widget (replaces text wall + duplicate chips) */
+  prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
 }
 
 export interface AgentSearchFilters {
@@ -407,6 +409,7 @@ export interface VautoAgentResponse {
   reply: string;
   quickReplies?: string[];
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
+  prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: VautoAgentAction;
 }

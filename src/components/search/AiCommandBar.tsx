@@ -109,6 +109,7 @@ export function AiCommandBar({
   const {
     messages,
     sendAgentMessage,
+    handleDirectAgentChip,
     busy: agentBusy,
     applyAgentActions,
     openWithGreeting,
@@ -397,9 +398,9 @@ export function AiCommandBar({
       setPhotoIntentChoice(null);
       setPhotoFlowOpen(false);
       clearPhotoSearchSession();
-      void sendAgentMessage(chip, { fromSearchBar: true, skipBusyCheck: true });
+      void handleDirectAgentChip(chip);
     },
-    [sendAgentMessage]
+    [handleDirectAgentChip]
   );
 
   const lastAssistant = useMemo(() => {

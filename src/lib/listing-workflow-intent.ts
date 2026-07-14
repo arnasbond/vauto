@@ -49,6 +49,8 @@ const EXACT_PUBLISH_COMMANDS = new Set([
   "reikia pataisyti",
   "telefono numeris",
   "miestas",
+  "ieškoti šio daikto",
+  "įkelti skelbimą",
 ]);
 
 const WORKFLOW_CHIP_RE =

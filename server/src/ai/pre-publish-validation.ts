@@ -101,6 +101,13 @@ export function evaluateServerPrePublishReadiness(input: {
   ok: boolean;
   blockMessage: string;
   quickReplies: string[];
+  missingPhoto: boolean;
+  missingPhone: boolean;
+  missingCity: boolean;
+  missingAuth: boolean;
+  resolvedPhone: string;
+  resolvedCity: string;
+  hasPhoto: boolean;
 } {
   const missingAuth = !input.isAuthenticated;
   const profilePhone = input.profilePhone?.trim() ?? "";
@@ -135,6 +142,13 @@ export function evaluateServerPrePublishReadiness(input: {
     ok,
     blockMessage,
     quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
+    missingPhoto,
+    missingPhone,
+    missingCity,
+    missingAuth,
+    resolvedPhone,
+    resolvedCity,
+    hasPhoto,
   };
 }
 
@@ -146,6 +160,16 @@ export interface ServerPrePublishCardPayload {
   location: string;
   imageUrl?: string | null;
   category?: string;
+}
+
+export interface ServerPrePublishRequirementsPayload {
+  missingPhoto: boolean;
+  missingPhone: boolean;
+  missingCity: boolean;
+  missingAuth: boolean;
+  resolvedPhone?: string;
+  resolvedCity?: string;
+  hasPhoto?: boolean;
 }
 
 export function buildServerPrePublishCardPayload(input: {

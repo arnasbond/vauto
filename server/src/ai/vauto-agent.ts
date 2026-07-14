@@ -187,6 +187,7 @@ export interface VautoAgentResponse {
   reply: string;
   quickReplies?: string[];
   prePublishCard?: import("./pre-publish-validation.js").ServerPrePublishCardPayload;
+  prePublishRequirements?: import("./pre-publish-validation.js").ServerPrePublishRequirementsPayload;
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
 }
@@ -417,6 +418,9 @@ async function runVautoAgentInner(
       reply: gateway.reply,
       ...(gateway.quickReplies ? { quickReplies: gateway.quickReplies } : {}),
       ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+      ...(gateway.prePublishRequirements
+        ? { prePublishRequirements: gateway.prePublishRequirements }
+        : {}),
       toolCalls: [],
       actions: { type: "none" },
     };

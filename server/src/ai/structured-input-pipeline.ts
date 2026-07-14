@@ -14,12 +14,15 @@ import { isListingWorkflowCommand, isPublishWorkflowCommand } from "./listing-wo
 import {
   buildServerPrePublishCardPayload,
   evaluateServerPrePublishReadiness,
-  PRE_PUBLISH_BLOCKED_QUICK_REPLIES,
   type ServerPrePublishCardPayload,
+  type ServerPrePublishRequirementsPayload,
 } from "./pre-publish-validation.js";
 
 export const PRE_PUBLISH_READY_INTRO =
   "✨ Skelbimas paruoštas publikuoti! Peržiūrėkite, kaip jis atrodys turguje:";
+
+export const PRE_PUBLISH_BLOCK_INTRO =
+  "Trūksta kelių detalių — užpildykite žemiau ir galėsite publikuoti:";
 
 export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
 - Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
@@ -192,6 +195,27 @@ export interface PrePublishGatewayResponse {
   reply: string;
   quickReplies?: string[];
   prePublishCard?: ServerPrePublishCardPayload;
+  prePublishRequirements?: ServerPrePublishRequirementsPayload;
+}
+
+function buildServerPrePublishRequirementsPayload(input: {
+  missingPhoto: boolean;
+  missingPhone: boolean;
+  missingCity: boolean;
+  missingAuth: boolean;
+  resolvedPhone: string;
+  resolvedCity: string;
+  hasPhoto: boolean;
+}): ServerPrePublishRequirementsPayload {
+  return {
+    missingPhoto: input.missingPhoto,
+    missingPhone: input.missingPhone,
+    missingCity: input.missingCity,
+    missingAuth: input.missingAuth,
+    resolvedPhone: input.resolvedPhone,
+    resolvedCity: input.resolvedCity,
+    hasPhoto: input.hasPhoto,
+  };
 }
 
 /** Pre-publish validation gateway — invoked when publish/confirmation intent is intercepted. */
@@ -215,8 +239,16 @@ export function resolvePrePublishGatewayResponse(input: {
   const readiness = evaluateServerPrePublishReadiness(input);
   if (!readiness.ok) {
     return {
-      reply: readiness.blockMessage,
-      quickReplies: [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES],
+      reply: PRE_PUBLISH_BLOCK_INTRO,
+      prePublishRequirements: buildServerPrePublishRequirementsPayload({
+        missingPhoto: readiness.missingPhoto,
+        missingPhone: readiness.missingPhone,
+        missingCity: readiness.missingCity,
+        missingAuth: readiness.missingAuth,
+        resolvedPhone: readiness.resolvedPhone,
+        resolvedCity: readiness.resolvedCity,
+        hasPhoto: readiness.hasPhoto,
+      }),
     };
   }
 

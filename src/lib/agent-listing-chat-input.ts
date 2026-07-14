@@ -5,6 +5,10 @@ import {
 } from "@/lib/listing-draft-preview";
 import { isListingWorkflowCommand } from "@/lib/listing-workflow-intent";
 import {
+  isPhotoIntentListingChip,
+  isPhotoIntentSearchChip,
+} from "@/lib/photo-intent-resolution";
+import {
   applyParsedContactsToDraft,
   buildListingContactUpdateReply,
   parseListingContactFromText,
@@ -105,6 +109,8 @@ export function tryApplyListingChatInput(
   if (!aiDraft) return null;
 
   if (isListingWorkflowCommand(text)) return null;
+
+  if (isPhotoIntentListingChip(text) || isPhotoIntentSearchChip(text)) return null;
 
   const contactReply = tryApplyListingContactCapture(text, aiDraft, updateAiDraft);
   if (contactReply) return contactReply;

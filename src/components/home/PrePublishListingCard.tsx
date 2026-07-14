@@ -11,7 +11,6 @@ export interface PrePublishListingCardProps {
   card: PrePublishCardPayload;
   publishing?: boolean;
   onPublish: (sourceRect: DOMRect) => void;
-  onEdit: () => void;
   className?: string;
 }
 
@@ -30,7 +29,6 @@ export function PrePublishListingCard({
   card,
   publishing = false,
   onPublish,
-  onEdit,
   className,
 }: PrePublishListingCardProps) {
   const publishBtnRef = useRef<HTMLButtonElement>(null);
@@ -84,32 +82,22 @@ export function PrePublishListingCard({
           </p>
         ) : null}
 
-        <div className="flex flex-col gap-2 pt-1">
-          <button
-            ref={publishBtnRef}
-            type="button"
-            disabled={publishing}
-            onClick={handlePublish}
-            className="flex min-h-[44px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-sm transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
-          >
-            {publishing ? (
-              <>
-                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-                Publikuojama…
-              </>
-            ) : (
-              <>🚀 Publikuoti skelbimą</>
-            )}
-          </button>
-          <button
-            type="button"
-            disabled={publishing}
-            onClick={onEdit}
-            className="min-h-[40px] w-full touch-manipulation rounded-xl border border-[var(--vauto-primary)]/25 bg-transparent px-4 py-2 text-sm font-semibold text-[var(--vauto-text)] transition hover:bg-[var(--vauto-surface-muted)] active:scale-[0.99] disabled:opacity-60"
-          >
-            ✏️ Pataisyti duomenis
-          </button>
-        </div>
+        <button
+          ref={publishBtnRef}
+          type="button"
+          disabled={publishing}
+          onClick={handlePublish}
+          className="mt-1 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
+        >
+          {publishing ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+              Publikuojama…
+            </>
+          ) : (
+            <>🚀 Patvirtinti ir publikuoti</>
+          )}
+        </button>
       </div>
     </div>
   );
