@@ -1,7 +1,7 @@
 "use client";
 
 import { useRef } from "react";
-import { MapPin, Loader2 } from "lucide-react";
+import { MapPin, Loader2, Phone } from "lucide-react";
 import { formatPrice, MOCK_CATEGORY_LABELS } from "@/data/mockListings";
 import { cn } from "@/lib/cn";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
@@ -11,6 +11,7 @@ export interface PrePublishListingCardProps {
   card: PrePublishCardPayload;
   publishing?: boolean;
   onPublish: (sourceRect: DOMRect) => void;
+  onEdit: () => void;
   className?: string;
 }
 
@@ -29,6 +30,7 @@ export function PrePublishListingCard({
   card,
   publishing = false,
   onPublish,
+  onEdit,
   className,
 }: PrePublishListingCardProps) {
   const publishBtnRef = useRef<HTMLButtonElement>(null);
@@ -81,23 +83,39 @@ export function PrePublishListingCard({
             {truncateDescription(card.description)}
           </p>
         ) : null}
+        {card.phone ? (
+          <p className="flex items-center gap-1.5 border-t border-[var(--vauto-border)]/60 pt-2 text-xs font-semibold text-[var(--vauto-text)]">
+            <Phone className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-primary)]" aria-hidden />
+            {card.phone}
+          </p>
+        ) : null}
 
-        <button
-          ref={publishBtnRef}
-          type="button"
-          disabled={publishing}
-          onClick={handlePublish}
-          className="mt-1 flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
-        >
-          {publishing ? (
-            <>
-              <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
-              Publikuojama…
-            </>
-          ) : (
-            <>🚀 Patvirtinti ir publikuoti</>
-          )}
-        </button>
+        <div className="mt-1 flex flex-col gap-2">
+          <button
+            ref={publishBtnRef}
+            type="button"
+            disabled={publishing}
+            onClick={handlePublish}
+            className="flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
+          >
+            {publishing ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
+                Publikuojama…
+              </>
+            ) : (
+              <>🚀 Patvirtinti ir publikuoti</>
+            )}
+          </button>
+          <button
+            type="button"
+            disabled={publishing}
+            onClick={onEdit}
+            className="flex min-h-[44px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/25 bg-[var(--vauto-surface-muted)]/50 px-4 py-2.5 text-sm font-semibold text-[var(--vauto-text)] transition hover:bg-[var(--vauto-surface-muted)] active:scale-[0.99] disabled:opacity-60"
+          >
+            ✏️ Redaguoti duomenis
+          </button>
+        </div>
       </div>
     </div>
   );

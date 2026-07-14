@@ -154,6 +154,15 @@ import {
   PRE_PUBLISH_BLOCK_INTRO,
 } from "@/lib/pre-publish-requirements";
 import {
+  buildListingEditPrompt,
+  buildListingEditQuickReplies,
+  editFieldFromChip,
+  isEditActionChip,
+  isGapActionChip,
+  LISTING_EDIT_INTRO,
+  setAwaitingListingEditField,
+} from "@/lib/listing-wizard-flow";
+import {
   executeDirectPhotoIntentChip,
   isDirectAgentActionChip,
   pickListingPhotoDirect,
@@ -206,6 +215,10 @@ interface VautoAgentContextValue {
   resetHomeAgentSession: () => void;
   /** Run modal/chip actions directly — never inject raw chip text as user messages. */
   handleDirectAgentChip: (chip: string) => Promise<boolean>;
+  /** Hide pre-publish card and show field edit chips. */
+  enterListingEditMode: () => void;
+  /** When true, live pre-publish card is hidden (edit mode). */
+  hidePrePublishCard: boolean;
 }
 
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
@@ -327,6 +340,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const [open, setOpen] = useState(false);
   const [streamThinkingLabel, setStreamThinkingLabel] = useState("Galvoju…");
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
+  const [hidePrePublishCard, setHidePrePublishCard] = useState(false);
 
   const [busy, setBusy] = useState(false);
   const busyGateRef = useRef<ReturnType<typeof createAgentBusyGate> | null>(null);
@@ -1051,6 +1065,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       if (aiDraft && isPublishWorkflowCommand(trimmed)) {
         const gateway = requestPublishUpsell();
+        setHidePrePublishCard(false);
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
@@ -1068,11 +1083,31 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: gateway.reply };
       }
 
+      if (aiDraft && isEditActionChip(trimmed)) {
+        const editField = editFieldFromChip(trimmed);
+        if (editField) {
+          setAwaitingListingEditField(editField);
+          setHidePrePublishCard(true);
+          const reply = buildListingEditPrompt(editField);
+          setMessages((prev) => [
+            ...(isDirectAgentActionChip(trimmed) ? prev : [...prev, { role: "user" as const, text: trimmed }]),
+            {
+              role: "assistant" as const,
+              text: reply,
+              quickReplies: buildListingEditQuickReplies(),
+            },
+          ].slice(-6));
+          touchAgentSessionActivity();
+          return { ok: true, reply };
+        }
+      }
+
       const listingChatReply =
         aiDraft && isListingConversationInput(trimmed, listingChatContext)
           ? tryApplyListingChatInput(trimmed, aiDraft, updateAiDraft)
           : null;
       if (listingChatReply) {
+        setHidePrePublishCard(false);
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
@@ -1574,7 +1609,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const appendSupervisorAssistant = (
           assistantText: string,
           quickReplies?: string[],
-          prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload
+          prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload,
+          prePublishRequirements?: import("@/lib/pre-publish-requirements").PrePublishRequirementsPayload
         ) => {
           const text = assistantText.trim();
           if (!text) return;
@@ -1597,9 +1633,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                   ? { quickReplies: structuredReplies }
                   : {}),
                 ...(prePublishCard ? { prePublishCard } : {}),
+                ...(prePublishRequirements ? { prePublishRequirements } : {}),
               },
             ].slice(-6);
           });
+          if (prePublishCard) setHidePrePublishCard(false);
         };
 
         const browseAllBlocked =
@@ -1679,7 +1717,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               !mergedAssistantText.startsWith("Deja, pagal") &&
               !mergedAssistantText.startsWith("Atsiprašau"))
           ) {
-            appendSupervisorAssistant(mergedAssistantText, res.quickReplies, res.prePublishCard);
+            appendSupervisorAssistant(
+              mergedAssistantText,
+              res.quickReplies,
+              res.prePublishCard,
+              res.prePublishRequirements
+            );
           }
         }
         speakReply(mergedAssistantText || assistantText);
@@ -1998,6 +2041,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setStreamThinkingLabel("Galvoju…");
   }, []);
 
+  const enterListingEditMode = useCallback(() => {
+    setHidePrePublishCard(true);
+    setAwaitingListingEditField(null);
+    setMessages((prev) => [
+      ...prev,
+      {
+        role: "assistant" as const,
+        text: LISTING_EDIT_INTRO,
+        quickReplies: buildListingEditQuickReplies(),
+      },
+    ].slice(-6));
+    touchAgentSessionActivity();
+  }, []);
+
   const handleDirectAgentChip = useCallback(
     async (chip: string): Promise<boolean> => {
       const trimmed = chip.trim();
@@ -2062,7 +2119,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      if (/^įkelti nuotrauk/i.test(trimmed)) {
+      if (/^įkelti nuotrauk/i.test(trimmed) || isGapActionChip(trimmed)) {
+        if (isGapActionChip(trimmed) && !/^įkelti nuotrauk/i.test(trimmed)) {
+          return false;
+        }
         const dataUrl = await pickListingPhotoDirect("gallery");
         if (dataUrl) {
           updateSellerMedia({ imageDataUrl: dataUrl });
@@ -2074,6 +2134,28 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           showToast("Nuotrauka pridėta.", "success");
         }
         return true;
+      }
+
+      if (isEditActionChip(trimmed)) {
+        const field = editFieldFromChip(trimmed);
+        if (field) {
+          setAwaitingListingEditField(field);
+          setHidePrePublishCard(true);
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant" as const,
+              text: buildListingEditPrompt(field),
+              quickReplies: buildListingEditQuickReplies(),
+            },
+          ].slice(-6));
+          touchAgentSessionActivity();
+          return true;
+        }
+        if (/redaguoti duomenis/i.test(trimmed)) {
+          enterListingEditMode();
+          return true;
+        }
       }
 
       return false;
@@ -2095,6 +2177,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       updateSellerMedia,
       aiDraft,
       updateAiDraft,
+      enterListingEditMode,
     ]
   );
 
@@ -2104,6 +2187,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const resetHomeAgentSession = useCallback(() => {
     cancelSellerFlow();
+    setHidePrePublishCard(false);
+    setAwaitingListingEditField(null);
     applyBrowseAllMarketplaceState({
       setSearchQuery,
       setAgentPinnedListings,
@@ -2160,6 +2245,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       streamThinkingLabel,
       sendAgentMessage,
       handleDirectAgentChip,
+      enterListingEditMode,
+      hidePrePublishCard,
       applyAgentActions: applyActions,
       reportAgentError,
       resetHomeAgentSession,
@@ -2172,6 +2259,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       streamThinkingLabel,
       sendAgentMessage,
       handleDirectAgentChip,
+      enterListingEditMode,
+      hidePrePublishCard,
       applyActions,
       reportAgentError,
       resetHomeAgentSession,

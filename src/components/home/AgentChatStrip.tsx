@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useRef } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
@@ -25,13 +25,18 @@ import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import {
+  buildGapStatusSummary,
   buildPrePublishRequirementsPayload,
   mergeRequirementsWithReadiness,
   PRE_PUBLISH_BLOCK_INTRO,
 } from "@/lib/pre-publish-requirements";
 import {
+  gapFieldFromChip,
+  isGapActionChip,
+  type ListingWizardGapField,
+} from "@/lib/listing-wizard-flow";
+import {
   isDirectAgentActionChip,
-  pickListingPhotoDirect,
 } from "@/lib/direct-agent-actions";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
@@ -47,8 +52,15 @@ export interface AgentChatStripProps {
  * Įvesties laukas fiksuotas pokalbio apačioje (ne viršuje).
  */
 export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProps) {
-  const { messages, busy, streamThinkingLabel, sendAgentMessage, handleDirectAgentChip } =
-    useVautoAgent();
+  const {
+    messages,
+    busy,
+    streamThinkingLabel,
+    sendAgentMessage,
+    handleDirectAgentChip,
+    enterListingEditMode,
+    hidePrePublishCard,
+  } = useVautoAgent();
   const {
     aiDraft,
     sellerPreviewImage,
@@ -62,8 +74,9 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   const { isAuthenticated, authHydrated, user, updateUser } = useAuth();
   const { showToast } = useVauto();
   const router = useRouter();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const messagesScrollRef = useRef<HTMLDivElement>(null);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+  const [activeGapField, setActiveGapField] = useState<ListingWizardGapField | null>(null);
 
   const assistantCount = messages.filter((m) => m.role === "assistant").length;
   const domMessages: AgentChatMessage[] = resolveVisibleAgentBubbles(messages);
@@ -89,7 +102,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
 
   const livePrePublishCard: PrePublishCardPayload | null = useMemo(() => {
     if (!prePublishReadiness?.ok || !aiDraft) return null;
-    if ((aiDraft.price ?? 0) <= 0 || !aiDraft.title?.trim()) return null;
+    if (!aiDraft.title?.trim()) return null;
     return buildPrePublishCardPayload(prePublishReadiness, sellerPreviewImage);
   }, [prePublishReadiness, sellerPreviewImage, aiDraft]);
 
@@ -97,6 +110,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     Boolean(livePrePublishCard) &&
     !busy &&
     !isPublishingListing &&
+    !hidePrePublishCard &&
     Boolean(aiDraft);
 
   const liveRequirements = useMemo(() => {
@@ -105,7 +119,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   }, [prePublishReadiness]);
 
   const quickReplies =
-    busy || !lastAssistantMessage || showPrePublishCard || liveRequirements
+    busy || !lastAssistantMessage || showPrePublishCard
       ? []
       : (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
         ? lastAssistantMessage.quickReplies!.slice(0, 4)
@@ -132,32 +146,34 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     }
   };
 
+  const handleCardEdit = () => {
+    enterListingEditMode();
+  };
+
   const handleDirectChip = async (option: string) => {
+    if (isGapActionChip(option)) {
+      const field = gapFieldFromChip(option);
+      if (field && field !== "photo") {
+        setActiveGapField(field);
+        return;
+      }
+    }
     if (isDirectAgentActionChip(option)) {
       const handled = await handleDirectAgentChip(option);
       if (handled) return;
-    }
-    if (/^įkelti nuotrauk/i.test(option.trim())) {
-      const dataUrl = await pickListingPhotoDirect("gallery");
-      if (dataUrl) {
-        updateSellerMedia({ imageDataUrl: dataUrl });
-        if (aiDraft) {
-          updateAiDraft({
-            orderedImageUrls: [dataUrl, ...(aiDraft.orderedImageUrls ?? [])].slice(0, 6),
-          });
-        }
-        showToast("Nuotrauka pridėta.", "success");
-      }
-      return;
     }
     void sendAgentMessage(option);
   };
 
   useEffect(() => {
+    if (prePublishReadiness?.ok) setActiveGapField(null);
+  }, [prePublishReadiness?.ok]);
+
+  useEffect(() => {
     const el = messagesScrollRef.current;
     if (!el) return;
     el.scrollTop = el.scrollHeight;
-  }, [renderMessages.length, busy, lastAssistant, showPrePublishCard, liveRequirements]);
+  }, [renderMessages.length, busy, lastAssistant, showPrePublishCard, liveRequirements, activeGapField]);
 
   const hasUserTurn = messages.some((m) => m.role === "user");
   if (!hasUserTurn && !busy) return null;
@@ -195,21 +211,23 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           const showRequirementsWidget = Boolean(isLastAssistant && requirementsPayload);
 
           const displayText =
-            m.role === "assistant" && showRequirementsWidget
-              ? PRE_PUBLISH_BLOCK_INTRO
+            m.role === "assistant" && showRequirementsWidget && requirementsPayload
+              ? buildGapStatusSummary(requirementsPayload)
               : display;
 
           const messageChips =
-            isLastAssistant && !showPrePublishCard && !showRequirementsWidget
-              ? (m.quickReplies?.length ?? 0) >= 2
-                ? m.quickReplies!
-                : quickReplies
+            isLastAssistant && !showPrePublishCard
+              ? showRequirementsWidget && requirementsPayload
+                ? prePublishReadiness?.quickReplies ?? []
+                : (m.quickReplies?.length ?? 0) >= 2
+                  ? m.quickReplies!
+                  : quickReplies
               : [];
 
           const cardPayload =
             isLastAssistant && showPrePublishCard && livePrePublishCard
               ? livePrePublishCard
-              : isLastAssistant && !showRequirementsWidget
+              : isLastAssistant && !showRequirementsWidget && !hidePrePublishCard
                 ? m.prePublishCard ?? null
                 : null;
 
@@ -226,7 +244,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                 ) : (
                   <>
                     {displayText}
-                    {messageChips.length > 0 && (
+                    {messageChips.length > 0 && !showRequirementsWidget && (
                       <AgentQuickReplyChips
                         options={messageChips}
                         disabled={busy}
@@ -245,6 +263,9 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                     updateAiDraft={updateAiDraft}
                     updateSellerMedia={updateSellerMedia}
                     updateUser={updateUser}
+                    activeGapField={activeGapField}
+                    onGapChipSelect={setActiveGapField}
+                    onGapChipAction={(chip) => void handleDirectChip(chip)}
                   />
                 </div>
               ) : null}
@@ -254,6 +275,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                     card={cardPayload}
                     publishing={isPublishingListing}
                     onPublish={handleCardPublish}
+                    onEdit={handleCardEdit}
                   />
                 </div>
               ) : null}

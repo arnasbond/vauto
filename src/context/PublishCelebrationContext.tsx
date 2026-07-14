@@ -64,8 +64,12 @@ export function PublishCelebrationProvider({ children }: { children: ReactNode }
       resolveRef.current = resolve;
       setFlight({ fromX, fromY, toX, toY });
       setSpintaPulse(true);
+      target?.classList.add("publish-tab-catch-pulse");
 
-      window.setTimeout(() => setSpintaPulse(false), 1400);
+      window.setTimeout(() => {
+        setSpintaPulse(false);
+        target?.classList.remove("publish-tab-catch-pulse");
+      }, 1400);
     });
   }, []);
 

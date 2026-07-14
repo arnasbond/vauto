@@ -9,6 +9,10 @@ import {
   isPhotoIntentSearchChip,
 } from "@/lib/photo-intent-resolution";
 import {
+  readAwaitingListingEditField,
+  setAwaitingListingEditField,
+} from "@/lib/listing-wizard-flow";
+import {
   applyParsedContactsToDraft,
   buildListingContactUpdateReply,
   parseListingContactFromText,
@@ -111,6 +115,40 @@ export function tryApplyListingChatInput(
   if (isListingWorkflowCommand(text)) return null;
 
   if (isPhotoIntentListingChip(text) || isPhotoIntentSearchChip(text)) return null;
+
+  const awaitingEdit = readAwaitingListingEditField();
+  if (awaitingEdit === "price") {
+    const price = parsePriceFromChatInput(text);
+    if (price != null) {
+      updateAiDraft({ price });
+      setAwaitingListingEditField(null);
+      return buildListingDraftUpdateReply(draftToPreviewInput({ ...aiDraft, price }), {
+        intro: "✅ Kaina atnaujinta!",
+      });
+    }
+    return null;
+  }
+  if (awaitingEdit === "description") {
+    const trimmed = text.trim();
+    if (trimmed.length >= 3) {
+      updateAiDraft({ description: trimmed.slice(0, 4000) });
+      setAwaitingListingEditField(null);
+      return buildListingDraftUpdateReply(
+        draftToPreviewInput({ ...aiDraft, description: trimmed }),
+        { intro: "✅ Aprašymas atnaujintas!" }
+      );
+    }
+    return null;
+  }
+  if (awaitingEdit === "category") {
+    const trimmed = text.trim();
+    if (trimmed.length >= 2) {
+      updateAiDraft({ category: trimmed.toLowerCase() as AiExtractedListing["category"] });
+      setAwaitingListingEditField(null);
+      return `✅ Kategorija atnaujinta: ${trimmed}. Jei viskas tinka — patvirtinkite publikavimą.`;
+    }
+    return null;
+  }
 
   const contactReply = tryApplyListingContactCapture(text, aiDraft, updateAiDraft);
   if (contactReply) return contactReply;

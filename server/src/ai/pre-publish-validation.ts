@@ -93,6 +93,7 @@ export function evaluateServerPrePublishReadiness(input: {
   contact?: string;
   listingDraft?: {
     location?: string;
+    price?: number;
     attributes?: Record<string, string>;
   };
   pendingImageUrls?: string[];
@@ -104,6 +105,7 @@ export function evaluateServerPrePublishReadiness(input: {
   missingPhoto: boolean;
   missingPhone: boolean;
   missingCity: boolean;
+  missingPrice: boolean;
   missingAuth: boolean;
   resolvedPhone: string;
   resolvedCity: string;
@@ -125,8 +127,10 @@ export function evaluateServerPrePublishReadiness(input: {
   const missingPhoto = !hasPhoto;
   const missingPhone = !isValidListingPhone(resolvedPhone);
   const missingCity = !resolvedCity || isPlaceholderCity(resolvedCity);
+  const missingPrice = (input.listingDraft?.price ?? 0) <= 0;
 
-  const ok = !missingAuth && !missingPhoto && !missingPhone && !missingCity;
+  const ok =
+    !missingAuth && !missingPhoto && !missingPhone && !missingCity && !missingPrice;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,
@@ -145,6 +149,7 @@ export function evaluateServerPrePublishReadiness(input: {
     missingPhoto,
     missingPhone,
     missingCity,
+    missingPrice,
     missingAuth,
     resolvedPhone,
     resolvedCity,
@@ -158,6 +163,7 @@ export interface ServerPrePublishCardPayload {
   price: number;
   priceLabel?: string;
   location: string;
+  phone?: string;
   imageUrl?: string | null;
   category?: string;
 }
@@ -166,6 +172,7 @@ export interface ServerPrePublishRequirementsPayload {
   missingPhoto: boolean;
   missingPhone: boolean;
   missingCity: boolean;
+  missingPrice: boolean;
   missingAuth: boolean;
   resolvedPhone?: string;
   resolvedCity?: string;
@@ -181,6 +188,7 @@ export function buildServerPrePublishCardPayload(input: {
     category?: string;
   };
   resolvedCity: string;
+  resolvedPhone?: string;
   pendingImageUrls?: string[];
   imageUrl?: string;
 }): ServerPrePublishCardPayload | null {
@@ -198,6 +206,7 @@ export function buildServerPrePublishCardPayload(input: {
     description: draft.description?.trim() || "",
     price,
     location: input.resolvedCity.trim() || draft.location?.trim() || "",
+    phone: input.resolvedPhone?.trim() || undefined,
     imageUrl,
     category: draft.category,
   };

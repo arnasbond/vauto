@@ -17,6 +17,7 @@ export interface PrePublishCardPayload {
   price: number;
   priceLabel?: string;
   location: string;
+  phone?: string;
   imageUrl?: string | null;
   category?: string;
 }
@@ -33,6 +34,7 @@ export function buildPrePublishCardPayload(
     price: draft.price ?? 0,
     priceLabel: draft.priceLabel,
     location: readiness.resolvedCity,
+    phone: readiness.resolvedPhone,
     imageUrl:
       previewImage ??
       draft.orderedImageUrls?.[0] ??
@@ -41,11 +43,7 @@ export function buildPrePublishCardPayload(
   };
 }
 
-export const PRE_PUBLISH_BLOCKED_QUICK_REPLIES = [
-  "Suvesti trūkstamus duomenis",
-  "Įkelti nuotraukas",
-  "Reikia pataisyti",
-] as const;
+import { buildGapQuickReplies } from "@/lib/pre-publish-requirements";
 
 export interface PrePublishCheckInput {
   isAuthenticated: boolean;
@@ -62,6 +60,7 @@ export interface PrePublishReadiness {
   missingPhoto: boolean;
   missingPhone: boolean;
   missingCity: boolean;
+  missingPrice: boolean;
   missingAuth: boolean;
   blockMessage: string;
   quickReplies: string[];
@@ -144,7 +143,6 @@ export function buildPrePublishBlockMessage(opts: {
 export function evaluatePrePublishReadiness(
   input: PrePublishCheckInput
 ): PrePublishReadiness {
-  const quickReplies = [...PRE_PUBLISH_BLOCKED_QUICK_REPLIES];
   const missingAuth = !input.isAuthenticated || !input.user.id?.trim();
 
   let syncedDraft = input.draft;
@@ -163,8 +161,10 @@ export function evaluatePrePublishReadiness(
   const missingPhone = !isValidListingPhone(resolvedPhone);
   const missingCity =
     !resolvedCity.trim() || isPlaceholderCity(resolvedCity);
+  const missingPrice = (syncedDraft?.price ?? 0) <= 0;
 
-  const ok = !missingAuth && hasPhoto && !missingPhone && !missingCity;
+  const ok =
+    !missingAuth && hasPhoto && !missingPhone && !missingCity && !missingPrice;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,
@@ -176,12 +176,25 @@ export function evaluatePrePublishReadiness(
     hasPhoto,
   });
 
+  const gapPayload = {
+    missingPhoto,
+    missingPhone,
+    missingCity,
+    missingPrice,
+    missingAuth,
+    resolvedPhone,
+    resolvedCity,
+    hasPhoto,
+  };
+  const quickReplies = buildGapQuickReplies(gapPayload);
+
   if (missingAuth) {
     return {
       ok: false,
       missingPhoto,
       missingPhone,
       missingCity,
+      missingPrice,
       missingAuth: true,
       blockMessage: `${PUBLISH_REQUIRES_AUTH_MESSAGE}\n\n${blockMessage}`,
       quickReplies,
@@ -197,6 +210,7 @@ export function evaluatePrePublishReadiness(
     missingPhoto,
     missingPhone,
     missingCity,
+    missingPrice,
     missingAuth: false,
     blockMessage,
     quickReplies,
@@ -219,6 +233,9 @@ export function buildPrePublishMissingGuide(
   }
   if (readiness.missingCity) {
     hints.push("nurodykite miestą, pvz. Kaunas arba Vilnius");
+  }
+  if (readiness.missingPrice) {
+    hints.push("nurodykite kainą eurais, pvz. 1200 €");
   }
   if (!hints.length) {
     return "Viskas paruošta — galite bandyti publikuoti dar kartą.";

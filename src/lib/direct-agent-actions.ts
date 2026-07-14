@@ -13,6 +13,10 @@ import {
   isPhotoIntentSearchChip,
 } from "@/lib/photo-intent-resolution";
 import { isListingWorkflowCommand } from "@/lib/listing-workflow-intent";
+import {
+  isEditActionChip,
+  isGapActionChip,
+} from "@/lib/listing-wizard-flow";
 import { Capacitor } from "@capacitor/core";
 import {
   capturePhotoFromSource,
@@ -26,6 +30,7 @@ export function isDirectAgentActionChip(text: string): boolean {
   if (!t) return false;
   if (isPhotoIntentListingChip(t) || isPhotoIntentSearchChip(t)) return true;
   if (isListingWorkflowCommand(t)) return true;
+  if (isGapActionChip(t) || isEditActionChip(t)) return true;
   if (/^➕?\s*įkelti skelbim/i.test(t)) return true;
   if (/^🔍?\s*ieškoti/i.test(t)) return true;
   if (/^įkelti nuotrauk/i.test(t)) return true;

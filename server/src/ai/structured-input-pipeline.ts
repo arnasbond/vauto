@@ -202,6 +202,7 @@ function buildServerPrePublishRequirementsPayload(input: {
   missingPhoto: boolean;
   missingPhone: boolean;
   missingCity: boolean;
+  missingPrice: boolean;
   missingAuth: boolean;
   resolvedPhone: string;
   resolvedCity: string;
@@ -211,6 +212,7 @@ function buildServerPrePublishRequirementsPayload(input: {
     missingPhoto: input.missingPhoto,
     missingPhone: input.missingPhone,
     missingCity: input.missingCity,
+    missingPrice: input.missingPrice,
     missingAuth: input.missingAuth,
     resolvedPhone: input.resolvedPhone,
     resolvedCity: input.resolvedCity,
@@ -244,6 +246,7 @@ export function resolvePrePublishGatewayResponse(input: {
         missingPhoto: readiness.missingPhoto,
         missingPhone: readiness.missingPhone,
         missingCity: readiness.missingCity,
+        missingPrice: readiness.missingPrice,
         missingAuth: readiness.missingAuth,
         resolvedPhone: readiness.resolvedPhone,
         resolvedCity: readiness.resolvedCity,
@@ -258,6 +261,7 @@ export function resolvePrePublishGatewayResponse(input: {
       input.listingDraft?.location?.trim() ||
       input.userCity?.trim() ||
       "",
+    resolvedPhone: readiness.resolvedPhone,
     pendingImageUrls: input.pendingImageUrls,
     imageUrl: input.imageUrl,
   });
@@ -278,5 +282,56 @@ export function resolvePrePublishGatewayResponse(input: {
       "Aktyvuoti AI derybininką",
       "Ne, be reklamos",
     ],
+  };
+}
+
+function foldWorkflowText(raw: string): string {
+  return raw
+    .normalize("NFC")
+    .toLowerCase()
+    .replace(/[.!?,…]+$/g, "")
+    .trim();
+}
+
+/** Handle edit/confirmation workflow chips without mutating listing fields. */
+export function resolveWorkflowCommandResponse(text: string): {
+  reply: string;
+  quickReplies?: string[];
+} {
+  const folded = foldWorkflowText(text);
+
+  if (/pataisyti\s+kain/.test(folded)) {
+    return {
+      reply: "Kokia turėtų būti kaina? Parašykite sumą eurais, pvz. 1200 €.",
+      quickReplies: ["Viskas tinka", "Pataisyti aprašymą"],
+    };
+  }
+  if (/pataisyti\s+kategorij/.test(folded)) {
+    return {
+      reply: "Kokia kategorija? Parašykite, pvz. Automobiliai, Būstas, Drabužiai.",
+      quickReplies: ["Viskas tinka", "Pataisyti kainą"],
+    };
+  }
+  if (/pataisyti\s+aprašym/.test(folded) || /pataisyti\s+aprasym/.test(folded)) {
+    return {
+      reply: "Parašykite naują aprašymą — pakeisiu esamą tekstą.",
+      quickReplies: ["Viskas tinka", "Pataisyti kainą"],
+    };
+  }
+  if (/reikia\s+pataisyti/.test(folded) || /redaguoti\s+duomenis/.test(folded)) {
+    return {
+      reply: "Ką norite pataisyti? Pasirinkite arba parašykite pokalbyje.",
+      quickReplies: [...POST_VALIDATION_QUICK_REPLIES],
+    };
+  }
+  if (/suvesti\s+tr[uū]kstamus/.test(folded)) {
+    return {
+      reply: PRE_PUBLISH_BLOCK_INTRO,
+    };
+  }
+
+  return {
+    reply: "Supratau — tęskime skelbimo ruošimą.",
+    quickReplies: [...POST_VALIDATION_QUICK_REPLIES],
   };
 }

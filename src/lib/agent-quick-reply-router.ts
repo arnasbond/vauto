@@ -406,14 +406,39 @@ export function tryHandleAgentQuickReply(
     };
   }
 
-  if (matchesChip(trimmed, [/telefono numer/i, /^miestas$/, /įkelti nuotrauk/i, /ikelti nuotrauk/i])) {
+  if (matchesChip(trimmed, [/telefono numer/i, /^miestas$/, /įkelti nuotrauk/i, /ikelti nuotrauk/i, /📷/i, /📞/i, /📍/i, /💰/i])) {
     return { handled: true, reply: "" };
   }
 
-  if (matchesChip(trimmed, [/reikia pataisyti/])) {
+  if (matchesChip(trimmed, [/pataisyti kain/i])) {
     return {
       handled: true,
-      reply: "Gerai — parašykite, ką pataisyti (kaina, aprašymas, miestas), ir atnaujinsiu skelbimą pokalbyje.",
+      reply: "Kokia turėtų būti kaina? Parašykite sumą eurais, pvz. 1200 €.",
+      quickReplies: ["Viskas tinka", "Pataisyti aprašymą"],
+    };
+  }
+
+  if (matchesChip(trimmed, [/pataisyti kategorij/i])) {
+    return {
+      handled: true,
+      reply: "Kokia kategorija? Parašykite, pvz. Automobiliai, Būstas, Drabužiai.",
+      quickReplies: ["Viskas tinka", "Pataisyti kainą"],
+    };
+  }
+
+  if (matchesChip(trimmed, [/pataisyti aprašym/i, /pataisyti aprasym/i])) {
+    return {
+      handled: true,
+      reply: "Parašykite naują aprašymą — pakeisiu esamą tekstą.",
+      quickReplies: ["Viskas tinka", "Pataisyti kainą"],
+    };
+  }
+
+  if (matchesChip(trimmed, [/reikia pataisyti/, /redaguoti duomenis/i])) {
+    return {
+      handled: true,
+      reply: "Ką norite pataisyti? Pasirinkite arba parašykite pokalbyje.",
+      quickReplies: ["Pataisyti kainą", "Pataisyti kategoriją", "Pataisyti aprašymą", "Viskas tinka"],
     };
   }
 

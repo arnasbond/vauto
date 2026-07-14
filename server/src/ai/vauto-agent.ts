@@ -47,6 +47,7 @@ import {
   resolveContactCaptureResponse,
   resolvePrePublishGatewayResponse,
   resolveStructuredListingInputRoute,
+  resolveWorkflowCommandResponse,
 } from "./structured-input-pipeline.js";
 import {
   buildUserContextInjectionBlock,
@@ -421,6 +422,17 @@ async function runVautoAgentInner(
       ...(gateway.prePublishRequirements
         ? { prePublishRequirements: gateway.prePublishRequirements }
         : {}),
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
+
+  if (inputRoute.kind === "workflow_command" && listingDraft && lastUserText) {
+    const workflow = resolveWorkflowCommandResponse(lastUserText);
+    return {
+      ok: true,
+      reply: workflow.reply,
+      ...(workflow.quickReplies ? { quickReplies: workflow.quickReplies } : {}),
       toolCalls: [],
       actions: { type: "none" },
     };
