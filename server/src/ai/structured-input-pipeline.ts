@@ -4,6 +4,12 @@
  */
 
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+import {
+  applyParsedContactsToListingDraft,
+  buildListingContactUpdateReply,
+  parseListingContactFromText,
+  textContainsListingContactSignals,
+} from "./listing-contact-parse.js";
 import { isListingWorkflowCommand, isPublishWorkflowCommand } from "./listing-workflow-intent.js";
 import {
   buildServerPrePublishCardPayload,
@@ -56,6 +62,21 @@ export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI
 - Kai vartotojas rašo tokias frazes — SUSTOK tekstinio laukų atnaujinimo pipeline ir perjunk į pre-publish validacijos vartus (evaluatePrePublishReadiness).
 - Jei validacija praeina — parodyk PrePublishListingCard peržiūrą; jei ne — ⚠️ blokavimo pranešimą su trūkstamais laukais.`;
 
+export const LISTING_CONTACT_CAPTURE_RULES = `KONTAKTŲ LAUKŲ GAVIMAS (blokavimo / patvirtinimo fazė — PRIVALOMA):
+- Kai trūksta telefono ar miesto, vartotojo laisvas tekstas gali turėti kontaktus (pvz. „068876808 Arnoldas Kaišiadorys“).
+- Iš teksto PRIVALOMA ištraukti:
+  • LT telefoną (06..., +370..., 86...) → attributes.phone (NE description, NE title)
+  • LT miestą (Kaišiadorys, Vilnius, Kaunas…) → location / attributes.location
+  • Vardą (pvz. Arnoldas) → attributes.contactName (nebent tai aiškiai prekės aprašymas)
+- DRAUDŽIAMA append'inti telefono numerius, miestus ar vardus prie description ar title.
+- Po sėkmingo ištraukimo atsakyk:
+
+  ✅ Atnaujinome jūsų kontaktus:
+  * Telefonas: [numeris]
+  * Miestas: [miestas]
+
+- Jei vartotojas paspaudė „Telefono numeris“ arba „Miestas“ — prašyk tik to lauko (izoliuota įvestis).`;
+
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):
 - scanListingPhotos → jei multi-object ar žema confidence: reply + followUpQuestion + choiceChips, NE updateListingDraft.
 - updateListingDraft / postNewListing → tik po disambiguation loop arba aiškaus vieno objekto.
@@ -99,15 +120,25 @@ export function buildPostValidationReportMessage(fields: {
 export type StructuredInputRoute =
   | { kind: "listing_field_update"; text: string }
   | { kind: "workflow_command"; text: string }
-  | { kind: "publish_gateway"; text: string };
+  | { kind: "publish_gateway"; text: string }
+  | { kind: "contact_capture"; text: string };
 
 /** Strict intent router — separates listing field updates from workflow/system commands. */
 export function resolveStructuredListingInputRoute(
   text: string,
-  opts?: { hasListingDraft?: boolean }
+  opts?: { hasListingDraft?: boolean; prePublishBlocked?: boolean }
 ): StructuredInputRoute {
   const trimmed = text.trim();
   if (!trimmed) return { kind: "listing_field_update", text: trimmed };
+
+  if (
+    opts?.hasListingDraft &&
+    (opts.prePublishBlocked || textContainsListingContactSignals(trimmed))
+  ) {
+    const parsed = parseListingContactFromText(trimmed);
+    if (parsed.hasAny) return { kind: "contact_capture", text: trimmed };
+  }
+
   if (opts?.hasListingDraft && isPublishWorkflowCommand(trimmed)) {
     return { kind: "publish_gateway", text: trimmed };
   }
@@ -115,6 +146,46 @@ export function resolveStructuredListingInputRoute(
     return { kind: "workflow_command", text: trimmed };
   }
   return { kind: "listing_field_update", text: trimmed };
+}
+
+export interface ContactCaptureGatewayResponse {
+  reply: string;
+  quickReplies?: string[];
+  listingDraft: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string>;
+  };
+}
+
+/** Parse contact details from chat and map to structured draft fields — never description. */
+export function resolveContactCaptureResponse(input: {
+  text: string;
+  listingDraft: {
+    title?: string;
+    description?: string;
+    price?: number;
+    location?: string;
+    category?: string;
+    attributes?: Record<string, string>;
+  };
+}): ContactCaptureGatewayResponse | null {
+  const parsed = parseListingContactFromText(input.text.trim());
+  if (!parsed.hasAny) return null;
+
+  const listingDraft = applyParsedContactsToListingDraft(
+    input.listingDraft,
+    parsed
+  );
+
+  return {
+    reply: buildListingContactUpdateReply(parsed),
+    quickReplies: ["Viskas tinka", "Suvesti trūkstamus duomenis"],
+    listingDraft,
+  };
 }
 
 export interface PrePublishGatewayResponse {

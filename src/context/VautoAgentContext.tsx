@@ -151,6 +151,10 @@ import {
   PRE_PUBLISH_READY_INTRO,
 } from "@/lib/pre-publish-validation";
 import { isPublishWorkflowCommand } from "@/lib/listing-workflow-intent";
+import {
+  buildListingContactUpdateReply,
+  parseListingContactFromText,
+} from "@/lib/listing-contact-parse";
 import { usePublishCelebration } from "@/context/PublishCelebrationContext";
 import {
   centerScreenPublishRect,
@@ -1182,6 +1186,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           };
         },
         buildPrePublishMissingGuide: buildPrePublishMissingGuideReply,
+        getPrePublishReadiness: () =>
+          aiDraft
+            ? runPrePublishGate()
+            : null,
         publishBulkClothingListings,
         applyAgentWardrobeBulk,
         activateWardrobeSpinta,
@@ -1326,7 +1334,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         proactiveContactConfirmation = contactSync.confirmation;
         profileUser = { ...user, ...contactSync.user };
         if (proactiveContactConfirmation && isContactOnlyUserMessage(trimmed)) {
-          const contactReply = proactiveContactConfirmation;
+          const parsed = parseListingContactFromText(trimmed);
+          const contactReply = parsed.hasAny
+            ? buildListingContactUpdateReply(parsed)
+            : proactiveContactConfirmation;
           setMessages((prev) => {
             const usersOnly = prev.filter((m) => m.role === "user");
             return [

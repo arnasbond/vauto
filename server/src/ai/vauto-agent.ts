@@ -44,6 +44,7 @@ import {
   evaluateServerPrePublishReadiness,
 } from "./pre-publish-validation.js";
 import {
+  resolveContactCaptureResponse,
   resolvePrePublishGatewayResponse,
   resolveStructuredListingInputRoute,
 } from "./structured-input-pipeline.js";
@@ -362,9 +363,44 @@ async function runVautoAgentInner(
 
   const listingDraft = req.context.listingDraft;
 
+  const prePublishSnapshot = listingDraft
+    ? evaluateServerPrePublishReadiness({
+        isAuthenticated: req.context.isAuthenticated,
+        profilePhone: req.context.profilePhone,
+        profileEmail: req.context.profileEmail,
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+        listingDraft,
+        pendingImageUrls: req.context.pendingImageUrls,
+      })
+    : null;
+
   const inputRoute = resolveStructuredListingInputRoute(lastUserText, {
     hasListingDraft: Boolean(listingDraft),
+    prePublishBlocked: Boolean(prePublishSnapshot && !prePublishSnapshot.ok),
   });
+
+  if (inputRoute.kind === "contact_capture" && listingDraft && lastUserText) {
+    const captured = resolveContactCaptureResponse({
+      text: lastUserText,
+      listingDraft,
+    });
+    if (captured) {
+      return {
+        ok: true,
+        reply: captured.reply,
+        ...(captured.quickReplies ? { quickReplies: captured.quickReplies } : {}),
+        toolCalls: [],
+        actions: {
+          type: "listing_draft",
+          listingDraft: normalizeListingDraftForAction(captured.listingDraft, {
+            contact: req.context.contact,
+            userCity: req.context.userCity,
+          }),
+        },
+      };
+    }
+  }
 
   if (inputRoute.kind === "publish_gateway" && listingDraft && lastUserText) {
     const gateway = resolvePrePublishGatewayResponse({

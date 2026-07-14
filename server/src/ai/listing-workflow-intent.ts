@@ -48,6 +48,8 @@ const EXACT_PUBLISH_COMMANDS = new Set([
   "ikelti nuotraukas",
   "įkelti nuotraukas",
   "reikia pataisyti",
+  "telefono numeris",
+  "miestas",
 ]);
 
 /** Any seller-flow chip / command — excludes from listing chat field updates. */

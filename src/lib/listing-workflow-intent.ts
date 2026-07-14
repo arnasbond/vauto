@@ -47,6 +47,8 @@ const EXACT_PUBLISH_COMMANDS = new Set([
   "ikelti nuotraukas",
   "įkelti nuotraukas",
   "reikia pataisyti",
+  "telefono numeris",
+  "miestas",
 ]);
 
 const WORKFLOW_CHIP_RE =

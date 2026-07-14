@@ -4,6 +4,15 @@ import {
   draftToPreviewInput,
 } from "@/lib/listing-draft-preview";
 import { isListingWorkflowCommand } from "@/lib/listing-workflow-intent";
+import {
+  applyParsedContactsToDraft,
+  buildListingContactUpdateReply,
+  parseListingContactFromText,
+  readAwaitingContactField,
+  setAwaitingContactField,
+  textContainsListingContactSignals,
+  type AwaitingContactField,
+} from "@/lib/listing-contact-parse";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_INLINE_RE = /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)/i;
@@ -32,6 +41,7 @@ export function isListingConversationInput(
   const t = text.trim();
   if (!t) return false;
   if (isListingWorkflowCommand(t)) return false;
+  if (textContainsListingContactSignals(t)) return true;
   if (isManualFillIntent(t)) return true;
   if (parsePriceFromChatInput(t) != null) return true;
   if (PRICE_ONLY_RE.test(t)) return true;
@@ -58,6 +68,35 @@ export function parsePriceFromChatInput(text: string): number | null {
 }
 
 /** Apply price/title patch from chat; returns assistant confirmation or null. */
+export function tryApplyListingContactCapture(
+  text: string,
+  aiDraft: AiExtractedListing | null,
+  updateAiDraft: (patch: Partial<AiExtractedListing>) => void,
+  opts?: { awaitingField?: AwaitingContactField | null }
+): string | null {
+  if (!aiDraft) return null;
+
+  const awaitingField = opts?.awaitingField ?? readAwaitingContactField();
+  const shouldTry =
+    awaitingField != null || textContainsListingContactSignals(text);
+  if (!shouldTry) return null;
+
+  const parsed = parseListingContactFromText(text, {
+    ...(awaitingField ? { prioritizeField: awaitingField } : {}),
+  });
+  if (!parsed.hasAny) return null;
+
+  const nextDraft = applyParsedContactsToDraft(aiDraft, parsed);
+  updateAiDraft({
+    location: nextDraft.location,
+    contact: nextDraft.contact,
+    attributes: nextDraft.attributes,
+  });
+  setAwaitingContactField(null);
+  return buildListingContactUpdateReply(parsed);
+}
+
+/** Apply price/title patch from chat; returns assistant confirmation or null. */
 export function tryApplyListingChatInput(
   text: string,
   aiDraft: AiExtractedListing | null,
@@ -66,6 +105,11 @@ export function tryApplyListingChatInput(
   if (!aiDraft) return null;
 
   if (isListingWorkflowCommand(text)) return null;
+
+  const contactReply = tryApplyListingContactCapture(text, aiDraft, updateAiDraft);
+  if (contactReply) return contactReply;
+
+  if (textContainsListingContactSignals(text)) return null;
 
   if (isManualFillIntent(text)) {
     return buildManualFillChatRedirectReply();

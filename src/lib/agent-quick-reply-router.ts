@@ -1,5 +1,11 @@
-import type { SellerFlowStep } from "@/lib/types";
+import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
 import {
+  buildMissingContactFieldsPrompt,
+  CONTACT_CAPTURE_CITY_PROMPT,
+  CONTACT_CAPTURE_PHONE_PROMPT,
+  setAwaitingContactField,
+} from "@/lib/listing-contact-parse";
+import type { SellerFlowStep } from "@/lib/types";import {
   WARDROBE_IMPORT_HOW_IT_WORKS_REPLY,
   WARDROBE_BULK_PHOTO_PICK_HINT,
   requestWardrobeBulkPhotoPick,
@@ -54,6 +60,8 @@ export interface AgentQuickReplyDeps {
   confirmPublishNow: () => AgentQuickReplyResult;
   /** Detailed guide when user taps „Suvesti trūkstamus duomenis“. */
   buildPrePublishMissingGuide: () => string;
+  /** Current pre-publish readiness for guided contact chips. */
+  getPrePublishReadiness: () => PrePublishReadiness | null;
   publishBulkClothingListings: (drafts: AiExtractedListing[]) => void;
   applyAgentWardrobeBulk: (
     items: WardrobeDraftItem[],
@@ -388,10 +396,39 @@ export function tryHandleAgentQuickReply(
   }
 
   if (matchesChip(trimmed, [/suvesti tr[uū]kstamus duomenis/])) {
+    const readiness = deps.getPrePublishReadiness();
+    if (readiness && !readiness.ok) {
+      const guided = buildMissingContactFieldsPrompt({
+        missingPhone: readiness.missingPhone,
+        missingCity: readiness.missingCity,
+        missingPhoto: readiness.missingPhoto,
+      });
+      return {
+        handled: true,
+        reply: guided.reply,
+        quickReplies: guided.quickReplies,
+      };
+    }
     return {
       handled: true,
       reply: deps.buildPrePublishMissingGuide(),
-      quickReplies: ["Įkelti nuotraukas", "Reikia pataisyti"],
+      quickReplies: ["Telefono numeris", "Miestas", "Įkelti nuotraukas", "Reikia pataisyti"],
+    };
+  }
+
+  if (matchesChip(trimmed, [/telefono numer/i])) {
+    setAwaitingContactField("phone");
+    return {
+      handled: true,
+      reply: CONTACT_CAPTURE_PHONE_PROMPT,
+    };
+  }
+
+  if (matchesChip(trimmed, [/^miestas$/])) {
+    setAwaitingContactField("city");
+    return {
+      handled: true,
+      reply: CONTACT_CAPTURE_CITY_PROMPT,
     };
   }
 
