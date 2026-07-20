@@ -103,8 +103,10 @@ services:
         sync: false
 
 databases:
+  # Free Postgres expires after 30 days and suspends the whole API (502).
+  # Keep a paid plan so production AI/search stays online.
   - name: vauto-db
-    plan: free
+    plan: basic_256mb
     region: frankfurt
     databaseName: vauto
     user: vauto
