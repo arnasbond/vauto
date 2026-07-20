@@ -48,6 +48,11 @@ import {
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
 import { registerPushNotifications } from "@/lib/push-registration";
 import {
+  completeHeroListingFlow,
+  logHeroContactReask,
+  markHeroListingFlowStart,
+} from "@/lib/hero-kpis";
+import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
@@ -518,6 +523,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     ) => {
       const epoch = processingEpochRef.current;
       const started = performance.now();
+      if (opts?.previewImage || (opts?.previewImages?.length ?? 0) > 0) {
+        markHeroListingFlowStart(`processing_${mode}`);
+        trackEvent("kpi_listing_flow_start", { source: `processing_${mode}` });
+      } else if (opts?.transcript?.trim()) {
+        markHeroListingFlowStart(`processing_${mode}_text`);
+        trackEvent("kpi_listing_flow_start", { source: `processing_${mode}_text` });
+      }
       setSellerStep("processing");
       setAiManualFallback(false);
 
@@ -1649,6 +1661,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const listingCity = resolvePublishListingCity(profileDraft.location, user.city, coords);
     if (!listingCity) {
       showToast("Nurodykite miestą prieš publikuojant.", "error");
+      if (verifiedProfileCity(user.city)) {
+        logHeroContactReask("city", "publish_location_missing_prompt");
+      }
       pushAgentGreeting(LOCATION_MISSING_AGENT_PROMPT, {
         replaceThread: false,
         openSheet: true,
@@ -1789,6 +1804,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       });
       // Hero S4: subscribe Web Push from publish gesture so buyer messages reach the seller.
       void registerPushNotifications([]);
+      completeHeroListingFlow({
+        listingId: published.id,
+        pendingReview: Boolean(published.requiresReview),
+      });
+      trackEvent("kpi_listing_published", {
+        listingId: published.id,
+        pendingReview: Boolean(published.requiresReview),
+      });
       scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
         if (result.facebook === "opened") {
           showToast("Facebook dalijimasis inicijuotas.", "info");
@@ -1820,6 +1843,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     });
     // Hero S4: subscribe Web Push from publish gesture so buyer messages reach the seller.
     void registerPushNotifications([]);
+    completeHeroListingFlow({
+      listingId: newListing.id,
+      pendingReview: Boolean(newListing.requiresReview),
+    });
+    trackEvent("kpi_listing_published", {
+      listingId: newListing.id,
+      pendingReview: Boolean(newListing.requiresReview),
+    });
     scheduleListingSocialPublish(newListing, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {
         showToast("Facebook dalijimasis inicijuotas.", "info");

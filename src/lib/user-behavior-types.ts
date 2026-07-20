@@ -14,7 +14,12 @@ export type UserBehaviorActionType =
   | "agent_action"
   | "conductor_publish"
   | "conductor_route"
-  | "seller_photo_category_mismatch";
+  | "seller_photo_category_mismatch"
+  | "kpi_listing_flow_start"
+  | "kpi_listing_published"
+  | "kpi_contact_reask"
+  | "kpi_first_response_signal"
+  | "twin_escalate";
 
 export interface UserBehaviorEvent {
   id: string;

@@ -15,7 +15,14 @@ export type AnalyticsEvent =
   | "checkout_wardrobe_power"
   | "chat_message_sent"
   | "conductor_route"
-  | "twin_escalate";
+  | "twin_escalate"
+  /** Constitution KPI 1+2 */
+  | "kpi_listing_flow_start"
+  | "kpi_listing_published"
+  /** Constitution KPI 3 */
+  | "kpi_contact_reask"
+  /** Constitution KPI 4 */
+  | "kpi_first_response_signal";
 
 export function logAnalytics(
   event: AnalyticsEvent,
