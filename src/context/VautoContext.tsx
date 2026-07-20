@@ -137,7 +137,6 @@ import { ZeroUiMemoryProvider } from "@/context/ZeroUiMemoryContext";
 import { FleetMatchBuddyHost } from "@/components/buddy/FleetMatchBuddyHost";
 import { SellerFlowOverlays } from "@/components/SellerFlowOverlays";
 import { AdminProjectContextProvider } from "@/context/AdminProjectContext";
-import { ZeroUiSellerBridge } from "@/components/zero-ui/ZeroUiSellerBridge";
 import { VautoBridgeProvider, type VautoBridgeValue } from "@/context/VautoBridge";
 import { apiTopUpWallet, apiPromoteListing } from "@/lib/api/wallet-reviews";
 import type { ListingEditPatch } from "@/lib/listing-edit";
@@ -304,11 +303,6 @@ interface VautoContextValue {
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
-  openManualListingWizard: (opts?: {
-    previewImage?: string | null;
-    toastMessage?: string;
-    inputMode?: SellerInputMode;
-  }) => void;
   photoCategoryMismatch: { fromCategory: ListingCategory; toCategory: ListingCategory } | null;
   revertPhotoCategoryMismatch: () => boolean;
   acceptPhotoCategoryMismatch: () => void;
@@ -699,7 +693,6 @@ function VautoFacade({
           </PublishCelebrationProvider>
         </ZeroUiMemoryProvider>
       </AdminProjectContextProvider>
-      <ZeroUiSellerBridge />
       <ChameleonThemeHost />
       <ReviewPromptHost />
       <GdprConsentModal

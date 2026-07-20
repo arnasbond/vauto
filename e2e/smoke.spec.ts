@@ -67,24 +67,26 @@ test.describe("VAUTO smoke", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("add page shows category chips for signed-in user", async ({ page }) => {
+  test("add page opens agent listing shell for signed-in user", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
     await expect(
-      page.getByRole("button", { name: "Auto", exact: true })
-    ).toBeVisible({
-      timeout: 15_000,
-    });
-    await expect(page.getByRole("button", { name: "Technika" })).toBeVisible();
-    await expect(page.getByText(/Skelbti su Vision AI/i).first()).toBeVisible();
+      page.getByRole("heading", { name: /Kelkite skelbimą pokalbyje|Kelkite drabužį pokalbyje/i })
+    ).toBeVisible({ timeout: 15_000 });
+    await expect(
+      page.getByRole("button", { name: /Įkelti nuotraukas/i })
+    ).toBeVisible();
+    await expect(
+      page.getByRole("button", { name: /Rašyti asistentui/i })
+    ).toBeVisible();
   });
 
-  test("add listing page loads upload UI", async ({ page }) => {
+  test("add listing page loads agent photo CTA", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
-    await expect(page.getByText(/Skelbti su Vision AI/i).first()).toBeVisible({
-      timeout: 15_000,
-    });
+    await expect(
+      page.getByRole("button", { name: /Įkelti nuotraukas \(iki 6\)/i })
+    ).toBeVisible({ timeout: 15_000 });
   });
 
   test("home search accepts input", async ({ page }) => {

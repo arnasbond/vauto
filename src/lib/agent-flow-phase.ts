@@ -8,7 +8,6 @@ export type AgentFlowPhase =
   | "idle"
   | "agent_chat"
   | "listing_processing"
-  | "listing_wizard"
   | "listing_published";
 
 export function resolveAgentFlowPhase(
@@ -19,7 +18,8 @@ export function resolveAgentFlowPhase(
     case "processing":
       return "listing_processing";
     case "confirmation":
-      return "listing_wizard";
+      // Legacy step — confirmation UI is the agent PrePublish card.
+      return opts?.agentSheetOpen ? "agent_chat" : "idle";
     case "published":
       return "listing_published";
     case "idle":
@@ -51,7 +51,7 @@ export function shouldShowBrowseAgentComposer(
   opts?: { homeHasSearch?: boolean }
 ): boolean {
   if (sellerStep !== "idle") return false;
-  if (phase === "listing_wizard" || phase === "listing_processing") return false;
+  if (phase === "listing_processing") return false;
 
   if (pathname === "/" || pathname === "") {
     return Boolean(opts?.homeHasSearch);
@@ -62,9 +62,5 @@ export function shouldShowBrowseAgentComposer(
 
 /** Hide static upload/import CTAs while agent drives the form. */
 export function isSellerFlowBlockingStaticUi(phase: AgentFlowPhase): boolean {
-  return (
-    phase === "listing_wizard" ||
-    phase === "listing_processing" ||
-    phase === "listing_published"
-  );
+  return phase === "listing_processing" || phase === "listing_published";
 }
