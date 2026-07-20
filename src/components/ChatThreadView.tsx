@@ -11,6 +11,8 @@ import { ReportButton } from "@/components/support/ReportButton";
 import { MagicMirrorChatBanner } from "@/components/chat/MagicMirrorChatBanner";
 import { NegotiationTwinPanel } from "@/components/chat/NegotiationTwinPanel";
 import { useVauto } from "@/context/VautoContext";
+import { logAnalytics } from "@/lib/analytics";
+import type { TwinTemplateId } from "@/lib/twin-templates";
 import {
   analyzeMagicMirrorFit,
   buyerMeasurementsFromProfile,
@@ -212,12 +214,30 @@ function ChatThreadContent({
         </div>
       )}
 
-      {isSeller && listing && (
+      {isSeller && listing && chat && (
         <NegotiationTwinPanel
           chat={chat}
           listingPrice={listing.price}
           listingMinNegotiationPrice={listing.minNegotiationPrice}
           onUpdate={(config) => updateNegotiationTwin(chatId, config)}
+          onSendTemplate={(templateId: TwinTemplateId, text: string) => {
+            sendMessage(chatId, text);
+            if (templateId === "escalate_human") {
+              logAnalytics("twin_escalate", {
+                chatId,
+                listingId: listing.id,
+                reason: "manual_chip",
+              });
+              const prev = chat.negotiationTwin;
+              updateNegotiationTwin(chatId, {
+                enabled: false,
+                minPrice: prev?.minPrice ?? listing.minNegotiationPrice ?? listing.price,
+                sellerApproved: false,
+                sellerConsentAt: prev?.sellerConsentAt,
+                maxDiscountPercent: prev?.maxDiscountPercent,
+              });
+            }
+          }}
         />
       )}
 

@@ -3,6 +3,11 @@
 import { Bot } from "lucide-react";
 import { useState } from "react";
 import type { ChatThread } from "@/lib/types";
+import {
+  TWIN_TEMPLATE_CHIPS,
+  twinTemplateText,
+  type TwinTemplateId,
+} from "@/lib/twin-templates";
 
 interface NegotiationTwinPanelProps {
   chat: ChatThread;
@@ -15,6 +20,7 @@ interface NegotiationTwinPanelProps {
     sellerConsentAt?: string;
     maxDiscountPercent?: number;
   }) => void;
+  onSendTemplate?: (templateId: TwinTemplateId, text: string) => void;
 }
 
 export function NegotiationTwinPanel({
@@ -22,6 +28,7 @@ export function NegotiationTwinPanel({
   listingPrice,
   listingMinNegotiationPrice,
   onUpdate,
+  onSendTemplate,
 }: NegotiationTwinPanelProps) {
   const twin = chat.negotiationTwin;
   const defaultMin =
@@ -29,9 +36,6 @@ export function NegotiationTwinPanel({
     listingMinNegotiationPrice ??
     Math.max(1, Math.round(listingPrice * 0.85));
   const [minPrice, setMinPrice] = useState(defaultMin);
-  const [maxDiscountPercent, setMaxDiscountPercent] = useState(
-    twin?.maxDiscountPercent ?? 25
-  );
   const [sellerApproved, setSellerApproved] = useState(twin?.sellerApproved ?? false);
   const [sellerConsent, setSellerConsent] = useState(Boolean(twin?.sellerConsentAt));
   const enabled = twin?.enabled ?? false;
@@ -45,7 +49,6 @@ export function NegotiationTwinPanel({
         nextEnabled && sellerConsent && sellerApproved
           ? twin?.sellerConsentAt ?? new Date().toISOString()
           : undefined,
-      maxDiscountPercent,
     });
   };
 
@@ -55,12 +58,11 @@ export function NegotiationTwinPanel({
         <Bot className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
         <div className="flex-1">
           <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
-            Derybų dvynys (AI Twin)
+            AI dvynys (šablonai)
           </p>
           <p className="mt-0.5 text-[11px] text-emerald-800 dark:text-emerald-200">
-            AI atsakys tik gavęs jūsų sutikimą, minimalią kainą ir neviršys maks.
-            nuolaidos ribos. Asmeniniai duomenys ir ne kainos klausimai perduodami
-            jums.
+            Tik trys atsakymai: ar dar aktualu, kainos riba, arba perdavimas
+            žmogui. Jokio pilno derybininko.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
             <label className="flex items-center gap-1.5 text-xs text-emerald-900">
@@ -84,20 +86,6 @@ export function NegotiationTwinPanel({
               />
               <span className="text-[11px] text-emerald-700">€</span>
             </div>
-            <div className="flex items-center gap-1">
-              <span className="text-[11px] text-emerald-700">Maks. nuolaida</span>
-              <input
-                type="number"
-                min={0}
-                max={50}
-                value={maxDiscountPercent}
-                onChange={(e) =>
-                  setMaxDiscountPercent(Math.min(50, Number(e.target.value) || 0))
-                }
-                className="w-12 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs"
-              />
-              <span className="text-[11px] text-emerald-700">%</span>
-            </div>
           </div>
           <label className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-900 dark:text-emerald-100">
             <input
@@ -106,7 +94,7 @@ export function NegotiationTwinPanel({
               onChange={(e) => setSellerApproved(e.target.checked)}
               className="mt-0.5 accent-emerald-600"
             />
-            Patvirtinu autonomines derybas šiame pokalbyje
+            Leidžiu šabloninius atsakymus šiame pokalbyje
           </label>
           <label className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-900 dark:text-emerald-100">
             <input
@@ -115,8 +103,8 @@ export function NegotiationTwinPanel({
               onChange={(e) => setSellerConsent(e.target.checked)}
               className="mt-0.5 accent-emerald-600"
             />
-            Sutinku, kad AI dvynys atsakytų pirkėjams mano vardu pagal aukščiau nurodytas
-            taisykles
+            Sutinku, kad AI dvynys atsakytų pirkėjams mano vardu tik šiais
+            šablonais
           </label>
           <button
             type="button"
@@ -124,8 +112,24 @@ export function NegotiationTwinPanel({
             disabled={!sellerApproved || !sellerConsent}
             className="mt-2 rounded-full bg-emerald-600 px-3 py-1 text-[11px] font-semibold text-white disabled:opacity-40"
           >
-            Išsaugoti taisykles
+            Išsaugoti
           </button>
+          {onSendTemplate && (
+            <div className="mt-2 flex flex-wrap gap-1.5">
+              {TWIN_TEMPLATE_CHIPS.map((chip) => (
+                <button
+                  key={chip.id}
+                  type="button"
+                  onClick={() =>
+                    onSendTemplate(chip.id, twinTemplateText(chip.id, minPrice))
+                  }
+                  className="rounded-full border border-emerald-300 bg-white px-2.5 py-1 text-[11px] font-medium text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100"
+                >
+                  {chip.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
     </div>

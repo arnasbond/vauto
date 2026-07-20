@@ -1,5 +1,9 @@
 import { apiNegotiationTwin } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
+import {
+  pickTwinTemplate,
+  type TwinTemplateId,
+} from "@/lib/twin-templates";
 
 export interface NegotiationTwinReply {
   shouldReply: boolean;
@@ -8,6 +12,9 @@ export interface NegotiationTwinReply {
   dealReady: boolean;
   autoReply: string;
   sellerNotification: string;
+  escalate?: boolean;
+  templateId?: TwinTemplateId;
+  blockedReason?: string;
 }
 
 function localTwin(body: {
@@ -16,33 +23,22 @@ function localTwin(body: {
   minPrice: number;
   listingTitle: string;
   sellerName: string;
-}): NegotiationTwinReply | null {
-  const offered = body.buyerMessage.match(/(\d[\d\s.,]*)\s*(?:€|eur)/i);
-  const price = offered ? Number(offered[1]!.replace(/[^\d]/g, "")) : NaN;
-  if (!Number.isFinite(price) || price <= 0) return null;
-
-  const min = body.minPrice;
-  const sellerFirst = body.sellerName.trim().split(/\s+/)[0] || "Pardavėja";
-
-  if (price >= min) {
-    return {
-      shouldReply: true,
-      offeredPrice: price,
-      counterPrice: price,
-      dealReady: true,
-      autoReply: `Puiku! ${sellerFirst} sutinka su ${price} € — galime tęsti saugų pirkimą per VAUTO escrow.`,
-      sellerNotification: `${sellerFirst}, AI Dvynys užbaigė derybas — pirkėja sutinka ${price} €.`,
-    };
-  }
-
-  const counter = Math.max(min, Math.round((min + body.listingPrice) / 2));
+}): NegotiationTwinReply {
+  const picked = pickTwinTemplate(
+    body.buyerMessage,
+    body.minPrice,
+    body.sellerName
+  );
   return {
     shouldReply: true,
-    offeredPrice: price,
-    counterPrice: counter,
-    dealReady: false,
-    autoReply: `Ačiū už ${price} €. ${sellerFirst} gali sutikti su ${counter} € — ar tinka?`,
-    sellerNotification: `${sellerFirst}, AI Dvynys pasiūlė ${counter} € (min ${min} €).`,
+    offeredPrice: picked.offeredPrice,
+    counterPrice:
+      picked.templateId === "price_floor" ? body.minPrice : undefined,
+    dealReady: picked.dealReady,
+    autoReply: picked.autoReply,
+    sellerNotification: picked.sellerNotification,
+    escalate: picked.escalate,
+    templateId: picked.templateId,
   };
 }
 
@@ -63,7 +59,14 @@ export async function requestNegotiationTwin(body: {
 }): Promise<NegotiationTwinReply | null> {
   if (isAiProxyAvailable()) {
     const remote = await apiNegotiationTwin(body);
-    if (remote?.shouldReply) return remote;
+    if (
+      remote &&
+      (remote.shouldReply ||
+        remote.escalate ||
+        Boolean(remote.sellerNotification?.trim()))
+    ) {
+      return remote;
+    }
   }
   return localTwin(body);
 }

@@ -14,7 +14,8 @@ export type AnalyticsEvent =
   | "checkout_wardrobe_style_boost"
   | "checkout_wardrobe_power"
   | "chat_message_sent"
-  | "conductor_route";
+  | "conductor_route"
+  | "twin_escalate";
 
 export function logAnalytics(
   event: AnalyticsEvent,

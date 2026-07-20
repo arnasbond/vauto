@@ -200,22 +200,22 @@ export function ManoSkelbimaiDashboard({
 
   const handleActivateAiTwin = async (listing: Listing) => {
     const ok = await showConfirm({
-      title: "Aktyvuoti AI derybininką?",
+      title: "Aktyvuoti AI dvynį?",
       message:
-        "AI Dvynys–Derybininkas 24/7 automatiškai derėsis su pirkėjais pagal jūsų minimalią kainą. Norėsite tęsti aktyvavimą?",
+        "AI dvynys atsakys tik šablonais (ar dar aktualu, kainos riba) ir prireikus perduos pokalbį jums. Norėsite tęsti aktyvavimą?",
       confirmLabel: "Taip, aktyvuoti",
       cancelLabel: "Atšaukti",
     });
     if (!ok) return;
     openMicroPayment({
       reason:
-        "AI Dvynys–Derybininkas — 24/7 automatiškos derybos su pirkėjais pagal jūsų minimalią kainą.",
+        "AI dvynys — šabloniniai atsakymai + perdavimas žmogui pagal jūsų minimalią kainą.",
       price: 4.99,
       product: "generic",
       voiceConfirmPhrase: "Taip, apmokėti",
       metadata: { kind: "ai_twin", listingId: listing.id },
     });
-    showToast("Atidarau AI derybininko aktyvavimą", "info");
+    showToast("Atidarau AI dvynio aktyvavimą", "info");
     if (!listing.minNegotiationPrice) {
       showToast(
         "Patarimas: nustatykite minimalią kainą (minNegotiationPrice), kad dvynys žinotų ribas.",

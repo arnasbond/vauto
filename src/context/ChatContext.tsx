@@ -486,8 +486,40 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               threadId: chatId,
               listingId: listing.id,
             }).then((negotiation) => {
-              if (!negotiation?.shouldReply || !negotiation.autoReply?.trim()) {
-                if (negotiation?.sellerNotification && userRef.current.id === sellerId) {
+              if (!negotiation) return;
+
+              const escalate =
+                Boolean(negotiation.escalate) ||
+                negotiation.templateId === "escalate_human";
+
+              if (escalate) {
+                logAnalytics("twin_escalate", {
+                  chatId,
+                  listingId: listing.id,
+                  reason: negotiation.blockedReason ?? negotiation.templateId ?? "human",
+                });
+              }
+
+              if (!negotiation.shouldReply || !negotiation.autoReply?.trim()) {
+                if (escalate) {
+                  upsertChats((prev) => {
+                    const next = prev.map((c) => {
+                      if (c.id !== chatId || !c.negotiationTwin) return c;
+                      return {
+                        ...c,
+                        negotiationTwin: {
+                          ...c.negotiationTwin,
+                          enabled: false,
+                          sellerApproved: false,
+                        },
+                      };
+                    });
+                    const thread = next.find((c) => c.id === chatId);
+                    if (thread) persistChat(thread);
+                    return next;
+                  });
+                }
+                if (negotiation.sellerNotification && userRef.current.id === sellerId) {
                   showToast(`🤖 ${negotiation.sellerNotification}`, "info");
                 }
                 return;
@@ -502,19 +534,34 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 status: "sent",
               };
 
-              upsertChats((prev) =>
-                prev.map((c) => {
+              upsertChats((prev) => {
+                const next = prev.map((c) => {
                   if (c.id !== chatId) return c;
+                  const nextTwin =
+                    escalate && c.negotiationTwin
+                      ? {
+                          ...c.negotiationTwin,
+                          enabled: false,
+                          sellerApproved: false,
+                        }
+                      : c.negotiationTwin;
                   return {
                     ...c,
                     messages: [...c.messages, autoMsg],
                     ...(negotiation.dealReady ? { escrowOffered: true } : {}),
+                    ...(nextTwin ? { negotiationTwin: nextTwin } : {}),
                   };
-                })
-              );
+                });
+                const thread = next.find((c) => c.id === chatId);
+                if (thread) persistChat(thread);
+                return next;
+              });
 
               if (userRef.current.id === sellerId && negotiation.sellerNotification) {
-                showToast(`🤖 ${negotiation.sellerNotification}`, "success");
+                showToast(
+                  `🤖 ${negotiation.sellerNotification}`,
+                  escalate ? "info" : "success"
+                );
               }
             });
           } else {
