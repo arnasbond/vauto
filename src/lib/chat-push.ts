@@ -92,11 +92,17 @@ export async function dispatchChatPushNotification(
   }
 }
 
+/** Permission + Web Push subscription (server endpoint). Call from a user gesture when possible. */
 export async function requestChatPushPermission(): Promise<boolean> {
   if (isNativePushDisabled()) return false;
   if (typeof window === "undefined" || !("Notification" in window)) return false;
-  if (Notification.permission === "granted") return true;
   if (Notification.permission === "denied") return false;
+
+  const { ensureWebPushSubscription } = await import("@/lib/web-push");
+  if (Notification.permission === "granted") {
+    return ensureWebPushSubscription();
+  }
   const result = await Notification.requestPermission();
-  return result === "granted";
+  if (result !== "granted") return false;
+  return ensureWebPushSubscription();
 }
