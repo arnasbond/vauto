@@ -173,6 +173,7 @@ import {
   buildListingContactUpdateReply,
   parseListingContactFromText,
 } from "@/lib/listing-contact-parse";
+import { logHeroContactReask } from "@/lib/hero-kpis";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
 export interface AgentSendOptions {
@@ -2188,6 +2189,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (isGapActionChip(trimmed) && !/^įkelti nuotrauk/i.test(trimmed)) {
         const field = gapFieldFromChip(trimmed);
         if (field === "phone" || field === "city") {
+          const profileHad =
+            field === "phone"
+              ? hasProfileListingContact(user)
+              : Boolean(user.city?.trim());
+          if (profileHad) {
+            logHeroContactReask(field, "gap_chip_while_profile_ready");
+          }
           setMessages((prev) => [
             ...prev,
             {
@@ -2250,11 +2258,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     },
     [
       pathname,
+      router,
       listings,
       marketplaceFilters,
-      user.name,
-      user.city,
-      user.phone,
+      user,
       applyVisualSearch,
       applyActions,
       setSearchInputMode,

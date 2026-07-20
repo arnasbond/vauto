@@ -45,6 +45,7 @@ import {
   dispatchChatPushNotification,
   requestChatPushPermission,
 } from "@/lib/chat-push";
+import { logHeroFirstResponseSignal } from "@/lib/hero-kpis";
 import type { ChatMessage, ChatThread, EscrowTransaction, Listing, NegotiationTwinConfig } from "@/lib/types";
 
 interface ChatContextValue {
@@ -206,6 +207,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (activeChatIdRef.current === event.chatId) return;
         playChatIncomingSound();
         showToast(`💬 ${event.listingTitle}: ${event.preview}`, "info");
+        logHeroFirstResponseSignal({
+          chatId: event.chatId,
+          messageSentAt: event.messageSentAt,
+          channel: "incoming_alert",
+        });
         const thread = chatsRef.current.find((c) => c.id === event.chatId);
         void dispatchChatPushNotification(
           buildChatPushPayload({
@@ -248,6 +254,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         listingTitle: string;
         preview: string;
         senderId: string;
+        messageSentAt?: string;
       }> = [];
 
       for (const remote of remoteThreads) {
@@ -263,6 +270,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             listingTitle: remote.listingTitle,
             preview: m.text,
             senderId: m.senderId,
+            messageSentAt: m.timestamp,
           });
         }
       }

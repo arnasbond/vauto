@@ -12,6 +12,8 @@ export type ChatRealtimeEvent =
       listingTitle: string;
       preview: string;
       senderId: string;
+      /** ISO timestamp of the buyer message that triggered the alert */
+      messageSentAt?: string;
     };
 
 let channel: BroadcastChannel | null = null;
