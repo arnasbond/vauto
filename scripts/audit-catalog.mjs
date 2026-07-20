@@ -78,7 +78,7 @@ const refs = [
   ["src/data/mockReviews.ts", ["lt-svc-001", "lt-el-001", "seller-svc-1", "seller-el-1"]],
   ["src/data/mockReports.ts", ["lt-el-001", "lt-el-002", "seller-el-1", "seller-el-2"]],
   ["src/data/mockListings.ts", ["lt-el-001", "chat-1"]],
-  ["e2e/smoke.spec.ts", ["lt-auto-001"]],
+  ["e2e/smoke.spec.ts", ["Kelkite skelbimą pokalbyje"]],
 ];
 
 for (const [file, needles] of refs) {

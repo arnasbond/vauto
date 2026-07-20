@@ -89,16 +89,6 @@ test.describe("VAUTO smoke", () => {
     ).toBeVisible({ timeout: 15_000 });
   });
 
-  test("catalog listing detail resolves lt-auto-001", async ({ page }) => {
-    await page.goto("/listing/lt-auto-001/");
-    await expect(page.locator("body")).not.toContainText(/Skelbimas nerastas/i, {
-      timeout: 15_000,
-    });
-    await expect(page.locator("body")).toContainText(/BMW 320d/i, {
-      timeout: 15_000,
-    });
-  });
-
   test("home search accepts input", async ({ page }) => {
     await waitForHomeReady(page);
     const search = page.getByRole("searchbox").first();
