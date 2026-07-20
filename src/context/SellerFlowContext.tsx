@@ -46,6 +46,7 @@ import {
   verifiedProfileCity,
 } from "@/lib/listing-location-context";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
+import { registerPushNotifications } from "@/lib/push-registration";
 import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
@@ -1786,6 +1787,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       scheduleSellerEngagementPush(published.id, published.location, published.title, {
         pendingReview: Boolean(published.requiresReview),
       });
+      // Hero S4: subscribe Web Push from publish gesture so buyer messages reach the seller.
+      void registerPushNotifications([]);
       scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
         if (result.facebook === "opened") {
           showToast("Facebook dalijimasis inicijuotas.", "info");
@@ -1815,6 +1818,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     scheduleSellerEngagementPush(newListing.id, newListing.location, newListing.title, {
       pendingReview: Boolean(newListing.requiresReview),
     });
+    // Hero S4: subscribe Web Push from publish gesture so buyer messages reach the seller.
+    void registerPushNotifications([]);
     scheduleListingSocialPublish(newListing, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {
         showToast("Facebook dalijimasis inicijuotas.", "info");

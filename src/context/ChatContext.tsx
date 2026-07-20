@@ -40,7 +40,11 @@ import {
   subscribeChatEvents,
 } from "@/lib/chat-realtime";
 import { playChatIncomingSound } from "@/lib/chat-incoming-alert";
-import { requestChatPushPermission } from "@/lib/chat-push";
+import {
+  buildChatPushPayload,
+  dispatchChatPushNotification,
+  requestChatPushPermission,
+} from "@/lib/chat-push";
 import type { ChatMessage, ChatThread, EscrowTransaction, Listing, NegotiationTwinConfig } from "@/lib/types";
 
 interface ChatContextValue {
@@ -202,6 +206,22 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (activeChatIdRef.current === event.chatId) return;
         playChatIncomingSound();
         showToast(`💬 ${event.listingTitle}: ${event.preview}`, "info");
+        const thread = chatsRef.current.find((c) => c.id === event.chatId);
+        void dispatchChatPushNotification(
+          buildChatPushPayload({
+            chat: thread ?? {
+              id: event.chatId,
+              listingId: "",
+              listingTitle: event.listingTitle,
+              buyerId: "",
+              sellerId: "",
+              messages: [],
+              escrowOffered: false,
+            },
+            sender: { name: "VAUTO" },
+            messageText: event.preview,
+          })
+        );
       }
     });
   }, [showToast]);
