@@ -1,7 +1,7 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
-import { useRouter } from "next/navigation";
+import { Suspense, useEffect, useRef, useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Camera, MessageCircle, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { Header } from "@/components/Header";
@@ -16,16 +16,19 @@ import { transitionListingFlow } from "@/lib/listing-conversational-flow";
 
 /**
  * Constitution: /add is a thin shell into the agent listing organism.
- * No classic form publish path — photos/text go through sendAgentMessage + SM.
+ * Fashion vertical (?vertical=fashion) only seeds clothing category — same agent SM, no dual form.
  */
-export default function AddPage() {
+function AddPageInner() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const isFashion = searchParams.get("vertical") === "fashion";
   const {
     isAuthenticated,
     authHydrated,
     requireAuthForListing,
     requestMediaConsent,
     applyAgentListingDraft,
+    activateWardrobeSpinta,
     user,
     showToast,
   } = useVauto();
@@ -37,21 +40,24 @@ export default function AddPage() {
   useEffect(() => {
     if (!authHydrated) return;
     if (!isAuthenticated) {
-      requireAuthForListing("/add");
+      requireAuthForListing(isFashion ? "/add?vertical=fashion" : "/add");
       return;
     }
     if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
 
-    // Seed draft from profile contacts → AWAITING_PHOTOS organism entry.
+    if (isFashion) activateWardrobeSpinta();
+
+    const base = createManualFallbackDraft({
+      location: user.city || "",
+      contact: user.phone || "",
+    });
     const seeded = applyProfileToListingDraft(
       {
-        ...createManualFallbackDraft({
-          location: user.city || "",
-          contact: user.phone || "",
-        }),
-        title: "Naujas skelbimas",
+        ...base,
+        title: isFashion ? "Drabužių skelbimas" : "Naujas skelbimas",
         description: "",
+        category: isFashion ? "clothing" : base.category,
         listingFlowState: "DRAFTING_TEXT",
       },
       user,
@@ -62,17 +68,22 @@ export default function AddPage() {
       transitionListingFlow("DRAFTING_TEXT", "DRAFT_SAVED") ?? "AWAITING_PHOTOS";
     applyAgentListingDraft({
       ...seeded,
+      category: isFashion ? "clothing" : seeded.category,
       listingFlowState: nextState,
     });
     setOpen(true);
     void sendAgentMessage(
-      "Noriu kelti skelbimą — naudoju profilio kontaktus. Prašau paprašyti nuotraukų.",
+      isFashion
+        ? "Noriu kelti drabužių skelbimą Spintoje — naudoju profilio kontaktus. Prašau paprašyti nuotraukų."
+        : "Noriu kelti skelbimą — naudoju profilio kontaktus. Prašau paprašyti nuotraukų.",
       { skipUserBubble: true }
     );
   }, [
     authHydrated,
     isAuthenticated,
+    isFashion,
     requireAuthForListing,
+    activateWardrobeSpinta,
     applyAgentListingDraft,
     sendAgentMessage,
     setOpen,
@@ -86,7 +97,7 @@ export default function AddPage() {
       sendAgentMessage,
       setOpen,
       navigateBeforeSend: () => {
-        router.replace("/");
+        router.replace(isFashion ? "/fashion" : "/");
       },
       onBusyChange: setBusy,
     });
@@ -94,7 +105,7 @@ export default function AddPage() {
 
   const startWithText = () => {
     setOpen(true);
-    router.replace("/");
+    router.replace(isFashion ? "/fashion" : "/");
     showToast("Tęskite skelbimą pokalbyje su asistentu.", "info");
   };
 
@@ -120,7 +131,7 @@ export default function AddPage() {
           <HeroSection>
             {!isDesktop && <Header />}
             <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
-              Naujas skelbimas
+              {isFashion ? "Spinta — naujas drabužis" : "Naujas skelbimas"}
             </h2>
             <p className="mt-3 px-6 text-center text-sm text-[var(--vauto-text-muted)]">
               Prisijunkite, kad galėtumėte kelti skelbimą per asistentą.
@@ -139,7 +150,7 @@ export default function AddPage() {
           <div className="mt-6 flex flex-col items-center gap-3 px-4 text-center">
             <Sparkles className="h-8 w-8 text-[var(--vauto-primary)]" aria-hidden />
             <h2 className="font-display text-2xl font-bold text-[var(--vauto-text-main)]">
-              Kelkite skelbimą pokalbyje
+              {isFashion ? "Kelkite drabužį pokalbyje" : "Kelkite skelbimą pokalbyje"}
             </h2>
             <p className="max-w-md text-sm text-[var(--vauto-text-muted)]">
               Miestas ir telefonas paimami iš jūsų profilio. Įkelkite iki 6 nuotraukų —
@@ -168,5 +179,25 @@ export default function AddPage() {
         </HeroSection>
       </div>
     </VautoAdaptiveLayout>
+  );
+}
+
+export default function AddPage() {
+  return (
+    <Suspense
+      fallback={
+        <VautoAdaptiveLayout>
+          <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
+            <HeroSection>
+              <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)]">
+                Kraunama…
+              </p>
+            </HeroSection>
+          </div>
+        </VautoAdaptiveLayout>
+      }
+    >
+      <AddPageInner />
+    </Suspense>
   );
 }

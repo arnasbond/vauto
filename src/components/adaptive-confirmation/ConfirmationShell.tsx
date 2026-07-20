@@ -1,102 +1,13 @@
 "use client";
 
-import { ListingPublishSocialOptions } from "@/components/seller/ListingPublishSocialOptions";
-import { ListingValidationBanner, LISTING_PUBLISH_CTA } from "@/components/listing/ListingValidationBanner";
-import { Check, X } from "lucide-react";
-import type { ReactNode } from "react";
-import type { AdaptiveCategoryConfig } from "@/lib/adaptive-categories";
-import type { AiExtractedListing } from "@/lib/types";
-import { useVauto } from "@/context/VautoContext";
+import { Check } from "lucide-react";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { ShareSpintaButton } from "@/components/social/ShareSpintaButton";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 
-interface ConfirmationShellProps {
-  config: AdaptiveCategoryConfig;
-  draft: AiExtractedListing;
-  needsPrice: boolean;
-  canPublish: boolean;
-  publishLabel?: string;
-  validationIssues?: string[];
-  onCancel: () => void;
-  onPublish: () => void;
-  assistantPrompt?: ReactNode;
-  children: ReactNode;
-}
-
-export function ConfirmationShell({
-  config,
-  draft,
-  canPublish,
-  publishLabel = LISTING_PUBLISH_CTA,
-  validationIssues = [],
-  onCancel,
-  onPublish,
-  assistantPrompt,
-  children,
-}: ConfirmationShellProps) {
-  const { chameleonTheme } = useVauto();
-  const { isPublishingListing } = useSellerFlow();
-  const theme = getChameleonTheme(chameleonTheme);
-  const t = theme.confirmation;
-
-  return (
-    <div className={cn("listing-wizard-overlay p-6 transition-colors duration-300", t.shell)}>
-        <div
-          className={cn(
-            "mx-auto max-w-md rounded-3xl p-6 transition-colors duration-300 md:max-w-2xl lg:max-w-4xl",
-            theme.classicLayout ? theme.panel : "border border-white/10 bg-white/5 backdrop-blur-xl"
-          )}
-        >
-        <div className="mb-4 flex items-start justify-between gap-3">
-          <span className={cn("rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wider", t.title)}>
-            Atpažinta: {config.label} skelbimas
-          </span>
-          <button
-            type="button"
-            onClick={onCancel}
-            className={cn("rounded-full p-1.5", t.cancelBtn)}
-            aria-label="Atšaukti"
-          >
-            <X className="h-5 w-5" />
-          </button>
-        </div>
-
-        <h2 className={cn("text-xl font-bold", t.subtitle)}>Patikrinkite skelbimo duomenis</h2>
-        <p className={cn("mb-4 text-xs", t.subtitle)}>
-          AI automatiškai sugeneravo struktūrą pagal {config.label} kategoriją ·
-          pasitikėjimas {Math.round(draft.confidence * 100)}%
-        </p>
-
-        {assistantPrompt}
-
-        <div className="flex flex-col gap-4">{children}</div>
-
-        <ListingPublishSocialOptions className="mt-4" />
-
-        {!canPublish && validationIssues.length > 0 && (
-          <ListingValidationBanner issues={validationIssues} className="mt-4" />
-        )}
-
-        <button
-          type="button"
-          onClick={onPublish}
-          disabled={!canPublish || isPublishingListing}
-          className={cn(
-            "mt-4 w-full rounded-xl p-3 font-bold transition duration-300",
-            t.publishBtn,
-            t.publishBtnDisabled
-          )}
-        >
-          {isPublishingListing ? "Įkeliama…" : publishLabel}
-        </button>
-        </div>
-    </div>
-  );
-}
-
+/** Post-publish celebration — share + dismiss. No classic form wizard shell. */
 export function PublishedOverlay() {
   const { lastPublishedListing, finishPublishedFlow } = useSellerFlow();
   const theme = getChameleonTheme("flux");
@@ -116,34 +27,34 @@ export function PublishedOverlay() {
             p.card
           )}
         >
-        <div className="mb-4 flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
-            <Check className="h-6 w-6 text-emerald-500" />
+          <div className="mb-4 flex items-center gap-3">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-full bg-emerald-500/20">
+              <Check className="h-6 w-6 text-emerald-500" />
+            </div>
+            <div>
+              <h2 className={cn("text-lg font-semibold text-emerald-600", p.title)}>
+                Skelbimas sėkmingai įkeltas!
+              </h2>
+              <p className={cn("text-xs text-[var(--vauto-text-muted)]")}>
+                Pasidalykite socialiniuose tinkluose — papildoma reklama
+              </p>
+            </div>
           </div>
-          <div>
-            <h2 className={cn("text-lg font-semibold text-emerald-600", p.title)}>
-              Skelbimas sėkmingai įkeltas!
-            </h2>
-            <p className={cn("text-xs text-[var(--vauto-text-muted)]")}>
-              Pasidalykite socialiniuose tinkluose — papildoma reklama
-            </p>
-          </div>
-        </div>
 
-        {lastPublishedListing && (
-          <>
-            <ShareSpintaButton listing={lastPublishedListing} className="mb-4" />
-            <ShareListingPanel listing={lastPublishedListing} className="mb-4" compact />
-          </>
-        )}
+          {lastPublishedListing && (
+            <>
+              <ShareSpintaButton listing={lastPublishedListing} className="mb-4" />
+              <ShareListingPanel listing={lastPublishedListing} className="mb-4" compact />
+            </>
+          )}
 
-        <button
-          type="button"
-          onClick={finishPublishedFlow}
-          className="w-full rounded-xl bg-[var(--vauto-teal)] py-3 text-sm font-semibold text-white"
-        >
-          Baigti
-        </button>
+          <button
+            type="button"
+            onClick={finishPublishedFlow}
+            className="w-full rounded-xl bg-[var(--vauto-teal)] py-3 text-sm font-semibold text-white"
+          >
+            Baigti
+          </button>
         </div>
       </div>
     </div>

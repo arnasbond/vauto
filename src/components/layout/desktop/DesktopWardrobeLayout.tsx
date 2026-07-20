@@ -33,18 +33,18 @@ export function DesktopWardrobeLayout({ children, header }: DesktopWardrobeLayou
             </div>
             <div className="space-y-2 p-4">
               <Link
-                href="/add/?vertical=fashion"
+                href="/add?vertical=fashion"
                 className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--anonser-primary)] px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
               >
                 <Upload className="h-4 w-4" aria-hidden />
-                Įkelti prekę
+                Įkelti per asistentą
               </Link>
               <Link
-                href="/add/?vertical=fashion"
+                href="/add?vertical=fashion"
                 className="flex w-full items-center justify-center gap-2 rounded-xl border border-[var(--anonser-border)] bg-[var(--anonser-surface-muted)]/50 px-4 py-2.5 text-sm font-medium text-[var(--anonser-text)] transition hover:border-[var(--anonser-primary)]/40"
               >
                 <Camera className="h-4 w-4 text-[var(--anonser-accent)]" aria-hidden />
-                Nuotraukų krepšelis
+                Nuotraukos pokalbyje
               </Link>
             </div>
           </section>

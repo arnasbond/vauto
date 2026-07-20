@@ -64,8 +64,6 @@ import {
   formatPriceForConfirm,
   isValidAiExtracted,
   logAiSafeguard,
-  MANUAL_FALLBACK_TOAST,
-  VISION_RECOGNITION_FAILED_MESSAGE,
   withAiTimeout,
 } from "@/lib/ai-safeguards";
 import { detectSellerListingIntent } from "@/lib/scoring";
@@ -167,7 +165,6 @@ import { useUserBehavior } from "@/context/UserBehaviorContext";
 import {
   isWeakVisionExtraction,
   RECOVERY_PROCESSING_TIMEOUT_MS,
-  shouldEnterConversationalRecovery,
   VISION_CONVERSATIONAL_RECOVERY_PROMPT,
 } from "@/lib/ai-conversational-recovery";
 import { completeVoiceTeardown } from "@/lib/voice-teardown";
@@ -321,11 +318,6 @@ export interface SellerFlowContextValue {
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
-  openManualListingWizard: (opts?: {
-    previewImage?: string | null;
-    toastMessage?: string;
-    inputMode?: SellerInputMode;
-  }) => void;
   startEditListingFlow: (
     listing: Listing,
     options?: { stayOnPage?: boolean }
@@ -465,39 +457,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     resetSellerFlow();
   }, [resetSellerFlow]);
 
-  const openManualListingWizard = useCallback(
-    (opts?: {
-      previewImage?: string | null;
-      toastMessage?: string;
-      inputMode?: SellerInputMode;
-    }) => {
-      abortSellerProcessing();
-      setAiManualFallback(true);
-      setAiDraft(
-        syncDraftWithProfile(
-          createManualFallbackDraft({
-            location: verifiedProfileCity(user.city),
-            contact: user.phone,
-          })
-        )
-      );
-      if (opts?.previewImage) {
-        setSellerPreviewImage(opts.previewImage);
-      }
-      if (opts?.inputMode) {
-        setSellerInputMode(opts.inputMode);
-      } else {
-        setSellerInputMode((prev) => prev ?? "upload");
-      }
-      setSellerStep("idle");
-      showToast(
-        opts?.toastMessage ?? VISION_RECOGNITION_FAILED_MESSAGE,
-        "info"
-      );
-    },
-    [user.city, user.phone, showToast, abortSellerProcessing, syncDraftWithProfile]
-  );
-
   const enterConversationalRecovery = useCallback(
     (opts: {
       previewImage?: string | null;
@@ -597,40 +556,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
       const enterManualFallback = (reason: string, error?: unknown) => {
         if (isProcessingStale(epoch)) return;
-        if (shouldEnterConversationalRecovery(reason)) {
-          enterConversationalRecovery({
-            previewImage: opts?.previewImage ?? sellerPreviewImage,
-            inputMode: mode ?? undefined,
-            reason,
-          });
-          logAiSafeguard("fallback_triggered", {
-            mode,
-            reason,
-            elapsedMs: Math.round(performance.now() - started),
-            error: error instanceof Error ? error.message : String(error ?? ""),
-            conversational: true,
-          });
-          return;
-        }
         if (reason === "timeout") {
           notifyAgentError("ai_timeout", "AI analizė užtruko per ilgai");
         } else if (reason === "invalid_extraction") {
           notifyAgentError("ai_invalid", "Nepavyko automatiškai atpažinti turinio");
         }
-        const fallbackToast =
-          mode === "upload"
-            ? VISION_RECOGNITION_FAILED_MESSAGE
-            : MANUAL_FALLBACK_TOAST;
-        openManualListingWizard({
+        // Constitution: no classic form fallback — always recover in agent chat.
+        enterConversationalRecovery({
           previewImage: opts?.previewImage ?? sellerPreviewImage,
-          toastMessage: fallbackToast,
           inputMode: mode ?? undefined,
+          reason,
         });
         logAiSafeguard("fallback_triggered", {
           mode,
           reason,
           elapsedMs: Math.round(performance.now() - started),
           error: error instanceof Error ? error.message : String(error ?? ""),
+          conversational: true,
         });
       };
 
@@ -1006,7 +948,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         enterManualFallback("unexpected_error", error);
       }
     },
-    [user.city, user.phone, user.email, openManualListingWizard, sellerPreviewImage, isProcessingStale, showToast, trackEvent, syncDraftWithProfile, enterConversationalRecovery]
+    [user.city, user.phone, user.email, sellerPreviewImage, isProcessingStale, showToast, trackEvent, syncDraftWithProfile, enterConversationalRecovery]
   );
 
   const submitSellerClarification = useCallback(
@@ -1701,7 +1643,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         replaceThread: false,
         openSheet: true,
       });
-      setSellerStep("confirmation");
+      setSellerStep("idle");
       return { ok: false, error: "Nenurodytas miestas." };
     }
     const listingCoords = geocodeLocation(listingCity);
@@ -1799,7 +1741,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         user.id
       );
       if (!createRes.ok || !createRes.data?.id?.trim()) {
-        setSellerStep("confirmation");
+        setSellerStep("idle");
         const failure = resolvePublishApiFailure(createRes.ok ? undefined : createRes.status, createRes.ok ? "serveris grąžino neteisingą atsakymą" : createRes.error);
         setSyncError(failure.message);
         showToast(failure.message, "error");
@@ -1882,7 +1824,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     } catch (e) {
       const detail = e instanceof Error ? e.message : String(e);
       const msg = formatPublishSaveError(detail);
-      setSellerStep("confirmation");
+      setSellerStep("idle");
       setSyncError(msg);
       showToast(msg, "error");
       pushAgentGreeting(msg, { openSheet: true });
@@ -2160,7 +2102,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
-      openManualListingWizard,
       startEditListingFlow,
       listingSocialPublish,
       updateListingSocialPublish,
@@ -2202,7 +2143,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
-      openManualListingWizard,
       startEditListingFlow,
       listingSocialPublish,
       updateListingSocialPublish,
