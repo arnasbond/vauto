@@ -62,6 +62,10 @@ export interface VautoAgentContext {
     location?: string;
     category?: string;
     attributes?: Record<string, string | string[]>;
+    listingFlowState?:
+      | "DRAFTING_TEXT"
+      | "AWAITING_PHOTOS"
+      | "AWAITING_CONFIRMATION";
   };
   missingFields?: string[];
   wizardPrompts?: string[];
@@ -285,6 +289,10 @@ export type VautoAgentAction =
         confidence: number;
         attributes?: Record<string, string | string[]>;
         allowPastomatas?: boolean;
+        listingFlowState?:
+          | "DRAFTING_TEXT"
+          | "AWAITING_PHOTOS"
+          | "AWAITING_CONFIRMATION";
       };
       imageUrl?: string;
       /** All uploaded photos for this draft (multi-image, max 6). */
@@ -548,6 +556,7 @@ export function mapAgentDraftToListing(draft: {
   confidence: number;
   attributes?: Record<string, string | string[]>;
   allowPastomatas?: boolean;
+  listingFlowState?: AiExtractedListing["listingFlowState"];
 }): AiExtractedListing {
   const category = VALID.includes(draft.category as ListingCategory)
     ? (draft.category as ListingCategory)
@@ -563,6 +572,7 @@ export function mapAgentDraftToListing(draft: {
     confidence: draft.confidence,
     attributes: safeDraftAttributes(draft.attributes),
     allowPastomatas: typeof draft.allowPastomatas === "boolean" ? draft.allowPastomatas : true,
+    ...(draft.listingFlowState ? { listingFlowState: draft.listingFlowState } : {}),
   };
 }
 

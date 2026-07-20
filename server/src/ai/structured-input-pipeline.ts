@@ -13,8 +13,6 @@ import {
 import { isListingWorkflowCommand, isPublishWorkflowCommand } from "./listing-workflow-intent.js";
 import {
   buildConversationalMissingPrompt,
-  buildDraftConfirmationBubble,
-  listingConfirmationQuickReplies,
   PRE_PUBLISH_CARD_INTRO,
 } from "./listing-conversational-flow.js";
 import {
@@ -247,14 +245,10 @@ export function resolvePrePublishGatewayResponse(input: {
     };
   }
 
+  // Confirmation stage: never fall back to editable draft bubble chips.
   return {
-    reply: buildDraftConfirmationBubble({
-      title: draft?.title,
-      description: draft?.description,
-      price: draft?.price,
-      location: resolvedCity,
-    }),
-    quickReplies: listingConfirmationQuickReplies(),
+    reply: PRE_PUBLISH_CARD_INTRO,
+    ...(card ? { prePublishCard: card } : {}),
   };
 }
 

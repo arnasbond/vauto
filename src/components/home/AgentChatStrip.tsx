@@ -107,12 +107,15 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   const livePrePublishCard: PrePublishCardPayload | null = useMemo(() => {
     if (!prePublishReadiness?.ok || !aiDraft) return null;
     if (!aiDraft.title?.trim()) return null;
-    return buildPrePublishCardPayload(prePublishReadiness, sellerPreviewImage);
-  }, [prePublishReadiness, sellerPreviewImage, aiDraft]);
+    return buildPrePublishCardPayload(prePublishReadiness, sellerPreviewImage, {
+      vatCode: user.vatCode,
+    });
+  }, [prePublishReadiness, sellerPreviewImage, aiDraft, user.vatCode]);
 
   const showLivePrePublishCard =
     Boolean(livePrePublishCard) &&
-    listingPublishConfirmed &&
+    (listingPublishConfirmed ||
+      aiDraft?.listingFlowState === "AWAITING_CONFIRMATION") &&
     !busy &&
     !isPublishingListing &&
     !hidePrePublishCard &&

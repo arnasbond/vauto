@@ -1,10 +1,18 @@
 import type { AgentSideEffect } from "./agent-tools.js";
 import { normalizeListingDraftForAction } from "./listing-chat-input.js";
-import { buildConversationalMissingPrompt } from "./listing-conversational-flow.js";
 import {
-  buildPostValidationReportMessage,
-  POST_VALIDATION_QUICK_REPLIES,
-} from "./structured-input-pipeline.js";
+  AWAITING_CONFIRMATION_LOCKED,
+  buildConversationalMissingPrompt,
+  inferListingFlowState,
+  listingFlowAllowsPhotoUpload,
+  PRE_PUBLISH_CARD_INTRO,
+  transitionListingFlow,
+  type ListingFlowState,
+} from "./listing-conversational-flow.js";
+import {
+  buildServerPrePublishCardPayload,
+  type ServerPrePublishCardPayload,
+} from "./pre-publish-validation.js";
 import { parseListingImagesForAgent } from "./vauto-unified.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
@@ -89,26 +97,33 @@ function uniqueImageUrls(urls: string[]): string[] {
   return out.slice(0, 6);
 }
 
-async function resolveListingPhotoScan(input: {
-  imageUrls: string[];
-  listingDraft?: {
-    title?: string;
-    description?: string;
-    price?: number;
-    location?: string;
-    category?: string;
-    attributes?: Record<string, string>;
-  };
-  userCity?: string;
-  contact?: string;
-  userText?: string;
-}): Promise<{
+type MediaListingDraft = {
+  title?: string;
+  description?: string;
+  price?: number;
+  location?: string;
+  category?: string;
+  attributes?: Record<string, string>;
+  listingFlowState?: ListingFlowState;
+};
+
+type MediaResponse = {
   ok: true;
   reply: string;
   quickReplies?: string[];
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
-}> {
+  prePublishCard?: ServerPrePublishCardPayload;
+};
+
+async function resolveListingPhotoScan(input: {
+  imageUrls: string[];
+  listingDraft?: MediaListingDraft;
+  userCity?: string;
+  contact?: string;
+  userText?: string;
+  flowState: ListingFlowState | null;
+}): Promise<MediaResponse> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
 
   const extraBits = [
@@ -159,11 +174,15 @@ async function resolveListingPhotoScan(input: {
       input.listingDraft?.description,
       parsed.listing.description
     ),
-    price: parsed.listing.price,
-    location: parsed.listing.location,
+    price: parsed.listing.price || input.listingDraft?.price || 0,
+    location: parsed.listing.location || input.listingDraft?.location || "",
     category: parsed.listing.category,
     attributes: listingAttrs,
   };
+
+  const nextState =
+    transitionListingFlow(input.flowState, "PHOTOS_SCANNED") ??
+    "AWAITING_CONFIRMATION";
 
   const mergedDraft = normalizeListingDraftForAction(
     input.listingDraft
@@ -175,41 +194,41 @@ async function resolveListingPhotoScan(input: {
             ...(input.listingDraft.attributes ?? {}),
             ...visionDraft.attributes,
           },
+          listingFlowState: nextState,
         }
-      : visionDraft,
+      : { ...visionDraft, listingFlowState: nextState },
     {
       contact: input.contact,
       userCity: input.userCity,
+      listingFlowState: nextState,
     }
   );
 
   const ack = photoAckLine(imageUrls.length);
-  const report = buildPostValidationReportMessage({
-    category: mergedDraft.category,
-    title: mergedDraft.title,
-    description: mergedDraft.description,
-    price: mergedDraft.price,
-    location: mergedDraft.location,
-    attributes: mergedDraft.attributes,
+  const resolvedCity =
+    mergedDraft.location?.trim() || input.userCity?.trim() || "";
+
+  const card = buildServerPrePublishCardPayload({
+    listingDraft: mergedDraft,
+    resolvedCity,
+    resolvedPhone: input.contact,
+    pendingImageUrls: imageUrls,
+    imageUrl: imageUrls[0],
+    imageUrls,
   });
 
-  let reply = `${ack}\n\n${report}`;
+  let reply = `${ack}\n\n${PRE_PUBLISH_CARD_INTRO}`;
 
   if (!mergedDraft.price || mergedDraft.price <= 0) {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingPrice: true })}`;
-  } else if (!mergedDraft.location?.trim()) {
+  } else if (!resolvedCity) {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingCity: true })}`;
   }
-
-  const ambiguousImageOnly =
-    isImageOnlyChatUpload(input.userText) && !input.listingDraft?.title?.trim();
 
   return {
     ok: true,
     reply,
-    quickReplies: ambiguousImageOnly
-      ? [...PHOTO_INTENT_ROUTING_CHIPS, ...POST_VALIDATION_QUICK_REPLIES].slice(0, 4)
-      : [...POST_VALIDATION_QUICK_REPLIES],
+    quickReplies: [],
     toolCalls: [
       {
         name: "scanListingPhotos",
@@ -218,6 +237,7 @@ async function resolveListingPhotoScan(input: {
           message: reply,
           draft: mergedDraft,
           imageUrls,
+          listingFlowState: nextState,
         },
       },
     ],
@@ -227,29 +247,17 @@ async function resolveListingPhotoScan(input: {
       imageUrl: imageUrls[0],
       imageUrls,
     },
+    ...(card && mergedDraft.price > 0 ? { prePublishCard: card } : {}),
   };
 }
 
 export async function resolveChatMediaAttachmentResponse(input: {
   imageUrls: string[];
-  listingDraft?: {
-    title?: string;
-    description?: string;
-    price?: number;
-    location?: string;
-    category?: string;
-    attributes?: Record<string, string>;
-  };
+  listingDraft?: MediaListingDraft;
   userCity?: string;
   contact?: string;
   userText?: string;
-}): Promise<{
-  ok: true;
-  reply: string;
-  quickReplies?: string[];
-  toolCalls: { name: string; result: unknown }[];
-  actions: AgentSideEffect | { type: "none" };
-} | null> {
+}): Promise<MediaResponse | null> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
   if (!imageUrls.length) return null;
 
@@ -257,7 +265,12 @@ export async function resolveChatMediaAttachmentResponse(input: {
   const sellIntent = isPhotoSellIntentText(userNote);
   const searchIntent = isPhotoSearchIntentText(userNote);
 
-  // Pure search chip — do not create/overwrite a sell draft.
+  const flowState = inferListingFlowState({
+    listingFlowState: input.listingDraft?.listingFlowState,
+    hasDraft: Boolean(input.listingDraft?.title?.trim()),
+    photoCount: 0,
+  });
+
   if (searchIntent && !sellIntent) {
     return {
       ok: true,
@@ -269,7 +282,44 @@ export async function resolveChatMediaAttachmentResponse(input: {
     };
   }
 
-  // Always run Gemini Vision for uploads: enrich title/description/attrs from
-  // all photos — never stop at a bare „nuotrauka įdėta“ ack.
-  return resolveListingPhotoScan(input);
+  if (!listingFlowAllowsPhotoUpload(flowState)) {
+    return {
+      ok: true,
+      reply: AWAITING_CONFIRMATION_LOCKED,
+      quickReplies: [],
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
+
+  // Photos without a draft yet: create draft via vision, then land in confirmation.
+  // If draft exists in AWAITING_PHOTOS / DRAFTING_TEXT — scan and advance.
+  if (!input.listingDraft?.title?.trim() && !sellIntent && isImageOnlyChatUpload(userNote)) {
+    // Still allow vision sell-path for bare photo uploads (marketplace default).
+    return resolveListingPhotoScan({
+      ...input,
+      flowState: flowState ?? "AWAITING_PHOTOS",
+    });
+  }
+
+  if (flowState === null && !input.listingDraft?.title?.trim()) {
+    // No draft — vision creates one; treat as photos stage entry.
+    return resolveListingPhotoScan({
+      ...input,
+      flowState: "AWAITING_PHOTOS",
+    });
+  }
+
+  if (flowState === "DRAFTING_TEXT") {
+    // Photos arrived during drafting: accept (cannot skip confirmation without scan).
+    return resolveListingPhotoScan({
+      ...input,
+      flowState: transitionListingFlow("DRAFTING_TEXT", "DRAFT_SAVED"),
+    });
+  }
+
+  return resolveListingPhotoScan({
+    ...input,
+    flowState: flowState ?? "AWAITING_PHOTOS",
+  });
 }

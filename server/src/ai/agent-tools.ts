@@ -20,6 +20,7 @@ import {
 } from "./lithuanian-location-normalize.js";
 import { buildSellerContextualVoiceFollowUp, buildCreateListingDraftFollowUp } from "./seller-voice-prompt.js";
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+import { buildDraftingCompletePhotosPrompt } from "./listing-conversational-flow.js";
 import { resolveAgentDefaultCity } from "./zero-ui-defaults.js";
 import { runMarketPriceAnalysis, type MarketPriceAnalysisResult } from "./market-price-analysis.js";
 import {
@@ -1337,6 +1338,13 @@ export async function executeAgentTool(
       const title = String(args.title ?? "Skelbimas").trim();
       const category = String(args.category ?? "other");
       const description = args.description ? String(args.description) : "";
+      const priceArg =
+        args.price != null && Number(args.price) > 0 ? Number(args.price) : 0;
+      const locationArg = args.city
+        ? String(args.city).trim()
+        : args.location
+          ? String(args.location).trim()
+          : "";
       const attributes =
         args.attributes && typeof args.attributes === "object"
           ? Object.fromEntries(
@@ -1350,21 +1358,17 @@ export async function executeAgentTool(
       const draft = {
         title,
         description,
-        price: 0,
-        location: ctx.userCity?.trim() || "",
+        price: priceArg,
+        location: locationArg || ctx.userCity?.trim() || "",
         contact: ctx.contact,
         category,
         confidence: 0.85,
         attributes,
         allowPastomatas: true,
+        listingFlowState: "AWAITING_PHOTOS" as const,
       };
 
-      const voiceFollowUp = buildListingDraftUpdateReply({
-        category,
-        title,
-        description,
-        attributes,
-      });
+      const photosPrompt = buildDraftingCompletePhotosPrompt(draft);
       const gate = evaluateOmnivaPastomatasGatekeeper({
         title,
         description,
@@ -1378,16 +1382,17 @@ export async function executeAgentTool(
       return {
         result: {
           ok: true,
-          message: "Pradedamas skelbimo juodraštis.",
+          message: photosPrompt,
           draft,
           voiceFollowUp: gate.oversized
-            ? `${voiceFollowUp}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
-            : voiceFollowUp,
+            ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+            : photosPrompt,
           suggestedQuestions: [
             gate.oversized
-              ? `${voiceFollowUp}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
-              : voiceFollowUp,
+              ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
+              : photosPrompt,
           ],
+          listingFlowState: "AWAITING_PHOTOS",
         },
         sideEffect: {
           type: "listing_draft",
@@ -1619,6 +1624,7 @@ export async function executeAgentTool(
             ...(prior?.attributes ?? {}),
             ...listingAttrs,
           },
+          listingFlowState: "AWAITING_CONFIRMATION" as const,
         };
 
         if (parsed.needsClarification) {
@@ -2608,6 +2614,10 @@ export type AgentSideEffect =
         confidence: number;
         attributes?: Record<string, string>;
         allowPastomatas?: boolean;
+        listingFlowState?:
+          | "DRAFTING_TEXT"
+          | "AWAITING_PHOTOS"
+          | "AWAITING_CONFIRMATION";
       };
       imageUrl?: string;
       /** All uploaded photos for this draft (multi-image, max 6). */

@@ -142,6 +142,7 @@ export interface ServerPrePublishCardPayload {
   location: string;
   phone?: string;
   imageUrl?: string | null;
+  imageUrls?: string[];
   category?: string;
 }
 
@@ -168,16 +169,23 @@ export function buildServerPrePublishCardPayload(input: {
   resolvedPhone?: string;
   pendingImageUrls?: string[];
   imageUrl?: string;
+  imageUrls?: string[];
 }): ServerPrePublishCardPayload | null {
   const draft = input.listingDraft;
   if (!draft) return null;
   const title = draft.title?.trim() || "Naujas skelbimas";
   const price = draft.price ?? 0;
   if (price <= 0) return null;
-  const imageUrl =
-    input.imageUrl?.trim() ||
-    input.pendingImageUrls?.[0]?.trim() ||
-    null;
+  const imageUrls = [
+    ...(input.imageUrls ?? []),
+    ...(input.pendingImageUrls ?? []),
+    ...(input.imageUrl ? [input.imageUrl] : []),
+  ]
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean)
+    .filter((u, i, arr) => arr.indexOf(u) === i)
+    .slice(0, 6);
+  const imageUrl = imageUrls[0] ?? null;
   return {
     title,
     description: draft.description?.trim() || "",
@@ -185,6 +193,7 @@ export function buildServerPrePublishCardPayload(input: {
     location: input.resolvedCity.trim() || draft.location?.trim() || "",
     phone: input.resolvedPhone?.trim() || undefined,
     imageUrl,
+    ...(imageUrls.length ? { imageUrls } : {}),
     category: draft.category,
   };
 }

@@ -147,15 +147,19 @@ import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import {
+  AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
-  buildDraftConfirmationBubble,
-  listingConfirmationQuickReplies,
+  buildDraftingCompletePhotosPrompt,
+  dispatchListingFlowTurn,
+  inferListingFlowState,
   PRE_PUBLISH_CARD_INTRO,
+  transitionListingFlow,
 } from "@/lib/listing-conversational-flow";
 import {
   buildListingEditPrompt,
   buildListingEditQuickReplies,
   editFieldFromChip,
+  gapFieldFromChip,
   isEditActionChip,
   isGapActionChip,
   LISTING_EDIT_INTRO,
@@ -166,7 +170,6 @@ import {
   isDirectAgentActionChip,
   pickListingPhotoDirect,
 } from "@/lib/direct-agent-actions";
-import { isPublishWorkflowCommand } from "@/lib/listing-workflow-intent";
 import {
   buildListingContactUpdateReply,
   parseListingContactFromText,
@@ -332,6 +335,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         contact: profileSyncedDraft.contact || profileContact.contact,
         attributes: profileSyncedDraft.attributes as Record<string, string> | undefined,
         allowPastomatas: profileSyncedDraft.allowPastomatas,
+        listingFlowState: profileSyncedDraft.listingFlowState,
       },
       profileContacts: {
         userId: user.id,
@@ -587,11 +591,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           .filter(Boolean)
           .filter((u, i, arr) => arr.indexOf(u) === i)
           .slice(0, 6);
+        const flowState =
+          actions.listingDraft.listingFlowState ??
+          (photoUrls.length ? "AWAITING_CONFIRMATION" : "AWAITING_PHOTOS");
         const draft = {
           ...mapAgentDraftToListing(actions.listingDraft),
           ...(photoUrls.length ? { orderedImageUrls: photoUrls } : {}),
+          listingFlowState: flowState,
         };
         applyAgentListingDraft(draft, photoUrls[0] ?? actions.imageUrl);
+        if (flowState === "AWAITING_CONFIRMATION") {
+          setListingPublishConfirmed(true);
+          setHidePrePublishCard(false);
+        } else if (flowState === "AWAITING_PHOTOS") {
+          setListingPublishConfirmed(false);
+        }
       }
       if (actions.type === "wardrobe_bulk") {
         const items = mapAgentWardrobeItems(actions.items);
@@ -919,6 +933,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       searchQuery,
       sellerStep,
       isPublishingListing,
+      setListingPublishConfirmed,
+      setHidePrePublishCard,
     ]
   );
 
@@ -1047,18 +1063,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       } => {
         const readiness = runPrePublishGate();
         if (!readiness.ok) {
+          if (readiness.missingPhoto) {
+            return {
+              reply: buildDraftingCompletePhotosPrompt({
+                title: aiDraft?.title,
+                description: aiDraft?.description,
+                price: aiDraft?.price,
+                location: readiness.resolvedCity || aiDraft?.location,
+              }),
+            };
+          }
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
-        const draft = readiness.syncedDraft;
-        return {
-          reply: buildDraftConfirmationBubble({
-            title: draft?.title,
-            description: draft?.description,
-            price: draft?.price,
-            location: readiness.resolvedCity,
-          }),
-          quickReplies: listingConfirmationQuickReplies(),
-        };
+        return confirmPublishNow();
       };
 
       const confirmPublishNow = (): {
@@ -1104,23 +1121,61 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply };
       }
 
-      if (aiDraft && isPublishWorkflowCommand(trimmed)) {
-        const gateway = confirmPublishNow();
+      const listingFlowState = inferListingFlowState({
+        listingFlowState: aiDraft?.listingFlowState,
+        hasDraft: Boolean(aiDraft?.title?.trim()),
+        photoCount: 0,
+      });
+      const flowDecision = dispatchListingFlowTurn({
+        state: listingFlowState,
+        userText: trimmed,
+        hasIncomingPhotos: hasIncomingImages,
+        photoCount: 0,
+      });
+
+      if (flowDecision.kind === "ignore_backward") {
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
+          { role: "assistant" as const, text: flowDecision.reply },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply: flowDecision.reply };
+      }
+
+      if (flowDecision.kind === "nudge_photos") {
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          { role: "assistant" as const, text: flowDecision.reply || AWAITING_PHOTOS_NUDGE },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply: flowDecision.reply || AWAITING_PHOTOS_NUDGE };
+      }
+
+      if (flowDecision.kind === "show_confirmation" && aiDraft) {
+        const gateway = confirmPublishNow();
+        updateAiDraft({ listingFlowState: "AWAITING_CONFIRMATION" });
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed || "tinka" },
           {
             role: "assistant" as const,
-            text: gateway.reply,
-            ...(gateway.quickReplies?.length ? { quickReplies: gateway.quickReplies } : {}),
+            text: gateway.reply || PRE_PUBLISH_CARD_INTRO,
             ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
           },
         ]);
         touchAgentSessionActivity();
-        return { ok: true, reply: gateway.reply };
+        return { ok: true, reply: gateway.reply || PRE_PUBLISH_CARD_INTRO };
       }
 
-      if (aiDraft && isEditActionChip(trimmed)) {
+      // Edit chips must not roll the state machine backward.
+      if (
+        aiDraft &&
+        isEditActionChip(trimmed) &&
+        listingFlowState !== "AWAITING_CONFIRMATION" &&
+        listingFlowState !== "AWAITING_PHOTOS"
+      ) {
         const editField = editFieldFromChip(trimmed);
         if (editField) {
           setAwaitingListingEditField(editField);
@@ -1139,20 +1194,39 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Field mutations only while drafting — then advance to AWAITING_PHOTOS.
       const listingChatReply =
-        aiDraft && isListingConversationInput(trimmed, listingChatContext)
-          ? tryApplyListingChatInput(trimmed, aiDraft, updateAiDraft)
+        flowDecision.kind === "allow_drafting" &&
+        aiDraft &&
+        isListingConversationInput(trimmed, listingChatContext)
+          ? tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
+              const nextState =
+                transitionListingFlow(
+                  aiDraft.listingFlowState ?? "DRAFTING_TEXT",
+                  "DRAFT_SAVED"
+                ) ?? "AWAITING_PHOTOS";
+              updateAiDraft({
+                ...patch,
+                listingFlowState: nextState,
+              });
+            })
           : null;
       if (listingChatReply) {
+        const reply = buildDraftingCompletePhotosPrompt({
+          title: aiDraft?.title,
+          description: aiDraft?.description,
+          price: aiDraft?.price,
+          location: aiDraft?.location,
+        });
         setListingPublishConfirmed(false);
         setHidePrePublishCard(false);
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
-          { role: "assistant" as const, text: listingChatReply },
+          { role: "assistant" as const, text: reply },
         ]);
         touchAgentSessionActivity();
-        return { ok: true, reply: listingChatReply };
+        return { ok: true, reply };
       }
 
       // Photo-only (or photo + short caption) must reach pendingImageUrls handling below.
@@ -1667,6 +1741,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           });
           if (prePublishCard) {
             setHidePrePublishCard(false);
+            setListingPublishConfirmed(true);
           }
         };
 
@@ -2174,6 +2249,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           },
           onError: (message) => showToast(message, "error"),
         });
+      }
+
+      if (isGapActionChip(trimmed) && !/^įkelti nuotrauk/i.test(trimmed)) {
+        const field = gapFieldFromChip(trimmed);
+        if (field === "phone" || field === "city") {
+          setMessages((prev) => [
+            ...prev,
+            {
+              role: "assistant" as const,
+              text:
+                field === "phone"
+                  ? "Telefonas imamas iš profilio. Atidarykite Profilį ir atnaujinkite numerį — tada grįšime prie skelbimo."
+                  : "Miestas imamas iš profilio. Atidarykite Profilį ir atnaujinkite miestą — tada grįšime prie skelbimo.",
+            },
+          ].slice(-6));
+          router.push("/profile");
+          return true;
+        }
       }
 
       if (/^įkelti nuotrauk/i.test(trimmed) || isGapActionChip(trimmed)) {

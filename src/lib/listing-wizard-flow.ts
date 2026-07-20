@@ -1,8 +1,8 @@
 /** Listing wizard — gap chips, edit mode, and workflow command helpers. */
 
 export const GAP_CHIP_PHOTO = "📷 Įkelti nuotrauką";
-export const GAP_CHIP_PHONE = "📞 Įvesti telefoną";
-export const GAP_CHIP_CITY = "📍 Įvesti miestą";
+export const GAP_CHIP_PHONE = "📞 Atnaujinti telefoną profilyje";
+export const GAP_CHIP_CITY = "📍 Atnaujinti miestą profilyje";
 export const GAP_CHIP_PRICE = "💰 Įvesti kainą";
 
 export const EDIT_CHIP_PRICE = "Pataisyti kainą";

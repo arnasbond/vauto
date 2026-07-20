@@ -1068,12 +1068,69 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
     const prevMsgCount = prev?.messageCount ?? 0;
     const nextMsgCount = thread.messages.length;
 
-    await upsertChat(thread);
-    res.json(thread);
+    let outbound = thread;
 
-    publishChatStreamEvent([thread.buyerId, thread.sellerId], {
+    // Constitution L3: business after-hours FAQ auto-reply on buyer messages.
+    if (nextMsgCount > prevMsgCount) {
+      const latest = thread.messages[nextMsgCount - 1];
+      if (
+        latest &&
+        latest.senderId === thread.buyerId &&
+        latest.senderId !== "vauto-system"
+      ) {
+        try {
+          const seller = await getUser(thread.sellerId);
+          const {
+            shouldAutoReplyAfterHours,
+            buildAfterHoursFaqReply,
+          } = await import("../shared/biz-faq-after-hours.js");
+          if (
+            seller &&
+            shouldAutoReplyAfterHours({
+              seller: {
+                companyName: seller.companyName || seller.name,
+                businessHours: seller.businessHours,
+                profileType: seller.profileType ?? undefined,
+                city: seller.city,
+                phone: seller.phone,
+              },
+              latestSenderId: latest.senderId,
+              sellerId: thread.sellerId,
+              buyerId: thread.buyerId,
+            })
+          ) {
+            const faqText = buildAfterHoursFaqReply({
+              companyName: seller.companyName || seller.name,
+              businessHours: seller.businessHours,
+              profileType: seller.profileType ?? undefined,
+              city: seller.city,
+              phone: seller.phone,
+            });
+            outbound = {
+              ...thread,
+              messages: [
+                ...thread.messages,
+                {
+                  id: `faq-${Date.now()}`,
+                  senderId: thread.sellerId,
+                  text: faqText,
+                  timestamp: new Date().toISOString(),
+                },
+              ],
+            };
+          }
+        } catch {
+          // FAQ must never block chat delivery.
+        }
+      }
+    }
+
+    await upsertChat(outbound);
+    res.json(outbound);
+
+    publishChatStreamEvent([outbound.buyerId, outbound.sellerId], {
       type: "chat_message",
-      thread,
+      thread: outbound,
     });
 
     void (async () => {

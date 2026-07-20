@@ -30,7 +30,6 @@ import {
   detectServerSellIntent,
 } from "./sell-intent-fallback.js";
 import {
-  buildListingChatPriceReply,
   isListingConversationInput,
   normalizeListingDraftForAction,
   parsePriceFromChatInput,
@@ -40,17 +39,22 @@ import {
   buildListingDraftUpdateReply,
   ensureRichListingDraftReply,
 } from "./listing-draft-preview.js";
-import {
-  evaluateServerPrePublishReadiness,
-} from "./pre-publish-validation.js";
+import { evaluateServerPrePublishReadiness } from "./pre-publish-validation.js";
 import {
   resolveContactCaptureResponse,
   resolvePrePublishGatewayResponse,
   resolveStructuredListingInputRoute,
-  resolveWorkflowCommandResponse,
 } from "./structured-input-pipeline.js";
 import { resolveChatMediaAttachmentResponse } from "./chat-media-upload.js";
-import { buildConversationalMissingPrompt } from "./listing-conversational-flow.js";
+import {
+  AWAITING_PHOTOS_NUDGE,
+  buildConversationalMissingPrompt,
+  buildDraftingCompletePhotosPrompt,
+  dispatchListingFlowTurn,
+  inferListingFlowState,
+  PRE_PUBLISH_CARD_INTRO,
+  transitionListingFlow,
+} from "./listing-conversational-flow.js";
 import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
@@ -112,6 +116,10 @@ export interface VautoAgentRequest {
       category?: string;
       attributes?: Record<string, string>;
       allowPastomatas?: boolean;
+      listingFlowState?:
+        | "DRAFTING_TEXT"
+        | "AWAITING_PHOTOS"
+        | "AWAITING_CONFIRMATION";
     };
     missingFields?: string[];
     wizardPrompts?: string[];
@@ -368,9 +376,112 @@ async function runVautoAgentInner(
   );
 
   const listingDraft = req.context.listingDraft;
-
   const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 6);
-  if (pendingChatImages?.length) {
+  // Do not count this-turn uploads when inferring — otherwise AWAITING_PHOTOS
+  // would be mis-read as AWAITING_CONFIRMATION before Vision runs.
+  const flowState = inferListingFlowState({
+    listingFlowState: listingDraft?.listingFlowState,
+    hasDraft: Boolean(listingDraft?.title?.trim()),
+    photoCount: 0,
+  });
+
+  // Constitution L4: pastomatas logistics — only outside active listing drafting/photos.
+  {
+    const folded = lastUserText.toLowerCase();
+    const wantsPastomatas =
+      /\bpa[sš]tomat/.test(folded) || /\bomniva\b/.test(folded);
+    const sessionKey =
+      req.context.contact?.trim() ||
+      req.context.profilePhone?.trim() ||
+      req.context.userName ||
+      "anon";
+    const { getPastomatasSession, setPastomatasSession, clearPastomatasSession } =
+      await import("../shared/pastomatas-session.js");
+    const existing = getPastomatasSession(sessionKey);
+    const listingBusy =
+      flowState === "DRAFTING_TEXT" || flowState === "AWAITING_PHOTOS";
+    if ((wantsPastomatas || existing) && !listingBusy) {
+      const { startPastomatasGuide, advancePastomatasGuide } = await import(
+        "../shared/pastomatas-agent.js"
+      );
+      if (!existing || (wantsPastomatas && existing.step === "label_ready")) {
+        const started = startPastomatasGuide(
+          req.context.userCity || req.context.geoCityHint || "Vilnius"
+        );
+        setPastomatasSession(sessionKey, started.state);
+        return {
+          ok: true,
+          reply: started.reply,
+          toolCalls: [{ name: "pastomatasGuide", result: { step: started.state.step } }],
+          actions: { type: "none" },
+        };
+      }
+      const advanced = advancePastomatasGuide(existing, lastUserText);
+      if (advanced.done) clearPastomatasSession(sessionKey);
+      else setPastomatasSession(sessionKey, advanced.state);
+      return {
+        ok: true,
+        reply: advanced.reply,
+        toolCalls: [{ name: "pastomatasGuide", result: { step: advanced.state.step } }],
+        actions: { type: "none" },
+      };
+    }
+  }
+
+  const flowTurn = dispatchListingFlowTurn({
+    state: flowState,
+    userText: lastUserText,
+    hasIncomingPhotos: Boolean(pendingChatImages?.length),
+    photoCount: 0,
+  });
+
+  if (flowTurn.kind === "ignore_backward") {
+    return {
+      ok: true,
+      reply: flowTurn.reply,
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
+
+  if (flowTurn.kind === "nudge_photos") {
+    return {
+      ok: true,
+      reply: flowTurn.reply || AWAITING_PHOTOS_NUDGE,
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
+
+  if (flowTurn.kind === "show_confirmation" && listingDraft) {
+    const gateway = resolvePrePublishGatewayResponse({
+      isAuthenticated: req.context.isAuthenticated,
+      profilePhone: req.context.profilePhone,
+      profileEmail: req.context.profileEmail,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      listingDraft,
+      pendingImageUrls: req.context.pendingImageUrls,
+      geoCityHint: req.context.geoCityHint,
+    });
+    const confirmedDraft = normalizeListingDraftForAction(listingDraft, {
+      contact: req.context.contact,
+      userCity: req.context.userCity,
+      listingFlowState: "AWAITING_CONFIRMATION",
+    });
+    return {
+      ok: true,
+      reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
+      ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+      toolCalls: [],
+      actions: {
+        type: "listing_draft",
+        listingDraft: confirmedDraft,
+      },
+    };
+  }
+
+  if (pendingChatImages?.length && flowTurn.kind === "process_photos") {
     const mediaResponse = await resolveChatMediaAttachmentResponse({
       imageUrls: pendingChatImages,
       listingDraft,
@@ -401,7 +512,13 @@ async function runVautoAgentInner(
     prePublishBlocked: Boolean(prePublishSnapshot && !prePublishSnapshot.ok),
   });
 
-  if (inputRoute.kind === "contact_capture" && listingDraft && lastUserText) {
+  // Contact capture only while drafting — never after photos/confirmation.
+  if (
+    flowTurn.kind === "allow_drafting" &&
+    inputRoute.kind === "contact_capture" &&
+    listingDraft &&
+    lastUserText
+  ) {
     const captured = resolveContactCaptureResponse({
       text: lastUserText,
       listingDraft,
@@ -417,65 +534,71 @@ async function runVautoAgentInner(
           listingDraft: normalizeListingDraftForAction(captured.listingDraft, {
             contact: req.context.contact,
             userCity: req.context.userCity,
+            listingFlowState: listingDraft.listingFlowState ?? "DRAFTING_TEXT",
           }),
         },
       };
     }
   }
 
-  if (inputRoute.kind === "publish_gateway" && listingDraft && lastUserText) {
-    const gateway = resolvePrePublishGatewayResponse({
-      isAuthenticated: req.context.isAuthenticated,
-      profilePhone: req.context.profilePhone,
-      profileEmail: req.context.profileEmail,
-      userCity: req.context.userCity,
-      contact: req.context.contact,
-      listingDraft,
-      pendingImageUrls: req.context.pendingImageUrls,
-      geoCityHint: req.context.geoCityHint,
-    });
-    return {
-      ok: true,
-      reply: gateway.reply,
-      ...(gateway.quickReplies ? { quickReplies: gateway.quickReplies } : {}),
-      ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
-      toolCalls: [],
-      actions: { type: "none" },
-    };
-  }
-
-  if (inputRoute.kind === "workflow_command" && listingDraft && lastUserText) {
-    const workflow = resolveWorkflowCommandResponse(lastUserText);
-    return {
-      ok: true,
-      reply: workflow.reply,
-      ...(workflow.quickReplies ? { quickReplies: workflow.quickReplies } : {}),
-      toolCalls: [],
-      actions: { type: "none" },
-    };
-  }
-
-  const inListingChat =
-    Boolean(listingDraft) &&
-    Boolean(lastUserText) &&
-    inputRoute.kind === "listing_field_update" &&
-    isListingConversationInput(lastUserText, listingDraft);
-
-  if (inListingChat && listingDraft) {
+  // Field updates (price etc.) only in DRAFTING_TEXT.
+  if (
+    flowTurn.kind === "allow_drafting" &&
+    listingDraft &&
+    lastUserText &&
+    isListingConversationInput(lastUserText, listingDraft)
+  ) {
     const price = parsePriceFromChatInput(lastUserText);
     if (price != null) {
+      const nextDraft = normalizeListingDraftForAction(listingDraft, {
+        price,
+        contact: req.context.contact,
+        userCity: req.context.userCity,
+        listingFlowState:
+          transitionListingFlow(
+            listingDraft.listingFlowState ?? "DRAFTING_TEXT",
+            "DRAFT_SAVED"
+          ) ?? "AWAITING_PHOTOS",
+      });
       return {
         ok: true,
-        reply: buildListingChatPriceReply(price, listingDraft),
+        reply: buildDraftingCompletePhotosPrompt(nextDraft),
         toolCalls: [],
         actions: {
           type: "listing_draft",
-          listingDraft: normalizeListingDraftForAction(listingDraft, {
-            price,
-            contact: req.context.contact,
-            userCity: req.context.userCity,
-          }),
+          listingDraft: nextDraft,
         },
+      };
+    }
+  }
+
+  // Ignore legacy workflow edit chips that would roll the machine backward.
+  if (inputRoute.kind === "workflow_command" && listingDraft && lastUserText) {
+    if (flowState === "AWAITING_CONFIRMATION") {
+      const gateway = resolvePrePublishGatewayResponse({
+        isAuthenticated: req.context.isAuthenticated,
+        profilePhone: req.context.profilePhone,
+        profileEmail: req.context.profileEmail,
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+        listingDraft,
+        pendingImageUrls: req.context.pendingImageUrls,
+        geoCityHint: req.context.geoCityHint,
+      });
+      return {
+        ok: true,
+        reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
+        ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+    if (flowState === "AWAITING_PHOTOS") {
+      return {
+        ok: true,
+        reply: AWAITING_PHOTOS_NUDGE,
+        toolCalls: [],
+        actions: { type: "none" },
       };
     }
   }

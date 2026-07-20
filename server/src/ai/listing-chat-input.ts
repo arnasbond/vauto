@@ -12,6 +12,10 @@ export interface ListingDraftContext {
   category?: string;
   attributes?: Record<string, string>;
   allowPastomatas?: boolean;
+  listingFlowState?:
+    | "DRAFTING_TEXT"
+    | "AWAITING_PHOTOS"
+    | "AWAITING_CONFIRMATION";
 }
 
 export function isListingConversationInput(
@@ -68,6 +72,7 @@ export function normalizeListingDraftForAction(
     contact?: string;
     confidence?: number;
     userCity?: string;
+    listingFlowState?: ListingDraftContext["listingFlowState"];
   }
 ): {
   title: string;
@@ -79,7 +84,9 @@ export function normalizeListingDraftForAction(
   confidence: number;
   attributes?: Record<string, string>;
   allowPastomatas?: boolean;
+  listingFlowState?: ListingDraftContext["listingFlowState"];
 } {
+  const listingFlowState = opts?.listingFlowState ?? draft.listingFlowState;
   return {
     title: draft.title?.trim() || "Naujas skelbimas",
     description: draft.description,
@@ -91,5 +98,6 @@ export function normalizeListingDraftForAction(
     attributes: draft.attributes,
     allowPastomatas:
       typeof draft.allowPastomatas === "boolean" ? draft.allowPastomatas : true,
+    ...(listingFlowState ? { listingFlowState } : {}),
   };
 }

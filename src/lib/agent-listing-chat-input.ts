@@ -117,6 +117,12 @@ export function tryApplyListingChatInput(
 ): string | null {
   if (!aiDraft) return null;
 
+  // State machine: never mutate description/title after drafting stage.
+  const flow = aiDraft.listingFlowState;
+  if (flow === "AWAITING_PHOTOS" || flow === "AWAITING_CONFIRMATION") {
+    return null;
+  }
+
   if (isListingWorkflowCommand(text)) return null;
 
   if (isPhotoIntentListingChip(text) || isPhotoIntentSearchChip(text)) return null;

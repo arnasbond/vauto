@@ -17,7 +17,8 @@ export interface PrePublishListingCardProps {
   card: PrePublishCardPayload;
   publishing?: boolean;
   onPublish: (sourceRect: DOMRect, visibilityId: PrePublishVisibilityId) => void;
-  onEdit: () => void;
+  /** @deprecated Confirmation stage is forward-only — edit is ignored. */
+  onEdit?: () => void;
   className?: string;
 }
 
@@ -72,9 +73,22 @@ export function PrePublishListingCard({
           {categoryLabel(card.category)}
         </span>
         <span className="absolute bottom-2 right-2 rounded-xl bg-[var(--vauto-primary)] px-2.5 py-1 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md">
-          {formatPrice(card.price, card.priceLabel)}
+          {formatPrice(card.price, card.priceLabel ?? card.vatLabelGross)}
         </span>
       </div>
+      {(card.imageUrls?.length ?? 0) > 1 ? (
+        <div className="flex gap-1.5 overflow-x-auto border-b border-[var(--vauto-border)]/50 bg-[var(--vauto-surface-muted)]/40 px-2.5 py-2">
+          {card.imageUrls!.slice(0, 6).map((url, idx) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={`${url.slice(0, 24)}-${idx}`}
+              src={url}
+              alt=""
+              className="h-12 w-12 shrink-0 rounded-lg object-cover ring-1 ring-black/10"
+            />
+          ))}
+        </div>
+      ) : null}
 
       <div className="space-y-2.5 p-3.5">
         <h3 className="line-clamp-2 text-[15px] font-bold leading-snug text-[var(--vauto-text)]">
@@ -87,6 +101,11 @@ export function PrePublishListingCard({
         {card.description ? (
           <p className="line-clamp-3 text-[12px] leading-relaxed text-[var(--vauto-text-muted)]">
             {truncateDescription(card.description)}
+          </p>
+        ) : null}
+        {card.vatLabelNet && card.vatLabelGross ? (
+          <p className="text-[11px] font-medium text-[var(--vauto-text-muted)]">
+            {card.vatLabelGross} · {card.vatLabelNet}
           </p>
         ) : null}
         {card.phone ? (
@@ -160,14 +179,6 @@ export function PrePublishListingCard({
             ) : (
               <>Patvirtinti ir publikuoti</>
             )}
-          </button>
-          <button
-            type="button"
-            disabled={publishing}
-            onClick={onEdit}
-            className="flex min-h-[44px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/25 bg-[var(--vauto-surface-muted)]/50 px-4 py-2.5 text-sm font-semibold text-[var(--vauto-text)] transition hover:bg-[var(--vauto-surface-muted)] active:scale-[0.99] disabled:opacity-60"
-          >
-            ✏️ Redaguoti duomenis
           </button>
         </div>
       </div>

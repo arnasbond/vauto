@@ -127,6 +127,14 @@ export interface AiExtractedListing {
   /** Visual AI Pipeline (v1.6.17) — smart-sorted gallery order */
   orderedImageUrls?: string[];
   coverImageId?: string;
+  /**
+   * Strict conversational listing state machine:
+   * DRAFTING_TEXT → AWAITING_PHOTOS → AWAITING_CONFIRMATION
+   */
+  listingFlowState?:
+    | "DRAFTING_TEXT"
+    | "AWAITING_PHOTOS"
+    | "AWAITING_CONFIRMATION";
   conversationalHints?: {
     hasVisibleDefects: boolean;
     assistantPrompt?: string;
@@ -176,6 +184,8 @@ export interface UserProfile {
   companyName?: string;
   companyCode?: string;
   vatCode?: string;
+  /** Weekday map mon..sun → {open,close,closed?} Europe/Vilnius */
+  businessHours?: import("@vauto/shared/business-hours").BusinessHours | null;
   billingPlan?:
     | "free"
     | "start"

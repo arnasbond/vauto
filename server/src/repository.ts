@@ -99,7 +99,7 @@ const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, locatio
 export const PUBLIC_LISTING_VISIBILITY_SQL = `NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')`;
 
 export async function getUser(id: string): Promise<ApiUser | null> {
-  const rows = await query<{
+  type UserRow = {
     id: string;
     name: string;
     first_name: string | null;
@@ -123,18 +123,14 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     age_group: string | null;
     gender: string | null;
     hobbies: string[] | null;
-  }>(
-    `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
-            wallet_balance, role, business_type, sold_count, auth_provider,
-            billing_plan, referral_code, free_protection_credits, referred_by_user_id,
-            profile_type,
-            age_group, gender, hobbies
-     FROM users WHERE id = $1`,
-    [id]
-  );
-  const r = rows[0];
-  if (!r) return null;
-  return {
+    company_name?: string | null;
+    company_code?: string | null;
+    vat_code?: string | null;
+    service_base_city?: string | null;
+    business_hours?: unknown;
+  };
+
+  const mapRow = (r: UserRow): ApiUser => ({
     id: r.id,
     name: r.name,
     firstName: r.first_name ?? undefined,
@@ -166,10 +162,48 @@ export async function getUser(id: string): Promise<ApiUser | null> {
         ? (r.gender as ApiUser["gender"])
         : undefined,
     hobbies: Array.isArray(r.hobbies) ? r.hobbies.filter(Boolean).map(String) : undefined,
+    companyName: r.company_name ?? undefined,
+    companyCode: r.company_code ?? undefined,
+    vatCode: r.vat_code ?? undefined,
+    serviceBaseCity: r.service_base_city ?? undefined,
+    businessHours:
+      r.business_hours && typeof r.business_hours === "object"
+        ? (r.business_hours as ApiUser["businessHours"])
+        : undefined,
     avatar:
       r.avatar_url ??
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
-  };
+  });
+
+  try {
+    const rows = await query<UserRow>(
+      `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
+              wallet_balance, role, business_type, sold_count, auth_provider,
+              billing_plan, referral_code, free_protection_credits, referred_by_user_id,
+              profile_type,
+              age_group, gender, hobbies,
+              company_name, company_code, vat_code, service_base_city, business_hours
+       FROM users WHERE id = $1`,
+      [id]
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return mapRow(r);
+  } catch {
+    // Pre-migration fallback if 025 columns are missing.
+    const rows = await query<UserRow>(
+      `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
+              wallet_balance, role, business_type, sold_count, auth_provider,
+              billing_plan, referral_code, free_protection_credits, referred_by_user_id,
+              profile_type,
+              age_group, gender, hobbies
+       FROM users WHERE id = $1`,
+      [id]
+    );
+    const r = rows[0];
+    if (!r) return null;
+    return mapRow(r);
+  }
 }
 
 /** Find user by normalized phone digits — used for duplicate-registration guards. */
@@ -266,47 +300,89 @@ export async function setUserProfileType(
 }
 
 export async function upsertUser(user: ApiUser): Promise<void> {
-  await query(
-    `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
-                        wallet_balance, role, business_type, sold_count, auth_provider, profile_type,
-                        age_group, gender, hobbies)
-     VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
-     ON CONFLICT (id) DO UPDATE SET
-       name = EXCLUDED.name,
-       phone = EXCLUDED.phone,
-       city = EXCLUDED.city,
-       avatar_url = EXCLUDED.avatar_url,
-       email = EXCLUDED.email,
-       warned = EXCLUDED.warned,
-       wallet_balance = COALESCE(EXCLUDED.wallet_balance, users.wallet_balance),
-       role = COALESCE(EXCLUDED.role, users.role),
-       business_type = COALESCE(EXCLUDED.business_type, users.business_type),
-       sold_count = COALESCE(EXCLUDED.sold_count, users.sold_count),
-       auth_provider = COALESCE(EXCLUDED.auth_provider, users.auth_provider),
-       profile_type = COALESCE(users.profile_type, EXCLUDED.profile_type),
-      age_group = COALESCE(EXCLUDED.age_group, users.age_group),
-      gender = COALESCE(EXCLUDED.gender, users.gender),
-      hobbies = COALESCE(EXCLUDED.hobbies, users.hobbies),
-       updated_at = now()`,
-    [
-      user.id,
-      user.name,
-      user.phone,
-      user.city,
-      user.avatar,
-      user.email ?? null,
-      user.warned ?? false,
-      user.walletBalance ?? 0,
-      user.role ?? "private",
-      user.businessType ?? null,
-      user.soldCount ?? 0,
-      user.authProvider ?? null,
-      user.profileType ?? null,
-      user.ageGroup ?? null,
-      user.gender ?? null,
-      user.hobbies ?? null,
-    ]
-  );
+  const baseParams = [
+    user.id,
+    user.name,
+    user.phone,
+    user.city,
+    user.avatar,
+    user.email ?? null,
+    user.warned ?? false,
+    user.walletBalance ?? 0,
+    user.role ?? "private",
+    user.businessType ?? null,
+    user.soldCount ?? 0,
+    user.authProvider ?? null,
+    user.profileType ?? null,
+    user.ageGroup ?? null,
+    user.gender ?? null,
+    user.hobbies ?? null,
+  ];
+  try {
+    await query(
+      `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
+                          wallet_balance, role, business_type, sold_count, auth_provider, profile_type,
+                          age_group, gender, hobbies,
+                          company_name, company_code, vat_code, service_base_city, business_hours)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
+               $17, $18, $19, $20, $21)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         phone = EXCLUDED.phone,
+         city = EXCLUDED.city,
+         avatar_url = EXCLUDED.avatar_url,
+         email = EXCLUDED.email,
+         warned = EXCLUDED.warned,
+         wallet_balance = COALESCE(EXCLUDED.wallet_balance, users.wallet_balance),
+         role = COALESCE(EXCLUDED.role, users.role),
+         business_type = COALESCE(EXCLUDED.business_type, users.business_type),
+         sold_count = COALESCE(EXCLUDED.sold_count, users.sold_count),
+         auth_provider = COALESCE(EXCLUDED.auth_provider, users.auth_provider),
+         profile_type = COALESCE(users.profile_type, EXCLUDED.profile_type),
+         age_group = COALESCE(EXCLUDED.age_group, users.age_group),
+         gender = COALESCE(EXCLUDED.gender, users.gender),
+         hobbies = COALESCE(EXCLUDED.hobbies, users.hobbies),
+         company_name = COALESCE(EXCLUDED.company_name, users.company_name),
+         company_code = COALESCE(EXCLUDED.company_code, users.company_code),
+         vat_code = COALESCE(EXCLUDED.vat_code, users.vat_code),
+         service_base_city = COALESCE(EXCLUDED.service_base_city, users.service_base_city),
+         business_hours = COALESCE(EXCLUDED.business_hours, users.business_hours),
+         updated_at = now()`,
+      [
+        ...baseParams,
+        user.companyName ?? null,
+        user.companyCode ?? null,
+        user.vatCode ?? null,
+        user.serviceBaseCity ?? null,
+        user.businessHours ?? null,
+      ]
+    );
+  } catch {
+    await query(
+      `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
+                          wallet_balance, role, business_type, sold_count, auth_provider, profile_type,
+                          age_group, gender, hobbies)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16)
+       ON CONFLICT (id) DO UPDATE SET
+         name = EXCLUDED.name,
+         phone = EXCLUDED.phone,
+         city = EXCLUDED.city,
+         avatar_url = EXCLUDED.avatar_url,
+         email = EXCLUDED.email,
+         warned = EXCLUDED.warned,
+         wallet_balance = COALESCE(EXCLUDED.wallet_balance, users.wallet_balance),
+         role = COALESCE(EXCLUDED.role, users.role),
+         business_type = COALESCE(EXCLUDED.business_type, users.business_type),
+         sold_count = COALESCE(EXCLUDED.sold_count, users.sold_count),
+         auth_provider = COALESCE(EXCLUDED.auth_provider, users.auth_provider),
+         profile_type = COALESCE(users.profile_type, EXCLUDED.profile_type),
+         age_group = COALESCE(EXCLUDED.age_group, users.age_group),
+         gender = COALESCE(EXCLUDED.gender, users.gender),
+         hobbies = COALESCE(EXCLUDED.hobbies, users.hobbies),
+         updated_at = now()`,
+      baseParams
+    );
+  }
 }
 
 export async function getListings(): Promise<ApiListing[]> {

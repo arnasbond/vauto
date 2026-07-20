@@ -2,45 +2,37 @@
 
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Camera, MessageCircle, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
-import { DesktopAddAside } from "@/components/layout/desktop/DesktopAddAside";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
-import { SellerUploadPanel } from "@/components/SellerUploadPanel";
-import { FashionUploadPanel } from "@/components/clothing/FashionUploadPanel";
-import {
-  AiIntroModal,
-  hasSeenAiIntro,
-} from "@/components/photo/AiIntroModal";
 import { useVauto } from "@/context/VautoContext";
-import { createManualFallbackDraft } from "@/lib/ai-safeguards";
-import { enrichClothingListingDraft } from "@/lib/clothing-catalog";
 import { useVautoAgent } from "@/context/VautoAgentContext";
-import { notifyAgentFlow } from "@/lib/vauto-agent-client";
-import { useAgentFlowPhase } from "@/hooks/useAgentFlowPhase";
 import { useLayoutMode } from "@/context/LayoutModeContext";
-import { isSellerFlowBlockingStaticUi } from "@/lib/agent-flow-phase";
+import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
+import { applyProfileToListingDraft } from "@/lib/profile-listing-sync";
+import { createManualFallbackDraft } from "@/lib/ai-safeguards";
+import { transitionListingFlow } from "@/lib/listing-conversational-flow";
 
+/**
+ * Constitution: /add is a thin shell into the agent listing organism.
+ * No classic form publish path — photos/text go through sendAgentMessage + SM.
+ */
 export default function AddPage() {
   const router = useRouter();
   const {
     isAuthenticated,
     authHydrated,
     requireAuthForListing,
-    consumePendingSellerQuery,
+    requestMediaConsent,
     applyAgentListingDraft,
-    activateWardrobeSpinta,
-    sellerStep,
     user,
+    showToast,
   } = useVauto();
-  const { sendAgentMessage } = useVautoAgent();
-  const flowPhase = useAgentFlowPhase();
+  const { sendAgentMessage, setOpen } = useVautoAgent();
   const { isDesktop } = useLayoutMode();
-  const blockStaticUi = isSellerFlowBlockingStaticUi(flowPhase);
-  const [introOpen, setIntroOpen] = useState(false);
-  const [startAiAfterIntro, setStartAiAfterIntro] = useState(false);
-  const [fashionMode, setFashionMode] = useState(false);
-  const fashionStartedRef = useRef(false);
+  const [busy, setBusy] = useState(false);
+  const bootstrappedRef = useRef(false);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -48,64 +40,71 @@ export default function AddPage() {
       requireAuthForListing("/add");
       return;
     }
+    if (bootstrappedRef.current) return;
+    bootstrappedRef.current = true;
 
-    const params =
-      typeof window !== "undefined"
-        ? new URLSearchParams(window.location.search)
-        : new URLSearchParams();
-    const isFashion = params.get("vertical") === "fashion";
-    setFashionMode(isFashion);
-
-    const pending = consumePendingSellerQuery();
-    if (pending && sellerStep === "idle") {
-      void sendAgentMessage(pending, { fromSearchBar: true });
-      return;
-    }
-
-    if (isFashion && sellerStep === "idle" && !fashionStartedRef.current) {
-      fashionStartedRef.current = true;
-      activateWardrobeSpinta();
-      applyAgentListingDraft(
-        enrichClothingListingDraft(
-          {
-            ...createManualFallbackDraft({
-              location: user.city || "Lietuva",
-              contact: user.phone,
-            }),
-            category: "clothing",
-            title: "Naujas drabužio skelbimas",
-            description: "Asortimento įkėlimas — įkelkite nuotraukas arba aprašykite prekes.",
-          },
-          "Asortimento įkėlimas"
-        )
-      );
-      notifyAgentFlow({ kind: "listing_wizard_opened", category: "clothing" });
-      return;
-    }
-
-    if (!hasSeenAiIntro() && sellerStep === "idle" && !isFashion) {
-      setIntroOpen(true);
-    }
+    // Seed draft from profile contacts → AWAITING_PHOTOS organism entry.
+    const seeded = applyProfileToListingDraft(
+      {
+        ...createManualFallbackDraft({
+          location: user.city || "",
+          contact: user.phone || "",
+        }),
+        title: "Naujas skelbimas",
+        description: "",
+        listingFlowState: "DRAFTING_TEXT",
+      },
+      user,
+      true,
+      { onlyIfEmpty: true }
+    );
+    const nextState =
+      transitionListingFlow("DRAFTING_TEXT", "DRAFT_SAVED") ?? "AWAITING_PHOTOS";
+    applyAgentListingDraft({
+      ...seeded,
+      listingFlowState: nextState,
+    });
+    setOpen(true);
+    void sendAgentMessage(
+      "Noriu kelti skelbimą — naudoju profilio kontaktus. Prašau paprašyti nuotraukų.",
+      { skipUserBubble: true }
+    );
   }, [
     authHydrated,
     isAuthenticated,
     requireAuthForListing,
-    consumePendingSellerQuery,
-    sendAgentMessage,
     applyAgentListingDraft,
-    activateWardrobeSpinta,
-    sellerStep,
-    user.city,
-    user.phone,
+    sendAgentMessage,
+    setOpen,
+    user,
   ]);
+
+  const startWithPhotos = () => {
+    if (busy) return;
+    pickAndSendChatPhotos({
+      requestMediaConsent,
+      sendAgentMessage,
+      setOpen,
+      navigateBeforeSend: () => {
+        router.replace("/");
+      },
+      onBusyChange: setBusy,
+    });
+  };
+
+  const startWithText = () => {
+    setOpen(true);
+    router.replace("/");
+    showToast("Tęskite skelbimą pokalbyje su asistentu.", "info");
+  };
 
   if (!authHydrated) {
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-none">
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
           <HeroSection>
             {!isDesktop && <Header />}
-            <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)] md:text-left">
+            <p className="mt-10 text-center text-sm text-[var(--vauto-text-muted)]">
               Kraunama…
             </p>
           </HeroSection>
@@ -117,81 +116,56 @@ export default function AddPage() {
   if (!isAuthenticated) {
     return (
       <VautoAdaptiveLayout>
-        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-none">
+        <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
           <HeroSection>
             {!isDesktop && <Header />}
-            <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)] md:text-left">
-              {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
+            <h2 className="mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)]">
+              Naujas skelbimas
             </h2>
             <p className="mt-3 px-6 text-center text-sm text-[var(--vauto-text-muted)]">
-              Prisijunkite arba užsiregistruokite, kad galėtumėte įdėti skelbimą.
+              Prisijunkite, kad galėtumėte kelti skelbimą per asistentą.
             </p>
-            <button
-              type="button"
-              onClick={() => router.push("/")}
-              className="mx-auto mt-6 block text-sm text-[var(--vauto-primary)] underline"
-            >
-              Grįžti į paiešką
-            </button>
           </HeroSection>
         </div>
       </VautoAdaptiveLayout>
     );
   }
 
-  const uploadPanel = (
-    <>
-      {!isDesktop && <Header />}
-      <h2 className="font-display mt-6 text-center text-xl font-bold text-[var(--vauto-text-main)] md:mt-0 md:text-left md:text-2xl">
-        {fashionMode ? "Asortimento įkėlimas" : "Naujas skelbimas"}
-      </h2>
-      <p className="mt-2 text-center text-sm text-[var(--vauto-text-muted)] md:text-left">
-        {fashionMode
-          ? "Pridėkite prekių nuotraukas — AI užpildys skelbimą automatiškai."
-          : "Įklijuokite nuorodą iš Skelbiu, Autoplius, Aruodas ar Paslaugos.lt — arba pridėkite nuotraukas, AI užpildys skelbimą."}
-      </p>
-      {!fashionMode && (
-        <div className="mt-5">
-          <SellerUploadPanel
-            autoOpenPhotoFlow={startAiAfterIntro}
-            onPhotoFlowAutoOpened={() => setStartAiAfterIntro(false)}
-          />
-        </div>
-      )}
-      {fashionMode && (
-        <div className="mt-5">
-          <FashionUploadPanel />
-        </div>
-      )}
-    </>
-  );
-
   return (
     <VautoAdaptiveLayout>
-      <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg md:max-w-none">
-        {!blockStaticUi && (
-          <HeroSection>
-            {isDesktop ? (
-              <div className="desktop-add-grid">
-                <div className="desktop-add-card">{uploadPanel}</div>
-                <DesktopAddAside fashionMode={fashionMode} />
-              </div>
-            ) : (
-              uploadPanel
-            )}
-          </HeroSection>
-        )}
-
-        {!fashionMode && (
-          <AiIntroModal
-            open={introOpen}
-            onClose={() => setIntroOpen(false)}
-            onStartAi={() => {
-              setIntroOpen(false);
-              setStartAiAfterIntro(true);
-            }}
-          />
-        )}
+      <div className="seller-flow-page mx-auto min-h-full w-full max-w-lg">
+        <HeroSection>
+          {!isDesktop && <Header />}
+          <div className="mt-6 flex flex-col items-center gap-3 px-4 text-center">
+            <Sparkles className="h-8 w-8 text-[var(--vauto-primary)]" aria-hidden />
+            <h2 className="font-display text-2xl font-bold text-[var(--vauto-text-main)]">
+              Kelkite skelbimą pokalbyje
+            </h2>
+            <p className="max-w-md text-sm text-[var(--vauto-text-muted)]">
+              Miestas ir telefonas paimami iš jūsų profilio. Įkelkite iki 6 nuotraukų —
+              asistentas nuskenuos vaizdą, papildys aprašymą ir parodys patvirtinimo kortelę.
+            </p>
+            <div className="mt-4 flex w-full max-w-sm flex-col gap-2">
+              <button
+                type="button"
+                disabled={busy}
+                onClick={startWithPhotos}
+                className="flex min-h-[48px] items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-60"
+              >
+                <Camera className="h-4 w-4" aria-hidden />
+                Įkelti nuotraukas (iki 6)
+              </button>
+              <button
+                type="button"
+                onClick={startWithText}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/25 bg-[var(--vauto-surface-muted)]/40 px-4 py-2.5 text-sm font-semibold text-[var(--vauto-text)]"
+              >
+                <MessageCircle className="h-4 w-4" aria-hidden />
+                Rašyti asistentui
+              </button>
+            </div>
+          </div>
+        </HeroSection>
       </div>
     </VautoAdaptiveLayout>
   );

@@ -17,6 +17,8 @@ export interface ApiUser {
   companyName?: string;
   companyCode?: string;
   vatCode?: string;
+  /** Weekday map mon..sun → {open,close,closed?} Europe/Vilnius */
+  businessHours?: import("./shared/business-hours.js").BusinessHours | null;
   billingPlan?: string;
   billingModel?: string;
   referralCode?: string;

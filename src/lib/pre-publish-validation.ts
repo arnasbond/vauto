@@ -8,6 +8,7 @@ import {
 } from "@/lib/profile-listing-sync";
 import type { UserCoords } from "@/lib/geolocation";
 import type { AiExtractedListing, UserProfile } from "@/lib/types";
+import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
 
 export interface PrePublishCardPayload {
   title: string;
@@ -17,27 +18,45 @@ export interface PrePublishCardPayload {
   location: string;
   phone?: string;
   imageUrl?: string | null;
+  imageUrls?: string[];
   category?: string;
+  /** Business VAT breakdown when seller has vatCode */
+  vatLabelNet?: string;
+  vatLabelGross?: string;
 }
 
 export function buildPrePublishCardPayload(
   readiness: PrePublishReadiness,
-  previewImage?: string | null
+  previewImage?: string | null,
+  opts?: { vatCode?: string | null }
 ): PrePublishCardPayload | null {
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
+  const imageUrls = [
+    ...(draft.orderedImageUrls ?? []),
+    ...(previewImage ? [previewImage] : []),
+  ]
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean)
+    .filter((u, i, arr) => arr.indexOf(u) === i)
+    .slice(0, 6);
+  const vatCode =
+    opts?.vatCode ??
+    String(draft.attributes?.vatCode ?? draft.attributes?.vat_code ?? "");
+  const vat = computeVatBreakdown(draft.price ?? 0, vatCode);
+  const vatLabelNet = vat.hasVat ? vat.labelNet : undefined;
+  const vatLabelGross = vat.hasVat ? vat.labelGross : undefined;
   return {
     title: sanitizeListingTitle(draft.title),
     description: sanitizeListingDescription(draft.description),
     price: draft.price ?? 0,
-    priceLabel: draft.priceLabel,
+    priceLabel: draft.priceLabel ?? vatLabelGross,
     location: readiness.resolvedCity,
     phone: readiness.resolvedPhone,
-    imageUrl:
-      previewImage ??
-      draft.orderedImageUrls?.[0] ??
-      null,
+    imageUrl: imageUrls[0] ?? previewImage ?? null,
+    ...(imageUrls.length ? { imageUrls } : {}),
     category: draft.category,
+    ...(vatLabelNet ? { vatLabelNet, vatLabelGross } : {}),
   };
 }
 
@@ -202,10 +221,10 @@ export function buildPrePublishMissingGuide(
     hints.push("įkelkite bent vieną nuotrauką (fotoaparato piktograma arba nutempkite failą į pokalbį)");
   }
   if (readiness.missingPhone) {
-    hints.push("parašykite telefono numerį, pvz. +370 612 34567");
+    hints.push("atnaujinkite telefono numerį profilyje");
   }
   if (readiness.missingCity) {
-    hints.push("nurodykite miestą, pvz. Kaunas arba Vilnius");
+    hints.push("atnaujinkite miestą profilyje");
   }
   if (readiness.missingPrice) {
     hints.push("nurodykite kainą eurais, pvz. 1200 €");

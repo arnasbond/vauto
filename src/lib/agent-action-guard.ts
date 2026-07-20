@@ -104,6 +104,13 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
               .filter(Boolean)
               .slice(0, 6)
           : undefined;
+        const flowRaw = asString(d.listingFlowState);
+        const listingFlowState =
+          flowRaw === "DRAFTING_TEXT" ||
+          flowRaw === "AWAITING_PHOTOS" ||
+          flowRaw === "AWAITING_CONFIRMATION"
+            ? flowRaw
+            : undefined;
         return {
           ok: true,
           action: {
@@ -117,6 +124,7 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
               category: asString(d.category, "other"),
               confidence: asNumber(d.confidence, 0.5),
               attributes: safeDraftAttributes(d.attributes),
+              ...(listingFlowState ? { listingFlowState } : {}),
             },
             imageUrl:
               (imageUrls?.[0] ? imageUrls[0] : undefined) ||

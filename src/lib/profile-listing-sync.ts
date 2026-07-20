@@ -33,12 +33,18 @@ function isEmptyValue(value: string | undefined | null): boolean {
 
 /** Build contact fields from authenticated user profile. */
 export function buildProfileListingContact(
-  user: Pick<UserProfile, "phone" | "city" | "email">
+  user: Pick<
+    UserProfile,
+    "phone" | "city" | "email" | "vatCode" | "companyName" | "companyCode"
+  >
 ): ProfileListingContact {
   const phone = user.phone?.trim() ?? "";
   const email = user.email?.trim() ?? "";
   const location = verifiedProfileCity(user.city);
   const contact = [phone, email].filter(Boolean).join(" · ");
+  const vatCode = user.vatCode?.trim() ?? "";
+  const companyName = user.companyName?.trim() ?? "";
+  const companyCode = user.companyCode?.trim() ?? "";
 
   return {
     contact,
@@ -50,6 +56,9 @@ export function buildProfileListingContact(
       location,
       ...(phone ? { phone } : {}),
       ...(email ? { email } : {}),
+      ...(vatCode ? { vatCode } : {}),
+      ...(companyName ? { companyName } : {}),
+      ...(companyCode ? { companyCode } : {}),
       profileContactSynced: "true",
     },
   };
@@ -64,11 +73,18 @@ export function hasProfileListingContact(
 /** Merge profile phone/city/email into draft when authenticated (only fills empty slots by default). */
 export function applyProfileToListingDraft(
   draft: AiExtractedListing,
-  user: Pick<UserProfile, "phone" | "city" | "email">,
+  user: Pick<
+    UserProfile,
+    "phone" | "city" | "email" | "vatCode" | "companyName" | "companyCode"
+  >,
   isAuthenticated: boolean,
   opts?: { onlyIfEmpty?: boolean }
 ): AiExtractedListing {
-  if (!isAuthenticated || !hasProfileListingContact(user)) return draft;
+  if (!isAuthenticated) return draft;
+  // Profile city/phone are authority — inject even when only city exists.
+  const hasAnyProfile =
+    hasProfileListingContact(user) || Boolean(user.city?.trim());
+  if (!hasAnyProfile) return draft;
 
   const profile = buildProfileListingContact(user);
   const onlyIfEmpty = opts?.onlyIfEmpty !== false;
@@ -98,13 +114,14 @@ export function applyProfileToListingDraft(
   if (profile.email && (!onlyIfEmpty || isEmptyValue(String(attrs.email ?? "")))) {
     attrs.email = profile.email;
   }
-  if (hasProfileListingContact(user)) {
-    attrs.profileContactSynced = "true";
-  }
+  if (user.vatCode?.trim()) attrs.vatCode = user.vatCode.trim();
+  if (user.companyName?.trim()) attrs.companyName = user.companyName.trim();
+  if (user.companyCode?.trim()) attrs.companyCode = user.companyCode.trim();
+  attrs.profileContactSynced = "true";
 
   return {
     ...draft,
-    location,
+    location: location || draft.location,
     contact,
     attributes: attrs,
   };

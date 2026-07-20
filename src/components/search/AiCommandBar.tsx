@@ -44,6 +44,11 @@ import {
 } from "@/lib/chat-composer-media";
 import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
+import {
+  inferListingFlowState,
+  listingFlowComposerPlaceholder,
+  listingFlowComposerTextLocked,
+} from "@/lib/listing-conversational-flow";
 
 const GEMINI_BLUE = "#1167b1";
 
@@ -82,7 +87,7 @@ export function AiCommandBar({
     chameleonTheme,
     listings,
   } = useVauto();
-  const { sellerStep, sellerVisionRecoveryActive } = useSellerFlow();
+  const { sellerStep, sellerVisionRecoveryActive, aiDraft } = useSellerFlow();
   const {
     searchQuery,
     setSearchQuery,
@@ -406,19 +411,28 @@ export function AiCommandBar({
     }
   }, [sellerVisionRecoveryActive, collapsible, toggleWizardExpanded]);
 
+  const listingFlowState = inferListingFlowState({
+    listingFlowState: aiDraft?.listingFlowState,
+    hasDraft: Boolean(aiDraft?.title?.trim()),
+    photoCount: aiDraft?.orderedImageUrls?.length ?? 0,
+  });
+  const flowPlaceholder = listingFlowComposerPlaceholder(listingFlowState);
+  const confirmationLocked = listingFlowComposerTextLocked(listingFlowState);
+
   const wizardPlaceholder =
-    sellerVisionRecoveryActive
+    flowPlaceholder ??
+    (sellerVisionRecoveryActive
       ? "Pvz. „Parduodu Citroen DS5, numeris NOG675“…"
       : phase === "listing_processing"
       ? "Agentas apdoroja — galite rašyti patikslinimus…"
       : skin.variant === "spinta"
         ? "Rašykite Spintos sekretorei — pvz. „pakeisk dydį į M“"
-        : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“";
+        : "Rašykite — pvz. „pakeisk kainą“ arba „pridėk defektus“");
 
   const inputPlaceholder = isWizard
     ? wizardPlaceholder
     : isChatBar
-      ? "Rašykite atsakymą…"
+      ? flowPlaceholder ?? "Rašykite atsakymą…"
     : isTopBar
       ? AI_FIRST_SEARCH_PLACEHOLDER
       : "Rašykite paiešką… (nuotrauka: nuskenuosiu brūkšninį kodą)";
@@ -618,7 +632,12 @@ export function AiCommandBar({
           <button
             type="button"
             onClick={handleChatMediaAttach}
-            disabled={busy || isPickingChatMedia || composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS}
+            disabled={
+              busy ||
+              confirmationLocked ||
+              isPickingChatMedia ||
+              composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS
+            }
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-primary)]/10 disabled:opacity-40"
             aria-label="Pridėti nuotrauką"
             title="Pridėti nuotrauką"
@@ -656,13 +675,18 @@ export function AiCommandBar({
               ? "text-[15px] text-[var(--vauto-text-main)] placeholder:text-[#4b5563]"
               : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[#4b5563]"
           )}
-          disabled={busy}
+          disabled={busy || (isChatBar && confirmationLocked)}
+          readOnly={isChatBar && confirmationLocked}
           autoComplete="off"
         />
 
         <button
           type="submit"
-          disabled={busy || (isChatBar ? !canSendChat : !draftQuery.trim())}
+          disabled={
+            busy ||
+            (isChatBar && confirmationLocked) ||
+            (isChatBar ? !canSendChat : !draftQuery.trim())
+          }
           className={cn(
             "flex shrink-0 items-center justify-center gap-1 rounded-xl font-semibold text-white transition disabled:opacity-40",
             isChatBar

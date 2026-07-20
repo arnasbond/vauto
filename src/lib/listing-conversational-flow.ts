@@ -1,12 +1,39 @@
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
+import {
+  AWAITING_PHOTOS_PROMPT,
+  PROFILE_CITY_REQUIRED,
+  PROFILE_PHONE_REQUIRED,
+  buildDraftingCompletePhotosPrompt,
+} from "@vauto/shared/listing-organism";
+
+export {
+  LISTING_FLOW_STATES,
+  type ListingFlowState,
+  type ListingFlowEvent,
+  type ListingFlowDispatchResult,
+  PRE_PUBLISH_CARD_INTRO,
+  AWAITING_PHOTOS_PROMPT,
+  AWAITING_PHOTOS_NUDGE,
+  AWAITING_CONFIRMATION_LOCKED,
+  PROFILE_CITY_REQUIRED,
+  PROFILE_PHONE_REQUIRED,
+  isListingFlowState,
+  inferListingFlowState,
+  canTransitionListingFlow,
+  transitionListingFlow,
+  listingFlowAllowsFieldMutation,
+  listingFlowAllowsPhotoUpload,
+  listingFlowTreatsTextAsConfirmation,
+  listingFlowComposerPlaceholder,
+  listingFlowComposerTextLocked,
+  dispatchListingFlowTurn,
+  buildDraftingCompletePhotosPrompt,
+} from "@vauto/shared/listing-organism";
 
 export const LISTING_CONFIRM_CHIP = "✅ Viskas tinka";
 export const LISTING_EDIT_CHIP = "✏️ Dar pataisysiu";
 
-export const PRE_PUBLISH_CARD_INTRO =
-  "Puiku! Žemiau — galutinė skelbimo peržiūra. Jei viskas teisinga, spauskite „Patvirtinti ir publikuoti“.";
-
-/** One friendly question at a time — no warning walls or form widgets. */
+/** Profile-first missing prompts — city/phone come from profile, not listing chat fields. */
 export function buildConversationalMissingPrompt(
   readiness: Pick<
     PrePublishReadiness,
@@ -21,16 +48,16 @@ export function buildConversationalMissingPrompt(
     return "Norint publikuoti skelbimą, reikia prisijungti — prisijunkite ir tęsime pokalbį.";
   }
   if (readiness.missingPhoto) {
-    return "Puiku! Dabar reikia nuotraukos — įkelkite ją čia pokalbyje (fotoaparato piktograma arba nutempkite failą), kad pirkėjai pamatytų prekę.";
+    return AWAITING_PHOTOS_PROMPT;
   }
   if (readiness.missingCity) {
-    return 'Kuriame mieste ar rajone yra prekė? Parašykite, pvz. Kaišiadorys, Kaunas arba prie Kaišiadorių.';
+    return PROFILE_CITY_REQUIRED;
   }
   if (readiness.missingPrice) {
     return "Kokią kainą nustatome? Parašykite sumą eurais, pvz. 8500 €.";
   }
   if (readiness.missingPhone) {
-    return "Kokiu telefono numeriu susisieks pirkėjai? Parašykite, pvz. +370 612 34567.";
+    return PROFILE_PHONE_REQUIRED;
   }
   return "Papildykime dar kelias detales — parašykite, ką norėtumėte patikslinti.";
 }
@@ -42,32 +69,10 @@ export interface DraftConfirmationInput {
   location?: string;
 }
 
-function truncate(text: string, max = 280): string {
-  const t = text.trim();
-  if (t.length <= max) return t;
-  return `${t.slice(0, max - 1).trim()}…`;
-}
-
-/** Stage 2: polished draft preview inside a chat bubble before the card. */
 export function buildDraftConfirmationBubble(draft: DraftConfirmationInput): string {
-  const title = draft.title?.trim() || "Naujas skelbimas";
-  const desc = draft.description?.trim() ? truncate(draft.description) : "";
-  const price =
-    draft.price != null && draft.price > 0 ? `${draft.price} €` : "";
-  const loc = draft.location?.trim() || "";
-
-  const lines = ["Štai jūsų skelbimo variantas:", "", title];
-  if (desc) lines.push("", desc);
-  if (price) lines.push("", `Kaina: ${price}`);
-  if (loc) lines.push(`Vieta: ${loc}`);
-  lines.push(
-    "",
-    'Jei viskas tinka — parašykite „tinka“ arba „gerai“, ir parodysiu galutinę peržiūrą su mygtuku „Patvirtinti ir publikuoti“.'
-  );
-  return lines.join("\n");
+  return buildDraftingCompletePhotosPrompt(draft);
 }
 
 export function listingConfirmationQuickReplies(): string[] {
-  // Physical preview card carries the publish CTA — avoid promising chips that may not render.
-  return [LISTING_CONFIRM_CHIP, LISTING_EDIT_CHIP];
+  return [];
 }
