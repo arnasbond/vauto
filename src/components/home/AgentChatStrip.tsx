@@ -36,9 +36,26 @@ export interface AgentChatStripProps {
   onSeedConsumed?: () => void;
 }
 
+function UserMessageMedia({ urls }: { urls: string[] }) {
+  if (!urls.length) return null;
+  return (
+    <div className="mb-1.5 flex flex-wrap gap-1.5" aria-label="Prisegtos nuotraukos">
+      {urls.map((url, imgIdx) => (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img
+          key={`${url.slice(0, 48)}-${imgIdx}`}
+          src={url}
+          alt={`Nuotrauka ${imgIdx + 1}`}
+          className="h-20 w-20 rounded-lg border border-white/25 object-cover shadow-sm sm:h-24 sm:w-24"
+        />
+      ))}
+    </div>
+  );
+}
+
 /**
- * Organiškas AI dialogas — grynas pokalbis burbuliukais, be formų ir blokavimo widgetų.
- * PrePublishCard rodoma tik po „viskas tinka" patvirtinimo (live draft, ne užšaldyta snapshot).
+ * Organiškas AI dialogas — pokalbio burbulai + galutinė skelbimo peržiūros kortelė.
+ * PrePublishCard rodoma po žodinio „tinka/gerai“ patvirtinimo.
  */
 export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProps) {
   const {
@@ -66,15 +83,13 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   const messagesScrollRef = useRef<HTMLDivElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
-  const assistantCount = messages.filter((m) => m.role === "assistant").length;
-  const domMessages: AgentChatMessage[] = resolveVisibleAgentBubbles(messages);
-  const supervisorBroker = domMessages.find((m) => m.role === "assistant") ?? null;
-  const renderMessages: AgentChatMessage[] =
-    supervisorBroker && assistantCount > 1
-      ? domMessages.filter((m) => m.role === "user" || m === supervisorBroker)
-      : domMessages;
+  const renderMessages: AgentChatMessage[] = useMemo(
+    () => resolveVisibleAgentBubbles(messages),
+    [messages]
+  );
 
-  const lastAssistantMessage = renderMessages.find((m) => m.role === "assistant");
+  const lastAssistantMessage =
+    [...renderMessages].reverse().find((m) => m.role === "assistant") ?? null;
   const lastAssistant = lastAssistantMessage?.text ?? "";
 
   const prePublishReadiness = useMemo(() => {
@@ -181,6 +196,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           if (m.role === "assistant" && isBlockedFallbackBubble(display)) {
             return null;
           }
+          const mediaUrls = m.role === "user" ? m.imageUrls?.filter(Boolean) ?? [] : [];
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
 
@@ -197,27 +213,22 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
               : null;
 
           return (
-            <div key={safeMessageKey(m.role, i, m.text)} className="w-full">
+            <div
+              key={safeMessageKey(m.role, i, `${display}-${mediaUrls[0] ?? ""}`)}
+              className="w-full"
+            >
               <AgentChatBubble role={m.role}>
                 {m.role === "user" ? (
                   <>
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
                       Jūs
                     </span>
-                    {m.imageUrls?.length ? (
-                      <div className="mb-1.5 flex flex-wrap gap-1.5">
-                        {m.imageUrls.map((url, imgIdx) => (
-                          // eslint-disable-next-line @next/next/no-img-element
-                          <img
-                            key={`${url.slice(0, 32)}-${imgIdx}`}
-                            src={url}
-                            alt={`Nuotrauka ${imgIdx + 1}`}
-                            className="h-16 w-16 rounded-lg border border-white/20 object-cover"
-                          />
-                        ))}
-                      </div>
+                    <UserMessageMedia urls={mediaUrls} />
+                    {display ? (
+                      <span>{display}</span>
+                    ) : mediaUrls.length ? (
+                      <span className="text-[12px] opacity-80">Nuotrauka įkelta</span>
                     ) : null}
-                    {display ? <span>{display}</span> : null}
                   </>
                 ) : (
                   <>

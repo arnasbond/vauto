@@ -287,6 +287,8 @@ export type VautoAgentAction =
         allowPastomatas?: boolean;
       };
       imageUrl?: string;
+      /** All uploaded photos for this draft (multi-image, max 6). */
+      imageUrls?: string[];
     }
   | {
       type: "block_listing";

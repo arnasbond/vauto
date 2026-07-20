@@ -66,9 +66,27 @@ export function isPhotoIntentRoutingResponse(quickReplies?: string[]): boolean {
 
 function photoAckLine(count: number): string {
   if (count > 1) {
-    return `Matau ${count} nuotraukas — puiki kokybė!`;
+    return `Matau ${count} nuotraukas — analizuoju vaizdą ir papildau skelbimo aprašymą.`;
   }
-  return "Matau nuotrauką — puiki kokybė!";
+  return "Matau nuotrauką — analizuoju vaizdą ir papildau skelbimo aprašymą.";
+}
+
+function mergeVisionDescription(existing?: string, vision?: string): string {
+  const a = String(existing ?? "").trim();
+  const b = String(vision ?? "").trim();
+  if (!a) return b;
+  if (!b) return a;
+  if (a.includes(b) || b.includes(a)) return a.length >= b.length ? a : b;
+  return `${a}\n\n${b}`;
+}
+
+function uniqueImageUrls(urls: string[]): string[] {
+  const out: string[] = [];
+  for (const raw of urls) {
+    const u = String(raw ?? "").trim();
+    if (u && !out.includes(u)) out.push(u);
+  }
+  return out.slice(0, 6);
 }
 
 async function resolveListingPhotoScan(input: {
@@ -91,7 +109,7 @@ async function resolveListingPhotoScan(input: {
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
 }> {
-  const imageUrls = input.imageUrls.filter(Boolean).slice(0, 6);
+  const imageUrls = uniqueImageUrls(input.imageUrls);
 
   const extraBits = [
     input.listingDraft?.category
@@ -100,6 +118,7 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
+    "Vision: enrich listing description with color, condition, equipment, and visible defects from ALL photos.",
   ].filter(Boolean);
 
   const parsed = await parseListingImagesForAgent({
@@ -136,7 +155,10 @@ async function resolveListingPhotoScan(input: {
 
   const visionDraft = {
     title: parsed.listing.title,
-    description: parsed.listing.description,
+    description: mergeVisionDescription(
+      input.listingDraft?.description,
+      parsed.listing.description
+    ),
     price: parsed.listing.price,
     location: parsed.listing.location,
     category: parsed.listing.category,
@@ -148,6 +170,7 @@ async function resolveListingPhotoScan(input: {
       ? {
           ...input.listingDraft,
           ...visionDraft,
+          description: visionDraft.description,
           attributes: {
             ...(input.listingDraft.attributes ?? {}),
             ...visionDraft.attributes,
@@ -178,20 +201,31 @@ async function resolveListingPhotoScan(input: {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingCity: true })}`;
   }
 
+  const ambiguousImageOnly =
+    isImageOnlyChatUpload(input.userText) && !input.listingDraft?.title?.trim();
+
   return {
     ok: true,
     reply,
-    quickReplies: [...POST_VALIDATION_QUICK_REPLIES],
+    quickReplies: ambiguousImageOnly
+      ? [...PHOTO_INTENT_ROUTING_CHIPS, ...POST_VALIDATION_QUICK_REPLIES].slice(0, 4)
+      : [...POST_VALIDATION_QUICK_REPLIES],
     toolCalls: [
       {
         name: "scanListingPhotos",
-        result: { ok: true, message: reply, draft: mergedDraft },
+        result: {
+          ok: true,
+          message: reply,
+          draft: mergedDraft,
+          imageUrls,
+        },
       },
     ],
     actions: {
       type: "listing_draft",
       listingDraft: mergedDraft,
       imageUrl: imageUrls[0],
+      imageUrls,
     },
   };
 }
@@ -216,48 +250,26 @@ export async function resolveChatMediaAttachmentResponse(input: {
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
 } | null> {
-  const imageUrls = input.imageUrls.filter(Boolean).slice(0, 6);
+  const imageUrls = uniqueImageUrls(input.imageUrls);
   if (!imageUrls.length) return null;
 
   const userNote = input.userText;
-  const imageOnly = isImageOnlyChatUpload(userNote);
   const sellIntent = isPhotoSellIntentText(userNote);
   const searchIntent = isPhotoSearchIntentText(userNote);
 
-  if (imageOnly && !input.listingDraft?.title?.trim()) {
-    return {
-      ok: true,
-      reply: PHOTO_INTENT_ROUTING_REPLY,
-      quickReplies: [...PHOTO_INTENT_ROUTING_CHIPS],
-      toolCalls: [],
-      actions: { type: "none" },
-    };
-  }
-
+  // Pure search chip — do not create/overwrite a sell draft.
   if (searchIntent && !sellIntent) {
     return {
       ok: true,
       reply:
-        "Gerai — ieškau panašių skelbimų pagal jūsų nuotrauką. Jei reikės, paklausiu dar vieno patikslinimo.",
+        "Gerai — ieškau panašių skelbimų pagal jūsų nuotrauką(-as). Jei reikės, paklausiu dar vieno patikslinimo.",
       quickReplies: [],
-      toolCalls: [{ name: "photoIntentSearch", result: { ok: true } }],
+      toolCalls: [{ name: "photoIntentSearch", result: { ok: true, imageUrls } }],
       actions: { type: "none" },
     };
   }
 
-  if (sellIntent || input.listingDraft?.title?.trim()) {
-    return resolveListingPhotoScan(input);
-  }
-
-  if (!imageOnly) {
-    return resolveListingPhotoScan(input);
-  }
-
-  return {
-    ok: true,
-    reply: PHOTO_INTENT_ROUTING_REPLY,
-    quickReplies: [...PHOTO_INTENT_ROUTING_CHIPS],
-    toolCalls: [],
-    actions: { type: "none" },
-  };
+  // Always run Gemini Vision for uploads: enrich title/description/attrs from
+  // all photos — never stop at a bare „nuotrauka įdėta“ ack.
+  return resolveListingPhotoScan(input);
 }

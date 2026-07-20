@@ -579,8 +579,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           showToast(sessionCheck.message, "error");
           return;
         }
-        const draft = mapAgentDraftToListing(actions.listingDraft);
-        applyAgentListingDraft(draft, actions.imageUrl);
+        const photoUrls = [
+          ...(actions.imageUrls ?? []),
+          ...(actions.imageUrl ? [actions.imageUrl] : []),
+        ]
+          .map((u) => String(u ?? "").trim())
+          .filter(Boolean)
+          .filter((u, i, arr) => arr.indexOf(u) === i)
+          .slice(0, 6);
+        const draft = {
+          ...mapAgentDraftToListing(actions.listingDraft),
+          ...(photoUrls.length ? { orderedImageUrls: photoUrls } : {}),
+        };
+        applyAgentListingDraft(draft, photoUrls[0] ?? actions.imageUrl);
       }
       if (actions.type === "wardrobe_bulk") {
         const items = mapAgentWardrobeItems(actions.items);
@@ -1060,8 +1071,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (!readiness.ok) {
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
+        // Verbal „tinka/gerai/publikuoti“ only opens the preview card.
+        // Actual publish happens via the physical button on PrePublishListingCard.
         const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
-        if (card && (readiness.syncedDraft?.price ?? 0) > 0) {
+        if (card) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
           return {
@@ -1069,7 +1082,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             prePublishCard: card,
           };
         }
-        return { reply: "Publikuoju skelbimą…", publishAfterReply: true };
+        return {
+          reply:
+            "Skelbimo peržiūros dar nepavyko paruošti — papildykite kainą, miestą ar nuotrauką ir parašykite „tinka“ dar kartą.",
+        };
       };
 
       const buildPrePublishMissingGuideReply = (): string => {
@@ -1139,7 +1155,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: listingChatReply };
       }
 
-      if (isTooShortAgentQuery(trimmed, { fromVoice: voiceReply, listingChat: listingChatContext })) {
+      // Photo-only (or photo + short caption) must reach pendingImageUrls handling below.
+      // Empty text is "too short" by design — do not treat media uploads as noise.
+      if (
+        !hasIncomingImages &&
+        isTooShortAgentQuery(trimmed, {
+          fromVoice: voiceReply,
+          listingChat: listingChatContext,
+        })
+      ) {
         const reply = resolveAgentNoiseReply(trimmed);
         const shortUserMsg: AgentChatMessage = { role: "user", text: trimmed };
         setMessages((prev) => [
@@ -1317,23 +1341,35 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       const incomingImages = options?.pendingImageUrls?.filter(Boolean).slice(0, 6);
       if (incomingImages?.length) {
-        setSessionPendingImageUrls(incomingImages);
+        setSessionPendingImageUrls((prev) =>
+          [...incomingImages, ...prev]
+            .filter(Boolean)
+            .filter((u, i, arr) => arr.indexOf(u) === i)
+            .slice(0, 6)
+        );
         setListingPublishConfirmed(false);
+        if (aiDraft) {
+          const mergedPhotos = [
+            ...incomingImages,
+            ...(aiDraft.orderedImageUrls ?? []),
+          ]
+            .filter(Boolean)
+            .filter((u, i, arr) => arr.indexOf(u) === i)
+            .slice(0, 6);
+          updateAiDraft({ orderedImageUrls: mergedPhotos });
+        }
       }
       const activePendingImageUrls =
         incomingImages ?? (sessionPendingImageUrls.length ? sessionPendingImageUrls : undefined);
       const requestPendingImageUrls = incomingImages?.length ? incomingImages : undefined;
       const pendingImageCount =
-        sessionPendingImageUrls.length || requestPendingImageUrls?.length || 0;
+        requestPendingImageUrls?.length ||
+        sessionPendingImageUrls.length ||
+        0;
       const geoCityHint = buyerCoords
         ? nearestLtCityFromCoords(buyerCoords) || undefined
         : undefined;
 
-      const userMsg: AgentChatMessage = {
-        role: "user",
-        text: trimmed,
-        ...(incomingImages?.length ? { imageUrls: incomingImages } : {}),
-      };
       const proactiveOnly = Boolean(options?.proactiveTriggerOnly);
       const apiUserText = proactiveOnly
         ? `[Proaktyvi intervencija: ${options?.proactiveOffer?.kind ?? "assist"} — ${
@@ -1342,6 +1378,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             "padėk vartotojui proaktyviai"
           }]`
         : trimmed || (incomingImages?.length ? "[Nuotraukos įkeltos]" : trimmed);
+
+      const userMsg: AgentChatMessage = {
+        role: "user",
+        text: apiUserText,
+        ...(incomingImages?.length ? { imageUrls: incomingImages } : {}),
+      };
 
       const nextMessages = proactiveOnly
         ? conversationBase
@@ -1480,7 +1522,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         });
         const listingEditSession = readListingEditSession();
         const agentBody = {
-          messages: sessionMessages.map((m) => ({ role: m.role, text: m.text })),
+          messages: sessionMessages.map((m) => ({
+            role: m.role,
+            text:
+              m.text?.trim() ||
+              (m.imageUrls?.length ? "[Nuotraukos įkeltos]" : m.text ?? ""),
+          })),
           context: {
             ...memoryContext,
             ...sellerWizardContext,

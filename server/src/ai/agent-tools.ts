@@ -1528,6 +1528,7 @@ export async function executeAgentTool(
           type: "listing_draft",
           listingDraft: draft,
           imageUrl: imageUrls[0],
+          imageUrls: imageUrls.slice(0, 6),
         },
       };
     }
@@ -1572,16 +1573,22 @@ export async function executeAgentTool(
 
     case "scanListingPhotos": {
       const imageUrls = Array.isArray(args.imageUrls)
-        ? args.imageUrls.map(String).filter(Boolean)
+        ? args.imageUrls.map(String).filter(Boolean).slice(0, 6)
         : [];
       const categoryHint = args.category ? String(args.category) : ctx.listingDraft?.category;
+      const prior = ctx.listingDraft;
 
       try {
         const parsed = await parseListingImagesForAgent({
           imageDataUrls: imageUrls,
           userCity: ctx.userCity,
           contact: ctx.contact,
-          extraContext: categoryHint ? `category hint: ${categoryHint}` : undefined,
+          extraContext: [
+            categoryHint ? `category hint: ${categoryHint}` : "",
+            "Vision: enrich listing description with color, condition, equipment, and visible defects from ALL photos.",
+          ]
+            .filter(Boolean)
+            .join("; "),
         });
 
         const listingAttrs = Object.fromEntries(
@@ -1591,15 +1598,27 @@ export async function executeAgentTool(
           ])
         );
 
+        const priorDesc = String(prior?.description ?? "").trim();
+        const visionDesc = String(parsed.listing.description ?? "").trim();
+        let mergedDescription = visionDesc || priorDesc;
+        if (priorDesc && visionDesc && !priorDesc.includes(visionDesc) && !visionDesc.includes(priorDesc)) {
+          mergedDescription = `${priorDesc}\n\n${visionDesc}`;
+        } else if (priorDesc && visionDesc) {
+          mergedDescription = priorDesc.length >= visionDesc.length ? priorDesc : visionDesc;
+        }
+
         const draft = {
-          title: parsed.listing.title,
-          description: parsed.listing.description,
-          price: parsed.listing.price,
-          location: parsed.listing.location,
-          contact: ctx.contact,
-          category: parsed.listing.category,
+          title: parsed.listing.title || prior?.title || "",
+          description: mergedDescription,
+          price: parsed.listing.price || prior?.price || 0,
+          location: parsed.listing.location || prior?.location || ctx.userCity || "",
+          contact: ctx.contact || "",
+          category: parsed.listing.category || prior?.category || "other",
           confidence: parsed.listing.confidence,
-          attributes: listingAttrs,
+          attributes: {
+            ...(prior?.attributes ?? {}),
+            ...listingAttrs,
+          },
         };
 
         if (parsed.needsClarification) {
@@ -1637,11 +1656,13 @@ export async function executeAgentTool(
             voiceAnnouncement: message,
             message,
             quickReplies,
+            imageUrls,
           },
           sideEffect: {
             type: "listing_draft",
             listingDraft: draft,
             imageUrl: imageUrls[0],
+            imageUrls,
           },
         };
       } catch (e) {
@@ -2589,6 +2610,8 @@ export type AgentSideEffect =
         allowPastomatas?: boolean;
       };
       imageUrl?: string;
+      /** All uploaded photos for this draft (multi-image, max 6). */
+      imageUrls?: string[];
     }
   | {
       type: "block_listing";

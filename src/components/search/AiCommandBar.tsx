@@ -293,11 +293,15 @@ export function AiCommandBar({
         }
         const msg = trimmed;
         const images = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
-        setDraftQuery("");
-        if (isChatBar) setComposerAttachments([]);
-        await sendAgentMessage(msg, {
+        // Clear composer only after a successful handoff — otherwise a short-circuit
+        // (or transport failure) would wipe photos and draft text with nothing sent.
+        const res = await sendAgentMessage(msg, {
           ...(images.length ? { pendingImageUrls: images } : {}),
         });
+        if (res.ok) {
+          setDraftQuery("");
+          if (isChatBar) setComposerAttachments([]);
+        }
         if (collapsible) {
           void hapticImpactLight();
           if (!sellerVisionRecoveryActive) setWizardExpanded(false);

@@ -2,7 +2,7 @@ export const LISTING_CONFIRM_CHIP = "✅ Viskas tinka";
 export const LISTING_EDIT_CHIP = "✏️ Dar pataisysiu";
 
 export const PRE_PUBLISH_CARD_INTRO =
-  "Puiku! Peržiūrėkite skelbimą ir spauskite publikuoti 👇";
+  "Puiku! Žemiau — galutinė skelbimo peržiūra. Jei viskas teisinga, spauskite „Patvirtinti ir publikuoti“.";
 
 export function buildConversationalMissingPrompt(input: {
   missingAuth?: boolean;

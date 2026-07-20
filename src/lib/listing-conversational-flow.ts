@@ -4,7 +4,7 @@ export const LISTING_CONFIRM_CHIP = "✅ Viskas tinka";
 export const LISTING_EDIT_CHIP = "✏️ Dar pataisysiu";
 
 export const PRE_PUBLISH_CARD_INTRO =
-  "Puiku! Peržiūrėkite skelbimą ir spauskite publikuoti 👇";
+  "Puiku! Žemiau — galutinė skelbimo peržiūra. Jei viskas teisinga, spauskite „Patvirtinti ir publikuoti“.";
 
 /** One friendly question at a time — no warning walls or form widgets. */
 export function buildConversationalMissingPrompt(
@@ -62,11 +62,12 @@ export function buildDraftConfirmationBubble(draft: DraftConfirmationInput): str
   if (loc) lines.push(`Vieta: ${loc}`);
   lines.push(
     "",
-    'Jei viskas tinka, parašykite viskas tinka arba spauskite mygtuką žemiau.'
+    'Jei viskas tinka — parašykite „tinka“ arba „gerai“, ir parodysiu galutinę peržiūrą su mygtuku „Patvirtinti ir publikuoti“.'
   );
   return lines.join("\n");
 }
 
 export function listingConfirmationQuickReplies(): string[] {
+  // Physical preview card carries the publish CTA — avoid promising chips that may not render.
   return [LISTING_CONFIRM_CHIP, LISTING_EDIT_CHIP];
 }

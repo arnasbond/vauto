@@ -187,8 +187,15 @@ function buildImagePrompt(
   return `${SYSTEM_RULES}
 ${VISION_ANTI_HALLUCINATION_RULE}
 
-Analizuok nuotrauką(-as) DAUgiatiksliai: identifikuok visus matomus objektus, aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1 arba confidence < 0.55.
-Jei vienas aiškus objektas — pasirink jį kaip pagrindinį title/category. Jei neaišku — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.${textNote}${extra}
+Analizuok VISAS pateiktas nuotraukas (ne tik pirmą): identifikuok matomus objektus, aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1 arba confidence < 0.55.
+Jei vienas aiškus objektas — pasirink jį kaip pagrindinį title/category. Jei neaišku — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.
+
+Aprašymas (description) — PRIVALOMAS pilnas skelbimo tekstas lietuviškai (4–8 sakiniai). Įtrauk:
+- matomą spalvą / medžiagą / stilių;
+- komplektaciją ar įrangą (jei matoma);
+- būklę;
+- bet kokius matomus defektus (įbrėžimai, įlenkimai, dėmės, trūkumai). Jei defektų nesimato — parašyk tai aiškiai.
+DRAUDŽIAMA atsakyti tik „nuotrauka įkelta“ ar panašia tuščia fraze — aprašymas turi būti naudingas pirkėjui.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }

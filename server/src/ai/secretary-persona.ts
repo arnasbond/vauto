@@ -73,8 +73,9 @@ export const SECRETARY_SMART_PRICE_RULES = `Smart Price Advisor (asmeninis broke
 - Tonas: draugiškas brokeris — „{Vardas}, 2500 € — kaip tik viduryje rinkos!" arba mandagus perspėjimas jei per aukšta.`;
 
 export const SECRETARY_VISION_SCAN_RULES = `Computer Vision (nuotraukų skenavimas):
-- Kai vartotojas įkelia nuotraukas ar [Nuotraukos įkeltos] bloke yra URL — PRIVALOMA scanListingPhotos(imageUrls).
-- Vision fone užpildo akivaizdžius laukus: spalva, kėbulo tipas, markė/modelis, kambarių skaičius, įrengimas, būklė.
+- Kai vartotojas įkelia nuotraukas ar [Nuotraukos įkeltos] bloke yra URL — PRIVALOMA scanListingPhotos(imageUrls) su VISOMIS nuotraukomis (iki 6), ne tik pirmąja.
+- Vision fone užpildo akivaizdžius laukus IR automatiškai papildo skelbimo description: spalva, kėbulo tipas, markė/modelis, kambarių skaičius, įrengimas/komplektacija, būklė, matomi defektai.
+- DRAUDŽIAMA atsakyti vien „nuotrauka įdėta“ be Vision analizės ir aprašymo papildymo.
 - NEAIŠKUS VAIZDAS (kambarys, interjeras, keli objektai): NEPRISKIR PASLAUGOS automatiškai. SUSTOK disambiguation loop:
   „Nuotraukoje matau kambarį ir televizorių — ar teisingai suprantu, kad šį skelbimą ruošiame televizoriui?“ + alternatyvos.
 - Po scanListingPhotos atsakyk voiceAnnouncement + followUpQuestion su alternatyvomis — ne sausu atmetimu.

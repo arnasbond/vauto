@@ -158,7 +158,7 @@ export function PrePublishListingCard({
                 Publikuojama…
               </>
             ) : (
-              <>🚀 Publikuoti skelbimą</>
+              <>Patvirtinti ir publikuoti</>
             )}
           </button>
           <button

@@ -39,17 +39,8 @@ export function trimVautoAgentRequest(req: VautoAgentRequest): VautoAgentRequest
     myListings,
   };
 
-  const lastUser = messages.filter((m) => m.role === "user").pop();
-  const photoUploadTurn = lastUser?.text?.includes("[Nuotraukos įkeltos]");
-  if (context.pendingImageUrls?.length && !photoUploadTurn) {
-    const count = context.pendingImageCount ?? context.pendingImageUrls.length;
-    const rest = { ...context };
-    delete rest.pendingImageUrls;
-    context = {
-      ...rest,
-      pendingImageCount: count,
-    };
-  }
+  // Client only attaches pendingImageUrls on the upload turn. Preserve the full
+  // multi-image array so Vision / scanListingPhotos can analyze every photo.
 
   return {
     ...req,

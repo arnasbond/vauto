@@ -91,14 +91,36 @@ export function resolveSupervisorChatTurn(
   };
 }
 
-/** Strict single-bubble render list for chat strips. */
+/**
+ * Recent chat stream for embedded strips.
+ * Keeps user media attachments visible (single-turn collapse previously dropped
+ * photo bubbles once another user text turn arrived).
+ */
 export function resolveVisibleAgentBubbles(
   messages: AgentChatMessage[]
 ): AgentChatMessage[] {
-  const turn = resolveSupervisorChatTurn(messages);
+  const cleaned = messages.filter(
+    (m) => !isProactiveInternalAgentText(m.text?.trim() ?? "")
+  );
+  const recent = cleaned.slice(-14);
   const out: AgentChatMessage[] = [];
-  if (turn.user) out.push(turn.user);
-  if (turn.assistant) out.push(turn.assistant);
+
+  for (const m of recent) {
+    if (m.role === "assistant") {
+      const display = sanitizeAgentReplyForDisplay(m.text) || m.text;
+      if (!display.trim() || isBlockedFallbackBubble(display)) continue;
+      out.push({
+        ...m,
+        text: display,
+      });
+      continue;
+    }
+    const hasText = Boolean(m.text?.trim());
+    const hasMedia = Boolean(m.imageUrls?.length);
+    if (!hasText && !hasMedia) continue;
+    out.push(m);
+  }
+
   return out;
 }
 

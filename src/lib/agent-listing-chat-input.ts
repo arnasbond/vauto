@@ -174,6 +174,10 @@ export function tryApplyListingChatInput(
   }
 
   const trimmed = sanitizeListingUserText(text);
+  // Soft affirmations must never be appended into listing description.
+  if (/^(tinka|gerai|taip|ok|okay|patvirtinu|publikuoti|publikuok)\.?$/i.test(trimmed)) {
+    return null;
+  }
   if (
     trimmed.length >= 3 &&
     trimmed.length <= 240 &&

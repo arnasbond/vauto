@@ -1172,11 +1172,34 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const previousDraft = aiDraftRef.current;
-      const { draft: merged } = commitConductorDraft(draft, draftSource, previousDraft);
-      const mergedDraft = { ...draft, ...merged } as AiExtractedListing;
+      const galleryPhotos = [
+        ...(draft.orderedImageUrls ?? []),
+        ...(imageUrl ? [imageUrl] : []),
+        ...(previousDraft?.orderedImageUrls ?? []),
+      ]
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean)
+        .filter((u, i, arr) => arr.indexOf(u) === i)
+        .slice(0, 6);
+      const draftWithPhotos =
+        galleryPhotos.length > 0
+          ? { ...draft, orderedImageUrls: galleryPhotos }
+          : draft;
+      const { draft: merged } = commitConductorDraft(
+        draftWithPhotos,
+        draftSource,
+        previousDraft
+      );
+      const mergedDraft = { ...draftWithPhotos, ...merged } as AiExtractedListing;
+      if (galleryPhotos.length) {
+        mergedDraft.orderedImageUrls = galleryPhotos;
+      }
       const sourceText = [mergedDraft.title, mergedDraft.description].filter(Boolean).join(" ");
       let enriched = enrichVehicleListingDraft(mergedDraft, [sourceText]);
       enriched = enrichClothingListingDraft(enriched, sourceText);
+      if (galleryPhotos.length) {
+        enriched = { ...enriched, orderedImageUrls: galleryPhotos };
+      }
       const previousCategory = previousDraft?.category ?? null;
       const previousAttributes = previousDraft?.attributes ?? null;
       setAiDraft(
@@ -1188,7 +1211,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       );
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
-      if (imageUrl) setSellerPreviewImage(imageUrl);
+      if (galleryPhotos.length) {
+        setSellerPreviewImages(galleryPhotos);
+        setSellerPreviewImage(galleryPhotos[0] ?? null);
+      } else if (imageUrl) {
+        setSellerPreviewImage(imageUrl);
+      }
       setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
       setSellerStep("idle");
       const detectedBarcode = resolveBarcodeFromAttributes(
@@ -1210,7 +1238,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           "success"
         );
       }
-      if (imageUrl) {
+      if (galleryPhotos.length || imageUrl) {
         notifyAgentFlow({
           kind: "listing_media_analyzed",
           objectLabel: enriched.title || enriched.description?.slice(0, 48) || "",

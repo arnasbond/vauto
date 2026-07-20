@@ -53,17 +53,9 @@ export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {
     };
   }
 
-  const lastUser = messages.filter((m) => m.role === "user").pop();
-  const photoUploadTurn = lastUser?.text?.includes("[Nuotraukos įkeltos]");
-  if (context?.pendingImageUrls?.length && !photoUploadTurn) {
-    const count = context.pendingImageCount ?? context.pendingImageUrls.length;
-    const rest = { ...context };
-    delete rest.pendingImageUrls;
-    context = {
-      ...rest,
-      pendingImageCount: count,
-    };
-  }
+  // Client only attaches pendingImageUrls on the upload turn. Keep all URLs
+  // (up to 6) even when the user bubble text is empty — photo-only turns must
+  // not lose multi-image payloads during trim.
 
   return {
     ...body,

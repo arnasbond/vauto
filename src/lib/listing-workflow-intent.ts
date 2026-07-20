@@ -28,6 +28,8 @@ const EXACT_PUBLISH_COMMANDS = new Set([
   "gerai",
   "ok",
   "okay",
+  "tinka",
+  "patvirtinu",
   "taip tinka",
   "taip, tinka",
   "ne, be reklamos",
@@ -71,7 +73,14 @@ export function isPublishWorkflowCommand(text: string): boolean {
   if (!raw) return false;
   const folded = foldLt(raw);
   if (PUBLISH_WORKFLOW_RE.test(folded)) return true;
-  if (folded === "taip" || folded === "gerai" || folded === "ok" || folded === "okay") {
+  if (
+    folded === "taip" ||
+    folded === "gerai" ||
+    folded === "ok" ||
+    folded === "okay" ||
+    folded === "tinka" ||
+    folded === "patvirtinu"
+  ) {
     return true;
   }
   if (folded === "publikuok" || folded === "publikuoti" || folded === "publikuojam") {

@@ -98,6 +98,12 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
             description.slice(0, 72) ||
             (category === "clothing" ? "Naujas drabužio skelbimas" : "Naujas skelbimas");
         }
+        const imageUrls = Array.isArray(action.imageUrls)
+          ? action.imageUrls
+              .map((u) => asString(u))
+              .filter(Boolean)
+              .slice(0, 6)
+          : undefined;
         return {
           ok: true,
           action: {
@@ -112,7 +118,10 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
               confidence: asNumber(d.confidence, 0.5),
               attributes: safeDraftAttributes(d.attributes),
             },
-            imageUrl: action.imageUrl ? asString(action.imageUrl) : undefined,
+            imageUrl:
+              (imageUrls?.[0] ? imageUrls[0] : undefined) ||
+              (action.imageUrl ? asString(action.imageUrl) : undefined),
+            ...(imageUrls?.length ? { imageUrls } : {}),
           },
         };
       }
