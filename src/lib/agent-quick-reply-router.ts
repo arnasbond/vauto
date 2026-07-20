@@ -20,8 +20,6 @@ export interface AgentQuickReplyResult {
   handled: true;
   reply: string;
   quickReplies?: string[];
-  /** When true, caller must await publishListing() before showing final assistant reply. */
-  publishAfterReply?: boolean;
   prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
 }
 
@@ -51,7 +49,7 @@ export interface AgentQuickReplyDeps {
   }>;
   /** Returns chat reply when user tries to publish from chat chips. */
   requestPublishUpsell: () => AgentQuickReplyResult;
-  /** Returns chat reply; awaits DB save when publishAfterReply is set. */
+  /** Returns chat reply + PrePublish card; never publishes from chat alone. */
   confirmPublishNow: () => AgentQuickReplyResult;
   /** Detailed guide when user taps „Suvesti trūkstamus duomenis“. */
   buildPrePublishMissingGuide: () => string;

@@ -1,5 +1,6 @@
 import { isPlaceholderCity } from "@/lib/city-resolve";
 import { verifiedProfileCity } from "@/lib/listing-location-context";
+import { isValidListingPhone } from "@/lib/listing-form-validation";
 import {
   draftPatchFromParsedContacts,
   normalizeLtPhoneLenient,
@@ -17,7 +18,7 @@ export const PUBLISH_REQUIRES_AUTH_MESSAGE =
   "Publikavimui reikia prisijungti prie paskyros.";
 
 export const PUBLISH_REQUIRES_PROFILE_CONTACT_MESSAGE =
-  "Profilyje nėra patvirtinto telefono ar el. pašto — užpildykite profilį prieš publikuojant.";
+  "Profilyje nėra galiojančio telefono numerio — atnaujinkite Profilio nustatymus prieš publikuojant.";
 
 export interface ProfileListingContact {
   contact: string;
@@ -64,10 +65,11 @@ export function buildProfileListingContact(
   };
 }
 
+/** Publish authority: LT phone required. Email alone is not enough. */
 export function hasProfileListingContact(
   user: Pick<UserProfile, "phone" | "city" | "email">
 ): boolean {
-  return Boolean(user.phone?.trim() || user.email?.trim());
+  return isValidListingPhone(user.phone?.trim() ?? "");
 }
 
 /** Merge profile phone/city/email into draft when authenticated (only fills empty slots by default). */
@@ -293,7 +295,10 @@ export function isContactOnlyUserMessage(text: string): boolean {
   return remainder.replace(/[\s,.:;!?\-–—()]+/g, "").length < 3;
 }
 
-/** Persist chat-discovered contacts to profile (+ optional listing draft) without blocking UI. */
+/**
+ * Persist chat-discovered contacts only when profile slots are empty.
+ * Constitution: profile phone/city are publish authority — never re-harvest into listing when ready.
+ */
 export async function syncProfileContactsFromChat(input: {
   text: string;
   user: Pick<UserProfile, "id" | "phone" | "email" | "city">;
@@ -306,6 +311,12 @@ export async function syncProfileContactsFromChat(input: {
   user: Pick<UserProfile, "id" | "phone" | "email" | "city">;
 }> {
   if (!input.isAuthenticated) {
+    return { confirmation: null, user: input.user };
+  }
+
+  const profilePhoneReady = isValidListingPhone(input.user.phone?.trim() ?? "");
+  const profileCityReady = Boolean(verifiedProfileCity(input.user.city));
+  if (profilePhoneReady && profileCityReady) {
     return { confirmation: null, user: input.user };
   }
 

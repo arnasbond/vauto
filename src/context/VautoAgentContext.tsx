@@ -16,7 +16,6 @@ import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
 import { apiVautoAgentStream } from "@/lib/api/vauto-agent-stream";
 import {
   BUDDY_REPEAT_PROMPT,
@@ -174,12 +173,6 @@ import {
   buildListingContactUpdateReply,
   parseListingContactFromText,
 } from "@/lib/listing-contact-parse";
-import { usePublishCelebration } from "@/context/PublishCelebrationContext";
-import {
-  centerScreenPublishRect,
-  runPublishSuccessCelebration,
-} from "@/lib/publish-success-celebration";
-
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
 export interface AgentSendOptions {
@@ -282,9 +275,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerVisionRecoveryActive,
     cancelSellerFlow,
     sellerPreviewImage,
-    finishPublishedFlow,
   } = useSellerFlow();
-  const { playPublishCelebration } = usePublishCelebration();
   const { startChat } = useChat();
   const pathname = usePathname();
   const router = useRouter();
@@ -1081,7 +1072,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const confirmPublishNow = (): {
         reply: string;
         quickReplies?: string[];
-        publishAfterReply?: boolean;
         prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
       } => {
         const readiness = runPrePublishGate();
@@ -1288,7 +1278,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             reply: r.reply,
             ...(r.quickReplies ? { quickReplies: r.quickReplies } : {}),
             ...(r.prePublishCard ? { prePublishCard: r.prePublishCard } : {}),
-            ...(r.publishAfterReply ? { publishAfterReply: true } : {}),
           };
         },
         buildPrePublishMissingGuide: buildPrePublishMissingGuideReply,
@@ -1333,61 +1322,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ...(quickReply.prePublishCard ? { prePublishCard: quickReply.prePublishCard } : {}),
           },
         ].slice(-6));
-        let finalReply = quickReply.reply;
-        if (quickReply.publishAfterReply) {
-          const result = await publishListing();
-          if (result.ok) {
-            await runPublishSuccessCelebration({
-              result,
-              sourceRect: centerScreenPublishRect(),
-              playCelebration: playPublishCelebration,
-              finishPublishedFlow,
-              router,
-              resetPublishSession: () => resetPublishSessionRef.current(),
-            });
-            finalReply = "Skelbimas sėkmingai publikuotas! Perkeliame į Mano skelbimai…";
-          } else if (result.sessionExpired) {
-            finalReply = result.error ?? SESSION_EXPIRED_MESSAGE;
-          } else if (result.prePublishBlocked) {
-            finalReply = buildConversationalMissingPrompt(
-              evaluatePrePublishReadiness({
-                isAuthenticated,
-                user,
-                draft: aiDraft,
-                previewImage: sellerPreviewImage,
-                orderedImageUrls: aiDraft?.orderedImageUrls,
-                geoCoords: buyerCoords,
-              })
-            );
-          } else {
-            finalReply = `Nepavyko išsaugoti skelbimo: ${result.error ?? "Nežinoma klaida"}`;
-          }
-          setMessages((prev) => {
-            const next = [...prev];
-            next[next.length - 1] = {
-              role: "assistant" as const,
-              text: finalReply,
-              ...(!result.ok
-                ? {
-                    ...(result.sessionExpired
-                      ? { quickReplies: ["Prisijungti iš naujo"] as string[] }
-                      : {}),
-                    ...(!result.prePublishBlocked && !result.sessionExpired
-                      ? { quickReplies: ["Reikia pataisyti"] as string[] }
-                      : {}),
-                  }
-                : {}),
-            };
-            return next.slice(-6);
-          });
-          if (!result.ok) {
-            showToast(finalReply, "error");
-          } else {
-            speakReply(finalReply);
-          }
-        }
         touchAgentSessionActivity();
-        return { ok: true, reply: finalReply };
+        return { ok: true, reply: quickReply.reply };
       }
 
       const lastActiveAt = readAgentSessionLastActiveAt();
@@ -1916,8 +1852,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pendingWardrobeVoice,
       publishBulkClothingListings,
       publishListing,
-      finishPublishedFlow,
-      playPublishCelebration,
       applyAgentWardrobeBulk,
       applyAgentListingDraft,
       navigateToAdd,
@@ -2260,11 +2194,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               role: "assistant" as const,
               text:
                 field === "phone"
-                  ? "Telefonas imamas iš profilio. Atidarykite Profilį ir atnaujinkite numerį — tada grįšime prie skelbimo."
-                  : "Miestas imamas iš profilio. Atidarykite Profilį ir atnaujinkite miestą — tada grįšime prie skelbimo.",
+                  ? "Telefonas imamas iš profilio. Atidarau nustatymus — įrašykite numerį, tada grįšime prie skelbimo."
+                  : "Miestas imamas iš profilio. Atidarau nustatymus — įrašykite miestą, tada grįšime prie skelbimo.",
             },
           ].slice(-6));
-          router.push("/profile");
+          router.push(
+            field === "phone"
+              ? "/profile/settings/?focus=phone"
+              : "/profile/settings/?focus=city"
+          );
           return true;
         }
       }
