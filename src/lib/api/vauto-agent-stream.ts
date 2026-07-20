@@ -34,6 +34,24 @@ function parseSseChunks(buffer: string): {
   return { events, rest };
 }
 
+function unavailableResult(
+  status?: number,
+  detail?: string
+): VautoAgentApiResult {
+  const code =
+    status === 429
+      ? "ai_rate_limit_exceeded"
+      : status === 401
+        ? "auth_required"
+        : "agent_unavailable";
+  const error =
+    detail?.trim() ||
+    (status
+      ? `AI serveris nepasiekiamas (HTTP ${status})`
+      : "AI serveris nepasiekiamas — bandykite dar kartą po kelių minučių.");
+  return { ok: false, code, error };
+}
+
 /** POST /api/vauto-agent/stream — SSE progress + authoritative final payload. */
 export async function apiVautoAgentStream(
   body: Parameters<
@@ -41,7 +59,7 @@ export async function apiVautoAgentStream(
   >[0],
   handlers: VautoAgentStreamHandlers,
   signal?: AbortSignal
-): Promise<VautoAgentApiResult | null> {
+): Promise<VautoAgentApiResult> {
   const trimmed = trimAgentRequestBody(body);
   const timeoutMs = trimmed.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
   const renderBase = getDataApiBaseUrl();
@@ -53,6 +71,17 @@ export async function apiVautoAgentStream(
   if (renderBase && !bases.includes(renderBase)) {
     bases.push(renderBase);
   }
+
+  if (!bases.length) {
+    return unavailableResult(
+      undefined,
+      "AI serveris nesukonfigūruotas (trūksta NEXT_PUBLIC_API_URL)."
+    );
+  }
+
+  let lastStatus: number | undefined;
+  let lastDetail: string | undefined;
+  let timedOut = false;
 
   for (const base of bases) {
     const controller = new AbortController();
@@ -72,7 +101,33 @@ export async function apiVautoAgentStream(
         signal: controller.signal,
       });
 
-      if (!res.ok || !res.body) continue;
+      lastStatus = res.status;
+
+      if (!res.ok || !res.body) {
+        let detail = "";
+        try {
+          const text = await res.text();
+          try {
+            const json = JSON.parse(text) as { error?: string; code?: string };
+            if (json.error) detail = json.error;
+            if (json.code === "agent_unavailable" || json.code === "ai_rate_limit_exceeded") {
+              return {
+                ok: false,
+                code: json.code,
+                error: json.error || detail || `HTTP ${res.status}`,
+              };
+            }
+          } catch {
+            if (text && !text.trimStart().startsWith("<")) {
+              detail = text.slice(0, 180);
+            }
+          }
+        } catch {
+          /* ignore body read errors */
+        }
+        lastDetail = detail || `HTTP ${res.status}`;
+        continue;
+      }
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -101,13 +156,29 @@ export async function apiVautoAgentStream(
       }
 
       if (finalResult) return finalResult;
-    } catch {
-      /* try next base */
+      lastDetail = "Tuščias AI atsakymas";
+    } catch (err) {
+      const name = err instanceof Error ? err.name : "";
+      const msg = err instanceof Error ? err.message : String(err);
+      if (name === "AbortError" || /aborted|timeout/i.test(msg)) {
+        timedOut = true;
+        lastDetail = "Užklausa viršijo laiko limitą";
+      } else {
+        lastDetail = msg || "Tinklo klaida";
+      }
     } finally {
       window.clearTimeout(timer);
       signal?.removeEventListener("abort", onAbort);
     }
   }
 
-  return null;
+  if (timedOut && (lastStatus == null || lastStatus >= 500)) {
+    return {
+      ok: false,
+      code: "timeout",
+      error: lastDetail || "Užklausa viršijo laiko limitą",
+    };
+  }
+
+  return unavailableResult(lastStatus, lastDetail);
 }

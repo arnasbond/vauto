@@ -1549,20 +1549,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         setStreamThinkingLabel("Galvoju…");
 
-        if (!res) {
-          const message = BUDDY_REPEAT_PROMPT;
-          setMessages((prev) => {
-            const usersOnly = prev.filter((m) => m.role === "user");
-            return [
-              ...usersOnly,
-              { role: "assistant" as const, text: message },
-            ].slice(-6);
-          });
-          speakReply(message);
-          if (open && !options?.fromSearchBar) showToast(message, "info");
-          return { ok: true, reply: message };
-        }
-
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error, res.code);
           setMessages((prev) => {

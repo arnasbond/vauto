@@ -60,9 +60,11 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
 
   if (
     normalizedCode === "agent_unavailable" ||
-    /503|unavailable|nepasiekiamas|overloaded|high demand/i.test(err)
+    /502|503|bad gateway|unavailable|nepasiekiamas|overloaded|high demand|serveris/i.test(
+      err
+    )
   ) {
-    return "Trumpam užimtas — bandykite dar kartą po kelių sekundžių.";
+    return "AI asistentas šiuo metu nepasiekiamas — serveris atsistato. Bandykite po kelių minučių.";
   }
 
   if (normalizedCode === "timeout" || /timeout|laiko limit/i.test(err)) {
