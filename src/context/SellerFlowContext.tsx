@@ -1605,12 +1605,21 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       ? listingIdFromClientDraftId(clientDraftId)
       : `l-${Date.now()}`;
 
+    // Prefer draft orderedImageUrls (agent multi-photo) over stale preview state.
+    const syncedGallery = resolveSellerGalleryImages(
+      { orderedImageUrls: profileDraft.orderedImageUrls },
+      [
+        ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+        ...sellerPreviewImages.filter(Boolean),
+      ].filter((url, i, arr) => arr.indexOf(url) === i)
+    ).slice(0, 6);
+    const cover = syncedGallery[0] ?? sellerPreviewImage;
+    const rest = syncedGallery.slice(1);
+
     const [listingImage, extraImages, coords] = await Promise.all([
-      prepareListingImageForApi(sellerPreviewImage, listingId),
-      sellerPreviewImages.length > 1
-        ? Promise.all(
-            sellerPreviewImages.slice(1).map((src) => prepareListingImageForApi(src, listingId))
-          )
+      prepareListingImageForApi(cover, listingId),
+      rest.length
+        ? Promise.all(rest.map((src) => prepareListingImageForApi(src, listingId)))
         : Promise.resolve([] as (string | null)[]),
       coordsPromise,
     ]);

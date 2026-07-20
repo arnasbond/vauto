@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { Suspense } from "react";
+import { Suspense, useEffect } from "react";
+import { useSearchParams } from "next/navigation";
 import { ArrowLeft, BarChart3 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
@@ -25,6 +26,43 @@ import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { useVauto } from "@/context/VautoContext";
+
+function ListingContactFocusBanner() {
+  const searchParams = useSearchParams();
+  const { showToast, user } = useVauto();
+  const focus = searchParams.get("focus");
+
+  useEffect(() => {
+    if (focus === "phone") {
+      showToast(
+        user.phone?.trim()
+          ? "Patikrinkite telefono numerį — jis naudojamas skelbimuose."
+          : "Įrašykite telefono numerį — be jo skelbimo publikuoti negalima.",
+        "info"
+      );
+    } else if (focus === "city") {
+      showToast(
+        user.city?.trim()
+          ? "Patikrinkite miestą — jis naudojamas skelbimuose."
+          : "Įrašykite miestą — be jo skelbimo publikuoti negalima.",
+        "info"
+      );
+    }
+  }, [focus, showToast, user.city, user.phone]);
+
+  if (focus !== "phone" && focus !== "city") return null;
+
+  return (
+    <div
+      id={focus === "phone" ? "profile-focus-phone" : "profile-focus-city"}
+      className="mb-4 rounded-2xl border border-[var(--vauto-primary)]/30 bg-[color-mix(in_srgb,var(--vauto-primary)_10%,transparent)] px-4 py-3 text-sm text-[var(--vauto-text-main)]"
+    >
+      {focus === "phone"
+        ? "Skelbimui reikia telefono iš profilio. Atnaujinkite numerį žemiau (privatumo / paskyros nustatymuose) ir grįžkite į asistentą."
+        : "Skelbimui reikia miesto iš profilio. Atnaujinkite miestą ir grįžkite į asistentą."}
+    </div>
+  );
+}
 
 export default function ProfileSettingsPage() {
   const { isAuthenticated, authHydrated } = useAuth();
@@ -69,6 +107,10 @@ export default function ProfileSettingsPage() {
         <h1 className="mb-4 text-lg font-bold text-[var(--vauto-text-main)]">
           Nustatymai
         </h1>
+
+        <Suspense fallback={null}>
+          <ListingContactFocusBanner />
+        </Suspense>
 
         <div className="space-y-3">
           <AiPersonalizationSurveyCard embedded />
