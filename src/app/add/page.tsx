@@ -2,13 +2,15 @@
 
 import { Suspense, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Camera, MessageCircle, Sparkles } from "lucide-react";
+import { Barcode, Camera, MessageCircle, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { Header } from "@/components/Header";
 import { HeroSection } from "@/components/HeroSection";
+import { BarcodeScanSheet } from "@/components/product/BarcodeScanSheet";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useLayoutMode } from "@/context/LayoutModeContext";
+import { useBarcodeScanFlow } from "@/hooks/useBarcodeScanFlow";
 import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import { applyProfileToListingDraft } from "@/lib/profile-listing-sync";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
@@ -33,8 +35,10 @@ function AddPageInner() {
     showToast,
   } = useVauto();
   const { sendAgentMessage, setOpen } = useVautoAgent();
+  const { applyScannedBarcode } = useBarcodeScanFlow();
   const { isDesktop } = useLayoutMode();
   const [busy, setBusy] = useState(false);
+  const [barcodeOpen, setBarcodeOpen] = useState(false);
   const bootstrappedRef = useRef(false);
 
   useEffect(() => {
@@ -109,6 +113,12 @@ function AddPageInner() {
     showToast("Tęskite skelbimą pokalbyje su asistentu.", "info");
   };
 
+  const startWithBarcode = () => {
+    if (busy) return;
+    if (!requireAuthForListing(isFashion ? "/add?vertical=fashion" : "/add")) return;
+    setBarcodeOpen(true);
+  };
+
   if (!authHydrated) {
     return (
       <VautoAdaptiveLayout>
@@ -168,6 +178,15 @@ function AddPageInner() {
               </button>
               <button
                 type="button"
+                disabled={busy}
+                onClick={startWithBarcode}
+                className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/30 bg-[var(--vauto-surface-muted)]/30 px-4 py-2.5 text-sm font-semibold text-[var(--vauto-text)] disabled:opacity-60"
+              >
+                <Barcode className="h-4 w-4" aria-hidden />
+                Skenuoti brūkšninį kodą
+              </button>
+              <button
+                type="button"
                 onClick={startWithText}
                 className="flex min-h-[44px] items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/25 bg-[var(--vauto-surface-muted)]/40 px-4 py-2.5 text-sm font-semibold text-[var(--vauto-text)]"
               >
@@ -178,6 +197,19 @@ function AddPageInner() {
           </div>
         </HeroSection>
       </div>
+
+      <BarcodeScanSheet
+        open={barcodeOpen}
+        onClose={() => setBarcodeOpen(false)}
+        onBarcodeResolved={(code) =>
+          void applyScannedBarcode(code, {
+            fashion: isFashion,
+            category: isFashion ? "clothing" : "other",
+          })
+        }
+        title="Skenuoti brūkšninį kodą"
+        subtitle="Nufotografuokite kodą arba įveskite EAN/UPC ranka — asistentas tęs skelbimą pokalbyje."
+      />
     </VautoAdaptiveLayout>
   );
 }

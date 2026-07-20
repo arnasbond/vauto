@@ -32,7 +32,11 @@ export async function mockUnregisteredBarcodeLookup(page: Page) {
 }
 
 async function waitForAddListingPage(page: Page) {
-  await expect(page.getByRole("heading", { name: /Naujas skelbimas/i })).toBeVisible({
+  await expect(
+    page.getByRole("heading", {
+      name: /Kelkite skelbimą pokalbyje|Kelkite drabužį pokalbyje|Naujas skelbimas/i,
+    })
+  ).toBeVisible({
     timeout: 15_000,
   });
 }
