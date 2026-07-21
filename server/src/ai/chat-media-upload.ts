@@ -166,11 +166,14 @@ async function resolveListingPhotoScan(input: {
       ].join("; "),
     });
   } catch (err) {
-    console.error("[vision] resolveListingPhotoScan FAILED", {
-      err: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack?.slice(0, 800) : undefined,
-      imageCount: imageUrls.length,
-    });
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[vision] resolveListingPhotoScan FAILED ${JSON.stringify({
+        errMessage,
+        imageCount: imageUrls.length,
+        stack: err instanceof Error ? err.stack?.slice(0, 800) : undefined,
+      })}`
+    );
     throw err;
   }
   console.log("[vision] resolveListingPhotoScan parsed", {

@@ -602,10 +602,13 @@ async function runVautoAgentInner(
       }
       console.warn("[vision] vauto-agent process_photos: null mediaResponse");
     } catch (err) {
-      console.error("[vision] vauto-agent process_photos EXCEPTION", {
-        err: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack?.slice(0, 900) : undefined,
-      });
+      const errMessage = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[vision] vauto-agent process_photos EXCEPTION ${JSON.stringify({
+          errMessage,
+          stack: err instanceof Error ? err.stack?.slice(0, 900) : undefined,
+        })}`
+      );
       // Fall through to Gemini / buddy fallback — error is now visible in Render logs.
     }
   }
@@ -1467,10 +1470,13 @@ async function runVautoAgentInner(
       }
       console.warn("[vision] vauto-agent mediaRetry returned null");
     } catch (err) {
-      console.error("[vision] vauto-agent mediaRetry EXCEPTION", {
-        err: err instanceof Error ? err.message : String(err),
-        stack: err instanceof Error ? err.stack?.slice(0, 900) : undefined,
-      });
+      const errMessage = err instanceof Error ? err.message : String(err);
+      console.error(
+        `[vision] vauto-agent mediaRetry EXCEPTION ${JSON.stringify({
+          errMessage,
+          stack: err instanceof Error ? err.stack?.slice(0, 900) : undefined,
+        })}`
+      );
     }
   }
 

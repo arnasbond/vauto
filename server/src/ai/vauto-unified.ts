@@ -380,10 +380,14 @@ export async function parseListingImagesForAgent(params: {
       imageDataUrls: images,
     });
   } catch (err) {
-    console.error("[vision] parseListingImagesForAgent unifiedLlmJson error", {
-      err: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack?.slice(0, 700) : undefined,
-    });
+    const errMessage = err instanceof Error ? err.message : String(err);
+    // Flat string — Render truncates console.error object payloads.
+    console.error(
+      `[vision] parseListingImagesForAgent unifiedLlmJson error ${JSON.stringify({
+        errMessage,
+        stack: err instanceof Error ? err.stack?.slice(0, 700) : undefined,
+      })}`
+    );
     throw err;
   }
   const raw = combinedText

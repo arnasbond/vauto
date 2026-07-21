@@ -51,6 +51,37 @@ export function summarizeImageUrlsForLog(urls: string[]): {
   return { count: urls.length, kinds, approxChars };
 }
 
+/**
+ * Render log UI often drops/truncates the 2nd console.error object arg
+ * (shows only `HTTP error {`). Always emit one flat string line.
+ */
+function visionLogError(label: string, details: Record<string, unknown>): void {
+  let line: string;
+  try {
+    line = JSON.stringify(details);
+  } catch {
+    line = String(details);
+  }
+  console.error(`[vision] ${label} ${line}`);
+}
+
+function formatGeminiHttpError(input: {
+  model: string;
+  status: number;
+  statusText: string;
+  elapsedMs: number;
+  errBody: string;
+  contentType?: string | null;
+}): string {
+  const body = input.errBody.trim() || "(empty body)";
+  return (
+    `Gemini HTTP ${input.status} ${input.statusText || ""}`.trim() +
+    ` model=${input.model} elapsedMs=${input.elapsedMs}` +
+    ` contentType=${input.contentType ?? "n/a"}` +
+    ` body=${body}`
+  );
+}
+
 async function imageUrlToInlinePart(
   url: string
 ): Promise<{ inline_data: { mime_type: string; data: string } } | null> {
@@ -175,65 +206,134 @@ async function geminiChatJson(
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
   const started = Date.now();
 
-  const res = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "x-goog-api-key": key,
-    },
-    body: JSON.stringify({
-      systemInstruction: { parts: [{ text: systemInstruction }] },
-      contents: [{ role: "user", parts: userParts }],
-      generationConfig: {
-        temperature: Math.min(1, Math.max(0, temperature)),
-        responseMimeType: "application/json",
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": key,
       },
-    }),
-    signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
-  });
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: systemInstruction }] },
+        contents: [{ role: "user", parts: userParts }],
+        generationConfig: {
+          temperature: Math.min(1, Math.max(0, temperature)),
+          responseMimeType: "application/json",
+        },
+      }),
+      signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
+    });
+  } catch (fetchErr) {
+    const elapsedMs = Date.now() - started;
+    const name = fetchErr instanceof Error ? fetchErr.name : "Error";
+    const message =
+      fetchErr instanceof Error ? fetchErr.message : String(fetchErr);
+    const isTimeout =
+      name === "TimeoutError" ||
+      name === "AbortError" ||
+      /timeout|aborted/i.test(message);
+    visionLogError("geminiChatJson FETCH exception", {
+      model,
+      elapsedMs,
+      timeoutMs: GEMINI_FETCH_TIMEOUT_MS,
+      isTimeout,
+      errorName: name,
+      errorMessage: message,
+      inlineImagesOk: inlineOk,
+      approxRequestChars: imageSummary.approxChars + prompt.length,
+    });
+    throw new Error(
+      `Gemini ${model} fetch ${isTimeout ? "TIMEOUT" : "NETWORK"} after ${elapsedMs}ms: ${name}: ${message}`
+    );
+  }
 
   const elapsedMs = Date.now() - started;
+  const responseText = await res.text();
   if (!res.ok) {
-    const errBody = await res.text();
-    console.error("[vision] geminiChatJson HTTP error", {
+    const errBody = responseText.slice(0, 4000);
+    const contentType = res.headers.get("content-type");
+    // Flat single-line log — Render truncates console.error's 2nd object arg.
+    console.error(
+      `[vision] geminiChatJson HTTP error ${formatGeminiHttpError({
+        model,
+        status: res.status,
+        statusText: res.statusText,
+        elapsedMs,
+        errBody,
+        contentType,
+      })}`
+    );
+    visionLogError("geminiChatJson HTTP error detail", {
       model,
       status: res.status,
+      statusText: res.statusText,
       elapsedMs,
-      errBody: errBody.slice(0, 800),
+      contentType,
+      errBodyChars: responseText.length,
+      errBody,
+      inlineImagesOk: inlineOk,
+      inlineImagesRequested: imageDataUrls.length,
+      approxPayloadChars: imageSummary.approxChars + prompt.length,
+      apiKeyPresent: Boolean(key),
+      apiKeyPrefix: key ? `${key.slice(0, 6)}…` : null,
     });
-    throw new Error(`Gemini ${model} ${res.status}: ${errBody}`);
+    throw new Error(
+      `Gemini ${model} ${res.status}: ${errBody || res.statusText || "empty error body"}`
+    );
   }
-  const data = (await res.json()) as {
+
+  let data: {
     candidates?: {
       content?: { parts?: { text?: string }[] };
       finishReason?: string;
     }[];
     promptFeedback?: unknown;
   };
-  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  console.log("[vision] geminiChatJson response", {
-    model,
-    elapsedMs,
-    finishReason: data.candidates?.[0]?.finishReason ?? null,
-    responseChars: text?.length ?? 0,
-    responseHead: text?.slice(0, 280) ?? null,
-    promptFeedback: data.promptFeedback ?? null,
-    candidateCount: data.candidates?.length ?? 0,
-  });
-  if (!text) {
-    console.error("[vision] geminiChatJson empty text", {
+  try {
+    data = JSON.parse(responseText) as typeof data;
+  } catch (jsonErr) {
+    visionLogError("geminiChatJson response JSON parse failed", {
       model,
+      status: res.status,
+      elapsedMs,
+      parseErr: jsonErr instanceof Error ? jsonErr.message : String(jsonErr),
+      bodyHead: responseText.slice(0, 1000),
+    });
+    throw new Error(`Gemini ${model}: invalid JSON response body`);
+  }
+
+  const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+  console.log(
+    `[vision] geminiChatJson response ${JSON.stringify({
+      model,
+      elapsedMs,
+      finishReason: data.candidates?.[0]?.finishReason ?? null,
+      responseChars: text?.length ?? 0,
+      responseHead: text?.slice(0, 280) ?? null,
+      promptFeedback: data.promptFeedback ?? null,
+      candidateCount: data.candidates?.length ?? 0,
+    })}`
+  );
+  if (!text) {
+    visionLogError("geminiChatJson empty text", {
+      model,
+      status: res.status,
+      elapsedMs,
+      finishReason: data.candidates?.[0]?.finishReason ?? null,
+      promptFeedback: data.promptFeedback ?? null,
       rawKeys: Object.keys(data ?? {}),
+      candidateCount: data.candidates?.length ?? 0,
     });
     throw new Error("Empty Gemini response");
   }
   try {
     return parseJsonFromText(text);
   } catch (parseErr) {
-    console.error("[vision] geminiChatJson JSON parse failed", {
+    visionLogError("geminiChatJson JSON parse failed", {
       model,
       parseErr: parseErr instanceof Error ? parseErr.message : String(parseErr),
-      responseHead: text.slice(0, 400),
+      responseHead: text.slice(0, 1000),
     });
     throw parseErr;
   }
@@ -341,8 +441,8 @@ export async function unifiedLlmJson(
     });
     return result;
   } catch (err) {
-    console.error("[vision] unifiedLlmJson FAILED", {
-      err: err instanceof Error ? err.message : String(err),
+    visionLogError("unifiedLlmJson FAILED", {
+      errMessage: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
       images: summarizeImageUrlsForLog(imageDataUrls),
     });
@@ -392,8 +492,8 @@ export async function visionExtractJson(
   try {
     return await unifiedLlmJson({ prompt, imageDataUrls, temperature });
   } catch (err) {
-    console.error("[vision] visionExtractJson FAILED", {
-      err: err instanceof Error ? err.message : String(err),
+    visionLogError("visionExtractJson FAILED", {
+      errMessage: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
     });
     throw err;
@@ -429,7 +529,20 @@ async function geminiGeneratePlainText(
       }
     );
     if (!res.ok) {
-      throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
+      const errBody = (await res.text()).slice(0, 4000);
+      console.error(
+        `[vision] geminiGeneratePlainText HTTP error ${formatGeminiHttpError({
+          model,
+          status: res.status,
+          statusText: res.statusText,
+          elapsedMs: 0,
+          errBody,
+          contentType: res.headers.get("content-type"),
+        })}`
+      );
+      throw new Error(
+        `Gemini ${model} ${res.status}: ${errBody || res.statusText || "empty error body"}`
+      );
     }
     const data = (await res.json()) as {
       candidates?: { content?: { parts?: { text?: string }[] } }[];

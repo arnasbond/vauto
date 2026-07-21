@@ -310,10 +310,13 @@ JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.catego
   try {
     raw = await visionExtractJson(visionPrompt, urls);
   } catch (err) {
-    console.error("[vision] scanListingPhotos visionExtractJson FAILED", {
-      err: err instanceof Error ? err.message : String(err),
-      stack: err instanceof Error ? err.stack?.slice(0, 800) : undefined,
-    });
+    const errMessage = err instanceof Error ? err.message : String(err);
+    console.error(
+      `[vision] scanListingPhotos visionExtractJson FAILED ${JSON.stringify({
+        errMessage,
+        stack: err instanceof Error ? err.stack?.slice(0, 800) : undefined,
+      })}`
+    );
     throw err;
   }
   console.log("[vision] scanListingPhotos raw ok", {
