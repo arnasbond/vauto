@@ -58,23 +58,21 @@ export function logConductorPublishLineage(listing: {
   });
 }
 
-const AUTOMATED_SOURCES = new Set(["seller", "barcode", "agent", "vehicle"]);
-
-/** Mirror client resolveConductorRequiresReview for server-side publish. */
+/**
+ * Mirror client: agent/seller publishes are live immediately.
+ * Only honor an explicit requiresReview already set on the payload (anti-fraud).
+ */
 export function resolveConductorRequiresReviewFromLineage(
   lineage: ConductorPublishLineage
 ): boolean {
-  if (!lineage.sources.length) return false;
-  if (lineage.sources.length === 1 && lineage.sources[0] === "manual") return false;
-  const hasAutomated = lineage.sources.some((s) => AUTOMATED_SOURCES.has(s));
-  const hasManual = lineage.sources.includes("manual");
-  return hasAutomated && !hasManual;
+  void lineage;
+  return false;
 }
 
 export function resolveConductorRequiresReviewForListing(listing: {
   requiresReview?: boolean;
   attributes?: Record<string, string | string[] | undefined>;
 }): boolean {
-  if (listing.requiresReview) return true;
-  return resolveConductorRequiresReviewFromLineage(readConductorLineage(listing.attributes));
+  void listing.attributes;
+  return listing.requiresReview === true;
 }

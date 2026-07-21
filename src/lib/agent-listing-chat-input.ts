@@ -234,13 +234,22 @@ export function tryApplyListingChatInput(
   if (/^(tinka|gerai|taip|ok|okay|patvirtinu|publikuoti|publikuok)\.?$/i.test(trimmed)) {
     return null;
   }
+  // Agent clarification / chip echoes must never become listing body copy.
+  if (
+    /nuotraukoje\s+matau|pasirinkite\s+objekt|ar\s+teisingai\s+suprantu|ruošiame\s+skelbimą/i.test(
+      trimmed
+    )
+  ) {
+    return null;
+  }
   if (
     trimmed.length >= 3 &&
     trimmed.length <= 240 &&
     !isListingWorkflowCommand(text)
   ) {
-    const nextDescription = aiDraft.description?.trim()
-      ? `${sanitizeListingDescription(aiDraft.description)}\n${trimmed}`.trim()
+    const baseDesc = sanitizeListingDescription(aiDraft.description);
+    const nextDescription = baseDesc
+      ? `${baseDesc}\n${trimmed}`.trim()
       : trimmed;
     const nextTitle = aiDraft.title?.trim()
       ? sanitizeListingTitle(aiDraft.title)

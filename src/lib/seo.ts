@@ -93,8 +93,12 @@ export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
 }
 
 export function listingPath(listing: Listing): string {
-  const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
-  // Query-based path works for statically exported app (no per-slug HTML file required).
+  // Prefer stable id — slug-only URLs soft-404 when slug is missing/mismatched
+  // or when static export has no per-slug HTML. Detail page resolves `id` first.
+  if (listing.id?.trim()) {
+    return `/listing/?id=${encodeURIComponent(listing.id.trim())}`;
+  }
+  const slug = listing.slug?.trim() || generateListingSlug(listing.title, listing.location);
   return `/listing/?slug=${encodeURIComponent(slug)}`;
 }
 

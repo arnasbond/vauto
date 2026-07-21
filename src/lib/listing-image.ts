@@ -77,6 +77,20 @@ export function isValidListingImageUrl(url: unknown): url is string {
   return /^https?:\/\/.+/i.test(trimmed);
 }
 
+/** Stock Unsplash demos used as catalog placeholders — never attach to real seller publishes. */
+export function isDemoStockImageUrl(url: string): boolean {
+  const u = url.trim().toLowerCase();
+  if (!u) return false;
+  return u.includes("images.unsplash.com/") || u.includes("unsplash.com/");
+}
+
+/** Keep only real session/seller uploads (drop stock Unsplash fillers). */
+export function filterSessionListingImages(urls: readonly string[] | undefined): string[] {
+  return uniqueUrls(
+    (urls ?? []).filter((url) => isValidListingImageUrl(url) && !isDemoStockImageUrl(url))
+  );
+}
+
 type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images">;
 
 function uniqueUrls(urls: string[]): string[] {
@@ -103,26 +117,18 @@ export function resolveListingImage(listing: ListingImageFields): string {
   return CATEGORY_FALLBACK[listing.category] ?? CATEGORY_FALLBACK.other;
 }
 
-/** Full gallery for detail swipe — expands single cover into 2–4 demo angles when needed */
+/**
+ * Full gallery for detail swipe.
+ * Real seller photos are never padded with Unsplash stock cars (Audi/BMW extras).
+ * Demo fillers only apply when the listing has zero images (legacy catalog).
+ */
 export function resolveListingImages(listing: ListingImageFields): string[] {
-  const fromListing = uniqueUrls(listing.images ?? []);
-  if (fromListing.length > 1) return fromListing.slice(0, 6);
+  const fromListing = filterSessionListingImages(listing.images);
+  if (fromListing.length > 0) return fromListing.slice(0, 6);
 
-  const cover = fromListing[0] ?? resolveListingImage({ ...listing, images: [] });
-  const extras: string[] = [];
-
-  const haystack = `${listing.title} ${listing.description ?? ""}`;
-  for (const [pattern, url] of CONTENT_IMAGES) {
-    if (pattern.test(haystack) && url !== cover) extras.push(url);
-    if (extras.length >= 2) break;
-  }
-
-  for (const url of CATEGORY_GALLERY_EXTRAS[listing.category] ?? []) {
-    if (url !== cover && !extras.includes(url)) extras.push(url);
-    if (extras.length >= 3) break;
-  }
-
-  return uniqueUrls([cover, ...extras]).slice(0, 4);
+  // Empty gallery — keep a single category cover for demo/legacy rows only.
+  const cover = resolveListingImage({ ...listing, images: [] });
+  return uniqueUrls([cover]).slice(0, 1);
 }
 
 export function getListingCoverImage(listing: ListingImageFields): string {

@@ -23,7 +23,7 @@ export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> &
 }
 
 export function listingPatchToApiPayload(
-  patch: ListingEditPatch & Partial<Pick<Listing, "banned">>
+  patch: ListingEditPatch & Partial<Pick<Listing, "banned" | "requiresReview">>
 ): Record<string, unknown> {
   const { images, ...rest } = patch;
   const out: Record<string, unknown> = { ...rest };

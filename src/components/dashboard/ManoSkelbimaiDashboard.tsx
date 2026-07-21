@@ -48,8 +48,10 @@ function ManoSkelbimaiCard({
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
-  // Static export cannot soft-navigate /listing/[slug] for new listings — use query path.
-  const publicHref = listingPath(listing);
+  // Always use query `id` — static export has no /listing/[slug] HTML for new posts.
+  const publicHref = listing.id?.trim()
+    ? `/listing/?id=${encodeURIComponent(listing.id.trim())}`
+    : listingPath(listing);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] shadow-sm transition hover:shadow-md">

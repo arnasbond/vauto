@@ -1,6 +1,7 @@
 import { computeSellerRating } from "@/lib/reviews";
 import type { ChatThread, Listing, SellerReview } from "@/lib/types";
 import { getFirstName } from "@/lib/buddy-voice";
+import { sellerDisplayName } from "@/lib/seller-display";
 
 export interface UserTrustProfile {
   score: number;
@@ -124,9 +125,5 @@ export function resolveSellerDisplayName(
   fallback = "Pardavėjas"
 ): string {
   const listing = listings.find((l) => l.sellerId === sellerId);
-  if (listing?.contact?.trim()) {
-    const name = listing.contact.trim().split(/\s+/)[0];
-    if (name) return name;
-  }
-  return fallback;
+  return sellerDisplayName(sellerId, { listing }) || fallback;
 }

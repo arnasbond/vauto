@@ -342,7 +342,6 @@ export type ListingFlowDispatchResult =
   | { kind: "nudge_photos"; reply: string }
   | { kind: "process_photos" }
   | { kind: "object_selected" }
-  | { kind: "show_draft_gate"; reply: string }
   | { kind: "show_confirmation"; reply: string }
   | { kind: "ignore_backward"; reply: string };
 
@@ -388,20 +387,20 @@ export function dispatchListingFlowTurn(input: {
     (state === "DRAFT_READY" ||
       state === "AWAITING_PHOTOS" ||
       state === "DRAFTING_TEXT" ||
+      state === "AWAITING_CONFIRMATION" ||
       Boolean(input.hasDraft))
   ) {
     return { kind: "show_confirmation", reply: PRE_PUBLISH_CARD_INTRO };
   }
 
-  if (listingFlowTreatsTextAsConfirmation(state)) {
-    return { kind: "show_confirmation", reply: PRE_PUBLISH_CARD_INTRO };
+  // Rule #1: DRAFT_READY — any non-photo text goes to the AI (no gate / no intent guessing).
+  if (state === "DRAFT_READY") {
+    return { kind: "allow_drafting" };
   }
 
-  if (state === "DRAFT_READY") {
-    if (isMorePhotosIntent(text)) {
-      return { kind: "nudge_photos", reply: POST_VISION_MORE_PHOTOS_NUDGE };
-    }
-    return { kind: "show_draft_gate", reply: POST_VISION_PUBLISH_GATE };
+  if (state === "AWAITING_CONFIRMATION") {
+    // Only the explicit publish chips lock PrePublish — free text goes to the AI.
+    return { kind: "allow_drafting" };
   }
 
   if (state === "AWAITING_PHOTOS") {

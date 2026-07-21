@@ -1,5 +1,6 @@
-import type { Listing } from "@/lib/types";
+import type { Listing, UserProfile } from "@/lib/types";
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
+import { displayPublicNickname } from "@/lib/profile-display";
 
 const SELLER_NAMESPACE_LABELS: Record<string, string> = {
   auto: "Automobilių",
@@ -15,7 +16,44 @@ const SELLER_NAMESPACE_LABELS: Record<string, string> = {
   brz: "Biržų",
 };
 
-export function sellerDisplayName(sellerId: string): string {
+const ATTR_SELLER_DISPLAY_NAME = "sellerDisplayName";
+
+/** Persist a clean public seller label on the listing at publish time. */
+export function withSellerDisplayNameAttribute(
+  attributes: Listing["attributes"] | undefined,
+  user: Pick<UserProfile, "nickname" | "name" | "firstName" | "lastName">
+): NonNullable<Listing["attributes"]> {
+  const label = displayPublicNickname(user);
+  return {
+    ...(attributes ?? {}),
+    [ATTR_SELLER_DISPLAY_NAME]: label,
+  };
+}
+
+export function readSellerDisplayNameFromListing(
+  listing: Pick<Listing, "attributes" | "sellerId">
+): string | undefined {
+  const raw = listing.attributes?.[ATTR_SELLER_DISPLAY_NAME];
+  const name = Array.isArray(raw) ? raw[0] : raw;
+  const trimmed = typeof name === "string" ? name.trim() : "";
+  return trimmed || undefined;
+}
+
+export function sellerDisplayName(
+  sellerId: string,
+  opts?: {
+    listing?: Pick<Listing, "attributes" | "sellerId">;
+    user?: Pick<UserProfile, "id" | "nickname" | "name" | "firstName" | "lastName"> | null;
+  }
+): string {
+  if (opts?.user && opts.user.id === sellerId) {
+    return displayPublicNickname(opts.user);
+  }
+  const fromListing = opts?.listing
+    ? readSellerDisplayNameFromListing(opts.listing)
+    : undefined;
+  if (fromListing) return fromListing;
+
   if (sellerId === "user-1") return "Jonas K.";
   const parts = sellerId.match(/^seller-([a-z]+)(?:-(\d+))?$/i);
   if (parts) {
@@ -23,7 +61,16 @@ export function sellerDisplayName(sellerId: string): string {
     const num = parts[2];
     return num ? `${ns} pardavėjas #${num}` : `${ns} pardavėjas`;
   }
-  return sellerId.replace(/-/g, " ");
+  // Never show raw ids like "user 462561412"
+  if (/^user[-_]?\d+$/i.test(sellerId) || /^u[-_]?\d+$/i.test(sellerId)) {
+    return "Vartotojas";
+  }
+  if (/^user[-_]/i.test(sellerId)) {
+    return "Vartotojas";
+  }
+  const cleaned = sellerId.replace(/-/g, " ").trim();
+  if (!cleaned || /^user\b/i.test(cleaned)) return "Vartotojas";
+  return cleaned;
 }
 
 export function sellerAvatarUrl(sellerId: string): string {

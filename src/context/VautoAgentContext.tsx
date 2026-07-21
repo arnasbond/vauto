@@ -16,7 +16,14 @@ import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useChat } from "@/context/ChatContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
-import { apiVautoAgentStream } from "@/lib/api/vauto-agent-stream";
+import {
+  apiVautoAgentStream,
+  capImageUrlsForAgentWire,
+} from "@/lib/api/vauto-agent-stream";
+import {
+  compressForAgentVisionWire,
+  selectAgentVisionUrls,
+} from "@/lib/prepare-chat-images-for-agent";
 import {
   BUDDY_REPEAT_PROMPT,
   buddyMessageForAgentFailure,
@@ -163,6 +170,11 @@ import {
   transitionListingFlow,
 } from "@/lib/listing-conversational-flow";
 import {
+  formatListingDescriptionChatMessage,
+  isDescriptionGateOnlyReply,
+} from "@/lib/listing-description-chat";
+import { resolvePublishListingDescription } from "@/lib/listing-text-sanitize";
+import {
   parseDetectedObjectsFromAttributes,
 } from "@/lib/vision-choice-chips";
 import {
@@ -191,7 +203,10 @@ export interface AgentSendOptions {
   skipBusyCheck?: boolean;
   /** When true, user bubble was already shown (queued retry). */
   skipUserBubble?: boolean;
+  /** Tiny vision subset for the agent stream (1 compressed image). */
   pendingImageUrls?: string[];
+  /** Full session gallery for draft/publish (up to 6) — not all sent on the wire. */
+  sessionImageUrls?: string[];
   /** User input came from microphone in agent sheet or search bar */
   fromVoice?: boolean;
   /** Submitted from main SearchBar — Gemini must route via function calling */
@@ -341,7 +356,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         attributes: profileSyncedDraft.attributes as Record<string, string> | undefined,
         allowPastomatas: profileSyncedDraft.allowPastomatas,
         listingFlowState: profileSyncedDraft.listingFlowState,
-        orderedImageUrls: profileSyncedDraft.orderedImageUrls,
+        // Never ship gallery data URLs in every agent turn — vision uses pendingImageUrls.
+        orderedImageUrls: undefined,
       },
       profileContacts: {
         userId: user.id,
@@ -1147,7 +1163,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       options?: AgentSendOptions
     ): Promise<WakeWordAgentResult> => {
       const trimmed = text.trim();
-      const hasIncomingImages = Boolean(options?.pendingImageUrls?.filter(Boolean).length);
+      const hasIncomingImages = Boolean(
+        options?.pendingImageUrls?.filter(Boolean).length ||
+          options?.sessionImageUrls?.filter(Boolean).length
+      );
       if (!trimmed && !hasIncomingImages) {
         return { ok: false, error: "Tuščia užklausa" };
       }
@@ -1293,8 +1312,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       /** Merge photos + price from this turn BEFORE SM so PrePublish can open with media+price. */
-      const incomingImagesEarly =
-        options?.pendingImageUrls?.filter(Boolean).slice(0, 6) ?? [];
+      const visionIncoming =
+        options?.pendingImageUrls?.filter(Boolean).slice(0, 1) ?? [];
+      const sessionIncoming = (
+        options?.sessionImageUrls?.length
+          ? options.sessionImageUrls
+          : options?.pendingImageUrls
+      )
+        ?.filter(Boolean)
+        .slice(0, 6) ?? [];
+      const incomingImagesEarly = sessionIncoming.length
+        ? sessionIncoming
+        : visionIncoming;
       const priceFromTurn = trimmed ? parsePriceFromChatInput(trimmed) : null;
       let draftForTurn = aiDraft
         ? priceFromTurn != null && !(aiDraft.price > 0)
@@ -1406,19 +1435,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      if (flowDecision.kind === "show_draft_gate") {
-        setMessages((prev) => [
-          ...prev,
-          { role: "user" as const, text: trimmed },
-          {
-            role: "assistant" as const,
-            text: flowDecision.reply || POST_VISION_PUBLISH_GATE,
-            quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-          },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply: flowDecision.reply || POST_VISION_PUBLISH_GATE };
-      }
+      // show_draft_gate / show_description must NEVER short-circuit the AI —
+      // DRAFT_READY custom chat falls through to the stream below.
 
       /** Multi-object pick → PrePublish immediately (local only). */
       if (flowDecision.kind === "object_selected") {
@@ -1734,12 +1752,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const activePendingImageUrls =
         incomingImages ??
         (pendingForTurn.length ? pendingForTurn : undefined);
-      const requestPendingImageUrls = incomingImages?.length
-        ? incomingImages
-        : undefined;
+      // Wire only the tiny vision subset — full gallery already in session/draft.
+      const requestPendingImageUrls = visionIncoming.length
+        ? visionIncoming
+        : incomingImages?.length
+          ? selectAgentVisionUrls(incomingImages)
+          : undefined;
       const pendingImageCount =
-        requestPendingImageUrls?.length ||
+        pendingForTurn.length ||
         sessionPendingImageUrls.length ||
+        incomingImages?.length ||
         0;
       const geoCityHint = buyerCoords
         ? nearestLtCityFromCoords(buyerCoords) || undefined
@@ -1896,6 +1918,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           currentUser,
         });
         const listingEditSession = readListingEditSession();
+        // Final canvas shrink — even if callers pass raw session data URLs.
+        const wireVisionUrls = requestPendingImageUrls?.length
+          ? capImageUrlsForAgentWire(
+              await Promise.all(
+                requestPendingImageUrls.map((url) =>
+                  url.startsWith("data:image")
+                    ? compressForAgentVisionWire(url)
+                    : Promise.resolve(url)
+                )
+              )
+            )
+          : undefined;
         const agentBody = {
           messages: sessionMessages.map((m) => ({
             role: m.role,
@@ -1928,7 +1962,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             sessionExpired: sessionExpired || undefined,
             sessionLastActiveAt: lastActiveAt ?? undefined,
             lastSessionTopic,
-            pendingImageUrls: requestPendingImageUrls,
+            pendingImageUrls: wireVisionUrls,
             pendingImageCount: pendingImageCount || undefined,
             geoCityHint,
             lastError,
@@ -2077,13 +2111,43 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         setLastError(undefined);
-        const assistantText = resolveAgentChatReply({
+        let assistantText = resolveAgentChatReply({
           serverReply: res.reply,
           actions: res.actions,
           userQuery: trimmed,
           catalogCount,
           toolCalls: res.toolCalls,
         });
+
+        // FOOLPROOF: whenever AI updates the listing description, force it into chat.
+        if (res.actions.type === "listing_draft") {
+          const rawDesc = String(res.actions.listingDraft?.description ?? "").trim();
+          const desc =
+            rawDesc ||
+            (aiDraft
+              ? resolvePublishListingDescription({
+                  ...aiDraft,
+                  ...mapAgentDraftToListing(res.actions.listingDraft),
+                }).trim()
+              : "");
+          const forced = formatListingDescriptionChatMessage(desc);
+          if (forced) {
+            assistantText =
+              !assistantText.trim() || isDescriptionGateOnlyReply(assistantText)
+                ? forced
+                : `${forced}\n\n${assistantText.trim()}`;
+          }
+        } else if (
+          isDescriptionGateOnlyReply(assistantText) &&
+          (draftForTurn?.description || aiDraft?.description)
+        ) {
+          // Server/UI sent only the photos gate — never hide an existing draft description.
+          const desc = resolvePublishListingDescription(
+            draftForTurn ?? aiDraft!
+          ).trim();
+          const forced = formatListingDescriptionChatMessage(desc);
+          if (forced) assistantText = forced;
+        }
 
         let aiTwinNudge: string | null = null;
         if (

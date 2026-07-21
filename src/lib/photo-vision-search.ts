@@ -621,21 +621,18 @@ export function mapVisionResultToListingExtract(
 
 
 
-  const descriptionParts = [
-
-    vision.intent.visualSummary || vision.title,
-
-    ctx?.extraContext?.trim(),
-
-  ].filter(Boolean);
-
-
+  // visualSummary is agent clarification ("Nuotraukoje matau…") — never sell copy.
+  const extra = ctx?.extraContext?.trim() ?? "";
+  const sellDescription =
+    extra && !/nuotraukoje\s+matau/i.test(extra)
+      ? extra
+      : vision.title?.trim() || vision.keywords || "";
 
   return {
 
     title: (vision.title ?? vision.keywords).slice(0, 120),
 
-    description: descriptionParts.join(". ") || vision.keywords,
+    description: sellDescription,
 
     price: 0,
 

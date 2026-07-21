@@ -262,7 +262,7 @@ export async function apiVautoServer(
 > {
   const timeoutMs =
     body.action === "upload_media"
-      ? AI_FETCH_TIMEOUT_MS
+      ? AI_VISION_FETCH_TIMEOUT_MS
       : body.action === "parse_text"
         ? AI_FETCH_TIMEOUT_MS
         : AI_VISION_FETCH_TIMEOUT_MS;
@@ -302,13 +302,12 @@ export async function apiVautoAgent(body: {
     body: JSON.stringify(trimmed),
   };
 
-  /** Prefer same-origin /api/vauto-agent (Vercel proxy) — Render direct can 503 on stale deploys. */
+  /** Prefer configured data API (Render). Same-origin is last — static export has no /api routes. */
   const bases: string[] = [];
+  if (renderBase) bases.push(renderBase);
   if (typeof window !== "undefined") {
-    bases.push(window.location.origin);
-  }
-  if (renderBase && !bases.includes(renderBase)) {
-    bases.push(renderBase);
+    const origin = window.location.origin;
+    if (!bases.includes(origin)) bases.push(origin);
   }
 
   let lastError: { error?: string; code?: string } = {};
@@ -429,7 +428,7 @@ export async function apiRenewListing(
 export async function apiUpdateListing(
   id: string,
   userId: string,
-  patch: ListingEditPatch & Partial<Pick<Listing, "banned">>
+  patch: ListingEditPatch & Partial<Pick<Listing, "banned" | "requiresReview">>
 ): Promise<ApiResult<Listing>> {
   const payload = listingPatchToApiPayload(patch);
   const res = await dataFetch<LegacyListingInput>(`/api/listings/${id}`, {

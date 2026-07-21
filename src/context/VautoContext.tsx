@@ -59,6 +59,12 @@ import {
   enrichListingCoords,
 } from "@/lib/geocoding";
 import { normalizeListings } from "@/lib/listing-normalize";
+import { filterSessionListingImages } from "@/lib/listing-image";
+import {
+  isAgentClarificationText,
+  resolvePublishListingDescription,
+} from "@/lib/listing-text-sanitize";
+import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import { generateListingSlug, listingPath } from "@/lib/seo";
 import {
   apiDeleteListing,
@@ -804,18 +810,89 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     async (catalog: Listing[]): Promise<Listing[]> => {
       if (!isDataApiEnabled()) return catalog;
       const extras: Listing[] = [];
-      if (isAuthenticated && user.id && user.id !== "guest") {
-        const mineRes = await apiFetchMyListings(user.id);
-        if (mineRes.ok) {
-          extras.push(
-            ...mineRes.data.map(withDefaultExpiry).filter((l) => !l.banned)
-          );
-        }
-      }
       if (isAdmin) {
         const reviewRes = await apiFetchAdminReviewQueue();
         if (reviewRes.ok) {
           extras.push(...reviewRes.data.map(withDefaultExpiry));
+        }
+      }
+      if (isAuthenticated && user.id && user.id !== "guest") {
+        const mineRes = await apiFetchMyListings(user.id);
+        if (mineRes.ok) {
+          // Active own listings must appear on the public feed immediately —
+          // clear stale requiresReview flags left by conductor/AI auto-queue.
+          // Applied last so they win over admin review-queue copies.
+          const cleared = mineRes.data
+            .map(withDefaultExpiry)
+            .filter((l) => !l.banned)
+            .map((l) => {
+              const sessionImages = filterSessionListingImages(l.images);
+              const needsDesc =
+                !l.description?.trim() || isAgentClarificationText(l.description);
+              const description = needsDesc
+                ? resolvePublishListingDescription({
+                    title: l.title,
+                    price: l.price,
+                    location: l.location,
+                    contact: l.contact ?? "",
+                    category: l.category,
+                    confidence: 1,
+                    description: l.description,
+                    attributes: l.attributes,
+                  })
+                : l.description;
+              const attributes = withSellerDisplayNameAttribute(l.attributes, user);
+              return {
+                ...l,
+                description,
+                images: sessionImages,
+                attributes,
+                requiresReview:
+                  l.requiresReview && (l.status === "active" || !l.status)
+                    ? false
+                    : l.requiresReview,
+              };
+            });
+          extras.push(...cleared);
+          const dirtyPatches = cleared
+            .map((l) => {
+              const original = mineRes.data.find((o) => o.id === l.id);
+              if (!original) return null;
+              const patch: Parameters<typeof apiUpdateListing>[2] = {};
+              if (original.requiresReview && !l.requiresReview) {
+                patch.requiresReview = false;
+              }
+              if (l.description !== original.description) {
+                patch.description = l.description;
+              }
+              if (
+                filterSessionListingImages(original.images).join("|") !==
+                (l.images ?? []).join("|")
+              ) {
+                patch.images = l.images;
+              }
+              if (
+                String(original.attributes?.sellerDisplayName ?? "") !==
+                String(l.attributes?.sellerDisplayName ?? "")
+              ) {
+                patch.attributes = l.attributes;
+              }
+              return Object.keys(patch).length
+                ? { id: l.id, patch }
+                : null;
+            })
+            .filter((x): x is { id: string; patch: Parameters<typeof apiUpdateListing>[2] } =>
+              Boolean(x)
+            );
+          if (dirtyPatches.length) {
+            void Promise.all(
+              dirtyPatches.map(({ id, patch }) =>
+                apiUpdateListing(id, user.id, patch)
+              )
+            ).catch(() => {
+              /* best-effort — local catalog already corrected */
+            });
+          }
         }
       }
       return normalizeListings(mergeHiddenListingsIntoCatalog(catalog, extras));

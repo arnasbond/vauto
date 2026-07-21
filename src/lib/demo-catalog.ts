@@ -35,7 +35,7 @@ export function mergeListingsForClient(
   return markListingDemoFlags(ensureDemoCatalogListings(api, markListingDemoFlags(demos)));
 }
 
-/** Keep seller pending-review + admin queue listings not in public feed API. */
+/** Merge seller/admin extras into catalog; extras win so cleared review flags stick. */
 export function mergeHiddenListingsIntoCatalog(
   catalog: Listing[],
   extras: Listing[]
@@ -43,9 +43,7 @@ export function mergeHiddenListingsIntoCatalog(
   if (!extras.length) return catalog;
   const byId = new Map(catalog.map((l) => [l.id, l]));
   for (const item of extras) {
-    if (!byId.has(item.id)) {
-      byId.set(item.id, item);
-    }
+    byId.set(item.id, item);
   }
   return Array.from(byId.values());
 }

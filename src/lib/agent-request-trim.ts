@@ -6,6 +6,21 @@ export const AGENT_MAX_MESSAGES = 8;
 export const AGENT_MAX_MESSAGE_CHARS = 12_000;
 export const AGENT_MAX_LISTINGS = 48;
 export const AGENT_MAX_LISTING_DESC_CHARS = 160;
+function selectVisionUrlsForAgentPost(urls: string[]): string[] {
+  if (!urls.length) return [];
+  const http: string[] = [];
+  const data: string[] = [];
+  for (const raw of urls) {
+    const u = String(raw ?? "").trim();
+    if (!u) continue;
+    if (u.startsWith("http://") || u.startsWith("https://")) http.push(u);
+    else if (u.startsWith("data:")) data.push(u);
+  }
+  // Prefer http (tiny) when any exist — avoids mixing 6 data URLs into the POST.
+  if (http.length) return http.slice(0, 6);
+  // Hard-cap data URLs at 1 — never use a shared const (slice(0, undefined) keeps all).
+  return data.slice(0, 1);
+}
 
 export interface AgentRequestMessage {
   role: "user" | "assistant";
@@ -53,9 +68,43 @@ export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {
     };
   }
 
-  // Client only attaches pendingImageUrls on the upload turn. Keep all URLs
-  // (up to 6) even when the user bubble text is empty — photo-only turns must
-  // not lose multi-image payloads during trim.
+  // Cap image payloads for the agent POST. Draft may hold all 6 session
+  // photos as data URLs for publish — never ship that full set to Render.
+  if (context) {
+    const pendingAll = (context.pendingImageUrls ?? []).filter(Boolean).slice(0, 6);
+    const draftAll = (context.listingDraft?.orderedImageUrls ?? [])
+      .filter(Boolean)
+      .slice(0, 6);
+    const totalCount =
+      context.pendingImageCount ||
+      Math.max(pendingAll.length, draftAll.length) ||
+      0;
+    const vision = selectVisionUrlsForAgentPost(
+      pendingAll.length ? pendingAll : draftAll
+    );
+
+    let next = context;
+    if (pendingAll.length || draftAll.length) {
+      next = {
+        ...next,
+        pendingImageUrls: vision.length ? vision : undefined,
+        pendingImageCount: totalCount || undefined,
+      };
+    }
+    if (next.listingDraft?.orderedImageUrls?.length) {
+      next = {
+        ...next,
+        listingDraft: {
+          ...next.listingDraft,
+          // Keep http thumbnails only; data URLs stay on the client draft.
+          orderedImageUrls: selectVisionUrlsForAgentPost(
+            next.listingDraft.orderedImageUrls.filter(Boolean)
+          ),
+        },
+      };
+    }
+    context = next;
+  }
 
   return {
     ...body,

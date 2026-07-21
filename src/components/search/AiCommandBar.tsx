@@ -43,6 +43,7 @@ import {
   pickNativeChatMedia,
 } from "@/lib/chat-composer-media";
 import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
+import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
 import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
   inferListingFlowState,
@@ -298,10 +299,20 @@ export function AiCommandBar({
         }
         const msg = trimmed;
         const images = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
+        const prepared = images.length
+          ? await prepareChatImagesForAgent(images)
+          : { listingImageUrls: [] as string[], agentVisionUrls: [] as string[] };
         // Clear composer only after a successful handoff — otherwise a short-circuit
         // (or transport failure) would wipe photos and draft text with nothing sent.
         const res = await sendAgentMessage(msg, {
-          ...(images.length ? { pendingImageUrls: images } : {}),
+          ...(prepared.listingImageUrls.length
+            ? {
+                sessionImageUrls: prepared.listingImageUrls,
+                pendingImageUrls: prepared.agentVisionUrls.length
+                  ? prepared.agentVisionUrls
+                  : prepared.listingImageUrls.slice(0, 1),
+              }
+            : {}),
         });
         if (res.ok) {
           setDraftQuery("");

@@ -164,7 +164,13 @@ export function scheduleListingAiModeration(listing: ApiListing): void {
       });
       void notifySellerListingRejected(listing, result.reason);
     } else if (result.action === "review" && !listing.requiresReview) {
-      await adminPatchListing(listing.id, { requiresReview: true });
+      // Do not soft-hide live publishes from the public feed.
+      // Reject path still bans; admins can flag requiresReview manually.
+      logProductionWarn("listing_ai_moderation", "review_noted_live", {
+        listingId: listing.id,
+        sellerId: listing.sellerId,
+        reason: result.reason,
+      });
     }
     logProductionWarn("listing_ai_moderation", result.action, {
       listingId: listing.id,

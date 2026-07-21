@@ -153,7 +153,10 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       );
       return;
     }
-    const result = await publishListing({ visibilityId });
+    const result = await publishListing({
+      visibilityId,
+      pendingImageUrls: sessionPendingImageUrls,
+    });
     if (result.ok) {
       await runPublishSuccessCelebration({
         result,

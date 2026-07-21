@@ -1,19 +1,22 @@
 import type { LegacyListingInput, Listing } from "@/lib/types";
 import { enrichListingCoords } from "@/lib/geocoding";
 import {
+  filterSessionListingImages,
   listingImagesFromLegacy,
   resolveListingImages,
 } from "@/lib/listing-image";
 import { generateListingSlug } from "@/lib/seo";
+import { isDemoListingId } from "@/lib/demo-catalog";
 
 /** Ensure API/local listings have slug + coordinates for feed ranking */
 export function normalizeListing(listing: LegacyListingInput): Listing {
   const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
-  const sellerImages = listingImagesFromLegacy(listing);
+  const sellerImages = filterSessionListingImages(listingImagesFromLegacy(listing));
   const base = enrichListingCoords({
     ...listing,
     images: sellerImages,
   } as Listing);
+  const isDemo = Boolean((listing as Listing).isDemo) || isDemoListingId(String(listing.id ?? ""));
   return {
     ...base,
     slug,
@@ -24,8 +27,13 @@ export function normalizeListing(listing: LegacyListingInput): Listing {
       typeof (listing as Listing).allowPastomatas === "boolean"
         ? (listing as Listing).allowPastomatas
         : true,
-    // Keep real seller uploads (https, data:, blob:) — demo gallery only when empty.
-    images: sellerImages.length > 0 ? sellerImages : resolveListingImages({ ...base, images: [] }),
+    // Real seller listings keep only their uploads — never inject Unsplash fillers.
+    images:
+      sellerImages.length > 0
+        ? sellerImages
+        : isDemo
+          ? resolveListingImages({ ...base, images: [] })
+          : [],
   };
 }
 

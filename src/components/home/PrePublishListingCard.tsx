@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { MapPin, Loader2, Phone } from "lucide-react";
 import { formatPrice, MOCK_CATEGORY_LABELS } from "@/data/mockListings";
 import { cn } from "@/lib/cn";
@@ -42,10 +42,13 @@ export function PrePublishListingCard({
 }: PrePublishListingCardProps) {
   const [visibilityId, setVisibilityId] =
     useState<PrePublishVisibilityId>("standard");
+  const publishButtonRef = useRef<HTMLButtonElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
 
-  const handlePublish = (e: React.MouseEvent<HTMLButtonElement>) => {
-    const rect = e.currentTarget.getBoundingClientRect();
+  const submitPublish = () => {
+    if (publishing) return;
+    const el = publishButtonRef.current;
+    const rect = el?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0);
     onPublish(rect, visibilityId);
   };
 
@@ -55,6 +58,7 @@ export function PrePublishListingCard({
         "pre-publish-listing-card w-full max-w-[min(100%,20.5rem)] overflow-hidden rounded-2xl border border-[var(--vauto-primary)]/20 bg-[var(--vauto-card-bg)] shadow-[0_12px_40px_rgba(15,23,42,0.12)] md:max-w-sm",
         className
       )}
+      data-prepublish-card="1"
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">
         {card.imageUrl ? (
@@ -169,9 +173,15 @@ export function PrePublishListingCard({
 
         <div className="mt-1 flex flex-col gap-2">
           <button
+            ref={publishButtonRef}
             type="button"
             disabled={publishing}
-            onClick={handlePublish}
+            data-prepublish-submit="1"
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              submitPublish();
+            }}
             className="flex min-h-[48px] w-full touch-manipulation items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 py-3 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95 active:scale-[0.99] disabled:opacity-60"
           >
             {publishing ? (

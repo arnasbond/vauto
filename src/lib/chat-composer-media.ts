@@ -1,7 +1,5 @@
-import {
-  compressForAiVision,
-  pickMultipleFromGallery,
-} from "@/lib/native-media";
+import { pickMultipleFromGallery } from "@/lib/native-media";
+import { compressForAgentBatch } from "@/lib/prepare-chat-images-for-agent";
 
 export const MAX_CHAT_COMPOSER_ATTACHMENTS = 6;
 
@@ -16,7 +14,7 @@ export async function pickNativeChatMedia(
   if (!photos.length) return [];
 
   const compressed = await Promise.all(
-    photos.map((photo) => compressForAiVision(photo.dataUrl))
+    photos.map((photo) => compressForAgentBatch(photo.dataUrl))
   );
   return compressed.filter(Boolean);
 }

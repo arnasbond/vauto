@@ -29,7 +29,7 @@ import {
 } from "@/lib/bargain-twin";
 import { resolveSellerDisplayName } from "@/lib/user-trust-score";
 import { logAnalytics } from "@/lib/analytics";
-import { listingPath } from "@/lib/seo";
+import { generateListingSlug, listingPath } from "@/lib/seo";
 import {
   applyViewerReadState,
   markIncomingRead,
@@ -419,8 +419,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   );
 
   const findListing = useCallback(
-    (idOrSlug: string) =>
-      listings.find((l) => l.id === idOrSlug || l.slug === idOrSlug),
+    (idOrSlug: string) => {
+      const key = idOrSlug.trim();
+      if (!key) return undefined;
+      return listings.find((l) => {
+        if (l.id === key || l.slug === key) return true;
+        if (!l.slug?.trim()) {
+          return generateListingSlug(l.title, l.location) === key;
+        }
+        return false;
+      });
+    },
     [listings]
   );
 

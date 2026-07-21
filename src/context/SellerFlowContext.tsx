@@ -257,9 +257,11 @@ import {
   getPrePublishVisibilityOption,
 } from "@/lib/listing-publish-visibility";
 import {
-  sanitizeListingDescription,
+  resolvePublishListingDescription,
   sanitizeListingTitle,
 } from "@/lib/listing-text-sanitize";
+import { filterSessionListingImages } from "@/lib/listing-image";
+import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import type { CheckoutSession } from "@/lib/monetization-catalog";
 
 export type PublishListingResult =
@@ -268,6 +270,8 @@ export type PublishListingResult =
 
 export interface PublishListingOptions {
   visibilityId?: PrePublishVisibilityId;
+  /** Agent chat pending attachments — same sources PrePublish readiness uses. */
+  pendingImageUrls?: string[];
 }
 
 export interface SellerFlowContextValue {
@@ -1451,11 +1455,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return { ok: false, error: msg };
     }
 
+    const pendingImageUrls = (opts?.pendingImageUrls ?? [])
+      .map((u) => String(u ?? "").trim())
+      .filter(Boolean);
     const prePublish = evaluatePrePublishReadiness({
       isAuthenticated,
       user,
       draft: aiDraft,
       previewImage: sellerPreviewImage,
+      pendingImageUrls,
       orderedImageUrls: aiDraft.orderedImageUrls,
       editingListingId,
       geoCoords: buyerCoords,
@@ -1533,7 +1541,15 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return { ok: false, error: msg };
     }
 
-    if (!editingListingId && !hasListingPhoto(sellerPreviewImage)) {
+    // Match PrePublish readiness: agent photos may live on orderedImageUrls /
+    // pending attachments even when sellerPreviewImage was never set.
+    const hasPublishablePhoto =
+      prePublish.hasPhoto ||
+      hasListingPhoto(sellerPreviewImage) ||
+      sellerPreviewImages.some((url) => hasListingPhoto(url)) ||
+      (profileDraft.orderedImageUrls?.some((url) => hasListingPhoto(url)) ?? false) ||
+      pendingImageUrls.some((url) => hasListingPhoto(url));
+    if (!editingListingId && !hasPublishablePhoto) {
       showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
       return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
     }
@@ -1583,27 +1599,54 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast(msg, "error");
         return { ok: false, error: msg };
       }
+      const editDescription = resolvePublishListingDescription({
+        ...profileDraft,
+        title: sanitizeListingTitle(profileDraft.title),
+      });
       const patch = draftToListingPatch({
         ...profileDraft,
         contact: publishContact,
+        description: editDescription,
+        title: sanitizeListingTitle(profileDraft.title),
       });
-      const imageSource = sellerPreviewImage ?? existing.images[0] ?? null;
-      const listingImage = await prepareListingImageForApi(imageSource, editingListingId);
-      if (!listingImage && !hasListingPhoto(existing.images[0])) {
+      const editGallery = filterSessionListingImages(
+        resolveSellerGalleryImages(
+          {
+            orderedImageUrls: [
+              ...(profileDraft.orderedImageUrls ?? []),
+              ...pendingImageUrls,
+            ].filter((url, i, arr) => arr.indexOf(url) === i),
+          },
+          [
+            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+            ...sellerPreviewImages.filter(Boolean),
+          ].filter((url, i, arr) => arr.indexOf(url) === i)
+        )
+      ).slice(0, 6);
+      const preparedEditImages = editGallery.length
+        ? (
+            await Promise.all(
+              editGallery.map((src) => prepareListingImageForApi(src, editingListingId))
+            )
+          ).filter((img): img is string => Boolean(img))
+        : filterSessionListingImages(existing.images);
+      if (!preparedEditImages.length) {
         showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
         return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
       }
       const updated: Listing = enrichListingCoords({
         ...existing,
         ...patch,
+        description: editDescription,
         contact: publishContact,
-        attributes: mergeSocialPublishAttributes(
-          { ...(existing.attributes ?? {}), ...(patch.attributes ?? profileDraft.attributes) },
-          listingSocialPublish
+        attributes: withSellerDisplayNameAttribute(
+          mergeSocialPublishAttributes(
+            { ...(existing.attributes ?? {}), ...(patch.attributes ?? profileDraft.attributes) },
+            listingSocialPublish
+          ),
+          user
         ),
-        images: listingImage
-          ? [listingImage, ...existing.images.slice(1)]
-          : existing.images,
+        images: preparedEditImages,
         slug: generateListingSlug(patch.title ?? existing.title, patch.location ?? existing.location),
         hasVideo: sellerHasVideo,
       });
@@ -1613,8 +1656,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (isDataApiEnabled()) {
         const res = await apiUpdateListing(editingListingId, user.id, {
           ...patch,
+          description: editDescription,
           contact: publishContact,
           images: updated.images,
+          attributes: updated.attributes,
         });
         if (!res.ok) {
           const msg = formatPublishSaveError(res.error);
@@ -1654,15 +1699,22 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       ? listingIdFromClientDraftId(clientDraftId)
       : `l-${Date.now()}`;
 
-    // Prefer draft orderedImageUrls (agent multi-photo) over stale preview state.
-    const syncedGallery = resolveSellerGalleryImages(
-      { orderedImageUrls: profileDraft.orderedImageUrls },
-      [
-        ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-        ...sellerPreviewImages.filter(Boolean),
-      ].filter((url, i, arr) => arr.indexOf(url) === i)
+    // Session photos only — never Unsplash/demo stock fillers from other listings.
+    const syncedGallery = filterSessionListingImages(
+      resolveSellerGalleryImages(
+        {
+          orderedImageUrls: [
+            ...(profileDraft.orderedImageUrls ?? []),
+            ...pendingImageUrls,
+          ].filter((url, i, arr) => arr.indexOf(url) === i),
+        },
+        [
+          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+          ...sellerPreviewImages.filter(Boolean),
+        ].filter((url, i, arr) => arr.indexOf(url) === i)
+      )
     ).slice(0, 6);
-    const cover = syncedGallery[0] ?? sellerPreviewImage;
+    const cover = syncedGallery[0];
     const rest = syncedGallery.slice(1);
 
     const [listingImage, extraImages, coords] = await Promise.all([
@@ -1728,7 +1780,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       profileDraft.attributes ?? {}
     );
     const publishTitle = sanitizeListingTitle(profileDraft.title);
-    const publishDescription = sanitizeListingDescription(profileDraft.description);
+    const publishDescription = resolvePublishListingDescription({
+      ...profileDraft,
+      title: publishTitle,
+    });
     const finalContact = resolveDraftContact(draftWithClientId, user);
     const publishDraft = {
       ...draftWithClientId,
@@ -1737,6 +1792,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       description: publishDescription,
       contact: finalContact,
     };
+    const publishAttributes = withSellerDisplayNameAttribute(
+      mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
+      user
+    );
 
     const newListing: Listing = enrichListingWithConductorMeta(
       enrichListingCoords({
@@ -1751,7 +1810,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       category: publishCategory,
       tags: attributesToTags(publishDraft),
       description: publishDescription,
-      attributes: mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
+      attributes: publishAttributes,
       status: "active",
       sellerId: user.id,
       createdAt,
@@ -1817,8 +1876,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       published = withDefaultExpiry({
         ...createRes.data,
         category: publishCategory,
+        title: publishTitle,
+        description: publishDescription,
         tags: newListing.tags,
-        images: newListing.images.length ? newListing.images : createRes.data.images,
+        images: galleryImages,
+        attributes: publishAttributes,
         slug: createRes.data.slug ?? newListing.slug,
         allowPastomatas: newListing.allowPastomatas,
         isAiTwinActive: newListing.isAiTwinActive,

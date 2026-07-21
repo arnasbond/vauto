@@ -26,6 +26,7 @@ import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { SimilarListingsSection } from "@/components/listing/SimilarListingsSection";
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoBridge } from "@/context/VautoBridge";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { getSimilarListings } from "@/lib/similar-listings";
 import { sellerDisplayName } from "@/lib/seller-display";
@@ -41,6 +42,11 @@ import {
 } from "@/lib/listing-display";
 import { filterPublicListingTags } from "@/lib/listing-attributes";
 import { LISTING_DWELL_MS } from "@/lib/offer-engine-client";
+import {
+  isAgentClarificationText,
+  resolvePublishListingDescription,
+  sanitizeListingDescription,
+} from "@/lib/listing-text-sanitize";
 
 interface ListingDetailPageProps {
   slug?: string;
@@ -61,8 +67,8 @@ function formatPostedDate(iso: string): string {
 export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {}) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
-  const id = searchParams.get("id");
-  const slugFromQuery = searchParams.get("slug") ?? undefined;
+  const id = searchParams.get("id")?.trim() || undefined;
+  const slugFromQuery = searchParams.get("slug")?.trim() || undefined;
   const slugFromPath = (() => {
     const m = pathname.match(/\/listing\/([^/]+)\/?$/);
     const segment = m?.[1];
@@ -89,14 +95,14 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     listings,
     chameleonTheme,
   } = useVauto();
+  const { hydrated } = useVautoBridge();
   const { trackEvent } = useUserBehavior();
   const dwellFiredRef = useRef(false);
 
-  const listing = slug
-    ? findListing(slug)
-    : id
-      ? findListing(id)
-      : undefined;
+  // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs.
+  const listing =
+    (id ? findListing(id) : undefined) ??
+    (slug ? findListing(slug) : undefined);
 
   useEffect(() => {
     if (listing?.id && !listing.banned) {
@@ -133,6 +139,16 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     return () => window.clearTimeout(timer);
   }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, wardrobeContext, trackEvent]);
 
+  if (!hydrated) {
+    return (
+      <AppShell variant="plain" hideNav>
+        <div className="px-4 py-12 text-center">
+          <p className="text-slate-500">Kraunama...</p>
+        </div>
+      </AppShell>
+    );
+  }
+
   if (!listing || listing.banned) {
     return (
       <AppShell variant="plain" hideNav>
@@ -156,6 +172,22 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const categoryLabel = getCategoryLabel(listing);
   const similarListings = getSimilarListings(listing, listings);
   const publicTags = filterPublicListingTags(listing.tags);
+  const aboutDescription = (() => {
+    const raw = listing.description?.trim() ?? "";
+    if (!raw || isAgentClarificationText(raw)) {
+      return resolvePublishListingDescription({
+        title: listing.title,
+        price: listing.price,
+        location: listing.location,
+        contact: listing.contact ?? "",
+        category: listing.category,
+        confidence: 1,
+        description: listing.description,
+        attributes: listing.attributes,
+      });
+    }
+    return sanitizeListingDescription(raw);
+  })();
 
   const handleNegotiate = () => {
     if (isOwn) {
@@ -246,7 +278,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             href={sellerPath(listing.sellerId)}
             className="mt-2 inline-flex text-sm font-medium text-[var(--vauto-teal)] hover:underline"
           >
-            {sellerDisplayName(listing.sellerId)} →
+            {sellerDisplayName(listing.sellerId, { listing, user })} →
           </Link>
           <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
             <span className="inline-flex items-center gap-1">
@@ -318,16 +350,16 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </p>
         )}
 
-        {(listing.description || detailRows.length > 0) && (
+        {(aboutDescription || detailRows.length > 0) && (
           <section className="vauto-glass-card mt-6 rounded-2xl p-4">
             <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
-            {listing.description && (
+            {aboutDescription && (
               <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                {listing.description}
+                {aboutDescription}
               </p>
             )}
             {detailRows.length > 0 && (
-              <dl className={`mt-3 grid gap-2 ${listing.description ? "border-t border-slate-100 pt-3" : ""}`}>
+              <dl className={`mt-3 grid gap-2 ${aboutDescription ? "border-t border-slate-100 pt-3" : ""}`}>
                 {detailRows.map((row) => (
                   <div
                     key={row.label}

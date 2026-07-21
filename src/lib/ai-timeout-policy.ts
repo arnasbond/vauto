@@ -2,7 +2,7 @@
  * Single source of truth for AI / lookup timeout budgets (client).
  * Server mirror: server/src/lib/ai-timeout-policy.ts
  *
- * Policy: external lookups fail fast (5s); vision/agent get cold-start budget (26–28s).
+ * Policy: external lookups fail fast (5s); vision/agent get cold-start + multi-photo budget.
  */
 
 export const AI_TIMEOUT_POLICY = {
@@ -10,8 +10,8 @@ export const AI_TIMEOUT_POLICY = {
   processingMs: 28_000,
   /** Default /api/ai fetch budget */
   fetchMs: 12_000,
-  /** Vision, photo-intent, vauto-agent client fetch */
-  visionFetchMs: 26_000,
+  /** Vision, photo-intent, vauto-agent client fetch (multi-photo headroom) */
+  visionFetchMs: 40_000,
   /** Barcode, vehicle open-data — fail fast, soft fallback */
   barcodeLookupMs: 5_000,
   /** Offline mock extract only */

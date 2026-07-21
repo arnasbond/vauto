@@ -35,7 +35,7 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
   })();
   const sellerId = sellerIdProp ?? idFromQuery ?? idFromPath;
 
-  const { listings, reviews } = useVauto();
+  const { listings, reviews, user } = useVauto();
 
   if (!sellerId) {
     return (
@@ -46,7 +46,8 @@ export function SellerProfilePage({ sellerId: sellerIdProp }: SellerProfilePageP
   }
 
   const active = sellerActiveListings(listings, sellerId);
-  const name = sellerDisplayName(sellerId);
+  const sampleListing = active[0] ?? listings.find((l) => l.sellerId === sellerId);
+  const name = sellerDisplayName(sellerId, { listing: sampleListing, user });
   const memberSince = sellerMemberSince(listings, sellerId);
 
   return (

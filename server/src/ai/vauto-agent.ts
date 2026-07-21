@@ -485,16 +485,6 @@ async function runVautoAgentInner(
     }
   }
 
-  if (flowTurn.kind === "show_draft_gate") {
-    return {
-      ok: true,
-      reply: flowTurn.reply || POST_VISION_PUBLISH_GATE,
-      quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-      toolCalls: [],
-      actions: { type: "none" },
-    };
-  }
-
   if (flowTurn.kind === "object_selected" && listingDraft) {
     const noun = isVisionObjectSellChip(lastUserText)
       ? nounFromVisionObjectSellChip(lastUserText)

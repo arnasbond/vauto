@@ -15,6 +15,63 @@ export interface VautoAgentStreamHandlers {
   onEvent: (event: VautoAgentStreamEvent) => void;
 }
 
+/** Marker so browser E2E can confirm this module is live. */
+export const AGENT_STREAM_WIRE_CAP = "wire-cap-v5-max-1-data-url";
+
+const MAX_DATA_URLS_ON_WIRE = 1;
+
+function isHttpUrl(url: string): boolean {
+  return /^https?:\/\//i.test(url);
+}
+
+/** Cap data-URL images for Render; keep http thumbnails (small). */
+export function capImageUrlsForAgentWire(urls: unknown): string[] {
+  const list = Array.isArray(urls)
+    ? urls.map((u) => String(u ?? "").trim()).filter(Boolean)
+    : [];
+  const http = list.filter(isHttpUrl);
+  const data = list.filter((u) => u.startsWith("data:"));
+  if (http.length && !data.length) return http.slice(0, 6);
+  return [...http, ...data.slice(0, MAX_DATA_URLS_ON_WIRE)].slice(0, 6);
+}
+
+function capAgentContextForWire(
+  context: Record<string, unknown> | undefined
+): Record<string, unknown> | undefined {
+  if (!context || typeof context !== "object") return context;
+  const next: Record<string, unknown> = { ...context };
+  const pendingRaw = Array.isArray(next.pendingImageUrls)
+    ? next.pendingImageUrls
+    : [];
+  const pendingCount =
+    typeof next.pendingImageCount === "number" &&
+    Number.isFinite(next.pendingImageCount)
+      ? Math.max(0, Math.floor(next.pendingImageCount as number))
+      : pendingRaw.length;
+  next.pendingImageUrls = capImageUrlsForAgentWire(pendingRaw);
+  next.pendingImageCount = pendingCount || undefined;
+  next.clientWireCap = AGENT_STREAM_WIRE_CAP;
+
+  const draft = next.listingDraft;
+  if (draft && typeof draft === "object" && !Array.isArray(draft)) {
+    const d = { ...(draft as Record<string, unknown>) };
+    if (Array.isArray(d.orderedImageUrls)) {
+      d.orderedImageUrls = capImageUrlsForAgentWire(d.orderedImageUrls);
+    }
+    if (typeof d.imageUrl === "string" && d.imageUrl.startsWith("data:")) {
+      const ordered = Array.isArray(d.orderedImageUrls)
+        ? (d.orderedImageUrls as string[])
+        : [];
+      const httpFirst = ordered.find(isHttpUrl);
+      if (httpFirst) d.imageUrl = httpFirst;
+      else if (!ordered.length) delete d.imageUrl;
+      else d.imageUrl = ordered[0];
+    }
+    next.listingDraft = d;
+  }
+  return next;
+}
+
 function parseSseChunks(buffer: string): {
   events: VautoAgentStreamEvent[];
   rest: string;
@@ -61,15 +118,35 @@ export async function apiVautoAgentStream(
   signal?: AbortSignal
 ): Promise<VautoAgentApiResult> {
   const trimmed = trimAgentRequestBody(body);
-  const timeoutMs = trimmed.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
+  const wireBody = {
+    ...trimmed,
+    context: capAgentContextForWire(
+      trimmed.context as Record<string, unknown> | undefined
+    ) as typeof trimmed.context,
+  };
+  const payloadJson = JSON.stringify(wireBody);
+  const pending = wireBody.context?.pendingImageUrls;
+  console.log("[vauto-agent/stream] payload", {
+    bytes: payloadJson.length,
+    kb: Math.round((payloadJson.length / 1024) * 10) / 10,
+    pendingImageCount: wireBody.context?.pendingImageCount ?? null,
+    pendingUrls: Array.isArray(pending) ? pending.length : 0,
+    wireCap: AGENT_STREAM_WIRE_CAP,
+  });
+  const timeoutMs = wireBody.includeAdminContext
+    ? 45_000
+    : AI_VISION_FETCH_TIMEOUT_MS;
   const renderBase = getDataApiBaseUrl();
 
+  /** Prefer configured data API (Render). Same-origin last — static export has no /api routes. */
   const bases: string[] = [];
+  if (renderBase) bases.push(renderBase);
   if (typeof window !== "undefined") {
-    bases.push(window.location.origin);
-  }
-  if (renderBase && !bases.includes(renderBase)) {
-    bases.push(renderBase);
+    const origin = window.location.origin;
+    if (!bases.includes(origin)) bases.push(origin);
+    (
+      window as unknown as { __VAUTO_AGENT_WIRE_CAP__?: string }
+    ).__VAUTO_AGENT_WIRE_CAP__ = AGENT_STREAM_WIRE_CAP;
   }
 
   if (!bases.length) {
@@ -97,7 +174,7 @@ export async function apiVautoAgentStream(
           Accept: "text/event-stream",
           "Content-Type": "application/json",
         },
-        body: JSON.stringify(trimmed),
+        body: payloadJson,
         signal: controller.signal,
       });
 
@@ -110,7 +187,10 @@ export async function apiVautoAgentStream(
           try {
             const json = JSON.parse(text) as { error?: string; code?: string };
             if (json.error) detail = json.error;
-            if (json.code === "agent_unavailable" || json.code === "ai_rate_limit_exceeded") {
+            if (
+              json.code === "agent_unavailable" ||
+              json.code === "ai_rate_limit_exceeded"
+            ) {
               return {
                 ok: false,
                 code: json.code,

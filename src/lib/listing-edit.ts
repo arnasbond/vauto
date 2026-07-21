@@ -16,6 +16,7 @@ export type ListingEditPatch = Partial<
     | "attributes"
     | "images"
     | "status"
+    | "requiresReview"
   >
 >;
 

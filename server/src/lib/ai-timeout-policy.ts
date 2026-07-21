@@ -5,7 +5,7 @@
 export const AI_TIMEOUT_POLICY = {
   processingMs: 28_000,
   fetchMs: 12_000,
-  visionFetchMs: 26_000,
+  visionFetchMs: 40_000,
   barcodeLookupMs: 5_000,
   mockMs: 5_000,
   recoveryMs: 42_000,

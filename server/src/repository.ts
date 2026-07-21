@@ -921,8 +921,7 @@ export async function updateListing(
   if (patch.allowPastomatas !== undefined) set("allow_pastomatas", patch.allowPastomatas);
 
   if (fields.length === 0) {
-    const all = await getListings();
-    return all.find((l) => l.id === id) ?? null;
+    return getListingForEmbedding(id);
   }
 
   values.push(id);
@@ -947,8 +946,8 @@ export async function updateListing(
       .catch(() => {});
   }
 
-  const all = await getListings();
-  return all.find((l) => l.id === id) ?? null;
+  // Return by id (not public feed filter) so review-flag patches still resolve.
+  return getListingForEmbedding(id);
 }
 
 /** Admin-only patch — does not require seller_id match. */

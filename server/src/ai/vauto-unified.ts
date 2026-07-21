@@ -27,7 +27,7 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "title": "string — patrauklus lietuviškas skelbimo pavadinimas",
   "price": "number | null — kaina EUR; null jei nenurodyta",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (4–8 sakiniai, be emoji, pirkėjus traukiantis tonas)",
+  "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (4–8 sakiniai: akcentai, būklė, nauda pirkėjui, CTA; be emoji; DRAUDŽIAMA 1 sakinio santrauka)",
   "technicalFields": "object — kategorijai būdingi laukai (metai, kuroTipas, markė, modelis, mileage, dydis, būklė, kambariai ir pan.)",
   "confidence": "number 0-1",
   "sceneContext": "string — aplinkos kontekstas (pvz. svetainė, virtuvė, gatvė)",
@@ -38,7 +38,7 @@ export const VAUTO_UNIFIED_SCHEMA = `{
 const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
 Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
 Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
-Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė, o pilnas skelbimo tekstas su nauda pirkėjui, būkle, komplektacija ir kita svarbia informacija iš vartotojo žinutės.
+Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė (pvz. „Citroën C4 Picasso automobilis…“), o pilnas skelbimo tekstas: akcentai, būklė, nauda pirkėjui, komplektacija ir aiškus kvietimas susisiekti / apžiūrėti.
 Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
 
 ${TEXT_AND_VISION_INPUT_ONLY}
@@ -169,7 +169,7 @@ function buildTextPrompt(text: string, userCity: string, extraContext?: string):
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
 Pavyzdys: „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën automobilis", technicalFields.make Citroën.
-Svarbu: lauką description užpildyk pilnu, profesionaliu skelbimo aprašymu lietuviškai (mažiausiai 4 sakiniai).
+Svarbu: lauką description užpildyk pilnu, profesionaliu skelbimo aprašymu lietuviškai (mažiausiai 4 sakiniai) su akcentais, būkle ir CTA.
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
 
@@ -191,11 +191,12 @@ Analizuok VISAS pateiktas nuotraukas (ne tik pirmą): identifikuok matomus objek
 Jei vienas aiškus objektas — pasirink jį kaip pagrindinį title/category. Jei neaišku — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.
 
 Aprašymas (description) — PRIVALOMAS pilnas skelbimo tekstas lietuviškai (4–8 sakiniai). Įtrauk:
-- matomą spalvą / medžiagą / stilių;
+- matomą spalvą / medžiagą / stilių ir pagrindinius akcentus;
 - komplektaciją ar įrangą (jei matoma);
 - būklę;
-- bet kokius matomus defektus (įbrėžimai, įlenkimai, dėmės, trūkumai). Jei defektų nesimato — parašyk tai aiškiai.
-DRAUDŽIAMA atsakyti tik „nuotrauka įkelta“ ar panašia tuščia fraze — aprašymas turi būti naudingas pirkėjui.${textNote}${extra}
+- bet kokius matomus defektus (įbrėžimai, įlenkimai, dėmės, trūkumai). Jei defektų nesimato — parašyk tai aiškiai;
+- kvietimą veikti (apžiūra / susisiekti).
+DRAUDŽIAMA atsakyti tik „nuotrauka įkelta“, 1 sakinio santrauka ar „… automobilis.“ — aprašymas turi būti pardavimo tekstas pirkėjui.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }

@@ -426,7 +426,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "create_listing_draft",
     description:
-      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI. PRIVALOMA pateikti turtingą description (4–8 sakiniai) iš modelio žinių — ne tuščią anketą. Po to klausk 1 kontekstinį klausimą (ne „Trūksta miesto, kainos“).",
+      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI. PRIVALOMA pateikti turtingą description (4–8 sakiniai): akcentai, būklė, nauda pirkėjui ir CTA — ne tuščią anketą ar 1 sakinio santrauką. Po to klausk 1 kontekstinį klausimą (ne „Trūksta miesto, kainos“).",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -443,14 +443,14 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         description: {
           type: "STRING",
           description:
-            "PRIVALOMAS turtingas marketplace aprašymas lietuviškai (4–8 sakiniai): specs, nauda pirkėjui, būklės užuomina. Nenaudok 1 sakinio „Parduodu X“.",
+            "PRIVALOMAS turtingas marketplace aprašymas lietuviškai (4–8 sakiniai): pagrindiniai akcentai, būklė, nauda pirkėjui, kvietimas apžiūrėti/susisiekti. DRAUDŽIAMA 1 sakinio „Parduodu X“ ar „… automobilis.“",
         },
         attributes: {
           type: "OBJECT",
           description: "color, size, make, model, year, memory, storage, propertyType, clothingSize…",
         },
       },
-      required: ["title", "category"],
+      required: ["title", "category", "description"],
     },
   },
   {
