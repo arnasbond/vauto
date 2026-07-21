@@ -465,16 +465,13 @@ async function runVautoAgentInner(
 
   if (flowTurn.kind === "nudge_photos") {
     // Text-first generate/sell — never hard-block; continue to Gemini tools below.
-    if (shouldBypassPhotosNudge(lastUserText) && !pendingChatImages?.length) {
-      // fall through
-    } else if (draftPhotoCount > 0 || isHeroFlowLocked(listingDraft?.listingFlowState)) {
-      return {
-        ok: true,
-        reply: POST_VISION_PUBLISH_GATE,
-        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-        toolCalls: [],
-        actions: { type: "none" },
-      };
+    if (
+      shouldBypassPhotosNudge(lastUserText) ||
+      pendingChatImages?.length ||
+      draftPhotoCount > 0 ||
+      isHeroFlowLocked(listingDraft?.listingFlowState)
+    ) {
+      // fall through to Vision / Gemini — never re-ask „prisegti nuotraukas“
     } else {
       return {
         ok: true,
@@ -707,13 +704,8 @@ async function runVautoAgentInner(
       flowState === "DRAFT_READY" ||
       (flowState === "AWAITING_PHOTOS" && draftPhotoCount > 0)
     ) {
-      return {
-        ok: true,
-        reply: POST_VISION_PUBLISH_GATE,
-        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-        toolCalls: [],
-        actions: { type: "none" },
-      };
+      // Photos already on draft/session — never re-ask to attach; let Gemini enrich.
+      // fall through
     }
   }
 
@@ -1429,9 +1421,22 @@ async function runVautoAgentInner(
     });
   }
 
+  // Photos present + empty model reply → Vision scan (never echo raw sell text).
+  if (!finalText && pendingChatImages?.length) {
+    const mediaRetry = await resolveChatMediaAttachmentResponse({
+      imageUrls: pendingChatImages,
+      listingDraft,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      userText: lastUserText,
+    });
+    if (mediaRetry) return mediaRetry;
+  }
+
   if (
     !finalText &&
-    detectServerSellIntent(lastUserText)
+    detectServerSellIntent(lastUserText) &&
+    !pendingChatImages?.length
   ) {
     const fallback = buildSellListingDraftFallback(lastUserText, {
       userCity: req.context.userCity,

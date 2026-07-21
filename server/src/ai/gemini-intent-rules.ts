@@ -88,8 +88,9 @@ PARDAVIMAS → create_listing_draft(category, title, description) — TEKSTAS PI
 - „parduodu 2006 Volvo V70, pilkas, universalas, rankinė dėžė, sugeneruok" → create_listing_draft BE nuotraukos.
 - NIEKADA neblokuok pardavimo, nes nėra nuotraukos. Nuotraukos — pasirenkamos po aprašymo.
 - title = profesionalus pavadinimas; description = PRIVALOMAS turtingas 4–8 sakinių tekstas iš žinių.
-- Po draft — parodyk aprašymą ir paklausk: „Aprašymas paruoštas! Ar norite dabar prisegti nuotraukas, ar judame tiesiai prie PrePublish kortelės peržiūros?“
-- Chips: „Judame prie PrePublish“ | „Prisegti nuotraukas“.
+- Po draft — parodyk aprašymą pokalbyje („Štai tavo aprašymas: …“).
+- Jei nuotraukos JAU įkeltos — scanListingPhotos + turtingas description iš vaizdų; klausk kainos / PrePublish. NIEKADA „prisegti nuotraukas“ kai jos jau yra.
+- Jei nuotraukų nėra — chips: „Judame prie PrePublish“ | „Prisegti nuotraukas“.
 - Miestą/telefoną imk tyliai iš profilio; klausk TIK pabaigoje, jei tikrai nėra.
 - Neatsakyk „Rezultatų nerasta" pardavimui.
 

@@ -56,7 +56,11 @@ export function isPhotoSellIntentText(userText?: string): boolean {
     t.includes("ikelti skelb") ||
     t.startsWith("📦") ||
     t === "parduoti" ||
-    t === "skelbti"
+    t === "skelbti" ||
+    /\bnoriu\s+parduot/i.test(t) ||
+    /\bparduodu\b/i.test(t) ||
+    /\bsugeneruok\b.*\bapraš/i.test(t) ||
+    /\baprašym/.test(t)
   );
 }
 
@@ -136,7 +140,15 @@ async function resolveListingPhotoScan(input: {
     imageDataUrls: imageUrls,
     userCity: input.userCity ?? "",
     contact: input.contact,
-    extraContext: extraBits.length ? extraBits.join("; ") : undefined,
+    // Pass sell note as context for brand/category hints — Vision still owns the description.
+    text:
+      input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
+        ? input.userText.trim()
+        : undefined,
+    extraContext: [
+      ...extraBits,
+      "PRIVALOMA: parašyk turtingą 4–8 sakinių marketplace description lietuviškai iš NUOTRAUKŲ (markė, modelis, spalva, salonas, būklė). NIEKADA nekartok vartotojo frazės kaip aprašymo.",
+    ].join("; "),
   });
 
   if (parsed.needsClarification) {

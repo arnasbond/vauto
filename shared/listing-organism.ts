@@ -468,7 +468,10 @@ export function buildPostVisionHeroMessage(draft: {
       ? "Patarimas: baterijos būklė, atmintis ir dėžutė — trys dalykai, kurie greičiausiai uždaro sandorį."
       : draft.category === "vehicles"
         ? "Patarimas: metai, rida ir komplektacija kelia pasitikėjimą labiau nei ilgas tekstas be faktų."
-        : "Patarimas: konkretus aprašymas parduoda greičiau — nuotraukas galite pridėti dabar arba vėliau.";
+        : "Patarimas: konkretus aprašymas parduoda greičiau — pirkėjai greitai pastebi aiškumą.";
+  // After Vision, photos are already attached — never ask to „prisegti nuotraukas“ again.
+  const cta =
+    "Štai aprašymas pagal jūsų nuotraukas. Kokią kainą nustatome, ar judame prie PrePublish kortelės peržiūros?";
   const lines = [
     `Paruošiau gražų skelbimą:`,
     ``,
@@ -478,7 +481,7 @@ export function buildPostVisionHeroMessage(draft: {
     ``,
     tip,
     ``,
-    POST_VISION_PUBLISH_GATE,
+    cta,
   ];
   return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
 }
