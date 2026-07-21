@@ -969,21 +969,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const resetPublishSession = useCallback(() => {
     setListingPublishConfirmed(false);
     setHidePrePublishCard(false);
-    setMessages((prev) => {
-      const stripped = prev.map((m) => {
-        if (m.role !== "assistant" || !m.prePublishCard) return m;
-        const { prePublishCard, ...rest } = m;
-        void prePublishCard;
-        return rest;
-      });
-      return [
-        ...stripped,
-        {
-          role: "assistant" as const,
-          text: "Skelbimas sėkmingai publikuotas! Perkeliame į Mano skelbimai…",
-        },
-      ].slice(-6);
-    });
+    // Strip PrePublish card only — success copy comes from notifyListingPublishComplete (one message).
+    setMessages((prev) =>
+      prev
+        .map((m) => {
+          if (m.role !== "assistant" || !m.prePublishCard) return m;
+          const { prePublishCard, ...rest } = m;
+          void prePublishCard;
+          return rest;
+        })
+        .slice(-6)
+    );
     touchAgentSessionActivity();
   }, []);
 
@@ -1263,8 +1259,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (!readiness.ok) {
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
-        // Verbal „tinka/gerai/publikuoti“ only opens the preview card.
-        // Actual publish happens via the physical button on PrePublishListingCard.
+        // Verbal „tinka/gerai/publikuoti“ ONLY opens PrePublish preview.
+        // NEVER call publishListing here — wait for „Patvirtinti ir publikuoti“ button.
         const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
         if (card) {
           setListingPublishConfirmed(true);

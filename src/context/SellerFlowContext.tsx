@@ -1827,12 +1827,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setListings((prev) => [published, ...prev.filter((l) => l.id !== published.id)]);
       setLastPublishedListing(published);
       setSellerStep("published");
-      showToast(
-        published.requiresReview
-          ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
-          : "Skelbimas sėkmingai įkeltas!",
-        published.requiresReview ? "info" : "success"
-      );
+      if (published.requiresReview) {
+        showToast(
+          "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai.",
+          "info"
+        );
+      }
 
       await refreshListingsCatalog();
       scheduleSellerEngagementPush(published.id, published.location, published.title, {
@@ -1868,12 +1868,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setListings((prev) => [newListing, ...prev]);
     setLastPublishedListing(newListing);
     setSellerStep("published");
-    showToast(
-      newListing.requiresReview
-        ? "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai."
-        : "Skelbimas sėkmingai įkeltas!",
-      newListing.requiresReview ? "info" : "success"
-    );
+    if (newListing.requiresReview) {
+      showToast(
+        "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai.",
+        "info"
+      );
+    }
     scheduleSellerEngagementPush(newListing.id, newListing.location, newListing.title, {
       pendingReview: Boolean(newListing.requiresReview),
     });

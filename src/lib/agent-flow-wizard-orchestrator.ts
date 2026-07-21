@@ -41,6 +41,7 @@ export interface AgentFlowDialogue {
 export const UNIVERSAL_FEEDBACK_QUESTION =
   "Ar patiko mano pagalba ir bendravimas šiame procese?";
 
+/** @deprecated Survey chips removed from publish success — kept for wardrobe legacy imports. */
 export const UNIVERSAL_FEEDBACK_CHIPS = [
   "Super, labai greita!",
   "Buvo neaiškumų",
@@ -153,21 +154,24 @@ export function buildPublishSuccessMessage(
   category: ListingCategory | undefined,
   publishedCount: number
 ): string {
-  const label = categoryFlowLabel(category);
   if (publishedCount <= 1) {
     if (category === "clothing") {
-      return "Valio! Tavo drabužis sėkmingai patalpintas ir jau laukia pirkėjų.";
+      return "Skelbimas publikuotas — drabužis jau matomas rinkoje.";
     }
-    return `Valio! Jūsų ${label} skelbimas sėkmingai patalpintas ir jau matomas rinkoje.`;
+    if (category === "vehicles") {
+      return "Skelbimas publikuotas — automobilis jau matomas rinkoje.";
+    }
+    return "Skelbimas publikuotas ir jau matomas rinkoje.";
   }
   if (category === "clothing") {
-    return `Valio! Visi ${publishedCount} drabužiai sėkmingai patalpinti ir jau laukia pirkėjų.`;
+    return `Publikuota ${publishedCount} drabužių skelbimų — jie jau matomi rinkoje.`;
   }
-  return `Valio! Sėkmingai publikuota ${publishedCount} skelbimų — jie jau matomi rinkoje.`;
+  return `Publikuota ${publishedCount} skelbimų — jie jau matomi rinkoje.`;
 }
 
 export function buildFlowCompletedMessage(contextLabel: string): string {
-  return `${contextLabel} ${UNIVERSAL_FEEDBACK_QUESTION}`;
+  // Never append the old survey question onto success copy.
+  return contextLabel.trim();
 }
 
 export function buildWardrobePhotosReceivedMessage(
@@ -249,15 +253,13 @@ export function resolveAgentFlowDialogue(event: AgentFlowEvent): AgentFlowDialog
         event.publishedCount ?? 1
       );
       return {
-        message: buildFlowCompletedMessage(success),
-        quickReplies: [...UNIVERSAL_FEEDBACK_CHIPS],
+        message: success,
         openSheet: true,
       };
     }
     case "flow_completed":
       return {
         message: buildFlowCompletedMessage(event.objectLabel ?? "Puiku!"),
-        quickReplies: [...UNIVERSAL_FEEDBACK_CHIPS],
         openSheet: true,
       };
     default:

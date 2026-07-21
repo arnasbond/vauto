@@ -45,7 +45,7 @@ const EVENT_TARGET: Record<ListingFlowEvent, ListingFlowState | null> = {
 };
 
 export const PRE_PUBLISH_CARD_INTRO =
-  "Puiku — žemiau galutinė skelbimo peržiūra. Pasirinkite matomumą ir spauskite „Patvirtinti ir publikuoti“.";
+  "Štai jūsų skelbimo peržiūra — patikrinkite antraštę, kainą ir nuotraukas. Publikavimas vyksta TIK paspaudus „Patvirtinti ir publikuoti“.";
 
 /** Soft invite when user chose to attach photos — never a hard block on sell text. */
 export const AWAITING_PHOTOS_PROMPT =

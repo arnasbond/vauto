@@ -21,6 +21,7 @@ import {
   dashboardStateLabel,
   togglePauseStatus,
 } from "@/lib/listing-visibility";
+import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import type { Listing } from "@/lib/types";
@@ -47,7 +48,8 @@ function ManoSkelbimaiCard({
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
-  const publicHref = `/listing/${listing.slug?.trim() || listing.id}`;
+  // Static export cannot soft-navigate /listing/[slug] for new listings — use query path.
+  const publicHref = listingPath(listing);
 
   return (
     <article className="group overflow-hidden rounded-2xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] shadow-sm transition hover:shadow-md">

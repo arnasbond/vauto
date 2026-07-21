@@ -12,7 +12,10 @@ export interface ListingShareCopy {
 
 function fallbackShareCopy(listing: Listing): ListingShareCopy {
   const origin = SITE_URL;
-  const path = listing.slug ? `/listing/${listing.slug}/` : `/listing/${listing.id}/`;
+  // Pretty URL is fine for external hard-loads (Vercel rewrite → /listing/?slug=).
+  const path = listing.slug
+    ? `/listing/${listing.slug}/`
+    : `/listing/?id=${encodeURIComponent(listing.id)}`;
   const url = `${origin}${path}`;
   const price =
     listing.price > 0 ? `${listing.price.toFixed(0)} €` : "Kaina derinama";
