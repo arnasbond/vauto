@@ -346,6 +346,7 @@ export async function parseListingImagesForAgent(params: {
   contact?: string;
   text?: string;
   extraContext?: string;
+  priceHint?: number;
 }): Promise<{
   listing: VautoListingPayload;
   choiceChips: string[];
@@ -360,6 +361,7 @@ export async function parseListingImagesForAgent(params: {
     hasContact: Boolean(params.contact?.trim()),
     userTextHead: params.text?.trim().slice(0, 120) ?? null,
     extraContextHead: params.extraContext?.slice(0, 180) ?? null,
+    priceHint: params.priceHint ?? null,
   });
   if (!images.length) {
     console.error("[vision] parseListingImagesForAgent: no images after normalize");
@@ -378,6 +380,9 @@ export async function parseListingImagesForAgent(params: {
     rawParsed = await unifiedLlmJson({
       prompt,
       imageDataUrls: images,
+      userTextFallback: combinedText || undefined,
+      userCityFallback: city,
+      priceHint: params.priceHint,
     });
   } catch (err) {
     const errMessage = err instanceof Error ? err.message : String(err);
@@ -415,10 +420,14 @@ export async function parseListingImagesForAgent(params: {
     String(listing.attributes.clarificationPrompt ?? "").trim() ||
     buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
 
+  const quotaFallback =
+    String(listing.attributes?.visionQuotaFallback ?? "") === "true";
+  // Quota text-draft must never open multi-object chips / buddy loop.
   const needsClarification =
-    listing.confidence < 0.55 ||
-    choiceChips.length >= 2 ||
-    (detectedObjects.length >= 2 && listing.confidence < 0.72);
+    !quotaFallback &&
+    (listing.confidence < 0.55 ||
+      choiceChips.length >= 2 ||
+      (detectedObjects.length >= 2 && listing.confidence < 0.72));
 
   return {
     listing,

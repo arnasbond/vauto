@@ -3,6 +3,7 @@
 import "../load-env.js";
 import { normalizeImageDataUrl } from "./image-input.js";
 import { resolveGeminiApiKey } from "../load-env.js";
+import { buildVisionQuotaTextFallbackJson } from "./sell-intent-fallback.js";
 
 /** Stay under Render free-tier ~30s request limit. */
 const GEMINI_FETCH_TIMEOUT_MS = 25_000;
@@ -345,6 +346,20 @@ export interface UnifiedLlmJsonInput {
   imageDataUrls?: string[];
   /** Higher (~0.35) lets the model interpret typos/slang/no-diacritics more freely. */
   temperature?: number;
+  /** Sell note / caption — used when vision hits 429 (text-only draft, no images). */
+  userTextFallback?: string;
+  userCityFallback?: string;
+  priceHint?: number;
+}
+
+/** True for Gemini 429 / RESOURCE_EXHAUSTED (quota, RPM, TPM, spend cap). */
+export function isGeminiQuotaExhaustedError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err ?? "");
+  const status = parseGeminiStatus(err);
+  return (
+    status === 429 ||
+    /RESOURCE_EXHAUSTED|Too Many Requests|quota|rate.?limit/i.test(msg)
+  );
 }
 
 const UNIFIED_GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
@@ -470,7 +485,8 @@ export function mergeVisionJsonChunks(
  */
 async function callGeminiWithRetry<T>(
   fn: (model: string) => Promise<T>,
-  label: string
+  label: string,
+  opts?: { failFastOnQuota?: boolean }
 ): Promise<T> {
   let lastError: unknown;
   for (const model of UNIFIED_GEMINI_MODELS) {
@@ -480,13 +496,21 @@ async function callGeminiWithRetry<T>(
       } catch (e) {
         lastError = e;
         const status = parseGeminiStatus(e);
+        const msg = e instanceof Error ? e.message : String(e);
+        const is429 =
+          status === 429 || /RESOURCE_EXHAUSTED|Too Many Requests/i.test(msg);
+        // Vision path: do not burn quota on 429 retries — caller falls back to text draft.
+        if (is429 && opts?.failFastOnQuota) {
+          console.warn(
+            `[${label}] ${model} QUOTA 429 fail-fast (no retry):`,
+            msg.slice(0, 500)
+          );
+          throw e instanceof Error ? e : new Error(msg);
+        }
         const canRetry =
           attempt < GEMINI_JSON_MAX_RETRIES &&
           status !== null &&
           GEMINI_RETRY_STATUSES.has(status);
-        const msg = e instanceof Error ? e.message : String(e);
-        const is429 =
-          status === 429 || /RESOURCE_EXHAUSTED|Too Many Requests/i.test(msg);
         console.warn(
           `[${label}] ${model} attempt ${attempt + 1}${canRetry ? " (will retry)" : ""}:`,
           msg.slice(0, 500)
@@ -506,13 +530,42 @@ async function unifiedLlmJsonSingle(
   prompt: string,
   imageDataUrls: string[],
   systemInstruction: string,
-  temperature: number
+  temperature: number,
+  failFastOnQuota = false
 ): Promise<Record<string, unknown>> {
   return callGeminiWithRetry(
     (model) =>
       geminiChatJson(prompt, imageDataUrls, model, systemInstruction, temperature),
-    "vauto-unified"
+    "vauto-unified",
+    { failFastOnQuota: failFastOnQuota && imageDataUrls.length > 0 }
   );
+}
+
+function resolveTextFallbackPayload(
+  input: UnifiedLlmJsonInput,
+  reason: string
+): Record<string, unknown> {
+  const userText =
+    input.userTextFallback?.trim() ||
+    // Best-effort pull from prompt if caller forgot userTextFallback.
+    /Vartotojo[^"]*"""([\s\S]*?)"""/i.exec(input.prompt)?.[1]?.trim() ||
+    /aprašymas[^"]*"""([\s\S]*?)"""/i.exec(input.prompt)?.[1]?.trim() ||
+    "";
+  const payload = buildVisionQuotaTextFallbackJson({
+    userText: userText || "Parduodu automobilį",
+    userCity: input.userCityFallback,
+    priceHint: input.priceHint,
+  });
+  console.warn(
+    `[vision] unifiedLlmJson TEXT FALLBACK (no images) ${JSON.stringify({
+      reason: reason.slice(0, 240),
+      title: String(payload.title ?? "").slice(0, 80),
+      descriptionChars: String(payload.description ?? "").length,
+      price: payload.price ?? null,
+      userTextHead: userText.slice(0, 100),
+    })}`
+  );
+  return payload;
 }
 
 /** VAUTO unified parser — Gemini 2.5 Flash, then 2.5 Flash Lite. */
@@ -527,6 +580,7 @@ export async function unifiedLlmJson(
   } = input;
   const geminiKey = resolveGeminiApiKey();
   const images = imageDataUrls.filter(Boolean);
+  const visionQuotaFailFast = images.length > 0;
   console.log(
     `[vision] unifiedLlmJson enter ${JSON.stringify({
       hasApiKey: Boolean(geminiKey),
@@ -534,6 +588,7 @@ export async function unifiedLlmJson(
       promptChars: prompt.length,
       images: summarizeImageUrlsForLog(images),
       chunkSize: VISION_IMAGES_PER_REQUEST,
+      hasTextFallback: Boolean(input.userTextFallback?.trim()),
     })}`
   );
   if (!geminiKey) {
@@ -549,7 +604,8 @@ export async function unifiedLlmJson(
         prompt,
         images,
         systemInstruction,
-        temperature
+        temperature,
+        visionQuotaFailFast
       );
     } else {
       const chunks = chunkArray(images, VISION_IMAGES_PER_REQUEST);
@@ -562,6 +618,7 @@ export async function unifiedLlmJson(
         })}`
       );
       const parts: Record<string, unknown>[] = [];
+      let quotaFallbackResult: Record<string, unknown> | null = null;
       for (let i = 0; i < chunks.length; i++) {
         if (i > 0) await sleep(VISION_CHUNK_GAP_MS);
         const start = i * VISION_IMAGES_PER_REQUEST + 1;
@@ -580,22 +637,56 @@ export async function unifiedLlmJson(
             images: summarizeImageUrlsForLog(chunks[i]!),
           })}`
         );
-        const part = await unifiedLlmJsonSingle(
-          chunkPrompt,
-          chunks[i]!,
-          systemInstruction,
-          temperature
-        );
-        parts.push(part);
-        console.log(
-          `[vision] unifiedLlmJson chunk ok ${JSON.stringify({
-            chunk: i + 1,
-            title: String(part.title ?? "").slice(0, 60),
-            descriptionChars: String(part.description ?? "").length,
-          })}`
-        );
+        try {
+          const part = await unifiedLlmJsonSingle(
+            chunkPrompt,
+            chunks[i]!,
+            systemInstruction,
+            temperature,
+            true
+          );
+          parts.push(part);
+          console.log(
+            `[vision] unifiedLlmJson chunk ok ${JSON.stringify({
+              chunk: i + 1,
+              title: String(part.title ?? "").slice(0, 60),
+              descriptionChars: String(part.description ?? "").length,
+            })}`
+          );
+        } catch (chunkErr) {
+          if (!isGeminiQuotaExhaustedError(chunkErr)) throw chunkErr;
+          console.warn(
+            `[vision] unifiedLlmJson chunk ${i + 1} hit 429 — switching to text fallback`
+          );
+          if (parts.length) {
+            const partial = mergeVisionJsonChunks(parts);
+            const textPart = resolveTextFallbackPayload(
+              input,
+              `chunk_${i + 1}_quota_partial`
+            );
+            const merged = mergeVisionJsonChunks([partial, textPart]);
+            if (
+              String(textPart.description ?? "").length >
+              String(partial.description ?? "").length
+            ) {
+              merged.description = textPart.description;
+            }
+            merged.technicalFields = {
+              ...asRecord(merged.technicalFields),
+              visionQuotaFallback: "true",
+            };
+            quotaFallbackResult = merged;
+          } else {
+            quotaFallbackResult = resolveTextFallbackPayload(
+              input,
+              `chunk_${i + 1}_quota`
+            );
+          }
+          break;
+        }
       }
-      result = mergeVisionJsonChunks(parts);
+      result =
+        quotaFallbackResult ?? mergeVisionJsonChunks(parts);
     }
 
     console.log(
@@ -606,10 +697,20 @@ export async function unifiedLlmJson(
           (result as { description?: unknown }).description ?? ""
         ).length,
         chunked: images.length > VISION_IMAGES_PER_REQUEST,
+        quotaFallback: String(
+          asRecord(result.technicalFields).visionQuotaFallback ?? ""
+        ) === "true",
       })}`
     );
     return result;
   } catch (err) {
+    // Vision 429 / spend cap: never throw — return text-only listing so UI gets a draft.
+    if (images.length > 0 && isGeminiQuotaExhaustedError(err)) {
+      return resolveTextFallbackPayload(
+        input,
+        err instanceof Error ? err.message : String(err)
+      );
+    }
     visionLogError("unifiedLlmJson FAILED", {
       errMessage: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,

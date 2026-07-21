@@ -156,9 +156,16 @@ async function resolveListingPhotoScan(input: {
       userCity: input.userCity ?? "",
       contact: input.contact,
       // Pass sell note as context for brand/category hints — Vision still owns the description.
+      // Also used as text-only draft when Gemini returns 429 RESOURCE_EXHAUSTED.
       text:
         input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
           ? input.userText.trim()
+          : input.userText?.trim() ||
+            input.listingDraft?.title?.trim() ||
+            undefined,
+      priceHint:
+        input.listingDraft?.price && input.listingDraft.price > 0
+          ? input.listingDraft.price
           : undefined,
       extraContext: [
         ...extraBits,
@@ -244,7 +251,11 @@ async function resolveListingPhotoScan(input: {
     }
   );
 
-  const ack = photoAckLine(imageUrls.length);
+  const quotaFallback =
+    String(mergedDraft.attributes?.visionQuotaFallback ?? "") === "true";
+  const ack = quotaFallback
+    ? `Išsaugojau ${imageUrls.length > 1 ? `${imageUrls.length} nuotraukas` : "nuotrauką"}. AI vaizdo analizė šiuo metu perkrauta — paruošiau skelbimą pagal jūsų tekstą, kad galėtumėte tęsti iš karto.`
+    : photoAckLine(imageUrls.length);
   const resolvedCity =
     mergedDraft.location?.trim() || input.userCity?.trim() || "";
 

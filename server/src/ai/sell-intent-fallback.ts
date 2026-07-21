@@ -129,6 +129,85 @@ export interface SellDraftFallback {
   };
 }
 
+/** Pull a EUR price from free-text sell notes (e.g. "už 4500", "4500€"). */
+export function extractPriceFromSellText(text: string): number {
+  const t = String(text ?? "");
+  const patterns = [
+    /(?:uz|už|kaina|price)\s*[:=]?\s*(\d[\d\s]{0,8})\s*(?:€|eur)?/i,
+    /\b(\d[\d\s]{2,8})\s*(?:€|eur)\b/i,
+  ];
+  for (const re of patterns) {
+    const m = re.exec(t);
+    if (!m?.[1]) continue;
+    const n = Number(m[1].replace(/\s+/g, ""));
+    if (Number.isFinite(n) && n > 0 && n < 10_000_000) return Math.round(n);
+  }
+  return 0;
+}
+
+const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
+  vehicles: "AUTOMOBILIAI",
+  real_estate: "NT",
+  electronics: "ELEKTRONIKA",
+  jobs: "DARBAS",
+  home: "NAMAI",
+  clothing: "APRANGA",
+  services: "PASLAUGOS",
+  other: "NAMAI",
+};
+
+/**
+ * Schema-compatible JSON when Gemini vision hits 429 / RESOURCE_EXHAUSTED.
+ * Uses only user text + optional price — no image tokens.
+ */
+export function buildVisionQuotaTextFallbackJson(input: {
+  userText?: string;
+  userCity?: string;
+  priceHint?: number;
+}): Record<string, unknown> {
+  const text = String(input.userText ?? "").trim() || "Parduodu automobilį";
+  const draft = buildSellListingDraftFallback(text, {
+    userCity: input.userCity,
+  }).action.listingDraft;
+  const price =
+    (input.priceHint && input.priceHint > 0
+      ? input.priceHint
+      : extractPriceFromSellText(text)) || draft.price || 0;
+  const categoryKey =
+    INTERNAL_TO_VAUTO_CATEGORY[draft.category] ?? "AUTOMOBILIAI";
+  const priceLine =
+    price > 0
+      ? `Prašoma kaina: ${price} €.`
+      : "Kainą galite nurodyti kitame žingsnyje.";
+  const description = [
+    draft.description,
+    "Nuotraukos išsaugotos skelbime.",
+    "AI vaizdo analizė šiuo metu nepasiekiama dėl didelio apkrovimo — aprašymą sudariau pagal jūsų tekstą; detales galite papildyti prieš skelbiant.",
+    priceLine,
+  ].join(" ");
+
+  return {
+    intent: "sell",
+    category: categoryKey,
+    title: draft.title,
+    price: price > 0 ? price : null,
+    city: draft.location || input.userCity || "Lietuva",
+    description,
+    technicalFields: {
+      ...draft.attributes,
+      visionQuotaFallback: "true",
+    },
+    attributes: {
+      ...draft.attributes,
+      visionQuotaFallback: "true",
+    },
+    confidence: 0.7,
+    sceneContext: "text_fallback_quota",
+    detectedObjects: [],
+    choiceChips: [],
+  };
+}
+
 export function buildSellListingDraftFallback(
   text: string,
   ctx: { userCity?: string; contact?: string }
