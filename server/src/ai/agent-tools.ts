@@ -288,8 +288,10 @@ async function runVisionListingScan(
     : opts.userCity;
 
   const raw = await visionExtractJson(
-    `Nuskenuok prekės/objekto nuotraukas ir užpildyk techninius laukus lietuviškam skelbimui.
-Automobiliui — make, model, year, color, bodyType, fuelType, mileage, condition.
+    `Nuskenuok AUTOMOBILIO / prekės nuotraukas lietuviškam skelbimui.
+DĖMESYS TIK PREKEI: markė, modelis, metai, variklis (cm³/kW), kuras, rida, spalva, vietų skaičius, VIN/valst. nr. jei matosi dokumente, komplektacija, būklė.
+DRAUDŽIAMA aprašyti foną (trinkeles, namą, medžius, kiemą, dangų, orą) — ignoruok aplinką.
+Automobiliui — make, model, year, color, bodyType, fuelType, mileage, engine, powerKw, seats, vin, plate, condition.
 NT — rooms, area, equipment. Elektronikai — condition, color.
 JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.category ?? "auto"}.`,
     urls
@@ -424,24 +426,28 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "create_listing_draft",
     description:
-      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI, ĮKELTI ar PASKELBTI prekę. Pvz. „noreciau parduoti volvo v70\" → category=vehicles, title=Volvo V70. PRIVALOMA vietoj searchListings pardavimo intencijai.",
+      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI. PRIVALOMA pateikti turtingą description (4–8 sakiniai) iš modelio žinių — ne tuščią anketą. Po to klausk 1 kontekstinį klausimą (ne „Trūksta miesto, kainos“).",
     parameters: {
       type: "OBJECT",
       properties: {
         title: {
           type: "STRING",
           description:
-            "Pagrindinis objektas lietuviškai BE stop-žodžių: Suknelė, Kedai, BMW 320d, Sklypas",
+            "Profesionalus pavadinimas: iPhone 16, Suknelė Zara, BMW 320d, Sklypas Vilniuje",
         },
         category: {
           type: "STRING",
           description:
             "vehicles | electronics | real_estate | clothing | services | jobs | home | other",
         },
-        description: { type: "STRING", description: "Trumpas aprašymas jei žinomas" },
+        description: {
+          type: "STRING",
+          description:
+            "PRIVALOMAS turtingas marketplace aprašymas lietuviškai (4–8 sakiniai): specs, nauda pirkėjui, būklės užuomina. Nenaudok 1 sakinio „Parduodu X“.",
+        },
         attributes: {
           type: "OBJECT",
-          description: "color, size, make, model, year, propertyType, clothingSize…",
+          description: "color, size, make, model, year, memory, storage, propertyType, clothingSize…",
         },
       },
       required: ["title", "category"],
@@ -1365,7 +1371,7 @@ export async function executeAgentTool(
         confidence: 0.85,
         attributes,
         allowPastomatas: true,
-        listingFlowState: "AWAITING_PHOTOS" as const,
+        listingFlowState: "DRAFT_READY" as const,
       };
 
       const photosPrompt = buildDraftingCompletePhotosPrompt(draft);
@@ -1392,7 +1398,7 @@ export async function executeAgentTool(
               ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
               : photosPrompt,
           ],
-          listingFlowState: "AWAITING_PHOTOS",
+          listingFlowState: "DRAFT_READY",
         },
         sideEffect: {
           type: "listing_draft",
@@ -1461,14 +1467,15 @@ export async function executeAgentTool(
       }
 
       const suggestedQuestions: string[] = [];
-      if (missingFields.includes("city")) {
+      if (enriched.category === "electronics" || /iphone|telefon|mobil/i.test(enriched.title)) {
         suggestedQuestions.push(
-          "Matau, kad nenurodėte miesto. Kuriame mieste skelbiate?"
+          "Kokia jūsų telefono spalva ir vidinė atmintis — 128 ar 256 GB?"
         );
+        suggestedQuestions.push("Ar pridedate originalų įkroviklį ir dėžutę?");
       }
       if (missingFields.includes("price")) {
         suggestedQuestions.push(
-          "Jei žinote kainą — parašykite. Galite ir praleisti, nurodysite vėliau."
+          "Kokią kainą norėtumėte — greitam pardavimui ar maksimaliai vertei?"
         );
       }
       if (enriched.category === "vehicles" && missingFields.includes("make")) {
@@ -1478,12 +1485,16 @@ export async function executeAgentTool(
         suggestedQuestions.push("Koks modelis? Pvz. Golf, 520, Corolla.");
       }
       if (enriched.category === "vehicles" && missingFields.includes("year")) {
-        suggestedQuestions.push("Kokie pagaminimo ar registracijos metai?");
+        suggestedQuestions.push("Kokie pagaminimo ar registracijos metai ir kokia rida?");
       }
       if (missingFields.includes("sellerType")) {
         suggestedQuestions.push(
           "Ar keliate skelbimą kaip privatus asmuo, ar kaip įmonė/verslas?"
         );
+      }
+      // City last — only if truly missing (profile sync may fill later).
+      if (missingFields.includes("city") && suggestedQuestions.length < 3) {
+        suggestedQuestions.push("Kurį miestą rodyti pirkėjams skelbime?");
       }
 
       const voiceFollowUp = buildSellerContextualVoiceFollowUp(
@@ -2617,6 +2628,7 @@ export type AgentSideEffect =
         listingFlowState?:
           | "DRAFTING_TEXT"
           | "AWAITING_PHOTOS"
+          | "DRAFT_READY"
           | "AWAITING_CONFIRMATION";
       };
       imageUrl?: string;

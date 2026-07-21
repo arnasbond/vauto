@@ -129,11 +129,12 @@ export interface AiExtractedListing {
   coverImageId?: string;
   /**
    * Strict conversational listing state machine:
-   * DRAFTING_TEXT → AWAITING_PHOTOS → AWAITING_CONFIRMATION
+   * DRAFTING_TEXT → AWAITING_PHOTOS → DRAFT_READY → AWAITING_CONFIRMATION
    */
   listingFlowState?:
     | "DRAFTING_TEXT"
     | "AWAITING_PHOTOS"
+    | "DRAFT_READY"
     | "AWAITING_CONFIRMATION";
   conversationalHints?: {
     hasVisibleDefects: boolean;

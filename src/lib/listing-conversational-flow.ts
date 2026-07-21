@@ -14,12 +14,26 @@ export {
   PRE_PUBLISH_CARD_INTRO,
   AWAITING_PHOTOS_PROMPT,
   AWAITING_PHOTOS_NUDGE,
+  POST_VISION_PUBLISH_GATE,
+  TEXT_DRAFT_READY_GATE,
+  POST_VISION_MORE_PHOTOS_NUDGE,
+  POST_VISION_PUBLISH_CHIPS,
+  TEXT_DRAFT_READY_CHIPS,
   AWAITING_CONFIRMATION_LOCKED,
   PROFILE_CITY_REQUIRED,
   PROFILE_PHONE_REQUIRED,
   isListingFlowState,
+  isVisionObjectSellChip,
+  nounFromVisionObjectSellChip,
+  isPublishReadyIntent,
+  isMorePhotosIntent,
+  isTextFirstListingIntent,
+  isProductDescriptionContext,
+  shouldBypassPhotosNudge,
   inferListingFlowState,
   canTransitionListingFlow,
+  resolveLockedListingFlowState,
+  isHeroFlowLocked,
   transitionListingFlow,
   listingFlowAllowsFieldMutation,
   listingFlowAllowsPhotoUpload,
@@ -28,12 +42,14 @@ export {
   listingFlowComposerTextLocked,
   dispatchListingFlowTurn,
   buildDraftingCompletePhotosPrompt,
+  buildTextDraftReadyMessage,
+  buildPostVisionHeroMessage,
 } from "@vauto/shared/listing-organism";
 
 export const LISTING_CONFIRM_CHIP = "✅ Viskas tinka";
 export const LISTING_EDIT_CHIP = "✏️ Dar pataisysiu";
 
-/** Profile-first missing prompts — city/phone come from profile, not listing chat fields. */
+/** Profile-first, consultant tone — never „Trūksta miesto, kainos…“ dump. */
 export function buildConversationalMissingPrompt(
   readiness: Pick<
     PrePublishReadiness,
@@ -45,21 +61,22 @@ export function buildConversationalMissingPrompt(
   >
 ): string {
   if (readiness.missingAuth) {
-    return "Norint publikuoti skelbimą, reikia prisijungti — prisijunkite ir tęsime pokalbį.";
+    return "Norint publikuoti, reikia prisijungti — prisijunkite ir tęsime kaip asmeninis brokeris.";
   }
-  if (readiness.missingPhoto) {
-    return AWAITING_PHOTOS_PROMPT;
+  if (readiness.missingPrice) {
+    return "Kokią kainą norėtumėte matyti skelbime — greitam pardavimui ar maksimaliai vertei? Parašykite sumą eurais.";
+  }
+  // City / phone only at the end — never a photo hard-block before text draft review.
+  if (readiness.missingPhone) {
+    return PROFILE_PHONE_REQUIRED;
   }
   if (readiness.missingCity) {
     return PROFILE_CITY_REQUIRED;
   }
-  if (readiness.missingPrice) {
-    return "Kokią kainą nustatome? Parašykite sumą eurais, pvz. 8500 €.";
+  if (readiness.missingPhoto) {
+    return AWAITING_PHOTOS_PROMPT;
   }
-  if (readiness.missingPhone) {
-    return PROFILE_PHONE_REQUIRED;
-  }
-  return "Papildykime dar kelias detales — parašykite, ką norėtumėte patikslinti.";
+  return "Ar dar ką nors patikslinsime aprašyme, ar judame prie publikavimo?";
 }
 
 export interface DraftConfirmationInput {

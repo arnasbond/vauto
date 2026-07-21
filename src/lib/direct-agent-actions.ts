@@ -31,6 +31,22 @@ export function isDirectAgentActionChip(text: string): boolean {
   if (isPhotoIntentListingChip(t) || isPhotoIntentSearchChip(t)) return true;
   if (isListingWorkflowCommand(t)) return true;
   if (isGapActionChip(t) || isEditActionChip(t)) return true;
+  // Multi-object vision pick — must not fall through to free-text LLM loop.
+  if (/^parduoti\s+\S+/i.test(t) && !/^📦/.test(t) && !/parduoti\s+š[iį]\s+daikt/i.test(t)) {
+    return true;
+  }
+  // Hero publish gate chips (text-first universe)
+  if (
+    /^viskas\b/i.test(t) ||
+    /\bpublikuojam\b/i.test(t) ||
+    /\bprepublish\b/i.test(t) ||
+    /\bjudame\s+prie\b/i.test(t) ||
+    /^nenoriu\b/i.test(t)
+  ) {
+    return true;
+  }
+  if (/^prisegti\s+nuotrauk/i.test(t)) return true;
+  if (/^įkelti\s+dar\s+nuotrauk/i.test(t)) return true;
   if (/^➕?\s*įkelti skelbim/i.test(t)) return true;
   if (/^🔍?\s*ieškoti/i.test(t)) return true;
   if (/^įkelti nuotrauk/i.test(t)) return true;

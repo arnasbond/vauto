@@ -108,6 +108,7 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
         const listingFlowState =
           flowRaw === "DRAFTING_TEXT" ||
           flowRaw === "AWAITING_PHOTOS" ||
+          flowRaw === "DRAFT_READY" ||
           flowRaw === "AWAITING_CONFIRMATION"
             ? flowRaw
             : undefined;

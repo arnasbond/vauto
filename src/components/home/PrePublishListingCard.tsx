@@ -124,6 +124,9 @@ export function PrePublishListingCard({
           <p className="text-xs font-bold text-[var(--vauto-text)]">
             {PRE_PUBLISH_VISIBILITY_HEADLINE}
           </p>
+          <p className="mt-0.5 text-[11px] leading-snug text-[var(--vauto-text-muted)]">
+            Paryškinti skelbimą arba iškelti į viršų — pasirinkite prieš publikuojant.
+          </p>
           <div className="mt-2 space-y-1.5" role="radiogroup" aria-label="Matomumo planas">
             {PRE_PUBLISH_VISIBILITY_OPTIONS.map((opt) => {
               const active = visibilityId === opt.id;

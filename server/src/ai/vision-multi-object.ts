@@ -96,24 +96,20 @@ export function buildSemanticAlternatives(
 }
 
 export function buildMultiObjectClarificationPrompt(
-  sceneContext: string | undefined,
+  _sceneContext: string | undefined,
   objects: DetectedVisionObject[],
   mode: "sell" | "search" = "sell"
 ): string {
-  const scene = sceneContext?.trim();
+  // Never mention background/scene (paving, house, trees) — sellable objects only.
+  void _sceneContext;
   const labels = objects.map((o) => o.label).filter(Boolean);
   if (labels.length >= 2) {
     const joined = labels.slice(0, 3).join(", ");
     const primary = labels[0];
-    const verb = mode === "sell" ? "ruošiame skelbimą" : "ieškome";
     if (mode === "sell") {
-      return scene
-        ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${joined}). Ar teisingai suprantu, kad ${verb} „${primary}"? Pasirinkite objektą žemiau.`
-        : `Nuotraukoje matau kelis objektus: ${joined}. Ar teisingai suprantu, kad ${verb} „${primary}"? Pasirinkite objektą žemiau.`;
+      return `Nuotraukoje matau kelis objektus: ${joined}. Ar teisingai suprantu, kad ruošiame skelbimą „${primary}"? Pasirinkite objektą žemiau.`;
     }
-    return scene
-      ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${joined}). Ką norite ieškoti?`
-      : `Nuotraukoje matau kelis objektus: ${joined}. Ką norite ieškoti?`;
+    return `Nuotraukoje matau kelis objektus: ${joined}. Ką norite ieškoti?`;
   }
   return "";
 }

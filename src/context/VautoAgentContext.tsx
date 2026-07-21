@@ -132,6 +132,7 @@ import {
   isListingConversationInput,
   isManualFillIntent,
   tryApplyListingChatInput,
+  parsePriceFromChatInput,
 } from "@/lib/agent-listing-chat-input";
 import {
   buildProfileListingContact,
@@ -149,11 +150,21 @@ import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
   buildDraftingCompletePhotosPrompt,
+  buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
+  isVisionObjectSellChip,
+  nounFromVisionObjectSellChip,
+  POST_VISION_PUBLISH_CHIPS,
+  POST_VISION_PUBLISH_GATE,
   PRE_PUBLISH_CARD_INTRO,
+  resolveLockedListingFlowState,
+  shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "@/lib/listing-conversational-flow";
+import {
+  parseDetectedObjectsFromAttributes,
+} from "@/lib/vision-choice-chips";
 import {
   buildListingEditPrompt,
   buildListingEditQuickReplies,
@@ -219,6 +230,8 @@ interface VautoAgentContextValue {
   hidePrePublishCard: boolean;
   /** User confirmed draft via „viskas tinka" — show publish card. */
   listingPublishConfirmed: boolean;
+  /** Photos attached this session (blob/data URLs) pending publish. */
+  sessionPendingImageUrls: string[];
   /** Reset publish card state after successful listing publish. */
   resetPublishSession: () => void;
 }
@@ -328,6 +341,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         attributes: profileSyncedDraft.attributes as Record<string, string> | undefined,
         allowPastomatas: profileSyncedDraft.allowPastomatas,
         listingFlowState: profileSyncedDraft.listingFlowState,
+        orderedImageUrls: profileSyncedDraft.orderedImageUrls,
       },
       profileContacts: {
         userId: user.id,
@@ -578,25 +592,34 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const photoUrls = [
           ...(actions.imageUrls ?? []),
           ...(actions.imageUrl ? [actions.imageUrl] : []),
+          ...(aiDraft?.orderedImageUrls ?? []),
         ]
           .map((u) => String(u ?? "").trim())
           .filter(Boolean)
           .filter((u, i, arr) => arr.indexOf(u) === i)
           .slice(0, 6);
-        const flowState =
+        const proposedFlow =
           actions.listingDraft.listingFlowState ??
-          (photoUrls.length ? "AWAITING_CONFIRMATION" : "AWAITING_PHOTOS");
+          (photoUrls.length || actions.listingDraft.title
+            ? ("DRAFT_READY" as const)
+            : ("DRAFTING_TEXT" as const));
+        const flowState =
+          resolveLockedListingFlowState(aiDraft?.listingFlowState, proposedFlow) ??
+          proposedFlow;
         const draft = {
           ...mapAgentDraftToListing(actions.listingDraft),
           ...(photoUrls.length ? { orderedImageUrls: photoUrls } : {}),
           listingFlowState: flowState,
-        };
+        } as import("@/lib/types").AiExtractedListing;
         applyAgentListingDraft(draft, photoUrls[0] ?? actions.imageUrl);
         if (flowState === "AWAITING_CONFIRMATION") {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
-        } else if (flowState === "AWAITING_PHOTOS") {
+        } else {
           setListingPublishConfirmed(false);
+          if (flowState === "DRAFT_READY") {
+            setHidePrePublishCard(true);
+          }
         }
       }
       if (actions.type === "wardrobe_bulk") {
@@ -927,6 +950,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       isPublishingListing,
       setListingPublishConfirmed,
       setHidePrePublishCard,
+      aiDraft,
     ]
   );
 
@@ -967,6 +991,160 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     resetPublishSessionRef.current = resetPublishSession;
   }, [resetPublishSession]);
 
+  /**
+   * Brutal deterministic path: „Parduoti …“ chip → AWAITING_CONFIRMATION + PrePublish.
+   * No server, no LLM, no photos-nudge. Local state only.
+   */
+  const commitVisionObjectSellToPrePublish = useCallback(
+    (chip: string): WakeWordAgentResult => {
+      const trimmed = chip.trim();
+      const noun = nounFromVisionObjectSellChip(trimmed);
+      const title = noun
+        ? noun.charAt(0).toUpperCase() + noun.slice(1)
+        : aiDraft?.title?.trim() || "Prekė";
+      const objects = parseDetectedObjectsFromAttributes(aiDraft?.attributes);
+      const matched = noun
+        ? objects.find((o) => o.label.toLowerCase() === noun.toLowerCase())
+        : undefined;
+      const photos = [
+        ...(aiDraft?.orderedImageUrls ?? []),
+        ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+        ...sessionPendingImageUrls,
+      ]
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean)
+        .filter((u, i, arr) => arr.indexOf(u) === i)
+        .slice(0, 6);
+
+      const baseDraft = {
+        title,
+        description: aiDraft?.description ?? "",
+        price: aiDraft?.price ?? 0,
+        location: aiDraft?.location?.trim() || user.city?.trim() || "",
+        contact: aiDraft?.contact?.trim() || user.phone?.trim() || "",
+        category:
+          (matched?.category as import("@/lib/types").AiExtractedListing["category"]) ??
+          aiDraft?.category ??
+          "other",
+        confidence: aiDraft?.confidence ?? 0.85,
+        attributes: {
+          ...(aiDraft?.attributes ?? {}),
+          choiceChips: undefined,
+          clarificationPrompt: undefined,
+          ...(noun ? { selectedObject: noun } : {}),
+        },
+        ...(photos.length ? { orderedImageUrls: photos } : {}),
+        choiceChips: undefined,
+        clarificationPrompt: undefined,
+        ...(aiDraft?.priceLabel ? { priceLabel: aiDraft.priceLabel } : {}),
+        ...(aiDraft?.allowPastomatas != null
+          ? { allowPastomatas: aiDraft.allowPastomatas }
+          : {}),
+      } as import("@/lib/types").AiExtractedListing;
+
+      const readiness = evaluatePrePublishReadiness({
+        isAuthenticated,
+        user,
+        draft: baseDraft,
+        previewImage: sellerPreviewImage ?? photos[0] ?? null,
+        pendingImageUrls: sessionPendingImageUrls,
+        orderedImageUrls: photos,
+        geoCoords: buyerCoords,
+      });
+
+      /**
+       * Lock PrePublish ONLY when the card can actually render.
+       * Missing price/city/phone → stay DRAFT_READY so the seller can type.
+       */
+      if (!readiness.ok) {
+        const draftingDraft = {
+          ...(readiness.syncedDraft ?? baseDraft),
+          listingFlowState: "DRAFT_READY" as const,
+          choiceChips: undefined,
+          clarificationPrompt: undefined,
+          ...(photos.length ? { orderedImageUrls: photos } : {}),
+        };
+        applyAgentListingDraft(draftingDraft, photos[0]);
+        setListingPublishConfirmed(false);
+        setHidePrePublishCard(true);
+        updateAiDraft(draftingDraft);
+        const reply = buildConversationalMissingPrompt(readiness);
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          { role: "assistant" as const, text: reply, quickReplies: undefined },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      const card = buildPrePublishCardPayload(
+        readiness,
+        sellerPreviewImage ?? photos[0] ?? null,
+        { vatCode: user.vatCode, pendingImageUrls: sessionPendingImageUrls }
+      );
+      if (!card) {
+        const draftingDraft = {
+          ...(readiness.syncedDraft ?? baseDraft),
+          listingFlowState: "DRAFT_READY" as const,
+          choiceChips: undefined,
+          clarificationPrompt: undefined,
+          ...(photos.length ? { orderedImageUrls: photos } : {}),
+        };
+        applyAgentListingDraft(draftingDraft, photos[0]);
+        setListingPublishConfirmed(false);
+        setHidePrePublishCard(true);
+        updateAiDraft(draftingDraft);
+        const reply = buildConversationalMissingPrompt(readiness);
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          { role: "assistant" as const, text: reply, quickReplies: undefined },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
+      }
+
+      const patchedDraft = {
+        ...(readiness.syncedDraft ?? baseDraft),
+        listingFlowState: "AWAITING_CONFIRMATION" as const,
+        choiceChips: undefined,
+        clarificationPrompt: undefined,
+        ...(photos.length ? { orderedImageUrls: photos } : {}),
+      } as import("@/lib/types").AiExtractedListing;
+
+      applyAgentListingDraft(patchedDraft, photos[0]);
+      setListingPublishConfirmed(true);
+      setHidePrePublishCard(false);
+      updateAiDraft(patchedDraft);
+
+      const reply = PRE_PUBLISH_CARD_INTRO;
+
+      setMessages((prev) => [
+        ...prev,
+        { role: "user" as const, text: trimmed },
+        {
+          role: "assistant" as const,
+          text: reply,
+          prePublishCard: card,
+          quickReplies: undefined,
+        },
+      ]);
+      touchAgentSessionActivity();
+      return { ok: true, reply };
+    },
+    [
+      aiDraft,
+      applyAgentListingDraft,
+      buyerCoords,
+      isAuthenticated,
+      sellerPreviewImage,
+      sessionPendingImageUrls,
+      updateAiDraft,
+      user,
+    ]
+  );
+
   const sendAgentMessage = useCallback(
     async (
       text: string,
@@ -976,6 +1154,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const hasIncomingImages = Boolean(options?.pendingImageUrls?.filter(Boolean).length);
       if (!trimmed && !hasIncomingImages) {
         return { ok: false, error: "Tuščia užklausa" };
+      }
+
+      // Hard local lock — never let „Parduoti …“ hit the server photos-nudge loop.
+      if (trimmed && isVisionObjectSellChip(trimmed) && !hasIncomingImages) {
+        return commitVisionObjectSellToPrePublish(trimmed);
       }
 
       const drainAgentQueue = () => {
@@ -1000,7 +1183,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /* v1.2 — text-only assistant, no TTS */
       };
 
-      if (isDirectAgentActionChip(trimmed)) {
+      // Hero SM chips (vision pick / publish gate) are handled below via dispatchListingFlowTurn.
+      // Do not route them through handleDirectAgentChip (would recurse via sendAgentMessageRef).
+      const isHeroSmChip =
+        isVisionObjectSellChip(trimmed) ||
+        /^viskas\b/i.test(trimmed) ||
+        /\bpublikuojam\b/i.test(trimmed) ||
+        /\bprepublish\b/i.test(trimmed) ||
+        /\bjudame\s+prie\b/i.test(trimmed) ||
+        /^nenoriu\b/i.test(trimmed) ||
+        /^prisegti\s+nuotrauk/i.test(trimmed) ||
+        /^įkelti\s+dar\s+nuotrauk/i.test(trimmed);
+      if (isDirectAgentActionChip(trimmed) && !isHeroSmChip) {
         const handled = await handleDirectAgentChipRef.current(trimmed);
         if (handled) return { ok: true, reply: "" };
       }
@@ -1055,16 +1249,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       } => {
         const readiness = runPrePublishGate();
         if (!readiness.ok) {
-          if (readiness.missingPhoto) {
-            return {
-              reply: buildDraftingCompletePhotosPrompt({
-                title: aiDraft?.title,
-                description: aiDraft?.description,
-                price: aiDraft?.price,
-                location: readiness.resolvedCity || aiDraft?.location,
-              }),
-            };
-          }
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
         return confirmPublishNow();
@@ -1112,17 +1296,73 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply };
       }
 
+      /** Merge photos + price from this turn BEFORE SM so PrePublish can open with media+price. */
+      const incomingImagesEarly =
+        options?.pendingImageUrls?.filter(Boolean).slice(0, 6) ?? [];
+      const priceFromTurn = trimmed ? parsePriceFromChatInput(trimmed) : null;
+      let draftForTurn = aiDraft
+        ? priceFromTurn != null && !(aiDraft.price > 0)
+          ? { ...aiDraft, price: priceFromTurn }
+          : priceFromTurn != null && aiDraft.price !== priceFromTurn
+            ? { ...aiDraft, price: priceFromTurn }
+            : aiDraft
+        : null;
+      if (draftForTurn && priceFromTurn != null && draftForTurn.price === priceFromTurn) {
+        updateAiDraft({ price: priceFromTurn });
+      }
+      let pendingForTurn = sessionPendingImageUrls;
+      if (incomingImagesEarly.length) {
+        pendingForTurn = [...incomingImagesEarly, ...sessionPendingImageUrls]
+          .filter(Boolean)
+          .filter((u, i, arr) => arr.indexOf(u) === i)
+          .slice(0, 6);
+        setSessionPendingImageUrls(pendingForTurn);
+        setListingPublishConfirmed(false);
+        if (draftForTurn) {
+          const mergedPhotos = [
+            ...incomingImagesEarly,
+            ...(draftForTurn.orderedImageUrls ?? []),
+          ]
+            .filter(Boolean)
+            .filter((u, i, arr) => arr.indexOf(u) === i)
+            .slice(0, 6);
+          draftForTurn = { ...draftForTurn, orderedImageUrls: mergedPhotos };
+          updateAiDraft({
+            orderedImageUrls: mergedPhotos,
+            ...(priceFromTurn != null ? { price: priceFromTurn } : {}),
+          });
+        }
+      }
+
+      const photoCount = Math.max(
+        sellerPreviewImage ? 1 : 0,
+        draftForTurn?.orderedImageUrls?.length ?? 0,
+        pendingForTurn.length,
+        hasIncomingImages ? 1 : 0
+      );
       const listingFlowState = inferListingFlowState({
-        listingFlowState: aiDraft?.listingFlowState,
-        hasDraft: Boolean(aiDraft?.title?.trim()),
-        photoCount: 0,
+        listingFlowState: draftForTurn?.listingFlowState,
+        hasDraft: Boolean(draftForTurn?.title?.trim() || draftForTurn),
+        photoCount,
       });
       const flowDecision = dispatchListingFlowTurn({
         state: listingFlowState,
         userText: trimmed,
         hasIncomingPhotos: hasIncomingImages,
-        photoCount: 0,
+        photoCount,
+        hasDraft: Boolean(draftForTurn),
       });
+
+      // Text-first sell/generate: reopen drafting so Gemini can enrich without photos.
+      if (
+        flowDecision.kind === "allow_drafting" &&
+        listingFlowState === "AWAITING_PHOTOS" &&
+        shouldBypassPhotosNudge(trimmed) &&
+        draftForTurn
+      ) {
+        updateAiDraft({ listingFlowState: "DRAFTING_TEXT" });
+        draftForTurn = { ...draftForTurn, listingFlowState: "DRAFTING_TEXT" };
+      }
 
       if (flowDecision.kind === "ignore_backward") {
         setMessages((prev) => [
@@ -1135,29 +1375,165 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       if (flowDecision.kind === "nudge_photos") {
+        // Hard bypass — never trap text-first generation in the photos loop.
+        if (shouldBypassPhotosNudge(trimmed) && !hasIncomingImages) {
+          if (aiDraft) {
+            updateAiDraft({ listingFlowState: "DRAFTING_TEXT" });
+          }
+          // Fall through to proactive agent / API below.
+        } else if (
+          photoCount > 0 &&
+          flowDecision.reply === AWAITING_PHOTOS_NUDGE
+        ) {
+          if (draftForTurn && draftForTurn.listingFlowState !== "DRAFT_READY") {
+            updateAiDraft({ listingFlowState: "DRAFT_READY" });
+          }
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed },
+            {
+              role: "assistant" as const,
+              text: POST_VISION_PUBLISH_GATE,
+              quickReplies: [...POST_VISION_PUBLISH_CHIPS],
+            },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: true, reply: POST_VISION_PUBLISH_GATE };
+        } else {
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed },
+            { role: "assistant" as const, text: flowDecision.reply || AWAITING_PHOTOS_NUDGE },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: true, reply: flowDecision.reply || AWAITING_PHOTOS_NUDGE };
+        }
+      }
+
+      if (flowDecision.kind === "show_draft_gate") {
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
-          { role: "assistant" as const, text: flowDecision.reply || AWAITING_PHOTOS_NUDGE },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply: flowDecision.reply || AWAITING_PHOTOS_NUDGE };
-      }
-
-      if (flowDecision.kind === "show_confirmation" && aiDraft) {
-        const gateway = confirmPublishNow();
-        updateAiDraft({ listingFlowState: "AWAITING_CONFIRMATION" });
-        setMessages((prev) => [
-          ...prev,
-          { role: "user" as const, text: trimmed || "tinka" },
           {
             role: "assistant" as const,
-            text: gateway.reply || PRE_PUBLISH_CARD_INTRO,
-            ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+            text: flowDecision.reply || POST_VISION_PUBLISH_GATE,
+            quickReplies: [...POST_VISION_PUBLISH_CHIPS],
           },
         ]);
         touchAgentSessionActivity();
-        return { ok: true, reply: gateway.reply || PRE_PUBLISH_CARD_INTRO };
+        return { ok: true, reply: flowDecision.reply || POST_VISION_PUBLISH_GATE };
+      }
+
+      /** Multi-object pick → PrePublish immediately (local only). */
+      if (flowDecision.kind === "object_selected") {
+        return commitVisionObjectSellToPrePublish(trimmed);
+      }
+
+      if (flowDecision.kind === "show_confirmation" && draftForTurn) {
+        const priceFromMsg = parsePriceFromChatInput(trimmed);
+        const draftWithPrice =
+          priceFromMsg != null &&
+          (!(draftForTurn.price > 0) || draftForTurn.price !== priceFromMsg)
+            ? { ...draftForTurn, price: priceFromMsg }
+            : draftForTurn;
+
+        const readiness = evaluatePrePublishReadiness({
+          isAuthenticated,
+          user,
+          draft: draftWithPrice,
+          previewImage: sellerPreviewImage,
+          pendingImageUrls: pendingForTurn,
+          orderedImageUrls: draftWithPrice.orderedImageUrls,
+          geoCoords: buyerCoords,
+        });
+
+        /** Never lock the composer without a real PrePublish card. */
+        if (!readiness.ok) {
+          const draftingDraft = {
+            ...(readiness.syncedDraft ?? draftWithPrice),
+            listingFlowState: "DRAFT_READY" as const,
+            choiceChips: undefined,
+            clarificationPrompt: undefined,
+          };
+          updateAiDraft(draftingDraft);
+          setListingPublishConfirmed(false);
+          setHidePrePublishCard(true);
+          const reply = buildConversationalMissingPrompt(readiness);
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed || "publikuojam" },
+            { role: "assistant" as const, text: reply, quickReplies: undefined },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: true, reply };
+        }
+
+        const nextState =
+          transitionListingFlow(
+            draftWithPrice.listingFlowState ?? listingFlowState ?? "DRAFT_READY",
+            "READY_TO_PUBLISH"
+          ) ?? "AWAITING_CONFIRMATION";
+        const patchedDraft = {
+          ...(readiness.syncedDraft ?? draftWithPrice),
+          listingFlowState: nextState as typeof draftWithPrice.listingFlowState,
+          choiceChips: undefined,
+          clarificationPrompt: undefined,
+        };
+
+        const cardPhotos = [
+          ...(patchedDraft.orderedImageUrls ?? []),
+          ...pendingForTurn,
+          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+        ]
+          .map((u) => String(u ?? "").trim())
+          .filter(Boolean)
+          .filter((u, i, arr) => arr.indexOf(u) === i)
+          .slice(0, 6);
+        const card = buildPrePublishCardPayload(
+          readiness,
+          sellerPreviewImage ?? cardPhotos[0] ?? null,
+          { vatCode: user.vatCode, pendingImageUrls: pendingForTurn }
+        );
+        // Never lock composer without a real card payload.
+        if (!card) {
+          updateAiDraft({
+            ...patchedDraft,
+            listingFlowState: "DRAFT_READY",
+            ...(cardPhotos.length ? { orderedImageUrls: cardPhotos } : {}),
+          });
+          setListingPublishConfirmed(false);
+          setHidePrePublishCard(true);
+          const reply = buildConversationalMissingPrompt(readiness);
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed || "publikuojam" },
+            { role: "assistant" as const, text: reply, quickReplies: undefined },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: true, reply };
+        }
+
+        updateAiDraft({
+          ...patchedDraft,
+          ...(cardPhotos.length ? { orderedImageUrls: cardPhotos } : {}),
+          listingFlowState: nextState as typeof draftWithPrice.listingFlowState,
+        });
+        setListingPublishConfirmed(true);
+        setHidePrePublishCard(false);
+        const reply = PRE_PUBLISH_CARD_INTRO;
+
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed || "publikuojam" },
+          {
+            role: "assistant" as const,
+            text: reply,
+            prePublishCard: card,
+            quickReplies: undefined,
+          },
+        ]);
+        touchAgentSessionActivity();
+        return { ok: true, reply };
       }
 
       // Edit chips must not roll the state machine backward.
@@ -1165,7 +1541,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         aiDraft &&
         isEditActionChip(trimmed) &&
         listingFlowState !== "AWAITING_CONFIRMATION" &&
-        listingFlowState !== "AWAITING_PHOTOS"
+        listingFlowState !== "AWAITING_PHOTOS" &&
+        listingFlowState !== "DRAFT_READY"
       ) {
         const editField = editFieldFromChip(trimmed);
         if (editField) {
@@ -1185,17 +1562,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Field mutations only while drafting — then advance to AWAITING_PHOTOS.
+      // Field mutations only while drafting — never trap text-first generate/sell here.
       const listingChatReply =
         flowDecision.kind === "allow_drafting" &&
         aiDraft &&
+        !shouldBypassPhotosNudge(trimmed) &&
         isListingConversationInput(trimmed, listingChatContext)
           ? tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
               const nextState =
                 transitionListingFlow(
                   aiDraft.listingFlowState ?? "DRAFTING_TEXT",
                   "DRAFT_SAVED"
-                ) ?? "AWAITING_PHOTOS";
+                ) ?? "DRAFT_READY";
               updateAiDraft({
                 ...patch,
                 listingFlowState: nextState,
@@ -1210,11 +1588,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           location: aiDraft?.location,
         });
         setListingPublishConfirmed(false);
-        setHidePrePublishCard(false);
+        setHidePrePublishCard(true);
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
-          { role: "assistant" as const, text: reply },
+          {
+            role: "assistant" as const,
+            text: reply,
+            quickReplies: [...POST_VISION_PUBLISH_CHIPS],
+          },
         ]);
         touchAgentSessionActivity();
         return { ok: true, reply };
@@ -1350,29 +1732,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ];
       }
 
-      const incomingImages = options?.pendingImageUrls?.filter(Boolean).slice(0, 6);
-      if (incomingImages?.length) {
-        setSessionPendingImageUrls((prev) =>
-          [...incomingImages, ...prev]
-            .filter(Boolean)
-            .filter((u, i, arr) => arr.indexOf(u) === i)
-            .slice(0, 6)
-        );
-        setListingPublishConfirmed(false);
-        if (aiDraft) {
-          const mergedPhotos = [
-            ...incomingImages,
-            ...(aiDraft.orderedImageUrls ?? []),
-          ]
-            .filter(Boolean)
-            .filter((u, i, arr) => arr.indexOf(u) === i)
-            .slice(0, 6);
-          updateAiDraft({ orderedImageUrls: mergedPhotos });
-        }
-      }
+      const incomingImages = incomingImagesEarly.length
+        ? incomingImagesEarly
+        : undefined;
       const activePendingImageUrls =
-        incomingImages ?? (sessionPendingImageUrls.length ? sessionPendingImageUrls : undefined);
-      const requestPendingImageUrls = incomingImages?.length ? incomingImages : undefined;
+        incomingImages ??
+        (pendingForTurn.length ? pendingForTurn : undefined);
+      const requestPendingImageUrls = incomingImages?.length
+        ? incomingImages
+        : undefined;
       const pendingImageCount =
         requestPendingImageUrls?.length ||
         sessionPendingImageUrls.length ||
@@ -1887,6 +2255,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setOpen,
       setMessages,
       setSearchQuery,
+      commitVisionObjectSellToPrePublish,
     ]
   );
 
@@ -2116,6 +2485,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const trimmed = chip.trim();
       if (!trimmed) return false;
 
+      // „Parduoti mobilųjį telefoną“ etc. — hard local PrePublish, never server.
+      if (isVisionObjectSellChip(trimmed)) {
+        commitVisionObjectSellToPrePublish(trimmed);
+        return true;
+      }
+
+      // Publish-gate chips — route through SM (no free-text LLM loop).
+      if (
+        aiDraft &&
+        (/^viskas\b/i.test(trimmed) ||
+          /\bpublikuojam\b/i.test(trimmed) ||
+          /\bprepublish\b/i.test(trimmed) ||
+          /\bjudame\s+prie\b/i.test(trimmed) ||
+          /^nenoriu\b/i.test(trimmed) ||
+          /^prisegti\s+nuotrauk/i.test(trimmed) ||
+          /^įkelti\s+dar\s+nuotrauk/i.test(trimmed))
+      ) {
+        const result = await sendAgentMessageRef.current(trimmed);
+        return result.ok;
+      }
+
       if (isPhotoIntentSearchChip(trimmed) || isPhotoIntentListingChip(trimmed)) {
         const wardrobeOnly = pathname === "/fashion" || pathname === "/fashion/";
         return executeDirectPhotoIntentChip(trimmed, {
@@ -2274,6 +2664,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       updateAiDraft,
       enterListingEditMode,
       sessionPendingImageUrls,
+      commitVisionObjectSellToPrePublish,
     ]
   );
 
@@ -2345,6 +2736,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       enterListingEditMode,
       hidePrePublishCard,
       listingPublishConfirmed,
+      sessionPendingImageUrls,
       resetPublishSession,
       applyAgentActions: applyActions,
       reportAgentError,
@@ -2361,6 +2753,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       enterListingEditMode,
       hidePrePublishCard,
       listingPublishConfirmed,
+      sessionPendingImageUrls,
       resetPublishSession,
       applyActions,
       reportAgentError,

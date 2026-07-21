@@ -62,9 +62,11 @@ export interface VautoAgentContext {
     location?: string;
     category?: string;
     attributes?: Record<string, string | string[]>;
+    orderedImageUrls?: string[];
     listingFlowState?:
       | "DRAFTING_TEXT"
       | "AWAITING_PHOTOS"
+      | "DRAFT_READY"
       | "AWAITING_CONFIRMATION";
   };
   missingFields?: string[];
@@ -292,6 +294,7 @@ export type VautoAgentAction =
         listingFlowState?:
           | "DRAFTING_TEXT"
           | "AWAITING_PHOTOS"
+          | "DRAFT_READY"
           | "AWAITING_CONFIRMATION";
       };
       imageUrl?: string;

@@ -14,7 +14,6 @@ export interface ListingDraftPreviewInput {
   attributes?: Record<string, string | undefined>;
 }
 
-
 function attr(attrs: Record<string, string | undefined>, ...keys: string[]): string {
   for (const key of keys) {
     const value = attrs[key]?.trim();
@@ -25,7 +24,7 @@ function attr(attrs: Record<string, string | undefined>, ...keys: string[]): str
 
 function formatPrice(price?: number): string {
   if (price != null && price > 0) return `${price} €`;
-  return "nenurodyta";
+  return "";
 }
 
 function formatLocation(location?: string): string | null {
@@ -34,6 +33,16 @@ function formatLocation(location?: string): string | null {
   return t;
 }
 
+function truncateDescription(text: string, max = 420): string {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (t.length <= max) return t;
+  const cut = t.slice(0, max);
+  const lastStop = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("!"), cut.lastIndexOf("?"));
+  if (lastStop > 120) return cut.slice(0, lastStop + 1);
+  return `${cut.trimEnd()}…`;
+}
+
+/** Internal gap keys — never dump as „Trūksta X, Y“ to the user. */
 export function analyzeMissingDraftFields(
   draft: ListingDraftPreviewInput
 ): string[] {
@@ -41,33 +50,33 @@ export function analyzeMissingDraftFields(
   const attrs = draft.attributes ?? {};
   const category = draft.category ?? "other";
 
-  if (!draft.price || draft.price <= 0) missing.push("kainos");
-  if (!formatLocation(draft.location)) missing.push("miesto");
+  if (!draft.price || draft.price <= 0) missing.push("price");
+  if (!formatLocation(draft.location)) missing.push("city");
 
   if (category === "clothing") {
-    if (!attr(attrs, "size", "clothingSize")) missing.push("dydžio");
-    if (!attr(attrs, "brand")) missing.push("prekės ženklo");
-    if (!attr(attrs, "condition")) missing.push("būklės");
+    if (!attr(attrs, "size", "clothingSize")) missing.push("size");
+    if (!attr(attrs, "brand")) missing.push("brand");
+    if (!attr(attrs, "condition")) missing.push("condition");
   } else if (category === "vehicles") {
-    if (!attr(attrs, "make")) missing.push("markės");
-    if (!attr(attrs, "model")) missing.push("modelio");
-    if (!attr(attrs, "year")) missing.push("metų");
-    if (!attr(attrs, "mileage", "mileageKm", "rida")) missing.push("ridos");
+    if (!attr(attrs, "make")) missing.push("make");
+    if (!attr(attrs, "model")) missing.push("model");
+    if (!attr(attrs, "year")) missing.push("year");
+    if (!attr(attrs, "mileage", "mileageKm", "rida")) missing.push("mileage");
   } else if (category === "electronics") {
-    if (!attr(attrs, "model")) missing.push("modelio");
-    if (!attr(attrs, "memory", "storage", "capacity")) missing.push("atminties / talpos");
-    if (!attr(attrs, "condition")) missing.push("būklės");
+    if (!attr(attrs, "model")) missing.push("model");
+    if (!attr(attrs, "memory", "storage", "capacity", "color")) missing.push("config");
+    if (!attr(attrs, "condition")) missing.push("condition");
   } else if (category === "real_estate") {
-    if (!attr(attrs, "area", "plotas", "areaSqm")) missing.push("ploto");
-    if (!attr(attrs, "rooms", "kambariai")) missing.push("kambarių skaičiaus");
+    if (!attr(attrs, "area", "plotas", "areaSqm")) missing.push("area");
+    if (!attr(attrs, "rooms", "kambariai")) missing.push("rooms");
   } else if (category === "services") {
-    if (!attr(attrs, "specialty", "specialtyLabel")) missing.push("specializacijos");
+    if (!attr(attrs, "specialty", "specialtyLabel")) missing.push("specialty");
   } else if (category === "jobs") {
-    if (!attr(attrs, "jobType", "position")) missing.push("pareigų / specialybės");
+    if (!attr(attrs, "jobType", "position")) missing.push("position");
   }
 
   if (!draft.description?.trim() || draft.description.trim().length < 24) {
-    missing.push("detalaus aprašymo");
+    missing.push("description");
   }
 
   return missing;
@@ -77,60 +86,139 @@ export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string 
   const title = draft.title?.trim() || "naujas skelbimas";
   const price = formatPrice(draft.price);
   const city = formatLocation(draft.location);
-  const parts = [`Paruošiau juodraštį: «${title}»`];
-  if (price !== "nenurodyta") parts.push(`kaina ${price}`);
-  if (city) parts.push(`vieta ${city}`);
-  return `${parts.join(", ")}.`;
+  const desc = draft.description?.trim();
+
+  const headerBits = [`✨ ${title}`];
+  if (price) headerBits.push(price);
+  if (city) headerBits.push(city);
+
+  if (desc && desc.length >= 24) {
+    return `${headerBits.join(" · ")}\n\n${truncateDescription(desc)}`;
+  }
+
+  return `Paruošiau skelbimo pagrindą: «${title}»${price ? ` · ${price}` : ""}${
+    city ? ` · ${city}` : ""
+  }. Dabar sudėliosiu patrauklų aprašymą — patikslinkite unikalias detales.`;
+}
+
+export function buildConsultantFollowUpQuestion(
+  draft: ListingDraftPreviewInput
+): string | null {
+  const missing = analyzeMissingDraftFields(draft);
+  const category = draft.category ?? "other";
+  const title = (draft.title ?? "").toLowerCase();
+  const attrs = draft.attributes ?? {};
+  const isPhone = /iphone|samsung|pixel|xiaomi|telefon|mobil/.test(title);
+
+  if (category === "electronics" || isPhone) {
+    if (
+      missing.includes("config") ||
+      (!attr(attrs, "memory", "storage", "capacity") && !attr(attrs, "color"))
+    ) {
+      return isPhone
+        ? "Kokia jūsų telefono spalva ir vidinė atmintis — 128, 256 ar 512 GB?"
+        : "Kokia tiksli konfigūracija — atmintis / talpa ir spalva?";
+    }
+    if (!attr(attrs, "charger", "box", "accessories") && isPhone) {
+      return "Ar pridedate originalų įkroviklį ir dėžutę? Tai stipriai kelia pirkėjų pasitikėjimą.";
+    }
+    if (missing.includes("condition")) {
+      return "Kaip apibūdintumėte būklę — kaip naujas, su lengvais naudojimo ženklais, ar yra įbrėžimų ekrane?";
+    }
+  }
+
+  if (category === "vehicles") {
+    if (missing.includes("year") || missing.includes("mileage")) {
+      return "Kokiais metais automobilis ir kokia rida kilometrais?";
+    }
+    if (missing.includes("make") || missing.includes("model")) {
+      return "Patikslinkite markę ir modelį — taip pirkėjai greičiau suras skelbimą filtruose.";
+    }
+  }
+
+  if (category === "clothing") {
+    if (missing.includes("size") || missing.includes("brand")) {
+      return "Koks dydis ir prekės ženklas? Jei žinote, pridėkite ir būklę (nešiotas / kaip naujas).";
+    }
+  }
+
+  if (category === "real_estate") {
+    if (missing.includes("area") || missing.includes("rooms")) {
+      return "Koks plotas (m²) ir kiek kambarių? Tai pirmos eilės filtrai pirkėjams.";
+    }
+  }
+
+  if (missing.includes("price")) {
+    return "Kokią kainą norėtumėte matyti skelbime — greitam pardavimui ar maksimaliai vertei? Parašykite sumą eurais.";
+  }
+
+  if (missing.includes("description")) {
+    return "Papasakokite vieną unikalią detalę (komplektacija, defektai, kodėl parduodate) — įpyniu į aprašymą.";
+  }
+
+  if (missing.includes("city")) {
+    return "Kurioje vietoje skelbiame — kokį miestą rodyti pirkėjams?";
+  }
+
+  return "Ar šis aprašymas skamba gerai, ar dar ką nors patikslinsime prieš nuotraukas?";
 }
 
 export function buildDraftGapAnalysis(draft: ListingDraftPreviewInput): string | null {
-  const missing = analyzeMissingDraftFields(draft);
-  if (!missing.length) return null;
-  const list =
-    missing.length === 1
-      ? missing[0]
-      : `${missing.slice(0, -1).join(", ")} ir ${missing[missing.length - 1]}`;
-  return `Dar trūksta ${list} — gal galite patikslinti?`;
+  return buildConsultantFollowUpQuestion(draft);
 }
 
 export function buildDraftSalesTip(draft: ListingDraftPreviewInput): string | null {
   const category = draft.category ?? "other";
   const title = (draft.title ?? "").toLowerCase();
 
+  if (category === "electronics" || /iphone|samsung|telefon/.test(title)) {
+    return "Patarimas: pirkėjai pirmiausia žiūri baterijos būklę, atmintį ir ar yra dėžutė — tai dažnai nulemia greitesnį sandorį.";
+  }
   if (category === "clothing") {
-    return "💡 Patarimas: Drabužiams pirkėjai labiausiai atkreipia dėmesį į dydį, būklę ir aiškias nuotraukas prie natūralaus apšvietimo — taip sulauksite iki 3× daugiau peržiūrų.";
+    return "Patarimas: natūralioje šviesoje nufotografuota prekė sulaukia iki 3× daugiau peržiūrų — parodykite dydžio etiketę.";
   }
   if (category === "vehicles") {
-    return "💡 Patarimas: Automobiliams pirkėjai dažniausiai filtruoja pagal metus ir ridą — jei turite VIN arba serviso istoriją, verta ją paminėti aprašyme.";
-  }
-  if (category === "electronics") {
-    return "💡 Patarimas: Technikai pirkėjai ieško tikslaus modelio ir atminties — pridėkite nuotrauką ekrano ir galinio dangtelio, kad pasitikėjimas augtų.";
+    return "Patarimas: metai + rida + serviso istorija kelia pasitikėjimą labiau nei ilgas tekstas be faktų.";
   }
   if (category === "real_estate") {
-    return "💡 Patarimas: NT skelbimams svarbiausias plotas, kambarių skaičius ir vieta — gera dienos nuotrauka padidina susidomėjimą akimirksniu.";
+    return "Patarimas: dienos šviesos nuotrauka ir aiškus plotas/kambariai — pirmos sekundės sprendimas pirkėjui.";
   }
   if (/keln|sukn|mar|bat|stri|megz/.test(title)) {
-    return "💡 Patarimas: Šio tipo drabužiai dabar populiarūs — pridėkite nuotrauką prie gero apšvietimo, kad sulauktumėte daugiau dėmesio.";
+    return "Patarimas: šio tipo drabužiams svarbiausia gera nuotrauka ir tikslus dydis.";
   }
-  return "💡 Patarimas: Skelbimai su aiškia nuotrauka ir konkrečiu aprašymu parduoda iki 2× greičiau — verta papildyti detales dabar.";
+  return "Patarimas: skelbimai su konkrečiu aprašymu ir bent 2–3 nuotraukomis parduoda pastebimai greičiau.";
 }
 
 export function buildListingDraftUpdateReply(
   draft: ListingDraftPreviewInput,
-  opts?: { intro?: string; readiness?: Pick<
-    PrePublishReadiness,
-    | "ok"
-    | "missingAuth"
-    | "missingPhoto"
-    | "missingCity"
-    | "missingPrice"
-    | "missingPhone"
-  > }
+  opts?: {
+    intro?: string;
+    readiness?: Pick<
+      PrePublishReadiness,
+      | "ok"
+      | "missingAuth"
+      | "missingPhoto"
+      | "missingCity"
+      | "missingPrice"
+      | "missingPhone"
+    >;
+  }
 ): string {
   const intro = opts?.intro?.trim();
   const readiness = opts?.readiness;
 
   if (readiness && !readiness.ok) {
+    // Prefer product consulting — photos are never a hard pre-draft block.
+    if (readiness.missingPrice) {
+      const ask = buildConversationalMissingPrompt(readiness);
+      return intro ? `${intro}\n\n${ask}` : ask;
+    }
+    const productQ = buildConsultantFollowUpQuestion(draft);
+    if (productQ && !readiness.missingCity && !readiness.missingPhone) {
+      return [intro, buildDraftPreviewBlock(draft), buildDraftSalesTip(draft), productQ]
+        .filter(Boolean)
+        .join("\n\n");
+    }
     const ask = buildConversationalMissingPrompt(readiness);
     return intro ? `${intro}\n\n${ask}` : ask;
   }
@@ -142,7 +230,8 @@ export function buildListingDraftUpdateReply(
     location: draft.location,
   });
   const tip = buildDraftSalesTip(draft);
-  const parts = [intro, confirmation, tip].filter(Boolean);
+  const question = buildConsultantFollowUpQuestion(draft);
+  const parts = [intro, confirmation, tip, question].filter(Boolean);
   return parts.join("\n\n");
 }
 

@@ -4,6 +4,7 @@ import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
+import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
 import {
   isBlockedFallbackBubble,
   resolveVisibleAgentBubbles,
@@ -46,7 +47,8 @@ export function FlowAgentStrip({
   category,
   className,
 }: FlowAgentStripProps) {
-  const { messages, busy, streamThinkingLabel, sendAgentMessage } = useVautoAgent();
+  const { messages, busy, streamThinkingLabel, sendAgentMessage, handleDirectAgentChip } =
+    useVautoAgent();
   const styles = VARIANT_STYLES[variant];
 
   const assistantCount = messages.filter((m) => m.role === "assistant").length;
@@ -70,6 +72,10 @@ export function FlowAgentStrip({
         : extractAgentQuickReplies(lastAssistant);
 
   const handleQuickReply = (option: string) => {
+    if (isVisionObjectSellChip(option)) {
+      void handleDirectAgentChip(option);
+      return;
+    }
     void sendAgentMessage(option);
   };
 

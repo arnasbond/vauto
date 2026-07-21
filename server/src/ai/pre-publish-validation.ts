@@ -105,8 +105,9 @@ export function evaluateServerPrePublishReadiness(input: {
   const missingCity = !resolvedCity || isPlaceholderCity(resolvedCity);
   const missingPrice = (input.listingDraft?.price ?? 0) <= 0;
 
+  // Photos optional for PrePublish preview (text-first); publish still enforces photo client-side.
   const ok =
-    !missingAuth && !missingPhoto && !missingPhone && !missingCity && !missingPrice;
+    !missingAuth && !missingPhone && !missingCity && !missingPrice;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,

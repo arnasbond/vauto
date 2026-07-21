@@ -28,12 +28,13 @@ export interface PrePublishCardPayload {
 export function buildPrePublishCardPayload(
   readiness: PrePublishReadiness,
   previewImage?: string | null,
-  opts?: { vatCode?: string | null }
+  opts?: { vatCode?: string | null; pendingImageUrls?: string[] }
 ): PrePublishCardPayload | null {
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
   const imageUrls = [
     ...(draft.orderedImageUrls ?? []),
+    ...(opts?.pendingImageUrls ?? []),
     ...(previewImage ? [previewImage] : []),
   ]
     .map((u) => String(u ?? "").trim())
@@ -152,6 +153,24 @@ export function evaluatePrePublishReadiness(
     hasPhoto,
   });
   const missingPhoto = !hasPhoto || photoClaimedInText;
+
+  // Persist pending / ordered URLs onto the draft so PrePublish card always shows photos.
+  if (syncedDraft) {
+    const mergedPhotos = [
+      ...(syncedDraft.orderedImageUrls ?? []),
+      ...(input.orderedImageUrls ?? []),
+      ...(input.pendingImageUrls ?? []),
+      ...(input.previewImage ? [input.previewImage] : []),
+    ]
+      .map((u) => String(u ?? "").trim())
+      .filter(Boolean)
+      .filter((u, i, arr) => arr.indexOf(u) === i)
+      .slice(0, 6);
+    if (mergedPhotos.length) {
+      syncedDraft = { ...syncedDraft, orderedImageUrls: mergedPhotos };
+    }
+  }
+
   const resolvedPhone = resolveDraftPhone(syncedDraft, input.user);
   const resolvedCity = resolvePublishListingCity(
     syncedDraft?.location,
@@ -162,10 +181,14 @@ export function evaluatePrePublishReadiness(
   const missingPhone = !isValidListingPhone(resolvedPhone);
   const missingCity =
     !resolvedCity.trim() || isPlaceholderCity(resolvedCity);
-  const missingPrice = (syncedDraft?.price ?? 0) <= 0;
+  const missingPrice =
+    !Number.isFinite(Number(syncedDraft?.price)) ||
+    Number(syncedDraft?.price) <= 0;
 
+  // Photos are optional for PrePublish *preview* (text-first). Actual publish still
+  // enforces a photo in SellerFlowContext.publishListing.
   const ok =
-    !missingAuth && !missingPhoto && !missingPhone && !missingCity && !missingPrice;
+    !missingAuth && !missingPhone && !missingCity && !missingPrice;
 
   const blockMessage = buildPrePublishBlockMessage({
     missingPhoto,

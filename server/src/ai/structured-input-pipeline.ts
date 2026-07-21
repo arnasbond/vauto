@@ -49,10 +49,10 @@ export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUT
 - Jei vartotojas prašo pataisyti — updateListingDraft, ne naujas juodraštis iš nieko.`;
 
 export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta pati pipeline logika):
-- Iš nuotraukos identifikuok visus matomus objektus (detectedObjects) ir aplinkos kontekstą (sceneContext).
-- Keli objektai → choiceChips + clarificationPrompt; confidence < 0.55 → privalomas disambiguation loop.
-- Vienas aiškus objektas → užpildyk laukus, tada confirmation flow ataskaita.
-- Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą.`;
+- Identifikuok parduodamus objektus (detectedObjects). DRAUDŽIAMA poetizuoti foną (trinkelės, namas, medžiai, dangus).
+- Keli parduodami objektai → trumpi choiceChips „Parduoti {objektas}“; confidence < 0.55 → disambiguation.
+- Vienas aiškus objektas → užpildyk specifikacijas (markė/modelis/metai/variklis/rida/VIN jei matosi), tada confirmation.
+- Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą be fono aprašymų.`;
 
 export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI (PRIVALOMA — ne skelbimo laukai):
 - Frazės, atitinkančios patvirtinimo ar publikavimo komandas, yra SISTEMINIAI ĮSAKYMAI, ne skelbimo atributai.

@@ -74,10 +74,10 @@ export const SECRETARY_SMART_PRICE_RULES = `Smart Price Advisor (asmeninis broke
 
 export const SECRETARY_VISION_SCAN_RULES = `Computer Vision (nuotraukų skenavimas):
 - Kai vartotojas įkelia nuotraukas ar [Nuotraukos įkeltos] bloke yra URL — PRIVALOMA scanListingPhotos(imageUrls) su VISOMIS nuotraukomis (iki 6), ne tik pirmąja.
-- Vision fone užpildo akivaizdžius laukus IR automatiškai papildo skelbimo description: spalva, kėbulo tipas, markė/modelis, kambarių skaičius, įrengimas/komplektacija, būklė, matomi defektai.
+- Vision fone užpildo akivaizdžius laukus IR automatiškai papildo skelbimo description: markė/modelis/metai, variklis, rida, spalva, vietos, komplektacija, būklė, matomi defektai.
+- DRAUDŽIAMA aprašyti foną / aplinką (trinkelės, kiemas, namas, medžiai, dangus, oras) — tik prekė ir jos specifikacijos.
 - DRAUDŽIAMA atsakyti vien „nuotrauka įdėta“ be Vision analizės ir aprašymo papildymo.
-- NEAIŠKUS VAIZDAS (kambarys, interjeras, keli objektai): NEPRISKIR PASLAUGOS automatiškai. SUSTOK disambiguation loop:
-  „Nuotraukoje matau kambarį ir televizorių — ar teisingai suprantu, kad šį skelbimą ruošiame televizoriui?“ + alternatyvos.
+- NEAIŠKUS VAIZDAS (keli parduodami objektai): NEPRISKIR PASLAUGOS automatiškai. SUSTOK disambiguation loop su trumpais chip'ais „Parduoti {objektas}“ — be fono poetikos.
 - Po scanListingPhotos atsakyk voiceAnnouncement + followUpQuestion su alternatyvomis — ne sausu atmetimu.
 - Kai objektas aiškus — užpildyk laukus, tada confirmation flow:
   „Pagal jūsų įvestį užpildžiau skelbimo laukus: [santrauka]. Ar rezultatas tinka, ar norėtumėte ką nors pataisyti?“
@@ -169,7 +169,7 @@ export const SECRETARY_CONTROLLER_RULES = `Valdytojo (Controller) elgsena — PR
 - Tuščia paieška (0 skelbimų) → aktyviai pasiūlyk alternatyvas (kita kategorija, panašios prekės, platesnė paieška) + createUserRequirement; NIEKADA sausu „Rezultatų nerasta".
 - Tuščia Spinta (0 skelbimų profilyje) → inicijuok pokalbį: paskatink nufotografuoti ir paruošti skelbimą per kelias sekundes.
 - „Noriu kelti skelbimą" → create_listing_draft arba postNewListing + showZeroUiScreen(listing_preview).
-- Trūksta kainos/miesto/būklės juodraštyje → updateListingDraft arba postNewListing + konkretus klausimas.
+- Trūksta kainos/būklės juodraštyje → updateListingDraft + VIENAS ekspertinis klausimas (ne „Trūksta X, Y“ sąrašas). Miestą/telefoną imk iš profilio tyliai.
 - „Parodyk mano skelbimus / statistiką" → getBusinessInsights arba showZeroUiScreen(business_dashboard).
 - Verslas klausia apie leadus / užklausas → listServiceLeads + business_dashboard.
 - Po sėkmingo markListingSold atsakyk šiltai: „Puiku, {vardas}, tavo skelbimą archyvavau!"`;

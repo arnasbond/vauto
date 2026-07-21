@@ -3,16 +3,13 @@ import { normalizeListingDraftForAction } from "./listing-chat-input.js";
 import {
   AWAITING_CONFIRMATION_LOCKED,
   buildConversationalMissingPrompt,
+  buildPostVisionHeroMessage,
   inferListingFlowState,
   listingFlowAllowsPhotoUpload,
-  PRE_PUBLISH_CARD_INTRO,
+  POST_VISION_PUBLISH_CHIPS,
   transitionListingFlow,
   type ListingFlowState,
 } from "./listing-conversational-flow.js";
-import {
-  buildServerPrePublishCardPayload,
-  type ServerPrePublishCardPayload,
-} from "./pre-publish-validation.js";
 import { parseListingImagesForAgent } from "./vauto-unified.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
@@ -113,7 +110,6 @@ type MediaResponse = {
   quickReplies?: string[];
   toolCalls: { name: string; result: unknown }[];
   actions: AgentSideEffect | { type: "none" };
-  prePublishCard?: ServerPrePublishCardPayload;
 };
 
 async function resolveListingPhotoScan(input: {
@@ -133,7 +129,7 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
-    "Vision: enrich listing description with color, condition, equipment, and visible defects from ALL photos.",
+    "Vision: enrich listing with vehicle/product SPECS only (make, model, year, engine, kW, mileage, seats, VIN/plate if visible). NEVER describe background (paving, house, trees, sky).",
   ].filter(Boolean);
 
   const parsed = await parseListingImagesForAgent({
@@ -181,8 +177,7 @@ async function resolveListingPhotoScan(input: {
   };
 
   const nextState =
-    transitionListingFlow(input.flowState, "PHOTOS_SCANNED") ??
-    "AWAITING_CONFIRMATION";
+    transitionListingFlow(input.flowState, "PHOTOS_SCANNED") ?? "DRAFT_READY";
 
   const mergedDraft = normalizeListingDraftForAction(
     input.listingDraft
@@ -208,27 +203,21 @@ async function resolveListingPhotoScan(input: {
   const resolvedCity =
     mergedDraft.location?.trim() || input.userCity?.trim() || "";
 
-  const card = buildServerPrePublishCardPayload({
-    listingDraft: mergedDraft,
-    resolvedCity,
-    resolvedPhone: input.contact,
-    pendingImageUrls: imageUrls,
-    imageUrl: imageUrls[0],
-    imageUrls,
-  });
-
-  let reply = `${ack}\n\n${PRE_PUBLISH_CARD_INTRO}`;
+  let reply = `${ack}\n\n${buildPostVisionHeroMessage(mergedDraft)}`;
+  let quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
 
   if (!mergedDraft.price || mergedDraft.price <= 0) {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingPrice: true })}`;
+    quickReplies = [];
   } else if (!resolvedCity) {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingCity: true })}`;
+    quickReplies = [];
   }
 
   return {
     ok: true,
     reply,
-    quickReplies: [],
+    quickReplies,
     toolCalls: [
       {
         name: "scanListingPhotos",
@@ -247,7 +236,6 @@ async function resolveListingPhotoScan(input: {
       imageUrl: imageUrls[0],
       imageUrls,
     },
-    ...(card && mergedDraft.price > 0 ? { prePublishCard: card } : {}),
   };
 }
 

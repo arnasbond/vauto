@@ -9,6 +9,11 @@ export interface DetectedVisionObject {
 const SELL_CHIP_PREFIX = "Parduoti ";
 const SEARCH_CHIP_PREFIX = "Ieškoti ";
 
+export {
+  isVisionObjectSellChip,
+  nounFromVisionObjectSellChip,
+} from "@vauto/shared/listing-organism";
+
 function normalizeChipLabel(raw: string, mode: "sell" | "search"): string {
   const trimmed = raw.trim().replace(/^[\[\]«»"']+|[\[\]«»"']+$/g, "");
   if (!trimmed) return "";
@@ -76,25 +81,31 @@ export function extractVisionChoiceChips(
 }
 
 export function buildPhotoClarificationMessage(extracted: AiExtractedListing): string {
+  const objects = parseDetectedObjectsFromAttributes(extracted.attributes);
+  // Specs/objects only — never echo remote sceneContext (paving, house, yard, trees).
+  if (objects.length >= 2) {
+    const labels = objects.map((o) => o.label).join(", ");
+    return `Nuotraukoje matau kelis objektus: ${labels}. Ar teisingai suprantu, kurį objektą ruošiame? Pasirinkite žemiau.`;
+  }
+
   const prompt =
     extracted.clarificationPrompt?.trim() ||
     (typeof extracted.attributes?.clarificationPrompt === "string"
       ? extracted.attributes.clarificationPrompt.trim()
       : "");
-  if (prompt) return prompt;
-
-  const scene =
-    typeof extracted.attributes?.sceneContext === "string"
-      ? extracted.attributes.sceneContext.trim()
-      : "";
-  const objects = parseDetectedObjectsFromAttributes(extracted.attributes);
-  if (objects.length >= 2) {
-    const labels = objects.map((o) => o.label).join(", ");
-    const primary = objects[0]?.label;
-    return scene
-      ? `Nuotraukoje matau ${scene.toLowerCase()} su keliais objektais (${labels}). Ar teisingai suprantu, kad ruošiame skelbimą „${primary}"? Pasirinkite žemiau.`
-      : `Nuotraukoje matau kelis objektus: ${labels}. Ar teisingai suprantu, kurį objektą ruošiame? Pasirinkite žemiau.`;
+  if (prompt) {
+    // Strip background poetry if remote API still emits it.
+    const cleaned = prompt
+      .replace(
+        /Nuotraukoje matau[^.]*(?:kieme|trinkel|medin|namas|medži|dangus|oras)[^.]*\.\s*/gi,
+        ""
+      )
+      .trim();
+    if (cleaned && !/(kieme|trinkel|medin|medži|dangus)/i.test(cleaned)) {
+      return cleaned;
+    }
   }
+
   return extracted.description?.trim() || "Ką iš nuotraukos norite parduoti? Pasirinkite žemiau.";
 }
 

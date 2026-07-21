@@ -26,6 +26,7 @@ import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
 import { isDirectAgentActionChip } from "@/lib/direct-agent-actions";
+import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
@@ -68,6 +69,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     hidePrePublishCard,
     listingPublishConfirmed,
     resetPublishSession,
+    sessionPendingImageUrls,
   } = useVautoAgent();
   const {
     aiDraft,
@@ -99,18 +101,28 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       user,
       draft: aiDraft,
       previewImage: sellerPreviewImage,
+      pendingImageUrls: sessionPendingImageUrls,
       orderedImageUrls: aiDraft.orderedImageUrls,
       geoCoords: buyerCoords,
     });
-  }, [authHydrated, aiDraft, isAuthenticated, user, sellerPreviewImage, buyerCoords]);
+  }, [
+    authHydrated,
+    aiDraft,
+    isAuthenticated,
+    user,
+    sellerPreviewImage,
+    sessionPendingImageUrls,
+    buyerCoords,
+  ]);
 
   const livePrePublishCard: PrePublishCardPayload | null = useMemo(() => {
     if (!prePublishReadiness?.ok || !aiDraft) return null;
     if (!aiDraft.title?.trim()) return null;
     return buildPrePublishCardPayload(prePublishReadiness, sellerPreviewImage, {
       vatCode: user.vatCode,
+      pendingImageUrls: sessionPendingImageUrls,
     });
-  }, [prePublishReadiness, sellerPreviewImage, aiDraft, user.vatCode]);
+  }, [prePublishReadiness, sellerPreviewImage, aiDraft, user.vatCode, sessionPendingImageUrls]);
 
   const showLivePrePublishCard =
     Boolean(livePrePublishCard) &&
@@ -136,7 +148,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       showToast(
         prePublishReadiness
           ? buildConversationalMissingPrompt(prePublishReadiness)
-          : "Papildykime skelbimą — parašykite trūkstamas detales.",
+          : "Parašykite kainą ar unikalią detalę — sudėliosiu gražesnį aprašymą.",
         "info"
       );
       return;
@@ -164,6 +176,11 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   };
 
   const handleDirectChip = async (option: string) => {
+    // Object-sell chips must lock PrePublish locally — never fall into the photos nudge.
+    if (isVisionObjectSellChip(option)) {
+      const handled = await handleDirectAgentChip(option);
+      if (handled) return;
+    }
     if (isDirectAgentActionChip(option)) {
       const handled = await handleDirectAgentChip(option);
       if (handled) return;

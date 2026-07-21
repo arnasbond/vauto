@@ -13,21 +13,22 @@ export interface PrePublishVisibilityOption {
   durationDays?: number;
 }
 
-export const PRE_PUBLISH_VISIBILITY_HEADLINE = "🚀 Gaukite iki 5x daugiau peržiūrų!";
+export const PRE_PUBLISH_VISIBILITY_HEADLINE =
+  "Prieš publikuojant — padidinkite matomumą";
 
 export const PRE_PUBLISH_VISIBILITY_OPTIONS: PrePublishVisibilityOption[] = [
   {
     id: "standard",
     label: "Standartinis įkėlimas",
-    description: "Nemokamai",
+    description: "Nemokamai — be papildomo matomumo",
     priceEur: 0,
     visibilityTier: "free",
     promoted: false,
   },
   {
     id: "popular",
-    label: "Populiarus skelbimas",
-    description: "+2.99€ — skelbimas bus viršuje 7 dienas",
+    label: "Iškelti skelbimą į viršų",
+    description: "+2.99 € — skelbimas bus viršuje 7 dienas",
     priceEur: 2.99,
     visibilityTier: "top",
     promoted: true,
@@ -35,8 +36,8 @@ export const PRE_PUBLISH_VISIBILITY_OPTIONS: PrePublishVisibilityOption[] = [
   },
   {
     id: "maximum",
-    label: "Maksimalus matomumas",
-    description: "+4.99€ — viršuje, paryškintas spalva + VIP juosta",
+    label: "Paryškinti skelbimą",
+    description: "+4.99 € — paryškintas spalva + VIP juosta 30 d.",
     priceEur: 4.99,
     visibilityTier: "plus",
     promoted: true,

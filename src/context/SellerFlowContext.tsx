@@ -55,7 +55,13 @@ import {
 import {
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
-import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
+import {
+  buildConversationalMissingPrompt,
+  buildPostVisionHeroMessage,
+  isHeroFlowLocked,
+  POST_VISION_PUBLISH_CHIPS,
+  resolveLockedListingFlowState,
+} from "@/lib/listing-conversational-flow";
 import { clearAllListingDrafts } from "@/lib/listing-draft-storage";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
@@ -80,11 +86,6 @@ import {
   extractVisionChoiceChips,
   shouldClarifyPhotoUpload,
 } from "@/lib/vision-choice-chips";
-import {
-  buildPostValidationQuickReplies,
-  buildPostValidationReport,
-  shouldRunPostValidationReport,
-} from "@/lib/listing-field-confirmation";
 import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeItemToDraft } from "@/lib/wardrobe-vision";
 import { detectVehicleMake } from "@/lib/vehicle-keywords";
@@ -900,19 +901,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             shouldClarifyPhotoUpload(next) &&
             (mode === "upload" || mode === "combined");
 
-          if (needsClarification) {
-            pushAgentGreeting(buildPhotoClarificationMessage(next), {
-              quickReplies: extractVisionChoiceChips(next, "sell"),
-            });
-          } else if (
-            shouldRunPostValidationReport(next, false) &&
-            (mode === "upload" || mode === "combined" || mode === "text")
-          ) {
-            pushAgentGreeting(buildPostValidationReport(next), {
-              quickReplies: buildPostValidationQuickReplies(),
-            });
-          }
-
           setPhotoCategoryMismatch(null);
           categoryMismatchPendingRef.current = null;
           photoReplaceSnapshotRef.current = null;
@@ -925,7 +913,28 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             syncDraftWithProfile(finalized),
             sourceText
           );
-          setAiDraft(cleaned);
+
+          if (needsClarification) {
+            // Multi-object: pick first, then DRAFT_READY with full hero summary.
+            setAiDraft({
+              ...cleaned,
+              listingFlowState: "AWAITING_PHOTOS",
+            });
+            pushAgentGreeting(buildPhotoClarificationMessage(next), {
+              quickReplies: extractVisionChoiceChips(next, "sell"),
+            });
+          } else {
+            // Hero: Vision → completed listing → more photos vs publish gate.
+            setAiDraft({
+              ...cleaned,
+              listingFlowState: "DRAFT_READY",
+              choiceChips: undefined,
+              clarificationPrompt: undefined,
+            });
+            pushAgentGreeting(buildPostVisionHeroMessage(cleaned), {
+              quickReplies: [...POST_VISION_PUBLISH_CHIPS],
+            });
+          }
         }
 
         setSellerVisionRecoveryActive(false);
@@ -1157,12 +1166,26 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
       const previousCategory = previousDraft?.category ?? null;
       const previousAttributes = previousDraft?.attributes ?? null;
+      const hasPhotos =
+        galleryPhotos.length > 0 ||
+        (previousDraft?.orderedImageUrls?.length ?? 0) > 0 ||
+        Boolean(imageUrl);
+      const inferredIncoming =
+        enriched.listingFlowState ??
+        (hasPhotos ? ("DRAFT_READY" as const) : undefined);
+      const lockedFlowState = resolveLockedListingFlowState(
+        previousDraft?.listingFlowState,
+        inferredIncoming
+      );
+      const finalized = ensureClientDraftId(
+        finalizeListingDraft(enriched, previousCategory, previousAttributes)
+      );
       setAiDraft(
-        syncDraftWithProfile(
-          ensureClientDraftId(
-            finalizeListingDraft(enriched, previousCategory, previousAttributes)
-          )
-        )
+        syncDraftWithProfile({
+          ...finalized,
+          ...(galleryPhotos.length ? { orderedImageUrls: galleryPhotos } : {}),
+          ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
+        })
       );
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
@@ -1193,7 +1216,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           "success"
         );
       }
-      if (galleryPhotos.length || imageUrl) {
+      // Hero SM owns DRAFT_READY / confirmation dialogue — never inject legacy media chips.
+      if (
+        (galleryPhotos.length || imageUrl) &&
+        !isHeroFlowLocked(lockedFlowState) &&
+        lockedFlowState !== "DRAFT_READY"
+      ) {
         notifyAgentFlow({
           kind: "listing_media_analyzed",
           objectLabel: enriched.title || enriched.description?.slice(0, 48) || "",
@@ -1356,11 +1384,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           )
         : prevAttrs;
 
+      const lockedFlowState = resolveLockedListingFlowState(
+        prev.listingFlowState,
+        patch.listingFlowState !== undefined
+          ? patch.listingFlowState
+          : prev.listingFlowState
+      );
+
       return syncDraftWithProfile({
         ...prev,
         ...patch,
         category: nextCategory,
         attributes,
+        ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
       });
     });
   }, [syncDraftWithProfile]);

@@ -50,9 +50,16 @@ import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
   buildDraftingCompletePhotosPrompt,
+  buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
+  isHeroFlowLocked,
+  isVisionObjectSellChip,
+  nounFromVisionObjectSellChip,
+  POST_VISION_PUBLISH_CHIPS,
+  POST_VISION_PUBLISH_GATE,
   PRE_PUBLISH_CARD_INTRO,
+  shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "./listing-conversational-flow.js";
 import {
@@ -116,9 +123,11 @@ export interface VautoAgentRequest {
       category?: string;
       attributes?: Record<string, string>;
       allowPastomatas?: boolean;
+      orderedImageUrls?: string[];
       listingFlowState?:
         | "DRAFTING_TEXT"
         | "AWAITING_PHOTOS"
+        | "DRAFT_READY"
         | "AWAITING_CONFIRMATION";
     };
     missingFields?: string[];
@@ -377,12 +386,19 @@ async function runVautoAgentInner(
 
   const listingDraft = req.context.listingDraft;
   const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 6);
-  // Do not count this-turn uploads when inferring — otherwise AWAITING_PHOTOS
-  // would be mis-read as AWAITING_CONFIRMATION before Vision runs.
+  const draftPhotoCount = Array.isArray(
+    (listingDraft as { orderedImageUrls?: unknown } | null | undefined)
+      ?.orderedImageUrls
+  )
+    ? ((listingDraft as { orderedImageUrls: unknown[] }).orderedImageUrls.length)
+    : 0;
+  // Prefer explicit SM state. If state was dropped by a stale client patch but
+  // draft already has photos, recover as DRAFT_READY — never re-open photos nudge.
+  // Do not count this-turn pending uploads (Vision has not run yet).
   const flowState = inferListingFlowState({
     listingFlowState: listingDraft?.listingFlowState,
-    hasDraft: Boolean(listingDraft?.title?.trim()),
-    photoCount: 0,
+    hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
+    photoCount: draftPhotoCount,
   });
 
   // Constitution L4: pastomatas logistics — only outside active listing drafting/photos.
@@ -399,7 +415,9 @@ async function runVautoAgentInner(
       await import("../shared/pastomatas-session.js");
     const existing = getPastomatasSession(sessionKey);
     const listingBusy =
-      flowState === "DRAFTING_TEXT" || flowState === "AWAITING_PHOTOS";
+      flowState === "DRAFTING_TEXT" ||
+      flowState === "AWAITING_PHOTOS" ||
+      flowState === "DRAFT_READY";
     if ((wantsPastomatas || existing) && !listingBusy) {
       const { startPastomatasGuide, advancePastomatasGuide } = await import(
         "../shared/pastomatas-agent.js"
@@ -432,7 +450,8 @@ async function runVautoAgentInner(
     state: flowState,
     userText: lastUserText,
     hasIncomingPhotos: Boolean(pendingChatImages?.length),
-    photoCount: 0,
+    photoCount: draftPhotoCount,
+    hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
   });
 
   if (flowTurn.kind === "ignore_backward") {
@@ -445,34 +464,122 @@ async function runVautoAgentInner(
   }
 
   if (flowTurn.kind === "nudge_photos") {
+    // Text-first generate/sell — never hard-block; continue to Gemini tools below.
+    if (shouldBypassPhotosNudge(lastUserText) && !pendingChatImages?.length) {
+      // fall through
+    } else if (draftPhotoCount > 0 || isHeroFlowLocked(listingDraft?.listingFlowState)) {
+      return {
+        ok: true,
+        reply: POST_VISION_PUBLISH_GATE,
+        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    } else {
+      return {
+        ok: true,
+        reply: flowTurn.reply || AWAITING_PHOTOS_NUDGE,
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+  }
+
+  if (flowTurn.kind === "show_draft_gate") {
     return {
       ok: true,
-      reply: flowTurn.reply || AWAITING_PHOTOS_NUDGE,
+      reply: flowTurn.reply || POST_VISION_PUBLISH_GATE,
+      quickReplies: [...POST_VISION_PUBLISH_CHIPS],
       toolCalls: [],
       actions: { type: "none" },
     };
   }
 
-  if (flowTurn.kind === "show_confirmation" && listingDraft) {
+  if (flowTurn.kind === "object_selected" && listingDraft) {
+    const noun = isVisionObjectSellChip(lastUserText)
+      ? nounFromVisionObjectSellChip(lastUserText)
+      : "";
+    const nextState =
+      transitionListingFlow(
+        (listingDraft.listingFlowState as
+          | "DRAFTING_TEXT"
+          | "AWAITING_PHOTOS"
+          | "DRAFT_READY"
+          | "AWAITING_CONFIRMATION"
+          | null
+          | undefined) ?? flowState,
+        "OBJECT_SELECTED"
+      ) ?? "AWAITING_CONFIRMATION";
+    const patched = normalizeListingDraftForAction(
+      {
+        ...listingDraft,
+        ...(noun
+          ? { title: noun.charAt(0).toUpperCase() + noun.slice(1) }
+          : {}),
+        listingFlowState: nextState,
+      },
+      {
+        contact: req.context.contact,
+        userCity: req.context.userCity,
+        listingFlowState: nextState,
+      }
+    );
     const gateway = resolvePrePublishGatewayResponse({
       isAuthenticated: req.context.isAuthenticated,
       profilePhone: req.context.profilePhone,
       profileEmail: req.context.profileEmail,
       userCity: req.context.userCity,
       contact: req.context.contact,
-      listingDraft,
+      listingDraft: patched,
       pendingImageUrls: req.context.pendingImageUrls,
       geoCityHint: req.context.geoCityHint,
-    });
-    const confirmedDraft = normalizeListingDraftForAction(listingDraft, {
-      contact: req.context.contact,
-      userCity: req.context.userCity,
-      listingFlowState: "AWAITING_CONFIRMATION",
     });
     return {
       ok: true,
       reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
       ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+      toolCalls: [],
+      actions: {
+        type: "listing_draft",
+        listingDraft: patched,
+      },
+    };
+  }
+
+  if (flowTurn.kind === "show_confirmation" && listingDraft) {
+    const priceFromMsg = parsePriceFromChatInput(lastUserText);
+    const draftForGate =
+      priceFromMsg != null && !(Number(listingDraft.price) > 0)
+        ? { ...listingDraft, price: priceFromMsg }
+        : priceFromMsg != null
+          ? { ...listingDraft, price: priceFromMsg }
+          : listingDraft;
+    const gateway = resolvePrePublishGatewayResponse({
+      isAuthenticated: req.context.isAuthenticated,
+      profilePhone: req.context.profilePhone,
+      profileEmail: req.context.profileEmail,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      listingDraft: draftForGate,
+      pendingImageUrls: req.context.pendingImageUrls,
+      geoCityHint: req.context.geoCityHint,
+    });
+    const nextFlowState = gateway.prePublishCard
+      ? "AWAITING_CONFIRMATION"
+      : "DRAFT_READY";
+    const confirmedDraft = normalizeListingDraftForAction(draftForGate, {
+      price: priceFromMsg ?? draftForGate.price,
+      contact: req.context.contact,
+      userCity: req.context.userCity,
+      listingFlowState: nextFlowState,
+    });
+    return {
+      ok: true,
+      reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
+      ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
+      ...(gateway.prePublishCard
+        ? {}
+        : { quickReplies: undefined }),
       toolCalls: [],
       actions: {
         type: "listing_draft",
@@ -558,11 +665,12 @@ async function runVautoAgentInner(
           transitionListingFlow(
             listingDraft.listingFlowState ?? "DRAFTING_TEXT",
             "DRAFT_SAVED"
-          ) ?? "AWAITING_PHOTOS",
+          ) ?? "DRAFT_READY",
       });
       return {
         ok: true,
         reply: buildDraftingCompletePhotosPrompt(nextDraft),
+        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
         toolCalls: [],
         actions: {
           type: "listing_draft",
@@ -593,10 +701,26 @@ async function runVautoAgentInner(
         actions: { type: "none" },
       };
     }
-    if (flowState === "AWAITING_PHOTOS") {
+    if (
+      flowState === "AWAITING_PHOTOS" &&
+      draftPhotoCount === 0 &&
+      !shouldBypassPhotosNudge(lastUserText)
+    ) {
       return {
         ok: true,
         reply: AWAITING_PHOTOS_NUDGE,
+        toolCalls: [],
+        actions: { type: "none" },
+      };
+    }
+    if (
+      flowState === "DRAFT_READY" ||
+      (flowState === "AWAITING_PHOTOS" && draftPhotoCount > 0)
+    ) {
+      return {
+        ok: true,
+        reply: POST_VISION_PUBLISH_GATE,
+        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
         toolCalls: [],
         actions: { type: "none" },
       };
