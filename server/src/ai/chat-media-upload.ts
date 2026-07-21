@@ -125,6 +125,19 @@ async function resolveListingPhotoScan(input: {
   flowState: ListingFlowState | null;
 }): Promise<MediaResponse> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
+  console.log("[vision] resolveListingPhotoScan enter", {
+    imageCount: imageUrls.length,
+    flowState: input.flowState,
+    hasDraft: Boolean(input.listingDraft?.title?.trim()),
+    userTextHead: input.userText?.trim().slice(0, 120) ?? null,
+    imageKinds: imageUrls.map((u) =>
+      u.startsWith("data:")
+        ? `data(${u.length})`
+        : u.startsWith("http")
+          ? `http`
+          : "other"
+    ),
+  });
 
   const extraBits = [
     input.listingDraft?.category
@@ -136,19 +149,36 @@ async function resolveListingPhotoScan(input: {
     "Vision: enrich listing with vehicle/product SPECS only (make, model, year, engine, kW, mileage, seats, VIN/plate if visible). NEVER describe background (paving, house, trees, sky).",
   ].filter(Boolean);
 
-  const parsed = await parseListingImagesForAgent({
-    imageDataUrls: imageUrls,
-    userCity: input.userCity ?? "",
-    contact: input.contact,
-    // Pass sell note as context for brand/category hints — Vision still owns the description.
-    text:
-      input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
-        ? input.userText.trim()
-        : undefined,
-    extraContext: [
-      ...extraBits,
-      "PRIVALOMA: parašyk turtingą 4–8 sakinių marketplace description lietuviškai iš NUOTRAUKŲ (markė, modelis, spalva, salonas, būklė). NIEKADA nekartok vartotojo frazės kaip aprašymo.",
-    ].join("; "),
+  let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;
+  try {
+    parsed = await parseListingImagesForAgent({
+      imageDataUrls: imageUrls,
+      userCity: input.userCity ?? "",
+      contact: input.contact,
+      // Pass sell note as context for brand/category hints — Vision still owns the description.
+      text:
+        input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
+          ? input.userText.trim()
+          : undefined,
+      extraContext: [
+        ...extraBits,
+        "PRIVALOMA: parašyk turtingą 4–8 sakinių marketplace description lietuviškai iš NUOTRAUKŲ (markė, modelis, spalva, salonas, būklė). NIEKADA nekartok vartotojo frazės kaip aprašymo.",
+      ].join("; "),
+    });
+  } catch (err) {
+    console.error("[vision] resolveListingPhotoScan FAILED", {
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.slice(0, 800) : undefined,
+      imageCount: imageUrls.length,
+    });
+    throw err;
+  }
+  console.log("[vision] resolveListingPhotoScan parsed", {
+    needsClarification: parsed.needsClarification,
+    title: parsed.listing.title?.slice(0, 80),
+    descriptionChars: parsed.listing.description?.length ?? 0,
+    category: parsed.listing.category,
+    confidence: parsed.listing.confidence,
   });
 
   if (parsed.needsClarification) {
@@ -259,11 +289,24 @@ export async function resolveChatMediaAttachmentResponse(input: {
   userText?: string;
 }): Promise<MediaResponse | null> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
-  if (!imageUrls.length) return null;
+  console.log("[vision] resolveChatMediaAttachmentResponse enter", {
+    imageCount: imageUrls.length,
+    userTextHead: input.userText?.trim().slice(0, 120) ?? null,
+    hasDraftTitle: Boolean(input.listingDraft?.title?.trim()),
+  });
+  if (!imageUrls.length) {
+    console.warn("[vision] resolveChatMediaAttachmentResponse: empty imageUrls");
+    return null;
+  }
 
   const userNote = input.userText;
   const sellIntent = isPhotoSellIntentText(userNote);
   const searchIntent = isPhotoSearchIntentText(userNote);
+  console.log("[vision] resolveChatMediaAttachmentResponse intents", {
+    sellIntent,
+    searchIntent,
+    imageOnly: isImageOnlyChatUpload(userNote),
+  });
 
   const flowState = inferListingFlowState({
     listingFlowState: input.listingDraft?.listingFlowState,
@@ -272,6 +315,9 @@ export async function resolveChatMediaAttachmentResponse(input: {
   });
 
   if (searchIntent && !sellIntent) {
+    console.log("[vision] resolveChatMediaAttachmentResponse: search path (skip scan)", {
+      flowState,
+    });
     return {
       ok: true,
       reply:
@@ -283,6 +329,9 @@ export async function resolveChatMediaAttachmentResponse(input: {
   }
 
   if (!listingFlowAllowsPhotoUpload(flowState)) {
+    console.warn("[vision] resolveChatMediaAttachmentResponse: photo upload locked", {
+      flowState,
+    });
     return {
       ok: true,
       reply: AWAITING_CONFIRMATION_LOCKED,
@@ -291,6 +340,12 @@ export async function resolveChatMediaAttachmentResponse(input: {
       actions: { type: "none" },
     };
   }
+
+  console.log("[vision] resolveChatMediaAttachmentResponse → resolveListingPhotoScan", {
+    flowState,
+    sellIntent,
+    hasDraftTitle: Boolean(input.listingDraft?.title?.trim()),
+  });
 
   // Photos without a draft yet: create draft via vision, then land in confirmation.
   // If draft exists in AWAITING_PHOTOS / DRAFTING_TEXT — scan and advance.

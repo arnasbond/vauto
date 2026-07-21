@@ -275,11 +275,21 @@ async function runVisionListingScan(
   voiceAnnouncement: string;
 }> {
   if (!hasAiKey()) {
+    console.error("[vision] scanListingPhotos: GEMINI_API_KEY missing");
     throw new Error("GEMINI_API_KEY not configured for vision scan");
   }
 
   const urls = imageUrls.filter(Boolean).slice(0, 6);
+  console.log("[vision] scanListingPhotos enter", {
+    urlCount: urls.length,
+    kinds: urls.map((u) =>
+      u.startsWith("data:") ? `data(${u.length})` : u.startsWith("http") ? "http" : "other"
+    ),
+    categoryHint: opts.category ?? null,
+    city: opts.city ?? opts.userCity ?? null,
+  });
   if (!urls.length) {
+    console.error("[vision] scanListingPhotos: empty urls");
     throw new Error("imageUrls are required for vision scan");
   }
 
@@ -287,15 +297,30 @@ async function runVisionListingScan(
     ? resolveAgentDefaultCity(opts.city)
     : opts.userCity;
 
-  const raw = await visionExtractJson(
-    `Nuskenuok AUTOMOBILIO / prekės nuotraukas lietuviškam skelbimui.
+  const visionPrompt = `Nuskenuok AUTOMOBILIO / prekės nuotraukas lietuviškam skelbimui.
 DĖMESYS TIK PREKEI: markė, modelis, metai, variklis (cm³/kW), kuras, rida, spalva, vietų skaičius, VIN/valst. nr. jei matosi dokumente, komplektacija, būklė.
 DRAUDŽIAMA aprašyti foną (trinkeles, namą, medžius, kiemą, dangų, orą) — ignoruok aplinką.
 Automobiliui — make, model, year, color, bodyType, fuelType, mileage, engine, powerKw, seats, vin, plate, condition.
 NT — rooms, area, equipment. Elektronikai — condition, color.
-JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.category ?? "auto"}.`,
-    urls
-  );
+JSON: ${VISION_LISTING_SCHEMA}. Miestas: ${city}. Kategorija hint: ${opts.category ?? "auto"}.`;
+  console.log("[vision] scanListingPhotos calling visionExtractJson", {
+    promptChars: visionPrompt.length,
+  });
+  let raw: Record<string, unknown>;
+  try {
+    raw = await visionExtractJson(visionPrompt, urls);
+  } catch (err) {
+    console.error("[vision] scanListingPhotos visionExtractJson FAILED", {
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.slice(0, 800) : undefined,
+    });
+    throw err;
+  }
+  console.log("[vision] scanListingPhotos raw ok", {
+    keys: Object.keys(raw ?? {}),
+    title: String(raw.title ?? "").slice(0, 80),
+    descriptionChars: String(raw.description ?? "").length,
+  });
 
   const visionAttrs = parseVisionAttributes(raw.attributes);
   const base = opts.existingDraft ?? {};

@@ -28,29 +28,82 @@ function parseDataUrl(url: string): { mime: string; data: string } | null {
   return null;
 }
 
+/** Safe image summary for Render logs — never dump full base64. */
+export function summarizeImageUrlsForLog(urls: string[]): {
+  count: number;
+  kinds: string[];
+  approxChars: number;
+} {
+  const kinds: string[] = [];
+  let approxChars = 0;
+  for (const raw of urls) {
+    const u = String(raw ?? "");
+    approxChars += u.length;
+    if (u.startsWith("data:")) {
+      const mime = /^data:([^;]+)/i.exec(u)?.[1] ?? "data";
+      kinds.push(`data:${mime}(${u.length})`);
+    } else if (/^https?:\/\//i.test(u)) {
+      kinds.push(`http(${Math.min(u.length, 80)})`);
+    } else {
+      kinds.push(`other(${u.slice(0, 24)})`);
+    }
+  }
+  return { count: urls.length, kinds, approxChars };
+}
+
 async function imageUrlToInlinePart(
   url: string
 ): Promise<{ inline_data: { mime_type: string; data: string } } | null> {
   const normalized = normalizeImageDataUrl(url);
-  if (!normalized) return null;
+  if (!normalized) {
+    console.error("[vision] imageUrlToInlinePart: normalize failed", {
+      prefix: String(url ?? "").slice(0, 48),
+      len: String(url ?? "").length,
+    });
+    return null;
+  }
 
   const parsed = parseDataUrl(normalized);
   if (parsed) {
+    console.log("[vision] imageUrlToInlinePart: data URL ok", {
+      mime: parsed.mime,
+      base64Chars: parsed.data.length,
+    });
     return {
       inline_data: { mime_type: parsed.mime, data: parsed.data },
     };
   }
 
-  if (!/^https?:\/\//i.test(normalized)) return null;
+  if (!/^https?:\/\//i.test(normalized)) {
+    console.error("[vision] imageUrlToInlinePart: unsupported URL kind", {
+      prefix: normalized.slice(0, 48),
+    });
+    return null;
+  }
   try {
     const res = await fetch(normalized, { signal: AbortSignal.timeout(12_000) });
-    if (!res.ok) return null;
+    if (!res.ok) {
+      console.error("[vision] imageUrlToInlinePart: http fetch failed", {
+        status: res.status,
+        url: normalized.slice(0, 120),
+      });
+      return null;
+    }
     const mime = res.headers.get("content-type")?.split(";")[0] || "image/jpeg";
     const buf = Buffer.from(await res.arrayBuffer());
+    console.log("[vision] imageUrlToInlinePart: http ok", {
+      mime,
+      bytes: buf.length,
+      url: normalized.slice(0, 120),
+    });
     return {
       inline_data: { mime_type: mime, data: buf.toString("base64") },
     };
-  } catch {
+  } catch (err) {
+    console.error(
+      "[vision] imageUrlToInlinePart: http exception",
+      err instanceof Error ? err.message : err
+    );
     return null;
   }
 }
@@ -84,17 +137,43 @@ async function geminiChatJson(
   const key = resolveGeminiApiKey();
   if (!key) throw new Error("GEMINI_API_KEY not configured");
 
+  const imageSummary = summarizeImageUrlsForLog(imageDataUrls);
+  console.log("[vision] geminiChatJson start", {
+    model,
+    temperature,
+    promptChars: prompt.length,
+    promptHead: prompt.slice(0, 220),
+    systemChars: systemInstruction.length,
+    images: imageSummary,
+    timeoutMs: GEMINI_FETCH_TIMEOUT_MS,
+    hasApiKey: Boolean(key),
+  });
+
   const userParts: object[] = [{ text: prompt }];
+  let inlineOk = 0;
   for (const url of imageDataUrls) {
     const inline = await imageUrlToInlinePart(url);
-    if (inline) userParts.push(inline);
+    if (inline) {
+      inlineOk += 1;
+      userParts.push(inline);
+    }
   }
 
+  console.log("[vision] geminiChatJson parts ready", {
+    model,
+    textParts: 1,
+    inlineImagesOk: inlineOk,
+    inlineImagesRequested: imageDataUrls.length,
+    userPartsCount: userParts.length,
+  });
+
   if (imageDataUrls.length > 0 && userParts.length < 2) {
+    console.error("[vision] geminiChatJson: no inline images decoded", imageSummary);
     throw new Error("Invalid image payload: could not decode base64 or data URL");
   }
 
   const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent`;
+  const started = Date.now();
 
   const res = await fetch(url, {
     method: "POST",
@@ -113,13 +192,51 @@ async function geminiChatJson(
     signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
   });
 
-  if (!res.ok) throw new Error(`Gemini ${model} ${res.status}: ${await res.text()}`);
+  const elapsedMs = Date.now() - started;
+  if (!res.ok) {
+    const errBody = await res.text();
+    console.error("[vision] geminiChatJson HTTP error", {
+      model,
+      status: res.status,
+      elapsedMs,
+      errBody: errBody.slice(0, 800),
+    });
+    throw new Error(`Gemini ${model} ${res.status}: ${errBody}`);
+  }
   const data = (await res.json()) as {
-    candidates?: { content?: { parts?: { text?: string }[] } }[];
+    candidates?: {
+      content?: { parts?: { text?: string }[] };
+      finishReason?: string;
+    }[];
+    promptFeedback?: unknown;
   };
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
-  if (!text) throw new Error("Empty Gemini response");
-  return parseJsonFromText(text);
+  console.log("[vision] geminiChatJson response", {
+    model,
+    elapsedMs,
+    finishReason: data.candidates?.[0]?.finishReason ?? null,
+    responseChars: text?.length ?? 0,
+    responseHead: text?.slice(0, 280) ?? null,
+    promptFeedback: data.promptFeedback ?? null,
+    candidateCount: data.candidates?.length ?? 0,
+  });
+  if (!text) {
+    console.error("[vision] geminiChatJson empty text", {
+      model,
+      rawKeys: Object.keys(data ?? {}),
+    });
+    throw new Error("Empty Gemini response");
+  }
+  try {
+    return parseJsonFromText(text);
+  } catch (parseErr) {
+    console.error("[vision] geminiChatJson JSON parse failed", {
+      model,
+      parseErr: parseErr instanceof Error ? parseErr.message : String(parseErr),
+      responseHead: text.slice(0, 400),
+    });
+    throw parseErr;
+  }
 }
 
 export interface UnifiedLlmJsonInput {
@@ -198,15 +315,39 @@ export async function unifiedLlmJson(
     temperature = 0.2,
   } = input;
   const geminiKey = resolveGeminiApiKey();
+  console.log("[vision] unifiedLlmJson enter", {
+    hasApiKey: Boolean(geminiKey),
+    temperature,
+    promptChars: prompt.length,
+    images: summarizeImageUrlsForLog(imageDataUrls),
+  });
   if (!geminiKey) {
+    console.error("[vision] unifiedLlmJson: GEMINI_API_KEY missing");
     throw new Error("GEMINI_API_KEY not configured on server");
   }
 
-  return callGeminiWithRetry(
-    (model) =>
-      geminiChatJson(prompt, imageDataUrls, model, systemInstruction, temperature),
-    "vauto-unified"
-  );
+  try {
+    const result = await callGeminiWithRetry(
+      (model) =>
+        geminiChatJson(prompt, imageDataUrls, model, systemInstruction, temperature),
+      "vauto-unified"
+    );
+    console.log("[vision] unifiedLlmJson ok", {
+      keys: Object.keys(result ?? {}),
+      title: String((result as { title?: unknown }).title ?? "").slice(0, 80),
+      descriptionChars: String(
+        (result as { description?: unknown }).description ?? ""
+      ).length,
+    });
+    return result;
+  } catch (err) {
+    console.error("[vision] unifiedLlmJson FAILED", {
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
+      images: summarizeImageUrlsForLog(imageDataUrls),
+    });
+    throw err;
+  }
 }
 
 export async function chatJson(
@@ -237,8 +378,26 @@ export async function visionExtractJson(
   imageDataUrls: string[],
   temperature?: number
 ): Promise<Record<string, unknown>> {
-  if (!hasAiKey()) throw new Error("GEMINI_API_KEY not configured");
-  return unifiedLlmJson({ prompt, imageDataUrls, temperature });
+  console.log("[vision] visionExtractJson enter", {
+    promptChars: prompt.length,
+    promptHead: prompt.slice(0, 220),
+    temperature: temperature ?? null,
+    images: summarizeImageUrlsForLog(imageDataUrls),
+    hasApiKey: hasAiKey(),
+  });
+  if (!hasAiKey()) {
+    console.error("[vision] visionExtractJson: GEMINI_API_KEY missing");
+    throw new Error("GEMINI_API_KEY not configured");
+  }
+  try {
+    return await unifiedLlmJson({ prompt, imageDataUrls, temperature });
+  } catch (err) {
+    console.error("[vision] visionExtractJson FAILED", {
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
+    });
+    throw err;
+  }
 }
 
 async function geminiGeneratePlainText(

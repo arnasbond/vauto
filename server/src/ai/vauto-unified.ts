@@ -353,20 +353,50 @@ export async function parseListingImagesForAgent(params: {
   needsClarification: boolean;
 }> {
   const images = normalizeImageInputList(params.imageDataUrls);
+  console.log("[vision] parseListingImagesForAgent enter", {
+    rawCount: params.imageDataUrls?.length ?? 0,
+    normalizedCount: images.length,
+    userCity: params.userCity,
+    hasContact: Boolean(params.contact?.trim()),
+    userTextHead: params.text?.trim().slice(0, 120) ?? null,
+    extraContextHead: params.extraContext?.slice(0, 180) ?? null,
+  });
   if (!images.length) {
+    console.error("[vision] parseListingImagesForAgent: no images after normalize");
     throw new Error("imageDataUrls are required");
   }
   const city = resolveListingCity(params.userCity?.trim(), "Vilnius");
   const contact = params.contact?.trim() || "";
   const combinedText = params.text?.trim() ?? "";
-  const rawParsed = await unifiedLlmJson({
-    prompt: buildImagePrompt(city, params.text, params.extraContext),
-    imageDataUrls: images,
+  const prompt = buildImagePrompt(city, params.text, params.extraContext);
+  console.log("[vision] parseListingImagesForAgent prompt", {
+    promptChars: prompt.length,
+    promptHead: prompt.slice(0, 280),
   });
+  let rawParsed: Record<string, unknown>;
+  try {
+    rawParsed = await unifiedLlmJson({
+      prompt,
+      imageDataUrls: images,
+    });
+  } catch (err) {
+    console.error("[vision] parseListingImagesForAgent unifiedLlmJson error", {
+      err: err instanceof Error ? err.message : String(err),
+      stack: err instanceof Error ? err.stack?.slice(0, 700) : undefined,
+    });
+    throw err;
+  }
   const raw = combinedText
     ? enrichSellerListingFromText(combinedText, rawParsed)
     : rawParsed;
   const listing = toListingPayload(raw, city, contact);
+  console.log("[vision] parseListingImagesForAgent listing", {
+    title: listing.title?.slice(0, 80),
+    descriptionChars: listing.description?.length ?? 0,
+    category: listing.category,
+    confidence: listing.confidence,
+    price: listing.price,
+  });
 
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
   let choiceChips = parseChoiceChips(

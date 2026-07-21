@@ -576,15 +576,37 @@ async function runVautoAgentInner(
   }
 
   if (pendingChatImages?.length && flowTurn.kind === "process_photos") {
-    const mediaResponse = await resolveChatMediaAttachmentResponse({
-      imageUrls: pendingChatImages,
-      listingDraft,
-      userCity: req.context.userCity,
-      contact: req.context.contact,
-      userText: lastUserText,
+    console.log("[vision] vauto-agent process_photos", {
+      pendingCount: pendingChatImages.length,
+      flowState,
+      lastUserTextHead: lastUserText.slice(0, 120),
+      imageKinds: pendingChatImages.map((u) =>
+        u.startsWith("data:") ? `data(${u.length})` : u.startsWith("http") ? "http" : "other"
+      ),
     });
-    if (mediaResponse) {
-      return mediaResponse;
+    try {
+      const mediaResponse = await resolveChatMediaAttachmentResponse({
+        imageUrls: pendingChatImages,
+        listingDraft,
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+        userText: lastUserText,
+      });
+      if (mediaResponse) {
+        console.log("[vision] vauto-agent process_photos ok", {
+          replyHead: mediaResponse.reply?.slice(0, 160),
+          actionType: mediaResponse.actions?.type,
+          toolNames: mediaResponse.toolCalls?.map((t) => t.name),
+        });
+        return mediaResponse;
+      }
+      console.warn("[vision] vauto-agent process_photos: null mediaResponse");
+    } catch (err) {
+      console.error("[vision] vauto-agent process_photos EXCEPTION", {
+        err: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack?.slice(0, 900) : undefined,
+      });
+      // Fall through to Gemini / buddy fallback — error is now visible in Render logs.
     }
   }
 
@@ -1423,14 +1445,33 @@ async function runVautoAgentInner(
 
   // Photos present + empty model reply → Vision scan (never echo raw sell text).
   if (!finalText && pendingChatImages?.length) {
-    const mediaRetry = await resolveChatMediaAttachmentResponse({
-      imageUrls: pendingChatImages,
-      listingDraft,
-      userCity: req.context.userCity,
-      contact: req.context.contact,
-      userText: lastUserText,
+    console.log("[vision] vauto-agent mediaRetry (empty finalText)", {
+      pendingCount: pendingChatImages.length,
+      lastGeminiError: lastGeminiError ?? null,
+      resolvedActionType: resolvedAction.type,
     });
-    if (mediaRetry) return mediaRetry;
+    try {
+      const mediaRetry = await resolveChatMediaAttachmentResponse({
+        imageUrls: pendingChatImages,
+        listingDraft,
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+        userText: lastUserText,
+      });
+      if (mediaRetry) {
+        console.log("[vision] vauto-agent mediaRetry ok", {
+          replyHead: mediaRetry.reply?.slice(0, 160),
+          actionType: mediaRetry.actions?.type,
+        });
+        return mediaRetry;
+      }
+      console.warn("[vision] vauto-agent mediaRetry returned null");
+    } catch (err) {
+      console.error("[vision] vauto-agent mediaRetry EXCEPTION", {
+        err: err instanceof Error ? err.message : String(err),
+        stack: err instanceof Error ? err.stack?.slice(0, 900) : undefined,
+      });
+    }
   }
 
   if (
@@ -1438,6 +1479,9 @@ async function runVautoAgentInner(
     detectServerSellIntent(lastUserText) &&
     !pendingChatImages?.length
   ) {
+    console.warn("[vision] vauto-agent sell-intent text fallback (no images)", {
+      lastUserTextHead: lastUserText.slice(0, 120),
+    });
     const fallback = buildSellListingDraftFallback(lastUserText, {
       userCity: req.context.userCity,
       contact: req.context.contact,
@@ -1452,6 +1496,14 @@ async function runVautoAgentInner(
   }
 
   if (!finalText) {
+    console.error("[vision] vauto-agent BUDDY_REPEAT fallback", {
+      reason: lastGeminiError ? "lastGeminiError" : "empty_finalText",
+      lastGeminiError: lastGeminiError ?? null,
+      pendingCount: pendingChatImages?.length ?? 0,
+      resolvedActionType: resolvedAction.type,
+      toolNames: toolCalls.map((t) => t.name),
+      lastUserTextHead: lastUserText.slice(0, 120),
+    });
     if (lastGeminiError) {
       return {
         ok: true,
@@ -1471,6 +1523,10 @@ async function runVautoAgentInner(
   }
 
   if (!finalText.trim()) {
+    console.error("[vision] vauto-agent BUDDY_REPEAT whitespace-only finalText", {
+      pendingCount: pendingChatImages?.length ?? 0,
+      lastGeminiError: lastGeminiError ?? null,
+    });
     return {
       ok: true,
       reply: BUDDY_REPEAT_PROMPT,
