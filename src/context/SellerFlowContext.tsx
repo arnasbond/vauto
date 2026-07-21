@@ -241,7 +241,13 @@ async function prepareListingImageForApi(
   if (!src?.trim()) return null;
   let image = (await resolveImageForUpload(src)) ?? src.trim();
   if (image.startsWith("data:image")) {
-    image = await compressDataUrl(image);
+    // Publish-size compress — keep under Express/Render body budget when Cloudinary is down.
+    image = await compressDataUrl(image, {
+      maxDim: 1024,
+      quality: 0.72,
+      maxChars: 180_000,
+      force: true,
+    });
     const cloudUrl = await apiUploadMedia(image, listingId);
     if (cloudUrl) return cloudUrl;
     if (image.length > API_MAX_IMAGE_LENGTH) return null;
@@ -1714,25 +1720,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         ].filter((url, i, arr) => arr.indexOf(url) === i)
       )
     ).slice(0, 6);
-    const cover = syncedGallery[0];
-    const rest = syncedGallery.slice(1);
 
-    const [listingImage, extraImages, coords] = await Promise.all([
-      prepareListingImageForApi(cover, listingId),
-      rest.length
-        ? Promise.all(rest.map((src) => prepareListingImageForApi(src, listingId)))
-        : Promise.resolve([] as (string | null)[]),
-      coordsPromise,
-    ]);
-    const galleryImages = [
-      listingImage,
-      ...extraImages.filter((img): img is string => Boolean(img)),
-    ].filter((img): img is string => Boolean(img));
+    // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.
+    const coords = await coordsPromise;
+    const preparedGallery: string[] = [];
+    for (const src of syncedGallery) {
+      const prepared = await prepareListingImageForApi(src, listingId);
+      if (prepared) preparedGallery.push(prepared);
+    }
+    const httpImages = preparedGallery.filter((u) => /^https?:\/\//i.test(u));
+    const dataImages = preparedGallery.filter((u) => u.startsWith("data:image"));
+    // If cloud upload worked, keep all http URLs. Otherwise send only the cover data URL
+    // so /api/listings stays under the body limit (extras stay local until cloud is ready).
+    const galleryImages = (
+      httpImages.length
+        ? [...httpImages, ...dataImages]
+        : dataImages.slice(0, 1)
+    )
+      .filter(Boolean)
+      .slice(0, 6);
     if (!galleryImages.length) {
-      const msg =
-        listingImage?.startsWith("data:image") && (listingImage.length ?? 0) > API_MAX_IMAGE_LENGTH
-          ? "Nuotrauka per didelė serveriui — bandykite mažesnę arba kitą formatą."
-          : LISTING_PHOTO_REQUIRED_MESSAGE;
+      const msg = LISTING_PHOTO_REQUIRED_MESSAGE;
       showToast(msg, "error");
       return { ok: false, error: msg };
     }

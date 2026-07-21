@@ -282,8 +282,9 @@ export async function apiUploadMedia(
     imageDataUrl,
     listingId,
   });
-  if (res && "url" in res) return res.url;
-  return null;
+  if (!res || typeof res !== "object") return null;
+  const url = "url" in res ? (res as { url?: unknown }).url : null;
+  return typeof url === "string" && /^https?:\/\//i.test(url) ? url : null;
 }
 
 export async function apiVautoAgent(body: {

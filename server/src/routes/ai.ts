@@ -436,14 +436,14 @@ const visualSearchBodyParser = (
   next: express.NextFunction
 ) => {
   if (req.is("multipart/form-data")) {
-    express.raw({ type: "multipart/form-data", limit: "25mb" })(req, res, next);
+    express.raw({ type: "multipart/form-data", limit: "50mb" })(req, res, next);
     return;
   }
   if (req.body && typeof req.body === "object" && Object.keys(req.body as object).length > 0) {
     next();
     return;
   }
-  express.json({ limit: "25mb" })(req, res, next);
+  express.json({ limit: "50mb" })(req, res, next);
 };
 
 async function handleVisualSearchIntent(

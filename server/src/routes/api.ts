@@ -146,6 +146,56 @@ function badRequest<T>(res: Response, result: ValidationResult<T>): result is { 
   return false;
 }
 
+/**
+ * Normalize multi-image publish bodies:
+ * - prefer `image`, else first of `images[]`
+ * - keep only http(s) gallery URLs in attributes (never embed extra data: URLs in jsonb)
+ * - drop oversized / invalid extras so validation does not 500
+ */
+function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
+  const body =
+    raw && typeof raw === "object" ? ({ ...(raw as Record<string, unknown>) } as Record<string, unknown>) : {};
+
+  const imagesRaw = Array.isArray(body.images)
+    ? body.images.map((u) => String(u ?? "").trim()).filter(Boolean)
+    : [];
+  let image = typeof body.image === "string" ? body.image.trim() : "";
+  if (!image && imagesRaw.length) image = imagesRaw[0]!;
+  body.image = image;
+
+  const httpGallery = [image, ...imagesRaw]
+    .filter((u) => /^https?:\/\//i.test(u))
+    .filter((u, i, arr) => arr.indexOf(u) === i)
+    .slice(0, 6);
+
+  const attrs =
+    body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes)
+      ? ({ ...(body.attributes as Record<string, unknown>) } as Record<string, unknown>)
+      : {};
+
+  // Strip any accidental base64 blobs from attributes before jsonb insert.
+  for (const [key, val] of Object.entries(attrs)) {
+    if (typeof val === "string" && val.startsWith("data:image")) {
+      delete attrs[key];
+      continue;
+    }
+    if (Array.isArray(val)) {
+      attrs[key] = val
+        .filter((item) => typeof item === "string" && !item.startsWith("data:image"))
+        .map((item) => String(item).slice(0, 400));
+    } else if (typeof val === "string" && val.length > 500) {
+      attrs[key] = val.slice(0, 500);
+    }
+  }
+
+  if (httpGallery.length > 1) {
+    attrs.galleryUrls = httpGallery.slice(0, 6);
+  }
+  body.attributes = attrs;
+  delete body.images;
+  return body;
+}
+
 function actorId(req: AuthedRequest): string {
   return req.authUserId ?? String(req.headers["x-user-id"] ?? "");
 }
@@ -446,7 +496,27 @@ apiRouter.get("/listings", async (req, res) => {
 
 apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
   try {
-    const parsed = validateListing(req.body);
+    const body = sanitizeListingCreateBody(req.body);
+    const imageLen =
+      typeof body?.image === "string" ? body.image.length : 0;
+    const galleryCount = Array.isArray(body?.images) ? body.images.length : 0;
+    console.log(
+      `[listings] POST create imageChars=${imageLen} galleryCount=${galleryCount} isDataUrl=${
+        typeof body?.image === "string" && body.image.startsWith("data:")
+      }`
+    );
+    if (typeof body?.image === "string" && body.image.startsWith("data:image")) {
+      if (body.image.length > 4_000_000) {
+        res.status(413).json({
+          ok: false,
+          code: "image_too_large",
+          error:
+            "Nuotrauka per didelė saugojimui. Palaukite debesies įkėlimo arba sumažinkite failą.",
+        });
+        return;
+      }
+    }
+    const parsed = validateListing(body);
     if (badRequest(res, parsed)) return;
     const authUserId = req.authUserId!;
     let listing = { ...parsed.value, sellerId: authUserId };
@@ -488,7 +558,12 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     }
     res.status(201).json(listing);
   } catch (e) {
-    res.status(500).json({ error: String(e) });
+    const msg = e instanceof Error ? e.message : String(e);
+    console.error("[listings] POST create FAILED:", msg.slice(0, 600));
+    res.status(500).json({
+      ok: false,
+      error: msg || "Nepavyko išsaugoti skelbimo",
+    });
   }
 });
 
@@ -1489,14 +1564,14 @@ const visionSearchBodyParser = (
   next: express.NextFunction
 ) => {
   if (req.is("multipart/form-data")) {
-    express.raw({ type: "multipart/form-data", limit: "25mb" })(req, res, next);
+    express.raw({ type: "multipart/form-data", limit: "50mb" })(req, res, next);
     return;
   }
   if (req.body && typeof req.body === "object" && Object.keys(req.body as object).length > 0) {
     next();
     return;
   }
-  express.json({ limit: "25mb" })(req, res, next);
+  express.json({ limit: "50mb" })(req, res, next);
 };
 
 /** Legacy photo search endpoint — maps Vision intent to keywords for older clients. */

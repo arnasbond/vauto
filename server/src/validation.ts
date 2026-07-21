@@ -208,7 +208,8 @@ function validateAttributes(value: unknown): ValidationResult<Record<string, str
       const values: string[] = [];
       for (const item of attr) {
         if (typeof item !== "string") return fail("attribute arrays must contain strings");
-        if (item.length > 200) return fail("attribute array value is too long");
+        // Cloudinary / CDN gallery URLs are often 120–300 chars.
+        if (item.length > 400) return fail("attribute array value is too long");
         const trimmed = item.trim();
         if (trimmed) values.push(trimmed);
       }

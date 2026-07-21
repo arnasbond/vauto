@@ -240,24 +240,56 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     if (!image?.trim()) {
       throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
     }
-    if (!isCloudinaryConfigured()) {
+    // Reject pathological payloads early (keeps Express/Render from OOMing).
+    if (image.length > 12_000_000) {
       throw Object.assign(
-        new Error(
-          "Cloudinary not configured (CLOUDINARY_CLOUD_NAME + CLOUDINARY_UPLOAD_PRESET)"
-        ),
-        { status: 503 }
+        new Error("imageDataUrl is too large (max ~12MB). Compress before upload."),
+        { status: 413 }
       );
+    }
+    if (!isCloudinaryConfigured()) {
+      // Soft-fail: client keeps the compressed data URL for /api/listings.
+      // Avoid 503 "Service Unavailable" which looks like the whole API is down.
+      console.warn(
+        "[upload_media] Cloudinary not configured — returning deferred (client data-URL fallback)"
+      );
+      return {
+        ok: true,
+        action,
+        url: null,
+        deferred: true,
+        code: "cloudinary_not_configured",
+        listingId: body.listingId?.trim() || undefined,
+      };
     }
     const listingId = body.listingId?.trim() || `tmp-${Date.now()}`;
     let processed = image;
     try {
       processed = await optimizeListingImage(image);
       processed = await applyVautoWatermark(processed, listingId);
-    } catch {
-      /* fallback — upload original if sharp unavailable */
+    } catch (procErr) {
+      console.warn(
+        "[upload_media] optimize/watermark failed — uploading original:",
+        procErr instanceof Error ? procErr.message : procErr
+      );
     }
-    const uploaded = await uploadImageToCloudinary(processed);
-    return { ok: true, action, url: uploaded.url, publicId: uploaded.publicId, listingId };
+    try {
+      const uploaded = await uploadImageToCloudinary(processed);
+      return {
+        ok: true,
+        action,
+        url: uploaded.url,
+        publicId: uploaded.publicId,
+        listingId,
+      };
+    } catch (uploadErr) {
+      const msg =
+        uploadErr instanceof Error ? uploadErr.message : String(uploadErr);
+      console.error("[upload_media] Cloudinary upload failed:", msg.slice(0, 400));
+      throw Object.assign(new Error(`Cloudinary upload failed: ${msg}`), {
+        status: 502,
+      });
+    }
   }
 
   const images = imagesEarly;

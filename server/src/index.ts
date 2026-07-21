@@ -35,7 +35,10 @@ app.post(
   express.raw({ type: "application/json" }),
   handleStripeWebhook
 );
-app.use(express.json({ limit: "25mb" }));
+/** Multi-photo publish (6× data URLs) needs headroom above the old 25mb cap. */
+const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT?.trim() || "50mb";
+app.use(express.json({ limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
 app.use(optionalAuth);
 app.use("/api/search", searchRateLimiter, searchRouter);
 app.use("/api/spinta", actionRateLimiter, spintaRouter);
@@ -102,21 +105,36 @@ if (hasStaticBundle) {
 
 app.use(
   (
-    err: Error & { type?: string; status?: number },
-    _req: express.Request,
+    err: Error & { type?: string; status?: number; limit?: number; length?: number },
+    req: express.Request,
     res: express.Response,
     next: express.NextFunction
   ) => {
     if (err.type === "entity.too.large") {
+      console.error(
+        `[body] payload_too_large path=${req.path} limit=${err.limit ?? JSON_BODY_LIMIT} length=${err.length ?? "?"}`
+      );
       res.status(413).json({
         ok: false,
         code: "payload_too_large",
         error:
-          "Užklausa per didelė. Sutrumpinkite žinutę arba pokalbio istoriją.",
+          "Užklausa per didelė (nuotraukos). Palaukite kol nuotraukos įkeliamos į debesį arba sumažinkite failų dydį.",
+        limit: JSON_BODY_LIMIT,
       });
       return;
     }
-    next(err);
+    if (res.headersSent) {
+      next(err);
+      return;
+    }
+    console.error(
+      `[api] unhandled ${req.method} ${req.path}:`,
+      err?.message || err
+    );
+    res.status(err.status && err.status >= 400 && err.status < 600 ? err.status : 500).json({
+      ok: false,
+      error: err?.message || "Internal Server Error",
+    });
   }
 );
 

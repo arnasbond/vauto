@@ -3,7 +3,9 @@ import type { ListingEditPatch } from "@/lib/listing-edit";
 import type { LegacyListingInput, Listing } from "@/lib/types";
 
 /** Server API expects singular `image`; client models use `images[]`. */
-export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> & { image: string } {
+export function listingToApiPayload(
+  listing: Listing
+): Omit<Listing, "images"> & { image: string; images?: string[] } {
   const { images, ...rest } = listing;
   const attributes =
     typeof rest.attributes === "object" && rest.attributes
@@ -13,11 +15,29 @@ export function listingToApiPayload(listing: Listing): Omit<Listing, "images"> &
   if (listing.isAiTwinActive === true) {
     attributes.isAiTwinActive = "true";
   }
+  // Never ship extra base64 blobs in attributes / payload — only http gallery URLs.
+  const gallery = (images ?? [])
+    .map((u) => String(u ?? "").trim())
+    .filter(Boolean)
+    .slice(0, 6);
+  const cover = gallery[0] ?? "";
+  const httpGallery = gallery.filter((u) => /^https?:\/\//i.test(u));
+  if (httpGallery.length > 1) {
+    attributes.galleryUrls = httpGallery;
+  }
+  for (const key of Object.keys(attributes)) {
+    const val = attributes[key];
+    if (typeof val === "string" && val.startsWith("data:image")) {
+      delete attributes[key];
+    }
+  }
   return {
     ...rest,
     attributes,
     location: resolveListingCity(listing.location),
-    image: images?.[0]?.trim() ?? "",
+    image: cover,
+    // Server sanitizer maps images[] → cover + attributes.galleryUrls (http only).
+    ...(httpGallery.length > 1 ? { images: httpGallery } : {}),
     allowPastomatas: listing.allowPastomatas ?? true,
   };
 }
