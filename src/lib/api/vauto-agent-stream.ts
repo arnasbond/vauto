@@ -16,7 +16,7 @@ export interface VautoAgentStreamHandlers {
 }
 
 /** Marker so browser E2E can confirm this module is live. */
-export const AGENT_STREAM_WIRE_CAP = "wire-cap-v6-max-6-compressed";
+export const AGENT_STREAM_WIRE_CAP = "wire-cap-v7-chunk2-tiny";
 
 const MAX_DATA_URLS_ON_WIRE = 6;
 

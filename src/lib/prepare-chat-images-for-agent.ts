@@ -17,15 +17,18 @@ export async function compressForAgentBatch(dataUrl: string): Promise<string> {
   });
 }
 
-/** Ultra-small vision payload for /api/vauto-agent/stream (all 6 stay under timeout). */
+/**
+ * Ultra-small vision payload for /api/vauto-agent/stream.
+ * Server chunks these (2/request) — keep each thumb tiny to stay under Gemini TPM/RPM.
+ */
 export async function compressForAgentVisionWire(
   dataUrl: string
 ): Promise<string> {
   if (!dataUrl.startsWith("data:image")) return dataUrl;
   return compressDataUrl(dataUrl, {
-    maxDim: 480,
-    quality: 0.5,
-    maxChars: 18_000,
+    maxDim: 320,
+    quality: 0.36,
+    maxChars: 9_000,
     force: true,
   });
 }

@@ -49,9 +49,20 @@ export async function compressDataUrl(
       ctx.drawImage(img, 0, 0, w, h);
       let quality = opts?.quality ?? 0.82;
       let out = canvas.toDataURL("image/jpeg", quality);
-      while (out.length > maxChars && quality > 0.45) {
-        quality -= 0.08;
+      while (out.length > maxChars && quality > 0.28) {
+        quality -= 0.07;
         out = canvas.toDataURL("image/jpeg", quality);
+      }
+      // Still over budget → shrink canvas until under maxChars (vision wire needs this).
+      let curW = w;
+      let curH = h;
+      while (out.length > maxChars && Math.max(curW, curH) > 140) {
+        curW = Math.max(1, Math.round(curW * 0.72));
+        curH = Math.max(1, Math.round(curH * 0.72));
+        canvas.width = curW;
+        canvas.height = curH;
+        ctx.drawImage(img, 0, 0, curW, curH);
+        out = canvas.toDataURL("image/jpeg", Math.max(0.28, quality));
       }
       resolve(out);
     };

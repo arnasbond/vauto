@@ -356,6 +356,14 @@ const DEFAULT_JSON_SYSTEM =
 const GEMINI_RETRY_STATUSES = new Set([429, 503]);
 const GEMINI_JSON_MAX_RETRIES = 2;
 const GEMINI_JSON_RETRY_BASE_MS = 400;
+/** 429 RESOURCE_EXHAUSTED needs longer cooldown than generic 503. */
+const GEMINI_429_RETRY_BASE_MS = 2_500;
+/**
+ * Multi-photo vision: never send all 6 in one generateContent call —
+ * Tier-1 TPM/RPM trips on large multimodal payloads. Chunk sequentially.
+ */
+const VISION_IMAGES_PER_REQUEST = 2;
+const VISION_CHUNK_GAP_MS = 900;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -365,8 +373,94 @@ function parseGeminiStatus(err: unknown): number | null {
   const msg = err instanceof Error ? err.message : String(err);
   const m = /\b(4\d{2}|5\d{2})\b/.exec(msg);
   if (m) return Number(m[1]);
-  if (/UNAVAILABLE|overloaded|rate.?limit|high demand|too many/i.test(msg)) return 503;
+  if (/RESOURCE_EXHAUSTED|Too Many Requests|rate.?limit/i.test(msg)) return 429;
+  if (/UNAVAILABLE|overloaded|high demand|too many/i.test(msg)) return 503;
   return null;
+}
+
+function chunkArray<T>(items: T[], size: number): T[][] {
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+
+function asRecord(v: unknown): Record<string, unknown> {
+  return v && typeof v === "object" && !Array.isArray(v)
+    ? (v as Record<string, unknown>)
+    : {};
+}
+
+function preferLongerString(a: unknown, b: unknown): string {
+  const sa = String(a ?? "").trim();
+  const sb = String(b ?? "").trim();
+  if (!sa) return sb;
+  if (!sb) return sa;
+  return sb.length > sa.length ? sb : sa;
+}
+
+function mergeStringArrays(...lists: unknown[]): string[] {
+  const out: string[] = [];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    for (const item of list) {
+      const s = String(item ?? "").trim();
+      if (s && !out.includes(s)) out.push(s);
+    }
+  }
+  return out;
+}
+
+/** Merge sequential vision-chunk JSON into one listing payload. */
+export function mergeVisionJsonChunks(
+  parts: Record<string, unknown>[]
+): Record<string, unknown> {
+  if (!parts.length) return {};
+  if (parts.length === 1) return parts[0]!;
+
+  const merged: Record<string, unknown> = { ...parts[0] };
+  let bestConfidence = Number(parts[0]?.confidence) || 0;
+
+  for (let i = 1; i < parts.length; i++) {
+    const part = parts[i]!;
+    const conf = Number(part.confidence) || 0;
+    merged.title = preferLongerString(merged.title, part.title);
+    merged.description = preferLongerString(merged.description, part.description);
+    merged.category = preferLongerString(merged.category, part.category) || merged.category;
+    merged.location = preferLongerString(merged.location, part.location) || merged.location;
+    const priceA = Number(merged.price) || 0;
+    const priceB = Number(part.price) || 0;
+    merged.price = priceA > 0 ? priceA : priceB;
+
+    const attrsA = asRecord(merged.attributes);
+    const attrsB = asRecord(part.attributes);
+    merged.attributes = { ...attrsA, ...attrsB };
+    for (const [k, v] of Object.entries(attrsA)) {
+      const bv = attrsB[k];
+      if (String(v ?? "").trim() && !String(bv ?? "").trim()) {
+        (merged.attributes as Record<string, unknown>)[k] = v;
+      }
+    }
+
+    merged.detectedObjects = mergeStringArrays(
+      merged.detectedObjects,
+      part.detectedObjects
+    );
+    merged.choiceChips = mergeStringArrays(merged.choiceChips, part.choiceChips);
+    merged.sceneContext = preferLongerString(merged.sceneContext, part.sceneContext);
+
+    if (conf > bestConfidence) {
+      bestConfidence = conf;
+      if (String(part.category ?? "").trim()) merged.category = part.category;
+    }
+  }
+
+  merged.confidence = Math.min(
+    0.98,
+    Math.max(bestConfidence, Number(merged.confidence) || 0)
+  );
+  return merged;
 }
 
 /**
@@ -390,18 +484,35 @@ async function callGeminiWithRetry<T>(
           attempt < GEMINI_JSON_MAX_RETRIES &&
           status !== null &&
           GEMINI_RETRY_STATUSES.has(status);
+        const msg = e instanceof Error ? e.message : String(e);
+        const is429 =
+          status === 429 || /RESOURCE_EXHAUSTED|Too Many Requests/i.test(msg);
         console.warn(
           `[${label}] ${model} attempt ${attempt + 1}${canRetry ? " (will retry)" : ""}:`,
-          e instanceof Error ? e.message : e
+          msg.slice(0, 500)
         );
         if (!canRetry) break;
-        await sleep(GEMINI_JSON_RETRY_BASE_MS * 2 ** attempt);
+        const base = is429 ? GEMINI_429_RETRY_BASE_MS : GEMINI_JSON_RETRY_BASE_MS;
+        await sleep(base * 2 ** attempt);
       }
     }
   }
   throw lastError instanceof Error
     ? lastError
     : new Error("Gemini API nepavyko");
+}
+
+async function unifiedLlmJsonSingle(
+  prompt: string,
+  imageDataUrls: string[],
+  systemInstruction: string,
+  temperature: number
+): Promise<Record<string, unknown>> {
+  return callGeminiWithRetry(
+    (model) =>
+      geminiChatJson(prompt, imageDataUrls, model, systemInstruction, temperature),
+    "vauto-unified"
+  );
 }
 
 /** VAUTO unified parser — Gemini 2.5 Flash, then 2.5 Flash Lite. */
@@ -415,36 +526,94 @@ export async function unifiedLlmJson(
     temperature = 0.2,
   } = input;
   const geminiKey = resolveGeminiApiKey();
-  console.log("[vision] unifiedLlmJson enter", {
-    hasApiKey: Boolean(geminiKey),
-    temperature,
-    promptChars: prompt.length,
-    images: summarizeImageUrlsForLog(imageDataUrls),
-  });
+  const images = imageDataUrls.filter(Boolean);
+  console.log(
+    `[vision] unifiedLlmJson enter ${JSON.stringify({
+      hasApiKey: Boolean(geminiKey),
+      temperature,
+      promptChars: prompt.length,
+      images: summarizeImageUrlsForLog(images),
+      chunkSize: VISION_IMAGES_PER_REQUEST,
+    })}`
+  );
   if (!geminiKey) {
     console.error("[vision] unifiedLlmJson: GEMINI_API_KEY missing");
     throw new Error("GEMINI_API_KEY not configured on server");
   }
 
   try {
-    const result = await callGeminiWithRetry(
-      (model) =>
-        geminiChatJson(prompt, imageDataUrls, model, systemInstruction, temperature),
-      "vauto-unified"
+    let result: Record<string, unknown>;
+
+    if (images.length <= VISION_IMAGES_PER_REQUEST) {
+      result = await unifiedLlmJsonSingle(
+        prompt,
+        images,
+        systemInstruction,
+        temperature
+      );
+    } else {
+      const chunks = chunkArray(images, VISION_IMAGES_PER_REQUEST);
+      console.log(
+        `[vision] unifiedLlmJson chunked ${JSON.stringify({
+          totalImages: images.length,
+          chunkCount: chunks.length,
+          perRequest: VISION_IMAGES_PER_REQUEST,
+          gapMs: VISION_CHUNK_GAP_MS,
+        })}`
+      );
+      const parts: Record<string, unknown>[] = [];
+      for (let i = 0; i < chunks.length; i++) {
+        if (i > 0) await sleep(VISION_CHUNK_GAP_MS);
+        const start = i * VISION_IMAGES_PER_REQUEST + 1;
+        const end = Math.min(
+          (i + 1) * VISION_IMAGES_PER_REQUEST,
+          images.length
+        );
+        const chunkPrompt = `${prompt}
+
+[Vision chunk ${i + 1}/${chunks.length}: photos ${start}-${end} of ${images.length}. Extract every visible vehicle/product detail from THESE photos into the same JSON schema. Description may be partial — later chunks will be merged.]`;
+        console.log(
+          `[vision] unifiedLlmJson chunk start ${JSON.stringify({
+            chunk: i + 1,
+            of: chunks.length,
+            photoRange: `${start}-${end}`,
+            images: summarizeImageUrlsForLog(chunks[i]!),
+          })}`
+        );
+        const part = await unifiedLlmJsonSingle(
+          chunkPrompt,
+          chunks[i]!,
+          systemInstruction,
+          temperature
+        );
+        parts.push(part);
+        console.log(
+          `[vision] unifiedLlmJson chunk ok ${JSON.stringify({
+            chunk: i + 1,
+            title: String(part.title ?? "").slice(0, 60),
+            descriptionChars: String(part.description ?? "").length,
+          })}`
+        );
+      }
+      result = mergeVisionJsonChunks(parts);
+    }
+
+    console.log(
+      `[vision] unifiedLlmJson ok ${JSON.stringify({
+        keys: Object.keys(result ?? {}),
+        title: String((result as { title?: unknown }).title ?? "").slice(0, 80),
+        descriptionChars: String(
+          (result as { description?: unknown }).description ?? ""
+        ).length,
+        chunked: images.length > VISION_IMAGES_PER_REQUEST,
+      })}`
     );
-    console.log("[vision] unifiedLlmJson ok", {
-      keys: Object.keys(result ?? {}),
-      title: String((result as { title?: unknown }).title ?? "").slice(0, 80),
-      descriptionChars: String(
-        (result as { description?: unknown }).description ?? ""
-      ).length,
-    });
     return result;
   } catch (err) {
     visionLogError("unifiedLlmJson FAILED", {
       errMessage: err instanceof Error ? err.message : String(err),
       stack: err instanceof Error ? err.stack?.slice(0, 600) : undefined,
-      images: summarizeImageUrlsForLog(imageDataUrls),
+      images: summarizeImageUrlsForLog(images),
     });
     throw err;
   }
