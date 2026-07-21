@@ -16,15 +16,15 @@ export interface VautoAgentStreamHandlers {
 }
 
 /** Marker so browser E2E can confirm this module is live. */
-export const AGENT_STREAM_WIRE_CAP = "wire-cap-v5-max-1-data-url";
+export const AGENT_STREAM_WIRE_CAP = "wire-cap-v6-max-6-compressed";
 
-const MAX_DATA_URLS_ON_WIRE = 1;
+const MAX_DATA_URLS_ON_WIRE = 6;
 
 function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
-/** Cap data-URL images for Render; keep http thumbnails (small). */
+/** Keep up to 6 vision URLs on the wire (http preferred; data URLs must be pre-compressed). */
 export function capImageUrlsForAgentWire(urls: unknown): string[] {
   const list = Array.isArray(urls)
     ? urls.map((u) => String(u ?? "").trim()).filter(Boolean)
@@ -32,7 +32,7 @@ export function capImageUrlsForAgentWire(urls: unknown): string[] {
   const http = list.filter(isHttpUrl);
   const data = list.filter((u) => u.startsWith("data:"));
   if (http.length && !data.length) return http.slice(0, 6);
-  return [...http, ...data.slice(0, MAX_DATA_URLS_ON_WIRE)].slice(0, 6);
+  return [...http, ...data].slice(0, MAX_DATA_URLS_ON_WIRE);
 }
 
 function capAgentContextForWire(

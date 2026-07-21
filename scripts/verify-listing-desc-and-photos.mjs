@@ -21,7 +21,7 @@ function selectAgentVisionUrls(urls) {
   const http = urls.filter(isHttpUrl);
   if (http.length) return http.slice(0, 6);
   const data = urls.filter((u) => String(u).startsWith("data:"));
-  return data.slice(0, 1);
+  return data.slice(0, 6);
 }
 
 function isThinListingDescription(raw) {
@@ -113,7 +113,7 @@ assert.equal(
 
 const sixData = Array.from({ length: 6 }, (_, i) => `data:image/jpeg;base64,AAA${i}`);
 const visionData = selectAgentVisionUrls(sixData);
-assert.equal(visionData.length, 1, "data URL vision subset is 1");
+assert.equal(visionData.length, 6, "data URL vision subset is all 6");
 
 const sixHttp = Array.from(
   { length: 6 },
@@ -121,9 +121,8 @@ const sixHttp = Array.from(
 );
 assert.equal(selectAgentVisionUrls(sixHttp).length, 6, "http URLs all kept");
 
-// Simulate trim: draft holds 6 data URLs, agent vision must be 1
 const draftVision = selectAgentVisionUrls(sixData);
-assert.equal(draftVision.length, 1, "draft orderedImageUrls capped for agent POST");
+assert.equal(draftVision.length, 6, "all 6 vision URLs kept for agent POST");
 
 console.log("PHOTO_OK", {
   visionData: visionData.length,

@@ -310,7 +310,7 @@ export function AiCommandBar({
                 sessionImageUrls: prepared.listingImageUrls,
                 pendingImageUrls: prepared.agentVisionUrls.length
                   ? prepared.agentVisionUrls
-                  : prepared.listingImageUrls.slice(0, 1),
+                  : prepared.listingImageUrls.slice(0, 6),
               }
             : {}),
         });

@@ -16,10 +16,9 @@ function selectVisionUrlsForAgentPost(urls: string[]): string[] {
     if (u.startsWith("http://") || u.startsWith("https://")) http.push(u);
     else if (u.startsWith("data:")) data.push(u);
   }
-  // Prefer http (tiny) when any exist — avoids mixing 6 data URLs into the POST.
+  // Prefer http (tiny) when any exist; otherwise send up to 6 compressed data URLs.
   if (http.length) return http.slice(0, 6);
-  // Hard-cap data URLs at 1 — never use a shared const (slice(0, undefined) keeps all).
-  return data.slice(0, 1);
+  return data.slice(0, 6);
 }
 
 export interface AgentRequestMessage {

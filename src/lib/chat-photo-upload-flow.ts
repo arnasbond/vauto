@@ -38,7 +38,7 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
         sessionImageUrls: listingImageUrls,
         pendingImageUrls: agentVisionUrls.length
           ? agentVisionUrls
-          : listingImageUrls.slice(0, 1),
+          : listingImageUrls.slice(0, 6),
       });
     } finally {
       deps.onBusyChange?.(false);

@@ -1,7 +1,7 @@
 import { compressDataUrl } from "@/lib/native-media";
 
-/** Max data-URL images on the agent stream wire (keeps Render under timeout). */
-export const AGENT_VISION_MAX_DATA_IMAGES = 1;
+/** Max images on the agent stream wire (all session photos, aggressively compressed). */
+export const AGENT_VISION_MAX_DATA_IMAGES = 6;
 
 /**
  * Listing gallery compress — keeps all 6 usable locally for publish,
@@ -17,7 +17,7 @@ export async function compressForAgentBatch(dataUrl: string): Promise<string> {
   });
 }
 
-/** Ultra-small vision payload for /api/vauto-agent/stream only. */
+/** Ultra-small vision payload for /api/vauto-agent/stream (all 6 stay under timeout). */
 export async function compressForAgentVisionWire(
   dataUrl: string
 ): Promise<string> {
@@ -37,7 +37,7 @@ function isHttpUrl(url: string): boolean {
 /**
  * Prepare chat photos for listing + agent:
  * 1) canvas-compress every photo for the local gallery / publish draft
- * 2) build a tiny 1-image vision subset for the agent stream (never 6 data URLs)
+ * 2) ultra-compress ALL photos for the agent stream vision context
  */
 export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
   listingImageUrls: string[];
@@ -50,16 +50,13 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
     await Promise.all(unique.map((url) => compressForAgentBatch(url)))
   ).filter(Boolean);
 
-  const visionSource = listingImageUrls.find((u) => u.startsWith("data:image"))
-    ?? listingImageUrls[0];
-  const agentVisionUrls: string[] = [];
-  if (visionSource) {
-    if (isHttpUrl(visionSource)) {
-      agentVisionUrls.push(visionSource);
-    } else {
-      agentVisionUrls.push(await compressForAgentVisionWire(visionSource));
-    }
-  }
+  const agentVisionUrls = (
+    await Promise.all(
+      listingImageUrls.map((url) =>
+        isHttpUrl(url) ? Promise.resolve(url) : compressForAgentVisionWire(url)
+      )
+    )
+  ).filter(Boolean);
 
   return {
     listingImageUrls,
@@ -67,7 +64,7 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
   };
 }
 
-/** Prefer http URLs (tiny); otherwise send only a small data-URL vision subset. */
+/** Prefer http URLs (tiny); otherwise send compressed data URLs (up to 6). */
 export function selectAgentVisionUrls(urls: string[]): string[] {
   if (!urls.length) return [];
   const http = urls.filter(isHttpUrl);

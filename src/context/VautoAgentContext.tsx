@@ -1313,7 +1313,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       /** Merge photos + price from this turn BEFORE SM so PrePublish can open with media+price. */
       const visionIncoming =
-        options?.pendingImageUrls?.filter(Boolean).slice(0, 1) ?? [];
+        options?.pendingImageUrls?.filter(Boolean).slice(0, 6) ?? [];
       const sessionIncoming = (
         options?.sessionImageUrls?.length
           ? options.sessionImageUrls
