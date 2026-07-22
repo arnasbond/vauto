@@ -24,15 +24,24 @@ function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
-/** Keep up to 6 vision URLs on the wire (http preferred; data URLs must be pre-compressed). */
+/**
+ * Keep up to 6 vision URLs on the wire (http + data).
+ * Preserve order and never drop data-URL documents when http cars are present.
+ */
 export function capImageUrlsForAgentWire(urls: unknown): string[] {
   const list = Array.isArray(urls)
     ? urls.map((u) => String(u ?? "").trim()).filter(Boolean)
     : [];
-  const http = list.filter(isHttpUrl);
-  const data = list.filter((u) => u.startsWith("data:"));
-  if (http.length && !data.length) return http.slice(0, 6);
-  return [...http, ...data].slice(0, MAX_DATA_URLS_ON_WIRE);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const u of list) {
+    if (!u || seen.has(u)) continue;
+    if (!isHttpUrl(u) && !u.startsWith("data:")) continue;
+    seen.add(u);
+    out.push(u);
+    if (out.length >= MAX_DATA_URLS_ON_WIRE) break;
+  }
+  return out;
 }
 
 function capAgentContextForWire(

@@ -34,12 +34,12 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
       if (!listingImageUrls.length && !agentVisionUrls.length) return;
       await deps.navigateBeforeSend?.();
       deps.setOpen?.(true);
-      // Full gallery stays on the client; stream gets vision subset (docs high-res).
+      // Zero pre-filter: send ALL attached files (cars + tech passport) to Gemini.
+      // Public gallery strip happens only after Vision on the server.
+      const allWire = agentVisionUrls.length ? agentVisionUrls : listingImageUrls;
       await deps.sendAgentMessage(deps.text?.trim() ?? "", {
-        sessionImageUrls: listingImageUrls,
-        pendingImageUrls: agentVisionUrls.length
-          ? agentVisionUrls
-          : listingImageUrls.slice(0, 6),
+        sessionImageUrls: allWire,
+        pendingImageUrls: allWire,
         ...(suspectedDocumentUrls.length
           ? { documentImageUrls: suspectedDocumentUrls }
           : {}),

@@ -159,7 +159,6 @@ import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
   buildDraftingCompletePhotosPrompt,
-  buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
   isVisionObjectSellChip,
@@ -1327,9 +1326,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       )
         ?.filter(Boolean)
         .slice(0, 6) ?? [];
-      const incomingImagesEarly = sessionIncoming.length
-        ? sessionIncoming
-        : visionIncoming;
+      // Prefer the fuller vision set — never let a stripped session list drop the passport.
+      const incomingImagesEarly = selectAgentVisionUrls([
+        ...visionIncoming,
+        ...sessionIncoming,
+        ...((options?.documentImageUrls ?? [])
+          .map((u) => String(u ?? "").trim())
+          .filter(Boolean)),
+      ]);
       const priceFromTurn = trimmed ? parsePriceFromChatInput(trimmed) : null;
       let draftForTurn = aiDraft
         ? priceFromTurn != null && !(aiDraft.price > 0)
@@ -1343,39 +1347,31 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       let pendingForTurn = sessionPendingImageUrls;
       if (incomingImagesEarly.length) {
+        // Keep ALL attachments in pending for Gemini — do not strip documents here.
+        // Public gallery hard-filter runs only after Vision returns (server draft).
         pendingForTurn = [...incomingImagesEarly, ...sessionPendingImageUrls]
           .filter(Boolean)
           .filter((u, i, arr) => arr.indexOf(u) === i)
           .slice(0, 6);
         setSessionPendingImageUrls(pendingForTurn);
         setListingPublishConfirmed(false);
-        const incomingDocs = (options?.documentImageUrls ?? [])
-          .map((u) => String(u ?? "").trim())
-          .filter(Boolean);
         const priorDocs = parseDocumentUrlsFromAttributes(draftForTurn?.attributes);
-        const allDocs = [...priorDocs, ...incomingDocs].filter(
-          (u, i, arr) => arr.indexOf(u) === i
-        );
         if (draftForTurn) {
-          const nextAttrs =
-            allDocs.length || incomingDocs.length
-              ? {
-                  ...(draftForTurn.attributes ?? {}),
-                  ...(allDocs.length
-                    ? {
-                        documentImageUrls: allDocs.join("|"),
-                        documentImageCount: String(allDocs.length),
-                      }
-                    : {}),
-                }
-              : draftForTurn.attributes;
-          const mergedPhotos = filterSessionListingImages(
-            [...incomingImagesEarly, ...(draftForTurn.orderedImageUrls ?? [])],
-            {
-              attributes: nextAttrs,
-              documentUrls: allDocs,
-            }
-          ).slice(0, 6);
+          // Preserve prior server-confirmed docs; do not ban by client heuristic yet.
+          const mergedPhotos = [
+            ...incomingImagesEarly,
+            ...(draftForTurn.orderedImageUrls ?? []),
+          ]
+            .filter(Boolean)
+            .filter((u, i, arr) => arr.indexOf(u) === i)
+            .slice(0, 6);
+          const nextAttrs = priorDocs.length
+            ? {
+                ...(draftForTurn.attributes ?? {}),
+                documentImageUrls: priorDocs.join("|"),
+                documentImageCount: String(priorDocs.length),
+              }
+            : draftForTurn.attributes;
           draftForTurn = {
             ...draftForTurn,
             orderedImageUrls: mergedPhotos,
@@ -1784,12 +1780,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const activePendingImageUrls =
         incomingImages ??
         (pendingForTurn.length ? pendingForTurn : undefined);
-      // Wire only the tiny vision subset — full gallery already in session/draft.
-      const requestPendingImageUrls = visionIncoming.length
-        ? visionIncoming
-        : incomingImages?.length
-          ? selectAgentVisionUrls(incomingImages)
-          : undefined;
+      // Vision wire must include tech passport / document frames (OCR), even when
+      // sessionImageUrls (public gallery) already stripped them.
+      const documentIncoming = (options?.documentImageUrls ?? [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean);
+      const requestPendingImageUrls = selectAgentVisionUrls([
+        ...(visionIncoming.length
+          ? visionIncoming
+          : incomingImages?.length
+            ? incomingImages
+            : []),
+        ...documentIncoming,
+      ]);
       const pendingImageCount =
         pendingForTurn.length ||
         sessionPendingImageUrls.length ||
@@ -1950,18 +1953,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           currentUser,
         });
         const listingEditSession = readListingEditSession();
-        // Final canvas shrink — even if callers pass raw session data URLs.
-        const wireVisionUrls = requestPendingImageUrls?.length
-          ? capImageUrlsForAgentWire(
-              await Promise.all(
-                requestPendingImageUrls.map((url) =>
-                  url.startsWith("data:image")
-                    ? compressForAgentVisionSmart(url)
-                    : Promise.resolve(url)
-                )
-              )
-            )
-          : undefined;
+        // Final canvas shrink — sequential to keep browser/tab memory flat.
+        let wireVisionUrls: string[] | undefined;
+        if (requestPendingImageUrls.length) {
+          const compressed: string[] = [];
+          for (const url of requestPendingImageUrls) {
+            try {
+              compressed.push(
+                url.startsWith("data:image")
+                  ? await compressForAgentVisionSmart(url)
+                  : url
+              );
+            } catch {
+              compressed.push(url);
+            }
+          }
+          wireVisionUrls = capImageUrlsForAgentWire(compressed);
+        }
         const agentBody = {
           messages: sessionMessages.map((m) => ({
             role: m.role,

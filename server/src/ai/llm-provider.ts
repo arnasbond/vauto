@@ -484,6 +484,23 @@ function mergeStringArrays(...lists: unknown[]): string[] {
   return out;
 }
 
+function mergeTechnicalFields(
+  a: unknown,
+  b: unknown
+): Record<string, unknown> {
+  const left = asRecord(a);
+  const right = asRecord(b);
+  const out: Record<string, unknown> = { ...left };
+  for (const [k, v] of Object.entries(right)) {
+    const prev = out[k];
+    const prevStr = String(prev ?? "").trim();
+    const nextStr = String(v ?? "").trim();
+    if (!prevStr && nextStr) out[k] = v;
+    else if (prevStr && nextStr && nextStr.length > prevStr.length) out[k] = v;
+  }
+  return out;
+}
+
 /** Merge sequential vision-chunk JSON into one listing payload. */
 export function mergeVisionJsonChunks(
   parts: Record<string, unknown>[]
@@ -513,6 +530,28 @@ export function mergeVisionJsonChunks(
       if (String(v ?? "").trim() && !String(bv ?? "").trim()) {
         (merged.attributes as Record<string, unknown>)[k] = v;
       }
+    }
+
+    // Passport OCR often lands in a later chunk — never drop field values.
+    // Index/role arrays are chunk-local; do not concat them (would mis-map URLs).
+    merged.technicalFields = mergeTechnicalFields(
+      merged.technicalFields,
+      part.technicalFields
+    );
+    if (part.documentReadable === true || merged.documentReadable === true) {
+      merged.documentReadable = true;
+    } else if (
+      part.documentReadable === false ||
+      merged.documentReadable === false
+    ) {
+      merged.documentReadable = false;
+    }
+    const ocrA = Number(merged.documentOcrConfidence);
+    const ocrB = Number(part.documentOcrConfidence);
+    if (Number.isFinite(ocrB)) {
+      merged.documentOcrConfidence = Number.isFinite(ocrA)
+        ? Math.max(ocrA, ocrB)
+        : ocrB;
     }
 
     merged.detectedObjects = mergeStringArrays(

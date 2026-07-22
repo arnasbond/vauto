@@ -29,10 +29,18 @@ function encodeListingImage(sharpInstance: sharp.Sharp): Promise<Buffer> {
 
 /** Optimize raw image bytes for listing storage (WebP by default). */
 export async function optimizeListingImageBuffer(buffer: Buffer): Promise<Buffer> {
-  const pipeline = sharp(buffer)
-    .rotate()
-    .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true });
-  return encodeListingImage(pipeline);
+  try {
+    const pipeline = sharp(buffer)
+      .rotate()
+      .resize({ width: 1600, height: 1600, fit: "inside", withoutEnlargement: true });
+    return await encodeListingImage(pipeline);
+  } catch (err) {
+    console.warn(
+      "[image-processor] optimizeListingImageBuffer failed — using original",
+      err instanceof Error ? err.message : err
+    );
+    return buffer;
+  }
 }
 
 export function listingImageMime(): string {
@@ -73,24 +81,40 @@ export async function applyVautoWatermark(
     return imageDataUrl;
   }
 
-  const { buffer } = parseDataUrl(imageDataUrl);
-  const meta = await sharp(buffer).metadata();
-  const width = meta.width ?? 1280;
-  const height = meta.height ?? 960;
+  try {
+    const { buffer } = parseDataUrl(imageDataUrl);
+    const meta = await sharp(buffer).metadata();
+    const width = meta.width ?? 1280;
+    const height = meta.height ?? 960;
 
-  const watermark = buildWatermarkSvg(width, height, listingId);
-  const output = await encodeListingImage(
-    sharp(buffer).rotate().composite([{ input: watermark, blend: "over" }])
-  );
+    const watermark = buildWatermarkSvg(width, height, listingId);
+    const output = await encodeListingImage(
+      sharp(buffer).rotate().composite([{ input: watermark, blend: "over" }])
+    );
 
-  return toDataUrl(output, listingImageMime());
+    return toDataUrl(output, listingImageMime());
+  } catch (err) {
+    console.warn(
+      "[image-processor] applyVautoWatermark failed — using original",
+      err instanceof Error ? err.message : err
+    );
+    return imageDataUrl;
+  }
 }
 
 export async function optimizeListingImage(imageDataUrl: string): Promise<string> {
   if (!imageDataUrl.startsWith("data:image")) return imageDataUrl;
-  const { buffer } = parseDataUrl(imageDataUrl);
-  const output = await optimizeListingImageBuffer(buffer);
-  return toDataUrl(output, listingImageMime());
+  try {
+    const { buffer } = parseDataUrl(imageDataUrl);
+    const output = await optimizeListingImageBuffer(buffer);
+    return toDataUrl(output, listingImageMime());
+  } catch (err) {
+    console.warn(
+      "[image-processor] optimizeListingImage failed — using original",
+      err instanceof Error ? err.message : err
+    );
+    return imageDataUrl;
+  }
 }
 
 /**
@@ -127,22 +151,31 @@ export async function looksLikeDocumentImageBuffer(buffer: Buffer): Promise<bool
 /**
  * OCR prep for tech passport / registration documents:
  * grayscale (kill green paper noise) + contrast boost + sharpen for crisp text edges.
+ * Sized for Render free-tier RAM (avoid 2k+ parallel spikes).
  */
 export async function enhanceDocumentForOcr(buffer: Buffer): Promise<Buffer> {
-  return sharp(buffer)
-    .rotate()
-    .resize({
-      width: 2000,
-      height: 2000,
-      fit: "inside",
-      withoutEnlargement: false,
-    })
-    .grayscale()
-    .normalize()
-    .linear(1.28, -18)
-    .sharpen({ sigma: 1.6, m1: 2.0, m2: 0.7 })
-    .jpeg({ quality: 93, mozjpeg: true })
-    .toBuffer();
+  try {
+    return await sharp(buffer)
+      .rotate()
+      .resize({
+        width: 1600,
+        height: 1600,
+        fit: "inside",
+        withoutEnlargement: false,
+      })
+      .grayscale()
+      .normalize()
+      .linear(1.28, -18)
+      .sharpen({ sigma: 1.6, m1: 2.0, m2: 0.7 })
+      .jpeg({ quality: 90, mozjpeg: true })
+      .toBuffer();
+  } catch (err) {
+    console.warn(
+      "[image-processor] enhanceDocumentForOcr failed — using original",
+      err instanceof Error ? err.message : err
+    );
+    return buffer;
+  }
 }
 
 export type PreparedVisionImage = {
@@ -155,6 +188,7 @@ export type PreparedVisionImage = {
  * Prepare a single image for Gemini Vision.
  * Documents → mono + contrast + sharpen (JPEG).
  * Product/car → original buffer unchanged (caller keeps original mime).
+ * Never throws — sharp failures fall back to the original buffer.
  */
 export async function prepareImageForGeminiVision(
   buffer: Buffer,
@@ -163,11 +197,55 @@ export async function prepareImageForGeminiVision(
   if (opts?.forceProduct) {
     return { buffer, mime: "image/jpeg", isDocument: false };
   }
-  const isDocument =
-    opts?.forceDocument === true || (await looksLikeDocumentImageBuffer(buffer));
+
+  let isDocument = opts?.forceDocument === true;
+  if (!isDocument) {
+    try {
+      isDocument = await looksLikeDocumentImageBuffer(buffer);
+    } catch (err) {
+      console.warn(
+        "[image-processor] looksLikeDocumentImageBuffer failed — treating as product",
+        err instanceof Error ? err.message : err
+      );
+      isDocument = false;
+    }
+  }
+
   if (!isDocument) {
     return { buffer, mime: "image/jpeg", isDocument: false };
   }
-  const enhanced = await enhanceDocumentForOcr(buffer);
-  return { buffer: enhanced, mime: "image/jpeg", isDocument: true };
+
+  try {
+    const enhanced = await enhanceDocumentForOcr(buffer);
+    return { buffer: enhanced, mime: "image/jpeg", isDocument: true };
+  } catch (err) {
+    console.warn(
+      "[image-processor] enhanceDocumentForOcr failed — using original buffer",
+      err instanceof Error ? err.message : err
+    );
+    return { buffer, mime: "image/jpeg", isDocument: true };
+  }
+}
+
+/**
+ * Memory-safe: process vision images one-by-one (never Promise.all on sharp).
+ * Each failure falls back via prepareImageForGeminiVision — no process crash.
+ */
+export async function prepareImagesForGeminiVisionSequential(
+  buffers: Buffer[],
+  opts?: { forceDocument?: boolean; forceProduct?: boolean }
+): Promise<PreparedVisionImage[]> {
+  const out: PreparedVisionImage[] = [];
+  for (const buffer of buffers) {
+    try {
+      out.push(await prepareImageForGeminiVision(buffer, opts));
+    } catch (err) {
+      console.warn(
+        "[image-processor] prepareImages sequential item failed — using original",
+        err instanceof Error ? err.message : err
+      );
+      out.push({ buffer, mime: "image/jpeg", isDocument: false });
+    }
+  }
+  return out;
 }

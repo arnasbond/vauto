@@ -316,10 +316,10 @@ export function listingFlowComposerPlaceholder(
   state: ListingFlowState | null
 ): string | null {
   if (state === "AWAITING_PHOTOS") {
-    return "Įkelkite nuotraukas arba „Judame prie PrePublish“…";
+    return "Įkelkite nuotraukas per (+) arba parašykite kainą…";
   }
   if (state === "DRAFT_READY") {
-    return "„Prisegti nuotraukas“ arba „Judame prie PrePublish“…";
+    return "Parašykite kainą arba patikrinkite PrePublish kortelę…";
   }
   if (state === "AWAITING_CONFIRMATION") {
     return "Spauskite „Patvirtinti ir publikuoti“ ant kortelės";

@@ -308,13 +308,15 @@ export function AiCommandBar({
             };
         // Clear composer only after a successful handoff — otherwise a short-circuit
         // (or transport failure) would wipe photos and draft text with nothing sent.
+        const allWire = prepared.agentVisionUrls.length
+          ? prepared.agentVisionUrls
+          : prepared.listingImageUrls;
         const res = await sendAgentMessage(msg, {
-          ...(prepared.listingImageUrls.length || prepared.agentVisionUrls.length
+          ...(allWire.length
             ? {
-                sessionImageUrls: prepared.listingImageUrls,
-                pendingImageUrls: prepared.agentVisionUrls.length
-                  ? prepared.agentVisionUrls
-                  : prepared.listingImageUrls.slice(0, 6),
+                // Zero pre-filter: all attachments → Gemini. Gallery strip post-vision.
+                sessionImageUrls: allWire,
+                pendingImageUrls: allWire,
                 ...(prepared.suspectedDocumentUrls?.length
                   ? { documentImageUrls: prepared.suspectedDocumentUrls }
                   : {}),

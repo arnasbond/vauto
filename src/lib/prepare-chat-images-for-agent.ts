@@ -54,7 +54,7 @@ function isHttpUrl(url: string): boolean {
 
 /**
  * Heuristic: Lithuanian tech passport is green / paper-like.
- * Sample a downscaled canvas for green dominance or near-white document paper.
+ * Used only to pick compression quality — NEVER to drop from the vision payload.
  */
 export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean> {
   if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
@@ -84,9 +84,7 @@ export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean
           const g = data[i + 1] ?? 0;
           const b = data[i + 2] ?? 0;
           total += 1;
-          // Green certificate body (LT tech passport)
           if (g > r + 18 && g > b + 10 && g > 70) greenish += 1;
-          // Pale paper / form
           if (r > 200 && g > 200 && b > 190 && Math.abs(r - g) < 25) paperish += 1;
         }
         const greenRatio = total ? greenish / total : 0;
@@ -115,54 +113,87 @@ export async function compressForAgentVisionSmart(
 }
 
 /**
- * Prepare chat photos for listing + agent:
- * 1) canvas-compress every photo for the local gallery / publish draft
- * 2) smart-compress for agent stream (documents high-res, cars smaller)
+ * Prepare chat photos for the agent wire.
+ *
+ * ZERO PRE-FILTERING: every attached file (cars + tech passport) is returned
+ * in both listingImageUrls and agentVisionUrls. Public-gallery stripping of
+ * documents happens ONLY after Gemini Vision on the server/state layer.
+ *
+ * Sequential loops keep peak memory low (never Promise.all on heavy canvas work).
  */
 export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
   listingImageUrls: string[];
   agentVisionUrls: string[];
   suspectedDocumentUrls: string[];
 }> {
-  const unique = [...new Set(rawUrls.filter(Boolean))].slice(0, 6);
+  const unique = [...new Set(rawUrls.filter(Boolean))].slice(
+    0,
+    AGENT_VISION_MAX_DATA_IMAGES
+  );
   if (!unique.length) {
     return { listingImageUrls: [], agentVisionUrls: [], suspectedDocumentUrls: [] };
   }
 
-  const listingImageUrls = (
-    await Promise.all(unique.map((url) => compressForAgentBatch(url)))
-  ).filter(Boolean);
+  const listingImageUrls: string[] = [];
+  for (const url of unique) {
+    try {
+      const compressed = await compressForAgentBatch(url);
+      if (compressed) listingImageUrls.push(compressed);
+    } catch {
+      if (url) listingImageUrls.push(url);
+    }
+  }
 
   const suspectedDocumentUrls: string[] = [];
-  const agentVisionUrls = (
-    await Promise.all(
-      listingImageUrls.map(async (url) => {
-        if (isHttpUrl(url)) return url;
-        const isDoc = await looksLikeDocumentDataUrl(url);
-        if (isDoc) suspectedDocumentUrls.push(url);
-        return isDoc
-          ? compressForAgentDocumentVision(url)
-          : compressForAgentVisionWire(url);
-      })
-    )
-  ).filter(Boolean);
+  const agentVisionUrls: string[] = [];
+  for (const url of listingImageUrls) {
+    try {
+      if (isHttpUrl(url)) {
+        agentVisionUrls.push(url);
+        continue;
+      }
+      const isDoc = await looksLikeDocumentDataUrl(url);
+      if (isDoc) suspectedDocumentUrls.push(url);
+      const vision = isDoc
+        ? await compressForAgentDocumentVision(url)
+        : await compressForAgentVisionWire(url);
+      if (vision) agentVisionUrls.push(vision);
+    } catch {
+      agentVisionUrls.push(url);
+    }
+  }
 
-  // Public gallery never includes suspected tech passport / document frames.
+  // Docs first so chunked Gemini OCR sees the passport early — still ALL files.
   const ban = new Set(suspectedDocumentUrls);
-  const publicListingUrls = listingImageUrls.filter((u) => !ban.has(u));
+  const docsFirst = [
+    ...agentVisionUrls.filter((u) => ban.has(u)),
+    ...agentVisionUrls.filter((u) => !ban.has(u)),
+  ];
+  const visionAll = selectAgentVisionUrls(docsFirst);
 
   return {
-    listingImageUrls: publicListingUrls.length ? publicListingUrls : listingImageUrls.filter((u) => !ban.has(u)),
-    agentVisionUrls: selectAgentVisionUrls(agentVisionUrls),
+    // Full set for session + wire — no client-side gallery ban.
+    listingImageUrls: selectAgentVisionUrls(listingImageUrls),
+    agentVisionUrls: visionAll,
     suspectedDocumentUrls,
   };
 }
 
-/** Prefer http URLs (tiny); otherwise send compressed data URLs (up to 6). */
+/**
+ * Keep ALL attached media for Gemini Vision (http + data), up to 6.
+ * Never drop data-URL tech passports when some cars are already http.
+ */
 export function selectAgentVisionUrls(urls: string[]): string[] {
   if (!urls.length) return [];
-  const http = urls.filter(isHttpUrl);
-  if (http.length) return http.slice(0, 6);
-  const data = urls.filter((u) => u.startsWith("data:"));
-  return data.slice(0, AGENT_VISION_MAX_DATA_IMAGES);
+  const out: string[] = [];
+  const seen = new Set<string>();
+  for (const raw of urls) {
+    const u = String(raw ?? "").trim();
+    if (!u || seen.has(u)) continue;
+    if (!isHttpUrl(u) && !u.startsWith("data:")) continue;
+    seen.add(u);
+    out.push(u);
+    if (out.length >= AGENT_VISION_MAX_DATA_IMAGES) break;
+  }
+  return out;
 }

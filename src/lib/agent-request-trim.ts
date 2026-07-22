@@ -6,19 +6,25 @@ export const AGENT_MAX_MESSAGES = 8;
 export const AGENT_MAX_MESSAGE_CHARS = 12_000;
 export const AGENT_MAX_LISTINGS = 48;
 export const AGENT_MAX_LISTING_DESC_CHARS = 160;
+/**
+ * Preserve every attached vision URL for Gemini (http + data), up to 6.
+ * Do NOT drop data-URL tech passports when some car photos are already http —
+ * that previously sent 5/6 and broke OCR fields A/B/D.3/P.1/P.3.
+ */
 function selectVisionUrlsForAgentPost(urls: string[]): string[] {
   if (!urls.length) return [];
-  const http: string[] = [];
-  const data: string[] = [];
+  const out: string[] = [];
+  const seen = new Set<string>();
   for (const raw of urls) {
     const u = String(raw ?? "").trim();
-    if (!u) continue;
-    if (u.startsWith("http://") || u.startsWith("https://")) http.push(u);
-    else if (u.startsWith("data:")) data.push(u);
+    if (!u || seen.has(u)) continue;
+    const isHttp = u.startsWith("http://") || u.startsWith("https://");
+    if (!isHttp && !u.startsWith("data:")) continue;
+    seen.add(u);
+    out.push(u);
+    if (out.length >= 6) break;
   }
-  // Prefer http (tiny) when any exist; otherwise send up to 6 compressed data URLs.
-  if (http.length) return http.slice(0, 6);
-  return data.slice(0, 6);
+  return out;
 }
 
 export interface AgentRequestMessage {

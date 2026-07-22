@@ -1621,13 +1621,25 @@ export async function executeAgentTool(
     }
 
     case "scanListingPhotos": {
+      // Keep every attached frame (cars + tech passport). Gallery strip happens
+      // only when writing orderedImageUrls / public galleryUrls below.
       const imageUrls = Array.isArray(args.imageUrls)
-        ? args.imageUrls.map(String).filter(Boolean).slice(0, 6)
+        ? [...new Set(args.imageUrls.map(String).filter(Boolean))].slice(0, 6)
         : [];
       const categoryHint = args.category ? String(args.category) : ctx.listingDraft?.category;
       const prior = ctx.listingDraft;
 
       try {
+        console.log("[vision] scanListingPhotos tool payload", {
+          count: imageUrls.length,
+          kinds: imageUrls.map((u) =>
+            u.startsWith("data:")
+              ? `data(${u.length})`
+              : u.startsWith("http")
+                ? "http"
+                : "other"
+          ),
+        });
         const parsed = await parseListingImagesForAgent({
           imageDataUrls: imageUrls,
           userCity: ctx.userCity,

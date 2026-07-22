@@ -1220,9 +1220,34 @@ async function runVautoAgentInner(
           continue;
         }
       }
+      // Force full pending media into vision scan — model often omits the
+      // tech-passport data URL when cars are already http URLs.
+      let toolArgs: Record<string, unknown> = { ...(args ?? {}) };
+      if (name === "scanListingPhotos" && pendingChatImages?.length) {
+        const fromModel = Array.isArray(toolArgs.imageUrls)
+          ? toolArgs.imageUrls.map(String).filter(Boolean)
+          : [];
+        const merged = [
+          ...pendingChatImages,
+          ...fromModel.filter((u) => !pendingChatImages.includes(u)),
+        ].slice(0, 6);
+        toolArgs = { ...toolArgs, imageUrls: merged };
+        console.log("[vision] scanListingPhotos forced pending media", {
+          pendingCount: pendingChatImages.length,
+          modelCount: fromModel.length,
+          mergedCount: merged.length,
+          kinds: merged.map((u) =>
+            u.startsWith("data:")
+              ? `data(${u.length})`
+              : u.startsWith("http")
+                ? "http"
+                : "other"
+          ),
+        });
+      }
       const { result, sideEffect: fx } = await executeAgentTool(
         name,
-        args ?? {},
+        toolArgs,
         ctx
       );
       emitAgentEvent(onEvent, { type: "tool_result", name });
