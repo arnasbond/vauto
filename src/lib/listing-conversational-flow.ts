@@ -7,6 +7,12 @@ import {
 } from "@vauto/shared/listing-organism";
 
 export {
+  VAUTO_DOMAIN_SCOPE_REDIRECT,
+  VAUTO_IN_DOMAIN_RECOVERY,
+  VAUTO_DOMAIN_AUTONOMY_RULES,
+} from "@vauto/shared/vauto-domain-autonomy";
+
+export {
   LISTING_FLOW_STATES,
   type ListingFlowState,
   type ListingFlowEvent,

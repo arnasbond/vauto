@@ -1,5 +1,7 @@
 /** Shared VAUTO Zero-UI secretary tone — warm curator, not a bureaucratic filter. */
 
+import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
+
 /** Minimum meaningful user utterance before Gemini is invoked (VAD-style guard).
  * Text-only input (no voice noise) — keep low so short brand/product queries
  * like "vw", "bmw", "kia", "a4" are never rejected as noise. */
@@ -20,9 +22,9 @@ export function hasMeaningfulShortToken(text: string): boolean {
 }
 
 export const TEXT_SECRETARY_NOISE_REPLIES = [
-  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau?",
-  "Galite tiesiog parašyti — padėsiu surasti ar sukurti skelbimą.",
-  "Aplink triukšmo — parašykite, ką ieškote ar norite parduoti, ir tęsime.",
+  VAUTO_IN_DOMAIN_RECOVERY,
+  "Galite parašyti, ką ieškote ar norite parduoti VAUTO — padėsiu su skelbimu.",
+  "Parašykite trumpai apie prekę, paslaugą ar paiešką — tęsime VAUTO platformoje.",
 ] as const;
 
 /** @deprecated Use TEXT_SECRETARY_NOISE_REPLIES */

@@ -43,6 +43,7 @@ import {
   buildListingDraftUpdateReply,
   ensureRichListingDraftReply,
 } from "./listing-draft-preview.js";
+import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
 import { evaluateServerPrePublishReadiness } from "./pre-publish-validation.js";
 import {
   resolveContactCaptureResponse,
@@ -285,8 +286,8 @@ function resolveAgentQuickReplies(
   return undefined;
 }
 
-const BUDDY_REPEAT_PROMPT =
-  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau apibūdinti, ko ieškote?";
+/** Legacy name kept for call sites — content is domain-autonomy recovery (no “ne visai supratau”). */
+const BUDDY_REPEAT_PROMPT = VAUTO_IN_DOMAIN_RECOVERY;
 
 function humanizeSearchItem(searchQuery: string): string {
   const q = searchQuery.trim().toLowerCase();
@@ -1626,41 +1627,45 @@ async function runVautoAgentInner(
     };
   }
 
-  if (!finalText) {
-    console.error("[vision] vauto-agent BUDDY_REPEAT fallback", {
+  if (!finalText?.trim()) {
+    // Prefer in-domain continuity when a draft already exists — never rigid “ne visai”.
+    if (listingDraft?.title?.trim()) {
+      const recovery = buildDraftingCompletePhotosPrompt({
+        title: listingDraft.title,
+        description: listingDraft.description,
+        price: listingDraft.price,
+        location: listingDraft.location,
+      });
+      console.warn("[vision] vauto-agent empty finalText → draft continuity", {
+        reason: lastGeminiError ? "lastGeminiError" : "empty_finalText",
+        lastGeminiError: lastGeminiError ?? null,
+        pendingCount: pendingChatImages?.length ?? 0,
+      });
+      return {
+        ok: true,
+        reply: `Tęsiame jūsų juodraštį.\n\n${recovery}`,
+        quickReplies,
+        toolCalls,
+        actions: {
+          type: "listing_draft",
+          listingDraft: normalizeListingDraftForAction(listingDraft, {
+            contact: req.context.contact,
+            userCity: req.context.userCity,
+            listingFlowState: listingDraft.listingFlowState,
+          }),
+        },
+      };
+    }
+    console.warn("[vision] vauto-agent empty finalText → in-domain recovery", {
       reason: lastGeminiError ? "lastGeminiError" : "empty_finalText",
       lastGeminiError: lastGeminiError ?? null,
       pendingCount: pendingChatImages?.length ?? 0,
-      resolvedActionType: resolvedAction.type,
       toolNames: toolCalls.map((t) => t.name),
       lastUserTextHead: lastUserText.slice(0, 120),
     });
-    if (lastGeminiError) {
-      return {
-        ok: true,
-        reply: BUDDY_REPEAT_PROMPT,
-        quickReplies,
-        toolCalls,
-        actions: resolvedAction,
-      };
-    }
     return {
       ok: true,
-      reply: BUDDY_REPEAT_PROMPT,
-      quickReplies,
-      toolCalls,
-      actions: resolvedAction,
-    };
-  }
-
-  if (!finalText.trim()) {
-    console.error("[vision] vauto-agent BUDDY_REPEAT whitespace-only finalText", {
-      pendingCount: pendingChatImages?.length ?? 0,
-      lastGeminiError: lastGeminiError ?? null,
-    });
-    return {
-      ok: true,
-      reply: BUDDY_REPEAT_PROMPT,
+      reply: VAUTO_IN_DOMAIN_RECOVERY,
       quickReplies,
       toolCalls,
       actions: resolvedAction,

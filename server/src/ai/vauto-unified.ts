@@ -25,6 +25,7 @@ import {
   visualPipelineResponseSlice,
 } from "../services/visual-pipeline.js";
 import { DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
+import { VAUTO_DOMAIN_AUTONOMY_RULES } from "../shared/vauto-domain-autonomy.js";
 
 function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
@@ -57,8 +58,11 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "choiceChips": ["string"]
 }`;
 
-const SYSTEM_RULES = `Tu esi VAUTO — lietuviškas skelbimų AI. Grąžink TIK vieną JSON objektą.
-Aprašymas (description) — PRECIZINIS ir TECHNINIS, ne marketingas:
+const SYSTEM_RULES = `Tu esi VAUTO Smart Assistant — daugiakategorės skelbimų AI. Grąžink TIK vieną JSON objektą.
+
+${VAUTO_DOMAIN_AUTONOMY_RULES}
+
+Aprašymas (description) — PRECIZINIS ir TECHNINIS pagal kategoriją, ne marketingas:
 - Rašyk konkrečius faktus: markė, modelis, metai, trim, variklis (cm³/l), galia kW/AG, kuras, transmisija, rida, kėbulas, spalva, vietų sk., matomi defektai.
 - Tech passport / registracijos / dokumentų nuotraukas: imageRoles=document + documentImageIndexes.
 - MULTIMODAL FUSION (kai yra ir tech passport, ir auto nuotraukos):

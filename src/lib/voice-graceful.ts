@@ -1,7 +1,10 @@
 import type { VoiceIntentAnalysis } from "@/lib/voice-intent";
+import {
+  VAUTO_IN_DOMAIN_RECOVERY,
+} from "@vauto/shared/vauto-domain-autonomy";
 
-export const BUDDY_REPEAT_PROMPT =
-  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau apibūdinti, ko ieškote?";
+/** @deprecated Prefer VAUTO_IN_DOMAIN_RECOVERY — kept for import compatibility. */
+export const BUDDY_REPEAT_PROMPT = VAUTO_IN_DOMAIN_RECOVERY;
 
 /** Detect garbled STT noise or unusable transcript before AI. */
 export function isUnclearTranscript(text: string | null | undefined): boolean {
@@ -31,9 +34,9 @@ export function createGracefulVoiceIntentFallback(
   transcript: string
 ): VoiceIntentAnalysis {
   return {
-    understoodSummary: "Ne viską aiškiai supratau",
+    understoodSummary: "Tęsiame VAUTO pagalba",
     needsClarification: true,
-    followUpQuestion: BUDDY_REPEAT_PROMPT,
+    followUpQuestion: VAUTO_IN_DOMAIN_RECOVERY,
     missingFields: [],
     imageSearchQuery: "",
     mergedTranscript: transcript.trim(),
@@ -54,7 +57,7 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
   ) {
     return (
       err ||
-      "Dabar daug užklausų — bandau dar kartą po minutės. Kol kas galite parašyti kitą klausimą."
+      "Dabar daug užklausų — bandau dar kartą po minutės. Kol kas galite parašyti kitą klausimą dėl skelbimo ar paieškos."
     );
   }
 
@@ -68,11 +71,9 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
   }
 
   if (normalizedCode === "timeout" || /timeout|laiko limit/i.test(err)) {
-    return "Užtruko ilgiau nei įprastai — bandykite dar kartą, aš pasiruošęs padėti.";
+    return "Užtruko ilgiau nei įprastai — bandykite dar kartą dėl skelbimo ar paieškos VAUTO.";
   }
 
-  if (!err) return BUDDY_REPEAT_PROMPT;
-  if (/json|parse|invalid|unexpected token/i.test(err)) return BUDDY_REPEAT_PROMPT;
-  if (/tuščia|empty|neaišk/i.test(err)) return BUDDY_REPEAT_PROMPT;
-  return BUDDY_REPEAT_PROMPT;
+  // Never surface rigid “ne visai supratau” — keep users in-domain.
+  return VAUTO_IN_DOMAIN_RECOVERY;
 }

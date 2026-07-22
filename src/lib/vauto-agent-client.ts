@@ -7,6 +7,7 @@ import {
 } from "@/lib/agent-listing-chat-input";
 import { detectSellerListingIntent } from "@/lib/scoring";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
+import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
 
 export type { ListingChatContext };
 
@@ -139,12 +140,13 @@ export interface CurrentPageContext {
 /** Matches server SECRETARY_SESSION_TTL_MS (15 min). */
 export const AGENT_SESSION_TTL_MS = 15 * 60 * 1000;
 
-export const AGENT_MIN_QUERY_CHARS = 5;
+/** Aligned with server SECRETARY_MIN_QUERY_CHARS — domain autonomy, not rigid length gates. */
+export const AGENT_MIN_QUERY_CHARS = 2;
 export const AGENT_VOICE_MIN_QUERY_CHARS = 2;
 
 export const AGENT_NOISE_REPLIES = [
-  "Hmm, ne visai supratau — gal galite parašyti kitaip arba trumpiau?",
-  "Galite tiesiog parašyti — padėsiu surasti ar sukurti skelbimą.",
+  VAUTO_IN_DOMAIN_RECOVERY,
+  "Galite parašyti, ką ieškote ar norite parduoti VAUTO — padėsiu su skelbimu.",
 ] as const;
 
 const AGENT_SESSION_ACTIVITY_KEY = "vauto_agent_last_activity_v1";

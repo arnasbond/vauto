@@ -39,6 +39,12 @@ export {
   buildPostVisionHeroMessage,
 } from "../shared/listing-organism.js";
 
+export {
+  VAUTO_DOMAIN_SCOPE_REDIRECT,
+  VAUTO_IN_DOMAIN_RECOVERY,
+  VAUTO_DOMAIN_AUTONOMY_RULES,
+} from "../shared/vauto-domain-autonomy.js";
+
 import {
   AWAITING_PHOTOS_PROMPT,
   PROFILE_CITY_REQUIRED,
