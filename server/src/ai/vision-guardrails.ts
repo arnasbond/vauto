@@ -1,14 +1,18 @@
-/** Shared Gemini Vision guardrails — reject logos/text-only images, never hallucinate products. */
+/**
+ * Gemini Vision guidance — soft autonomy, not a hard reject gate.
+ * Never instruct the model to abort the listing pipeline for logos/rooms/ambiguity.
+ */
+
 export const VISION_ANTI_HALLUCINATION_RULE = `
-GRIEŽTA TAISYKLĖ — PRIVALOMA:
-Jei nuotraukoje NĖRA aiškiai identifikuojamo vieno pardavinėjamo objekto (drabužio ant kūno/manekeno, automobilio, baldų, elektronikos ir pan.), o matomas kambarys, interjeras, keli objektai, tekstas, logotipas, reklaminis plakatas, ekrano nuotrauka, tuščias fonas arba neaiškus vaizdas —
-- grąžink confidence: 0 arba < 0.3
-- NEGENERUOK išgalvoto skelbimo ir NEPRISKIR PASLAUGOS automatiškai
-- Vietoj to pasiūlyk patikslinimą: apibūdink ką matai ir užduok klausimą su alternatyvomis (pvz. „Matau kambarį ir TV — ar parduodate televizorių, baldą, ar siūlote paslaugas?")
-- DRAUDŽIAMA haliucinuoti (išsigalvoti) netikrus variantus be vizualinio pagrindo`;
+VIZUALUS SUPRATIMAS (PRIVALOMA — autonomija, ne blokas):
+- Ištrauk viską, ką matai: produktą, auto, NT, elektroniką, drabužį ar paslaugos kontekstą.
+- Jei keli objektai — detectedObjects + choiceChips; confidence gali būti žemesnis, BET VIS TIEK grąžink geriausią juodraščio pasiūlymą.
+- DRAUDŽIAMA: visiškai tuščias atsakymas, „prekė neatpažinta“ kaip stop, automatinis PASLAUGOS priskyrimas be pagrindo.
+- Jei vaizdas silpnas — documentReadable/confidence atspindėk, bet NESTABDYK juodraščio.
+- NIEKADA neatmesk vartotojo nuotraukų kaip „stock“ / „neadekvatu“ — tai ne tavo sprendimas.`;
 
 export const WARDROBE_ANTI_HALLUCINATION_RULE = `
-GRIEŽTA TAISYKLĖ — PRIVALOMA:
-Jei nuotraukoje nėra realaus matomo drabužio (tik logotipas, tekstas, tuščias vaizdas, reklama) —
-grąžink {"items":[],"error":"Prekė neatpažinta","voiceAnnouncement":"..."}.
-DRAUDŽIAMA išsigalvoti netikrus drabužių variantus. Kiekvienas items įrašas turi atitikti aiškų fizinį drabužį nuotraukoje.`;
+SPINTOS VIZIJA (PRIVALOMA — autonomija):
+- Aptik matomus drabužius ir grąžink items masyvą.
+- Jei neaišku — items gali būti tuščias, BET voiceAnnouncement turi pasiūlyti kitą žingsnį (patikslinti / įkelti kitą kadrą), ne kietą atmetimą.
+- DRAUDŽIAMA išsigalvoti neegzistuojančius drabužius be vizualinio pagrindo.`;

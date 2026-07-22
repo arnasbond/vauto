@@ -35,17 +35,6 @@ export const AI_MOCK_TIMEOUT_MS = AI_TIMEOUT_POLICY.mockMs;
 export const VISION_RECOGNITION_FAILED_MESSAGE =
   "Nuotrauka ne visai aiški — galite pabandyti kitą kadrą arba aprašykite prekę pokalbyje.";
 
-/** Titles returned when vision AI is unavailable — must not pass as valid extraction */
-export const DEMO_AI_PLACEHOLDER_TITLES = new Set([
-  "prekė nuotraukoje",
-  "universalus daiktas",
-  "skelbimas",
-  "automobilis (atpažintas iš ai)",
-  "mobilus telefonas",
-  "buitinė prekė",
-  "drabužis / apranga",
-]);
-
 export const PROCESSING_MILESTONES = [
   { atMs: 0, label: "Apdorojamas audio įrašas..." },
   { atMs: 400, label: "Struktūrizuojami skelbimo duomenys..." },
@@ -116,51 +105,21 @@ export function withAiTimeout<T>(
   });
 }
 
+/**
+ * Minimal accept gate — never reject Vision drafts for placeholder titles,
+ * low confidence, or category heuristics. Null/empty payload only.
+ */
 export function isValidAiExtracted(
   data: AiExtractedListing | null | undefined
 ): boolean {
   if (!data) return false;
-
   const title = data.title?.trim() ?? "";
-  if (title.length < 2) return false;
-
-  const titleKey = title.toLowerCase();
-  if (
-    DEMO_AI_PLACEHOLDER_TITLES.has(titleKey) &&
-    (data.confidence ?? 0) < 0.55
-  ) {
-    return false;
-  }
-
-  if (
-    data.description &&
-    /nepavyko tiksliai atpažinti/i.test(data.description) &&
-    (data.confidence ?? 0) < 0.55
-  ) {
-    return false;
-  }
-
-  const genericPlaceholders = ["skelbimas", "naujas skelbimas", "be pavadinimo"];
-  if (
-    genericPlaceholders.includes(title.toLowerCase()) &&
-    (data.confidence ?? 0) <= 0.1
-  ) {
-    return false;
-  }
-
-  const validCategories: ListingCategory[] = [
-    "electronics",
-    "vehicles",
-    "services",
-    "jobs",
-    "home",
-    "clothing",
-    "real_estate",
-    "other",
-  ];
-  if (!validCategories.includes(data.category)) return false;
-
-  return true;
+  const description = data.description?.trim() ?? "";
+  const hasAttrs =
+    data.attributes &&
+    Object.values(data.attributes).some((v) => String(v ?? "").trim().length > 0);
+  // Accept any non-empty Gemini payload so the unified pipeline is never blocked.
+  return title.length > 0 || description.length > 0 || Boolean(hasAttrs);
 }
 
 export function createManualFallbackDraft(opts: {

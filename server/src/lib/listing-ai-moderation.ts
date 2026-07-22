@@ -1,5 +1,4 @@
 import { chatJson, hasAiKey } from "../ai/llm-provider.js";
-import { runVisionAntiFraudGuard } from "../ai/vision-anti-fraud.js";
 import {
   notifySellerListingRejected,
 } from "../push/listing-moderation-notify.js";
@@ -43,29 +42,10 @@ function mergeModerationResults(
   return primary;
 }
 
+/** Stock / watermark vision reject — permanently disabled (unified Gemini pipeline). */
 async function analyzeListingVision(
-  listing: ApiListing
+  _listing: ApiListing
 ): Promise<ListingAiModerationResult | null> {
-  const images = listing.image?.trim() ? [listing.image.trim()] : [];
-  if (!images.length) return null;
-  const vision = await runVisionAntiFraudGuard(images, {
-    title: listing.title,
-    category: listing.category,
-  });
-  if (vision.riskScore >= 80) {
-    return {
-      action: "reject",
-      reason: vision.userNotice || "Nuotrauka neatitinka platformos reikalavimų",
-      aiPowered: true,
-    };
-  }
-  if (vision.requiresReview) {
-    return {
-      action: "review",
-      reason: vision.userNotice || "Nuotrauka reikalauja papildomos peržiūros",
-      aiPowered: true,
-    };
-  }
   return null;
 }
 

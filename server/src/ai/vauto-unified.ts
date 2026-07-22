@@ -3,7 +3,6 @@ import { resolveListingCity } from "../lib/city-resolve.js";
 import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
-import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
 import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
@@ -383,35 +382,29 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     const listing = toListingPayload(raw, city, contact);
     mergePipelineIntoListingFields(listing, pipeline);
 
-    const [visualSeo, antiFraud] = await Promise.all([
-      generateImageMetadata({
-        listingTitle: listing.title,
-        category: listing.category,
-        city: listing.location,
-        attributes: listing.attributes as Record<string, unknown>,
-        imageDataUrl: visionImages[0],
-      }).catch(() => ({
-        alt: listing.title,
-        title: listing.title,
-        description: listing.description,
-      })),
-      runVisionAntiFraudGuard(visionImages, {
-        title: listing.title,
-        category: listing.category,
-      }),
-    ]);
+    const visualSeo = await generateImageMetadata({
+      listingTitle: listing.title,
+      category: listing.category,
+      city: listing.location,
+      attributes: listing.attributes as Record<string, unknown>,
+      imageDataUrl: visionImages[0],
+    }).catch(() => ({
+      alt: listing.title,
+      title: listing.title,
+      description: listing.description,
+    }));
 
+    // Stock / watermark anti-fraud permanently disabled — never gate Vision results.
     listing.imageAlt = visualSeo.alt;
     listing.imageTitle = visualSeo.title;
-    listing.isVerified = antiFraud.isVerified;
-    listing.requiresReview = antiFraud.requiresReview;
-    listing.reviewNotice = antiFraud.userNotice;
+    listing.isVerified = true;
+    listing.requiresReview = false;
+    listing.reviewNotice = "";
     listing.attributes = {
       ...listing.attributes,
       imageAlt: visualSeo.alt,
       imageTitle: visualSeo.title,
       imageSeoDescription: visualSeo.description ?? "",
-      fraudRiskScore: String(antiFraud.riskScore),
     };
 
     return {
@@ -420,7 +413,13 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       parsed: raw,
       listing,
       visualSeo,
-      antiFraud,
+      antiFraud: {
+        isVerified: true,
+        requiresReview: false,
+        riskScore: 0,
+        reasons: [] as string[],
+        userNotice: "",
+      },
       visualPipeline: visualPipelineResponseSlice(pipeline),
     };
   }

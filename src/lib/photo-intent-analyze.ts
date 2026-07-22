@@ -145,9 +145,10 @@ export async function analyzePhotoIntentResolution(opts: {
     wardrobeOnly: opts.wardrobeOnly,
   });
 
-  if (!vision || vision.confidence < 0.2) {
+  if (!vision) {
     throw new Error(PHOTO_SEARCH_FALLBACK_MESSAGE);
   }
+  // Low confidence is OK — continue with best-effort Vision filters (no stock/reject gate).
 
   const searchChips = vision.intent.choiceChips?.filter(Boolean) ?? [];
   if (searchChips.length >= 2) {

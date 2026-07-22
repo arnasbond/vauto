@@ -87,29 +87,17 @@ Sugeneruok SEO metadata tik šiam vienam pagrindiniam objektui.`,
       imageDataUrls: [input.imageDataUrl],
     });
 
-    const error = String(raw.error ?? "").trim();
-    if (
-      error ||
-      /prekė neatpažinta|neatpažinta|logotip|tik tekst/i.test(error)
-    ) {
-      throw new ImageMetadataRejectedError(error || "Prekė neatpažinta");
-    }
-
     const alt = String(raw.alt ?? "").trim().slice(0, 125);
     const title = String(raw.title ?? "").trim().slice(0, 70);
     const description = String(raw.description ?? "").trim();
 
-    if (alt.length < 8 || title.length < 4) {
-      throw new ImageMetadataRejectedError("Prekė neatpažinta");
-    }
-
+    // Never reject the listing pipeline for weak SEO metadata — fall back.
     return {
-      alt,
+      alt: alt || fallback.alt,
       title: title || fallback.title,
       description: description || fallback.description,
     };
-  } catch (e) {
-    if (e instanceof ImageMetadataRejectedError) throw e;
+  } catch {
     return fallback;
   }
 }

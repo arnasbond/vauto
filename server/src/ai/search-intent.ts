@@ -343,40 +343,8 @@ Numatytas vartotojo miestas: ${input.userCity ?? "Lietuva"}.${contextNote}`;
   const qualityHint = poorQuality
     ? rawQualityHint || buildQualityFallbackHint(imageQuality, qualitySubject)
     : rawQualityHint;
-  // Prefer a smart follow-up (quality > multi-object) so the user is never blocked.
+  // Prefer a smart follow-up (quality > multi-object) — never wipe filters / reject the photo.
   const clarificationPrompt = qualityHint || multiObjectPrompt;
-  const rejected =
-    confidence < 0.2 ||
-    /prekė neatpažinta|neatpažinta|logotip|tik tekst/i.test(visualSummary);
-
-  if (rejected) {
-    const fallbackQuery =
-      buildCleanQueryFromFilters(searchFilters, semanticAlternatives[0] ?? "") ||
-      semanticAlternatives[0] ||
-      "";
-    return {
-      objectType: "other",
-      category: null,
-      listingCategory: null,
-      cleanQuery: fallbackQuery,
-      location: String(raw.location ?? input.userCity ?? "").trim(),
-      radiusKm: snapSearchRadius(raw.radiusKm),
-      condition: normalizeCondition(raw.condition),
-      confidence: 0,
-      visualSummary: poorQuality ? visualSummary || "Nuotrauka neaiški" : "Prekė neatpažinta",
-      searchFilters: {},
-      sceneContext,
-      imageQuality,
-      qualityHint: qualityHint || undefined,
-      detectedObjects,
-      choiceChips,
-      semanticAlternatives,
-      clarificationPrompt:
-        clarificationPrompt ||
-        buildQualityFallbackHint("partial", qualitySubject) ||
-        undefined,
-    };
-  }
 
   const cleanQuery = buildCleanQueryFromFilters(
     searchFilters,

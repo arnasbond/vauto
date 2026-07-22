@@ -207,63 +207,18 @@ export function adaptiveVerticalChanged(
   return listingToAdaptiveKey(prevCategory) !== listingToAdaptiveKey(nextCategory);
 }
 
-function visionImpliesElectronicsListing(draft: AiExtractedListing): boolean {
-  if (draft.category === "electronics") return true;
-
-  const sk = String(draft.attributes?.skelbiuCategory ?? "").toLowerCase();
-  if (/elektron|telefon|mobil|iphone|android|samsung|kompiuter/.test(sk)) return true;
-
-  const haystack = `${draft.title ?? ""} ${draft.description ?? ""}`.toLowerCase();
-  return /telefon|iphone|samsung|mobilus|galaxy|android/.test(haystack);
-}
-
 /**
- * Photo re-upload conflict detector.
- * Returns true when the user must confirm before category/fields change (no silent switch).
+ * Photo re-upload conflict detector — DISABLED.
+ * Domain autonomy: Vision category wins; never roll back / hard-block publish.
  */
 export function detectSellerPhotoCategoryConflict(
-  previousCategory: ListingCategory | null | undefined,
-  previousAttributes: CategoryAttributes | null | undefined,
-  finalized: AiExtractedListing
+  previousCategory?: ListingCategory | null,
+  previousAttributes?: CategoryAttributes | null,
+  finalized?: AiExtractedListing
 ): boolean {
-  if (!previousCategory) return false;
-
-  const prevKey = listingToAdaptiveKey(previousCategory);
-  const nextKey = listingToAdaptiveKey(finalized.category);
-  const prevEffective = resolveEffectiveListingCategory(
-    previousCategory,
-    previousAttributes ?? {}
-  );
-  const nextEffective = resolveEffectiveListingCategory(
-    finalized.category,
-    finalized.attributes ?? {}
-  );
-
-  // Hard rule: auto flow + Vision says phone/electronics → always prompt.
-  if (prevKey === "vehicles" && visionImpliesElectronicsListing(finalized)) {
-    return true;
-  }
-
-  if (prevEffective === "vehicles" && nextEffective === "electronics") {
-    return true;
-  }
-
-  if (adaptiveVerticalChanged(previousCategory, finalized.category)) {
-    return true;
-  }
-
-  if (prevEffective !== nextEffective) {
-    return true;
-  }
-
-  if (
-    prevKey === "vehicles" &&
-    nextKey === "universal" &&
-    universalSubVerticalChanged(previousAttributes, finalized.attributes)
-  ) {
-    return true;
-  }
-
+  void previousCategory;
+  void previousAttributes;
+  void finalized;
   return false;
 }
 

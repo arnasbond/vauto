@@ -141,15 +141,10 @@ import { scheduleListingSocialPublish } from "@/lib/listing-social-sync";
 import { listingToAdaptiveKey, evaluateListingPublishValidation } from "@/lib/adaptive-categories";
 import {
   adaptiveVerticalChanged,
-  detectSellerPhotoCategoryConflict,
   finalizeListingDraft,
   resolveEffectiveListingCategory,
   sanitizeAttributesForCategory,
 } from "@/lib/listing-attribute-isolation";
-import {
-  pushPhotoCategoryMismatchGreeting,
-  hasActivePhotoCategoryMismatch,
-} from "@/lib/seller-photo-category-mismatch";
 import {
   isBarcodeLookupEligibleCategory,
   resolveBarcodeFromAttributes,
@@ -875,39 +870,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           previousAttributes
         );
 
-        const hasPhotoCategoryMismatch =
-          Boolean(previousDraft) &&
-          mode === "upload" &&
-          detectSellerPhotoCategoryConflict(
-            previousCategory,
-            previousAttributes,
-            finalized
-          );
-
-        if (hasPhotoCategoryMismatch && previousDraft && previousCategory) {
-          const rollbackSnap =
-            photoReplaceSnapshotRef.current ?? {
-              draft: finalizeListingDraft(
-                previousDraft,
-                previousCategory,
-                previousAttributes
-              ),
-              previewImage: sellerPreviewImageRef.current,
-            };
-          categoryMismatchRollbackRef.current = rollbackSnap;
-          categoryMismatchPendingRef.current = finalized;
-          setPhotoCategoryMismatch({
-            fromCategory: previousCategory,
-            toCategory: finalized.category,
-          });
-          setSellerUserPrompt(null);
-          pushPhotoCategoryMismatchGreeting(previousCategory, finalized.category);
-          trackEvent("seller_photo_category_mismatch", {
-            fromCategory: previousCategory,
-            toCategory: finalized.category,
-          });
-          setAiDraft(rollbackSnap.draft);
-        } else {
+        {
           const needsClarification =
             shouldClarifyPhotoUpload(next) &&
             (mode === "upload" || mode === "combined");
@@ -1458,12 +1421,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       showToast(msg, "error");
       return { ok: false, error: msg };
     }
-    if (hasActivePhotoCategoryMismatch(photoCategoryMismatch)) {
-      const msg =
-        "Pirmiausia pasirinkite: grįžti į automobilių srautą arba keisti kategoriją į elektroniką.";
-      showToast(msg, "error");
-      return { ok: false, error: msg };
-    }
+    // Category-mismatch publish hard-block removed — Vision category is authoritative.
     if (!authHydrated) {
       const msg = "Palaukite — kraunama paskyra…";
       showToast(msg, "info");
@@ -2018,7 +1976,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     editingListingId,
     resetSellerFlow,
     listingSocialPublish,
-    photoCategoryMismatch,
     refreshListingsCatalog,
     trackEvent,
     logout,

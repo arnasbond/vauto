@@ -105,13 +105,7 @@ voiceAnnouncement: „${name}, tavo nuotraukoje matau N drabužius. Paruošiau N
     };
   }
 
-  const explicitError = String(raw.error ?? "").trim();
-  if (/prekė neatpažinta|neatpažinta/i.test(explicitError)) {
-    return {
-      items: [],
-      voiceAnnouncement: `${name}, nuotraukoje nematau aiškaus drabužio — įkelkite kitą nuotrauką.`,
-    };
-  }
+  // Soft path: ignore hard "neatpažinta" errors — parse whatever items Gemini returned.
   let items = parseItems(raw);
 
   if (!items.length) {
