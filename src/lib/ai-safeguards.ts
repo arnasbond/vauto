@@ -46,9 +46,6 @@ export const DEMO_AI_PLACEHOLDER_TITLES = new Set([
   "drabužis / apranga",
 ]);
 
-export const ENTERPRISE_TONE_RULES =
-  "Būk profesionalus, glaustas ir orientuotas į faktus. Nenaudok emoji. Venk žargono ir perteklinių emocijų. Sutelk dėmesį į skelbimo būseną ir reikalingus veiksmus.";
-
 export const PROCESSING_MILESTONES = [
   { atMs: 0, label: "Apdorojamas audio įrašas..." },
   { atMs: 400, label: "Struktūrizuojami skelbimo duomenys..." },

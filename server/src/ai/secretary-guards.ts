@@ -50,14 +50,6 @@ export function resolveSecretaryNoiseReply(
   return replies[hash]!;
 }
 
-export function isSecretarySessionExpired(
-  lastActiveAtMs: number | undefined,
-  now = Date.now()
-): boolean {
-  if (!lastActiveAtMs || !Number.isFinite(lastActiveAtMs)) return false;
-  return now - lastActiveAtMs > SECRETARY_SESSION_TTL_MS;
-}
-
 export function extractLastSessionTopic(messages: AgentMessage[]): string {
   for (let i = messages.length - 1; i >= 0; i--) {
     const msg = messages[i];

@@ -17,25 +17,6 @@ const CATEGORY_FALLBACK: Record<ListingCategory, string> = {
   other: UNSPLASH("photo-1571068316344-75bc76f77890"),
 };
 
-const CATEGORY_GALLERY_EXTRAS: Partial<Record<ListingCategory, string[]>> = {
-  vehicles: [
-    UNSPLASH("photo-1606664515524-ed2f786a0bd6"),
-    UNSPLASH("photo-1617531653332-bd46c24f2068"),
-  ],
-  electronics: [
-    UNSPLASH("photo-1592899677977-9c10ca588bbd"),
-    UNSPLASH("photo-1496181133206-80ce9b88a853"),
-  ],
-  real_estate: [
-    UNSPLASH("photo-1502672260266-1c1ef2d93688"),
-    UNSPLASH("photo-1560518883-ce09059eeffa"),
-  ],
-  clothing: [
-    UNSPLASH("photo-1551028719-00167b16eac5"),
-    UNSPLASH("photo-1434389677669-e08b4cac3105"),
-  ],
-};
-
 /** Keyword → Unsplash photo matched to listing content */
 const CONTENT_IMAGES: Array<[RegExp, string]> = [
   [/\bbmw\b/i, UNSPLASH("photo-1555215695-3004980ad54e")],

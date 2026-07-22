@@ -286,9 +286,6 @@ function resolveAgentQuickReplies(
   return undefined;
 }
 
-/** Legacy name kept for call sites — content is domain-autonomy recovery (no “ne visai supratau”). */
-const BUDDY_REPEAT_PROMPT = VAUTO_IN_DOMAIN_RECOVERY;
-
 function humanizeSearchItem(searchQuery: string): string {
   const q = searchQuery.trim().toLowerCase();
   if (/bat|aul|bas/.test(q)) return "tokių batelių";
@@ -333,7 +330,7 @@ export async function runVautoAgent(
     if (e instanceof AgentRouteError && e.code === "agent_unavailable") throw e;
     return {
       ok: true,
-      reply: BUDDY_REPEAT_PROMPT,
+      reply: VAUTO_IN_DOMAIN_RECOVERY,
       toolCalls: [],
       actions: { type: "none" },
     };

@@ -45,6 +45,7 @@ import {
   visualPipelineResponseSlice,
 } from "../services/visual-pipeline.js";
 import { VOICE_SECRETARY_PERSONA } from "../ai/secretary-persona.js";
+import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
 import {
   isTooShortSecretaryQuery,
   normalizeSecretaryQuery,
@@ -392,10 +393,9 @@ Jei vartotojas kelia skelbimą (sell/listing) ir trūksta laukų — needsClarif
     });
   } catch {
     res.json({
-      understoodSummary: "Ne viską aiškiai supratau",
+      understoodSummary: "Tęsiame VAUTO pagalba",
       needsClarification: true,
-      followUpQuestion:
-        "Atsiprašau, ne viską aiškiai išgirdau. Ar galėtumėte pakartoti komandą?",
+      followUpQuestion: VAUTO_IN_DOMAIN_RECOVERY,
       missingFields: [],
       imageSearchQuery: "",
       mergedTranscript: String(transcript ?? ""),

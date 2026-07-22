@@ -5,10 +5,6 @@
 
 import { LISTING_WORKFLOW_COMMAND_RULES, STRUCTURED_INPUT_PIPELINE_RULES, LISTING_CONTACT_CAPTURE_RULES, TEXT_AND_VISION_INPUT_ONLY } from "./structured-input-pipeline.js";
 import { GEMINI_BROWSE_ALL_RULES } from "./browse-all-agent-rules.js";
-import { VAUTO_DOMAIN_AUTONOMY_RULES } from "../shared/vauto-domain-autonomy.js";
-
-export { VAUTO_DOMAIN_AUTONOMY_RULES };
-
 export const GEMINI_ERROR_TOLERANCE_RULES = `SUPRATIMAS „IŠ PUSĖS ŽODŽIO" (KLAIDŲ TOLERANCIJA — PRIVALOMA, kaip ChatGPT):
 - Vartotojas KLYSTA — ir tai NORMALU. Supranti prasmę, ne raidę.
 - Toleruok gramatines klaidas, korektūros klaidas, sukeistas raides („volwo", „mrecedes", „iphon").

@@ -6,55 +6,31 @@ import {
   buildDraftingCompletePhotosPrompt,
 } from "@vauto/shared/listing-organism";
 
+/** Slim barrel — only symbols consumed by frontend chat / draft handlers. */
 export {
-  VAUTO_DOMAIN_SCOPE_REDIRECT,
-  VAUTO_IN_DOMAIN_RECOVERY,
-  VAUTO_DOMAIN_AUTONOMY_RULES,
-} from "@vauto/shared/vauto-domain-autonomy";
-
-export {
-  LISTING_FLOW_STATES,
   type ListingFlowState,
-  type ListingFlowEvent,
-  type ListingFlowDispatchResult,
-  PRE_PUBLISH_CARD_INTRO,
-  AWAITING_PHOTOS_PROMPT,
   AWAITING_PHOTOS_NUDGE,
-  POST_VISION_PUBLISH_GATE,
-  TEXT_DRAFT_READY_GATE,
-  POST_VISION_MORE_PHOTOS_NUDGE,
-  POST_VISION_PUBLISH_CHIPS,
-  TEXT_DRAFT_READY_CHIPS,
-  MULTIMODAL_FUSION_CONFIRM,
   AWAITING_CONFIRMATION_LOCKED,
+  MULTIMODAL_FUSION_CONFIRM,
+  POST_VISION_PUBLISH_CHIPS,
+  POST_VISION_PUBLISH_GATE,
+  PRE_PUBLISH_CARD_INTRO,
   PROFILE_CITY_REQUIRED,
   PROFILE_PHONE_REQUIRED,
-  isListingFlowState,
-  isVisionObjectSellChip,
-  nounFromVisionObjectSellChip,
-  isPublishReadyIntent,
-  isMorePhotosIntent,
-  isTextFirstListingIntent,
-  isProductDescriptionContext,
-  shouldBypassPhotosNudge,
+  buildDraftingCompletePhotosPrompt,
+  buildPostVisionHeroMessage,
+  dispatchListingFlowTurn,
   inferListingFlowState,
-  canTransitionListingFlow,
-  resolveLockedListingFlowState,
   isHeroFlowLocked,
-  transitionListingFlow,
-  listingFlowAllowsFieldMutation,
+  isVisionObjectSellChip,
   listingFlowAllowsPhotoUpload,
-  listingFlowTreatsTextAsConfirmation,
   listingFlowComposerPlaceholder,
   listingFlowComposerTextLocked,
-  dispatchListingFlowTurn,
-  buildDraftingCompletePhotosPrompt,
-  buildTextDraftReadyMessage,
-  buildPostVisionHeroMessage,
+  nounFromVisionObjectSellChip,
+  resolveLockedListingFlowState,
+  shouldBypassPhotosNudge,
+  transitionListingFlow,
 } from "@vauto/shared/listing-organism";
-
-export const LISTING_CONFIRM_CHIP = "✅ Viskas tinka";
-export const LISTING_EDIT_CHIP = "✏️ Dar pataisysiu";
 
 /** Profile-first, consultant tone — never „Trūksta miesto, kainos…“ dump. */
 export function buildConversationalMissingPrompt(
@@ -73,7 +49,6 @@ export function buildConversationalMissingPrompt(
   if (readiness.missingPrice) {
     return "Kokią kainą norėtumėte matyti skelbime — greitam pardavimui ar maksimaliai vertei? Parašykite sumą eurais.";
   }
-  // City / phone only at the end — never a photo hard-block before text draft review.
   if (readiness.missingPhone) {
     return PROFILE_PHONE_REQUIRED;
   }
@@ -95,8 +70,4 @@ export interface DraftConfirmationInput {
 
 export function buildDraftConfirmationBubble(draft: DraftConfirmationInput): string {
   return buildDraftingCompletePhotosPrompt(draft);
-}
-
-export function listingConfirmationQuickReplies(): string[] {
-  return [];
 }

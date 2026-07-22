@@ -249,25 +249,3 @@ export async function prepareImageForGeminiVision(
   }
 }
 
-/**
- * Memory-safe: process vision images one-by-one (never Promise.all on sharp).
- * Each failure falls back via prepareImageForGeminiVision — no process crash.
- */
-export async function prepareImagesForGeminiVisionSequential(
-  buffers: Buffer[],
-  opts?: { forceDocument?: boolean; forceProduct?: boolean }
-): Promise<PreparedVisionImage[]> {
-  const out: PreparedVisionImage[] = [];
-  for (const buffer of buffers) {
-    try {
-      out.push(await prepareImageForGeminiVision(buffer, opts));
-    } catch (err) {
-      console.warn(
-        "[image-processor] prepareImages sequential item failed — using original",
-        err instanceof Error ? err.message : err
-      );
-      out.push({ buffer, mime: "image/jpeg", isDocument: false });
-    }
-  }
-  return out;
-}

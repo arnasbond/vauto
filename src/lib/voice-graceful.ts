@@ -1,10 +1,5 @@
 import type { VoiceIntentAnalysis } from "@/lib/voice-intent";
-import {
-  VAUTO_IN_DOMAIN_RECOVERY,
-} from "@vauto/shared/vauto-domain-autonomy";
-
-/** @deprecated Prefer VAUTO_IN_DOMAIN_RECOVERY — kept for import compatibility. */
-export const BUDDY_REPEAT_PROMPT = VAUTO_IN_DOMAIN_RECOVERY;
+import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
 
 /** Detect garbled STT noise or unusable transcript before AI. */
 export function isUnclearTranscript(text: string | null | undefined): boolean {
@@ -74,6 +69,5 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
     return "Užtruko ilgiau nei įprastai — bandykite dar kartą dėl skelbimo ar paieškos VAUTO.";
   }
 
-  // Never surface rigid “ne visai supratau” — keep users in-domain.
   return VAUTO_IN_DOMAIN_RECOVERY;
 }

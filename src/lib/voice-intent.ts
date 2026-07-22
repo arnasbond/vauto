@@ -10,7 +10,6 @@ import {
   resolveAgentNoiseReply,
 } from "@/lib/vauto-agent-client";
 import {
-  BUDDY_REPEAT_PROMPT,
   createGracefulVoiceIntentFallback,
   isUnclearTranscript,
   isValidVoiceIntentPayload,
@@ -217,4 +216,4 @@ export async function analyzeVoiceIntent(params: {
   }
 }
 
-export { VOICE_INTENT_SCHEMA, BUDDY_REPEAT_PROMPT };
+export { VOICE_INTENT_SCHEMA };

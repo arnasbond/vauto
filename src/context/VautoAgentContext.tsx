@@ -24,10 +24,8 @@ import {
   compressForAgentVisionSmart,
   selectAgentVisionUrls,
 } from "@/lib/prepare-chat-images-for-agent";
-import {
-  BUDDY_REPEAT_PROMPT,
-  buddyMessageForAgentFailure,
-} from "@/lib/voice-graceful";
+import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
+import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
 import { requestWizardAgentExpand } from "@/lib/ai-conversational-recovery";
 import {
   buildCurrentPageContext,
@@ -2143,7 +2141,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         if (!res.reply && !hasExecutableAction) {
-          const fallback = BUDDY_REPEAT_PROMPT;
+          const fallback = VAUTO_IN_DOMAIN_RECOVERY;
           appendSupervisorAssistant(fallback);
           speakReply(fallback);
           if (open && !options?.fromSearchBar) showToast(fallback, "info");
@@ -2272,7 +2270,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         return { ok: true, reply: res.reply || assistantText, actions: res.actions };
       } catch {
-        const message = BUDDY_REPEAT_PROMPT;
+        const message = VAUTO_IN_DOMAIN_RECOVERY;
         setMessages((prev) => {
           const usersOnly = prev.filter((m) => m.role === "user");
           return [

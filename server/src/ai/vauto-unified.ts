@@ -38,7 +38,7 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   return false;
 }
 
-export const VAUTO_UNIFIED_SCHEMA = `{
+const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
   "title": "string — konkretus lietuviškas skelbimo pavadinimas (markė + VISAS modelis VERBATIM + metai). Pvz. „Citroën Grand C4 Picasso 2007“ — NIEKADA trumpinti į „C4 Picasso“",
