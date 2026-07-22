@@ -267,6 +267,7 @@ import {
   sanitizeListingTitle,
 } from "@/lib/listing-text-sanitize";
 import { filterSessionListingImages } from "@/lib/listing-image";
+import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import type { CheckoutSession } from "@/lib/monetization-catalog";
 
@@ -1146,15 +1147,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const previousDraft = aiDraftRef.current;
-      const galleryPhotos = [
-        ...(draft.orderedImageUrls ?? []),
-        ...(imageUrl ? [imageUrl] : []),
-        ...(previousDraft?.orderedImageUrls ?? []),
-      ]
-        .map((u) => String(u ?? "").trim())
-        .filter(Boolean)
-        .filter((u, i, arr) => arr.indexOf(u) === i)
-        .slice(0, 6);
+      const galleryPhotos = filterSessionListingImages(
+        [
+          ...(draft.orderedImageUrls ?? []),
+          ...(imageUrl ? [imageUrl] : []),
+          ...(previousDraft?.orderedImageUrls ?? []),
+        ],
+        {
+          attributes: {
+            ...(previousDraft?.attributes ?? {}),
+            ...(draft.attributes ?? {}),
+          },
+          documentUrls: parseDocumentUrlsFromAttributes({
+            ...(previousDraft?.attributes ?? {}),
+            ...(draft.attributes ?? {}),
+          }),
+        }
+      ).slice(0, 6);
       const draftWithPhotos =
         galleryPhotos.length > 0
           ? { ...draft, orderedImageUrls: galleryPhotos }
@@ -1706,6 +1715,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       : `l-${Date.now()}`;
 
     // Session photos only — never Unsplash/demo stock fillers from other listings.
+    // Document/tech-passport evidence stays out of the public gallery.
     const syncedGallery = filterSessionListingImages(
       resolveSellerGalleryImages(
         {
@@ -1718,7 +1728,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           ...(sellerPreviewImage ? [sellerPreviewImage] : []),
           ...sellerPreviewImages.filter(Boolean),
         ].filter((url, i, arr) => arr.indexOf(url) === i)
-      )
+      ),
+      { attributes: profileDraft.attributes }
     ).slice(0, 6);
 
     // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.

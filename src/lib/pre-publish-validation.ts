@@ -9,6 +9,8 @@ import {
 import type { UserCoords } from "@/lib/geolocation";
 import type { AiExtractedListing, UserProfile } from "@/lib/types";
 import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
+import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
+import { filterSessionListingImages } from "@/lib/listing-image";
 
 export interface PrePublishCardPayload {
   title: string;
@@ -19,6 +21,8 @@ export interface PrePublishCardPayload {
   phone?: string;
   imageUrl?: string | null;
   imageUrls?: string[];
+  /** Document photos used for OCR/specs — shown as note, not in public gallery. */
+  documentCount?: number;
   category?: string;
   /** Business VAT breakdown when seller has vatCode */
   vatLabelNet?: string;
@@ -32,15 +36,15 @@ export function buildPrePublishCardPayload(
 ): PrePublishCardPayload | null {
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
-  const imageUrls = [
-    ...(draft.orderedImageUrls ?? []),
-    ...(opts?.pendingImageUrls ?? []),
-    ...(previewImage ? [previewImage] : []),
-  ]
-    .map((u) => String(u ?? "").trim())
-    .filter(Boolean)
-    .filter((u, i, arr) => arr.indexOf(u) === i)
-    .slice(0, 6);
+  const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
+  const imageUrls = filterSessionListingImages(
+    [
+      ...(draft.orderedImageUrls ?? []),
+      ...(opts?.pendingImageUrls ?? []),
+      ...(previewImage ? [previewImage] : []),
+    ],
+    { documentUrls, attributes: draft.attributes }
+  ).slice(0, 6);
   const vatCode =
     opts?.vatCode ??
     String(draft.attributes?.vatCode ?? draft.attributes?.vat_code ?? "");
@@ -54,8 +58,9 @@ export function buildPrePublishCardPayload(
     priceLabel: draft.priceLabel ?? vatLabelGross,
     location: readiness.resolvedCity,
     phone: readiness.resolvedPhone,
-    imageUrl: imageUrls[0] ?? previewImage ?? null,
+    imageUrl: imageUrls[0] ?? null,
     ...(imageUrls.length ? { imageUrls } : {}),
+    ...(documentUrls.length ? { documentCount: documentUrls.length } : {}),
     category: draft.category,
     ...(vatLabelNet ? { vatLabelNet, vatLabelGross } : {}),
   };
@@ -155,17 +160,18 @@ export function evaluatePrePublishReadiness(
   const missingPhoto = !hasPhoto || photoClaimedInText;
 
   // Persist pending / ordered URLs onto the draft so PrePublish card always shows photos.
+  // Document/evidence URLs stay in attributes only — never in the public gallery preview.
   if (syncedDraft) {
-    const mergedPhotos = [
-      ...(syncedDraft.orderedImageUrls ?? []),
-      ...(input.orderedImageUrls ?? []),
-      ...(input.pendingImageUrls ?? []),
-      ...(input.previewImage ? [input.previewImage] : []),
-    ]
-      .map((u) => String(u ?? "").trim())
-      .filter(Boolean)
-      .filter((u, i, arr) => arr.indexOf(u) === i)
-      .slice(0, 6);
+    const documentUrls = parseDocumentUrlsFromAttributes(syncedDraft.attributes);
+    const mergedPhotos = filterSessionListingImages(
+      [
+        ...(syncedDraft.orderedImageUrls ?? []),
+        ...(input.orderedImageUrls ?? []),
+        ...(input.pendingImageUrls ?? []),
+        ...(input.previewImage ? [input.previewImage] : []),
+      ],
+      { documentUrls, attributes: syncedDraft.attributes }
+    ).slice(0, 6);
     if (mergedPhotos.length) {
       syncedDraft = { ...syncedDraft, orderedImageUrls: mergedPhotos };
     }

@@ -465,15 +465,15 @@ export function buildPostVisionHeroMessage(draft: {
   const meta = [price, loc].filter(Boolean).join(" · ");
   const tip =
     draft.category === "electronics"
-      ? "Patarimas: baterijos būklė, atmintis ir dėžutė — trys dalykai, kurie greičiausiai uždaro sandorį."
+      ? "Patarimas: baterija, atmintis ir komplektacija — trys faktai, kuriuos pirkėjai tikrina pirmiausia."
       : draft.category === "vehicles"
-        ? "Patarimas: metai, rida ir komplektacija kelia pasitikėjimą labiau nei ilgas tekstas be faktų."
-        : "Patarimas: konkretus aprašymas parduoda greičiau — pirkėjai greitai pastebi aiškumą.";
+        ? "Patarimas: metai, rida, variklis/kW ir komplektacija — konkretybės kelia pasitikėjimą greičiau už ilgas frazes."
+        : "Patarimas: konkretūs parametrai parduoda greičiau nei bendri šūkiai.";
   // After Vision, photos are already attached — never ask to „prisegti nuotraukas“ again.
   const cta =
-    "Štai aprašymas pagal jūsų nuotraukas. Kokią kainą nustatome, ar judame prie PrePublish kortelės peržiūros?";
+    "Techninis aprašymas pagal nuotraukas (ir dokumentus, jei buvo). Kokią kainą nustatome, ar judame prie PrePublish peržiūros?";
   const lines = [
-    `Paruošiau gražų skelbimą:`,
+    `Paruošiau techninį skelbimą:`,
     ``,
     title,
     desc ? `\n${desc}` : "",

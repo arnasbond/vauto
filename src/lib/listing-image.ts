@@ -1,5 +1,9 @@
 import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
 import { getSafeImageUrl } from "@/lib/utils";
+import {
+  filterPublicGalleryUrls,
+  parseDocumentUrlsFromAttributes,
+} from "@/lib/listing-gallery-roles";
 
 const UNSPLASH = (id: string) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -84,10 +88,20 @@ export function isDemoStockImageUrl(url: string): boolean {
   return u.includes("images.unsplash.com/") || u.includes("unsplash.com/");
 }
 
-/** Keep only real session/seller uploads (drop stock Unsplash fillers). */
-export function filterSessionListingImages(urls: readonly string[] | undefined): string[] {
-  return uniqueUrls(
-    (urls ?? []).filter((url) => isValidListingImageUrl(url) && !isDemoStockImageUrl(url))
+/** Keep only real session/seller uploads (drop stock Unsplash fillers + document evidence). */
+export function filterSessionListingImages(
+  urls: readonly string[] | undefined,
+  opts?: { documentUrls?: readonly string[]; attributes?: Record<string, string | string[] | undefined> }
+): string[] {
+  const docs = [
+    ...(opts?.documentUrls ?? []),
+    ...parseDocumentUrlsFromAttributes(opts?.attributes ?? null),
+  ];
+  return filterPublicGalleryUrls(
+    uniqueUrls(
+      (urls ?? []).filter((url) => isValidListingImageUrl(url) && !isDemoStockImageUrl(url))
+    ),
+    docs
   );
 }
 

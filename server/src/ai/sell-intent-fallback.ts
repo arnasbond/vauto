@@ -96,18 +96,16 @@ function buildFallbackDescription(input: {
   const subject = input.make || input.title;
   if (input.category === "vehicles" || input.make) {
     return [
-      `Parduodamas ${subject} — patrauklus pasirinkimas pirkėjui, kuris ieško praktinio ir patikimo varianto.`,
-      "Pagrindinius parametrus (metai, kuras, rida, komplektacija) patikslinsime pagal nuotraukas ir jūsų atsakymus.",
-      "Automobilis paruoštas apžiūrai; jei turite klausimų apie servisą ar dokumentus — mielai atsakysime.",
-      input.location
-        ? `Galima apžiūra: ${input.location}. Susisiekite ir sutarsime patogų laiką.`
-        : "Susisiekite dėl apžiūros ir detalių — atsakome greitai.",
-    ].join(" ");
+      `${subject}: techniniai duomenys bus patikslinti pagal tech passport / nuotraukas (metai, variklis, kW, kuras, rida, komplektacija).`,
+      "Matomi defektai ir komplektacija — pagal faktines nuotraukas; dokumentų nuotraukos naudojamos tik specs, ne viešai galerijai.",
+      input.location ? `Vieta: ${input.location}.` : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
   }
   return [
-    `Parduodamas ${subject}.`,
-    "Paruošiu turtingą skelbimo aprašymą pagal jūsų detales ir nuotraukas.",
-    "Susisiekite dėl apžiūros — atsakome greitai.",
+    `${subject}: konkretūs parametrai pagal jūsų detales ir nuotraukas.`,
+    "Be marketinginių frazių — tik faktinė informacija skelbimui.",
   ].join(" ");
 }
 
@@ -181,8 +179,8 @@ export function buildVisionQuotaTextFallbackJson(input: {
       : "Kainą galite nurodyti kitame žingsnyje.";
   const description = [
     draft.description,
-    "Nuotraukos išsaugotos skelbime.",
-    "AI vaizdo analizė šiuo metu nepasiekiama dėl didelio apkrovimo — aprašymą sudariau pagal jūsų tekstą; detales galite papildyti prieš skelbiant.",
+    "Nuotraukos išsaugotos. Dokumentų (tech passport) vaizdai naudojami tik specs — viešoje galerijoje nerodomi.",
+    "AI vaizdo analizė laikinai nepasiekiama — aprašymas sudarytas pagal jūsų tekstą; papildykite metus, ridą, variklį prieš skelbiant.",
     priceLine,
   ].join(" ");
 

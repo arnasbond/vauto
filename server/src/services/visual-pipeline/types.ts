@@ -19,6 +19,9 @@ export type PhotoAngleTag =
   | "detail"
   | "damage_closeup"
   | "label_sticker"
+  | "document"
+  | "tech_passport"
+  | "receipt"
   | "other";
 
 export interface VisualPipelineImageInput {

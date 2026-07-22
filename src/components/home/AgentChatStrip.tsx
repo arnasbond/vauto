@@ -77,6 +77,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     publishListing,
     isPublishingListing,
     finishPublishedFlow,
+    updateAiDraft,
+    updateSellerMedia,
   } = useSellerFlow();
   const { playPublishCelebration } = usePublishCelebration();
   const { isAuthenticated, authHydrated, user } = useAuth();
@@ -178,6 +180,14 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     enterListingEditMode();
   };
 
+  const handleGalleryChange = (imageUrls: string[]) => {
+    const next = imageUrls.map((u) => u.trim()).filter(Boolean).slice(0, 6);
+    updateAiDraft({ orderedImageUrls: next });
+    if (next[0]) {
+      updateSellerMedia({ imageDataUrl: next[0] });
+    }
+  };
+
   const handleDirectChip = async (option: string) => {
     // Object-sell chips must lock PrePublish locally — never fall into the photos nudge.
     if (isVisionObjectSellChip(option)) {
@@ -274,6 +284,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                     publishing={isPublishingListing}
                     onPublish={handleCardPublish}
                     onEdit={handleCardEdit}
+                    onGalleryChange={handleGalleryChange}
                   />
                 </div>
               ) : null}

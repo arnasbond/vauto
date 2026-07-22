@@ -3,7 +3,7 @@ import type { ClassifiedPhoto, PhotoAngleTag, SmartSortResult, VisualPipelineIma
 
 const ANGLE_SCHEMA = `{
   "photos": [
-    { "id": "string", "angleTag": "hero_front|hero_side|hero_three_quarter|interior|detail|damage_closeup|label_sticker|other", "heroScore": 0.0 }
+    { "id": "string", "angleTag": "hero_front|hero_side|hero_three_quarter|interior|detail|damage_closeup|label_sticker|document|tech_passport|receipt|other", "heroScore": 0.0 }
   ]
 }`;
 
@@ -15,8 +15,18 @@ const HERO_SCORE_BOOST: Partial<Record<PhotoAngleTag, number>> = {
   interior: 0.0,
   damage_closeup: -0.1,
   label_sticker: -0.15,
+  document: -1,
+  tech_passport: -1,
+  receipt: -1,
   other: 0.0,
 };
+
+const DOCUMENT_TAGS = new Set<PhotoAngleTag>([
+  "document",
+  "tech_passport",
+  "receipt",
+  "label_sticker",
+]);
 
 export async function runSmartSort(
   images: VisualPipelineImageInput[],
@@ -40,9 +50,10 @@ export async function runSmartSort(
   try {
     const idList = images.map((i) => i.id).join(", ");
     const raw = await visionExtractJson(
-      `Klasifikuok kiekvienos nuotraukos kampą/paskirtį pardavimo galerijoje. Kategorija: ${ctx.category ?? "other"}.
+      `Klasifikuok kiekvienos nuotraukos kampą/paskirtį. Kategorija: ${ctx.category ?? "other"}.
 Nuotraukų id eilėje: ${idList}.
-hero_front / hero_three_quarter — geriausi viršeliai. interior, label_sticker — žemesnis heroScore.
+hero_front / hero_three_quarter — geriausi viršeliai.
+document / tech_passport / receipt / label_sticker — dokumentai (tech passport, registracija, kvitas) — NE vieša galerija; heroScore labai žemas.
 Grąžink JSON: ${ANGLE_SCHEMA}`,
       images.map((i) => i.processedUrl ?? i.sourceUrl).slice(0, 12)
     );
@@ -62,7 +73,7 @@ Grąžink JSON: ${ANGLE_SCHEMA}`,
       }
     }
 
-    const ordered: ClassifiedPhoto[] = base
+    const orderedAll: ClassifiedPhoto[] = base
       .map((photo) => {
         const hit = classified.get(photo.id);
         return {
@@ -74,9 +85,13 @@ Grąžink JSON: ${ANGLE_SCHEMA}`,
       .sort((a, b) => b.heroScore - a.heroScore)
       .map((p, sortIndex) => ({ ...p, sortIndex }));
 
+    // Public gallery excludes document / passport / receipt photos.
+    const ordered = orderedAll.filter((p) => !DOCUMENT_TAGS.has(p.angleTag));
+    const galleryOrdered = ordered.length ? ordered : orderedAll;
+
     return {
-      ordered,
-      coverImageId: ordered[0]?.id ?? base[0]!.id,
+      ordered: galleryOrdered,
+      coverImageId: galleryOrdered[0]?.id ?? base[0]!.id,
     };
   } catch {
     return {

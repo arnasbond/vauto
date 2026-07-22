@@ -105,6 +105,7 @@ type MediaListingDraft = {
   location?: string;
   category?: string;
   attributes?: Record<string, string>;
+  orderedImageUrls?: string[];
   listingFlowState?: ListingFlowState;
 };
 
@@ -146,7 +147,7 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
-    "Vision: enrich listing with vehicle/product SPECS only (make, model, year, engine, kW, mileage, seats, VIN/plate if visible). NEVER describe background (paving, house, trees, sky).",
+    "Vision: extract precise SPECS only (make, model, year, trim, engine, kW, mileage, seats, VIN/plate). No marketing fluff. Classify tech passport/document photos via documentImageIndexes — they are OCR-only, not public gallery.",
   ].filter(Boolean);
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;
@@ -155,8 +156,6 @@ async function resolveListingPhotoScan(input: {
       imageDataUrls: imageUrls,
       userCity: input.userCity ?? "",
       contact: input.contact,
-      // Pass sell note as context for brand/category hints — Vision still owns the description.
-      // Also used as text-only draft when Gemini returns 429 RESOURCE_EXHAUSTED.
       text:
         input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
           ? input.userText.trim()
@@ -169,7 +168,7 @@ async function resolveListingPhotoScan(input: {
           : undefined,
       extraContext: [
         ...extraBits,
-        "PRIVALOMA: parašyk turtingą 4–8 sakinių marketplace description lietuviškai iš NUOTRAUKŲ (markė, modelis, spalva, salonas, būklė). NIEKADA nekartok vartotojo frazės kaip aprašymo.",
+        "PRIVALOMA: tikslus 4–8 sakinių TECHNINIS description lietuviškai (markė, modelis, metai, variklis, kW, kuras, rida, trim). BE fluff / CTA. Dokumentų indeksus — documentImageIndexes.",
       ].join("; "),
     });
   } catch (err) {
@@ -215,6 +214,10 @@ async function resolveListingPhotoScan(input: {
       Array.isArray(v) ? v.join(", ") : String(v),
     ])
   );
+  const publicGallery = parsed.galleryUrls.length
+    ? parsed.galleryUrls
+    : imageUrls;
+  const evidenceDocs = parsed.documentUrls;
 
   const visionDraft = {
     title: parsed.listing.title,
@@ -225,7 +228,16 @@ async function resolveListingPhotoScan(input: {
     price: parsed.listing.price || input.listingDraft?.price || 0,
     location: parsed.listing.location || input.listingDraft?.location || "",
     category: parsed.listing.category,
-    attributes: listingAttrs,
+    attributes: {
+      ...listingAttrs,
+      ...(evidenceDocs.length
+        ? {
+            documentImageUrls: evidenceDocs.join("|"),
+            documentImageCount: String(evidenceDocs.length),
+          }
+        : {}),
+    },
+    orderedImageUrls: publicGallery,
   };
 
   const nextState =
@@ -237,6 +249,7 @@ async function resolveListingPhotoScan(input: {
           ...input.listingDraft,
           ...visionDraft,
           description: visionDraft.description,
+          orderedImageUrls: publicGallery,
           attributes: {
             ...(input.listingDraft.attributes ?? {}),
             ...visionDraft.attributes,
@@ -253,9 +266,13 @@ async function resolveListingPhotoScan(input: {
 
   const quotaFallback =
     String(mergedDraft.attributes?.visionQuotaFallback ?? "") === "true";
+  const docNote =
+    evidenceDocs.length > 0
+      ? ` Tech passport / dokumentų nuotraukas (${evidenceDocs.length}) naudoju specs — viešoje galerijoje jų nebus.`
+      : "";
   const ack = quotaFallback
-    ? `Išsaugojau ${imageUrls.length > 1 ? `${imageUrls.length} nuotraukas` : "nuotrauką"}. AI vaizdo analizė šiuo metu perkrauta — paruošiau skelbimą pagal jūsų tekstą, kad galėtumėte tęsti iš karto.`
-    : photoAckLine(imageUrls.length);
+    ? `Išsaugojau nuotraukas.${docNote} AI vaizdo analizė šiuo metu perkrauta — paruošiau techninį aprašymą pagal jūsų tekstą.`
+    : `${photoAckLine(imageUrls.length)}${docNote}`;
   const resolvedCity =
     mergedDraft.location?.trim() || input.userCity?.trim() || "";
 
@@ -281,7 +298,8 @@ async function resolveListingPhotoScan(input: {
           ok: true,
           message: reply,
           draft: mergedDraft,
-          imageUrls,
+          imageUrls: publicGallery,
+          documentUrls: evidenceDocs,
           listingFlowState: nextState,
         },
       },
@@ -289,8 +307,8 @@ async function resolveListingPhotoScan(input: {
     actions: {
       type: "listing_draft",
       listingDraft: mergedDraft,
-      imageUrl: imageUrls[0],
-      imageUrls,
+      imageUrl: publicGallery[0],
+      imageUrls: publicGallery,
     },
   };
 }

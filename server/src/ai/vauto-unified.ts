@@ -7,6 +7,7 @@ import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
 import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
+import { splitGalleryAndDocumentUrls } from "./listing-gallery-roles.js";
 import {
   buildMultiObjectClarificationPrompt,
   chipsFromDetectedObjects,
@@ -24,39 +25,38 @@ import {
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
-  "title": "string — patrauklus lietuviškas skelbimo pavadinimas",
+  "title": "string — konkretus lietuviškas skelbimo pavadinimas (markė + modelis + metai jei žinoma)",
   "price": "number | null — kaina EUR; null jei nenurodyta",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — pilnas profesionalus skelbimo aprašymas lietuviškai (4–8 sakiniai: akcentai, būklė, nauda pirkėjui, CTA; be emoji; DRAUDŽIAMA 1 sakinio santrauka)",
-  "technicalFields": "object — kategorijai būdingi laukai (metai, kuroTipas, markė, modelis, mileage, dydis, būklė, kambariai ir pan.)",
+  "description": "string — TIKSLUS techninis aprašymas lietuviškai (4–8 sakiniai): markė, modelis, metai, variklis/cm³/kW, kuras, rida, kėbulas, trim, matomi defektai. DRAUDŽIAMA marketing fluff, emociniai šūkiai, CTA",
+  "technicalFields": "object — make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, condition",
+  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija / kvitas / dokumentas (OCR, NE viešai galerijai)",
+  "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
   "confidence": "number 0-1",
-  "sceneContext": "string — aplinkos kontekstas (pvz. svetainė, virtuvė, gatvė)",
-  "detectedObjects": [{ "label": "string — objekto pavadinimas lietuviškai", "category": "string — kategorija", "confidence": "number 0-1" }],
-  "choiceChips": ["string — mygtukų etiketės, pvz. Parduoti televizorių, Parduoti stalą"]
+  "sceneContext": "string — trumpas kontekstas",
+  "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
+  "choiceChips": ["string"]
 }`;
 
-const SYSTEM_RULES = `Tu esi VAUTO — išmanus lietuviškas skelbimų portalo AI asistentas.
-Visada grąžink TIK vieną JSON objektą pagal schemą — jokio markdown.
-Suprask laisvą lietuvišką tekstą arba nuotrauką: ar vartotojas nori PARDUOTI (sell), IEŠKOTI (search), PASLAUGOS (service), ar bendrai (general).
-Kategoriją parink tiksliai pagal objektą. Aprašymą (description) sugeneruok išsamiai lietuviškai — ne vieno sakinio suvestinė (pvz. „Citroën C4 Picasso automobilis…“), o pilnas skelbimo tekstas: akcentai, būklė, nauda pirkėjui, komplektacija ir aiškus kvietimas susisiekti / apžiūrėti.
-Jei kainos ar miesto nėra — price: null; city: naudok numatytąjį miestą iš užklausos (tikras pavadinimas, ne „Miestas“).
+const SYSTEM_RULES = `Tu esi VAUTO — lietuviškas skelbimų AI. Grąžink TIK vieną JSON objektą.
+Aprašymas (description) — PRECIZINIS ir TECHNINIS, ne marketingas:
+- Rašyk konkrečius faktus: markė, modelis, metai, trim, variklis (cm³/l), galia kW/AG, kuras, transmisija, rida, kėbulas, spalva, vietų sk., matomi defektai.
+- Tech passport / registracijos / dokumentų nuotraukas NAUDOK tikslioms specs — jų indeksus dėk į documentImageIndexes.
+- galleryImageIndexes — TIK automobilio/prekės nuotraukos. Dokumentų ten NEDĖK.
+- DRAUDŽIAMA: „patrauklus pasirinkimas“, „puiki proga“, „mielai atsakysime“, emociniai filleriai, CTA be faktų.
+- Jei faktas nematomas — praleisk, neišgalvok. Kainos ir miesto NEGALIMA išgalvoti.
 
 ${TEXT_AND_VISION_INPUT_ONLY}
 
 ${STRUCTURED_INPUT_VISION_RULES}
 
-KATEGORIJŲ TAISYKLĖS (griežtai):
-- NT (nekilnojamasis turtas): jei tekste yra butas/butą/butai, namas/namą/namai, žemė/žeme, sklypas, sodyba, kotedžas, patalpos, garažas, nekilnojamasis — category PRIVALO būti „NT“, NE „NAMAI“ (NAMAI = buitinės prekės).
-- AUTOMOBILIAI: jei tekste yra auto/automobilis/automobili, mašina/masina, transportas, rida, markė — category „AUTOMOBILIAI“, net be konkretaus modelio.
-- ANTRAŠTĖ (title): sugeneruok patrauklią lietuvišką pardavimo antraštę pagal TIKRĄ objektą iš vartotojo žinutės ar nuotraukos. NIEKADA nenaudok „Universalus daiktas“, „Prekė“ ar kitų bendrinių placeholderių. Nenaudok fiksuotų šabloninių modelių (pvz. iPhone 15 Pro), jei vartotojas nurodė kitą modelį.
-- Jei objektas neaiškus arba nuotraukoje tik fonas/kambarys — confidence < 0.3, price: null, title minimalus.
-- DAUgiatikslė ANALIZĖ: jei nuotraukoje keli objektai (pvz. kambarys + televizorius + stalas) — detectedObjects masyve išvardyk VISUS matomus objektus su confidence.
-- choiceChips: sugeneruok 2–4 mygtukų etiketes lietuviškai (pvz. „Parduoti televizorių“, „Parduoti stalą“) — po vieną kiekvienam aiškiam objektui.
-- NEAIŠKUS KAMBARIO VAIZDAS: NEPRISKIR PASLAUGOS. sceneContext aprašyk aplinką; technicalFields gali turėti clarificationPrompt.
-- Jei negali tiksliai nustatyti vieno objekto — confidence < 0.5, choiceChips privalomi, clarificationPrompt — disambiguation klausimas (ar teisingai suprantu, kurį objektą ruošiame?), ne išgalvotas skelbimas.
-
-Automobiliams technicalFields: make, model, year, fuelType, mileage, bodyType (jei žinoma).
-NT: propertyType (butas/namas/sklypas/patalpos), area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
+KATEGORIJŲ TAISYKLĖS:
+- NT: butas/namas/sklypas → „NT“, NE „NAMAI“.
+- AUTOMOBILIAI: auto/mašina/rida/markė → „AUTOMOBILIAI“.
+- title: konkretus (pvz. „Citroën C4 Picasso 2014“), be placeholderių.
+- Jei keli objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
+- Automobiliams technicalFields: make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, condition.
+NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -168,8 +168,8 @@ function buildTextPrompt(text: string, userCity: string, extraContext?: string):
 
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
-Pavyzdys: „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën automobilis", technicalFields.make Citroën.
-Svarbu: lauką description užpildyk pilnu, profesionaliu skelbimo aprašymu lietuviškai (mažiausiai 4 sakiniai) su akcentais, būkle ir CTA.
+Pavyzdys: „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën“, technicalFields.make Citroën.
+description: tik techniniai faktai lietuviškai (be fluff / CTA).
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
 
@@ -187,16 +187,11 @@ function buildImagePrompt(
   return `${SYSTEM_RULES}
 ${VISION_ANTI_HALLUCINATION_RULE}
 
-Analizuok VISAS pateiktas nuotraukas (ne tik pirmą): identifikuok matomus objektus, aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1 arba confidence < 0.55.
-Jei vienas aiškus objektas — pasirink jį kaip pagrindinį title/category. Jei neaišku — confidence < 0.3, nepriskirk PASLAUGOS be aiškaus paslaugų konteksto.
-
-Aprašymas (description) — PRIVALOMAS pilnas skelbimo tekstas lietuviškai (4–8 sakiniai). Įtrauk:
-- matomą spalvą / medžiagą / stilių ir pagrindinius akcentus;
-- komplektaciją ar įrangą (jei matoma);
-- būklę;
-- bet kokius matomus defektus (įbrėžimai, įlenkimai, dėmės, trūkumai). Jei defektų nesimato — parašyk tai aiškiai;
-- kvietimą veikti (apžiūra / susisiekti).
-DRAUDŽIAMA atsakyti tik „nuotrauka įkelta“, 1 sakinio santrauka ar „… automobilis.“ — aprašymas turi būti pardavimo tekstas pirkėjui.${textNote}${extra}
+Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1).
+1) Klasifikuok: produkto/auto → galleryImageIndexes; tech passport / registracija / kvitas / dokumentas → documentImageIndexes.
+2) Iš dokumentų ir auto nuotraukų ištrauk TIKSLIAS specs į technicalFields.
+3) description — 4–8 tikslūs techniniai sakiniai lietuviškai iš faktų. Be marketing fluff, be CTA, be fono aprašymo.
+4) NIEKADA nekartok vartotojo frazės kaip aprašymo.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
@@ -384,6 +379,8 @@ export async function parseListingImagesForAgent(params: {
   choiceChips: string[];
   clarificationPrompt: string;
   needsClarification: boolean;
+  galleryUrls: string[];
+  documentUrls: string[];
 }> {
   const images = normalizeImageInputList(params.imageDataUrls);
   console.log("[vision] parseListingImagesForAgent enter", {
@@ -439,6 +436,22 @@ export async function parseListingImagesForAgent(params: {
     price: listing.price,
   });
 
+  const { galleryUrls, documentUrls } = splitGalleryAndDocumentUrls(images, {
+    documentImageIndexes: raw.documentImageIndexes,
+    galleryImageIndexes: raw.galleryImageIndexes,
+  });
+  if (documentUrls.length) {
+    listing.attributes = {
+      ...listing.attributes,
+      documentImageUrls: documentUrls,
+      documentImageCount: String(documentUrls.length),
+    };
+  }
+  console.log("[vision] parseListingImagesForAgent gallery split", {
+    galleryCount: galleryUrls.length,
+    documentCount: documentUrls.length,
+  });
+
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
   let choiceChips = parseChoiceChips(
     raw.choiceChips ?? listing.attributes.choiceChips,
@@ -466,5 +479,7 @@ export async function parseListingImagesForAgent(params: {
     choiceChips,
     clarificationPrompt,
     needsClarification,
+    galleryUrls,
+    documentUrls,
   };
 }
