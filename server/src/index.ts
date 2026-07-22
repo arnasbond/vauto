@@ -35,10 +35,13 @@ app.post(
   express.raw({ type: "application/json" }),
   handleStripeWebhook
 );
-/** Multi-photo publish (6× data URLs) needs headroom above the old 25mb cap. */
+/**
+ * Multi-photo agent uploads (up to 6× Base64 data URLs) need a large JSON body.
+ * Client pre-resizes cars to ≤1600px / docs ≤1920px; keep 50mb headroom for bursts.
+ */
 const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT?.trim() || "50mb";
 app.use(express.json({ limit: JSON_BODY_LIMIT }));
-app.use(express.urlencoded({ extended: true, limit: JSON_BODY_LIMIT }));
+app.use(express.urlencoded({ limit: JSON_BODY_LIMIT, extended: true }));
 app.use(optionalAuth);
 app.use("/api/search", searchRateLimiter, searchRouter);
 app.use("/api/spinta", actionRateLimiter, spintaRouter);

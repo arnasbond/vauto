@@ -2269,8 +2269,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
         }
         return { ok: true, reply: res.reply || assistantText, actions: res.actions };
-      } catch {
-        const message = VAUTO_IN_DOMAIN_RECOVERY;
+      } catch (err) {
+        const raw = err instanceof Error ? err.message : String(err ?? "");
+        const message = buddyMessageForAgentFailure(raw, "network_error");
         setMessages((prev) => {
           const usersOnly = prev.filter((m) => m.role === "user");
           return [

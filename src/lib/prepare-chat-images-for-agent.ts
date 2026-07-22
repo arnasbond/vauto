@@ -3,22 +3,32 @@ import { compressDataUrl } from "@/lib/native-media";
 /** Max images on the agent stream wire (all session photos). */
 export const AGENT_VISION_MAX_DATA_IMAGES = 6;
 
+/** Listing / car photos — keep POST payload under ~50mb for 6 images. */
+const LISTING_PHOTO_MAX_DIM = 1600;
+const LISTING_PHOTO_QUALITY = 0.8;
+const LISTING_PHOTO_MAX_CHARS = 520_000;
+
+/** Tech passport / document OCR — high-res but still wire-safe. */
+const DOCUMENT_PHOTO_MAX_DIM = 1920;
+const DOCUMENT_PHOTO_QUALITY = 0.9;
+const DOCUMENT_PHOTO_MAX_CHARS = 900_000;
+
 /**
- * Light web optimize for car / product photos only (never documents).
- * Max 1920px, high quality — conserves memory without crushing detail.
+ * Pre-resize listing / car photos before Base64 wire encoding.
+ * Max 1600px, JPEG quality 0.8.
  */
 export async function compressForAgentBatch(dataUrl: string): Promise<string> {
   if (!dataUrl.startsWith("data:image")) return dataUrl;
   return compressDataUrl(dataUrl, {
-    maxDim: 1920,
-    quality: 0.88,
-    maxChars: 900_000,
+    maxDim: LISTING_PHOTO_MAX_DIM,
+    quality: LISTING_PHOTO_QUALITY,
+    maxChars: LISTING_PHOTO_MAX_CHARS,
     force: true,
   });
 }
 
 /**
- * Product-car vision wire — light optimize (same budget as batch).
+ * Product-car vision wire — same budget as batch pre-resize.
  */
 export async function compressForAgentVisionWire(
   dataUrl: string
@@ -27,13 +37,18 @@ export async function compressForAgentVisionWire(
 }
 
 /**
- * Tech passport / document OCR — FULL ORIGINAL RESOLUTION.
- * Never compress, downscale, or re-encode documents.
+ * Tech passport / document OCR — max 1920px, JPEG 0.9 (sharp text, not raw multi-MB).
  */
 export async function compressForAgentDocumentVision(
   dataUrl: string
 ): Promise<string> {
-  return dataUrl;
+  if (!dataUrl.startsWith("data:image")) return dataUrl;
+  return compressDataUrl(dataUrl, {
+    maxDim: DOCUMENT_PHOTO_MAX_DIM,
+    quality: DOCUMENT_PHOTO_QUALITY,
+    maxChars: DOCUMENT_PHOTO_MAX_CHARS,
+    force: true,
+  });
 }
 
 function isHttpUrl(url: string): boolean {
@@ -42,7 +57,7 @@ function isHttpUrl(url: string): boolean {
 
 /**
  * Heuristic: Lithuanian tech passport is green / paper-like.
- * Used only to mark docs as primary OCR sources — NEVER to drop from the wire.
+ * Used only to pick OCR compression budget — NEVER to drop from the wire.
  */
 export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean> {
   if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
@@ -88,21 +103,23 @@ export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean
 }
 
 /**
- * Compress for vision: documents stay FULL original; cars get light 1920px optimize.
+ * Compress for vision: documents ≤1920/0.9; cars ≤1600/0.8.
  */
 export async function compressForAgentVisionSmart(
   dataUrl: string
 ): Promise<string> {
   if (!dataUrl.startsWith("data:image")) return dataUrl;
   const isDoc = await looksLikeDocumentDataUrl(dataUrl);
-  return isDoc ? dataUrl : compressForAgentVisionWire(dataUrl);
+  return isDoc
+    ? compressForAgentDocumentVision(dataUrl)
+    : compressForAgentVisionWire(dataUrl);
 }
 
 /**
  * Prepare chat photos for the agent wire.
  *
- * - Passports: FULL original resolution (ground-truth OCR).
- * - Cars: light ≤1920px optimize.
+ * - Passports: ≤1920px @ JPEG 0.9 (OCR-sharp, payload-safe).
+ * - Cars: ≤1600px @ JPEG 0.8.
  * - ALL files sent (zero pre-filter). Gallery strip happens post-Vision on server.
  * Sequential loops — never Promise.all on heavy canvas work.
  */
@@ -119,7 +136,6 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
     return { listingImageUrls: [], agentVisionUrls: [], suspectedDocumentUrls: [] };
   }
 
-  // Detect documents on ORIGINAL bytes before any car optimize.
   const suspectedDocumentUrls: string[] = [];
   const prepared: string[] = [];
   for (const url of unique) {
@@ -130,13 +146,19 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
       }
       const isDoc = await looksLikeDocumentDataUrl(url);
       if (isDoc) {
-        suspectedDocumentUrls.push(url);
-        prepared.push(url); // full original — never compress
+        const compressed = await compressForAgentDocumentVision(url);
+        suspectedDocumentUrls.push(compressed);
+        prepared.push(compressed);
       } else {
         prepared.push(await compressForAgentBatch(url));
       }
     } catch {
-      prepared.push(url);
+      // Last-resort: still try listing budget so a huge original never hits the wire.
+      try {
+        prepared.push(await compressForAgentBatch(url));
+      } catch {
+        prepared.push(url);
+      }
     }
   }
 

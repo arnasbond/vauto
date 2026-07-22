@@ -1,5 +1,5 @@
 import { pickMultipleFromGallery } from "@/lib/native-media";
-import { compressForAgentBatch } from "@/lib/prepare-chat-images-for-agent";
+import { compressForAgentVisionSmart } from "@/lib/prepare-chat-images-for-agent";
 
 export const MAX_CHAT_COMPOSER_ATTACHMENTS = 6;
 
@@ -13,8 +13,14 @@ export async function pickNativeChatMedia(
   const photos = await pickMultipleFromGallery(remaining);
   if (!photos.length) return [];
 
-  const compressed = await Promise.all(
-    photos.map((photo) => compressForAgentBatch(photo.dataUrl))
-  );
+  // Sequential canvas work — avoids RAM spikes with 6 large phone photos.
+  const compressed: string[] = [];
+  for (const photo of photos) {
+    try {
+      compressed.push(await compressForAgentVisionSmart(photo.dataUrl));
+    } catch {
+      compressed.push(photo.dataUrl);
+    }
+  }
   return compressed.filter(Boolean);
 }

@@ -104,17 +104,28 @@ function unavailableResult(
   status?: number,
   detail?: string
 ): VautoAgentApiResult {
+  if (status === 413) {
+    return {
+      ok: false,
+      code: "payload_too_large",
+      error:
+        detail?.trim() ||
+        "Užklausa per didelė (HTTP 413). Bandykite įkelti mažiau nuotraukų vienu metu.",
+    };
+  }
   const code =
     status === 429
       ? "ai_rate_limit_exceeded"
       : status === 401
         ? "auth_required"
-        : "agent_unavailable";
+        : status == null || status === 0
+          ? "network_error"
+          : "agent_unavailable";
   const error =
     detail?.trim() ||
     (status
       ? `AI serveris nepasiekiamas (HTTP ${status})`
-      : "AI serveris nepasiekiamas — bandykite dar kartą po kelių minučių.");
+      : "Ryšys su AI serveriu nutrūko — bandykite dar kartą.");
   return { ok: false, code, error };
 }
 
@@ -252,6 +263,10 @@ export async function apiVautoAgentStream(
       if (name === "AbortError" || /aborted|timeout/i.test(msg)) {
         timedOut = true;
         lastDetail = "Užklausa viršijo laiko limitą";
+      } else if (/failed to fetch|networkerror|load failed|econnreset/i.test(msg)) {
+        // Oversized Base64 bodies often surface as a dropped connection, not HTTP 413.
+        lastDetail = msg || "Tinklo klaida siunčiant nuotraukas";
+        lastStatus = 0;
       } else {
         lastDetail = msg || "Tinklo klaida";
       }
@@ -261,11 +276,22 @@ export async function apiVautoAgentStream(
     }
   }
 
-  if (timedOut && (lastStatus == null || lastStatus >= 500)) {
+  if (timedOut && (lastStatus == null || lastStatus >= 500 || lastStatus === 0)) {
     return {
       ok: false,
       code: "timeout",
       error: lastDetail || "Užklausa viršijo laiko limitą",
+    };
+  }
+
+  if (
+    lastStatus === 0 ||
+    /failed to fetch|networkerror|load failed|econnreset/i.test(lastDetail ?? "")
+  ) {
+    return {
+      ok: false,
+      code: "network_error",
+      error: lastDetail || "Tinklo klaida siunčiant nuotraukas",
     };
   }
 

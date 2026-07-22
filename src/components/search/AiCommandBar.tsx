@@ -299,33 +299,43 @@ export function AiCommandBar({
         }
         const msg = trimmed;
         const images = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
-        const prepared = images.length
-          ? await prepareChatImagesForAgent(images)
-          : {
-              listingImageUrls: [] as string[],
-              agentVisionUrls: [] as string[],
-              suspectedDocumentUrls: [] as string[],
-            };
-        // Clear composer only after a successful handoff — otherwise a short-circuit
-        // (or transport failure) would wipe photos and draft text with nothing sent.
-        const allWire = prepared.agentVisionUrls.length
-          ? prepared.agentVisionUrls
-          : prepared.listingImageUrls;
-        const res = await sendAgentMessage(msg, {
-          ...(allWire.length
-            ? {
-                // Zero pre-filter: all attachments → Gemini. Gallery strip post-vision.
-                sessionImageUrls: allWire,
-                pendingImageUrls: allWire,
-                ...(prepared.suspectedDocumentUrls?.length
-                  ? { documentImageUrls: prepared.suspectedDocumentUrls }
-                  : {}),
-              }
-            : {}),
-        });
-        if (res.ok) {
-          setDraftQuery("");
-          if (isChatBar) setComposerAttachments([]);
+        try {
+          const prepared = images.length
+            ? await prepareChatImagesForAgent(images)
+            : {
+                listingImageUrls: [] as string[],
+                agentVisionUrls: [] as string[],
+                suspectedDocumentUrls: [] as string[],
+              };
+          // Clear composer only after a successful handoff — otherwise a short-circuit
+          // (or transport failure) would wipe photos and draft text with nothing sent.
+          const allWire = prepared.agentVisionUrls.length
+            ? prepared.agentVisionUrls
+            : prepared.listingImageUrls;
+          const res = await sendAgentMessage(msg, {
+            ...(allWire.length
+              ? {
+                  // Zero pre-filter: all attachments → Gemini. Gallery strip post-vision.
+                  sessionImageUrls: allWire,
+                  pendingImageUrls: allWire,
+                  ...(prepared.suspectedDocumentUrls?.length
+                    ? { documentImageUrls: prepared.suspectedDocumentUrls }
+                    : {}),
+                }
+              : {}),
+          });
+          if (res.ok) {
+            setDraftQuery("");
+            if (isChatBar) setComposerAttachments([]);
+          }
+        } catch (err) {
+          const raw = err instanceof Error ? err.message : String(err ?? "");
+          showToast(
+            /413|payload|failed to fetch|network/i.test(raw)
+              ? "Nuotraukų siuntimas nepavyko — bandykite dar kartą arba įkelkite po 2–3."
+              : "Nepavyko išsiųsti žinutės — bandykite dar kartą.",
+            "info"
+          );
         }
         if (collapsible) {
           void hapticImpactLight();
@@ -347,6 +357,7 @@ export function AiCommandBar({
       sellerVisionRecoveryActive,
       isChatBar,
       composerAttachments,
+      showToast,
     ]
   );
 
@@ -356,18 +367,22 @@ export function AiCommandBar({
       showToast(`Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`, "info");
       return;
     }
-    requestMediaConsent(async () => {
-      setIsPickingChatMedia(true);
-      try {
-        const picked = await pickNativeChatMedia(composerAttachments.length);
-        if (picked.length) {
-          setComposerAttachments((prev) =>
-            [...prev, ...picked].slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS)
-          );
+    requestMediaConsent(() => {
+      void (async () => {
+        setIsPickingChatMedia(true);
+        try {
+          const picked = await pickNativeChatMedia(composerAttachments.length);
+          if (picked.length) {
+            setComposerAttachments((prev) =>
+              [...prev, ...picked].slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS)
+            );
+          }
+        } catch {
+          showToast("Nepavyko pridėti nuotraukų — bandykite dar kartą.", "info");
+        } finally {
+          setIsPickingChatMedia(false);
         }
-      } finally {
-        setIsPickingChatMedia(false);
-      }
+      })();
     });
   }, [
     agentBusy,
@@ -392,6 +407,7 @@ export function AiCommandBar({
       sendAgentMessage,
       setOpen,
       onBusyChange: setIsPhotoSearching,
+      onErrorMessage: (message) => showToast(message, "info"),
     });
   };
 

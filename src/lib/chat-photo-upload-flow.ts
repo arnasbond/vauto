@@ -1,5 +1,6 @@
 import { pickNativeChatMedia } from "@/lib/chat-composer-media";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
+import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 
 export interface ChatPhotoUploadFlowDeps {
   requestMediaConsent: (run: () => void | Promise<void>) => void;
@@ -17,35 +18,40 @@ export interface ChatPhotoUploadFlowDeps {
   navigateBeforeSend?: () => void | Promise<void>;
   text?: string;
   onBusyChange?: (busy: boolean) => void;
+  onErrorMessage?: (message: string) => void;
 }
 
 /** Native OS picker → compress → agent chat (Kelrodė routing for image-only). */
 export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
-  if (deps.onBusyChange) {
-    /* caller may guard busy state */
-  }
-  deps.requestMediaConsent(async () => {
-    deps.onBusyChange?.(true);
-    try {
-      const picked = await pickNativeChatMedia(0);
-      if (!picked.length) return;
-      const { listingImageUrls, agentVisionUrls, suspectedDocumentUrls } =
-        await prepareChatImagesForAgent(picked);
-      if (!listingImageUrls.length && !agentVisionUrls.length) return;
-      await deps.navigateBeforeSend?.();
-      deps.setOpen?.(true);
-      // Zero pre-filter: send ALL attached files (cars + tech passport) to Gemini.
-      // Public gallery strip happens only after Vision on the server.
-      const allWire = agentVisionUrls.length ? agentVisionUrls : listingImageUrls;
-      await deps.sendAgentMessage(deps.text?.trim() ?? "", {
-        sessionImageUrls: allWire,
-        pendingImageUrls: allWire,
-        ...(suspectedDocumentUrls.length
-          ? { documentImageUrls: suspectedDocumentUrls }
-          : {}),
-      });
-    } finally {
-      deps.onBusyChange?.(false);
-    }
+  deps.requestMediaConsent(() => {
+    void (async () => {
+      deps.onBusyChange?.(true);
+      try {
+        const picked = await pickNativeChatMedia(0);
+        if (!picked.length) return;
+        const { listingImageUrls, agentVisionUrls, suspectedDocumentUrls } =
+          await prepareChatImagesForAgent(picked);
+        if (!listingImageUrls.length && !agentVisionUrls.length) return;
+        await deps.navigateBeforeSend?.();
+        deps.setOpen?.(true);
+        // Zero pre-filter: send ALL attached files (cars + tech passport) to Gemini.
+        // Public gallery strip happens only after Vision on the server.
+        const allWire = agentVisionUrls.length ? agentVisionUrls : listingImageUrls;
+        await deps.sendAgentMessage(deps.text?.trim() ?? "", {
+          sessionImageUrls: allWire,
+          pendingImageUrls: allWire,
+          ...(suspectedDocumentUrls.length
+            ? { documentImageUrls: suspectedDocumentUrls }
+            : {}),
+        });
+      } catch (err) {
+        const msg = err instanceof Error ? err.message : String(err ?? "");
+        const friendly = buddyMessageForAgentFailure(msg, "network_error");
+        deps.onErrorMessage?.(friendly);
+        console.warn("[chat-photo-upload] failed gracefully:", msg);
+      } finally {
+        deps.onBusyChange?.(false);
+      }
+    })();
   });
 }

@@ -46,6 +46,15 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
   const normalizedCode = code?.trim().toLowerCase() ?? "";
 
   if (
+    normalizedCode === "payload_too_large" ||
+    /413|payload too large|entity too large|request entity|užklausa per didel|per didelė/i.test(
+      err
+    )
+  ) {
+    return "Nuotraukos per didelės siuntimui vienu metu — bandykite dar kartą (jos bus sumažintos automatiškai) arba įkelkite po 2–3 nuotraukas.";
+  }
+
+  if (
     normalizedCode === "ai_rate_limit_exceeded" ||
     normalizedCode === "rate_limited" ||
     /rate.?limit|429|limitas pasiektas|per daug.*užklaus|bandykite po minutės/i.test(err)
@@ -56,17 +65,27 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
     );
   }
 
+  if (normalizedCode === "timeout" || /timeout|laiko limit|aborted/i.test(err)) {
+    return "Užtruko ilgiau nei įprastai — nuotraukų siuntimas nutrūko. Bandykite dar kartą arba įkelkite mažiau nuotraukų vienu metu.";
+  }
+
+  if (
+    normalizedCode === "network_error" ||
+    /failed to fetch|networkerror|load failed|network request failed|err_network|connection reset|econnreset/i.test(
+      err
+    )
+  ) {
+    return "Ryšys nutrūko siunčiant nuotraukas — bandykite dar kartą. Jei kartojasi, įkelkite po 2–3 nuotraukas.";
+  }
+
+  // True upstream outage only — not every "serveris" substring in Lithuanian copy.
   if (
     normalizedCode === "agent_unavailable" ||
-    /502|503|bad gateway|unavailable|nepasiekiamas|overloaded|high demand|serveris/i.test(
+    /502|503|bad gateway|overloaded|high demand|nepasiekiamas — serveris atsistato/i.test(
       err
     )
   ) {
     return "AI asistentas šiuo metu nepasiekiamas — serveris atsistato. Bandykite po kelių minučių.";
-  }
-
-  if (normalizedCode === "timeout" || /timeout|laiko limit/i.test(err)) {
-    return "Užtruko ilgiau nei įprastai — bandykite dar kartą dėl skelbimo ar paieškos VAUTO.";
   }
 
   return VAUTO_IN_DOMAIN_RECOVERY;
