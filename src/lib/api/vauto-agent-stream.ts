@@ -3,6 +3,7 @@ import { getAuthHeaders } from "@/lib/auth/session";
 import { trimAgentRequestBody } from "@/lib/agent-request-trim";
 import type { VautoAgentApiResult } from "@/lib/vauto-agent-client";
 import { AI_VISION_FETCH_TIMEOUT_MS } from "@/lib/ai-safeguards";
+import { AI_TIMEOUT_POLICY } from "@/lib/ai-timeout-policy";
 
 export type VautoAgentStreamEvent =
   | { type: "status"; message: string }
@@ -153,9 +154,18 @@ export async function apiVautoAgentStream(
     pendingUrls: Array.isArray(pending) ? pending.length : 0,
     wireCap: AGENT_STREAM_WIRE_CAP,
   });
+  const pendingCount = Array.isArray(pending) ? pending.length : 0;
+  const pendingImageCount =
+    typeof wireBody.context?.pendingImageCount === "number"
+      ? wireBody.context.pendingImageCount
+      : 0;
+  const hasVisionImages = pendingCount > 0 || pendingImageCount > 0;
+  // Multi-image Vision OCR needs a long client wait; text-only stays at visionFetchMs floor.
   const timeoutMs = wireBody.includeAdminContext
-    ? 45_000
-    : AI_VISION_FETCH_TIMEOUT_MS;
+    ? AI_TIMEOUT_POLICY.agentAdminMs
+    : hasVisionImages
+      ? AI_TIMEOUT_POLICY.streamVisionMs
+      : AI_VISION_FETCH_TIMEOUT_MS;
   const renderBase = getDataApiBaseUrl();
 
   /** Prefer configured data API (Render). Same-origin last — static export has no /api routes. */
@@ -182,7 +192,23 @@ export async function apiVautoAgentStream(
 
   for (const base of bases) {
     const controller = new AbortController();
-    const timer = window.setTimeout(() => controller.abort(), timeoutMs);
+    const startedAt = Date.now();
+    const hardCapMs = timeoutMs;
+    /** Idle abort from last SSE byte — keep-alives reset this so Vision OCR can run long. */
+    const idleMs = Math.min(90_000, timeoutMs);
+    let timer = window.setTimeout(() => controller.abort(), idleMs);
+    const bumpIdleTimer = () => {
+      window.clearTimeout(timer);
+      if (Date.now() - startedAt >= hardCapMs) {
+        controller.abort();
+        return;
+      }
+      const remaining = hardCapMs - (Date.now() - startedAt);
+      timer = window.setTimeout(
+        () => controller.abort(),
+        Math.min(idleMs, remaining)
+      );
+    };
     const onAbort = () => controller.abort();
     signal?.addEventListener("abort", onAbort);
 
@@ -199,6 +225,7 @@ export async function apiVautoAgentStream(
       });
 
       lastStatus = res.status;
+      bumpIdleTimer();
 
       if (!res.ok || !res.body) {
         let detail = "";
@@ -237,6 +264,7 @@ export async function apiVautoAgentStream(
       while (true) {
         const { done, value } = await reader.read();
         if (done) break;
+        bumpIdleTimer();
         buffer += decoder.decode(value, { stream: true });
         const parsed = parseSseChunks(buffer);
         buffer = parsed.rest;

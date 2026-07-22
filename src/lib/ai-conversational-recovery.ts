@@ -1,9 +1,10 @@
 import type { AiExtractedListing } from "@/lib/types";
+import { AI_TIMEOUT_POLICY } from "@/lib/ai-timeout-policy";
 
 export const VISION_CONVERSATIONAL_RECOVERY_PROMPT =
   "Nepavyko akimirksniu nustatyti objekto iš nuotraukos. Padėkite man! Brūkštelkite keliais žodžiais, ką norite parduoti arba rasti?";
 
-export const RECOVERY_PROCESSING_TIMEOUT_MS = 42_000;
+export const RECOVERY_PROCESSING_TIMEOUT_MS = AI_TIMEOUT_POLICY.recoveryMs;
 
 export const WIZARD_AGENT_EXPAND_EVENT = "vauto-wizard-agent-expand";
 

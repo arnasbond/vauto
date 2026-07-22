@@ -152,32 +152,61 @@ vautoAgentRouter.post("/", async (req: AuthedRequest, res) => {
   }
 });
 
+/** SSE comment + status keep-alive so Vercel/Render idle proxies never cut Vision OCR. */
+const STREAM_HEARTBEAT_MS = 10_000;
+
 vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
   let heartbeat: ReturnType<typeof setInterval> | null = null;
+  let streamOpened = false;
 
-  const writeEvent = (payload: unknown) => {
-    res.write(`data: ${JSON.stringify(payload)}\n\n`);
+  const writeRaw = (chunk: string) => {
+    try {
+      res.write(chunk);
+      const flushable = res as typeof res & { flush?: () => void };
+      flushable.flush?.();
+    } catch {
+      /* client gone */
+    }
   };
 
-  try {
-    const built = await buildAgentRequest(req);
-    if ("error" in built && built.error) {
-      return res.status(built.error.status).json(built.error.body);
-    }
+  const writeEvent = (payload: unknown) => {
+    writeRaw(`data: ${JSON.stringify(payload)}\n\n`);
+  };
 
-    res.setHeader("Content-Type", "text/event-stream");
+  const openSse = () => {
+    if (streamOpened) return;
+    streamOpened = true;
+    res.status(200);
+    res.setHeader("Content-Type", "text/event-stream; charset=utf-8");
     res.setHeader("Cache-Control", "no-cache, no-transform");
     res.setHeader("Connection", "keep-alive");
     res.setHeader("X-Accel-Buffering", "no");
     if (typeof res.flushHeaders === "function") res.flushHeaders();
-
+    // Immediate bytes so proxies mark the response as live before Gemini work.
+    writeRaw(": connected\n\n");
+    writeEvent({ type: "status", message: "Galvoju…" });
+    // Comment-only pings keep proxies alive without spamming the chat UI label.
     heartbeat = setInterval(() => {
-      try {
-        res.write(": ping\n\n");
-      } catch {
-        if (heartbeat) clearInterval(heartbeat);
-      }
-    }, 20_000);
+      writeRaw(": ping\n\n");
+    }, STREAM_HEARTBEAT_MS);
+  };
+
+  try {
+    // Flush SSE headers BEFORE auth/DB/Gemini so idle proxies never wait on prep.
+    openSse();
+
+    const built = await buildAgentRequest(req);
+    if ("error" in built && built.error) {
+      writeEvent({
+        type: "error",
+        code: built.error.body.code,
+        message: built.error.body.error,
+      });
+      res.end();
+      return;
+    }
+
+    writeEvent({ type: "status", message: "Jungiuosi prie Vision…" });
 
     const result = await runVautoAgent(built.request, {
       onEvent: (event) => writeEvent(event),
@@ -191,6 +220,7 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
   } catch (e) {
     const err = normalizeAgentRouteError(e);
     try {
+      if (!streamOpened) openSse();
       writeEvent({
         type: "error",
         code: err.code,

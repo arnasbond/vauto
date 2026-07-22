@@ -11,6 +11,7 @@ import {
   AI_FETCH_TIMEOUT_MS,
   AI_VISION_FETCH_TIMEOUT_MS,
 } from "@/lib/ai-safeguards";
+import { AI_TIMEOUT_POLICY } from "@/lib/ai-timeout-policy";
 import { getAiBaseUrl, getDataApiBaseUrl } from "./config";
 import { getAuthHeaders } from "@/lib/auth/session";
 import { trimAgentRequestBody } from "@/lib/agent-request-trim";
@@ -294,7 +295,16 @@ export async function apiVautoAgent(body: {
   includeAdminContext?: boolean;
 }): Promise<import("@/lib/vauto-agent-client").VautoAgentApiResult> {
   const trimmed = trimAgentRequestBody(body);
-  const timeoutMs = trimmed.includeAdminContext ? 45_000 : AI_VISION_FETCH_TIMEOUT_MS;
+  const pendingUrls = trimmed.context?.pendingImageUrls;
+  const hasVisionImages =
+    (Array.isArray(pendingUrls) && pendingUrls.length > 0) ||
+    (typeof trimmed.context?.pendingImageCount === "number" &&
+      trimmed.context.pendingImageCount > 0);
+  const timeoutMs = trimmed.includeAdminContext
+    ? AI_TIMEOUT_POLICY.agentAdminMs
+    : hasVisionImages
+      ? AI_TIMEOUT_POLICY.streamVisionMs
+      : AI_VISION_FETCH_TIMEOUT_MS;
   const renderBase = getDataApiBaseUrl();
 
   const fetchOpts = {

@@ -5,9 +5,10 @@ import { normalizeImageDataUrl } from "./image-input.js";
 import { resolveGeminiApiKey } from "../load-env.js";
 import { buildVisionQuotaTextFallbackJson } from "./sell-intent-fallback.js";
 import { prepareImageForGeminiVision } from "./image-processor.js";
+import { GEMINI_VISION_FETCH_TIMEOUT_MS } from "../lib/ai-timeout-policy.js";
 
-/** Stay under Render free-tier ~30s request limit. */
-const GEMINI_FETCH_TIMEOUT_MS = 25_000;
+/** Multi-photo Vision OCR needs ≥120s; SSE keep-alive covers proxy idle limits. */
+const GEMINI_FETCH_TIMEOUT_MS = GEMINI_VISION_FETCH_TIMEOUT_MS;
 
 export type AiProvider = "gemini" | null;
 
