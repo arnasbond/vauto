@@ -4,6 +4,7 @@ import "../load-env.js";
 import { normalizeImageDataUrl } from "./image-input.js";
 import { resolveGeminiApiKey } from "../load-env.js";
 import { buildVisionQuotaTextFallbackJson } from "./sell-intent-fallback.js";
+import { prepareImageForGeminiVision } from "./image-processor.js";
 
 /** Stay under Render free-tier ~30s request limit. */
 const GEMINI_FETCH_TIMEOUT_MS = 25_000;
@@ -97,13 +98,41 @@ async function imageUrlToInlinePart(
 
   const parsed = parseDataUrl(normalized);
   if (parsed) {
-    console.log("[vision] imageUrlToInlinePart: data URL ok", {
-      mime: parsed.mime,
-      base64Chars: parsed.data.length,
-    });
-    return {
-      inline_data: { mime_type: parsed.mime, data: parsed.data },
-    };
+    try {
+      const raw = Buffer.from(parsed.data, "base64");
+      const prepared = await prepareImageForGeminiVision(raw);
+      if (!prepared.isDocument) {
+        console.log("[vision] imageUrlToInlinePart: data URL ok", {
+          mime: parsed.mime,
+          base64Chars: parsed.data.length,
+          isDocumentOcr: false,
+          pipeline: "color",
+        });
+        return {
+          inline_data: { mime_type: parsed.mime, data: parsed.data },
+        };
+      }
+      console.log("[vision] imageUrlToInlinePart: data URL ok", {
+        mime: prepared.mime,
+        base64Chars: prepared.buffer.length,
+        isDocumentOcr: true,
+        pipeline: "grayscale+sharpen",
+      });
+      return {
+        inline_data: {
+          mime_type: prepared.mime,
+          data: prepared.buffer.toString("base64"),
+        },
+      };
+    } catch (err) {
+      console.warn(
+        "[vision] imageUrlToInlinePart: document prep failed — using original",
+        err instanceof Error ? err.message : err
+      );
+      return {
+        inline_data: { mime_type: parsed.mime, data: parsed.data },
+      };
+    }
   }
 
   if (!/^https?:\/\//i.test(normalized)) {
@@ -123,14 +152,42 @@ async function imageUrlToInlinePart(
     }
     const mime = res.headers.get("content-type")?.split(";")[0] || "image/jpeg";
     const buf = Buffer.from(await res.arrayBuffer());
-    console.log("[vision] imageUrlToInlinePart: http ok", {
-      mime,
-      bytes: buf.length,
-      url: normalized.slice(0, 120),
-    });
-    return {
-      inline_data: { mime_type: mime, data: buf.toString("base64") },
-    };
+    try {
+      const prepared = await prepareImageForGeminiVision(buf);
+      if (!prepared.isDocument) {
+        console.log("[vision] imageUrlToInlinePart: http ok", {
+          mime,
+          bytes: buf.length,
+          isDocumentOcr: false,
+          pipeline: "color",
+          url: normalized.slice(0, 120),
+        });
+        return {
+          inline_data: { mime_type: mime, data: buf.toString("base64") },
+        };
+      }
+      console.log("[vision] imageUrlToInlinePart: http ok", {
+        mime: prepared.mime,
+        bytes: prepared.buffer.length,
+        isDocumentOcr: true,
+        pipeline: "grayscale+sharpen",
+        url: normalized.slice(0, 120),
+      });
+      return {
+        inline_data: {
+          mime_type: prepared.mime,
+          data: prepared.buffer.toString("base64"),
+        },
+      };
+    } catch (prepErr) {
+      console.warn(
+        "[vision] imageUrlToInlinePart: http document prep failed — using original",
+        prepErr instanceof Error ? prepErr.message : prepErr
+      );
+      return {
+        inline_data: { mime_type: mime, data: buf.toString("base64") },
+      };
+    }
   } catch (err) {
     console.error(
       "[vision] imageUrlToInlinePart: http exception",

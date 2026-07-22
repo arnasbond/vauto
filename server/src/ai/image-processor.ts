@@ -92,3 +92,82 @@ export async function optimizeListingImage(imageDataUrl: string): Promise<string
   const output = await optimizeListingImageBuffer(buffer);
   return toDataUrl(output, listingImageMime());
 }
+
+/**
+ * Detect LT tech passport (green) / pale registration paper from a small sample.
+ * Product/car photos stay false → full color path.
+ */
+export async function looksLikeDocumentImageBuffer(buffer: Buffer): Promise<boolean> {
+  try {
+    const { data, info } = await sharp(buffer)
+      .rotate()
+      .resize(48, 48, { fit: "inside" })
+      .removeAlpha()
+      .raw()
+      .toBuffer({ resolveWithObject: true });
+    const channels = Math.max(1, info.channels ?? 3);
+    let greenish = 0;
+    let paperish = 0;
+    let total = 0;
+    for (let i = 0; i + 2 < data.length; i += channels) {
+      const r = data[i] ?? 0;
+      const g = data[i + 1] ?? 0;
+      const b = data[i + 2] ?? 0;
+      total += 1;
+      if (g > r + 18 && g > b + 10 && g > 70) greenish += 1;
+      if (r > 200 && g > 200 && b > 190 && Math.abs(r - g) < 25) paperish += 1;
+    }
+    if (!total) return false;
+    return greenish / total >= 0.12 || paperish / total >= 0.45;
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * OCR prep for tech passport / registration documents:
+ * grayscale (kill green paper noise) + contrast boost + sharpen for crisp text edges.
+ */
+export async function enhanceDocumentForOcr(buffer: Buffer): Promise<Buffer> {
+  return sharp(buffer)
+    .rotate()
+    .resize({
+      width: 2000,
+      height: 2000,
+      fit: "inside",
+      withoutEnlargement: false,
+    })
+    .grayscale()
+    .normalize()
+    .linear(1.28, -18)
+    .sharpen({ sigma: 1.6, m1: 2.0, m2: 0.7 })
+    .jpeg({ quality: 93, mozjpeg: true })
+    .toBuffer();
+}
+
+export type PreparedVisionImage = {
+  buffer: Buffer;
+  mime: string;
+  isDocument: boolean;
+};
+
+/**
+ * Prepare a single image for Gemini Vision.
+ * Documents → mono + contrast + sharpen (JPEG).
+ * Product/car → original buffer unchanged (caller keeps original mime).
+ */
+export async function prepareImageForGeminiVision(
+  buffer: Buffer,
+  opts?: { forceDocument?: boolean; forceProduct?: boolean }
+): Promise<PreparedVisionImage> {
+  if (opts?.forceProduct) {
+    return { buffer, mime: "image/jpeg", isDocument: false };
+  }
+  const isDocument =
+    opts?.forceDocument === true || (await looksLikeDocumentImageBuffer(buffer));
+  if (!isDocument) {
+    return { buffer, mime: "image/jpeg", isDocument: false };
+  }
+  const enhanced = await enhanceDocumentForOcr(buffer);
+  return { buffer: enhanced, mime: "image/jpeg", isDocument: true };
+}
