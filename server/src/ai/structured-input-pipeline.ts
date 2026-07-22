@@ -20,6 +20,7 @@ import {
   evaluateServerPrePublishReadiness,
   type ServerPrePublishCardPayload,
 } from "./pre-publish-validation.js";
+import { buildVehicleSpecReportMarkdown } from "../shared/listing-organism.js";
 
 export const TEXT_AND_VISION_INPUT_ONLY = `ĮVESTIES KANALAI (PRIVALOMA):
 - Vartotojo įvestis gaunama TIK TEKSTU (paieškos laukas, pokalbio žinutės) arba per VAIZDO ANALIZĘ (nuotraukos įkėlimas).
@@ -51,7 +52,9 @@ export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUT
 export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta pati pipeline logika):
 - Identifikuok parduodamus objektus (detectedObjects). DRAUDŽIAMA poetizuoti foną (trinkelės, namas, medžiai, dangus).
 - Keli parduodami objektai → trumpi choiceChips „Parduoti {objektas}“; confidence < 0.55 → disambiguation.
-- Vienas aiškus objektas → užpildyk specifikacijas (markė/modelis/metai/variklis/rida/VIN jei matosi), tada confirmation.
+- Vienas aiškus objektas (ypač automobiliai + techninis pasas) → užpildyk juodraščio JSON tyliai IR pokalbyje parodyk struktūruotą Markdown specifikacijų ataskaitą:
+  ## Pagrindiniai duomenys / ## Variklis ir techniniai parametrai / ## Salonas ir komplektacija (iš nuotraukų).
+- DRAUDŽIAMA 1 žingsnyje generuoti trumpą sales copy ar klausti kainos. Baik: „Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?“
 - Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą be fono aprašymų.`;
 
 export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI (PRIVALOMA — ne skelbimo laukai):
@@ -99,6 +102,25 @@ export function buildPostValidationReportMessage(fields: {
   location?: string;
   attributes?: Record<string, string | undefined>;
 }): string {
+  const cat = String(fields.category ?? "").toLowerCase();
+  if (
+    cat === "vehicles" ||
+    cat === "automobiliai" ||
+    Boolean(
+      fields.attributes?.make ||
+        fields.attributes?.vin ||
+        fields.attributes?.plate ||
+        fields.attributes?.licensePlate ||
+        fields.attributes?.powerKw
+    )
+  ) {
+    return buildVehicleSpecReportMarkdown({
+      title: fields.title,
+      description: fields.description,
+      category: fields.category,
+      attributes: fields.attributes,
+    });
+  }
   return buildListingDraftUpdateReply({
     category: fields.category,
     title: fields.title,

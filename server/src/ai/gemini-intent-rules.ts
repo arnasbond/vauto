@@ -90,7 +90,7 @@ PARDAVIMAS → create_listing_draft(category, title, description) — TEKSTAS PI
 - NIEKADA neblokuok pardavimo, nes nėra nuotraukos. Nuotraukos — pasirenkamos po aprašymo.
 - title = profesionalus pavadinimas su VERBATIM modeliu; description = turtingas 4–8+ sakinių tekstas pagal kategoriją.
 - Po draft — parodyk aprašymą pokalbyje („Štai tavo aprašymas: …“).
-- Jei nuotraukos JAU įkeltos — scanListingPhotos(VISOS) + turtingas description; klausk kainos / PrePublish. NIEKADA „prisegti nuotraukas“ kai jos jau yra.
+- Jei nuotraukos JAU įkeltos — scanListingPhotos(VISOS); pirmiausia struktūruota Markdown OCR/spec ataskaita (Pagrindiniai duomenys / Variklis / Salonas); juodraštį pildyk tyliai. DRAUDŽIAMA iškart reklamos tekstas ar kainos klausimas. Baik: „Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?“ NIEKADA „prisegti nuotraukas“ kai jos jau yra.
 - Miestą/telefoną/vardą imk tyliai iš profilio; klausk TIK pabaigoje, jei tikrai nėra.
 - Neatsakyk „Rezultatų nerasta" pardavimui.
 

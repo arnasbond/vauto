@@ -72,7 +72,13 @@ export const TEXT_DRAFT_READY_CHIPS = POST_VISION_PUBLISH_CHIPS;
 
 /** Multimodal fusion confirm when tech passport + car photos are both present. */
 export const MULTIMODAL_FUSION_CONFIRM =
-  "Sujungiau techninio paso ir nuotraukų duomenis: Paruošiau skelbimą!";
+  "Sujungiau techninio paso ir nuotraukų duomenis į specifikacijų ataskaitą.";
+
+/**
+ * Exact CTA after vehicle OCR / Vision spec report — NEVER demand price in step 1.
+ */
+export const VEHICLE_SPEC_COPY_OFFER =
+  "Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?";
 
 export const AWAITING_CONFIRMATION_LOCKED =
   "Skelbimas paruoštas patvirtinimui. Tekstas nekeičia aprašymo — peržiūrėkite kortelę žemiau ir spauskite „Patvirtinti ir publikuoti“.";
@@ -449,7 +455,137 @@ export function buildTextDraftReadyMessage(draft: {
   return buildDraftingCompletePhotosPrompt(draft);
 }
 
-/** Beautiful completed listing bubble after Vision — then publish gate question. */
+function attrPick(
+  attrs: Record<string, string | string[] | undefined> | undefined,
+  ...keys: string[]
+): string {
+  if (!attrs) return "";
+  for (const key of keys) {
+    const raw = attrs[key];
+    const value = Array.isArray(raw) ? raw.map(String).join(", ") : String(raw ?? "");
+    const t = value.trim();
+    if (t) return t;
+  }
+  return "";
+}
+
+function formatEngineDisplacement(engineRaw: string): string {
+  const t = engineRaw.trim();
+  if (!t) return "";
+  if (/\d[.,]\d/.test(t) && /l/i.test(t)) return t;
+  const cm3 = t.match(/(\d{3,4})\s*(?:cm|cm³|cc)?/i);
+  if (cm3) {
+    const n = Number(cm3[1]);
+    const liters = Math.round((n / 1000) * 10) / 10;
+    return `${n} cm³ (${liters} L)`;
+  }
+  if (/^\d([.,]\d+)?$/.test(t)) return `${t.replace(",", ".")} L`;
+  return t;
+}
+
+/**
+ * Benchmark vehicle OCR report — structured Markdown for chat after Vision/docs.
+ * Populates listing JSON behind the scenes separately; this is the chat UX only.
+ */
+export function buildVehicleSpecReportMarkdown(draft: {
+  title?: string;
+  description?: string;
+  category?: string;
+  attributes?: Record<string, string | string[] | undefined>;
+}): string {
+  const attrs = draft.attributes ?? {};
+  const make = attrPick(attrs, "make", "brand");
+  const model = attrPick(attrs, "model");
+  const year = attrPick(attrs, "year", "firstRegistration", "registrationDate", "regDate");
+  const makeModel = [make, model].filter(Boolean).join(" ") || draft.title?.trim() || "—";
+  const plate = attrPick(attrs, "plate", "licensePlate", "numberPlate");
+  const regDate = attrPick(
+    attrs,
+    "firstRegistration",
+    "registrationDate",
+    "regDate",
+    "firstRegDate",
+    "year"
+  );
+  const bodyType = attrPick(attrs, "bodyType", "body");
+  const color = attrPick(attrs, "color", "colour");
+  const bodyColor = [bodyType, color].filter(Boolean).join(", ") || "—";
+  const vin = attrPick(attrs, "vin", "chassisNumber", "kebuloNumeris");
+  const seats = attrPick(attrs, "seats", "seatCount", "vietos");
+  const engine = formatEngineDisplacement(attrPick(attrs, "engine", "engineSize", "displacement"));
+  const fuel = attrPick(attrs, "fuelType", "fuel");
+  const powerKw = attrPick(attrs, "powerKw", "power", "kw");
+  const euro = attrPick(attrs, "euroStandard", "emissionStandard", "tarša", "euro");
+  const co2 = attrPick(attrs, "co2", "co2Gkm", "co2_g_km");
+  const emissions =
+    [euro, co2 ? `${co2} g/km` : ""].filter(Boolean).join(", ") || "—";
+  const maxSpeed = attrPick(attrs, "maxSpeed", "topSpeed", "maksimalusGreitis");
+  const mass = attrPick(
+    attrs,
+    "curbWeight",
+    "mass",
+    "operatingMass",
+    "maxMass",
+    "technineMase",
+    "leidziamaMase"
+  );
+  const speedMass =
+    [maxSpeed ? `${maxSpeed} km/h` : "", mass].filter(Boolean).join(" · ") || "—";
+  const interior = attrPick(
+    attrs,
+    "interiorCondition",
+    "interior",
+    "salon",
+    "upholstery"
+  );
+  const exterior = attrPick(
+    attrs,
+    "exteriorFeatures",
+    "exterior",
+    "features",
+    "equipment",
+    "trim"
+  );
+  const salonBits = [interior, exterior].filter(Boolean);
+  // Fallback: mine description for visual extras when structured fields are thin.
+  if (!salonBits.length && draft.description?.trim()) {
+    const d = draft.description.trim();
+    if (d.length >= 24 && d.length <= 420) salonBits.push(d);
+  }
+
+  const bullet = (label: string, value: string) =>
+    `- **${label}:** ${value.trim() || "—"}`;
+
+  const lines = [
+    "## Pagrindiniai duomenys",
+    bullet("Markė ir modelis", makeModel),
+    bullet("Valstybinis numeris", plate || "—"),
+    bullet("Pirmosios registracijos data", regDate || "—"),
+    bullet("Kėbulo tipas ir spalva", bodyColor),
+    bullet("Kėbulo numeris (VIN)", vin || "—"),
+    bullet("Sėdimų vietų skaičius", seats || "—"),
+    "",
+    "## Variklis ir techniniai parametrai",
+    bullet("Variklio darbinis tūris (cm³ ir L)", engine || "—"),
+    bullet("Kuro tipas", fuel || "—"),
+    bullet("Galia (kW)", powerKw ? `${powerKw.replace(/\s*kW$/i, "")} kW` : "—"),
+    bullet("Taršos standartas ir CO2 (g/km)", emissions),
+    bullet("Maksimalus greitis ir masės (eksploatacinė / leidžiama)", speedMass),
+    "",
+    "## Salonas ir komplektacija (iš nuotraukų)",
+    ...(salonBits.length
+      ? salonBits.map((b) => `- ${b}`)
+      : [
+          "- Vizualūs salono ir išorės akcentai bus papildyti iš nuotraukų (pvz. odos salonas, mentelės prie vairo, parktronikai, stogo bėgeliai, ratlankiai, bagažinė).",
+        ]),
+    "",
+    VEHICLE_SPEC_COPY_OFFER,
+  ];
+
+  return lines.join("\n");
+}
+
+/** Beautiful completed listing bubble after Vision — vehicles get OCR spec report first. */
 export function buildPostVisionHeroMessage(draft: {
   title?: string;
   description?: string;
@@ -457,29 +593,33 @@ export function buildPostVisionHeroMessage(draft: {
   priceLabel?: string;
   location?: string;
   category?: string;
+  attributes?: Record<string, string | string[] | undefined>;
 }): string {
+  const category = String(draft.category ?? "").toLowerCase();
+  if (
+    category === "vehicles" ||
+    category === "automobiliai" ||
+    Boolean(attrPick(draft.attributes, "make", "vin", "plate", "licensePlate", "powerKw"))
+  ) {
+    return buildVehicleSpecReportMarkdown(draft);
+  }
+
   const title = draft.title?.trim() || "Jūsų prekė";
   const desc = draft.description?.trim() || "";
-  const price =
-    draft.priceLabel?.trim() ||
-    (draft.price != null && draft.price > 0 ? `${draft.price} €` : "");
   const loc = draft.location?.trim() || "";
-  const meta = [price, loc].filter(Boolean).join(" · ");
   const tip =
     draft.category === "electronics"
       ? "Patarimas: baterijos būklė, atmintis ir dėžutė — trys dalykai, kurie greičiausiai uždaro sandorį."
-      : draft.category === "vehicles"
-        ? "Patarimas: metai, rida ir komplektacija kelia pasitikėjimą labiau nei ilgas tekstas be faktų."
-        : "Patarimas: konkretus aprašymas parduoda greičiau — pirkėjai greitai pastebi aiškumą.";
-  // After Vision, photos are already attached — never ask to „prisegti nuotraukas“ again.
+      : "Patarimas: konkretus aprašymas parduoda greičiau — pirkėjai greitai pastebi aiškumą.";
+  // After Vision — show facts first; do NOT demand price in step 1.
   const cta =
-    "Štai aprašymas pagal jūsų nuotraukas ir dokumentus. Peržiūrėkite PrePublish kortelę žemiau arba parašykite kainą.";
+    "Štai ką ištraukiau iš jūsų nuotraukų. Ar norėtumėte, kad paruoščiau patrauklų pardavimo skelbimo tekstą?";
   const lines = [
-    `Paruošiau gražų skelbimą:`,
+    `Štai specifikacija pagal nuotraukas:`,
     ``,
-    title,
+    `**${title}**`,
     desc ? `\n${desc}` : "",
-    meta ? `\n${meta}` : "",
+    loc ? `\n📍 ${loc}` : "",
     ``,
     tip,
     ``,

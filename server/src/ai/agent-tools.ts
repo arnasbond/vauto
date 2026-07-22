@@ -247,7 +247,7 @@ function buildVisionScanAnnouncement(
 ): string {
   const firstName = (userName ?? "drauge").split(/\s+/)[0] || "drauge";
   if (!labels.length) {
-    return `${firstName}, nuotraukas peržiūrėjau — reikia dar kelių detalių. Kokią kainą planuoji?`;
+    return `${firstName}, nuotraukas peržiūrėjau — paruošiau specifikacijų ataskaitą žemiau.`;
   }
   if (labels.length === 1) {
     return `${firstName}, pagal nuotraukas jau užpildžiau ${labels[0]!} lauką!`;
@@ -1751,7 +1751,7 @@ export async function executeAgentTool(
               ? DOCUMENT_OCR_SOFT_NOTE
               : ""));
         const fusionIntro = hasFusion
-          ? "Sujungiau techninio paso ir nuotraukų duomenis: Paruošiau skelbimą!\n\n"
+          ? "Sujungiau techninio paso ir nuotraukų duomenis į specifikacijų ataskaitą.\n\n"
           : "";
         const report = buildPostValidationReportMessage({
           category: draft.category,

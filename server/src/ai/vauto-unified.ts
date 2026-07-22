@@ -246,13 +246,13 @@ Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Pirmos document nuot
    • interiorCondition — salonas (odinė/audinio sėdynės, vairas, ekranas/multimedia)
    • exteriorFeatures — ratlankiai, stogo relingai, kėbulo tipas, matoma išorės būklė
    • bodyType / transmission jei aiškiai matoma
-5) description — TURTINGAS profesionalus lietuviškas aprašymas (6–10 sakinių):
-   • tikslūs HARD SPECS iš paso
-   • EXACT variantos akcentai (Grand → 7 vietos / ilgesnė bazė; Avant/Combi/Variant → universalas; Gran Coupe → kupė proporcijos)
-   • vizualūs akcentai iš auto nuotraukų
+5) description — TECHNINIS juodraščio laukas (ne chat reklama): tikslūs HARD SPECS + vizualūs akcentai.
+   • Chat UI atskirai rodys struktūruotą Markdown OCR ataskaitą — ČIA NErauk sales copy / kainos / CTA.
+   • EXACT variantos akcentai (Grand → 7 vietos; Avant/Combi/Variant → universalas)
    • BE fluff / CTA / fono (trinkelės, kiemas, namas)
 6) NIEKADA neklausti „Patikslinkite metus ir variklį“, jei B/P.1/P.3 jau ištraukti. NIEKADA nekartok vartotojo frazės kaip aprašymo.
-7) title = make + VERBATIM model + year (pvz. „Citroën Grand C4 Picasso 2007“).${textNote}${extra}
+7) title = make + VERBATIM model + year (pvz. „Citroën Grand C4 Picasso 2007“).
+8) Papildomi technicalFields kai matosi: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }

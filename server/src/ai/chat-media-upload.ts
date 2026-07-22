@@ -2,7 +2,6 @@ import type { AgentSideEffect } from "./agent-tools.js";
 import { normalizeListingDraftForAction } from "./listing-chat-input.js";
 import {
   AWAITING_CONFIRMATION_LOCKED,
-  buildConversationalMissingPrompt,
   buildPostVisionHeroMessage,
   inferListingFlowState,
   listingFlowAllowsPhotoUpload,
@@ -298,22 +297,13 @@ async function resolveListingPhotoScan(input: {
     : hasFusion
       ? MULTIMODAL_FUSION_CONFIRM
       : photoAckLine(imageUrls.length);
-  const resolvedCity =
-    mergedDraft.location?.trim() || input.userCity?.trim() || "";
-
-  let reply = softOcrNote
+  // Always show the full Vision / OCR spec report in chat first.
+  // Keep price/city prompts for later turns — never overwrite the report in step 1.
+  const reply = softOcrNote
     ? `${ack}\n\n${softOcrNote}\n\n${buildPostVisionHeroMessage(mergedDraft)}`
     : `${ack}\n\n${buildPostVisionHeroMessage(mergedDraft)}`;
   // No inline chips — user uses (+) and PrePublish card controls.
-  let quickReplies: string[] = [];
-
-  if (!mergedDraft.price || mergedDraft.price <= 0) {
-    reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingPrice: true })}`;
-    quickReplies = [];
-  } else if (!resolvedCity) {
-    reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingCity: true })}`;
-    quickReplies = [];
-  }
+  const quickReplies: string[] = [];
 
   return {
     ok: true,
