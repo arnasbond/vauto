@@ -1,5 +1,9 @@
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
 import { isListingWorkflowCommand } from "./listing-workflow-intent.js";
+import {
+  hardFilterPublicGalleryUrls,
+  parseDocumentUrlsFromAttributes,
+} from "./listing-gallery-roles.js";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_INLINE_RE =
@@ -123,6 +127,12 @@ export function normalizeListingDraftForAction(
   listingFlowState?: ListingDraftContext["listingFlowState"];
 } {
   const listingFlowState = opts?.listingFlowState ?? draft.listingFlowState;
+  const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
+  const publicGallery = hardFilterPublicGalleryUrls(
+    draft.orderedImageUrls,
+    documentUrls,
+    draft.attributes
+  ).slice(0, 6);
   return {
     title: draft.title?.trim() || "Naujas skelbimas",
     description: draft.description,
@@ -134,9 +144,7 @@ export function normalizeListingDraftForAction(
     attributes: draft.attributes,
     allowPastomatas:
       draft.allowPastomatas === undefined ? undefined : draft.allowPastomatas,
-    ...(draft.orderedImageUrls?.length
-      ? { orderedImageUrls: draft.orderedImageUrls.slice(0, 6) }
-      : {}),
+    ...(publicGallery.length ? { orderedImageUrls: publicGallery } : {}),
     ...(listingFlowState ? { listingFlowState } : {}),
   };
 }

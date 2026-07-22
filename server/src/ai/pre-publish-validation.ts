@@ -1,4 +1,8 @@
 import { buildConversationalMissingPrompt } from "./listing-conversational-flow.js";
+import {
+  hardFilterPublicGalleryUrls,
+  parseDocumentUrlsFromAttributes,
+} from "./listing-gallery-roles.js";
 
 export {
   isPublishConfirmationPhrase,
@@ -165,6 +169,8 @@ export function buildServerPrePublishCardPayload(input: {
     price?: number;
     location?: string;
     category?: string;
+    attributes?: Record<string, string>;
+    orderedImageUrls?: string[];
   };
   resolvedCity: string;
   resolvedPhone?: string;
@@ -177,15 +183,17 @@ export function buildServerPrePublishCardPayload(input: {
   const title = draft.title?.trim() || "Naujas skelbimas";
   const price = draft.price ?? 0;
   if (price <= 0) return null;
-  const imageUrls = [
-    ...(input.imageUrls ?? []),
-    ...(input.pendingImageUrls ?? []),
-    ...(input.imageUrl ? [input.imageUrl] : []),
-  ]
-    .map((u) => String(u ?? "").trim())
-    .filter(Boolean)
-    .filter((u, i, arr) => arr.indexOf(u) === i)
-    .slice(0, 6);
+  const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
+  const imageUrls = hardFilterPublicGalleryUrls(
+    [
+      ...(draft.orderedImageUrls ?? []),
+      ...(input.imageUrls ?? []),
+      ...(input.pendingImageUrls ?? []),
+      ...(input.imageUrl ? [input.imageUrl] : []),
+    ],
+    documentUrls,
+    draft.attributes
+  ).slice(0, 6);
   const imageUrl = imageUrls[0] ?? null;
   return {
     title,

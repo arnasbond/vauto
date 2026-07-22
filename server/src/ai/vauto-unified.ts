@@ -7,7 +7,10 @@ import { runVisionAntiFraudGuard } from "./vision-anti-fraud.js";
 import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
-import { splitGalleryAndDocumentUrls } from "./listing-gallery-roles.js";
+import {
+  hardFilterPublicGalleryUrls,
+  splitGalleryAndDocumentUrls,
+} from "./listing-gallery-roles.js";
 import {
   buildMultiObjectClarificationPrompt,
   chipsFromDetectedObjects,
@@ -21,6 +24,40 @@ import {
   runVisualPipelineForExtract,
   visualPipelineResponseSlice,
 } from "../services/visual-pipeline.js";
+import { DOCUMENT_UNCLEAR_PROMPT } from "./sell-intent-fallback.js";
+
+const OCR_SENSITIVE_ATTR_KEYS = [
+  "year",
+  "engine",
+  "powerKw",
+  "vin",
+  "plate",
+  "mileage",
+  "fuelType",
+  "transmission",
+  "bodyType",
+] as const;
+
+function isExplicitlyUnclearDocument(raw: Record<string, unknown>): boolean {
+  const readable = raw.documentReadable;
+  if (readable === false || String(readable).toLowerCase() === "false") return true;
+  const ocrConf = Number(raw.documentOcrConfidence);
+  if (Number.isFinite(ocrConf) && ocrConf < 0.55) return true;
+  if (Array.isArray(raw.unclearDocumentIndexes) && raw.unclearDocumentIndexes.length > 0) {
+    return true;
+  }
+  return false;
+}
+
+function stripHallucinatedOcrFields(
+  attrs: Record<string, string | string[]>
+): Record<string, string | string[]> {
+  const next = { ...attrs };
+  for (const key of OCR_SENSITIVE_ATTR_KEYS) {
+    delete next[key];
+  }
+  return next;
+}
 
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
@@ -32,6 +69,10 @@ export const VAUTO_UNIFIED_SCHEMA = `{
   "technicalFields": "object — make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, condition",
   "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija / kvitas / dokumentas (OCR, NE viešai galerijai)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
+  "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai eilės tvarka",
+  "documentReadable": "boolean — true TIK jei tech passport / dokumento tekstas aiškiai įskaitomas",
+  "documentOcrConfidence": "number 0-1 — OCR patikimumas; <0.55 = neaišku",
+  "unclearDocumentIndexes": "[number] — neaiškių dokumentų indeksai",
   "confidence": "number 0-1",
   "sceneContext": "string — trumpas kontekstas",
   "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
@@ -41,8 +82,9 @@ export const VAUTO_UNIFIED_SCHEMA = `{
 const SYSTEM_RULES = `Tu esi VAUTO — lietuviškas skelbimų AI. Grąžink TIK vieną JSON objektą.
 Aprašymas (description) — PRECIZINIS ir TECHNINIS, ne marketingas:
 - Rašyk konkrečius faktus: markė, modelis, metai, trim, variklis (cm³/l), galia kW/AG, kuras, transmisija, rida, kėbulas, spalva, vietų sk., matomi defektai.
-- Tech passport / registracijos / dokumentų nuotraukas NAUDOK tikslioms specs — jų indeksus dėk į documentImageIndexes.
-- galleryImageIndexes — TIK automobilio/prekės nuotraukos. Dokumentų ten NEDĖK.
+- Tech passport / registracijos / dokumentų nuotraukas: imageRoles=document + documentImageIndexes.
+- Specs iš dokumento (metai, kW, VIN, numeris) — TIK jei documentReadable=true ir documentOcrConfidence>=0.55. Jei neryšku — NESPĖLIOK; unclearDocumentIndexes + documentReadable=false.
+- galleryImageIndexes / imageRoles=gallery — TIK produkto/auto nuotraukos. Žalias/mėlynas tech passport VISADA document.
 - DRAUDŽIAMA: „patrauklus pasirinkimas“, „puiki proga“, „mielai atsakysime“, emociniai filleriai, CTA be faktų.
 - Jei faktas nematomas — praleisk, neišgalvok. Kainos ir miesto NEGALIMA išgalvoti.
 
@@ -188,10 +230,11 @@ function buildImagePrompt(
 ${VISION_ANTI_HALLUCINATION_RULE}
 
 Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1).
-1) Klasifikuok: produkto/auto → galleryImageIndexes; tech passport / registracija / kvitas / dokumentas → documentImageIndexes.
-2) Iš dokumentų ir auto nuotraukų ištrauk TIKSLIAS specs į technicalFields.
-3) description — 4–8 tikslūs techniniai sakiniai lietuviškai iš faktų. Be marketing fluff, be CTA, be fono aprašymo.
-4) NIEKADA nekartok vartotojo frazės kaip aprašymo.${textNote}${extra}
+1) PRIVALOMA imageRoles masyvas (gallery|document) kiekvienai nuotraukai. Žalias/mėlynas tech passport, registracija, kvitas, popierius su lentele/VIN — VISADA document.
+2) documentImageIndexes + galleryImageIndexes privalo sutapti su imageRoles.
+3) Specs (metai, variklis/kW, VIN, numeris) — TIK aiškiai įskaitomas tekstas. Jei dokumentas neryškus: documentReadable=false, documentOcrConfidence<0.55, unclearDocumentIndexes, NESPĖLIOK laukų.
+4) description — 4–8 tikslūs techniniai sakiniai TIK iš patikimų faktų. Be fluff / CTA / fono.
+5) NIEKADA nekartok vartotojo frazės kaip aprašymo.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
@@ -436,10 +479,28 @@ export async function parseListingImagesForAgent(params: {
     price: listing.price,
   });
 
-  const { galleryUrls, documentUrls } = splitGalleryAndDocumentUrls(images, {
-    documentImageIndexes: raw.documentImageIndexes,
-    galleryImageIndexes: raw.galleryImageIndexes,
-  });
+  const { galleryUrls: splitGallery, documentUrls } = splitGalleryAndDocumentUrls(
+    images,
+    {
+      documentImageIndexes: raw.documentImageIndexes,
+      galleryImageIndexes: raw.galleryImageIndexes,
+      imageRoles: raw.imageRoles,
+    }
+  );
+  // Hard rule: never fall back to the full upload set (would re-inject tech passport).
+  const galleryUrls = hardFilterPublicGalleryUrls(splitGallery, documentUrls);
+
+  const documentUnclear =
+    documentUrls.length > 0 && isExplicitlyUnclearDocument(raw);
+  if (documentUnclear) {
+    listing.attributes = stripHallucinatedOcrFields(listing.attributes);
+    listing.attributes = {
+      ...listing.attributes,
+      documentReadable: "false",
+      documentOcrUnclear: "true",
+      clarificationPrompt: DOCUMENT_UNCLEAR_PROMPT,
+    };
+  }
   if (documentUrls.length) {
     listing.attributes = {
       ...listing.attributes,
@@ -450,6 +511,7 @@ export async function parseListingImagesForAgent(params: {
   console.log("[vision] parseListingImagesForAgent gallery split", {
     galleryCount: galleryUrls.length,
     documentCount: documentUrls.length,
+    documentUnclear,
   });
 
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
@@ -460,19 +522,26 @@ export async function parseListingImagesForAgent(params: {
   if (choiceChips.length < 2 && detectedObjects.length >= 2) {
     choiceChips = chipsFromDetectedObjects(detectedObjects, "sell");
   }
+  if (documentUnclear) {
+    choiceChips = ["Įkelti aiškesnį techninį pasą", "Patikslinti metus ir variklį"];
+  }
   const sceneContext = String(raw.sceneContext ?? listing.attributes.sceneContext ?? "").trim();
-  const clarificationPrompt =
-    String(listing.attributes.clarificationPrompt ?? "").trim() ||
-    buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
+  const clarificationPrompt = documentUnclear
+    ? DOCUMENT_UNCLEAR_PROMPT
+    : String(listing.attributes.clarificationPrompt ?? "").trim() ||
+      buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
 
   const quotaFallback =
     String(listing.attributes?.visionQuotaFallback ?? "") === "true";
-  // Quota text-draft must never open multi-object chips / buddy loop.
+  const sparseSell = String(listing.attributes?.sparseSell ?? "") === "true";
+  // Quota text-draft must never open multi-object chips / buddy loop — except sparse/OCR clarify.
   const needsClarification =
-    !quotaFallback &&
-    (listing.confidence < 0.55 ||
-      choiceChips.length >= 2 ||
-      (detectedObjects.length >= 2 && listing.confidence < 0.72));
+    documentUnclear ||
+    sparseSell ||
+    (!quotaFallback &&
+      (listing.confidence < 0.55 ||
+        choiceChips.length >= 2 ||
+        (detectedObjects.length >= 2 && listing.confidence < 0.72)));
 
   return {
     listing,

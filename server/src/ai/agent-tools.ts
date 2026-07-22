@@ -50,6 +50,11 @@ import {
 } from "../offer-engine.js";
 import { insertUserRequirement } from "../repository.js";
 import { parseListingImagesForAgent } from "./vauto-unified.js";
+import { detectServerSellIntent, DOCUMENT_UNCLEAR_PROMPT } from "./sell-intent-fallback.js";
+import {
+  hardFilterPublicGalleryUrls,
+  parseDocumentUrlsFromAttributes,
+} from "./listing-gallery-roles.js";
 import {
   buildPostValidationReportMessage,
   POST_VALIDATION_QUICK_REPLIES,
@@ -64,7 +69,6 @@ import {
   fetchServiceLeadStats,
   formatServiceLeadsMessage,
 } from "./business-agent-tools.js";
-import { detectServerSellIntent } from "./sell-intent-fallback.js";
 import {
   evaluateOmnivaPastomatasGatekeeper,
   OMNIVA_OVERSIZE_BLOCK_MESSAGE,
@@ -141,6 +145,7 @@ export interface AgentToolContext {
     category?: string;
     attributes?: Record<string, string>;
     allowPastomatas?: boolean;
+    orderedImageUrls?: string[];
   };
   sellerMetrics?: {
     views: number;
@@ -1651,6 +1656,22 @@ export async function executeAgentTool(
           mergedDescription = priorDesc.length >= visionDesc.length ? priorDesc : visionDesc;
         }
 
+        const evidenceDocs = [
+          ...parsed.documentUrls,
+          ...parseDocumentUrlsFromAttributes({
+            ...(prior?.attributes ?? {}),
+            ...listingAttrs,
+          }),
+        ];
+        const publicGallery = hardFilterPublicGalleryUrls(
+          [
+            ...parsed.galleryUrls,
+            ...(prior?.orderedImageUrls ?? []),
+          ],
+          evidenceDocs,
+          { ...(prior?.attributes ?? {}), ...listingAttrs }
+        );
+
         const draft = {
           title: parsed.listing.title || prior?.title || "",
           description: mergedDescription,
@@ -1662,7 +1683,14 @@ export async function executeAgentTool(
           attributes: {
             ...(prior?.attributes ?? {}),
             ...listingAttrs,
+            ...(evidenceDocs.length
+              ? {
+                  documentImageUrls: evidenceDocs.join("|"),
+                  documentImageCount: String(evidenceDocs.length),
+                }
+              : {}),
           },
+          ...(publicGallery.length ? { orderedImageUrls: publicGallery } : {}),
           listingFlowState: "AWAITING_CONFIRMATION" as const,
         };
 
@@ -1670,7 +1698,10 @@ export async function executeAgentTool(
           const message =
             parsed.clarificationPrompt ||
             "Matau kelis objektus nuotraukoje — kurį norite parduoti? Pasirinkite žemiau.";
-          const quickReplies = parsed.choiceChips.slice(0, 4);
+          const quickReplies =
+            message === DOCUMENT_UNCLEAR_PROMPT
+              ? ["Įkelti aiškesnį techninį pasą", "Patikslinti metus ir variklį"]
+              : parsed.choiceChips.slice(0, 4);
           return {
             result: {
               ok: true,
@@ -1679,6 +1710,8 @@ export async function executeAgentTool(
               quickReplies,
               message,
               voiceAnnouncement: message,
+              documentUrls: evidenceDocs,
+              galleryUrls: publicGallery,
             },
           };
         }
@@ -1701,13 +1734,14 @@ export async function executeAgentTool(
             voiceAnnouncement: message,
             message,
             quickReplies,
-            imageUrls,
+            imageUrls: publicGallery,
+            documentUrls: evidenceDocs,
           },
           sideEffect: {
             type: "listing_draft",
             listingDraft: draft,
-            imageUrl: imageUrls[0],
-            imageUrls,
+            imageUrl: publicGallery[0],
+            imageUrls: publicGallery,
           },
         };
       } catch (e) {
@@ -2653,6 +2687,7 @@ export type AgentSideEffect =
         confidence: number;
         attributes?: Record<string, string>;
         allowPastomatas?: boolean;
+        orderedImageUrls?: string[];
         listingFlowState?:
           | "DRAFTING_TEXT"
           | "AWAITING_PHOTOS"

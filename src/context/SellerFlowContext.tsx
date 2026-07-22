@@ -1636,7 +1636,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             ...(sellerPreviewImage ? [sellerPreviewImage] : []),
             ...sellerPreviewImages.filter(Boolean),
           ].filter((url, i, arr) => arr.indexOf(url) === i)
-        )
+        ),
+        {
+          attributes: profileDraft.attributes,
+          documentUrls: parseDocumentUrlsFromAttributes(profileDraft.attributes),
+        }
       ).slice(0, 6);
       const preparedEditImages = editGallery.length
         ? (

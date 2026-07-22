@@ -27,7 +27,9 @@ import {
 } from "./secretary-guards.js";
 import {
   buildSellListingDraftFallback,
+  buildSellClarificationReply,
   detectServerSellIntent,
+  isSparseSellRequest,
 } from "./sell-intent-fallback.js";
 import {
   isListingConversationInput,
@@ -743,6 +745,26 @@ async function runVautoAgentInner(
       reply: resolveSecretaryNoiseReply(lastUserText),
       toolCalls: [],
       actions: { type: "none" },
+    };
+  }
+
+  // Sparse sell without photos → clarify BEFORE Gemini (never invent placeholder draft).
+  if (
+    isSparseSellRequest(lastUserText) &&
+    !pendingChatImages?.length &&
+    !(listingDraft?.orderedImageUrls?.filter(Boolean).length) &&
+    !(req.context.pendingImageUrls?.filter(Boolean).length)
+  ) {
+    console.warn("[vision] vauto-agent early sparse sell → clarify (no fake draft)", {
+      lastUserTextHead: lastUserText.slice(0, 120),
+    });
+    const clarify = buildSellClarificationReply(lastUserText);
+    return {
+      ok: true,
+      reply: clarify.reply,
+      quickReplies: clarify.quickReplies,
+      toolCalls: [],
+      actions: clarify.action,
     };
   }
 
@@ -1485,6 +1507,19 @@ async function runVautoAgentInner(
     detectServerSellIntent(lastUserText) &&
     !pendingChatImages?.length
   ) {
+    if (isSparseSellRequest(lastUserText)) {
+      console.warn("[vision] vauto-agent sparse sell → clarify (no fake draft)", {
+        lastUserTextHead: lastUserText.slice(0, 120),
+      });
+      const clarify = buildSellClarificationReply(lastUserText);
+      return {
+        ok: true,
+        reply: clarify.reply,
+        quickReplies: clarify.quickReplies,
+        toolCalls,
+        actions: clarify.action,
+      };
+    }
     console.warn("[vision] vauto-agent sell-intent text fallback (no images)", {
       lastUserTextHead: lastUserText.slice(0, 120),
     });

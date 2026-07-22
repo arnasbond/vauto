@@ -86,12 +86,12 @@ Grąžink JSON: ${ANGLE_SCHEMA}`,
       .map((p, sortIndex) => ({ ...p, sortIndex }));
 
     // Public gallery excludes document / passport / receipt photos.
-    const ordered = orderedAll.filter((p) => !DOCUMENT_TAGS.has(p.angleTag));
-    const galleryOrdered = ordered.length ? ordered : orderedAll;
+    // NEVER fall back to orderedAll — that re-injects tech passport into the public set.
+    const galleryOrdered = orderedAll.filter((p) => !DOCUMENT_TAGS.has(p.angleTag));
 
     return {
       ordered: galleryOrdered,
-      coverImageId: galleryOrdered[0]?.id ?? base[0]!.id,
+      coverImageId: galleryOrdered[0]?.id ?? base.find((p) => !DOCUMENT_TAGS.has(p.angleTag))?.id ?? base[0]!.id,
     };
   } catch {
     return {

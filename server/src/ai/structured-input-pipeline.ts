@@ -208,6 +208,7 @@ export function resolvePrePublishGatewayResponse(input: {
     location?: string;
     category?: string;
     attributes?: Record<string, string>;
+    orderedImageUrls?: string[];
   };
   pendingImageUrls?: string[];
   imageUrl?: string;

@@ -1,6 +1,7 @@
 /**
  * Server-side sell-intent heuristics — mirrors client scoring for fallback drafts (S0.9).
  * NEVER echo the user's raw sentence as title/description.
+ * Sparse sell text ("noriu parduoti citroen") → clarify, do NOT invent a draft.
  */
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
 
@@ -47,6 +48,10 @@ const AUTO_BRANDS: { pattern: RegExp; make: string }[] = [
   { pattern: /\bvolvo\b/i, make: "Volvo" },
 ];
 
+/** Model / year / mileage / engine signals that make a sell note "enough" to draft. */
+const SPEC_SIGNAL =
+  /\b(c[1-5]\b|berlingo|cactus|picasso|jumpy|spacetourer|xsara|saxo|ds[3-7]|\d{4}\s*m\.?|\b(19|20)\d{2}\b|\b\d{1,3}[\s.]?\d{3}\s*km\b|\b\d{2,4}\s*k[wv]\b|\b\d\.\d\s*l\b|benzinas|dyzel|elektr|hibrid|automat|mechanin)/i;
+
 export function detectServerSellIntent(text: string): boolean {
   const q = text.trim().toLowerCase();
   if (!q || q.length < 4) return false;
@@ -54,11 +59,60 @@ export function detectServerSellIntent(text: string): boolean {
   return SELL_PATTERNS.some((re) => re.test(q));
 }
 
-function inferMake(text: string): string {
+export function inferMake(text: string): string {
   for (const { pattern, make } of AUTO_BRANDS) {
     if (pattern.test(text)) return make;
   }
   return "";
+}
+
+/**
+ * Sparse = sell intent without photos/specs (e.g. "noriu parduoti citroen").
+ * Must NOT invent a placeholder listing draft.
+ */
+export function isSparseSellRequest(text: string): boolean {
+  if (!detectServerSellIntent(text)) return false;
+  const t = text.trim();
+  if (SPEC_SIGNAL.test(t)) return false;
+  // Brand-only or generic sell phrase without model/year/km/engine.
+  const withoutSell = t
+    .replace(/\b(parduodu|parduosiu|noriu\s+parduoti?|nor[eė]čiau\s+parduoti?|pad[eė]k\s+parduoti?)\b/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (withoutSell.length < 3) return true;
+  const make = inferMake(t);
+  if (make) {
+    // "citroen" / "citroena" alone after stripping sell words → sparse
+    const rest = withoutSell
+      .replace(/citro[eë]?n\w*/gi, "")
+      .replace(new RegExp(make.replace("-", "[-\\s]?"), "ig"), "")
+      .replace(/[^\p{L}\p{N}\s]/gu, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return rest.length < 2;
+  }
+  return withoutSell.length < 18;
+}
+
+export function buildSellClarificationReply(text: string): {
+  reply: string;
+  quickReplies: string[];
+  action: { type: "none" };
+} {
+  const make = inferMake(text);
+  if (make) {
+    return {
+      reply: `Kokį ${make} modelį norite parduoti? Įkelkite automobilio nuotraukas arba techninį pasą, ir aš paruošiu tikslų skelbimą.`,
+      quickReplies: ["Įkelti nuotraukas", "Įkelti techninį pasą"],
+      action: { type: "none" },
+    };
+  }
+  return {
+    reply:
+      "Ką tiksliai parduodate? Įkelkite prekės nuotraukas arba techninį pasą / dokumentą — tada paruošiu tikslų skelbimą be spėlionių.",
+    quickReplies: ["Įkelti nuotraukas", "Įkelti techninį pasą"],
+    action: { type: "none" },
+  };
 }
 
 function inferCategory(text: string): string {
@@ -75,7 +129,6 @@ function inferTitle(text: string, category: string, make: string): string {
   if (make) return `Parduodamas ${make}`;
   if (category === "vehicles") return "Parduodamas automobilis";
   if (category === "clothing") return "Parduodamas drabužis";
-  // Never use the raw user sentence ("noriu parduoti…") as the listing title.
   const cleaned = text
     .replace(/\b(parduodu|parduosiu|noriu\s+parduoti?|nor[eė]čiau\s+parduoti?)\b/gi, "")
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
@@ -164,6 +217,33 @@ export function buildVisionQuotaTextFallbackJson(input: {
   priceHint?: number;
 }): Record<string, unknown> {
   const text = String(input.userText ?? "").trim() || "Parduodu automobilį";
+  // Sparse text alone must not invent a rich fake listing under quota pressure either.
+  if (isSparseSellRequest(text)) {
+    const clarify = buildSellClarificationReply(text);
+    return {
+      intent: "sell",
+      category: "AUTOMOBILIAI",
+      title: inferMake(text) ? `Parduodamas ${inferMake(text)}` : "Skelbimas",
+      price: null,
+      city: input.userCity || "Lietuva",
+      description: clarify.reply,
+      technicalFields: {
+        visionQuotaFallback: "true",
+        needsClarification: "true",
+        sparseSell: "true",
+      },
+      attributes: {
+        visionQuotaFallback: "true",
+        needsClarification: "true",
+        sparseSell: "true",
+      },
+      confidence: 0.2,
+      sceneContext: "sparse_sell_clarify",
+      detectedObjects: [],
+      choiceChips: clarify.quickReplies,
+      documentReadable: false,
+    };
+  }
   const draft = buildSellListingDraftFallback(text, {
     userCity: input.userCity,
   }).action.listingDraft;
@@ -206,6 +286,10 @@ export function buildVisionQuotaTextFallbackJson(input: {
   };
 }
 
+/**
+ * Build a draft ONLY when the sell note already has usable specs.
+ * Prefer buildSellClarificationReply for sparse text.
+ */
 export function buildSellListingDraftFallback(
   text: string,
   ctx: { userCity?: string; contact?: string }
@@ -250,3 +334,6 @@ export function buildSellListingDraftFallback(
     action: { type: "listing_draft", listingDraft },
   };
 }
+
+export const DOCUMENT_UNCLEAR_PROMPT =
+  "Dokumento nuotrauka nepakankamai aiški. Gal galite įkelti aiškesnę techninio paso nuotrauką arba patikslinti metus ir variklį?";

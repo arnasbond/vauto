@@ -1,9 +1,6 @@
 import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
 import { getSafeImageUrl } from "@/lib/utils";
-import {
-  filterPublicGalleryUrls,
-  parseDocumentUrlsFromAttributes,
-} from "@/lib/listing-gallery-roles";
+import { hardFilterPublicGalleryUrls } from "@/lib/listing-gallery-roles";
 
 const UNSPLASH = (id: string) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -93,15 +90,12 @@ export function filterSessionListingImages(
   urls: readonly string[] | undefined,
   opts?: { documentUrls?: readonly string[]; attributes?: Record<string, string | string[] | undefined> }
 ): string[] {
-  const docs = [
-    ...(opts?.documentUrls ?? []),
-    ...parseDocumentUrlsFromAttributes(opts?.attributes ?? null),
-  ];
-  return filterPublicGalleryUrls(
+  return hardFilterPublicGalleryUrls(
     uniqueUrls(
       (urls ?? []).filter((url) => isValidListingImageUrl(url) && !isDemoStockImageUrl(url))
     ),
-    docs
+    opts?.documentUrls,
+    opts?.attributes
   );
 }
 

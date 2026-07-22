@@ -11,6 +11,7 @@ import {
   type ListingFlowState,
 } from "./listing-conversational-flow.js";
 import { parseListingImagesForAgent } from "./vauto-unified.js";
+import { hardFilterPublicGalleryUrls } from "./listing-gallery-roles.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
   "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
@@ -201,7 +202,13 @@ async function resolveListingPhotoScan(input: {
       toolCalls: [
         {
           name: "scanListingPhotos",
-          result: { ok: true, needsClarification: true, message },
+          result: {
+            ok: true,
+            needsClarification: true,
+            message,
+            documentUrls: parsed.documentUrls,
+            galleryUrls: parsed.galleryUrls,
+          },
         },
       ],
       actions: { type: "none" },
@@ -214,10 +221,13 @@ async function resolveListingPhotoScan(input: {
       Array.isArray(v) ? v.join(", ") : String(v),
     ])
   );
-  const publicGallery = parsed.galleryUrls.length
-    ? parsed.galleryUrls
-    : imageUrls;
   const evidenceDocs = parsed.documentUrls;
+  // NEVER fall back to the full upload set — that re-injects tech passport into Vieša galerija.
+  const publicGallery = hardFilterPublicGalleryUrls(
+    parsed.galleryUrls,
+    evidenceDocs,
+    listingAttrs
+  );
 
   const visionDraft = {
     title: parsed.listing.title,

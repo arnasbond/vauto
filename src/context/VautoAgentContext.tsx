@@ -153,6 +153,8 @@ import {
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
+import { filterSessionListingImages } from "@/lib/listing-image";
+import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
@@ -1018,15 +1020,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const matched = noun
         ? objects.find((o) => o.label.toLowerCase() === noun.toLowerCase())
         : undefined;
-      const photos = [
-        ...(aiDraft?.orderedImageUrls ?? []),
-        ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-        ...sessionPendingImageUrls,
-      ]
-        .map((u) => String(u ?? "").trim())
-        .filter(Boolean)
-        .filter((u, i, arr) => arr.indexOf(u) === i)
-        .slice(0, 6);
+      const photos = filterSessionListingImages(
+        [
+          ...(aiDraft?.orderedImageUrls ?? []),
+          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+          ...sessionPendingImageUrls,
+        ],
+        {
+          attributes: aiDraft?.attributes,
+          documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
+        }
+      ).slice(0, 6);
 
       const baseDraft = {
         title,
@@ -1344,13 +1348,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         setSessionPendingImageUrls(pendingForTurn);
         setListingPublishConfirmed(false);
         if (draftForTurn) {
-          const mergedPhotos = [
-            ...incomingImagesEarly,
-            ...(draftForTurn.orderedImageUrls ?? []),
-          ]
-            .filter(Boolean)
-            .filter((u, i, arr) => arr.indexOf(u) === i)
-            .slice(0, 6);
+          const mergedPhotos = filterSessionListingImages(
+            [...incomingImagesEarly, ...(draftForTurn.orderedImageUrls ?? [])],
+            {
+              attributes: draftForTurn.attributes,
+              documentUrls: parseDocumentUrlsFromAttributes(draftForTurn.attributes),
+            }
+          ).slice(0, 6);
           draftForTurn = { ...draftForTurn, orderedImageUrls: mergedPhotos };
           updateAiDraft({
             orderedImageUrls: mergedPhotos,
@@ -1494,15 +1498,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           clarificationPrompt: undefined,
         };
 
-        const cardPhotos = [
-          ...(patchedDraft.orderedImageUrls ?? []),
-          ...pendingForTurn,
-          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-        ]
-          .map((u) => String(u ?? "").trim())
-          .filter(Boolean)
-          .filter((u, i, arr) => arr.indexOf(u) === i)
-          .slice(0, 6);
+        const cardPhotos = filterSessionListingImages(
+          [
+            ...(patchedDraft.orderedImageUrls ?? []),
+            ...pendingForTurn,
+            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+          ],
+          {
+            attributes: patchedDraft.attributes,
+            documentUrls: parseDocumentUrlsFromAttributes(patchedDraft.attributes),
+          }
+        ).slice(0, 6);
         const card = buildPrePublishCardPayload(
           readiness,
           sellerPreviewImage ?? cardPhotos[0] ?? null,
