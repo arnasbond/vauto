@@ -6,7 +6,7 @@ import {
   buildPostVisionHeroMessage,
   inferListingFlowState,
   listingFlowAllowsPhotoUpload,
-  POST_VISION_PUBLISH_CHIPS,
+  MULTIMODAL_FUSION_CONFIRM,
   transitionListingFlow,
   type ListingFlowState,
 } from "./listing-conversational-flow.js";
@@ -149,7 +149,7 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
-    "Vision: extract precise SPECS only (make, model, year, trim, engine, kW, mileage, seats, VIN/plate). No marketing fluff. Classify tech passport/document photos via documentImageIndexes — they are OCR-only, not public gallery.",
+    "Vision MULTIMODAL FUSION: HARD SPECS from tech passport (A=plate, B=year, D.1=make, D.3=model, P.1=engine liters, P.2=powerKw, P.3=fuel, R=color, C.1.3=city). VISUAL EXTRAS from car photos (interiorCondition, exteriorFeatures). One cohesive description. Classify docs via documentImageIndexes — OCR-only, not public gallery.",
   ].filter(Boolean);
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;
@@ -277,27 +277,35 @@ async function resolveListingPhotoScan(input: {
 
   const quotaFallback =
     String(mergedDraft.attributes?.visionQuotaFallback ?? "") === "true";
-  const docNote =
-    evidenceDocs.length > 0
-      ? ` Tech passport / dokumentų nuotraukas (${evidenceDocs.length}) naudoju specs — viešoje galerijoje jų nebus.`
-      : "";
+  const hasFusion = evidenceDocs.length > 0 && publicGallery.length > 0;
+  const hasHardSpecs = Boolean(
+    mergedDraft.attributes?.year ||
+      mergedDraft.attributes?.engine ||
+      mergedDraft.attributes?.fuelType ||
+      mergedDraft.attributes?.make
+  );
+  const softOcrNoteRaw =
+    !hasFusion &&
+    !hasHardSpecs &&
+    (String(mergedDraft.attributes?.documentOcrSoftNote ?? "").trim() ||
+      (String(mergedDraft.attributes?.documentOcrUnclear ?? "") === "true"
+        ? DOCUMENT_OCR_SOFT_NOTE
+        : ""));
   const softOcrNote =
-    String(mergedDraft.attributes?.documentOcrSoftNote ?? "").trim() ||
-    (String(mergedDraft.attributes?.documentOcrUnclear ?? "") === "true"
-      ? DOCUMENT_OCR_SOFT_NOTE
-      : "");
+    typeof softOcrNoteRaw === "string" ? softOcrNoteRaw.trim() : "";
   const ack = quotaFallback
-    ? `Išsaugojau nuotraukas.${docNote} AI vaizdo analizė šiuo metu perkrauta — paruošiau techninį aprašymą pagal jūsų tekstą.`
-    : `${photoAckLine(imageUrls.length)}${docNote}`;
+    ? `Išsaugojau nuotraukas. AI vaizdo analizė šiuo metu perkrauta — paruošiau techninį aprašymą pagal jūsų tekstą.`
+    : hasFusion
+      ? MULTIMODAL_FUSION_CONFIRM
+      : photoAckLine(imageUrls.length);
   const resolvedCity =
     mergedDraft.location?.trim() || input.userCity?.trim() || "";
 
   let reply = softOcrNote
     ? `${ack}\n\n${softOcrNote}\n\n${buildPostVisionHeroMessage(mergedDraft)}`
     : `${ack}\n\n${buildPostVisionHeroMessage(mergedDraft)}`;
-  let quickReplies: string[] = softOcrNote
-    ? ["Patikslinti metus ir variklį", ...POST_VISION_PUBLISH_CHIPS]
-    : [...POST_VISION_PUBLISH_CHIPS];
+  // No inline chips — user uses (+) and PrePublish card controls.
+  let quickReplies: string[] = [];
 
   if (!mergedDraft.price || mergedDraft.price <= 0) {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingPrice: true })}`;

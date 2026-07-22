@@ -82,13 +82,8 @@ export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja 
 - updateListingDraft / postNewListing → tik po disambiguation loop arba aiškaus vieno objekto.
 - Po sėkmingo updateListingDraft → natūrali juodraščio santrauka (Kelrodės tonas) + showZeroUiScreen(listing_preview).`;
 
-/** Greiti atsakymai po sėkmingo laukų užpildymo (agentas + klientas). */
-export const POST_VALIDATION_QUICK_REPLIES = [
-  "Viskas tinka",
-  "Pataisyti kainą",
-  "Pataisyti kategoriją",
-  "Pataisyti aprašymą",
-] as const;
+/** Greiti atsakymai po sėkmingo laukų užpildymo — disabled (PrePublish card owns CTA). */
+export const POST_VALIDATION_QUICK_REPLIES = [] as const;
 
 /** Greiti atsakymai kai paieška grąžina 0 rezultatų. */
 export const EMPTY_SEARCH_QUICK_REPLIES = [

@@ -167,29 +167,28 @@ export function evaluatePrePublishReadiness(
   });
   const missingPhoto = !hasPhoto || photoClaimedInText;
 
-  // Persist public gallery only — pending uploads stay session-side until vision classifies docs out.
+  // Persist public gallery only — never touch price/year/attrs here.
+  // Docs stay filtered out; user trims public photos via PrePublish thumbnail „x“.
   if (syncedDraft) {
     const documentUrls = parseDocumentUrlsFromAttributes(syncedDraft.attributes);
-    const gallerySource =
-      (syncedDraft.orderedImageUrls?.length ?? 0) > 0
-        ? [
-            ...(syncedDraft.orderedImageUrls ?? []),
-            ...(input.orderedImageUrls ?? []),
-          ]
-        : [
-            ...(syncedDraft.orderedImageUrls ?? []),
-            ...(input.orderedImageUrls ?? []),
-            ...(input.pendingImageUrls ?? []),
-            ...(input.previewImage ? [input.previewImage] : []),
-          ];
+    const gallerySource: string[] = [
+      ...(syncedDraft.orderedImageUrls ?? []),
+      ...(input.orderedImageUrls ?? []),
+    ];
+    // Only fall back to pending when there is no public gallery yet.
+    if (!gallerySource.length) {
+      gallerySource.push(
+        ...(input.pendingImageUrls ?? []),
+        ...(input.previewImage ? [input.previewImage] : [])
+      );
+    }
     const mergedPhotos = filterSessionListingImages(gallerySource, {
       documentUrls,
       attributes: syncedDraft.attributes,
     }).slice(0, 6);
     if (mergedPhotos.length) {
       syncedDraft = { ...syncedDraft, orderedImageUrls: mergedPhotos };
-    } else if (documentUrls.length && syncedDraft.orderedImageUrls?.length) {
-      // Strip any leftover docs even if gallery empties.
+    } else if ((syncedDraft.orderedImageUrls?.length ?? 0) > 0) {
       syncedDraft = {
         ...syncedDraft,
         orderedImageUrls: filterSessionListingImages(syncedDraft.orderedImageUrls, {

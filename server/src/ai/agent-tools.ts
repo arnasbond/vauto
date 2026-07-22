@@ -1726,31 +1726,33 @@ export async function executeAgentTool(
           };
         }
 
+        const hasFusion =
+          evidenceDocs.length > 0 && publicGallery.length > 0;
+        const hasHardSpecs = Boolean(
+          draftAttrs.year || draftAttrs.engine || draftAttrs.fuelType || draftAttrs.make
+        );
         const softOcrNote =
-          String(draftAttrs.documentOcrSoftNote ?? "").trim() ||
-          (String(draftAttrs.documentOcrUnclear ?? "") === "true"
-            ? DOCUMENT_OCR_SOFT_NOTE
-            : "");
+          !hasFusion &&
+          !hasHardSpecs &&
+          (String(draftAttrs.documentOcrSoftNote ?? "").trim() ||
+            (String(draftAttrs.documentOcrUnclear ?? "") === "true"
+              ? DOCUMENT_OCR_SOFT_NOTE
+              : ""));
+        const fusionIntro = hasFusion
+          ? "Sujungiau techninio paso ir nuotraukų duomenis: Paruošiau skelbimą!\n\n"
+          : "";
+        const report = buildPostValidationReportMessage({
+          category: draft.category,
+          title: draft.title,
+          description: draft.description,
+          price: draft.price,
+          location: draft.location,
+          attributes: draft.attributes,
+        });
         const message = softOcrNote
-          ? `${softOcrNote}\n\n${buildPostValidationReportMessage({
-              category: draft.category,
-              title: draft.title,
-              description: draft.description,
-              price: draft.price,
-              location: draft.location,
-              attributes: draft.attributes,
-            })}`
-          : buildPostValidationReportMessage({
-              category: draft.category,
-              title: draft.title,
-              description: draft.description,
-              price: draft.price,
-              location: draft.location,
-              attributes: draft.attributes,
-            });
-        const quickReplies = softOcrNote
-          ? ["Patikslinti metus ir variklį", ...POST_VALIDATION_QUICK_REPLIES]
-          : [...POST_VALIDATION_QUICK_REPLIES];
+          ? `${softOcrNote}\n\n${report}`
+          : `${fusionIntro}${report}`;
+        const quickReplies: string[] = [];
 
         return {
           result: {

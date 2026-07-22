@@ -150,7 +150,10 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
               !/^įkelti\s+nuotrauk/i.test(chip) &&
               !/^ikelti\s+nuotrauk/i.test(chip) &&
               !/^įkelti\s+technin/i.test(chip) &&
-              !/^ikelti\s+technin/i.test(chip)
+              !/^ikelti\s+technin/i.test(chip) &&
+              !/^prisegti\s+nuotrauk/i.test(chip) &&
+              !/^judame\s+prie\s+prepublish/i.test(chip) &&
+              !/^patikslinti\s+metus/i.test(chip)
           )
           .slice(0, 4);
 

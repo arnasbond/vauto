@@ -247,6 +247,10 @@ export function buildVehicleDescriptionFromAttributes(
   if (bodyBits.length) sentences.push(`${bodyBits.join(", ")}.`);
 
   if (plate) sentences.push(`Valstybinis numeris: ${plate}.`);
+  const interior = get("interiorCondition");
+  const exterior = get("exteriorFeatures");
+  if (interior) sentences.push(`Salonas: ${interior}.`);
+  if (exterior) sentences.push(`Išorė: ${exterior}.`);
   if (condition) sentences.push(`Būklė: ${condition}.`);
   if (opts?.location?.trim()) sentences.push(`Vieta: ${opts.location.trim()}.`);
 

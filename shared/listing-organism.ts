@@ -52,25 +52,27 @@ export const AWAITING_PHOTOS_PROMPT =
   "Puiku — įkelkite iki 6 nuotraukų čia pokalbyje. Gera nuotrauka dažnai atneša kelis kartus daugiau dėmesio.";
 
 export const AWAITING_PHOTOS_NUDGE =
-  "Kai būsite pasiruošę — įkelkite nuotraukas čia pokalbyje (iki 6 vnt.). Arba parašykite „Judame prie PrePublish“, jei norite peržiūrėti be nuotraukų.";
+  "Kai būsite pasiruošę — įkelkite nuotraukas per (+) mygtuką pokalbyje (iki 6 vnt.).";
 
 /** Shared gate after text OR vision draft is ready (Arnold text-first). */
 export const POST_VISION_PUBLISH_GATE =
-  "Aprašymas paruoštas! Ar norite dabar prisegti nuotraukas, ar judame tiesiai prie PrePublish kortelės peržiūros?";
+  "Aprašymas paruoštas! Kokią kainą nustatome, ar peržiūrime PrePublish kortelę žemiau?";
 
 /** Alias — same universal gate copy. */
 export const TEXT_DRAFT_READY_GATE = POST_VISION_PUBLISH_GATE;
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
-  "Gerai — įkelkite nuotraukas čia pokalbyje (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
+  "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
-export const POST_VISION_PUBLISH_CHIPS = [
-  "Judame prie PrePublish",
-  "Prisegti nuotraukas",
-] as const;
+/** Inline action chips removed — user uses (+) and PrePublish card UI. */
+export const POST_VISION_PUBLISH_CHIPS = [] as const;
 
 /** Alias — same chips. */
 export const TEXT_DRAFT_READY_CHIPS = POST_VISION_PUBLISH_CHIPS;
+
+/** Multimodal fusion confirm when tech passport + car photos are both present. */
+export const MULTIMODAL_FUSION_CONFIRM =
+  "Sujungiau techninio paso ir nuotraukų duomenis: Paruošiau skelbimą!";
 
 export const AWAITING_CONFIRMATION_LOCKED =
   "Skelbimas paruoštas patvirtinimui. Tekstas nekeičia aprašymo — peržiūrėkite kortelę žemiau ir spauskite „Patvirtinti ir publikuoti“.";
@@ -471,7 +473,7 @@ export function buildPostVisionHeroMessage(draft: {
         : "Patarimas: konkretus aprašymas parduoda greičiau — pirkėjai greitai pastebi aiškumą.";
   // After Vision, photos are already attached — never ask to „prisegti nuotraukas“ again.
   const cta =
-    "Štai aprašymas pagal jūsų nuotraukas. Kokią kainą nustatome, ar judame prie PrePublish kortelės peržiūros?";
+    "Štai aprašymas pagal jūsų nuotraukas ir dokumentus. Peržiūrėkite PrePublish kortelę žemiau arba parašykite kainą.";
   const lines = [
     `Paruošiau gražų skelbimą:`,
     ``,

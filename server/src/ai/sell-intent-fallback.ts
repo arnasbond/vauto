@@ -365,13 +365,13 @@ export function buildSellListingDraftFallback(
       location: listingDraft.location,
       attributes,
     }),
-    quickReplies: ["Judame prie PrePublish", "Papildyti detales"],
+    quickReplies: [],
     action: { type: "listing_draft", listingDraft },
   };
 }
 
 export const DOCUMENT_OCR_SOFT_NOTE =
-  "Techninio paso nuotrauka kiek neryški — užpildžiau tai, ką įžiūrėjau. Galite patikslinti metus ar variklį čia pokalbyje, arba įkelti aiškesnę nuotrauką.";
+  "Techninio paso nuotrauka kiek neryški — užpildžiau tai, ką įžiūrėjau. Galite patikslinti metus ar variklį čia pokalbyje, arba įkelti aiškesnę nuotrauką per (+).";
 
 /** @deprecated Prefer DOCUMENT_OCR_SOFT_NOTE — soft, non-blocking tone. */
 export const DOCUMENT_UNCLEAR_PROMPT = DOCUMENT_OCR_SOFT_NOTE;
