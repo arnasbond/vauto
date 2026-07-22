@@ -50,7 +50,7 @@ import {
 } from "../offer-engine.js";
 import { insertUserRequirement } from "../repository.js";
 import { parseListingImagesForAgent } from "./vauto-unified.js";
-import { detectServerSellIntent, DOCUMENT_UNCLEAR_PROMPT } from "./sell-intent-fallback.js";
+import { detectServerSellIntent, DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
 import {
   hardFilterPublicGalleryUrls,
   parseDocumentUrlsFromAttributes,
@@ -1672,6 +1672,16 @@ export async function executeAgentTool(
           { ...(prior?.attributes ?? {}), ...listingAttrs }
         );
 
+        const draftAttrs: Record<string, string> = {
+          ...(prior?.attributes ?? {}),
+          ...listingAttrs,
+          ...(evidenceDocs.length
+            ? {
+                documentImageUrls: evidenceDocs.join("|"),
+                documentImageCount: String(evidenceDocs.length),
+              }
+            : {}),
+        };
         const draft = {
           title: parsed.listing.title || prior?.title || "",
           description: mergedDescription,
@@ -1680,28 +1690,17 @@ export async function executeAgentTool(
           contact: ctx.contact || "",
           category: parsed.listing.category || prior?.category || "other",
           confidence: parsed.listing.confidence,
-          attributes: {
-            ...(prior?.attributes ?? {}),
-            ...listingAttrs,
-            ...(evidenceDocs.length
-              ? {
-                  documentImageUrls: evidenceDocs.join("|"),
-                  documentImageCount: String(evidenceDocs.length),
-                }
-              : {}),
-          },
+          attributes: draftAttrs,
           ...(publicGallery.length ? { orderedImageUrls: publicGallery } : {}),
           listingFlowState: "AWAITING_CONFIRMATION" as const,
         };
 
         if (parsed.needsClarification) {
+          // Multi-object ambiguity only — soft OCR never sets needsClarification.
           const message =
             parsed.clarificationPrompt ||
             "Matau kelis objektus nuotraukoje — kurį norite parduoti? Pasirinkite žemiau.";
-          const quickReplies =
-            message === DOCUMENT_UNCLEAR_PROMPT
-              ? ["Įkelti aiškesnį techninį pasą", "Patikslinti metus ir variklį"]
-              : parsed.choiceChips.slice(0, 4);
+          const quickReplies = parsed.choiceChips.slice(0, 4);
           return {
             result: {
               ok: true,
@@ -1712,19 +1711,46 @@ export async function executeAgentTool(
               voiceAnnouncement: message,
               documentUrls: evidenceDocs,
               galleryUrls: publicGallery,
+              draft,
+            },
+            // Keep sell session alive even while asking which object.
+            sideEffect: {
+              type: "listing_draft",
+              listingDraft: {
+                ...draft,
+                listingFlowState: "DRAFTING_TEXT" as const,
+              },
+              imageUrl: publicGallery[0],
+              imageUrls: publicGallery,
             },
           };
         }
 
-        const message = buildPostValidationReportMessage({
-          category: draft.category,
-          title: draft.title,
-          description: draft.description,
-          price: draft.price,
-          location: draft.location,
-          attributes: draft.attributes,
-        });
-        const quickReplies = [...POST_VALIDATION_QUICK_REPLIES];
+        const softOcrNote =
+          String(draftAttrs.documentOcrSoftNote ?? "").trim() ||
+          (String(draftAttrs.documentOcrUnclear ?? "") === "true"
+            ? DOCUMENT_OCR_SOFT_NOTE
+            : "");
+        const message = softOcrNote
+          ? `${softOcrNote}\n\n${buildPostValidationReportMessage({
+              category: draft.category,
+              title: draft.title,
+              description: draft.description,
+              price: draft.price,
+              location: draft.location,
+              attributes: draft.attributes,
+            })}`
+          : buildPostValidationReportMessage({
+              category: draft.category,
+              title: draft.title,
+              description: draft.description,
+              price: draft.price,
+              location: draft.location,
+              attributes: draft.attributes,
+            });
+        const quickReplies = softOcrNote
+          ? ["Patikslinti metus ir variklį", ...POST_VALIDATION_QUICK_REPLIES]
+          : [...POST_VALIDATION_QUICK_REPLIES];
 
         return {
           result: {

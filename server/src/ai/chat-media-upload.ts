@@ -12,6 +12,7 @@ import {
 } from "./listing-conversational-flow.js";
 import { parseListingImagesForAgent } from "./vauto-unified.js";
 import { hardFilterPublicGalleryUrls } from "./listing-gallery-roles.js";
+import { DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
   "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
@@ -280,14 +281,23 @@ async function resolveListingPhotoScan(input: {
     evidenceDocs.length > 0
       ? ` Tech passport / dokumentų nuotraukas (${evidenceDocs.length}) naudoju specs — viešoje galerijoje jų nebus.`
       : "";
+  const softOcrNote =
+    String(mergedDraft.attributes?.documentOcrSoftNote ?? "").trim() ||
+    (String(mergedDraft.attributes?.documentOcrUnclear ?? "") === "true"
+      ? DOCUMENT_OCR_SOFT_NOTE
+      : "");
   const ack = quotaFallback
     ? `Išsaugojau nuotraukas.${docNote} AI vaizdo analizė šiuo metu perkrauta — paruošiau techninį aprašymą pagal jūsų tekstą.`
     : `${photoAckLine(imageUrls.length)}${docNote}`;
   const resolvedCity =
     mergedDraft.location?.trim() || input.userCity?.trim() || "";
 
-  let reply = `${ack}\n\n${buildPostVisionHeroMessage(mergedDraft)}`;
-  let quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
+  let reply = softOcrNote
+    ? `${ack}\n\n${softOcrNote}\n\n${buildPostVisionHeroMessage(mergedDraft)}`
+    : `${ack}\n\n${buildPostVisionHeroMessage(mergedDraft)}`;
+  let quickReplies: string[] = softOcrNote
+    ? ["Patikslinti metus ir variklį", ...POST_VISION_PUBLISH_CHIPS]
+    : [...POST_VISION_PUBLISH_CHIPS];
 
   if (!mergedDraft.price || mergedDraft.price <= 0) {
     reply = `${ack}\n\n${buildConversationalMissingPrompt({ missingPrice: true })}`;

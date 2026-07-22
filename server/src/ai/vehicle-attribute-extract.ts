@@ -171,10 +171,39 @@ function extractFromText(text: string): Record<string, string> {
     }
   }
 
+  const engineMatch = text.match(/\b(\d[.,]\d)\s*(?:l|ltr|litrai?)\b/i);
+  if (engineMatch) {
+    patch.engine = `${engineMatch[1].replace(",", ".")} l`;
+  }
+
+  const fuelPatterns: Array<{ re: RegExp; label: string }> = [
+    { re: /\b(dyzel|dyzelin|dizel|dizelis|diesel)\b/i, label: "Dyzelinas" },
+    { re: /\b(benzin|benzinui|petrol|gasoline)\b/i, label: "Benzinas" },
+    { re: /\b(hybrid|hibrid)\b/i, label: "Hibridas" },
+    { re: /\b(elektr|ev\b|bev\b)/i, label: "Elektra" },
+    { re: /\b(lpg|duj|gaz)\b/i, label: "Dujos (LPG)" },
+  ];
+  for (const { re, label } of fuelPatterns) {
+    if (re.test(text)) {
+      patch.fuelType = label;
+      break;
+    }
+  }
+
+  const mileageMatch = text.match(/(\d[\d\s.,]*)\s*(?:km|kilometr|rida)/i);
+  if (mileageMatch) {
+    patch.mileage = mileageMatch[1].replace(/\s/g, "").replace(",", "");
+  }
+
   const vin = text.match(/\b[A-HJ-NPR-Z0-9]{17}\b/i);
   if (vin) patch.vin = vin[0].toUpperCase();
 
   return patch;
+}
+
+/** Parse year/engine/fuel/model from free-text sell follow-ups (e.g. "2007 metu 2.0 ltr. dizelis"). */
+export function extractVehicleSpecsFromChat(text: string): Record<string, string> {
+  return extractFromText(String(text ?? "").trim());
 }
 
 export function mergeVehicleToolArgs(args: Record<string, unknown>): Record<string, string> {

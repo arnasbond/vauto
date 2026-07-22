@@ -24,21 +24,9 @@ import {
   runVisualPipelineForExtract,
   visualPipelineResponseSlice,
 } from "../services/visual-pipeline.js";
-import { DOCUMENT_UNCLEAR_PROMPT } from "./sell-intent-fallback.js";
+import { DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
 
-const OCR_SENSITIVE_ATTR_KEYS = [
-  "year",
-  "engine",
-  "powerKw",
-  "vin",
-  "plate",
-  "mileage",
-  "fuelType",
-  "transmission",
-  "bodyType",
-] as const;
-
-function isExplicitlyUnclearDocument(raw: Record<string, unknown>): boolean {
+function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
   if (readable === false || String(readable).toLowerCase() === "false") return true;
   const ocrConf = Number(raw.documentOcrConfidence);
@@ -47,16 +35,6 @@ function isExplicitlyUnclearDocument(raw: Record<string, unknown>): boolean {
     return true;
   }
   return false;
-}
-
-function stripHallucinatedOcrFields(
-  attrs: Record<string, string | string[]>
-): Record<string, string | string[]> {
-  const next = { ...attrs };
-  for (const key of OCR_SENSITIVE_ATTR_KEYS) {
-    delete next[key];
-  }
-  return next;
 }
 
 export const VAUTO_UNIFIED_SCHEMA = `{
@@ -83,7 +61,7 @@ const SYSTEM_RULES = `Tu esi VAUTO — lietuviškas skelbimų AI. Grąžink TIK 
 Aprašymas (description) — PRECIZINIS ir TECHNINIS, ne marketingas:
 - Rašyk konkrečius faktus: markė, modelis, metai, trim, variklis (cm³/l), galia kW/AG, kuras, transmisija, rida, kėbulas, spalva, vietų sk., matomi defektai.
 - Tech passport / registracijos / dokumentų nuotraukas: imageRoles=document + documentImageIndexes.
-- Specs iš dokumento (metai, kW, VIN, numeris) — TIK jei documentReadable=true ir documentOcrConfidence>=0.55. Jei neryšku — NESPĖLIOK; unclearDocumentIndexes + documentReadable=false.
+- Specs iš dokumento (metai, kW, VIN, numeris) — ištrauk ką AIŠKIAI matai. Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus (nespėliok trūkstamų). NIEKADA nestabdyk skelbimo juodraščio dėl neryškaus dokumento.
 - galleryImageIndexes / imageRoles=gallery — TIK produkto/auto nuotraukos. Žalias/mėlynas tech passport VISADA document.
 - DRAUDŽIAMA: „patrauklus pasirinkimas“, „puiki proga“, „mielai atsakysime“, emociniai filleriai, CTA be faktų.
 - Jei faktas nematomas — praleisk, neišgalvok. Kainos ir miesto NEGALIMA išgalvoti.
@@ -232,7 +210,7 @@ ${VISION_ANTI_HALLUCINATION_RULE}
 Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1).
 1) PRIVALOMA imageRoles masyvas (gallery|document) kiekvienai nuotraukai. Žalias/mėlynas tech passport, registracija, kvitas, popierius su lentele/VIN — VISADA document.
 2) documentImageIndexes + galleryImageIndexes privalo sutapti su imageRoles.
-3) Specs (metai, variklis/kW, VIN, numeris) — TIK aiškiai įskaitomas tekstas. Jei dokumentas neryškus: documentReadable=false, documentOcrConfidence<0.55, unclearDocumentIndexes, NESPĖLIOK laukų.
+3) Specs (metai, variklis/kW, VIN, numeris) — ištrauk ką aiškiai matai. Jei dokumentas dalinai neryškus: documentReadable=false, documentOcrConfidence<0.55, unclearDocumentIndexes — BET vis tiek grąžink matomus laukus; NESPĖLIOK trūkstamų. Skelbimo juodraštis VISADA kuriamas.
 4) description — 4–8 tikslūs techniniai sakiniai TIK iš patikimų faktų. Be fluff / CTA / fono.
 5) NIEKADA nekartok vartotojo frazės kaip aprašymo.${textNote}${extra}
 Numatytas miestas: ${userCity}
@@ -490,15 +468,15 @@ export async function parseListingImagesForAgent(params: {
   // Hard rule: never fall back to the full upload set (would re-inject tech passport).
   const galleryUrls = hardFilterPublicGalleryUrls(splitGallery, documentUrls);
 
-  const documentUnclear =
-    documentUrls.length > 0 && isExplicitlyUnclearDocument(raw);
-  if (documentUnclear) {
-    listing.attributes = stripHallucinatedOcrFields(listing.attributes);
+  const documentSoftUnclear =
+    documentUrls.length > 0 && isSoftUnclearDocument(raw);
+  // Soft OCR: keep every field Gemini could read — never strip or block the draft.
+  if (documentSoftUnclear) {
     listing.attributes = {
       ...listing.attributes,
       documentReadable: "false",
       documentOcrUnclear: "true",
-      clarificationPrompt: DOCUMENT_UNCLEAR_PROMPT,
+      documentOcrSoftNote: DOCUMENT_OCR_SOFT_NOTE,
     };
   }
   if (documentUrls.length) {
@@ -511,7 +489,7 @@ export async function parseListingImagesForAgent(params: {
   console.log("[vision] parseListingImagesForAgent gallery split", {
     galleryCount: galleryUrls.length,
     documentCount: documentUrls.length,
-    documentUnclear,
+    documentSoftUnclear,
   });
 
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
@@ -522,23 +500,19 @@ export async function parseListingImagesForAgent(params: {
   if (choiceChips.length < 2 && detectedObjects.length >= 2) {
     choiceChips = chipsFromDetectedObjects(detectedObjects, "sell");
   }
-  if (documentUnclear) {
-    choiceChips = ["Įkelti aiškesnį techninį pasą", "Patikslinti metus ir variklį"];
-  }
   const sceneContext = String(raw.sceneContext ?? listing.attributes.sceneContext ?? "").trim();
-  const clarificationPrompt = documentUnclear
-    ? DOCUMENT_UNCLEAR_PROMPT
-    : String(listing.attributes.clarificationPrompt ?? "").trim() ||
-      buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
+  const clarificationPrompt =
+    String(listing.attributes.clarificationPrompt ?? "").trim() ||
+    buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
 
   const quotaFallback =
     String(listing.attributes?.visionQuotaFallback ?? "") === "true";
   const sparseSell = String(listing.attributes?.sparseSell ?? "") === "true";
-  // Quota text-draft must never open multi-object chips / buddy loop — except sparse/OCR clarify.
+  // Soft OCR never blocks. Only multi-object ambiguity / sparse text / low confidence.
   const needsClarification =
-    documentUnclear ||
     sparseSell ||
     (!quotaFallback &&
+      !documentSoftUnclear &&
       (listing.confidence < 0.55 ||
         choiceChips.length >= 2 ||
         (detectedObjects.length >= 2 && listing.confidence < 0.72)));

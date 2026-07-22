@@ -26,6 +26,7 @@ import {
   textContainsListingContactSignals,
   type AwaitingContactField,
 } from "@/lib/listing-contact-parse";
+import { extractVehicleAttributesFromText } from "@/lib/vehicle-attribute-extract";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 /** „2250€“, „2250 eur“, „kaina 2250“, „už 2250“ — with or without currency symbol. */
@@ -170,7 +171,60 @@ export function tryApplyListingChatInput(
     }
   }
 
-  // State machine: never mutate description/title after drafting stage.
+  // Vehicle specs (year/engine/fuel) must update draft in ANY sell stage — keep sell_intent memory.
+  const vehicleSpecs = extractVehicleAttributesFromText(text);
+  const hasVehicleSpecs = Boolean(
+    vehicleSpecs.year ||
+      vehicleSpecs.engine ||
+      vehicleSpecs.fuelType ||
+      vehicleSpecs.model ||
+      vehicleSpecs.mileage
+  );
+  if (hasVehicleSpecs) {
+    const nextAttrs = {
+      ...(aiDraft.attributes ?? {}),
+      ...Object.fromEntries(
+        Object.entries(vehicleSpecs).filter(([, v]) => Boolean(v))
+      ),
+    } as Record<string, string>;
+    delete nextAttrs.awaitingSpecs;
+    const bits = [
+      vehicleSpecs.year ? `${vehicleSpecs.year} m.` : "",
+      vehicleSpecs.engine ?? "",
+      vehicleSpecs.fuelType?.toLowerCase() ?? "",
+      vehicleSpecs.model ?? "",
+    ].filter(Boolean);
+    const specLine = bits.join(", ");
+    const baseDesc = sanitizeListingDescription(aiDraft.description);
+    const nextDescription =
+      specLine && !baseDesc.toLowerCase().includes(specLine.toLowerCase())
+        ? [baseDesc, specLine].filter(Boolean).join("\n").slice(0, 4000)
+        : aiDraft.description;
+    const nextTitle =
+      nextAttrs.make && nextAttrs.model
+        ? sanitizeListingTitle(
+            `${nextAttrs.make} ${nextAttrs.model}${nextAttrs.year ? ` ${nextAttrs.year}` : ""}`
+          )
+        : aiDraft.title;
+    const nextDraft: AiExtractedListing = {
+      ...aiDraft,
+      title: nextTitle,
+      description: nextDescription,
+      attributes: nextAttrs,
+      ...(priceEarly != null ? { price: priceEarly } : {}),
+    };
+    updateAiDraft({
+      title: nextDraft.title,
+      description: nextDraft.description,
+      attributes: nextAttrs,
+      ...(priceEarly != null ? { price: priceEarly } : {}),
+    });
+    return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
+      intro: `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`,
+    });
+  }
+
+  // State machine: never mutate free-form description/title after drafting stage.
   if (flow === "AWAITING_PHOTOS" || flow === "AWAITING_CONFIRMATION") {
     return null;
   }

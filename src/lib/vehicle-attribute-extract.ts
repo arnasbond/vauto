@@ -17,6 +17,7 @@ export interface VehicleAttributePatch {
   year?: string;
   mileage?: string;
   fuelType?: string;
+  engine?: string;
   vin?: string;
   plateNumber?: string;
 }
@@ -57,7 +58,7 @@ const MAKE_ALIASES: Record<string, string> = {
 };
 
 const FUEL_PATTERNS: Array<{ re: RegExp; label: string }> = [
-  { re: /\b(dyzel|dyzelin|diesel)\b/i, label: "Dyzelinas" },
+  { re: /\b(dyzel|dyzelin|dizel|dizelis|diesel)\b/i, label: "Dyzelinas" },
   { re: /\b(benzin|benzinui|petrol|gasoline)\b/i, label: "Benzinas" },
   { re: /\b(hybrid|hibrid)\b/i, label: "Hibridas" },
   { re: /\b(elektr|ev\b|bev\b)/i, label: "Elektra" },
@@ -165,6 +166,11 @@ export function extractVehicleAttributesFromText(text: string): VehicleAttribute
   const mileageMatch = source.match(/(\d[\d\s.,]*)\s*(?:km|kilometr|rida)/i);
   if (mileageMatch) {
     patch.mileage = mileageMatch[1].replace(/\s/g, "").replace(",", "");
+  }
+
+  const engineMatch = source.match(/\b(\d[.,]\d)\s*(?:l|ltr|litrai?)\b/i);
+  if (engineMatch) {
+    patch.engine = `${engineMatch[1].replace(",", ".")} l`;
   }
 
   for (const { re, label } of FUEL_PATTERNS) {

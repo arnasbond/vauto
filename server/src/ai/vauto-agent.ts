@@ -31,6 +31,7 @@ import {
   detectServerSellIntent,
   isSparseSellRequest,
 } from "./sell-intent-fallback.js";
+import { extractVehicleSpecsFromChat } from "./vehicle-attribute-extract.js";
 import {
   isListingConversationInput,
   normalizeListingDraftForAction,
@@ -662,28 +663,65 @@ async function runVautoAgentInner(
     }
   }
 
-  // Field updates (price etc.) only in DRAFTING_TEXT.
+  // Field updates (price / vehicle specs) while sell draft is active — keep sell_intent memory.
   if (
-    flowTurn.kind === "allow_drafting" &&
     listingDraft &&
     lastUserText &&
-    isListingConversationInput(lastUserText, listingDraft)
+    (flowTurn.kind === "allow_drafting" ||
+      flowState === "DRAFTING_TEXT" ||
+      flowState === "AWAITING_PHOTOS" ||
+      flowState === "DRAFT_READY" ||
+      flowState === "AWAITING_CONFIRMATION")
   ) {
     const price = parsePriceFromChatInput(lastUserText);
-    if (price != null) {
-      const nextDraft = normalizeListingDraftForAction(listingDraft, {
-        price,
-        contact: req.context.contact,
-        userCity: req.context.userCity,
-        listingFlowState:
-          transitionListingFlow(
-            listingDraft.listingFlowState ?? "DRAFTING_TEXT",
-            "DRAFT_SAVED"
-          ) ?? "DRAFT_READY",
-      });
+    const specPatch = extractVehicleSpecsFromChat(lastUserText);
+    const hasSpecs = Object.keys(specPatch).length > 0;
+    if (price != null || hasSpecs) {
+      const mergedAttrs = {
+        ...(listingDraft.attributes ?? {}),
+        ...specPatch,
+      };
+      delete mergedAttrs.awaitingSpecs;
+      const bits = [
+        specPatch.year ? `${specPatch.year} m.` : "",
+        specPatch.engine ? specPatch.engine : "",
+        specPatch.fuelType ? specPatch.fuelType.toLowerCase() : "",
+        specPatch.model ? specPatch.model : "",
+      ].filter(Boolean);
+      const specLine = bits.join(", ");
+      const baseDesc = String(listingDraft.description ?? "").trim();
+      const nextDescription =
+        hasSpecs && specLine && !baseDesc.toLowerCase().includes(specLine.toLowerCase())
+          ? [baseDesc, specLine].filter(Boolean).join("\n").slice(0, 4000)
+          : listingDraft.description;
+      const nextTitle =
+        mergedAttrs.make && mergedAttrs.model
+          ? `${mergedAttrs.make} ${mergedAttrs.model}${mergedAttrs.year ? ` ${mergedAttrs.year}` : ""}`.trim()
+          : listingDraft.title;
+      const nextDraft = normalizeListingDraftForAction(
+        {
+          ...listingDraft,
+          title: nextTitle || listingDraft.title,
+          description: nextDescription,
+          attributes: mergedAttrs,
+        },
+        {
+          price: price ?? listingDraft.price,
+          contact: req.context.contact,
+          userCity: req.context.userCity,
+          listingFlowState:
+            transitionListingFlow(
+              listingDraft.listingFlowState ?? "DRAFTING_TEXT",
+              "DRAFT_SAVED"
+            ) ?? "DRAFT_READY",
+        }
+      );
+      const intro = hasSpecs
+        ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
+        : "Puiku — atnaujinau kainą!";
       return {
         ok: true,
-        reply: buildDraftingCompletePhotosPrompt(nextDraft),
+        reply: `${intro}\n\n${buildDraftingCompletePhotosPrompt(nextDraft)}`,
         quickReplies: [...POST_VISION_PUBLISH_CHIPS],
         toolCalls: [],
         actions: {
@@ -755,10 +793,13 @@ async function runVautoAgentInner(
     !(listingDraft?.orderedImageUrls?.filter(Boolean).length) &&
     !(req.context.pendingImageUrls?.filter(Boolean).length)
   ) {
-    console.warn("[vision] vauto-agent early sparse sell → clarify (no fake draft)", {
+    console.warn("[vision] vauto-agent early sparse sell → soft skeleton draft", {
       lastUserTextHead: lastUserText.slice(0, 120),
     });
-    const clarify = buildSellClarificationReply(lastUserText);
+    const clarify = buildSellClarificationReply(lastUserText, {
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+    });
     return {
       ok: true,
       reply: clarify.reply,
@@ -1508,10 +1549,13 @@ async function runVautoAgentInner(
     !pendingChatImages?.length
   ) {
     if (isSparseSellRequest(lastUserText)) {
-      console.warn("[vision] vauto-agent sparse sell → clarify (no fake draft)", {
+      console.warn("[vision] vauto-agent sparse sell → soft skeleton draft", {
         lastUserTextHead: lastUserText.slice(0, 120),
       });
-      const clarify = buildSellClarificationReply(lastUserText);
+      const clarify = buildSellClarificationReply(lastUserText, {
+        userCity: req.context.userCity,
+        contact: req.context.contact,
+      });
       return {
         ok: true,
         reply: clarify.reply,

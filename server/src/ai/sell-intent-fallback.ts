@@ -50,7 +50,7 @@ const AUTO_BRANDS: { pattern: RegExp; make: string }[] = [
 
 /** Model / year / mileage / engine signals that make a sell note "enough" to draft. */
 const SPEC_SIGNAL =
-  /\b(c[1-5]\b|berlingo|cactus|picasso|jumpy|spacetourer|xsara|saxo|ds[3-7]|\d{4}\s*m\.?|\b(19|20)\d{2}\b|\b\d{1,3}[\s.]?\d{3}\s*km\b|\b\d{2,4}\s*k[wv]\b|\b\d\.\d\s*l\b|benzinas|dyzel|elektr|hibrid|automat|mechanin)/i;
+  /\b(c[1-5]\b|berlingo|cactus|picasso|jumpy|spacetourer|xsara|saxo|ds[3-7]|\d{4}\s*m\.?|\b(19|20)\d{2}\b|\b\d{1,3}[\s.]?\d{3}\s*km\b|\b\d{2,4}\s*k[wv]\b|\b\d[.,]\d\s*(?:l|ltr|litrai?)\b|benzinas|dyzel|dizel|elektr|hibrid|automat|mechanin)/i;
 
 export function detectServerSellIntent(text: string): boolean {
   const q = text.trim().toLowerCase();
@@ -94,24 +94,70 @@ export function isSparseSellRequest(text: string): boolean {
   return withoutSell.length < 18;
 }
 
-export function buildSellClarificationReply(text: string): {
+const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
+  vehicles: "AUTOMOBILIAI",
+  real_estate: "NT",
+  electronics: "ELEKTRONIKA",
+  jobs: "DARBAS",
+  home: "NAMAI",
+  clothing: "APRANGA",
+  services: "PASLAUGOS",
+  other: "NAMAI",
+};
+
+export function buildSellClarificationReply(
+  text: string,
+  opts?: { userCity?: string; contact?: string }
+): {
   reply: string;
   quickReplies: string[];
-  action: { type: "none" };
+  action: {
+    type: "listing_draft";
+    listingDraft: {
+      title: string;
+      description: string;
+      price: number;
+      location: string;
+      contact: string;
+      category: string;
+      confidence: number;
+      attributes: Record<string, string>;
+      listingFlowState: "DRAFTING_TEXT";
+    };
+  };
 } {
   const make = inferMake(text);
+  const category = inferCategory(text);
+  const title = make ? `Parduodamas ${make}` : inferTitle(text, category, make);
+  // Soft skeleton keeps sell_intent session alive — empty description, no fake fluff.
+  const listingDraft = {
+    title,
+    description: "",
+    price: 0,
+    location: opts?.userCity?.trim() || "Lietuva",
+    contact: opts?.contact?.trim() || "",
+    category,
+    confidence: 0.45,
+    attributes: {
+      ...(make ? { make } : {}),
+      sellIntentActive: "true",
+      awaitingSpecs: "true",
+      _vautoCategory: INTERNAL_TO_VAUTO_CATEGORY[category] ?? "AUTOMOBILIAI",
+    },
+    listingFlowState: "DRAFTING_TEXT" as const,
+  };
   if (make) {
     return {
-      reply: `Kokį ${make} modelį norite parduoti? Įkelkite automobilio nuotraukas arba techninį pasą, ir aš paruošiu tikslų skelbimą.`,
+      reply: `Puiku — ruošiame ${make} skelbimą. Parašykite modelį, metus ir variklį (pvz. „C4 Picasso 2007 m. 2.0 ltr. dyzelis“) arba įkelkite nuotraukas / techninį pasą — aš viską sudėsiu į juodraštį.`,
       quickReplies: ["Įkelti nuotraukas", "Įkelti techninį pasą"],
-      action: { type: "none" },
+      action: { type: "listing_draft", listingDraft },
     };
   }
   return {
     reply:
-      "Ką tiksliai parduodate? Įkelkite prekės nuotraukas arba techninį pasą / dokumentą — tada paruošiu tikslų skelbimą be spėlionių.",
+      "Puiku — pradėkime skelbimą. Parašykite ką parduodate (markė, modelis, metai) arba įkelkite nuotraukas / techninį pasą — paruošiu juodraštį be spėlionių.",
     quickReplies: ["Įkelti nuotraukas", "Įkelti techninį pasą"],
-    action: { type: "none" },
+    action: { type: "listing_draft", listingDraft },
   };
 }
 
@@ -195,17 +241,6 @@ export function extractPriceFromSellText(text: string): number {
   }
   return 0;
 }
-
-const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
-  vehicles: "AUTOMOBILIAI",
-  real_estate: "NT",
-  electronics: "ELEKTRONIKA",
-  jobs: "DARBAS",
-  home: "NAMAI",
-  clothing: "APRANGA",
-  services: "PASLAUGOS",
-  other: "NAMAI",
-};
 
 /**
  * Schema-compatible JSON when Gemini vision hits 429 / RESOURCE_EXHAUSTED.
@@ -335,5 +370,8 @@ export function buildSellListingDraftFallback(
   };
 }
 
-export const DOCUMENT_UNCLEAR_PROMPT =
-  "Dokumento nuotrauka nepakankamai aiški. Gal galite įkelti aiškesnę techninio paso nuotrauką arba patikslinti metus ir variklį?";
+export const DOCUMENT_OCR_SOFT_NOTE =
+  "Techninio paso nuotrauka kiek neryški — užpildžiau tai, ką įžiūrėjau. Galite patikslinti metus ar variklį čia pokalbyje, arba įkelti aiškesnę nuotrauką.";
+
+/** @deprecated Prefer DOCUMENT_OCR_SOFT_NOTE — soft, non-blocking tone. */
+export const DOCUMENT_UNCLEAR_PROMPT = DOCUMENT_OCR_SOFT_NOTE;

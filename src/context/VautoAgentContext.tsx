@@ -1582,10 +1582,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Field mutations only while drafting — never trap text-first generate/sell here.
+      // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
       const listingChatReply =
-        flowDecision.kind === "allow_drafting" &&
         aiDraft &&
+        flowDecision.kind !== "ignore_backward" &&
+        flowDecision.kind !== "process_photos" &&
         !shouldBypassPhotosNudge(trimmed) &&
         isListingConversationInput(trimmed, listingChatContext)
           ? tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
