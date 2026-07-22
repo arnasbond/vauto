@@ -1611,7 +1611,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
       const listingChatReply =
         aiDraft &&
-        flowDecision.kind !== "ignore_backward" &&
         flowDecision.kind !== "process_photos" &&
         !shouldBypassPhotosNudge(trimmed) &&
         isListingConversationInput(trimmed, listingChatContext)
