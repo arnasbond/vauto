@@ -25,6 +25,8 @@ import {
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
 } from "@/lib/pre-publish-validation";
+import { filterSessionListingImages } from "@/lib/listing-image";
+import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { isDirectAgentActionChip } from "@/lib/direct-agent-actions";
 import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
@@ -138,9 +140,19 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   const quickReplies =
     busy || !lastAssistantMessage || showLivePrePublishCard
       ? []
-      : (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
-        ? lastAssistantMessage.quickReplies!.slice(0, 4)
-        : extractAgentQuickReplies(lastAssistant);
+      : (
+          (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
+            ? lastAssistantMessage.quickReplies!
+            : extractAgentQuickReplies(lastAssistant)
+        )
+          .filter(
+            (chip) =>
+              !/^įkelti\s+nuotrauk/i.test(chip) &&
+              !/^ikelti\s+nuotrauk/i.test(chip) &&
+              !/^įkelti\s+technin/i.test(chip) &&
+              !/^ikelti\s+technin/i.test(chip)
+          )
+          .slice(0, 4);
 
   const handleCardPublish = async (
     sourceRect: DOMRect,
@@ -181,7 +193,13 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   };
 
   const handleGalleryChange = (imageUrls: string[]) => {
-    const next = imageUrls.map((u) => u.trim()).filter(Boolean).slice(0, 6);
+    const next = filterSessionListingImages(
+      imageUrls.map((u) => u.trim()).filter(Boolean),
+      {
+        attributes: aiDraft?.attributes,
+        documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
+      }
+    ).slice(0, 6);
     updateAiDraft({ orderedImageUrls: next });
     if (next[0]) {
       updateSellerMedia({ imageDataUrl: next[0] });

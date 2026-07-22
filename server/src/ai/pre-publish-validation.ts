@@ -184,13 +184,18 @@ export function buildServerPrePublishCardPayload(input: {
   const price = draft.price ?? 0;
   if (price <= 0) return null;
   const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
+  // Prefer public ordered gallery; only fall back to pending when gallery is empty.
+  const gallerySource =
+    (draft.orderedImageUrls?.length ?? 0) > 0
+      ? [...(draft.orderedImageUrls ?? []), ...(input.imageUrls ?? [])]
+      : [
+          ...(draft.orderedImageUrls ?? []),
+          ...(input.imageUrls ?? []),
+          ...(input.pendingImageUrls ?? []),
+          ...(input.imageUrl ? [input.imageUrl] : []),
+        ];
   const imageUrls = hardFilterPublicGalleryUrls(
-    [
-      ...(draft.orderedImageUrls ?? []),
-      ...(input.imageUrls ?? []),
-      ...(input.pendingImageUrls ?? []),
-      ...(input.imageUrl ? [input.imageUrl] : []),
-    ],
+    gallerySource,
     documentUrls,
     draft.attributes
   ).slice(0, 6);

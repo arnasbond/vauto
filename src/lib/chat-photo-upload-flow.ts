@@ -8,6 +8,7 @@ export interface ChatPhotoUploadFlowDeps {
     options?: {
       pendingImageUrls?: string[];
       sessionImageUrls?: string[];
+      documentImageUrls?: string[];
       fromSearchBar?: boolean;
     }
   ) => Promise<unknown>;
@@ -28,17 +29,20 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
     try {
       const picked = await pickNativeChatMedia(0);
       if (!picked.length) return;
-      const { listingImageUrls, agentVisionUrls } =
+      const { listingImageUrls, agentVisionUrls, suspectedDocumentUrls } =
         await prepareChatImagesForAgent(picked);
-      if (!listingImageUrls.length) return;
+      if (!listingImageUrls.length && !agentVisionUrls.length) return;
       await deps.navigateBeforeSend?.();
       deps.setOpen?.(true);
-      // Full gallery stays on the client; stream gets only the tiny vision subset.
+      // Full gallery stays on the client; stream gets vision subset (docs high-res).
       await deps.sendAgentMessage(deps.text?.trim() ?? "", {
         sessionImageUrls: listingImageUrls,
         pendingImageUrls: agentVisionUrls.length
           ? agentVisionUrls
           : listingImageUrls.slice(0, 6),
+        ...(suspectedDocumentUrls.length
+          ? { documentImageUrls: suspectedDocumentUrls }
+          : {}),
       });
     } finally {
       deps.onBusyChange?.(false);

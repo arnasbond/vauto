@@ -26,16 +26,20 @@ import {
   textContainsListingContactSignals,
   type AwaitingContactField,
 } from "@/lib/listing-contact-parse";
-import { extractVehicleAttributesFromText } from "@/lib/vehicle-attribute-extract";
+import { extractVehicleAttributesFromText, buildVehicleDescriptionFromAttributes } from "@/lib/vehicle-attribute-extract";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
-/** „2250€“, „2250 eur“, „kaina 2250“, „už 2250“ — with or without currency symbol. */
-const PRICE_INLINE_RE =
-  /(?:kaina|uz|už|price|eur(?:ais|u|ų)?|€)?\s*[:=]?\s*(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur|eurų|euro)?\b/i;
+/** Require currency OR price keyword — never match bare years like 2007. */
+const PRICE_EXPLICIT_RE =
+  /(?:(?:kaina|uz|už|price)\s*[:=]?\s*(\d{1,7}(?:[.,]\d{1,2})?)|(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur(?:ų|u|ais)?))/i;
 const PRICE_BARE_IN_SHORT_RE =
   /(?:^|[^\d])(\d{3,7})(?:[.,]\d{1,2})?(?=[^\d]|$)/;
 const MANUAL_FILL_RE =
   /pildyti\s+rankiniu\s+b[uū]du|užpildyti\s+lauk(us|ai)\s+(?:žemiau|forma|ranka)|manual\s+form/i;
+
+function isLikelyVehicleYear(n: number): boolean {
+  return Number.isInteger(n) && n >= 1985 && n <= 2026;
+}
 
 export interface ListingChatContext {
   hasListingDraft: boolean;
@@ -70,46 +74,30 @@ export function parsePriceFromChatInput(text: string): number | null {
   const t = text.trim();
   if (!t) return null;
 
-  if (PRICE_ONLY_RE.test(t)) {
-    const raw = t.replace(/[^\d.,]/g, "").replace(",", ".");
+  // Explicit currency or „kaina/už …“ — always treat as price (even if year-like digits).
+  const explicit = t.match(PRICE_EXPLICIT_RE);
+  if (explicit) {
+    const raw = (explicit[1] || explicit[2] || "").replace(",", ".");
     const n = Number.parseFloat(raw);
-    return Number.isFinite(n) && n > 0 && n < 100_000_000 ? Math.round(n) : null;
-  }
-
-  // Prefer amount glued to currency (handles „2250€.“ — € is not a word char).
-  const withCurrency = t.match(
-    /(\d{1,7}(?:[.,]\d{1,2})?)\s*(?:€|eur(?:ų|u|ais)?)/i
-  );
-  if (withCurrency?.[1]) {
-    const n = Number.parseFloat(withCurrency[1].replace(",", "."));
-    // Skip years mistaken as prices when followed by seat/model context without €.
-    if (Number.isFinite(n) && n > 0) {
-      const matched = withCurrency[0];
-      if (/€|eur/i.test(matched)) return Math.round(n);
-    }
-  }
-
-  const kaina = t.match(
-    /\b(?:kaina|price|uz|už)\s*[:=]?\s*(\d{1,7}(?:[.,]\d{1,2})?)/i
-  );
-  if (kaina?.[1]) {
-    const n = Number.parseFloat(kaina[1].replace(",", "."));
-    if (Number.isFinite(n) && n > 0) return Math.round(n);
-  }
-
-  const inline = t.match(PRICE_INLINE_RE);
-  if (inline?.[1]) {
-    const n = Number.parseFloat(inline[1].replace(",", "."));
     if (Number.isFinite(n) && n > 0 && n < 100_000_000) return Math.round(n);
   }
 
-  // Short messages: bare 3–7 digit amount (e.g. „2250. Judame prie PrePublish“).
+  // Bare number only — never treat vehicle years as price.
+  if (PRICE_ONLY_RE.test(t)) {
+    const hasCurrency = /€|eur/i.test(t);
+    const raw = t.replace(/[^\d.,]/g, "").replace(",", ".");
+    const n = Number.parseFloat(raw);
+    if (!Number.isFinite(n) || n <= 0 || n >= 100_000_000) return null;
+    if (!hasCurrency && isLikelyVehicleYear(Math.round(n))) return null;
+    return Math.round(n);
+  }
+
+  // Short messages: bare amount (e.g. „2250. Judame prie PrePublish“) — skip years.
   if (t.length <= 80) {
     const bare = t.match(PRICE_BARE_IN_SHORT_RE);
     if (bare?.[1]) {
       const n = Number.parseInt(bare[1], 10);
-      // Ignore years 1900–2099 as prices.
-      if (Number.isFinite(n) && n >= 50 && (n < 1900 || n > 2099)) return n;
+      if (Number.isFinite(n) && n >= 50 && !isLikelyVehicleYear(n)) return n;
     }
   }
 
@@ -155,23 +143,7 @@ export function tryApplyListingChatInput(
 
   const flow = aiDraft.listingFlowState;
 
-  // Price must apply in ANY stage — never loop „Kokią kainą?“ after user typed it.
-  const priceEarly = parsePriceFromChatInput(text);
-  if (priceEarly != null) {
-    updateAiDraft({ price: priceEarly });
-    // When combined with publish intent, let the SM open PrePublish (no chat-only reply).
-    if (isListingWorkflowCommand(text) || /\bprepublish\b|\bjudame\b|\bpublikuoj/i.test(text)) {
-      return null;
-    }
-    if (flow === "AWAITING_PHOTOS" || flow === "AWAITING_CONFIRMATION") {
-      return buildListingDraftUpdateReply(
-        draftToPreviewInput({ ...aiDraft, price: priceEarly }),
-        { intro: "Puiku — atnaujinau kainą!" }
-      );
-    }
-  }
-
-  // Vehicle specs (year/engine/fuel) must update draft in ANY sell stage — keep sell_intent memory.
+  // Vehicle specs first — never let a year overwrite price, and never stack description text.
   const vehicleSpecs = extractVehicleAttributesFromText(text);
   const hasVehicleSpecs = Boolean(
     vehicleSpecs.year ||
@@ -180,6 +152,13 @@ export function tryApplyListingChatInput(
       vehicleSpecs.model ||
       vehicleSpecs.mileage
   );
+  const priceEarly = parsePriceFromChatInput(text);
+  const priceToApply =
+    priceEarly != null &&
+    !(vehicleSpecs.year && String(priceEarly) === String(vehicleSpecs.year))
+      ? priceEarly
+      : null;
+
   if (hasVehicleSpecs) {
     const nextAttrs = {
       ...(aiDraft.attributes ?? {}),
@@ -188,18 +167,9 @@ export function tryApplyListingChatInput(
       ),
     } as Record<string, string>;
     delete nextAttrs.awaitingSpecs;
-    const bits = [
-      vehicleSpecs.year ? `${vehicleSpecs.year} m.` : "",
-      vehicleSpecs.engine ?? "",
-      vehicleSpecs.fuelType?.toLowerCase() ?? "",
-      vehicleSpecs.model ?? "",
-    ].filter(Boolean);
-    const specLine = bits.join(", ");
-    const baseDesc = sanitizeListingDescription(aiDraft.description);
-    const nextDescription =
-      specLine && !baseDesc.toLowerCase().includes(specLine.toLowerCase())
-        ? [baseDesc, specLine].filter(Boolean).join("\n").slice(0, 4000)
-        : aiDraft.description;
+    const nextDescription = buildVehicleDescriptionFromAttributes(nextAttrs, {
+      location: aiDraft.location,
+    });
     const nextTitle =
       nextAttrs.make && nextAttrs.model
         ? sanitizeListingTitle(
@@ -211,17 +181,38 @@ export function tryApplyListingChatInput(
       title: nextTitle,
       description: nextDescription,
       attributes: nextAttrs,
-      ...(priceEarly != null ? { price: priceEarly } : {}),
+      ...(priceToApply != null ? { price: priceToApply } : {}),
     };
     updateAiDraft({
       title: nextDraft.title,
       description: nextDraft.description,
       attributes: nextAttrs,
-      ...(priceEarly != null ? { price: priceEarly } : {}),
+      ...(priceToApply != null ? { price: priceToApply } : {}),
     });
+    const bits = [
+      vehicleSpecs.year ? `${vehicleSpecs.year} m.` : "",
+      vehicleSpecs.engine ?? "",
+      vehicleSpecs.fuelType?.toLowerCase() ?? "",
+      vehicleSpecs.model ?? "",
+    ].filter(Boolean);
     return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
       intro: `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`,
     });
+  }
+
+  // Price must apply in ANY stage — never loop „Kokią kainą?“ after user typed it.
+  if (priceToApply != null) {
+    updateAiDraft({ price: priceToApply });
+    // When combined with publish intent, let the SM open PrePublish (no chat-only reply).
+    if (isListingWorkflowCommand(text) || /\bprepublish\b|\bjudame\b|\bpublikuoj/i.test(text)) {
+      return null;
+    }
+    if (flow === "AWAITING_PHOTOS" || flow === "AWAITING_CONFIRMATION") {
+      return buildListingDraftUpdateReply(
+        draftToPreviewInput({ ...aiDraft, price: priceToApply }),
+        { intro: "Puiku — atnaujinau kainą!" }
+      );
+    }
   }
 
   // State machine: never mutate free-form description/title after drafting stage.
@@ -235,7 +226,7 @@ export function tryApplyListingChatInput(
 
   const awaitingEdit = readAwaitingListingEditField();
   if (awaitingEdit === "price") {
-    const price = priceEarly ?? parsePriceFromChatInput(text);
+    const price = priceToApply ?? parsePriceFromChatInput(text);
     if (price != null) {
       updateAiDraft({ price });
       setAwaitingListingEditField(null);
@@ -276,8 +267,8 @@ export function tryApplyListingChatInput(
     return buildManualFillChatRedirectReply();
   }
 
-  if (priceEarly != null) {
-    const nextDraft = { ...aiDraft, price: priceEarly };
+  if (priceToApply != null) {
+    const nextDraft = { ...aiDraft, price: priceToApply };
     return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
       intro: "Puiku — atnaujinau kainą!",
     });

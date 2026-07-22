@@ -301,16 +301,23 @@ export function AiCommandBar({
         const images = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
         const prepared = images.length
           ? await prepareChatImagesForAgent(images)
-          : { listingImageUrls: [] as string[], agentVisionUrls: [] as string[] };
+          : {
+              listingImageUrls: [] as string[],
+              agentVisionUrls: [] as string[],
+              suspectedDocumentUrls: [] as string[],
+            };
         // Clear composer only after a successful handoff — otherwise a short-circuit
         // (or transport failure) would wipe photos and draft text with nothing sent.
         const res = await sendAgentMessage(msg, {
-          ...(prepared.listingImageUrls.length
+          ...(prepared.listingImageUrls.length || prepared.agentVisionUrls.length
             ? {
                 sessionImageUrls: prepared.listingImageUrls,
                 pendingImageUrls: prepared.agentVisionUrls.length
                   ? prepared.agentVisionUrls
                   : prepared.listingImageUrls.slice(0, 6),
+                ...(prepared.suspectedDocumentUrls?.length
+                  ? { documentImageUrls: prepared.suspectedDocumentUrls }
+                  : {}),
               }
             : {}),
         });

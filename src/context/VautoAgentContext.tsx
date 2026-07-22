@@ -21,7 +21,7 @@ import {
   capImageUrlsForAgentWire,
 } from "@/lib/api/vauto-agent-stream";
 import {
-  compressForAgentVisionWire,
+  compressForAgentVisionSmart,
   selectAgentVisionUrls,
 } from "@/lib/prepare-chat-images-for-agent";
 import {
@@ -209,6 +209,8 @@ export interface AgentSendOptions {
   pendingImageUrls?: string[];
   /** Full session gallery for draft/publish (up to 6) — not all sent on the wire. */
   sessionImageUrls?: string[];
+  /** Suspected tech passport / document frames — OCR only, never public gallery. */
+  documentImageUrls?: string[];
   /** User input came from microphone in agent sheet or search bar */
   fromVoice?: boolean;
   /** Submitted from main SearchBar — Gemini must route via function calling */
@@ -1347,17 +1349,41 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           .slice(0, 6);
         setSessionPendingImageUrls(pendingForTurn);
         setListingPublishConfirmed(false);
+        const incomingDocs = (options?.documentImageUrls ?? [])
+          .map((u) => String(u ?? "").trim())
+          .filter(Boolean);
+        const priorDocs = parseDocumentUrlsFromAttributes(draftForTurn?.attributes);
+        const allDocs = [...priorDocs, ...incomingDocs].filter(
+          (u, i, arr) => arr.indexOf(u) === i
+        );
         if (draftForTurn) {
+          const nextAttrs =
+            allDocs.length || incomingDocs.length
+              ? {
+                  ...(draftForTurn.attributes ?? {}),
+                  ...(allDocs.length
+                    ? {
+                        documentImageUrls: allDocs.join("|"),
+                        documentImageCount: String(allDocs.length),
+                      }
+                    : {}),
+                }
+              : draftForTurn.attributes;
           const mergedPhotos = filterSessionListingImages(
             [...incomingImagesEarly, ...(draftForTurn.orderedImageUrls ?? [])],
             {
-              attributes: draftForTurn.attributes,
-              documentUrls: parseDocumentUrlsFromAttributes(draftForTurn.attributes),
+              attributes: nextAttrs,
+              documentUrls: allDocs,
             }
           ).slice(0, 6);
-          draftForTurn = { ...draftForTurn, orderedImageUrls: mergedPhotos };
+          draftForTurn = {
+            ...draftForTurn,
+            orderedImageUrls: mergedPhotos,
+            ...(nextAttrs ? { attributes: nextAttrs } : {}),
+          };
           updateAiDraft({
             orderedImageUrls: mergedPhotos,
+            ...(nextAttrs ? { attributes: nextAttrs } : {}),
             ...(priceFromTurn != null ? { price: priceFromTurn } : {}),
           });
         }
@@ -1931,7 +1957,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               await Promise.all(
                 requestPendingImageUrls.map((url) =>
                   url.startsWith("data:image")
-                    ? compressForAgentVisionWire(url)
+                    ? compressForAgentVisionSmart(url)
                     : Promise.resolve(url)
                 )
               )

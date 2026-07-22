@@ -170,7 +170,7 @@ export function extractVehicleAttributesFromText(text: string): VehicleAttribute
 
   const engineMatch = source.match(/\b(\d[.,]\d)\s*(?:l|ltr|litrai?)\b/i);
   if (engineMatch) {
-    patch.engine = `${engineMatch[1].replace(",", ".")} l`;
+    patch.engine = engineMatch[1].replace(",", ".");
   }
 
   for (const { re, label } of FUEL_PATTERNS) {
@@ -213,6 +213,57 @@ export function looksLikeVehicleListingText(text: string): boolean {
   const t = text.trim();
   if (!t) return false;
   return isVehicleQuery(t);
+}
+
+/** Rebuild a clean technical description from structured attrs — never append/stack. */
+export function buildVehicleDescriptionFromAttributes(
+  attrs: Record<string, string | string[] | undefined> | undefined,
+  opts?: { location?: string }
+): string {
+  const get = (key: string) => {
+    const v = attrs?.[key];
+    if (Array.isArray(v)) return v.map(String).join(", ").trim();
+    return String(v ?? "").trim();
+  };
+  const make = get("make");
+  const model = get("model");
+  const year = get("year");
+  const engine = get("engine");
+  const fuelType = get("fuelType");
+  const powerKw = get("powerKw");
+  const mileage = get("mileage");
+  const transmission = get("transmission");
+  const bodyType = get("bodyType");
+  const color = get("color");
+  const plate = get("plate") || get("plateNumber");
+  const trim = get("trim");
+  const condition = get("condition");
+
+  const sentences: string[] = [];
+  const head = [make, model, year ? `${year} m.` : ""].filter(Boolean).join(" ");
+  if (head) sentences.push(`${head}.`);
+
+  const techBits: string[] = [];
+  if (engine) techBits.push(`variklis ${engine}${/cm|l\b/i.test(engine) ? "" : " l"}`);
+  if (powerKw) techBits.push(`${powerKw} kW`);
+  if (fuelType) techBits.push(fuelType.toLowerCase());
+  if (transmission) techBits.push(transmission.toLowerCase());
+  if (techBits.length) {
+    sentences.push(`Techniniai duomenys: ${techBits.join(", ")}.`);
+  }
+
+  const bodyBits: string[] = [];
+  if (bodyType) bodyBits.push(bodyType);
+  if (color) bodyBits.push(color.toLowerCase());
+  if (trim) bodyBits.push(trim);
+  if (mileage) bodyBits.push(`rida ${mileage}${/km/i.test(mileage) ? "" : " km"}`);
+  if (bodyBits.length) sentences.push(`${bodyBits.join(", ")}.`);
+
+  if (plate) sentences.push(`Valstybinis numeris: ${plate}.`);
+  if (condition) sentences.push(`Būklė: ${condition}.`);
+  if (opts?.location?.trim()) sentences.push(`Vieta: ${opts.location.trim()}.`);
+
+  return sentences.join(" ").trim().slice(0, 4000);
 }
 
 export function enrichVehicleListingDraft<T extends VehicleDraftLike>(

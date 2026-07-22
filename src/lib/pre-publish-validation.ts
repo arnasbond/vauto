@@ -37,14 +37,22 @@ export function buildPrePublishCardPayload(
   if (!readiness.ok || !readiness.syncedDraft) return null;
   const draft = readiness.syncedDraft;
   const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
-  const imageUrls = filterSessionListingImages(
-    [
-      ...(draft.orderedImageUrls ?? []),
-      ...(opts?.pendingImageUrls ?? []),
-      ...(previewImage ? [previewImage] : []),
-    ],
-    { documentUrls, attributes: draft.attributes }
-  ).slice(0, 6);
+  // Public gallery only — never re-merge raw pending uploads (docs leak before OCR attrs land).
+  const gallerySource =
+    (draft.orderedImageUrls?.length ?? 0) > 0
+      ? [...(draft.orderedImageUrls ?? [])]
+      : [
+          ...(opts?.pendingImageUrls ?? []),
+          ...(previewImage ? [previewImage] : []),
+        ];
+  if ((draft.orderedImageUrls?.length ?? 0) > 0 && previewImage) {
+    // Cover hint only if already in public gallery set after filter.
+    gallerySource.push(previewImage);
+  }
+  const imageUrls = filterSessionListingImages(gallerySource, {
+    documentUrls,
+    attributes: draft.attributes,
+  }).slice(0, 6);
   const vatCode =
     opts?.vatCode ??
     String(draft.attributes?.vatCode ?? draft.attributes?.vat_code ?? "");
@@ -159,21 +167,36 @@ export function evaluatePrePublishReadiness(
   });
   const missingPhoto = !hasPhoto || photoClaimedInText;
 
-  // Persist pending / ordered URLs onto the draft so PrePublish card always shows photos.
-  // Document/evidence URLs stay in attributes only — never in the public gallery preview.
+  // Persist public gallery only — pending uploads stay session-side until vision classifies docs out.
   if (syncedDraft) {
     const documentUrls = parseDocumentUrlsFromAttributes(syncedDraft.attributes);
-    const mergedPhotos = filterSessionListingImages(
-      [
-        ...(syncedDraft.orderedImageUrls ?? []),
-        ...(input.orderedImageUrls ?? []),
-        ...(input.pendingImageUrls ?? []),
-        ...(input.previewImage ? [input.previewImage] : []),
-      ],
-      { documentUrls, attributes: syncedDraft.attributes }
-    ).slice(0, 6);
+    const gallerySource =
+      (syncedDraft.orderedImageUrls?.length ?? 0) > 0
+        ? [
+            ...(syncedDraft.orderedImageUrls ?? []),
+            ...(input.orderedImageUrls ?? []),
+          ]
+        : [
+            ...(syncedDraft.orderedImageUrls ?? []),
+            ...(input.orderedImageUrls ?? []),
+            ...(input.pendingImageUrls ?? []),
+            ...(input.previewImage ? [input.previewImage] : []),
+          ];
+    const mergedPhotos = filterSessionListingImages(gallerySource, {
+      documentUrls,
+      attributes: syncedDraft.attributes,
+    }).slice(0, 6);
     if (mergedPhotos.length) {
       syncedDraft = { ...syncedDraft, orderedImageUrls: mergedPhotos };
+    } else if (documentUrls.length && syncedDraft.orderedImageUrls?.length) {
+      // Strip any leftover docs even if gallery empties.
+      syncedDraft = {
+        ...syncedDraft,
+        orderedImageUrls: filterSessionListingImages(syncedDraft.orderedImageUrls, {
+          documentUrls,
+          attributes: syncedDraft.attributes,
+        }),
+      };
     }
   }
 

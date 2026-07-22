@@ -31,7 +31,7 @@ import {
   detectServerSellIntent,
   isSparseSellRequest,
 } from "./sell-intent-fallback.js";
-import { extractVehicleSpecsFromChat } from "./vehicle-attribute-extract.js";
+import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
 import {
   isListingConversationInput,
   normalizeListingDraftForAction,
@@ -676,24 +676,21 @@ async function runVautoAgentInner(
     const price = parsePriceFromChatInput(lastUserText);
     const specPatch = extractVehicleSpecsFromChat(lastUserText);
     const hasSpecs = Object.keys(specPatch).length > 0;
-    if (price != null || hasSpecs) {
+    const priceToApply =
+      price != null && !(specPatch.year && String(price) === String(specPatch.year))
+        ? price
+        : null;
+    if (priceToApply != null || hasSpecs) {
       const mergedAttrs = {
         ...(listingDraft.attributes ?? {}),
         ...specPatch,
       };
       delete mergedAttrs.awaitingSpecs;
-      const bits = [
-        specPatch.year ? `${specPatch.year} m.` : "",
-        specPatch.engine ? specPatch.engine : "",
-        specPatch.fuelType ? specPatch.fuelType.toLowerCase() : "",
-        specPatch.model ? specPatch.model : "",
-      ].filter(Boolean);
-      const specLine = bits.join(", ");
-      const baseDesc = String(listingDraft.description ?? "").trim();
-      const nextDescription =
-        hasSpecs && specLine && !baseDesc.toLowerCase().includes(specLine.toLowerCase())
-          ? [baseDesc, specLine].filter(Boolean).join("\n").slice(0, 4000)
-          : listingDraft.description;
+      const nextDescription = hasSpecs
+        ? buildVehicleDescriptionFromAttributes(mergedAttrs, {
+            location: listingDraft.location,
+          })
+        : listingDraft.description;
       const nextTitle =
         mergedAttrs.make && mergedAttrs.model
           ? `${mergedAttrs.make} ${mergedAttrs.model}${mergedAttrs.year ? ` ${mergedAttrs.year}` : ""}`.trim()
@@ -706,7 +703,7 @@ async function runVautoAgentInner(
           attributes: mergedAttrs,
         },
         {
-          price: price ?? listingDraft.price,
+          price: priceToApply ?? listingDraft.price,
           contact: req.context.contact,
           userCity: req.context.userCity,
           listingFlowState:
@@ -716,6 +713,12 @@ async function runVautoAgentInner(
             ) ?? "DRAFT_READY",
         }
       );
+      const bits = [
+        specPatch.year ? `${specPatch.year} m.` : "",
+        specPatch.engine ? specPatch.engine : "",
+        specPatch.fuelType ? specPatch.fuelType.toLowerCase() : "",
+        specPatch.model ? specPatch.model : "",
+      ].filter(Boolean);
       const intro = hasSpecs
         ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
         : "Puiku — atnaujinau kainą!";
