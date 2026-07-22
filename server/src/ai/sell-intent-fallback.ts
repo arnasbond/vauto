@@ -148,7 +148,7 @@ export function buildSellClarificationReply(
   };
   if (make) {
     return {
-      reply: `Puiku — ruošiame ${make} skelbimą. Parašykite modelį, metus ir variklį (pvz. „C4 Picasso 2007 m. 2.0 ltr. dyzelis“) arba įkelkite nuotraukas / techninį pasą per (+) mygtuką — aš viską sudėsiu į juodraštį.`,
+      reply: `Puiku — ruošiame ${make} skelbimą. Parašykite tikslų modelį, metus ir variklį (pvz. „Grand C4 Picasso 2007 m. 2.0 ltr. dyzelis“) arba įkelkite nuotraukas / techninį pasą per (+) mygtuką — aš viską sudėsiu į juodraštį.`,
       quickReplies: [],
       action: { type: "listing_draft", listingDraft },
     };

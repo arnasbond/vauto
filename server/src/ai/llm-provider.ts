@@ -101,22 +101,13 @@ async function imageUrlToInlinePart(
     try {
       const raw = Buffer.from(parsed.data, "base64");
       const prepared = await prepareImageForGeminiVision(raw);
-      if (!prepared.isDocument) {
-        console.log("[vision] imageUrlToInlinePart: data URL ok", {
-          mime: parsed.mime,
-          base64Chars: parsed.data.length,
-          isDocumentOcr: false,
-          pipeline: "color",
-        });
-        return {
-          inline_data: { mime_type: parsed.mime, data: parsed.data },
-        };
-      }
       console.log("[vision] imageUrlToInlinePart: data URL ok", {
         mime: prepared.mime,
         base64Chars: prepared.buffer.length,
-        isDocumentOcr: true,
-        pipeline: "grayscale+sharpen",
+        isDocumentOcr: prepared.isDocument,
+        pipeline: prepared.isDocument
+          ? "fullres-grayscale+sharpen"
+          : "car≤1920",
       });
       return {
         inline_data: {
@@ -126,7 +117,7 @@ async function imageUrlToInlinePart(
       };
     } catch (err) {
       console.warn(
-        "[vision] imageUrlToInlinePart: document prep failed — using original",
+        "[vision] imageUrlToInlinePart: prep failed — using original",
         err instanceof Error ? err.message : err
       );
       return {
@@ -154,23 +145,13 @@ async function imageUrlToInlinePart(
     const buf = Buffer.from(await res.arrayBuffer());
     try {
       const prepared = await prepareImageForGeminiVision(buf);
-      if (!prepared.isDocument) {
-        console.log("[vision] imageUrlToInlinePart: http ok", {
-          mime,
-          bytes: buf.length,
-          isDocumentOcr: false,
-          pipeline: "color",
-          url: normalized.slice(0, 120),
-        });
-        return {
-          inline_data: { mime_type: mime, data: buf.toString("base64") },
-        };
-      }
       console.log("[vision] imageUrlToInlinePart: http ok", {
         mime: prepared.mime,
         bytes: prepared.buffer.length,
-        isDocumentOcr: true,
-        pipeline: "grayscale+sharpen",
+        isDocumentOcr: prepared.isDocument,
+        pipeline: prepared.isDocument
+          ? "fullres-grayscale+sharpen"
+          : "car≤1920",
         url: normalized.slice(0, 120),
       });
       return {
@@ -181,7 +162,7 @@ async function imageUrlToInlinePart(
       };
     } catch (prepErr) {
       console.warn(
-        "[vision] imageUrlToInlinePart: http document prep failed — using original",
+        "[vision] imageUrlToInlinePart: http prep failed — using original",
         prepErr instanceof Error ? prepErr.message : prepErr
       );
       return {

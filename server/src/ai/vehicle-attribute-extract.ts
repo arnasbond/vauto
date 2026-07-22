@@ -25,7 +25,23 @@ const VEHICLE_MAKES = [
 ] as const;
 
 const MODELS_BY_MAKE: Record<string, string[]> = {
-  Citroën: ["Kita", "C1", "C3", "C4", "C5", "Berlingo", "DS3", "DS4", "DS5", "DS7", "Xsara"],
+  Citroën: [
+    "Kita",
+    "Grand C4 Picasso",
+    "C4 Picasso",
+    "Grand C4 Spacetourer",
+    "C4 Spacetourer",
+    "C1",
+    "C3",
+    "C4",
+    "C5",
+    "Berlingo",
+    "DS3",
+    "DS4",
+    "DS5",
+    "DS7",
+    "Xsara",
+  ],
   Volkswagen: ["Kita", "Golf", "Passat", "Polo", "Tiguan", "Touran", "Transporter"],
   BMW: ["Kita", "320", "520", "X1", "X3", "X5", "118", "218"],
   Audi: ["Kita", "A3", "A4", "A6", "Q3", "Q5", "Q7"],
@@ -128,21 +144,30 @@ function normalizeYear(raw: string | number): string | null {
   return String(year);
 }
 
+/** Collapse whitespace only — never strip Grand/Gran/Avant/xDrive/etc. */
+function preserveVerbatimModel(raw: string): string {
+  return String(raw ?? "").trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Exact model fidelity: NEVER truncate "Grand C4 Picasso" → "C4 Picasso".
+ * Catalog may confirm spelling; it must never shorten a longer official designation.
+ */
 function normalizeModel(make: string, raw: string): string {
-  const trimmed = raw.trim();
+  const trimmed = preserveVerbatimModel(raw);
   if (!trimmed) return "";
-  const catalog = modelsForMake(make);
+  const catalog = modelsForMake(make)
+    .filter((m) => m !== "Kita")
+    .sort((a, b) => b.length - a.length);
   const lower = trimmed.toLowerCase();
   const exact = catalog.find((m) => m.toLowerCase() === lower);
-  if (exact) return exact;
-  const contained = catalog.find(
-    (m) => m !== "Kita" && lower.includes(m.toLowerCase())
-  );
-  if (contained) return contained;
-  const token = catalog.find(
-    (m) => m !== "Kita" && new RegExp(`\\b${escapeRegExp(m)}\\b`, "i").test(trimmed)
-  );
-  return token ?? trimmed;
+  if (exact) return trimmed;
+  for (const entry of catalog) {
+    if (!lower.includes(entry.toLowerCase())) continue;
+    if (trimmed.length >= entry.length) return trimmed;
+    return entry;
+  }
+  return trimmed;
 }
 
 function extractFromText(text: string): Record<string, string> {
@@ -157,10 +182,17 @@ function extractFromText(text: string): Record<string, string> {
   }
 
   if (patch.make) {
-    for (const model of modelsForMake(patch.make)) {
-      if (model === "Kita") continue;
-      if (new RegExp(`\\b${escapeRegExp(model)}\\b`, "i").test(text)) {
-        patch.model = normalizeModel(patch.make, model);
+    const catalog = modelsForMake(patch.make)
+      .filter((m) => m !== "Kita")
+      .sort((a, b) => b.length - a.length);
+    for (const model of catalog) {
+      const re = new RegExp(
+        `\\b((?:Grand|Gran|New|Allroad|Long)\\s+)?${escapeRegExp(model)}(?:\\s+(?:Avant|Combi|Variant|Tourer|Gran\\s*Tourer|Coupe|Coupé|Gran\\s*Coupe|Allroad|xDrive|Quattro|4Motion|Long))?\\b`,
+        "i"
+      );
+      const hit = text.match(re);
+      if (hit?.[0]) {
+        patch.model = normalizeModel(patch.make, hit[0]);
         break;
       }
     }
@@ -174,6 +206,12 @@ function extractFromText(text: string): Record<string, string> {
   const engineMatch = text.match(/\b(\d[.,]\d)\s*(?:l|ltr|litrai?)\b/i);
   if (engineMatch) {
     patch.engine = engineMatch[1].replace(",", ".");
+  }
+
+  const powerMatch = text.match(/\b(\d{2,3})\s*(?:k\s*w|kw|kilovat)/i);
+  if (powerMatch?.[1]) {
+    const kw = Number(powerMatch[1]);
+    if (kw >= 30 && kw <= 800) patch.powerKw = String(kw);
   }
 
   const fuelPatterns: Array<{ re: RegExp; label: string }> = [

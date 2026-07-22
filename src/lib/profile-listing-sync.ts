@@ -33,14 +33,18 @@ function isEmptyValue(value: string | undefined | null): boolean {
 }
 
 /** Build contact fields from authenticated user profile. */
+type ProfileContactUser = Pick<
+  UserProfile,
+  "phone" | "city" | "email"
+> &
+  Partial<Pick<UserProfile, "name" | "vatCode" | "companyName" | "companyCode">>;
+
 export function buildProfileListingContact(
-  user: Pick<
-    UserProfile,
-    "phone" | "city" | "email" | "vatCode" | "companyName" | "companyCode"
-  >
+  user: ProfileContactUser
 ): ProfileListingContact {
   const phone = user.phone?.trim() ?? "";
   const email = user.email?.trim() ?? "";
+  const sellerName = user.name?.trim() ?? "";
   const location = verifiedProfileCity(user.city);
   const contact = [phone, email].filter(Boolean).join(" · ");
   const vatCode = user.vatCode?.trim() ?? "";
@@ -57,6 +61,7 @@ export function buildProfileListingContact(
       location,
       ...(phone ? { phone } : {}),
       ...(email ? { email } : {}),
+      ...(sellerName ? { contactName: sellerName, sellerName } : {}),
       ...(vatCode ? { vatCode } : {}),
       ...(companyName ? { companyName } : {}),
       ...(companyCode ? { companyCode } : {}),
@@ -75,17 +80,16 @@ export function hasProfileListingContact(
 /** Merge profile phone/city/email into draft when authenticated (only fills empty slots by default). */
 export function applyProfileToListingDraft(
   draft: AiExtractedListing,
-  user: Pick<
-    UserProfile,
-    "phone" | "city" | "email" | "vatCode" | "companyName" | "companyCode"
-  >,
+  user: ProfileContactUser,
   isAuthenticated: boolean,
   opts?: { onlyIfEmpty?: boolean }
 ): AiExtractedListing {
   if (!isAuthenticated) return draft;
-  // Profile city/phone are authority — inject even when only city exists.
+  // Profile city/phone/name are authority — inject even when only city exists.
   const hasAnyProfile =
-    hasProfileListingContact(user) || Boolean(user.city?.trim());
+    hasProfileListingContact(user) ||
+    Boolean(user.city?.trim()) ||
+    Boolean(user.name?.trim());
   if (!hasAnyProfile) return draft;
 
   const profile = buildProfileListingContact(user);
@@ -115,6 +119,14 @@ export function applyProfileToListingDraft(
   }
   if (profile.email && (!onlyIfEmpty || isEmptyValue(String(attrs.email ?? "")))) {
     attrs.email = profile.email;
+  }
+  const sellerName = String(profile.attributes.sellerName ?? "").trim();
+  if (
+    sellerName &&
+    (!onlyIfEmpty || isEmptyValue(String(attrs.contactName ?? attrs.sellerName ?? "")))
+  ) {
+    attrs.contactName = sellerName;
+    attrs.sellerName = sellerName;
   }
   if (user.vatCode?.trim()) attrs.vatCode = user.vatCode.trim();
   if (user.companyName?.trim()) attrs.companyName = user.companyName.trim();
@@ -148,7 +160,8 @@ export function resolveDraftContact(
 /** Force profile phone/email/id into draft immediately before publish or agent sync. */
 export function injectProfileContactsForPublish(
   draft: AiExtractedListing,
-  user: Pick<UserProfile, "id" | "phone" | "email" | "city">
+  user: Pick<UserProfile, "id" | "phone" | "email" | "city"> &
+    Partial<Pick<UserProfile, "name">>
 ): AiExtractedListing {
   const withContacts = applyProfileToListingDraft(draft, user, true, {
     onlyIfEmpty: false,

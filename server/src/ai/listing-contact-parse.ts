@@ -95,42 +95,27 @@ export function extractCityFromText(text: string): string | undefined {
   return undefined;
 }
 
+/** Currency / price tokens must NEVER become contactName (e.g. "2250 eur" → "Euru"). */
+const CURRENCY_NAME_STOPWORDS =
+  /^(eur|euru|eurų|eurus|euro|euros|eura|€|ltl|cent|centai|kaina|price|uz|už)$/i;
+
+/** Explicit name-change only — never infer names from free price/spec chat. */
+const EXPLICIT_NAME_CHANGE_RE =
+  /(?:pakeisk|keisk|nustatyk|įrašyk|irasyk)\s+(?:kontaktin[iį]?\s+)?vard[aą]\s+[įi]\s+([A-Za-zĄ-ž]{2,24})/i;
+
 function extractContactName(
   text: string,
   phone?: string,
   city?: string
 ): string | undefined {
-  let remainder = text;
-  if (phone) {
-    remainder = remainder.replace(
-      new RegExp(phone.replace(/[+]/g, "\\+"), "gi"),
-      " "
-    );
-    remainder = remainder.replace(LT_PHONE_CANDIDATE, " ");
-  }
-  if (city) {
-    remainder = remainder.replace(new RegExp(city, "gi"), " ");
-    remainder = remainder.replace(new RegExp(foldLt(city), "gi"), " ");
-  }
-  remainder = remainder.replace(EMAIL_PATTERN, " ");
-
-  const words = remainder
-    .split(/[\s,.;:!?()[\]{}"'-]+/)
-    .map((w) => w.trim())
-    .filter((w) => w.length >= 2);
-
-  const filtered = words.filter(
-    (w) =>
-      !/^(taip|ne|gerai|ok|ir|ar|bei|mano|numeris|tel|telefonas|miestas|city)$/i.test(
-        w
-      ) && !/^\d+$/.test(w)
-  );
-
-  if (filtered.length === 1 && /^[A-Za-zĄ-ž]{2,24}$/.test(filtered[0]!)) {
-    const name = filtered[0]!;
+  const explicit = text.match(EXPLICIT_NAME_CHANGE_RE);
+  if (explicit?.[1]) {
+    const name = explicit[1];
+    if (CURRENCY_NAME_STOPWORDS.test(name)) return undefined;
     return name.charAt(0).toUpperCase() + name.slice(1).toLowerCase();
   }
-
+  void phone;
+  void city;
   return undefined;
 }
 

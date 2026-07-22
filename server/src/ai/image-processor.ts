@@ -150,28 +150,45 @@ export async function looksLikeDocumentImageBuffer(buffer: Buffer): Promise<bool
 
 /**
  * OCR prep for tech passport / registration documents:
- * grayscale (kill green paper noise) + contrast boost + sharpen for crisp text edges.
- * Sized for Render free-tier RAM (avoid 2k+ parallel spikes).
+ * grayscale + contrast + sharpen at FULL native resolution — NEVER downscale.
  */
 export async function enhanceDocumentForOcr(buffer: Buffer): Promise<Buffer> {
   try {
     return await sharp(buffer)
       .rotate()
-      .resize({
-        width: 1600,
-        height: 1600,
-        fit: "inside",
-        withoutEnlargement: false,
-      })
       .grayscale()
       .normalize()
       .linear(1.28, -18)
       .sharpen({ sigma: 1.6, m1: 2.0, m2: 0.7 })
-      .jpeg({ quality: 90, mozjpeg: true })
+      .jpeg({ quality: 95, mozjpeg: true })
       .toBuffer();
   } catch (err) {
     console.warn(
       "[image-processor] enhanceDocumentForOcr failed — using original",
+      err instanceof Error ? err.message : err
+    );
+    return buffer;
+  }
+}
+
+/** Light car/product optimize for Vision RAM — max 1920px, high quality. */
+export async function optimizeProductForGeminiVision(
+  buffer: Buffer
+): Promise<Buffer> {
+  try {
+    return await sharp(buffer)
+      .rotate()
+      .resize({
+        width: 1920,
+        height: 1920,
+        fit: "inside",
+        withoutEnlargement: true,
+      })
+      .jpeg({ quality: 90, mozjpeg: true })
+      .toBuffer();
+  } catch (err) {
+    console.warn(
+      "[image-processor] optimizeProductForGeminiVision failed — using original",
       err instanceof Error ? err.message : err
     );
     return buffer;
@@ -186,20 +203,16 @@ export type PreparedVisionImage = {
 
 /**
  * Prepare a single image for Gemini Vision.
- * Documents → mono + contrast + sharpen (JPEG).
- * Product/car → original buffer unchanged (caller keeps original mime).
+ * Documents → full-res mono + contrast + sharpen (never downscale).
+ * Product/car → light ≤1920px optimize.
  * Never throws — sharp failures fall back to the original buffer.
  */
 export async function prepareImageForGeminiVision(
   buffer: Buffer,
   opts?: { forceDocument?: boolean; forceProduct?: boolean }
 ): Promise<PreparedVisionImage> {
-  if (opts?.forceProduct) {
-    return { buffer, mime: "image/jpeg", isDocument: false };
-  }
-
   let isDocument = opts?.forceDocument === true;
-  if (!isDocument) {
+  if (!isDocument && !opts?.forceProduct) {
     try {
       isDocument = await looksLikeDocumentImageBuffer(buffer);
     } catch (err) {
@@ -211,19 +224,28 @@ export async function prepareImageForGeminiVision(
     }
   }
 
-  if (!isDocument) {
-    return { buffer, mime: "image/jpeg", isDocument: false };
+  if (isDocument) {
+    try {
+      const enhanced = await enhanceDocumentForOcr(buffer);
+      return { buffer: enhanced, mime: "image/jpeg", isDocument: true };
+    } catch (err) {
+      console.warn(
+        "[image-processor] enhanceDocumentForOcr failed — using original buffer",
+        err instanceof Error ? err.message : err
+      );
+      return { buffer, mime: "image/jpeg", isDocument: true };
+    }
   }
 
   try {
-    const enhanced = await enhanceDocumentForOcr(buffer);
-    return { buffer: enhanced, mime: "image/jpeg", isDocument: true };
+    const optimized = await optimizeProductForGeminiVision(buffer);
+    return { buffer: optimized, mime: "image/jpeg", isDocument: false };
   } catch (err) {
     console.warn(
-      "[image-processor] enhanceDocumentForOcr failed — using original buffer",
+      "[image-processor] product optimize failed — using original",
       err instanceof Error ? err.message : err
     );
-    return { buffer, mime: "image/jpeg", isDocument: true };
+    return { buffer, mime: "image/jpeg", isDocument: false };
   }
 }
 

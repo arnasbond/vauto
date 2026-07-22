@@ -32,6 +32,9 @@ export interface ListingDraftContext {
     | "AWAITING_CONFIRMATION";
 }
 
+const DRAFT_EDIT_SIGNAL_RE =
+  /\b(patais|pataisyti|pakeisk|keisk|atnaujink|ištrink|istrink|neberaš|neberasy|nerašyk|nerasyk|neberašyti|neberasyti|pašalink|pasalink|pridėk|pridek|\d{2,3}\s*kw)\b/i;
+
 export function isListingConversationInput(
   text: string,
   listingDraft?: { title?: string; price?: number } | null
@@ -42,7 +45,44 @@ export function isListingConversationInput(
   if (isListingWorkflowCommand(t)) return false;
   if (PRICE_ONLY_RE.test(t)) return true;
   if (parsePriceFromChatInput(t) != null) return true;
+  if (DRAFT_EDIT_SIGNAL_RE.test(t)) return true;
+  // Active draft: ChatGPT-style — any informal correction is UPDATE_LISTING_DRAFT.
+  if (t.length <= 500) return true;
   return t.length <= 160;
+}
+
+/** Remove unwanted description phrases from natural-language edit requests. */
+export function applyNaturalLanguageDescriptionEdits(
+  description: string,
+  userText: string
+): { description: string; removed: string[] } {
+  let next = String(description ?? "");
+  const removed: string[] = [];
+  const lower = userText.toLowerCase();
+  const banMatch = userText.match(
+    /(?:neberašyti|neberasyti|nerašyk|nerasyk|neberašyk|neberasyk|ištrink|istrink|pašalink|pasalink)\s+(?:kad\s+)?(.+?)(?:\.|$|,|;)/i
+  );
+  if (banMatch?.[1]) {
+    const phrase = banMatch[1].trim();
+    if (phrase.length >= 4) {
+      const re = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      if (re.test(next)) {
+        next = next.replace(re, " ").replace(/\s{2,}/g, " ").trim();
+        removed.push(phrase);
+      } else {
+        const topic = /trinkel|įvažiav|ivaziav|kiem|fon|asfalt|šaligatv|saligatv/i;
+        if (topic.test(lower) || topic.test(phrase)) {
+          const sentences = next.split(/(?<=[.!?])\s+/);
+          const kept = sentences.filter((s) => !topic.test(s));
+          if (kept.length < sentences.length) {
+            next = kept.join(" ").trim();
+            removed.push("fono / trinkelių aprašymas");
+          }
+        }
+      }
+    }
+  }
+  return { description: next, removed };
 }
 
 export function parsePriceFromChatInput(text: string): number | null {

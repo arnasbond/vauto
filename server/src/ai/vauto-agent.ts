@@ -33,6 +33,7 @@ import {
 } from "./sell-intent-fallback.js";
 import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
 import {
+  applyNaturalLanguageDescriptionEdits,
   isListingConversationInput,
   normalizeListingDraftForAction,
   parsePriceFromChatInput,
@@ -680,17 +681,31 @@ async function runVautoAgentInner(
       price != null && !(specPatch.year && String(price) === String(specPatch.year))
         ? price
         : null;
-    if (priceToApply != null || hasSpecs) {
+    const descEdit = applyNaturalLanguageDescriptionEdits(
+      String(listingDraft.description ?? ""),
+      lastUserText
+    );
+    const hasDescEdit = descEdit.removed.length > 0;
+
+    if (priceToApply != null || hasSpecs || hasDescEdit) {
       const mergedAttrs = {
         ...(listingDraft.attributes ?? {}),
         ...specPatch,
       };
       delete mergedAttrs.awaitingSpecs;
-      const nextDescription = hasSpecs
+      let nextDescription = hasSpecs
         ? buildVehicleDescriptionFromAttributes(mergedAttrs, {
             location: listingDraft.location,
           })
         : listingDraft.description;
+      if (hasDescEdit && !hasSpecs) {
+        nextDescription = descEdit.description;
+      } else if (hasDescEdit && hasSpecs && nextDescription) {
+        nextDescription = applyNaturalLanguageDescriptionEdits(
+          nextDescription,
+          lastUserText
+        ).description;
+      }
       const nextTitle =
         mergedAttrs.make && mergedAttrs.model
           ? `${mergedAttrs.make} ${mergedAttrs.model}${mergedAttrs.year ? ` ${mergedAttrs.year}` : ""}`.trim()
@@ -716,12 +731,15 @@ async function runVautoAgentInner(
       const bits = [
         specPatch.year ? `${specPatch.year} m.` : "",
         specPatch.engine ? specPatch.engine : "",
+        specPatch.powerKw ? `${specPatch.powerKw} kW` : "",
         specPatch.fuelType ? specPatch.fuelType.toLowerCase() : "",
         specPatch.model ? specPatch.model : "",
+        ...descEdit.removed.map((r) => `−${r}`),
       ].filter(Boolean);
-      const intro = hasSpecs
-        ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
-        : "Puiku — atnaujinau kainą!";
+      const intro =
+        hasSpecs || hasDescEdit
+          ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
+          : "Puiku — atnaujinau kainą!";
       return {
         ok: true,
         reply: `${intro}\n\n${buildDraftingCompletePhotosPrompt(nextDraft)}`,

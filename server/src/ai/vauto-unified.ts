@@ -40,14 +40,14 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
 export const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
-  "title": "string — konkretus lietuviškas skelbimo pavadinimas (markė + modelis + metai jei žinoma)",
+  "title": "string — konkretus lietuviškas skelbimo pavadinimas (markė + VISAS modelis VERBATIM + metai). Pvz. „Citroën Grand C4 Picasso 2007“ — NIEKADA trumpinti į „C4 Picasso“",
   "price": "number | null — kaina EUR; null jei nenurodyta",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — TIKSLUS techninis aprašymas lietuviškai (4–8 sakiniai): markė, modelis, metai, variklis/cm³/kW, kuras, rida, kėbulas, trim, matomi defektai. DRAUDŽIAMA marketing fluff, emociniai šūkiai, CTA",
-  "technicalFields": "object — make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, condition",
-  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija / kvitas / dokumentas (OCR, NE viešai galerijai)",
+  "description": "string — TURTINGAS profesionalus auto aprašymas lietuviškai (6–10 sakinių): HARD SPECS iš paso + modelio akcentai (salono ergonomika, vairavimo komfortas, patikimumas pagal make/model/year) + vizualūs akcentai. DRAUDŽIAMA fluff CTA ir fono (trinkelės/kiemas) aprašymas",
+  "technicalFields": "object — make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition",
+  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY ground-truth OCR, NE viešai galerijai)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
-  "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai eilės tvarka",
+  "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai eilės tvarka; document = primary tech source",
   "documentReadable": "boolean — true TIK jei tech passport / dokumento tekstas aiškiai įskaitomas",
   "documentOcrConfidence": "number 0-1 — OCR patikimumas; <0.55 = neaišku",
   "unclearDocumentIndexes": "[number] — neaiškių dokumentų indeksai",
@@ -62,9 +62,11 @@ Aprašymas (description) — PRECIZINIS ir TECHNINIS, ne marketingas:
 - Rašyk konkrečius faktus: markė, modelis, metai, trim, variklis (cm³/l), galia kW/AG, kuras, transmisija, rida, kėbulas, spalva, vietų sk., matomi defektai.
 - Tech passport / registracijos / dokumentų nuotraukas: imageRoles=document + documentImageIndexes.
 - MULTIMODAL FUSION (kai yra ir tech passport, ir auto nuotraukos):
-  HARD SPECS iš paso: A→plate/licensePlate, B→year (YYYY), D.1→make, D.3→model, P.1→engine (cm³ → litrai, pvz. 1997→2.0), P.2→powerKw, P.3→fuelType, R→color, C.1.3→city.
+  Tech passport / documentImageIndexes = PRIMARY ground-truth (prioritetas prieš vizualines spenziones).
+  HARD SPECS iš paso: A→plate/licensePlate, B→year (YYYY), D.1→make, D.3→model (VERBATIM — žr. MODEL FIDELITY), P.1→engine (cm³ → litrai, pvz. 1997→2.0), P.2→powerKw, P.3→fuelType, R→color, C.1.3→city.
   VISUAL EXTRAS iš auto nuotraukų: interiorCondition (salonų medžiaga, vairas, ekranas), exteriorFeatures (ratlankiai, stogo relingai, kėbulas, matoma būklė), bodyType, transmission jei matoma.
-  description — VIENA darni pastraipa: tikslūs specs iš paso + vizualūs akcentai iš nuotraukų. NIEKADA neklausti „Patikslinkite metus ir variklį“, jei specs jau ištraukti.
+  description — TURTINGAS profesionalus 6–10 sakinių aprašymas: tikslūs specs + EXACT variantos akcentai (pvz. Grand = 7 vietos / ilgesnė bazė) + vizualūs akcentai. NIEKADA neklausti „Patikslinkite metus ir variklį“, jei specs jau ištraukti. NIEKADA aprašyti trinkelių/kiemo fono.
+- MODEL FIDELITY (ABSOLIUTU): technicalFields.model ir title privalo būti EXACT D.3 / ženkliuko eilutė. NIEKADA trumpinti, normalizuoti ar „valyti“: „Grand C4 Picasso“ ≠ „C4 Picasso“; „Gran Coupe“, „Gran Tourer“, „Avant“, „Combi“, „Variant“, „Allroad“, „Long“, „xDrive“ — VISADA palikti.
 - Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus. NIEKADA nestabdyk juodraščio.
 - galleryImageIndexes / imageRoles=gallery — TIK produkto/auto nuotraukos. Žalias/mėlynas tech passport VISADA document.
 - DRAUDŽIAMA: „patrauklus pasirinkimas“, „puiki proga“, „mielai atsakysime“, emociniai filleriai, CTA be faktų.
@@ -77,7 +79,7 @@ ${STRUCTURED_INPUT_VISION_RULES}
 KATEGORIJŲ TAISYKLĖS:
 - NT: butas/namas/sklypas → „NT“, NE „NAMAI“.
 - AUTOMOBILIAI: auto/mašina/rida/markė → „AUTOMOBILIAI“.
-- title: konkretus (pvz. „Citroën C4 Picasso 2014“), be placeholderių.
+- title: konkretus su VISU modeliu (pvz. „Citroën Grand C4 Picasso 2007“), be placeholderių ir be trumpinimo.
 - Jei keli objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
 - Automobiliams technicalFields: make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition.
 NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
@@ -102,6 +104,10 @@ function parseTechnicalFields(raw: unknown): Record<string, string | string[]> {
     if (v == null || v === "") continue;
     if (Array.isArray(v)) out[k] = v.map(String);
     else out[k] = String(v);
+  }
+  // Model: whitespace-only cleanup — NEVER truncate Grand/Gran/Avant/xDrive variants.
+  if (typeof out.model === "string") {
+    out.model = out.model.trim().replace(/\s+/g, " ");
   }
   // P.1 often arrives as cm³ — normalize to liters for structured state.
   const engineRaw = String(out.engine ?? "").trim();
@@ -220,13 +226,14 @@ function buildImagePrompt(
   return `${SYSTEM_RULES}
 ${VISION_ANTI_HALLUCINATION_RULE}
 
-Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1).
-1) PRIVALOMA imageRoles masyvas (gallery|document) kiekvienai nuotraukai. Žalias/mėlynas tech passport, registracija, kvitas, popierius su lentele/VIN — VISADA document.
+Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Pirmos document nuotraukos = PRIMARY OCR šaltinis.
+1) PRIVALOMA imageRoles masyvas (gallery|document) kiekvienai nuotraukai. Žalias/mėlynas tech passport, registracija, kvitas, popierius su lentele/VIN — VISADA document (ground-truth).
 2) documentImageIndexes + galleryImageIndexes privalo sutapti su imageRoles.
-3) HARD SPECS — Lietuviškas techninis pasas (OCR, prioritetas prieš spėliones):
+3) HARD SPECS — Lietuviškas techninis pasas (OCR, PRIORITETAS prieš vizualines spekuliacijas):
    • A = valstybinis numeris → technicalFields.plate + licensePlate
    • B = pirmoji registracija → technicalFields.year (4 skaitmenys YYYY)
-   • D.1 = markė → technicalFields.make ; D.3 = modelis → technicalFields.model
+   • D.1 = markė → technicalFields.make
+   • D.3 = modelis → technicalFields.model — VERBATIM iš paso / ženkliuko (pvz. „Grand C4 Picasso“). DRAUDŽIAMA trumpinti į „C4 Picasso“ / „C4“. Palik Grand/Gran/Avant/Combi/Variant/Allroad/Long/xDrive.
    • P.1 = darbinis tūris cm³ → technicalFields.engine LITRAIS (1997 cm³ → „2.0“)
    • P.2 = galia → technicalFields.powerKw (kW)
    • P.3 = degalai → technicalFields.fuelType (Benzinas / Dyzelinas / …)
@@ -236,8 +243,13 @@ Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1).
    • interiorCondition — salonas (odinė/audinio sėdynės, vairas, ekranas/multimedia)
    • exteriorFeatures — ratlankiai, stogo relingai, kėbulo tipas, matoma išorės būklė
    • bodyType / transmission jei aiškiai matoma
-5) description — VIENA darni lietuviška pastraipa (4–8 sakiniai): tikslūs specs iš paso + vizualūs akcentai iš nuotraukų. Be fluff / CTA. Jei yra ir dokumentas, ir auto — SUJUNK abu šaltinius.
-6) NIEKADA neklausti „Patikslinkite metus ir variklį“, jei B/P.1/P.3 jau ištraukti. NIEKADA nekartok vartotojo frazės kaip aprašymo.${textNote}${extra}
+5) description — TURTINGAS profesionalus lietuviškas aprašymas (6–10 sakinių):
+   • tikslūs HARD SPECS iš paso
+   • EXACT variantos akcentai (Grand → 7 vietos / ilgesnė bazė; Avant/Combi/Variant → universalas; Gran Coupe → kupė proporcijos)
+   • vizualūs akcentai iš auto nuotraukų
+   • BE fluff / CTA / fono (trinkelės, kiemas, namas)
+6) NIEKADA neklausti „Patikslinkite metus ir variklį“, jei B/P.1/P.3 jau ištraukti. NIEKADA nekartok vartotojo frazės kaip aprašymo.
+7) title = make + VERBATIM model + year (pvz. „Citroën Grand C4 Picasso 2007“).${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }

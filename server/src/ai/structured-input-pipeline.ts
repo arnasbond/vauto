@@ -63,18 +63,15 @@ export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI
 - Jei validacija praeina — parodyk PrePublishListingCard peržiūrą; jei ne — konversacinį klausimą apie trūkstamus duomenis (ne ⚠️ bloką).`;
 
 export const LISTING_CONTACT_CAPTURE_RULES = `KONTAKTŲ LAUKŲ GAVIMAS (blokavimo / patvirtinimo fazė — PRIVALOMA):
-- Kai trūksta telefono ar miesto, vartotojo laisvas tekstas gali turėti kontaktus (pvz. „068876808 Arnoldas Kaišiadorys“).
+- Jei userContext jau turi sellerPhone / sellerCity / sellerName — NIEKADA neklausti iš naujo; naudok sesijos reikšmes.
+- Kai TRŪKSTA telefono ar miesto, vartotojo laisvas tekstas gali turėti kontaktus (pvz. „068876808 Kaišiadorys“).
 - Iš teksto PRIVALOMA ištraukti:
   • LT telefoną (06..., +370..., 86...) → attributes.phone (NE description, NE title)
   • LT miestą (Kaišiadorys, Vilnius, Kaunas…) → location / attributes.location
-  • Vardą (pvz. Arnoldas) → attributes.contactName (nebent tai aiškiai prekės aprašymas)
+- DRAUDŽIAMA laikyti valiutą / kainą vardu (eur, euru, euro, 2250 eur → NIEKADA contactName „Euru“).
+- Vardą keisti TIK pagal aiškią komandą („pakeisk vardą į …“). Kitaip contactName lieka iš userContext.
 - DRAUDŽIAMA append'inti telefono numerius, miestus ar vardus prie description ar title.
-- Po sėkmingo ištraukimo atsakyk:
-
-  ✅ Atnaujinome jūsų kontaktus:
-  * Telefonas: [numeris]
-  * Miestas: [miestas]
-
+- Po sėkmingo ištraukimo atsakyk trumpai su atnaujintais laukais.
 - Jei vartotojas paspaudė „Telefono numeris“ arba „Miestas“ — prašyk tik to lauko (izoliuota įvestis).`;
 
 export const STRUCTURED_INPUT_AGENT_TOOL_RULES = `FUNKCIJŲ KVIEČIMAS (sąsaja su pipeline):

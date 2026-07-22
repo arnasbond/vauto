@@ -149,7 +149,7 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
-    "Vision MULTIMODAL FUSION: HARD SPECS from tech passport (A=plate, B=year, D.1=make, D.3=model, P.1=engine liters, P.2=powerKw, P.3=fuel, R=color, C.1.3=city). VISUAL EXTRAS from car photos (interiorCondition, exteriorFeatures). One cohesive description. Classify docs via documentImageIndexes — OCR-only, not public gallery.",
+    "Vision MULTIMODAL FUSION: passport PRIMARY OCR. HARD SPECS A/B/D.1/D.3/P.1–P.3/R/C.1.3. D.3 model VERBATIM (Grand C4 Picasso ≠ C4 Picasso). Enrich description for EXACT variant. documentImageIndexes = OCR-only, strip from public gallery AFTER vision.",
   ].filter(Boolean);
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;

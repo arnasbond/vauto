@@ -4,48 +4,36 @@ import { compressDataUrl } from "@/lib/native-media";
 export const AGENT_VISION_MAX_DATA_IMAGES = 6;
 
 /**
- * Listing gallery compress — keeps all 6 usable locally for publish,
- * without needing a remote media round-trip first.
+ * Light web optimize for car / product photos only (never documents).
+ * Max 1920px, high quality — conserves memory without crushing detail.
  */
 export async function compressForAgentBatch(dataUrl: string): Promise<string> {
   if (!dataUrl.startsWith("data:image")) return dataUrl;
   return compressDataUrl(dataUrl, {
-    maxDim: 720,
-    quality: 0.62,
-    maxChars: 48_000,
+    maxDim: 1920,
+    quality: 0.88,
+    maxChars: 900_000,
     force: true,
   });
 }
 
 /**
- * Product-car vision thumb — small enough for Gemini TPM on multi-photo turns.
+ * Product-car vision wire — light optimize (same budget as batch).
  */
 export async function compressForAgentVisionWire(
   dataUrl: string
 ): Promise<string> {
-  if (!dataUrl.startsWith("data:image")) return dataUrl;
-  return compressDataUrl(dataUrl, {
-    maxDim: 640,
-    quality: 0.55,
-    maxChars: 48_000,
-    force: true,
-  });
+  return compressForAgentBatch(dataUrl);
 }
 
 /**
- * Tech passport / document OCR — high resolution so fine field codes stay readable.
- * Lithuanian registration certificate (žalias tech passport) needs crisp text for A/B/D.3/P.1/P.3.
+ * Tech passport / document OCR — FULL ORIGINAL RESOLUTION.
+ * Never compress, downscale, or re-encode documents.
  */
 export async function compressForAgentDocumentVision(
   dataUrl: string
 ): Promise<string> {
-  if (!dataUrl.startsWith("data:image")) return dataUrl;
-  return compressDataUrl(dataUrl, {
-    maxDim: 1600,
-    quality: 0.88,
-    maxChars: 320_000,
-    force: true,
-  });
+  return dataUrl;
 }
 
 function isHttpUrl(url: string): boolean {
@@ -54,7 +42,7 @@ function isHttpUrl(url: string): boolean {
 
 /**
  * Heuristic: Lithuanian tech passport is green / paper-like.
- * Used only to pick compression quality — NEVER to drop from the vision payload.
+ * Used only to mark docs as primary OCR sources — NEVER to drop from the wire.
  */
 export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean> {
   if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
@@ -100,26 +88,23 @@ export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean
 }
 
 /**
- * Compress for vision: documents stay high-res; product photos stay smaller.
+ * Compress for vision: documents stay FULL original; cars get light 1920px optimize.
  */
 export async function compressForAgentVisionSmart(
   dataUrl: string
 ): Promise<string> {
   if (!dataUrl.startsWith("data:image")) return dataUrl;
   const isDoc = await looksLikeDocumentDataUrl(dataUrl);
-  return isDoc
-    ? compressForAgentDocumentVision(dataUrl)
-    : compressForAgentVisionWire(dataUrl);
+  return isDoc ? dataUrl : compressForAgentVisionWire(dataUrl);
 }
 
 /**
  * Prepare chat photos for the agent wire.
  *
- * ZERO PRE-FILTERING: every attached file (cars + tech passport) is returned
- * in both listingImageUrls and agentVisionUrls. Public-gallery stripping of
- * documents happens ONLY after Gemini Vision on the server/state layer.
- *
- * Sequential loops keep peak memory low (never Promise.all on heavy canvas work).
+ * - Passports: FULL original resolution (ground-truth OCR).
+ * - Cars: light ≤1920px optimize.
+ * - ALL files sent (zero pre-filter). Gallery strip happens post-Vision on server.
+ * Sequential loops — never Promise.all on heavy canvas work.
  */
 export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
   listingImageUrls: string[];
@@ -134,47 +119,38 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
     return { listingImageUrls: [], agentVisionUrls: [], suspectedDocumentUrls: [] };
   }
 
-  const listingImageUrls: string[] = [];
+  // Detect documents on ORIGINAL bytes before any car optimize.
+  const suspectedDocumentUrls: string[] = [];
+  const prepared: string[] = [];
   for (const url of unique) {
     try {
-      const compressed = await compressForAgentBatch(url);
-      if (compressed) listingImageUrls.push(compressed);
-    } catch {
-      if (url) listingImageUrls.push(url);
-    }
-  }
-
-  const suspectedDocumentUrls: string[] = [];
-  const agentVisionUrls: string[] = [];
-  for (const url of listingImageUrls) {
-    try {
       if (isHttpUrl(url)) {
-        agentVisionUrls.push(url);
+        prepared.push(url);
         continue;
       }
       const isDoc = await looksLikeDocumentDataUrl(url);
-      if (isDoc) suspectedDocumentUrls.push(url);
-      const vision = isDoc
-        ? await compressForAgentDocumentVision(url)
-        : await compressForAgentVisionWire(url);
-      if (vision) agentVisionUrls.push(vision);
+      if (isDoc) {
+        suspectedDocumentUrls.push(url);
+        prepared.push(url); // full original — never compress
+      } else {
+        prepared.push(await compressForAgentBatch(url));
+      }
     } catch {
-      agentVisionUrls.push(url);
+      prepared.push(url);
     }
   }
 
-  // Docs first so chunked Gemini OCR sees the passport early — still ALL files.
   const ban = new Set(suspectedDocumentUrls);
+  // Docs first = primary/ground-truth tech sources for chunked Gemini OCR.
   const docsFirst = [
-    ...agentVisionUrls.filter((u) => ban.has(u)),
-    ...agentVisionUrls.filter((u) => !ban.has(u)),
+    ...prepared.filter((u) => ban.has(u)),
+    ...prepared.filter((u) => !ban.has(u)),
   ];
-  const visionAll = selectAgentVisionUrls(docsFirst);
+  const all = selectAgentVisionUrls(docsFirst);
 
   return {
-    // Full set for session + wire — no client-side gallery ban.
-    listingImageUrls: selectAgentVisionUrls(listingImageUrls),
-    agentVisionUrls: visionAll,
+    listingImageUrls: all,
+    agentVisionUrls: all,
     suspectedDocumentUrls,
   };
 }

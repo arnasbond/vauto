@@ -1,5 +1,4 @@
 import {
-  MODELS_BY_MAKE,
   VEHICLE_MAKES,
   modelsForMake,
 } from "@/lib/vehicle-catalog";
@@ -18,6 +17,7 @@ export interface VehicleAttributePatch {
   mileage?: string;
   fuelType?: string;
   engine?: string;
+  powerKw?: string;
   vin?: string;
   plateNumber?: string;
 }
@@ -110,31 +110,32 @@ export function normalizeVehicleYear(raw: string | number): string | null {
   return String(year);
 }
 
+/** Collapse whitespace only — never strip Grand/Gran/Avant/xDrive/etc. */
+export function preserveVerbatimVehicleModel(raw: string): string {
+  return String(raw ?? "").trim().replace(/\s+/g, " ");
+}
+
+/**
+ * Exact model fidelity: NEVER truncate "Grand C4 Picasso" → "C4 Picasso".
+ * Catalog may confirm spelling; it must never shorten a longer official designation.
+ */
 export function normalizeVehicleModel(make: string, raw: string): string {
-  const trimmed = raw.trim();
+  const trimmed = preserveVerbatimVehicleModel(raw);
   if (!trimmed) return "";
 
-  const catalog = modelsForMake(make);
+  const catalog = modelsForMake(make)
+    .filter((m) => m !== "Kita")
+    .sort((a, b) => b.length - a.length);
   const lower = trimmed.toLowerCase();
 
   const exact = catalog.find((m) => m.toLowerCase() === lower);
-  if (exact) return exact;
+  if (exact) return trimmed;
 
-  const contained = catalog.find(
-    (m) => m !== "Kita" && lower.includes(m.toLowerCase())
-  );
-  if (contained) return contained;
-
-  const tokenMatch = catalog.find(
-    (m) => m !== "Kita" && new RegExp(`\\b${escapeRegExp(m)}\\b`, "i").test(trimmed)
-  );
-  if (tokenMatch) return tokenMatch;
-
-  for (const models of Object.values(MODELS_BY_MAKE)) {
-    const global = models.find(
-      (m) => m !== "Kita" && new RegExp(`\\b${escapeRegExp(m)}\\b`, "i").test(trimmed)
-    );
-    if (global) return global;
+  // If a shorter catalog name is merely contained, keep the FULL verbatim string.
+  for (const entry of catalog) {
+    if (!lower.includes(entry.toLowerCase())) continue;
+    if (trimmed.length >= entry.length) return trimmed;
+    return entry;
   }
 
   return trimmed;
@@ -173,6 +174,12 @@ export function extractVehicleAttributesFromText(text: string): VehicleAttribute
     patch.engine = engineMatch[1].replace(",", ".");
   }
 
+  const powerMatch = source.match(/\b(\d{2,3})\s*(?:k\s*w|kw|kilovat)/i);
+  if (powerMatch?.[1]) {
+    const kw = Number(powerMatch[1]);
+    if (kw >= 30 && kw <= 800) patch.powerKw = String(kw);
+  }
+
   for (const { re, label } of FUEL_PATTERNS) {
     if (re.test(source)) {
       patch.fuelType = label;
@@ -190,15 +197,29 @@ export function extractVehicleAttributesFromText(text: string): VehicleAttribute
 }
 
 function extractModelFromText(text: string, make: string): string | null {
-  const catalog = modelsForMake(make);
+  // Longest catalog match first so "C4 Picasso" wins over "C4".
+  const catalog = modelsForMake(make)
+    .filter((m) => m !== "Kita")
+    .sort((a, b) => b.length - a.length);
+
   for (const model of catalog) {
-    if (model === "Kita") continue;
-    if (new RegExp(`\\b${escapeRegExp(model)}\\b`, "i").test(text)) {
-      return model;
-    }
+    const re = new RegExp(
+      `\\b((?:Grand|Gran|New|Allroad|Long)\\s+)?${escapeRegExp(model)}(?:\\s+(?:Avant|Combi|Variant|Tourer|Gran\\s*Tourer|Coupe|Coupé|Gran\\s*Coupe|Allroad|xDrive|Quattro|4Motion|Long))?\\b`,
+      "i"
+    );
+    const hit = text.match(re);
+    if (hit?.[0]) return preserveVerbatimVehicleModel(hit[0]);
   }
 
   const afterMake = text.replace(VEHICLE_BRAND_PATTERN, " ");
+  // Capture multi-word official designations (e.g. Grand C4 Picasso).
+  const multi = afterMake.match(
+    /\b((?:Grand|Gran|New|Allroad)\s+)?[A-Za-z0-9][A-Za-z0-9.-]*(?:\s+[A-Za-z0-9][A-Za-z0-9.-]*){0,4}\b/
+  );
+  if (multi?.[0] && !/^\d{4}$/.test(multi[0].trim())) {
+    return preserveVerbatimVehicleModel(multi[0]);
+  }
+
   const tokens = afterMake.match(
     /\b([A-Za-z]{1,3}\d{1,3}[a-z]?|\d{3,4}[a-z]{0,2}|[A-Z]{1,2}\d{1,2})\b/g
   );

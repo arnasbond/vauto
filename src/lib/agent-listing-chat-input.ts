@@ -54,6 +54,10 @@ export function buildManualFillChatRedirectReply(): string {
   return "Gerai — tęskime pokalbyje. Parašykite kainą, aprašymą ar kitą detalę čia, ir aš paruošiu skelbimą be formų.";
 }
 
+/** Informal LT draft corrections while a sell draft is active. */
+const DRAFT_EDIT_SIGNAL_RE =
+  /\b(patais|pataisyti|pakeisk|keisk|atnaujink|ištrink|istrink|neberaš|neberasy|nerašyk|nerasyk|neberašyti|neberasyti|pašalink|pasalink|pridėk|pridek|110\s*kw|\d{2,3}\s*kw)\b/i;
+
 /** Standalone price or short listing clarification — never treat as search noise. */
 export function isListingConversationInput(
   text: string,
@@ -67,7 +71,48 @@ export function isListingConversationInput(
   if (isManualFillIntent(t)) return true;
   if (parsePriceFromChatInput(t) != null) return true;
   if (PRICE_ONLY_RE.test(t)) return true;
+  if (DRAFT_EDIT_SIGNAL_RE.test(t)) return true;
+  // Active draft: treat informal corrections as UPDATE_LISTING_DRAFT (ChatGPT-style).
+  if (ctx.hasListingDraft && t.length <= 500) return true;
   return t.length <= 120;
+}
+
+/** Remove unwanted description phrases from natural-language edit requests. */
+export function applyNaturalLanguageDescriptionEdits(
+  description: string,
+  userText: string
+): { description: string; removed: string[] } {
+  let next = description;
+  const removed: string[] = [];
+  const lower = userText.toLowerCase();
+
+  // „nerasyti kad stovi ant trinkeliu“ / „ištrink …“
+  const banMatch = userText.match(
+    /(?:neberašyti|neberasyti|nerašyk|nerasyk|neberašyk|neberasyk|ištrink|istrink|pašalink|pasalink)\s+(?:kad\s+)?(.+?)(?:\.|$|,|;)/i
+  );
+  if (banMatch?.[1]) {
+    const phrase = banMatch[1].trim();
+    if (phrase.length >= 4) {
+      const re = new RegExp(phrase.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"), "gi");
+      if (re.test(next)) {
+        next = next.replace(re, " ").replace(/\s{2,}/g, " ").trim();
+        removed.push(phrase);
+      } else {
+        // Fuzzy: drop sentences mentioning driveway / paving stones etc.
+        const topic = /trinkel|įvažiav|ivaziav|kiem|fon|asfalt|šaligatv|saligatv/i;
+        if (topic.test(lower) || topic.test(phrase)) {
+          const sentences = next.split(/(?<=[.!?])\s+/);
+          const kept = sentences.filter((s) => !topic.test(s));
+          if (kept.length < sentences.length) {
+            next = kept.join(" ").trim();
+            removed.push("fono / trinkelių aprašymas");
+          }
+        }
+      }
+    }
+  }
+
+  return { description: next, removed };
 }
 
 export function parsePriceFromChatInput(text: string): number | null {
@@ -150,7 +195,8 @@ export function tryApplyListingChatInput(
       vehicleSpecs.engine ||
       vehicleSpecs.fuelType ||
       vehicleSpecs.model ||
-      vehicleSpecs.mileage
+      vehicleSpecs.mileage ||
+      vehicleSpecs.powerKw
   );
   const priceEarly = parsePriceFromChatInput(text);
   const priceToApply =
@@ -192,12 +238,30 @@ export function tryApplyListingChatInput(
     const bits = [
       vehicleSpecs.year ? `${vehicleSpecs.year} m.` : "",
       vehicleSpecs.engine ?? "",
+      vehicleSpecs.powerKw ? `${vehicleSpecs.powerKw} kW` : "",
       vehicleSpecs.fuelType?.toLowerCase() ?? "",
       vehicleSpecs.model ?? "",
     ].filter(Boolean);
     return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
       intro: `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`,
     });
+  }
+
+  // Natural-language description edits (remove driveway fluff, etc.) — never "Ne visai supratau".
+  if (DRAFT_EDIT_SIGNAL_RE.test(text) || /neberaš|nerasy|ištrink|istrink/i.test(text)) {
+    const { description: editedDesc, removed } = applyNaturalLanguageDescriptionEdits(
+      sanitizeListingDescription(aiDraft.description),
+      text
+    );
+    if (removed.length || editedDesc !== sanitizeListingDescription(aiDraft.description)) {
+      const nextDraft = { ...aiDraft, description: editedDesc.slice(0, 4000) };
+      updateAiDraft({ description: nextDraft.description });
+      return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
+        intro: removed.length
+          ? `Supratau — pašalinau iš aprašymo (${removed.join(", ")}) ir atnaujinau juodraštį.`
+          : "Supratau — atnaujinau juodraščio aprašymą.",
+      });
+    }
   }
 
   // Price must apply in ANY stage — never loop „Kokią kainą?“ after user typed it.
@@ -276,7 +340,7 @@ export function tryApplyListingChatInput(
 
   const trimmed = sanitizeListingUserText(text);
   // Soft affirmations must never be appended into listing description.
-  if (/^(tinka|gerai|taip|ok|okay|patvirtinu|publikuoti|publikuok)\.?$/i.test(trimmed)) {
+  if (/^(tinka|gerai|taip|ok|okay|patvirtinu|publikuoti|publikuok|labas|sveiki)\.?$/i.test(trimmed)) {
     return null;
   }
   // Agent clarification / chip echoes must never become listing body copy.
@@ -287,10 +351,13 @@ export function tryApplyListingChatInput(
   ) {
     return null;
   }
+  // Only append free-form text when it looks like a real draft edit / description add.
   if (
-    trimmed.length >= 3 &&
-    trimmed.length <= 240 &&
-    !isListingWorkflowCommand(text)
+    trimmed.length >= 12 &&
+    trimmed.length <= 400 &&
+    !isListingWorkflowCommand(text) &&
+    (DRAFT_EDIT_SIGNAL_RE.test(trimmed) ||
+      /\b(aprašym|aprasym|pridėk|pridek|dar\s+parašyk|papildyk)\b/i.test(trimmed))
   ) {
     const baseDesc = sanitizeListingDescription(aiDraft.description);
     const nextDescription = baseDesc
