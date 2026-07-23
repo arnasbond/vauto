@@ -25,6 +25,11 @@ import {
 } from "../services/visual-pipeline.js";
 import { DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
 import { VAUTO_DOMAIN_AUTONOMY_RULES } from "../shared/vauto-domain-autonomy.js";
+import {
+  LAZY_UPLOAD_LOG_TAG,
+  LAZY_UPLOAD_PHASE,
+  type LazyUploadPhase,
+} from "../shared/lazy-upload.js";
 
 function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
@@ -273,6 +278,13 @@ export interface VautoServerRequest {
   userCity?: string;
   contact?: string;
   listingId?: string;
+  /**
+   * PUBLISH-ONLY gate for `upload_media`.
+   * Chat Vision must NEVER set this — keep data URLs in-memory until Publikuoti.
+   */
+  persist?: boolean;
+  /** Explicit phase marker (vision | publish). Defaults inferred from persist. */
+  phase?: LazyUploadPhase | string;
 }
 
 export async function handleVautoServerAction(body: VautoServerRequest) {
@@ -296,6 +308,26 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     if (!image?.trim()) {
       throw Object.assign(new Error("imageDataUrl is required"), { status: 400 });
     }
+    const phase =
+      body.phase === LAZY_UPLOAD_PHASE.PUBLISH || body.persist === true
+        ? LAZY_UPLOAD_PHASE.PUBLISH
+        : LAZY_UPLOAD_PHASE.VISION;
+    // Lazy Upload invariant: permanent remote storage is publish-only.
+    if (phase !== LAZY_UPLOAD_PHASE.PUBLISH) {
+      console.warn(
+        `${LAZY_UPLOAD_LOG_TAG} blocked upload_media outside publish`,
+        { phase, persist: body.persist ?? false }
+      );
+      return {
+        ok: true,
+        action,
+        url: null,
+        deferred: true,
+        lazyUpload: true,
+        code: "lazy_upload_vision_phase",
+        listingId: body.listingId?.trim() || undefined,
+      };
+    }
     // Reject pathological payloads early (keeps Express/Render from OOMing).
     if (image.length > 12_000_000) {
       throw Object.assign(
@@ -305,15 +337,15 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     }
     if (!isCloudinaryConfigured()) {
       // Soft-fail: client keeps the compressed data URL for /api/listings.
-      // Avoid 503 "Service Unavailable" which looks like the whole API is down.
       console.warn(
-        "[upload_media] Cloudinary not configured — returning deferred (client data-URL fallback)"
+        `${LAZY_UPLOAD_LOG_TAG} Cloudinary not configured — deferred data-URL fallback`
       );
       return {
         ok: true,
         action,
         url: null,
         deferred: true,
+        lazyUpload: true,
         code: "cloudinary_not_configured",
         listingId: body.listingId?.trim() || undefined,
       };
@@ -331,12 +363,18 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     }
     try {
       const uploaded = await uploadImageToCloudinary(processed);
+      console.log(`${LAZY_UPLOAD_LOG_TAG} publish persist ok`, {
+        listingId,
+        publicId: uploaded.publicId,
+      });
       return {
         ok: true,
         action,
         url: uploaded.url,
         publicId: uploaded.publicId,
         listingId,
+        deferred: false,
+        lazyUpload: false,
       };
     } catch (uploadErr) {
       const msg =
@@ -444,7 +482,9 @@ export async function parseListingImagesForAgent(params: {
   documentUrls: string[];
 }> {
   const images = normalizeImageInputList(params.imageDataUrls);
-  console.log("[vision] parseListingImagesForAgent enter", {
+  // Lazy Upload: in-memory Gemini only — never Cloudinary / insertListing here.
+  console.log(`${LAZY_UPLOAD_LOG_TAG} vision in-memory parse`, {
+    phase: LAZY_UPLOAD_PHASE.VISION,
     rawCount: params.imageDataUrls?.length ?? 0,
     normalizedCount: images.length,
     userCity: params.userCity,

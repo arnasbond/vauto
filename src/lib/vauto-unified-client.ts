@@ -21,6 +21,10 @@ export interface VautoServerRequest {
   userCity?: string;
   contact?: string;
   listingId?: string;
+  /** Required true for permanent Cloudinary persist (Publikuoti only). */
+  persist?: boolean;
+  /** vision = in-memory OCR; publish = remote store. */
+  phase?: "vision" | "publish" | string;
 }
 
 export interface VautoServerListingPayload {
@@ -58,9 +62,13 @@ export interface VautoServerParseResponse {
 export interface VautoServerUploadResponse {
   ok: true;
   action: "upload_media";
-  url: string;
-  publicId: string;
+  /** Null when deferred / lazy-upload / Cloudinary unset — client keeps data URL. */
+  url: string | null;
+  publicId?: string;
   listingId?: string;
+  deferred?: boolean;
+  lazyUpload?: boolean;
+  code?: string;
 }
 
 const VALID_CATEGORIES: ListingCategory[] = [

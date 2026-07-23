@@ -229,6 +229,10 @@ function resolvePublishApiFailure(
   };
 }
 
+/**
+ * DEFERRED permanent storage — called only from publishListing (Publikuoti / Patvirtinti).
+ * Pre-flight chat Vision never enters here; it keeps high-res data URLs in session memory.
+ */
 async function prepareListingImageForApi(
   src: string | null | undefined,
   listingId?: string
@@ -236,7 +240,7 @@ async function prepareListingImageForApi(
   if (!src?.trim()) return null;
   let image = (await resolveImageForUpload(src)) ?? src.trim();
   if (image.startsWith("data:image")) {
-    // Publish-size compress — keep under Express/Render body budget when Cloudinary is down.
+    // Publish-size compress — lossy store budget (not Vision OCR quality).
     image = await compressDataUrl(image, {
       maxDim: 1024,
       quality: 0.72,

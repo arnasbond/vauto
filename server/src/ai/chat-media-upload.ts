@@ -12,6 +12,11 @@ import {
 import { parseListingImagesForAgent } from "./vauto-unified.js";
 import { hardFilterPublicGalleryUrls } from "./listing-gallery-roles.js";
 import { DOCUMENT_OCR_SOFT_NOTE } from "./sell-intent-fallback.js";
+import {
+  LAZY_UPLOAD_LOG_TAG,
+  LAZY_UPLOAD_PHASE,
+  LAZY_UPLOAD_VISION,
+} from "../shared/lazy-upload.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
   "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
@@ -127,7 +132,12 @@ async function resolveListingPhotoScan(input: {
   flowState: ListingFlowState | null;
 }): Promise<MediaResponse> {
   const imageUrls = uniqueImageUrls(input.imageUrls);
-  console.log("[vision] resolveListingPhotoScan enter", {
+  // Lazy Upload invariant: Vision OCR uses in-memory data/http URLs only.
+  // Permanent Cloudinary + insertListing wait for Publikuoti / Patvirtinti.
+  console.log(`${LAZY_UPLOAD_LOG_TAG} resolveListingPhotoScan`, {
+    phase: LAZY_UPLOAD_PHASE.VISION,
+    lazyUpload: LAZY_UPLOAD_VISION,
+    persist: false,
     imageCount: imageUrls.length,
     flowState: input.flowState,
     hasDraft: Boolean(input.listingDraft?.title?.trim()),
@@ -319,6 +329,8 @@ async function resolveListingPhotoScan(input: {
           imageUrls: publicGallery,
           documentUrls: evidenceDocs,
           listingFlowState: nextState,
+          lazyUpload: true,
+          persist: false,
         },
       },
     ],

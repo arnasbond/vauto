@@ -1776,6 +1776,9 @@ export async function executeAgentTool(
             quickReplies,
             imageUrls: publicGallery,
             documentUrls: evidenceDocs,
+            // Lazy Upload: draft gallery stays as in-memory URLs until Publikuoti.
+            lazyUpload: true,
+            persist: false,
           },
           sideEffect: {
             type: "listing_draft",

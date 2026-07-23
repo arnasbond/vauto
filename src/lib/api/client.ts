@@ -274,6 +274,10 @@ export async function apiVautoServer(
   }, timeoutMs);
 }
 
+/**
+ * PUBLISH-ONLY permanent media persist (Cloudinary).
+ * Chat Vision / draft inspection must keep data URLs in-memory and MUST NOT call this.
+ */
 export async function apiUploadMedia(
   imageDataUrl: string,
   listingId?: string
@@ -282,6 +286,8 @@ export async function apiUploadMedia(
     action: "upload_media",
     imageDataUrl,
     listingId,
+    persist: true,
+    phase: "publish",
   });
   if (!res || typeof res !== "object") return null;
   const url = "url" in res ? (res as { url?: unknown }).url : null;
