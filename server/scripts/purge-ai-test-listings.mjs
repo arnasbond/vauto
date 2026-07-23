@@ -168,7 +168,7 @@ async function main() {
       }
     }
 
-    // Clear temporary image refs + search vectors before delete
+    // Clear search vectors before delete (image cols may be NOT NULL — row delete unlinks them)
     if (await columnExists(client, "listings", "search_embedding")) {
       await client.query(
         `UPDATE listings
@@ -179,50 +179,14 @@ async function main() {
       );
       console.log(`[purge] listings: cleared search_embedding on ${ids.length}`);
     }
-    if (await columnExists(client, "listings", "image")) {
-      await client.query(
-        `UPDATE listings SET image = NULL WHERE id = ANY($1::text[])`,
-        [ids]
-      );
-      console.log(`[purge] listings: cleared image on ${ids.length}`);
-    }
-    if (await columnExists(client, "listings", "images")) {
-      const { rows: typeRows } = await client.query(
-        `SELECT data_type, udt_name FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'listings'
-           AND column_name = 'images'`
-      );
-      const dataType = String(typeRows[0]?.data_type ?? "");
-      const udt = String(typeRows[0]?.udt_name ?? "");
-      if (dataType === "ARRAY" || udt.startsWith("_")) {
-        await client.query(
-          `UPDATE listings SET images = '{}'::text[] WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      } else if (udt === "jsonb" || dataType === "jsonb") {
-        await client.query(
-          `UPDATE listings SET images = '[]'::jsonb WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      } else if (udt === "json" || dataType === "json") {
-        await client.query(
-          `UPDATE listings SET images = '[]'::json WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      } else {
-        await client.query(
-          `UPDATE listings SET images = NULL WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      }
-      console.log(`[purge] listings: unlinked images on ${ids.length}`);
-    }
 
     const del = await client.query(
       `DELETE FROM listings WHERE id = ANY($1::text[])`,
       [ids]
     );
-    console.log(`[purge] listings: deleted ${del.rowCount ?? 0} row(s)`);
+    console.log(
+      `[purge] listings: deleted ${del.rowCount ?? 0} row(s) (image refs unlinked with rows)`
+    );
 
     await client.query("COMMIT");
 

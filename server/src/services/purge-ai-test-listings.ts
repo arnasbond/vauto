@@ -191,47 +191,7 @@ export async function purgeAiTestListings(
       dependentsRemoved[table] = res.rowCount ?? 0;
     }
 
-    // Unlink temporary image refs stored on the listing row before delete
-    if (await columnExists(client, "listings", "image")) {
-      await client.query(
-        `UPDATE listings SET image = NULL WHERE id = ANY($1::text[])`,
-        [ids]
-      );
-    }
-    if (await columnExists(client, "listings", "images")) {
-      const { rows: typeRows } = await client.query<{
-        data_type: string;
-        udt_name: string;
-      }>(
-        `SELECT data_type, udt_name FROM information_schema.columns
-         WHERE table_schema = 'public' AND table_name = 'listings'
-           AND column_name = 'images'`
-      );
-      const dataType = String(typeRows[0]?.data_type ?? "");
-      const udt = String(typeRows[0]?.udt_name ?? "");
-      if (dataType === "ARRAY" || udt.startsWith("_")) {
-        await client.query(
-          `UPDATE listings SET images = '{}'::text[] WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      } else if (udt === "jsonb" || dataType === "jsonb") {
-        await client.query(
-          `UPDATE listings SET images = '[]'::jsonb WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      } else if (udt === "json" || dataType === "json") {
-        await client.query(
-          `UPDATE listings SET images = '[]'::json WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      } else {
-        await client.query(
-          `UPDATE listings SET images = NULL WHERE id = ANY($1::text[])`,
-          [ids]
-        );
-      }
-    }
-
+    // Clear vectors; image columns may be NOT NULL — DELETE unlinks image refs with the row
     if (await columnExists(client, "listings", "search_embedding")) {
       await client.query(
         `UPDATE listings
