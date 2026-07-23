@@ -30,6 +30,7 @@ import {
   LAZY_UPLOAD_PHASE,
   type LazyUploadPhase,
 } from "../shared/lazy-upload.js";
+import { enrichVehicleVisionDraft } from "../shared/vehicle-vision-enrich.js";
 
 function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
@@ -48,8 +49,8 @@ const VAUTO_UNIFIED_SCHEMA = `{
   "title": "string — konkretus lietuviškas skelbimo pavadinimas (markė + VISAS modelis VERBATIM + metai). Pvz. „Citroën Grand C4 Picasso 2007“ — NIEKADA trumpinti į „C4 Picasso“",
   "price": "number | null — kaina EUR; null jei nenurodyta",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — TURTINGAS profesionalus auto aprašymas lietuviškai (6–10 sakinių): HARD SPECS iš paso + modelio akcentai (salono ergonomika, vairavimo komfortas, patikimumas pagal make/model/year) + vizualūs akcentai. DRAUDŽIAMA fluff CTA ir fono (trinkelės/kiemas) aprašymas",
-  "technicalFields": "object — make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition",
+  "description": "string — TECHNINIS juodraštis lietuviškai: HARD SPECS + vizualūs bullet faktai. Be sales copy / CTA / kainos. DRAUDŽIAMA išgalvoti kainą, ridą, TA",
+  "technicalFields": "object — make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight",
   "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY ground-truth OCR, NE viešai galerijai)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
   "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai eilės tvarka; document = primary tech source",
@@ -71,9 +72,14 @@ Aprašymas (description) — PRECIZINIS ir TECHNINIS pagal kategoriją, ne marke
 - Tech passport / registracijos / dokumentų nuotraukas: imageRoles=document + documentImageIndexes.
 - MULTIMODAL FUSION (kai yra ir tech passport, ir auto nuotraukos):
   Tech passport / documentImageIndexes = PRIMARY ground-truth (prioritetas prieš vizualines spenziones).
-  HARD SPECS iš paso: A→plate/licensePlate, B→year (YYYY), D.1→make, D.3→model (VERBATIM — žr. MODEL FIDELITY), P.1→engine (cm³ → litrai, pvz. 1997→2.0), P.2→powerKw, P.3→fuelType, R→color, C.1.3→city.
-  VISUAL EXTRAS iš auto nuotraukų: interiorCondition (salonų medžiaga, vairas, ekranas), exteriorFeatures (ratlankiai, stogo relingai, kėbulas, matoma būklė), bodyType, transmission jei matoma.
-  description — TURTINGAS profesionalus 6–10 sakinių aprašymas: tikslūs specs + EXACT variantos akcentai (pvz. Grand = 7 vietos / ilgesnė bazė) + vizualūs akcentai. NIEKADA neklausti „Patikslinkite metus ir variklį“, jei specs jau ištraukti. NIEKADA aprašyti trinkelių/kiemo fono.
+  HARD SPECS iš paso: A→plate/licensePlate, B→firstRegistration PILNA data YYYY-MM-DD (+ year YYYY), D.1→make, D.3→model (VERBATIM — žr. MODEL FIDELITY), S.1→seats, P.1→engine (cm³ → litrai, pvz. 1997→2.0), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
+  VISUAL EXTRAS iš auto nuotraukų (bullet tekstas):
+    interiorCondition — odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis / erdvi bagažinė.
+    exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi).
+    transmission — jei matomos mentelės prie vairo → „Automatinė / EGS (pusiau automatinė)“.
+  GRAND LOGIKA: jei S.1=7 arba vizualiai 7 vietos / Grand — model/title „Grand C4 Picasso“ (ne trumpinti į C4 Picasso).
+  DRAUDŽIAMA išgalvoti kainą, ridą ar TA (techninę apžiūrą) — tik jei vartotojas aiškiai parašė.
+  description — TECHNINIS juodraštis (ne sales copy): specs + vizualūs bullet faktai. Be CTA / kainos.
 - MODEL FIDELITY (ABSOLIUTU): technicalFields.model ir title privalo būti EXACT D.3 / ženkliuko eilutė. NIEKADA trumpinti, normalizuoti ar „valyti“: „Grand C4 Picasso“ ≠ „C4 Picasso“; „Gran Coupe“, „Gran Tourer“, „Avant“, „Combi“, „Variant“, „Allroad“, „Long“, „xDrive“ — VISADA palikti.
 - Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus. NIEKADA nestabdyk juodraščio.
 - galleryImageIndexes / imageRoles=gallery — TIK produkto/auto nuotraukos. Žalias/mėlynas tech passport VISADA document.
@@ -239,25 +245,29 @@ Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Pirmos document nuot
 2) documentImageIndexes + galleryImageIndexes privalo sutapti su imageRoles.
 3) HARD SPECS — Lietuviškas techninis pasas (OCR, PRIORITETAS prieš vizualines spekuliacijas):
    • A = valstybinis numeris → technicalFields.plate + licensePlate
-   • B = pirmoji registracija → technicalFields.year (4 skaitmenys YYYY)
+   • B = pirmoji registracija → technicalFields.firstRegistration PILNA data YYYY-MM-DD IR technicalFields.year (YYYY). DRAUDŽIAMA palikti tik metus, jei diena/mėnuo matomi.
    • D.1 = markė → technicalFields.make
-   • D.3 = modelis → technicalFields.model — VERBATIM iš paso / ženkliuko (pvz. „Grand C4 Picasso“). DRAUDŽIAMA trumpinti į „C4 Picasso“ / „C4“. Palik Grand/Gran/Avant/Combi/Variant/Allroad/Long/xDrive.
+   • D.3 = modelis → technicalFields.model — VERBATIM. Jei S.1=7 vietos ir modelis „C4 Picasso“ — rašyk „Grand C4 Picasso“.
+   • S.1 = sėdimos vietos → technicalFields.seats
+   • E = VIN → technicalFields.vin
    • P.1 = darbinis tūris cm³ → technicalFields.engine LITRAIS (1997 cm³ → „2.0“)
    • P.2 = galia → technicalFields.powerKw (kW)
    • P.3 = degalai → technicalFields.fuelType (Benzinas / Dyzelinas / …)
    • R = oficiali spalva → technicalFields.color
+   • V.9 = tarša → technicalFields.euroStandard
+   • G = masė → technicalFields.curbWeight
    • C.1.3 = savivaldybė / miestas → city (jei aiškiai matoma)
-4) VISUAL EXTRAS — tik iš auto (gallery) nuotraukų:
-   • interiorCondition — salonas (odinė/audinio sėdynės, vairas, ekranas/multimedia)
-   • exteriorFeatures — ratlankiai, stogo relingai, kėbulo tipas, matoma išorės būklė
-   • bodyType / transmission jei aiškiai matoma
-5) description — TECHNINIS juodraščio laukas (ne chat reklama): tikslūs HARD SPECS + vizualūs akcentai.
-   • Chat UI atskirai rodys struktūruotą Markdown OCR ataskaitą — ČIA NErauk sales copy / kainos / CTA.
-   • EXACT variantos akcentai (Grand → 7 vietos; Avant/Combi/Variant → universalas)
-   • BE fluff / CTA / fono (trinkelės, kiemas, namas)
+4) VISUAL EXTRAS — tik iš auto (gallery) nuotraukų; rašyk bullet eilutes:
+   • interiorCondition — odinis/kombinuotas salonas, porankiai, mentelės prie vairo, guminis bagažinės kilimėlis / erdvi bagažinė
+   • exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi)
+   • transmission — jei matomos mentelės → „Automatinė / EGS (pusiau automatinė)“
+   • bodyType — vienatūris / MPV jei aišku
+5) description — TECHNINIS juodraščio laukas (ne chat reklama): HARD SPECS + vizualūs bullet faktai.
+   • Chat UI atskirai rodys OCR ataskaitą, vėliau — sales copy po vartotojo „Taip“.
+   • DRAUDŽIAMA išgalvoti kainą, ridą, TA.
 6) NIEKADA neklausti „Patikslinkite metus ir variklį“, jei B/P.1/P.3 jau ištraukti. NIEKADA nekartok vartotojo frazės kaip aprašymo.
-7) title = make + VERBATIM model + year (pvz. „Citroën Grand C4 Picasso 2007“).
-8) Papildomi technicalFields kai matosi: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures.${textNote}${extra}
+7) title = make + VERBATIM/Grand model + year (pvz. „Citroën Grand C4 Picasso 2007“).
+8) Papildomi technicalFields: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures, firstRegistration.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
@@ -417,8 +427,27 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     const raw = combinedText
       ? enrichSellerListingFromText(combinedText, rawParsed)
       : rawParsed;
-    const listing = toListingPayload(raw, city, contact);
+    const listing = enrichVehicleVisionDraft(
+      toListingPayload(raw, city, contact)
+    ) as VautoListingPayload;
     mergePipelineIntoListingFields(listing, pipeline);
+
+    // Anti-hallucination: drop Vision-invented price/TA without user evidence.
+    const userMentionedPrice =
+      /\b\d{2,6}\s*(€|eur|eurų|eurai)\b/i.test(combinedText) ||
+      /\bkaina\b/i.test(combinedText);
+    if (!userMentionedPrice && listing.price > 0) {
+      listing.price = 0;
+    }
+    if (
+      listing.attributes &&
+      !/\b(ta|technin[eė]\s+apžiūr)/i.test(combinedText)
+    ) {
+      delete listing.attributes.techInspection;
+      delete listing.attributes.ta;
+      delete listing.attributes.inspectionValidUntil;
+      delete listing.attributes.taValidUntil;
+    }
 
     const visualSeo = await generateImageMetadata({
       listingTitle: listing.title,
@@ -528,13 +557,38 @@ export async function parseListingImagesForAgent(params: {
   const raw = combinedText
     ? enrichSellerListingFromText(combinedText, rawParsed)
     : rawParsed;
-  const listing = toListingPayload(raw, city, contact);
+  const listingRaw = toListingPayload(raw, city, contact);
+  const listing = enrichVehicleVisionDraft(listingRaw) as typeof listingRaw;
+  // Anti-hallucination: never keep a Vision-invented price unless user/hint provided it.
+  const userMentionedPrice =
+    /\b\d{2,6}\s*(€|eur|eurų|eurai)\b/i.test(combinedText) ||
+    /\bkaina\b/i.test(combinedText);
+  if (
+    !(params.priceHint != null && params.priceHint > 0) &&
+    !userMentionedPrice &&
+    listing.price > 0
+  ) {
+    listing.price = 0;
+  }
+  // Never keep TA / tech inspection unless user text mentioned it.
+  if (
+    listing.attributes &&
+    !/\b(ta|technin[eė]\s+apžiūr)/i.test(combinedText)
+  ) {
+    delete listing.attributes.techInspection;
+    delete listing.attributes.ta;
+    delete listing.attributes.inspectionValidUntil;
+    delete listing.attributes.taValidUntil;
+  }
   console.log("[vision] parseListingImagesForAgent listing", {
     title: listing.title?.slice(0, 80),
     descriptionChars: listing.description?.length ?? 0,
     category: listing.category,
     confidence: listing.confidence,
     price: listing.price,
+    firstRegistration: listing.attributes?.firstRegistration ?? null,
+    seats: listing.attributes?.seats ?? null,
+    transmission: listing.attributes?.transmission ?? null,
   });
 
   const { galleryUrls: splitGallery, documentUrls } = splitGalleryAndDocumentUrls(

@@ -45,7 +45,7 @@ const EVENT_TARGET: Record<ListingFlowEvent, ListingFlowState | null> = {
 };
 
 export const PRE_PUBLISH_CARD_INTRO =
-  "Štai jūsų skelbimo peržiūra — patikrinkite antraštę, kainą ir nuotraukas. Publikavimas vyksta TIK paspaudus „Patvirtinti ir publikuoti“.";
+  "Štai skelbimo peržiūros langas — galite redaguoti antraštę, kainą, aprašymą ir nuotraukas. Publikavimas vyksta TIK paspaudus „Publikuoti skelbimą“.";
 
 /** Soft invite when user chose to attach photos — never a hard block on sell text. */
 export const AWAITING_PHOTOS_PROMPT =
@@ -81,7 +81,7 @@ export const VEHICLE_SPEC_COPY_OFFER =
   "Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?";
 
 export const AWAITING_CONFIRMATION_LOCKED =
-  "Skelbimas paruoštas patvirtinimui. Tekstas nekeičia aprašymo — peržiūrėkite kortelę žemiau ir spauskite „Patvirtinti ir publikuoti“.";
+  "Skelbimas paruoštas patvirtinimui. Tekstas nekeičia aprašymo — peržiūrėkite PrePublish langą ir spauskite „Publikuoti skelbimą“.";
 
 export const PROFILE_CITY_REQUIRED =
   "Kad pirkėjai žinotų, kur jus rasti — kokį miestą rodyti skelbime? Parašykite čia pokalbyje.";
@@ -106,19 +106,20 @@ export function nounFromVisionObjectSellChip(text: string): string {
     .trim();
 }
 
-/** „viskas / publikuojam / PrePublish / nenoriu“ → lock PrePublish */
+/** „viskas / publikuojam / PrePublish / nenoriu / tinka / keliam“ → lock PrePublish */
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (/^nenoriu(\b|$)/i.test(t)) return true;
   if (/^viskas\b/i.test(t)) return true;
-  if (/\bpublikuojam\b|\bpublikuoti\b/i.test(t)) return true;
+  if (/^(tinka|keliam|keliame)\b/i.test(t)) return true;
+  if (/\bpublikuojam\b|\bpublikuoti\b|\bkeliam\b/i.test(t)) return true;
   if (/\bprepublish\b|\bpre-publish\b|\bpre\s*publish\b/i.test(t)) return true;
   if (/\bjudame\b.*\b(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/\bprie\s+(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/tiesiai\s+prie/i.test(t)) return true;
   if (/^(pakanka|užtenka|uztenka)\b/i.test(t)) return true;
-  if (/^taip[,!]?\s*(publiku|tinka|judam)/i.test(t)) return true;
+  if (/^taip[,!]?\s*(publiku|tinka|judam|keliam)/i.test(t)) return true;
   if (/be\s+daugiau|nebereikia|daugiau\s+nereikia/i.test(t)) return true;
   return false;
 }
@@ -487,6 +488,14 @@ function formatEngineDisplacement(engineRaw: string): string {
  * Benchmark vehicle OCR report — structured Markdown for chat after Vision/docs.
  * Populates listing JSON behind the scenes separately; this is the chat UX only.
  */
+function featureBulletLines(raw: string): string[] {
+  return raw
+    .split(/\n|•|;|\|/)
+    .map((s) => s.replace(/^[-*•\s]+/, "").trim())
+    .filter((s) => s.length >= 3)
+    .map((s) => `- ${s}`);
+}
+
 export function buildVehicleSpecReportMarkdown(draft: {
   title?: string;
   description?: string;
@@ -496,22 +505,27 @@ export function buildVehicleSpecReportMarkdown(draft: {
   const attrs = draft.attributes ?? {};
   const make = attrPick(attrs, "make", "brand");
   const model = attrPick(attrs, "model");
-  const year = attrPick(attrs, "year", "firstRegistration", "registrationDate", "regDate");
   const makeModel = [make, model].filter(Boolean).join(" ") || draft.title?.trim() || "—";
   const plate = attrPick(attrs, "plate", "licensePlate", "numberPlate");
-  const regDate = attrPick(
+  // Prefer full B-field date (YYYY-MM-DD); fall back to year only if that is all we have.
+  const fullReg = attrPick(
     attrs,
     "firstRegistration",
     "registrationDate",
     "regDate",
-    "firstRegDate",
-    "year"
+    "firstRegDate"
   );
+  const yearOnly = attrPick(attrs, "year");
+  const regDate =
+    fullReg && /\d{4}/.test(fullReg)
+      ? fullReg
+      : yearOnly || "—";
   const bodyType = attrPick(attrs, "bodyType", "body");
   const color = attrPick(attrs, "color", "colour");
   const bodyColor = [bodyType, color].filter(Boolean).join(", ") || "—";
   const vin = attrPick(attrs, "vin", "chassisNumber", "kebuloNumeris");
   const seats = attrPick(attrs, "seats", "seatCount", "vietos");
+  const transmission = attrPick(attrs, "transmission", "gearbox");
   const engine = formatEngineDisplacement(attrPick(attrs, "engine", "engineSize", "displacement"));
   const fuel = attrPick(attrs, "fuelType", "fuel");
   const powerKw = attrPick(attrs, "powerKw", "power", "kw");
@@ -546,11 +560,15 @@ export function buildVehicleSpecReportMarkdown(draft: {
     "equipment",
     "trim"
   );
-  const salonBits = [interior, exterior].filter(Boolean);
+  const interiorLines = featureBulletLines(interior);
+  const exteriorLines = featureBulletLines(exterior);
   // Fallback: mine description for visual extras when structured fields are thin.
-  if (!salonBits.length && draft.description?.trim()) {
+  const salonFallback: string[] = [];
+  if (!interiorLines.length && !exteriorLines.length && draft.description?.trim()) {
     const d = draft.description.trim();
-    if (d.length >= 24 && d.length <= 420) salonBits.push(d);
+    if (d.length >= 24 && d.length <= 420) {
+      salonFallback.push(`- ${d}`);
+    }
   }
 
   const bullet = (label: string, value: string) =>
@@ -560,10 +578,11 @@ export function buildVehicleSpecReportMarkdown(draft: {
     "## Pagrindiniai duomenys",
     bullet("Markė ir modelis", makeModel),
     bullet("Valstybinis numeris", plate || "—"),
-    bullet("Pirmosios registracijos data", regDate || "—"),
+    bullet("Pirmosios registracijos data", regDate),
     bullet("Kėbulo tipas ir spalva", bodyColor),
     bullet("Kėbulo numeris (VIN)", vin || "—"),
     bullet("Sėdimų vietų skaičius", seats || "—"),
+    bullet("Pavarų dėžė", transmission || "—"),
     "",
     "## Variklis ir techniniai parametrai",
     bullet("Variklio darbinis tūris (cm³ ir L)", engine || "—"),
@@ -572,11 +591,22 @@ export function buildVehicleSpecReportMarkdown(draft: {
     bullet("Taršos standartas ir CO2 (g/km)", emissions),
     bullet("Maksimalus greitis ir masės (eksploatacinė / leidžiama)", speedMass),
     "",
-    "## Salonas ir komplektacija (iš nuotraukų)",
-    ...(salonBits.length
-      ? salonBits.map((b) => `- ${b}`)
-      : [
-          "- Vizualūs salono ir išorės akcentai bus papildyti iš nuotraukų (pvz. odos salonas, mentelės prie vairo, parktronikai, stogo bėgeliai, ratlankiai, bagažinė).",
+    "## Salonas (iš nuotraukų)",
+    ...(interiorLines.length
+      ? interiorLines
+      : salonFallback.length
+        ? salonFallback
+        : [
+          "- Odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis — jei matosi nuotraukose.",
+        ]),
+    "",
+    "## Išorė ir komplektacija (iš nuotraukų)",
+    ...(exteriorLines.length
+      ? exteriorLines
+      : (!interiorLines.length && salonFallback.length)
+        ? []
+        : [
+          "- Ratlankiai, stogo bėgeliai, langų deflektoriai, vilkimo kablys — jei matosi nuotraukose.",
         ]),
     "",
     VEHICLE_SPEC_COPY_OFFER,

@@ -68,6 +68,11 @@ import {
   transitionListingFlow,
 } from "./listing-conversational-flow.js";
 import {
+  buildVehicleBenchmarkSalesCopy,
+  isVehicleSalesCopyConfirmIntent,
+} from "../shared/vehicle-sales-copy.js";
+import { enrichVehicleVisionDraft } from "../shared/vehicle-vision-enrich.js";
+import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
 } from "./user-agent-context.js";
@@ -455,6 +460,83 @@ async function runVautoAgentInner(
     photoCount: draftPhotoCount,
     hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
   });
+
+  // Step 2 — benchmark sales copy on „Taip“ / „Generuok skelbimą“ after OCR report.
+  // Never invent price / TA / mileage; stay Lazy Upload (no Cloudinary).
+  // If sales copy already generated, fall through so „Taip/Tinka“ can open PrePublish.
+  if (
+    listingDraft &&
+    lastUserText &&
+    isVehicleSalesCopyConfirmIntent(lastUserText) &&
+    !pendingChatImages?.length &&
+    String(listingDraft.attributes?.salesCopyGenerated ?? "") !== "true"
+  ) {
+    const cat = String(listingDraft.category ?? "").toLowerCase();
+    const attrs = listingDraft.attributes ?? {};
+    const looksVehicle =
+      cat === "vehicles" ||
+      cat === "transport" ||
+      cat === "automobiliai" ||
+      Boolean(
+        attrs.make ||
+          attrs.vin ||
+          attrs.plate ||
+          attrs.licensePlate ||
+          attrs.powerKw
+      );
+    if (looksVehicle) {
+      const enriched = enrichVehicleVisionDraft({
+        title: listingDraft.title,
+        description: listingDraft.description,
+        category: listingDraft.category,
+        attributes: { ...attrs },
+      });
+      const salesCopy = buildVehicleBenchmarkSalesCopy({
+        title: enriched.title ?? listingDraft.title,
+        description: listingDraft.description,
+        price: listingDraft.price,
+        location: listingDraft.location,
+        category: listingDraft.category,
+        attributes: enriched.attributes,
+      });
+      const plainDescription = salesCopy
+        .replace(/\*\*/g, "")
+        .replace(/^🚗\s*/gm, "")
+        .replace(/^🌟\s*/gm, "")
+        .replace(/^💡\s*/gm, "")
+        .trim();
+      const nextDraft = normalizeListingDraftForAction(
+        {
+          ...listingDraft,
+          title: enriched.title || listingDraft.title,
+          description: plainDescription,
+          attributes: {
+            ...(enriched.attributes ?? attrs),
+            salesCopyGenerated: "true",
+          },
+        },
+        {
+          contact: req.context.contact,
+          userCity: req.context.userCity,
+          listingFlowState:
+            transitionListingFlow(
+              listingDraft.listingFlowState ?? flowState ?? "DRAFTING_TEXT",
+              "DRAFT_SAVED"
+            ) ?? "DRAFT_READY",
+        }
+      );
+      return {
+        ok: true,
+        reply: `${salesCopy}\n\nJeigu tekstas tinka — spauskite „Tinka“ arba „Publikuojam“, ir atidarysiu PrePublish peržiūrą.`,
+        quickReplies: ["Tinka", "Publikuojam", "Keliam"],
+        toolCalls: [],
+        actions: {
+          type: "listing_draft",
+          listingDraft: nextDraft,
+        },
+      };
+    }
+  }
 
   if (flowTurn.kind === "ignore_backward") {
     return {

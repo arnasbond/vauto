@@ -21,7 +21,7 @@ function foldLt(raw: string): string {
 }
 
 const PUBLISH_WORKFLOW_RE =
-  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|viskas\s+atitinka|taip,?\s*viskas|taip,?\s*publikuoti|publikuojam|publikuok|publikuoti|skelbti|skelbiam|taip,?\s*skelbti)\b/;
+  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|viskas\s+atitinka|taip,?\s*viskas|taip,?\s*publikuoti|publikuojam|publikuok|publikuoti|skelbti|skelbiam|taip,?\s*skelbti|keliam|keliame)\b/;
 
 const EXACT_PUBLISH_COMMANDS = new Set([
   "taip",
@@ -29,6 +29,8 @@ const EXACT_PUBLISH_COMMANDS = new Set([
   "ok",
   "okay",
   "tinka",
+  "keliam",
+  "keliame",
   "patvirtinu",
   "taip tinka",
   "taip, tinka",
@@ -83,7 +85,13 @@ export function isPublishWorkflowCommand(text: string): boolean {
   ) {
     return true;
   }
-  if (folded === "publikuok" || folded === "publikuoti" || folded === "publikuojam") {
+  if (
+    folded === "publikuok" ||
+    folded === "publikuoti" ||
+    folded === "publikuojam" ||
+    folded === "keliam" ||
+    folded === "keliame"
+  ) {
     return true;
   }
   if (folded === "taip tinka" || folded === "taip, tinka") return true;

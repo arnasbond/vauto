@@ -158,7 +158,7 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
-    "Vision MULTIMODAL FUSION: passport PRIMARY OCR. HARD SPECS A/B/D.1/D.3/P.1–P.3/R/C.1.3. D.3 model VERBATIM (Grand C4 Picasso ≠ C4 Picasso). Enrich description for EXACT variant. documentImageIndexes = OCR-only, strip from public gallery AFTER vision.",
+    "Vision MULTIMODAL FUSION: passport PRIMARY OCR. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E. B→firstRegistration YYYY-MM-DD (ne tik metai). S.1=7 arba Grand → Grand C4 Picasso. Mentelės prie vairo → transmission Automatinė / EGS (pusiau automatinė). interiorCondition + exteriorFeatures = bullet faktai (odinis salonas, porankiai, mentelės, bagažinė; ratlankiai, rilingai, deflektoriai, kablys). DRAUDŽIAMA išgalvoti kainą/TA/ridą. documentImageIndexes = OCR-only.",
   ].filter(Boolean);
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;

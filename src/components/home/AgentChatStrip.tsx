@@ -6,7 +6,7 @@ import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
 import { AgentChatMarkdown } from "@/components/home/AgentChatMarkdown";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
-import { PrePublishListingCard } from "@/components/home/PrePublishListingCard";
+import { PrePublishModal, type PrePublishFieldPatch } from "@/components/home/PrePublishModal";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useAuth } from "@/context/AuthContext";
@@ -25,6 +25,7 @@ import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-f
 import {
   buildPrePublishCardPayload,
   evaluatePrePublishReadiness,
+  type PrePublishCardPayload,
 } from "@/lib/pre-publish-validation";
 import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
@@ -33,7 +34,7 @@ import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
-import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
+import type { ListingCategory } from "@/lib/types";
 
 export interface AgentChatStripProps {
   seedQuery?: string | null;
@@ -210,6 +211,26 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     }
   };
 
+  const handleFieldsChange = (patch: PrePublishFieldPatch) => {
+    const nextAttrs =
+      patch.attributes && aiDraft
+        ? {
+            ...(aiDraft.attributes ?? {}),
+            ...patch.attributes,
+          }
+        : undefined;
+    updateAiDraft({
+      ...(patch.title != null ? { title: patch.title } : {}),
+      ...(patch.price != null ? { price: patch.price } : {}),
+      ...(patch.description != null ? { description: patch.description } : {}),
+      ...(patch.category != null
+        ? { category: patch.category as ListingCategory }
+        : {}),
+      ...(patch.location != null ? { location: patch.location } : {}),
+      ...(nextAttrs ? { attributes: nextAttrs } : {}),
+    });
+  };
+
   const handleDirectChip = async (option: string) => {
     // Object-sell chips must lock PrePublish locally — never fall into the photos nudge.
     if (isVisionObjectSellChip(option)) {
@@ -262,11 +283,6 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                 : quickReplies
               : [];
 
-          const cardPayload =
-            isLastAssistant && showLivePrePublishCard && livePrePublishCard
-              ? livePrePublishCard
-              : null;
-
           return (
             <div
               key={safeMessageKey(m.role, i, `${display}-${mediaUrls[0] ?? ""}`)}
@@ -288,7 +304,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                 ) : (
                   <>
                     <AgentChatMarkdown text={display} />
-                    {messageChips.length > 0 && !cardPayload && (
+                    {messageChips.length > 0 && (
                       <AgentQuickReplyChips
                         options={messageChips}
                         disabled={busy}
@@ -299,17 +315,6 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                   </>
                 )}
               </AgentChatBubble>
-              {m.role === "assistant" && cardPayload ? (
-                <div className="mt-2.5 flex w-full justify-start pl-0.5">
-                  <PrePublishListingCard
-                    card={cardPayload}
-                    publishing={isPublishingListing}
-                    onPublish={handleCardPublish}
-                    onEdit={handleCardEdit}
-                    onGalleryChange={handleGalleryChange}
-                  />
-                </div>
-              ) : null}
             </div>
           );
         })}
@@ -317,6 +322,19 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         {busy && <AgentTypingIndicator label={streamThinkingLabel} />}
         <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
       </div>
+
+      {showLivePrePublishCard && livePrePublishCard ? (
+        <PrePublishModal
+          open
+          card={livePrePublishCard}
+          publishing={isPublishingListing}
+          attributes={aiDraft?.attributes}
+          onClose={handleCardEdit}
+          onPublish={handleCardPublish}
+          onGalleryChange={handleGalleryChange}
+          onFieldsChange={handleFieldsChange}
+        />
+      ) : null}
 
       <div className="agent-chat-strip-composer sticky bottom-0 z-30 mt-3 shrink-0 border-t border-[var(--vauto-primary)]/10 bg-[var(--vauto-card-bg)] pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]">
         <AiCommandBar

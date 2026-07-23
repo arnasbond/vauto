@@ -1206,6 +1206,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const isHeroSmChip =
         isVisionObjectSellChip(trimmed) ||
         /^viskas\b/i.test(trimmed) ||
+        /^tinka\b/i.test(trimmed) ||
+        /^keliam\b/i.test(trimmed) ||
+        /^keliame\b/i.test(trimmed) ||
         /\bpublikuojam\b/i.test(trimmed) ||
         /\bprepublish\b/i.test(trimmed) ||
         /\bjudame\s+prie\b/i.test(trimmed) ||
@@ -1281,12 +1284,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (!readiness.ok) {
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
-        // Verbal „tinka/gerai/publikuoti“ ONLY opens PrePublish preview.
-        // NEVER call publishListing here — wait for „Patvirtinti ir publikuoti“ button.
+        // Verbal „tinka/gerai/publikuoti/keliam“ ONLY opens PrePublish preview modal.
+        // NEVER call publishListing here — wait for „Publikuoti skelbimą“ button.
         const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
         if (card) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
+          const synced = readiness.syncedDraft;
+          if (synced) {
+            updateAiDraft({
+              ...synced,
+              listingFlowState: "AWAITING_CONFIRMATION",
+            });
+          } else {
+            updateAiDraft({ listingFlowState: "AWAITING_CONFIRMATION" });
+          }
           return {
             reply: PRE_PUBLISH_CARD_INTRO,
             prePublishCard: card,

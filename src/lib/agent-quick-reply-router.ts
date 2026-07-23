@@ -199,7 +199,7 @@ export function tryHandleAgentQuickReply(
     };
   }
 
-  if (matchesChip(trimmed, [/viskas tinka/, /✅\s*viskas tinka/i])) {
+  if (matchesChip(trimmed, [/viskas tinka/, /✅\s*viskas tinka/i, /^tinka$/i])) {
     if (deps.aiDraft) {
       return deps.confirmPublishNow();
     }
@@ -210,7 +210,14 @@ export function tryHandleAgentQuickReply(
     };
   }
 
-  if (matchesChip(trimmed, [/taip,?\s*publikuoti/, /publikuojam/])) {
+  if (
+    matchesChip(trimmed, [
+      /taip,?\s*publikuoti/,
+      /publikuojam/,
+      /^keliam$/i,
+      /^keliame$/i,
+    ])
+  ) {
     if (deps.aiDraft) {
       return deps.confirmPublishNow();
     }
