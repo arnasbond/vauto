@@ -157,9 +157,10 @@ export interface UpgradeToProPayload {
 
   businessType: ProBusinessType;
 
-  companyName: string;
+  /** Optional — freelancers / IV / private Pro may omit; falls back to display name. */
+  companyName?: string;
 
-  companyCode: string;
+  companyCode?: string;
 
   vatCode?: string;
 
@@ -958,9 +959,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
           businessType: data.businessType,
 
-          companyName: data.companyName,
+          companyName:
+            data.companyName?.trim() ||
+            user.nickname?.trim() ||
+            user.name?.trim() ||
+            "VAUTO Pro",
 
-          companyCode: data.companyCode,
+          companyCode: data.companyCode?.trim() || undefined,
 
           vatCode: data.vatCode,
 

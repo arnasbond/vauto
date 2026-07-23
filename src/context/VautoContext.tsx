@@ -155,7 +155,6 @@ import {
 } from "@/lib/monetization-catalog";
 import {
   WARDROBE_STYLE_BOOST_ATTR,
-  powerSubscriptionExpiryIso,
   styleBoostExpiryIso,
 } from "@/lib/monetization-wardrobe";
 import {
@@ -1941,12 +1940,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
           amount: session.amountEur,
         });
       } else if (session.kind === "wardrobe_power_subscription") {
-        patchAuthUser({
-          wardrobePowerUser: true,
-          wardrobePowerUntil: powerSubscriptionExpiryIso(),
-        });
-        showToast("Asortimento Power-User aktyvuota — neribotas importas!", "success");
-        logAnalytics("checkout_wardrobe_power", { amount: session.amountEur });
+        // Deprecated: Spinta Power-User checkout removed from Settings.
+        showToast(
+          "Spinta Power-User nebenaudojama — importas jau nemokamas visiems.",
+          "info"
+        );
       }
 
       setCheckoutSession(null);

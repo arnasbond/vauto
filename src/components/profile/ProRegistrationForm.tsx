@@ -10,7 +10,7 @@ const INPUT_CLASS =
   "profile-editable-input w-full rounded-xl px-3 py-2.5 text-sm outline-none ring-1 ring-[var(--vauto-border)] focus:ring-2 focus:ring-[var(--vauto-accent)]";
 
 export function ProRegistrationForm() {
-  const { upgradeToPro, authLoading, authError, clearAuthError } = useAuth();
+  const { upgradeToPro, authLoading, authError, clearAuthError, user } = useAuth();
   const { showToast } = useVauto();
 
   const [businessType, setBusinessType] = useState<ProBusinessType>("general");
@@ -23,24 +23,25 @@ export function ProRegistrationForm() {
   const [serviceSpecialties] = useState<string[]>(["Remontas"]);
   const [localError, setLocalError] = useState<string | null>(null);
 
-  const proFormValid =
-    companyName.trim().length >= 2 &&
-    companyCode.trim().length >= 2 &&
-    (businessType !== "services" || serviceBaseCity.trim().length > 0);
-
   const handleUpgrade = async (e?: FormEvent) => {
     e?.preventDefault();
     setLocalError(null);
     clearAuthError();
 
-    if (!proFormValid) {
-      setLocalError("Užpildykite įmonės duomenis.");
+    if (businessType === "services" && !serviceBaseCity.trim()) {
+      setLocalError("Nurodykite bazinį miestą paslaugoms.");
       return;
     }
 
+    const displayName =
+      companyName.trim() ||
+      user.nickname?.trim() ||
+      user.name?.trim() ||
+      "VAUTO Pro";
+
     const ok = await upgradeToPro({
       businessType,
-      companyName: companyName.trim(),
+      companyName: displayName,
       companyCode: companyCode.trim(),
       vatCode: vatCode.trim() || undefined,
       serviceBaseCity:
@@ -75,12 +76,15 @@ export function ProRegistrationForm() {
         </p>
       )}
 
-      <p className="text-xs font-medium text-[var(--vauto-text-muted)]">Verslo tipas</p>
+      <p className="text-xs font-medium text-[var(--vauto-text-muted)]">
+        Pardavėjo tipas — tinka freelanceriams, IV, verslo liudijimui, MB ir
+        privatiems Pro pardavėjams
+      </p>
       {(
         [
           ["dealer", "Auto salonas"],
           ["services", "Paslaugų teikėjas"],
-          ["general", "Kitas verslas"],
+          ["general", "Kitas / privatus Pro"],
         ] as const
       ).map(([key, label]) => (
         <button
@@ -107,7 +111,8 @@ export function ProRegistrationForm() {
           setLocalError(null);
           setCompanyName(e.target.value);
         }}
-        placeholder="Įmonės pavadinimas"
+        aria-label="Įmonės / veiklos pavadinimas (nebūtina)"
+        placeholder="Įmonės / veiklos pavadinimas (nebūtina)"
         className={INPUT_CLASS}
       />
       <input
@@ -120,7 +125,8 @@ export function ProRegistrationForm() {
           setLocalError(null);
           setCompanyCode(e.target.value);
         }}
-        placeholder="Įmonės kodas"
+        aria-label="Įmonės / IV kodas (nebūtina)"
+        placeholder="Įmonės / IV kodas (nebūtina)"
         className={INPUT_CLASS}
       />
       <input
@@ -138,7 +144,7 @@ export function ProRegistrationForm() {
       />
 
       <p className="text-[10px] text-[var(--vauto-text-muted)]">
-        Verslo testavimui: telefonas{" "}
+        Be įmonės duomenų Pro ženklelis naudos jūsų vardą. Testavimui: telefonas{" "}
         <span className="font-mono">{PRO_DEMO_PHONE}</span> · OTP{" "}
         <span className="font-mono">123456</span>
       </p>

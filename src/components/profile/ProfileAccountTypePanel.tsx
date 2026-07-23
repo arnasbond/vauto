@@ -68,24 +68,25 @@ export function ProfileAccountTypePanel() {
     );
   }
 
-  const proFormValid =
-    companyName.trim().length >= 2 &&
-    companyCode.trim().length >= 2 &&
-    (businessType !== "services" || serviceBaseCity.trim().length > 0);
-
   const handleUpgrade = async (e?: FormEvent) => {
     e?.preventDefault();
     setLocalError(null);
     clearAuthError();
 
-    if (!proFormValid) {
-      setLocalError("Užpildykite įmonės duomenis.");
+    if (businessType === "services" && !serviceBaseCity.trim()) {
+      setLocalError("Nurodykite bazinį miestą paslaugoms.");
       return;
     }
 
+    const displayName =
+      companyName.trim() ||
+      user.nickname?.trim() ||
+      user.name?.trim() ||
+      "VAUTO Pro";
+
     const payload = {
       businessType,
-      companyName: companyName.trim(),
+      companyName: displayName,
       companyCode: companyCode.trim(),
       vatCode: vatCode.trim() || undefined,
       serviceBaseCity:
@@ -162,7 +163,8 @@ export function ProfileAccountTypePanel() {
             setLocalError(null);
             setCompanyName(e.target.value);
           }}
-          placeholder="Įmonės pavadinimas"
+          aria-label="Įmonės / veiklos pavadinimas (nebūtina)"
+          placeholder="Įmonės / veiklos pavadinimas (nebūtina)"
           readOnly={false}
           disabled={false}
           aria-readonly={false}
@@ -178,7 +180,8 @@ export function ProfileAccountTypePanel() {
             setLocalError(null);
             setCompanyCode(e.target.value);
           }}
-          placeholder="Įmonės kodas"
+          aria-label="Įmonės / IV kodas (nebūtina)"
+          placeholder="Įmonės / IV kodas (nebūtina)"
           readOnly={false}
           disabled={false}
           aria-readonly={false}

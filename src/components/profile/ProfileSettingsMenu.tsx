@@ -3,7 +3,6 @@
 import Link from "next/link";
 import {
   ChevronRight,
-  Crown,
   Gift,
   Settings2,
   Smartphone,
@@ -15,8 +14,6 @@ import {
   getReferralCredits,
   shareReferralInvite,
 } from "@/lib/referral";
-import { buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";
-import { isWardrobePowerUser } from "@/lib/monetization-wardrobe";
 import { isNativeApp } from "@/lib/mobile-install";
 import type { UserProfile } from "@/lib/types";
 
@@ -71,11 +68,10 @@ function SettingsRow({ icon, label, hint, onClick, href }: SettingsRowProps) {
 }
 
 export function ProfileSettingsMenu({ user }: ProfileSettingsMenuProps) {
-  const { showToast, openCheckout } = useVauto();
+  const { showToast } = useVauto();
   const nativeApp = isNativeApp();
   const credits = getReferralCredits(user);
   const referralUrl = useMemo(() => buildReferralUrl(user), [user]);
-  const isPower = isWardrobePowerUser(user);
 
   const handleReferral = async () => {
     const ok = await shareReferralInvite(user);
@@ -87,14 +83,6 @@ export function ProfileSettingsMenu({ user }: ProfileSettingsMenuProps) {
         showToast("Nepavyko pasidalinti", "info");
       }
     }
-  };
-
-  const handlePowerUser = () => {
-    if (isPower) {
-      showToast("Spinta Power-User jau aktyvuota", "success");
-      return;
-    }
-    openCheckout(buildWardrobePowerSubscriptionCheckout());
   };
 
   return (
@@ -111,13 +99,6 @@ export function ProfileSettingsMenu({ user }: ProfileSettingsMenuProps) {
             : "Gauk nemokamą pirkėjo apsaugą"
         }
         onClick={() => void handleReferral()}
-      />
-      <div className="h-px bg-[var(--vauto-border)]" />
-      <SettingsRow
-        icon={<Crown className="h-4 w-4 text-[#09b1a8]" />}
-        label="Spinta Power-User"
-        hint={isPower ? "Aktyvu · neribotas importas" : "4,99 € / mėn. · gilesnė analitika"}
-        onClick={handlePowerUser}
       />
       <div className="h-px bg-[var(--vauto-border)]" />
       <SettingsRow

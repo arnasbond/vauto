@@ -1,10 +1,9 @@
 "use client";
 
-import { BarChart3, Crown } from "lucide-react";
+import { BarChart3 } from "lucide-react";
 import { useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
 import { getListingMetrics } from "@/lib/listing-analytics";
-import { buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";
 import { resolveWardrobeSubscriptionAccess } from "@/lib/SubscriptionGuard";
 import type { Listing, UserProfile } from "@/lib/types";
 
@@ -17,13 +16,18 @@ interface WardrobePowerStatsProps {
   inSpintaCabinet?: boolean;
 }
 
+/** Spinta cabinet analytics — no Power-User paywall (deprecated). */
 export function WardrobePowerStats({
   user,
   listings,
   inSpintaCabinet = false,
 }: WardrobePowerStatsProps) {
-  const { chameleonTheme, openCheckout } = useVauto();
-  const access = resolveWardrobeSubscriptionAccess(user, chameleonTheme, inSpintaCabinet);
+  const { chameleonTheme } = useVauto();
+  const access = resolveWardrobeSubscriptionAccess(
+    user,
+    chameleonTheme,
+    inSpintaCabinet
+  );
 
   const stats = useMemo(() => {
     const clothing = listings.filter((l) => l.category === "clothing");
@@ -43,37 +47,11 @@ export function WardrobePowerStats({
 
   if (!access.active) return null;
 
-  if (!access.showsDeepStats) {
-    return (
-      <div className={`${CARD_CLASS} border-dashed`}>
-        <div className="flex items-start gap-3">
-          <Crown className="h-5 w-5 shrink-0 text-primary" />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">Power-User statistika</p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Gilesnė analitika ir neribotas spintos importas —{" "}
-              {access.importsRemaining === 0
-                ? "nemokamas importas išnaudotas"
-                : `liko ${access.importsRemaining} nemokamas importas`}
-            </p>
-            <button
-              type="button"
-              onClick={() => openCheckout(buildWardrobePowerSubscriptionCheckout())}
-              className="vauto-btn-primary mt-3 rounded-full px-4 py-2 text-xs"
-            >
-              Tapti Power-User · 4,99 € / mėn.
-            </button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <section className={CARD_CLASS}>
       <div className="mb-3 flex items-center gap-2">
         <BarChart3 className="h-4 w-4 text-primary" />
-        <p className="text-sm font-semibold text-foreground">Spintos analitika · Power-User</p>
+        <p className="text-sm font-semibold text-foreground">Spintos analitika</p>
       </div>
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         <StatChip label="Peržiūros" value={String(stats.views)} />
@@ -82,7 +60,7 @@ export function WardrobePowerStats({
         <StatChip label="Domėjimasis" value={`${stats.conversion}%`} />
       </div>
       <p className="mt-2 text-[10px] text-muted-foreground">
-        {stats.count} prek{stats.count === 1 ? "ė" : "ės"} spintoje · neribotas importas aktyvus
+        {stats.count} prek{stats.count === 1 ? "ė" : "ės"} spintoje
       </p>
     </section>
   );

@@ -552,25 +552,24 @@ authRouter.post("/upgrade", requireAuth, async (req: AuthedRequest, res) => {
       ? (req.body.serviceSpecialties as unknown[]).map(String)
       : undefined;
 
-    if (companyName.length < 2) {
-      res.status(400).json({ error: "Įveskite įmonės pavadinimą." });
-      return;
-    }
-    if (companyCode.length < 2) {
-      res.status(400).json({ error: "Įveskite įmonės kodą." });
-      return;
-    }
     if (businessType === "services" && !serviceBaseCity) {
       res.status(400).json({ error: "Nurodykite bazinį miestą paslaugoms." });
       return;
     }
 
+    // Company name/code are optional — freelancers, IV, private Pro sellers OK.
+    const resolvedCompanyName =
+      companyName ||
+      String(existing.name ?? "").trim() ||
+      String(existing.nickname ?? "").trim() ||
+      "VAUTO Pro";
+
     const user: ApiUser = {
       ...existing,
       role: "pro",
       businessType,
-      companyName,
-      companyCode,
+      companyName: resolvedCompanyName,
+      companyCode: companyCode || undefined,
       vatCode,
       serviceBaseCity,
       serviceRadiusKm,

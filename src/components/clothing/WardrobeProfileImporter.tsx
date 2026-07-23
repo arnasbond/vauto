@@ -1,7 +1,7 @@
 "use client";
 
 import { Loader2, Sparkles, UploadCloud, X } from "lucide-react";
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import { GuestWardrobePreviewGrid } from "@/components/clothing/GuestWardrobePreviewGrid";
 import { WardrobeValueShareCard } from "@/components/clothing/WardrobeValueShareCard";
 import { useVauto } from "@/context/VautoContext";
@@ -12,11 +12,6 @@ import {
   computeWardrobeValueTotal,
   type WardrobeProfileImportItem,
 } from "@/lib/wardrobe-profile-importer";
-import { incrementWardrobeImportCount, buildWardrobePowerSubscriptionCheckout } from "@/lib/monetization-wardrobe";
-import {
-  canPerformWardrobeProfileImport,
-  resolveWardrobeSubscriptionAccess,
-} from "@/lib/SubscriptionGuard";
 import { detectWardrobePortalLabel, shortenProfileUrl } from "@/lib/spinta-portal";
 import { notifyWardrobeProfileImported } from "@/lib/vauto-agent-client";
 import { isGuestUserId } from "@/lib/wardrobe-guest-demo";
@@ -55,15 +50,8 @@ export function WardrobeProfileImporter({
   onGuestPreview,
   onToast,
 }: WardrobeProfileImporterProps) {
-  const { user, chameleonTheme, openCheckout } = useVauto();
+  const { user } = useVauto();
   const isGuest = guestMode || isGuestUserId(user.id);
-  const access = useMemo(
-    () =>
-      isGuest
-        ? null
-        : resolveWardrobeSubscriptionAccess(user, chameleonTheme, inSpintaCabinet),
-    [user, chameleonTheme, inSpintaCabinet, isGuest]
-  );
   const [url, setUrl] = useState("");
   const [loading, setLoading] = useState(false);
   const [preview, setPreview] = useState<WardrobeProfileImportItem[]>([]);
@@ -76,18 +64,6 @@ export function WardrobeProfileImporter({
     const trimmed = url.trim();
     if (!isWardrobeProfileUrl(trimmed)) {
       onToast?.("Įveskite galiojantį Vinted profilio URL (/member/ arba /invite/).", "info");
-      return;
-    }
-    if (
-      !isGuest &&
-      access?.active &&
-      !canPerformWardrobeProfileImport(user, chameleonTheme, inSpintaCabinet)
-    ) {
-      onToast?.(
-        "Nemokamas spintos importas išnaudotas — Power-User atrakina neribotą importą.",
-        "info"
-      );
-      openCheckout(buildWardrobePowerSubscriptionCheckout());
       return;
     }
 
@@ -105,9 +81,6 @@ export function WardrobeProfileImporter({
         setLinkedProfile(null);
         onToast?.("Importas nepavyko — bandykite vėliau.", "info");
         return;
-      }
-      if (!isGuest && access?.active && !access.canImportUnlimited) {
-        incrementWardrobeImportCount(user.id);
       }
       setPreview(result.items);
       setLinkedProfile({
@@ -170,9 +143,6 @@ export function WardrobeProfileImporter({
             {isGuest
               ? "Demo režimas — įklijuok profilio URL ir AI paruoš tavo spintą"
               : "Importas ir stebėjimas iš kito portalo — ne pilnas autopublish visur"}
-            {!isGuest && access?.active && !access.canImportUnlimited && (
-              <> · liko {access.importsRemaining} nemokamas importas</>
-            )}
           </p>
         </div>
       </div>

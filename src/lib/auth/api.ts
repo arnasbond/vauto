@@ -157,8 +157,8 @@ export async function apiSetProfileType(
 
 export async function apiUpgradeToPro(params: {
   businessType: ProBusinessType;
-  companyName: string;
-  companyCode: string;
+  companyName?: string;
+  companyCode?: string;
   vatCode?: string;
   serviceBaseCity?: string;
   serviceRadiusKm?: number;

@@ -118,15 +118,15 @@ export function buildWardrobeStyleBoostCheckout(
   };
 }
 
+/** @deprecated Spinta Power-User monetization removed — kept for old session replay only. */
 export function buildWardrobePowerSubscriptionCheckout(): CheckoutSession {
   return {
-    id: `chk_wardrobe_power_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+    id: `chk_wardrobe_power_deprecated_${Date.now()}`,
     kind: "wardrobe_power_subscription",
     productId: "power_subscription",
-    lineTitle: "VAUTO Spinta Power-User",
-    lineDescription:
-      "Neribotas spintos importas, gilesnė statistika ir prioritetinis AI derinių srautas",
-    amountEur: WARDROBE_POWER_SUBSCRIPTION_EUR,
+    lineTitle: "VAUTO Spinta Power-User (nebenaudojama)",
+    lineDescription: "Ši prenumerata nebenaudojama — Spinta importas nemokamas.",
+    amountEur: 0,
     vatRate: VAT_RATE_LT,
   };
 }

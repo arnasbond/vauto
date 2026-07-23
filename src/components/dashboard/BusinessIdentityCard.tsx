@@ -15,13 +15,19 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
             Mano VAUTO Pro
           </p>
           <h2 className="mt-1 text-base font-bold text-slate-900">
-            {user.companyName || "Verslo paskyra"}
+            {user.companyName?.trim() ||
+              user.nickname?.trim() ||
+              user.name?.trim() ||
+              "VAUTO Pro"}
+            <span className="ml-2 align-middle rounded-full bg-[var(--vauto-orange)]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-[var(--vauto-orange)]">
+              Pro
+            </span>
           </h2>
           <div className="mt-3 grid grid-cols-2 gap-2 text-xs">
             <div className="rounded-xl bg-slate-50 p-2">
-              <p className="text-slate-500">Įmonės kodas</p>
+              <p className="text-slate-500">Įmonės / IV kodas</p>
               <p className="font-semibold text-slate-700">
-                {user.companyCode || "Neįvestas"}
+                {user.companyCode?.trim() || "Nebūtina"}
               </p>
             </div>
             <div className="rounded-xl bg-slate-50 p-2">
