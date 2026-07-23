@@ -88,10 +88,8 @@ export const POST_VALIDATION_QUICK_REPLIES = [] as const;
 
 /** Greiti atsakymai kai paieška grąžina 0 rezultatų. */
 export const EMPTY_SEARCH_QUICK_REPLIES = [
-  "Užfiksuoti norą",
+  "🔔 Įtraukti į pageidavimų sąrašą",
   "Platesnė paieška",
-  "Kita kategorija",
-  "Parodyti populiariausius",
 ] as const;
 
 /** Confirmation flow message after structured fields are populated. */

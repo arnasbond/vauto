@@ -4,8 +4,9 @@ import { Bell, Sparkles } from "lucide-react";
 import { useState } from "react";
 import { useVauto } from "@/context/VautoContext";
 import {
+  buildEmptySearchWishlistMessage,
+  EMPTY_SEARCH_WISHLIST_CHIP,
   registerWanted,
-  WANTED_EMPTY_MESSAGE,
 } from "@/lib/matching-service";
 
 interface WantedEmptyStateProps {
@@ -51,8 +52,8 @@ export function WantedEmptyState({
         <Sparkles className="h-6 w-6" />
       </div>
       <p className="mb-2 text-sm font-medium text-[#111827]">VAUTO asistentas</p>
-      <p className="mx-auto mb-4 max-w-md text-sm leading-relaxed" style={{ color: textMuted }}>
-        {WANTED_EMPTY_MESSAGE}
+      <p className="mx-auto mb-4 max-w-md whitespace-pre-line text-sm leading-relaxed" style={{ color: textMuted }}>
+        {buildEmptySearchWishlistMessage(searchQuery)}
       </p>
       <button
         type="button"
@@ -62,10 +63,10 @@ export function WantedEmptyState({
       >
         <Bell className="h-4 w-4" />
         {registered
-          ? "Pageidavimas įrašytas"
+          ? "Užklausa išsaugota!"
           : busy
             ? "Registruojama…"
-            : "Įtraukti į pageidavimų sąrašą"}
+            : EMPTY_SEARCH_WISHLIST_CHIP}
       </button>
     </div>
   );

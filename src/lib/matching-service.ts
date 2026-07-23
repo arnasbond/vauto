@@ -12,8 +12,41 @@ export interface RegisterWantedDeps {
   onError?: (message: string) => void;
 }
 
-export const WANTED_EMPTY_MESSAGE =
-  "Šiuo metu tokios prekės neturime. Spustelkite žemiau esantį mygtuką „Įtraukti į pageidavimų sąrašą“ – aš stebėsiu rinką ir informuosiu jus tiesiogiai, kai tik atsiras toks skelbimas.";
+export const EMPTY_SEARCH_WISHLIST_CHIP = "🔔 Įtraukti į pageidavimų sąrašą";
+
+/** Greiti atsakymai kai paieška grąžina 0 rezultatų (≥2 kad chip juosta visada matytųsi). */
+export const EMPTY_SEARCH_QUICK_REPLIES = [
+  EMPTY_SEARCH_WISHLIST_CHIP,
+  "Platesnė paieška",
+] as const;
+
+export const WANTED_AUTH_MESSAGE =
+  "Prisijunkite arba užsiregistruokite, kad gautumėte pranešimą el. paštu / pranešimu apie naują prekę.";
+
+export const WANTED_SAVED_MESSAGE =
+  "Užklausa išsaugota! Informuosime jus apie naujus skelbimus.";
+
+export function buildEmptySearchWishlistMessage(searchTerm?: string): string {
+  const q = searchTerm?.trim() || "jūsų užklausą";
+  return (
+    `Šiuo metu skelbimų pagal užklausą „${q}" neradome.\n` +
+    `Ar norite įtraukti šią paiešką į Pageidavimų sąrašą? Kai tik atsiras panaši prekė, atsiųsime jums pranešimą!`
+  );
+}
+
+/** @deprecated use buildEmptySearchWishlistMessage */
+export const WANTED_EMPTY_MESSAGE = buildEmptySearchWishlistMessage();
+
+export function isEmptySearchWishlistCta(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  return (
+    t.includes("pageidavimų sąrašą") ||
+    t.includes("pageidavimu sarasa") ||
+    t.includes("įtraukti šią paiešką") ||
+    t.includes("itraukti sia paieska")
+  );
+}
 
 export async function registerWanted(deps: RegisterWantedDeps): Promise<boolean> {
   const q = deps.query.trim();
@@ -24,15 +57,13 @@ export async function registerWanted(deps: RegisterWantedDeps): Promise<boolean>
 
   if (!deps.isAuthenticated) {
     deps.openAuthModal("/");
-    deps.onError?.("Prisijunkite, kad galėčiau jus informuoti apie naujus skelbimus.");
+    deps.onError?.(WANTED_AUTH_MESSAGE);
     return false;
   }
 
   const ok = await deps.subscribeWishlist(q);
   if (ok) {
-    deps.onSuccess?.(
-      `Pageidavimas „${q}" įrašytas. Pranešiu, kai atsiras atitinkantis skelbimas.`
-    );
+    deps.onSuccess?.(WANTED_SAVED_MESSAGE);
     return true;
   }
 

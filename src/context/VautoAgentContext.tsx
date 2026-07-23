@@ -52,7 +52,12 @@ import {
   touchAgentSessionActivity,
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
-import { registerWanted } from "@/lib/matching-service";
+import {
+  buildEmptySearchWishlistMessage,
+  EMPTY_SEARCH_QUICK_REPLIES,
+  isEmptySearchWishlistCta,
+  registerWanted,
+} from "@/lib/matching-service";
 import {
   buildSupervisorApplicationState,
   buildSupervisorCurrentUser,
@@ -425,6 +430,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [hidePrePublishCard, setHidePrePublishCard] = useState(false);
   const [listingPublishConfirmed, setListingPublishConfirmed] = useState(false);
+  /** Last 0-result search term for wishlist chip (searchQuery may be cleared by UI). */
+  const lastEmptySearchQueryRef = useRef("");
 
   const [busy, setBusy] = useState(false);
   const busyGateRef = useRef<ReturnType<typeof createAgentBusyGate> | null>(null);
@@ -747,13 +754,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           dispatchBrowseAllMarketplaceState();
           return;
         }
+        const emptyQuery =
+          resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
+          searchQuery.trim();
+        lastEmptySearchQueryRef.current = emptyQuery;
         goToMarketplace("agent");
         setOpen(true);
         requestWizardAgentExpand();
         setAgentPinnedListings([]);
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
-        setSearchQuery("");
+        // Keep the term so wishlist chip can save it.
+        if (emptyQuery) setSearchQuery(emptyQuery);
         if (actions.filters) {
           setMarketplaceFilters(
             mergeAgentIntoMarketplaceFilters(
@@ -768,16 +780,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           );
         }
         trackEvent("search_empty", {
-          query:
-            resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
-            searchQuery,
+          query: emptyQuery,
           filters: actions.filters ?? null,
         });
         trackEvent("agent_action", {
           action: "empty_search",
-          query:
-            resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
-            searchQuery,
+          query: emptyQuery,
         });
         window.setTimeout(() => focusSearchOutcome(0), 120);
       }
@@ -2094,7 +2102,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const quickReply = tryHandleAgentQuickReply({
         trimmed,
         user,
-        searchQuery,
+        searchQuery:
+          searchQuery.trim() || lastEmptySearchQueryRef.current.trim(),
+        isAuthenticated,
         aiDraft,
         sellerStep,
         pendingWardrobeBulkItems,
@@ -2577,14 +2587,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ) => {
           const text = assistantText.trim();
           if (!text) return;
+          const allowEmptySearchCta = isEmptySearchWishlistCta(text);
           if (
-            text.startsWith("Šiuo metu") ||
-            text.startsWith("Deja, pagal") ||
-            text.startsWith("Atsiprašau")
+            !allowEmptySearchCta &&
+            (text.startsWith("Šiuo metu") ||
+              text.startsWith("Deja, pagal") ||
+              text.startsWith("Atsiprašau"))
           ) {
             return;
           }
           const structuredReplies = quickReplies?.filter(Boolean).slice(0, 4);
+          const minChips = allowEmptySearchCta ? 1 : 2;
           setMessages((prev) => {
             const usersOnly = prev.filter((m) => m.role === "user");
             return [
@@ -2592,7 +2605,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               {
                 role: "assistant" as const,
                 text,
-                ...(structuredReplies && structuredReplies.length >= 2
+                ...(structuredReplies && structuredReplies.length >= minChips
                   ? { quickReplies: structuredReplies }
                   : {}),
                 ...(prePublishCard ? { prePublishCard } : {}),
@@ -2733,27 +2746,52 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           });
         }
 
+        const emptySearchAction =
+          res.actions.type === "empty_search" ? res.actions : null;
+        const isEmptySearchAction = Boolean(emptySearchAction);
+        const emptySearchTerm = emptySearchAction
+          ? resolveAgentDisplayQuery(
+              emptySearchAction.filters,
+              emptySearchAction.searchQuery
+            ) ||
+            trimmed ||
+            lastEmptySearchQueryRef.current
+          : "";
+        if (isEmptySearchAction && emptySearchTerm) {
+          lastEmptySearchQueryRef.current = emptySearchTerm;
+        }
+
         const displayQuickReplies = docAmbiguity.sellableChips.length
           ? docAmbiguity.sellableChips
-          : res.quickReplies;
+          : isEmptySearchAction
+            ? [...EMPTY_SEARCH_QUICK_REPLIES]
+            : res.quickReplies;
 
-        if (mergedAssistantText.trim()) {
+        const finalAssistantText = isEmptySearchAction
+          ? buildEmptySearchWishlistMessage(emptySearchTerm || trimmed)
+          : mergedAssistantText;
+
+        if (finalAssistantText.trim()) {
           if (
+            isEmptySearchAction ||
             proactiveContactConfirmation ||
-            (!mergedAssistantText.startsWith("Šiuo metu") &&
-              !mergedAssistantText.startsWith("Deja, pagal") &&
-              !mergedAssistantText.startsWith("Atsiprašau"))
+            isEmptySearchWishlistCta(finalAssistantText) ||
+            (!finalAssistantText.startsWith("Šiuo metu") &&
+              !finalAssistantText.startsWith("Deja, pagal") &&
+              !finalAssistantText.startsWith("Atsiprašau"))
           ) {
             appendSupervisorAssistant(
-              mergedAssistantText,
+              finalAssistantText,
               displayQuickReplies,
               res.prePublishCard
             );
           }
         }
-        speakReply(mergedAssistantText || assistantText);
+        speakReply(finalAssistantText || assistantText);
         if (hasExecutableAction) {
-          setSearchQuery("");
+          if (!isEmptySearchAction) {
+            setSearchQuery("");
+          }
           if (
             res.actions.type === "listing_draft" &&
             resolveBrowseAllIntent(trimmed) &&
@@ -2772,7 +2810,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               actions: browseActions,
             };
           }
-          if (!options?.fromSearchBar) {
+          // Always apply empty_search (opens chat + wishlist CTA) even from search bar.
+          if (!options?.fromSearchBar || isEmptySearchAction) {
             applyActions(res.actions);
           }
           if (voiceReply) {

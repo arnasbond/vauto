@@ -212,8 +212,11 @@ export function buildSmartBargainingProposal(input: {
 }
 
 export function buildNoMatchLeadPrompt(query?: string): string {
-  const q = query?.trim() || "ieškoma prekė";
-  return `Matau, kad šiuo metu „${q}" neturime. Leisk man užfiksuoti tavo norą fone — pranešiu, kai atsiras!`;
+  const q = query?.trim() || "jūsų užklausą";
+  return (
+    `Šiuo metu skelbimų pagal užklausą „${q}" neradome.\n` +
+    `Ar norite įtraukti šią paiešką į Pageidavimų sąrašą? Kai tik atsiras panaši prekė, atsiųsime jums pranešimą!`
+  );
 }
 
 /** P7c-agent — proactive refinement when results are overwhelming (24+). */

@@ -144,7 +144,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     busy || !lastAssistantMessage || showLivePrePublishCard
       ? []
       : (
-          (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
+          (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 1
             ? lastAssistantMessage.quickReplies!
             : extractAgentQuickReplies(lastAssistant)
         )
@@ -281,7 +281,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
 
           const messageChips =
             isLastAssistant && !showLivePrePublishCard
-              ? (m.quickReplies?.length ?? 0) >= 2
+              ? (m.quickReplies?.length ?? 0) >= 1
                 ? m.quickReplies!
                 : quickReplies
               : [];

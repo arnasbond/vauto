@@ -1,6 +1,7 @@
 /** Strip internal tool codes from user-visible agent chat text. */
 
 import { buildBrowseAllReply as buildBrowseAllIntentReply } from "@/lib/browse-all-intent";
+import { buildEmptySearchWishlistMessage } from "@/lib/matching-service";
 
 const INTERNAL_TOOL_RE =
   /\b(searchListings|SEARCHLISTINGS|triggerMicroPayment|block_listing|register_wanted|listing_draft|empty_search|micro_payment)\b/gi;
@@ -88,11 +89,7 @@ export function extractAgentQuickReplies(text: string): string[] {
 }
 
 export function buildEmptySearchReply(query?: string): string {
-  const q = query?.trim();
-  if (q && q.length >= 2) {
-    return `Deja, pagal „${q}" nieko tinkamo neradau. Gal pabandyti elektroniką, drabužius ar platesnę paiešką? Galiu ir užfiksuoti tavo norą fone.`;
-  }
-  return "Deja, šiuo metu nieko neradau. Pabandykime kitą frazę — arba pasakyk, ką tiksliai ieškai, ir pasiūlysiu alternatyvų.";
+  return buildEmptySearchWishlistMessage(query);
 }
 
 export function buildBrowseAllReply(listingCount?: number): string {

@@ -68,7 +68,7 @@ export function FlowAgentStrip({
   const quickReplies =
     busy || !lastAssistantMessage
       ? []
-      : (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 2
+      : (lastAssistantMessage.quickReplies?.filter(Boolean).length ?? 0) >= 1
         ? lastAssistantMessage.quickReplies!.slice(0, 4)
         : extractAgentQuickReplies(lastAssistant);
 
@@ -119,7 +119,7 @@ export function FlowAgentStrip({
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
           const messageChips =
-            isLastAssistant && (m.quickReplies?.length ?? 0) >= 2
+            isLastAssistant && (m.quickReplies?.length ?? 0) >= 1
               ? m.quickReplies!
               : isLastAssistant
                 ? quickReplies

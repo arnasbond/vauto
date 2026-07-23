@@ -303,22 +303,6 @@ function resolveAgentQuickReplies(
   return undefined;
 }
 
-function humanizeSearchItem(searchQuery: string): string {
-  const q = searchQuery.trim().toLowerCase();
-  if (/bat|aul|bas/.test(q)) return "tokių batelių";
-  if (/sukn|dress/.test(q)) return "tokių suknelių";
-  if (/ked|bat/.test(q)) return "tokių batų ar kedų";
-  if (/džins|keln|jean/.test(q)) return "tokių džinsų";
-  if (/pal|stri|megz/.test(q)) return "tokių drabužių";
-  const first = q.split(/\s+/).find((w) => w.length >= 3);
-  return first ? `tokių „${first}"` : "tokių prekių";
-}
-
-function buildEmptySearchReply(searchQuery?: string): string {
-  const item = humanizeSearchItem(searchQuery ?? "");
-  return `Šiuo metu ${item} turguje neturime, bet galiu užfiksuoti jūsų norą ir pranešti, kai kas nors juos įkels. Norite, kad užsiregistruočiau paiešką?`;
-}
-
 const GEMINI_MODELS = ["gemini-2.5-flash", "gemini-2.5-flash-lite"] as const;
 const MAX_TOOL_ROUNDS = 5;
 const GEMINI_RETRY_STATUSES = new Set([429, 503]);

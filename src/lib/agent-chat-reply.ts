@@ -4,6 +4,11 @@ import {
 } from "@/lib/agent-reply-display";
 import { buildBrowseAllReply } from "@/lib/browse-all-intent";
 import { isGenericFallbackAgentText } from "@/lib/agent-chat-layout";
+import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
+import {
+  buildEmptySearchWishlistMessage,
+  isEmptySearchWishlistCta,
+} from "@/lib/matching-service";
 
 const SUPERVISOR_TOOL_NAMES = new Set([
   "applyFilter",
@@ -33,6 +38,15 @@ export function resolveAgentChatReply(input: {
   const ranTools = agentRanSupervisorTools(toolCalls);
   const serverText = serverReply?.trim() ?? "";
 
+  if (actions.type === "empty_search") {
+    const q =
+      resolveAgentDisplayQuery(actions.filters, actions.searchQuery) ||
+      input.userQuery;
+    if (sanitized && isEmptySearchWishlistCta(sanitized)) return sanitized;
+    if (serverText && isEmptySearchWishlistCta(serverText)) return serverText;
+    return buildEmptySearchWishlistMessage(q);
+  }
+
   if (serverText && !isGenericFallbackAgentText(sanitized || serverText)) {
     return sanitized || serverText;
   }
@@ -51,12 +65,6 @@ export function resolveAgentChatReply(input: {
       return serverText || "Atfiltravau — žiūrėk rezultatus ekrane.";
     }
     return "Atidarau skelbimus ekrane.";
-  }
-
-  if (actions.type === "empty_search") {
-    if (sanitized) return sanitized;
-    if (ranTools && serverText) return serverText;
-    return sanitized || serverText || "Kol kas atitikmenų neradau — galime patikslinti paiešką.";
   }
 
   return sanitized || serverText || "Atlikta.";

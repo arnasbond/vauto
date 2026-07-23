@@ -1261,10 +1261,16 @@ export async function executeAgentTool(
         const limitRaw = Number(args.limit);
         const limit =
           Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 500;
-        const filteredRows = await withSearchSqlTimeout(
-          searchListingsFiltered({ limit }),
-          SEARCH_SQL_TIMEOUT_MS
-        ).catch(() => [] as Awaited<ReturnType<typeof searchListingsFiltered>>);
+        let filteredRows: Awaited<ReturnType<typeof searchListingsFiltered>> = [];
+        try {
+          filteredRows = await withSearchSqlTimeout(
+            searchListingsFiltered({ limit }),
+            SEARCH_SQL_TIMEOUT_MS
+          );
+        } catch (err) {
+          console.warn("[searchListings] browse_all SQL failed:", err);
+          filteredRows = [];
+        }
         const results = filteredRows.map((l) => toAgentListingSummary(l));
         const replyMessage = buildBrowseAllReply(results.length);
 
@@ -1315,17 +1321,23 @@ export async function executeAgentTool(
           ? Math.min(limitRaw, 80)
           : 80;
 
-      const filteredRows = await withSearchSqlTimeout(
-        searchListingsFiltered({
-          query: query || undefined,
-          category,
-          city: city || undefined,
-          minPrice,
-          maxPrice,
-          limit,
-        }),
-        SEARCH_SQL_TIMEOUT_MS
-      ).catch(() => [] as Awaited<ReturnType<typeof searchListingsFiltered>>);
+      let filteredRows: Awaited<ReturnType<typeof searchListingsFiltered>> = [];
+      try {
+        filteredRows = await withSearchSqlTimeout(
+          searchListingsFiltered({
+            query: query || undefined,
+            category,
+            city: city || undefined,
+            minPrice,
+            maxPrice,
+            limit,
+          }),
+          SEARCH_SQL_TIMEOUT_MS
+        );
+      } catch (err) {
+        console.warn("[searchListings] filtered SQL failed:", err);
+        filteredRows = [];
+      }
 
       const bounded = applyStrictSearchBoundaries(filteredRows, query || rawForIntent);
       const results = bounded.map((l) => toAgentListingSummary(l));
@@ -1334,7 +1346,13 @@ export async function executeAgentTool(
         results.length === 0 &&
         resolveBrowseAllIntent(rawQuery, fallbackQuery, query)
       ) {
-        const allRows = await searchListingsFiltered({ limit });
+        let allRows: Awaited<ReturnType<typeof searchListingsFiltered>> = [];
+        try {
+          allRows = await searchListingsFiltered({ limit });
+        } catch (err) {
+          console.warn("[searchListings] browse-all fallback SQL failed:", err);
+          allRows = [];
+        }
         const allResults = allRows.map((l) => toAgentListingSummary(l));
         const replyMessage = buildBrowseAllReply(allResults.length);
         return {
@@ -1363,10 +1381,14 @@ export async function executeAgentTool(
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,
       };
 
+      const emptySummary =
+        `Šiuo metu skelbimų pagal užklausą „${searchQuery || "jūsų užklausą"}" neradome.\n` +
+        `Ar norite įtraukti šią paiešką į Pageidavimų sąrašą? Kai tik atsiras panaši prekė, atsiųsime jums pranešimą!`;
+
       const summary = jobIntent
         ? buildJobSearchConversationalReply(rawForIntent, results.length, ctx.userName)
         : results.length === 0
-          ? "Šiuo metu atitikmenų neradau — galiu užfiksuoti norą arba padėti patikslinti paiešką."
+          ? emptySummary
           : `Rasta ${results.length} skelbimų.`;
 
       const proactiveMessage = ctx.searchSessionReset

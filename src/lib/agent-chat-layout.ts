@@ -6,6 +6,7 @@ import {
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
 import { resolveAgentDisplayQuery } from "@/lib/agent-display-query";
+import { isEmptySearchWishlistCta } from "@/lib/matching-service";
 
 const BLOCKED_FALLBACK_FRAGMENTS = [
   "šiuo metu neturime",
@@ -26,6 +27,8 @@ const GENERIC_FALLBACK_RE =
 export function isBlockedFallbackBubble(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return true;
+  // 0-result wishlist CTA must always render in chat.
+  if (isEmptySearchWishlistCta(text)) return false;
   if (GENERIC_FALLBACK_RE.test(t)) return true;
   return BLOCKED_FALLBACK_FRAGMENTS.some((frag) => t.includes(frag));
 }

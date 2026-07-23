@@ -15,6 +15,10 @@ import type { WardrobeDraftItem } from "@/lib/wardrobe-vision";
 import { wardrobeBulkToDrafts } from "@/lib/agent-wardrobe-bridge";
 import type { AiExtractedListing, ListingCategory, UserProfile } from "@/lib/types";
 import type { ZeroUiMicroPaymentIntent } from "@/lib/monetization-engine";
+import {
+  WANTED_AUTH_MESSAGE,
+  WANTED_SAVED_MESSAGE,
+} from "@/lib/matching-service";
 
 export interface AgentQuickReplyResult {
   handled: true;
@@ -35,6 +39,7 @@ export interface AgentQuickReplyDeps {
   trimmed: string;
   user: UserProfile;
   searchQuery: string;
+  isAuthenticated: boolean;
   aiDraft: AiExtractedListing | null;
   sellerStep: SellerFlowStep;
   pendingWardrobeBulkItems: WardrobeDraftItem[] | null;
@@ -307,14 +312,33 @@ export function tryHandleAgentQuickReply(
     };
   }
 
-  if (matchesChip(trimmed, [/užfiksuoti norą/, /uzfiksuoti nora/])) {
-    const query = deps.searchQuery.trim() || trimmed;
+  if (
+    matchesChip(trimmed, [
+      /įtraukti į pageidavimų/,
+      /itraukti i pageidavimu/,
+      /🔔\s*įtraukti/,
+      /užfiksuoti norą/,
+      /uzfiksuoti nora/,
+    ])
+  ) {
+    const query = deps.searchQuery.trim();
+    if (query.length < 3) {
+      return {
+        handled: true,
+        reply: "Įveskite bent 3 simbolius paieškai.",
+      };
+    }
+    if (!deps.isAuthenticated) {
+      deps.openAuthModal("/");
+      return {
+        handled: true,
+        reply: WANTED_AUTH_MESSAGE,
+      };
+    }
     deps.registerWantedFlow(query);
     return {
       handled: true,
-      reply: query
-        ? `Užfiksuoju jūsų norą „${query}" — pranešiu, kai atsiras atitikmuo.`
-        : "Užfiksuoju pageidavimą — pranešiu, kai atsiras tinkamas skelbimas.",
+      reply: WANTED_SAVED_MESSAGE,
     };
   }
 
