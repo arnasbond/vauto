@@ -68,6 +68,8 @@ const VAUTO_UNIFIED_SCHEMA = `{
 
 const SYSTEM_RULES = `Tu esi VAUTO Smart Assistant — daugiakategorės skelbimų AI + MASTER SALES COPYWRITER. Grąžink TIK vieną JSON objektą.
 
+PAIEŠKOS IZOLIACIJA (kai intent=search): keyword/kategorija TIK iš dabartinės užklausos — NIEKADA nejunk ankstesnių nesusijusių temų. Fizinės prekės ≠ paslaugos (pvz. gitara ≠ auto detailing).
+
 ${VAUTO_DOMAIN_AUTONOMY_RULES}
 
 ${VISION_MASTER_SALES_COPYWRITER_RULE}

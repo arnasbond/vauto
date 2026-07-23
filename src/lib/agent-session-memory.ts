@@ -1,4 +1,8 @@
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
+import {
+  extractSearchNlFilters,
+  isSearchTopicPivot,
+} from "@/lib/search-fast-path";
 
 /** Last N chat messages sent to Gemini (~4 user turns). */
 export const AGENT_SESSION_MESSAGE_LIMIT = 8;
@@ -67,6 +71,9 @@ export function shouldResetSearchSession(
   if (!previous) return false;
   if (extractSearchRefinement(text)) return false;
 
+  // Hard topic pivot (gitara → automobilis) — never merge unrelated intents.
+  if (isSearchTopicPivot(previous.query, text)) return true;
+
   const t = text.toLowerCase();
   const prevQ = (previous.query ?? "").toLowerCase();
   const prevCity = (previous.city ?? "").toLowerCase();
@@ -92,6 +99,8 @@ export function shouldResetSearchSession(
     "iphone",
     "samsung",
     "volvo",
+    "gitar",
+    "automobil",
     "nauj",
     "naujausi",
     "naujus",
@@ -110,27 +119,22 @@ export function shouldResetSearchSession(
 }
 
 export function parseSearchFiltersFromUserText(text: string): Partial<AgentSearchFilters> {
+  const nl = extractSearchNlFilters(text);
   const t = text.toLowerCase();
-  const filters: Partial<AgentSearchFilters> = { query: text.trim() };
+  const filters: Partial<AgentSearchFilters> = {
+    query: nl.keyword || text.trim(),
+  };
 
-  const priceMatch = t.match(/(?:iki|max|ne daugiau)\s*(\d{2,5})\s*(?:€|eur)?/i);
-  if (priceMatch) filters.maxPrice = Number(priceMatch[1]);
-
-  for (const [re, city] of [
-    [/vilniuje|vilnius\b/i, "Vilnius"],
-    [/kaune|kaunas\b/i, "Kaunas"],
-    [/klaip[eė]doje|klaip[eė]da\b/i, "Klaipėda"],
-    [/panev[eė][žz]yje|panev[eė][žz]ys\b/i, "Panevėžys"],
-  ] as const) {
-    if (re.test(text)) {
-      filters.city = city;
-      break;
-    }
-  }
+  if (nl.maxPrice != null) filters.maxPrice = nl.maxPrice;
+  if (nl.minPrice != null) filters.minPrice = nl.minPrice;
+  if (nl.city) filters.city = nl.city;
 
   if (/\b(dyzel|dyzelin)\b/i.test(t)) filters.category = "vehicles";
-  if (/\b(bmw|mercedes|audi|volvo|volkswagen)\b/i.test(t)) filters.category = "vehicles";
+  if (/\b(bmw|mercedes|audi|volvo|volkswagen|automobil|mašin|masin)\b/i.test(t)) {
+    filters.category = "vehicles";
+  }
   if (/\b(iphone|samsung|telefon)\b/i.test(t)) filters.category = "electronics";
+  if (/\b(gitar|pianin|paveiksl|bald|sof)\b/i.test(t)) filters.category = "home";
 
   return filters;
 }

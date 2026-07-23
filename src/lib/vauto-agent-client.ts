@@ -47,6 +47,8 @@ export interface VautoAgentContext {
   };
   activeSearchFilters?: AgentSearchFilters | null;
   searchSessionReset?: boolean;
+  /** Recent pinned search hit IDs for instant “šita tinka / parodyk” selection. */
+  recentSearchListingIds?: string[];
   userRole?: "buyer" | "seller" | "business" | "admin";
   contact?: string;
   listings?: AgentListingSnapshot[];

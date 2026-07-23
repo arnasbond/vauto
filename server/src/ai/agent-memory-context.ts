@@ -23,8 +23,9 @@ export interface AgentMemoryPayload {
 export const AGENT_MEMORY_SYSTEM_HINT = `ATMINTIS IR KONTEKSTAS (PRIVALOMA):
 - Numatytoji paieškos aprėptis: ${ALL_LITHUANIA_LABEL}. Jei vartotojas neįvardina miesto — NEPERDUOK searchListings.city ir postNewListing.city; ieškok visoje Lietuvoje be lokacijos filtro.
 - Vartotojo automobilis (Fleet): ${formatPrimaryVehicleLabel(DEFAULT_PRIMARY_VEHICLE)}. Jei užklausa neaiški BE markės/modelio (pvz. „rask priekinį bamperį“) — searchListings.query turi apimti make, model, year; NEPRIDĖK sintetinio „dalys“ priedo. Jei vartotojas jau įvardino markę ir modelį — naudok TIK jo žodžius.
-- SESIJOS TĘSTINUMAS: Jei vartotojas refine'ina ankstesnę paiešką (pvz. „O dabar rodyk tik pilkos spalvos“), SULIET activeSearchFilters su nauju filtru — nepradėk paieškos iš naujo be senų kriterijų (miestas, kaina, kategorija, query).
-- PROAKTYVUS FILTRŲ IŠVALYMAS: Jei vartotojas pateikia kardinaliai naują paiešką (kitas miestas, kita markė, „nauji BMW nuo 2018“ ir pan.) — NENAUDOK senų activeSearchFilters; searchListings turi naudoti tik naują užklausą. Klientas jau pažymėjo searchSessionReset=true.`;
+- PAIEŠKOS IZOLIACIJA: searchListings.query GRIEŽTAI iš PASKUTINĖS vartotojo žinutės. NIEKADA nejunk nesusijusių temų („gitara“ + „automobilis“ → NE „gitaros ir automobilio“).
+- SESIJOS TĘSTINUMAS: Refine TIK kai aiškiai tęsia TĄ PAČIĄ temą (pvz. „O dabar tik pilkos“). Kitaip — nauja paieška be senų filtrų.
+- PROAKTYVUS FILTRŲ IŠVALYMAS: Kardinaliai nauja paieška / searchSessionReset=true — NENAUDOK senų activeSearchFilters; tik nauja užklausa + NLP filtrai (kaina, miestas).`;
 
 export function buildAgentMemoryContextBlock(
   memory: AgentMemoryPayload | undefined,
@@ -63,7 +64,7 @@ export function buildAgentMemoryContextBlock(
 
   if (memory.activeSearchFilters && Object.keys(memory.activeSearchFilters).length) {
     lines.push(
-      `activeSearchFilters=${JSON.stringify(memory.activeSearchFilters)} (PRIVALOMA sujungti su naujais filtrais tęsiant paiešką)`
+      `activeSearchFilters=${JSON.stringify(memory.activeSearchFilters)} (naudok TIK refine'inant tą pačią temą; naujai temai IGNORUOK)`
     );
   }
 

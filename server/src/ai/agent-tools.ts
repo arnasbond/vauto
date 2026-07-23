@@ -6,6 +6,12 @@ import {
   isJobSearchQuery,
 } from "./universal-search-intent.js";
 import {
+  SEARCH_SQL_TIMEOUT_MS,
+  applyStrictSearchBoundaries,
+  extractSearchNlFilters,
+  withSearchSqlTimeout,
+} from "../shared/search-fast-path.js";
+import {
   getDemoApiListings,
   toAgentListingSummary,
 } from "../demo-catalog-api.js";
@@ -137,6 +143,8 @@ export interface AgentToolContext {
   activeListingTitle?: string;
   myListings?: MyListingForAgent[];
   listingsSnapshot?: AgentListingSummary[];
+  /** Recent marketplace search hit IDs for instant selection fast-path. */
+  recentSearchListingIds?: string[];
   /** Latest user utterance — used when Gemini omits query in searchListings. */
   lastUserQuery?: string;
   searchSessionReset?: boolean;
@@ -1239,8 +1247,12 @@ export async function executeAgentTool(
       const rawQuery = String(args.query ?? "").trim();
       const fallbackQuery = ctx.lastUserQuery?.trim() ?? "";
       const rawForIntent = (rawQuery || fallbackQuery).trim();
+      // Strict NLP from latest utterance — never merge historical topics here.
+      const nl = extractSearchNlFilters(rawForIntent);
       const jobIntent = isJobSearchQuery(rawForIntent);
-      const query = normalizeProductSearchQuery(rawQuery || fallbackQuery);
+      const query = normalizeProductSearchQuery(
+        nl.keyword || rawQuery || fallbackQuery
+      );
       const category = args.category
         ? String(args.category)
         : inferSearchCategory(rawForIntent);
@@ -1249,7 +1261,10 @@ export async function executeAgentTool(
         const limitRaw = Number(args.limit);
         const limit =
           Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 500;
-        const filteredRows = await searchListingsFiltered({ limit });
+        const filteredRows = await withSearchSqlTimeout(
+          searchListingsFiltered({ limit }),
+          SEARCH_SQL_TIMEOUT_MS
+        ).catch(() => [] as Awaited<ReturnType<typeof searchListingsFiltered>>);
         const results = filteredRows.map((l) => toAgentListingSummary(l));
         const replyMessage = buildBrowseAllReply(results.length);
 
@@ -1282,26 +1297,38 @@ export async function executeAgentTool(
           },
         };
       }
-      const maxPrice = args.maxPrice != null ? Number(args.maxPrice) : undefined;
-      const minPrice = args.minPrice != null ? Number(args.minPrice) : undefined;
-      const cityRaw = args.city ? String(args.city).trim() : "";
+      const maxPrice =
+        args.maxPrice != null ? Number(args.maxPrice) : nl.maxPrice;
+      const minPrice =
+        args.minPrice != null ? Number(args.minPrice) : nl.minPrice;
+      const cityRaw = args.city
+        ? String(args.city).trim()
+        : nl.city
+          ? nl.city
+          : "";
       const cityNominative = cityRaw ? resolveLtCityNominative(cityRaw) : "";
-      const city = cityNominative ? normCity(cityNominative) : "";
+      const city = cityNominative ? normCityForFilter(cityNominative) : "";
 
       const limitRaw = Number(args.limit);
       const limit =
-        Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 500;
+        Number.isFinite(limitRaw) && limitRaw > 0
+          ? Math.min(limitRaw, 80)
+          : 80;
 
-      const filteredRows = await searchListingsFiltered({
-        query: query || undefined,
-        category,
-        city: city || undefined,
-        minPrice,
-        maxPrice,
-        limit,
-      });
+      const filteredRows = await withSearchSqlTimeout(
+        searchListingsFiltered({
+          query: query || undefined,
+          category,
+          city: city || undefined,
+          minPrice,
+          maxPrice,
+          limit,
+        }),
+        SEARCH_SQL_TIMEOUT_MS
+      ).catch(() => [] as Awaited<ReturnType<typeof searchListingsFiltered>>);
 
-      const results = filteredRows.map((l) => toAgentListingSummary(l));
+      const bounded = applyStrictSearchBoundaries(filteredRows, query || rawForIntent);
+      const results = bounded.map((l) => toAgentListingSummary(l));
 
       if (
         results.length === 0 &&

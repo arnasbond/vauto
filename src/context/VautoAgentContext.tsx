@@ -80,6 +80,11 @@ import {
   selectAgentSessionMessages,
   shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
+import {
+  isResultSelectionIntent,
+  listingPathForId,
+  resolveRecentListingSelection,
+} from "@/lib/search-fast-path";
 import { mergeVoiceUiFilters } from "@/lib/voice-ui-actions";
 import { focusSearchOutcome } from "@/lib/search-results-focus";
 import { toLithuanianVocative } from "@/lib/lithuanian-name-case";
@@ -276,6 +281,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setSearchLoading,
     searchQuery,
     setAgentPinnedListings,
+    agentPinnedListingIds,
     setViewMode,
     setMarketplaceFilters,
     resetMarketplaceFilters,
@@ -1299,6 +1305,47 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply: actions.replyMessage, actions };
       }
 
+      // Instant fast-path selection (<1s) — open from recent pinned search results.
+      if (isResultSelectionIntent(trimmed) && agentPinnedListingIds?.length) {
+        const recent = agentPinnedListingIds
+          .map((id) => listings.find((l) => l.id === id))
+          .filter((l): l is (typeof listings)[number] => Boolean(l))
+          .map((l) => ({
+            id: l.id,
+            title: l.title,
+            price: l.price,
+            category: String(l.category),
+            location: l.location,
+            description: l.description,
+          }));
+        const pick = resolveRecentListingSelection(trimmed, recent);
+        if (pick) {
+          const path = listingPathForId(pick.id);
+          const reply = `Atidarau: ${pick.title}`;
+          setMessages((prev) =>
+            [
+              ...prev,
+              { role: "user" as const, text: trimmed },
+              { role: "assistant" as const, text: reply },
+            ].slice(-6)
+          );
+          setAgentPinnedListings([pick.id]);
+          router.push(path);
+          speakReply(reply);
+          touchAgentSessionActivity();
+          return {
+            ok: true,
+            reply,
+            actions: {
+              type: "navigate_to_screen",
+              screen: "listing",
+              path,
+              label: pick.title,
+            },
+          };
+        }
+      }
+
       const listingChatContext = {
         hasListingDraft: Boolean(aiDraft),
         sellerFlowActive:
@@ -2112,6 +2159,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         trimmed,
         activeSearchFilters
       );
+      // Intent isolation — latest message only when topic pivots.
+      const sessionMessagesForSearch: typeof sessionMessages | null =
+        searchSessionReset
+          ? [{ role: "user" as const, text: trimmed }]
+          : null;
       const resetFilters = searchSessionReset
         ? parseSearchFiltersFromUserText(trimmed)
         : null;
@@ -2251,8 +2303,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                     listingFlowState: draftForTurn?.listingFlowState,
                   }
                 : baseListingDraft;
+        const wireSessionMessages = sessionMessagesForSearch ?? sessionMessages;
         const agentBody = {
-          messages: sessionMessages.map((m) => ({
+          messages: wireSessionMessages.map((m) => ({
             role: m.role,
             text:
               m.text?.trim() ||
@@ -2266,6 +2319,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               ? resetFilters
               : memoryContext.activeSearchFilters,
             searchSessionReset,
+            recentSearchListingIds: agentPinnedListingIds?.length
+              ? agentPinnedListingIds.slice(0, 24)
+              : undefined,
             supervisorState,
             listingEditSession: listingEditSession ?? undefined,
             wizardMode: listingEditSession
@@ -2636,6 +2692,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       searchQuery,
       pathname,
       includeAdminContext,
+      agentPinnedListingIds,
+      setAgentPinnedListings,
       buildAgentContext,
       noteUserMessage,
       zeroUiScreen,

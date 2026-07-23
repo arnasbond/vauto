@@ -30,7 +30,23 @@ export function inferUniversalListingCategory(query: string): string | undefined
   if (isJobSearchQuery(query)) return "jobs";
   if (/\b(but|nam|nuom|sklyp|kamb|nt\b|nekilnoj|aruod)\b/i.test(query)) return "real_estate";
   if (/\b(bat|ked|aulis|drabu|striuk|sukn)\b/i.test(query)) return "clothing";
-  if (/\b(meistr|paslaug|elektrik|santechn|valym|remont)\b/i.test(query)) return "services";
+  // Physical goods before services — “gitara” must not become detailing/services.
+  if (
+    /\b(gitar|pianin|smuik|būgn|paveiksl|dvirat|sof[aą]|bald|komod|virtuv|televiz|konsol)\b/i.test(
+      query
+    ) &&
+    !/\b(paslaug|pamok|kurs|meistr|detali[nz]|plovim)\b/i.test(query)
+  ) {
+    return "home";
+  }
+  if (
+    /\b(meistr|paslaug|elektrik|santechn|valym|remont|detali[nz]|plovim|vaškav)\b/i.test(
+      query
+    ) &&
+    !/\b(gitar|telefon|iphone|automobil|bmw|volvo)\b/i.test(query)
+  ) {
+    return "services";
+  }
   if (/\b(telefon|iphone|samsung|laptop|kompiuter)\b/i.test(query)) return "electronics";
   if (/\b(volvo|bmw|audi|v70|v60|auto|masin|automob|transport)\b/i.test(query)) return "vehicles";
   if (/\b(bald|sofa|komod|virtuv)\b/i.test(query) && !isJobSearchQuery(query)) return "home";

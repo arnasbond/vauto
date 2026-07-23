@@ -2,7 +2,6 @@ import { getDataApiBaseUrl } from "@/lib/api/config";
 import { getAuthHeaders } from "@/lib/auth/session";
 import { trimAgentRequestBody } from "@/lib/agent-request-trim";
 import type { VautoAgentApiResult } from "@/lib/vauto-agent-client";
-import { AI_VISION_FETCH_TIMEOUT_MS } from "@/lib/ai-safeguards";
 import { AI_TIMEOUT_POLICY } from "@/lib/ai-timeout-policy";
 
 export type VautoAgentStreamEvent =
@@ -160,12 +159,12 @@ export async function apiVautoAgentStream(
       ? wireBody.context.pendingImageCount
       : 0;
   const hasVisionImages = pendingCount > 0 || pendingImageCount > 0;
-  // Multi-image Vision OCR needs a long client wait; text-only stays at visionFetchMs floor.
+  // Multi-image Vision OCR needs a long client wait; text search uses the fast stream budget.
   const timeoutMs = wireBody.includeAdminContext
     ? AI_TIMEOUT_POLICY.agentAdminMs
     : hasVisionImages
       ? AI_TIMEOUT_POLICY.streamVisionMs
-      : AI_VISION_FETCH_TIMEOUT_MS;
+      : AI_TIMEOUT_POLICY.searchStreamMs;
   const renderBase = getDataApiBaseUrl();
 
   /** Prefer configured data API (Render). Same-origin last — static export has no /api routes. */

@@ -25,6 +25,7 @@ import {
   buildJobSearchConversationalReply,
   isJobSearchQuery,
 } from "./universal-search-intent.js";
+import { extractSearchNlFilters } from "../shared/search-fast-path.js";
 
 export type GeminiPart =
   | { text: string }
@@ -39,7 +40,7 @@ export interface GeminiContent {
 export type GeminiToolMode = "AUTO" | "ANY" | "NONE";
 
 const PRODUCT_SEARCH_RE =
-  /\b(volvo|bmw|audi|mercedes|toyota|vw|ford|opel|iphone|samsung|xiaomi|huawei|butas|namas|batai|kedai|sukn|drabuz|telefon|kompiuter|nešioj|nesioj|dvirat|motocikl|automob|laptop|v70|v60|xc\d|passat|golf)\b/i;
+  /\b(volvo|bmw|audi|mercedes|toyota|vw|ford|opel|iphone|samsung|xiaomi|huawei|butas|namas|batai|kedai|sukn|drabuz|telefon|kompiuter|nešioj|nesioj|dvirat|motocikl|automob|laptop|v70|v60|xc\d|passat|golf|gitar|pianin|paveiksl|sof[aą]|bald)\b/i;
 
 const SEARCH_VERB_RE =
   /\b(ieškau|ieskau|rask|surask|parodyk|rodyk|noriu|reikia|find|search|show)\b/i;
@@ -216,7 +217,9 @@ export async function runDeterministicSupervisorSearch(
   ctx: AgentToolContext
 ): Promise<{ result: unknown; sideEffect?: AgentSideEffect; toolName: string }> {
   const trimmed = rawQuery.trim();
-  const query = normalizeProductSearchQuery(trimmed);
+  // Single-pass: NLP filters + indexed SQL — no Gemini tool ping-pong.
+  const nl = extractSearchNlFilters(trimmed);
+  const query = normalizeProductSearchQuery(nl.keyword || trimmed);
   const category = inferSearchCategory(trimmed);
 
   const { result, sideEffect } = await executeAgentTool(
@@ -224,6 +227,10 @@ export async function runDeterministicSupervisorSearch(
     {
       query,
       ...(category ? { category } : {}),
+      ...(nl.minPrice != null ? { minPrice: nl.minPrice } : {}),
+      ...(nl.maxPrice != null ? { maxPrice: nl.maxPrice } : {}),
+      ...(nl.city ? { city: nl.city } : {}),
+      limit: 80,
     },
     { ...ctx, lastUserQuery: trimmed }
   );

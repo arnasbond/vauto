@@ -35,7 +35,21 @@ export function inferUniversalListingCategory(query: string): ListingCategory | 
   if (/\b(bat|batai|keden|aulis|drabu|striuk|suknel|palt|dydis|zara|nike|vinted|aprang)\b/i.test(q)) {
     return "clothing";
   }
-  if (/\b(meistr|paslaug|elektrik|santechn|valym|remont|kirp|valytoj)\b/i.test(q)) {
+  // Physical goods before services — avoid auto-detailing bleed on product nouns.
+  if (
+    /\b(gitar|pianin|smuik|būgn|paveiksl|dvirat|sof[aą]|bald|komod|virtuv|televiz|konsol)\b/i.test(
+      q
+    ) &&
+    !/\b(paslaug|pamok|kurs|meistr|detali[nz]|plovim)\b/i.test(q)
+  ) {
+    return "home";
+  }
+  if (
+    /\b(meistr|paslaug|elektrik|santechn|valym|remont|kirp|valytoj|detali[nz]|plovim|vaškav)\b/i.test(
+      q
+    ) &&
+    !/\b(gitar|telefon|iphone|automobil|bmw|volvo)\b/i.test(q)
+  ) {
     return "services";
   }
   if (/\b(telefon|iphone|samsung|laptop|kompiuter|planšet)\b/i.test(q)) return "electronics";

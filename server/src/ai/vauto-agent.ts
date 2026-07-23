@@ -94,6 +94,11 @@ import {
   type GeminiContent,
   type GeminiPart,
 } from "./supervisor-tool-runner.js";
+import {
+  isResultSelectionIntent,
+  listingPathForId,
+  resolveRecentListingSelection,
+} from "../shared/search-fast-path.js";
 import { buildUserBehaviorContextBlock } from "./user-behavior-context.js";
 import {
   NO_MATCH_LEAD_HINT,
@@ -165,6 +170,8 @@ export interface VautoAgentRequest {
     };
     activeSearchFilters?: AgentSearchFilters | null;
     searchSessionReset?: boolean;
+    /** Recent pinned search hit IDs for instant selection fast-path. */
+    recentSearchListingIds?: string[];
     currentPageContext?: {
       page_id: string;
       active_listing_id?: string;
@@ -489,7 +496,12 @@ async function runVautoAgentInner(
       );
     let nextTitle = listingDraft.title;
     let nextDescription = String(listingDraft.description ?? "").trim();
-    let nextAttrs: Record<string, string | string[] | undefined> = { ...attrs };
+    let nextAttrs: Record<string, string> = Object.fromEntries(
+      Object.entries(attrs).map(([k, v]) => [
+        k,
+        Array.isArray(v) ? v.map(String).join(", ") : String(v ?? ""),
+      ])
+    );
 
     if (looksVehicle) {
       const enriched = enrichVehicleVisionDraft({
@@ -514,11 +526,16 @@ async function runVautoAgentInner(
         .replace(/^💡\s*/gm, "")
         .trim();
       nextAttrs = {
-        ...(enriched.attributes ?? attrs),
+        ...Object.fromEntries(
+          Object.entries(enriched.attributes ?? attrs).map(([k, v]) => [
+            k,
+            Array.isArray(v) ? v.map(String).join(", ") : String(v ?? ""),
+          ])
+        ),
         salesCopyGenerated: "true",
       };
     } else {
-      nextAttrs = { ...attrs, salesCopyGenerated: "true" };
+      nextAttrs = { ...nextAttrs, salesCopyGenerated: "true" };
       if (!nextDescription) {
         nextDescription =
           String(listingDraft.title ?? "").trim() || "Parduodama prekė";
@@ -929,8 +946,10 @@ async function runVautoAgentInner(
     };
   }
 
+  // Intent isolation: topic reset / session expiry → latest user message only.
   const sessionMessages =
-    req.context.sessionExpired && req.messages.length > 1
+    req.context.searchSessionReset ||
+    (req.context.sessionExpired && req.messages.length > 1)
       ? req.messages.filter((m) => m.role === "user").slice(-1)
       : req.messages;
 
@@ -974,6 +993,7 @@ async function runVautoAgentInner(
         }
       : undefined,
     listingsSnapshot: req.context.listings,
+    recentSearchListingIds: req.context.recentSearchListingIds,
     lastUserQuery: lastUserText || undefined,
     searchSessionReset: Boolean(req.context.searchSessionReset),
     monetization: resolveMonetizationState({
@@ -1002,6 +1022,39 @@ async function runVautoAgentInner(
     }))
   );
 
+  // Instant selection fast-path — open a recent search hit without Gemini.
+  if (lastUserText && isResultSelectionIntent(lastUserText)) {
+    const recentIds = req.context.recentSearchListingIds?.filter(Boolean) ?? [];
+    const snapshot = ctx.listingsSnapshot ?? [];
+    const byId = new Map(snapshot.map((l) => [l.id, l]));
+    const recent = (
+      recentIds.length
+        ? recentIds.map((id) => byId.get(id)).filter(Boolean)
+        : snapshot.slice(0, 12)
+    ) as NonNullable<(typeof snapshot)[number]>[];
+    const pick = resolveRecentListingSelection(lastUserText, recent);
+    if (pick) {
+      const path = listingPathForId(pick.id);
+      const reply = `Atidarau: ${pick.title}`;
+      emitAgentEvent(onEvent, {
+        type: "status",
+        message: "Atidarau skelbimą…",
+      });
+      return {
+        ok: true,
+        reply,
+        toolCalls: [],
+        actions: {
+          type: "navigate_to_screen",
+          screen: "listing",
+          path,
+          label: pick.title,
+          query: pick.title,
+        },
+      };
+    }
+  }
+
   // Deterministic browse-all — skip Gemini for generic “show everything” queries.
   if (lastUserText && resolveBrowseAllIntent(lastUserText)) {
     emitAgentEvent(onEvent, { type: "tool_call", name: "searchListings", message: "Ruošiu visus skelbimus…" });
@@ -1019,6 +1072,51 @@ async function runVautoAgentInner(
         actions: sideEffect,
       };
     }
+  }
+
+  // Single-pass indexed search — skip multi-turn Gemini tool ping-pong.
+  if (
+    lastUserText &&
+    shouldForceSupervisorTools(lastUserText) &&
+    !pendingChatImages?.length
+  ) {
+    emitAgentEvent(onEvent, {
+      type: "tool_call",
+      name: "searchListings",
+      message: "Ieškau kataloge…",
+    });
+    const deterministic = await runDeterministicSupervisorSearch(
+      lastUserText,
+      ctx
+    );
+    emitAgentEvent(onEvent, {
+      type: "tool_result",
+      name: deterministic.toolName,
+    });
+    const reply = resolveSupervisorFinalReply({
+      draftText: "",
+      toolCalls: [
+        { name: deterministic.toolName, result: deterministic.result },
+      ],
+      sideEffect: deterministic.sideEffect,
+      searchToolCount:
+        deterministic.sideEffect?.type === "search"
+          ? deterministic.sideEffect.listingIds.length
+          : deterministic.result &&
+              typeof deterministic.result === "object" &&
+              "count" in (deterministic.result as object)
+            ? Number((deterministic.result as { count?: number }).count)
+            : 0,
+      lastUserQuery: lastUserText,
+    });
+    return {
+      ok: true,
+      reply,
+      toolCalls: [
+        { name: deterministic.toolName, result: deterministic.result },
+      ],
+      actions: deterministic.sideEffect ?? { type: "none" },
+    };
   }
 
   const contents: GeminiContent[] = sessionMessages.map((m) => ({

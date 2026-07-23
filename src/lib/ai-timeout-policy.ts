@@ -25,6 +25,10 @@ export const AI_TIMEOUT_POLICY = {
   agentMs: 120_000,
   /** Admin-heavy agent context */
   agentAdminMs: 150_000,
+  /** Text-only search stream — fast-path / single-pass SQL should finish well under this */
+  searchStreamMs: 25_000,
+  /** Hard budget for indexed keyword/SQL searchListings */
+  searchSqlMs: 1_500,
 } satisfies {
   processingMs: number;
   fetchMs: number;
@@ -35,6 +39,8 @@ export const AI_TIMEOUT_POLICY = {
   recoveryMs: number;
   agentMs: number;
   agentAdminMs: number;
+  searchStreamMs: number;
+  searchSqlMs: number;
 };
 
 export type AiTimeoutPolicy = typeof AI_TIMEOUT_POLICY;
