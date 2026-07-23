@@ -1,0 +1,66 @@
+name: Purge demo catalog listings
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run only (no deletes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
+      - name: Resolve DATABASE_URL from Render and purge demo catalog
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "RENDER_API_KEY not set"
+            exit 1
+          fi
+          URL=$(node scripts/resolve-render-database-url.mjs --print)
+          if [ -z "$URL" ]; then
+            echo "Failed to resolve DATABASE_URL"
+            exit 1
+          fi
+          case "$URL" in
+            *sslmode=*) ;;
+            *\?*) URL="${URL}&sslmode=require" ;;
+            *) URL="${URL}?sslmode=require" ;;
+          esac
+          export DATABASE_URL="$URL"
+          export NODE_TLS_REJECT_UNAUTHORIZED="${NODE_TLS_REJECT_UNAUTHORIZED:-0}"
+          ARGS=""
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          node server/scripts/purge-demo-catalog-listings.mjs $ARGS
+
+      - name: Verify public listings have no lt-* demo ids
+        run: |
+          BODY=$(curl -sf "https://vauto-api.onrender.com/api/listings?limit=50" || true)
+          echo "${BODY:0:900}"
+          if echo "$BODY" | grep -qE '"id":"lt-'; then
+            echo "WARN: public API still returns lt-* demo ids (API cache / seed re-insert possible)"
+            exit 1
+          fi
+          echo "OK: no lt-* demo ids in first page sample"

@@ -2,8 +2,24 @@ import { pool } from "./db.js";
 import { DEMO_LISTINGS, DEMO_USER } from "./demo-listings.js";
 import { DEMO_SERVICE_LEADS } from "./demo-service-leads.js";
 
-/** Upsert demo rows — safe on every startup (adds missing listings after deploys). */
+function demoCatalogSeedEnabled(): boolean {
+  const raw = String(process.env.SEED_DEMO_CATALOG ?? "").trim().toLowerCase();
+  return raw === "1" || raw === "true" || raw === "yes";
+}
+
+/**
+ * Optional demo catalog upsert.
+ * Production stays clean unless SEED_DEMO_CATALOG=1 — otherwise purged mock
+ * catalog rows (lt- / seller- prefixes) would reappear on every Render restart.
+ */
 export async function seedIfEmpty(): Promise<void> {
+  if (!demoCatalogSeedEnabled()) {
+    console.log(
+      "Demo seed skipped (set SEED_DEMO_CATALOG=1 to insert lt-/seller- mock catalog)."
+    );
+    return;
+  }
+
   await pool.query(
     `INSERT INTO users (id, name, phone, city, avatar_url)
      VALUES ($1,$2,$3,$4,$5) ON CONFLICT DO NOTHING`,

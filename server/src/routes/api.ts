@@ -406,7 +406,10 @@ apiRouter.post("/test/auth-flow", requireOpsSecret, async (_req, res) => {
   }
 });
 
-/** Idempotent demo catalog upsert — safe to call after deploy without Render API key. */
+/**
+ * Optional demo catalog upsert (no-op unless SEED_DEMO_CATALOG=1).
+ * Safe to call after deploy without Render API key.
+ */
 apiRouter.post("/bootstrap", requireOpsSecret, async (_req, res) => {
   try {
     await seedIfEmpty();
