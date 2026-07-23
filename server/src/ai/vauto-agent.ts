@@ -387,7 +387,7 @@ async function runVautoAgentInner(
   );
 
   const listingDraft = req.context.listingDraft;
-  const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 6);
+  const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 10);
   const draftPhotoCount = Array.isArray(
     (listingDraft as { orderedImageUrls?: unknown } | null | undefined)
       ?.orderedImageUrls
@@ -1040,7 +1040,7 @@ async function runVautoAgentInner(
       role: "user",
       parts: [
         {
-          text: `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\nimageUrls: ${JSON.stringify(req.context.pendingImageUrls.slice(0, 6))}`,
+          text: `[Nuotraukos įkeltos — PRIVALOMA scanListingPhotos]\nimageUrls: ${JSON.stringify(req.context.pendingImageUrls.slice(0, 10))}`,
         },
       ],
     });

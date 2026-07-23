@@ -22,12 +22,20 @@ export async function compressForAiVision(dataUrl: string): Promise<string> {
 /** Resize/compress web images before upload (keeps under ~400KB). */
 export async function compressDataUrl(
   dataUrl: string,
-  opts?: { maxDim?: number; quality?: number; maxChars?: number; force?: boolean }
+  opts?: {
+    maxDim?: number;
+    /** Floor when shrinking for maxChars — protects document OCR fine print. */
+    minDim?: number;
+    quality?: number;
+    maxChars?: number;
+    force?: boolean;
+  }
 ): Promise<string> {
   if (typeof document === "undefined" || !dataUrl.startsWith("data:image")) {
     return dataUrl;
   }
   const maxDim = opts?.maxDim ?? 1280;
+  const minDim = Math.max(140, opts?.minDim ?? 140);
   const maxChars = opts?.maxChars ?? 400_000;
   const force = opts?.force ?? false;
   if (!force && dataUrl.length <= maxChars) return dataUrl;
@@ -46,23 +54,34 @@ export async function compressDataUrl(
         resolve(dataUrl);
         return;
       }
+      // Prefer crisp text for OCR — avoid aggressive canvas smoothing.
+      ctx.imageSmoothingEnabled = true;
+      ctx.imageSmoothingQuality = "high";
       ctx.drawImage(img, 0, 0, w, h);
       let quality = opts?.quality ?? 0.82;
       let out = canvas.toDataURL("image/jpeg", quality);
-      while (out.length > maxChars && quality > 0.28) {
-        quality -= 0.07;
+      while (out.length > maxChars && quality > 0.55) {
+        quality -= 0.05;
         out = canvas.toDataURL("image/jpeg", quality);
       }
-      // Still over budget → shrink canvas until under maxChars (vision wire needs this).
+      // Still over budget → shrink canvas until under maxChars (respect minDim for OCR).
       let curW = w;
       let curH = h;
-      while (out.length > maxChars && Math.max(curW, curH) > 140) {
-        curW = Math.max(1, Math.round(curW * 0.72));
-        curH = Math.max(1, Math.round(curH * 0.72));
+      while (out.length > maxChars && Math.max(curW, curH) > minDim) {
+        curW = Math.max(1, Math.round(curW * 0.85));
+        curH = Math.max(1, Math.round(curH * 0.85));
+        if (Math.max(curW, curH) < minDim) {
+          const floorScale = minDim / Math.max(curW, curH, 1);
+          curW = Math.max(1, Math.round(curW * floorScale));
+          curH = Math.max(1, Math.round(curH * floorScale));
+        }
         canvas.width = curW;
         canvas.height = curH;
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
         ctx.drawImage(img, 0, 0, curW, curH);
-        out = canvas.toDataURL("image/jpeg", Math.max(0.28, quality));
+        out = canvas.toDataURL("image/jpeg", Math.max(0.55, quality));
+        if (Math.max(curW, curH) <= minDim) break;
       }
       resolve(out);
     };

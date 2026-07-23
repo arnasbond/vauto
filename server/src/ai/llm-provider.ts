@@ -413,11 +413,11 @@ const GEMINI_JSON_RETRY_BASE_MS = 400;
 /** 429 RESOURCE_EXHAUSTED needs longer cooldown than generic 503. */
 const GEMINI_429_RETRY_BASE_MS = 2_500;
 /**
- * Multi-photo vision: never send all 6 in one generateContent call —
- * Tier-1 TPM/RPM trips on large multimodal payloads. Chunk sequentially.
+ * Multi-photo vision: send the FULL gallery + documents in ONE Gemini context.
+ * Chunking (2-of-N) was disabling cross-photo OCR fusion vs the standalone benchmark.
+ * Cap matches client wire (up to 10 images).
  */
-const VISION_IMAGES_PER_REQUEST = 2;
-const VISION_CHUNK_GAP_MS = 900;
+const VISION_MAX_IMAGES_PER_REQUEST = 10;
 
 const sleep = (ms: number): Promise<void> =>
   new Promise((resolve) => setTimeout(resolve, ms));
@@ -430,14 +430,6 @@ function parseGeminiStatus(err: unknown): number | null {
   if (/RESOURCE_EXHAUSTED|Too Many Requests|rate.?limit/i.test(msg)) return 429;
   if (/UNAVAILABLE|overloaded|high demand|too many/i.test(msg)) return 503;
   return null;
-}
-
-function chunkArray<T>(items: T[], size: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < items.length; i += size) {
-    out.push(items.slice(i, i + size));
-  }
-  return out;
 }
 
 function asRecord(v: unknown): Record<string, unknown> {
@@ -659,13 +651,15 @@ export async function unifiedLlmJson(
   const geminiKey = resolveGeminiApiKey();
   const images = imageDataUrls.filter(Boolean);
   const visionQuotaFailFast = images.length > 0;
+  const visionImages = images.slice(0, VISION_MAX_IMAGES_PER_REQUEST);
   console.log(
     `[vision] unifiedLlmJson enter ${JSON.stringify({
       hasApiKey: Boolean(geminiKey),
       temperature,
       promptChars: prompt.length,
-      images: summarizeImageUrlsForLog(images),
-      chunkSize: VISION_IMAGES_PER_REQUEST,
+      images: summarizeImageUrlsForLog(visionImages),
+      singleContext: true,
+      maxImages: VISION_MAX_IMAGES_PER_REQUEST,
       hasTextFallback: Boolean(input.userTextFallback?.trim()),
     })}`
   );
@@ -675,97 +669,17 @@ export async function unifiedLlmJson(
   }
 
   try {
-    let result: Record<string, unknown>;
+    const result = await unifiedLlmJsonSingle(
+      visionImages.length > 1
+        ? `${prompt}
 
-    if (images.length <= VISION_IMAGES_PER_REQUEST) {
-      result = await unifiedLlmJsonSingle(
-        prompt,
-        images,
-        systemInstruction,
-        temperature,
-        visionQuotaFailFast
-      );
-    } else {
-      const chunks = chunkArray(images, VISION_IMAGES_PER_REQUEST);
-      console.log(
-        `[vision] unifiedLlmJson chunked ${JSON.stringify({
-          totalImages: images.length,
-          chunkCount: chunks.length,
-          perRequest: VISION_IMAGES_PER_REQUEST,
-          gapMs: VISION_CHUNK_GAP_MS,
-        })}`
-      );
-      const parts: Record<string, unknown>[] = [];
-      let quotaFallbackResult: Record<string, unknown> | null = null;
-      for (let i = 0; i < chunks.length; i++) {
-        if (i > 0) await sleep(VISION_CHUNK_GAP_MS);
-        const start = i * VISION_IMAGES_PER_REQUEST + 1;
-        const end = Math.min(
-          (i + 1) * VISION_IMAGES_PER_REQUEST,
-          images.length
-        );
-        const chunkPrompt = `${prompt}
-
-[Vision chunk ${i + 1}/${chunks.length}: photos ${start}-${end} of ${images.length}. Extract every visible vehicle/product detail from THESE photos into the same JSON schema. Description may be partial — later chunks will be merged.]`;
-        console.log(
-          `[vision] unifiedLlmJson chunk start ${JSON.stringify({
-            chunk: i + 1,
-            of: chunks.length,
-            photoRange: `${start}-${end}`,
-            images: summarizeImageUrlsForLog(chunks[i]!),
-          })}`
-        );
-        try {
-          const part = await unifiedLlmJsonSingle(
-            chunkPrompt,
-            chunks[i]!,
-            systemInstruction,
-            temperature,
-            true
-          );
-          parts.push(part);
-          console.log(
-            `[vision] unifiedLlmJson chunk ok ${JSON.stringify({
-              chunk: i + 1,
-              title: String(part.title ?? "").slice(0, 60),
-              descriptionChars: String(part.description ?? "").length,
-            })}`
-          );
-        } catch (chunkErr) {
-          if (!isGeminiQuotaExhaustedError(chunkErr)) throw chunkErr;
-          console.warn(
-            `[vision] unifiedLlmJson chunk ${i + 1} hit 429 — switching to text fallback`
-          );
-          if (parts.length) {
-            const partial = mergeVisionJsonChunks(parts);
-            const textPart = resolveTextFallbackPayload(
-              input,
-              `chunk_${i + 1}_quota_partial`
-            );
-            const merged = mergeVisionJsonChunks([partial, textPart]);
-            if (
-              String(textPart.description ?? "").length >
-              String(partial.description ?? "").length
-            ) {
-              merged.description = textPart.description;
-            }
-            merged.technicalFields = {
-              ...asRecord(merged.technicalFields),
-              visionQuotaFallback: "true",
-            };
-            quotaFallbackResult = merged;
-          } else {
-            quotaFallbackResult = resolveTextFallbackPayload(
-              input,
-              `chunk_${i + 1}_quota`
-            );
-          }
-          break;
-        }
-      }
-      result =
-        quotaFallbackResult ?? mergeVisionJsonChunks(parts);
-    }
+[Single Vision context: ALL ${visionImages.length} photos (gallery + documents) are attached together. Cross-reference the tech passport / registration OCR with vehicle photos in one pass — do not treat them as separate batches.]`
+        : prompt,
+      visionImages,
+      systemInstruction,
+      temperature,
+      visionQuotaFailFast
+    );
 
     console.log(
       `[vision] unifiedLlmJson ok ${JSON.stringify({
@@ -774,7 +688,8 @@ export async function unifiedLlmJson(
         descriptionChars: String(
           (result as { description?: unknown }).description ?? ""
         ).length,
-        chunked: images.length > VISION_IMAGES_PER_REQUEST,
+        chunked: false,
+        singleContextImages: visionImages.length,
         quotaFallback: String(
           asRecord(result.technicalFields).visionQuotaFallback ?? ""
         ) === "true",

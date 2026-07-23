@@ -4,6 +4,7 @@ import { useEffect, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
+import { AgentChatMarkdown } from "@/components/home/AgentChatMarkdown";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { PrePublishListingCard } from "@/components/home/PrePublishListingCard";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
@@ -286,7 +287,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                   </>
                 ) : (
                   <>
-                    {display}
+                    <AgentChatMarkdown text={display} />
                     {messageChips.length > 0 && !cardPayload && (
                       <AgentQuickReplyChips
                         options={messageChips}

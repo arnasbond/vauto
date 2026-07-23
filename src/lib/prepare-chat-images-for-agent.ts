@@ -1,17 +1,21 @@
 import { compressDataUrl } from "@/lib/native-media";
 
-/** Max images on the agent stream wire (all session photos). */
-export const AGENT_VISION_MAX_DATA_IMAGES = 6;
+/** Max images on the agent stream wire (full single Gemini context). */
+export const AGENT_VISION_MAX_DATA_IMAGES = 10;
 
-/** Listing / car photos — keep POST payload under ~50mb for 6 images. */
+/** Listing / car photos — keep POST payload under Express 50mb for ≤10 images. */
 const LISTING_PHOTO_MAX_DIM = 1600;
 const LISTING_PHOTO_QUALITY = 0.8;
 const LISTING_PHOTO_MAX_CHARS = 520_000;
 
-/** Tech passport / document OCR — high-res but still wire-safe. */
-const DOCUMENT_PHOTO_MAX_DIM = 1920;
-const DOCUMENT_PHOTO_QUALITY = 0.9;
-const DOCUMENT_PHOTO_MAX_CHARS = 900_000;
+/**
+ * Tech passport / registration OCR — preserve fine print (kW, VIN, model variants).
+ * Prefer native resolution; only downscale when over budget, never below minDim.
+ */
+const DOCUMENT_PHOTO_MAX_DIM = 2800;
+const DOCUMENT_PHOTO_MIN_DIM = 2200;
+const DOCUMENT_PHOTO_QUALITY = 0.95;
+const DOCUMENT_PHOTO_MAX_CHARS = 2_800_000;
 
 /**
  * Pre-resize listing / car photos before Base64 wire encoding.
@@ -37,7 +41,8 @@ export async function compressForAgentVisionWire(
 }
 
 /**
- * Tech passport / document OCR — max 1920px, JPEG 0.9 (sharp text, not raw multi-MB).
+ * Tech passport / document OCR — up to 2800px @ JPEG 0.95.
+ * Skip re-encode when already under budget so native detail survives.
  */
 export async function compressForAgentDocumentVision(
   dataUrl: string
@@ -45,9 +50,10 @@ export async function compressForAgentDocumentVision(
   if (!dataUrl.startsWith("data:image")) return dataUrl;
   return compressDataUrl(dataUrl, {
     maxDim: DOCUMENT_PHOTO_MAX_DIM,
+    minDim: DOCUMENT_PHOTO_MIN_DIM,
     quality: DOCUMENT_PHOTO_QUALITY,
     maxChars: DOCUMENT_PHOTO_MAX_CHARS,
-    force: true,
+    force: false,
   });
 }
 
@@ -103,7 +109,7 @@ export async function looksLikeDocumentDataUrl(dataUrl: string): Promise<boolean
 }
 
 /**
- * Compress for vision: documents ≤1920/0.9; cars ≤1600/0.8.
+ * Compress for vision: documents ≤2800/0.95 (OCR); cars ≤1600/0.8.
  */
 export async function compressForAgentVisionSmart(
   dataUrl: string
@@ -118,9 +124,9 @@ export async function compressForAgentVisionSmart(
 /**
  * Prepare chat photos for the agent wire.
  *
- * - Passports: ≤1920px @ JPEG 0.9 (OCR-sharp, payload-safe).
+ * - Passports: ≤2800px @ JPEG 0.95 (OCR-sharp fine print).
  * - Cars: ≤1600px @ JPEG 0.8.
- * - ALL files sent (zero pre-filter). Gallery strip happens post-Vision on server.
+ * - ALL files sent together in one Gemini context (up to 10). Gallery strip post-Vision.
  * Sequential loops — never Promise.all on heavy canvas work.
  */
 export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
@@ -163,7 +169,7 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
   }
 
   const ban = new Set(suspectedDocumentUrls);
-  // Docs first = primary/ground-truth tech sources for chunked Gemini OCR.
+  // Docs first = primary/ground-truth OCR sources in the single Gemini context.
   const docsFirst = [
     ...prepared.filter((u) => ban.has(u)),
     ...prepared.filter((u) => !ban.has(u)),
@@ -178,7 +184,7 @@ export async function prepareChatImagesForAgent(rawUrls: string[]): Promise<{
 }
 
 /**
- * Keep ALL attached media for Gemini Vision (http + data), up to 6.
+ * Keep ALL attached media for Gemini Vision (http + data), up to 10.
  * Never drop data-URL tech passports when some cars are already http.
  */
 export function selectAgentVisionUrls(urls: string[]): string[] {

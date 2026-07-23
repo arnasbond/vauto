@@ -37,7 +37,7 @@ app.post(
 );
 /**
  * Multi-photo agent uploads (up to 6× Base64 data URLs) need a large JSON body.
- * Client pre-resizes cars to ≤1600px / docs ≤1920px; keep 50mb headroom for bursts.
+ * Client pre-resizes cars to ≤1600px / docs ≤2800px (OCR); keep 50mb headroom for ≤10-image Vision.
  */
 const JSON_BODY_LIMIT = process.env.JSON_BODY_LIMIT?.trim() || "50mb";
 app.use(express.json({ limit: JSON_BODY_LIMIT }));

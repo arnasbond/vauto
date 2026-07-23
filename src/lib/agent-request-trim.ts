@@ -7,10 +7,12 @@ export const AGENT_MAX_MESSAGE_CHARS = 12_000;
 export const AGENT_MAX_LISTINGS = 48;
 export const AGENT_MAX_LISTING_DESC_CHARS = 160;
 /**
- * Preserve every attached vision URL for Gemini (http + data), up to 6.
+ * Preserve every attached vision URL for Gemini (http + data), up to 10.
  * Do NOT drop data-URL tech passports when some car photos are already http —
- * that previously sent 5/6 and broke OCR fields A/B/D.3/P.1/P.3.
+ * that previously truncated the set and broke OCR fields A/B/D.3/P.1/P.3.
  */
+const AGENT_VISION_URLS_PER_POST = 10;
+
 function selectVisionUrlsForAgentPost(urls: string[]): string[] {
   if (!urls.length) return [];
   const out: string[] = [];
@@ -22,7 +24,7 @@ function selectVisionUrlsForAgentPost(urls: string[]): string[] {
     if (!isHttp && !u.startsWith("data:")) continue;
     seen.add(u);
     out.push(u);
-    if (out.length >= 6) break;
+    if (out.length >= AGENT_VISION_URLS_PER_POST) break;
   }
   return out;
 }
@@ -73,13 +75,14 @@ export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {
     };
   }
 
-  // Cap image payloads for the agent POST. Draft may hold all 6 session
-  // photos as data URLs for publish — never ship that full set to Render.
+  // Cap image payloads for the agent POST (single Gemini context, ≤10).
   if (context) {
-    const pendingAll = (context.pendingImageUrls ?? []).filter(Boolean).slice(0, 6);
+    const pendingAll = (context.pendingImageUrls ?? [])
+      .filter(Boolean)
+      .slice(0, AGENT_VISION_URLS_PER_POST);
     const draftAll = (context.listingDraft?.orderedImageUrls ?? [])
       .filter(Boolean)
-      .slice(0, 6);
+      .slice(0, AGENT_VISION_URLS_PER_POST);
     const totalCount =
       context.pendingImageCount ||
       Math.max(pendingAll.length, draftAll.length) ||

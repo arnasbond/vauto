@@ -17,16 +17,16 @@ export interface VautoAgentStreamHandlers {
 }
 
 /** Marker so browser E2E can confirm this module is live. */
-export const AGENT_STREAM_WIRE_CAP = "wire-cap-v7-chunk2-tiny";
+export const AGENT_STREAM_WIRE_CAP = "wire-cap-v8-single-context-10";
 
-const MAX_DATA_URLS_ON_WIRE = 6;
+const MAX_DATA_URLS_ON_WIRE = 10;
 
 function isHttpUrl(url: string): boolean {
   return /^https?:\/\//i.test(url);
 }
 
 /**
- * Keep up to 6 vision URLs on the wire (http + data).
+ * Keep up to 10 vision URLs on the wire (http + data) for one Gemini context.
  * Preserve order and never drop data-URL documents when http cars are present.
  */
 export function capImageUrlsForAgentWire(urls: unknown): string[] {

@@ -2,6 +2,7 @@
 
 import { Sparkles } from "lucide-react";
 import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentChatBubble";
+import { AgentChatMarkdown } from "@/components/home/AgentChatMarkdown";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
@@ -135,7 +136,7 @@ export function FlowAgentStrip({
                 </>
               ) : (
                 <>
-                  {display}
+                  <AgentChatMarkdown text={display} />
                   {messageChips.length > 0 && (
                     <AgentQuickReplyChips
                       options={messageChips}
