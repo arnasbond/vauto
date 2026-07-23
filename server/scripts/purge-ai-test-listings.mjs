@@ -11,8 +11,18 @@ import "dotenv/config";
 import pg from "pg";
 
 const dryRun = process.argv.includes("--dry-run");
-const connectionString =
+let connectionString =
   process.env.DATABASE_URL ?? "postgresql://vauto:vauto@localhost:5432/vauto";
+
+// Render (and most hosted Postgres) require TLS. Ensure sslmode is set for remote URLs.
+const isLocal =
+  /localhost|127\.0\.0\.1/i.test(connectionString) ||
+  connectionString.includes("@postgres:");
+if (!isLocal && !/[?&]sslmode=/i.test(connectionString)) {
+  connectionString += connectionString.includes("?")
+    ? "&sslmode=require"
+    : "?sslmode=require";
+}
 
 const DEMO_ID_RE = /^(lt-|demo-|seller-)/i;
 
@@ -27,7 +37,10 @@ const AI_ATTR_KEYS = [
   "_vautoCategory",
 ];
 
-const pool = new pg.Pool({ connectionString });
+const pool = new pg.Pool({
+  connectionString,
+  ssl: isLocal ? undefined : { rejectUnauthorized: false },
+});
 
 async function tableExists(client, name) {
   const { rows } = await client.query(

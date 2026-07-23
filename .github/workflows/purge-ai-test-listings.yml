@@ -42,7 +42,14 @@ jobs:
             echo "Failed to resolve DATABASE_URL"
             exit 1
           fi
+          # Prefer external + force TLS for Actions runners
+          case "$URL" in
+            *sslmode=*) ;;
+            *\?*) URL="${URL}&sslmode=require" ;;
+            *) URL="${URL}?sslmode=require" ;;
+          esac
           export DATABASE_URL="$URL"
+          export NODE_TLS_REJECT_UNAUTHORIZED="${NODE_TLS_REJECT_UNAUTHORIZED:-0}"
           ARGS=""
           if [ "$DRY_RUN" = "true" ]; then
             ARGS="--dry-run"
