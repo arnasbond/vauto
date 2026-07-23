@@ -16,12 +16,15 @@ export interface ChatPhotoUploadFlowDeps {
       fromSearchBar?: boolean;
       omitPriorListingDraft?: boolean;
       freshListingSession?: boolean;
+      skipUserBubble?: boolean;
     }
   ) => Promise<unknown>;
   setOpen?: (open: boolean) => void;
   /** e.g. redirect /add → / before opening agent chat */
   navigateBeforeSend?: () => void | Promise<void>;
   text?: string;
+  /** Hide wire/instruction text from the visible chat bubble (photos still show). */
+  skipUserBubble?: boolean;
   onBusyChange?: (busy: boolean) => void;
   onErrorMessage?: (message: string) => void;
   /** Clear stale myListings / prior draft titles for this upload. */
@@ -49,6 +52,7 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
         await deps.sendAgentMessage(deps.text?.trim() ?? "", {
           sessionImageUrls: allWire,
           pendingImageUrls: allWire,
+          ...(deps.skipUserBubble ? { skipUserBubble: true } : {}),
           ...(deps.freshListingSession
             ? { omitPriorListingDraft: true, freshListingSession: true }
             : {}),

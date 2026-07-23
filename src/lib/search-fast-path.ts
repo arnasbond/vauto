@@ -4,6 +4,7 @@ export {
   applyStrictSearchBoundaries,
   extractSearchNlFilters,
   isPhysicalGoodsQuery,
+  isRevealActiveResultsIntent,
   isResultSelectionIntent,
   isSearchTopicPivot,
   isServicesDominantQuery,

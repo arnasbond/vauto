@@ -109,6 +109,23 @@ export function isResultSelectionIntent(text: string): boolean {
   return false;
 }
 
+const REVEAL_RESULTS_RE =
+  /^(nematau|nebematau|nesimato|nerandu(\s+(j[uų]|skelbim\w*|rezultat\w*))?|n[eė]ra(\s+(j[uų]|rezultat\w*|skelbim\w*))?|kur\s+(jie|jos|skelbim\w*|rezultat\w*|mano\s+skelbim\w*)|parodyk\s+(juos|jas|man\s+juos|rezultat\w*|skelbim\w*|čia|cia)|kur\s+jie\??)\??\.?$/i;
+
+/**
+ * UI meta-feedback: user cannot see active results on screen.
+ * Must NOT become a keyword search for "Nematau" / "Kur jie?".
+ */
+export function isRevealActiveResultsIntent(text: string): boolean {
+  const t = text.trim().replace(/\s+/g, " ");
+  if (!t || t.length > 48) return false;
+  if (isResultSelectionIntent(t)) return false;
+  if (PHYSICAL_GOODS_RE.test(t) || SERVICES_QUERY_RE.test(t)) return false;
+  // Bare "Parodyk" stays browse-all; only "parodyk juos/rezultatus/…" is reveal.
+  if (/^parodyk$/i.test(t)) return false;
+  return REVEAL_RESULTS_RE.test(t);
+}
+
 function ordinalIndex(text: string): number {
   const t = text.toLowerCase();
   if (/\b(pirm|1)\b/.test(t)) return 0;
@@ -148,6 +165,10 @@ export function significantTokens(text: string): string[] {
 /** Strict NLP: keyword + price + exact city from the latest utterance only. */
 export function extractSearchNlFilters(text: string): SearchNlFilters {
   const raw = text.trim();
+  // UI meta-feedback must never become a product keyword.
+  if (isRevealActiveResultsIntent(raw)) {
+    return { keyword: "" };
+  }
   let working = raw;
 
   let maxPrice: number | undefined;
@@ -228,6 +249,7 @@ export function isSearchTopicPivot(
   const next = nextText.trim();
   if (!prev || !next) return false;
   if (isResultSelectionIntent(next)) return false;
+  if (isRevealActiveResultsIntent(next)) return false;
 
   const prevTokens = new Set(significantTokens(prev));
   const nextTokens = significantTokens(next);

@@ -9,8 +9,24 @@ const TRAILING_PUNCT_RE = /^[\s.,;:!?·]+|[\s.,;:!?·]+$/g;
 
 const PROACTIVE_INTERNAL_RE = /^\[Proaktyvi intervencija:/i;
 
+/** Internal vision/OCR/system instructions that must never appear as chat bubbles. */
+const INTERNAL_INSTRUCTION_USER_RE =
+  /^(analizuok\b|analizuo\w*\s+(šias|sias|visas)\s+nuotrauk|vision\s+ocr|aprašyk\s+tik\s+tai|vienu\s+sakiniu\s+aprašyk|nesiūlyk\s+ankstesni)/i;
+
 export function isProactiveInternalAgentText(text: string): boolean {
   return PROACTIVE_INTERNAL_RE.test(text.trim());
+}
+
+/** True for system/instruction payloads accidentally stored as user/assistant text. */
+export function isInternalInstructionChatText(text: string): boolean {
+  const t = text.trim();
+  if (!t) return false;
+  if (isProactiveInternalAgentText(t)) return true;
+  if (INTERNAL_INSTRUCTION_USER_RE.test(t)) return true;
+  if (/vision\s+ocr/i.test(t) && /aprašyk|analizuok|nuotrauk/i.test(t)) {
+    return true;
+  }
+  return false;
 }
 
 /**

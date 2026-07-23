@@ -81,6 +81,7 @@ import {
   shouldResetSearchSession,
 } from "@/lib/agent-session-memory";
 import {
+  isRevealActiveResultsIntent,
   isResultSelectionIntent,
   listingPathForId,
   resolveRecentListingSelection,
@@ -567,7 +568,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const actions = sanitized.action;
       if (actions.type === "none") return;
 
-      setSearchQuery("");
+      // Keep search bar blank for agent-driven search, but never clear pins here —
+      // pins are the feed sync mechanism (ListingGrid via buildDisplayListings).
+      if (actions.type !== "search") {
+        setSearchQuery("");
+      }
 
       try {
       if (actions.type === "search") {
@@ -576,7 +581,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         clearVisualSearch({ keepInputMode: true });
         setSearchInputMode("text");
         setSearchQuery("");
-        setAgentPinnedListings(actions.listingIds);
+        // Immediate feed sync: pin IDs drive the listing grid/carousel below chat.
+        setAgentPinnedListings(
+          Array.isArray(actions.listingIds) ? [...actions.listingIds] : []
+        );
         if (actions.filters) {
           setMarketplaceFilters(
             mergeAgentIntoMarketplaceFilters(
@@ -1277,6 +1285,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /^keliam\b/i.test(trimmed) ||
         /^keliame\b/i.test(trimmed) ||
         /\bpublikuojam\b/i.test(trimmed) ||
+        /\bpublikuoti\b/i.test(trimmed) ||
         /^🚀?\s*publikuoti$/i.test(trimmed) ||
         /^publikuoti$/i.test(trimmed) ||
         /paruošti\s+skelbim/i.test(trimmed) ||
@@ -1292,6 +1301,48 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (isDirectAgentActionChip(trimmed) && !isHeroSmChip) {
         const handled = await handleDirectAgentChipRef.current(trimmed);
         if (handled) return { ok: true, reply: "" };
+      }
+
+      // UI meta-feedback: re-reveal active search cards (do NOT search "Nematau").
+      if (isRevealActiveResultsIntent(trimmed)) {
+        const pinned = agentPinnedListingIds?.filter(Boolean) ?? [];
+        goToMarketplace("agent");
+        setOpen(false);
+        if (pinned.length) {
+          setAgentPinnedListings(pinned);
+          const reply = `Štai ${pinned.length} rezultatai ekrane — slinkite žemyn prie skelbimų.`;
+          setMessages((prev) =>
+            [
+              ...prev,
+              { role: "user" as const, text: trimmed },
+              { role: "assistant" as const, text: reply },
+            ].slice(-6)
+          );
+          speakReply(reply);
+          window.setTimeout(() => focusSearchOutcome(pinned.length), 80);
+          touchAgentSessionActivity();
+          return {
+            ok: true,
+            reply,
+            actions: {
+              type: "search",
+              searchQuery: searchQuery || "",
+              listingIds: pinned,
+            },
+          };
+        }
+        const reply =
+          "Kol kas aktyvių paieškos rezultatų nėra. Parašykite, ko ieškote — pvz. „Volvo“ ar „gitara“.";
+        setMessages((prev) =>
+          [
+            ...prev,
+            { role: "user" as const, text: trimmed },
+            { role: "assistant" as const, text: reply },
+          ].slice(-6)
+        );
+        speakReply(reply);
+        touchAgentSessionActivity();
+        return { ok: true, reply, actions: { type: "none" } };
       }
 
       if (resolveBrowseAllIntent(trimmed)) {
@@ -1477,13 +1528,37 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (priceFromTurn != null && priceFromTurn > 0) {
         sessionLockedPriceRef.current = priceFromTurn;
       }
+      const priceFromExistingDraft =
+        aiDraft && !(aiDraft.price > 0)
+          ? parsePriceFromChatInput(
+              [
+                String(aiDraft.description ?? ""),
+                String(aiDraft.title ?? ""),
+                String(
+                  (aiDraft.attributes as Record<string, unknown> | undefined)
+                    ?.priceLabel ?? ""
+                ),
+                String(
+                  (aiDraft.attributes as Record<string, unknown> | undefined)
+                    ?.price ?? ""
+                ),
+              ]
+                .filter(Boolean)
+                .join(" ")
+            )
+          : null;
+      if (priceFromExistingDraft != null && priceFromExistingDraft > 0) {
+        sessionLockedPriceRef.current = priceFromExistingDraft;
+      }
       const lockedPrice = sessionLockedPriceRef.current;
       const effectivePrice =
         lockedPrice != null && lockedPrice > 0
           ? lockedPrice
           : priceFromTurn != null && priceFromTurn > 0
             ? priceFromTurn
-            : null;
+            : priceFromExistingDraft != null && priceFromExistingDraft > 0
+              ? priceFromExistingDraft
+              : null;
       let draftForTurn = aiDraft
         ? effectivePrice != null &&
           (!(aiDraft.price > 0) || aiDraft.price !== effectivePrice)
@@ -1632,10 +1707,42 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       if (flowDecision.kind === "show_confirmation" && draftForTurn) {
         const priceFromMsg =
           effectivePrice ?? parsePriceFromChatInput(trimmed);
+        // Hydrate price from draft body when user already set it earlier in chat
+        // (Publikuoti must open PrePublish immediately — no re-ask for price).
+        const priceFromDraftBody =
+          !(draftForTurn.price > 0)
+            ? parsePriceFromChatInput(
+                [
+                  String(draftForTurn.description ?? ""),
+                  String(draftForTurn.title ?? ""),
+                  String(
+                    (draftForTurn.attributes as Record<string, unknown> | undefined)
+                      ?.priceLabel ?? ""
+                  ),
+                  String(
+                    (draftForTurn.attributes as Record<string, unknown> | undefined)
+                      ?.price ?? ""
+                  ),
+                ]
+                  .filter(Boolean)
+                  .join(" ")
+              )
+            : null;
+        const resolvedPrice =
+          priceFromMsg != null && priceFromMsg > 0
+            ? priceFromMsg
+            : draftForTurn.price > 0
+              ? draftForTurn.price
+              : priceFromDraftBody != null && priceFromDraftBody > 0
+                ? priceFromDraftBody
+                : null;
+        if (resolvedPrice != null && resolvedPrice > 0) {
+          sessionLockedPriceRef.current = resolvedPrice;
+        }
         const draftWithPrice =
-          priceFromMsg != null &&
-          (!(draftForTurn.price > 0) || draftForTurn.price !== priceFromMsg)
-            ? { ...draftForTurn, price: priceFromMsg }
+          resolvedPrice != null &&
+          (!(draftForTurn.price > 0) || draftForTurn.price !== resolvedPrice)
+            ? { ...draftForTurn, price: resolvedPrice }
             : draftForTurn;
 
         const readiness = evaluatePrePublishReadiness({
@@ -1821,14 +1928,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             price: priceFromTurn,
           });
           setMessages((prev) => {
+            const assistantText =
+              confirmed.reply.trim() ||
+              (confirmed.prePublishCard ? PRE_PUBLISH_CARD_INTRO : "");
             const next = [
               ...prev,
               { role: "user" as const, text: trimmed },
-              ...(confirmed.reply.trim()
+              ...(assistantText || confirmed.prePublishCard
                 ? [
                     {
                       role: "assistant" as const,
-                      text: confirmed.reply,
+                      text: assistantText,
                       ...(confirmed.prePublishCard
                         ? { prePublishCard: confirmed.prePublishCard }
                         : {}),
@@ -1891,14 +2001,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               price: locked,
             });
             setMessages((prev) => {
+              const assistantText =
+                confirmed.reply.trim() ||
+                (confirmed.prePublishCard ? PRE_PUBLISH_CARD_INTRO : "");
               const next = [
                 ...prev,
                 { role: "user" as const, text: trimmed },
-                ...(confirmed.reply.trim()
+                ...(assistantText || confirmed.prePublishCard
                   ? [
                       {
                         role: "assistant" as const,
-                        text: confirmed.reply,
+                        text: assistantText,
                         ...(confirmed.prePublishCard
                           ? { prePublishCard: confirmed.prePublishCard }
                           : {}),
@@ -3011,6 +3124,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         aiDraft &&
         (/^viskas\b/i.test(trimmed) ||
           /\bpublikuojam\b/i.test(trimmed) ||
+          /\bpublikuoti\b/i.test(trimmed) ||
           /^🚀?\s*publikuoti$/i.test(trimmed) ||
           /^publikuoti$/i.test(trimmed) ||
           /paruošti\s+skelbim/i.test(trimmed) ||

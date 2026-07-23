@@ -192,14 +192,13 @@ function AddPageInner() {
       sendAgentMessage,
       setOpen,
       freshListingSession: true,
+      // Vision OCR instructions live server-side — never show them as a user bubble.
+      skipUserBubble: true,
       navigateBeforeSend: () => {
         router.replace(isFashion ? "/fashion" : "/");
       },
       onBusyChange: setBusy,
-      text:
-        "Analizuok šias nuotraukas Vision OCR: aprašyk TIK tai, ką matai kadre, " +
-        "ir suformuok skelbimo pavadinimą pagal vizualų objektą " +
-        "(pvz. dekoratyvinė dėžutė). Nesiūlyk ankstesnių skelbimų.",
+      text: "",
     });
   };
 

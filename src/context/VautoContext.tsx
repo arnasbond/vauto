@@ -578,11 +578,10 @@ function VautoFacade({
     }
   }, [hydrated, searchDispatch]);
 
-  useEffect(() => {
-    if (!searchState.searchQuery.trim()) {
-      searchDispatch.clearAgentPinnedListings();
-    }
-  }, [searchState.searchQuery, searchDispatch]);
+  // Agent search pins the feed via agentPinnedListingIds while keeping the
+  // search bar blank. Do NOT clear pins when searchQuery is empty — that raced
+  // applyActions(setPins → setQuery("")) and wiped the listing grid after
+  // "Radau N variantų…". User typing still clears pins in handleSearchQuery.
 
   const handleSearchQuery = useCallback(
     (q: string) => {

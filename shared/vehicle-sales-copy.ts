@@ -176,14 +176,10 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
   if (!mileage) missing.push("faktinę ridą (km)");
   if (!transmission) missing.push("pavarų dėžę (jei dar nepatvirtinta)");
 
-  lines.push("");
   if (missing.length) {
+    lines.push("");
     lines.push(
-      `💡 **Patarimas:** Skelbimas paruoštas pagal dokumentą ir nuotraukas. Dar galite papildyti: ${missing.join(", ")}. Nerašykite spėjamų skaičių — tik tikrus duomenis. Kai tekstas tinka — parašykite „Tinka“ arba „Publikuojam“.`
-    );
-  } else {
-    lines.push(
-      "💡 **Patarimas:** Skelbimas paruoštas — parašykite „Tinka“, „Publikuojam“ arba „Keliam“, kad atidaryčiau PrePublish peržiūrą."
+      `💡 Dar galite papildyti: ${missing.join(", ")}. Nerašykite spėjamų skaičių — tik tikrus duomenis.`
     );
   }
 

@@ -95,6 +95,7 @@ import {
   type GeminiPart,
 } from "./supervisor-tool-runner.js";
 import {
+  isRevealActiveResultsIntent,
   isResultSelectionIntent,
   listingPathForId,
   resolveRecentListingSelection,
@@ -562,9 +563,16 @@ async function runVautoAgentInner(
           ) ?? "DRAFT_READY",
       }
     );
+    // Lean Step-3: gate + chips only. Full sales copy lives on listingDraft —
+    // never concatenate title/description into the chat bubble (avoids
+    // "Condorwood… Skelbimas paruoštas… Condorwood…" duplication).
+    const titleHint = String(nextTitle ?? "").trim();
+    const leanReply = titleHint
+      ? `${TEXT_DRAFT_READY_GATE}\n\nParuošiau: ${titleHint}`
+      : TEXT_DRAFT_READY_GATE;
     return {
       ok: true,
-      reply: `${TEXT_DRAFT_READY_GATE}\n\n${nextDescription}`,
+      reply: leanReply,
       quickReplies: [...TEXT_DRAFT_READY_CHIPS],
       toolCalls: [],
       actions: {
@@ -1024,6 +1032,35 @@ async function runVautoAgentInner(
       payload: e.payload,
     }))
   );
+
+  // UI meta-feedback — re-emit pinned results; never keyword-search "Nematau".
+  if (lastUserText && isRevealActiveResultsIntent(lastUserText)) {
+    const recentIds = req.context.recentSearchListingIds?.filter(Boolean) ?? [];
+    if (recentIds.length) {
+      emitAgentEvent(onEvent, {
+        type: "status",
+        message: "Rodau rezultatus ekrane…",
+      });
+      return {
+        ok: true,
+        reply: `Štai ${recentIds.length} rezultatai ekrane — slinkite žemyn prie skelbimų.`,
+        toolCalls: [],
+        actions: {
+          type: "search",
+          searchQuery: req.context.activeSearchFilters?.query ?? "",
+          listingIds: recentIds,
+          filters: req.context.activeSearchFilters ?? undefined,
+        },
+      };
+    }
+    return {
+      ok: true,
+      reply:
+        "Kol kas aktyvių paieškos rezultatų nėra. Parašykite, ko ieškote — pvz. „Volvo“ ar „gitara“.",
+      toolCalls: [],
+      actions: { type: "none" },
+    };
+  }
 
   // Instant selection fast-path — open a recent search hit without Gemini.
   if (lastUserText && isResultSelectionIntent(lastUserText)) {

@@ -25,7 +25,10 @@ import {
   buildJobSearchConversationalReply,
   isJobSearchQuery,
 } from "./universal-search-intent.js";
-import { extractSearchNlFilters } from "../shared/search-fast-path.js";
+import {
+  extractSearchNlFilters,
+  isRevealActiveResultsIntent,
+} from "../shared/search-fast-path.js";
 
 export type GeminiPart =
   | { text: string }
@@ -58,6 +61,7 @@ export function shouldForceSupervisorTools(text: string): boolean {
   const q = text.trim();
   if (q.length < 3) return false;
   if (resolveBrowseAllIntent(q)) return false;
+  if (isRevealActiveResultsIntent(q)) return false;
   if (detectServerSellIntent(q)) return false;
   if (isConversationalSearchIntent(q)) return false;
   return PRODUCT_SEARCH_RE.test(q) || SEARCH_VERB_RE.test(q);

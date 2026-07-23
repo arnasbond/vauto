@@ -1,6 +1,7 @@
 import type { AgentChatMessage } from "@/lib/vauto-agent-client";
 import type { VautoAgentAction } from "@/lib/vauto-agent-client";
 import {
+  isInternalInstructionChatText,
   isProactiveInternalAgentText,
   sanitizeAgentReplyForDisplay,
 } from "@/lib/agent-reply-display";
@@ -99,14 +100,23 @@ export function resolveSupervisorChatTurn(
 export function resolveVisibleAgentBubbles(
   messages: AgentChatMessage[]
 ): AgentChatMessage[] {
-  const cleaned = messages.filter(
-    (m) => !isProactiveInternalAgentText(m.text?.trim() ?? "")
-  );
+  const cleaned = messages.filter((m) => {
+    const text = m.text?.trim() ?? "";
+    if (!text) return Boolean(m.imageUrls?.length);
+    if (isProactiveInternalAgentText(text)) return false;
+    if (isInternalInstructionChatText(text)) {
+      // Keep photo-only bubble if instruction text leaked with media.
+      return Boolean(m.imageUrls?.length);
+    }
+    return true;
+  });
   const recent = cleaned.slice(-14);
   const out: AgentChatMessage[] = [];
 
   for (const m of recent) {
     if (m.role === "assistant") {
+      const raw = m.text?.trim() ?? "";
+      if (isInternalInstructionChatText(raw)) continue;
       const display = sanitizeAgentReplyForDisplay(m.text) || m.text;
       if (!display.trim() || isBlockedFallbackBubble(display)) continue;
       out.push({
@@ -115,8 +125,14 @@ export function resolveVisibleAgentBubbles(
       });
       continue;
     }
-    const hasText = Boolean(m.text?.trim());
+    const rawText = m.text?.trim() ?? "";
     const hasMedia = Boolean(m.imageUrls?.length);
+    if (isInternalInstructionChatText(rawText)) {
+      if (!hasMedia) continue;
+      out.push({ ...m, text: "" });
+      continue;
+    }
+    const hasText = Boolean(rawText);
     if (!hasText && !hasMedia) continue;
     out.push(m);
   }
