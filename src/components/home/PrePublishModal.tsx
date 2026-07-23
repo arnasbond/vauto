@@ -12,8 +12,11 @@ import {
   Star,
   X,
 } from "lucide-react";
-import { MOCK_CATEGORY_LABELS } from "@/data/mockListings";
 import { cn } from "@/lib/cn";
+import {
+  getDynamicAttributeEntries,
+  humanizeAttributeKey,
+} from "@/lib/listing-dynamic-attributes";
 import {
   getPrePublishVisibilityOption,
   PRE_PUBLISH_VISIBILITY_OPTIONS,
@@ -32,36 +35,6 @@ const TIER_BADGE: Record<
   standard: { badge: "Free", subtitle: "Nemokamas įkėlimas" },
   popular: { badge: "Boost", subtitle: "Iškelti į viršų" },
   maximum: { badge: "Premium", subtitle: "Maksimalus matomumas" },
-};
-
-const EDITABLE_SPEC_KEYS = [
-  "make",
-  "model",
-  "year",
-  "firstRegistration",
-  "engine",
-  "powerKw",
-  "fuelType",
-  "transmission",
-  "mileage",
-  "color",
-  "seats",
-  "bodyType",
-] as const;
-
-const SPEC_LABELS: Record<string, string> = {
-  make: "Markė",
-  model: "Modelis",
-  year: "Metai",
-  firstRegistration: "Registracija",
-  engine: "Variklis",
-  powerKw: "Galia (kW)",
-  fuelType: "Kuras",
-  transmission: "Pavarų dėžė",
-  mileage: "Rida (km)",
-  color: "Spalva",
-  seats: "Vietos",
-  bodyType: "Kėbulas",
 };
 
 export interface PrePublishFieldPatch {
@@ -83,10 +56,6 @@ export interface PrePublishModalProps {
   onPublish: (sourceRect: DOMRect, visibilityId: PrePublishVisibilityId) => void | Promise<void>;
   onGalleryChange?: (imageUrls: string[]) => void;
   onFieldsChange?: (patch: PrePublishFieldPatch) => void;
-}
-
-function categoryOptions(): ListingCategory[] {
-  return Object.keys(MOCK_CATEGORY_LABELS) as ListingCategory[];
 }
 
 function attrValue(
@@ -209,9 +178,10 @@ export function PrePublishModal({
     }
   }, [flying, gallery.length, onPublish, publishing, visibilityId]);
 
-  const visibleSpecs = EDITABLE_SPEC_KEYS.filter(
-    (key) => attrValue(attributes, key) || key === "mileage" || key === "year"
-  ).slice(0, 10);
+  // Schema-less: only render key-value specs that AI/OCR actually populated.
+  const visibleSpecs = getDynamicAttributeEntries(
+    attributes as Record<string, unknown> | undefined
+  ).slice(0, 16);
 
   if (!open || typeof document === "undefined") return null;
 
@@ -365,49 +335,26 @@ export function PrePublishModal({
               />
             </label>
 
-            <div className="grid grid-cols-2 gap-3">
-              <label className="block space-y-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
-                  Kaina (€)
-                </span>
-                <input
-                  type="number"
-                  min={0}
-                  inputMode="decimal"
-                  value={card.price > 0 ? card.price : ""}
-                  placeholder="0"
-                  disabled={busy || !onFieldsChange}
-                  onChange={(e) => {
-                    const n = Number(e.target.value);
-                    patchField({
-                      price: Number.isFinite(n) && n >= 0 ? n : 0,
-                    });
-                  }}
-                  className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-bold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
-                />
-              </label>
-              <label className="block space-y-1">
-                <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
-                  Kategorija
-                </span>
-                <select
-                  value={card.category ?? "other"}
-                  disabled={busy || !onFieldsChange}
-                  onChange={(e) =>
-                    patchField({
-                      category: e.target.value as ListingCategory,
-                    })
-                  }
-                  className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
-                >
-                  {categoryOptions().map((cat) => (
-                    <option key={cat} value={cat}>
-                      {MOCK_CATEGORY_LABELS[cat] ?? cat}
-                    </option>
-                  ))}
-                </select>
-              </label>
-            </div>
+            <label className="block space-y-1">
+              <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
+                Kaina (€)
+              </span>
+              <input
+                type="number"
+                min={0}
+                inputMode="decimal"
+                value={card.price > 0 ? card.price : ""}
+                placeholder="0"
+                disabled={busy || !onFieldsChange}
+                onChange={(e) => {
+                  const n = Number(e.target.value);
+                  patchField({
+                    price: Number.isFinite(n) && n >= 0 ? n : 0,
+                  });
+                }}
+                className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-bold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
+              />
+            </label>
 
             <label className="block space-y-1">
               <span className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
@@ -457,17 +404,20 @@ export function PrePublishModal({
               <p className="text-sm font-semibold text-[var(--vauto-text)]">
                 Specifikacijos
               </p>
+              <p className="text-[11px] text-[var(--vauto-text-muted)]">
+                Dinaminiai AI atributai — rodomi tik užpildyti laukai.
+              </p>
               <div className="grid grid-cols-2 gap-2">
-                {visibleSpecs.map((key) => (
-                  <label key={key} className="block space-y-1">
+                {visibleSpecs.map((spec) => (
+                  <label key={spec.key} className="block space-y-1">
                     <span className="text-[10px] font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
-                      {SPEC_LABELS[key] ?? key}
+                      {spec.label || humanizeAttributeKey(spec.key)}
                     </span>
                     <input
                       type="text"
-                      value={attrValue(attributes, key)}
+                      value={attrValue(attributes, spec.key)}
                       disabled={busy || !onFieldsChange}
-                      onChange={(e) => patchSpec(key, e.target.value)}
+                      onChange={(e) => patchSpec(spec.key, e.target.value)}
                       className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2.5 py-2 text-xs font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] disabled:opacity-70"
                     />
                   </label>

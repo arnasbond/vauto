@@ -4,48 +4,16 @@ import {
   type AdaptiveCategoryKey,
 } from "@/lib/adaptive-categories";
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
+import { getDynamicListingDetailRows } from "@/lib/listing-dynamic-attributes";
 import type { Listing, ListingCategory } from "@/lib/types";
 
 const DEMO_PHONE = "+37061234567";
-
-/** Vehicle-only specification keys — never show on non-auto listings. */
-const AUTOMOTIVE_SPEC_KEYS = new Set([
-  "make",
-  "model",
-  "year",
-  "registrationMonth",
-  "mileage",
-  "engineCc",
-  "powerKw",
-  "powerHp",
-  "fuelType",
-  "gearbox",
-  "bodyType",
-  "steering",
-  "driveType",
-  "defects",
-  "vehicleOptions",
-  "taExpiry",
-  "sdkCode",
-  "vin",
-]);
-
-/** Fashion-only keys — hide when the listing is not clothing. */
-const FASHION_SPEC_KEYS = new Set([
-  "size",
-  "clothingType",
-  "fashionSubcategory",
-  "fashionCategory",
-  "colors",
-  "shippingOptions",
-  "brand",
-]);
 
 const ELECTRONICS_TEXT_RE =
   /\b(vert[eė]j|translator|elektron|gadget|telefon|iphone|samsung|xiaomi|peiko|ausin|plan[sš]et|televiz|notebook|ne[sš]iojam)/i;
 
 const APPAREL_TEXT_RE =
-  /\b(striuk|džins|dzins|suknel|mar[sš]kin|kelm|sportbač|batai|batai|šalik|kepur|drabuž|aprang)/i;
+  /\b(striuk|džins|dzins|suknel|mar[sš]kin|kelm|sportbač|batai|šalik|kepur|drabuž|aprang)/i;
 
 export function resolveListingPhone(listing: Listing): string {
   const raw = listing.contact?.trim();
@@ -94,8 +62,8 @@ export interface ListingDetailRow {
 }
 
 /**
- * Public display category — corrects misclassified electronics (e.g. Peiko Translator
- * stored as clothing with fashion artifacts) so specs/labels stay vertical-correct.
+ * Public display category — corrects misclassified electronics so labels stay vertical-correct.
+ * Specs themselves are schema-less (dynamic attribute map only).
  */
 export function resolveDisplayListingCategory(listing: Listing): ListingCategory {
   const attrs = listing.attributes ?? {};
@@ -120,54 +88,9 @@ export function resolveDisplayListingCategory(listing: Listing): ListingCategory
   return category;
 }
 
-function attrDisplayValue(
-  attrs: Record<string, unknown>,
-  key: string
-): string | null {
-  const val = attrs[key];
-  if (val === undefined || val === null || val === "") return null;
-  const display = Array.isArray(val) ? val.join(", ") : String(val);
-  const trimmed = display.trim();
-  return trimmed || null;
-}
-
+/** Schema-less detail rows: only populated attribute map entries. */
 export function getListingDetailRows(listing: Listing): ListingDetailRow[] {
-  const rows: ListingDetailRow[] = [];
-  const category = resolveDisplayListingCategory(listing);
-  const adaptiveKey = listingToAdaptiveKey(category);
-  const config = getAdaptiveConfig(adaptiveKey);
-  const attrs = (listing.attributes ?? {}) as Record<string, unknown>;
-  const isVehicles = adaptiveKey === "vehicles" || adaptiveKey === "transport";
-  const isClothing = adaptiveKey === "clothing";
-
-  for (const field of config.fields) {
-    if (field.key.startsWith("_")) continue;
-    if (!isVehicles && AUTOMOTIVE_SPEC_KEYS.has(field.key)) continue;
-    if (!isClothing && FASHION_SPEC_KEYS.has(field.key)) continue;
-
-    const display = attrDisplayValue(attrs, field.key);
-    if (!display) continue;
-    rows.push({ label: field.label, value: display });
-  }
-
-  // Electronics often stores brand under fashion "brand" — surface as Gamintojas.
-  if (adaptiveKey === "electronics") {
-    const manufacturer =
-      attrDisplayValue(attrs, "manufacturer") ?? attrDisplayValue(attrs, "brand");
-    if (manufacturer && !rows.some((r) => r.label === "Gamintojas")) {
-      rows.unshift({ label: "Gamintojas", value: manufacturer });
-    }
-    const model = attrDisplayValue(attrs, "deviceModel");
-    if (model && !rows.some((r) => r.label === "Modelis")) {
-      rows.push({ label: "Modelis", value: model });
-    }
-    const condition = attrDisplayValue(attrs, "condition");
-    if (condition && !rows.some((r) => r.label === "Būklė")) {
-      rows.push({ label: "Būklė", value: condition });
-    }
-  }
-
-  return rows;
+  return getDynamicListingDetailRows(listing);
 }
 
 export function getCategoryLabel(listing: Listing): string {

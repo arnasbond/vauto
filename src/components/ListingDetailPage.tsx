@@ -44,7 +44,10 @@ import {
   resolveDisplayListingCategory,
   resolveListingPhone,
 } from "@/lib/listing-display";
-import { filterPublicListingTags } from "@/lib/listing-attributes";
+import {
+  formatAiTagChip,
+  getAiListingTagChips,
+} from "@/lib/listing-dynamic-attributes";
 import { LISTING_DWELL_MS } from "@/lib/offer-engine-client";
 import {
   isAgentClarificationText,
@@ -178,7 +181,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const detailRows = getListingDetailRows(listing);
   const categoryLabel = getCategoryLabel(listing);
   const similarListings = getSimilarListings(listing, listings);
-  const publicTags = filterPublicListingTags(
+  const publicTags = getAiListingTagChips(
     listing.tags ?? [],
     displayCategory ?? listing.category
   );
@@ -428,9 +431,9 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               {publicTags.map((tag) => (
                 <span
                   key={tag}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs text-slate-600"
+                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
                 >
-                  {tag}
+                  {formatAiTagChip(tag)}
                 </span>
               ))}
             </div>
