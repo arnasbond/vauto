@@ -4,15 +4,17 @@ import {
   createContext,
   useCallback,
   useContext,
-  useEffect,
   useMemo,
   useRef,
   useState,
   type ReactNode,
 } from "react";
 import { createPortal } from "react-dom";
+import {
+  ListingSuccessLottie,
+  LISTING_SUCCESS_LOTTIE_MS,
+} from "@/components/listing/ListingSuccessLottie";
 
-const ANIMATION_MS = 1000;
 const SPINTA_TAB_ID = "bottom-nav-mano-skelbimai";
 
 interface PublishCelebrationContextValue {
@@ -23,63 +25,32 @@ interface PublishCelebrationContextValue {
 const PublishCelebrationContext =
   createContext<PublishCelebrationContextValue | null>(null);
 
-function PaperPlaneIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      viewBox="0 0 24 24"
-      fill="currentColor"
-      className={className}
-      aria-hidden
-    >
-      <path d="M2.01 21L23 12 2.01 3 2 10l15 2-15 2z" />
-    </svg>
-  );
-}
-
 export function PublishCelebrationProvider({ children }: { children: ReactNode }) {
   const [spintaPulse, setSpintaPulse] = useState(false);
-  const [flight, setFlight] = useState<{
-    fromX: number;
-    fromY: number;
-    toX: number;
-    toY: number;
-  } | null>(null);
-  const planeRef = useRef<HTMLDivElement>(null);
+  const [active, setActive] = useState(false);
   const resolveRef = useRef<(() => void) | null>(null);
 
+  const completeCelebration = useCallback(() => {
+    setActive(false);
+    resolveRef.current?.();
+    resolveRef.current = null;
+  }, []);
+
   const playPublishCelebration = useCallback((fromRect: DOMRect) => {
+    void fromRect;
     return new Promise<void>((resolve) => {
       const target = document.getElementById(SPINTA_TAB_ID);
-      const targetRect = target?.getBoundingClientRect();
-      const toX = targetRect
-        ? targetRect.left + targetRect.width / 2
-        : window.innerWidth * 0.25;
-      const toY = targetRect
-        ? targetRect.top + targetRect.height / 2
-        : window.innerHeight - 48;
-
-      const fromX = fromRect.left + fromRect.width / 2;
-      const fromY = fromRect.top + fromRect.height / 2;
-
       resolveRef.current = resolve;
-      setFlight({ fromX, fromY, toX, toY });
+      setActive(true);
       setSpintaPulse(true);
       target?.classList.add("publish-tab-catch-pulse");
 
       window.setTimeout(() => {
         setSpintaPulse(false);
         target?.classList.remove("publish-tab-catch-pulse");
-      }, 1400);
+      }, LISTING_SUCCESS_LOTTIE_MS + 200);
     });
   }, []);
-
-  const handleAnimationEnd = useCallback(() => {
-    setFlight(null);
-    resolveRef.current?.();
-    resolveRef.current = null;
-  }, []);
-
-  useFlightAnimation(planeRef, flight, handleAnimationEnd);
 
   const value = useMemo(
     () => ({ spintaPulse, playPublishCelebration }),
@@ -90,78 +61,25 @@ export function PublishCelebrationProvider({ children }: { children: ReactNode }
     <PublishCelebrationContext.Provider value={value}>
       {children}
       {typeof document !== "undefined" &&
-        flight &&
+        active &&
         createPortal(
           <div
-            className="publish-airplane-overlay pointer-events-none fixed inset-0 z-[120]"
-            aria-hidden
+            className="publish-success-lottie-overlay pointer-events-none fixed inset-0 z-[120] flex items-center justify-center overflow-hidden px-6"
+            aria-live="polite"
+            aria-atomic="true"
           >
-            <div
-              ref={planeRef}
-              className="publish-airplane absolute will-change-transform"
-              style={{
-                left: flight.fromX,
-                top: flight.fromY,
-                marginLeft: -14,
-                marginTop: -14,
-              }}
-            >
-              <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[var(--vauto-primary)] text-white shadow-lg shadow-[var(--vauto-primary)]/40">
-                <PaperPlaneIcon className="h-4 w-4 -rotate-12" />
-              </span>
+            <div className="pointer-events-none absolute inset-0 bg-[color-mix(in_srgb,var(--vauto-bg)_55%,transparent)] backdrop-blur-[2px]" />
+            <div className="relative flex max-h-[min(70vh,320px)] w-full max-w-[220px] flex-col items-center justify-center overflow-hidden rounded-3xl bg-[var(--vauto-card-bg)] px-4 py-5 shadow-xl ring-1 ring-[var(--vauto-border)]">
+              <ListingSuccessLottie onComplete={completeCelebration} />
+              <p className="mt-1 text-center text-sm font-semibold text-[var(--vauto-text-main)]">
+                Skelbimas publikuotas!
+              </p>
             </div>
           </div>,
           document.body
         )}
     </PublishCelebrationContext.Provider>
   );
-}
-
-function useFlightAnimation(
-  planeRef: React.RefObject<HTMLDivElement | null>,
-  flight: { fromX: number; fromY: number; toX: number; toY: number } | null,
-  onDone: () => void
-) {
-  const onDoneRef = useRef(onDone);
-  onDoneRef.current = onDone;
-
-  useEffect(() => {
-    if (!flight || !planeRef.current) return;
-
-    const el = planeRef.current;
-    const dx = flight.toX - flight.fromX;
-    const dy = flight.toY - flight.fromY;
-    const midX = dx * 0.45;
-    const midY = dy * 0.45 - Math.min(120, window.innerHeight * 0.18);
-
-    const anim = el.animate(
-      [
-        {
-          transform: "translate3d(0, 0, 0) rotate(-38deg) scale(0.55)",
-          opacity: 0,
-        },
-        {
-          transform: `translate3d(${midX * 0.35}px, ${midY * 0.35}px, 0) rotate(-22deg) scale(0.85)`,
-          opacity: 1,
-          offset: 0.18,
-        },
-        {
-          transform: `translate3d(${dx}px, ${dy}px, 0) rotate(14deg) scale(0.3)`,
-          opacity: 0,
-        },
-      ],
-      {
-        duration: ANIMATION_MS,
-        easing: "cubic-bezier(0.33, 0.86, 0.45, 1)",
-        fill: "forwards",
-      }
-    );
-
-    anim.onfinish = () => onDoneRef.current();
-    anim.oncancel = () => onDoneRef.current();
-
-    return () => anim.cancel();
-  }, [flight, planeRef]);
 }
 
 export function usePublishCelebration(): PublishCelebrationContextValue {
@@ -178,4 +96,4 @@ export function usePublishCelebrationOptional(): PublishCelebrationContextValue 
   return useContext(PublishCelebrationContext);
 }
 
-export { SPINTA_TAB_ID };
+export { SPINTA_TAB_ID, LISTING_SUCCESS_LOTTIE_MS };
