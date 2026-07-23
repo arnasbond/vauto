@@ -1351,20 +1351,22 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
     setAiDraft((prev) => {
-      // Seed a minimal draft when price arrives before Vision/text created one —
+      // Seed a minimal draft when price/media/title arrives before Vision returns —
       // never drop a typed price into the void (stops „Kokią kainą?“ loops).
       if (!prev) {
-        const price = patch.price != null ? Number(patch.price) : NaN;
-        if (!Number.isFinite(price) || price <= 0) return prev;
+        const price = patch.price != null ? Number(patch.price) : 0;
+        const hasPhotos = (patch.orderedImageUrls?.length ?? 0) > 0;
+        const hasTitle = Boolean(String(patch.title ?? "").trim());
+        if (!(price > 0) && !hasPhotos && !hasTitle) return prev;
         const seeded = createManualFallbackDraft({
-          location: user.city || "",
-          contact: user.phone || "",
+          location: String(patch.location ?? user.city ?? "").trim(),
+          contact: String(patch.contact ?? user.phone ?? "").trim(),
         });
         return syncDraftWithProfile({
           ...seeded,
           ...patch,
-          price,
-          title: patch.title?.trim() || "Naujas skelbimas",
+          price: price > 0 ? price : 0,
+          title: String(patch.title ?? "").trim() || "Naujas skelbimas",
           listingFlowState: patch.listingFlowState ?? "DRAFTING_TEXT",
         });
       }

@@ -268,15 +268,32 @@ async function resolveListingPhotoScan(input: {
   const nextState =
     transitionListingFlow(input.flowState, "PHOTOS_SCANNED") ?? "DRAFT_READY";
 
+  const priorAttrs = input.listingDraft?.attributes ?? {};
+  const categoryChanged =
+    Boolean(input.listingDraft?.category) &&
+    input.listingDraft?.category !== visionDraft.category;
+  // Never bleed previous product identity (Peiko/Hohner/fashion size) into a new Vision scan.
+  const safePriorAttrs = categoryChanged
+    ? Object.fromEntries(
+        Object.entries(priorAttrs).filter(
+          ([k]) =>
+            !/^(brand|fashionCategory|fashionSubcategory|clothingType|size|colors|manufacturer|deviceModel|selectedObject|choiceChips|clarificationPrompt)$/i.test(
+              k
+            )
+        )
+      )
+    : priorAttrs;
+
   const mergedDraft = normalizeListingDraftForAction(
     input.listingDraft
       ? {
           ...input.listingDraft,
           ...visionDraft,
+          title: visionDraft.title,
           description: visionDraft.description,
           orderedImageUrls: publicGallery,
           attributes: {
-            ...(input.listingDraft.attributes ?? {}),
+            ...safePriorAttrs,
             ...visionDraft.attributes,
           },
           listingFlowState: nextState,

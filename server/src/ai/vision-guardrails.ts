@@ -17,6 +17,8 @@ VIZUALUS SUPRATIMAS (PRIVALOMA — autonomija, ne blokas):
 - DRAUDŽIAMA: visiškai tuščias atsakymas, „prekė neatpažinta“ kaip stop, automatinis PASLAUGOS priskyrimas be pagrindo.
 - Jei vaizdas silpnas — documentReadable/confidence atspindėk, bet NESTABDYK juodraščio.
 - NIEKADA neatmesk vartotojo nuotraukų kaip „stock“ / „neadekvatu“ — tai ne tavo sprendimas.
+- NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje — title/description TIK pagal dabartinį kadrą.
+- Nežinomas / bendras daiktas → IMMEDIATELY suformuok tikslų vizualinį pavadinimą (pvz. „Dekoratyvinė medinė/kartoninė dėžutė su gėlių raštais“), neklausk rinktis tarp senų prekių.
 ${VISION_ANTI_STALE_TITLE_RULE}`;
 
 export const WARDROBE_ANTI_HALLUCINATION_RULE = `

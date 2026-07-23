@@ -147,6 +147,8 @@ function AddPageInner() {
         description: "",
         category: isFashion ? "clothing" : base.category,
         listingFlowState: "DRAFTING_TEXT",
+        orderedImageUrls: [],
+        attributes: {},
       },
       user,
       true,
@@ -158,6 +160,7 @@ function AddPageInner() {
       ...seeded,
       category: isFashion ? "clothing" : seeded.category,
       listingFlowState: nextState,
+      orderedImageUrls: [],
     });
     setOpen(true);
     void sendAgentMessage(
@@ -193,12 +196,17 @@ function AddPageInner() {
         router.replace(isFashion ? "/fashion" : "/");
       },
       onBusyChange: setBusy,
+      text:
+        "Analizuok šias nuotraukas Vision OCR: aprašyk TIK tai, ką matai kadre, " +
+        "ir suformuok skelbimo pavadinimą pagal vizualų objektą " +
+        "(pvz. dekoratyvinė dėžutė). Nesiūlyk ankstesnių skelbimų.",
     });
   };
 
   const startWithText = () => {
     if (!authHydrated) return;
     if (!requireAuthForListing(isFashion ? "/add?vertical=fashion" : "/add")) return;
+    beginFreshListingChatSession();
     setOpen(true);
     router.replace(isFashion ? "/fashion" : "/");
     showToast("Tęskite skelbimą pokalbyje su asistentu.", "info");
