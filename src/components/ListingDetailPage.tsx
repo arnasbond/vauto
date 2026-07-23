@@ -305,13 +305,15 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         />
 
         <div className="mt-4">
-          <span className="rounded-full bg-[var(--vauto-teal)]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--vauto-teal)]">
-            {categoryLabel}
-          </span>
+          {categoryLabel ? (
+            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+              {categoryLabel}
+            </span>
+          ) : null}
           <h1 className="mt-2 font-display text-xl font-bold text-slate-900">
             {listing.title}
           </h1>
-          <p className="vauto-flux-price mt-1 text-2xl">
+          <p className="vauto-flux-price mt-1 text-2xl font-extrabold text-slate-900">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
 

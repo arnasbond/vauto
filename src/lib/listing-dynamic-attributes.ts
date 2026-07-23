@@ -192,6 +192,14 @@ export function getAiListingTagChips(
       t = val || key;
     }
     if (category && category !== "clothing" && FASHION_TAG_RE.test(t)) return;
+    // Never show electronics tags on automotive listings.
+    if (
+      category &&
+      (category === "vehicles" || category === "transport") &&
+      /^(elektronika|electronics|telefonas|mobil[uū]s)$/i.test(t)
+    ) {
+      return;
+    }
     if (/^(xxs|xs|s|m|l|xl|xxl)$/i.test(t) && category && category !== "clothing") {
       return;
     }

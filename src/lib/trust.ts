@@ -38,11 +38,15 @@ export function verifyVin(vin: string): boolean {
 }
 
 export function listingHasVerifiedVin(listing: Listing): boolean {
-  if (listing.category !== "vehicles") return false;
-  if (listing.vinVerified) return true;
+  // Automotive domain only — never show VIN trust on electronics/fashion/etc.
+  if (listing.category !== "vehicles" && listing.category !== "transport") {
+    return false;
+  }
+  // Strict: badge requires explicit verification flag + a real VIN in metadata.
+  if (listing.vinVerified !== true) return false;
   const vin = listing.attributes?.vin;
-  if (typeof vin === "string" && verifyVin(vin)) return true;
-  return false;
+  if (typeof vin !== "string" || !isPlausibleVin(vin)) return false;
+  return true;
 }
 
 export function listingHasVerifiedProvider(listing: Listing): boolean {

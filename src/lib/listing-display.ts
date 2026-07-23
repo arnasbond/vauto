@@ -5,6 +5,10 @@ import {
 } from "@/lib/adaptive-categories";
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import { getDynamicAttributeEntries } from "@/lib/listing-dynamic-attributes";
+import {
+  isVehicleQuery,
+  VEHICLE_BRAND_PATTERN,
+} from "@/lib/vehicle-keywords";
 import type { Listing, ListingCategory } from "@/lib/types";
 
 const DEMO_PHONE = "+37061234567";
@@ -17,6 +21,21 @@ const INSTRUMENT_TEXT_RE =
 
 const APPAREL_TEXT_RE =
   /\b(striuk|džins|dzins|suknel|mar[sš]kin|kelm|sportbač|batai|šalik|kepur|drabuž|aprang)/i;
+
+/** Public-facing category badges (never uppercase portal jargon alone). */
+const PUBLIC_CATEGORY_LABELS: Partial<Record<ListingCategory, string>> = {
+  vehicles: "Automobiliai",
+  transport: "Transportas",
+  electronics: "Elektronika",
+  clothing: "Apranga",
+  home: "Namai",
+  services: "Paslaugos",
+  real_estate: "NT",
+  jobs: "Darbas",
+  tools: "Įrankiai",
+  rental: "Nuoma",
+  other: "Kita",
+};
 
 export function resolveListingPhone(listing: Listing): string {
   const raw = listing.contact?.trim();
@@ -64,23 +83,56 @@ export interface ListingDetailRow {
   value: string;
 }
 
-/**
- * Public display category — corrects misclassified electronics so labels stay vertical-correct.
- * Specs themselves are schema-less (dynamic attribute map only).
- */
-export function resolveDisplayListingCategory(listing: Listing): ListingCategory {
+function listingTextBlob(listing: Listing): string {
   const attrs = listing.attributes ?? {};
-  const category = resolveEffectiveListingCategory(listing.category, attrs);
-  const blob = [
+  return [
     listing.title,
     listing.description ?? "",
     String(attrs.skelbiuCategory ?? ""),
     String(attrs.deviceModel ?? ""),
     String(attrs.manufacturer ?? ""),
     String(attrs.brand ?? ""),
+    String(attrs.make ?? ""),
+    String(attrs.model ?? ""),
   ]
     .join(" ")
     .toLowerCase();
+}
+
+function looksLikeVehicle(listing: Listing, blob: string): boolean {
+  if (listing.category === "vehicles" || listing.category === "transport") {
+    return true;
+  }
+  const attrs = listing.attributes ?? {};
+  if (attrs.make || attrs.mileage || attrs.vin || attrs.bodyType || attrs.fuelType) {
+    return true;
+  }
+  return isVehicleQuery(blob) || VEHICLE_BRAND_PATTERN.test(blob);
+}
+
+/**
+ * Public display category — vehicle brands always win over stale electronics/clothing
+ * fallbacks (e.g. Citroën must never show ELEKTRONIKA).
+ */
+export function resolveDisplayListingCategory(listing: Listing): ListingCategory {
+  const attrs = listing.attributes ?? {};
+  const category = resolveEffectiveListingCategory(listing.category, attrs);
+  const blob = listingTextBlob(listing);
+
+  // Automotive first — never allow electronics/clothing overrides on cars.
+  if (looksLikeVehicle(listing, blob) && !APPAREL_TEXT_RE.test(blob)) {
+    // Guard: pure electronics gadgets with coincidental brand noise stay electronics.
+    if (
+      ELECTRONICS_TEXT_RE.test(blob) &&
+      !VEHICLE_BRAND_PATTERN.test(blob) &&
+      !attrs.mileage &&
+      !attrs.vin &&
+      listing.category === "electronics"
+    ) {
+      return "electronics";
+    }
+    return "vehicles";
+  }
 
   if (INSTRUMENT_TEXT_RE.test(blob) && !APPAREL_TEXT_RE.test(blob)) {
     if (category === "clothing" || category === "vehicles") {
@@ -88,8 +140,9 @@ export function resolveDisplayListingCategory(listing: Listing): ListingCategory
     }
   }
 
+  // Remap misclassified fashion/other → electronics only — NEVER vehicles.
   if (ELECTRONICS_TEXT_RE.test(blob) && !APPAREL_TEXT_RE.test(blob)) {
-    if (category === "clothing" || category === "other" || category === "vehicles") {
+    if (category === "clothing" || category === "other") {
       return "electronics";
     }
   }
@@ -108,7 +161,10 @@ export function getListingDetailRows(listing: Listing): ListingDetailRow[] {
 
 export function getCategoryLabel(listing: Listing): string {
   const category = resolveDisplayListingCategory(listing);
-  return getAdaptiveConfig(listingToAdaptiveKey(category)).label;
+  return (
+    PUBLIC_CATEGORY_LABELS[category] ??
+    getAdaptiveConfig(listingToAdaptiveKey(category)).label
+  );
 }
 
 export function getListingAdaptiveKey(listing: Listing): AdaptiveCategoryKey {
