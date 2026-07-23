@@ -32,6 +32,10 @@ const BUY_PATTERNS = [
 ];
 
 const CLOTHING_HINT = /\b(drabuž|rub|sukn|bat|batus|batel|ked|keln|striuk|spint|megz|maršk|gryb)/i;
+const HOME_ART_HINT =
+  /\b(paveiksl|tapyb|drob|skulptūr|skulptur|dekor|bald|sofa|stal|kėd|kedes|lentyn|kilim|vaz|veidrod|interjer)/i;
+const ELECTRONICS_HINT =
+  /\b(iphone|samsung|telefon|laptop|kompiuter|elektron|televiz|planšet|planšet|ausin|konsol)/i;
 
 const AUTO_BRANDS: { pattern: RegExp; make: string }[] = [
   { pattern: /citro[eë]?n/i, make: "Citroën" },
@@ -108,6 +112,44 @@ const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
   other: "KITA",
 };
 
+/** Noun phrase for natural LT reply (paveikslą → paveikslo). */
+function inferSellNoun(text: string, category: string): string {
+  const t = text.toLowerCase();
+  if (/\bpaveiksl/i.test(t)) return "paveikslo";
+  if (/\bbald/i.test(t)) return "baldų";
+  if (/\btelefon|iphone|samsung/i.test(t)) return "telefono";
+  if (/\bkompiuter|laptop/i.test(t)) return "kompiuterio";
+  if (/\bdrabuž|sukn|keln|batel|ked/i.test(t)) return "drabužių";
+  if (/\bbutas\b/i.test(t)) return "buto";
+  if (/\bnamas\b/i.test(t)) return "namo";
+  if (category === "vehicles") return "automobilio";
+  if (category === "clothing") return "drabužių";
+  if (category === "electronics") return "elektronikos";
+  if (category === "home") return "prekės";
+  if (category === "real_estate") return "NT";
+  return "";
+}
+
+function buildCategoryAwareSellGreeting(
+  text: string,
+  category: string,
+  make: string
+): string {
+  // Auto-only when brand/vehicle intent is explicit.
+  if (make || category === "vehicles" || category === "transport") {
+    const subject = make || "automobilio";
+    return `Puiku — ruošiame ${subject} skelbimą. Parašykite tikslų modelį, metus ir variklį arba įkelkite nuotraukas / techninį pasą per (+) mygtuką — aš viską sudėsiu į juodraštį.`;
+  }
+
+  const noun = inferSellNoun(text, category);
+  if (noun) {
+    return `Puiku — padėsiu paruošti ${noun} skelbimą! Įkelkite nuotrauką per (+) mygtuką arba parašykite trumpą aprašymą bei kainą.`;
+  }
+
+  // Generic sell — never hardcode auto terms (markė/modelis/techninis pasas).
+  return "Puiku — pradėkime! Įkelkite prekės nuotrauką arba trumpai parašykite, ką parduodate ir kokia kaina — paruošiu skelbimo juodraštį.";
+}
+
 export function buildSellClarificationReply(
   text: string,
   opts?: { userCity?: string; contact?: string }
@@ -149,37 +191,29 @@ export function buildSellClarificationReply(
     },
     listingFlowState: "DRAFTING_TEXT" as const,
   };
-  if (make) {
-    return {
-      reply: `Puiku — ruošiame ${make} skelbimą. Parašykite tikslų modelį, metus ir variklį (pvz. „Grand C4 Picasso 2007 m. 2.0 ltr. dyzelis“) arba įkelkite nuotraukas / techninį pasą per (+) mygtuką — aš viską sudėsiu į juodraštį.`,
-      quickReplies: [],
-      action: { type: "listing_draft", listingDraft },
-    };
-  }
   return {
-    reply:
-      "Puiku — pradėkime skelbimą. Parašykite ką parduodate (markė, modelis, metai) arba įkelkite nuotraukas / techninį pasą per (+) mygtuką — paruošiu juodraštį be spėlionių.",
+    reply: buildCategoryAwareSellGreeting(text, category, make),
     quickReplies: [],
     action: { type: "listing_draft", listingDraft },
   };
 }
 
 function inferCategory(text: string): string {
-  if (inferMake(text) || /\b(bmw|audi|volvo|mercedes|auto|mašin|masin|citro)/i.test(text)) {
+  // Non-vehicle categories first — avoid auto bias on "parduoti paveikslą".
+  if (HOME_ART_HINT.test(text)) return "home";
+  if (CLOTHING_HINT.test(text)) return "clothing";
+  if (ELECTRONICS_HINT.test(text)) return "electronics";
+  if (/\b(butas|namas|nt|kambar|sklyp)/i.test(text)) return "real_estate";
+  if (/\b(nuomuoju|nuoma|nuomoti)\b/i.test(text)) return "rental";
+  if (/\b(įrank|irank|gręžtuv|generator)/i.test(text)) return "tools";
+  if (/\b(paslaug|remont|valym)/i.test(text)) return "services";
+  if (/\b(darbas|ieškau\s+darbo|vakans)/i.test(text)) return "jobs";
+  if (inferMake(text) || /\b(bmw|audi|volvo|mercedes|auto|mašin|masin|citro|automobil)/i.test(text)) {
     return "vehicles";
   }
   if (/\b(motocikl|priekab|sunkvež|dvirač|transport)/i.test(text)) {
     return "transport";
   }
-  if (CLOTHING_HINT.test(text)) return "clothing";
-  if (/\b(butas|namas|nt|kambar|sklyp)/i.test(text)) return "real_estate";
-  if (/\b(nuomuoju|nuoma|nuomoti)\b/i.test(text)) return "rental";
-  if (/\b(įrank|irank|gręžtuv|generator)/i.test(text)) return "tools";
-  if (/\b(iphone|samsung|telefon|laptop|kompiuter|elektron)/i.test(text)) {
-    return "electronics";
-  }
-  if (/\b(paslaug|remont|valym)/i.test(text)) return "services";
-  if (/\b(darbas|ieškau\s+darbo|vakans)/i.test(text)) return "jobs";
   return "other";
 }
 
@@ -187,6 +221,12 @@ function inferTitle(text: string, category: string, make: string): string {
   if (make) return `Parduodamas ${make}`;
   if (category === "vehicles") return "Parduodamas automobilis";
   if (category === "clothing") return "Parduodamas drabužis";
+  if (category === "electronics") return "Parduodama elektronika";
+  if (category === "home") {
+    if (/\bpaveiksl/i.test(text)) return "Paveikslas";
+    if (/\bbald/i.test(text)) return "Baldai";
+    return "Namų prekė";
+  }
   const cleaned = text
     .replace(/\b(parduodu|parduosiu|noriu\s+parduoti?|nor[eė]čiau\s+parduoti?)\b/gi, "")
     .replace(/[^\p{L}\p{N}\s-]/gu, " ")
@@ -263,14 +303,16 @@ export function buildVisionQuotaTextFallbackJson(input: {
   userCity?: string;
   priceHint?: number;
 }): Record<string, unknown> {
-  const text = String(input.userText ?? "").trim() || "Parduodu automobilį";
+  const text = String(input.userText ?? "").trim() || "Noriu parduoti";
   // Sparse text alone must not invent a rich fake listing under quota pressure either.
   if (isSparseSellRequest(text)) {
     const clarify = buildSellClarificationReply(text);
+    const sparseCategory =
+      INTERNAL_TO_VAUTO_CATEGORY[clarify.action.listingDraft.category] ?? "KITA";
     return {
       intent: "sell",
-      category: "AUTOMOBILIAI",
-      title: inferMake(text) ? `Parduodamas ${inferMake(text)}` : "Skelbimas",
+      category: sparseCategory,
+      title: clarify.action.listingDraft.title || "Skelbimas",
       price: null,
       city: input.userCity || "Lietuva",
       description: clarify.reply,
@@ -299,15 +341,21 @@ export function buildVisionQuotaTextFallbackJson(input: {
       ? input.priceHint
       : extractPriceFromSellText(text)) || draft.price || 0;
   const categoryKey =
-    INTERNAL_TO_VAUTO_CATEGORY[draft.category] ?? "AUTOMOBILIAI";
+    INTERNAL_TO_VAUTO_CATEGORY[draft.category] ?? "KITA";
   const priceLine =
     price > 0
       ? `Prašoma kaina: ${price} €.`
       : "Kainą galite nurodyti kitame žingsnyje.";
+  const isVehicleDraft =
+    draft.category === "vehicles" || draft.category === "transport";
   const description = [
     draft.description,
-    "Nuotraukos išsaugotos. Dokumentų (tech passport) vaizdai naudojami tik specs — viešoje galerijoje nerodomi.",
-    "AI vaizdo analizė laikinai nepasiekiama — aprašymas sudarytas pagal jūsų tekstą; papildykite metus, ridą, variklį prieš skelbiant.",
+    isVehicleDraft
+      ? "Nuotraukos išsaugotos. Dokumentų (tech passport) vaizdai naudojami tik specs — viešoje galerijoje nerodomi."
+      : "Nuotraukos išsaugotos — papildykite aprašymą ar kainą pokalbyje.",
+    isVehicleDraft
+      ? "AI vaizdo analizė laikinai nepasiekiama — aprašymas sudarytas pagal jūsų tekstą; papildykite metus, ridą, variklį prieš skelbiant."
+      : "AI vaizdo analizė laikinai nepasiekiama — aprašymas sudarytas pagal jūsų tekstą; papildykite detales prieš skelbiant.",
     priceLine,
   ].join(" ");
 
