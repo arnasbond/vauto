@@ -1,11 +1,12 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { AppShell } from "@/components/AppShell";
 import { TopAiCommandChrome } from "@/components/layout/TopAiCommandChrome";
 import { GuestFashionCabinet } from "@/components/clothing/GuestFashionCabinet";
 import { useVauto } from "@/context/VautoContext";
+import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useVautoSearchDispatch } from "@/context/VautoSearchContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { dispatchHomeReset } from "@/lib/home-reset";
@@ -20,6 +21,7 @@ export default function FashionPage() {
   const router = useRouter();
   const { activateWardrobeSpinta, authHydrated, isAuthenticated, clearVisualSearch } =
     useVauto();
+  const { openAiSellerListingChat } = useVautoAgent();
   const {
     setSearchQuery,
     setSearchLoading,
@@ -29,14 +31,17 @@ export default function FashionPage() {
     setSearchVoiceMode,
   } = useVautoSearchDispatch();
   const { trackEvent } = useUserBehavior();
+  const sellerBootstrappedRef = useRef(false);
 
   useEffect(() => {
     if (!authHydrated) return;
     if (isAuthenticated) {
+      if (sellerBootstrappedRef.current) return;
+      sellerBootstrappedRef.current = true;
       notifyWardrobeBulkImportOpened(WARDROBE_CONTINUOUS_FLOW_GREETING, {
         quickReplies: [...WARDROBE_BULK_IMPORT_CHIPS],
       });
-      router.replace("/add?vertical=fashion");
+      void openAiSellerListingChat({ fashion: true, navigateHome: false });
       return;
     }
     setSearchQuery("");
@@ -56,6 +61,7 @@ export default function FashionPage() {
     authHydrated,
     isAuthenticated,
     activateWardrobeSpinta,
+    openAiSellerListingChat,
     trackEvent,
     router,
     setSearchQuery,

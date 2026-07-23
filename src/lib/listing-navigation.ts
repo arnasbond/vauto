@@ -1,8 +1,11 @@
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 
-/** Canonical add-listing routes used by web and Capacitor WebView. */
+/**
+ * Canonical entry for new listings — AI seller chat on home (or fashion).
+ * Legacy /add still redirects into the same flow for old bookmarks.
+ */
 export function resolveAddListingPath(fashion = false): string {
-  return fashion ? "/add?vertical=fashion" : "/add";
+  return fashion ? "/fashion/" : "/";
 }
 
 export function resolveFashionPortalPath(): string {
@@ -16,10 +19,9 @@ export function pushAddListing(router: AppRouterInstance, fashion = false): void
 export function isOnAddListingPath(fashion?: boolean): boolean {
   if (typeof window === "undefined") return false;
   const current = window.location.pathname.replace(/\/$/, "") || "/";
-  if (current !== "/add") return false;
-  if (fashion === undefined) return true;
-  const params = new URLSearchParams(window.location.search);
-  return fashion
-    ? params.get("vertical") === "fashion"
-    : params.get("vertical") !== "fashion";
+  // Seller flow now lives on home / fashion; /add is a redirect shim.
+  if (current === "/add") return true;
+  if (fashion === true) return current === "/fashion";
+  if (fashion === false) return current === "/";
+  return current === "/" || current === "/fashion" || current === "/add";
 }

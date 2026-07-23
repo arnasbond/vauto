@@ -1,22 +1,18 @@
 "use client";
 
-import { useRouter } from "next/navigation";
 import { Plus } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 
 export function ActionButtons() {
-  const router = useRouter();
   const { sellerStep, requireAuthForListing } = useVauto();
-  const { beginFreshListingChatSession } = useVautoAgent();
+  const { openAiSellerListingChat } = useVautoAgent();
   const disabled =
     sellerStep !== "idle" && sellerStep !== "published";
 
   const goToAdd = () => {
-    if (requireAuthForListing("/add/")) {
-      beginFreshListingChatSession();
-      router.push("/add/");
-    }
+    if (!requireAuthForListing("/")) return;
+    void openAiSellerListingChat({ navigateHome: true });
   };
 
   return (

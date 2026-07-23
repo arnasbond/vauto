@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { VautoLogo } from "@/components/VautoLogo";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
 import { useActivePortal } from "@/hooks/useActivePortal";
+import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { cn } from "@/lib/cn";
 
@@ -14,7 +15,8 @@ export function Header() {
   const { ui } = useActivePortal();
   const pathname = usePathname();
   const router = useRouter();
-  const { resetHomeAgentSession, beginFreshListingChatSession } = useVautoAgent();
+  const { requireAuthForListing } = useVauto();
+  const { resetHomeAgentSession, openAiSellerListingChat } = useVautoAgent();
   const skelbimaiActive = pathname === "/" || pathname === "";
 
   const handleHomeNav = useCallback(
@@ -28,14 +30,10 @@ export function Header() {
     [resetHomeAgentSession, router, skelbimaiActive]
   );
 
-  const handleAddListing = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      beginFreshListingChatSession();
-      router.push("/add/");
-    },
-    [beginFreshListingChatSession, router]
-  );
+  const handleAddListing = useCallback(() => {
+    if (!requireAuthForListing("/")) return;
+    void openAiSellerListingChat({ navigateHome: true });
+  }, [openAiSellerListingChat, requireAuthForListing]);
 
   return (
     <header className="grid grid-cols-[1fr_auto_1fr] items-center gap-2">
@@ -62,14 +60,14 @@ export function Header() {
       </Link>
 
       <div className="flex items-center justify-end gap-2 justify-self-end">
-        <Link
-          href="/add/"
+        <button
+          type="button"
           onClick={handleAddListing}
           className="inline-flex items-center gap-1 rounded-full bg-[var(--vauto-primary,#0891b2)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden />
           Įdėti
-        </Link>
+        </button>
         <UserProfileDropdown variant="mobile" />
       </div>
     </header>

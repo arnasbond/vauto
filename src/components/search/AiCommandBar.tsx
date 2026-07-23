@@ -696,10 +696,10 @@ export function AiCommandBar({
           "border shadow-sm transition-colors",
           isChatBar &&
             "agent-chat-composer flex w-full flex-col gap-1.5 rounded-2xl border-[var(--vauto-primary)]/20 bg-[var(--vauto-bg)] p-2 shadow-md",
-          !isChatBar && "flex items-center gap-2",
+          !isChatBar && "flex w-full items-center",
           isTopBar
-            ? "home-ai-hero-search rounded-full py-2.5 pl-5 pr-2 shadow-md"
-            : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-1.5",
+            ? "home-ai-hero-search rounded-full py-2 pl-4 pr-2 shadow-md sm:pl-5 sm:pr-2"
+            : !isChatBar && "vauto-surface-panel rounded-xl py-1.5 pl-3.5 pr-2",
           zeroUiActive && "zero-ui-search-active",
           className
         )}
@@ -718,7 +718,12 @@ export function AiCommandBar({
           />
         ) : null}
 
-        <div className={cn("flex min-w-0 items-center gap-2", isChatBar && "w-full")}>
+        <div
+          className={cn(
+            "flex min-w-0 flex-1 items-center gap-1.5 sm:gap-2",
+            (isTopBar || isChatBar) && "w-full"
+          )}
+        >
         {isChatBar ? (
           <button
             type="button"
@@ -763,7 +768,7 @@ export function AiCommandBar({
           className={cn(
             "min-w-0 flex-1 border-none bg-transparent outline-none vauto-body-text",
             isTopBar
-              ? "text-[15px] text-[var(--vauto-text-main)] placeholder:text-[#4b5563]"
+              ? "truncate text-[15px] text-[var(--vauto-text-main)] placeholder:text-[#4b5563]"
               : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[#4b5563]"
           )}
           disabled={busy || (isChatBar && confirmationLocked)}
@@ -771,6 +776,12 @@ export function AiCommandBar({
           autoComplete="off"
         />
 
+        <div
+          className={cn(
+            "ml-auto flex shrink-0 items-center",
+            isTopBar ? "gap-1" : "gap-1.5"
+          )}
+        >
         <button
           type="submit"
           disabled={
@@ -783,7 +794,7 @@ export function AiCommandBar({
             isChatBar
               ? "h-10 min-w-[2.75rem] bg-[var(--vauto-primary)] px-3 text-[var(--vauto-primary-contrast)]"
               : isTopBar
-              ? "h-11 bg-orange-600 px-4 hover:bg-orange-700"
+              ? "h-10 w-10 bg-orange-600 hover:bg-orange-700"
               : "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
           )}
           aria-label={isChatBar ? "Siųsti" : "Ieškoti"}
@@ -796,10 +807,7 @@ export function AiCommandBar({
               <span className="hidden sm:inline text-sm">Siųsti</span>
             </>
           ) : (
-            <>
-              <Sparkles className="h-4 w-4" aria-hidden />
-              {isTopBar && <span className="hidden sm:inline">Ieškoti</span>}
-            </>
+            <Sparkles className="h-4 w-4" aria-hidden />
           )}
         </button>
 
@@ -809,8 +817,8 @@ export function AiCommandBar({
           onClick={handlePhotoSearch}
           disabled={isPhotoSearching}
           className={cn(
-            "flex shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
-            isTopBar ? "h-10 w-10" : "h-10 w-10 rounded-lg"
+            "flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-bg)] disabled:opacity-40",
+            !isTopBar && "rounded-lg"
           )}
           aria-label="Vision AI paieška pagal nuotrauką"
           title="Vision AI — nuotrauka"
@@ -822,6 +830,7 @@ export function AiCommandBar({
           )}
         </button>
         ) : null}
+        </div>
         </div>
       </form>
 

@@ -5,13 +5,15 @@ import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Plus } from "lucide-react";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
+import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { cn } from "@/lib/cn";
 
 export function DesktopHeader() {
   const pathname = usePathname();
   const router = useRouter();
-  const { resetHomeAgentSession, beginFreshListingChatSession } = useVautoAgent();
+  const { requireAuthForListing } = useVauto();
+  const { resetHomeAgentSession, openAiSellerListingChat } = useVautoAgent();
   const skelbimaiActive = pathname === "/" || pathname === "";
 
   const handleHomeNav = useCallback(
@@ -25,14 +27,10 @@ export function DesktopHeader() {
     [resetHomeAgentSession, router, skelbimaiActive]
   );
 
-  const handleAddListing = useCallback(
-    (e: React.MouseEvent<HTMLAnchorElement>) => {
-      e.preventDefault();
-      beginFreshListingChatSession();
-      router.push("/add/");
-    },
-    [beginFreshListingChatSession, router]
-  );
+  const handleAddListing = useCallback(() => {
+    if (!requireAuthForListing("/")) return;
+    void openAiSellerListingChat({ navigateHome: true });
+  }, [openAiSellerListingChat, requireAuthForListing]);
 
   return (
     <header className="desktop-header sticky top-0 z-40 border-b border-[var(--anonser-border)] bg-[var(--anonser-header-bg)]/95 shadow-[0_1px_0_rgba(15,23,42,0.05)] backdrop-blur-xl">
@@ -63,14 +61,14 @@ export function DesktopHeader() {
         </nav>
 
         <div className="flex shrink-0 items-center gap-2">
-          <Link
-            href="/add/"
+          <button
+            type="button"
             onClick={handleAddListing}
             className="inline-flex items-center gap-1.5 rounded-xl bg-[var(--anonser-primary)] px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:opacity-95"
           >
             <Plus className="h-4 w-4" aria-hidden />
             Įdėti
-          </Link>
+          </button>
           <UserProfileDropdown variant="desktop" />
         </div>
       </div>

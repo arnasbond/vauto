@@ -2205,13 +2205,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   );
 
   const startUploadFlow = useCallback(async () => {
-    if (!requireAuthForListing("/add/")) return;
-    router.push("/add/");
+    if (!requireAuthForListing("/")) return;
+    // AI seller chat lives on home — legacy /add shell is deprecated.
+    router.push("/");
   }, [requireAuthForListing, router]);
 
   const startVoiceFlow = useCallback(() => {
-    if (!requireAuthForListing("/add/")) return;
-    router.push("/add/");
+    if (!requireAuthForListing("/")) return;
+    router.push("/");
   }, [requireAuthForListing, router]);
 
   const cancelSellerFlow = useCallback(() => {

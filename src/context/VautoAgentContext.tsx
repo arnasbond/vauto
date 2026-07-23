@@ -205,6 +205,10 @@ import {
   parseListingContactFromText,
 } from "@/lib/listing-contact-parse";
 import { logHeroContactReask } from "@/lib/hero-kpis";
+import {
+  aiSellerListingGreeting,
+  buildAiSellerListingSeed,
+} from "@/lib/start-ai-seller-listing";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
 export interface AgentSendOptions {
@@ -257,6 +261,13 @@ interface VautoAgentContextValue {
    * clears sessionLockedPriceRef, prior draft, and chat so Vision OCR is not polluted.
    */
   beginFreshListingChatSession: () => void;
+  /**
+   * Open AI Assistant in seller mode (4-step flow) — no legacy /add shell.
+   */
+  openAiSellerListingChat: (options?: {
+    fashion?: boolean;
+    navigateHome?: boolean;
+  }) => Promise<void>;
   /** Run modal/chip actions directly — never inject raw chip text as user messages. */
   handleDirectAgentChip: (chip: string) => Promise<boolean>;
   /** Hide pre-publish card and show field edit chips. */
@@ -3091,6 +3102,39 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setStreamThinkingLabelNow("Galvoju…");
   }, [cancelSellerFlow, setStreamThinkingLabelNow]);
 
+  const openAiSellerListingChat = useCallback(
+    async (options?: { fashion?: boolean; navigateHome?: boolean }) => {
+      const fashion = Boolean(options?.fashion);
+      const navigateHome = options?.navigateHome !== false;
+      beginFreshListingChatSession();
+      if (fashion) activateWardrobeSpinta();
+      applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }));
+      setOpen(true);
+      if (navigateHome) {
+        const target = fashion ? "/fashion/" : "/";
+        const current = (pathname || "/").replace(/\/$/, "") || "/";
+        const targetNorm = target.replace(/\/$/, "") || "/";
+        if (current !== targetNorm) {
+          router.push(target);
+        }
+      }
+      await sendAgentMessage(aiSellerListingGreeting(fashion), {
+        skipUserBubble: true,
+        omitPriorListingDraft: true,
+        freshListingSession: true,
+      });
+    },
+    [
+      activateWardrobeSpinta,
+      applyAgentListingDraft,
+      beginFreshListingChatSession,
+      pathname,
+      router,
+      sendAgentMessage,
+      user,
+    ]
+  );
+
   const enterListingEditMode = useCallback(() => {
     setHidePrePublishCard(true);
     setListingPublishConfirmed(false);
@@ -3379,6 +3423,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       reportAgentError,
       resetHomeAgentSession,
       beginFreshListingChatSession,
+      openAiSellerListingChat,
     }),
     [
       open,
@@ -3397,6 +3442,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       reportAgentError,
       resetHomeAgentSession,
       beginFreshListingChatSession,
+      openAiSellerListingChat,
     ]
   );
 

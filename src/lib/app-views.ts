@@ -50,7 +50,7 @@ export function viewToPath(view: AppView): string {
       return "/discover/";
     case "add_listing":
     case "seller_wizard":
-      return "/add/";
+      return "/";
     case "chats":
       return "/chats/";
     case "profile":
