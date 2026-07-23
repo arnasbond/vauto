@@ -3,7 +3,10 @@ import { resolveListingCity } from "../lib/city-resolve.js";
 import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
-import { VISION_ANTI_HALLUCINATION_RULE } from "./vision-guardrails.js";
+import {
+  VISION_ANTI_HALLUCINATION_RULE,
+  VISION_MASTER_SALES_COPYWRITER_RULE,
+} from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
 import {
@@ -46,11 +49,11 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
 const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
-  "title": "string — konkretus lietuviškas skelbimo pavadinimas (markė + VISAS modelis VERBATIM + metai). Pvz. „Citroën Grand C4 Picasso 2007“ — NIEKADA trumpinti į „C4 Picasso“",
-  "price": "number | null — kaina EUR; null jei nenurodyta",
+  "title": "string — įtraukiantis LT marketplace pavadinimas. Auto: markė + VISAS modelis VERBATIM + metai (pvz. „Citroën Grand C4 Picasso 2007“). Prekės/menas: engaginantis (pvz. „Originalus abstraktus paveikslas ant drobės (Rankų darbas)“)",
+  "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — TECHNINIS juodraštis lietuviškai: HARD SPECS + vizualūs bullet faktai. Be sales copy / CTA / kainos. DRAUDŽIAMA išgalvoti kainą, ridą, TA",
-  "technicalFields": "object — make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight",
+  "description": "string — MASTER SALES COPY lietuviškai su Markdown: hook pastraipa + • **Ypatybės:** bullet'ai + closing CTA. PALIK \\n ir **. DRAUDŽIAMA sausas caption („pavaizduoti rudi taškeliai…“). DRAUDŽIAMA išgalvoti kainą, ridą, TA",
+  "technicalFields": "object — make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight + laisvi marketplace raktai (Atlikimas, Paskirtis…)",
   "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY ground-truth OCR, NE viešai galerijai)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
   "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai eilės tvarka; document = primary tech source",
@@ -63,27 +66,26 @@ const VAUTO_UNIFIED_SCHEMA = `{
   "choiceChips": ["string"]
 }`;
 
-const SYSTEM_RULES = `Tu esi VAUTO Smart Assistant — daugiakategorės skelbimų AI. Grąžink TIK vieną JSON objektą.
+const SYSTEM_RULES = `Tu esi VAUTO Smart Assistant — daugiakategorės skelbimų AI + MASTER SALES COPYWRITER. Grąžink TIK vieną JSON objektą.
 
 ${VAUTO_DOMAIN_AUTONOMY_RULES}
 
-Aprašymas (description) — PRECIZINIS ir TECHNINIS pagal kategoriją, ne marketingas:
-- Rašyk konkrečius faktus: markė, modelis, metai, trim, variklis (cm³/l), galia kW/AG, kuras, transmisija, rida, kėbulas, spalva, vietų sk., matomi defektai.
-- Tech passport / registracijos / dokumentų nuotraukas: imageRoles=document + documentImageIndexes.
+${VISION_MASTER_SALES_COPYWRITER_RULE}
+
+OCR + FAKTAI (ground-truth → technicalFields / attributes; NE sausas description caption):
+- Tech passport / registracijos / dokumentų nuotraukos: imageRoles=document + documentImageIndexes.
 - MULTIMODAL FUSION (kai yra ir tech passport, ir auto nuotraukos):
-  Tech passport / documentImageIndexes = PRIMARY ground-truth (prioritetas prieš vizualines spenziones).
+  Tech passport / documentImageIndexes = PRIMARY ground-truth (prioritetas prieš vizualines spekuliacijas).
   HARD SPECS iš paso: A→plate/licensePlate, B→firstRegistration PILNA data YYYY-MM-DD (+ year YYYY), D.1→make, D.3→model (VERBATIM — žr. MODEL FIDELITY), S.1→seats, P.1→engine (cm³ → litrai, pvz. 1997→2.0), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
-  VISUAL EXTRAS iš auto nuotraukų (bullet tekstas):
+  VISUAL EXTRAS iš auto nuotraukų → technicalFields + sales description bullet'ai:
     interiorCondition — odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis / erdvi bagažinė.
     exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi).
     transmission — jei matomos mentelės prie vairo → „Automatinė / EGS (pusiau automatinė)“.
   GRAND LOGIKA: jei S.1=7 arba vizualiai 7 vietos / Grand — model/title „Grand C4 Picasso“ (ne trumpinti į C4 Picasso).
   DRAUDŽIAMA išgalvoti kainą, ridą ar TA (techninę apžiūrą) — tik jei vartotojas aiškiai parašė.
-  description — TECHNINIS juodraštis (ne sales copy): specs + vizualūs bullet faktai. Be CTA / kainos.
-- MODEL FIDELITY (ABSOLIUTU): technicalFields.model ir title privalo būti EXACT D.3 / ženkliuko eilutė. NIEKADA trumpinti, normalizuoti ar „valyti“: „Grand C4 Picasso“ ≠ „C4 Picasso“; „Gran Coupe“, „Gran Tourer“, „Avant“, „Combi“, „Variant“, „Allroad“, „Long“, „xDrive“ — VISADA palikti.
-- Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus. NIEKADA nestabdyk juodraščio.
+- MODEL FIDELITY (ABSOLIUTU): technicalFields.model ir title privalo būti EXACT D.3 / ženkliuko eilutė. NIEKADA trumpinti: „Grand C4 Picasso“ ≠ „C4 Picasso“; „Gran Coupe“, „Avant“, „xDrive“ — VISADA palikti.
+- Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus + turtingą description iš to, kas matoma.
 - galleryImageIndexes / imageRoles=gallery — TIK produkto/auto nuotraukos. Žalias/mėlynas tech passport VISADA document.
-- DRAUDŽIAMA: „patrauklus pasirinkimas“, „puiki proga“, „mielai atsakysime“, emociniai filleriai, CTA be faktų.
 - Jei faktas nematomas — praleisk, neišgalvok. Kainos ir miesto NEGALIMA išgalvoti.
 
 ${TEXT_AND_VISION_INPUT_ONLY}
@@ -93,11 +95,11 @@ ${STRUCTURED_INPUT_VISION_RULES}
 KATEGORIJŲ TAISYKLĖS:
 - NT: butas/namas/sklypas → „NT“, NE „NAMAI“.
 - AUTOMOBILIAI: auto/mašina/rida/markė → „AUTOMOBILIAI“.
-- title: konkretus su VISU modeliu (pvz. „Citroën Grand C4 Picasso 2007“), be placeholderių ir be trumpinimo.
+- title: engaginantis marketplace pavadinimas; auto — su VISU modeliu.
 - Jei keli PARDUODAMI objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
 - DRAUDŽIAMA į detectedObjects / choiceChips dėti tech passport, registracijos liudijimą, kvitą ar kitą dokumentą — jie tik OCR (documentImageIndexes), ne parduodamas objektas.
 - Automobiliams technicalFields: make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition.
-NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
+NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition. Menas/namai: Atlikimas, Paskirtis, Spalvos, Būklė.`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -226,7 +228,7 @@ function buildTextPrompt(text: string, userCity: string, extraContext?: string):
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
 Pavyzdys: „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën“, technicalFields.make Citroën.
-description: tik techniniai faktai lietuviškai (be fluff / CTA).
+description: MASTER SALES COPYWRITER formatas (hook + bullet ypatybės + CTA), faktai tikri.
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
 
@@ -266,12 +268,13 @@ Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Pirmos document nuot
    • exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi)
    • transmission — jei matomos mentelės → „Automatinė / EGS (pusiau automatinė)“
    • bodyType — vienatūris / MPV jei aišku
-5) description — TECHNINIS juodraščio laukas (ne chat reklama): HARD SPECS + vizualūs bullet faktai.
-   • Chat UI atskirai rodys OCR ataskaitą, vėliau — sales copy po vartotojo „Taip“.
+5) description — MASTER SALES COPYWRITER (hook + **Ypatybės** bullet'ai + CTA). HARD SPECS / OCR faktai → technicalFields IR į description bullet'us.
+   • DRAUDŽIAMA sausas caption („pavaizduoti…“, „nuotraukoje matyti…“).
    • DRAUDŽIAMA išgalvoti kainą, ridą, TA.
+   • PALIK Markdown ** ir naujas eilutes (\\n) description stringe.
 6) NIEKADA neklausti „Patikslinkite metus ir variklį“, jei B/P.1/P.3 jau ištraukti. NIEKADA nekartok vartotojo frazės kaip aprašymo.
-7) title = make + VERBATIM/Grand model + year (pvz. „Citroën Grand C4 Picasso 2007“).
-8) Papildomi technicalFields: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures, firstRegistration.${textNote}${extra}
+7) title — engaginantis marketplace pavadinimas; auto = make + VERBATIM/Grand model + year.
+8) Papildomi technicalFields: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures, firstRegistration + marketplace raktai.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }

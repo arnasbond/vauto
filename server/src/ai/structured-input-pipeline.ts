@@ -50,12 +50,12 @@ export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUT
 - Jei vartotojas prašo pataisyti — updateListingDraft, ne naujas juodraštis iš nieko.`;
 
 export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta pati pipeline logika):
-- Identifikuok parduodamus objektus (detectedObjects). DRAUDŽIAMA poetizuoti foną (trinkelės, namas, medžiai, dangus).
+- Identifikuok parduodamus objektus (detectedObjects). DRAUDŽIAMA poetizuoti foną (trinkelės, namas, medžiai, dangus) vietoj prekės.
 - DRAUDŽIAMA į detectedObjects dėti tech passport / registracijos liudijimą / kvitą — jie tik OCR dokumentai.
 - Keli parduodami objektai → trumpi choiceChips „Parduoti {objektas}“; confidence < 0.55 → disambiguation.
-- Vienas aiškus objektas (ypač automobiliai + techninis pasas) → užpildyk juodraščio JSON tyliai IR pokalbyje parodyk struktūruotą Markdown specifikacijų ataskaitą:
-  ## Pagrindiniai duomenys / ## Variklis ir techniniai parametrai / ## Salonas ir komplektacija (iš nuotraukų).
-- DRAUDŽIAMA 1 žingsnyje generuoti trumpą sales copy ar klausti kainos. Baik: „Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?“
+- Vienas aiškus objektas → užpildyk juodraščio JSON su MASTER SALES COPYWRITER title+description (hook + bullet ypatybės + CTA).
+- Automobiliai + techninis pasas: OCR faktai → technicalFields; pokalbyje gali parodyti Markdown specifikacijų santrauką, BET description laukas VISADA turi būti turtingas marketplace sales copy (ne sausas caption).
+- DRAUDŽIAMA klausti kainos jei vartotojas jos nenurodė; DRAUDŽIAMA išgalvoti kainą / ridą / TA.
 - Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą be fono aprašymų.`;
 
 export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI (PRIVALOMA — ne skelbimo laukai):

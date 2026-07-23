@@ -163,8 +163,9 @@ async function resolveListingPhotoScan(input: {
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
       : "",
-    "Vision MULTIMODAL FUSION (UNIVERSAL OCR): passport PRIMARY OCR across ALL attached photos in one pass. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E. B→firstRegistration YYYY-MM-DD (ne tik metai). S.1=7 arba Grand → Grand C4 Picasso. Mentelės prie vairo → transmission Automatinė / EGS (pusiau automatinė). interiorCondition + exteriorFeatures = bullet faktai (odinis salonas, porankiai, mentelės, bagažinė; ratlankiai, rilingai, deflektoriai, kablys). DRAUDŽIAMA išgalvoti kainą/TA/ridą. documentImageIndexes = OCR-only.",
+    "Vision MULTIMODAL FUSION (UNIVERSAL OCR + MASTER SALES COPYWRITER): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields. B→firstRegistration YYYY-MM-DD. S.1=7/Grand → Grand C4 Picasso. Mentelės → Automatinė/EGS. DRAUDŽIAMA išgalvoti kainą/TA/ridą. documentImageIndexes = OCR-only.",
     "ANTI-STALE: title/make/model TIK iš dabartinių nuotraukų+OCR. IGNORUOK seną listingDraft.title / myListings antraštes, jei vizualiai nesutampa.",
+    "MASTER SALES COPYWRITER: title engaginantis; description = hook + • **Ypatybės** bullet'ai + CTA su Markdown ** ir \\n. DRAUDŽIAMA sausas caption („pavaizduoti rudi taškeliai…“).",
   ].filter(Boolean);
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;
@@ -184,7 +185,7 @@ async function resolveListingPhotoScan(input: {
           : undefined,
       extraContext: [
         ...extraBits,
-        "PRIVALOMA: UNIVERSAL OCR ANALYSIS — nuskaityk VISUS matomus laukus (A/B/D.1/D.3/E/P.*), tada tikslus 4–8 sakinių TECHNINIS description lietuviškai (markė, modelis, metai, variklis, kW, kuras, rida, trim). BE fluff / CTA. Dokumentų indeksus — documentImageIndexes. NIEKADA neperrašyk senos antraštės be OCR pagrindo.",
+        "PRIVALOMA: UNIVERSAL OCR → technicalFields/attributes; tada MASTER SALES COPYWRITER description lietuviškai (hook + **Atlikimas/Būklė**, **Stilius/Specifikacijos**, **Spalvos/Parametrai** + closing CTA). PALIK Markdown ** ir naujas eilutes. DRAUDŽIAMA sausas image caption. Dokumentų indeksus — documentImageIndexes. NIEKADA neperrašyk senos antraštės be OCR pagrindo.",
       ].join("; "),
     });
   } catch (err) {

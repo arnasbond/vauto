@@ -70,8 +70,35 @@ export function sanitizeListingTitle(raw: string | undefined | null): string {
   return cleaned.slice(0, 96);
 }
 
+/**
+ * Preserve marketplace sales formatting: newlines, **bold**, and •/- bullets.
+ * Only strip system/agent junk — never flatten rich Vision copy into one line.
+ */
 export function sanitizeListingDescription(raw: string | undefined | null): string {
-  return sanitizeListingUserText(raw).slice(0, 4000);
+  let t = String(raw ?? "").trim();
+  if (!t) return "";
+  for (const re of SYSTEM_PHRASE_PATTERNS) {
+    t = t.replace(re, " ");
+  }
+  t = t
+    .replace(/([^\n#])[ \t]*#{1,6}[ \t]+/g, "$1 ")
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "");
+  t = t
+    .split("\n")
+    .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
+    .filter((line) => {
+      const trimmed = line.trim();
+      return !trimmed || !isAgentClarificationText(trimmed);
+    })
+    .join("\n");
+  for (const re of AGENT_CLARIFICATION_PATTERNS) {
+    t = t.replace(re, " ");
+  }
+  return t
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .trim()
+    .slice(0, 4000);
 }
 
 /** Minimum length before a description is treated as thin / summary-only. */

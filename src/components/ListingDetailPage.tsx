@@ -71,6 +71,25 @@ function formatPostedDate(iso: string): string {
   }
 }
 
+/** Render marketplace description with newlines + lightweight **bold**. */
+function ListingSalesDescription({ text }: { text: string }) {
+  const parts = text.split(/(\*\*[^*]+\*\*)/g);
+  return (
+    <p className="mt-2 whitespace-pre-wrap text-sm leading-relaxed text-slate-600">
+      {parts.map((part, i) => {
+        if (part.startsWith("**") && part.endsWith("**") && part.length > 4) {
+          return (
+            <strong key={i} className="font-semibold text-slate-800">
+              {part.slice(2, -2)}
+            </strong>
+          );
+        }
+        return <span key={i}>{part}</span>;
+      })}
+    </p>
+  );
+}
+
 export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {}) {
   const searchParams = useSearchParams();
   const pathname = usePathname();
@@ -417,11 +436,9 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             {(aboutDescription || detailRows.length > 0) && (
               <section className="vauto-glass-card mt-6 rounded-2xl p-4">
                 <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
-                {aboutDescription && (
-                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                    {aboutDescription}
-                  </p>
-                )}
+                {aboutDescription ? (
+                  <ListingSalesDescription text={aboutDescription} />
+                ) : null}
                 {detailRows.length > 0 && (
                   <dl
                     className={`mt-3 grid gap-2 ${
