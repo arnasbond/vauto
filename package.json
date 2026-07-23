@@ -29,6 +29,8 @@
     "server:start": "npm run start --prefix server",
     "db:up": "docker compose up -d",
     "db:seed": "npm run seed --prefix server",
+    "db:purge-ai-test": "node server/scripts/purge-ai-test-listings.mjs",
+    "db:purge-ai-test:dry": "node server/scripts/purge-ai-test-listings.mjs --dry-run",
     "pitch:pdf": "node scripts/generate-pitch-pdf.mjs",
     "report:launch-pdf": "node scripts/generate-launch-readiness-pdf.mjs",
     "report:emotional-pdf": "node scripts/generate-emotional-experience-pdf.mjs",

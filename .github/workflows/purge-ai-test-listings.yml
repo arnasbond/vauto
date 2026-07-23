@@ -1,0 +1,60 @@
+name: Purge AI test listings
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run only (no deletes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
+      - name: Resolve DATABASE_URL from Render and purge
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "RENDER_API_KEY not set"
+            exit 1
+          fi
+          URL=$(node scripts/resolve-render-database-url.mjs --print)
+          if [ -z "$URL" ]; then
+            echo "Failed to resolve DATABASE_URL"
+            exit 1
+          fi
+          export DATABASE_URL="$URL"
+          ARGS=""
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          node server/scripts/purge-ai-test-listings.mjs $ARGS
+
+      - name: Verify public listings sample
+        run: |
+          BODY=$(curl -sf "https://vauto-api.onrender.com/api/listings?limit=20" || true)
+          echo "${BODY:0:800}"
+          if echo "$BODY" | grep -qE '"id":"l-[0-9a-f]{8}'; then
+            echo "WARN: public API still returns l-<uuid> AI listing ids (cache/deploy lag possible)"
+          else
+            echo "OK: no l-<uuid> ids in first page sample"
+          fi

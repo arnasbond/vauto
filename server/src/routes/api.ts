@@ -133,6 +133,7 @@ import {
   getAuthHygieneSnapshot,
   resetAuthState,
 } from "../services/auth-reset.js";
+import { purgeAiTestListings } from "../services/purge-ai-test-listings.js";
 import { proxyImageHandler } from "../controllers/proxy-controller.js";
 import { resolveAppVersionPayload } from "../lib/app-version-config.js";
 
@@ -372,6 +373,22 @@ apiRouter.post("/ops/auth-reset", requireOpsSecret, async (req, res) => {
       dryRun: req.body?.dryRun === true,
       preserveCatalog: req.body?.preserveCatalog !== false,
       preserveAdmin: req.body?.preserveAdmin === true,
+    });
+    res.json(result);
+  } catch (e) {
+    res.status(500).json({ ok: false, error: String(e) });
+  }
+});
+
+/**
+ * Purge AI-generated / temporary test listings. Keeps demo catalog (lt-*, seller-*).
+ * Clears embeddings, dependent rows, and image refs. Seller "Mano skelbimai"
+ * counts derive from remaining listings rows.
+ */
+apiRouter.post("/ops/purge-ai-test-listings", requireOpsSecret, async (req, res) => {
+  try {
+    const result = await purgeAiTestListings({
+      dryRun: req.body?.dryRun === true,
     });
     res.json(result);
   } catch (e) {
