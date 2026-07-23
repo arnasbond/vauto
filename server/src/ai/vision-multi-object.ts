@@ -9,6 +9,30 @@ export interface DetectedVisionObject {
 const SELL_CHIP_PREFIX = "Parduoti ";
 const SEARCH_CHIP_PREFIX = "Ieškoti ";
 
+/**
+ * Tech passport / registration / receipts are OCR evidence — never sellable
+ * multi-object chips (car + passport must continue to Step 1 specs).
+ */
+const DOCUMENT_LIKE_LABEL =
+  /\b(technin(?:is|io)?\s+pasas|tech[_\s-]?passport|registracijos\s+liudijim|registracij(?:a|os)|registration(?:\s+certificate)?|pasas|passport|kvitas|receipt|invoice|sąskaita|dokument(?:as|o|ų)|id[_\s-]?card|asmen(?:s|inis)\s+dokument)\b/i;
+
+export function isDocumentLikeVisionLabel(label: string): boolean {
+  const t = label.trim();
+  if (!t) return false;
+  const noun = t.replace(/^(parduoti|ieškoti|ieskoti)\s+/i, "").trim();
+  return DOCUMENT_LIKE_LABEL.test(noun) || DOCUMENT_LIKE_LABEL.test(t);
+}
+
+export function filterSellableDetectedObjects(
+  objects: DetectedVisionObject[]
+): DetectedVisionObject[] {
+  return objects.filter((o) => !isDocumentLikeVisionLabel(o.label));
+}
+
+export function filterSellableChoiceChips(chips: string[]): string[] {
+  return chips.filter((c) => !isDocumentLikeVisionLabel(c));
+}
+
 function normalizeChipLabel(raw: string, mode: "sell" | "search"): string {
   const trimmed = raw.trim().replace(/^[\[\]«»"']+|[\[\]«»"']+$/g, "");
   if (!trimmed) return "";
@@ -29,6 +53,7 @@ export function parseDetectedObjects(raw: unknown): DetectedVisionObject[] {
     const r = item as Record<string, unknown>;
     const label = String(r.label ?? r.name ?? "").trim();
     if (!label || label.length < 2) continue;
+    if (isDocumentLikeVisionLabel(label)) continue;
     const confidenceRaw = Number(r.confidence);
     out.push({
       label,
@@ -48,14 +73,14 @@ export function parseChoiceChips(raw: unknown, mode: "sell" | "search" = "sell")
           .map((s) => normalizeChipLabel(s, mode))
           .filter(Boolean)
       : [];
-  return [...new Set(fromArray)].slice(0, 4);
+  return filterSellableChoiceChips([...new Set(fromArray)]).slice(0, 4);
 }
 
 export function chipsFromDetectedObjects(
   objects: DetectedVisionObject[],
   mode: "sell" | "search" = "sell"
 ): string[] {
-  const chips = objects
+  const chips = filterSellableDetectedObjects(objects)
     .map((o) => normalizeChipLabel(o.label, mode))
     .filter((c) => c.length >= 6);
   return [...new Set(chips)].slice(0, 4);

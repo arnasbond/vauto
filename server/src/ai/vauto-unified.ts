@@ -94,7 +94,8 @@ KATEGORIJŲ TAISYKLĖS:
 - NT: butas/namas/sklypas → „NT“, NE „NAMAI“.
 - AUTOMOBILIAI: auto/mašina/rida/markė → „AUTOMOBILIAI“.
 - title: konkretus su VISU modeliu (pvz. „Citroën Grand C4 Picasso 2007“), be placeholderių ir be trumpinimo.
-- Jei keli objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
+- Jei keli PARDUODAMI objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
+- DRAUDŽIAMA į detectedObjects / choiceChips dėti tech passport, registracijos liudijimą, kvitą ar kitą dokumentą — jie tik OCR (documentImageIndexes), ne parduodamas objektas.
 - Automobiliams technicalFields: make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition.
 NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition.`;
 
@@ -181,9 +182,12 @@ function toListingPayload(
   if (choiceChips.length < 2 && detectedObjects.length >= 2) {
     choiceChips = chipsFromDetectedObjects(detectedObjects, "sell");
   }
+  // Car + tech passport → single sellable object; never ask which to sell.
   const clarificationPrompt =
-    String(technicalFields.clarificationPrompt ?? "").trim() ||
-    buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
+    detectedObjects.length >= 2
+      ? String(technicalFields.clarificationPrompt ?? "").trim() ||
+        buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell")
+      : "";
 
   const userCityResolved = resolveListingCity(userCity, "Vilnius");
 
@@ -636,13 +640,16 @@ export async function parseListingImagesForAgent(params: {
   }
   const sceneContext = String(raw.sceneContext ?? listing.attributes.sceneContext ?? "").trim();
   const clarificationPrompt =
-    String(listing.attributes.clarificationPrompt ?? "").trim() ||
-    buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell");
+    detectedObjects.length >= 2
+      ? String(listing.attributes.clarificationPrompt ?? "").trim() ||
+        buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell")
+      : "";
 
   const quotaFallback =
     String(listing.attributes?.visionQuotaFallback ?? "") === "true";
   const sparseSell = String(listing.attributes?.sparseSell ?? "") === "true";
-  // Soft OCR never blocks. Only multi-object ambiguity / sparse text / low confidence.
+  // Soft OCR never blocks. Document labels are already stripped from detectedObjects —
+  // car + passport must NOT clarify. Only true multi-sellable ambiguity / sparse / low conf.
   const needsClarification =
     sparseSell ||
     (!quotaFallback &&

@@ -25,34 +25,42 @@ export async function ensureWebPushSubscription(
   if (typeof window === "undefined" || !isDataApiEnabled()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
 
-  const vapid = await apiGetVapidPublicKey();
-  if (!vapid.ok || !vapid.data.enabled || !vapid.data.publicKey) return false;
+  try {
+    const vapid = await apiGetVapidPublicKey();
+    if (!vapid.ok || !vapid.data.enabled || !vapid.data.publicKey) return false;
 
-  const permission =
-    Notification.permission === "granted"
-      ? "granted"
-      : await Notification.requestPermission();
-  if (permission !== "granted") return false;
+    const permission =
+      Notification.permission === "granted"
+        ? "granted"
+        : await Notification.requestPermission();
+    if (permission !== "granted") return false;
 
-  const reg = await navigator.serviceWorker.ready;
-  let sub = await reg.pushManager.getSubscription();
-  if (!sub) {
-    sub = await reg.pushManager.subscribe({
-      userVisibleOnly: true,
-      applicationServerKey: urlBase64ToUint8Array(vapid.data.publicKey),
-    });
+    const reg = await navigator.serviceWorker.ready;
+    let sub = await reg.pushManager.getSubscription();
+    if (!sub) {
+      sub = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapid.data.publicKey),
+      });
+    }
+
+    const json = sub.toJSON();
+    const res = await apiSubscribePush(json);
+    if (!res.ok) return false;
+
+    if (savedQueries.length) {
+      await apiSyncAlertQueries(savedQueries);
+    }
+
+    logWakeEvent("web_push_registered", { queries: savedQueries.length });
+    return true;
+  } catch (err) {
+    // Cursor/Electron and some browsers reject push with AbortError —
+    // never surface as an uncaught Next.js overlay.
+    const msg = err instanceof Error ? err.message : String(err ?? "");
+    console.warn("[web-push] subscription skipped:", msg);
+    return false;
   }
-
-  const json = sub.toJSON();
-  const res = await apiSubscribePush(json);
-  if (!res.ok) return false;
-
-  if (savedQueries.length) {
-    await apiSyncAlertQueries(savedQueries);
-  }
-
-  logWakeEvent("web_push_registered", { queries: savedQueries.length });
-  return true;
 }
 
 export function isWebPushSupported(): boolean {

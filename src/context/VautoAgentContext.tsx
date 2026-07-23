@@ -175,6 +175,7 @@ import {
 import { resolvePublishListingDescription } from "@/lib/listing-text-sanitize";
 import {
   parseDetectedObjectsFromAttributes,
+  resolveDocumentAmbiguityRetry,
 } from "@/lib/vision-choice-chips";
 import {
   buildListingEditPrompt,
@@ -216,6 +217,8 @@ export interface AgentSendOptions {
   proactiveOffer?: ProactiveOfferContext;
   /** System-triggered proactive call — do not echo trigger text as user bubble */
   proactiveTriggerOnly?: boolean;
+  /** Internal: already retried after car+passport chip pollution from remote API. */
+  documentAmbiguityRetry?: boolean;
 }
 
 interface VautoAgentContextValue {
@@ -1247,17 +1250,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           Boolean(readListingEditSession()),
       };
 
-      const runPrePublishGate = () => {
+      const runPrePublishGate = (
+        draftOverride?: import("@/lib/types").AiExtractedListing | null
+      ) => {
+        const draft = draftOverride ?? aiDraft;
         const readiness = evaluatePrePublishReadiness({
           isAuthenticated,
           user,
-          draft: aiDraft,
+          draft,
           previewImage: sellerPreviewImage,
           pendingImageUrls: sessionPendingImageUrls,
-          orderedImageUrls: aiDraft?.orderedImageUrls,
+          orderedImageUrls: draft?.orderedImageUrls,
           geoCoords: buyerCoords,
         });
-        if (readiness.syncedDraft && aiDraft && readiness.syncedDraft !== aiDraft) {
+        if (readiness.syncedDraft && draft && readiness.syncedDraft !== draft) {
           updateAiDraft(readiness.syncedDraft);
         }
         return readiness;
@@ -1268,19 +1274,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         quickReplies?: string[];
         prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
       } => {
-        const readiness = runPrePublishGate();
+        const readiness = runPrePublishGate(draftForTurn);
         if (!readiness.ok) {
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
-        return confirmPublishNow();
+        return confirmPublishNow(draftForTurn);
       };
 
-      const confirmPublishNow = (): {
+      const confirmPublishNow = (
+        draftOverride?: import("@/lib/types").AiExtractedListing | null
+      ): {
         reply: string;
         quickReplies?: string[];
         prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
       } => {
-        const readiness = runPrePublishGate();
+        const readiness = runPrePublishGate(draftOverride ?? draftForTurn);
         if (!readiness.ok) {
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
@@ -1633,10 +1641,42 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             })
           : null;
       if (listingChatReply) {
+        // Price-only answers after „Kokią kainą?“ should open PrePublish, not re-ask photos.
+        if (priceFromTurn != null && draftForTurn) {
+          const pricedDraft = { ...draftForTurn, price: priceFromTurn };
+          const readinessAfterPrice = evaluatePrePublishReadiness({
+            isAuthenticated,
+            user,
+            draft: pricedDraft,
+            previewImage: sellerPreviewImage,
+            pendingImageUrls: pendingForTurn,
+            orderedImageUrls: pricedDraft.orderedImageUrls,
+            geoCoords: buyerCoords,
+          });
+          if (readinessAfterPrice.ok) {
+            const confirmed = confirmPublishNow(pricedDraft);
+            setMessages((prev) => [
+              ...prev,
+              { role: "user" as const, text: trimmed },
+              {
+                role: "assistant" as const,
+                text: confirmed.reply,
+                ...(confirmed.quickReplies?.length
+                  ? { quickReplies: confirmed.quickReplies }
+                  : {}),
+                ...(confirmed.prePublishCard
+                  ? { prePublishCard: confirmed.prePublishCard }
+                  : {}),
+              },
+            ].slice(-6));
+            touchAgentSessionActivity();
+            return { ok: true, reply: confirmed.reply };
+          }
+        }
         const reply = buildDraftingCompletePhotosPrompt({
           title: aiDraft?.title,
           description: aiDraft?.description,
-          price: aiDraft?.price,
+          price: priceFromTurn ?? aiDraft?.price,
           location: aiDraft?.location,
         });
         setListingPublishConfirmed(false);
@@ -2230,6 +2270,38 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             : aiTwinNudge
           : baseAssistantText;
 
+        // Remote API may still treat tech passport as a sellable object.
+        // Auto-retry with the same photos + explicit sell text so Step 1 OCR continues.
+        const docAmbiguity = resolveDocumentAmbiguityRetry(res.quickReplies);
+        if (
+          docAmbiguity.shouldRetry &&
+          docAmbiguity.preferredSellText &&
+          !options?.documentAmbiguityRetry &&
+          (activePendingImageUrls?.length ||
+            sessionPendingImageUrls.length ||
+            requestPendingImageUrls.length)
+        ) {
+          const retryPhotos =
+            activePendingImageUrls?.length
+              ? activePendingImageUrls
+              : requestPendingImageUrls.length
+                ? requestPendingImageUrls
+                : sessionPendingImageUrls;
+          retainPendingImageUrls = true;
+          return await sendAgentMessageRef.current(docAmbiguity.preferredSellText, {
+            ...options,
+            pendingImageUrls: retryPhotos,
+            sessionImageUrls: retryPhotos,
+            skipUserBubble: true,
+            documentAmbiguityRetry: true,
+            skipBusyCheck: true,
+          });
+        }
+
+        const displayQuickReplies = docAmbiguity.sellableChips.length
+          ? docAmbiguity.sellableChips
+          : res.quickReplies;
+
         if (mergedAssistantText.trim()) {
           if (
             proactiveContactConfirmation ||
@@ -2239,7 +2311,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ) {
             appendSupervisorAssistant(
               mergedAssistantText,
-              res.quickReplies,
+              displayQuickReplies,
               res.prePublishCard
             );
           }

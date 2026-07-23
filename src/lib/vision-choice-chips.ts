@@ -14,6 +14,27 @@ export {
   nounFromVisionObjectSellChip,
 } from "@vauto/shared/listing-organism";
 
+/** Tech passport / registration = OCR only, never a sell chip. */
+const DOCUMENT_LIKE_LABEL =
+  /\b(technin(?:is|io)?\s+pasas|tech[_\s-]?passport|registracijos\s+liudijim|registracij(?:a|os)|registration(?:\s+certificate)?|pasas|passport|kvitas|receipt|invoice|sąskaita|dokument(?:as|o|ų)|id[_\s-]?card|asmen(?:s|inis)\s+dokument)\b/i;
+
+export function isDocumentLikeVisionLabel(label: string): boolean {
+  const t = label.trim();
+  if (!t) return false;
+  const noun = t.replace(/^(parduoti|ieškoti|ieskoti)\s+/i, "").trim();
+  return DOCUMENT_LIKE_LABEL.test(noun) || DOCUMENT_LIKE_LABEL.test(t);
+}
+
+export function filterSellableDetectedObjects(
+  objects: DetectedVisionObject[]
+): DetectedVisionObject[] {
+  return objects.filter((o) => !isDocumentLikeVisionLabel(o.label));
+}
+
+export function filterSellableChoiceChips(chips: string[]): string[] {
+  return chips.filter((c) => !isDocumentLikeVisionLabel(c));
+}
+
 function normalizeChipLabel(raw: string, mode: "sell" | "search"): string {
   const trimmed = raw.trim().replace(/^[\[\]«»"']+|[\[\]«»"']+$/g, "");
   if (!trimmed) return "";
@@ -38,7 +59,7 @@ export function parseChoiceChipsFromAttributes(
       : Array.isArray(raw)
         ? raw.map((s) => normalizeChipLabel(String(s), mode))
         : [];
-  return [...new Set(list.filter(Boolean))].slice(0, 4);
+  return filterSellableChoiceChips([...new Set(list.filter(Boolean))]).slice(0, 4);
 }
 
 export function parseDetectedObjectsFromAttributes(
@@ -48,19 +69,23 @@ export function parseDetectedObjectsFromAttributes(
   try {
     const parsed = JSON.parse(String(attrs.detectedObjects)) as unknown;
     if (!Array.isArray(parsed)) return [];
-    return parsed
-      .map((item) => {
-        if (!item || typeof item !== "object") return null;
-        const r = item as Record<string, unknown>;
-        const label = String(r.label ?? "").trim();
-        if (!label) return null;
-        return {
-          label,
-          category: r.category ? String(r.category) : undefined,
-          confidence: Number.isFinite(Number(r.confidence)) ? Number(r.confidence) : undefined,
-        };
-      })
-      .filter(Boolean) as DetectedVisionObject[];
+    return filterSellableDetectedObjects(
+      parsed
+        .map((item) => {
+          if (!item || typeof item !== "object") return null;
+          const r = item as Record<string, unknown>;
+          const label = String(r.label ?? "").trim();
+          if (!label) return null;
+          return {
+            label,
+            category: r.category ? String(r.category) : undefined,
+            confidence: Number.isFinite(Number(r.confidence))
+              ? Number(r.confidence)
+              : undefined,
+          };
+        })
+        .filter(Boolean) as DetectedVisionObject[]
+    );
   } catch {
     return [];
   }
@@ -70,7 +95,9 @@ export function extractVisionChoiceChips(
   extracted: Pick<AiExtractedListing, "attributes" | "clarificationPrompt" | "choiceChips">,
   mode: "sell" | "search" = "sell"
 ): string[] {
-  if (extracted.choiceChips?.length) return extracted.choiceChips.slice(0, 4);
+  if (extracted.choiceChips?.length) {
+    return filterSellableChoiceChips(extracted.choiceChips).slice(0, 4);
+  }
   const fromAttrs = parseChoiceChipsFromAttributes(extracted.attributes, mode);
   if (fromAttrs.length) return fromAttrs;
   const objects = parseDetectedObjectsFromAttributes(extracted.attributes);
@@ -114,6 +141,32 @@ export function shouldClarifyPhotoUpload(extracted: AiExtractedListing): boolean
   const confidence = extracted.confidence ?? 0;
   const objects = parseDetectedObjectsFromAttributes(extracted.attributes);
   return chips.length >= 2 && (confidence < 0.55 || objects.length >= 2);
+}
+
+/**
+ * Remote APIs may still emit car + tech-passport chips. True when documents
+ * polluted a multi-object reply and exactly one sellable chip remains.
+ */
+export function resolveDocumentAmbiguityRetry(quickReplies: string[] | undefined): {
+  shouldRetry: boolean;
+  sellableChips: string[];
+  preferredSellText: string | null;
+} {
+  const raw = (quickReplies ?? []).map((c) => c.trim()).filter(Boolean);
+  if (raw.length < 2) {
+    return { shouldRetry: false, sellableChips: raw, preferredSellText: null };
+  }
+  const hadDocument = raw.some((c) => isDocumentLikeVisionLabel(c));
+  const sellableChips = filterSellableChoiceChips(raw);
+  if (!hadDocument || sellableChips.length !== 1) {
+    return { shouldRetry: false, sellableChips, preferredSellText: null };
+  }
+  const noun = sellableChips[0].replace(/^parduoti\s+/i, "").trim() || "automobilį";
+  return {
+    shouldRetry: true,
+    sellableChips,
+    preferredSellText: `Parduodu ${noun}. Techninis pasas / dokumentas tik OCR specifikacijoms, ne atskiras skelbimas.`,
+  };
 }
 
 export function formatSearchAlternativeChips(alternatives: string[]): string[] {
