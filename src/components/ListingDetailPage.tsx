@@ -275,23 +275,25 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       </header>
 
       <div className="flex flex-col pb-8">
-        <div className="relative w-full overflow-hidden rounded-2xl bg-black/20">
-          <ListingImageGallery listing={listing} />
-          <button
-            type="button"
-            onClick={() => toggleSave(listing.id)}
-            className="absolute right-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
-            aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
-          >
-            <Heart
-              className={`h-5 w-5 ${
-                isSaved
-                  ? "fill-[var(--vauto-red)] text-[var(--vauto-red)]"
-                  : "text-white"
-              }`}
-            />
-          </button>
-        </div>
+        <ListingImageGallery
+          listing={listing}
+          topRightSlot={
+            <button
+              type="button"
+              onClick={() => toggleSave(listing.id)}
+              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
+              aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
+            >
+              <Heart
+                className={`h-5 w-5 ${
+                  isSaved
+                    ? "fill-[var(--vauto-red)] text-[var(--vauto-red)]"
+                    : "text-white"
+                }`}
+              />
+            </button>
+          }
+        />
 
         <div className="mt-4">
           <span className="rounded-full bg-[var(--vauto-teal)]/10 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--vauto-teal)]">
@@ -366,37 +368,6 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </div>
         )}
 
-        {isOwner && listing.status !== "sold" && (
-          <div className="mt-5 flex flex-col gap-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Valdymas
-            </p>
-            <button
-              type="button"
-              onClick={handleEdit}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
-            >
-              <Pencil className="h-4 w-4" />
-              Redaguoti
-            </button>
-            <OwnerListingPromote listing={listing} />
-            <section className="vauto-glass-card rounded-2xl p-4">
-              <h2 className="mb-2 text-sm font-semibold text-slate-900">
-                Papildoma reklama socialiniuose tinkluose
-              </h2>
-              <ShareListingPanel listing={listing} compact />
-            </section>
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-              Ištrinti skelbimą
-            </button>
-          </div>
-        )}
-
         {(aboutDescription || detailRows.length > 0) && (
           <section className="vauto-glass-card mt-6 rounded-2xl p-4">
             <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
@@ -438,6 +409,37 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               ))}
             </div>
           </section>
+        )}
+
+        {isOwner && listing.status !== "sold" && (
+          <div className="mt-5 flex flex-col gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Valdymas
+            </p>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
+            >
+              <Pencil className="h-4 w-4" />
+              Redaguoti
+            </button>
+            <OwnerListingPromote listing={listing} />
+            <section className="vauto-glass-card rounded-2xl p-4">
+              <h2 className="mb-2 text-sm font-semibold text-slate-900">
+                Papildoma reklama socialiniuose tinkluose
+              </h2>
+              <ShareListingPanel listing={listing} compact />
+            </section>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+              Ištrinti skelbimą
+            </button>
+          </div>
         )}
 
         {!isOwner && <SafeMeetingTips />}

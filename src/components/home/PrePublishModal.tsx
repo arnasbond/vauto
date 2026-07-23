@@ -26,7 +26,7 @@ import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 import type { ListingCategory } from "@/lib/types";
 
 /** Full card → fold → plane flight before API publish. */
-const CARD_FOLD_PLANE_MS = 1350;
+const CARD_FOLD_PLANE_MS = 1200;
 
 const TIER_BADGE: Record<
   PrePublishVisibilityId,
@@ -180,7 +180,8 @@ export function PrePublishModal({
 
   // Schema-less: only render key-value specs that AI/OCR actually populated.
   const visibleSpecs = getDynamicAttributeEntries(
-    attributes as Record<string, unknown> | undefined
+    attributes as Record<string, unknown> | undefined,
+    card.category as ListingCategory | undefined
   ).slice(0, 16);
 
   if (!open || typeof document === "undefined") return null;

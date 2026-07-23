@@ -61,7 +61,7 @@ export function ShareListingButton({
         type="button"
         onClick={() => void quickShare()}
         className={cn(
-          "flex items-center justify-center gap-1 rounded-xl bg-[var(--vauto-teal)]/15 px-3 py-2 text-xs font-semibold text-[var(--vauto-teal)]",
+          "flex items-center justify-center gap-1 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-700 hover:bg-slate-50",
           className
         )}
       >

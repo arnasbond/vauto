@@ -13,6 +13,7 @@ export const INTERNAL_LISTING_ATTR_KEYS = new Set([
   "email",
   "sellerName",
   "sellername",
+  "sellerDisplayName",
   "location",
   "fashionCategory",
   "fashionSubcategory",
@@ -33,6 +34,11 @@ export const INTERNAL_LISTING_ATTR_KEYS = new Set([
   "socialPublish",
   "socialPublishFacebook",
   "socialPublishInstagram",
+  "socialPublishAnonserLt",
+  "socialPublishAiAdaptation",
+  "socialPublishFacebookGroups",
+  "conductorSources",
+  "conductorMergedAt",
 ]);
 
 /** Keys whose `key:value` tags may surface as the bare value only. */

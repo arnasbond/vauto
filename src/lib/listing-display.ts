@@ -4,13 +4,16 @@ import {
   type AdaptiveCategoryKey,
 } from "@/lib/adaptive-categories";
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
-import { getDynamicListingDetailRows } from "@/lib/listing-dynamic-attributes";
+import { getDynamicAttributeEntries } from "@/lib/listing-dynamic-attributes";
 import type { Listing, ListingCategory } from "@/lib/types";
 
 const DEMO_PHONE = "+37061234567";
 
 const ELECTRONICS_TEXT_RE =
   /\b(vert[eė]j|translator|elektron|gadget|telefon|iphone|samsung|xiaomi|peiko|ausin|plan[sš]et|televiz|notebook|ne[sš]iojam)/i;
+
+const INSTRUMENT_TEXT_RE =
+  /\b(gitar|guitar|hohner|muzik|pianin|būgn|bugn|drum|smuik|akustin|bosin|ukulel)/i;
 
 const APPAREL_TEXT_RE =
   /\b(striuk|džins|dzins|suknel|mar[sš]kin|kelm|sportbač|batai|šalik|kepur|drabuž|aprang)/i;
@@ -79,6 +82,12 @@ export function resolveDisplayListingCategory(listing: Listing): ListingCategory
     .join(" ")
     .toLowerCase();
 
+  if (INSTRUMENT_TEXT_RE.test(blob) && !APPAREL_TEXT_RE.test(blob)) {
+    if (category === "clothing" || category === "vehicles") {
+      return "other";
+    }
+  }
+
   if (ELECTRONICS_TEXT_RE.test(blob) && !APPAREL_TEXT_RE.test(blob)) {
     if (category === "clothing" || category === "other" || category === "vehicles") {
       return "electronics";
@@ -90,7 +99,11 @@ export function resolveDisplayListingCategory(listing: Listing): ListingCategory
 
 /** Schema-less detail rows: only populated attribute map entries. */
 export function getListingDetailRows(listing: Listing): ListingDetailRow[] {
-  return getDynamicListingDetailRows(listing);
+  const category = resolveDisplayListingCategory(listing);
+  return getDynamicAttributeEntries(
+    listing.attributes as Record<string, unknown>,
+    category
+  ).map((e) => ({ label: e.label, value: e.value }));
 }
 
 export function getCategoryLabel(listing: Listing): string {
