@@ -16,11 +16,14 @@ export type ValidationResult<T> =
 const LISTING_CATEGORIES = new Set([
   "electronics",
   "vehicles",
+  "transport",
   "services",
   "jobs",
   "home",
   "clothing",
   "real_estate",
+  "tools",
+  "rental",
   "other",
 ]);
 

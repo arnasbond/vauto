@@ -74,11 +74,14 @@ export interface VautoServerUploadResponse {
 const VALID_CATEGORIES: ListingCategory[] = [
   "electronics",
   "vehicles",
+  "transport",
   "services",
   "jobs",
   "home",
   "clothing",
   "real_estate",
+  "tools",
+  "rental",
   "other",
 ];
 

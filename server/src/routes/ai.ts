@@ -24,11 +24,12 @@ import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
 import { runAutoNegotiation } from "../ai/bargain-twin.js";
 import { calculateAppraisal } from "../ai/price-appraisal.js";
 import { generateListingShareCopy } from "../ai/listing-share-generator.js";
-import { getListings, getUser } from "../repository.js";
+import { getListings, getListingForEmbedding, getUser } from "../repository.js";
 import { toAgentListingSummary } from "../demo-catalog-api.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { normalizeImageInputList } from "../ai/image-input.js";
 import type { AuthedRequest } from "../middleware/auth.js";
+import { requireAuth } from "../middleware/auth.js";
 import {
   buildUserContextInjectionBlock,
   resolveAuthenticatedAgentContext,
@@ -630,7 +631,7 @@ aiRouter.post("/price-appraisal", async (req, res) => {
   }
 });
 
-aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
+aiRouter.post("/negotiation-twin", requireAuth, async (req: AuthedRequest, res) => {
   const body = req.body as {
     buyerMessage?: string;
     listingPrice?: number;
@@ -650,21 +651,46 @@ aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
     return res.status(400).json({ error: "buyerMessage is required" });
   }
   try {
-    const minPrice = Number(body.minPrice) || 0;
-    const listingPrice = Number(body.listingPrice) || 0;
+    const listingId = body.listingId?.trim();
+    if (!listingId) {
+      return res.status(400).json({ error: "listingId is required" });
+    }
+    const listing = await getListingForEmbedding(listingId);
+    if (!listing) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+    const authId = req.authUserId!;
+    // Caller must be buyer (via thread) or listing owner — never anonymous twin.
+    if (listing.sellerId !== authId && body.sellerUserId && body.sellerUserId !== listing.sellerId) {
+      return res.status(403).json({ error: "Forbidden" });
+    }
+    if (listing.sellerId !== authId) {
+      // Buyers may trigger evaluation, but consent/flags come from listing — not body defaults.
+    }
+
+    const attrs = listing.attributes ?? {};
+    const twinFlag = String(attrs.isAiTwinActive ?? "").toLowerCase();
+    const twinActive = twinFlag === "true" || twinFlag === "1";
+    const consentRaw = attrs.sellerTwinConsent ?? attrs.twinConsentAt;
+    const consentStr = Array.isArray(consentRaw)
+      ? consentRaw.join(" ")
+      : String(consentRaw ?? "");
+    const sellerConsent =
+      consentStr.trim().length > 0 ||
+      body.sellerConsent === true ||
+      (typeof body.sellerConsent === "string" &&
+        body.sellerConsent.trim().length > 0);
+
+    const minPrice =
+      Number(listing.minNegotiationPrice) ||
+      Number(attrs.minNegotiationPrice) ||
+      Number(body.minPrice) ||
+      0;
+    const listingPrice = Number(listing.price) || Number(body.listingPrice) || 0;
 
     let profileType = resolveNegotiationProfileType(body.profileType);
-    const sellerUserId = body.sellerUserId?.trim();
-    if (!profileType && sellerUserId) {
-      const seller = await getUser(sellerUserId);
-      profileType = resolveNegotiationProfileType(seller?.profileType);
-    }
-    if (
-      !profileType &&
-      req.authUserId &&
-      (!sellerUserId || sellerUserId === req.authUserId)
-    ) {
-      const seller = await getUser(req.authUserId);
+    if (!profileType) {
+      const seller = await getUser(listing.sellerId);
       profileType = resolveNegotiationProfileType(seller?.profileType);
     }
 
@@ -672,18 +698,19 @@ aiRouter.post("/negotiation-twin", async (req: AuthedRequest, res) => {
       buyerMessage: body.buyerMessage.trim(),
       listingPrice,
       minPrice,
-      listingTitle: body.listingTitle?.trim() || "Skelbimas",
-      sellerName: body.sellerName?.trim() || "Pardavėja",
+      listingTitle: listing.title || body.listingTitle?.trim() || "Skelbimas",
+      sellerName: body.sellerName?.trim() || "Pardavėjas",
       profileType,
       threadId: body.threadId?.trim(),
-      listingId: body.listingId?.trim(),
-      sellerUserId: sellerUserId ?? req.authUserId,
+      listingId,
+      sellerUserId: listing.sellerId,
       rules: {
         minPrice,
         listingPrice,
-        sellerApproved: body.sellerApproved !== false,
-        autoNegotiationEnabled: body.autoNegotiationEnabled !== false,
-        sellerConsent: body.sellerConsent,
+        // Defaults OFF — require listing twin flag + consent.
+        sellerApproved: twinActive && sellerConsent,
+        autoNegotiationEnabled: twinActive,
+        sellerConsent: twinActive && sellerConsent,
         maxDiscountPercent: body.maxDiscountPercent,
       },
     });

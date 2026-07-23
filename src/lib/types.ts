@@ -75,11 +75,14 @@ export type LegacyListingInput = Omit<Listing, "images"> & {
 export type ListingCategory =
   | "electronics"
   | "vehicles"
+  | "transport"
   | "services"
   | "jobs"
   | "home"
   | "clothing"
   | "real_estate"
+  | "tools"
+  | "rental"
   | "other";
 
 export type CategoryAttributes = Record<string, string | string[] | undefined>;

@@ -1,10 +1,15 @@
 import type { ListingCategory } from "@/lib/types";
 export type AdaptiveCategoryKey =
   | "vehicles"
+  | "transport"
   | "clothing"
   | "services"
   | "jobs"
   | "real_estate"
+  | "electronics"
+  | "tools"
+  | "rental"
+  | "home"
   | "universal";
 
 export type FieldInputType = "text" | "select" | "checklist" | "textarea";
@@ -34,6 +39,8 @@ export function listingToAdaptiveKey(
   switch (category) {
     case "vehicles":
       return "vehicles";
+    case "transport":
+      return "transport";
     case "clothing":
       return "clothing";
     case "services":
@@ -42,6 +49,14 @@ export function listingToAdaptiveKey(
       return "jobs";
     case "real_estate":
       return "real_estate";
+    case "electronics":
+      return "electronics";
+    case "tools":
+      return "tools";
+    case "rental":
+      return "rental";
+    case "home":
+      return "home";
     default:
       return "universal";
   }

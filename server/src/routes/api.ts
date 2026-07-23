@@ -1197,6 +1197,71 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
         } catch {
           // FAQ must never block chat delivery.
         }
+
+        // AI Twin negotiation — only when listing opts in + seller consent.
+        try {
+          const listing = await getListingForEmbedding(thread.listingId);
+          if (
+            listing &&
+            listing.sellerId === thread.sellerId &&
+            !outbound.messages.some(
+              (m) =>
+                m.id.startsWith("twin-") &&
+                m.timestamp >= latest.timestamp
+            )
+          ) {
+            const attrs = listing.attributes ?? {};
+            const twinFlag = String(attrs.isAiTwinActive ?? "").toLowerCase();
+            const twinActive = twinFlag === "true" || twinFlag === "1";
+            const consentRaw = attrs.sellerTwinConsent ?? attrs.twinConsentAt;
+            const consentStr = Array.isArray(consentRaw)
+              ? consentRaw.join(" ")
+              : String(consentRaw ?? "");
+            const sellerConsent = consentStr.trim().length > 0 || twinActive;
+            const minPrice =
+              Number(listing.minNegotiationPrice) ||
+              Number(attrs.minNegotiationPrice) ||
+              0;
+            if (twinActive && sellerConsent && minPrice > 0 && listing.price >= minPrice) {
+              const { runAutoNegotiation } = await import(
+                "../ai/bargain-twin.js"
+              );
+              const twin = await runAutoNegotiation({
+                buyerMessage: latest.text,
+                listingPrice: listing.price,
+                minPrice,
+                listingTitle: listing.title || thread.listingTitle,
+                sellerName: (await getUser(thread.sellerId))?.name || "Pardavėjas",
+                threadId: thread.id,
+                listingId: listing.id,
+                sellerUserId: thread.sellerId,
+                rules: {
+                  minPrice,
+                  listingPrice: listing.price,
+                  sellerApproved: true,
+                  autoNegotiationEnabled: true,
+                  sellerConsent: true,
+                },
+              });
+              if (twin.shouldReply && twin.autoReply?.trim()) {
+                outbound = {
+                  ...outbound,
+                  messages: [
+                    ...outbound.messages,
+                    {
+                      id: `twin-${Date.now()}`,
+                      senderId: thread.sellerId,
+                      text: twin.autoReply.trim(),
+                      timestamp: new Date().toISOString(),
+                    },
+                  ],
+                };
+              }
+            }
+          }
+        } catch {
+          // Twin must never block chat delivery.
+        }
       }
     }
 
@@ -1331,24 +1396,32 @@ apiRouter.post(
   requireAuth,
   async (req: AuthedRequest, res) => {
     try {
-      const cost = validateAmount(req.body, "cost", 1, 500);
-      if (badRequest(res, cost)) return;
-      const tierRaw = req.body?.tier;
-      const tier =
-        typeof tierRaw === "number" && tierRaw >= 1 && tierRaw <= 5
-          ? tierRaw
-          : 2;
+      const {
+        normalizePromoteTier,
+        resolvePromotePriceEur,
+      } = await import("../billing/promote-pricing.js");
+      const tier = normalizePromoteTier(req.body?.tier);
+      // Ignore client-supplied cost — server is authoritative.
+      const listing = await getListingForEmbedding(req.params.id);
+      if (!listing || listing.sellerId !== req.authUserId) {
+        res.status(404).json({ error: "Listing not found" });
+        return;
+      }
+      const cost = resolvePromotePriceEur({
+        tier,
+        category: listing.category,
+      });
       const result = await promoteListingWallet(
         req.authUserId!,
         req.params.id,
-        cost.value,
+        cost,
         tier
       );
       if (!result) {
         res.status(400).json({ error: "Insufficient balance or listing not found" });
         return;
       }
-      res.json(result);
+      res.json({ ...result, chargedEur: cost, tier });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }

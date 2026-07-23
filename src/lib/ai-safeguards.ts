@@ -143,12 +143,15 @@ const PRICE_BOUNDS: Record<
   { min: number; max: number; label: string }
 > = {
   vehicles: { min: 200, max: 500_000, label: "automobilių" },
+  transport: { min: 50, max: 500_000, label: "transporto" },
   real_estate: { min: 5_000, max: 10_000_000, label: "nekilnojamojo turto" },
   electronics: { min: 1, max: 50_000, label: "elektronikos" },
   services: { min: 1, max: 10_000, label: "paslaugų" },
   jobs: { min: 300, max: 100_000, label: "darbo" },
   home: { min: 1, max: 100_000, label: "buitinių prekių" },
   clothing: { min: 1, max: 5_000, label: "drabužių" },
+  tools: { min: 1, max: 50_000, label: "įrankių" },
+  rental: { min: 1, max: 50_000, label: "nuomos" },
   other: { min: 1, max: 100_000, label: "bendrų" },
 };
 

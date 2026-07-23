@@ -34,8 +34,11 @@ const CATEGORY_PRICE_MULTIPLIER: Record<ListingCategory, number> = {
   other: 1,
   services: 1.15,
   vehicles: 1.35,
+  transport: 1.25,
   real_estate: 2,
   jobs: 1.05,
+  tools: 1.1,
+  rental: 1.2,
 };
 
 const TIER_DEFINITIONS: Array<{

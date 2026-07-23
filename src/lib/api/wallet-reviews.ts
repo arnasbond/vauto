@@ -56,14 +56,15 @@ export async function apiTopUpWallet(
 
 export async function apiPromoteListing(
   listingId: string,
-  cost: number,
+  _cost: number,
   tier: number
 ): Promise<
-  ApiResult<{ walletBalance: number; listing: import("@/lib/types").Listing }>
+  ApiResult<{ walletBalance: number; listing: import("@/lib/types").Listing; chargedEur?: number; tier?: number }>
 > {
+  // Cost is resolved server-side from tier + category — never trust client EUR.
   return authedFetch(`/api/listings/${listingId}/promote`, {
     method: "POST",
-    body: JSON.stringify({ cost, tier }),
+    body: JSON.stringify({ tier }),
   });
 }
 

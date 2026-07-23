@@ -10,10 +10,16 @@ CREATE EXTENSION IF NOT EXISTS "citext";
 -- ---------------------------------------------------------------------------
 
 CREATE TYPE listing_category AS ENUM (
-  'electronics',
   'vehicles',
-  'services',
+  'transport',
+  'real_estate',
+  'clothing',
+  'electronics',
   'home',
+  'tools',
+  'rental',
+  'services',
+  'jobs',
   'other'
 );
 

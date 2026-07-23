@@ -11,6 +11,11 @@ const QUESTIONS: Record<ListingCategory | "default", string[]> = {
     "Ar kaina galutinė?",
     "Ar yra serviso istorija?",
   ],
+  transport: [
+    "Ar galima apžiūrėti?",
+    "Ar kaina galutinė?",
+    "Koks tikslus tipas / rida?",
+  ],
   services: [
     "Kada turite laisvą laiką?",
     "Ar išrašote sąskaitą faktūrą?",
@@ -35,6 +40,16 @@ const QUESTIONS: Record<ListingCategory | "default", string[]> = {
     "Kada galima apžiūrėti?",
     "Ar galima derėtis dėl kainos?",
     "Ar yra hipoteka?",
+  ],
+  tools: [
+    "Ar galima išbandyti?",
+    "Ar komplekte yra priedai?",
+    "Ar siunčiate?",
+  ],
+  rental: [
+    "Koks minimalus nuomos periodas?",
+    "Koks užstatas?",
+    "Ar pristatote?",
   ],
   other: [
     "Ar dar aktualu?",

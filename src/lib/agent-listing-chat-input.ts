@@ -188,16 +188,22 @@ export function tryApplyListingChatInput(
 
   const flow = aiDraft.listingFlowState;
 
-  // Vehicle specs first — never let a year overwrite price, and never stack description text.
-  const vehicleSpecs = extractVehicleAttributesFromText(text);
-  const hasVehicleSpecs = Boolean(
-    vehicleSpecs.year ||
-      vehicleSpecs.engine ||
-      vehicleSpecs.fuelType ||
-      vehicleSpecs.model ||
-      vehicleSpecs.mileage ||
-      vehicleSpecs.powerKw
-  );
+  // Vehicle specs — only for vehicle/transport drafts (never hijack fashion/RE/etc.).
+  const vehicleFamily =
+    aiDraft.category === "vehicles" || aiDraft.category === "transport";
+  const vehicleSpecs = vehicleFamily
+    ? extractVehicleAttributesFromText(text)
+    : {};
+  const hasVehicleSpecs =
+    vehicleFamily &&
+    Boolean(
+      vehicleSpecs.year ||
+        vehicleSpecs.engine ||
+        vehicleSpecs.fuelType ||
+        vehicleSpecs.model ||
+        vehicleSpecs.mileage ||
+        vehicleSpecs.powerKw
+    );
   const priceEarly = parsePriceFromChatInput(text);
   const priceToApply =
     priceEarly != null &&

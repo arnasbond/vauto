@@ -318,6 +318,13 @@ export function enrichVehicleListingDraftFromArgs(
   category: string,
   attributes: Record<string, string>
 ): { title: string; description: string; category: string; attributes: Record<string, string> } {
+  const vehicleFamily =
+    category === "vehicles" || category === "transport";
+  // Do not force vehicle defaults onto fashion / RE / electronics drafts.
+  if (!vehicleFamily) {
+    return { title, description, category, attributes };
+  }
+
   const combined = `${title} ${description}`.trim();
   const extracted = extractFromText(combined);
   const attrs = { ...attributes };
@@ -344,13 +351,10 @@ export function enrichVehicleListingDraftFromArgs(
     nextTitle = `${make} ${model}${year ? ` ${year}` : ""}`.trim();
   }
 
-  const nextCategory =
-    category === "vehicles" || make || BRAND_RE.test(combined) ? "vehicles" : category;
-
   return {
     title: nextTitle,
     description,
-    category: nextCategory,
+    category,
     attributes: attrs,
   };
 }

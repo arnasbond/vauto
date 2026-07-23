@@ -17,12 +17,15 @@ export interface VisualSearchProfile {
 
 const CATEGORY_FALLBACK: Record<ListingCategory, string> = {
   vehicles: "Automobilis nuotraukoje",
+  transport: "Transportas nuotraukoje",
   electronics: "Elektronika nuotraukoje",
   services: "Paslauga nuotraukoje",
   jobs: "Darbo skelbimas",
   home: "Prekė nuotraukoje",
   clothing: "Drabužis nuotraukoje",
   real_estate: "NT objektas nuotraukoje",
+  tools: "Įrankis nuotraukoje",
+  rental: "Nuomos objektas nuotraukoje",
   other: "Prekė nuotraukoje",
 };
 

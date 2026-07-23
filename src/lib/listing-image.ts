@@ -8,12 +8,15 @@ const UNSPLASH = (id: string) =>
 /** Verified live Unsplash photo IDs (HTTP 200 as of 2026-06). */
 const CATEGORY_FALLBACK: Record<ListingCategory, string> = {
   vehicles: UNSPLASH("photo-1555215695-3004980ad54e"),
+  transport: UNSPLASH("photo-1558618666-fcd25c85cd64"),
   electronics: UNSPLASH("photo-1511707171634-5f897ff02aa9"),
   services: UNSPLASH("photo-1486262715619-67b85e0b08d3"),
   jobs: UNSPLASH("photo-1497366811353-6870744d04b2"),
   home: UNSPLASH("photo-1617806118233-18e1de247200"),
   clothing: UNSPLASH("photo-1551028719-00167b16eac5"),
   real_estate: UNSPLASH("photo-1560518883-ce09059eeffa"),
+  tools: UNSPLASH("photo-1581092918056-0c4c3acd3789"),
+  rental: UNSPLASH("photo-1486262715619-67b85e0b08d3"),
   other: UNSPLASH("photo-1571068316344-75bc76f77890"),
 };
 

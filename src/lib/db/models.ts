@@ -6,8 +6,14 @@
 export type ListingCategory =
   | "electronics"
   | "vehicles"
+  | "transport"
   | "services"
+  | "jobs"
   | "home"
+  | "clothing"
+  | "real_estate"
+  | "tools"
+  | "rental"
   | "other";
 
 export type ListingStatus = "draft" | "active" | "sold" | "archived";

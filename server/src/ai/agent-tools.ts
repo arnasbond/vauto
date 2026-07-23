@@ -2602,6 +2602,13 @@ export async function executeAgentTool(
           minPrice,
           listingTitle,
           sellerName,
+          // Fail-closed unless explicit twin rules were provided by a trusted path.
+          rules: {
+            minPrice,
+            listingPrice,
+            sellerApproved: false,
+            autoNegotiationEnabled: false,
+          },
         });
         return {
           result: {

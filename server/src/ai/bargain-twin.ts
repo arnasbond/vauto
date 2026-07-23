@@ -74,8 +74,9 @@ export async function runAutoNegotiation(
   const rules: BargainTwinRules = input.rules ?? {
     minPrice: input.minPrice,
     listingPrice: input.listingPrice,
-    sellerApproved: true,
-    autoNegotiationEnabled: true,
+    // Fail-closed: never auto-negotiate without explicit rules from a trusted caller.
+    sellerApproved: false,
+    autoNegotiationEnabled: false,
   };
 
   const guard = evaluateNegotiationGuards(input.buyerMessage);

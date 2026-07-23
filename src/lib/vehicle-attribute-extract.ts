@@ -302,6 +302,7 @@ export function enrichVehicleListingDraft<T extends VehicleDraftLike>(
 
   if (
     draft.category !== "vehicles" &&
+    draft.category !== "transport" &&
     !looksLikeVehicleListingText(combined) &&
     !attrString(draft.attributes, "make")
   ) {
@@ -343,7 +344,6 @@ export function enrichVehicleListingDraft<T extends VehicleDraftLike>(
   return {
     ...draft,
     title,
-    category: "vehicles",
     attributes: attrs,
   };
 }

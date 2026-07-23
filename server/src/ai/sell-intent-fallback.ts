@@ -96,13 +96,16 @@ export function isSparseSellRequest(text: string): boolean {
 
 const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
   vehicles: "AUTOMOBILIAI",
+  transport: "TRANSPORTAS",
   real_estate: "NT",
   electronics: "ELEKTRONIKA",
   jobs: "DARBAS",
   home: "NAMAI",
   clothing: "APRANGA",
   services: "PASLAUGOS",
-  other: "NAMAI",
+  tools: "IRANKIAI",
+  rental: "NUOMA",
+  other: "KITA",
 };
 
 export function buildSellClarificationReply(
@@ -142,7 +145,7 @@ export function buildSellClarificationReply(
       ...(make ? { make } : {}),
       sellIntentActive: "true",
       awaitingSpecs: "true",
-      _vautoCategory: INTERNAL_TO_VAUTO_CATEGORY[category] ?? "AUTOMOBILIAI",
+      _vautoCategory: INTERNAL_TO_VAUTO_CATEGORY[category] ?? "KITA",
     },
     listingFlowState: "DRAFTING_TEXT" as const,
   };
@@ -165,9 +168,18 @@ function inferCategory(text: string): string {
   if (inferMake(text) || /\b(bmw|audi|volvo|mercedes|auto|mašin|masin|citro)/i.test(text)) {
     return "vehicles";
   }
+  if (/\b(motocikl|priekab|sunkvež|dvirač|transport)/i.test(text)) {
+    return "transport";
+  }
   if (CLOTHING_HINT.test(text)) return "clothing";
-  if (/\b(butas|namas|nt|kambar|arėnd|nuom)/i.test(text)) return "real_estate";
+  if (/\b(butas|namas|nt|kambar|sklyp)/i.test(text)) return "real_estate";
+  if (/\b(nuomuoju|nuoma|nuomoti)\b/i.test(text)) return "rental";
+  if (/\b(įrank|irank|gręžtuv|generator)/i.test(text)) return "tools";
+  if (/\b(iphone|samsung|telefon|laptop|kompiuter|elektron)/i.test(text)) {
+    return "electronics";
+  }
   if (/\b(paslaug|remont|valym)/i.test(text)) return "services";
+  if (/\b(darbas|ieškau\s+darbo|vakans)/i.test(text)) return "jobs";
   return "other";
 }
 

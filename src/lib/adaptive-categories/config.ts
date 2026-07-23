@@ -510,8 +510,152 @@ export const ADAPTIVE_CATEGORIES: Record<
       },
     ],
   },
+  transport: {
+    key: "transport",
+    label: "TRANSPORTAS",
+    portalStyle: "Transportas",
+    layout: "technical-grid",
+    baseFields: ["title", "price", "location", "contact", "description"],
+    fields: [
+      { key: "vehicleType", label: "Tipas", placeholder: "Motociklas / Priekaba / Sunkvežimis", critical: true, gridSpan: 2 },
+      { key: "make", label: "Markė", placeholder: "Yamaha", gridSpan: 1 },
+      { key: "model", label: "Modelis", placeholder: "MT-07", gridSpan: 1 },
+      { key: "year", label: "Metai", placeholder: "2019", gridSpan: 1 },
+      { key: "mileage", label: "Rida (km)", placeholder: "24 000", gridSpan: 1 },
+      {
+        key: "condition",
+        label: "Būklė",
+        inputType: "select",
+        options: ["Naujas", "Naudotas", "Po avarijos"],
+        critical: true,
+      },
+    ],
+  },
+  electronics: {
+    key: "electronics",
+    label: "ELEKTRONIKA",
+    portalStyle: "Elektronika",
+    layout: "universal",
+    baseFields: ["title", "price", "location", "contact", "description"],
+    fields: [
+      { key: "manufacturer", label: "Gamintojas", placeholder: "Apple / Samsung", critical: true },
+      { key: "deviceModel", label: "Modelis", placeholder: "iPhone 14 Pro", critical: true },
+      {
+        key: "storageCapacity",
+        label: "Atmintis",
+        inputType: "select",
+        options: ["64 GB", "128 GB", "256 GB", "512 GB", "1 TB"],
+      },
+      {
+        key: "condition",
+        label: "Būklė",
+        inputType: "select",
+        options: ["Naujas", "Naudotas"],
+        critical: true,
+      },
+      {
+        key: "warranty",
+        label: "Garantija",
+        inputType: "select",
+        options: ["Yra", "Nėra"],
+      },
+    ],
+  },
+  home: {
+    key: "home",
+    label: "NAMAI IR BUITIS",
+    portalStyle: "Namai",
+    layout: "universal",
+    baseFields: ["title", "price", "location", "contact", "description"],
+    fields: [
+      {
+        key: "furnitureType",
+        label: "Tipas",
+        inputType: "select",
+        options: ["Baldai", "Buitinė technika", "Dekoras", "Kita"],
+        critical: true,
+      },
+      {
+        key: "material",
+        label: "Medžiaga",
+        inputType: "select",
+        options: ["Medis", "Metalas", "Plastikas", "Oda / Audinys", "Stiklas", "Kita"],
+      },
+      {
+        key: "condition",
+        label: "Būklė",
+        inputType: "select",
+        options: ["Naujas", "Naudotas"],
+        critical: true,
+      },
+    ],
+  },
+  tools: {
+    key: "tools",
+    label: "ĮRANKIAI",
+    portalStyle: "Įrankiai",
+    layout: "universal",
+    baseFields: ["title", "price", "location", "contact", "description"],
+    fields: [
+      {
+        key: "toolType",
+        label: "Tipas",
+        inputType: "select",
+        options: [
+          "Elektriniai įrankiai",
+          "Sodo technika",
+          "Statybinės medžiagos",
+          "Rankiniai įrankiai",
+        ],
+        critical: true,
+      },
+      {
+        key: "powerSource",
+        label: "Maitinimas",
+        inputType: "select",
+        options: ["Akumuliatorinis", "Laidinis", "Benzininis", "Kita"],
+      },
+      {
+        key: "condition",
+        label: "Būklė",
+        inputType: "select",
+        options: ["Naujas", "Naudotas"],
+        critical: true,
+      },
+    ],
+  },
+  rental: {
+    key: "rental",
+    label: "NUOMA",
+    portalStyle: "Nuoma",
+    layout: "service-profile",
+    baseFields: ["title", "price", "location", "contact", "description"],
+    fields: [
+      {
+        key: "rentalItem",
+        label: "Kas nuomojama",
+        placeholder: "pvz. Generatorius, Priekaba",
+        critical: true,
+        gridSpan: 2,
+      },
+      {
+        key: "rentalPeriod",
+        label: "Nuomos periodas",
+        inputType: "select",
+        options: ["Valanda", "Diena", "Savaitė", "Mėnuo"],
+        critical: true,
+      },
+      { key: "deposit", label: "Užstatas (€)", placeholder: "50" },
+      {
+        key: "delivery",
+        label: "Pristatymas",
+        inputType: "select",
+        options: ["Atsiėmimas", "Pristatymas mieste", "Pristatymas Lietuvoje"],
+      },
+    ],
+  },
 };
 
 export function getAdaptiveConfig(key: AdaptiveCategoryConfig["key"]) {
-  return ADAPTIVE_CATEGORIES[key];
+  return ADAPTIVE_CATEGORIES[key] ?? ADAPTIVE_CATEGORIES.universal;
 }
