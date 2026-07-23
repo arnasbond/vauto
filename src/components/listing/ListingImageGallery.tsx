@@ -72,11 +72,11 @@ export function ListingImageGallery({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="relative overflow-hidden rounded-2xl bg-black/20">
+      <div className="relative overflow-hidden rounded-2xl bg-slate-900/5">
         <button
           type="button"
           onClick={() => setZoomOpen(true)}
-          className="relative block aspect-[4/3] w-full cursor-zoom-in"
+          className="relative block h-[min(50vh,420px)] max-h-[50vh] w-full cursor-zoom-in"
           aria-label="Padidinti nuotrauką"
         >
           <Image
@@ -85,7 +85,7 @@ export function ListingImageGallery({
             title={activeIndex === 0 ? listing.imageTitle ?? listing.title : undefined}
             fill
             sizes="(max-width: 768px) 100vw, 640px"
-            className="object-cover"
+            className="object-contain"
             priority
           />
           <span className="pointer-events-none absolute bottom-3 left-3 inline-flex items-center gap-1 rounded-full bg-black/45 px-2 py-1 text-[11px] font-semibold text-white backdrop-blur-sm">

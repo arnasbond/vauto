@@ -260,6 +260,7 @@ export async function apiVautoAgentStream(
       const decoder = new TextDecoder();
       let buffer = "";
       let finalResult: VautoAgentApiResult | null = null;
+      let lastStatusMsg = "";
 
       while (true) {
         const { done, value } = await reader.read();
@@ -269,6 +270,12 @@ export async function apiVautoAgentStream(
         const parsed = parseSseChunks(buffer);
         buffer = parsed.rest;
         for (const event of parsed.events) {
+          // Drop duplicate consecutive status/tool labels before React sees them.
+          if (event.type === "status" || event.type === "tool_call") {
+            const msg = event.message.trim();
+            if (msg && msg === lastStatusMsg) continue;
+            if (msg) lastStatusMsg = msg;
+          }
           handlers.onEvent(event);
           if (event.type === "final") {
             finalResult = event.result;

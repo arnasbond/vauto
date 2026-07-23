@@ -3,6 +3,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import {
   createContext,
+  startTransition,
   useCallback,
   useContext,
   useEffect,
@@ -11,6 +12,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { createThrottleLeading } from "@/lib/throttle-leading";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoSearch } from "@/context/VautoSearchContext";
 import { useSellerFlow } from "@/context/SellerFlowContext";
@@ -383,6 +385,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const [open, setOpen] = useState(false);
   const [streamThinkingLabel, setStreamThinkingLabel] = useState("Galvoju…");
+  const streamLabelLatestRef = useRef("Galvoju…");
+  /** Coalesce SSE status/tool_call label churn — avoids freezing the whole agent tree. */
+  const pushStreamThinkingLabelRef = useRef(
+    createThrottleLeading((message: string) => {
+      const next = message.trim() || "Galvoju…";
+      if (next === streamLabelLatestRef.current) return;
+      streamLabelLatestRef.current = next;
+      startTransition(() => {
+        setStreamThinkingLabel(next);
+      });
+    }, 140)
+  );
+  const pushStreamThinkingLabel = pushStreamThinkingLabelRef.current;
+  const setStreamThinkingLabelNow = useCallback((message: string) => {
+    pushStreamThinkingLabel.cancel();
+    if (message === streamLabelLatestRef.current) return;
+    streamLabelLatestRef.current = message;
+    setStreamThinkingLabel(message);
+  }, [pushStreamThinkingLabel]);
   const [messages, setMessages] = useState<AgentChatMessage[]>([]);
   const [hidePrePublishCard, setHidePrePublishCard] = useState(false);
   const [listingPublishConfirmed, setListingPublishConfirmed] = useState(false);
@@ -2048,7 +2069,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       let retainPendingImageUrls = false;
 
       try {
-        setStreamThinkingLabel("Galvoju…");
+        setStreamThinkingLabelNow("Galvoju…");
         const browseAllTurn = resolveBrowseAllIntent(trimmed);
         if (browseAllTurn) {
           dispatchBrowseAllMarketplaceState();
@@ -2222,12 +2243,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         const res = await apiVautoAgentStream(agentBody, {
           onEvent: (event) => {
-            if (event.type === "status") setStreamThinkingLabel(event.message);
-            if (event.type === "tool_call") setStreamThinkingLabel(event.message);
+            if (event.type === "status" || event.type === "tool_call") {
+              pushStreamThinkingLabel(event.message);
+            }
           },
         });
 
-        setStreamThinkingLabel("Galvoju…");
+        setStreamThinkingLabelNow("Galvoju…");
 
         if (!res.ok) {
           const message = buddyMessageForAgentFailure(res.error, res.code);
@@ -2501,7 +2523,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (open) showToast(message, "info");
         return { ok: true, reply: message };
       } finally {
-        setStreamThinkingLabel("");
+        setStreamThinkingLabelNow("");
         if (incomingImages?.length && !retainPendingImageUrls) {
           setSessionPendingImageUrls([]);
         }
@@ -2573,6 +2595,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setMessages,
       setSearchQuery,
       commitVisionObjectSellToPrePublish,
+      pushStreamThinkingLabel,
+      setStreamThinkingLabelNow,
     ]
   );
 
@@ -2779,8 +2803,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setLastError(undefined);
     setOpen(false);
     setBusy(false);
-    setStreamThinkingLabel("Galvoju…");
-  }, []);
+    setStreamThinkingLabelNow("Galvoju…");
+  }, [setStreamThinkingLabelNow]);
 
   const beginFreshListingChatSession = useCallback(() => {
     sessionLockedPriceRef.current = null;
@@ -2794,8 +2818,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setLastBargainingOffer(null);
     setLastError(undefined);
     setBusy(false);
-    setStreamThinkingLabel("Galvoju…");
-  }, [cancelSellerFlow]);
+    setStreamThinkingLabelNow("Galvoju…");
+  }, [cancelSellerFlow, setStreamThinkingLabelNow]);
 
   const enterListingEditMode = useCallback(() => {
     setHidePrePublishCard(true);

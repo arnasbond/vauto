@@ -39,7 +39,7 @@ export function AppShell({
       <div className="vauto-light-page flex min-h-dvh flex-col bg-[var(--vauto-bg)] text-[var(--vauto-text-main)]">
         <div
           className={cn(
-            "mx-auto flex w-full max-w-lg flex-1 flex-col px-4 pt-4 md:max-w-7xl",
+            "mx-auto flex w-full max-w-lg flex-1 flex-col px-4 py-3 md:max-w-7xl md:px-6 md:py-6",
             shell.contentBottomClass
           )}
         >

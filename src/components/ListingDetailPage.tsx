@@ -16,7 +16,6 @@ import {
   Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
-import { VautoLogo } from "@/components/VautoLogo";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
 import { ReportButton } from "@/components/support/ReportButton";
 import { TrustBadges } from "@/components/trust/TrustBadges";
@@ -54,6 +53,7 @@ import {
   resolvePublishListingDescription,
   sanitizeListingDescription,
 } from "@/lib/listing-text-sanitize";
+import { cn } from "@/lib/cn";
 
 interface ListingDetailPageProps {
   slug?: string;
@@ -236,6 +236,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     window.location.href = phoneTel || `tel:${phone}`;
   };
 
+  const handleMessage = wardrobeContext ? handleNegotiate : handleChat;
+
   const handleEdit = () => {
     startEditListingFlow(listing);
   };
@@ -247,32 +249,134 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     }
   };
 
+  const callButtonClass =
+    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ea580c] px-4 text-sm font-bold text-white shadow-md shadow-orange-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70";
+  const messageButtonClass =
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1e40af] text-white shadow-md transition hover:bg-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-70 md:h-auto md:min-h-11 md:w-full md:gap-2 md:px-4 md:text-sm md:font-bold";
+
+  const titlePriceBlock = (
+    <div>
+      {categoryLabel ? (
+        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+          {categoryLabel}
+        </span>
+      ) : null}
+      <h1 className="mt-2 text-xl font-bold leading-snug text-slate-900">
+        {listing.title}
+      </h1>
+      <p className="vauto-flux-price mt-1 text-2xl font-black text-slate-900">
+        {formatPrice(listing.price, listing.priceLabel)}
+      </p>
+    </div>
+  );
+
+  const metaBlock = (
+    <div className="space-y-2">
+      <TrustBadges listing={listing} size="md" />
+      <SellerRatingBadge sellerId={listing.sellerId} reviews={reviews} />
+      <Link
+        href={sellerPath(listing.sellerId)}
+        className="inline-flex text-sm font-medium text-[var(--vauto-teal)] hover:underline"
+      >
+        {sellerDisplayName(listing.sellerId, { listing, user })} →
+      </Link>
+      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+        <span className="inline-flex items-center gap-1">
+          <MapPin className="h-4 w-4 shrink-0" />
+          {listing.location} · {formatDistanceBadge(listing.distanceKm)}
+        </span>
+        {listing.createdAt && (
+          <span className="inline-flex items-center gap-1">
+            <Calendar className="h-3.5 w-3.5" />
+            {formatPostedDate(listing.createdAt)}
+          </span>
+        )}
+      </div>
+    </div>
+  );
+
+  const desktopCtas = (
+    <div className="mt-4 hidden flex-col gap-2 md:flex">
+      {isOwner ? (
+        <>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
+            className={callButtonClass}
+          >
+            <Phone className="h-5 w-5" aria-hidden />
+            Skambinti ({phoneDisplay})
+          </button>
+          <button
+            type="button"
+            disabled
+            aria-disabled="true"
+            title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
+            className={cn(messageButtonClass, "md:inline-flex")}
+          >
+            {wardrobeContext ? (
+              <Sparkles className="h-5 w-5" aria-hidden />
+            ) : (
+              <MessageCircle className="h-5 w-5" aria-hidden />
+            )}
+            <span className="hidden md:inline">Rašyti žinutę</span>
+          </button>
+          <p className="text-center text-[11px] font-medium text-slate-500">
+            Peržiūra — taip pirkėjai matys kontaktų mygtukus
+          </p>
+        </>
+      ) : (
+        <>
+          {!demoPhone && phoneTel ? (
+            <a
+              href={phoneTel}
+              onClick={() => trackListingCall(listing.id)}
+              className={callButtonClass}
+            >
+              <Phone className="h-5 w-5" aria-hidden />
+              Skambinti ({phoneDisplay})
+            </a>
+          ) : (
+            <button type="button" onClick={handleCall} className={callButtonClass}>
+              <Phone className="h-5 w-5" aria-hidden />
+              Skambinti
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={handleMessage}
+            className={cn(messageButtonClass, "md:inline-flex")}
+          >
+            {wardrobeContext ? (
+              <Sparkles className="h-5 w-5" aria-hidden />
+            ) : (
+              <MessageCircle className="h-5 w-5" aria-hidden />
+            )}
+            <span className="hidden md:inline">
+              {wardrobeContext ? "AI Derybininkas" : "Rašyti žinutę"}
+            </span>
+          </button>
+        </>
+      )}
+    </div>
+  );
+
   return (
     <AppShell variant="plain" hideNav>
       <ListingSeoHead listing={listing} />
 
-      <header className="sticky top-0 z-40 -mx-4 mb-3 border-b border-[var(--vauto-border)]/70 bg-[var(--vauto-bg)]/92 px-4 py-3 backdrop-blur-md">
-        <div className="flex items-center justify-between gap-3">
-          <Link
-            href="/"
-            className="shrink-0"
-            aria-label="VAUTO pradžia"
-          >
-            <VautoLogo
-              className="text-xl text-[var(--vauto-text-heading,#0c0e12)]"
-              color="var(--vauto-text-heading, #0c0e12)"
-              dotColor="var(--vauto-accent, #00d4ff)"
-            />
-          </Link>
-          <Link
-            href="/"
-            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--vauto-border)] bg-[var(--vauto-card-bg,#fff)] px-3 py-1.5 text-xs font-semibold text-[var(--vauto-text)] transition hover:border-[var(--vauto-primary)]/40 hover:text-[var(--vauto-primary)]"
-          >
-            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
-            Grįžti į skelbimus
-          </Link>
-        </div>
-      </header>
+      {/* Mobile-only back crumb — site DesktopHeader is the sole desktop chrome */}
+      <nav className="mb-3 md:hidden" aria-label="Navigacija">
+        <Link
+          href="/"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+        >
+          <ArrowLeft className="h-4 w-4" aria-hidden />
+          Skelbimai
+        </Link>
+      </nav>
 
       {isOwner && (
         <div
@@ -283,174 +387,92 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         </div>
       )}
 
-      <div className="flex flex-col pb-8">
-        <ListingImageGallery
-          listing={listing}
-          topRightSlot={
-            <button
-              type="button"
-              onClick={() => toggleSave(listing.id)}
-              className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
-              aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
-            >
-              <Heart
-                className={`h-5 w-5 ${
-                  isSaved
-                    ? "fill-[var(--vauto-red)] text-[var(--vauto-red)]"
-                    : "text-white"
-                }`}
-              />
-            </button>
-          }
-        />
-
-        <div className="mt-4">
-          {categoryLabel ? (
-            <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
-              {categoryLabel}
-            </span>
-          ) : null}
-          <h1 className="mt-2 font-display text-xl font-bold text-slate-900">
-            {listing.title}
-          </h1>
-          <p className="vauto-flux-price mt-1 text-2xl font-extrabold text-slate-900">
-            {formatPrice(listing.price, listing.priceLabel)}
-          </p>
-
-          {/* Buyer CTAs — always visible under price; preview/disabled for owner */}
-          <div className="mt-4 flex flex-col gap-3">
-            {isOwner ? (
-              <>
+      <div className="flex flex-col pb-24 md:pb-8">
+        <div className="lg:grid lg:grid-cols-12 lg:items-start lg:gap-8">
+          {/* Left: gallery + description */}
+          <div className="min-w-0 lg:col-span-7">
+            <ListingImageGallery
+              listing={listing}
+              topRightSlot={
                 <button
                   type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
-                  className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-2xl bg-[#ea580c] py-4 text-base font-bold text-white opacity-70 shadow-lg shadow-orange-500/20"
+                  onClick={() => toggleSave(listing.id)}
+                  className="flex h-9 w-9 items-center justify-center rounded-full bg-black/40 backdrop-blur-sm"
+                  aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
                 >
-                  <Phone className="h-6 w-6" aria-hidden />
-                  Skambinti ({phoneDisplay})
+                  <Heart
+                    className={`h-5 w-5 ${
+                      isSaved
+                        ? "fill-[var(--vauto-red)] text-[var(--vauto-red)]"
+                        : "text-white"
+                    }`}
+                  />
                 </button>
-                <button
-                  type="button"
-                  disabled
-                  aria-disabled="true"
-                  title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
-                  className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-[#1e40af] py-3.5 text-sm font-bold text-white opacity-70 shadow-md"
-                >
-                  <MessageCircle className="h-5 w-5" aria-hidden />
-                  Rašyti žinutę / AI Derybininkas
-                </button>
-                <p className="text-center text-[11px] font-medium text-slate-500">
-                  Peržiūra — taip pirkėjai matys kontaktų mygtukus
-                </p>
-              </>
-            ) : (
-              <>
-                {!demoPhone && phoneTel ? (
-                  <a
-                    href={phoneTel}
-                    onClick={() => trackListingCall(listing.id)}
-                    className="flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#ea580c] py-4 text-base font-bold text-white shadow-lg shadow-orange-500/30 transition hover:brightness-110"
-                  >
-                    <Phone className="h-6 w-6" aria-hidden />
-                    Skambinti ({phoneDisplay})
-                  </a>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleCall}
-                    className="flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#ea580c] py-4 text-base font-bold text-white shadow-lg shadow-orange-500/30 transition hover:brightness-110"
-                  >
-                    <Phone className="h-6 w-6" aria-hidden />
-                    Skambinti
-                  </button>
+              }
+            />
+
+            {/* Mobile title/price directly under gallery */}
+            <div className="mt-4 lg:hidden">{titlePriceBlock}</div>
+
+            {(aboutDescription || detailRows.length > 0) && (
+              <section className="vauto-glass-card mt-6 rounded-2xl p-4">
+                <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
+                {aboutDescription && (
+                  <p className="mt-2 text-sm leading-relaxed text-slate-600">
+                    {aboutDescription}
+                  </p>
                 )}
-                <button
-                  type="button"
-                  onClick={wardrobeContext ? handleNegotiate : handleChat}
-                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1e40af] py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#1e3a8a]"
-                >
-                  {wardrobeContext ? (
-                    <Sparkles className="h-5 w-5" aria-hidden />
-                  ) : (
-                    <MessageCircle className="h-5 w-5" aria-hidden />
-                  )}
-                  Rašyti žinutę / AI Derybininkas
-                </button>
-              </>
-            )}
-          </div>
-
-          <div className="mt-4">
-            <TrustBadges listing={listing} size="md" />
-          </div>
-          <SellerRatingBadge
-            sellerId={listing.sellerId}
-            reviews={reviews}
-          />
-          <Link
-            href={sellerPath(listing.sellerId)}
-            className="mt-2 inline-flex text-sm font-medium text-[var(--vauto-teal)] hover:underline"
-          >
-            {sellerDisplayName(listing.sellerId, { listing, user })} →
-          </Link>
-          <div className="mt-2 flex flex-wrap items-center gap-3 text-sm text-slate-500">
-            <span className="inline-flex items-center gap-1">
-              <MapPin className="h-4 w-4 shrink-0" />
-              {listing.location} · {formatDistanceBadge(listing.distanceKm)}
-            </span>
-            {listing.createdAt && (
-              <span className="inline-flex items-center gap-1">
-                <Calendar className="h-3.5 w-3.5" />
-                {formatPostedDate(listing.createdAt)}
-              </span>
-            )}
-          </div>
-        </div>
-
-        {(aboutDescription || detailRows.length > 0) && (
-          <section className="vauto-glass-card mt-6 rounded-2xl p-4">
-            <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
-            {aboutDescription && (
-              <p className="mt-2 text-sm leading-relaxed text-slate-600">
-                {aboutDescription}
-              </p>
-            )}
-            {detailRows.length > 0 && (
-              <dl className={`mt-3 grid gap-2 ${aboutDescription ? "border-t border-slate-100 pt-3" : ""}`}>
-                {detailRows.map((row) => (
-                  <div
-                    key={row.label}
-                    className="flex justify-between gap-4 text-sm"
+                {detailRows.length > 0 && (
+                  <dl
+                    className={`mt-3 grid gap-2 ${
+                      aboutDescription ? "border-t border-slate-100 pt-3" : ""
+                    }`}
                   >
-                    <dt className="text-slate-500">{row.label}</dt>
-                    <dd className="text-right font-medium text-slate-900">{row.value}</dd>
-                  </div>
-                ))}
-              </dl>
+                    {detailRows.map((row) => (
+                      <div
+                        key={row.label}
+                        className="flex justify-between gap-4 text-sm"
+                      >
+                        <dt className="text-slate-500">{row.label}</dt>
+                        <dd className="text-right font-medium text-slate-900">
+                          {row.value}
+                        </dd>
+                      </div>
+                    ))}
+                  </dl>
+                )}
+              </section>
             )}
-          </section>
-        )}
 
-        {publicTags.length > 0 && (
-          <section className="mt-4">
-            <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
-              <Tag className="h-3.5 w-3.5" />
-              Žymos
-            </h2>
-            <div className="flex flex-wrap gap-2">
-              {publicTags.map((tag) => (
-                <span
-                  key={tag}
-                  className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
-                >
-                  {formatAiTagChip(tag)}
-                </span>
-              ))}
+            {publicTags.length > 0 && (
+              <section className="mt-4">
+                <h2 className="mb-2 flex items-center gap-1.5 text-xs font-semibold uppercase tracking-wider text-slate-500">
+                  <Tag className="h-3.5 w-3.5" />
+                  Žymos
+                </h2>
+                <div className="flex flex-wrap gap-2">
+                  {publicTags.map((tag) => (
+                    <span
+                      key={tag}
+                      className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1 text-xs font-medium text-slate-700"
+                    >
+                      {formatAiTagChip(tag)}
+                    </span>
+                  ))}
+                </div>
+              </section>
+            )}
+          </div>
+
+          {/* Right: price, seller, desktop CTAs */}
+          <aside className="mt-5 min-w-0 lg:col-span-5 lg:mt-0">
+            <div className="lg:sticky lg:top-20 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:p-5 lg:shadow-sm">
+              <div className="hidden lg:block">{titlePriceBlock}</div>
+              {desktopCtas}
+              <div className="mt-4">{metaBlock}</div>
             </div>
-          </section>
-        )}
+          </aside>
+        </div>
 
         {isOwner && listing.status !== "sold" && (
           <section className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
@@ -463,7 +485,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             <button
               type="button"
               onClick={handleEdit}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1e40af] py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#1e3a8a]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e40af] py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#1e3a8a]"
             >
               <Pencil className="h-4 w-4" />
               Redaguoti
@@ -478,7 +500,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             <button
               type="button"
               onClick={handleDelete}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700 hover:bg-red-100"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-medium text-red-700 hover:bg-red-100"
             >
               <Trash2 className="h-4 w-4" />
               Ištrinti skelbimą
@@ -498,6 +520,62 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               reportedUserId={listing.sellerId}
             />
           </div>
+        )}
+      </div>
+
+      {/* Sticky mobile contact bar — skelbiu.lt-style */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-md md:hidden">
+        {isOwner ? (
+          <>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className={callButtonClass}
+            >
+              <Phone className="h-5 w-5" aria-hidden />
+              Skambinti
+            </button>
+            <button
+              type="button"
+              disabled
+              aria-disabled="true"
+              className={messageButtonClass}
+              aria-label="Žinutė"
+            >
+              <MessageCircle className="h-5 w-5" aria-hidden />
+            </button>
+          </>
+        ) : (
+          <>
+            {!demoPhone && phoneTel ? (
+              <a
+                href={phoneTel}
+                onClick={() => trackListingCall(listing.id)}
+                className={callButtonClass}
+              >
+                <Phone className="h-5 w-5" aria-hidden />
+                Skambinti
+              </a>
+            ) : (
+              <button type="button" onClick={handleCall} className={callButtonClass}>
+                <Phone className="h-5 w-5" aria-hidden />
+                Skambinti
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={handleMessage}
+              className={messageButtonClass}
+              aria-label={wardrobeContext ? "AI Derybininkas" : "Žinutė"}
+            >
+              {wardrobeContext ? (
+                <Sparkles className="h-5 w-5" aria-hidden />
+              ) : (
+                <MessageCircle className="h-5 w-5" aria-hidden />
+              )}
+            </button>
+          </>
         )}
       </div>
     </AppShell>
