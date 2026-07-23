@@ -1659,14 +1659,10 @@ export async function executeAgentTool(
           ])
         );
 
+        // Vision copy replaces prior description — never concatenate (stops 2× sales text).
         const priorDesc = String(prior?.description ?? "").trim();
         const visionDesc = String(parsed.listing.description ?? "").trim();
-        let mergedDescription = visionDesc || priorDesc;
-        if (priorDesc && visionDesc && !priorDesc.includes(visionDesc) && !visionDesc.includes(priorDesc)) {
-          mergedDescription = `${priorDesc}\n\n${visionDesc}`;
-        } else if (priorDesc && visionDesc) {
-          mergedDescription = priorDesc.length >= visionDesc.length ? priorDesc : visionDesc;
-        }
+        const mergedDescription = visionDesc || priorDesc;
 
         const evidenceDocs = [
           ...parsed.documentUrls,
@@ -1675,11 +1671,11 @@ export async function executeAgentTool(
             ...listingAttrs,
           }),
         ];
+        // Fresh Vision gallery is source of truth — do not re-merge prior (2 photos → 4).
         const publicGallery = hardFilterPublicGalleryUrls(
-          [
-            ...parsed.galleryUrls,
-            ...(prior?.orderedImageUrls ?? []),
-          ],
+          parsed.galleryUrls.length
+            ? parsed.galleryUrls
+            : [...(prior?.orderedImageUrls ?? [])],
           evidenceDocs,
           { ...(prior?.attributes ?? {}), ...listingAttrs }
         );

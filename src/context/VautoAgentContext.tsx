@@ -642,12 +642,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           showToast(sessionCheck.message, "error");
           return;
         }
-        const photoUrls = [
+        // Prefer action gallery; only fall back to prior draft when action has no media.
+        const actionPhotos = [
           ...(actions.imageUrls ?? []),
           ...(actions.imageUrl ? [actions.imageUrl] : []),
-          ...(aiDraft?.orderedImageUrls ?? []),
         ]
           .map((u) => String(u ?? "").trim())
+          .filter(Boolean);
+        const photoUrls = (
+          actionPhotos.length
+            ? actionPhotos
+            : (aiDraft?.orderedImageUrls ?? []).map((u) => String(u ?? "").trim())
+        )
           .filter(Boolean)
           .filter((u, i, arr) => arr.indexOf(u) === i)
           .slice(0, 6);
@@ -681,7 +687,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ) {
           freshListingSessionRef.current = false;
         }
-        applyAgentListingDraft(draft, photoUrls[0] ?? actions.imageUrl);
+        // Do not re-pass imageUrl — already in orderedImageUrls (avoids 2→4 thumbs).
+        applyAgentListingDraft(draft);
         if (flowState === "AWAITING_CONFIRMATION") {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
@@ -1702,18 +1709,36 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Bare price (e.g. „2250“) after publish gate → open PrePublish immediately.
-      // Must run even when tryApplyListingChatInput returns null (price-only sentinel).
-      // sessionLockedPriceRef ensures we never re-ask „Kokią kainą?“ once price is known.
+      // Bare price (e.g. „kaina 20€“) → bind instantly + open PrePublish. Never re-ask price.
       if (
         priceFromTurn != null &&
-        draftForTurn &&
         flowDecision.kind !== "process_photos" &&
         !incomingImagesEarly.length
       ) {
         sessionLockedPriceRef.current = priceFromTurn;
-        const pricedDraft = { ...draftForTurn, price: priceFromTurn };
+        const pricedDraft = draftForTurn
+          ? { ...draftForTurn, price: priceFromTurn }
+          : ({
+              title: "Naujas skelbimas",
+              description: "",
+              price: priceFromTurn,
+              location: user.city || "",
+              contact: user.phone || "",
+              category: "other",
+              confidence: 0,
+              attributes: {},
+              listingFlowState: "DRAFT_READY",
+              orderedImageUrls: pendingForTurn.slice(0, 6),
+            } as import("@/lib/types").AiExtractedListing);
         updateAiDraft({
+          ...(!draftForTurn
+            ? {
+                title: pricedDraft.title,
+                location: pricedDraft.location,
+                contact: pricedDraft.contact,
+                orderedImageUrls: pricedDraft.orderedImageUrls,
+              }
+            : {}),
           price: priceFromTurn,
           listingFlowState:
             transitionListingFlow(
@@ -1752,6 +1777,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           touchAgentSessionActivity();
           return { ok: true, reply: confirmed.reply };
         }
+        // Price bound — never fall through to filler / „Kokią kainą?“ loops.
+        const missingReply = buildConversationalMissingPrompt(readinessAfterPrice);
+        setMessages((prev) => [
+          ...prev,
+          { role: "user" as const, text: trimmed },
+          {
+            role: "assistant" as const,
+            text: `Kaina nustatyta: ${priceFromTurn} €.\n\n${missingReply}`,
+          },
+        ].slice(-6));
+        touchAgentSessionActivity();
+        return { ok: true, reply: missingReply };
       }
 
       // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
@@ -1773,14 +1810,45 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             })
           : null;
       if (listingChatReply) {
+        // Lean confirmation — no Patarimas / market filler; never hide PrePublish after price lock.
+        const locked = sessionLockedPriceRef.current;
+        if (locked != null && locked > 0) {
+          const priced = { ...aiDraft!, price: locked };
+          const readiness = evaluatePrePublishReadiness({
+            isAuthenticated,
+            user,
+            draft: priced,
+            previewImage: sellerPreviewImage,
+            pendingImageUrls: pendingForTurn,
+            orderedImageUrls: priced.orderedImageUrls,
+            geoCoords: buyerCoords,
+          });
+          if (readiness.ok) {
+            const confirmed = confirmPublishNow({
+              ...(readiness.syncedDraft ?? priced),
+              price: locked,
+            });
+            setMessages((prev) => [
+              ...prev,
+              { role: "user" as const, text: trimmed },
+              {
+                role: "assistant" as const,
+                text: confirmed.reply,
+                ...(confirmed.prePublishCard
+                  ? { prePublishCard: confirmed.prePublishCard }
+                  : {}),
+              },
+            ].slice(-6));
+            touchAgentSessionActivity();
+            return { ok: true, reply: confirmed.reply };
+          }
+        }
         const reply = buildDraftingCompletePhotosPrompt({
           title: aiDraft?.title,
           description: aiDraft?.description,
           price: priceFromTurn ?? aiDraft?.price,
           location: aiDraft?.location,
         });
-        setListingPublishConfirmed(false);
-        setHidePrePublishCard(true);
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },

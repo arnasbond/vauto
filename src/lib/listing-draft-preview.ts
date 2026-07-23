@@ -208,17 +208,7 @@ export function buildListingDraftUpdateReply(
   const readiness = opts?.readiness;
 
   if (readiness && !readiness.ok) {
-    // Prefer product consulting — photos are never a hard pre-draft block.
-    if (readiness.missingPrice) {
-      const ask = buildConversationalMissingPrompt(readiness);
-      return intro ? `${intro}\n\n${ask}` : ask;
-    }
-    const productQ = buildConsultantFollowUpQuestion(draft);
-    if (productQ && !readiness.missingCity && !readiness.missingPhone) {
-      return [intro, buildDraftPreviewBlock(draft), buildDraftSalesTip(draft), productQ]
-        .filter(Boolean)
-        .join("\n\n");
-    }
+    // Lean missing-field prompt only — no Patarimas / market filler / greetings.
     const ask = buildConversationalMissingPrompt(readiness);
     return intro ? `${intro}\n\n${ask}` : ask;
   }
@@ -229,10 +219,8 @@ export function buildListingDraftUpdateReply(
     price: draft.price,
     location: draft.location,
   });
-  const tip = buildDraftSalesTip(draft);
-  const question = buildConsultantFollowUpQuestion(draft);
-  const parts = [intro, confirmation, tip, question].filter(Boolean);
-  return parts.join("\n\n");
+  // Single clean confirmation — strip conversational tip clutter from listing flow.
+  return [intro, confirmation].filter(Boolean).join("\n\n");
 }
 
 export function draftToPreviewInput(draft: AiExtractedListing): ListingDraftPreviewInput {

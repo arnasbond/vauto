@@ -85,16 +85,43 @@ export function filterSessionListingImages(
 
 type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images">;
 
+/** Stable key so identical data:/http variants do not multiply thumbnails. */
+function imageDedupeKey(url: string): string {
+  const u = url.trim();
+  if (u.startsWith("data:")) {
+    const comma = u.indexOf(",");
+    const meta = comma >= 0 ? u.slice(0, comma) : "data";
+    const payload = comma >= 0 ? u.slice(comma + 1) : u;
+    const len = payload.length;
+    const sample =
+      payload.slice(0, 48) + payload.slice(Math.max(0, len - 48));
+    return `data:${meta.length}:${len}:${sample}`;
+  }
+  try {
+    const parsed = new URL(u);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return u;
+  }
+}
+
 function uniqueUrls(urls: string[]): string[] {
-  const seen = new Set<string>();
-  const out: string[] = [];
+  const map = new Map<string, string>();
   for (const url of urls) {
     const trimmed = url.trim();
-    if (!isValidListingImageUrl(trimmed) || seen.has(trimmed)) continue;
-    seen.add(trimmed);
-    out.push(trimmed);
+    if (!isValidListingImageUrl(trimmed)) continue;
+    const key = imageDedupeKey(trimmed);
+    if (!map.has(key)) map.set(key, trimmed);
   }
-  return out;
+  return Array.from(map.values());
+}
+
+/** Public helper — Map-based URL/fingerprint dedupe for draft / PrePublish galleries. */
+export function dedupeListingImageUrls(
+  urls: readonly string[] | undefined,
+  max = 6
+): string[] {
+  return uniqueUrls([...(urls ?? [])]).slice(0, max);
 }
 
 export function resolveListingImage(listing: ListingImageFields): string {

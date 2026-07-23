@@ -190,11 +190,10 @@ export function buildListingDraftUpdateReply(
   draft: ListingDraftPreviewInput,
   opts?: { intro?: string; outro?: string }
 ): string {
+  // Lean listing confirmation — no Patarimas / market filler / greetings.
   const parts = [
     opts?.intro?.trim(),
     buildDraftPreviewBlock(draft),
-    buildDraftSalesTip(draft),
-    buildConsultantFollowUpQuestion(draft),
     opts?.outro?.trim(),
   ].filter(Boolean);
   return parts.join("\n\n");

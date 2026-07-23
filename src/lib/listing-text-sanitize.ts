@@ -19,6 +19,10 @@ const SYSTEM_PHRASE_PATTERNS: RegExp[] = [
   /redaguoti\s+duomenis/gi,
 ];
 
+/** Conversational filler that must never land in listing description / PrePublish. */
+const CONVERSATIONAL_FILLER_LINE_RE =
+  /^(labas\b|sveiki\b|labas,?\s+\w+|patarimas\s*:|vilnius\s+patarimas|kaunas\s+patarimas|vauto\s+duomenimis|kaip\s+brokeris|rinkos\s+vidurkis|vidutin[ėe]\s+kaina|market\s+average|kokią\s+kainą|greitam\s+pardavimui)/i;
+
 /** Agent clarification / multi-object prompts — never publish as "Apie skelbimą". */
 const AGENT_CLARIFICATION_PATTERNS: RegExp[] = [
   /nuotraukoje\s+matau/i,
@@ -72,7 +76,7 @@ export function sanitizeListingTitle(raw: string | undefined | null): string {
 
 /**
  * Preserve marketplace sales formatting: newlines, **bold**, and •/- bullets.
- * Only strip system/agent junk — never flatten rich Vision copy into one line.
+ * Strip conversational filler — never flatten rich Vision copy into one line.
  */
 export function sanitizeListingDescription(raw: string | undefined | null): string {
   let t = String(raw ?? "").trim();
@@ -88,17 +92,40 @@ export function sanitizeListingDescription(raw: string | undefined | null): stri
     .map((line) => line.replace(/[ \t]+/g, " ").trimEnd())
     .filter((line) => {
       const trimmed = line.trim();
-      return !trimmed || !isAgentClarificationText(trimmed);
+      if (!trimmed) return true;
+      if (isAgentClarificationText(trimmed)) return false;
+      if (CONVERSATIONAL_FILLER_LINE_RE.test(trimmed)) return false;
+      return true;
     })
     .join("\n");
   for (const re of AGENT_CLARIFICATION_PATTERNS) {
     t = t.replace(re, " ");
   }
-  return t
+  // Drop duplicated consecutive paragraphs (common after desc+desc merge bugs).
+  const paras = t
+    .split(/\n{2,}/)
+    .map((p) => p.trim())
+    .filter(Boolean);
+  const deduped: string[] = [];
+  for (const p of paras) {
+    if (deduped.some((d) => d === p || d.includes(p) || p.includes(d))) continue;
+    deduped.push(p);
+  }
+  return deduped
+    .join("\n\n")
     .replace(/[ \t]+\n/g, "\n")
     .replace(/\n{3,}/g, "\n\n")
     .trim()
     .slice(0, 4000);
+}
+
+/** Plain-text description for PrePublish <textarea> — no raw ** artifacts. */
+export function toPlainListingDescription(raw: string | undefined | null): string {
+  return sanitizeListingDescription(raw)
+    .replace(/\*\*([^*]+)\*\*/g, "$1")
+    .replace(/__([^_]+)__/g, "$1")
+    .replace(/^[ \t]*[-*•]\s+/gm, "• ")
+    .trim();
 }
 
 /** Minimum length before a description is treated as thin / summary-only. */

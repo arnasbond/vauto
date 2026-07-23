@@ -86,22 +86,42 @@ function photoAckLine(count: number): string {
   return "Matau nuotrauką — analizuoju vaizdą ir papildau skelbimo aprašymą.";
 }
 
+/** Vision sales copy replaces prior description — never append (stops duplicated paragraphs). */
 function mergeVisionDescription(existing?: string, vision?: string): string {
   const a = String(existing ?? "").trim();
   const b = String(vision ?? "").trim();
-  if (!a) return b;
-  if (!b) return a;
-  if (a.includes(b) || b.includes(a)) return a.length >= b.length ? a : b;
-  return `${a}\n\n${b}`;
+  if (b) return b;
+  return a;
+}
+
+function imageDedupeKey(url: string): string {
+  const u = url.trim();
+  if (u.startsWith("data:")) {
+    const comma = u.indexOf(",");
+    const meta = comma >= 0 ? u.slice(0, comma) : "data";
+    const payload = comma >= 0 ? u.slice(comma + 1) : u;
+    const len = payload.length;
+    const sample =
+      payload.slice(0, 48) + payload.slice(Math.max(0, len - 48));
+    return `data:${meta.length}:${len}:${sample}`;
+  }
+  try {
+    const parsed = new URL(u);
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return u;
+  }
 }
 
 function uniqueImageUrls(urls: string[]): string[] {
-  const out: string[] = [];
+  const map = new Map<string, string>();
   for (const raw of urls) {
     const u = String(raw ?? "").trim();
-    if (u && !out.includes(u)) out.push(u);
+    if (!u) continue;
+    const key = imageDedupeKey(u);
+    if (!map.has(key)) map.set(key, u);
   }
-  return out.slice(0, 6);
+  return Array.from(map.values()).slice(0, 6);
 }
 
 type MediaListingDraft = {

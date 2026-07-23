@@ -10,7 +10,15 @@ import type { UserCoords } from "@/lib/geolocation";
 import type { AiExtractedListing, UserProfile } from "@/lib/types";
 import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
-import { filterSessionListingImages } from "@/lib/listing-image";
+import {
+  dedupeListingImageUrls,
+  filterSessionListingImages,
+} from "@/lib/listing-image";
+import {
+  draftTextImpliesMissingPhoto,
+  sanitizeListingTitle,
+  toPlainListingDescription,
+} from "@/lib/listing-text-sanitize";
 
 export interface PrePublishCardPayload {
   title: string;
@@ -49,10 +57,13 @@ export function buildPrePublishCardPayload(
     // Cover hint only if already in public gallery set after filter.
     gallerySource.push(previewImage);
   }
-  const imageUrls = filterSessionListingImages(gallerySource, {
-    documentUrls,
-    attributes: draft.attributes,
-  }).slice(0, 6);
+  const imageUrls = dedupeListingImageUrls(
+    filterSessionListingImages(gallerySource, {
+      documentUrls,
+      attributes: draft.attributes,
+    }),
+    6
+  );
   const vatCode =
     opts?.vatCode ??
     String(draft.attributes?.vatCode ?? draft.attributes?.vat_code ?? "");
@@ -61,7 +72,8 @@ export function buildPrePublishCardPayload(
   const vatLabelGross = vat.hasVat ? vat.labelGross : undefined;
   return {
     title: sanitizeListingTitle(draft.title),
-    description: sanitizeListingDescription(draft.description),
+    // Plain text for PrePublish textarea — no raw ** asterisks.
+    description: toPlainListingDescription(draft.description),
     price: draft.price ?? 0,
     priceLabel: draft.priceLabel ?? vatLabelGross,
     location: readiness.resolvedCity,
@@ -73,8 +85,6 @@ export function buildPrePublishCardPayload(
     ...(vatLabelNet ? { vatLabelNet, vatLabelGross } : {}),
   };
 }
-
-import { draftTextImpliesMissingPhoto, sanitizeListingTitle, sanitizeListingDescription } from "@/lib/listing-text-sanitize";
 
 export interface PrePublishCheckInput {
   isAuthenticated: boolean;

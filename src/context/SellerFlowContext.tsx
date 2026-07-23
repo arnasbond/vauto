@@ -1114,23 +1114,34 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       photoReplaceSnapshotRef.current = null;
       setAiManualFallback(false);
       const previousDraft = aiDraftRef.current;
-      const galleryPhotos = filterSessionListingImages(
-        [
-          ...(draft.orderedImageUrls ?? []),
-          ...(imageUrl ? [imageUrl] : []),
-          ...(previousDraft?.orderedImageUrls ?? []),
-        ],
-        {
-          attributes: {
-            ...(previousDraft?.attributes ?? {}),
-            ...(draft.attributes ?? {}),
-          },
-          documentUrls: parseDocumentUrlsFromAttributes({
-            ...(previousDraft?.attributes ?? {}),
-            ...(draft.attributes ?? {}),
-          }),
-        }
-      ).slice(0, 6);
+      // Prefer incoming draft gallery; only fall back to previous when Vision sent none.
+      // Never triple-concat (draft + imageUrl + previous) — that doubles thumbnails.
+      const incomingGallery = (draft.orderedImageUrls ?? [])
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean);
+      const gallerySource =
+        incomingGallery.length > 0
+          ? [
+              ...incomingGallery,
+              ...(imageUrl &&
+              !incomingGallery.includes(String(imageUrl).trim())
+                ? [String(imageUrl).trim()]
+                : []),
+            ]
+          : [
+              ...(imageUrl ? [String(imageUrl).trim()] : []),
+              ...(previousDraft?.orderedImageUrls ?? []),
+            ];
+      const galleryPhotos = filterSessionListingImages(gallerySource, {
+        attributes: {
+          ...(previousDraft?.attributes ?? {}),
+          ...(draft.attributes ?? {}),
+        },
+        documentUrls: parseDocumentUrlsFromAttributes({
+          ...(previousDraft?.attributes ?? {}),
+          ...(draft.attributes ?? {}),
+        }),
+      }).slice(0, 6);
       const draftWithPhotos =
         galleryPhotos.length > 0
           ? { ...draft, orderedImageUrls: galleryPhotos }

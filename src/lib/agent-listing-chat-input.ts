@@ -380,16 +380,21 @@ export function tryApplyListingChatInput(
     (DRAFT_EDIT_SIGNAL_RE.test(trimmed) ||
       /\b(aprašym|aprasym|pridėk|pridek|dar\s+parašyk|papildyk)\b/i.test(trimmed))
   ) {
+    // Explicit rewrite / replace — never append onto prior sales copy (stops duplication).
+    const isAppend =
+      /\b(papildyk|pridėk|pridek|dar\s+parašyk)\b/i.test(trimmed) &&
+      !/\b(perrašyk|perrasyk|pakeisk\s+apraš|naujas\s+apraš)\b/i.test(trimmed);
+    const cleanUser = sanitizeListingDescription(trimmed);
     const baseDesc = sanitizeListingDescription(aiDraft.description);
-    const nextDescription = baseDesc
-      ? `${baseDesc}\n${trimmed}`.trim()
-      : trimmed;
+    const nextDescription = (
+      isAppend && baseDesc ? `${baseDesc}\n${cleanUser}` : cleanUser || baseDesc
+    ).slice(0, 4000);
     const nextTitle = aiDraft.title?.trim()
       ? sanitizeListingTitle(aiDraft.title)
       : sanitizeListingTitle(trimmed);
     const nextDraft: AiExtractedListing = {
       ...aiDraft,
-      description: nextDescription.slice(0, 4000),
+      description: nextDescription,
       title: nextTitle,
     };
     updateAiDraft({
@@ -397,7 +402,9 @@ export function tryApplyListingChatInput(
       ...(aiDraft.title?.trim() ? {} : { title: nextTitle }),
     });
     return buildListingDraftUpdateReply(draftToPreviewInput(nextDraft), {
-      intro: "Supratau — papildžiau juodraštį pagal jūsų aprašymą!",
+      intro: isAppend
+        ? "Supratau — papildžiau juodraštį."
+        : "Supratau — atnaujinau aprašymą.",
     });
   }
 
