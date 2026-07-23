@@ -310,6 +310,23 @@ export async function apiVautoAgentStream(
     }
   }
 
+  if (timedOut && !hasVisionImages) {
+    // Text search hard-cap: one soft non-stream retry so the UI does not freeze forever.
+    try {
+      const { apiVautoAgent } = await import("@/lib/api/client");
+      const fallback = await apiVautoAgent(wireBody);
+      if (fallback?.ok) {
+        handlers.onEvent({
+          type: "final",
+          result: fallback as VautoAgentApiResult & { ok: true },
+        });
+        return fallback;
+      }
+    } catch {
+      /* keep timeout error below */
+    }
+  }
+
   if (timedOut && (lastStatus == null || lastStatus >= 500 || lastStatus === 0)) {
     return {
       ok: false,

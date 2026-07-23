@@ -535,11 +535,14 @@ async function runVautoAgentInner(
         salesCopyGenerated: "true",
       };
     } else {
+      const deferred = String(attrs.deferredSalesDescription ?? "").trim();
+      nextDescription =
+        deferred ||
+        nextDescription ||
+        String(listingDraft.title ?? "").trim() ||
+        "Parduodama prekė";
       nextAttrs = { ...nextAttrs, salesCopyGenerated: "true" };
-      if (!nextDescription) {
-        nextDescription =
-          String(listingDraft.title ?? "").trim() || "Parduodama prekė";
-      }
+      delete nextAttrs.deferredSalesDescription;
     }
 
     const nextDraft = normalizeListingDraftForAction(
@@ -1075,48 +1078,56 @@ async function runVautoAgentInner(
   }
 
   // Single-pass indexed search — skip multi-turn Gemini tool ping-pong.
+  // On failure, fall through to Gemini so the SSE stream always gets a final event.
   if (
     lastUserText &&
     shouldForceSupervisorTools(lastUserText) &&
     !pendingChatImages?.length
   ) {
-    emitAgentEvent(onEvent, {
-      type: "tool_call",
-      name: "searchListings",
-      message: "Ieškau kataloge…",
-    });
-    const deterministic = await runDeterministicSupervisorSearch(
-      lastUserText,
-      ctx
-    );
-    emitAgentEvent(onEvent, {
-      type: "tool_result",
-      name: deterministic.toolName,
-    });
-    const reply = resolveSupervisorFinalReply({
-      draftText: "",
-      toolCalls: [
-        { name: deterministic.toolName, result: deterministic.result },
-      ],
-      sideEffect: deterministic.sideEffect,
-      searchToolCount:
-        deterministic.sideEffect?.type === "search"
-          ? deterministic.sideEffect.listingIds.length
-          : deterministic.result &&
-              typeof deterministic.result === "object" &&
-              "count" in (deterministic.result as object)
-            ? Number((deterministic.result as { count?: number }).count)
-            : 0,
-      lastUserQuery: lastUserText,
-    });
-    return {
-      ok: true,
-      reply,
-      toolCalls: [
-        { name: deterministic.toolName, result: deterministic.result },
-      ],
-      actions: deterministic.sideEffect ?? { type: "none" },
-    };
+    try {
+      emitAgentEvent(onEvent, {
+        type: "tool_call",
+        name: "searchListings",
+        message: "Ieškau kataloge…",
+      });
+      const deterministic = await runDeterministicSupervisorSearch(
+        lastUserText,
+        ctx
+      );
+      emitAgentEvent(onEvent, {
+        type: "tool_result",
+        name: deterministic.toolName,
+      });
+      const reply = resolveSupervisorFinalReply({
+        draftText: "",
+        toolCalls: [
+          { name: deterministic.toolName, result: deterministic.result },
+        ],
+        sideEffect: deterministic.sideEffect,
+        searchToolCount:
+          deterministic.sideEffect?.type === "search"
+            ? deterministic.sideEffect.listingIds.length
+            : deterministic.result &&
+                typeof deterministic.result === "object" &&
+                "count" in (deterministic.result as object)
+              ? Number((deterministic.result as { count?: number }).count)
+              : 0,
+        lastUserQuery: lastUserText,
+      });
+      return {
+        ok: true,
+        reply,
+        toolCalls: [
+          { name: deterministic.toolName, result: deterministic.result },
+        ],
+        actions: deterministic.sideEffect ?? { type: "none" },
+      };
+    } catch (err) {
+      console.warn(
+        "[vauto-agent] single-pass search failed — falling back to Gemini",
+        err instanceof Error ? err.message : err
+      );
+    }
   }
 
   const contents: GeminiContent[] = sessionMessages.map((m) => ({

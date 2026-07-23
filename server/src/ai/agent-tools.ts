@@ -1711,6 +1711,7 @@ export async function executeAgentTool(
           { ...(prior?.attributes ?? {}), ...listingAttrs }
         );
 
+        const deferredSalesDescription = mergedDescription.slice(0, 4000);
         const draftAttrs: Record<string, string> = {
           ...(prior?.attributes ?? {}),
           ...listingAttrs,
@@ -1720,10 +1721,15 @@ export async function executeAgentTool(
                 documentImageCount: String(evidenceDocs.length),
               }
             : {}),
+          ...(deferredSalesDescription
+            ? { deferredSalesDescription }
+            : {}),
+          salesCopyGenerated: "false",
         };
         const draft = {
           title: parsed.listing.title || prior?.title || "",
-          description: mergedDescription,
+          // Step 2 — keep sales copy deferred until „Paruošti skelbimą“.
+          description: "",
           price: parsed.listing.price || prior?.price || 0,
           location: parsed.listing.location || prior?.location || ctx.userCity || "",
           contact: ctx.contact || "",
@@ -1731,7 +1737,6 @@ export async function executeAgentTool(
           confidence: parsed.listing.confidence,
           attributes: draftAttrs,
           ...(publicGallery.length ? { orderedImageUrls: publicGallery } : {}),
-          // Step 2 — vision summary only; PrePublish opens after „Publikuoti“.
           listingFlowState: "DRAFT_READY" as const,
         };
 

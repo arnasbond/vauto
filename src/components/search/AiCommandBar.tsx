@@ -41,9 +41,11 @@ import { ChatComposerAttachments } from "@/components/home/ChatComposerAttachmen
 import {
   MAX_CHAT_COMPOSER_ATTACHMENTS,
   pickNativeChatMedia,
+  type ChatMediaPickSource,
 } from "@/lib/chat-composer-media";
 import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
+import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
 import { peekPendingBarcodeOffer } from "@/lib/product-intelligence/barcode-intent-session";
 import {
   inferListingFlowState,
@@ -117,6 +119,8 @@ export function AiCommandBar({
   const [previewPulse, setPreviewPulse] = useState(false);
   const [composerAttachments, setComposerAttachments] = useState<string[]>([]);
   const [isPickingChatMedia, setIsPickingChatMedia] = useState(false);
+  const [photoSourceSheetOpen, setPhotoSourceSheetOpen] = useState(false);
+  const photoSourceModeRef = useRef<"attach" | "search">("attach");
   const inputRef = useRef<HTMLInputElement>(null);
   const prevAssistantRef = useRef("");
 
@@ -361,34 +365,64 @@ export function AiCommandBar({
     ]
   );
 
+  const runChatMediaPick = useCallback(
+    (source: ChatMediaPickSource) => {
+      if (isPickingChatMedia || agentBusy) return;
+      if (composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS) {
+        showToast(
+          `Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`,
+          "info"
+        );
+        return;
+      }
+      requestMediaConsent(() => {
+        void (async () => {
+          setIsPickingChatMedia(true);
+          try {
+            const picked = await pickNativeChatMedia(
+              composerAttachments.length,
+              source
+            );
+            if (picked.length) {
+              setComposerAttachments((prev) =>
+                [...prev, ...picked].slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS)
+              );
+            }
+          } catch {
+            showToast(
+              "Nepavyko pridėti nuotraukų — bandykite dar kartą.",
+              "info"
+            );
+          } finally {
+            setIsPickingChatMedia(false);
+          }
+        })();
+      });
+    },
+    [
+      agentBusy,
+      composerAttachments.length,
+      isPickingChatMedia,
+      requestMediaConsent,
+      showToast,
+    ]
+  );
+
   const handleChatMediaAttach = useCallback(() => {
     if (isPickingChatMedia || agentBusy) return;
     if (composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS) {
-      showToast(`Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`, "info");
+      showToast(
+        `Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`,
+        "info"
+      );
       return;
     }
-    requestMediaConsent(() => {
-      void (async () => {
-        setIsPickingChatMedia(true);
-        try {
-          const picked = await pickNativeChatMedia(composerAttachments.length);
-          if (picked.length) {
-            setComposerAttachments((prev) =>
-              [...prev, ...picked].slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS)
-            );
-          }
-        } catch {
-          showToast("Nepavyko pridėti nuotraukų — bandykite dar kartą.", "info");
-        } finally {
-          setIsPickingChatMedia(false);
-        }
-      })();
-    });
+    photoSourceModeRef.current = "attach";
+    setPhotoSourceSheetOpen(true);
   }, [
     agentBusy,
     composerAttachments.length,
     isPickingChatMedia,
-    requestMediaConsent,
     showToast,
   ]);
 
@@ -398,18 +432,39 @@ export function AiCommandBar({
       return;
     }
     if (isPhotoSearching || agentBusy) return;
-    void executeConductorRoute({
-      ...conductorPhotoUploadSource("AiCommandBar"),
-      payload: { photoCount: 1, wardrobeSearchOnly },
-    });
-    pickAndSendChatPhotos({
+    photoSourceModeRef.current = "search";
+    setPhotoSourceSheetOpen(true);
+  };
+
+  const handlePhotoSourceSelect = useCallback(
+    (source: ChatMediaPickSource) => {
+      setPhotoSourceSheetOpen(false);
+      if (photoSourceModeRef.current === "attach") {
+        runChatMediaPick(source);
+        return;
+      }
+      void executeConductorRoute({
+        ...conductorPhotoUploadSource("AiCommandBar"),
+        payload: { photoCount: 1, wardrobeSearchOnly },
+      });
+      pickAndSendChatPhotos({
+        requestMediaConsent,
+        sendAgentMessage,
+        setOpen,
+        source,
+        onBusyChange: setIsPhotoSearching,
+        onErrorMessage: (message) => showToast(message, "info"),
+      });
+    },
+    [
       requestMediaConsent,
+      runChatMediaPick,
       sendAgentMessage,
       setOpen,
-      onBusyChange: setIsPhotoSearching,
-      onErrorMessage: (message) => showToast(message, "info"),
-    });
-  };
+      showToast,
+      wardrobeSearchOnly,
+    ]
+  );
 
   const lastAssistant = useMemo(() => {
     return resolveSupervisorChatTurn(messages).assistant?.text ?? "";
@@ -780,6 +835,12 @@ export function AiCommandBar({
           </div>
         </>
       )}
+
+      <PhotoSourceSheet
+        open={photoSourceSheetOpen}
+        onClose={() => setPhotoSourceSheetOpen(false)}
+        onSelect={handlePhotoSourceSelect}
+      />
     </>
   );
 }

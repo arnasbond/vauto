@@ -236,7 +236,16 @@ vautoAgentRouter.post("/stream", async (req: AuthedRequest, res) => {
       return;
     }
 
-    writeEvent({ type: "status", message: "Jungiuosi prie Vision…" });
+    const pendingVision = Array.isArray(
+      built.request.context?.pendingImageUrls
+    )
+      ? built.request.context.pendingImageUrls.length
+      : Number(built.request.context?.pendingImageCount ?? 0);
+    writeEvent({
+      type: "status",
+      message:
+        pendingVision > 0 ? "Jungiuosi prie Vision…" : "Ieškau kataloge…",
+    });
 
     const result = await runVautoAgent(built.request, {
       onEvent: (event) => writeEvent(event),

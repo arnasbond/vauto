@@ -163,7 +163,7 @@ import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
-  buildDraftingCompletePhotosPrompt,
+  buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
   isVisionObjectSellChip,
@@ -1267,8 +1267,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /* v1.2 — text-only assistant, no TTS */
       };
 
-      // Hero SM chips (vision pick / publish gate) are handled below via dispatchListingFlowTurn.
-      // Do not route them through handleDirectAgentChip (would recurse via sendAgentMessageRef).
+      // Hero SM chips (vision pick / publish / prepare / amend) stay in sendAgentMessage
+      // (dispatchListingFlowTurn / tryHandleAgentQuickReply). Never bounce through
+      // handleDirectAgentChip — that recurses via sendAgentMessageRef and throws.
       const isHeroSmChip =
         isVisionObjectSellChip(trimmed) ||
         /^viskas\b/i.test(trimmed) ||
@@ -1276,6 +1277,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /^keliam\b/i.test(trimmed) ||
         /^keliame\b/i.test(trimmed) ||
         /\bpublikuojam\b/i.test(trimmed) ||
+        /^🚀?\s*publikuoti$/i.test(trimmed) ||
+        /^publikuoti$/i.test(trimmed) ||
+        /paruošti\s+skelbim/i.test(trimmed) ||
+        /^✨?\s*paruošti\s+skelbim/i.test(trimmed) ||
+        /^✏️?\s*papildyti$/i.test(trimmed) ||
+        /^papildyti$/i.test(trimmed) ||
+        /^papildyk$/i.test(trimmed) ||
         /\bprepublish\b/i.test(trimmed) ||
         /\bjudame\s+prie\b/i.test(trimmed) ||
         /^nenoriu\b/i.test(trimmed) ||
@@ -1904,11 +1912,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             return { ok: true, reply: confirmed.reply };
           }
         }
-        const reply = buildDraftingCompletePhotosPrompt({
+        // Step 2 stays lean — never dump deferred/full sales copy after price bind.
+        const reply = buildPostVisionHeroMessage({
           title: aiDraft?.title,
-          description: aiDraft?.description,
+          description: "",
           price: priceFromTurn ?? aiDraft?.price,
           location: aiDraft?.location,
+          category: aiDraft?.category,
+          attributes: aiDraft?.attributes,
         });
         setMessages((prev) => [
           ...prev,
@@ -2993,7 +3004,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // Lean 4-step chips — route through SM (no free-text LLM loop).
+      // Lean 4-step chips — return false so callers use sendAgentMessage once
+      // (local confirmPublishNow / Papildyti / Paruošti). Never call sendAgentMessage
+      // from here — that recursed and surfaced „Nepavyko išsiųsti žinutės“.
       if (
         aiDraft &&
         (/^viskas\b/i.test(trimmed) ||
@@ -3001,16 +3014,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           /^🚀?\s*publikuoti$/i.test(trimmed) ||
           /^publikuoti$/i.test(trimmed) ||
           /paruošti\s+skelbim/i.test(trimmed) ||
+          /^✨?\s*paruošti\s+skelbim/i.test(trimmed) ||
           /^✏️?\s*papildyti$/i.test(trimmed) ||
           /^papildyti$/i.test(trimmed) ||
+          /^papildyk$/i.test(trimmed) ||
           /\bprepublish\b/i.test(trimmed) ||
           /\bjudame\s+prie\b/i.test(trimmed) ||
           /^nenoriu\b/i.test(trimmed) ||
           /^prisegti\s+nuotrauk/i.test(trimmed) ||
           /^įkelti\s+dar\s+nuotrauk/i.test(trimmed))
       ) {
-        const result = await sendAgentMessageRef.current(trimmed);
-        return result.ok;
+        return false;
       }
 
       if (isPhotoIntentSearchChip(trimmed) || isPhotoIntentListingChip(trimmed)) {

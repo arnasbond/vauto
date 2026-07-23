@@ -12,7 +12,7 @@ export const AI_TIMEOUT_POLICY = {
   recoveryMs: 90_000,
   agentMs: 120_000,
   agentAdminMs: 150_000,
-  searchStreamMs: 25_000,
+  searchStreamMs: 90_000,
   searchSqlMs: 1_500,
 } as const;
 

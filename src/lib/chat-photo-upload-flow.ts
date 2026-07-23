@@ -1,4 +1,7 @@
-import { pickNativeChatMedia } from "@/lib/chat-composer-media";
+import {
+  pickNativeChatMedia,
+  type ChatMediaPickSource,
+} from "@/lib/chat-composer-media";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
 import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 
@@ -23,15 +26,17 @@ export interface ChatPhotoUploadFlowDeps {
   onErrorMessage?: (message: string) => void;
   /** Clear stale myListings / prior draft titles for this upload. */
   freshListingSession?: boolean;
+  /** camera = Fotografuoti, gallery = Nuotraukų galerija */
+  source?: ChatMediaPickSource;
 }
 
-/** Native OS picker → compress → agent chat (Kelrodė routing for image-only). */
+/** Native camera/gallery → compress → agent chat (Kelrodė routing for image-only). */
 export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
   deps.requestMediaConsent(() => {
     void (async () => {
       deps.onBusyChange?.(true);
       try {
-        const picked = await pickNativeChatMedia(0);
+        const picked = await pickNativeChatMedia(0, deps.source ?? "gallery");
         if (!picked.length) return;
         const { listingImageUrls, agentVisionUrls, suspectedDocumentUrls } =
           await prepareChatImagesForAgent(picked);

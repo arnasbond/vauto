@@ -305,21 +305,37 @@ async function resolveListingPhotoScan(input: {
       )
     : priorAttrs;
 
+  // Step 2 — stash Vision sales copy for Step 3; never expose it in chat/draft yet.
+  const deferredSalesDescription = String(visionDraft.description ?? "")
+    .trim()
+    .slice(0, 4000);
+  const leanVisionDraft = {
+    ...visionDraft,
+    description: "",
+    attributes: {
+      ...(visionDraft.attributes ?? {}),
+      ...(deferredSalesDescription
+        ? { deferredSalesDescription }
+        : {}),
+      salesCopyGenerated: "false",
+    },
+  };
+
   const mergedDraft = normalizeListingDraftForAction(
     input.listingDraft
       ? {
           ...input.listingDraft,
-          ...visionDraft,
-          title: visionDraft.title,
-          description: visionDraft.description,
+          ...leanVisionDraft,
+          title: leanVisionDraft.title,
+          description: "",
           orderedImageUrls: publicGallery,
           attributes: {
             ...safePriorAttrs,
-            ...visionDraft.attributes,
+            ...leanVisionDraft.attributes,
           },
           listingFlowState: nextState,
         }
-      : { ...visionDraft, listingFlowState: nextState },
+      : { ...leanVisionDraft, listingFlowState: nextState },
     {
       contact: input.contact,
       userCity: input.userCity,
