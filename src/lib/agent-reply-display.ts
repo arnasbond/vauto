@@ -13,8 +13,22 @@ export function isProactiveInternalAgentText(text: string): boolean {
   return PROACTIVE_INTERNAL_RE.test(text.trim());
 }
 
+/**
+ * Normalize / strip raw ATX markdown headings so chat never shows literal `##`.
+ * Proper line-start headings become plain section titles; mid-line `##` markers are removed.
+ */
+export function stripRawMarkdownHeadingMarkers(text: string): string {
+  return String(text ?? "")
+    // Mid-line "## Foo" leaked into list items → drop markers, keep words.
+    .replace(/([^\n#])[ \t]*#{1,6}[ \t]+/g, "$1 ")
+    // Line-start ATX headings → keep title text only (AgentChatMarkdown still styles prose).
+    .replace(/^[ \t]*#{1,6}[ \t]+(.+)$/gm, "$1")
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n");
+}
+
 export function sanitizeAgentReplyForDisplay(text: string): string {
-  const cleaned = text
+  const cleaned = stripRawMarkdownHeadingMarkers(text)
     .replace(INTERNAL_TOOL_RE, "")
     .replace(/\s{2,}/g, " ")
     .replace(TRAILING_PUNCT_RE, "")

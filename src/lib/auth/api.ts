@@ -47,6 +47,8 @@ async function authFetch<T>(
   try {
     const res = await fetch(`${base}${path}`, {
       ...opts,
+      // Never block auth hydrate / cold-start UI on a stalled free-tier wake.
+      signal: opts?.signal ?? AbortSignal.timeout(8_000),
       headers: {
         "Content-Type": "application/json",
         ...(opts?.headers as Record<string, string>),

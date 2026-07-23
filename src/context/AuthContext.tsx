@@ -285,6 +285,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, [applyAuthenticatedUser]);
 
   useEffect(() => {
+    let cancelled = false;
+    const failSafe = window.setTimeout(() => {
+      if (!cancelled) setHydrated(true);
+    }, 8_000);
 
     async function restore() {
 
@@ -455,15 +459,17 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(ANONYMOUS_USER);
 
       } finally {
-
-      setHydrated(true);
-
+        if (!cancelled) setHydrated(true);
+        window.clearTimeout(failSafe);
       }
 
     }
 
     void restore();
-
+    return () => {
+      cancelled = true;
+      window.clearTimeout(failSafe);
+    };
   }, []);
 
 

@@ -575,7 +575,7 @@ export function buildVehicleSpecReportMarkdown(draft: {
     `- **${label}:** ${value.trim() || "—"}`;
 
   const lines = [
-    "## Pagrindiniai duomenys",
+    "**Pagrindiniai duomenys**",
     bullet("Markė ir modelis", makeModel),
     bullet("Valstybinis numeris", plate || "—"),
     bullet("Pirmosios registracijos data", regDate),
@@ -584,14 +584,14 @@ export function buildVehicleSpecReportMarkdown(draft: {
     bullet("Sėdimų vietų skaičius", seats || "—"),
     bullet("Pavarų dėžė", transmission || "—"),
     "",
-    "## Variklis ir techniniai parametrai",
+    "**Variklis ir techniniai parametrai**",
     bullet("Variklio darbinis tūris (cm³ ir L)", engine || "—"),
     bullet("Kuro tipas", fuel || "—"),
     bullet("Galia (kW)", powerKw ? `${powerKw.replace(/\s*kW$/i, "")} kW` : "—"),
     bullet("Taršos standartas ir CO2 (g/km)", emissions),
     bullet("Maksimalus greitis ir masės (eksploatacinė / leidžiama)", speedMass),
     "",
-    "## Salonas (iš nuotraukų)",
+    "**Salonas (iš nuotraukų)**",
     ...(interiorLines.length
       ? interiorLines
       : salonFallback.length
@@ -600,7 +600,7 @@ export function buildVehicleSpecReportMarkdown(draft: {
           "- Odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis — jei matosi nuotraukose.",
         ]),
     "",
-    "## Išorė ir komplektacija (iš nuotraukų)",
+    "**Išorė ir komplektacija (iš nuotraukų)**",
     ...(exteriorLines.length
       ? exteriorLines
       : (!interiorLines.length && salonFallback.length)

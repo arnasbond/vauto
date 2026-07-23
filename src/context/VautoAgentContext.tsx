@@ -1299,13 +1299,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
           const synced = readiness.syncedDraft;
+          const priceLock =
+            draftOverride?.price != null && Number(draftOverride.price) > 0
+              ? Number(draftOverride.price)
+              : undefined;
           if (synced) {
             updateAiDraft({
               ...synced,
+              ...(priceLock != null ? { price: priceLock } : {}),
               listingFlowState: "AWAITING_CONFIRMATION",
             });
           } else {
-            updateAiDraft({ listingFlowState: "AWAITING_CONFIRMATION" });
+            updateAiDraft({
+              ...(priceLock != null ? { price: priceLock } : {}),
+              listingFlowState: "AWAITING_CONFIRMATION",
+            });
           }
           return {
             reply: PRE_PUBLISH_CARD_INTRO,
@@ -1622,6 +1630,56 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
+      // Bare price (e.g. „2250“) after publish gate → open PrePublish immediately.
+      // Must run even when tryApplyListingChatInput returns null (price-only sentinel).
+      if (
+        priceFromTurn != null &&
+        draftForTurn &&
+        flowDecision.kind !== "process_photos" &&
+        !incomingImagesEarly.length
+      ) {
+        const pricedDraft = { ...draftForTurn, price: priceFromTurn };
+        updateAiDraft({
+          price: priceFromTurn,
+          listingFlowState:
+            transitionListingFlow(
+              pricedDraft.listingFlowState ?? "DRAFTING_TEXT",
+              "DRAFT_SAVED"
+            ) ?? "DRAFT_READY",
+        });
+        const readinessAfterPrice = evaluatePrePublishReadiness({
+          isAuthenticated,
+          user,
+          draft: pricedDraft,
+          previewImage: sellerPreviewImage,
+          pendingImageUrls: pendingForTurn,
+          orderedImageUrls: pricedDraft.orderedImageUrls,
+          geoCoords: buyerCoords,
+        });
+        if (readinessAfterPrice.ok) {
+          const confirmed = confirmPublishNow({
+            ...(readinessAfterPrice.syncedDraft ?? pricedDraft),
+            price: priceFromTurn,
+          });
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed },
+            {
+              role: "assistant" as const,
+              text: confirmed.reply,
+              ...(confirmed.quickReplies?.length
+                ? { quickReplies: confirmed.quickReplies }
+                : {}),
+              ...(confirmed.prePublishCard
+                ? { prePublishCard: confirmed.prePublishCard }
+                : {}),
+            },
+          ].slice(-6));
+          touchAgentSessionActivity();
+          return { ok: true, reply: confirmed.reply };
+        }
+      }
+
       // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
       const listingChatReply =
         aiDraft &&
@@ -1641,38 +1699,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             })
           : null;
       if (listingChatReply) {
-        // Price-only answers after „Kokią kainą?“ should open PrePublish, not re-ask photos.
-        if (priceFromTurn != null && draftForTurn) {
-          const pricedDraft = { ...draftForTurn, price: priceFromTurn };
-          const readinessAfterPrice = evaluatePrePublishReadiness({
-            isAuthenticated,
-            user,
-            draft: pricedDraft,
-            previewImage: sellerPreviewImage,
-            pendingImageUrls: pendingForTurn,
-            orderedImageUrls: pricedDraft.orderedImageUrls,
-            geoCoords: buyerCoords,
-          });
-          if (readinessAfterPrice.ok) {
-            const confirmed = confirmPublishNow(pricedDraft);
-            setMessages((prev) => [
-              ...prev,
-              { role: "user" as const, text: trimmed },
-              {
-                role: "assistant" as const,
-                text: confirmed.reply,
-                ...(confirmed.quickReplies?.length
-                  ? { quickReplies: confirmed.quickReplies }
-                  : {}),
-                ...(confirmed.prePublishCard
-                  ? { prePublishCard: confirmed.prePublishCard }
-                  : {}),
-              },
-            ].slice(-6));
-            touchAgentSessionActivity();
-            return { ok: true, reply: confirmed.reply };
-          }
-        }
         const reply = buildDraftingCompletePhotosPrompt({
           title: aiDraft?.title,
           description: aiDraft?.description,

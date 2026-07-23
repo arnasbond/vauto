@@ -271,17 +271,16 @@ export function tryApplyListingChatInput(
   }
 
   // Price must apply in ANY stage — never loop „Kokią kainą?“ after user typed it.
+  // Bare price-only turns return null so VautoAgentContext can open PrePublish immediately
+  // (no second „Publikuojam“ click).
   if (priceToApply != null) {
     updateAiDraft({ price: priceToApply });
-    // When combined with publish intent, let the SM open PrePublish (no chat-only reply).
-    if (isListingWorkflowCommand(text) || /\bprepublish\b|\bjudame\b|\bpublikuoj/i.test(text)) {
+    if (
+      isListingWorkflowCommand(text) ||
+      /\bprepublish\b|\bjudame\b|\bpublikuoj/i.test(text) ||
+      PRICE_ONLY_RE.test(text.trim())
+    ) {
       return null;
-    }
-    if (flow === "AWAITING_PHOTOS" || flow === "AWAITING_CONFIRMATION") {
-      return buildListingDraftUpdateReply(
-        draftToPreviewInput({ ...aiDraft, price: priceToApply }),
-        { intro: "Puiku — atnaujinau kainą!" }
-      );
     }
   }
 

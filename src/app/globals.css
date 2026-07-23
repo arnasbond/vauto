@@ -2829,8 +2829,64 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   display: inline-flex;
 }
 
+/* Full PrePublish card → fold → paper-plane fly (publish UX). */
+@keyframes cardFoldToPlane {
+  0% {
+    transform: perspective(800px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) scale(1);
+    opacity: 1;
+    border-radius: 1rem;
+    filter: drop-shadow(0 18px 40px rgba(8, 18, 40, 0.28));
+  }
+  28% {
+    transform: perspective(800px) translate3d(0, -2%, 0) rotateX(12deg) rotateY(-18deg) scale(0.92);
+    opacity: 1;
+    border-radius: 0.85rem;
+  }
+  48% {
+    transform: perspective(800px) translate3d(6%, -8%, 0) rotateX(28deg) rotateY(-42deg) scale(0.55);
+    opacity: 0.96;
+    border-radius: 0.35rem;
+    clip-path: polygon(8% 42%, 52% 8%, 92% 42%, 58% 52%, 92% 92%, 52% 62%, 8% 92%, 42% 52%);
+  }
+  62% {
+    transform: perspective(800px) translate3d(18%, -22%, 0) rotateX(36deg) rotateY(-58deg) scale(0.32);
+    opacity: 0.95;
+    clip-path: polygon(10% 40%, 55% 6%, 94% 40%, 60% 50%, 94% 94%, 55% 60%, 10% 94%, 40% 50%);
+  }
+  100% {
+    transform: perspective(800px) translate3d(72vw, -78vh, 0) rotateX(18deg) rotateY(-28deg) rotate(-12deg)
+      scale(0.12);
+    opacity: 0;
+    clip-path: polygon(12% 38%, 58% 4%, 96% 38%, 62% 48%, 96% 96%, 58% 58%, 12% 96%, 38% 48%);
+  }
+}
+
+@keyframes cardFoldBackdropFade {
+  0% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0.55;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+
 .pre-publish-modal-panel {
   animation: prePublishCardEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+  transform-origin: 50% 60%;
+  will-change: transform, opacity, clip-path, filter;
+}
+
+.pre-publish-modal.is-card-folding {
+  pointer-events: none;
+  animation: cardFoldBackdropFade 1.35s cubic-bezier(0.22, 0.82, 0.28, 1) forwards;
+}
+
+.pre-publish-modal-panel.animate-card-fold-plane {
+  animation: cardFoldToPlane 1.35s cubic-bezier(0.22, 0.82, 0.28, 1) forwards;
+  overflow: hidden;
 }
 
 @keyframes bottomNavSpintaPulse {

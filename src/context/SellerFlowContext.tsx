@@ -1682,6 +1682,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     // Session photos only — never Unsplash/demo stock fillers from other listings.
     // Document/tech-passport evidence stays out of the public gallery.
+    // Public gallery only — tech passport / registration evidence never becomes a
+    // standalone cover or a second Mano skelbimai card image set.
+    const documentEvidence = parseDocumentUrlsFromAttributes(profileDraft.attributes);
     const syncedGallery = filterSessionListingImages(
       resolveSellerGalleryImages(
         {
@@ -1695,7 +1698,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           ...sellerPreviewImages.filter(Boolean),
         ].filter((url, i, arr) => arr.indexOf(url) === i)
       ),
-      { attributes: profileDraft.attributes }
+      {
+        documentUrls: documentEvidence,
+        attributes: profileDraft.attributes,
+      }
     ).slice(0, 6);
 
     // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.

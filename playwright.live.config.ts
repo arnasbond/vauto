@@ -17,6 +17,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "on",
     video: "off",
+    launchOptions: {
+      // Visible headed runs: PLAYWRIGHT_VISUAL=1 slows actions for observation.
+      slowMo: process.env.PLAYWRIGHT_VISUAL === "1" ? 200 : 0,
+    },
   },
   projects: [
     {
@@ -24,6 +28,7 @@ export default defineConfig({
       use: {
         ...devices["Desktop Chrome"],
         ...(process.env.CI ? {} : { channel: "chrome" }),
+        headless: process.env.PLAYWRIGHT_HEADED === "1" ? false : undefined,
       },
     },
   ],

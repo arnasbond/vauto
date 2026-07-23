@@ -17,12 +17,21 @@ export function listingToApiPayload(
     attributes.isAiTwinActive = "true";
   }
   // Never ship extra base64 blobs in attributes / payload — only http gallery URLs.
-  // Hard-exclude tech passport / document evidence from public gallery.
+  // Hard-exclude tech passport / document evidence from public gallery + cover.
+  // Documents stay in attributes.documentImageUrls as verification metadata only.
   const gallery = hardFilterPublicGalleryUrls(images, undefined, attributes).slice(0, 6);
   const cover = gallery[0] ?? "";
   const httpGallery = gallery.filter((u) => /^https?:\/\//i.test(u));
   if (httpGallery.length > 1) {
     attributes.galleryUrls = httpGallery;
+  }
+  // Never mirror a document URL into the public galleryUrls attribute.
+  if (Array.isArray(attributes.galleryUrls)) {
+    attributes.galleryUrls = hardFilterPublicGalleryUrls(
+      attributes.galleryUrls as string[],
+      undefined,
+      attributes
+    );
   }
   for (const key of Object.keys(attributes)) {
     const val = attributes[key];

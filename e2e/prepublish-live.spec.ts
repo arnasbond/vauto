@@ -1,13 +1,19 @@
 /**
- * Live E2E: phone login → Vision OCR → sales copy → PrePublish → publish.
+ * Live E2E: seeded auth → Vision OCR → sales copy → PrePublish → publish.
  *
  * Prerequisites: `npm run dev` on :3000
  *   PLAYWRIGHT_BASE_URL=http://127.0.0.1:3000 npx playwright test --config=playwright.live.config.ts
+ *
+ * Auth is seeded via localStorage (no OTP UI) so headed visual runs skip the
+ * "Prisijungti telefonu" / "Kraunama…" hang.
  */
 import { test, expect, type Page, type Route } from "@playwright/test";
 import path from "node:path";
 import fs from "node:fs";
-import { acceptGdprConsentIfPrompted } from "./helpers/seed-demo-user";
+import {
+  acceptGdprConsentIfPrompted,
+  seedDemoUser,
+} from "./helpers/seed-demo-user";
 
 const ROOT = path.resolve(__dirname, "..");
 const CITROEN_DIR = path.join(ROOT, "public", "e2e-citroen");
@@ -16,8 +22,22 @@ const PHOTO_FILES = ["c1.png", "c2.png", "c3.png", "c12.png"]
   .map((name) => path.join(CITROEN_DIR, name))
   .filter((p) => fs.existsSync(p));
 
-const TEST_PHONE = "+37060000002";
-const TEST_OTP = "123456";
+const E2E_USER = {
+  id: "user-e2e-test",
+  name: "E2E Tester",
+  phone: "+37060000001",
+  city: "Vilnius",
+  avatar: "",
+  role: "private" as const,
+  profileType: "private" as const,
+  walletBalance: 0,
+};
+
+/** Short beat between key steps when watching headed (`PLAYWRIGHT_VISUAL=1`). */
+const VISUAL_MS = process.env.PLAYWRIGHT_VISUAL === "1" ? 1500 : 0;
+async function visualPause(page: Page, ms = VISUAL_MS) {
+  if (ms > 0) await page.waitForTimeout(ms);
+}
 
 async function installPublishMocks(page: Page) {
   await page.route("**/api/listings", async (route: Route) => {
@@ -37,7 +57,7 @@ async function installPublishMocks(page: Page) {
         images: ["/e2e-citroen/c2.png"],
         slug: "e2e-citroen-grand-c4",
         status: "active",
-        sellerId: "user-e2e-test",
+        sellerId: E2E_USER.id,
         createdAt: new Date().toISOString(),
       }),
     });
@@ -58,49 +78,55 @@ async function installPublishMocks(page: Page) {
   });
 }
 
-async function loginWithTestPhone(page: Page) {
-  await page.goto("/add/");
+/** Keep AuthContext hydrate from hanging / wiping a local demo seed on live API. */
+async function installAuthBypassMocks(page: Page) {
+  await page.route("**/api/auth/session**", async (route: Route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: "application/json",
+      body: JSON.stringify({
+        token: "e2e-seeded-session",
+        expiresAt: new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString(),
+        user: {
+          id: E2E_USER.id,
+          name: E2E_USER.name,
+          phone: E2E_USER.phone,
+          city: E2E_USER.city,
+          avatar: "",
+          role: E2E_USER.role,
+          profileType: E2E_USER.profileType,
+          walletBalance: E2E_USER.walletBalance,
+        },
+        role: E2E_USER.role,
+        provider: "phone",
+      }),
+    });
+  });
+}
+
+/** Seed localStorage auth and open /add seller shell (skip OTP UI). */
+async function openSeededSellerShell(page: Page) {
+  await seedDemoUser(page);
+  // Optional token is safe because session route is mocked above.
+  await page.addInitScript(() => {
+    localStorage.setItem("vauto_access_token_v1", "e2e-seeded-session");
+    localStorage.setItem(
+      "vauto_gdpr_consent_v1",
+      JSON.stringify(true)
+    );
+    localStorage.setItem("vauto-ai-photo-intro-dismissed", "1");
+  });
+
+  await page.goto("/add/", { waitUntil: "domcontentloaded" });
   await acceptGdprConsentIfPrompted(page);
 
-  // Already authenticated from a prior run / storage seed.
   const addHeading = page.getByRole("heading", {
     name: /Kelkite skelbimą pokalbyje|Kelkite drabužį pokalbyje/i,
   });
-  if (await addHeading.isVisible({ timeout: 5_000 }).catch(() => false)) {
-    return;
-  }
-
-  const phoneLogin = page.getByRole("button", { name: /Prisijungti telefonu/i });
-  if (await phoneLogin.isVisible({ timeout: 8_000 }).catch(() => false)) {
-    await phoneLogin.click();
-  } else {
-    const loginBtn = page.getByRole("button", { name: /Prisijungti/i }).first();
-    await expect(loginBtn).toBeVisible({ timeout: 20_000 });
-    await loginBtn.click();
-    await phoneLogin.click({ timeout: 10_000 });
-  }
-
-  const phoneInput = page.getByPlaceholder(/370/).first();
-  await expect(phoneInput).toBeVisible({ timeout: 15_000 });
-  await phoneInput.click();
-  await phoneInput.fill(TEST_PHONE);
-  const phoneVal = await phoneInput.inputValue();
-  if (!/60000002/.test(phoneVal.replace(/\s/g, ""))) {
-    await phoneInput.pressSequentially("60000002", { delay: 40 });
-  }
-  await page.getByRole("button", { name: /Siųsti kodą/i }).click();
-
-  await expect(
-    page.getByText(/Patvirtinkite SMS kodą|SMS kod/i).first()
-  ).toBeVisible({ timeout: 45_000 });
-  const otp = page
-    .getByPlaceholder("••••••")
-    .or(page.locator('input[inputmode="numeric"], input[autocomplete="one-time-code"]'))
-    .first();
-  await otp.fill(TEST_OTP);
-  await page.getByRole("button", { name: /Patvirtinti ir prisijungti/i }).click();
-
   await expect(addHeading).toBeVisible({ timeout: 90_000 });
+  await expect(
+    page.getByRole("button", { name: /Įkelti nuotraukas/i }).first()
+  ).toBeVisible({ timeout: 30_000 });
 }
 
 async function attachPhotos(page: Page) {
@@ -194,18 +220,17 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
   test("full seller path with citroen fixtures", async ({ page }, testInfo) => {
     test.skip(PHOTO_FILES.length < 2, "Missing public/e2e-citroen fixtures");
 
-    await page.addInitScript(() => {
-      localStorage.setItem("vauto_gdpr_consent_v1", JSON.stringify(true));
-      localStorage.setItem("vauto-ai-photo-intro-dismissed", "1");
-    });
+    await installAuthBypassMocks(page);
     await installPublishMocks(page);
-    await loginWithTestPhone(page);
+    await openSeededSellerShell(page);
+    await visualPause(page); // a) chat / add UI open
     await page.screenshot({
       path: testInfo.outputPath("01-logged-in-add.png"),
       fullPage: true,
     });
 
     await attachPhotos(page);
+    await visualPause(page); // b) photos attached
     await page.screenshot({
       path: testInfo.outputPath("02-photos-attached.png"),
       fullPage: true,
@@ -220,6 +245,7 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
       agent = page.getByLabel(/VAUTO asistento pokalbis/i);
     }
     await expect(agent).toBeVisible({ timeout: 90_000 });
+    await visualPause(page); // a) agent chat visible
 
     // Wait until first vision turn finishes (composer unlocks).
     await expect(
@@ -239,6 +265,7 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
       )
       .first();
     await expect(step1OrReady).toBeVisible({ timeout: 240_000 });
+    await visualPause(page); // c) Step 1 OCR / spec report
 
     const bodyText = await agent.innerText();
     expect(bodyText.toLowerCase()).not.toMatch(/ta galioja\s*2\s*met/);
@@ -267,6 +294,7 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
           .first();
         await expect(composer).toBeEnabled({ timeout: 60_000 });
         await composer.fill("Taip, paruošk skelbimą");
+        await visualPause(page); // d) before sending Step 2 confirm
         await composer.press("Enter");
       }
       await expect(
@@ -276,11 +304,13 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
           )
           .first()
       ).toBeVisible({ timeout: 180_000 });
+      await visualPause(page); // d) Step 2 sales copy visible
     }
 
     const tinka = agent.getByRole("button", { name: /^Tinka$/i });
     const publikuojam = agent.getByRole("button", { name: /Publikuojam/i });
     const keliam = agent.getByRole("button", { name: /^Keliam$/i });
+    await visualPause(page); // e) before Publikuojam
     // Chips may be absent if CTA is text-only — type Publikuojam.
     if (
       !(await tinka.or(publikuojam).or(keliam).first().isVisible().catch(() => false))
@@ -315,11 +345,13 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
 
     if (!(await modal.isVisible().catch(() => false))) {
       await expect(pricePrompt).toBeVisible({ timeout: 30_000 });
+      await visualPause(page);
       const composer = agent
         .getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
         .first();
       await expect(composer).toBeEnabled({ timeout: 30_000 });
       await composer.fill("2250");
+      await visualPause(page);
       await composer.press("Enter");
       // Price alone should open PrePublish; if not, nudge once more.
       const appeared = await modal
@@ -335,11 +367,23 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
 
     await expect(modal).toBeVisible({ timeout: 90_000 });
     await expect(modal.getByText(/Free|Boost|Premium/i).first()).toBeVisible();
+    await visualPause(page); // e/f) PrePublish modal open
 
     const priceInput = modal.locator('input[type="number"]').first();
     if (await priceInput.isVisible()) {
       const val = await priceInput.inputValue();
       if (!val || Number(val) <= 0) await priceInput.fill("2250");
+    }
+    // f) scroll photo grid for observation
+    const photoGrid = modal.locator('[data-prepublish-photos], [data-photo-grid]').first();
+    if (await photoGrid.isVisible().catch(() => false)) {
+      await photoGrid.scrollIntoViewIfNeeded();
+      await visualPause(page);
+    } else {
+      await modal.evaluate((el) => {
+        el.scrollTop = Math.min(el.scrollHeight, 280);
+      });
+      await visualPause(page);
     }
     await page.screenshot({
       path: testInfo.outputPath("05-prepublish-modal.png"),
@@ -348,16 +392,20 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
 
     const publishBtn = modal.locator('[data-prepublish-submit="1"]');
     await expect(publishBtn).toBeEnabled({ timeout: 15_000 });
+    await publishBtn.scrollIntoViewIfNeeded();
+    await visualPause(page); // f) before publish click
     await publishBtn.click();
     await page
       .waitForSelector(".animate-paper-plane-fly", { timeout: 3_000 })
       .catch(() => null);
+    await visualPause(page, Math.max(VISUAL_MS, 2000)); // g) watch paper plane
     await page.screenshot({
       path: testInfo.outputPath("06-after-publish-click.png"),
       fullPage: true,
     });
 
     await expect(page).toHaveURL(/mano-skelbimai/i, { timeout: 120_000 });
+    await visualPause(page); // published state
     await page.screenshot({
       path: testInfo.outputPath("07-published-redirect.png"),
       fullPage: true,

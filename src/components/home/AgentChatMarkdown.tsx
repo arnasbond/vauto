@@ -2,10 +2,11 @@
 
 import ReactMarkdown from "react-markdown";
 import { cn } from "@/lib/cn";
+import { stripRawMarkdownHeadingMarkers } from "@/lib/agent-reply-display";
 
 /**
- * Renders assistant chat text as Markdown (## headings, **bold**, bullets)
- * while preserving line breaks via white-space: pre-wrap on the container.
+ * Renders assistant chat text as Markdown (**bold**, bullets, clean section titles)
+ * without leaking literal `##` markers into the bubble.
  */
 export function AgentChatMarkdown({
   text,
@@ -14,7 +15,7 @@ export function AgentChatMarkdown({
   text: string;
   className?: string;
 }) {
-  const source = text.trim();
+  const source = stripRawMarkdownHeadingMarkers(text).trim();
   if (!source) return null;
 
   return (

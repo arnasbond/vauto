@@ -48,6 +48,10 @@ export function sanitizeListingUserText(raw: string | undefined | null): string 
   for (const re of SYSTEM_PHRASE_PATTERNS) {
     t = t.replace(re, " ");
   }
+  // Never publish / store literal markdown heading markers in listing copy.
+  t = t
+    .replace(/([^\n#])[ \t]*#{1,6}[ \t]+/g, "$1 ")
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "");
   // Drop whole lines that are agent clarification prompts.
   t = t
     .split(/\n+/)

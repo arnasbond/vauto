@@ -22,7 +22,8 @@ import {
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 import type { ListingCategory } from "@/lib/types";
 
-const PLANE_FLY_MS = 600;
+/** Full card → fold → plane flight before API publish. */
+const CARD_FOLD_PLANE_MS = 1350;
 
 const TIER_BADGE: Record<
   PrePublishVisibilityId,
@@ -195,11 +196,12 @@ export function PrePublishModal({
   const submitPublish = useCallback(async () => {
     if (publishing || flying || gallery.length === 0) return;
     setFlying(true);
-    await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, PLANE_FLY_MS);
-    });
     const el = publishButtonRef.current;
     const rect = el?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0);
+    // Play the 3D card→plane animation first; only then hit publish API / redirect.
+    await new Promise<void>((resolve) => {
+      window.setTimeout(resolve, CARD_FOLD_PLANE_MS);
+    });
     try {
       await onPublish(rect, visibilityId);
     } finally {
@@ -217,13 +219,21 @@ export function PrePublishModal({
 
   return createPortal(
     <div
-      className="pre-publish-modal fixed inset-0 z-[110] flex flex-col bg-[var(--vauto-bg,#0b1220)]/72 backdrop-blur-[2px]"
+      className={cn(
+        "pre-publish-modal fixed inset-0 z-[110] flex flex-col bg-[var(--vauto-bg,#0b1220)]/72 backdrop-blur-[2px]",
+        flying && "is-card-folding"
+      )}
       role="dialog"
       aria-modal="true"
       aria-label="Skelbimo peržiūra prieš publikavimą"
       data-prepublish-modal="1"
     >
-      <div className="pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-2xl sm:my-3 sm:h-[min(96dvh,920px)] sm:rounded-2xl sm:border sm:border-[var(--vauto-primary)]/20">
+      <div
+        className={cn(
+          "pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-2xl sm:my-3 sm:h-[min(96dvh,920px)] sm:rounded-2xl sm:border sm:border-[var(--vauto-primary)]/20",
+          flying && "animate-card-fold-plane"
+        )}
+      >
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--vauto-border)]/60 px-4 py-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-primary)]">
