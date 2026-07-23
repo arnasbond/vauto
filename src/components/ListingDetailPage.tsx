@@ -9,12 +9,14 @@ import {
   Heart,
   MapPin,
   MessageCircle,
+  Pencil,
   Phone,
   Tag,
   Trash2,
   Sparkles,
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { VautoLogo } from "@/components/VautoLogo";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
 import { ReportButton } from "@/components/support/ReportButton";
 import { TrustBadges } from "@/components/trust/TrustBadges";
@@ -27,6 +29,7 @@ import { SimilarListingsSection } from "@/components/listing/SimilarListingsSect
 import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoBridge } from "@/context/VautoBridge";
+import { useSellerFlow } from "@/context/SellerFlowContext";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { getSimilarListings } from "@/lib/similar-listings";
 import { sellerDisplayName } from "@/lib/seller-display";
@@ -38,6 +41,7 @@ import {
   getListingDetailRows,
   isDemoListingPhone,
   listingPhoneTelHref,
+  resolveDisplayListingCategory,
   resolveListingPhone,
 } from "@/lib/listing-display";
 import { filterPublicListingTags } from "@/lib/listing-attributes";
@@ -95,6 +99,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     listings,
     chameleonTheme,
   } = useVauto();
+  const { startEditListingFlow } = useSellerFlow();
   const { hydrated } = useVautoBridge();
   const { trackEvent } = useUserBehavior();
   const dwellFiredRef = useRef(false);
@@ -116,11 +121,12 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     }
   }, [listing?.id, listing?.banned, listing?.title, listing?.category, listing?.price, trackListingView, trackEvent]);
 
+  const displayCategory = listing ? resolveDisplayListingCategory(listing) : null;
   const wardrobeContext =
     chameleonTheme === "wardrobe" ||
     pathname === "/fashion" ||
     pathname === "/fashion/" ||
-    listing?.category === "clothing";
+    displayCategory === "clothing";
 
   useEffect(() => {
     dwellFiredRef.current = false;
@@ -142,7 +148,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   if (!hydrated) {
     return (
       <AppShell variant="plain" hideNav>
-        <div className="px-4 py-12 text-center">
+        <div className="py-12 text-center">
           <p className="text-slate-500">Kraunama...</p>
         </div>
       </AppShell>
@@ -152,10 +158,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   if (!listing || listing.banned) {
     return (
       <AppShell variant="plain" hideNav>
-        <div className="px-4 py-12 text-center">
+        <div className="py-12 text-center">
           <p className="text-slate-500">Skelbimas nerastas.</p>
           <Link href="/" className="mt-4 inline-block text-sm text-[var(--vauto-teal)]">
-            Grįžti į paiešką
+            ← Grįžti į skelbimus
           </Link>
         </div>
       </AppShell>
@@ -163,7 +169,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   }
 
   const isSaved = savedIds.has(listing.id);
-  const isOwn = listing.sellerId === user.id;
+  const isOwner =
+    Boolean(user?.id) && user.id !== "guest" && listing.sellerId === user.id;
   const phone = resolveListingPhone(listing);
   const phoneDisplay = formatListingPhoneDisplay(phone);
   const phoneTel = listingPhoneTelHref(phone);
@@ -171,7 +178,10 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const detailRows = getListingDetailRows(listing);
   const categoryLabel = getCategoryLabel(listing);
   const similarListings = getSimilarListings(listing, listings);
-  const publicTags = filterPublicListingTags(listing.tags);
+  const publicTags = filterPublicListingTags(
+    listing.tags ?? [],
+    displayCategory ?? listing.category
+  );
   const aboutDescription = (() => {
     const raw = listing.description?.trim() ?? "";
     if (!raw || isAgentClarificationText(raw)) {
@@ -180,7 +190,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         price: listing.price,
         location: listing.location,
         contact: listing.contact ?? "",
-        category: listing.category,
+        category: displayCategory ?? listing.category,
         confidence: 1,
         description: listing.description,
         attributes: listing.attributes,
@@ -190,7 +200,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   })();
 
   const handleNegotiate = () => {
-    if (isOwn) {
+    if (isOwner) {
       showToast("Tai jūsų skelbimas.", "info");
       return;
     }
@@ -201,10 +211,12 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       price: listing.price,
       wardrobeMode: wardrobeContext,
     });
+    const chatId = startChat(listing.id);
+    if (chatId) router.push(chatThreadPath(chatId));
   };
 
   const handleChat = () => {
-    if (isOwn) {
+    if (isOwner) {
       showToast("Tai jūsų skelbimas — negalite rašyti sau.", "info");
       return;
     }
@@ -218,29 +230,50 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       showToast("Demo režimas: kontaktas nerodomas. Prisijunkite arba naudokite chat.", "info");
       return;
     }
-    window.location.href = `tel:${phone}`;
+    window.location.href = phoneTel || `tel:${phone}`;
+  };
+
+  const handleEdit = () => {
+    startEditListingFlow(listing);
   };
 
   const handleDelete = () => {
     if (confirm("Ištrinti šį skelbimą?")) {
       deleteListing(listing.id);
-      router.push("/profile/");
+      router.push("/mano-skelbimai/");
     }
   };
 
   return (
     <AppShell variant="plain" hideNav>
       <ListingSeoHead listing={listing} />
-      <div className="flex flex-col px-4 pb-8 pt-2">
-        <div className="relative w-full overflow-hidden rounded-2xl bg-black/20">
-          <ListingImageGallery listing={listing} />
+
+      <header className="sticky top-0 z-40 -mx-4 mb-3 border-b border-[var(--vauto-border)]/70 bg-[var(--vauto-bg)]/92 px-4 py-3 backdrop-blur-md">
+        <div className="flex items-center justify-between gap-3">
           <Link
             href="/"
-            className="absolute left-3 top-3 flex h-9 w-9 items-center justify-center rounded-full bg-black/40 text-white backdrop-blur-sm"
-            aria-label="Grįžti į paiešką"
+            className="shrink-0"
+            aria-label="VAUTO pradžia"
           >
-            <ArrowLeft className="h-5 w-5" />
+            <VautoLogo
+              className="text-xl text-[var(--vauto-text-heading,#0c0e12)]"
+              color="var(--vauto-text-heading, #0c0e12)"
+              dotColor="var(--vauto-accent, #00d4ff)"
+            />
           </Link>
+          <Link
+            href="/"
+            className="inline-flex items-center gap-1.5 rounded-full border border-[var(--vauto-border)] bg-[var(--vauto-card-bg,#fff)] px-3 py-1.5 text-xs font-semibold text-[var(--vauto-text)] transition hover:border-[var(--vauto-primary)]/40 hover:text-[var(--vauto-primary)]"
+          >
+            <ArrowLeft className="h-3.5 w-3.5" aria-hidden />
+            Grįžti į skelbimus
+          </Link>
+        </div>
+      </header>
+
+      <div className="flex flex-col pb-8">
+        <div className="relative w-full overflow-hidden rounded-2xl bg-black/20">
+          <ListingImageGallery listing={listing} />
           <button
             type="button"
             onClick={() => toggleSave(listing.id)}
@@ -294,7 +327,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </div>
         </div>
 
-        {!isOwn && (
+        {!isOwner && (
           <div className="mt-5 flex flex-col gap-3">
             {!demoPhone && phoneTel ? (
               <a
@@ -303,10 +336,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
                 className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
               >
                 <Phone className="h-6 w-6" />
-                Skambinti ·{" "}
-                <span className="font-semibold underline decoration-white/40 underline-offset-2">
-                  {phoneDisplay}
-                </span>
+                Skambinti ({phoneDisplay})
               </a>
             ) : (
               <button
@@ -320,34 +350,48 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             )}
             <button
               type="button"
-              onClick={handleChat}
+              onClick={wardrobeContext ? handleNegotiate : handleChat}
               className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
             >
-              <MessageCircle className="h-5 w-5" />
-              💬 Rašyti žinutę
+              {wardrobeContext ? (
+                <Sparkles className="h-5 w-5" />
+              ) : (
+                <MessageCircle className="h-5 w-5" />
+              )}
+              Rašyti žinutę / AI Derybininkas
             </button>
-            {wardrobeContext && (
-              <button
-                type="button"
-                onClick={handleNegotiate}
-                className="flex w-full items-center justify-center gap-2 rounded-2xl border border-fuchsia-200 bg-fuchsia-50 py-3 text-sm font-semibold text-fuchsia-900"
-              >
-                <Sparkles className="h-5 w-5 text-fuchsia-600" />
-                Derėtis su AI
-              </button>
-            )}
           </div>
         )}
 
-        {!isOwn && !demoPhone && phoneTel && (
-          <p className="mt-2 text-center">
-            <a
-              href={phoneTel}
-              className="text-sm font-semibold text-blue-600 hover:underline"
+        {isOwner && listing.status !== "sold" && (
+          <div className="mt-5 flex flex-col gap-3">
+            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
+              Valdymas
+            </p>
+            <button
+              type="button"
+              onClick={handleEdit}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
             >
-              {phoneDisplay}
-            </a>
-          </p>
+              <Pencil className="h-4 w-4" />
+              Redaguoti
+            </button>
+            <OwnerListingPromote listing={listing} />
+            <section className="vauto-glass-card rounded-2xl p-4">
+              <h2 className="mb-2 text-sm font-semibold text-slate-900">
+                Papildoma reklama socialiniuose tinkluose
+              </h2>
+              <ShareListingPanel listing={listing} compact />
+            </section>
+            <button
+              type="button"
+              onClick={handleDelete}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700"
+            >
+              <Trash2 className="h-4 w-4" />
+              Ištrinti skelbimą
+            </button>
+          </div>
         )}
 
         {(aboutDescription || detailRows.length > 0) && (
@@ -393,40 +437,19 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           </section>
         )}
 
-        {!isOwn && <SafeMeetingTips />}
+        {!isOwner && <SafeMeetingTips />}
 
         <SimilarListingsSection listings={similarListings} />
 
-        <div className="mt-6 flex flex-col gap-3">
-          {isOwn && listing.status !== "sold" && (
-            <OwnerListingPromote listing={listing} />
-          )}
-          {isOwn && listing.status !== "sold" && (
-            <section className="vauto-glass-card rounded-2xl p-4">
-              <h2 className="mb-2 text-sm font-semibold text-slate-900">
-                Papildoma reklama socialiniuose tinkluose
-              </h2>
-              <ShareListingPanel listing={listing} compact />
-            </section>
-          )}
-          {isOwn && (
-            <button
-              type="button"
-              onClick={handleDelete}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700"
-            >
-              <Trash2 className="h-4 w-4" />
-              Ištrinti skelbimą
-            </button>
-          )}
-          {!isOwn && (
+        {!isOwner && (
+          <div className="mt-6">
             <ReportButton
               listingId={listing.id}
               listingTitle={listing.title}
               reportedUserId={listing.sellerId}
             />
-          )}
-        </div>
+          </div>
+        )}
       </div>
     </AppShell>
   );
