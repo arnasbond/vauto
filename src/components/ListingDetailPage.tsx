@@ -274,6 +274,15 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         </div>
       </header>
 
+      {isOwner && (
+        <div
+          className="mb-3 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2.5 text-center text-sm font-semibold text-amber-950"
+          role="status"
+        >
+          Puslapio peržiūra (Jūsų skelbimas)
+        </div>
+      )}
+
       <div className="flex flex-col pb-8">
         <ListingImageGallery
           listing={listing}
@@ -305,7 +314,73 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
           <p className="vauto-flux-price mt-1 text-2xl">
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
-          <div className="mt-2">
+
+          {/* Buyer CTAs — always visible under price; preview/disabled for owner */}
+          <div className="mt-4 flex flex-col gap-3">
+            {isOwner ? (
+              <>
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
+                  className="flex w-full cursor-not-allowed items-center justify-center gap-2.5 rounded-2xl bg-[#ea580c] py-4 text-base font-bold text-white opacity-70 shadow-lg shadow-orange-500/20"
+                >
+                  <Phone className="h-6 w-6" aria-hidden />
+                  Skambinti ({phoneDisplay})
+                </button>
+                <button
+                  type="button"
+                  disabled
+                  aria-disabled="true"
+                  title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
+                  className="flex w-full cursor-not-allowed items-center justify-center gap-2 rounded-2xl bg-[#1e40af] py-3.5 text-sm font-bold text-white opacity-70 shadow-md"
+                >
+                  <MessageCircle className="h-5 w-5" aria-hidden />
+                  Rašyti žinutę / AI Derybininkas
+                </button>
+                <p className="text-center text-[11px] font-medium text-slate-500">
+                  Peržiūra — taip pirkėjai matys kontaktų mygtukus
+                </p>
+              </>
+            ) : (
+              <>
+                {!demoPhone && phoneTel ? (
+                  <a
+                    href={phoneTel}
+                    onClick={() => trackListingCall(listing.id)}
+                    className="flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#ea580c] py-4 text-base font-bold text-white shadow-lg shadow-orange-500/30 transition hover:brightness-110"
+                  >
+                    <Phone className="h-6 w-6" aria-hidden />
+                    Skambinti ({phoneDisplay})
+                  </a>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleCall}
+                    className="flex min-h-14 w-full items-center justify-center gap-2.5 rounded-2xl bg-[#ea580c] py-4 text-base font-bold text-white shadow-lg shadow-orange-500/30 transition hover:brightness-110"
+                  >
+                    <Phone className="h-6 w-6" aria-hidden />
+                    Skambinti
+                  </button>
+                )}
+                <button
+                  type="button"
+                  onClick={wardrobeContext ? handleNegotiate : handleChat}
+                  className="flex min-h-12 w-full items-center justify-center gap-2 rounded-2xl bg-[#1e40af] py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#1e3a8a]"
+                >
+                  {wardrobeContext ? (
+                    <Sparkles className="h-5 w-5" aria-hidden />
+                  ) : (
+                    <MessageCircle className="h-5 w-5" aria-hidden />
+                  )}
+                  Rašyti žinutę / AI Derybininkas
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="mt-4">
             <TrustBadges listing={listing} size="md" />
           </div>
           <SellerRatingBadge
@@ -331,42 +406,6 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             )}
           </div>
         </div>
-
-        {!isOwner && (
-          <div className="mt-5 flex flex-col gap-3">
-            {!demoPhone && phoneTel ? (
-              <a
-                href={phoneTel}
-                onClick={() => trackListingCall(listing.id)}
-                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
-              >
-                <Phone className="h-6 w-6" />
-                Skambinti ({phoneDisplay})
-              </a>
-            ) : (
-              <button
-                type="button"
-                onClick={handleCall}
-                className="flex w-full items-center justify-center gap-2.5 rounded-2xl bg-[var(--vauto-orange)] py-4 text-base font-bold text-white shadow-lg shadow-[var(--vauto-orange)]/30 transition hover:brightness-110"
-              >
-                <Phone className="h-6 w-6" />
-                Skambinti
-              </button>
-            )}
-            <button
-              type="button"
-              onClick={wardrobeContext ? handleNegotiate : handleChat}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
-            >
-              {wardrobeContext ? (
-                <Sparkles className="h-5 w-5" />
-              ) : (
-                <MessageCircle className="h-5 w-5" />
-              )}
-              Rašyti žinutę / AI Derybininkas
-            </button>
-          </div>
-        )}
 
         {(aboutDescription || detailRows.length > 0) && (
           <section className="vauto-glass-card mt-6 rounded-2xl p-4">
@@ -412,34 +451,37 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         )}
 
         {isOwner && listing.status !== "sold" && (
-          <div className="mt-5 flex flex-col gap-3">
-            <p className="text-xs font-semibold uppercase tracking-wider text-slate-500">
-              Valdymas
+          <section className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
+            <h2 className="text-sm font-bold tracking-wide text-slate-900">
+              Savininko Valdymas
+            </h2>
+            <p className="text-xs text-slate-500">
+              Šie mygtukai matomi tik jums — pirkėjai jų nemato.
             </p>
             <button
               type="button"
               onClick={handleEdit}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-bold text-[var(--vauto-primary-contrast,#fff)] shadow-md transition hover:opacity-95"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[#1e40af] py-3.5 text-sm font-bold text-white shadow-md transition hover:bg-[#1e3a8a]"
             >
               <Pencil className="h-4 w-4" />
               Redaguoti
             </button>
             <OwnerListingPromote listing={listing} />
-            <section className="vauto-glass-card rounded-2xl p-4">
-              <h2 className="mb-2 text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-slate-200 bg-white p-4">
+              <h3 className="mb-2 text-sm font-semibold text-slate-900">
                 Papildoma reklama socialiniuose tinkluose
-              </h2>
+              </h3>
               <ShareListingPanel listing={listing} compact />
-            </section>
+            </div>
             <button
               type="button"
               onClick={handleDelete}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700"
+              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-red-200 bg-red-50 py-3.5 text-sm font-medium text-red-700 hover:bg-red-100"
             >
               <Trash2 className="h-4 w-4" />
               Ištrinti skelbimą
             </button>
-          </div>
+          </section>
         )}
 
         {!isOwner && <SafeMeetingTips />}
