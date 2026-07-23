@@ -73,6 +73,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     hidePrePublishCard,
     listingPublishConfirmed,
     resetPublishSession,
+    beginFreshListingChatSession,
     sessionPendingImageUrls,
   } = useVautoAgent();
   const {
@@ -177,6 +178,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       pendingImageUrls: sessionPendingImageUrls,
     });
     if (result.ok) {
+      showToast("Skelbimas publikuotas!", "success");
       await runPublishSuccessCelebration({
         result,
         sourceRect,
@@ -184,6 +186,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         finishPublishedFlow,
         router,
         resetPublishSession,
+        beginFreshListingChatSession,
         openCheckout,
       });
     } else if (result.sessionExpired) {

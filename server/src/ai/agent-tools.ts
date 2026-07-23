@@ -59,6 +59,10 @@ import {
   buildPostValidationReportMessage,
   POST_VALIDATION_QUICK_REPLIES,
 } from "./structured-input-pipeline.js";
+import {
+  buildPostVisionHeroMessage,
+  POST_VISION_PUBLISH_CHIPS,
+} from "../shared/listing-organism.js";
 import { analyzeWardrobePhoto } from "./wardrobe-vision.js";
 import { importWardrobeProfile } from "./wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "./magic-mirror.js";
@@ -1700,7 +1704,8 @@ export async function executeAgentTool(
           confidence: parsed.listing.confidence,
           attributes: draftAttrs,
           ...(publicGallery.length ? { orderedImageUrls: publicGallery } : {}),
-          listingFlowState: "AWAITING_CONFIRMATION" as const,
+          // Step 2 — vision summary only; PrePublish opens after „Publikuoti“.
+          listingFlowState: "DRAFT_READY" as const,
         };
 
         if (parsed.needsClarification) {
@@ -1746,10 +1751,8 @@ export async function executeAgentTool(
             (String(draftAttrs.documentOcrUnclear ?? "") === "true"
               ? DOCUMENT_OCR_SOFT_NOTE
               : ""));
-        const fusionIntro = hasFusion
-          ? "Sujungiau techninio paso ir nuotraukų duomenis į specifikacijų ataskaitą.\n\n"
-          : "";
-        const report = buildPostValidationReportMessage({
+        // Lean Step-2: one-line summary + prepare chip (no OCR essay / sales copy yet).
+        const summary = buildPostVisionHeroMessage({
           category: draft.category,
           title: draft.title,
           description: draft.description,
@@ -1758,9 +1761,9 @@ export async function executeAgentTool(
           attributes: draft.attributes,
         });
         const message = softOcrNote
-          ? `${softOcrNote}\n\n${report}`
-          : `${fusionIntro}${report}`;
-        const quickReplies: string[] = [];
+          ? `${softOcrNote}\n\n${summary}`
+          : summary;
+        const quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
 
         return {
           result: {

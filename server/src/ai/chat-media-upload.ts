@@ -5,7 +5,7 @@ import {
   buildPostVisionHeroMessage,
   inferListingFlowState,
   listingFlowAllowsPhotoUpload,
-  MULTIMODAL_FUSION_CONFIRM,
+  POST_VISION_PUBLISH_CHIPS,
   transitionListingFlow,
   type ListingFlowState,
 } from "./listing-conversational-flow.js";
@@ -345,18 +345,14 @@ async function resolveListingPhotoScan(input: {
         : ""));
   const softOcrNote =
     typeof softOcrNoteRaw === "string" ? softOcrNoteRaw.trim() : "";
-  const ack = quotaFallback
-    ? `Išsaugojau nuotraukas. AI vaizdo analizė šiuo metu perkrauta — paruošiau techninį aprašymą pagal jūsų tekstą.`
-    : hasFusion
-      ? MULTIMODAL_FUSION_CONFIRM
-      : photoAckLine(imageUrls.length);
-  // Always show the full Vision / OCR spec report in chat first.
-  // Keep price/city prompts for later turns — never overwrite the report in step 1.
+  // Lean Step-2: one-line vision summary + prepare chip (skip verbose ack chatter).
+  const summary = buildPostVisionHeroMessage(mergedDraft);
   const reply = softOcrNote
-    ? `${ack}\n\n${softOcrNote}\n\n${buildPostVisionHeroMessage(mergedDraft)}`
-    : `${ack}\n\n${buildPostVisionHeroMessage(mergedDraft)}`;
-  // No inline chips — user uses (+) and PrePublish card controls.
-  const quickReplies: string[] = [];
+    ? `${softOcrNote}\n\n${summary}`
+    : quotaFallback
+      ? `Išsaugojau nuotraukas. ${summary}`
+      : summary;
+  const quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
 
   return {
     ok: true,

@@ -1372,14 +1372,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               listingFlowState: "AWAITING_CONFIRMATION",
             });
           }
+          // Step 4 — open PrePublish silently (no chat chatter).
           return {
-            reply: PRE_PUBLISH_CARD_INTRO,
+            reply: "",
             prePublishCard: card,
           };
         }
         return {
           reply:
-            "Skelbimo peržiūros dar nepavyko paruošti — papildykite kainą, miestą ar nuotrauką ir parašykite „tinka“ dar kartą.",
+            "Skelbimo peržiūros dar nepavyko paruošti — papildykite kainą, miestą ar nuotrauką ir parašykite „Publikuoti“ dar kartą.",
         };
       };
 
@@ -1755,40 +1756,46 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           orderedImageUrls: pricedDraft.orderedImageUrls,
           geoCoords: buyerCoords,
         });
-        if (readinessAfterPrice.ok) {
+        // Lean 4-step: bind price only. PrePublish opens on „Publikuoti“ (Step 4),
+        // not automatically after price — unless sales draft was already prepared.
+        const salesReady =
+          String(pricedDraft.attributes?.salesCopyGenerated ?? "") === "true";
+        if (salesReady && readinessAfterPrice.ok) {
           const confirmed = confirmPublishNow({
             ...(readinessAfterPrice.syncedDraft ?? pricedDraft),
             price: priceFromTurn,
           });
-          setMessages((prev) => [
-            ...prev,
-            { role: "user" as const, text: trimmed },
-            {
-              role: "assistant" as const,
-              text: confirmed.reply,
-              ...(confirmed.quickReplies?.length
-                ? { quickReplies: confirmed.quickReplies }
-                : {}),
-              ...(confirmed.prePublishCard
-                ? { prePublishCard: confirmed.prePublishCard }
-                : {}),
-            },
-          ].slice(-6));
+          setMessages((prev) => {
+            const next = [
+              ...prev,
+              { role: "user" as const, text: trimmed },
+              ...(confirmed.reply.trim()
+                ? [
+                    {
+                      role: "assistant" as const,
+                      text: confirmed.reply,
+                      ...(confirmed.prePublishCard
+                        ? { prePublishCard: confirmed.prePublishCard }
+                        : {}),
+                    },
+                  ]
+                : []),
+            ];
+            return next.slice(-6);
+          });
           touchAgentSessionActivity();
           return { ok: true, reply: confirmed.reply };
         }
-        // Price bound — never fall through to filler / „Kokią kainą?“ loops.
-        const missingReply = buildConversationalMissingPrompt(readinessAfterPrice);
         setMessages((prev) => [
           ...prev,
           { role: "user" as const, text: trimmed },
           {
             role: "assistant" as const,
-            text: `Kaina nustatyta: ${priceFromTurn} €.\n\n${missingReply}`,
+            text: `Kaina nustatyta: ${priceFromTurn} €.`,
           },
         ].slice(-6));
         touchAgentSessionActivity();
-        return { ok: true, reply: missingReply };
+        return { ok: true, reply: `Kaina nustatyta: ${priceFromTurn} €.` };
       }
 
       // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
@@ -1828,17 +1835,24 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               ...(readiness.syncedDraft ?? priced),
               price: locked,
             });
-            setMessages((prev) => [
-              ...prev,
-              { role: "user" as const, text: trimmed },
-              {
-                role: "assistant" as const,
-                text: confirmed.reply,
-                ...(confirmed.prePublishCard
-                  ? { prePublishCard: confirmed.prePublishCard }
-                  : {}),
-              },
-            ].slice(-6));
+            setMessages((prev) => {
+              const next = [
+                ...prev,
+                { role: "user" as const, text: trimmed },
+                ...(confirmed.reply.trim()
+                  ? [
+                      {
+                        role: "assistant" as const,
+                        text: confirmed.reply,
+                        ...(confirmed.prePublishCard
+                          ? { prePublishCard: confirmed.prePublishCard }
+                          : {}),
+                      },
+                    ]
+                  : []),
+              ];
+              return next.slice(-6);
+            });
             touchAgentSessionActivity();
             return { ok: true, reply: confirmed.reply };
           }
@@ -1952,7 +1966,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
         }
-        if (!quickReply.reply.trim() && !quickReply.prePublishCard) {
+        // Step 4 — silent PrePublish: no assistant chatter bubble.
+        if (!quickReply.reply.trim()) {
+          if (!isDirectAgentActionChip(trimmed) && trimmed) {
+            setMessages((prev) =>
+              [...prev, { role: "user" as const, text: trimmed }].slice(-6)
+            );
+          }
           touchAgentSessionActivity();
           return { ok: true, reply: "" };
         }
@@ -2915,11 +2935,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return true;
       }
 
-      // Publish-gate chips — route through SM (no free-text LLM loop).
+      // Lean 4-step chips — route through SM (no free-text LLM loop).
       if (
         aiDraft &&
         (/^viskas\b/i.test(trimmed) ||
           /\bpublikuojam\b/i.test(trimmed) ||
+          /^🚀?\s*publikuoti$/i.test(trimmed) ||
+          /^publikuoti$/i.test(trimmed) ||
+          /paruošti\s+skelbim/i.test(trimmed) ||
+          /^✏️?\s*papildyti$/i.test(trimmed) ||
+          /^papildyti$/i.test(trimmed) ||
           /\bprepublish\b/i.test(trimmed) ||
           /\bjudame\s+prie\b/i.test(trimmed) ||
           /^nenoriu\b/i.test(trimmed) ||

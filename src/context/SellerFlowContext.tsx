@@ -1683,7 +1683,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return { ok: true, listing: updated };
     }
 
-    if (isDuplicateListing(draftWithClientId.title, user.id, listings)) {
+    if (
+      isDuplicateListing(draftWithClientId.title, user.id, listings, {
+        clientDraftId,
+        // Same-session AI drafts often reuse soft titles — don't false-positive.
+        skipSoftAiDraft:
+          String(draftWithClientId.attributes?.sellIntentActive ?? "") ===
+            "true" ||
+          String(draftWithClientId.attributes?.salesCopyGenerated ?? "") ===
+            "true",
+      })
+    ) {
       const msg =
         "Panašus skelbimas jau egzistuoja. Atnaujinkite esamą arba pakeiskite pavadinimą.";
       showToast(msg, "error");

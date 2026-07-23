@@ -4,6 +4,7 @@
  * Sparse sell text ("noriu parduoti citroen") → clarify, do NOT invent a draft.
  */
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
+import { LEAN_SELL_GREETING } from "../shared/listing-organism.js";
 
 const SELL_PATTERNS = [
   /\bparduodu\b/i,
@@ -112,42 +113,16 @@ const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
   other: "KITA",
 };
 
-/** Noun phrase for natural LT reply (paveikslą → paveikslo). */
-function inferSellNoun(text: string, category: string): string {
-  const t = text.toLowerCase();
-  if (/\bpaveiksl/i.test(t)) return "paveikslo";
-  if (/\bbald/i.test(t)) return "baldų";
-  if (/\btelefon|iphone|samsung/i.test(t)) return "telefono";
-  if (/\bkompiuter|laptop/i.test(t)) return "kompiuterio";
-  if (/\bdrabuž|sukn|keln|batel|ked/i.test(t)) return "drabužių";
-  if (/\bbutas\b/i.test(t)) return "buto";
-  if (/\bnamas\b/i.test(t)) return "namo";
-  if (category === "vehicles") return "automobilio";
-  if (category === "clothing") return "drabužių";
-  if (category === "electronics") return "elektronikos";
-  if (category === "home") return "prekės";
-  if (category === "real_estate") return "NT";
-  return "";
-}
-
 function buildCategoryAwareSellGreeting(
-  text: string,
-  category: string,
-  make: string
+  _text: string,
+  _category: string,
+  _make: string
 ): string {
-  // Auto-only when brand/vehicle intent is explicit.
-  if (make || category === "vehicles" || category === "transport") {
-    const subject = make || "automobilio";
-    return `Puiku — ruošiame ${subject} skelbimą. Parašykite tikslų modelį, metus ir variklį arba įkelkite nuotraukas / techninį pasą per (+) mygtuką — aš viską sudėsiu į juodraštį.`;
-  }
-
-  const noun = inferSellNoun(text, category);
-  if (noun) {
-    return `Puiku — padėsiu paruošti ${noun} skelbimą! Įkelkite nuotrauką per (+) mygtuką arba parašykite trumpą aprašymą bei kainą.`;
-  }
-
-  // Generic sell — never hardcode auto terms (markė/modelis/techninis pasas).
-  return "Puiku — pradėkime! Įkelkite prekės nuotrauką arba trumpai parašykite, ką parduodate ir kokia kaina — paruošiu skelbimo juodraštį.";
+  // Lean Step-1 — exact 4-step greeting (photos + price), no category chatter.
+  void _text;
+  void _category;
+  void _make;
+  return LEAN_SELL_GREETING;
 }
 
 export function buildSellClarificationReply(

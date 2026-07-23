@@ -64,6 +64,8 @@ import {
   POST_VISION_PUBLISH_CHIPS,
   POST_VISION_PUBLISH_GATE,
   PRE_PUBLISH_CARD_INTRO,
+  TEXT_DRAFT_READY_CHIPS,
+  TEXT_DRAFT_READY_GATE,
   shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "./listing-conversational-flow.js";
@@ -463,9 +465,8 @@ async function runVautoAgentInner(
     hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
   });
 
-  // Step 2 — benchmark sales copy on „Taip“ / „Generuok skelbimą“ after OCR report.
+  // Step 3 — „Paruošti skelbimą“ after vision summary → full draft + Publikuoti/Papildyti.
   // Never invent price / TA / mileage; stay Lazy Upload (no Cloudinary).
-  // If sales copy already generated, fall through so „Taip/Tinka“ can open PrePublish.
   if (
     listingDraft &&
     lastUserText &&
@@ -486,6 +487,10 @@ async function runVautoAgentInner(
           attrs.licensePlate ||
           attrs.powerKw
       );
+    let nextTitle = listingDraft.title;
+    let nextDescription = String(listingDraft.description ?? "").trim();
+    let nextAttrs: Record<string, string | string[] | undefined> = { ...attrs };
+
     if (looksVehicle) {
       const enriched = enrichVehicleVisionDraft({
         title: listingDraft.title,
@@ -501,43 +506,52 @@ async function runVautoAgentInner(
         category: listingDraft.category,
         attributes: enriched.attributes,
       });
-      const plainDescription = salesCopy
+      nextTitle = enriched.title || listingDraft.title;
+      nextDescription = salesCopy
         .replace(/\*\*/g, "")
         .replace(/^🚗\s*/gm, "")
         .replace(/^🌟\s*/gm, "")
         .replace(/^💡\s*/gm, "")
         .trim();
-      const nextDraft = normalizeListingDraftForAction(
-        {
-          ...listingDraft,
-          title: enriched.title || listingDraft.title,
-          description: plainDescription,
-          attributes: {
-            ...(enriched.attributes ?? attrs),
-            salesCopyGenerated: "true",
-          },
-        },
-        {
-          contact: req.context.contact,
-          userCity: req.context.userCity,
-          listingFlowState:
-            transitionListingFlow(
-              listingDraft.listingFlowState ?? flowState ?? "DRAFTING_TEXT",
-              "DRAFT_SAVED"
-            ) ?? "DRAFT_READY",
-        }
-      );
-      return {
-        ok: true,
-        reply: `${salesCopy}\n\nJeigu tekstas tinka — spauskite „Tinka“ arba „Publikuojam“, ir atidarysiu PrePublish peržiūrą.`,
-        quickReplies: ["Tinka", "Publikuojam", "Keliam"],
-        toolCalls: [],
-        actions: {
-          type: "listing_draft",
-          listingDraft: nextDraft,
-        },
+      nextAttrs = {
+        ...(enriched.attributes ?? attrs),
+        salesCopyGenerated: "true",
       };
+    } else {
+      nextAttrs = { ...attrs, salesCopyGenerated: "true" };
+      if (!nextDescription) {
+        nextDescription =
+          String(listingDraft.title ?? "").trim() || "Parduodama prekė";
+      }
     }
+
+    const nextDraft = normalizeListingDraftForAction(
+      {
+        ...listingDraft,
+        title: nextTitle,
+        description: nextDescription,
+        attributes: nextAttrs,
+      },
+      {
+        contact: req.context.contact,
+        userCity: req.context.userCity,
+        listingFlowState:
+          transitionListingFlow(
+            listingDraft.listingFlowState ?? flowState ?? "DRAFTING_TEXT",
+            "DRAFT_SAVED"
+          ) ?? "DRAFT_READY",
+      }
+    );
+    return {
+      ok: true,
+      reply: `${TEXT_DRAFT_READY_GATE}\n\n${nextDescription}`,
+      quickReplies: [...TEXT_DRAFT_READY_CHIPS],
+      toolCalls: [],
+      actions: {
+        type: "listing_draft",
+        listingDraft: nextDraft,
+      },
+    };
   }
 
   if (flowTurn.kind === "ignore_backward") {
@@ -648,7 +662,10 @@ async function runVautoAgentInner(
     });
     return {
       ok: true,
-      reply: gateway.reply || PRE_PUBLISH_CARD_INTRO,
+      // Step 4 — open PrePublish silently (no chat chatter when card is ready).
+      reply: gateway.prePublishCard
+        ? ""
+        : gateway.reply || PRE_PUBLISH_CARD_INTRO,
       ...(gateway.prePublishCard ? { prePublishCard: gateway.prePublishCard } : {}),
       ...(gateway.prePublishCard
         ? {}

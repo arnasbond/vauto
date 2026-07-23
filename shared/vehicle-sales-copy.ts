@@ -19,15 +19,17 @@ function attr(
   return "";
 }
 
-/** User confirmed Step-1 OCR report → generate sales ad. */
+/** User confirmed Step-2 vision summary → generate sales ad (Paruošti skelbimą). */
 export function isVehicleSalesCopyConfirmIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t || t.length > 120) return false;
+  if (/paruošti\s+skelbim/i.test(t)) return true;
+  if (/^✨?\s*paruošti\s+skelbim/i.test(t)) return true;
   if (/^(taip|ok|gerai|yes)\b/.test(t)) return true;
-  if (/taip[,!]?\s*(paruošk|paruosk|generuok|rašyk|parasyk)/i.test(t)) return true;
-  if (/^(paruošk|paruosk|generuok|sukurk)\b.*\b(skelbim|tekst|apraš)/i.test(t)) {
+  if (/taip[,!]?\s*(paruošk|paruosk|generuok|rašyk|parasyk|paruošti)/i.test(t)) {
     return true;
   }
+  if (/^(paruošk|paruosk|generuok|sukurk)\b/i.test(t)) return true;
   if (/generuok\s+skelbim/i.test(t)) return true;
   if (/paruošk.*skelbim/i.test(t)) return true;
   if (/noriu\s+(skelbimo\s+)?tekst/i.test(t)) return true;

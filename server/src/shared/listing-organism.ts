@@ -54,21 +54,49 @@ export const AWAITING_PHOTOS_PROMPT =
 export const AWAITING_PHOTOS_NUDGE =
   "Kai būsite pasiruošę — įkelkite nuotraukas per (+) mygtuką pokalbyje (iki 6 vnt.).";
 
-/** Shared gate after text OR vision draft is ready (Arnold text-first). */
+/** Step 2 CTA after vision summary — prepare full listing draft. */
 export const POST_VISION_PUBLISH_GATE =
-  "Aprašymas paruoštas! Kokią kainą nustatome, ar peržiūrime PrePublish kortelę žemiau?";
+  "Ar paruošti pilną skelbimo juodraštį?";
 
-/** Alias — same universal gate copy. */
-export const TEXT_DRAFT_READY_GATE = POST_VISION_PUBLISH_GATE;
+/** Step 3 gate after sales draft is ready. */
+export const TEXT_DRAFT_READY_GATE =
+  "Skelbimas paruoštas! Ar publikuojame, ar norite ką nors papildyti?";
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
-/** Inline action chips removed — user uses (+) and PrePublish card UI. */
-export const POST_VISION_PUBLISH_CHIPS = [] as const;
+/** Step 2 chips — generate full marketplace draft. */
+export const POST_VISION_PUBLISH_CHIPS = ["✨ Paruošti skelbimą"] as const;
 
-/** Alias — same chips. */
-export const TEXT_DRAFT_READY_CHIPS = POST_VISION_PUBLISH_CHIPS;
+/** Step 3 chips — open PrePublish or edit. */
+export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as const;
+
+/** Lean Step-1 sell greeting (universal). */
+export const LEAN_SELL_GREETING =
+  "Puiku! Įkelkite nuotraukas ir parašykite kainą.";
+
+/** True when user taps / types Step-2 prepare CTA. */
+export function isPrepareListingIntent(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t || t.length > 120) return false;
+  if (/paruošti\s+skelbim/i.test(t)) return true;
+  if (/^✨?\s*paruošti\s+skelbim/i.test(t)) return true;
+  if (/^(paruošk|paruosk|generuok|sukurk)\b/i.test(t)) return true;
+  if (/generuok\s+skelbim/i.test(t)) return true;
+  if (/paruošk.*skelbim/i.test(t)) return true;
+  return false;
+}
+
+/** True when user wants to edit before publish (Step 3 Papildyti). */
+export function isAmendListingIntent(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  if (isPublishReadyIntent(text)) return false;
+  if (/^✏️?\s*papildyti$/i.test(t)) return true;
+  if (/^papildyti$/i.test(t)) return true;
+  if (/^papildyk$/i.test(t)) return true;
+  return false;
+}
 
 /** Multimodal fusion confirm when tech passport + car photos are both present. */
 export const MULTIMODAL_FUSION_CONFIRM =
@@ -127,6 +155,7 @@ export function isPublishReadyIntent(text: string): boolean {
 export function isMorePhotosIntent(text: string): boolean {
   // „prisegti nuotraukas ir PrePublish“ → PrePublish wins (not photo nudge).
   if (isPublishReadyIntent(text)) return false;
+  if (isAmendListingIntent(text)) return true;
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (/prisegti\s+nuotrauk/i.test(t)) return true;
@@ -135,6 +164,7 @@ export function isMorePhotosIntent(text: string): boolean {
   if (/dar\s+nuotrauk/i.test(t)) return true;
   if (/noriu\s+dar/i.test(t)) return true;
   if (/papildom/i.test(t)) return true;
+  if (/papildyti/i.test(t)) return true;
   return false;
 }
 
@@ -575,7 +605,7 @@ export function buildVehicleSpecReportMarkdown(draft: {
     `- **${label}:** ${value.trim() || "—"}`;
 
   const lines = [
-    "## Pagrindiniai duomenys",
+    "**Pagrindiniai duomenys**",
     bullet("Markė ir modelis", makeModel),
     bullet("Valstybinis numeris", plate || "—"),
     bullet("Pirmosios registracijos data", regDate),
@@ -584,14 +614,14 @@ export function buildVehicleSpecReportMarkdown(draft: {
     bullet("Sėdimų vietų skaičius", seats || "—"),
     bullet("Pavarų dėžė", transmission || "—"),
     "",
-    "## Variklis ir techniniai parametrai",
+    "**Variklis ir techniniai parametrai**",
     bullet("Variklio darbinis tūris (cm³ ir L)", engine || "—"),
     bullet("Kuro tipas", fuel || "—"),
     bullet("Galia (kW)", powerKw ? `${powerKw.replace(/\s*kW$/i, "")} kW` : "—"),
     bullet("Taršos standartas ir CO2 (g/km)", emissions),
     bullet("Maksimalus greitis ir masės (eksploatacinė / leidžiama)", speedMass),
     "",
-    "## Salonas (iš nuotraukų)",
+    "**Salonas (iš nuotraukų)**",
     ...(interiorLines.length
       ? interiorLines
       : salonFallback.length
@@ -600,7 +630,7 @@ export function buildVehicleSpecReportMarkdown(draft: {
           "- Odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis — jei matosi nuotraukose.",
         ]),
     "",
-    "## Išorė ir komplektacija (iš nuotraukų)",
+    "**Išorė ir komplektacija (iš nuotraukų)**",
     ...(exteriorLines.length
       ? exteriorLines
       : (!interiorLines.length && salonFallback.length)
@@ -615,7 +645,9 @@ export function buildVehicleSpecReportMarkdown(draft: {
   return lines.join("\n");
 }
 
-/** Beautiful completed listing bubble after Vision — vehicles get OCR spec report first. */
+/**
+ * Lean Step-2 vision summary — one sentence + CTA (full draft comes after „Paruošti skelbimą“).
+ */
 export function buildPostVisionHeroMessage(draft: {
   title?: string;
   description?: string;
@@ -625,35 +657,12 @@ export function buildPostVisionHeroMessage(draft: {
   category?: string;
   attributes?: Record<string, string | string[] | undefined>;
 }): string {
-  const category = String(draft.category ?? "").toLowerCase();
-  if (
-    category === "vehicles" ||
-    category === "automobiliai" ||
-    Boolean(attrPick(draft.attributes, "make", "vin", "plate", "licensePlate", "powerKw"))
-  ) {
-    return buildVehicleSpecReportMarkdown(draft);
-  }
-
-  const title = draft.title?.trim() || "Jūsų prekė";
-  const desc = draft.description?.trim() || "";
-  const loc = draft.location?.trim() || "";
-  const tip =
-    draft.category === "electronics"
-      ? "Patarimas: baterijos būklė, atmintis ir dėžutė — trys dalykai, kurie greičiausiai uždaro sandorį."
-      : "Patarimas: konkretus aprašymas parduoda greičiau — pirkėjai greitai pastebi aiškumą.";
-  // After Vision — show facts first; do NOT demand price in step 1.
-  const cta =
-    "Štai ką ištraukiau iš jūsų nuotraukų. Ar norėtumėte, kad paruoščiau patrauklų pardavimo skelbimo tekstą?";
-  const lines = [
-    `Štai specifikacija pagal nuotraukas:`,
-    ``,
-    `**${title}**`,
-    desc ? `\n${desc}` : "",
-    loc ? `\n📍 ${loc}` : "",
-    ``,
-    tip,
-    ``,
-    cta,
-  ];
-  return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
+  const make = attrPick(draft.attributes, "make", "brand");
+  const model = attrPick(draft.attributes, "model");
+  const year = attrPick(draft.attributes, "year");
+  const vehicleLabel = [make, model, year].filter(Boolean).join(" ");
+  const title = draft.title?.trim() || "";
+  const label = (vehicleLabel || title || "prekę").replace(/\s+/g, " ").trim();
+  const short = label.length > 72 ? `${label.slice(0, 69)}…` : label;
+  return `Matau ${short}. Ar paruošti pilną skelbimo juodraštį?`;
 }

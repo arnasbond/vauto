@@ -10,12 +10,16 @@ export async function runPublishSuccessCelebration(opts: {
   router: AppRouterInstance;
   /** Clears agent publish flags and appends terminal success bubble. */
   resetPublishSession?: () => void;
+  /** Wipe AI chat + draft so the next sell starts pristine. */
+  beginFreshListingChatSession?: () => void;
   /** Open paid visibility checkout after navigation (dashboard context). */
   openCheckout?: (session: CheckoutSession) => void;
 }): Promise<PublishListingResult> {
   if (!opts.result.ok) return opts.result;
 
+  // Close PrePublish + wipe AI chat/draft as soon as publish succeeds.
   opts.resetPublishSession?.();
+  opts.beginFreshListingChatSession?.();
   await opts.playCelebration(opts.sourceRect);
   opts.finishPublishedFlow();
   opts.router.push("/mano-skelbimai/");

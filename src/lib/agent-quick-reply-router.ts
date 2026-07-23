@@ -199,6 +199,20 @@ export function tryHandleAgentQuickReply(
     };
   }
 
+  if (
+    matchesChip(trimmed, [
+      /^✏️?\s*papildyti$/i,
+      /^papildyti$/i,
+      /^papildyk$/i,
+    ])
+  ) {
+    return {
+      handled: true,
+      reply:
+        "Gerai — parašykite, ką papildyti (kaina, detalės) arba įkelkite daugiau nuotraukų per (+).",
+    };
+  }
+
   if (matchesChip(trimmed, [/viskas tinka/, /✅\s*viskas tinka/i, /^tinka$/i])) {
     if (deps.aiDraft) {
       return deps.confirmPublishNow();
@@ -214,6 +228,8 @@ export function tryHandleAgentQuickReply(
     matchesChip(trimmed, [
       /taip,?\s*publikuoti/,
       /publikuojam/,
+      /^🚀?\s*publikuoti$/i,
+      /^publikuoti$/i,
       /^keliam$/i,
       /^keliame$/i,
     ])
