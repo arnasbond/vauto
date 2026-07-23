@@ -11,6 +11,8 @@ export interface ChatPhotoUploadFlowDeps {
       sessionImageUrls?: string[];
       documentImageUrls?: string[];
       fromSearchBar?: boolean;
+      omitPriorListingDraft?: boolean;
+      freshListingSession?: boolean;
     }
   ) => Promise<unknown>;
   setOpen?: (open: boolean) => void;
@@ -19,6 +21,8 @@ export interface ChatPhotoUploadFlowDeps {
   text?: string;
   onBusyChange?: (busy: boolean) => void;
   onErrorMessage?: (message: string) => void;
+  /** Clear stale myListings / prior draft titles for this upload. */
+  freshListingSession?: boolean;
 }
 
 /** Native OS picker → compress → agent chat (Kelrodė routing for image-only). */
@@ -40,6 +44,9 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
         await deps.sendAgentMessage(deps.text?.trim() ?? "", {
           sessionImageUrls: allWire,
           pendingImageUrls: allWire,
+          ...(deps.freshListingSession
+            ? { omitPriorListingDraft: true, freshListingSession: true }
+            : {}),
           ...(suspectedDocumentUrls.length
             ? { documentImageUrls: suspectedDocumentUrls }
             : {}),

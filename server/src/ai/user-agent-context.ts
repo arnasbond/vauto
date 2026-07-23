@@ -19,6 +19,9 @@ export interface UserAgentContextPayload {
   isAuthenticated: boolean;
   myListings: MyListingForAgent[];
   myListingsSummary: string;
+  /** When true, leave myListings empty — fresh listing Vision must not see prior ads. */
+  omitPriorListingDraft?: boolean;
+  freshListingSession?: boolean;
 }
 
 export function resolveAccountTypeLabel(user: Pick<ApiUser, "role" | "businessType">): string {
@@ -119,10 +122,14 @@ export async function resolveAuthenticatedAgentContext(
   authUserId: string | undefined,
   clientFallback?: Partial<UserAgentContextPayload>
 ): Promise<UserAgentContextPayload> {
+  const omitPrior =
+    Boolean(clientFallback?.omitPriorListingDraft) ||
+    Boolean(clientFallback?.freshListingSession);
+
   if (!authUserId) {
     const name = clientFallback?.userName?.trim() || "Svečias";
     const firstName = name.split(/\s+/)[0] || name;
-    const myListings = clientFallback?.myListings ?? [];
+    const myListings = omitPrior ? [] : clientFallback?.myListings ?? [];
     return {
       userName: name,
       accountType: clientFallback?.accountType ?? "Svečias",
@@ -131,9 +138,12 @@ export async function resolveAuthenticatedAgentContext(
       userRole: clientFallback?.userRole ?? "buyer",
       isAuthenticated: Boolean(clientFallback?.isAuthenticated),
       myListings,
-      myListingsSummary:
-        clientFallback?.myListingsSummary ??
-        summarizeMyListings(myListings, firstName, clientFallback?.userRole),
+      myListingsSummary: omitPrior
+        ? ""
+        : clientFallback?.myListingsSummary ??
+          summarizeMyListings(myListings, firstName, clientFallback?.userRole),
+      omitPriorListingDraft: omitPrior || undefined,
+      freshListingSession: clientFallback?.freshListingSession || undefined,
     };
   }
 
@@ -143,13 +153,15 @@ export async function resolveAuthenticatedAgentContext(
   }
 
   let myListings: MyListingForAgent[] = [];
-  try {
-    const rows = await getListings();
-    myListings = rows
-      .filter((l) => l.sellerId === authUserId && !l.banned)
-      .map(mapListing);
-  } catch {
-    myListings = clientFallback?.myListings ?? [];
+  if (!omitPrior) {
+    try {
+      const rows = await getListings();
+      myListings = rows
+        .filter((l) => l.sellerId === authUserId && !l.banned)
+        .map(mapListing);
+    } catch {
+      myListings = clientFallback?.myListings ?? [];
+    }
   }
 
   const firstName = user.name.split(/\s+/)[0] || user.name;
@@ -163,6 +175,10 @@ export async function resolveAuthenticatedAgentContext(
     userRole: resolvedRole,
     isAuthenticated: true,
     myListings,
-    myListingsSummary: summarizeMyListings(myListings, firstName, resolvedRole),
+    myListingsSummary: omitPrior
+      ? ""
+      : summarizeMyListings(myListings, firstName, resolvedRole),
+    omitPriorListingDraft: omitPrior || undefined,
+    freshListingSession: clientFallback?.freshListingSession || undefined,
   };
 }

@@ -118,7 +118,7 @@ function AddPageInner() {
     user,
     showToast,
   } = useVauto();
-  const { sendAgentMessage, setOpen } = useVautoAgent();
+  const { sendAgentMessage, setOpen, beginFreshListingChatSession } = useVautoAgent();
   const { applyScannedBarcode } = useBarcodeScanFlow();
   const [busy, setBusy] = useState(false);
   const [barcodeOpen, setBarcodeOpen] = useState(false);
@@ -133,6 +133,7 @@ function AddPageInner() {
     if (bootstrappedRef.current) return;
     bootstrappedRef.current = true;
 
+    beginFreshListingChatSession();
     if (isFashion) activateWardrobeSpinta();
 
     const base = createManualFallbackDraft({
@@ -163,7 +164,7 @@ function AddPageInner() {
       isFashion
         ? "Noriu kelti drabužių skelbimą Spintoje — naudoju profilio kontaktus. Prašau paprašyti nuotraukų."
         : "Noriu kelti skelbimą — naudoju profilio kontaktus. Prašau paprašyti nuotraukų.",
-      { skipUserBubble: true }
+      { skipUserBubble: true, omitPriorListingDraft: true, freshListingSession: true }
     );
   }, [
     authHydrated,
@@ -172,6 +173,7 @@ function AddPageInner() {
     requireAuthForListing,
     activateWardrobeSpinta,
     applyAgentListingDraft,
+    beginFreshListingChatSession,
     sendAgentMessage,
     setOpen,
     user,
@@ -181,10 +183,12 @@ function AddPageInner() {
     if (busy) return;
     if (!authHydrated) return;
     if (!requireAuthForListing(isFashion ? "/add?vertical=fashion" : "/add")) return;
+    beginFreshListingChatSession();
     pickAndSendChatPhotos({
       requestMediaConsent,
       sendAgentMessage,
       setOpen,
+      freshListingSession: true,
       navigateBeforeSend: () => {
         router.replace(isFashion ? "/fashion" : "/");
       },

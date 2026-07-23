@@ -150,6 +150,8 @@ export interface VautoAgentRequest {
     accountType?: string;
     myListings?: MyListingForAgent[];
     myListingsSummary?: string;
+    omitPriorListingDraft?: boolean;
+    freshListingSession?: boolean;
     searchResultCount?: number;
     lastSearchQuery?: string;
     currentView?: string;

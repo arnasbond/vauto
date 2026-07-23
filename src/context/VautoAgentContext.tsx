@@ -219,6 +219,9 @@ export interface AgentSendOptions {
   proactiveTriggerOnly?: boolean;
   /** Internal: already retried after car+passport chip pollution from remote API. */
   documentAmbiguityRetry?: boolean;
+  /** New upload / +Įdėti — strip myListings + prior draft from agent context. */
+  omitPriorListingDraft?: boolean;
+  freshListingSession?: boolean;
 }
 
 interface VautoAgentContextValue {
@@ -241,6 +244,11 @@ interface VautoAgentContextValue {
   reportAgentError: (code: string, message?: string) => void;
   /** Wipe chat, aiDraft, and marketplace overlays — fresh home state. */
   resetHomeAgentSession: () => void;
+  /**
+   * Start a clean listing chat (+Įdėti / Header / ActionButtons):
+   * clears sessionLockedPriceRef, prior draft, and chat so Vision OCR is not polluted.
+   */
+  beginFreshListingChatSession: () => void;
   /** Run modal/chip actions directly — never inject raw chip text as user messages. */
   handleDirectAgentChip: (chip: string) => Promise<boolean>;
   /** Hide pre-publish card and show field edit chips. */
@@ -397,6 +405,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     async () => false
   );
   const [sessionPendingImageUrls, setSessionPendingImageUrls] = useState<string[]>([]);
+  /** Persist seller-typed price across turns — never re-ask „Kokią kainą?“ once locked. */
+  const sessionLockedPriceRef = useRef<number | null>(null);
+  /** After +Įdėti / fresh upload — omit myListings + prior draft from agent context. */
+  const freshListingSessionRef = useRef(false);
   const backgroundScanSeenRef = useRef<Set<string>>(new Set());
   const [lastBargainingOffer, setLastBargainingOffer] =
     useState<AgentBargainingOffer | null>(null);
@@ -631,6 +643,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ...(photoUrls.length ? { orderedImageUrls: photoUrls } : {}),
           listingFlowState: flowState,
         } as import("@/lib/types").AiExtractedListing;
+        const lockedPrice = sessionLockedPriceRef.current;
+        if (
+          lockedPrice != null &&
+          lockedPrice > 0 &&
+          (!(Number(draft.price) > 0) || Number(draft.price) !== lockedPrice)
+        ) {
+          draft.price = lockedPrice;
+        } else if (Number(draft.price) > 0) {
+          sessionLockedPriceRef.current = Number(draft.price);
+        }
+        const draftTitle = String(draft.title ?? "").trim();
+        if (
+          draftTitle &&
+          !/^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(draftTitle)
+        ) {
+          freshListingSessionRef.current = false;
+        }
         applyAgentListingDraft(draft, photoUrls[0] ?? actions.imageUrl);
         if (flowState === "AWAITING_CONFIRMATION") {
           setListingPublishConfirmed(true);
@@ -1361,15 +1390,36 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           .filter(Boolean)),
       ]);
       const priceFromTurn = trimmed ? parsePriceFromChatInput(trimmed) : null;
+      if (priceFromTurn != null && priceFromTurn > 0) {
+        sessionLockedPriceRef.current = priceFromTurn;
+      }
+      const lockedPrice = sessionLockedPriceRef.current;
+      const effectivePrice =
+        lockedPrice != null && lockedPrice > 0
+          ? lockedPrice
+          : priceFromTurn != null && priceFromTurn > 0
+            ? priceFromTurn
+            : null;
       let draftForTurn = aiDraft
-        ? priceFromTurn != null && !(aiDraft.price > 0)
-          ? { ...aiDraft, price: priceFromTurn }
-          : priceFromTurn != null && aiDraft.price !== priceFromTurn
-            ? { ...aiDraft, price: priceFromTurn }
-            : aiDraft
-        : null;
-      if (draftForTurn && priceFromTurn != null && draftForTurn.price === priceFromTurn) {
-        updateAiDraft({ price: priceFromTurn });
+        ? effectivePrice != null &&
+          (!(aiDraft.price > 0) || aiDraft.price !== effectivePrice)
+          ? { ...aiDraft, price: effectivePrice }
+          : aiDraft
+        : effectivePrice != null
+          ? ({
+              title: "Naujas skelbimas",
+              description: "",
+              price: effectivePrice,
+              location: user.city || "",
+              contact: user.phone || "",
+              category: "other",
+              confidence: 0,
+              attributes: {},
+              listingFlowState: "DRAFTING_TEXT",
+            } as import("@/lib/types").AiExtractedListing)
+          : null;
+      if (draftForTurn && effectivePrice != null && draftForTurn.price === effectivePrice) {
+        updateAiDraft({ price: effectivePrice });
       }
       let pendingForTurn = sessionPendingImageUrls;
       if (incomingImagesEarly.length) {
@@ -1406,7 +1456,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           updateAiDraft({
             orderedImageUrls: mergedPhotos,
             ...(nextAttrs ? { attributes: nextAttrs } : {}),
-            ...(priceFromTurn != null ? { price: priceFromTurn } : {}),
+            ...(effectivePrice != null ? { price: effectivePrice } : {}),
           });
         }
       }
@@ -1496,7 +1546,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       if (flowDecision.kind === "show_confirmation" && draftForTurn) {
-        const priceFromMsg = parsePriceFromChatInput(trimmed);
+        const priceFromMsg =
+          effectivePrice ?? parsePriceFromChatInput(trimmed);
         const draftWithPrice =
           priceFromMsg != null &&
           (!(draftForTurn.price > 0) || draftForTurn.price !== priceFromMsg)
@@ -1632,12 +1683,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       // Bare price (e.g. „2250“) after publish gate → open PrePublish immediately.
       // Must run even when tryApplyListingChatInput returns null (price-only sentinel).
+      // sessionLockedPriceRef ensures we never re-ask „Kokią kainą?“ once price is known.
       if (
         priceFromTurn != null &&
         draftForTurn &&
         flowDecision.kind !== "process_photos" &&
         !incomingImagesEarly.length
       ) {
+        sessionLockedPriceRef.current = priceFromTurn;
         const pricedDraft = { ...draftForTurn, price: priceFromTurn };
         updateAiDraft({
           price: priceFromTurn,
@@ -2046,6 +2099,49 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
           wireVisionUrls = capImageUrlsForAgentWire(compressed);
         }
+        const isGenericDraftTitle = (t?: string) =>
+          !t?.trim() ||
+          /^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(t.trim());
+        const freshSessionActive =
+          freshListingSessionRef.current ||
+          Boolean(options?.omitPriorListingDraft) ||
+          Boolean(options?.freshListingSession);
+        const omitPriorListingDraft =
+          freshSessionActive ||
+          (Boolean(requestPendingImageUrls.length) &&
+            isGenericDraftTitle(draftForTurn?.title ?? aiDraft?.title));
+        const lockedPriceForContext = sessionLockedPriceRef.current;
+        const baseListingDraft = sellerWizardContext.listingDraft;
+        const listingDraftForContext =
+          omitPriorListingDraft &&
+          isGenericDraftTitle(baseListingDraft?.title ?? draftForTurn?.title)
+            ? lockedPriceForContext != null && lockedPriceForContext > 0
+              ? {
+                  title: undefined,
+                  description: undefined,
+                  price: lockedPriceForContext,
+                  location: draftForTurn?.location || user.city || "",
+                  category: draftForTurn?.category || "other",
+                  listingFlowState: draftForTurn?.listingFlowState,
+                }
+              : undefined
+            : baseListingDraft
+              ? {
+                  ...baseListingDraft,
+                  ...(lockedPriceForContext != null && lockedPriceForContext > 0
+                    ? { price: lockedPriceForContext }
+                    : {}),
+                }
+              : lockedPriceForContext != null && lockedPriceForContext > 0
+                ? {
+                    title: draftForTurn?.title || "Naujas skelbimas",
+                    description: draftForTurn?.description,
+                    price: lockedPriceForContext,
+                    location: draftForTurn?.location || user.city || "",
+                    category: draftForTurn?.category || "other",
+                    listingFlowState: draftForTurn?.listingFlowState,
+                  }
+                : baseListingDraft;
         const agentBody = {
           messages: sessionMessages.map((m) => ({
             role: m.role,
@@ -2056,24 +2152,36 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           context: {
             ...memoryContext,
             ...sellerWizardContext,
+            listingDraft: listingDraftForContext,
             activeSearchFilters: searchSessionReset
               ? resetFilters
               : memoryContext.activeSearchFilters,
             searchSessionReset,
             supervisorState,
             listingEditSession: listingEditSession ?? undefined,
-            wizardMode: listingEditSession ? ("listing_edit" as const) : sellerWizardContext.wizardMode,
+            wizardMode: listingEditSession
+              ? ("listing_edit" as const)
+              : omitPriorListingDraft
+                ? ("idle" as const)
+                : sellerWizardContext.wizardMode,
             monetization: resolveClientMonetizationState(user, activeBoost),
             userRole: resolveAgentUserRole(user),
             contact: profileContact.contact || undefined,
             profilePhone: profileUser.phone?.trim() || undefined,
             profileEmail: profileUser.email?.trim() || undefined,
             profileContactsVerified: hasProfileListingContact(profileUser),
-            listings: compactListingsForAgent(listings),
+            listings: omitPriorListingDraft ? [] : compactListingsForAgent(listings),
             userName: user.name,
             accountType: resolveAccountTypeLabel(user),
-            myListings: myListingsForAgent,
-            myListingsSummary: summarizeMyListingsSummary(myListingsForAgent, user.name),
+            myListings: omitPriorListingDraft ? [] : myListingsForAgent,
+            myListingsSummary: omitPriorListingDraft
+              ? ""
+              : summarizeMyListingsSummary(myListingsForAgent, user.name),
+            omitPriorListingDraft: omitPriorListingDraft || undefined,
+            freshListingSession:
+              freshListingSessionRef.current ||
+              Boolean(options?.freshListingSession) ||
+              undefined,
             currentPageContext,
             sessionExpired: sessionExpired || undefined,
             sessionLastActiveAt: lastActiveAt ?? undefined,
@@ -2674,6 +2782,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setStreamThinkingLabel("Galvoju…");
   }, []);
 
+  const beginFreshListingChatSession = useCallback(() => {
+    sessionLockedPriceRef.current = null;
+    freshListingSessionRef.current = true;
+    cancelSellerFlow();
+    setHidePrePublishCard(false);
+    setListingPublishConfirmed(false);
+    setAwaitingListingEditField(null);
+    setMessages([]);
+    setSessionPendingImageUrls([]);
+    setLastBargainingOffer(null);
+    setLastError(undefined);
+    setBusy(false);
+    setStreamThinkingLabel("Galvoju…");
+  }, [cancelSellerFlow]);
+
   const enterListingEditMode = useCallback(() => {
     setHidePrePublishCard(true);
     setListingPublishConfirmed(false);
@@ -2882,6 +3005,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [handleDirectAgentChip]);
 
   const resetHomeAgentSession = useCallback(() => {
+    sessionLockedPriceRef.current = null;
+    freshListingSessionRef.current = false;
     cancelSellerFlow();
     setHidePrePublishCard(false);
     setListingPublishConfirmed(false);
@@ -2950,6 +3075,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       applyAgentActions: applyActions,
       reportAgentError,
       resetHomeAgentSession,
+      beginFreshListingChatSession,
     }),
     [
       open,
@@ -2967,6 +3093,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       applyActions,
       reportAgentError,
       resetHomeAgentSession,
+      beginFreshListingChatSession,
     ]
   );
 

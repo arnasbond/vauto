@@ -108,6 +108,13 @@ async function buildAgentRequest(req: AuthedRequest) {
   }
 
   const clientContext = context ?? {};
+  const omitPrior =
+    Boolean(clientContext.omitPriorListingDraft) ||
+    Boolean(clientContext.freshListingSession);
+  const priorTitle = String(clientContext.listingDraft?.title ?? "").trim();
+  const priorTitleIsGeneric =
+    !priorTitle ||
+    /^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(priorTitle);
   const userCtx = await resolveAuthenticatedAgentContext(req.authUserId, {
     userName: clientContext.userName,
     accountType: clientContext.accountType,
@@ -115,8 +122,10 @@ async function buildAgentRequest(req: AuthedRequest) {
     contact: clientContext.contact,
     userRole: clientContext.userRole,
     isAuthenticated: clientContext.isAuthenticated,
-    myListings: clientContext.myListings,
-    myListingsSummary: clientContext.myListingsSummary,
+    myListings: omitPrior ? [] : clientContext.myListings,
+    myListingsSummary: omitPrior ? "" : clientContext.myListingsSummary,
+    omitPriorListingDraft: omitPrior || undefined,
+    freshListingSession: clientContext.freshListingSession || undefined,
   });
 
   return {
@@ -127,6 +136,27 @@ async function buildAgentRequest(req: AuthedRequest) {
         ...clientContext,
         ...userCtx,
         isAuthenticated: userCtx.isAuthenticated,
+        ...(omitPrior
+          ? {
+              listings: [],
+              myListings: [],
+              myListingsSummary: "",
+              // Keep a real Vision draft; strip only stale/generic titles.
+              listingDraft: priorTitleIsGeneric
+                ? clientContext.listingDraft?.price &&
+                  Number(clientContext.listingDraft.price) > 0
+                  ? {
+                      ...clientContext.listingDraft,
+                      title: undefined,
+                      description: undefined,
+                    }
+                  : undefined
+                : clientContext.listingDraft,
+              omitPriorListingDraft: true,
+              freshListingSession:
+                Boolean(clientContext.freshListingSession) || omitPrior || undefined,
+            }
+          : {}),
       },
       adminProjectContext,
     }),

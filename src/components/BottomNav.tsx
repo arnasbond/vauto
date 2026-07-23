@@ -53,7 +53,7 @@ export function BottomNav() {
   } = useVautoSearchDispatch();
   const { goToMarketplace } = useZeroUiScreen();
   const { clearSearchFilters } = useZeroUiMemory();
-  const { setOpen: setAgentOpen } = useVautoAgent();
+  const { setOpen: setAgentOpen, beginFreshListingChatSession } = useVautoAgent();
   const publishCelebration = usePublishCelebrationOptional();
   const spintaPulse = publishCelebration?.spintaPulse ?? false;
 
@@ -134,6 +134,7 @@ export function BottomNav() {
     if (placeAdBusy) return;
     const addPath = "/add/";
     if (!requireAuthForListing(addPath)) return;
+    beginFreshListingChatSession();
     router.push(addPath);
   };
 

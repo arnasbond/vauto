@@ -115,26 +115,39 @@ export function applyNaturalLanguageDescriptionEdits(
   return { description: next, removed };
 }
 
+/** Normalize thin spaces / thousand separators so „2 250 €“ and „2.250“ parse reliably. */
+function normalizePriceChatText(text: string): string {
+  return text
+    .trim()
+    .replace(/[\u00a0\u202f]/g, " ")
+    .replace(/(\d)[.,\s](\d{3})\b/g, "$1$2")
+    .replace(/\s+/g, " ");
+}
+
+function parseFinitePrice(raw: string): number | null {
+  const n = Number.parseFloat(raw.replace(",", "."));
+  if (!Number.isFinite(n) || n <= 0 || n >= 100_000_000) return null;
+  return Math.round(n);
+}
+
 export function parsePriceFromChatInput(text: string): number | null {
-  const t = text.trim();
+  const t = normalizePriceChatText(text);
   if (!t) return null;
 
   // Explicit currency or „kaina/už …“ — always treat as price (even if year-like digits).
   const explicit = t.match(PRICE_EXPLICIT_RE);
   if (explicit) {
-    const raw = (explicit[1] || explicit[2] || "").replace(",", ".");
-    const n = Number.parseFloat(raw);
-    if (Number.isFinite(n) && n > 0 && n < 100_000_000) return Math.round(n);
+    const n = parseFinitePrice(explicit[1] || explicit[2] || "");
+    if (n != null) return n;
   }
 
   // Bare number only — never treat vehicle years as price.
   if (PRICE_ONLY_RE.test(t)) {
     const hasCurrency = /€|eur/i.test(t);
-    const raw = t.replace(/[^\d.,]/g, "").replace(",", ".");
-    const n = Number.parseFloat(raw);
-    if (!Number.isFinite(n) || n <= 0 || n >= 100_000_000) return null;
-    if (!hasCurrency && isLikelyVehicleYear(Math.round(n))) return null;
-    return Math.round(n);
+    const n = parseFinitePrice(t.replace(/[^\d.,]/g, ""));
+    if (n == null) return null;
+    if (!hasCurrency && isLikelyVehicleYear(n)) return null;
+    return n;
   }
 
   // Short messages: bare amount (e.g. „2250. Judame prie PrePublish“) — skip years.
@@ -148,6 +161,9 @@ export function parsePriceFromChatInput(text: string): number | null {
 
   return null;
 }
+
+/** Alias used by vision / draft merge paths — same hardened parser. */
+export const parsePriceFromText = parsePriceFromChatInput;
 
 /** Apply price/title patch from chat; returns assistant confirmation or null. */
 export function tryApplyListingContactCapture(

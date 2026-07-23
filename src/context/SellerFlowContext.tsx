@@ -1351,7 +1351,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const updateAiDraft = useCallback((patch: Partial<AiExtractedListing>) => {
     setAiDraft((prev) => {
-      if (!prev) return prev;
+      // Seed a minimal draft when price arrives before Vision/text created one —
+      // never drop a typed price into the void (stops „Kokią kainą?“ loops).
+      if (!prev) {
+        const price = patch.price != null ? Number(patch.price) : NaN;
+        if (!Number.isFinite(price) || price <= 0) return prev;
+        const seeded = createManualFallbackDraft({
+          location: user.city || "",
+          contact: user.phone || "",
+        });
+        return syncDraftWithProfile({
+          ...seeded,
+          ...patch,
+          price,
+          title: patch.title?.trim() || "Naujas skelbimas",
+          listingFlowState: patch.listingFlowState ?? "DRAFTING_TEXT",
+        });
+      }
 
       const nextCategory = patch.category ?? prev.category;
       const verticalChanged =
@@ -1385,7 +1401,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
       });
     });
-  }, [syncDraftWithProfile]);
+  }, [syncDraftWithProfile, user.city, user.phone]);
 
   const revertPhotoCategoryMismatch = useCallback(() => {
     const snap = categoryMismatchRollbackRef.current;

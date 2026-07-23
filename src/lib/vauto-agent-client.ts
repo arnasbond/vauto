@@ -54,6 +54,12 @@ export interface VautoAgentContext {
   accountType?: string;
   myListings?: MyListingForAgent[];
   myListingsSummary?: string;
+  /**
+   * Fresh listing / new photo upload — omit prior myListings + catalog so Vision
+   * does not reuse stale titles from older ads.
+   */
+  omitPriorListingDraft?: boolean;
+  freshListingSession?: boolean;
   lastError?: { code: string; message?: string };
   wizardMode?: "listing_review" | "listing_edit" | "search" | "idle";
   listingDraft?: {
