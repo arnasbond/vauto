@@ -83,11 +83,11 @@ export function ProListingCard({
             {visibilityActive && activeTier > 0 && (
               <span
                 className={cn(
-                  "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-slate-900",
+                  "absolute left-1 top-1 rounded-md px-1.5 py-0.5 text-[8px] font-bold text-white",
                   promoteTheme === "autoplius" && "bg-[#1a56db]",
                   promoteTheme === "wardrobe" && "bg-[#09b1a8]",
                   promoteTheme === "skelbiu" && "bg-[#1565c0]",
-                  promoteTheme === "aruodas" && "bg-[#c62828]",
+                  promoteTheme === "aruodas" && "bg-[#b91c1c]",
                   promoteTheme === "flux" && "bg-[var(--vauto-orange)]"
                 )}
               >
@@ -139,61 +139,34 @@ export function ProListingCard({
           <button
             type="button"
             onClick={() => setPromoteOpen(true)}
-            className={cn(
-              "mt-3 flex w-full items-start gap-2 rounded-xl p-3 text-left transition",
-              promoteTheme === "autoplius" &&
-                "border border-[#1a56db]/40 bg-[#e8f0fe] hover:bg-[#dbeafe]",
-              promoteTheme === "wardrobe" &&
-                "border border-[#09b1a8]/30 bg-[#e6f7f6] hover:bg-[#d4f1ef]",
-              promoteTheme === "skelbiu" &&
-                "border-2 border-[#1565c0]/40 bg-[#e3f2fd] hover:bg-[#bbdefb]",
-              promoteTheme === "aruodas" &&
-                "border border-[#c62828]/35 bg-[#ffebee] hover:bg-[#ffcdd2]",
-              promoteTheme === "flux" &&
-                "border border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10 hover:bg-[var(--vauto-teal)]/15"
-            )}
+            className="listing-card-btn listing-card-btn--primary mt-3 w-full justify-start gap-2 !py-3 text-left"
           >
-            <Sparkles
-              className={cn(
-                "mt-0.5 h-4 w-4 shrink-0",
-                promoteTheme === "autoplius" && "text-[#1a56db]",
-                promoteTheme === "wardrobe" && "text-[#09b1a8]",
-                promoteTheme === "skelbiu" && "text-[#1565c0]",
-                promoteTheme === "aruodas" && "text-[#c62828]",
-                promoteTheme === "flux" && "text-[var(--vauto-teal)]"
-              )}
-            />
-            <div>
-              <p
-                className={cn(
-                  "text-xs font-semibold",
-                  promoteTheme === "autoplius" && "text-[#1a56db]",
-                  promoteTheme === "wardrobe" && "text-[#09b1a8] font-light",
-                  promoteTheme === "skelbiu" && "text-[#1565c0] font-bold",
-                  promoteTheme === "flux" && "text-[var(--vauto-teal)]"
-                )}
-              >
+            <Sparkles className="mt-0.5 h-4 w-4 shrink-0 text-white" />
+            <span className="min-w-0 flex-1">
+              <span className="block text-xs font-semibold text-white">
                 Iškelti skelbimą
-              </p>
-              <p className="mt-0.5 text-[11px] leading-snug text-slate-600">
+              </span>
+              <span className="mt-0.5 block text-[11px] leading-snug text-blue-100">
                 {featuredProduct.description}
-              </p>
-              <p className="mt-0.5 text-[10px] text-slate-400">
+              </span>
+              <span className="mt-0.5 block text-[10px] text-blue-200">
                 Nuo {featuredProduct.priceEur.toFixed(2)} € · 3 paketai
-              </p>
-            </div>
+              </span>
+            </span>
           </button>
         )}
 
-        <div className="mt-2 flex flex-wrap gap-2">
+        <div className="listing-card-actions mt-2">
           {!isSold && (
-            <ShareListingButton listing={listing} className="flex-1 min-w-[120px]" />
+            <div className="listing-card-btn--span2">
+              <ShareListingButton listing={listing} className="w-full" />
+            </div>
           )}
           {expired && (
             <button
               type="button"
               onClick={onRenew}
-              className="flex w-full items-center justify-center gap-1 rounded-xl bg-[var(--vauto-teal)] py-2 text-xs font-semibold text-white"
+              className="listing-card-btn listing-card-btn--primary listing-card-btn--span2"
             >
               <RefreshCw className="h-3 w-3" />
               Pratęsti 90 d.
@@ -202,14 +175,14 @@ export function ProListingCard({
           <button
             type="button"
             onClick={onEdit}
-            className="flex-1 rounded-xl bg-slate-100 py-2 text-xs text-slate-900"
+            className="listing-card-btn listing-card-btn--primary"
           >
             Redaguoti
           </button>
           <button
             type="button"
             onClick={onDelete}
-            className="rounded-xl bg-red-50 px-4 py-2 text-xs text-red-700"
+            className="listing-card-btn listing-card-btn--danger"
           >
             Ištrinti
           </button>

@@ -11,6 +11,7 @@ import {
   Pencil,
   Sparkles,
   Trash2,
+  TrendingUp,
 } from "lucide-react";
 import { formatPrice } from "@/data/mockListings";
 import { getListingCoverImage } from "@/lib/listing-image";
@@ -24,6 +25,7 @@ import {
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
+import { SmartPromoteModal } from "@/components/dashboard/SmartPromoteModal";
 import type { Listing } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -38,6 +40,7 @@ function ManoSkelbimaiCard({
   onStats,
   onEdit,
   onActivateAiTwin,
+  onBoost,
 }: {
   listing: Listing;
   onPause: () => void;
@@ -45,6 +48,7 @@ function ManoSkelbimaiCard({
   onStats: () => void;
   onEdit: () => void;
   onActivateAiTwin: () => void;
+  onBoost: () => void;
 }) {
   const state = dashboardListingState(listing);
   const isPaused = listing.status === "paused";
@@ -54,8 +58,11 @@ function ManoSkelbimaiCard({
     : listingPath(listing);
 
   return (
-    <article className="group overflow-hidden rounded-2xl border border-[var(--anonser-border)] bg-[var(--anonser-card)] shadow-sm transition hover:shadow-md">
-      <Link href={publicHref} className="relative block aspect-[4/3] overflow-hidden bg-[var(--anonser-surface-muted)]">
+    <article className="group overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm transition hover:shadow-md">
+      <Link
+        href={publicHref}
+        className="relative block aspect-[4/3] overflow-hidden bg-slate-100"
+      >
         <Image
           src={getListingCoverImage(listing)}
           alt={listing.title}
@@ -74,67 +81,80 @@ function ManoSkelbimaiCard({
       </Link>
 
       <div className="p-3">
-        <h3 className="line-clamp-2 text-sm font-semibold text-[var(--anonser-text)]">
+        <h3 className="line-clamp-2 text-sm font-semibold text-slate-900">
           {listing.title}
         </h3>
-        <p className="mt-1 text-base font-bold text-[var(--anonser-primary)]">
+        <p className="mt-1 text-base font-bold text-blue-800">
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
 
-        <div className="mt-3 grid grid-cols-2 gap-2">
+        <div className="listing-card-actions mt-3">
           <Link
             href={publicHref}
-            className="col-span-2 flex items-center justify-center gap-1 rounded-xl border border-[var(--anonser-border)] py-2 text-xs font-semibold text-[var(--anonser-primary)] transition hover:bg-[var(--anonser-surface-muted)]"
+            className="listing-card-btn listing-card-btn--secondary listing-card-btn--span2"
           >
-            <ExternalLink className="h-3.5 w-3.5" />
+            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
             Peržiūrėti skelbimą
           </Link>
+
           {!listing.isAiTwinActive ? (
             <button
               type="button"
               onClick={onActivateAiTwin}
-              className="col-span-2 flex items-center justify-center gap-1 rounded-xl border border-emerald-200 bg-emerald-50 py-2 text-xs font-semibold text-emerald-800 transition hover:bg-emerald-100"
+              className="listing-card-btn listing-card-btn--ai listing-card-btn--span2"
             >
-              <Sparkles className="h-3.5 w-3.5" />
+              <Sparkles className="h-3.5 w-3.5" aria-hidden />
               Aktyvuoti AI derybininką
             </button>
           ) : (
-            <div className="col-span-2 flex items-center justify-center rounded-xl bg-emerald-50 py-2 text-[11px] font-semibold text-emerald-800">
+            <div className="listing-card-btn listing-card-btn--ai listing-card-btn--span2 cursor-default">
               AI derybininkas aktyvus
             </div>
           )}
+
           <button
             type="button"
-            onClick={onPause}
+            onClick={onEdit}
+            className="listing-card-btn listing-card-btn--primary"
+          >
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+            Redaguoti
+          </button>
+          <button
+            type="button"
+            onClick={onBoost}
             disabled={state === "sold"}
-            className="flex items-center justify-center gap-1 rounded-xl border border-[var(--anonser-border)] py-2 text-xs font-medium text-[var(--anonser-text)] transition hover:bg-[var(--anonser-surface-muted)] disabled:opacity-40"
+            className="listing-card-btn listing-card-btn--accent"
           >
-            <Pause className="h-3.5 w-3.5" />
-            {isPaused ? "Aktyvuoti" : "Stabdyti"}
+            <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+            Iškelti
           </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            className="flex items-center justify-center gap-1 rounded-xl bg-red-50 py-2 text-xs font-medium text-red-700 transition hover:bg-red-100 dark:bg-red-900/30 dark:text-red-300"
-          >
-            <Trash2 className="h-3.5 w-3.5" />
-            Ištrinti
-          </button>
+
           <button
             type="button"
             onClick={onStats}
-            className="flex items-center justify-center gap-1 rounded-xl bg-[var(--anonser-primary-soft)] py-2 text-xs font-medium text-[var(--anonser-primary)] transition hover:opacity-90"
+            className="listing-card-btn listing-card-btn--secondary"
           >
-            <BarChart3 className="h-3.5 w-3.5" />
+            <BarChart3 className="h-3.5 w-3.5" aria-hidden />
             Statistika
           </button>
           <button
             type="button"
-            onClick={onEdit}
-            className="flex items-center justify-center gap-1 rounded-xl bg-[var(--anonser-primary)] py-2 text-xs font-semibold text-white transition hover:opacity-95"
+            onClick={onPause}
+            disabled={state === "sold"}
+            className="listing-card-btn listing-card-btn--secondary"
           >
-            <Pencil className="h-3.5 w-3.5" />
-            Redaguoti
+            <Pause className="h-3.5 w-3.5" aria-hidden />
+            {isPaused ? "Aktyvuoti" : "Stabdyti"}
+          </button>
+
+          <button
+            type="button"
+            onClick={onDelete}
+            className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            Ištrinti
           </button>
         </div>
       </div>
@@ -151,9 +171,11 @@ export function ManoSkelbimaiDashboard({
     startEditListingFlow,
     showToast,
     showConfirm,
+    openCheckout,
   } = useVauto();
   const { openMicroPayment } = useZeroUiScreen();
   const [statsTarget, setStatsTarget] = useState<Listing | null>(null);
+  const [promoteListing, setPromoteListing] = useState<Listing | null>(null);
 
   const sorted = useMemo(
     () =>
@@ -237,26 +259,26 @@ export function ManoSkelbimaiDashboard({
   return (
     <section className="pb-8">
       <div className="mb-6 flex items-center justify-between gap-3">
-        <h1 className="flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-[var(--anonser-text)]">
-          <LayoutGrid className="h-6 w-6 text-[var(--anonser-primary)]" />
+        <h1 className="flex items-center gap-2 font-display text-2xl font-bold tracking-tight text-slate-900">
+          <LayoutGrid className="h-6 w-6 text-blue-800" />
           Mano skelbimai
         </h1>
         {activeCount > 0 && (
-          <span className="rounded-full bg-[var(--anonser-primary-soft)] px-3 py-1 text-xs font-semibold text-[var(--anonser-primary)]">
+          <span className="rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-800">
             {activeCount} aktyvūs
           </span>
         )}
       </div>
 
-      <p className="mb-6 text-sm text-[var(--anonser-text-muted)]">
+      <p className="mb-6 text-sm text-slate-600">
         Valdykite visus skelbimus vienoje vietoje — privatūs ir verslo klientai
         naudoja tą pačią sistemą. Redaguokite pokalbiu su DI, be formų.
       </p>
 
       {sorted.length === 0 ? (
-        <div className="rounded-3xl border border-dashed border-[var(--anonser-border)] bg-[var(--anonser-surface-muted)]/40 px-6 py-16 text-center">
-          <Sparkles className="mx-auto mb-3 h-10 w-10 text-[var(--anonser-accent)]" />
-          <p className="text-sm text-[var(--anonser-text-muted)]">
+        <div className="rounded-3xl border border-dashed border-slate-300 bg-slate-50 px-6 py-16 text-center">
+          <Sparkles className="mx-auto mb-3 h-10 w-10 text-teal-600" />
+          <p className="text-sm text-slate-600">
             Dar neturite skelbimų — pradėkite pokalbį pagrindiniame puslapyje ir
             DI paruoš skelbimą už jus.
           </p>
@@ -272,6 +294,7 @@ export function ManoSkelbimaiDashboard({
               onStats={() => handleStats(listing)}
               onEdit={() => startEditListingFlow(listing, { stayOnPage: true })}
               onActivateAiTwin={() => void handleActivateAiTwin(listing)}
+              onBoost={() => setPromoteListing(listing)}
             />
           ))}
         </div>
@@ -282,6 +305,15 @@ export function ManoSkelbimaiDashboard({
           Statistika: {statsTarget.title}
         </span>
       )}
+
+      {promoteListing ? (
+        <SmartPromoteModal
+          open
+          listing={promoteListing}
+          onClose={() => setPromoteListing(null)}
+          onOpenCheckout={openCheckout}
+        />
+      ) : null}
     </section>
   );
 }

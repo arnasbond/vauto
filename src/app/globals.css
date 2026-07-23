@@ -2927,3 +2927,86 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 .agent-typing-dot-3 {
   animation-delay: 0.3s;
 }
+
+/* ── Mano skelbimai / listing card action buttons (WCAG 2.1 AA) ── */
+.listing-card-actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+}
+
+.listing-card-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  border-radius: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  font-weight: 600;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
+  text-decoration: none;
+}
+
+.listing-card-btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.listing-card-btn--primary {
+  background-color: #1e3a8a;
+  color: #ffffff;
+  border: 1px solid #1e3a8a;
+}
+
+.listing-card-btn--primary:hover:not(:disabled) {
+  background-color: #1e40af;
+  border-color: #1e40af;
+}
+
+.listing-card-btn--accent {
+  background-color: #0f172a;
+  color: #ffffff;
+  border: 1px solid #0f172a;
+}
+
+.listing-card-btn--accent:hover:not(:disabled) {
+  background-color: #1e293b;
+}
+
+.listing-card-btn--secondary {
+  background-color: #ffffff;
+  color: #334155;
+  border: 1px solid #cbd5e1;
+}
+
+.listing-card-btn--secondary:hover:not(:disabled) {
+  background-color: #f8fafc;
+  border-color: #94a3b8;
+}
+
+.listing-card-btn--danger {
+  background-color: #fef2f2;
+  color: #b91c1c;
+  border: 1px solid #fecaca;
+}
+
+.listing-card-btn--danger:hover:not(:disabled) {
+  background-color: #fee2e2;
+  border-color: #fca5a5;
+}
+
+.listing-card-btn--ai {
+  background-color: #d1fae5;
+  color: #064e3b;
+  border: 1px solid #a7f3d0;
+}
+
+.listing-card-btn--ai:hover:not(:disabled) {
+  background-color: #a7f3d0;
+}
+
+.listing-card-btn--span2 {
+  grid-column: span 2;
+}
