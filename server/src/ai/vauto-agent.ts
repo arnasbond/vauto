@@ -70,11 +70,8 @@ import {
   shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "./listing-conversational-flow.js";
-import {
-  buildVehicleBenchmarkSalesCopy,
-  isVehicleSalesCopyConfirmIntent,
-} from "../shared/vehicle-sales-copy.js";
-import { enrichVehicleVisionDraft } from "../shared/vehicle-vision-enrich.js";
+import { isVehicleSalesCopyConfirmIntent } from "../shared/vehicle-sales-copy.js";
+import { ensureRichSalesCopyBeforePublish } from "../shared/ensure-rich-sales-copy.js";
 import {
   buildUserContextInjectionBlock,
   type MyListingForAgent,
@@ -345,11 +342,17 @@ async function runVautoAgentInner(
 ): Promise<VautoAgentResponse> {
   emitAgentEvent(onEvent, { type: "status", message: "Galvoju…" });
 
-  // New listing / seller chat — force clean search memory (no sticky „Rodyk visus").
-  if (req.context.freshListingSession || req.context.searchSessionReset) {
+  // P0-3 — New listing / seller chat: absolute search isolation (no sticky filters,
+  // preferredSizes, category pins, or legacy query bleed into sell mode).
+  const isolateSellerFromSearch =
+    Boolean(req.context.freshListingSession) ||
+    Boolean(req.context.searchSessionReset) ||
+    Boolean(req.context.omitPriorListingDraft);
+  if (isolateSellerFromSearch) {
     req.context.activeSearchFilters = null;
     req.context.lastSearchQuery = undefined;
     req.context.searchResultCount = undefined;
+    req.context.recentSearchListingIds = undefined;
   }
 
   if (req.authUserId) {
@@ -368,7 +371,8 @@ async function runVautoAgentInner(
           year: number;
         };
       }
-      if (prefs.preferredSizes?.length) {
+      // Never re-seed preferredSizes / size pins during a fresh seller listing session.
+      if (prefs.preferredSizes?.length && !isolateSellerFromSearch) {
         const existing = req.context.activeSearchFilters ?? {};
         const hasSize = existing.refinements?.some((r) => r.startsWith("size:"));
         if (!hasSize) {
@@ -466,7 +470,7 @@ async function runVautoAgentInner(
   });
 
   // Step 3 — „Paruošti skelbimą“ after vision summary → full draft + Publikuoti/Papildyti.
-  // Never invent price / TA / mileage; stay Lazy Upload (no Cloudinary).
+  // P0-2: materialize Pass-2 / vehicle benchmark onto the draft (never leave Vision stub).
   if (
     listingDraft &&
     lastUserText &&
@@ -474,91 +478,20 @@ async function runVautoAgentInner(
     !pendingChatImages?.length &&
     String(listingDraft.attributes?.salesCopyGenerated ?? "") !== "true"
   ) {
-    const cat = String(listingDraft.category ?? "").toLowerCase();
-    const attrs = listingDraft.attributes ?? {};
-    const looksVehicle =
-      cat === "vehicles" ||
-      cat === "transport" ||
-      cat === "automobiliai" ||
-      Boolean(
-        attrs.make ||
-          attrs.vin ||
-          attrs.plate ||
-          attrs.licensePlate ||
-          attrs.powerKw
-      );
-    let nextTitle = listingDraft.title;
-    let nextDescription = String(listingDraft.description ?? "").trim();
-    let nextAttrs: Record<string, string> = Object.fromEntries(
-      Object.entries(attrs).map(([k, v]) => [
-        k,
-        Array.isArray(v) ? v.map(String).join(", ") : String(v ?? ""),
-      ])
-    );
-
-    if (looksVehicle) {
-      const enriched = enrichVehicleVisionDraft({
-        title: listingDraft.title,
-        description: listingDraft.description,
-        category: listingDraft.category,
-        attributes: { ...attrs },
-      });
-      const salesCopy = buildVehicleBenchmarkSalesCopy({
-        title: enriched.title ?? listingDraft.title,
-        description: listingDraft.description,
-        price: listingDraft.price,
-        location: listingDraft.location,
-        category: listingDraft.category,
-        attributes: enriched.attributes,
-      });
-      nextTitle = enriched.title || listingDraft.title;
-      nextDescription = salesCopy
-        .replace(/\*\*/g, "")
-        .replace(/^🚗\s*/gm, "")
-        .replace(/^🌟\s*/gm, "")
-        .replace(/^💡\s*/gm, "")
-        .trim();
-      nextAttrs = {
-        ...Object.fromEntries(
-          Object.entries(enriched.attributes ?? attrs).map(([k, v]) => [
-            k,
-            Array.isArray(v) ? v.map(String).join(", ") : String(v ?? ""),
-          ])
-        ),
-        salesCopyGenerated: "true",
-      };
-    } else {
-      const deferred = String(attrs.deferredSalesDescription ?? "").trim();
-      nextDescription =
-        deferred ||
-        nextDescription ||
-        String(listingDraft.title ?? "").trim() ||
-        "Parduodama prekė";
-      nextAttrs = { ...nextAttrs, salesCopyGenerated: "true" };
-      delete nextAttrs.deferredSalesDescription;
-    }
-
-    const nextDraft = normalizeListingDraftForAction(
-      {
-        ...listingDraft,
-        title: nextTitle,
-        description: nextDescription,
-        attributes: nextAttrs,
-      },
-      {
-        contact: req.context.contact,
-        userCity: req.context.userCity,
-        listingFlowState:
-          transitionListingFlow(
-            listingDraft.listingFlowState ?? flowState ?? "DRAFTING_TEXT",
-            "DRAFT_SAVED"
-          ) ?? "DRAFT_READY",
-      }
-    );
+    const rich = ensureRichSalesCopyBeforePublish(listingDraft);
+    const nextDraft = normalizeListingDraftForAction(rich, {
+      contact: req.context.contact,
+      userCity: req.context.userCity,
+      listingFlowState:
+        transitionListingFlow(
+          listingDraft.listingFlowState ?? flowState ?? "DRAFTING_TEXT",
+          "DRAFT_SAVED"
+        ) ?? "DRAFT_READY",
+    });
     // Lean Step-3: gate + chips only. Full sales copy lives on listingDraft —
     // never concatenate title/description into the chat bubble (avoids
     // "Condorwood… Skelbimas paruoštas… Condorwood…" duplication).
-    const titleHint = String(nextTitle ?? "").trim();
+    const titleHint = String(nextDraft.title ?? "").trim();
     const leanReply = titleHint
       ? `${TEXT_DRAFT_READY_GATE}\n\nParuošiau: ${titleHint}`
       : TEXT_DRAFT_READY_GATE;
@@ -655,12 +588,14 @@ async function runVautoAgentInner(
 
   if (flowTurn.kind === "show_confirmation" && listingDraft) {
     const priceFromMsg = parsePriceFromChatInput(lastUserText);
-    const draftForGate =
+    const pricedDraft =
       priceFromMsg != null && !(Number(listingDraft.price) > 0)
         ? { ...listingDraft, price: priceFromMsg }
         : priceFromMsg != null
           ? { ...listingDraft, price: priceFromMsg }
           : listingDraft;
+    // P0-2 — Attach Pass-2 / deferred / vehicle rich copy BEFORE PrePublish finalize.
+    const draftForGate = ensureRichSalesCopyBeforePublish(pricedDraft);
     const gateway = resolvePrePublishGatewayResponse({
       isAuthenticated: req.context.isAuthenticated,
       profilePhone: req.context.profilePhone,

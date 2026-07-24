@@ -516,7 +516,13 @@ export function resolvePublishListingDescription(draft: AiExtractedListing): str
     draft.description
   );
 
-  const candidates = [personaText, draft.description ?? ""];
+  // P0-2 — Prefer Pass-2 deferred stash over empty Vision description.
+  const deferred = String(
+    (draft.attributes as Record<string, unknown> | undefined)
+      ?.deferredSalesDescription ?? ""
+  ).trim();
+
+  const candidates = [personaText, deferred, draft.description ?? ""];
   let thinSeed = "";
   for (const raw of candidates) {
     if (!raw.trim() || isAgentClarificationText(raw)) continue;
@@ -539,7 +545,7 @@ export function resolvePublishListingDescription(draft: AiExtractedListing): str
     location: draft.location,
     price: typeof draft.price === "number" ? draft.price : undefined,
     category: draft.category,
-    seedDescription: thinSeed,
+    seedDescription: thinSeed || deferred,
   });
 }
 

@@ -5,7 +5,19 @@
  *   DRAFTING_TEXT → DRAFT_READY → AWAITING_CONFIRMATION
  * Photos are optional enrichment — never required before a text draft.
  * AWAITING_PHOTOS = soft “user chose to attach photos now” (not a hard gate).
+ *
+ * P0-2 — Before any show_confirmation / Publikuoti / Publikuok finalize,
+ * callers MUST run ensureRichSalesCopyBeforePublish() so Pass-2 / deferred
+ * sales copy is attached. Never publish empty Vision description stubs.
  */
+
+export {
+  draftHasRichSalesCopyAttached,
+  draftNeedsRichSalesCopyMaterialization,
+  ensureRichSalesCopyBeforePublish,
+  isRichSalesCopyText,
+  looksLikeVehicleSalesDraft,
+} from "./ensure-rich-sales-copy";
 
 export const LISTING_FLOW_STATES = {
   DRAFTING_TEXT: "DRAFTING_TEXT",

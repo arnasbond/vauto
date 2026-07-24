@@ -3,7 +3,7 @@
  * NEVER invents price, TA, or mileage.
  */
 
-import { enrichVehicleVisionDraft } from "./vehicle-vision-enrich.js";
+import { enrichVehicleVisionDraft } from "./vehicle-vision-enrich";
 
 function attr(
   attrs: Record<string, string | string[] | undefined> | undefined,

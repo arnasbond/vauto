@@ -265,6 +265,7 @@ import {
   resolvePublishListingDescription,
   sanitizeListingTitle,
 } from "@/lib/listing-text-sanitize";
+import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
@@ -1509,7 +1510,13 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       };
     }
 
-    const profileDraft = prePublish.syncedDraft ?? injectProfileContactsForPublish(aiDraft, user);
+    const profileDraftRaw =
+      prePublish.syncedDraft ?? injectProfileContactsForPublish(aiDraft, user);
+    // P0-2 — Guarantee Pass-2 / deferred / vehicle rich copy before live publish.
+    const profileDraft = ensureRichSalesCopyBeforePublish(profileDraftRaw);
+    if (profileDraft !== profileDraftRaw) {
+      setAiDraft(profileDraft);
+    }
     const publishContact = resolveDraftContact(profileDraft, user);
 
     const conductorPublish = buildConductorPublishSnapshot(profileDraft);

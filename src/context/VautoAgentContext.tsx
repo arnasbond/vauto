@@ -101,7 +101,6 @@ import { resolveBrowseAllIntent, createBrowseAllAction, isListingConfirmationPhr
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
-import { markSellerListingChatActive } from "@/lib/seller-chat-session";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   isPhotoIntentListingChip,
@@ -193,6 +192,12 @@ import {
   isDescriptionGateOnlyReply,
 } from "@/lib/listing-description-chat";
 import { resolvePublishListingDescription } from "@/lib/listing-text-sanitize";
+import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
+import {
+  beginAbsoluteFreshSellerListingSession,
+  markSellerListingChatActive,
+  shouldIsolateSellerListingFromSearch,
+} from "@/lib/seller-chat-session";
 import {
   parseDetectedObjectsFromAttributes,
   resolveDocumentAmbiguityRetry,
@@ -1490,7 +1495,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         quickReplies?: string[];
         prePublishCard?: import("@/lib/pre-publish-validation").PrePublishCardPayload;
       } => {
-        const readiness = runPrePublishGate(draftOverride ?? draftForTurn);
+        // P0-2 — Attach rich Pass-2 / deferred sales copy before PrePublish card.
+        const richOverride = draftOverride
+          ? ensureRichSalesCopyBeforePublish(draftOverride)
+          : draftOverride;
+        const richForTurn = draftForTurn
+          ? ensureRichSalesCopyBeforePublish(draftForTurn)
+          : draftForTurn;
+        const gateDraft = richOverride ?? richForTurn;
+        if (gateDraft && gateDraft !== (draftOverride ?? draftForTurn)) {
+          updateAiDraft(gateDraft);
+        }
+        const readiness = runPrePublishGate(gateDraft);
         if (!readiness.ok) {
           return { reply: buildConversationalMissingPrompt(readiness) };
         }
@@ -1500,7 +1516,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (card) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
-          const synced = readiness.syncedDraft;
+          const synced = readiness.syncedDraft
+            ? ensureRichSalesCopyBeforePublish(readiness.syncedDraft)
+            : gateDraft;
           const priceLock =
             draftOverride?.price != null && Number(draftOverride.price) > 0
               ? Number(draftOverride.price)
@@ -1783,21 +1801,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           (!(draftForTurn.price > 0) || draftForTurn.price !== resolvedPrice)
             ? { ...draftForTurn, price: resolvedPrice }
             : draftForTurn;
+        // P0-2 — Materialize rich sales copy before PrePublish / immediate Publikuok.
+        const draftWithRichCopy = ensureRichSalesCopyBeforePublish(draftWithPrice);
 
         const readiness = evaluatePrePublishReadiness({
           isAuthenticated,
           user,
-          draft: draftWithPrice,
+          draft: draftWithRichCopy,
           previewImage: sellerPreviewImage,
           pendingImageUrls: pendingForTurn,
-          orderedImageUrls: draftWithPrice.orderedImageUrls,
+          orderedImageUrls: draftWithRichCopy.orderedImageUrls,
           geoCoords: buyerCoords,
         });
 
         /** Never lock the composer without a real PrePublish card. */
         if (!readiness.ok) {
           const draftingDraft = {
-            ...(readiness.syncedDraft ?? draftWithPrice),
+            ...(readiness.syncedDraft
+              ? ensureRichSalesCopyBeforePublish(readiness.syncedDraft)
+              : draftWithRichCopy),
             listingFlowState: "DRAFT_READY" as const,
             choiceChips: undefined,
             clarificationPrompt: undefined,
@@ -1810,7 +1832,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             (resolvedPrice != null && resolvedPrice > 0) ||
             (sessionLockedPriceRef.current != null &&
               sessionLockedPriceRef.current > 0) ||
-            (draftWithPrice.price > 0);
+            (draftWithRichCopy.price > 0);
           const reply =
             isImmediatePublishCommand(trimmed) &&
             readiness.missingPhoto &&
@@ -1833,12 +1855,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
         const nextState =
           transitionListingFlow(
-            draftWithPrice.listingFlowState ?? listingFlowState ?? "DRAFT_READY",
+            draftWithRichCopy.listingFlowState ?? listingFlowState ?? "DRAFT_READY",
             "READY_TO_PUBLISH"
           ) ?? "AWAITING_CONFIRMATION";
         const patchedDraft = {
-          ...(readiness.syncedDraft ?? draftWithPrice),
-          listingFlowState: nextState as typeof draftWithPrice.listingFlowState,
+          ...(readiness.syncedDraft
+            ? ensureRichSalesCopyBeforePublish(readiness.syncedDraft)
+            : draftWithRichCopy),
+          listingFlowState: nextState as typeof draftWithRichCopy.listingFlowState,
           choiceChips: undefined,
           clarificationPrompt: undefined,
         };
@@ -2491,6 +2515,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const isGenericDraftTitle = (t?: string) =>
           !t?.trim() ||
           /^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(t.trim());
+        const isolateSearchFromSeller =
+          shouldIsolateSellerListingFromSearch() ||
+          freshListingSessionRef.current ||
+          Boolean(options?.freshListingSession);
         const freshSessionActive =
           freshListingSessionRef.current ||
           Boolean(options?.omitPriorListingDraft) ||
@@ -2543,16 +2571,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ...memoryContext,
             ...sellerWizardContext,
             listingDraft: listingDraftForContext,
-            activeSearchFilters:
-              freshSessionActive || searchSessionReset
-                ? searchSessionReset
-                  ? resetFilters
-                  : null
+            activeSearchFilters: isolateSearchFromSeller
+              ? null
+              : searchSessionReset
+                ? resetFilters
                 : memoryContext.activeSearchFilters,
-            searchSessionReset: freshSessionActive || searchSessionReset || undefined,
-            recentSearchListingIds: agentPinnedListingIds?.length
-              ? agentPinnedListingIds.slice(0, 24)
-              : undefined,
+            searchSessionReset:
+              isolateSearchFromSeller ||
+              freshSessionActive ||
+              searchSessionReset ||
+              undefined,
+            // P0-3 — Never forward buyer category/search pins into a sell session.
+            recentSearchListingIds:
+              isolateSearchFromSeller
+                ? undefined
+                : agentPinnedListingIds?.length
+                  ? agentPinnedListingIds.slice(0, 24)
+                  : undefined,
             supervisorState,
             listingEditSession: listingEditSession ?? undefined,
             wizardMode: listingEditSession
@@ -2577,6 +2612,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             freshListingSession:
               freshListingSessionRef.current ||
               Boolean(options?.freshListingSession) ||
+              isolateSearchFromSeller ||
               undefined,
             currentPageContext,
             sessionExpired: sessionExpired || undefined,
@@ -3218,7 +3254,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const beginFreshListingChatSession = useCallback(() => {
     sessionLockedPriceRef.current = null;
     freshListingSessionRef.current = true;
-    markSellerListingChatActive(true);
+    // P0-3 — Absolute fresh session isolation (epoch + buyer-nudge suppress).
+    beginAbsoluteFreshSellerListingSession();
     cancelSellerFlow();
     setHidePrePublishCard(false);
     setListingPublishConfirmed(false);
@@ -3230,7 +3267,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setBusy(false);
     setStreamThinkingLabelNow("Galvoju…");
     // FORCE clean slate: wipe sticky buyer search intents, „Rodyk visus" filters,
-    // pinned hits, and visual search so historical context cannot bleed into sell chat.
+    // preferredSizes pins, category pins, and visual search so historical context
+    // cannot bleed into sell chat.
     applyBrowseAllMarketplaceState({
       setSearchQuery,
       setAgentPinnedListings,

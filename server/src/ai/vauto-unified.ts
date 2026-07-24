@@ -483,8 +483,21 @@ async function runTwoPassListingGeneration(opts: {
   const title =
     String(creative.title ?? "").trim() ||
     buildFallbackTitle(remapped.vautoCategory, technicalFields, opts.text);
+  // P0-2 — Never let a thin Vision/OCR stub become the only publishable description.
+  // Prefer Pass-2 creative; else build a fact-grounded structured fallback from OCR specs.
+  const creativeDescription = String(creative.description ?? "").trim();
+  const factFallback = buildFactGroundedFallbackDescription({
+    title,
+    category: remapped.vautoCategory,
+    technicalFields,
+    factNotes: String(extracted.factNotes ?? "").trim(),
+    ocrText: String(extracted.ocrText ?? "").trim(),
+    city,
+  });
   const description =
-    String(creative.description ?? "").trim() ||
+    (creativeDescription.length >= 80 ? creativeDescription : "") ||
+    factFallback ||
+    creativeDescription ||
     String(extracted.factNotes ?? "").trim() ||
     title;
 
@@ -494,7 +507,71 @@ async function runTwoPassListingGeneration(opts: {
     title,
     description,
     technicalFields,
+    ...(creativeDescription.length < 80 && factFallback
+      ? { salesCopySource: "fact_fallback" }
+      : creativeDescription
+        ? { salesCopySource: "pass2" }
+        : { salesCopySource: "stub" }),
   };
+}
+
+function buildFactGroundedFallbackDescription(input: {
+  title: string;
+  category: string;
+  technicalFields: Record<string, string | string[]>;
+  factNotes: string;
+  ocrText: string;
+  city: string;
+}): string {
+  const fields = input.technicalFields;
+  const lines: string[] = [];
+  const title = input.title.trim() || "Skelbimas";
+  lines.push(`**${title}**`);
+  lines.push("");
+  lines.push("**Privalumai**");
+  const brand = String(fields.brand ?? fields.make ?? "").trim();
+  const model = String(fields.model ?? "").trim();
+  const condition = String(fields.condition ?? fields["Būklė"] ?? "").trim();
+  if (brand || model) {
+    lines.push(`- ${[brand, model].filter(Boolean).join(" ")}`);
+  }
+  if (condition) lines.push(`- Būklė: ${condition}`);
+  if (!brand && !model && !condition) {
+    lines.push("- Prekė pagal nuotraukas ir OCR faktus");
+  }
+  lines.push("");
+  lines.push("**Specifikacijos ir Savybės**");
+  let specCount = 0;
+  for (const [key, raw] of Object.entries(fields)) {
+    const val = Array.isArray(raw) ? raw.map(String).join(", ") : String(raw ?? "").trim();
+    if (!val || val.length < 2) continue;
+    if (/^(choiceChips|clarificationPrompt|selectedObject)$/i.test(key)) continue;
+    lines.push(`- **${key}:** ${val}`);
+    specCount += 1;
+    if (specCount >= 16) break;
+  }
+  const notes = input.factNotes || input.ocrText;
+  if (specCount === 0 && notes) {
+    for (const chunk of notes
+      .split(/[\n|;]+/)
+      .map((s) => s.trim())
+      .filter((s) => s.length >= 3)
+      .slice(0, 10)) {
+      lines.push(`- ${chunk}`);
+      specCount += 1;
+    }
+  }
+  if (specCount === 0) {
+    lines.push("- Detalės pagal nuotraukas");
+  }
+  lines.push("");
+  lines.push("**Pristatymas / Apžiūra**");
+  lines.push(
+    input.city
+      ? `Galima apžiūra ${input.city}. Rašykite arba skambinkite dėl detalių.`
+      : "Rašykite arba skambinkite dėl apžiūros ir pristatymo."
+  );
+  return lines.join("\n").trim();
 }
 
 function buildFallbackTitle(
