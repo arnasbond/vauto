@@ -29,14 +29,25 @@ TITLE (title):
 - NE sausas („Abstraktus paveikslas su rudais motyvais“).
 - Auto: make + VERBATIM modelis + metai (pvz. „Citroën Grand C4 Picasso 2007“).
 
-DESCRIPTION (description) — JSON string su Markdown (** ir • / - bullet):
-1) Hook pastraipa (2–4 sakiniai): estetika, medžiaga, būklė, našumas ar unikalumas.
-   Pvz.: „Parduodamas unikalus, rankomis tapytas paveikslas. Šilti žemės ir šokolado tonai puikiai dera su smaragdo akcentais…“
-2) Struktūruoti Ypatybės bullet'ai (naudok **Antraštė:** eilutes):
-   • **Atlikimas / Būklė:** medžiaga, tapyba, nusidėvėjimas ar naujumas
-   • **Stilius / Specifikacijos:** pagrindinės savybės (arba HARD SPECS auto atveju)
-   • **Spalvų paletė / Parametrai:** gamos ar techniniai matmenys / variklis / kW / rida TIK jei tikrai žinoma
-3) Closing CTA: kur tinka (interjeras, dovana), greitas atsiėmimas / siuntimas — be melagingų kainų / TA / ridos.
+DESCRIPTION (description) — JSON string su Markdown (** ir • / - bullet).
+PRIVALOMA TURTINGAS tekstas (NE 1 eilutė / NE antraštės pakartojimas). Minimaliai 4–8 sakiniai + bullet sekcijos:
+
+Struktūra VISADA (visoms kategorijoms):
+1) **Antraštės hook** (2–4 sakiniai): estetika, medžiaga, būklė, skambesys / našumas / unikalumas.
+2) **Pagrindiniai privalumai / savybės** — • bullet'ai
+3) **Būklė ir komplektacija**
+4) **Paskirtis pirkėjui** (kam tinka — pradedantiesiems / pro / namams / dovanai…)
+5) **Apžiūros / pristatymo** CTA — be melagingų kainų / TA / ridos.
+
+MUZIKA / instrumentai (gitara ir pan.):
+- Minėk skambesį, korpuso/medžio būklę, grifą/stygas, ar tinka pradedantiesiems ar pažengusiems — pagal vizualą + vartotojo tekstą.
+- DRAUDŽIAMA sausai pakartoti tik title.
+
+CATEGORY-MATCHING COPY (PRIVALOMA):
+- description PRIVALO atitikti category ir vizualų objektą (gitara → instrumentas; paveikslas → menas).
+- DRAUDŽIAMA non-auto listing'uose: „Automobilis paruoštas apžiūrai“, „servisą, dokumentus“, „rida“, „kėbulas“, „variklis“, TA.
+- Auto šablonai / rida / kW / variklis leidžiami TIK kai category=AUTOMOBILIAI.
+- VISIEMS non-auto: laikyk copy turtingą ir kūrybingą — filtruoji TIK auto raktinius žodžius, ne trumpini visą tekstą.
 
 ATTRIBUTES:
 - Užpildyk 2–6 naudingus raktus (pvz. Atlikimas, Paskirtis, Spalvos, Būklė, make/model/year…).
@@ -50,6 +61,19 @@ PAVYZDYS (struktūra — ne kopijuoti turinį):
   "attributes": { "Atlikimas": "Rankų darbas", "Paskirtis": "Interjerui / Dovana" }
 }`;
 
+/** Strict Lithuanian Regitra tech-passport OCR → PrePublish autofill. */
+export const VISION_REGITRA_TECH_PASSPORT_OCR_RULE = `
+REGITRA TECH PASSPORT OCR (PRIVALOMA kai matomas žalias/mėlynas techninis pasas):
+Ištrauk ir AUTO-FILL technicalFields be papildomų follow-up klausimų:
+- D.1 → make (markė)
+- D.3 → model (modelis VERBATIM, įskaitant Grand / Avant / xDrive)
+- E → vin (VIN kodas, 17 simb. jei matoma)
+- P.1 → engine (cm³ → litrai, pvz. 1997 → 2.0)
+- P.2 → powerKw (kW skaičius)
+- P.3 → fuelType (Dyzelinas | Benzinas | Elektra | Hibridas | Dujos)
+- B → firstRegistration (YYYY-MM-DD) + year (YYYY)
+Kai šie laukai užpildyti — NIEKADA neklausti markės/modelio/variklio/kuro/VIN dar kartą.`;
+
 export const VISION_ANTI_HALLUCINATION_RULE = `
 VIZUALUS SUPRATIMAS (PRIVALOMA — autonomija, ne blokas):
 - Ištrauk viską, ką matai: produktą, auto, NT, elektroniką, drabužį ar paslaugos kontekstą.
@@ -60,7 +84,8 @@ VIZUALUS SUPRATIMAS (PRIVALOMA — autonomija, ne blokas):
 - NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje — title/description TIK pagal dabartinį kadrą.
 - Nežinomas / bendras daiktas → IMMEDIATELY suformuok įtraukiantį marketplace title + turtingą description (ne sausą caption).
 ${VISION_ANTI_STALE_TITLE_RULE}
-${VISION_MASTER_SALES_COPYWRITER_RULE}`;
+${VISION_MASTER_SALES_COPYWRITER_RULE}
+${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}`;
 
 export const WARDROBE_ANTI_HALLUCINATION_RULE = `
 SPINTOS VIZIJA (PRIVALOMA — autonomija):

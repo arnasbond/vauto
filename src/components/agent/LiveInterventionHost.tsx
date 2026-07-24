@@ -14,6 +14,7 @@ import {
   buildNoMatchInterventionMessage,
 } from "@/lib/offer-engine-client";
 import type { MarketplaceFilterState } from "@/lib/marketplace-view";
+import { shouldSuppressBuyerProactiveNudges } from "@/lib/seller-chat-session";
 
 function toAgentFilters(state: MarketplaceFilterState, searchQuery: string): AgentSearchFilters {
   return {
@@ -51,12 +52,20 @@ export function LiveInterventionHost() {
 
   useEffect(() => {
     if (!isAuthenticated || !isDataApiEnabled() || open || agentBusy) return;
+    // Fresh AI Seller listing session — never inject sticky buyer „Jūsų noras…“ nudges.
+    if (shouldSuppressBuyerProactiveNudges()) return;
     void (async () => {
+      if (shouldSuppressBuyerProactiveNudges()) return;
       const res = await apiFetchUserNudges();
       if (!res.ok || !res.data?.nudges?.length) return;
+      if (shouldSuppressBuyerProactiveNudges()) return;
       const nudge = res.data.nudges[0]!;
       if (dbNudgeHandledRef.current === nudge.key) return;
       if (!shouldFireIntervention(nudge.key)) return;
+      // Requirement / search-wish nudges stay suppressed during sell flows.
+      if (/^requirement:|^new_matches:/i.test(nudge.key) && shouldSuppressBuyerProactiveNudges()) {
+        return;
+      }
       dbNudgeHandledRef.current = nudge.key;
       openWithGreeting(nudge.message, {
         quickReplies: nudge.quickReplies,

@@ -21,7 +21,7 @@ function foldLt(raw: string): string {
 }
 
 const PUBLISH_WORKFLOW_RE =
-  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|viskas\s+atitinka|taip,?\s*viskas|taip,?\s*publikuoti|publikuojam|publikuok|publikuoti|skelbti|skelbiam|taip,?\s*skelbti|keliam|keliame)\b/;
+  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|viskas\s+atitinka|taip,?\s*viskas|taip,?\s*publikuoti|publikuojam|publikuok|publikuoti|skelbti|skelbiam|taip,?\s*skelbti|keliam|keliame|ne,?\s*nereikia|nebereikia|nereikia,?\s*publiku)\b/;
 
 const EXACT_PUBLISH_COMMANDS = new Set([
   "taip",

@@ -101,6 +101,7 @@ import { resolveBrowseAllIntent, createBrowseAllAction, isListingConfirmationPhr
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
+import { markSellerListingChatActive } from "@/lib/seller-chat-session";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   isPhotoIntentListingChip,
@@ -266,6 +267,8 @@ interface VautoAgentContextValue {
    * clears sessionLockedPriceRef, prior draft, and chat so Vision OCR is not polluted.
    */
   beginFreshListingChatSession: () => void;
+  /** Alias — forcefully reset seller chat + sticky buyer search intents. */
+  resetSellerChat: () => void;
   /**
    * Open AI Assistant in seller mode (4-step flow) — no legacy /add shell.
    */
@@ -3129,6 +3132,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const beginFreshListingChatSession = useCallback(() => {
     sessionLockedPriceRef.current = null;
     freshListingSessionRef.current = true;
+    markSellerListingChatActive(true);
     cancelSellerFlow();
     setHidePrePublishCard(false);
     setListingPublishConfirmed(false);
@@ -3139,13 +3143,30 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setLastError(undefined);
     setBusy(false);
     setStreamThinkingLabelNow("Galvoju…");
-  }, [cancelSellerFlow, setStreamThinkingLabelNow]);
+    // Wipe sticky buyer search intents so „Jūsų noras … vis dar aktyvus“ cannot bleed in.
+    clearSearchFilters();
+    setAgentPinnedListings([]);
+    setSearchQuery("");
+    setSearchLoading(false);
+    clearPhotoSearchSession();
+  }, [
+    cancelSellerFlow,
+    clearSearchFilters,
+    setAgentPinnedListings,
+    setSearchLoading,
+    setSearchQuery,
+    setStreamThinkingLabelNow,
+  ]);
+
+  /** Forceful seller-chat reset (open AI Seller / new listing entry). */
+  const resetSellerChat = beginFreshListingChatSession;
 
   const openAiSellerListingChat = useCallback(
     async (options?: { fashion?: boolean; navigateHome?: boolean }) => {
       const fashion = Boolean(options?.fashion);
       const navigateHome = options?.navigateHome !== false;
-      beginFreshListingChatSession();
+      // FORCE full session wipe before greeting — no leftover search/wish state.
+      resetSellerChat();
       if (fashion) activateWardrobeSpinta();
       applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }));
       setOpen(true);
@@ -3166,8 +3187,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     [
       activateWardrobeSpinta,
       applyAgentListingDraft,
-      beginFreshListingChatSession,
       pathname,
+      resetSellerChat,
       router,
       sendAgentMessage,
       user,
@@ -3393,6 +3414,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const resetHomeAgentSession = useCallback(() => {
     sessionLockedPriceRef.current = null;
     freshListingSessionRef.current = false;
+    markSellerListingChatActive(false);
     cancelSellerFlow();
     setHidePrePublishCard(false);
     setListingPublishConfirmed(false);
@@ -3462,6 +3484,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       reportAgentError,
       resetHomeAgentSession,
       beginFreshListingChatSession,
+      resetSellerChat,
       openAiSellerListingChat,
     }),
     [
@@ -3481,6 +3504,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       reportAgentError,
       resetHomeAgentSession,
       beginFreshListingChatSession,
+      resetSellerChat,
       openAiSellerListingChat,
     ]
   );

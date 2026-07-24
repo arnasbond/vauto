@@ -1,6 +1,35 @@
 /** Strip workflow/UI / agent-clarification phrases from user-facing listing title and description. */
 
-import type { AiExtractedListing, CategoryAttributes } from "@/lib/types";
+import type {
+  AiExtractedListing,
+  CategoryAttributes,
+  ListingCategory,
+} from "@/lib/types";
+
+/**
+ * Car sales boilerplate that must never land on non-automotive listings.
+ * Phrase-level only — NEVER treat rich general copy as thin just because a
+ * stray auto word appears; strip the phrase and keep the rest.
+ */
+const AUTOMOTIVE_BOILERPLATE_RES: RegExp[] = [
+  /automobilis\s+paruoštas\s+apžiūrai[^.!?\n]*/gi,
+  /jei\s+turite\s+klausimų\s+apie\s+servisą,?\s*dokumentus[^.!?\n]*/gi,
+  /servisą,?\s*dokumentus[^.!?\n]*/gi,
+  /ar\s+automobilis\s+atitinka[^.!?\n]*/gi,
+  /\bkėbulas\s*:[^.!?\n]*/gi,
+  /\bkuras\s*:[^.!?\n]*/gi,
+  /\brida\s*:[^.!?\n]*/gi,
+  /technin[eė]\s+apžiūr[^.!?\n]*/gi,
+  /\bvariklis\s*:[^.!?\n]*/gi,
+  /vilkimo\s+kablys[^.!?\n]*/gi,
+  /\bautomobilio\s+detali[^.!?\n]*/gi,
+];
+
+const AUTOMOTIVE_BOILERPLATE_RE =
+  /automobilis\s+paruoštas\s+apžiūrai|servisą,?\s*dokumentus|ar\s+automobilis\s+atitinka|kėbulas\s*:|kuras\s*:|rida\s*:|technin[eė]\s+apžiūr|variklis\s*:|vilkimo\s+kablys/i;
+
+const INSTRUMENT_TEXT_RE =
+  /\b(gitar|guitar|hohner|muzik|pianin|būgn|bugn|drum|smuik|akustin|bosin|ukulel|sintezator|mušam)/i;
 
 const SYSTEM_PHRASE_PATTERNS: RegExp[] = [
   /📷\s*/gi,
@@ -101,14 +130,14 @@ export function sanitizeListingDescription(raw: string | undefined | null): stri
   for (const re of AGENT_CLARIFICATION_PATTERNS) {
     t = t.replace(re, " ");
   }
-  // Drop duplicated consecutive paragraphs (common after desc+desc merge bugs).
+  // Drop only exact duplicate paragraphs — never collapse distinct rich sections.
   const paras = t
     .split(/\n{2,}/)
     .map((p) => p.trim())
     .filter(Boolean);
   const deduped: string[] = [];
   for (const p of paras) {
-    if (deduped.some((d) => d === p || d.includes(p) || p.includes(d))) continue;
+    if (deduped.some((d) => d === p)) continue;
     deduped.push(p);
   }
   return deduped
@@ -156,21 +185,131 @@ export function isThinListingDescription(raw: string | undefined | null): boolea
 export interface BuildListingDescriptionOptions {
   location?: string;
   price?: number;
+  /** Listing category — automotive boilerplate is vehicles/transport only. */
+  category?: ListingCategory | string;
   /** Thin seed text to weave into the sales copy when useful. */
   seedDescription?: string;
 }
 
-/**
- * Sales-focused marketplace description from title + attributes.
- * Used when agent/persona text is missing, clarification junk, or too thin.
- */
-export function buildListingDescriptionFromAttrs(
+export function descriptionHasAutomotiveBoilerplate(
+  text: string | undefined | null
+): boolean {
+  return AUTOMOTIVE_BOILERPLATE_RE.test(String(text ?? ""));
+}
+
+/** Strip car-only phrases from non-auto copy while keeping rich structure. */
+export function stripAutomotiveBoilerplateFromText(
+  text: string | undefined | null
+): string {
+  let t = String(text ?? "");
+  if (!t.trim()) return "";
+  for (const re of AUTOMOTIVE_BOILERPLATE_RES) {
+    t = t.replace(re, " ");
+  }
+  return sanitizeListingDescription(t);
+}
+
+function looksLikeInstrumentListing(
   title: string,
   attributes?: CategoryAttributes,
+  seed?: string
+): boolean {
+  const blob = [
+    title,
+    seed ?? "",
+    pickAttr(attributes ?? {}, "brand", "make", "model", "title"),
+  ]
+    .join(" ")
+    .toLowerCase();
+  return INSTRUMENT_TEXT_RE.test(blob);
+}
+
+/**
+ * True only for real automotive listings. Explicit non-vehicle categories never
+ * get car copy — even if leftover make/model keys exist from a bad OCR pass.
+ */
+export function shouldUseAutomotiveListingCopy(
+  category: string | undefined,
+  attributes?: CategoryAttributes,
+  title?: string,
+  seed?: string
+): boolean {
+  const cat = String(category ?? "").trim().toLowerCase();
+  if (looksLikeInstrumentListing(title ?? "", attributes, seed)) return false;
+  if (cat === "vehicles" || cat === "transport") return true;
+  if (cat && cat !== "other" && cat !== "unknown") return false;
+
+  const attrs = attributes ?? {};
+  const hasHardVehicleSignals = Boolean(
+    pickAttr(attrs, "mileage", "rida", "odometer") ||
+      pickAttr(attrs, "vin") ||
+      pickAttr(attrs, "fuelType", "fuel", "kuroTipas", "kuras") ||
+      pickAttr(attrs, "bodyType", "body", "kebuloTipas") ||
+      pickAttr(attrs, "licensePlate", "plate") ||
+      pickAttr(attrs, "powerKw")
+  );
+  return hasHardVehicleSignals;
+}
+
+function appendSeedAndClose(
+  sentences: string[],
+  opts: BuildListingDescriptionOptions | undefined,
+  seed: string,
+  productNoun: string,
+  multiline = false
+): string {
+  if (seed && seed.length >= 40 && !isAgentClarificationText(seed)) {
+    const cleanedSeed = multiline
+      ? stripAutomotiveBoilerplateFromText(seed)
+      : seed.endsWith(".")
+        ? seed
+        : `${seed}.`;
+    if (
+      cleanedSeed &&
+      !descriptionHasAutomotiveBoilerplate(cleanedSeed) &&
+      !sentences.some((s) => s.includes(cleanedSeed.slice(0, 40)))
+    ) {
+      sentences.push(cleanedSeed);
+    }
+  }
+
+  const loc = String(opts?.location ?? "").trim();
+  if (loc) {
+    sentences.push(
+      `Galima apžiūra / atsiėmimas: ${loc}. Susisiekite ir sutarsime patogų laiką — greiti ir aiškūs atsakymai garantuoti.`
+    );
+  } else {
+    sentences.push(
+      `Susisiekite dėl ${productNoun} detalių — atsakome greitai ir padedame priimti sprendimą be spaudimo.`
+    );
+  }
+
+  if (typeof opts?.price === "number" && opts.price > 0) {
+    sentences.push(
+      `Kaina ${opts.price.toLocaleString("lt-LT")} € — realistiškas pasiūlymas greitam sandoriui rimtam pirkėjui.`
+    );
+  }
+
+  if (multiline) {
+    return sentences
+      .map((s) => s.trim())
+      .filter(Boolean)
+      .join("\n\n")
+      .replace(/\n{3,}/g, "\n\n")
+      .trim()
+      .slice(0, 4000);
+  }
+
+  return sentences.join(" ").replace(/\s+/g, " ").trim().slice(0, 4000);
+}
+
+function buildAutomotiveListingDescription(
+  title: string,
+  attributes: CategoryAttributes,
   opts?: BuildListingDescriptionOptions
 ): string {
   const cleanTitle = sanitizeListingTitle(title);
-  const attrs = attributes ?? {};
+  const attrs = attributes;
   const make = pickAttr(attrs, "make", "brand", "markė", "marke");
   const model = pickAttr(attrs, "model", "modelis");
   const year = pickAttr(attrs, "year", "metai");
@@ -188,7 +327,6 @@ export function buildListingDescriptionFromAttrs(
   const color = pickAttr(attrs, "color", "spalva");
   const engine = pickAttr(attrs, "engine", "engineCapacity", "variklis", "engineCc");
   const vehicleLabel = [make, model].filter(Boolean).join(" ") || cleanTitle;
-  const loc = String(opts?.location ?? "").trim();
   const seed = sanitizeListingDescription(opts?.seedDescription ?? "");
 
   const sentences: string[] = [];
@@ -225,35 +363,144 @@ export function buildListingDescriptionFromAttrs(
     );
   }
 
-  if (seed && seed.length >= 40 && !isAgentClarificationText(seed)) {
-    const seedSentence = seed.endsWith(".") ? seed : `${seed}.`;
-    if (!sentences.some((s) => s.includes(seed.slice(0, 40)))) {
-      sentences.push(seedSentence);
-    }
-  }
+  return appendSeedAndClose(sentences, opts, seed, "automobilio");
+}
 
-  if (loc) {
-    sentences.push(
-      `Galima apžiūra: ${loc}. Susisiekite ir sutarsime patogų laiką — greiti ir aiškūs atsakymai garantuoti.`
+function buildGeneralProductListingDescription(
+  title: string,
+  attributes: CategoryAttributes,
+  opts?: BuildListingDescriptionOptions
+): string {
+  const cleanTitle = sanitizeListingTitle(title);
+  const attrs = attributes;
+  const brand = pickAttr(attrs, "brand", "make", "markė", "marke", "manufacturer");
+  const model = pickAttr(attrs, "model", "modelis");
+  const condition = pickAttr(
+    attrs,
+    "condition",
+    "būklė",
+    "bukle",
+    "defects",
+    "defektai",
+    "Būklė"
+  );
+  const color = pickAttr(attrs, "color", "spalva", "Spalvos");
+  const material = pickAttr(attrs, "material", "medžiaga", "Atlikimas", "wood", "body");
+  const purpose = pickAttr(attrs, "purpose", "Paskirtis", "paskirtis");
+  const instrumentType = pickAttr(attrs, "instrumentType", "type", "tipas");
+  const productLabel = [brand, model].filter(Boolean).join(" ") || cleanTitle;
+  const rawSeed = sanitizeListingDescription(opts?.seedDescription ?? "");
+  const seed = stripAutomotiveBoilerplateFromText(rawSeed);
+  const instrument = looksLikeInstrumentListing(cleanTitle, attrs, seed);
+
+  const sections: string[] = [];
+
+  // 1) Antraštė / hook — rich opening, never a bare title echo.
+  if (instrument) {
+    sections.push(
+      `Parduodamas ${productLabel}${
+        instrumentType ? ` (${instrumentType})` : ""
+      } — muzikos instrumentas su maloniu skambesiu ir paruoštas groti. Tinka tiek pradžiai, tiek kasdienėms repeticijoms ar namų muzikavimui.`
     );
   } else {
-    sentences.push(
-      "Susisiekite dėl apžiūros ir detalių — atsakome greitai ir padedame priimti sprendimą be spaudimo."
+    sections.push(
+      `Parduodamas ${productLabel} — kokybiškas ir praktiškas pasirinkimas pirkėjui, kuris ieško aiškios vertės, geros būklės ir greito sandorio.`
     );
   }
 
-  if (typeof opts?.price === "number" && opts.price > 0) {
-    sentences.push(
-      `Kaina ${opts.price.toLocaleString("lt-LT")} € — realistiškas pasiūlymas greitam sandoriui rimtam pirkėjui.`
+  // 2) Pagrindiniai privalumai / savybės
+  const featureBullets: string[] = [];
+  if (brand) featureBullets.push(`• **Prekės ženklas:** ${brand}`);
+  if (model && model !== brand) featureBullets.push(`• **Modelis:** ${model}`);
+  if (color) featureBullets.push(`• **Spalva / išvaizda:** ${color}`);
+  if (material) {
+    featureBullets.push(
+      instrument
+        ? `• **Korpusas / medžiaga:** ${material}`
+        : `• **Atlikimas / medžiaga:** ${material}`
+    );
+  }
+  if (instrumentType) featureBullets.push(`• **Tipas:** ${instrumentType}`);
+  if (instrument) {
+    featureBullets.push(
+      "• **Skambesys:** šiltas, aiškus tonas — patogu mokytis ir groti namuose"
+    );
+    featureBullets.push(
+      "• **Technika:** grifas ir stygos paruošti grojimui; detales patikslinsime apžiūros metu"
+    );
+  }
+  if (featureBullets.length === 0) {
+    featureBullets.push(
+      instrument
+        ? "• **Savybės:** tvarkingas instrumentas, patogus kasdieniam grojimui"
+        : "• **Savybės:** praktinė prekė kasdieniam naudojimui, aiški vertė už kainą"
+    );
+  }
+  sections.push(`**Pagrindiniai privalumai / savybės:**\n${featureBullets.join("\n")}`);
+
+  // 3) Būklė ir komplektacija
+  if (condition) {
+    sections.push(
+      `**Būklė ir komplektacija:**\n${condition}. Skelbime siekiame aiškumo — kviečiame apžiūrėti ar susisiekti dėl detalių.`
+    );
+  } else if (instrument) {
+    sections.push(
+      "**Būklė ir komplektacija:**\nInstrumentas paruoštas perdavimui. Jei turite klausimų apie būklę, stygas, grifą ar komplektaciją — mielai atsakysime."
+    );
+  } else {
+    sections.push(
+      "**Būklė ir komplektacija:**\nPrekė paruošta perdavimui. Jei turite klausimų apie būklę ar komplektaciją — mielai atsakysime."
     );
   }
 
-  return sentences.join(" ").replace(/\s+/g, " ").trim().slice(0, 4000);
+  // 4) Paskirtis pirkėjui
+  if (purpose) {
+    sections.push(`**Paskirtis pirkėjui:**\n${purpose}.`);
+  } else if (instrument) {
+    sections.push(
+      "**Paskirtis pirkėjui:**\nTinka pradedantiesiems ir mėgėjams, taip pat kaip antras / kelioninis instrumentas. Patogu mokytis, groti namuose ar dovanoti muzikos entuziastui."
+    );
+  } else {
+    sections.push(
+      "**Paskirtis pirkėjui:**\nPuikiai tiks kasdieniam naudojimui, dovanai ar kaip praktinis papildymas namams / darbui."
+    );
+  }
+
+  // 5) Apžiūra / pristatymas (+ seed / kaina via append)
+  const closeBits: string[] = [];
+  return appendSeedAndClose(
+    [...sections, ...closeBits],
+    opts,
+    seed,
+    instrument ? "instrumento" : "prekės",
+    true
+  );
+}
+
+/**
+ * Sales-focused marketplace description from title + attributes.
+ * Used when agent/persona text is missing, clarification junk, or too thin.
+ * Automotive boilerplate is emitted ONLY for vehicles/transport.
+ */
+export function buildListingDescriptionFromAttrs(
+  title: string,
+  attributes?: CategoryAttributes,
+  opts?: BuildListingDescriptionOptions
+): string {
+  const attrs = attributes ?? {};
+  const seed = opts?.seedDescription ?? "";
+  if (
+    shouldUseAutomotiveListingCopy(opts?.category, attrs, title, seed)
+  ) {
+    return buildAutomotiveListingDescription(title, attrs, opts);
+  }
+  return buildGeneralProductListingDescription(title, attrs, opts);
 }
 
 /**
  * Publish-ready description: persona summary > cleaned draft > rich attrs fallback.
  * Never publishes agent clarification / multi-object prompt strings or thin summaries.
+ * Never keeps automotive boilerplate on non-vehicle listings.
  */
 export function resolvePublishListingDescription(draft: AiExtractedListing): string {
   const personaKey = draft.selectedPersona;
@@ -262,12 +509,26 @@ export function resolvePublishListingDescription(draft: AiExtractedListing): str
       ? String(draft.descriptionVariants[personaKey]).trim()
       : "";
 
+  const useAutoCopy = shouldUseAutomotiveListingCopy(
+    draft.category,
+    draft.attributes,
+    draft.title,
+    draft.description
+  );
+
   const candidates = [personaText, draft.description ?? ""];
   let thinSeed = "";
   for (const raw of candidates) {
     if (!raw.trim() || isAgentClarificationText(raw)) continue;
-    const cleaned = sanitizeListingDescription(raw);
+    let cleaned = sanitizeListingDescription(raw);
     if (!cleaned || isAgentClarificationText(cleaned)) continue;
+
+    // Non-auto: strip car phrases IN PLACE — keep the rich Vision copy.
+    if (!useAutoCopy && descriptionHasAutomotiveBoilerplate(cleaned)) {
+      cleaned = stripAutomotiveBoilerplateFromText(cleaned);
+      if (!cleaned) continue;
+    }
+
     if (!isThinListingDescription(cleaned)) {
       return cleaned;
     }
@@ -277,6 +538,7 @@ export function resolvePublishListingDescription(draft: AiExtractedListing): str
   return buildListingDescriptionFromAttrs(draft.title, draft.attributes, {
     location: draft.location,
     price: typeof draft.price === "number" ? draft.price : undefined,
+    category: draft.category,
     seedDescription: thinSeed,
   });
 }

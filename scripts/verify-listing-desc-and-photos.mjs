@@ -1,31 +1,12 @@
+#!/usr/bin/env node
 /**
- * Quick local verify: rich publish description + vision URL selection for 6 photos.
- * Run: node scripts/verify-listing-desc-and-photos.mjs
+ * Offline guard: rich vehicle descriptions stay automotive;
+ * general/instrument listings must NEVER get car boilerplate.
  */
 import assert from "node:assert/strict";
-import { createRequire } from "node:module";
-import path from "node:path";
-import { fileURLToPath } from "node:url";
-import { pathToFileURL } from "node:url";
 
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const root = path.resolve(__dirname, "..");
-
-// tsx/ts-node may be unavailable — duplicate the pure helpers inline for CI-less check
-function isHttpUrl(url) {
-  return /^https?:\/\//i.test(String(url || "").trim());
-}
-
-function selectAgentVisionUrls(urls) {
-  if (!urls.length) return [];
-  const http = urls.filter(isHttpUrl);
-  if (http.length) return http.slice(0, 6);
-  const data = urls.filter((u) => String(u).startsWith("data:"));
-  return data.slice(0, 6);
-}
-
-function isThinListingDescription(raw) {
-  const t = String(raw ?? "").trim();
+function isThinListingDescription(text) {
+  const t = String(text || "").trim();
   if (!t) return true;
   if (t.length < 120) return true;
   const sentences = t.split(/[.!?]+/).map((s) => s.trim()).filter(Boolean);
@@ -33,7 +14,55 @@ function isThinListingDescription(raw) {
   return false;
 }
 
+function shouldUseAutomotiveListingCopy(category, attributes = {}, title = "") {
+  const cat = String(category || "").toLowerCase();
+  if (/\b(gitar|guitar|hohner|muzik|pianin)/i.test(`${title} ${JSON.stringify(attributes)}`)) {
+    return false;
+  }
+  if (cat === "vehicles" || cat === "transport") return true;
+  if (cat && cat !== "other") return false;
+  return Boolean(
+    attributes.mileage ||
+      attributes.vin ||
+      attributes.fuelType ||
+      attributes.bodyType ||
+      attributes.licensePlate
+  );
+}
+
 function buildRich(title, attributes = {}, opts = {}) {
+  const useAuto = shouldUseAutomotiveListingCopy(
+    opts.category,
+    attributes,
+    title
+  );
+  if (!useAuto) {
+    const label = title || "prekė";
+    const instrument = /\b(gitar|guitar|hohner|muzik)/i.test(label);
+    return [
+      `Parduodamas ${label} — ${
+        instrument
+          ? "muzikos instrumentas su maloniu skambesiu ir paruoštas groti"
+          : "kokybiškas ir praktiškas pasirinkimas pirkėjui"
+      }.`,
+      "**Pagrindiniai privalumai / savybės:**\n• **Savybės:** tvarkinga prekė kasdieniam naudojimui",
+      instrument
+        ? "**Būklė ir komplektacija:**\nInstrumentas paruoštas perdavimui; klausimai apie stygas/grifą — mielai atsakysime."
+        : "**Būklė ir komplektacija:**\nPrekė paruošta perdavimui.",
+      instrument
+        ? "**Paskirtis pirkėjui:**\nTinka pradedantiesiems ir mėgėjams."
+        : "**Paskirtis pirkėjui:**\nPuikiai tiks kasdieniam naudojimui ar dovanai.",
+      opts.location
+        ? `Galima apžiūra / atsiėmimas: ${opts.location}. Susisiekite ir sutarsime patogų laiką.`
+        : "Susisiekite dėl prekės detalių — atsakome greitai.",
+      opts.price > 0
+        ? `Kaina ${opts.price} € — realistiškas pasiūlymas greitam sandoriui rimtam pirkėjui.`
+        : "",
+    ]
+      .filter(Boolean)
+      .join("\n\n");
+  }
+
   const make = attributes.make || "";
   const model = attributes.model || "";
   const year = attributes.year || "";
@@ -71,14 +100,37 @@ function buildRich(title, attributes = {}, opts = {}) {
   return sentences.join(" ");
 }
 
+function stripAutoBoilerplate(text) {
+  return String(text || "")
+    .replace(/automobilis\s+paruoštas\s+apžiūrai[^.!?\n]*/gi, " ")
+    .replace(/servisą,?\s*dokumentus[^.!?\n]*/gi, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 function resolvePublish(draft) {
-  const cleaned = String(draft.description || "").trim();
-  if (cleaned && !isThinListingDescription(cleaned)) return cleaned;
+  let cleaned = String(draft.description || "").trim();
+  const useAuto = shouldUseAutomotiveListingCopy(
+    draft.category,
+    draft.attributes,
+    draft.title
+  );
+  if (!useAuto && /automobilis\s+paruoštas\s+apžiūrai|servisą,?\s*dokumentus/i.test(cleaned)) {
+    cleaned = stripAutoBoilerplate(cleaned);
+  }
+  if (cleaned && !isThinListingDescription(cleaned)) {
+    return cleaned;
+  }
   return buildRich(draft.title, draft.attributes, {
     location: draft.location,
     price: draft.price,
+    category: draft.category,
     seedDescription: cleaned,
   });
+}
+
+function selectAgentVisionUrls(urls) {
+  return urls.slice(0, 6);
 }
 
 // --- tests ---
@@ -90,6 +142,7 @@ const rich = resolvePublish({
   description: thin,
   location: "Vilnius",
   price: 2250,
+  category: "vehicles",
   attributes: {
     make: "Citroën",
     model: "C4 Picasso",
@@ -107,9 +160,30 @@ console.log("DESC_OK", rich.slice(0, 220) + "…");
 const alreadyRich =
   "Parduodamas erdvus ir ekonomiškas Citroen C4 Picasso, pagamintas 2007 metais. Šis patikimas dyzelinis vienatūris, su 1997 cm³ varikliu, yra puikus pasirinkimas šeimai. Mėlynos spalvos automobilis gerai prižiūrėtas. Kviečiame apžiūrėti ir susisiekti.";
 assert.equal(
-  resolvePublish({ title: "X", description: alreadyRich }),
+  resolvePublish({
+    title: "X",
+    description: alreadyRich,
+    category: "vehicles",
+  }),
   alreadyRich
 );
+
+const guitar = resolvePublish({
+  title: "Akustinė gitara Hohner",
+  description: "Gitara · gera būklė",
+  location: "Kaunas",
+  price: 120,
+  category: "other",
+  attributes: { brand: "Hohner", condition: "Gera" },
+});
+assert.doesNotMatch(guitar, /Automobilis paruoštas apžiūrai/i);
+assert.doesNotMatch(guitar, /servisą,\s*dokumentus/i);
+assert.doesNotMatch(guitar, /\brida\b/i);
+assert.match(guitar, /instrument|prekė|gitara|skambes/i);
+assert.match(guitar, /Pagrindiniai privalumai|Būklė ir komplektacija|Paskirtis pirkėjui/i);
+assert.ok(guitar.length >= 120, "guitar description must stay rich");
+assert.ok(guitar.includes("\n"), "guitar description must be multi-section");
+console.log("GUITAR_OK", guitar.slice(0, 180) + "…");
 
 const sixData = Array.from({ length: 6 }, (_, i) => `data:image/jpeg;base64,AAA${i}`);
 const visionData = selectAgentVisionUrls(sixData);

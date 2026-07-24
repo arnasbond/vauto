@@ -160,6 +160,23 @@ export function getListingDetailRows(listing: Listing): ListingDetailRow[] {
 }
 
 export function getCategoryLabel(listing: Listing): string {
+  const attrs = listing.attributes ?? {};
+  const skelbiu = String(attrs.skelbiuCategory ?? "").trim();
+  if (skelbiu) return skelbiu;
+
+  const vautoCat = String(attrs._vautoCategory ?? "")
+    .trim()
+    .toUpperCase();
+  if (vautoCat === "MUZIKA") return "Muzika / Instrumentai";
+  if (vautoCat === "LAISVALAIKIS") return "Laisvalaikis";
+  if (vautoCat === "MENAS") return "Menas";
+  if (vautoCat === "SPORTAS") return "Sportas";
+
+  const blob = listingTextBlob(listing);
+  if (INSTRUMENT_TEXT_RE.test(blob) && !APPAREL_TEXT_RE.test(blob)) {
+    return "Muzika / Instrumentai";
+  }
+
   const category = resolveDisplayListingCategory(listing);
   return (
     PUBLIC_CATEGORY_LABELS[category] ??

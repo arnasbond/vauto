@@ -38,8 +38,42 @@ export function normalizeFirstRegistrationDate(raw: string): {
     const d = iso[3]!.padStart(2, "0");
     return { fullDate: `${y}-${m}-${d}`, year: y };
   }
+  const lt = t.match(/(\d{1,2})[.\-/](\d{1,2})[.\-/](\d{4})/);
+  if (lt) {
+    const d = lt[1]!.padStart(2, "0");
+    const m = lt[2]!.padStart(2, "0");
+    const y = lt[3]!;
+    return { fullDate: `${y}-${m}-${d}`, year: y };
+  }
   const yOnly = t.match(/\b((19|20)\d{2})\b/);
   return { fullDate: "", year: yOnly?.[1] ?? "" };
+}
+
+/** Regitra P.3 → canonical LT fuel label. */
+export function normalizeFuelType(raw: string): string {
+  const t = raw.trim().toLowerCase();
+  if (!t) return "";
+  if (/elekt|electric|\bev\b|bater/.test(t)) return "Elektra";
+  if (/hibrid|hybrid|phev|mhev/.test(t)) return "Hibridas";
+  if (/dyzel|diesel|gazol/.test(t)) return "Dyzelinas";
+  if (/benzin|petrol|gasoline|gasolin/.test(t)) return "Benzinas";
+  if (/duj|lpg|cng|propan/.test(t)) return "Dujos";
+  return raw.trim();
+}
+
+/** Keep VIN as 17-char uppercase when OCR is noisy. */
+export function normalizeVin(raw: string): string {
+  const cleaned = raw.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+  if (cleaned.length === 17) return cleaned;
+  const match = raw.toUpperCase().match(/\b([A-HJ-NPR-Z0-9]{17})\b/);
+  return match?.[1] ?? (cleaned.length >= 11 ? cleaned.slice(0, 17) : "");
+}
+
+export function normalizePowerKw(raw: string): string {
+  const m = String(raw).replace(",", ".").match(/(\d{2,4}(?:\.\d+)?)/);
+  if (!m) return raw.trim();
+  const n = Math.round(Number(m[1]));
+  return Number.isFinite(n) && n > 0 && n < 2000 ? String(n) : raw.trim();
 }
 
 /**
@@ -187,6 +221,30 @@ export function enrichVehicleVisionDraft<T extends VehicleDraftLike>(draft: T): 
     draft.description ?? ""
   );
   if (model) setAttr(attrs, "model", model);
+  if (make) setAttr(attrs, "make", make);
+
+  const fuelRaw = attrStr(attrs, "fuelType", "fuel", "kuroTipas", "kuras");
+  const fuel = normalizeFuelType(fuelRaw);
+  if (fuel) setAttr(attrs, "fuelType", fuel);
+
+  const vinRaw = attrStr(attrs, "vin", "VIN", "vinKodas");
+  const vin = normalizeVin(vinRaw);
+  if (vin) setAttr(attrs, "vin", vin);
+
+  const powerRaw = attrStr(attrs, "powerKw", "power", "galia", "kw");
+  const powerKw = normalizePowerKw(powerRaw);
+  if (powerKw) setAttr(attrs, "powerKw", powerKw);
+
+  // P.1 cm³ → liters when still stored as integer cc.
+  const engineRaw = attrStr(attrs, "engine", "engineCapacity", "variklis", "engineCc");
+  const cm3 = engineRaw.match(/(\d{3,4})\s*(?:cm|cm³|cc)?/i);
+  if (cm3 && !/\d[.,]\d/.test(engineRaw)) {
+    const liters = Math.round((Number(cm3[1]) / 1000) * 10) / 10;
+    if (liters > 0.5 && liters < 10) {
+      setAttr(attrs, "engine", String(liters));
+      setAttr(attrs, "engineCc", cm3[1]!);
+    }
+  }
 
   const interior = attrStr(attrs, "interiorCondition", "interior", "salon", "upholstery");
   const exterior = attrStr(

@@ -6,6 +6,7 @@ import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js"
 import {
   VISION_ANTI_HALLUCINATION_RULE,
   VISION_MASTER_SALES_COPYWRITER_RULE,
+  VISION_REGITRA_TECH_PASSPORT_OCR_RULE,
 } from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
@@ -33,7 +34,12 @@ import {
   LAZY_UPLOAD_PHASE,
   type LazyUploadPhase,
 } from "../shared/lazy-upload.js";
-import { enrichVehicleVisionDraft } from "../shared/vehicle-vision-enrich.js";
+import {
+  enrichVehicleVisionDraft,
+  normalizeFuelType,
+  normalizePowerKw,
+  normalizeVin,
+} from "../shared/vehicle-vision-enrich.js";
 
 function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
@@ -48,11 +54,11 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
 
 const VAUTO_UNIFIED_SCHEMA = `{
   "intent": "sell | search | service | general",
-  "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI",
+  "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
   "title": "string — įtraukiantis LT marketplace pavadinimas. Auto: markė + VISAS modelis VERBATIM + metai (pvz. „Citroën Grand C4 Picasso 2007“). Prekės/menas: engaginantis (pvz. „Originalus abstraktus paveikslas ant drobės (Rankų darbas)“)",
   "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — MASTER SALES COPY lietuviškai su Markdown: hook pastraipa + • **Ypatybės:** bullet'ai + closing CTA. PALIK \\n ir **. DRAUDŽIAMA sausas caption („pavaizduoti rudi taškeliai…“). DRAUDŽIAMA išgalvoti kainą, ridą, TA",
+  "description": "string — MASTER SALES COPY lietuviškai su Markdown (4–8+ sakiniai): Antraštės hook + • **Pagrindiniai privalumai / savybės** + **Būklė ir komplektacija** + **Paskirtis pirkėjui** + Apžiūros/pristatymo CTA. PALIK \\n ir **. DRAUDŽIAMA 1 eilutė / antraštės pakartojimas / sausas caption. DRAUDŽIAMA išgalvoti kainą, ridą, TA. Auto raktai (rida/servisas/automobilis) TIK category=AUTOMOBILIAI",
   "technicalFields": "object — make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight + laisvi marketplace raktai (Atlikimas, Paskirtis…)",
   "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY ground-truth OCR, NE viešai galerijai)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
@@ -76,6 +82,8 @@ ${VAUTO_DOMAIN_AUTONOMY_RULES}
 
 ${VISION_MASTER_SALES_COPYWRITER_RULE}
 
+${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
+
 OCR + FAKTAI (ground-truth → technicalFields / attributes; NE sausas description caption):
 - Tech passport / registracijos / dokumentų nuotraukos: imageRoles=document + documentImageIndexes.
 - MULTIMODAL FUSION (kai yra ir tech passport, ir auto nuotraukos):
@@ -98,12 +106,18 @@ ${STRUCTURED_INPUT_VISION_RULES}
 
 KATEGORIJŲ TAISYKLĖS:
 - NT: butas/namas/sklypas → „NT“, NE „NAMAI“.
-- AUTOMOBILIAI: auto/mašina/rida/markė → „AUTOMOBILIAI“.
-- title: engaginantis marketplace pavadinimas; auto — su VISU modeliu.
+- AUTOMOBILIAI: TIK tikras auto/motociklas (rida, VIN, tech passport, markė+modelis). DRAUDŽIAMA gitara, menas, buitis, drabužiai → AUTOMOBILIAI.
+- MUZIKA: gitara, pianinas, būgnai, smuikas, ukulelė, sintezatorius, muzikos instrumentai → „MUZIKA“ (NE SPORTAS, NE AUTOMOBILIAI, NE „KITA“ fallback).
+- MENAS: paveikslai, skulptūros, rankų darbas, dekoratyvinis menas → „MENAS“.
+- LAISVALAIKIS: hobiai, stovyklavimas, laisvalaikio inventorius (ne profesionalus sportas) → „LAISVALAIKIS“.
+- SPORTAS: dviračiai, treniruokliai, sporto inventorius → „SPORTAS“.
+- NIEKADA description'e nenaudok auto šablonų („Automobilis paruoštas apžiūrai“, „servisą, dokumentus“, „rida“, „kėbulas“, „automobilis“), jei category ≠ AUTOMOBILIAI — BET non-auto description VISADA lieka turtingas (hook + bullet sekcijos + CTA), ne 1 eilutė.
+- MUZIKA/gitara: skambesys, korpuso/medžio būklė, grifas/stygos, pradedantiesiems ar pro — pagal vizualą + user tekstą.
+- title: engaginantis marketplace pavadinimas; auto — su VISU modeliu; instrumentai — pvz. „Akustinė gitara Hohner“.
 - Jei keli PARDUODAMI objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
 - DRAUDŽIAMA į detectedObjects / choiceChips dėti tech passport, registracijos liudijimą, kvitą ar kitą dokumentą — jie tik OCR (documentImageIndexes), ne parduodamas objektas.
 - Automobiliams technicalFields: make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition.
-NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition. Menas/namai: Atlikimas, Paskirtis, Spalvos, Būklė.`;
+NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition. Menas/namai: Atlikimas, Paskirtis, Spalvos, Būklė. Muzika: brand, model, condition, instrumentType.`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -116,7 +130,63 @@ const CATEGORY_TO_INTERNAL: Record<string, string> = {
   PASLAUGOS: "services",
   VAIKAMS: "other",
   GYVUNAI: "other",
+  MUZIKA: "other",
+  LAISVALAIKIS: "other",
+  MENAS: "home",
 };
+
+const INSTRUMENT_CONTENT_RE =
+  /\b(gitar|guitar|hohner|muzik|pianin|būgn|bugn|drum|smuik|akustin|bosin|ukulel|sintezator|mušam)/i;
+
+function remapCategoryFromContent(
+  internalCategory: string,
+  categoryKey: string,
+  title: string,
+  description: string,
+  technicalFields: Record<string, string | string[]>
+): { category: string; vautoCategory: string } {
+  const blob = [
+    title,
+    description,
+    String(technicalFields.brand ?? ""),
+    String(technicalFields.make ?? ""),
+    String(technicalFields.model ?? ""),
+    String(technicalFields.instrumentType ?? ""),
+  ]
+    .join(" ")
+    .toLowerCase();
+
+  if (INSTRUMENT_CONTENT_RE.test(blob)) {
+    return { category: "other", vautoCategory: "MUZIKA" };
+  }
+
+  if (
+    /\b(paveiksl|skulptūr|tapyt|rankų\s+darb|abstrakt|drob[eė])/i.test(blob) &&
+    internalCategory !== "vehicles"
+  ) {
+    return { category: "home", vautoCategory: "MENAS" };
+  }
+
+  // Never keep vehicles when there are no hard auto signals and content is general goods.
+  if (internalCategory === "vehicles") {
+    const hardAuto =
+      Boolean(technicalFields.mileage) ||
+      Boolean(technicalFields.vin) ||
+      Boolean(technicalFields.fuelType) ||
+      Boolean(technicalFields.licensePlate) ||
+      Boolean(technicalFields.plate) ||
+      Boolean(technicalFields.powerKw) ||
+      Boolean(technicalFields.bodyType);
+    if (!hardAuto && /\b(gitara|paveiksl|drabuž|batai|telefon|ausin)/i.test(blob)) {
+      return { category: "other", vautoCategory: categoryKey || "LAISVALAIKIS" };
+    }
+  }
+
+  return {
+    category: internalCategory,
+    vautoCategory: categoryKey || "NAMAI",
+  };
+}
 
 function parseTechnicalFields(raw: unknown): Record<string, string | string[]> {
   if (!raw || typeof raw !== "object") return {};
@@ -135,8 +205,17 @@ function parseTechnicalFields(raw: unknown): Record<string, string | string[]> {
   const cm3 = engineRaw.match(/(\d{3,4})\s*(?:cm|cm³|cc)?/i);
   if (cm3 && !/\d[.,]\d/.test(engineRaw)) {
     const liters = Math.round((Number(cm3[1]) / 1000) * 10) / 10;
-    if (liters > 0.5 && liters < 10) out.engine = String(liters);
+    if (liters > 0.5 && liters < 10) {
+      out.engine = String(liters);
+      out.engineCc = cm3[1]!;
+    }
   }
+  if (out.fuelType) out.fuelType = normalizeFuelType(String(out.fuelType));
+  if (out.vin) {
+    const vin = normalizeVin(String(out.vin));
+    if (vin) out.vin = vin;
+  }
+  if (out.powerKw) out.powerKw = normalizePowerKw(String(out.powerKw));
   if (out.plate && !out.licensePlate) out.licensePlate = out.plate;
   if (out.licensePlate && !out.plate) out.plate = out.licensePlate;
   return out;
@@ -175,13 +254,25 @@ function toListingPayload(
   userCity: string,
   contact: string
 ): VautoListingPayload {
-  const categoryKey = String(raw.category ?? "").toUpperCase();
-  const internalCategory = CATEGORY_TO_INTERNAL[categoryKey] ?? "other";
+  const categoryKey = String(raw.category ?? "").toUpperCase().trim();
+  const mappedInternal = CATEGORY_TO_INTERNAL[categoryKey];
+  // Prefer explicit taxonomy; only fall back to NAMAI/home-adjacent "other" when unknown —
+  // never force AUTOMOBILIAI. Unknown LLM labels → other + keep raw key for UI tags.
+  const baseInternal = mappedInternal ?? "other";
   const priceRaw = raw.price;
   const price =
     priceRaw === null || priceRaw === undefined ? 0 : Number(priceRaw) || 0;
 
   const technicalFields = parseTechnicalFields(raw.technicalFields ?? raw.attributes);
+  const title = String(raw.title ?? "Skelbimas");
+  const description = raw.description ? String(raw.description) : "";
+  const remapped = remapCategoryFromContent(
+    baseInternal,
+    categoryKey || (baseInternal === "other" ? "LAISVALAIKIS" : categoryKey),
+    title,
+    description,
+    technicalFields
+  );
   const detectedObjects = parseDetectedObjects(raw.detectedObjects);
   const sceneContext = String(raw.sceneContext ?? technicalFields.sceneContext ?? "").trim();
   let choiceChips = parseChoiceChips(raw.choiceChips ?? technicalFields.choiceChips, "sell");
@@ -196,22 +287,33 @@ function toListingPayload(
       : "";
 
   const userCityResolved = resolveListingCity(userCity, "Vilnius");
+  const publicCategoryTag =
+    remapped.vautoCategory === "MUZIKA"
+      ? "Muzika / Instrumentai"
+      : remapped.vautoCategory === "LAISVALAIKIS"
+        ? "Laisvalaikis"
+        : remapped.vautoCategory === "MENAS"
+          ? "Menas"
+          : remapped.vautoCategory === "SPORTAS"
+            ? "Sportas"
+            : undefined;
 
   return {
-    title: String(raw.title ?? "Skelbimas"),
+    title,
     price,
     location: resolveListingCity(
       String(raw.city ?? raw.location ?? ""),
       userCityResolved
     ),
     contact,
-    category: internalCategory,
-    description: raw.description ? String(raw.description) : undefined,
+    category: remapped.category,
+    description: description || undefined,
     confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.85)),
     attributes: {
       ...technicalFields,
       _intent: String(raw.intent ?? "sell"),
-      _vautoCategory: categoryKey,
+      _vautoCategory: remapped.vautoCategory,
+      ...(publicCategoryTag ? { skelbiuCategory: publicCategoryTag } : {}),
       ...(sceneContext ? { sceneContext } : {}),
       ...(detectedObjects.length
         ? { detectedObjects: JSON.stringify(detectedObjects) }
@@ -231,8 +333,10 @@ function buildTextPrompt(text: string, userCity: string, extraContext?: string):
 
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
-Pavyzdys: „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën“, technicalFields.make Citroën.
-description: MASTER SALES COPYWRITER formatas (hook + bullet ypatybės + CTA), faktai tikri.
+Pavyzdžiai:
+- „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën“, technicalFields.make Citroën.
+- „Parduodu gitarą Hohner" → intent sell, category MUZIKA (NE AUTOMOBILIAI), title su instrumentu; description BE auto šablonų.
+description: MASTER SALES COPYWRITER formatas (hook + bullet ypatybės + CTA), faktai tikri; category-matching copy.
 Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
 }
 
@@ -253,30 +357,32 @@ ${VISION_ANTI_HALLUCINATION_RULE}
 Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Pirmos document nuotraukos = PRIMARY OCR šaltinis.
 1) PRIVALOMA imageRoles masyvas (gallery|document) kiekvienai nuotraukai. Žalias/mėlynas tech passport, registracija, kvitas, popierius su lentele/VIN — VISADA document (ground-truth).
 2) documentImageIndexes + galleryImageIndexes privalo sutapti su imageRoles.
-3) HARD SPECS — Lietuviškas techninis pasas (OCR, PRIORITETAS prieš vizualines spekuliacijas):
+3) HARD SPECS — Lietuviškas Regitra techninis pasas (OCR, PRIORITETAS; AUTO-FILL PrePublish BE papildomų klausimų):
    • A = valstybinis numeris → technicalFields.plate + licensePlate
    • B = pirmoji registracija → technicalFields.firstRegistration PILNA data YYYY-MM-DD IR technicalFields.year (YYYY). DRAUDŽIAMA palikti tik metus, jei diena/mėnuo matomi.
    • D.1 = markė → technicalFields.make
    • D.3 = modelis → technicalFields.model — VERBATIM. Jei S.1=7 vietos ir modelis „C4 Picasso“ — rašyk „Grand C4 Picasso“.
    • S.1 = sėdimos vietos → technicalFields.seats
-   • E = VIN → technicalFields.vin
-   • P.1 = darbinis tūris cm³ → technicalFields.engine LITRAIS (1997 cm³ → „2.0“)
-   • P.2 = galia → technicalFields.powerKw (kW)
-   • P.3 = degalai → technicalFields.fuelType (Benzinas / Dyzelinas / …)
+   • E = VIN kodas → technicalFields.vin (17 simbolių, jei matoma)
+   • P.1 = variklio tūris cm³ → technicalFields.engine LITRAIS (1997 cm³ → „2.0“) + technicalFields.engineCc jei reikia
+   • P.2 = galia kW → technicalFields.powerKw (skaičius, pvz. „110“)
+   • P.3 = kuro tipas → technicalFields.fuelType NORMALIZUOTAI: Dyzelinas | Benzinas | Elektra | Hibridas | Dujos
    • R = oficiali spalva → technicalFields.color
    • V.9 = tarša → technicalFields.euroStandard
    • G = masė → technicalFields.curbWeight
    • C.1.3 = savivaldybė / miestas → city (jei aiškiai matoma)
+   Kai B/D.1/D.3/E/P.1/P.2/P.3 ištraukti — NIEKADA neklausti „patikslinkite markę/modelį/variklį/kuro tipą“; PrePublish forma užpildoma iš karto.
 4) VISUAL EXTRAS — tik iš auto (gallery) nuotraukų; rašyk bullet eilutes:
    • interiorCondition — odinis/kombinuotas salonas, porankiai, mentelės prie vairo, guminis bagažinės kilimėlis / erdvi bagažinė
    • exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi)
    • transmission — jei matomos mentelės → „Automatinė / EGS (pusiau automatinė)“
    • bodyType — vienatūris / MPV jei aišku
-5) description — MASTER SALES COPYWRITER (hook + **Ypatybės** bullet'ai + CTA). HARD SPECS / OCR faktai → technicalFields IR į description bullet'us.
-   • DRAUDŽIAMA sausas caption („pavaizduoti…“, „nuotraukoje matyti…“).
+5) description — MASTER SALES COPYWRITER (hook + **Pagrindiniai privalumai** + **Būklė** + **Paskirtis** + CTA). HARD SPECS / OCR faktai → technicalFields IR į description bullet'us.
+   • DRAUDŽIAMA sausas caption („pavaizduoti…“, „nuotraukoje matyti…“) ARBA 1 eilutės antraštės pakartojimas.
    • DRAUDŽIAMA išgalvoti kainą, ridą, TA.
    • PALIK Markdown ** ir naujas eilutes (\\n) description stringe.
-6) NIEKADA neklausti „Patikslinkite metus ir variklį“, jei B/P.1/P.3 jau ištraukti. NIEKADA nekartok vartotojo frazės kaip aprašymo.
+   • Non-auto (gitara/elektronika/prekės): turtingas LT sales copy BE auto raktažodžių.
+6) NIEKADA neklausti „Patikslinkite metus / markę / variklį / kuro tipą / VIN“, jei B/D.1/D.3/E/P.1/P.2/P.3 jau ištraukti — AUTO-FILL PrePublish. NIEKADA nekartok vartotojo frazės kaip aprašymo.
 7) title — engaginantis marketplace pavadinimas; auto = make + VERBATIM/Grand model + year.
 8) Papildomi technicalFields: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures, firstRegistration + marketplace raktai.${textNote}${extra}
 Numatytas miestas: ${userCity}

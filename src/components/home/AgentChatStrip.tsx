@@ -178,7 +178,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
       pendingImageUrls: sessionPendingImageUrls,
     });
     if (result.ok) {
-      showToast("Skelbimas publikuotas!", "success");
+      // Lottie paper-plane overlay already shows „Skelbimas publikuotas!" —
+      // skip the secondary green toast to avoid duplicate success clutter.
       await runPublishSuccessCelebration({
         result,
         sourceRect,

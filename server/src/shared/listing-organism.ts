@@ -134,21 +134,31 @@ export function nounFromVisionObjectSellChip(text: string): string {
     .trim();
 }
 
-/** „viskas / publikuojam / PrePublish / nenoriu / tinka / keliam“ → lock PrePublish */
+/** „viskas / publikuok / publikuojam / PrePublish / nenoriu / tinka / keliam“ → lock PrePublish */
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   if (/^nenoriu(\b|$)/i.test(t)) return true;
   if (/^viskas\b/i.test(t)) return true;
   if (/^(tinka|keliam|keliame)\b/i.test(t)) return true;
-  if (/\bpublikuojam\b|\bpublikuoti\b|\bkeliam\b/i.test(t)) return true;
+  // Imperative + infinitive publish verbs — never fall through to photo re-ask loops.
+  if (/\bpublikuok(?:ite|im)?\b|\bpublikuojam\b|\bpublikuoti\b|\bkeliam\b/i.test(t)) {
+    return true;
+  }
   if (/\bprepublish\b|\bpre-publish\b|\bpre\s*publish\b/i.test(t)) return true;
   if (/\bjudame\b.*\b(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/\bprie\s+(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/tiesiai\s+prie/i.test(t)) return true;
   if (/^(pakanka|užtenka|uztenka)\b/i.test(t)) return true;
   if (/^taip[,!]?\s*(publiku|tinka|judam|keliam)/i.test(t)) return true;
-  if (/be\s+daugiau|nebereikia|daugiau\s+nereikia/i.test(t)) return true;
+  // „Ne nereikia, publikuok“ / „ne, nereikia“ / „daugiau nereikia“
+  if (
+    /be\s+daugiau|nebereikia|ne,?\s*nereikia|daugiau\s+nereikia|nereikia,?\s*publiku/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
   return false;
 }
 

@@ -488,7 +488,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         description: {
           type: "STRING",
           description:
-            "PRIVALOMAS turtingas marketplace aprašymas lietuviškai (4–8 sakiniai): pagrindiniai akcentai, būklė, nauda pirkėjui, kvietimas apžiūrėti/susisiekti. DRAUDŽIAMA 1 sakinio „Parduodu X“ ar „… automobilis.“",
+            "PRIVALOMAS turtingas marketplace aprašymas lietuviškai su struktūra: Antraštės hook + Pagrindiniai privalumai/savybės + Būklė ir komplektacija + Paskirtis pirkėjui + Apžiūros/pristatymo CTA (4–8+ sakiniai, Markdown bullet'ai OK). Instrumentams — skambesys, korpusas, grifas/stygos, pradedantiesiems/pro. DRAUDŽIAMA 1 eilutės santrauka ar antraštės pakartojimas. Auto raktai (rida/servisas/automobilis) TIK category=vehicles.",
         },
         attributes: {
           type: "OBJECT",
