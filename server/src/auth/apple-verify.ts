@@ -5,6 +5,7 @@ export interface AppleTokenPayload {
   sub: string;
   email?: string;
   emailVerified?: boolean;
+  isPrivateRelay?: boolean;
 }
 
 interface AppleJwk {
@@ -23,18 +24,30 @@ interface AppleJwksResponse {
 let jwksCache: { keys: AppleJwk[]; fetchedAt: number } | null = null;
 const JWKS_TTL_MS = 60 * 60 * 1000;
 
+const APPLE_PRIVATE_RELAY_SUFFIX = "@privaterelay.appleid.com";
+
 function base64UrlDecode(value: string): Buffer {
   const padded = value.replace(/-/g, "+").replace(/_/g, "/");
   const pad = padded.length % 4 === 0 ? "" : "=".repeat(4 - (padded.length % 4));
   return Buffer.from(padded + pad, "base64");
 }
 
-function resolveAppleClientId(): string | null {
-  return (
-    process.env.APPLE_CLIENT_ID?.trim() ||
-    process.env.APPLE_SERVICE_ID?.trim() ||
-    null
+export function isApplePrivateRelayEmail(email?: string | null): boolean {
+  return Boolean(
+    email?.trim().toLowerCase().endsWith(APPLE_PRIVATE_RELAY_SUFFIX)
   );
+}
+
+function resolveAppleClientIds(): string[] {
+  const ids = [
+    process.env.APPLE_CLIENT_ID?.trim(),
+    process.env.APPLE_SERVICE_ID?.trim(),
+  ].filter((v): v is string => Boolean(v));
+  return [...new Set(ids)];
+}
+
+function resolveAppleClientId(): string | null {
+  return resolveAppleClientIds()[0] ?? null;
 }
 
 async function fetchAppleJwks(): Promise<AppleJwk[]> {
@@ -73,11 +86,12 @@ export async function verifyAppleIdToken(
       sub: e2e.sub,
       email: e2e.email,
       emailVerified: Boolean(e2e.email),
+      isPrivateRelay: isApplePrivateRelayEmail(e2e.email),
     };
   }
 
-  const clientId = resolveAppleClientId();
-  if (!idToken || !clientId) return null;
+  const clientIds = resolveAppleClientIds();
+  if (!idToken || clientIds.length === 0) return null;
 
   const parts = idToken.split(".");
   if (parts.length !== 3) return null;
@@ -90,6 +104,7 @@ export async function verifyAppleIdToken(
     sub?: string;
     email?: string;
     email_verified?: boolean | string;
+    is_private_email?: boolean | string;
   };
 
   try {
@@ -114,17 +129,44 @@ export async function verifyAppleIdToken(
 
   if (payload.iss !== "https://appleid.apple.com") return null;
   const aud = Array.isArray(payload.aud) ? payload.aud : [payload.aud];
-  if (!aud.includes(clientId)) return null;
+  if (!aud.some((a) => a && clientIds.includes(a))) return null;
   if (!payload.exp || payload.exp * 1000 < Date.now()) return null;
+
+  const email = payload.email?.trim() || undefined;
+  const isPrivateRelay =
+    isApplePrivateRelayEmail(email) ||
+    payload.is_private_email === true ||
+    payload.is_private_email === "true";
 
   return {
     sub: payload.sub,
-    email: payload.email,
+    email,
     emailVerified:
       payload.email_verified === true || payload.email_verified === "true",
+    isPrivateRelay,
   };
 }
 
+/** Services ID is enough to verify ID tokens; Team/Key/secret enable code exchange. */
 export function isAppleOAuthConfigured(): boolean {
   return Boolean(resolveAppleClientId());
+}
+
+export function getAppleOAuthConfigStatus(): {
+  configured: boolean;
+  clientId: boolean;
+  teamId: boolean;
+  keyId: boolean;
+  privateKeyOrSecret: boolean;
+} {
+  return {
+    configured: isAppleOAuthConfigured(),
+    clientId: Boolean(resolveAppleClientId()),
+    teamId: Boolean(process.env.APPLE_TEAM_ID?.trim()),
+    keyId: Boolean(process.env.APPLE_KEY_ID?.trim()),
+    privateKeyOrSecret: Boolean(
+      process.env.APPLE_PRIVATE_KEY?.trim() ||
+        process.env.APPLE_CLIENT_SECRET?.trim()
+    ),
+  };
 }

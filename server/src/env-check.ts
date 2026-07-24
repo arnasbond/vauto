@@ -28,6 +28,20 @@ export function validateProductionEnv(): EnvCheckResult {
     warnings.push("Google OAuth verification disabled (GOOGLE_CLIENT_ID missing)");
   }
 
+  if (!process.env.APPLE_CLIENT_ID?.trim() && !process.env.APPLE_SERVICE_ID?.trim()) {
+    warnings.push(
+      "Apple Sign-In disabled (APPLE_CLIENT_ID / APPLE_SERVICE_ID missing — required for iOS Safari testers)"
+    );
+  } else if (
+    !process.env.APPLE_TEAM_ID?.trim() ||
+    !process.env.APPLE_KEY_ID?.trim() ||
+    !(process.env.APPLE_PRIVATE_KEY?.trim() || process.env.APPLE_CLIENT_SECRET?.trim())
+  ) {
+    warnings.push(
+      "Apple Sign-In ID-token verify OK, but Team ID / Key ID / private key incomplete (needed for authorization-code exchange)"
+    );
+  }
+
   if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
     warnings.push("Web Push disabled (VAPID keys missing)");
   }

@@ -27,8 +27,8 @@ assertProductionEnv();
 const app = express();
 const port = Number(process.env.PORT ?? 4000);
 
-// Reflect request Origin — sufficient for JWT Bearer (no cookies).
-// For future .anonser.lt cookie sessions, switch to an explicit allowlist + credentials.
+// Reflect request Origin — JWT Bearer auth (Authorization header) does not rely on cookies.
+// OAuth CSRF uses a short-lived SameSite=Lax Secure cookie on the frontend origin only.
 app.use(cors({ origin: true }));
 app.post(
   "/api/billing/webhook",

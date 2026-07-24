@@ -13,7 +13,7 @@ import {
 } from "@/lib/auth/google-client";
 import {
   isAppleAuthConfigured,
-  requestAppleIdToken,
+  startAppleSignIn,
 } from "@/lib/auth/apple-client";
 import { ensureAuthPublicConfig, onAuthConfigReady } from "@/lib/api/config";
 import { isNativeAuthEnvironment } from "@/lib/auth/oauth-redirect";
@@ -50,12 +50,16 @@ interface AuthModalProps {
   error?: string | null;
   onClearError?: () => void;
   onClose: () => void;
+  /** Path to restore after OAuth redirect (seller/buyer chat context). */
+  returnPath?: string | null;
   onComplete: (data: {
     provider: AuthProvider;
     phone?: string;
     role: UserRole;
     email?: string;
     name?: string;
+    firstName?: string;
+    lastName?: string;
     otp?: string;
     idToken?: string;
     signupIntent?: AuthSignupIntent;
@@ -94,6 +98,7 @@ export function AuthModal({
   error,
   onClearError,
   onClose,
+  returnPath,
   onComplete,
 }: AuthModalProps) {
   const [step, setStep] = useState<AuthStep>(AUTH_FORM_INITIAL.step);
@@ -279,17 +284,34 @@ export function AuthModal({
     }
     setSocialLoading("apple");
     try {
-      const result = await requestAppleIdToken();
-      if (!result?.idToken) {
-        setOtpError("Nepavyko gauti Apple patvirtinimo. Bandykite dar kartą.");
+      const outcome = await startAppleSignIn({
+        returnPath:
+          returnPath?.trim() ||
+          (typeof window !== "undefined"
+            ? `${window.location.pathname}${window.location.search}`
+            : "/"),
+        signupIntent,
+      });
+      if (outcome.status === "redirecting") {
+        // Full-page Apple redirect (iOS Safari) — keep loading until unload.
+        return;
+      }
+      if (outcome.status !== "success" || !outcome.result.idToken) {
+        setOtpError(
+          outcome.status === "error"
+            ? outcome.message
+            : "Nepavyko gauti Apple patvirtinimo. Bandykite dar kartą."
+        );
         return;
       }
       onComplete({
         provider: "apple",
         role: "private",
-        idToken: result.idToken,
-        email: result.email,
-        name: result.name,
+        idToken: outcome.result.idToken,
+        email: outcome.result.email,
+        name: outcome.result.name,
+        firstName: outcome.result.firstName,
+        lastName: outcome.result.lastName,
         signupIntent,
       });
     } finally {

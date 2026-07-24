@@ -67,6 +67,7 @@ export function GlobalAuthModal() {
       error={authError}
       onClearError={clearAuthError}
       onClose={closeAuthModal}
+      returnPath={authRedirectPath ?? pathname ?? "/"}
       onComplete={(data) => void login(data)}
     />
   );

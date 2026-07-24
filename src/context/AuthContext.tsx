@@ -144,6 +144,10 @@ export interface LoginPayload {
 
   name?: string;
 
+  firstName?: string;
+
+  lastName?: string;
+
   signupIntent?: AuthSignupIntent;
 
   /** Explicit signup — never inferred from empty local mock registry. */
@@ -791,6 +795,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
                   name: data.name,
 
+                  firstName: data.firstName,
+
+                  lastName: data.lastName,
+
                   city: data.city ?? user.city,
 
                   idToken: data.idToken,
@@ -1027,6 +1035,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
     if (!pending?.idToken) return;
 
+    if (pending.returnPath) {
+      setAuthRedirectPath(pending.returnPath);
+    }
+
     void login({
 
       provider: pending.provider,
@@ -1034,6 +1046,16 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: "private",
 
       idToken: pending.idToken,
+
+      email: pending.email,
+
+      name: pending.name,
+
+      firstName: pending.firstName,
+
+      lastName: pending.lastName,
+
+      signupIntent: pending.signupIntent,
 
     });
 

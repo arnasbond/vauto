@@ -1,8 +1,11 @@
 import { getRuntimeAppleClientId } from "@/lib/api/config";
 import {
+  createOAuthState,
   getAppleRedirectUris,
   getWebAuthCallbackUrl,
   isNativeAuthEnvironment,
+  persistOAuthLaunchContext,
+  prefersOAuthRedirectFlow,
 } from "@/lib/auth/oauth-redirect";
 
 const APPLE_SCRIPT_ID = "apple-auth-script";
@@ -18,10 +21,16 @@ declare global {
           scope: string;
           redirectURI: string;
           state?: string;
+          nonce?: string;
           usePopup?: boolean;
+          responseMode?: "query" | "fragment" | "form_post";
         }) => void;
-        signIn: () => Promise<{
-          authorization: { id_token: string; code?: string };
+        signIn: (config?: {
+          state?: string;
+          nonce?: string;
+          usePopup?: boolean;
+        }) => Promise<{
+          authorization: { id_token: string; code?: string; state?: string };
           user?: {
             email?: string;
             name?: { firstName?: string; lastName?: string };
@@ -36,7 +45,15 @@ export interface AppleSignInResult {
   idToken: string;
   email?: string;
   name?: string;
+  firstName?: string;
+  lastName?: string;
 }
+
+export type AppleSignInOutcome =
+  | { status: "success"; result: AppleSignInResult }
+  | { status: "redirecting" }
+  | { status: "cancelled" }
+  | { status: "error"; message: string };
 
 export function getAppleClientId(): string | null {
   return getRuntimeAppleClientId();
@@ -84,41 +101,147 @@ function loadAppleScript(): Promise<void> {
   });
 }
 
-/** Opens Apple Sign In popup; resolves with identity token. */
-export async function requestAppleIdToken(): Promise<AppleSignInResult | null> {
-  const clientId = getAppleClientId();
-  if (!clientId || typeof window === "undefined") return null;
+function formatAppleName(user?: {
+  email?: string;
+  name?: { firstName?: string; lastName?: string };
+}): Pick<AppleSignInResult, "email" | "name" | "firstName" | "lastName"> {
+  const firstName = user?.name?.firstName?.trim() || undefined;
+  const lastName = user?.name?.lastName?.trim() || undefined;
+  const name =
+    [firstName, lastName].filter(Boolean).join(" ").trim() || undefined;
+  return {
+    email: user?.email?.trim() || undefined,
+    firstName,
+    lastName,
+    name,
+  };
+}
 
-  if (isNativeAuthEnvironment()) {
-    // Native Capacitor flow uses deep-link callback — handled separately.
-    return null;
+async function startAppleRedirectSignIn(opts: {
+  returnPath: string;
+  signupIntent?: "private" | "pro" | "wardrobe";
+}): Promise<AppleSignInOutcome> {
+  const clientId = getAppleClientId();
+  if (!clientId || typeof window === "undefined") {
+    return { status: "error", message: "Apple Client ID nesukonfigūruotas" };
   }
+
+  const state = createOAuthState();
+  persistOAuthLaunchContext({
+    provider: "apple",
+    state,
+    returnPath: opts.returnPath || "/",
+    signupIntent: opts.signupIntent,
+  });
+
+  await loadAppleScript();
+  // Fragment mode keeps tokens out of server logs and works with static export
+  // (Apple form_post POST cannot land on a static /auth/callback page).
+  window.AppleID!.auth.init({
+    clientId,
+    scope: "name email",
+    redirectURI: getAppleAuthRedirectUri(),
+    state,
+    usePopup: false,
+    responseMode: "fragment",
+  });
+
+  // Navigates away — promise may never settle on iOS Safari.
+  void window.AppleID!.auth.signIn({ state, usePopup: false }).catch(() => {
+    /* redirect in progress or user cancelled after unload */
+  });
+  return { status: "redirecting" };
+}
+
+async function startApplePopupSignIn(): Promise<AppleSignInOutcome> {
+  const clientId = getAppleClientId();
+  if (!clientId || typeof window === "undefined") {
+    return { status: "error", message: "Apple Client ID nesukonfigūruotas" };
+  }
+
+  await loadAppleScript();
+  window.AppleID!.auth.init({
+    clientId,
+    scope: "name email",
+    redirectURI: getAppleAuthRedirectUri(),
+    usePopup: true,
+  });
 
   try {
-    await loadAppleScript();
-    window.AppleID!.auth.init({
-      clientId,
-      scope: "name email",
-      redirectURI: getAppleAuthRedirectUri(),
-      usePopup: true,
-    });
-    const response = await window.AppleID!.auth.signIn();
+    const response = await window.AppleID!.auth.signIn({ usePopup: true });
     const idToken = response.authorization?.id_token;
-    if (!idToken) return null;
-
-    const name = response.user?.name
-      ? [response.user.name.firstName, response.user.name.lastName]
-          .filter(Boolean)
-          .join(" ")
-          .trim()
-      : undefined;
-
+    if (!idToken) {
+      return {
+        status: "error",
+        message: "Nepavyko gauti Apple patvirtinimo",
+      };
+    }
     return {
-      idToken,
-      email: response.user?.email,
-      name: name || undefined,
+      status: "success",
+      result: {
+        idToken,
+        ...formatAppleName(response.user),
+      },
     };
-  } catch {
-    return null;
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    if (/popup|blocked|cancel/i.test(message)) {
+      return { status: "cancelled" };
+    }
+    return { status: "cancelled" };
   }
+}
+
+/**
+ * Sign in with Apple — redirect on iOS/WebKit (Safari blocks popups),
+ * popup on desktop with automatic redirect fallback when the popup is blocked.
+ */
+export async function startAppleSignIn(opts?: {
+  returnPath?: string;
+  signupIntent?: "private" | "pro" | "wardrobe";
+  forceRedirect?: boolean;
+}): Promise<AppleSignInOutcome> {
+  const clientId = getAppleClientId();
+  if (!clientId || typeof window === "undefined") {
+    return { status: "error", message: "Apple prisijungimas dar neaktyvuotas" };
+  }
+  if (isNativeAuthEnvironment()) {
+    return {
+      status: "error",
+      message: "Programėlėje naudokite Apple per sistemos dialogą arba telefoną",
+    };
+  }
+
+  const returnPath =
+    opts?.returnPath ||
+    (typeof window !== "undefined"
+      ? `${window.location.pathname}${window.location.search}`
+      : "/");
+
+  const useRedirect = opts?.forceRedirect || prefersOAuthRedirectFlow();
+  if (useRedirect) {
+    return startAppleRedirectSignIn({
+      returnPath,
+      signupIntent: opts?.signupIntent,
+    });
+  }
+
+  const popup = await startApplePopupSignIn();
+  if (popup.status === "success") return popup;
+
+  // Popup blocked / cancelled without token — fall back to seamless redirect.
+  if (popup.status === "cancelled") {
+    return startAppleRedirectSignIn({
+      returnPath,
+      signupIntent: opts?.signupIntent,
+    });
+  }
+  return popup;
+}
+
+/** @deprecated Prefer startAppleSignIn for iOS Safari redirect support. */
+export async function requestAppleIdToken(): Promise<AppleSignInResult | null> {
+  const outcome = await startAppleSignIn({ forceRedirect: false });
+  if (outcome.status === "success") return outcome.result;
+  return null;
 }

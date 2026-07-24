@@ -5,7 +5,7 @@ import {
   verifyDemoBypassOtp,
 } from "../auth/demo-phones.js";
 import { getTokenTtlMs, signAccessToken } from "../auth/tokens.js";
-import { verifyAppleIdToken, isAppleOAuthConfigured } from "../auth/apple-verify.js";
+import { verifyAppleIdToken, isAppleOAuthConfigured, isApplePrivateRelayEmail, getAppleOAuthConfigStatus } from "../auth/apple-verify.js";
 import { verifyGoogleIdToken, isGoogleOAuthConfigured } from "../auth/google-verify.js";
 import {
   getOtpCodeLength,
@@ -37,12 +37,26 @@ export const authRouter = Router();
 /** Public OAuth client ids for the frontend (not secrets). */
 authRouter.get("/public-config", (_req, res) => {
   const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || undefined;
-  const appleClientId = process.env.APPLE_CLIENT_ID?.trim() || undefined;
+  const appleClientId =
+    process.env.APPLE_CLIENT_ID?.trim() ||
+    process.env.APPLE_SERVICE_ID?.trim() ||
+    undefined;
+  const appleStatus = getAppleOAuthConfigStatus();
+  const appOrigin = (process.env.APP_ORIGIN ?? "https://www.vauto.lt").replace(
+    /\/+$/,
+    ""
+  );
   res.json({
     googleClientId,
     appleClientId,
     googleEnabled: isGoogleOAuthConfigured(),
     appleEnabled: isAppleOAuthConfigured(),
+    appleConfig: appleStatus,
+    appleRedirectUris: [
+      `${appOrigin}/auth/callback/`,
+      `${appOrigin}/auth/callback`,
+      "com.vauto.app://auth/callback",
+    ],
     smsLive: isSmsLive(),
     smsMode: process.env.SMS_MODE?.trim().toLowerCase() || "auto",
     launchPromo: isLaunchPromoActive(),
@@ -97,6 +111,33 @@ function providerName(provider: string): string {
   if (provider === "google") return "Google vartotojas";
   if (provider === "apple") return "Apple vartotojas";
   return "Mobilus vartotojas";
+}
+
+function isProviderPlaceholderName(
+  name: string | undefined | null,
+  provider: string
+): boolean {
+  if (!name?.trim()) return true;
+  const n = name.trim().toLowerCase();
+  return (
+    n === providerName(provider).toLowerCase() ||
+    n === "apple vartotojas" ||
+    n === "google vartotojas" ||
+    n === "mobilus vartotojas"
+  );
+}
+
+function resolveDisplayName(
+  incoming: string | undefined,
+  existing: string | undefined,
+  provider: string
+): string {
+  const cleaned = incoming?.trim();
+  if (cleaned && !isProviderPlaceholderName(cleaned, provider)) return cleaned;
+  if (existing?.trim() && !isProviderPlaceholderName(existing, provider)) {
+    return existing.trim();
+  }
+  return cleaned || existing?.trim() || providerName(provider);
 }
 
 function resolveAdminEmail(): string {
@@ -162,9 +203,20 @@ async function buildSession(
   const email = profile.email ?? existing?.email;
   const phone = profile.phone ?? existing?.phone;
   const role = resolveLoginRole(meta.role, existing, email, phone);
+  const firstName =
+    profile.firstName?.trim() || existing?.firstName || undefined;
+  const lastName = profile.lastName?.trim() || existing?.lastName || undefined;
+  const composedFromParts = [firstName, lastName].filter(Boolean).join(" ").trim();
+  const name = resolveDisplayName(
+    profile.name || composedFromParts || undefined,
+    existing?.name,
+    meta.provider
+  );
   const user: ApiUser = {
     id: userId,
-    name: profile.name ?? existing?.name ?? providerName(meta.provider),
+    name,
+    firstName,
+    lastName,
     phone: profile.phone ?? existing?.phone ?? "+370",
     city: profile.city ?? existing?.city ?? "Vilnius",
     avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
@@ -399,6 +451,13 @@ authRouter.post("/social", async (req, res) => {
     }
 
     if (provider === "apple") {
+      if (!isAppleOAuthConfigured()) {
+        res.status(503).json({
+          error:
+            "Apple Sign-In neaktyvus — nustatykite APPLE_CLIENT_ID (Services ID) serveryje.",
+        });
+        return;
+      }
       if (!idToken) {
         res.status(401).json({ error: "Apple patvirtinimas privalomas" });
         return;
@@ -408,18 +467,34 @@ authRouter.post("/social", async (req, res) => {
         res.status(401).json({ error: "Netinkamas Apple token" });
         return;
       }
+      const firstName = req.body?.firstName
+        ? String(req.body.firstName).trim()
+        : undefined;
+      const lastName = req.body?.lastName
+        ? String(req.body.lastName).trim()
+        : undefined;
+      const rawName = req.body?.name ? String(req.body.name).trim() : undefined;
       const displayName =
-        req.body?.name ? String(req.body.name).trim() : undefined;
+        rawName ||
+        [firstName, lastName].filter(Boolean).join(" ").trim() ||
+        undefined;
+      // Prefer verified token email (incl. @privaterelay.appleid.com) over client hint.
+      const resolvedEmail = apple.email ?? email;
+      if (resolvedEmail && isApplePrivateRelayEmail(resolvedEmail)) {
+        // Relay is a valid deliverable Apple Hide My Email address — store as-is.
+      }
       const userId = await resolveLinkedUserId(
         `apple:${apple.sub}`,
-        apple.email ?? email
+        resolvedEmail
       );
       const session = await buildSession(
         userId,
         {
           id: userId,
-          email: apple.email ?? email,
+          email: resolvedEmail,
           name: displayName || providerName("apple"),
+          firstName,
+          lastName,
           avatar: defaultAvatar("apple"),
           city,
         },

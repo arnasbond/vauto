@@ -269,10 +269,13 @@ export async function updateUserProfile(
 ): Promise<ApiUser | null> {
   await query(
     `UPDATE users SET
-       first_name = $2,
-       last_name = $3,
-       nickname = $4,
-       name = $5,
+       first_name = COALESCE($2, first_name),
+       last_name = COALESCE($3, last_name),
+       nickname = COALESCE($4, nickname),
+       name = CASE
+         WHEN $5::text IS NULL OR btrim($5) = '' THEN name
+         ELSE $5
+       END,
        updated_at = now()
      WHERE id = $1`,
     [
@@ -323,15 +326,23 @@ export async function upsertUser(user: ApiUser): Promise<void> {
       `INSERT INTO users (id, name, phone, city, avatar_url, email, warned,
                           wallet_balance, role, business_type, sold_count, auth_provider, profile_type,
                           age_group, gender, hobbies,
-                          company_name, company_code, vat_code, service_base_city, business_hours)
+                          company_name, company_code, vat_code, service_base_city, business_hours,
+                          first_name, last_name)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16,
-               $17, $18, $19, $20, $21)
+               $17, $18, $19, $20, $21, $22, $23)
        ON CONFLICT (id) DO UPDATE SET
-         name = EXCLUDED.name,
+         name = CASE
+           WHEN EXCLUDED.name IS NULL OR btrim(EXCLUDED.name) = '' THEN users.name
+           WHEN lower(EXCLUDED.name) IN ('apple vartotojas', 'google vartotojas', 'mobilus vartotojas')
+                AND users.name IS NOT NULL
+                AND lower(users.name) NOT IN ('apple vartotojas', 'google vartotojas', 'mobilus vartotojas')
+             THEN users.name
+           ELSE EXCLUDED.name
+         END,
          phone = EXCLUDED.phone,
          city = EXCLUDED.city,
          avatar_url = EXCLUDED.avatar_url,
-         email = EXCLUDED.email,
+         email = COALESCE(EXCLUDED.email, users.email),
          warned = EXCLUDED.warned,
          wallet_balance = COALESCE(EXCLUDED.wallet_balance, users.wallet_balance),
          role = COALESCE(EXCLUDED.role, users.role),
@@ -347,6 +358,8 @@ export async function upsertUser(user: ApiUser): Promise<void> {
          vat_code = COALESCE(EXCLUDED.vat_code, users.vat_code),
          service_base_city = COALESCE(EXCLUDED.service_base_city, users.service_base_city),
          business_hours = COALESCE(EXCLUDED.business_hours, users.business_hours),
+         first_name = COALESCE(EXCLUDED.first_name, users.first_name),
+         last_name = COALESCE(EXCLUDED.last_name, users.last_name),
          updated_at = now()`,
       [
         ...baseParams,
@@ -355,6 +368,8 @@ export async function upsertUser(user: ApiUser): Promise<void> {
         user.vatCode ?? null,
         user.serviceBaseCity ?? null,
         user.businessHours ?? null,
+        user.firstName ?? null,
+        user.lastName ?? null,
       ]
     );
   } catch {
@@ -368,7 +383,7 @@ export async function upsertUser(user: ApiUser): Promise<void> {
          phone = EXCLUDED.phone,
          city = EXCLUDED.city,
          avatar_url = EXCLUDED.avatar_url,
-         email = EXCLUDED.email,
+         email = COALESCE(EXCLUDED.email, users.email),
          warned = EXCLUDED.warned,
          wallet_balance = COALESCE(EXCLUDED.wallet_balance, users.wallet_balance),
          role = COALESCE(EXCLUDED.role, users.role),
@@ -382,6 +397,14 @@ export async function upsertUser(user: ApiUser): Promise<void> {
          updated_at = now()`,
       baseParams
     );
+    if (user.firstName || user.lastName) {
+      await updateUserProfile(user.id, {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        nickname: user.nickname,
+        name: user.name,
+      });
+    }
   }
 }
 
