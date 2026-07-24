@@ -83,7 +83,7 @@ export function ConnectionStatusCard() {
         </div>
         <div>
           <p className="vauto-text-heading text-sm font-semibold">
-            {live ? "Live API" : "Demo režimas"}
+            {live ? "Live API" : "Lokalus režimas"}
           </p>
           <p className="vauto-text-subtle text-xs">
             {live

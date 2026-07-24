@@ -141,7 +141,7 @@ export function WardrobeProfileImporter({
           <p className="text-sm font-semibold text-foreground">Spintos perkėlimas</p>
           <p className="text-[11px] text-muted-foreground">
             {isGuest
-              ? "Demo režimas — įklijuok profilio URL ir AI paruoš tavo spintą"
+              ? "Svečio peržiūra — įklijuok profilio URL ir AI paruoš tavo spintą"
               : "Importas ir stebėjimas iš kito portalo — ne pilnas autopublish visur"}
           </p>
         </div>

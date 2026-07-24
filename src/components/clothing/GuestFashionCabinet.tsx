@@ -72,7 +72,7 @@ export function GuestFashionCabinet() {
           <LayoutGrid className="h-6 w-6" />
         </span>
         <div>
-          <p className="vauto-demo-badge text-xs">Viešas demo režimas</p>
+          <p className="vauto-demo-badge text-xs">Viešas peržiūros režimas</p>
           <h1 className="text-xl font-semibold text-foreground">Mano asortimentas</h1>
           <p className="text-xs text-muted-foreground">
             Auto, NT, paslaugos ir prekės — peržiūrai be privalomo prisijungimo

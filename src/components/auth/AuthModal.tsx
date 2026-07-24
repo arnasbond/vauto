@@ -22,7 +22,6 @@ import { formatLtPhoneInput, normalizeLtPhoneForApi } from "@/lib/phone-input";
 import {
   isQaTestModeActive,
   qaTestCredentialsSummary,
-  QA_DEMO_OTP,
 } from "@/lib/qa-test-mode";
 import {
   REMEMBER_ME_KEY,
@@ -482,8 +481,8 @@ export function AuthModal({
 
             <p className="text-center text-[11px] text-[var(--vauto-text-muted)]">
               {isAuthApiAvailable()
-                ? "SMS kodas siunčiamas saugiai per VAUTO serverį"
-                : `Demo režimas: kodas ${QA_DEMO_OTP}`}
+                ? "SMS kodas siunčiamas saugiai į +370 mobilųjį (galioja 5 min.)"
+                : "Prisijunkite prie VAUTO API, kad gautumėte gyvą SMS OTP"}
             </p>
 
             <button
@@ -534,8 +533,8 @@ export function AuthModal({
               <>
                 <p className="text-xs text-[var(--vauto-text-muted)]">
                   Google OAuth neaktyvus — naudokite admin telefoną{" "}
-                  <span className="font-mono font-semibold">{ADMIN_PHONE}</span> ir demo OTP{" "}
-                  <span className="font-mono font-semibold">{QA_DEMO_OTP}</span>.
+                  <span className="font-mono font-semibold">{ADMIN_PHONE}</span>{" "}
+                  ir SMS OTP (gyvas pristatymas kai SMS_MODE=live).
                 </p>
                 <button
                   type="button"

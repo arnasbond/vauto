@@ -6,6 +6,8 @@ import {
   getAllCarrierReadiness,
   type CarrierProviderReadiness,
 } from "../shipping/carrier-readiness.js";
+import { isSmsLive } from "../services/sms.js";
+import { isLaunchPromoActive } from "../shared/launch-promo.js";
 
 export interface InfraReadiness {
   ocrConfigured: boolean;
@@ -19,6 +21,8 @@ export interface InfraReadiness {
   shippingCarriers: CarrierProviderReadiness[];
   pushConfigured: boolean;
   emailConfigured: boolean;
+  smsLive: boolean;
+  launchPromo: boolean;
   warnings: string[];
 }
 
@@ -39,14 +43,16 @@ export function getInfraReadiness(): InfraReadiness {
   const shippingCarrierLive = shippingCarriers.some(
     (c) => c.keyConfigured && c.mode === "live"
   );
-  const shippingCarrierProvider = shippingCarriers.find(
-    (c) => c.keyConfigured && c.mode === "live"
-  )?.providerId ?? "simulated";
+  const shippingCarrierProvider =
+    shippingCarriers.find((c) => c.keyConfigured && c.mode === "live")
+      ?.providerId ?? "simulated";
   const pushConfigured = Boolean(
     (process.env.VAPID_PUBLIC_KEY && process.env.VAPID_PRIVATE_KEY) ||
       process.env.FIREBASE_SERVICE_ACCOUNT_JSON
   );
   const emailConfigured = Boolean(process.env.RESEND_API_KEY?.trim());
+  const smsLive = isSmsLive();
+  const launchPromo = isLaunchPromoActive();
 
   if (!ocrConfigured) {
     warnings.push("OCR not configured — Code Vision fallback only");
@@ -71,6 +77,9 @@ export function getInfraReadiness(): InfraReadiness {
   if (!emailConfigured) {
     warnings.push("Admin/report email not configured");
   }
+  if (!smsLive) {
+    warnings.push("SMS_MODE is not live — set SMS_MODE=live + Twilio/BulkGate");
+  }
 
   return {
     ocrConfigured,
@@ -83,6 +92,8 @@ export function getInfraReadiness(): InfraReadiness {
     shippingCarriers,
     pushConfigured,
     emailConfigured,
+    smsLive,
+    launchPromo,
     warnings,
   };
 }

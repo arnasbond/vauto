@@ -31,7 +31,15 @@ function generateOtpCode(): string {
 
 /** Demo OTP when SMS provider is mock/log — enables auth testing without Twilio. */
 export function usesDemoOtp(): boolean {
+  const mode = process.env.SMS_MODE?.trim().toLowerCase();
+  // Live launch must never accept fixed demo codes.
+  if (mode === "live" || mode === "twilio" || mode === "bulkgate") {
+    return false;
+  }
   const provider = getSmsProvider();
+  if (provider === "twilio" || provider === "bulkgate") {
+    return false;
+  }
   return (
     process.env.NODE_ENV !== "production" ||
     provider === "mock" ||

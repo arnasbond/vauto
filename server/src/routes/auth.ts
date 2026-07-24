@@ -14,7 +14,7 @@ import {
   usesDemoOtp,
   verifyOtp,
 } from "../services/otp.js";
-import { sendOtpSms } from "../services/sms.js";
+import { isSmsLive, sendOtpSms } from "../services/sms.js";
 import { getUser, getUserByEmail, getUserByPhoneDigits, upsertUser } from "../repository.js";
 import {
   applyReferralOnSignup,
@@ -23,6 +23,14 @@ import {
 import type { ApiUser } from "../types.js";
 import { exposeOtpDevHint } from "../demo-guards.js";
 import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import {
+  isValidLtMobilePhone,
+  normalizeLtMobileE164,
+} from "../auth/lt-phone.js";
+import {
+  isLaunchPromoActive,
+  LAUNCH_PROMO_BADGE,
+} from "../shared/launch-promo.js";
 
 export const authRouter = Router();
 
@@ -35,6 +43,10 @@ authRouter.get("/public-config", (_req, res) => {
     appleClientId,
     googleEnabled: isGoogleOAuthConfigured(),
     appleEnabled: isAppleOAuthConfigured(),
+    smsLive: isSmsLive(),
+    smsMode: process.env.SMS_MODE?.trim().toLowerCase() || "auto",
+    launchPromo: isLaunchPromoActive(),
+    launchPromoBadge: LAUNCH_PROMO_BADGE,
   });
 });
 
@@ -207,10 +219,14 @@ async function finalizeSessionWithReferral(
   return session;
 }
 
-authRouter.post("/otp/send", (req, res) => {
-  const phone = String(req.body?.phone ?? "").trim();
-  if (phone.replace(/\D/g, "").length < 8) {
-    res.status(400).json({ error: "Invalid phone number" });
+authRouter.post("/otp/send", async (req, res) => {
+  const rawPhone = String(req.body?.phone ?? "").trim();
+  const phone = normalizeLtMobileE164(rawPhone);
+  if (!phone || !isValidLtMobilePhone(rawPhone)) {
+    res.status(400).json({
+      error:
+        "Neteisingas Lietuvos mobilusis. Naudokite formatą +3706xxxxxxx (arba 86xxxxxxx).",
+    });
     return;
   }
   if (otpSendRateLimited(phone)) {
@@ -219,7 +235,15 @@ authRouter.post("/otp/send", (req, res) => {
   }
   purgeExpiredOtps();
   const { code, expiresAt } = issueOtp(phone);
-  void sendOtpSms(phone, code);
+  const sent = await sendOtpSms(phone, code);
+  if (!sent) {
+    res.status(503).json({
+      error: isSmsLive()
+        ? "Nepavyko išsiųsti SMS. Bandykite dar kartą po minutės."
+        : "SMS pristatymas nepasiekiamas — sukonfigūruokite SMS_MODE=live (Twilio/BulkGate).",
+    });
+    return;
+  }
   if (usesDemoOtp() && exposeOtpDevHint()) {
     console.log(`[VAUTO Auth] Demo OTP for ${phone}: ${demoOtpCode()}`);
   }
@@ -227,6 +251,7 @@ authRouter.post("/otp/send", (req, res) => {
     ok: true,
     expiresAt: new Date(expiresAt).toISOString(),
     codeLength: getOtpCodeLength(),
+    smsLive: isSmsLive(),
     ...(usesDemoOtp() && exposeOtpDevHint()
       ? { devHint: `Demo OTP: ${demoOtpCode()}` }
       : {}),
@@ -235,7 +260,15 @@ authRouter.post("/otp/send", (req, res) => {
 
 authRouter.post("/otp/verify", async (req, res) => {
   try {
-    const phone = String(req.body?.phone ?? "").trim();
+    const rawPhone = String(req.body?.phone ?? "").trim();
+    const phone = normalizeLtMobileE164(rawPhone) ?? rawPhone;
+    if (!isValidLtMobilePhone(rawPhone) && !normalizeLtMobileE164(rawPhone)) {
+      res.status(400).json({
+        error:
+          "Neteisingas Lietuvos mobilusis. Naudokite formatą +3706xxxxxxx.",
+      });
+      return;
+    }
     const code = String(req.body?.code ?? "").trim();
     const role = String(req.body?.role ?? "private");
     const city = String(req.body?.city ?? "Vilnius");

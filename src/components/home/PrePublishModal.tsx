@@ -31,6 +31,10 @@ import {
 import {
   resolveOmnivaLockerEligibility,
 } from "@vauto/shared/omniva-locker-eligibility";
+import {
+  isLaunchPromoActive,
+  LAUNCH_PROMO_BADGE,
+} from "@vauto/shared/launch-promo";
 
 /** Full card → fold → plane flight before API publish. */
 const CARD_FOLD_PLANE_MS = 1200;
@@ -499,8 +503,18 @@ export function PrePublishModal({
             <p className="text-sm font-bold text-[var(--vauto-text)]">
               Monetizacija — Free / Boost / Premium
             </p>
+            {isLaunchPromoActive() ? (
+              <p
+                className="mt-1 rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-2 text-[12px] font-semibold leading-snug text-emerald-800 dark:text-emerald-200"
+                role="status"
+                data-launch-promo="1"
+              >
+                {LAUNCH_PROMO_BADGE}
+              </p>
+            ) : null}
             <p className="mt-0.5 text-[11px] leading-snug text-[var(--vauto-text-muted)]">
-              Pasirinkite matomumo planą prieš publikavimą (serverio kainos).
+              Pasirinkite matomumo planą prieš publikavimą
+              {isLaunchPromoActive() ? " — starto akcijos metu 0 €." : " (serverio kainos)."}
             </p>
             <div
               className="mt-2 space-y-1.5"

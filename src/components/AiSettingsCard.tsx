@@ -64,7 +64,7 @@ export function AiSettingsCard() {
       ? { label: "Tikrinama…", className: "vauto-badge-muted" }
       : mode === "server"
         ? { label: "Gemini AI", className: "vauto-badge-success" }
-        : { label: "Demo režimas", className: "vauto-badge-warning" };
+        : { label: "Offline AI", className: "vauto-badge-warning" };
 
   return (
     <div className="vauto-settings-card mt-6 rounded-2xl p-4">

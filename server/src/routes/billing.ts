@@ -20,6 +20,7 @@ import {
   resolveStripeCustomerId,
 } from "../billing/stripe-client.js";
 import type { StripePlanId } from "../billing/stripe-plans.js";
+import { STRIPE_PLANS } from "../billing/stripe-plans.js";
 import { claimStripeWebhookEvent } from "../billing/webhook-idempotency.js";
 
 export const billingRouter = Router();
@@ -110,6 +111,20 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
       return res.status(400).json({ error: "Invalid planId" });
     }
 
+    const plan = STRIPE_PLANS[planId as StripePlanId];
+    // First Month Free launch — activate immediately at 0 € (Stripe rejects 0 unit_amount).
+    if (plan.amount <= 0) {
+      const user = await subscribeUserPlan(req.authUserId!, planId);
+      if (!user) return res.status(404).json({ error: "User not found" });
+      return res.json({
+        ok: true,
+        mode: "launch_promo",
+        user,
+        amountEur: 0,
+        message: "Starto akcija: Pirmas mėnuo NEMOKAMAI! Planas aktyvuotas.",
+      });
+    }
+
     const stripe = getStripe();
     if (stripe) {
       const user = await getUser(req.authUserId!);
@@ -136,12 +151,12 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
 
     res.json({
       ok: true,
-      mode: "demo",
+      mode: "local",
       user,
       message:
         planId === "pro"
-          ? "Pro planas aktyvuotas (demo režimas)."
-          : "Starto planas užregistruotas (demo režimas).",
+          ? "Pro planas aktyvuotas."
+          : "Starto planas užregistruotas.",
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });

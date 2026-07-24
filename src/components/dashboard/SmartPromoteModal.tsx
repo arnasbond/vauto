@@ -11,6 +11,10 @@ import {
 import type { Listing } from "@/lib/types";
 import { categoryToTheme, getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
+import {
+  isLaunchPromoActive,
+  LAUNCH_PROMO_BADGE,
+} from "@vauto/shared/launch-promo";
 
 const PRODUCT_ICONS: Record<B2CPromoteProductId, typeof Sparkles> = {
   refresh: TrendingUp,
@@ -77,6 +81,15 @@ export function SmartPromoteModal({
         <p className={cn("mb-4 text-xs", mutedColor)}>
           Pasirinkite matomumo paketą — apmokėjimas per saugų VAUTO Checkout.
         </p>
+        {isLaunchPromoActive() ? (
+          <p
+            className="mb-4 rounded-xl border border-emerald-500/30 bg-emerald-500/10 px-3 py-2 text-xs font-semibold text-emerald-800 dark:text-emerald-200"
+            role="status"
+            data-launch-promo="1"
+          >
+            {LAUNCH_PROMO_BADGE}
+          </p>
+        ) : null}
 
         <div className="mb-5 space-y-2">
           {B2C_PROMOTE_PRODUCTS.map((product) => {
@@ -121,7 +134,7 @@ export function SmartPromoteModal({
                     </div>
                   </div>
                   <p className={cn("shrink-0 text-sm font-bold", titleColor)}>
-                    {product.priceEur.toFixed(2)} €
+                    {product.priceEur <= 0 ? "0 €" : `${product.priceEur.toFixed(2)} €`}
                   </p>
                 </div>
               </button>
@@ -130,7 +143,9 @@ export function SmartPromoteModal({
         </div>
 
         <p className={cn("mb-4 text-center text-3xl font-bold", titleColor)}>
-          {selectedProduct.priceEur.toFixed(2)} €
+          {selectedProduct.priceEur <= 0
+            ? "0 €"
+            : `${selectedProduct.priceEur.toFixed(2)} €`}
         </p>
 
         <button
@@ -138,7 +153,9 @@ export function SmartPromoteModal({
           onClick={handleContinue}
           className="w-full min-h-[52px] rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90"
         >
-          Tęsti į apmokėjimą — {selectedProduct.title}
+          {selectedProduct.priceEur <= 0
+            ? `Aktyvuoti nemokamai — ${selectedProduct.title}`
+            : `Tęsti į apmokėjimą — ${selectedProduct.title}`}
         </button>
       </div>
     </div>

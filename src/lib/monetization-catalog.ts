@@ -1,4 +1,9 @@
 import type { B2BBillingPlanId } from "@/lib/b2b-plans";
+import {
+  applyLaunchPromoPrice,
+  isLaunchPromoActive,
+  LAUNCH_PROMO_BADGE,
+} from "@vauto/shared/launch-promo";
 
 export const VAT_RATE_LT = 0.21;
 
@@ -9,17 +14,18 @@ export interface B2CPromoteProduct {
   title: string;
   description: string;
   priceEur: number;
+  listPriceEur: number;
   visibilityTier: "free" | "plus" | "top" | null;
   bumpOnly: boolean;
   durationDays?: number;
 }
 
-export const B2C_PROMOTE_PRODUCTS: B2CPromoteProduct[] = [
+const B2C_PROMOTE_CATALOG: Omit<B2CPromoteProduct, "priceEur">[] = [
   {
     id: "refresh",
     title: "Paprastas atnaujinimas",
     description: "Skelbimas pakyla į sąrašo viršų",
-    priceEur: 1.99,
+    listPriceEur: 1.99,
     visibilityTier: null,
     bumpOnly: true,
   },
@@ -27,7 +33,7 @@ export const B2C_PROMOTE_PRODUCTS: B2CPromoteProduct[] = [
     id: "plus",
     title: "PLUS Ženklelis",
     description: "Uždedamas išskirtinis vizualinis rėmelis",
-    priceEur: 4.99,
+    listPriceEur: 4.99,
     visibilityTier: "plus",
     bumpOnly: false,
     durationDays: 30,
@@ -36,12 +42,27 @@ export const B2C_PROMOTE_PRODUCTS: B2CPromoteProduct[] = [
     id: "top",
     title: "TOP Pozicija",
     description: "Skelbimas užfiksuojamas kategorijos viršuje 7 dienoms",
-    priceEur: 9.99,
+    listPriceEur: 9.99,
     visibilityTier: "top",
     bumpOnly: false,
     durationDays: 7,
   },
 ];
+
+function withPromo(product: Omit<B2CPromoteProduct, "priceEur">): B2CPromoteProduct {
+  const priceEur = applyLaunchPromoPrice(product.listPriceEur);
+  return {
+    ...product,
+    priceEur,
+    description:
+      isLaunchPromoActive() && product.listPriceEur > 0
+        ? `${LAUNCH_PROMO_BADGE}`
+        : product.description,
+  };
+}
+
+export const B2C_PROMOTE_PRODUCTS: B2CPromoteProduct[] =
+  B2C_PROMOTE_CATALOG.map(withPromo);
 
 export type CheckoutProductKind =
   | "b2c_promote"
