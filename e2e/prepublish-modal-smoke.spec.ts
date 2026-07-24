@@ -72,7 +72,8 @@ test.describe("PrePublish modal UI smoke", () => {
         <div data-prepublish-modal="1">
           <h2>Peržiūra ir redagavimas</h2>
           <label>Kaina (€)<input type="number" value="0" /></label>
-          <div>Free Boost Premium</div>
+          <div>Free Boost Premium — Pirmas mėnuo NEMOKAMAI 0 €</div>
+          <div data-omniva-eligible="false">Omniva L netinka — kurjeris / atsiėmimas</div>
           <button data-prepublish-submit="1">
             <span class="plane">✈</span>
             Publikuoti skelbimą
@@ -91,6 +92,8 @@ test.describe("PrePublish modal UI smoke", () => {
 
     const modal = page.locator('[data-prepublish-modal="1"]');
     await expect(modal).toBeVisible();
+    await expect(modal.getByText(/0\s*€|NEMOKAMAI/i).first()).toBeVisible();
+    await expect(modal.locator('[data-omniva-eligible="false"]')).toBeVisible();
     await modal.locator('input[type="number"]').fill("2250");
     await page.screenshot({
       path: testInfo.outputPath("modal-smoke.png"),

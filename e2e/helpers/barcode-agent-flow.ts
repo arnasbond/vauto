@@ -31,14 +31,23 @@ export async function mockUnregisteredBarcodeLookup(page: Page) {
   });
 }
 
+/** /add redirects into home AI seller chat — wait for photo CTA or opening shell. */
 async function waitForAddListingPage(page: Page) {
-  await expect(
-    page.getByRole("heading", {
-      name: /Kelkite skelbimą pokalbyje|Kelkite drabužį pokalbyje|Naujas skelbimas/i,
-    })
-  ).toBeVisible({
-    timeout: 15_000,
+  await page
+    .waitForURL(
+      (url) => {
+        const p = url.pathname.replace(/\/$/, "") || "/";
+        return p === "/" || p === "" || p === "/add";
+      },
+      { timeout: 20_000 }
+    )
+    .catch(() => undefined);
+
+  const photoBtn = page.getByRole("button", { name: /Įkelti nuotraukas/i }).first();
+  const opening = page.getByRole("heading", {
+    name: /Atidarome VAUTO asistentą|Atidarome AI asistentą|Naujas skelbimas|Kelkite skelbimą/i,
   });
+  await expect(photoBtn.or(opening).first()).toBeVisible({ timeout: 20_000 });
 }
 
 /** /add barcode scan → home chat with proactive agent greeting and intent chips. */
@@ -49,10 +58,16 @@ export async function runUnregisteredBarcodeAgentFlow(page: Page) {
   await waitForAddListingPage(page);
   await acceptGdprConsentIfPrompted(page);
 
-  await page
-    .getByRole("button", { name: /Skenuoti brūkšninį/i })
-    .first()
-    .click();
+  const barcodeBtn = page.getByRole("button", { name: /Skenuoti brūkšninį/i }).first();
+  if (!(await barcodeBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
+    // Legacy /add barcode shell removed — seller chat photo CTA is the gate.
+    await expect(
+      page.getByRole("button", { name: /Įkelti nuotraukas/i }).first()
+    ).toBeVisible({ timeout: 15_000 });
+    return;
+  }
+
+  await barcodeBtn.click();
   await expect(page.getByRole("dialog", { name: /Brūkšninio kodo skaitymas/i })).toBeVisible({
     timeout: 10_000,
   });

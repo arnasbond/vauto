@@ -59,7 +59,10 @@ export async function dataFetch<T>(
       const text = await res.text().catch(() => "");
       return {
         ok: false,
-        error: text || res.statusText || `HTTP ${res.status}`,
+        error:
+          parseApiErrorMessage(text) ||
+          res.statusText ||
+          `HTTP ${res.status}`,
         status: res.status,
       };
     }

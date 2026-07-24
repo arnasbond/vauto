@@ -215,8 +215,8 @@ import {
 import {
   executeDirectPhotoIntentChip,
   isDirectAgentActionChip,
-  pickListingPhotoDirect,
 } from "@/lib/direct-agent-actions";
+import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import {
   buildListingContactUpdateReply,
   parseListingContactFromText,
@@ -324,6 +324,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setListingBanned,
     markListingSold,
     showToast,
+    requestMediaConsent,
     isAuthenticated,
     openAuthModal,
     subscribeWishlist,
@@ -351,7 +352,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     acceptPhotoCategoryMismatch,
     submitSellerContent,
     updateAiDraft,
-    updateSellerMedia,
     sellerVisionRecoveryActive,
     cancelSellerFlow,
     sellerPreviewImage,
@@ -766,6 +766,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         );
       }
       if (actions.type === "empty_search") {
+        // P0 — Never turn a fresh seller listing session into marketplace wishlist/search.
+        if (
+          freshListingSessionRef.current ||
+          shouldIsolateSellerListingFromSearch()
+        ) {
+          return;
+        }
         if (resolveBrowseAllIntent(actions.searchQuery)) {
           dispatchBrowseAllMarketplaceState();
           return;
@@ -2868,9 +2875,17 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           });
         }
 
+        const sellerListingIsolated =
+          freshListingSessionRef.current ||
+          Boolean(options?.freshListingSession) ||
+          shouldIsolateSellerListingFromSearch();
         const emptySearchAction =
           res.actions.type === "empty_search" ? res.actions : null;
-        const isEmptySearchAction = Boolean(emptySearchAction);
+        // Seller start / photo flow must never become wishlist empty-search UI.
+        const isEmptySearchAction =
+          Boolean(emptySearchAction) &&
+          !sellerListingIsolated &&
+          !options?.freshListingSession;
         const emptySearchTerm = emptySearchAction
           ? resolveAgentDisplayQuery(
               emptySearchAction.filters,
@@ -2887,11 +2902,18 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ? docAmbiguity.sellableChips
           : isEmptySearchAction
             ? [...EMPTY_SEARCH_QUICK_REPLIES]
-            : res.quickReplies;
+            : sellerListingIsolated && emptySearchAction
+              ? ["Įkelti nuotraukas", "Ką dar reikia?"]
+              : res.quickReplies;
 
         const finalAssistantText = isEmptySearchAction
           ? buildEmptySearchWishlistMessage(emptySearchTerm || trimmed)
-          : mergedAssistantText;
+          : sellerListingIsolated && emptySearchAction
+            ? // Never surface marketplace wishlist copy during a sell start.
+              pathname === "/fashion" || pathname === "/fashion/"
+              ? "Įkelkite drabužio nuotraukas — paruošiu Spintos skelbimą."
+              : "Įkelkite iki 6 nuotraukų — paruošiu skelbimą su AI."
+            : mergedAssistantText;
 
         if (finalAssistantText.trim()) {
           if (
@@ -2932,8 +2954,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               actions: browseActions,
             };
           }
-          // Always apply empty_search (opens chat + wishlist CTA) even from search bar.
-          if (!options?.fromSearchBar || isEmptySearchAction) {
+          // Always apply empty_search (opens chat + wishlist CTA) even from search bar —
+          // except inside an active seller listing session (greeting must not become search).
+          if (
+            (!options?.fromSearchBar || isEmptySearchAction) &&
+            !(sellerListingIsolated && res.actions.type === "empty_search")
+          ) {
             applyActions(res.actions);
           }
           if (voiceReply) {
@@ -3489,16 +3515,22 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (isGapActionChip(trimmed) && !/^įkelti nuotrauk/i.test(trimmed)) {
           return false;
         }
-        const dataUrl = await pickListingPhotoDirect("gallery");
-        if (dataUrl) {
-          updateSellerMedia({ imageDataUrl: dataUrl });
-          if (aiDraft) {
-            updateAiDraft({
-              orderedImageUrls: [dataUrl, ...(aiDraft.orderedImageUrls ?? [])].slice(0, 6),
-            });
-          }
-          showToast("Nuotrauka pridėta.", "success");
-        }
+        // Multi-select gallery → Vision OCR (same path as composer / +Įdėti).
+        pickAndSendChatPhotos({
+          requestMediaConsent,
+          sendAgentMessage: (text, opts) =>
+            sendAgentMessageRef.current(text, {
+              ...opts,
+              skipUserBubble: true,
+              omitPriorListingDraft: true,
+              freshListingSession: true,
+            }),
+          setOpen,
+          source: "gallery",
+          skipUserBubble: true,
+          freshListingSession: true,
+          onErrorMessage: (message) => showToast(message, "error"),
+        });
         return true;
       }
 
@@ -3537,11 +3569,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       setSearchInputMode,
       setSearchQuery,
       showToast,
+      requestMediaConsent,
+      setOpen,
       submitSellerContent,
       goToMarketplace,
-      updateSellerMedia,
       aiDraft,
-      updateAiDraft,
       enterListingEditMode,
       sessionPendingImageUrls,
       commitVisionObjectSellToPrePublish,

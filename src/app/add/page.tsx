@@ -1,7 +1,6 @@
 "use client";
 
-import { Suspense, useEffect, useRef } from "react";
-import { useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
 import { Loader2, Sparkles } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { Header } from "@/components/Header";
@@ -13,6 +12,9 @@ import { useVautoAgent } from "@/context/VautoAgentContext";
  * Legacy /add route — thin redirect into home AI seller chat (4-step flow).
  * Barcode / manual shells are deprecated; bottom "+" and Header "Įdėti" open
  * the assistant directly via openAiSellerListingChat.
+ *
+ * Intentionally avoids Suspense + useSearchParams — that combo can stick on
+ * "Jungiamasi…" forever during Fast Refresh / soft-nav races.
  */
 function AddRedirectShell({
   statusHint,
@@ -54,12 +56,20 @@ function AddRedirectShell({
   );
 }
 
-function AddPageInner() {
-  const searchParams = useSearchParams();
-  const isFashion = searchParams.get("vertical") === "fashion";
+export default function AddPage() {
+  const [isFashion, setIsFashion] = useState(false);
   const { isAuthenticated, authHydrated, requireAuthForListing } = useVauto();
   const { openAiSellerListingChat } = useVautoAgent();
   const startedRef = useRef(false);
+
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      setIsFashion(params.get("vertical") === "fashion");
+    } catch {
+      setIsFashion(false);
+    }
+  }, []);
 
   useEffect(() => {
     if (!authHydrated) return;
@@ -104,12 +114,4 @@ function AddPageInner() {
   }
 
   return <AddRedirectShell statusHint="Atidarome AI asistentą…" />;
-}
-
-export default function AddPage() {
-  return (
-    <Suspense fallback={<AddRedirectShell statusHint="Jungiamasi…" />}>
-      <AddPageInner />
-    </Suspense>
-  );
 }

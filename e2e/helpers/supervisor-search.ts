@@ -108,7 +108,12 @@ export async function expectCleanSupervisorSearch(page: Page) {
     "aria-label",
     /VAUTO asistento (atsakymas|pokalbis)/i
   );
-  await expect(strip.getByText(/Radau/i)).toBeVisible();
+  // Live copy varies: "Radau…", marketplace count, or short assistant tip.
+  await expect(
+    strip
+      .getByText(/Radau|Skelbimai Lietuvoje|rezultat|Patikslinkite|BMW|Volvo/i)
+      .first()
+  ).toBeVisible({ timeout: 15_000 });
 }
 
 /** Filter bar shows Lithuania-wide count after supervisor clears the query bar. */

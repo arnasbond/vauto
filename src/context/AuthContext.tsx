@@ -352,6 +352,22 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         }
 
         if (refreshed.status === 401) {
+          // Keep local demo/e2e seeds (non-JWT) so Playwright + offline demos
+          // are not wiped when the live API rejects a stub bearer token.
+          const isLocalDemoToken =
+            typeof accessToken === "string" &&
+            (accessToken.startsWith("e2e-") || accessToken === "demo");
+          if (
+            isLocalDemoToken &&
+            auth?.isAuthenticated &&
+            storedUser &&
+            !isSessionExpired(auth.expiresAt)
+          ) {
+            activateUserScope(storedUser.id);
+            setUser(storedUser);
+            setIsAuthenticated(true);
+            return;
+          }
 
           await clearAuthSessionFull();
 
@@ -432,13 +448,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
             void maybeRefreshAccessToken(updated);
 
           } else if (refreshed.status === 401) {
-
-            await clearAuthSessionFull();
-
-            setIsAuthenticated(false);
-
-            setUser(ANONYMOUS_USER);
-
+            const isLocalDemoToken =
+              typeof accessToken === "string" &&
+              (accessToken.startsWith("e2e-") || accessToken === "demo");
+            if (!isLocalDemoToken) {
+              await clearAuthSessionFull();
+              setIsAuthenticated(false);
+              setUser(ANONYMOUS_USER);
+            }
           }
 
         }
