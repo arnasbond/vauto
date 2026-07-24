@@ -40,9 +40,17 @@ import {
   normalizePowerKw,
   normalizeVin,
 } from "../shared/vehicle-vision-enrich.js";
-import { getCategoryPrompter } from "./prompters/index.js";
+import {
+  buildHandbookExtractionFewShots,
+  getCategoryPrompter,
+} from "./prompters/index.js";
 
 export { getCategoryPrompter } from "./prompters/index.js";
+export {
+  buildHandbookExtractionFewShots,
+  buildHandbookGenerationFewShots,
+  VAUTO_SYSTEM_HANDBOOK,
+} from "./prompters/index.js";
 
 function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
@@ -113,8 +121,11 @@ KATEGORIJOS PASIRINKIMAS (tik label — copy rašoma Pass 2):
 - MUZIKA: gitara, pianinas, būgnai, smuikas, ukulelė, sintezatorius…
 - NT: butas/namas/sklypas (NE „NAMAI“).
 - MENAS / LAISVALAIKIS / SPORTAS / ELEKTRONIKA / APRANGA / NAMAI — pagal vizualą.
+- PASLAUGOS / DARBAS — paslaugų ar darbo skelbimai.
 - Jei keli PARDUODAMI objektai — detectedObjects + choiceChips.
-- Dokumentai NIEKADA nėra detectedObjects / choiceChips.`;
+- Dokumentai NIEKADA nėra detectedObjects / choiceChips.
+
+${buildHandbookExtractionFewShots()}`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -333,11 +344,13 @@ function buildExtractionTextPrompt(
   return `${EXTRACTION_RULES}
 
 PASS 1 — STRICT EXTRACTION (šalti faktai → JSON).
+Sek Employee Handbook few-shot etalonus (PEIKO pakuotė, Regitra, Hohner, NT, paslaugos, darbas).
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
 Pavyzdžiai:
 - „Parduodu citroena" → intent sell, category AUTOMOBILIAI, technicalFields.make Citroën.
 - „Parduodu gitarą Hohner" → intent sell, category MUZIKA, technicalFields.brand Hohner.
+- „Parduodu PEIKO vertėją" → ELEKTRONIKA + brand/model/specs iš teksto/OCR.
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
 
@@ -394,6 +407,7 @@ PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR fa
 Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos ir Savybės** bullet'us.
 Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
 Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
+Sek Employee Handbook gold-standard few-shot struktūrą (žemiau + prompteryje).
 
 ${categoryPrompt}
 
