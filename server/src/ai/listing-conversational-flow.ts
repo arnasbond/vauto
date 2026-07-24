@@ -20,6 +20,7 @@ export {
   inferListingFlowState,
   isAmendListingIntent,
   isHeroFlowLocked,
+  isImmediatePublishCommand,
   isPrepareListingIntent,
   isPublishReadyIntent,
   isVisionObjectSellChip,

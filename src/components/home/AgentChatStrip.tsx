@@ -176,10 +176,11 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     const result = await publishListing({
       visibilityId,
       pendingImageUrls: sessionPendingImageUrls,
+      // Lottie paper-plane overlay already shows „Skelbimas publikuotas!" —
+      // skip secondary green toast / chat success notify.
+      skipSuccessNotify: true,
     });
     if (result.ok) {
-      // Lottie paper-plane overlay already shows „Skelbimas publikuotas!" —
-      // skip the secondary green toast to avoid duplicate success clutter.
       await runPublishSuccessCelebration({
         result,
         sourceRect,

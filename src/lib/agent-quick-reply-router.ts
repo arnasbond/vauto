@@ -233,6 +233,10 @@ export function tryHandleAgentQuickReply(
     matchesChip(trimmed, [
       /taip,?\s*publikuoti/,
       /publikuojam/,
+      /\bpublikuok\b/,
+      /ne,?\s*nereikia/,
+      /nebereikia/,
+      /nereikia,?\s*publiku/,
       /^🚀?\s*publikuoti$/i,
       /^publikuoti$/i,
       /^keliam$/i,

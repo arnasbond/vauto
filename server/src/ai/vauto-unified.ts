@@ -4,8 +4,7 @@ import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
 import {
-  VISION_ANTI_HALLUCINATION_RULE,
-  VISION_MASTER_SALES_COPYWRITER_RULE,
+  VISION_EXTRACTION_ANTI_HALLUCINATION_RULE,
   VISION_REGITRA_TECH_PASSPORT_OCR_RULE,
 } from "./vision-guardrails.js";
 import { normalizeImageInputList } from "./image-input.js";
@@ -40,6 +39,9 @@ import {
   normalizePowerKw,
   normalizeVin,
 } from "../shared/vehicle-vision-enrich.js";
+import { getCategoryPrompter } from "./prompters/index.js";
+
+export { getCategoryPrompter } from "./prompters/index.js";
 
 function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   const readable = raw.documentReadable;
@@ -52,72 +54,62 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
   return false;
 }
 
-const VAUTO_UNIFIED_SCHEMA = `{
+/** Pass 1 — cold structured facts only (no creative sales copy). */
+const EXTRACTION_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
-  "title": "string — įtraukiantis LT marketplace pavadinimas. Auto: markė + VISAS modelis VERBATIM + metai (pvz. „Citroën Grand C4 Picasso 2007“). Prekės/menas: engaginantis (pvz. „Originalus abstraktus paveikslas ant drobės (Rankų darbas)“)",
   "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "description": "string — MASTER SALES COPY lietuviškai su Markdown (4–8+ sakiniai): Antraštės hook + • **Pagrindiniai privalumai / savybės** + **Būklė ir komplektacija** + **Paskirtis pirkėjui** + Apžiūros/pristatymo CTA. PALIK \\n ir **. DRAUDŽIAMA 1 eilutė / antraštės pakartojimas / sausas caption. DRAUDŽIAMA išgalvoti kainą, ridą, TA. Auto raktai (rida/servisas/automobilis) TIK category=AUTOMOBILIAI",
-  "technicalFields": "object — make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight + laisvi marketplace raktai (Atlikimas, Paskirtis…)",
-  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY ground-truth OCR, NE viešai galerijai)",
-  "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto/auto nuotraukų viešai galerijai",
-  "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai eilės tvarka; document = primary tech source",
-  "documentReadable": "boolean — true TIK jei tech passport / dokumento tekstas aiškiai įskaitomas",
+  "technicalFields": "object — exact facts only: make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight, propertyType, area, rooms, floor, heating, brand, instrumentType, Atlikimas, Paskirtis, Spalvos, Būklė…",
+  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY OCR, NE viešai galerijai)",
+  "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto nuotraukų viešai galerijai",
+  "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai",
+  "documentReadable": "boolean — true TIK jei tech passport tekstas aiškiai įskaitomas",
   "documentOcrConfidence": "number 0-1 — OCR patikimumas; <0.55 = neaišku",
   "unclearDocumentIndexes": "[number] — neaiškių dokumentų indeksai",
   "confidence": "number 0-1",
-  "sceneContext": "string — trumpas kontekstas",
+  "sceneContext": "string — trumpas faktinis kontekstas",
   "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
-  "choiceChips": ["string"]
+  "choiceChips": ["string"],
+  "factNotes": "string — trumpi matomi faktai be marketingo (nebūtina)"
 }`;
 
-const SYSTEM_RULES = `Tu esi VAUTO Smart Assistant — daugiakategorės skelbimų AI + MASTER SALES COPYWRITER. Grąžink TIK vieną JSON objektą.
+/** Pass 2 — creative LT sales copy from extracted JSON. */
+const CREATIVE_SCHEMA = `{
+  "title": "string — įtraukiantis LT marketplace pavadinimas pagal kategorijos prompterį",
+  "description": "string — turtingas LT sales tekstas su Markdown. Sekcijos: **Pavadinimas** hook + **Privalumai** + **Būklė** + **Specs** + **Pristatymas / Apžiūra**. PALIK \\n ir **. 4–8+ sakiniai. Draudžiama sausas caption / 1 eilutė / išgalvoti faktus."
+}`;
 
-PAIEŠKOS IZOLIACIJA (kai intent=search): keyword/kategorija TIK iš dabartinės užklausos — NIEKADA nejunk ankstesnių nesusijusių temų. Fizinės prekės ≠ paslaugos (pvz. gitara ≠ auto detailing).
+/** Lightweight Pass-1 system rules — category routing happens in Pass 2. */
+const EXTRACTION_RULES = `Tu esi VAUTO Smart Assistant — PASS 1 STRICT EXTRACTION. Grąžink TIK vieną JSON faktų objektą (be sales copy).
 
-STEP-2 (nuotrauka + kaina, prieš „Paruošti skelbimą“): pokalbio atsakyme TIK 1 sakinys „Matau [objektą]. Ar paruošti pilną skelbimo juodraštį?“ — NIEKADA neatiduok pilno description / sales copy Step 2 chat'e (pilnas juodraštis = Step 3).
+PAIEŠKOS IZOLIACIJA (kai intent=search): keyword/kategorija TIK iš dabartinės užklausos — NIEKADA nejunk ankstesnių nesusijusių temų.
 
 ${VAUTO_DOMAIN_AUTONOMY_RULES}
 
-${VISION_MASTER_SALES_COPYWRITER_RULE}
-
 ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
 
-OCR + FAKTAI (ground-truth → technicalFields / attributes; NE sausas description caption):
-- Tech passport / registracijos / dokumentų nuotraukos: imageRoles=document + documentImageIndexes.
-- MULTIMODAL FUSION (kai yra ir tech passport, ir auto nuotraukos):
-  Tech passport / documentImageIndexes = PRIMARY ground-truth (prioritetas prieš vizualines spekuliacijas).
-  HARD SPECS iš paso: A→plate/licensePlate, B→firstRegistration PILNA data YYYY-MM-DD (+ year YYYY), D.1→make, D.3→model (VERBATIM — žr. MODEL FIDELITY), S.1→seats, P.1→engine (cm³ → litrai, pvz. 1997→2.0), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
-  VISUAL EXTRAS iš auto nuotraukų → technicalFields + sales description bullet'ai:
-    interiorCondition — odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis / erdvi bagažinė.
-    exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi).
-    transmission — jei matomos mentelės prie vairo → „Automatinė / EGS (pusiau automatinė)“.
-  GRAND LOGIKA: jei S.1=7 arba vizualiai 7 vietos / Grand — model/title „Grand C4 Picasso“ (ne trumpinti į C4 Picasso).
-  DRAUDŽIAMA išgalvoti kainą, ridą ar TA (techninę apžiūrą) — tik jei vartotojas aiškiai parašė.
-- MODEL FIDELITY (ABSOLIUTU): technicalFields.model ir title privalo būti EXACT D.3 / ženkliuko eilutė. NIEKADA trumpinti: „Grand C4 Picasso“ ≠ „C4 Picasso“; „Gran Coupe“, „Avant“, „xDrive“ — VISADA palikti.
-- Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus + turtingą description iš to, kas matoma.
-- galleryImageIndexes / imageRoles=gallery — TIK produkto/auto nuotraukos. Žalias/mėlynas tech passport VISADA document.
-- Jei faktas nematomas — praleisk, neišgalvok. Kainos ir miesto NEGALIMA išgalvoti.
+OCR + FAKTAI → technicalFields (AUTO-FILL PrePublish BE follow-up klausimų):
+- Tech passport / dokumentai: imageRoles=document + documentImageIndexes = PRIMARY ground-truth.
+- HARD SPECS: A→plate/licensePlate, B→firstRegistration YYYY-MM-DD (+ year), D.1→make, D.3→model VERBATIM, S.1→seats, P.1→engine (cm³→litrai), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
+- VISUAL EXTRAS (tik kai category=AUTOMOBILIAI): interiorCondition, exteriorFeatures, transmission.
+- MODEL FIDELITY: model EXACT D.3 — „Grand C4 Picasso“ ≠ „C4 Picasso“.
+- Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus.
+- galleryImageIndexes / imageRoles=gallery — TIK produkto nuotraukos. Žalias/mėlynas tech passport VISADA document.
+- Jei faktas nematomas — praleisk. Kainos / ridos / TA / miesto NEGALIMA išgalvoti.
+- Šiame žingsnyje NErašyk title/description sales copy — tik šalti faktai.
 
 ${TEXT_AND_VISION_INPUT_ONLY}
 
 ${STRUCTURED_INPUT_VISION_RULES}
 
-KATEGORIJŲ TAISYKLĖS:
-- NT: butas/namas/sklypas → „NT“, NE „NAMAI“.
-- AUTOMOBILIAI: TIK tikras auto/motociklas (rida, VIN, tech passport, markė+modelis). DRAUDŽIAMA gitara, menas, buitis, drabužiai → AUTOMOBILIAI.
-- MUZIKA: gitara, pianinas, būgnai, smuikas, ukulelė, sintezatorius, muzikos instrumentai → „MUZIKA“ (NE SPORTAS, NE AUTOMOBILIAI, NE „KITA“ fallback).
-- MENAS: paveikslai, skulptūros, rankų darbas, dekoratyvinis menas → „MENAS“.
-- LAISVALAIKIS: hobiai, stovyklavimas, laisvalaikio inventorius (ne profesionalus sportas) → „LAISVALAIKIS“.
-- SPORTAS: dviračiai, treniruokliai, sporto inventorius → „SPORTAS“.
-- NIEKADA description'e nenaudok auto šablonų („Automobilis paruoštas apžiūrai“, „servisą, dokumentus“, „rida“, „kėbulas“, „automobilis“), jei category ≠ AUTOMOBILIAI — BET non-auto description VISADA lieka turtingas (hook + bullet sekcijos + CTA), ne 1 eilutė.
-- MUZIKA/gitara: skambesys, korpuso/medžio būklė, grifas/stygos, pradedantiesiems ar pro — pagal vizualą + user tekstą.
-- title: engaginantis marketplace pavadinimas; auto — su VISU modeliu; instrumentai — pvz. „Akustinė gitara Hohner“.
-- Jei keli PARDUODAMI objektai — detectedObjects + choiceChips; confidence < 0.5 jei neaišku.
-- DRAUDŽIAMA į detectedObjects / choiceChips dėti tech passport, registracijos liudijimą, kvitą ar kitą dokumentą — jie tik OCR (documentImageIndexes), ne parduodamas objektas.
-- Automobiliams technicalFields: make, model, year, trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition.
-NT: propertyType, area, rooms, floor, heating. Elektronikai: brand, model, condition. Menas/namai: Atlikimas, Paskirtis, Spalvos, Būklė. Muzika: brand, model, condition, instrumentType.`;
+KATEGORIJOS PASIRINKIMAS (tik label — copy rašoma Pass 2):
+- AUTOMOBILIAI: tikras auto/motociklas (VIN, tech passport, markė+modelis).
+- MUZIKA: gitara, pianinas, būgnai, smuikas, ukulelė, sintezatorius…
+- NT: butas/namas/sklypas (NE „NAMAI“).
+- MENAS / LAISVALAIKIS / SPORTAS / ELEKTRONIKA / APRANGA / NAMAI — pagal vizualą.
+- Jei keli PARDUODAMI objektai — detectedObjects + choiceChips.
+- Dokumentai NIEKADA nėra detectedObjects / choiceChips.`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -325,22 +317,26 @@ function toListingPayload(
   };
 }
 
-function buildTextPrompt(text: string, userCity: string, extraContext?: string): string {
+function buildExtractionTextPrompt(
+  text: string,
+  userCity: string,
+  extraContext?: string
+): string {
   const extra = extraContext?.trim()
     ? `\nPapildomas kontekstas: ${extraContext.trim()}`
     : "";
-  return `${SYSTEM_RULES}
+  return `${EXTRACTION_RULES}
 
+PASS 1 — STRICT EXTRACTION (šalti faktai → JSON).
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity}
 Pavyzdžiai:
-- „Parduodu citroena" → intent sell, category AUTOMOBILIAI, title „Parduodamas Citroën“, technicalFields.make Citroën.
-- „Parduodu gitarą Hohner" → intent sell, category MUZIKA (NE AUTOMOBILIAI), title su instrumentu; description BE auto šablonų.
-description: MASTER SALES COPYWRITER formatas (hook + bullet ypatybės + CTA), faktai tikri; category-matching copy.
-Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
+- „Parduodu citroena" → intent sell, category AUTOMOBILIAI, technicalFields.make Citroën.
+- „Parduodu gitarą Hohner" → intent sell, category MUZIKA, technicalFields.brand Hohner.
+Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
 
-function buildImagePrompt(
+function buildExtractionImagePrompt(
   userCity: string,
   text?: string,
   extraContext?: string
@@ -351,42 +347,155 @@ function buildImagePrompt(
   const extra = extraContext?.trim()
     ? `\nKontekstas: ${extraContext.trim()}`
     : "";
-  return `${SYSTEM_RULES}
-${VISION_ANTI_HALLUCINATION_RULE}
+  return `${EXTRACTION_RULES}
+${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
 
-Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Pirmos document nuotraukos = PRIMARY OCR šaltinis.
-1) PRIVALOMA imageRoles masyvas (gallery|document) kiekvienai nuotraukai. Žalias/mėlynas tech passport, registracija, kvitas, popierius su lentele/VIN — VISADA document (ground-truth).
-2) documentImageIndexes + galleryImageIndexes privalo sutapti su imageRoles.
-3) HARD SPECS — Lietuviškas Regitra techninis pasas (OCR, PRIORITETAS; AUTO-FILL PrePublish BE papildomų klausimų):
-   • A = valstybinis numeris → technicalFields.plate + licensePlate
-   • B = pirmoji registracija → technicalFields.firstRegistration PILNA data YYYY-MM-DD IR technicalFields.year (YYYY). DRAUDŽIAMA palikti tik metus, jei diena/mėnuo matomi.
-   • D.1 = markė → technicalFields.make
-   • D.3 = modelis → technicalFields.model — VERBATIM. Jei S.1=7 vietos ir modelis „C4 Picasso“ — rašyk „Grand C4 Picasso“.
-   • S.1 = sėdimos vietos → technicalFields.seats
-   • E = VIN kodas → technicalFields.vin (17 simbolių, jei matoma)
-   • P.1 = variklio tūris cm³ → technicalFields.engine LITRAIS (1997 cm³ → „2.0“) + technicalFields.engineCc jei reikia
-   • P.2 = galia kW → technicalFields.powerKw (skaičius, pvz. „110“)
-   • P.3 = kuro tipas → technicalFields.fuelType NORMALIZUOTAI: Dyzelinas | Benzinas | Elektra | Hibridas | Dujos
-   • R = oficiali spalva → technicalFields.color
-   • V.9 = tarša → technicalFields.euroStandard
-   • G = masė → technicalFields.curbWeight
-   • C.1.3 = savivaldybė / miestas → city (jei aiškiai matoma)
-   Kai B/D.1/D.3/E/P.1/P.2/P.3 ištraukti — NIEKADA neklausti „patikslinkite markę/modelį/variklį/kuro tipą“; PrePublish forma užpildoma iš karto.
-4) VISUAL EXTRAS — tik iš auto (gallery) nuotraukų; rašyk bullet eilutes:
-   • interiorCondition — odinis/kombinuotas salonas, porankiai, mentelės prie vairo, guminis bagažinės kilimėlis / erdvi bagažinė
-   • exteriorFeatures — ratlankiai, stogo bėgeliai (rilingai), langų deflektoriai, vilkimo kablys (TIK jei matosi)
-   • transmission — jei matomos mentelės → „Automatinė / EGS (pusiau automatinė)“
-   • bodyType — vienatūris / MPV jei aišku
-5) description — MASTER SALES COPYWRITER (hook + **Pagrindiniai privalumai** + **Būklė** + **Paskirtis** + CTA). HARD SPECS / OCR faktai → technicalFields IR į description bullet'us.
-   • DRAUDŽIAMA sausas caption („pavaizduoti…“, „nuotraukoje matyti…“) ARBA 1 eilutės antraštės pakartojimas.
-   • DRAUDŽIAMA išgalvoti kainą, ridą, TA.
-   • PALIK Markdown ** ir naujas eilutes (\\n) description stringe.
-   • Non-auto (gitara/elektronika/prekės): turtingas LT sales copy BE auto raktažodžių.
-6) NIEKADA neklausti „Patikslinkite metus / markę / variklį / kuro tipą / VIN“, jei B/D.1/D.3/E/P.1/P.2/P.3 jau ištraukti — AUTO-FILL PrePublish. NIEKADA nekartok vartotojo frazės kaip aprašymo.
-7) title — engaginantis marketplace pavadinimas; auto = make + VERBATIM/Grand model + year.
-8) Papildomi technicalFields: seats, vin, euroStandard, co2, maxSpeed, curbWeight/maxMass, bodyType, transmission, interiorCondition, exteriorFeatures, firstRegistration + marketplace raktai.${textNote}${extra}
+PASS 1 — STRICT EXTRACTION iš nuotraukų (šalti faktai; BE sales copy).
+Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Document nuotraukos = PRIMARY OCR.
+1) PRIVALOMA imageRoles (gallery|document). Žalias/mėlynas tech passport / registracija / kvitas — VISADA document.
+2) documentImageIndexes + galleryImageIndexes sutampa su imageRoles.
+3) HARD SPECS — Regitra techninis pasas → technicalFields AUTO-FILL PrePublish BE papildomų klausimų:
+   A→plate/licensePlate · B→firstRegistration YYYY-MM-DD + year · D.1→make · D.3→model VERBATIM
+   S.1→seats · E→vin · P.1→engine litrais · P.2→powerKw · P.3→fuelType · R→color · V.9→euroStandard · G→curbWeight · C.1.3→city
+4) VISUAL EXTRAS (tik AUTOMOBILIAI gallery): interiorCondition, exteriorFeatures, transmission, bodyType.
+5) NIEKADA neklausti markės/modelio/variklio/kuro/VIN, jei jau ištraukti — forma užpildoma iš karto.
+6) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.${textNote}${extra}
 Numatytas miestas: ${userCity}
-Grąžink JSON: ${VAUTO_UNIFIED_SCHEMA}`;
+Grąžink JSON: ${EXTRACTION_SCHEMA}`;
+}
+
+function buildCreativeWritePrompt(
+  extracted: Record<string, unknown>,
+  userCity: string
+): string {
+  const category = String(extracted.category ?? "NAMAI");
+  const { id: prompterId, prompt: categoryPrompt } = getCategoryPrompter(category);
+  const facts = {
+    intent: extracted.intent ?? "sell",
+    category,
+    price: extracted.price ?? null,
+    city: extracted.city || userCity,
+    technicalFields: extracted.technicalFields ?? {},
+    sceneContext: extracted.sceneContext ?? "",
+    factNotes: extracted.factNotes ?? "",
+    confidence: extracted.confidence ?? 0.85,
+  };
+  return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE.
+Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALIA lietuvių kalba.
+Naudok TIK faktus iš JSON — neišgalvok kainos, ridos, TA ar kitų specs.
+Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA) — be ilgų „nedaryk X“ sąrašų.
+Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
+
+${categoryPrompt}
+
+IŠTRAUKTI FAKTAI (ground-truth JSON):
+${JSON.stringify(facts, null, 2)}
+
+Numatytas miestas: ${userCity}
+Grąžink TIK JSON: ${CREATIVE_SCHEMA}`;
+}
+
+/**
+ * Two-pass pipeline:
+ * 1) Strict structured extraction (facts / OCR / category)
+ * 2) Category-routed creative Lithuanian sales copy
+ */
+async function runTwoPassListingGeneration(opts: {
+  mode: "text" | "image";
+  text?: string;
+  userCity: string;
+  extraContext?: string;
+  imageDataUrls?: string[];
+  priceHint?: number;
+}): Promise<Record<string, unknown>> {
+  const city = opts.userCity;
+  const extractionPrompt =
+    opts.mode === "image"
+      ? buildExtractionImagePrompt(city, opts.text, opts.extraContext)
+      : buildExtractionTextPrompt(opts.text ?? "", city, opts.extraContext);
+
+  const extractedRaw = await unifiedLlmJson({
+    prompt: extractionPrompt,
+    ...(opts.mode === "image" && opts.imageDataUrls?.length
+      ? { imageDataUrls: opts.imageDataUrls }
+      : {}),
+    userTextFallback: opts.text?.trim() || undefined,
+    userCityFallback: city,
+    priceHint: opts.priceHint,
+  });
+
+  const extracted = opts.text?.trim()
+    ? enrichSellerListingFromText(opts.text.trim(), extractedRaw)
+    : extractedRaw;
+
+  // Heuristic category remap before creative write — keeps prompter isolation tight.
+  const technicalFields = parseTechnicalFields(
+    extracted.technicalFields ?? extracted.attributes
+  );
+  const remapped = remapCategoryFromContent(
+    CATEGORY_TO_INTERNAL[String(extracted.category ?? "").toUpperCase()] ?? "other",
+    String(extracted.category ?? "").toUpperCase(),
+    String(extracted.title ?? ""),
+    String(extracted.factNotes ?? ""),
+    technicalFields
+  );
+  extracted.category = remapped.vautoCategory;
+  extracted.technicalFields = technicalFields;
+
+  let creative: Record<string, unknown> = {};
+  try {
+    creative = await unifiedLlmJson({
+      prompt: buildCreativeWritePrompt(extracted, city),
+      userTextFallback: opts.text?.trim() || undefined,
+      userCityFallback: city,
+      priceHint: opts.priceHint,
+    });
+  } catch (err) {
+    console.warn(
+      "[vauto-unified] Pass-2 creative write failed — falling back to factNotes/title stub",
+      err instanceof Error ? err.message : err
+    );
+  }
+
+  const title =
+    String(creative.title ?? "").trim() ||
+    buildFallbackTitle(remapped.vautoCategory, technicalFields, opts.text);
+  const description =
+    String(creative.description ?? "").trim() ||
+    String(extracted.factNotes ?? "").trim() ||
+    title;
+
+  return {
+    ...extracted,
+    category: remapped.vautoCategory,
+    title,
+    description,
+    technicalFields,
+  };
+}
+
+function buildFallbackTitle(
+  category: string,
+  fields: Record<string, string | string[]>,
+  userText?: string
+): string {
+  const make = String(fields.make ?? fields.brand ?? "").trim();
+  const model = String(fields.model ?? "").trim();
+  const year = String(fields.year ?? "").trim();
+  if (category === "AUTOMOBILIAI" && (make || model)) {
+    return [make, model, year].filter(Boolean).join(" ").trim();
+  }
+  const fromUser = userText?.trim().replace(/^parduodu\s+/i, "").slice(0, 80);
+  return fromUser || "Skelbimas";
+}
+
+/** @deprecated Use extraction + creative two-pass helpers. Kept for log compatibility. */
+function buildImagePrompt(
+  userCity: string,
+  text?: string,
+  extraContext?: string
+): string {
+  return buildExtractionImagePrompt(userCity, text, extraContext);
 }
 
 export type VautoServerAction =
@@ -520,10 +629,12 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
     if (!text) {
       throw Object.assign(new Error("text is required for parse_text"), { status: 400 });
     }
-    const rawParsed = await unifiedLlmJson({
-      prompt: buildTextPrompt(text, city, body.extraContext),
+    const raw = await runTwoPassListingGeneration({
+      mode: "text",
+      text,
+      userCity: city,
+      extraContext: body.extraContext,
     });
-    const raw = enrichSellerListingFromText(text, rawParsed);
     const listing = toListingPayload(raw, city, contact);
     return { ok: true, action, parsed: raw, listing };
   }
@@ -537,13 +648,13 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       listingTitle: combinedText || body.extraContext?.trim(),
     });
     const visionImages = imagesAfterPipeline(pipeline, images);
-    const rawParsed = await unifiedLlmJson({
-      prompt: buildImagePrompt(city, body.text, body.extraContext),
+    const raw = await runTwoPassListingGeneration({
+      mode: "image",
+      text: combinedText || undefined,
+      userCity: city,
+      extraContext: body.extraContext,
       imageDataUrls: visionImages,
     });
-    const raw = combinedText
-      ? enrichSellerListingFromText(combinedText, rawParsed)
-      : rawParsed;
     const listing = enrichVehicleVisionDraft(
       toListingPayload(raw, city, contact)
     ) as VautoListingPayload;
@@ -646,34 +757,37 @@ export async function parseListingImagesForAgent(params: {
   const city = resolveListingCity(params.userCity?.trim(), "Vilnius");
   const contact = params.contact?.trim() || "";
   const combinedText = params.text?.trim() ?? "";
-  const prompt = buildImagePrompt(city, params.text, params.extraContext);
-  console.log("[vision] parseListingImagesForAgent prompt", {
-    promptChars: prompt.length,
-    promptHead: prompt.slice(0, 280),
+  const extractionPrompt = buildExtractionImagePrompt(
+    city,
+    params.text,
+    params.extraContext
+  );
+  console.log("[vision] parseListingImagesForAgent two-pass", {
+    promptChars: extractionPrompt.length,
+    promptHead: extractionPrompt.slice(0, 280),
+    categoryRouter: true,
   });
-  let rawParsed: Record<string, unknown>;
+  let raw: Record<string, unknown>;
   try {
-    rawParsed = await unifiedLlmJson({
-      prompt,
+    raw = await runTwoPassListingGeneration({
+      mode: "image",
+      text: combinedText || undefined,
+      userCity: city,
+      extraContext: params.extraContext,
       imageDataUrls: images,
-      userTextFallback: combinedText || undefined,
-      userCityFallback: city,
       priceHint: params.priceHint,
     });
   } catch (err) {
     const errMessage = err instanceof Error ? err.message : String(err);
     // Flat string — Render truncates console.error object payloads.
     console.error(
-      `[vision] parseListingImagesForAgent unifiedLlmJson error ${JSON.stringify({
+      `[vision] parseListingImagesForAgent two-pass error ${JSON.stringify({
         errMessage,
         stack: err instanceof Error ? err.stack?.slice(0, 700) : undefined,
       })}`
     );
     throw err;
   }
-  const raw = combinedText
-    ? enrichSellerListingFromText(combinedText, rawParsed)
-    : rawParsed;
   const listingRaw = toListingPayload(raw, city, contact);
   const listing = enrichVehicleVisionDraft(listingRaw) as typeof listingRaw;
   // Anti-hallucination: never keep a Vision-invented price unless user/hint provided it.

@@ -59,6 +59,7 @@ import {
   dispatchListingFlowTurn,
   inferListingFlowState,
   isHeroFlowLocked,
+  isPublishReadyIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   POST_VISION_PUBLISH_CHIPS,
@@ -343,6 +344,13 @@ async function runVautoAgentInner(
   onEvent?: RunVautoAgentOptions["onEvent"]
 ): Promise<VautoAgentResponse> {
   emitAgentEvent(onEvent, { type: "status", message: "Galvoju…" });
+
+  // New listing / seller chat — force clean search memory (no sticky „Rodyk visus").
+  if (req.context.freshListingSession || req.context.searchSessionReset) {
+    req.context.activeSearchFilters = null;
+    req.context.lastSearchQuery = undefined;
+    req.context.searchResultCount = undefined;
+  }
 
   if (req.authUserId) {
     const [prefs, dbBehavior] = await Promise.all([
@@ -888,7 +896,8 @@ async function runVautoAgentInner(
     if (
       flowState === "AWAITING_PHOTOS" &&
       draftPhotoCount === 0 &&
-      !shouldBypassPhotosNudge(lastUserText)
+      !shouldBypassPhotosNudge(lastUserText) &&
+      !isPublishReadyIntent(lastUserText)
     ) {
       return {
         ok: true,

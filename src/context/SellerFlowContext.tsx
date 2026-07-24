@@ -278,6 +278,11 @@ export interface PublishListingOptions {
   visibilityId?: PrePublishVisibilityId;
   /** Agent chat pending attachments — same sources PrePublish readiness uses. */
   pendingImageUrls?: string[];
+  /**
+   * When true, skip chat/toast success notify — Lottie paper-plane celebration
+   * already shows „Skelbimas publikuotas!".
+   */
+  skipSuccessNotify?: boolean;
 }
 
 export interface SellerFlowContextValue {
@@ -1948,7 +1953,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           showToast("Anonser.lt sinchronizacija suplanuota.", "info");
         }
       });
-      notifyListingPublishComplete(publishCategory, 1);
+      if (!opts?.skipSuccessNotify) {
+        notifyListingPublishComplete(publishCategory, 1);
+      }
       const visibilityCheckout = buildPrePublishVisibilityCheckout(
         published.id,
         published.title,
@@ -1987,7 +1994,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         showToast("Anonser.lt sinchronizacija suplanuota.", "info");
       }
     });
-    notifyListingPublishComplete(publishCategory, 1);
+    if (!opts?.skipSuccessNotify) {
+      notifyListingPublishComplete(publishCategory, 1);
+    }
     const visibilityCheckout = buildPrePublishVisibilityCheckout(
       newListing.id,
       newListing.title,

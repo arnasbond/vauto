@@ -134,10 +134,32 @@ export function nounFromVisionObjectSellChip(text: string): string {
     .trim();
 }
 
+/**
+ * Strong publish imperatives — skip photo re-ask and trigger publication immediately
+ * (not merely open PrePublish preview).
+ */
+export function isImmediatePublishCommand(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t) return false;
+  if (/\bpublikuok(?:ite|im)?\b/i.test(t)) return true;
+  if (/\bpublikuojam\b/i.test(t)) return true;
+  if (/^publikuoti\b/i.test(t)) return true;
+  if (
+    /nebereikia|ne,?\s*nereikia|daugiau\s+nereikia|nereikia,?\s*publiku|be\s+daugiau/i.test(
+      t
+    )
+  ) {
+    return true;
+  }
+  if (/^taip[,!]?\s*publiku/i.test(t)) return true;
+  return false;
+}
+
 /** „viskas / publikuok / publikuojam / PrePublish / nenoriu / tinka / keliam“ → lock PrePublish */
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
+  if (isImmediatePublishCommand(t)) return true;
   if (/^nenoriu(\b|$)/i.test(t)) return true;
   if (/^viskas\b/i.test(t)) return true;
   if (/^(tinka|keliam|keliame)\b/i.test(t)) return true;

@@ -74,18 +74,22 @@ Ištrauk ir AUTO-FILL technicalFields be papildomų follow-up klausimų:
 - B → firstRegistration (YYYY-MM-DD) + year (YYYY)
 Kai šie laukai užpildyti — NIEKADA neklausti markės/modelio/variklio/kuro/VIN dar kartą.`;
 
-export const VISION_ANTI_HALLUCINATION_RULE = `
-VIZUALUS SUPRATIMAS (PRIVALOMA — autonomija, ne blokas):
-- Ištrauk viską, ką matai: produktą, auto, NT, elektroniką, drabužį ar paslaugos kontekstą.
-- Jei keli objektai — detectedObjects + choiceChips; confidence gali būti žemesnis, BET VIS TIEK grąžink geriausią juodraščio pasiūlymą.
+/** Pass-1 extraction only — facts/OCR/category, no creative sales copy. */
+export const VISION_EXTRACTION_ANTI_HALLUCINATION_RULE = `
+VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (PRIVALOMA — autonomija, ne blokas):
+- Ištrauk STRUKTŪRUOTUS FAKTUS: produktą, auto, NT, elektroniką, drabužį ar paslaugos kontekstą.
+- Jei keli objektai — detectedObjects + choiceChips; confidence gali būti žemesnis, BET VIS TIEK grąžink geriausią faktų JSON.
 - DRAUDŽIAMA: visiškai tuščias atsakymas, „prekė neatpažinta“ kaip stop, automatinis PASLAUGOS priskyrimas be pagrindo.
-- Jei vaizdas silpnas — documentReadable/confidence atspindėk, bet NESTABDYK juodraščio.
+- Jei vaizdas silpnas — documentReadable/confidence atspindėk, bet NESTABDYK ekstrakcijos.
 - NIEKADA neatmesk vartotojo nuotraukų kaip „stock“ / „neadekvatu“ — tai ne tavo sprendimas.
-- NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje — title/description TIK pagal dabartinį kadrą.
-- Nežinomas / bendras daiktas → IMMEDIATELY suformuok įtraukiantį marketplace title + turtingą description (ne sausą caption).
+- NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje.
+- Šiame žingsnyje NErašyk turtingo sales description — tik šalti faktai + category + imageRoles.
 ${VISION_ANTI_STALE_TITLE_RULE}
-${VISION_MASTER_SALES_COPYWRITER_RULE}
 ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}`;
+
+export const VISION_ANTI_HALLUCINATION_RULE = `
+${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
+${VISION_MASTER_SALES_COPYWRITER_RULE}`;
 
 export const WARDROBE_ANTI_HALLUCINATION_RULE = `
 SPINTOS VIZIJA (PRIVALOMA — autonomija):

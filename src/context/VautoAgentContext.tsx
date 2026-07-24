@@ -173,6 +173,7 @@ import {
   buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
+  isImmediatePublishCommand,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   POST_VISION_PUBLISH_CHIPS,
@@ -182,6 +183,11 @@ import {
   shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "@/lib/listing-conversational-flow";
+import {
+  centerScreenPublishRect,
+  runPublishSuccessCelebration,
+} from "@/lib/publish-success-celebration";
+import { usePublishCelebrationOptional } from "@/context/PublishCelebrationContext";
 import {
   formatListingDescriptionChatMessage,
   isDescriptionGateOnlyReply,
@@ -344,6 +350,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     sellerVisionRecoveryActive,
     cancelSellerFlow,
     sellerPreviewImage,
+    finishPublishedFlow,
   } = useSellerFlow();
   const { startChat } = useChat();
   const pathname = usePathname();
@@ -357,6 +364,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     clearSearchFilters,
     activeSearchFilters,
   } = useZeroUiMemory();
+  const publishCelebration = usePublishCelebrationOptional();
 
   const myListingsForAgent = useMemo(
     () => compactMyListingsForAgent(listings, user.id),
@@ -1078,6 +1086,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   );
 
   const resetPublishSessionRef = useRef<() => void>(() => {});
+  const beginFreshListingChatSessionRef = useRef<() => void>(() => {});
 
   const resetPublishSession = useCallback(() => {
     setListingPublishConfirmed(false);
@@ -1788,7 +1797,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           updateAiDraft(draftingDraft);
           setListingPublishConfirmed(false);
           setHidePrePublishCard(true);
-          const reply = buildConversationalMissingPrompt(readiness);
+          // Immediate publish commands never re-ask for more photos — only missing auth/price/city/phone.
+          const reply =
+            isImmediatePublishCommand(trimmed) && readiness.missingPhoto && !readiness.missingPrice
+              ? "Publikavimui reikia bent vienos prekės nuotraukos. Įkelkite nuotrauką ir parašykite „Publikuok“."
+              : buildConversationalMissingPrompt(readiness);
           setMessages((prev) => [
             ...prev,
             { role: "user" as const, text: trimmed || "publikuojam" },
@@ -1821,6 +1834,50 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             documentUrls: parseDocumentUrlsFromAttributes(patchedDraft.attributes),
           }
         ).slice(0, 6);
+
+        // „Publikuok“ / „Ne nereikia, publikuok“ → publish immediately (no photo re-prompt loop).
+        if (isImmediatePublishCommand(trimmed) && readiness.hasPhoto) {
+          updateAiDraft({
+            ...patchedDraft,
+            ...(cardPhotos.length ? { orderedImageUrls: cardPhotos } : {}),
+            listingFlowState: "AWAITING_CONFIRMATION",
+          });
+          setMessages((prev) => [
+            ...prev,
+            { role: "user" as const, text: trimmed || "publikuok" },
+          ]);
+          const publishResult = await publishListing({
+            pendingImageUrls: pendingForTurn,
+            skipSuccessNotify: true,
+          });
+          if (publishResult.ok) {
+            const play =
+              publishCelebration?.playPublishCelebration ??
+              (async () => undefined);
+            await runPublishSuccessCelebration({
+              result: publishResult,
+              sourceRect: centerScreenPublishRect(),
+              playCelebration: play,
+              finishPublishedFlow,
+              router,
+              resetPublishSession,
+              beginFreshListingChatSession: () =>
+                beginFreshListingChatSessionRef.current(),
+            });
+            touchAgentSessionActivity();
+            return { ok: true, reply: "" };
+          }
+          const err =
+            publishResult.error ||
+            "Nepavyko publikuoti — patikrinkite kainą, miestą ir nuotrauką.";
+          setMessages((prev) => [
+            ...prev,
+            { role: "assistant" as const, text: err, quickReplies: undefined },
+          ]);
+          touchAgentSessionActivity();
+          return { ok: false, error: err };
+        }
+
         const card = buildPrePublishCardPayload(
           readiness,
           sellerPreviewImage ?? cardPhotos[0] ?? null,
@@ -2463,10 +2520,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ...memoryContext,
             ...sellerWizardContext,
             listingDraft: listingDraftForContext,
-            activeSearchFilters: searchSessionReset
-              ? resetFilters
-              : memoryContext.activeSearchFilters,
-            searchSessionReset,
+            activeSearchFilters:
+              freshSessionActive || searchSessionReset
+                ? searchSessionReset
+                  ? resetFilters
+                  : null
+                : memoryContext.activeSearchFilters,
+            searchSessionReset: freshSessionActive || searchSessionReset || undefined,
             recentSearchListingIds: agentPinnedListingIds?.length
               ? agentPinnedListingIds.slice(0, 24)
               : undefined,
@@ -2920,6 +2980,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       commitVisionObjectSellToPrePublish,
       pushStreamThinkingLabel,
       setStreamThinkingLabelNow,
+      finishPublishedFlow,
+      publishCelebration,
+      resetPublishSession,
     ]
   );
 
@@ -3143,20 +3206,37 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setLastError(undefined);
     setBusy(false);
     setStreamThinkingLabelNow("Galvoju…");
-    // Wipe sticky buyer search intents so „Jūsų noras … vis dar aktyvus“ cannot bleed in.
-    clearSearchFilters();
-    setAgentPinnedListings([]);
-    setSearchQuery("");
+    // FORCE clean slate: wipe sticky buyer search intents, „Rodyk visus" filters,
+    // pinned hits, and visual search so historical context cannot bleed into sell chat.
+    applyBrowseAllMarketplaceState({
+      setSearchQuery,
+      setAgentPinnedListings,
+      clearSearchFilters,
+      resetMarketplaceFilters,
+      clearVisualSearch,
+      setSearchInputMode,
+      setSearchVoiceMode,
+      setViewMode,
+    });
     setSearchLoading(false);
     clearPhotoSearchSession();
   }, [
     cancelSellerFlow,
     clearSearchFilters,
+    clearVisualSearch,
+    resetMarketplaceFilters,
     setAgentPinnedListings,
+    setSearchInputMode,
     setSearchLoading,
     setSearchQuery,
+    setSearchVoiceMode,
     setStreamThinkingLabelNow,
+    setViewMode,
   ]);
+
+  useEffect(() => {
+    beginFreshListingChatSessionRef.current = beginFreshListingChatSession;
+  }, [beginFreshListingChatSession]);
 
   /** Forceful seller-chat reset (open AI Seller / new listing entry). */
   const resetSellerChat = beginFreshListingChatSession;

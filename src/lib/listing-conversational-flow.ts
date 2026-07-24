@@ -29,6 +29,7 @@ export {
   isAmendListingIntent,
   isHeroFlowLocked,
   isPrepareListingIntent,
+  isImmediatePublishCommand,
   isPublishReadyIntent,
   isVisionObjectSellChip,
   listingFlowAllowsPhotoUpload,
