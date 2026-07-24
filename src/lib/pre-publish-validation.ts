@@ -159,6 +159,27 @@ export function buildPrePublishBlockMessage(opts: {
   });
 }
 
+function resolveDraftPriceValue(
+  draft: AiExtractedListing | null | undefined
+): number {
+  const direct = Number(draft?.price);
+  if (Number.isFinite(direct) && direct > 0) return direct;
+  const attrs = draft?.attributes as Record<string, unknown> | undefined;
+  if (!attrs) return 0;
+  for (const key of ["price", "priceLabel", "kaina", "Price"] as const) {
+    const raw = attrs[key];
+    if (raw == null || raw === "") continue;
+    const fromNum = Number(raw);
+    if (Number.isFinite(fromNum) && fromNum > 0) return fromNum;
+    const fromText = String(raw).match(/(\d+(?:[.,]\d+)?)/);
+    if (fromText) {
+      const n = Number(fromText[1]!.replace(",", "."));
+      if (Number.isFinite(n) && n > 0) return n;
+    }
+  }
+  return 0;
+}
+
 export function evaluatePrePublishReadiness(
   input: PrePublishCheckInput
 ): PrePublishReadiness {
@@ -167,6 +188,12 @@ export function evaluatePrePublishReadiness(
   let syncedDraft = input.draft;
   if (input.draft && input.isAuthenticated && !missingAuth) {
     syncedDraft = injectProfileContactsForPublish(input.draft, input.user);
+  }
+
+  // Hydrate price from attributes / labels so Publikuoti never re-asks when price is already present.
+  const hydratedPrice = resolveDraftPriceValue(syncedDraft);
+  if (syncedDraft && hydratedPrice > 0 && !(Number(syncedDraft.price) > 0)) {
+    syncedDraft = { ...syncedDraft, price: hydratedPrice };
   }
 
   const hasPhoto = draftHasPhoto(input);

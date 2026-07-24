@@ -1447,7 +1447,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const runPrePublishGate = (
         draftOverride?: import("@/lib/types").AiExtractedListing | null
       ) => {
-        const draft = draftOverride ?? aiDraft;
+        const base = draftOverride ?? aiDraft;
+        const locked = sessionLockedPriceRef.current;
+        const draft =
+          base &&
+          locked != null &&
+          locked > 0 &&
+          !(Number(base.price) > 0)
+            ? { ...base, price: locked }
+            : base;
         const readiness = evaluatePrePublishReadiness({
           isAuthenticated,
           user,
@@ -1797,11 +1805,23 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           updateAiDraft(draftingDraft);
           setListingPublishConfirmed(false);
           setHidePrePublishCard(true);
-          // Immediate publish commands never re-ask for more photos — only missing auth/price/city/phone.
+          // Price already present (locked / form / draft) — never re-ask „Kokią kainą?“.
+          const priceAlreadyKnown =
+            (resolvedPrice != null && resolvedPrice > 0) ||
+            (sessionLockedPriceRef.current != null &&
+              sessionLockedPriceRef.current > 0) ||
+            (draftWithPrice.price > 0);
           const reply =
-            isImmediatePublishCommand(trimmed) && readiness.missingPhoto && !readiness.missingPrice
+            isImmediatePublishCommand(trimmed) &&
+            readiness.missingPhoto &&
+            !readiness.missingPrice
               ? "Publikavimui reikia bent vienos prekės nuotraukos. Įkelkite nuotrauką ir parašykite „Publikuok“."
-              : buildConversationalMissingPrompt(readiness);
+              : readiness.missingPrice && priceAlreadyKnown
+                ? buildConversationalMissingPrompt({
+                    ...readiness,
+                    missingPrice: false,
+                  })
+                : buildConversationalMissingPrompt(readiness);
           setMessages((prev) => [
             ...prev,
             { role: "user" as const, text: trimmed || "publikuojam" },
@@ -1849,6 +1869,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           const publishResult = await publishListing({
             pendingImageUrls: pendingForTurn,
             skipSuccessNotify: true,
+            ...(resolvedPrice != null && resolvedPrice > 0
+              ? { priceOverride: resolvedPrice }
+              : {}),
           });
           if (publishResult.ok) {
             const play =

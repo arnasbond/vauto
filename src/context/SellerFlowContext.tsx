@@ -283,6 +283,8 @@ export interface PublishListingOptions {
    * already shows „Skelbimas publikuotas!".
    */
   skipSuccessNotify?: boolean;
+  /** Flush PrePublish form price into publish even if React state hasn't committed yet. */
+  priceOverride?: number;
 }
 
 export interface SellerFlowContextValue {
@@ -1469,18 +1471,30 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const pendingImageUrls = (opts?.pendingImageUrls ?? [])
       .map((u) => String(u ?? "").trim())
       .filter(Boolean);
+    const priceOverride =
+      opts?.priceOverride != null &&
+      Number.isFinite(opts.priceOverride) &&
+      opts.priceOverride > 0
+        ? opts.priceOverride
+        : null;
+    const draftForGate =
+      aiDraft && priceOverride != null && !(aiDraft.price > 0)
+        ? { ...aiDraft, price: priceOverride }
+        : aiDraft;
     const prePublish = evaluatePrePublishReadiness({
       isAuthenticated,
       user,
-      draft: aiDraft,
+      draft: draftForGate,
       previewImage: sellerPreviewImage,
       pendingImageUrls,
-      orderedImageUrls: aiDraft.orderedImageUrls,
+      orderedImageUrls: draftForGate?.orderedImageUrls ?? aiDraft.orderedImageUrls,
       editingListingId,
       geoCoords: buyerCoords,
     });
     if (prePublish.syncedDraft && prePublish.syncedDraft !== aiDraft) {
       setAiDraft(prePublish.syncedDraft);
+    } else if (draftForGate && priceOverride != null && draftForGate !== aiDraft) {
+      setAiDraft(draftForGate);
     }
     if (!prePublish.ok) {
       if (prePublish.missingAuth && !isAuthenticated) {

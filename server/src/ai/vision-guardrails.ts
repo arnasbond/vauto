@@ -61,6 +61,23 @@ PAVYZDYS (struktūra — ne kopijuoti turinį):
   "attributes": { "Atlikimas": "Rankų darbas", "Paskirtis": "Interjerui / Dovana" }
 }`;
 
+/** Deep OCR — packaging boxes, labels, back covers (plus Regitra via companion rule). */
+export const VISION_DEEP_OCR_EXTRACTION_RULE = `
+DEEP VISION OCR EXTRACTION (PRIVALOMA — kiekviena įkelta nuotrauka):
+Atlik IŠSAMŲ OCR: aktyviai nuskaityk, identifikuok ir TRANSKRIBUOK VISĄ įskaitomą tekstą.
+
+PRODUKTO PAKUOTĖS / DĖŽUTĖS / ETIKETĖS / GALINIS DANGTELIS (pvz. PEIKO vertėjas, elektronika, kosmetika):
+- Markė / brand, modelis / produkto pavadinimas, tipas
+- Techninės specifikacijos (kalbos, baterija, dydis, galia, SVV, sudėtis, sertifikatai…)
+- Komplektacija / contents, įspėjimai, serijos / partijos numeriai jei matomi
+- VISĄ įskaitomą tekstą sudėk į technicalFields (brand, model, condition, specs…) IR factNotes / ocrText
+- NEPRAILSK smulkių spec eilučių — jos = ground-truth skelbimui
+
+TAISYKLĖS:
+- OCR prioritetas prieš vizualines spekuliacijas.
+- Jei tekstas dalinai neryškus — documentReadable/confidence, BET grąžink viską, ką perskaitei.
+- Neiškraipyk ir neišgalvok — tik tai, kas įskaitoma nuotraukoje.`;
+
 /** Strict Lithuanian Regitra tech-passport OCR → PrePublish autofill. */
 export const VISION_REGITRA_TECH_PASSPORT_OCR_RULE = `
 REGITRA TECH PASSPORT OCR (PRIVALOMA kai matomas žalias/mėlynas techninis pasas):
@@ -85,7 +102,8 @@ VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (PRIVALOMA — autonomija, ne blokas):
 - NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje.
 - Šiame žingsnyje NErašyk turtingo sales description — tik šalti faktai + category + imageRoles.
 ${VISION_ANTI_STALE_TITLE_RULE}
-${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}`;
+${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
+${VISION_DEEP_OCR_EXTRACTION_RULE}`;
 
 export const VISION_ANTI_HALLUCINATION_RULE = `
 ${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}

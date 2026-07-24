@@ -4,6 +4,7 @@ import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
 import {
+  VISION_DEEP_OCR_EXTRACTION_RULE,
   VISION_EXTRACTION_ANTI_HALLUCINATION_RULE,
   VISION_REGITRA_TECH_PASSPORT_OCR_RULE,
 } from "./vision-guardrails.js";
@@ -60,24 +61,25 @@ const EXTRACTION_SCHEMA = `{
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
   "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
-  "technicalFields": "object — exact facts only: make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight, propertyType, area, rooms, floor, heating, brand, instrumentType, Atlikimas, Paskirtis, Spalvos, Būklė…",
-  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija (PRIMARY OCR, NE viešai galerijai)",
+  "technicalFields": "object — exact facts only from OCR/vision: make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight, propertyType, area, rooms, floor, heating, brand, instrumentType, specs, languages, battery, contents, Atlikimas, Paskirtis, Spalvos, Būklė…",
+  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija / pakuotės tekstas (PRIMARY OCR, NE viešai galerijai kai dokumentas)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto nuotraukų viešai galerijai",
   "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai",
-  "documentReadable": "boolean — true TIK jei tech passport tekstas aiškiai įskaitomas",
+  "documentReadable": "boolean — true TIK jei tech passport / etiketės tekstas aiškiai įskaitomas",
   "documentOcrConfidence": "number 0-1 — OCR patikimumas; <0.55 = neaišku",
   "unclearDocumentIndexes": "[number] — neaiškių dokumentų indeksai",
   "confidence": "number 0-1",
   "sceneContext": "string — trumpas faktinis kontekstas",
   "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
   "choiceChips": ["string"],
-  "factNotes": "string — trumpi matomi faktai be marketingo (nebūtina)"
+  "factNotes": "string — VISAS perskaitytas OCR tekstas / trumpi faktai be marketingo (pakuotė, etiketė, Regitra)",
+  "ocrText": "string — optional raw OCR transcript of legible packaging/passport text"
 }`;
 
 /** Pass 2 — creative LT sales copy from extracted JSON. */
 const CREATIVE_SCHEMA = `{
-  "title": "string — įtraukiantis LT marketplace pavadinimas pagal kategorijos prompterį",
-  "description": "string — turtingas LT sales tekstas su Markdown. Sekcijos: **Pavadinimas** hook + **Privalumai** + **Būklė** + **Specs** + **Pristatymas / Apžiūra**. PALIK \\n ir **. 4–8+ sakiniai. Draudžiama sausas caption / 1 eilutė / išgalvoti faktus."
+  "title": "string — įtraukiantis LT marketplace pavadinimas pagal kategorijos prompterį (su brand/model iš OCR)",
+  "description": "string — FACT-GROUNDED LT sales tekstas su Markdown. Sekcijos: **Pavadinimas** hook + **Privalumai** + **Būklė** + **Specifikacijos ir Savybės** (bullet'ai VISIEMS OCR specs) + **Pristatymas / Apžiūra**. PALIK \\n ir **. Draudžiama bendrybės be JSON fakto / sausas caption / išgalvoti specs."
 }`;
 
 /** Lightweight Pass-1 system rules — category routing happens in Pass 2. */
@@ -89,9 +91,12 @@ ${VAUTO_DOMAIN_AUTONOMY_RULES}
 
 ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
 
+${VISION_DEEP_OCR_EXTRACTION_RULE}
+
 OCR + FAKTAI → technicalFields (AUTO-FILL PrePublish BE follow-up klausimų):
-- Tech passport / dokumentai: imageRoles=document + documentImageIndexes = PRIMARY ground-truth.
-- HARD SPECS: A→plate/licensePlate, B→firstRegistration YYYY-MM-DD (+ year), D.1→make, D.3→model VERBATIM, S.1→seats, P.1→engine (cm³→litrai), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
+- Tech passport / dokumentai / pakuotės tekstas: imageRoles=document kai tai specifikacijų šaltinis; documentImageIndexes = PRIMARY ground-truth.
+- HARD SPECS (Regitra): A→plate/licensePlate, B→firstRegistration YYYY-MM-DD (+ year), D.1→make, D.3→model VERBATIM, S.1→seats, P.1→engine (cm³→litrai), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
+- PAKUOTĖS OCR (PEIKO ir pan.): brand, model, specs, languages, battery, contents → technicalFields + factNotes/ocrText (VISAS įskaitomas tekstas).
 - VISUAL EXTRAS (tik kai category=AUTOMOBILIAI): interiorCondition, exteriorFeatures, transmission.
 - MODEL FIDELITY: model EXACT D.3 — „Grand C4 Picasso“ ≠ „C4 Picasso“.
 - Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus.
@@ -351,15 +356,17 @@ function buildExtractionImagePrompt(
 ${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
 
 PASS 1 — STRICT EXTRACTION iš nuotraukų (šalti faktai; BE sales copy).
-Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Document nuotraukos = PRIMARY OCR.
+DEEP OCR: nuskaityk VISĄ įskaitomą tekstą ant dėžučių, etikečių, galinių dangtelių ir Regitra paso.
+Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Document / specs nuotraukos = PRIMARY OCR.
 1) PRIVALOMA imageRoles (gallery|document). Žalias/mėlynas tech passport / registracija / kvitas — VISADA document.
 2) documentImageIndexes + galleryImageIndexes sutampa su imageRoles.
 3) HARD SPECS — Regitra techninis pasas → technicalFields AUTO-FILL PrePublish BE papildomų klausimų:
    A→plate/licensePlate · B→firstRegistration YYYY-MM-DD + year · D.1→make · D.3→model VERBATIM
    S.1→seats · E→vin · P.1→engine litrais · P.2→powerKw · P.3→fuelType · R→color · V.9→euroStandard · G→curbWeight · C.1.3→city
-4) VISUAL EXTRAS (tik AUTOMOBILIAI gallery): interiorCondition, exteriorFeatures, transmission, bodyType.
-5) NIEKADA neklausti markės/modelio/variklio/kuro/VIN, jei jau ištraukti — forma užpildoma iš karto.
-6) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.${textNote}${extra}
+4) PAKUOTĖS OCR (PEIKO ir pan.): brand/model/specs/languages/battery/contents → technicalFields + factNotes + ocrText.
+5) VISUAL EXTRAS (tik AUTOMOBILIAI gallery): interiorCondition, exteriorFeatures, transmission, bodyType.
+6) NIEKADA neklausti markės/modelio/variklio/kuro/VIN/brand, jei jau ištraukti — forma užpildoma iš karto.
+7) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.${textNote}${extra}
 Numatytas miestas: ${userCity}
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
@@ -378,17 +385,19 @@ function buildCreativeWritePrompt(
     technicalFields: extracted.technicalFields ?? {},
     sceneContext: extracted.sceneContext ?? "",
     factNotes: extracted.factNotes ?? "",
+    ocrText: extracted.ocrText ?? "",
     confidence: extracted.confidence ?? 0.85,
   };
-  return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE.
+  return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE (FACT-GROUNDED).
 Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALIA lietuvių kalba.
-Naudok TIK faktus iš JSON — neišgalvok kainos, ridos, TA ar kitų specs.
-Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA) — be ilgų „nedaryk X“ sąrašų.
+PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
+Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos ir Savybės** bullet'us.
+Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
 Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
 
 ${categoryPrompt}
 
-IŠTRAUKTI FAKTAI (ground-truth JSON):
+IŠTRAUKTI FAKTAI (ground-truth JSON — VIENINTELIS šaltinis):
 ${JSON.stringify(facts, null, 2)}
 
 Numatytas miestas: ${userCity}

@@ -164,18 +164,58 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     sourceRect: DOMRect,
     visibilityId: PrePublishVisibilityId = "standard"
   ) => {
-    if (!prePublishReadiness?.ok) {
-      showToast(
-        prePublishReadiness
-          ? buildConversationalMissingPrompt(prePublishReadiness)
-          : "Parašykite kainą ar unikalią detalę — sudėliosiu gražesnį aprašymą.",
-        "info"
-      );
+    // Prefer the visible PrePublish form price — never re-prompt when the field already has a value.
+    const formPrice =
+      livePrePublishCard && livePrePublishCard.price > 0
+        ? livePrePublishCard.price
+        : aiDraft && aiDraft.price > 0
+          ? aiDraft.price
+          : 0;
+    if (formPrice > 0 && aiDraft && !(aiDraft.price > 0)) {
+      updateAiDraft({ price: formPrice });
+    }
+    const draftForPublish =
+      aiDraft && formPrice > 0 && !(aiDraft.price > 0)
+        ? { ...aiDraft, price: formPrice }
+        : aiDraft;
+    const readiness = draftForPublish
+      ? evaluatePrePublishReadiness({
+          isAuthenticated,
+          user,
+          draft: draftForPublish,
+          previewImage: sellerPreviewImage,
+          pendingImageUrls: sessionPendingImageUrls,
+          orderedImageUrls: draftForPublish.orderedImageUrls,
+          geoCoords: buyerCoords,
+        })
+      : prePublishReadiness;
+    if (!readiness?.ok) {
+      // If price is present but something else blocks — never ask for price again.
+      const reply =
+        readiness &&
+        readiness.missingPrice &&
+        formPrice > 0
+          ? buildConversationalMissingPrompt({
+              ...readiness,
+              missingPrice: false,
+            })
+          : readiness
+            ? buildConversationalMissingPrompt(readiness)
+            : "Parašykite kainą ar unikalią detalę — sudėliosiu gražesnį aprašymą.";
+      showToast(reply, "info");
       return;
+    }
+    if (readiness.syncedDraft && formPrice > 0) {
+      updateAiDraft({
+        ...readiness.syncedDraft,
+        price: readiness.syncedDraft.price > 0 ? readiness.syncedDraft.price : formPrice,
+      });
     }
     const result = await publishListing({
       visibilityId,
       pendingImageUrls: sessionPendingImageUrls,
+      // Flush visible form price so Publikuoti never re-asks when the field is filled.
+      ...(formPrice > 0 ? { priceOverride: formPrice } : {}),
       // Lottie paper-plane overlay already shows „Skelbimas publikuotas!" —
       // skip secondary green toast / chat success notify.
       skipSuccessNotify: true,
