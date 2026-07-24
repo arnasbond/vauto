@@ -2,21 +2,20 @@
 
 import Link from "next/link";
 import {
-  Bot,
+  Bell,
+  Briefcase,
   Camera,
   Car,
-  Eraser,
-  Globe2,
   Heart,
   Home,
   Link2,
   MessageCircle,
   Package,
-  ScanLine,
   Search,
   Share2,
   Shirt,
   ShieldCheck,
+  Smartphone,
   Sparkles,
   UserCheck,
   Users,
@@ -212,14 +211,13 @@ export default function ApiePage() {
             Apie VAUTO
           </p>
           <h1 className="mt-2 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
-            VAUTO — viskas viename AI prekybos asistente
+            VAUTO — Pirmoji Lietuvoje išmanioji skelbimų ekosistema
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
-            Sveiki atvykę! VAUTO sujungia automobilių, nekilnojamojo turto, paslaugų,
-            mados ir įvairius kitus skelbimus į vieną jaukią, išmanią platformą.
-            Nufotografuokite, įklijuokite nuorodą arba tiesiog parašykite — AI padės
-            paruošti skelbimą, stebėti kitų portalų profilius ir derėtis su pirkėjais
-            pagal jūsų taisykles.
+            Nuotrauka → Deep OCR → skelbimas. Realaus laiko pokalbiai su momentiniu
+            vertimu, Omniva pastomatų atranka pagal matmenis, pasitikėjimo
+            atsiliepimai ir „Laukiu šio daikto“ pranešimai — Auto, NT, Paslaugos,
+            Darbas, Mada ir Elektronika vienoje ekosistemoje. Starto mėnuo — 0 €.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -290,39 +288,37 @@ export default function ApiePage() {
           <div className="mt-4 grid gap-3 sm:grid-cols-2">
             <FeatureCard
               icon={Sparkles}
-              title="Universalus vaizdo atpažinimas"
+              title="Deep OCR ir vaizdo atpažinimas"
               claimState={claimById.ai_vision}
-              description="Įkelta nuotrauka išanalizuojama — AI nustato objektą, markę, modelį ar kategoriją, kad nereiktų rankiniu būdu naršyti katalogų."
+              description="Įkelkite pakuotę, tech. pasą ar daiktą — AI ištraukia faktus ir paruošia kategorijos aprašymą be formų pildymo."
             />
             <FeatureCard
-              icon={Eraser}
-              title="Profesionalesnės nuotraukos"
-              claimState={claimById.studio_bg}
-              description="VAUTO padeda išsirinkti geriausią kadrą. Studio BG fono valymas įsijungia, kai serveryje prijungtas fono valymo tiekėjas."
+              icon={Package}
+              title="Omniva pastomatų atranka"
+              claimState={claimById.escrow}
+              description="Sistema automatiškai įvertina matmenis: mažoms prekėms siūlo pastomatą, o per didelėms — parodo įspėjimą ir kitus pristatymo būdus."
             />
             <FeatureCard
-              icon={ScanLine}
-              title="VIN ir numerių atpažinimas"
-              claimState={claimById.code_scan}
-              description="AI gali padėti atpažinti VIN ar valstybinį numerį iš nuotraukos. Oficialūs registrų duomenys — tik su aktyviais serverio tiekėjais."
-            />
-            <FeatureCard
-              icon={Bot}
-              title="AI derybininkas 24/7"
+              icon={MessageCircle}
+              title="Realaus laiko pokalbiai + vertimas"
               claimState={claimById.negotiator}
-              description="Kai pirkėjas dera dėl kainos, AI dvynys atsako pagal jūsų sutikimą, minimalią kainą ir saugos taisykles."
+              description="Pirkėjas ir pardavėjas rašo akimirksniu. Ant žinučių — „🌐 Išversti“ mygtukas kitakalbėms žinutėms."
             />
             <FeatureCard
-              icon={Globe2}
-              title="Portalų importas ir stebėjimas"
-              claimState={claimById.portal_sync}
-              description="Importuokite profilio nuorodą — VAUTO stebi pokyčius ir atnaujina skelbimus. Tai ne pilnas autopublish į visus portalus."
+              icon={ShieldCheck}
+              title="Pasitikėjimas ir atsiliepimai"
+              description="Žvaigždutės profiliuose ir skelbimuose, „Patikrintas pardavėjas“ ženklas, o už atsiliepimą — 1 nemokamas TOP iškėlimas."
+            />
+            <FeatureCard
+              icon={Bell}
+              title="„Laukiu šio daikto“ pranešimai"
+              description="Nerandate Volvo V70 2006 juodo? Išsaugokite paiešką — kai atsiras atitikmuo, gausite Web Push / programėlės alertą."
             />
             <FeatureCard
               icon={Wallet}
-              title="Saugūs mokėjimai ir kainų patarėjas"
+              title="0 € starto mėnuo"
               claimState={claimById.escrow}
-              description="Escrow sandoriai per Stripe, siuntų lipdukai per carrier adapterį ir rinkos rekomendacijos — ne garantuota kaina."
+              description="Starto akcija: pirmasis mėnuo 0 €. Escrow apsauga ir matomumo paketai — kai būsite pasiruošę augti."
             />
           </div>
         </section>
@@ -390,33 +386,33 @@ export default function ApiePage() {
           <div className="grid gap-3 sm:grid-cols-2">
             <CategoryRow
               icon={Car}
-              title="Automobilių skelbimai"
-              description="Su VIN atpažinimu, techniniais laukais ir patogiu auto pardavėjų valdymu."
+              title="Auto"
+              description="Automobiliai su VIN / numerių OCR, tech. duomenimis ir auto kabinetu."
             />
             <CategoryRow
               icon={Home}
-              title="Nekilnojamojo turto skelbimai"
+              title="Nekilnojamas turtas"
               description="Butai, namai, sklypai ir nuoma — aiškiai ir be painiavos."
             />
             <CategoryRow
               icon={Wrench}
-              title="Paslaugų skelbimai"
-              description="Remontas, grožis, transportas ir kita — su patogiu teritorijos filtru."
+              title="Paslaugos"
+              description="Remontas, grožis, transportas — su teritorijos filtru ir leadais."
+            />
+            <CategoryRow
+              icon={Briefcase}
+              title="Darbas"
+              description="Darbo skelbimai verslui ir specialistams — vienoje ekosistemoje."
             />
             <CategoryRow
               icon={Shirt}
-              title="Mados ir drabužių skelbimai"
-              description="Asmeninė „spinta“ su AI atpažinimu — parduokite lengvai ir greitai."
+              title="Mada"
+              description="Asmeninė „spinta“ su AI atpažinimu — parduokite greitai."
             />
             <CategoryRow
-              icon={Package}
-              title="Įvairūs skelbimai"
-              description="Elektronika, buičiai ir bet kokie kiti daiktai — universalus atpažinimas viskam."
-            />
-            <CategoryRow
-              icon={Search}
-              title="Išmanioji paieška"
-              description="Aprašykite, ko ieškote, savais žodžiais — AI supras ir suras už jus."
+              icon={Smartphone}
+              title="Elektronika"
+              description="Telefonai, kompiuteriai ir gadgetai — su Deep OCR iš pakuotės."
             />
           </div>
         </section>
@@ -431,23 +427,25 @@ export default function ApiePage() {
           </p>
           <ul className="mt-5 grid gap-3 sm:grid-cols-2">
             <BenefitItem>
-              <strong>Viena paskyra</strong> vietoj daugybės atskirų svetainių.
+              <strong>Visos kategorijos</strong> — Auto, NT, Paslaugos, Darbas, Mada,
+              Elektronika.
             </BenefitItem>
             <BenefitItem>
-              <strong>AI vietoj rankinio darbo</strong> — skelbimas per minutę, ne
-              valandą.
+              <strong>Deep OCR</strong> — skelbimas iš nuotraukos, ne iš formų.
             </BenefitItem>
             <BenefitItem>
-              <strong>Derybos fone</strong> — nepraleisite nė vieno pirkėjo, net miegodami.
+              <strong>Omniva pastomatai</strong> — automatinė tinkamumo atranka.
             </BenefitItem>
             <BenefitItem>
-              <strong>Skelbimai visada aktualūs</strong> — sistema pasirūpina atnaujinimais.
+              <strong>Pasitikėjimo sistema</strong> — žvaigždutės, ženklai, TOP už
+              atsiliepimą.
             </BenefitItem>
             <BenefitItem>
-              <strong>Saugūs sandoriai</strong> — apsauga ir patikimumo įvertinimai.
+              <strong>Išmanieji alertai</strong> — „Laukiu šio daikto“ kai atsiranda
+              atitikmuo.
             </BenefitItem>
             <BenefitItem>
-              <strong>Sukurta Lietuvai</strong> — supranta vietinę rinką ir kalbą.
+              <strong>0 € startas</strong> — pirmasis mėnuo be prenumeratos mokesčio.
             </BenefitItem>
           </ul>
         </section>

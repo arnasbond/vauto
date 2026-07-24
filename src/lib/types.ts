@@ -220,6 +220,8 @@ export interface UserProfile {
   referralCode?: string;
   /** Nemokamos pirkėjo apsaugos kreditai */
   freeProtectionCredits?: number;
+  /** Nemokami TOP skelbimo iškėlimai (už atsiliepimą ir pan.) */
+  freeTopBoostCredits?: number;
   profileType?: "private" | "business";
   /** Optional personalization for Tone Chameleon */
   ageGroup?: "Youth" | "Adult" | "Senior";
@@ -255,6 +257,8 @@ export interface SellerReview {
   reviewerName: string;
   rating: number;
   comment?: string;
+  /** Quick trust tags, e.g. Greitas atsakas / Patikimas pardavėjas */
+  tags?: string[];
   createdAt: string;
 }
 

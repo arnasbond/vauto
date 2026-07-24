@@ -12,7 +12,7 @@ export interface RegisterWantedDeps {
   onError?: (message: string) => void;
 }
 
-export const EMPTY_SEARCH_WISHLIST_CHIP = "🔔 Įtraukti į pageidavimų sąrašą";
+export const EMPTY_SEARCH_WISHLIST_CHIP = "🔔 Laukiu šio daikto";
 
 /** Greiti atsakymai kai paieška grąžina 0 rezultatų (≥2 kad chip juosta visada matytųsi). */
 export const EMPTY_SEARCH_QUICK_REPLIES = [
@@ -21,16 +21,16 @@ export const EMPTY_SEARCH_QUICK_REPLIES = [
 ] as const;
 
 export const WANTED_AUTH_MESSAGE =
-  "Prisijunkite arba užsiregistruokite, kad gautumėte pranešimą el. paštu / pranešimu apie naują prekę.";
+  "Prisijunkite, kad gautumėte Web Push / programėlės pranešimą, kai atsiras panašus skelbimas.";
 
 export const WANTED_SAVED_MESSAGE =
-  "Užklausa išsaugota! Informuosime jus apie naujus skelbimus.";
+  "„Laukiu šio daikto“ išsaugota! Pranešime, kai atsiras atitinkantis skelbimas.";
 
 export function buildEmptySearchWishlistMessage(searchTerm?: string): string {
   const q = searchTerm?.trim() || "jūsų užklausą";
   return (
-    `Šiuo metu skelbimų pagal užklausą „${q}" neradome.\n` +
-    `Ar norite įtraukti šią paiešką į Pageidavimų sąrašą? Kai tik atsiras panaši prekė, atsiųsime jums pranešimą!`
+    `Šiuo metu skelbimų pagal „${q}" neradome.\n` +
+    `Įjunkite „Laukiu šio daikto“ — kai kas nors publikuos panašų skelbimą, atsiųsime išmanųjį pranešimą.`
   );
 }
 
@@ -41,6 +41,8 @@ export function isEmptySearchWishlistCta(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
   return (
+    t.includes("laukiu šio daikto") ||
+    t.includes("laukiu sio daikto") ||
     t.includes("pageidavimų sąrašą") ||
     t.includes("pageidavimu sarasa") ||
     t.includes("įtraukti šią paiešką") ||

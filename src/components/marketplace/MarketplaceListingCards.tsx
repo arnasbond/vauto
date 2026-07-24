@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Heart, MapPin } from "lucide-react";
 import { formatDistanceBadge, formatPrice, isAiDiscoverListing } from "@/data/mockListings";
 import { ListingImage } from "@/components/listing/ListingImage";
+import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
@@ -24,7 +25,7 @@ export function MarketplaceListRow({
   listing: Listing;
   priceColor: string;
 }) {
-  const { savedIds, toggleSave } = useVauto();
+  const { savedIds, toggleSave, reviews } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
 
@@ -58,6 +59,14 @@ export function MarketplaceListRow({
           {listing.location}
           <span>· {formatDistanceBadge(listing.distanceKm)}</span>
         </p>
+        <div className="mt-1">
+          <SellerRatingBadge
+            sellerId={listing.sellerId}
+            reviews={reviews}
+            compact
+            showVerified={false}
+          />
+        </div>
         <p className="listing-card-meta mt-0.5 text-[11px]">{formatDate(listing.createdAt)}</p>
       </div>
       <button
@@ -80,7 +89,7 @@ export function MarketplaceGridCard({
   listing: Listing;
   priceColor?: string;
 }) {
-  const { savedIds, toggleSave } = useVauto();
+  const { savedIds, toggleSave, reviews } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
 
@@ -122,6 +131,14 @@ export function MarketplaceGridCard({
         <h3 className="listing-card-title line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-slate-900">
           {listing.title}
         </h3>
+        <div className="mt-1.5">
+          <SellerRatingBadge
+            sellerId={listing.sellerId}
+            reviews={reviews}
+            compact
+            showVerified={false}
+          />
+        </div>
         <div className="mt-2 flex items-end justify-between gap-2">
           <p className="text-base font-bold text-orange-600">
             {formatPrice(listing.price, listing.priceLabel)}

@@ -1198,3 +1198,48 @@ aiRouter.post("/analyze-report", async (req, res) => {
     res.status(500).json({ error: String(e) });
   }
 });
+
+/** Inline chat translation — buyer/seller messages → Lithuanian (or targetLang). */
+aiRouter.post("/translate", async (req, res) => {
+  const text = String((req.body as { text?: string })?.text ?? "").trim();
+  const targetLang = String(
+    (req.body as { targetLang?: string })?.targetLang ?? "lt"
+  )
+    .trim()
+    .slice(0, 8) || "lt";
+  if (!text || text.length > 4000) {
+    return res.status(400).json({ error: "text required (max 4000)" });
+  }
+  if (!hasAiKey()) {
+    return res.status(503).json(AI_UNAVAILABLE);
+  }
+  try {
+    const result = await chatJson([
+      {
+        role: "system",
+        content:
+          "You are a precise marketplace chat translator. Return JSON only: " +
+          '{"translated":"...","sourceLang":"xx","isAlreadyTarget":boolean}. ' +
+          "Preserve meaning, names, prices, and URLs. Do not add commentary.",
+      },
+      {
+        role: "user",
+        content: `Target language code: ${targetLang}\n\nMessage:\n${text}`,
+      },
+    ]);
+    const translated =
+      typeof result.translated === "string" && result.translated.trim()
+        ? result.translated.trim()
+        : text;
+    res.json({
+      translated,
+      sourceLang:
+        typeof result.sourceLang === "string" ? result.sourceLang : "auto",
+      isAlreadyTarget: Boolean(result.isAlreadyTarget),
+      targetLang,
+    });
+  } catch (e) {
+    logProductionError("ai/translate", e);
+    res.status(500).json({ error: String(e) });
+  }
+});

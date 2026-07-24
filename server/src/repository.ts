@@ -118,6 +118,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     billing_plan: string | null;
     referral_code: string | null;
     free_protection_credits: number | null;
+    free_top_boost_credits?: number | null;
     referred_by_user_id: string | null;
     profile_type: string | null;
     age_group: string | null;
@@ -148,6 +149,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     billingPlan: r.billing_plan ?? undefined,
     referralCode: r.referral_code ?? undefined,
     freeProtectionCredits: r.free_protection_credits ?? 0,
+    freeTopBoostCredits: r.free_top_boost_credits ?? 0,
     referredByUserId: r.referred_by_user_id ?? undefined,
     profileType:
       r.profile_type === "private" || r.profile_type === "business"
@@ -179,7 +181,9 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     const rows = await query<UserRow>(
       `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
               wallet_balance, role, business_type, sold_count, auth_provider,
-              billing_plan, referral_code, free_protection_credits, referred_by_user_id,
+              billing_plan, referral_code, free_protection_credits,
+              COALESCE(free_top_boost_credits, 0) AS free_top_boost_credits,
+              referred_by_user_id,
               profile_type,
               age_group, gender, hobbies,
               company_name, company_code, vat_code, service_base_city, business_hours
@@ -190,7 +194,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     if (!r) return null;
     return mapRow(r);
   } catch {
-    // Pre-migration fallback if 025 columns are missing.
+    // Pre-migration fallback if newer columns are missing.
     const rows = await query<UserRow>(
       `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
               wallet_balance, role, business_type, sold_count, auth_provider,
@@ -1659,10 +1663,11 @@ export async function getReviews(): Promise<ApiReview[]> {
     reviewer_name: string;
     rating: number;
     comment: string | null;
+    tags: unknown;
     created_at: Date;
   }>(
     `SELECT id, seller_id, listing_id, listing_title, reviewer_id, reviewer_name,
-            rating, comment, created_at
+            rating, comment, COALESCE(tags, '[]'::jsonb) AS tags, created_at
      FROM seller_reviews ORDER BY created_at DESC`
   );
   return rows.map((r) => ({
@@ -1674,6 +1679,9 @@ export async function getReviews(): Promise<ApiReview[]> {
     reviewerName: r.reviewer_name,
     rating: r.rating,
     comment: r.comment ?? undefined,
+    tags: Array.isArray(r.tags)
+      ? r.tags.filter((t): t is string => typeof t === "string")
+      : undefined,
     createdAt: r.created_at.toISOString(),
   }));
 }
@@ -1681,10 +1689,13 @@ export async function getReviews(): Promise<ApiReview[]> {
 export async function insertReview(review: ApiReview): Promise<void> {
   await ensureUser(review.reviewerId);
   await ensureUser(review.sellerId);
+  const tags = Array.isArray(review.tags)
+    ? review.tags.filter((t) => typeof t === "string").slice(0, 8)
+    : [];
   await query(
     `INSERT INTO seller_reviews (
-      id, seller_id, listing_id, listing_title, reviewer_id, reviewer_name, rating, comment, created_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9)
+      id, seller_id, listing_id, listing_title, reviewer_id, reviewer_name, rating, comment, tags, created_at
+    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9::jsonb,$10)
      ON CONFLICT (id) DO NOTHING`,
     [
       review.id,
@@ -1695,9 +1706,54 @@ export async function insertReview(review: ApiReview): Promise<void> {
       review.reviewerName,
       review.rating,
       review.comment ?? null,
+      JSON.stringify(tags),
       review.createdAt,
     ]
   );
+}
+
+/** Grant 1 free TOP listing boost after a submitted review (gamification). */
+export async function grantFreeTopBoostCredit(
+  userId: string
+): Promise<{ freeTopBoostCredits: number } | null> {
+  await ensureUser(userId);
+  const rows = await query<{ free_top_boost_credits: number }>(
+    `UPDATE users
+     SET free_top_boost_credits = COALESCE(free_top_boost_credits, 0) + 1,
+         updated_at = now()
+     WHERE id = $1
+     RETURNING free_top_boost_credits`,
+    [userId]
+  );
+  if (!rows[0]) return null;
+  const txId = `wtx-reward-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await query(
+    `INSERT INTO wallet_transactions (id, user_id, amount, kind)
+     VALUES ($1, $2, 0, 'review_reward')`,
+    [txId, userId]
+  ).catch(() => undefined);
+  return { freeTopBoostCredits: Number(rows[0].free_top_boost_credits) };
+}
+
+export async function consumeFreeTopBoostCredit(
+  userId: string
+): Promise<boolean> {
+  const rows = await query<{ free_top_boost_credits: number }>(
+    `UPDATE users
+     SET free_top_boost_credits = free_top_boost_credits - 1,
+         updated_at = now()
+     WHERE id = $1 AND COALESCE(free_top_boost_credits, 0) >= 1
+     RETURNING free_top_boost_credits`,
+    [userId]
+  );
+  if (!rows[0]) return false;
+  const txId = `wtx-boost-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  await query(
+    `INSERT INTO wallet_transactions (id, user_id, amount, kind)
+     VALUES ($1, $2, 0, 'free_boost')`,
+    [txId, userId]
+  ).catch(() => undefined);
+  return true;
 }
 
 export async function topUpWallet(

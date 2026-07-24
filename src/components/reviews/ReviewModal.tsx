@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Star, X } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
+import { REVIEW_TAG_OPTIONS } from "@/lib/reviews";
 
 interface ReviewModalProps {
   open: boolean;
@@ -22,16 +23,34 @@ export function ReviewModal({
   const { submitReview, showToast, clearReviewPrompt } = useVauto();
   const [rating, setRating] = useState(5);
   const [comment, setComment] = useState("");
+  const [tags, setTags] = useState<string[]>([]);
 
   if (!open) return null;
 
+  const toggleTag = (tag: string) => {
+    setTags((prev) =>
+      prev.includes(tag) ? prev.filter((t) => t !== tag) : [...prev, tag].slice(0, 5)
+    );
+  };
+
   const handleSubmit = () => {
-    submitReview({ listingId, listingTitle, sellerId, rating, comment });
-    showToast("Ačiū už atsiliepimą!", "success");
+    submitReview({
+      listingId,
+      listingTitle,
+      sellerId,
+      rating,
+      comment,
+      tags,
+    });
+    showToast(
+      "Ačiū už atsiliepimą! Gavote 1 nemokamą TOP iškėlimą.",
+      "success"
+    );
     onClose();
     clearReviewPrompt();
     setRating(5);
     setComment("");
+    setTags([]);
   };
 
   return (
@@ -40,10 +59,13 @@ export function ReviewModal({
         <div className="mb-4 flex items-start justify-between">
           <div>
             <h2 className="text-lg font-bold text-white">
-              Ar pavyko susitarti dėl šio skelbimo?
+              Kaip vertinate patirtį?
             </h2>
             <p className="mt-1 text-sm text-[var(--vauto-text-muted)]">
               {listingTitle}
+            </p>
+            <p className="mt-1 text-[11px] text-amber-200/90">
+              Už atsiliepimą — 1 nemokamas TOP skelbimo iškėlimas.
             </p>
           </div>
           <button
@@ -72,6 +94,26 @@ export function ReviewModal({
               />
             </button>
           ))}
+        </div>
+
+        <div className="mb-3 flex flex-wrap gap-2">
+          {REVIEW_TAG_OPTIONS.map((tag) => {
+            const active = tags.includes(tag);
+            return (
+              <button
+                key={tag}
+                type="button"
+                onClick={() => toggleTag(tag)}
+                className={`rounded-full px-3 py-1.5 text-[11px] font-semibold transition ${
+                  active
+                    ? "bg-[var(--flux-teal)] text-[var(--flux-bg)]"
+                    : "bg-white/10 text-white/80 hover:bg-white/15"
+                }`}
+              >
+                {tag}
+              </button>
+            );
+          })}
         </div>
 
         <textarea

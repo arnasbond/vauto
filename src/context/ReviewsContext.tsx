@@ -25,13 +25,14 @@ interface ReviewsContextValue {
     sellerId: string;
     rating: number;
     comment?: string;
+    tags?: string[];
   }) => void;
 }
 
 const ReviewsContext = createContext<ReviewsContextValue | null>(null);
 
 export function ReviewsProvider({ children }: { children: ReactNode }) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, updateUser } = useAuth();
   const [reviews, setReviews] = useState<SellerReview[]>(DEMO_REVIEWS);
   const [hydrated, setHydrated] = useState(false);
   const apiActive = isDataApiEnabled();
@@ -67,6 +68,7 @@ export function ReviewsProvider({ children }: { children: ReactNode }) {
       sellerId: string;
       rating: number;
       comment?: string;
+      tags?: string[];
     }) => {
       if (!isAuthenticated || user.id === "guest") return;
       const review: SellerReview = {
@@ -78,19 +80,43 @@ export function ReviewsProvider({ children }: { children: ReactNode }) {
         reviewerName: user.name,
         rating: data.rating,
         comment: data.comment?.trim() || undefined,
+        tags: data.tags?.length ? data.tags : undefined,
         createdAt: new Date().toISOString(),
       };
       setReviews((prev) => [review, ...prev]);
+      // Gamification: 1 free TOP boost token per submitted review.
+      updateUser({
+        freeTopBoostCredits: (user.freeTopBoostCredits ?? 0) + 1,
+      });
       logAnalytics("review_submitted", {
         listingId: data.listingId,
         sellerId: data.sellerId,
         rating: data.rating,
+        tags: data.tags?.join(",") ?? "",
+        reward: "free_top_boost",
       });
       if (apiActive) {
-        void apiSubmitReview(review);
+        void apiSubmitReview(review).then((res) => {
+          if (!res.ok) return;
+          const rewardCredits = (
+            res.data as SellerReview & {
+              reward?: { freeTopBoostCredits?: number };
+            }
+          ).reward?.freeTopBoostCredits;
+          if (typeof rewardCredits === "number") {
+            updateUser({ freeTopBoostCredits: rewardCredits });
+          }
+        });
       }
     },
-    [isAuthenticated, user.id, user.name, apiActive]
+    [
+      isAuthenticated,
+      user.id,
+      user.name,
+      user.freeTopBoostCredits,
+      apiActive,
+      updateUser,
+    ]
   );
 
   const value = useMemo(

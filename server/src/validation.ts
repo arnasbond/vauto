@@ -817,6 +817,14 @@ export function validateReview(body: unknown): ValidationResult<ApiReview> {
   const createdAt = isoDateString(body, "createdAt");
   if (!createdAt.ok) return createdAt;
   if (createdAt.value === undefined) return fail("createdAt is required");
+  let tags: string[] | undefined;
+  if (Array.isArray(body.tags)) {
+    tags = body.tags
+      .filter((t): t is string => typeof t === "string")
+      .map((t) => t.trim())
+      .filter((t) => t.length > 0 && t.length <= 80)
+      .slice(0, 8);
+  }
   return ok({
     id: id.value,
     sellerId: sellerId.value,
@@ -826,6 +834,7 @@ export function validateReview(body: unknown): ValidationResult<ApiReview> {
     reviewerName: reviewerName.value,
     rating: rating.value,
     comment: comment.value,
+    tags: tags?.length ? tags : undefined,
     createdAt: createdAt.value,
   });
 }

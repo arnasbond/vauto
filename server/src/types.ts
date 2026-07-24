@@ -23,6 +23,8 @@ export interface ApiUser {
   billingModel?: string;
   referralCode?: string;
   freeProtectionCredits?: number;
+  /** Nemokami TOP skelbimo iškėlimai (pvz. už atsiliepimą) */
+  freeTopBoostCredits?: number;
   referredByUserId?: string;
   serviceBaseCity?: string;
   serviceRadiusKm?: number;
@@ -44,6 +46,8 @@ export interface ApiReview {
   reviewerName: string;
   rating: number;
   comment?: string;
+  /** Quick trust tags, e.g. Greitas atsakas / Patikimas pardavėjas */
+  tags?: string[];
   createdAt: string;
 }
 

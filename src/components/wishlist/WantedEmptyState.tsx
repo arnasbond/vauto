@@ -63,9 +63,9 @@ export function WantedEmptyState({
       >
         <Bell className="h-4 w-4" />
         {registered
-          ? "Užklausa išsaugota!"
+          ? "Laukiame šio daikto!"
           : busy
-            ? "Registruojama…"
+            ? "Išsaugoma…"
             : EMPTY_SEARCH_WISHLIST_CHIP}
       </button>
     </div>

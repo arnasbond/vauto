@@ -37,6 +37,8 @@ import {
   getListingForEmbedding,
   insertReport,
   insertReview,
+  grantFreeTopBoostCredit,
+  consumeFreeTopBoostCredit,
   insertServiceLead,
   insertUserRequirement,
   openServiceLeadWallet,
@@ -1383,7 +1385,15 @@ apiRouter.post("/reviews", requireAuth, async (req: AuthedRequest, res) => {
       return;
     }
     await insertReview(review);
-    res.status(201).json(review);
+    const reward = await grantFreeTopBoostCredit(review.reviewerId);
+    res.status(201).json({
+      ...review,
+      reward: {
+        freeTopBoostCredits: reward?.freeTopBoostCredits ?? 1,
+        granted: true,
+        message: "Gavote 1 nemokamą TOP iškėlimą už atsiliepimą!",
+      },
+    });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }
@@ -1421,16 +1431,27 @@ apiRouter.post(
         resolvePromotePriceEur,
       } = await import("../billing/promote-pricing.js");
       const tier = normalizePromoteTier(req.body?.tier);
+      const useFreeBoost = Boolean(req.body?.useFreeBoost);
       // Ignore client-supplied cost — server is authoritative.
       const listing = await getListingForEmbedding(req.params.id);
       if (!listing || listing.sellerId !== req.authUserId) {
         res.status(404).json({ error: "Listing not found" });
         return;
       }
-      const cost = resolvePromotePriceEur({
+      let cost = resolvePromotePriceEur({
         tier,
         category: listing.category,
       });
+      let usedFreeBoost = false;
+      if (useFreeBoost) {
+        const ok = await consumeFreeTopBoostCredit(req.authUserId!);
+        if (!ok) {
+          res.status(400).json({ error: "Nėra nemokamo TOP iškėlimo kredito" });
+          return;
+        }
+        cost = 0;
+        usedFreeBoost = true;
+      }
       const result = await promoteListingWallet(
         req.authUserId!,
         req.params.id,
@@ -1441,7 +1462,7 @@ apiRouter.post(
         res.status(400).json({ error: "Insufficient balance or listing not found" });
         return;
       }
-      res.json({ ...result, chargedEur: cost, tier });
+      res.json({ ...result, chargedEur: cost, tier, usedFreeBoost });
     } catch (e) {
       res.status(500).json({ error: String(e) });
     }

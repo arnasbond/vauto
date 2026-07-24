@@ -35,8 +35,18 @@ export async function apiFetchReviews(): Promise<ApiResult<SellerReview[]>> {
 
 export async function apiSubmitReview(
   review: SellerReview
-): Promise<ApiResult<SellerReview>> {
-  return authedFetch<SellerReview>("/api/reviews", {
+): Promise<
+  ApiResult<
+    SellerReview & {
+      reward?: {
+        freeTopBoostCredits?: number;
+        granted?: boolean;
+        message?: string;
+      };
+    }
+  >
+> {
+  return authedFetch("/api/reviews", {
     method: "POST",
     body: JSON.stringify(review),
   });
@@ -57,14 +67,24 @@ export async function apiTopUpWallet(
 export async function apiPromoteListing(
   listingId: string,
   _cost: number,
-  tier: number
+  tier: number,
+  opts?: { useFreeBoost?: boolean }
 ): Promise<
-  ApiResult<{ walletBalance: number; listing: import("@/lib/types").Listing; chargedEur?: number; tier?: number }>
+  ApiResult<{
+    walletBalance: number;
+    listing: import("@/lib/types").Listing;
+    chargedEur?: number;
+    tier?: number;
+    usedFreeBoost?: boolean;
+  }>
 > {
   // Cost is resolved server-side from tier + category — never trust client EUR.
   return authedFetch(`/api/listings/${listingId}/promote`, {
     method: "POST",
-    body: JSON.stringify({ tier }),
+    body: JSON.stringify({
+      tier,
+      useFreeBoost: Boolean(opts?.useFreeBoost),
+    }),
   });
 }
 

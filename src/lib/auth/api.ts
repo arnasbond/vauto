@@ -31,6 +31,7 @@ export interface AuthApiSession {
     averageResponseMinutes?: number;
     referralCode?: string;
     freeProtectionCredits?: number;
+    freeTopBoostCredits?: number;
     profileType?: "private" | "business";
   };
   role: UserRole;
@@ -215,6 +216,7 @@ export function mapApiUserToProfile(
     soldCount: apiUser.soldCount ?? 0,
     referralCode: apiUser.referralCode,
     freeProtectionCredits: apiUser.freeProtectionCredits ?? 0,
+    freeTopBoostCredits: apiUser.freeTopBoostCredits ?? 0,
     profileType: apiUser.profileType,
   };
 }

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageStatusTicks } from "@/components/chat/MessageStatusTicks";
+import { ChatTranslateButton } from "@/components/chat/ChatTranslateButton";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
 import { AiTrustScoreBanner } from "@/components/trust/AiTrustScoreBanner";
 import { ReportButton } from "@/components/support/ReportButton";
@@ -45,6 +46,7 @@ function ChatThreadContent({
   } = useVauto();
   const [draft, setDraft] = useState("");
   const [magicMirror, setMagicMirror] = useState<MagicMirrorFit | null>(null);
+  const [translations, setTranslations] = useState<Record<string, string>>({});
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chat = chats.find((c) => c.id === chatId);
@@ -160,6 +162,7 @@ function ChatThreadContent({
         {chat.messages.map((msg) => {
           const isSystem = msg.senderId === "vauto-system";
           const isMe = !isSystem && msg.senderId === user.id;
+          const translated = translations[msg.id];
           return (
             <div
               key={msg.id}
@@ -174,7 +177,28 @@ function ChatThreadContent({
                       : "rounded-bl-md bg-[var(--vauto-surface)] text-[var(--vauto-text)] border border-[var(--vauto-border)]"
                 }`}
               >
-                <span>{msg.text}</span>
+                <span className="whitespace-pre-wrap">{msg.text}</span>
+                {translated && translated !== msg.text ? (
+                  <p
+                    className={`mt-2 border-t pt-2 text-xs leading-relaxed ${
+                      isMe
+                        ? "border-white/25 text-white/90"
+                        : "border-[var(--vauto-border)] text-[var(--vauto-text-muted)]"
+                    }`}
+                  >
+                    <span className="font-semibold">LT: </span>
+                    {translated}
+                  </p>
+                ) : null}
+                {!isSystem ? (
+                  <ChatTranslateButton
+                    text={msg.text}
+                    isOwn={isMe}
+                    onTranslated={(t) =>
+                      setTranslations((prev) => ({ ...prev, [msg.id]: t }))
+                    }
+                  />
+                ) : null}
                 <span className="mt-1 flex items-center justify-end gap-0.5 text-[10px] opacity-80">
                   {new Date(msg.timestamp).toLocaleTimeString("lt-LT", {
                     hour: "2-digit",
@@ -244,7 +268,8 @@ function ChatThreadContent({
       {showReviewPrompt && (
         <div className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
           <p className="text-xs text-amber-900 dark:text-amber-100">
-            Ar pavyko susitarti dėl {chat.listingTitle}?
+            Ar pavyko susitarti dėl {chat.listingTitle}? Palikite atsiliepimą ir
+            gaukite 1 nemokamą TOP iškėlimą.
           </p>
           <button
             type="button"
@@ -257,7 +282,7 @@ function ChatThreadContent({
             }
             className="mt-2 text-xs font-semibold text-amber-800 underline dark:text-amber-200"
           >
-            Palikti atsiliepimą
+            Įvertinti patirtį
           </button>
         </div>
       )}

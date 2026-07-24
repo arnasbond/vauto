@@ -397,6 +397,7 @@ interface VautoContextValue {
     sellerId: string;
     rating: number;
     comment?: string;
+    tags?: string[];
   }) => void;
   trackListingView: (listingId: string) => void;
   trackListingCall: (listingId: string) => void;
@@ -1823,6 +1824,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       sellerId: string;
       rating: number;
       comment?: string;
+      tags?: string[];
     }) => {
       submitReview(data);
       setPendingReview(null);
@@ -1985,13 +1987,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   const promoteListing = useCallback(
     (listingId: string, cost: number, tierId: VisibilityTierId): boolean => {
       const balance = user.walletBalance ?? 0;
-      if (balance < cost) return false;
+      const freeBoosts = user.freeTopBoostCredits ?? 0;
+      const useFreeBoost = freeBoosts > 0 && cost > 0;
+      if (!useFreeBoost && balance < cost) return false;
 
       const listing = listings.find((l) => l.id === listingId);
       if (!listing) return false;
 
       const plan = getVisibilityPlanById(tierId, listing, listings, user);
-      if (!plan?.available || plan.price !== cost) return false;
+      if (!plan?.available) return false;
+      if (!useFreeBoost && plan.price !== cost) return false;
 
       const attrs = buildVisibilityAttributes(
         tierId,
@@ -2000,8 +2005,17 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       );
       const expiresAt = attrs?.["_visibilityExpiresAt"] as string | undefined;
 
-      const applyLocalPromote = (walletBalance: number, listingPatch?: Listing) => {
-        patchAuthUser({ walletBalance });
+      const applyLocalPromote = (
+        walletBalance: number,
+        listingPatch?: Listing,
+        nextFreeBoosts?: number
+      ) => {
+        patchAuthUser({
+          walletBalance,
+          ...(typeof nextFreeBoosts === "number"
+            ? { freeTopBoostCredits: nextFreeBoosts }
+            : {}),
+        });
         setListings((prev) =>
           prev.map((l) => {
             if (l.id !== listingId) return l;
@@ -2025,17 +2039,27 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       };
 
       if (apiActive) {
-        void apiPromoteListing(listingId, cost, tierId).then((r) => {
-          if (r.ok) {
-            applyLocalPromote(r.data.walletBalance, r.data.listing);
-          } else {
-            setSyncError(`Promote nepavyko: ${r.error}`);
+        void apiPromoteListing(listingId, cost, tierId, { useFreeBoost }).then(
+          (r) => {
+            if (r.ok) {
+              applyLocalPromote(
+                r.data.walletBalance,
+                r.data.listing,
+                r.data.usedFreeBoost ? Math.max(0, freeBoosts - 1) : freeBoosts
+              );
+            } else {
+              setSyncError(`Promote nepavyko: ${r.error}`);
+            }
           }
-        });
+        );
         return true;
       }
 
-      applyLocalPromote(balance - cost);
+      applyLocalPromote(
+        useFreeBoost ? balance : balance - cost,
+        undefined,
+        useFreeBoost ? freeBoosts - 1 : freeBoosts
+      );
       return true;
     },
     [user, listings, apiActive, patchAuthUser]
