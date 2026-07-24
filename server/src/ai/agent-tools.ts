@@ -1461,21 +1461,23 @@ export async function executeAgentTool(
       };
 
       const photosPrompt = buildDraftingCompletePhotosPrompt(draft);
+      const { applyOmnivaEligibilityToDraft } = await import(
+        "../shared/omniva-locker-eligibility.js"
+      );
+      const gatedDraft = applyOmnivaEligibilityToDraft(draft);
       const gate = evaluateOmnivaPastomatasGatekeeper({
-        title,
-        description,
-        category,
-        attributes,
+        title: gatedDraft.title,
+        description: gatedDraft.description,
+        category: gatedDraft.category,
+        attributes: gatedDraft.attributes as Record<string, unknown>,
+        allowPastomatas: gatedDraft.allowPastomatas,
       });
-      if (gate.oversized) {
-        draft.allowPastomatas = false;
-      }
 
       return {
         result: {
           ok: true,
           message: photosPrompt,
-          draft,
+          draft: gatedDraft,
           voiceFollowUp: gate.oversized
             ? `${photosPrompt}\n\n${OMNIVA_OVERSIZE_BLOCK_MESSAGE}`
             : photosPrompt,
@@ -1488,7 +1490,7 @@ export async function executeAgentTool(
         },
         sideEffect: {
           type: "listing_draft",
-          listingDraft: draft,
+          listingDraft: gatedDraft,
         },
       };
     }
@@ -1542,15 +1544,18 @@ export async function executeAgentTool(
         allowPastomatas: true,
       };
 
+      const { applyOmnivaEligibilityToDraft: applyOmnivaGate } = await import(
+        "../shared/omniva-locker-eligibility.js"
+      );
+      const gatedDraft = applyOmnivaGate(draft);
+      Object.assign(draft, gatedDraft);
       const gate = evaluateOmnivaPastomatasGatekeeper({
         title: draft.title,
         description: draft.description,
         category: draft.category,
         attributes: draft.attributes,
+        allowPastomatas: draft.allowPastomatas,
       });
-      if (gate.oversized) {
-        draft.allowPastomatas = false;
-      }
 
       const suggestedQuestions: string[] = [];
       if (enriched.category === "electronics" || /iphone|telefon|mobil/i.test(enriched.title)) {

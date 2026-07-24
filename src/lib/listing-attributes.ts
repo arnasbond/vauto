@@ -39,6 +39,12 @@ export const INTERNAL_LISTING_ATTR_KEYS = new Set([
   "socialPublishFacebookGroups",
   "conductorSources",
   "conductorMergedAt",
+  "fitsOmnivaLocker",
+  "estimatedSize",
+  "omnivaLockerBlockReason",
+  "deferredSalesDescription",
+  "salesCopyGenerated",
+  "salesCopySource",
 ]);
 
 /** Keys whose `key:value` tags may surface as the bare value only. */

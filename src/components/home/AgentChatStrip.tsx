@@ -272,6 +272,9 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         ? { category: patch.category as ListingCategory }
         : {}),
       ...(patch.location != null ? { location: patch.location } : {}),
+      ...(patch.allowPastomatas != null
+        ? { allowPastomatas: patch.allowPastomatas }
+        : {}),
       ...(nextAttrs ? { attributes: nextAttrs } : {}),
     });
   };

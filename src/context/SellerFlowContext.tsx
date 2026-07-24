@@ -266,6 +266,7 @@ import {
   sanitizeListingTitle,
 } from "@/lib/listing-text-sanitize";
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
+import { applyOmnivaEligibilityToDraft } from "@vauto/shared/omniva-locker-eligibility";
 import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
@@ -1513,7 +1514,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const profileDraftRaw =
       prePublish.syncedDraft ?? injectProfileContactsForPublish(aiDraft, user);
     // P0-2 — Guarantee Pass-2 / deferred / vehicle rich copy before live publish.
-    const profileDraft = ensureRichSalesCopyBeforePublish(profileDraftRaw);
+    // Omniva — stamp locker eligibility before listing goes live.
+    const profileDraft = applyOmnivaEligibilityToDraft(
+      ensureRichSalesCopyBeforePublish(profileDraftRaw)
+    );
     if (profileDraft !== profileDraftRaw) {
       setAiDraft(profileDraft);
     }

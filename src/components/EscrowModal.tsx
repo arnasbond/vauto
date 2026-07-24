@@ -47,6 +47,10 @@ import {
   type ParcelSize,
   type ShippingProviderId,
 } from "@/lib/shipping/shipping-provider";
+import {
+  OMNIVA_LOCKER_OVERSIZE_NOTE,
+  resolveOmnivaLockerEligibility,
+} from "@vauto/shared/omniva-locker-eligibility";
 import type { ParcelLocker } from "@/lib/shipping/parcel-lockers";
 import type { ChatThread, EscrowStatus, EscrowTransaction } from "@/lib/types";
 
@@ -98,6 +102,25 @@ export function EscrowModal({
     () => listings.find((l) => l.id === chat.listingId),
     [listings, chat.listingId]
   );
+  const omnivaEligibility = useMemo(
+    () =>
+      resolveOmnivaLockerEligibility({
+        title: listing?.title ?? chat.listingTitle,
+        description: listing?.description,
+        category: listing?.category,
+        attributes: listing?.attributes as Record<string, unknown> | undefined,
+        allowPastomatas: listing?.allowPastomatas,
+      }),
+    [chat.listingTitle, listing]
+  );
+  const availableShippingProviders = useMemo(
+    () =>
+      omnivaEligibility.eligible
+        ? CHECKOUT_PROVIDERS
+        : // Hard fence: no parcel lockers (Omniva or otherwise) for oversized / blocked categories.
+          [],
+    [omnivaEligibility.eligible]
+  );
   const monetizationCtx = useMemo(
     () => buildWardrobeEscrowContext(chameleonTheme, chat, listing),
     [chameleonTheme, chat, listing]
@@ -138,6 +161,25 @@ export function EscrowModal({
     if (!isDataApiEnabled()) return;
     void apiEscrowBillingStatus().then((s) => setStripeEscrowLive(Boolean(s?.live)));
   }, []);
+
+  useEffect(() => {
+    if (!omnivaEligibility.eligible) {
+      setSelectedLocker(null);
+      return;
+    }
+    if (
+      shippingProvider === "omniva" ||
+      availableShippingProviders.some((p) => p.id === shippingProvider)
+    ) {
+      return;
+    }
+    const fallback = availableShippingProviders[0]?.id;
+    if (fallback) setShippingProvider(fallback);
+  }, [
+    availableShippingProviders,
+    omnivaEligibility.eligible,
+    shippingProvider,
+  ]);
 
   useEffect(() => {
     setStep(stepFromEscrow(escrow));
@@ -217,7 +259,7 @@ export function EscrowModal({
   };
 
   const handlePay = async () => {
-    if (!selectedLocker) {
+    if (omnivaEligibility.eligible && !selectedLocker) {
       showToast("Pasirinkite pristatymo paštomatą.", "info");
       return;
     }
@@ -227,9 +269,9 @@ export function EscrowModal({
       status: "paying",
       buyerProtectionFee: protectionFee,
       buyerTotal,
-      shippingProvider,
-      shippingLockerId: selectedLocker.id,
-      shippingLockerName: selectedLocker.name,
+      shippingProvider: omnivaEligibility.eligible ? shippingProvider : undefined,
+      shippingLockerId: selectedLocker?.id,
+      shippingLockerName: selectedLocker?.name ?? "Atsiėmimas vietoje / Kurjeris",
       deliveryStatus: "pending",
     });
 
@@ -243,9 +285,9 @@ export function EscrowModal({
       const res = await apiEscrowCheckout({
         escrow: draft,
         listingTitle: chat.listingTitle,
-        shippingProvider,
-        shippingLockerId: selectedLocker.id,
-        shippingLockerName: selectedLocker.name,
+        shippingProvider: omnivaEligibility.eligible ? shippingProvider : "lp_express",
+        shippingLockerId: selectedLocker?.id ?? "pickup-courier",
+        shippingLockerName: selectedLocker?.name ?? "Atsiėmimas vietoje / Kurjeris",
       });
       if (res.ok && res.data.checkoutUrl) {
         window.location.assign(res.data.checkoutUrl);
@@ -414,8 +456,16 @@ export function EscrowModal({
               <p className="mb-2 text-xs font-semibold text-slate-500">
                 Siuntimo partneris
               </p>
+              {!omnivaEligibility.eligible ? (
+                <p
+                  className="mb-2 rounded-xl border border-amber-200 bg-amber-50 px-3 py-2 text-xs leading-relaxed text-amber-950"
+                  role="status"
+                >
+                  {omnivaEligibility.noteLt || OMNIVA_LOCKER_OVERSIZE_NOTE}
+                </p>
+              ) : null}
               <div className="grid gap-2">
-                {CHECKOUT_PROVIDERS.map((provider) => (
+                {availableShippingProviders.map((provider) => (
                   <button
                     key={provider.id}
                     type="button"
@@ -439,12 +489,18 @@ export function EscrowModal({
                   </button>
                 ))}
               </div>
-              <ParcelLockerPicker
-                providerId={shippingProvider}
-                selectedId={selectedLocker?.id ?? escrow?.shippingLockerId}
-                originLocation={listing?.location}
-                onSelect={setSelectedLocker}
-              />
+              {availableShippingProviders.length > 0 ? (
+                <ParcelLockerPicker
+                  providerId={shippingProvider}
+                  selectedId={selectedLocker?.id ?? escrow?.shippingLockerId}
+                  originLocation={listing?.location}
+                  onSelect={setSelectedLocker}
+                />
+              ) : (
+                <p className="mt-2 text-xs text-slate-600">
+                  Atsiėmimas vietoje / kurjeris — paštomatai šiai prekei neprieinami.
+                </p>
+              )}
             </div>
             {!stripeEscrowLive && (
               <div className="mt-4">
@@ -475,7 +531,7 @@ export function EscrowModal({
             <button
               type="button"
               onClick={() => void handlePay()}
-              disabled={!selectedLocker}
+              disabled={omnivaEligibility.eligible && !selectedLocker}
               className="mt-6 w-full rounded-2xl bg-[var(--vauto-blue)] py-3.5 text-sm font-semibold text-white disabled:opacity-50"
             >
               Mokėti saugiai — {buyerTotal.toFixed(2)} €

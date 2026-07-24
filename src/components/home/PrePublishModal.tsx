@@ -24,6 +24,13 @@ import {
 } from "@/lib/listing-publish-visibility";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 import type { ListingCategory } from "@/lib/types";
+import {
+  PrePublishShippingOptions,
+  type PrePublishShippingMode,
+} from "@/components/home/PrePublishShippingOptions";
+import {
+  resolveOmnivaLockerEligibility,
+} from "@vauto/shared/omniva-locker-eligibility";
 
 /** Full card → fold → plane flight before API publish. */
 const CARD_FOLD_PLANE_MS = 1200;
@@ -44,6 +51,8 @@ export interface PrePublishFieldPatch {
   category?: ListingCategory;
   location?: string;
   attributes?: Record<string, string>;
+  /** Omniva locker opt-in when eligible. */
+  allowPastomatas?: boolean;
 }
 
 export interface PrePublishModalProps {
@@ -83,6 +92,8 @@ export function PrePublishModal({
   const [flying, setFlying] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [shippingMode, setShippingMode] =
+    useState<PrePublishShippingMode>("pickup_or_courier");
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const planeIconRef = useRef<HTMLSpanElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
@@ -99,6 +110,40 @@ export function PrePublishModal({
         .filter(Boolean),
     [card.imageUrl, card.imageUrls]
   );
+
+  const omnivaEligibility = useMemo(
+    () =>
+      resolveOmnivaLockerEligibility({
+        title: card.title,
+        description: card.description,
+        category: card.category,
+        attributes: attributes as Record<string, unknown> | undefined,
+      }),
+    [attributes, card.category, card.description, card.title]
+  );
+
+  useEffect(() => {
+    if (!open) {
+      setFlying(false);
+      setDragFrom(null);
+      setDragOver(null);
+      return;
+    }
+    // Sync shipping mode when PrePublish opens / eligibility changes.
+    const next: PrePublishShippingMode = omnivaEligibility.eligible
+      ? "omniva_locker"
+      : "pickup_or_courier";
+    setShippingMode(next);
+    onFieldsChange?.({
+      allowPastomatas: omnivaEligibility.eligible,
+      attributes: {
+        fitsOmnivaLocker: omnivaEligibility.fitsOmnivaLocker ? "true" : "false",
+        estimatedSize: omnivaEligibility.estimatedSize,
+      },
+    });
+    // Only re-run when eligibility flips — avoid draft write loops.
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional open/eligibility sync
+  }, [open, omnivaEligibility.eligible, omnivaEligibility.estimatedSize]);
 
   useEffect(() => {
     if (!open) {
@@ -426,6 +471,29 @@ export function PrePublishModal({
               </div>
             </section>
           ) : null}
+
+          <PrePublishShippingOptions
+            title={card.title}
+            description={card.description}
+            category={card.category}
+            attributes={attributes}
+            allowPastomatas={omnivaEligibility.eligible}
+            value={shippingMode}
+            disabled={busy || !onFieldsChange}
+            onChange={(mode, eligibility) => {
+              setShippingMode(mode);
+              const allow = mode === "omniva_locker" && eligibility.eligible;
+              onFieldsChange?.({
+                allowPastomatas: allow,
+                attributes: {
+                  fitsOmnivaLocker: eligibility.fitsOmnivaLocker
+                    ? "true"
+                    : "false",
+                  estimatedSize: eligibility.estimatedSize,
+                },
+              });
+            }}
+          />
 
           <section className="rounded-xl border border-[var(--vauto-primary)]/15 bg-[var(--vauto-surface-muted)]/30 p-3">
             <p className="text-sm font-bold text-[var(--vauto-text)]">

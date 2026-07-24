@@ -17,6 +17,7 @@ import {
   LAZY_UPLOAD_PHASE,
   LAZY_UPLOAD_VISION,
 } from "../shared/lazy-upload.js";
+import { applyOmnivaEligibilityToDraft } from "../shared/omniva-locker-eligibility.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
   "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
@@ -321,7 +322,7 @@ async function resolveListingPhotoScan(input: {
     },
   };
 
-  const mergedDraft = normalizeListingDraftForAction(
+  const mergedDraftRaw = normalizeListingDraftForAction(
     input.listingDraft
       ? {
           ...input.listingDraft,
@@ -334,14 +335,25 @@ async function resolveListingPhotoScan(input: {
             ...leanVisionDraft.attributes,
           },
           listingFlowState: nextState,
+          ...(typeof parsed.listing.allowPastomatas === "boolean"
+            ? { allowPastomatas: parsed.listing.allowPastomatas }
+            : {}),
         }
-      : { ...leanVisionDraft, listingFlowState: nextState },
+      : {
+          ...leanVisionDraft,
+          listingFlowState: nextState,
+          ...(typeof parsed.listing.allowPastomatas === "boolean"
+            ? { allowPastomatas: parsed.listing.allowPastomatas }
+            : {}),
+        },
     {
       contact: input.contact,
       userCity: input.userCity,
       listingFlowState: nextState,
     }
   );
+  // P0 Omniva — stamp fitsOmnivaLocker / estimatedSize / allowPastomatas after Vision.
+  const mergedDraft = applyOmnivaEligibilityToDraft(mergedDraftRaw);
 
   const quotaFallback =
     String(mergedDraft.attributes?.visionQuotaFallback ?? "") === "true";

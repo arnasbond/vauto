@@ -6,8 +6,10 @@ import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js"
 import {
   VISION_DEEP_OCR_EXTRACTION_RULE,
   VISION_EXTRACTION_ANTI_HALLUCINATION_RULE,
+  VISION_OMNIVA_GABARIT_RULE,
   VISION_REGITRA_TECH_PASSPORT_OCR_RULE,
 } from "./vision-guardrails.js";
+import { applyOmnivaEligibilityToDraft } from "../shared/omniva-locker-eligibility.js";
 import { normalizeImageInputList } from "./image-input.js";
 import { enrichSellerListingFromText } from "./seller-listing-fallback.js";
 import {
@@ -70,6 +72,8 @@ const EXTRACTION_SCHEMA = `{
   "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
   "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
   "technicalFields": "object — exact facts only from OCR/vision: make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight, propertyType, area, rooms, floor, heating, brand, instrumentType, specs, languages, battery, contents, Atlikimas, Paskirtis, Spalvos, Būklė…",
+  "fitsOmnivaLocker": "boolean — true TIK jei prekė tikrai telpa Omniva L paštomate (max 39×38×64 cm, ≤30 kg). Auto/NT/darbas/paslaugos/baldai/stambi technika/dviračiai/auto dalys = false",
+  "estimatedSize": "S | M | L | OVERSIZED — S/M maža elektronika/aksesuarai/apranga; L max locker; OVERSIZED = netelpa",
   "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija / pakuotės tekstas (PRIMARY OCR, NE viešai galerijai kai dokumentas)",
   "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto nuotraukų viešai galerijai",
   "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai",
@@ -100,6 +104,8 @@ ${VAUTO_DOMAIN_AUTONOMY_RULES}
 ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
 
 ${VISION_DEEP_OCR_EXTRACTION_RULE}
+
+${VISION_OMNIVA_GABARIT_RULE}
 
 OCR + FAKTAI → technicalFields (AUTO-FILL PrePublish BE follow-up klausimų):
 - Tech passport / dokumentai / pakuotės tekstas: imageRoles=document kai tai specifikacijų šaltinis; documentImageIndexes = PRIMARY ground-truth.
@@ -255,6 +261,8 @@ export interface VautoListingPayload {
   imageAlt?: string;
   imageTitle?: string;
   reviewNotice?: string;
+  /** Omniva L-locker eligibility after Pass-1 gabarit fence. */
+  allowPastomatas?: boolean;
 }
 
 function toListingPayload(
@@ -306,17 +314,30 @@ function toListingPayload(
             ? "Sportas"
             : undefined;
 
-  return {
+  const estimatedSizeRaw = String(raw.estimatedSize ?? technicalFields.estimatedSize ?? "")
+    .trim()
+    .toUpperCase();
+  const estimatedSize =
+    estimatedSizeRaw === "S" ||
+    estimatedSizeRaw === "M" ||
+    estimatedSizeRaw === "L" ||
+    estimatedSizeRaw === "OVERSIZED"
+      ? estimatedSizeRaw
+      : "";
+  const fitsRaw = raw.fitsOmnivaLocker ?? technicalFields.fitsOmnivaLocker;
+  const fitsOmnivaLocker =
+    typeof fitsRaw === "boolean"
+      ? fitsRaw
+      : ["true", "1", "yes", "taip"].includes(String(fitsRaw ?? "").trim().toLowerCase())
+        ? true
+        : ["false", "0", "no", "ne"].includes(String(fitsRaw ?? "").trim().toLowerCase())
+          ? false
+          : null;
+
+  const draftWithGabarit = applyOmnivaEligibilityToDraft({
     title,
-    price,
-    location: resolveListingCity(
-      String(raw.city ?? raw.location ?? ""),
-      userCityResolved
-    ),
-    contact,
+    description,
     category: remapped.category,
-    description: description || undefined,
-    confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.85)),
     attributes: {
       ...technicalFields,
       _intent: String(raw.intent ?? "sell"),
@@ -328,7 +349,26 @@ function toListingPayload(
         : {}),
       ...(choiceChips.length ? { choiceChips: choiceChips.join("|") } : {}),
       ...(clarificationPrompt ? { clarificationPrompt } : {}),
+      ...(estimatedSize ? { estimatedSize } : {}),
+      ...(fitsOmnivaLocker != null
+        ? { fitsOmnivaLocker: fitsOmnivaLocker ? "true" : "false" }
+        : {}),
     },
+  });
+
+  return {
+    title,
+    price,
+    location: resolveListingCity(
+      String(raw.city ?? raw.location ?? ""),
+      userCityResolved
+    ),
+    contact,
+    category: remapped.category,
+    description: description || undefined,
+    confidence: Math.min(1, Math.max(0, Number(raw.confidence) || 0.85)),
+    attributes: draftWithGabarit.attributes ?? {},
+    allowPastomatas: draftWithGabarit.allowPastomatas,
     intent: String(raw.intent ?? "sell"),
   };
 }

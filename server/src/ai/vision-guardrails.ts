@@ -91,6 +91,33 @@ Ištrauk ir AUTO-FILL technicalFields be papildomų follow-up klausimų:
 - B → firstRegistration (YYYY-MM-DD) + year (YYYY)
 Kai šie laukai užpildyti — NIEKADA neklausti markės/modelio/variklio/kuro/VIN dar kartą.`;
 
+/**
+ * Pass-1 Omniva L-locker gabarit check (max 39×38×64 cm, 30 kg).
+ * Small parcelable goods → fitsOmnivaLocker true; bulky → false / OVERSIZED.
+ */
+export const VISION_OMNIVA_GABARIT_RULE = `
+OMNIVA PAŠTOMATO GABARITAI (PRIVALOMA — Pass 1 extraction):
+Omniva L max: 39 cm × 38 cm × 64 cm, max 30 kg.
+Įvertink vizualų dydį + OCR specs ir grąžink:
+- fitsOmnivaLocker: boolean
+- estimatedSize: "S" | "M" | "L" | "OVERSIZED"
+
+fitsOmnivaLocker = true / estimatedSize S|M|L:
+- Maža elektronika (PEIKO vertėjas, telefonai, ausinės, powerbank)
+- Smulkūs įrankiai, aksesuarai, kosmetika, knygos
+- Apranga / avalynė / mados aksesuarai (jei telpa į L dėžę)
+- Maži muzikos priedai (kabeliai, pedalai) — NE dideli instrumentai jei akivaizdžiai dideli
+
+fitsOmnivaLocker = false / estimatedSize OVERSIZED:
+- Automobiliai, NT, darbas, paslaugos (visada)
+- Baldai (sofa, spinta, stalas, lova, čiužinys)
+- Stambi buitinė technika (šaldytuvas, skalbyklė, orkaitė)
+- Dviračiai, paspirtukai, dideli garsiakalbiai
+- Stambios auto dalys (bamperiai, kapotai, sparnai, durys)
+- Bet kas vizualiai didesnis už ~39×38×64 cm arba sunkesnis už 30 kg
+
+Jei abejoji — OVERSIZED + fitsOmnivaLocker false (saugiau nei klaidingas locker).`;
+
 /** Pass-1 extraction only — facts/OCR/category, no creative sales copy. */
 export const VISION_EXTRACTION_ANTI_HALLUCINATION_RULE = `
 VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (PRIVALOMA — autonomija, ne blokas):
@@ -103,7 +130,8 @@ VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (PRIVALOMA — autonomija, ne blokas):
 - Šiame žingsnyje NErašyk turtingo sales description — tik šalti faktai + category + imageRoles.
 ${VISION_ANTI_STALE_TITLE_RULE}
 ${VISION_REGITRA_TECH_PASSPORT_OCR_RULE}
-${VISION_DEEP_OCR_EXTRACTION_RULE}`;
+${VISION_DEEP_OCR_EXTRACTION_RULE}
+${VISION_OMNIVA_GABARIT_RULE}`;
 
 export const VISION_ANTI_HALLUCINATION_RULE = `
 ${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
