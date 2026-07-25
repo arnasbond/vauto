@@ -68,7 +68,7 @@ export const AWAITING_PHOTOS_NUDGE =
 
 /** Step 2 CTA after vision summary — prepare full listing draft. */
 export const POST_VISION_PUBLISH_GATE =
-  "Ar paruošti pilną skelbimo juodraštį?";
+  "Ar paruošti skelbimo juodraštį patikrinimui?";
 
 /**
  * Short conversational ack after draft synthesis (chat only).
@@ -526,13 +526,14 @@ export function buildDraftReadyChatReply(draft: {
 }
 
 /**
- * Drop stale vision/CTA tails so older „Matau… Ar paruošti…“ prompts
- * never stick onto a newer draft-ready chat bubble.
+ * When a draft-ready ack is concatenated with an older vision CTA, keep only
+ * the draft-ready sentence. Never strip standalone warm OCR / guidance messages.
  */
 export function stripStaleChatPromptTails(text: string): string {
-  let t = String(text ?? "").trim();
+  const t = String(text ?? "").trim();
   if (!t) return "";
-  // Prefer the draft-ready sentence if a prior vision prompt was concatenated.
+  const hasReady = /Paruošiau pilną|Paruošiau juodraštį/i.test(t);
+  if (!hasReady) return t;
   const ready =
     t.match(
       /Paruošiau pilną\s+[„"][^„"]+[“"]\s+skelbimo juodraštį![^.!\n]*[.!]?/i
@@ -542,13 +543,6 @@ export function stripStaleChatPromptTails(text: string): string {
   if (ready && /Matau\b|Ar paruošti/i.test(t)) {
     return ready.trim();
   }
-  t = t
-    .replace(/\n*\s*Ar paruošti pilną skelbimo juodraštį\??\s*$/gi, "")
-    .replace(
-      /\n*\s*Matau[\s\S]{0,220}?\bAr paruošti[\s\S]{0,120}?\??\s*$/gi,
-      ""
-    )
-    .trim();
   return t;
 }
 
@@ -734,9 +728,50 @@ export function buildVehicleSpecReportMarkdown(draft: {
   return lines.join("\n");
 }
 
+/** Collect short human-readable OCR/vision facts for chat acknowledgment. */
+function collectVisionFactHints(
+  attrs: Record<string, string | string[] | undefined> | undefined
+): string[] {
+  const hints: string[] = [];
+  const push = (label: string) => {
+    const t = label.trim();
+    if (t && !hints.includes(t) && hints.length < 5) hints.push(t);
+  };
+  const blob = [
+    attrPick(attrs, "factNotes", "ocrText", "sceneContext", "specs"),
+    attrPick(attrs, "exteriorFeatures", "interiorCondition", "contents"),
+    attrPick(attrs, "Apšvietimas", "apšvietimas", "lighting", "features"),
+    attrPick(attrs, "Jungtys", "jungtys", "ports", "connectors"),
+    attrPick(attrs, "battery", "Baterija", "power", "Galingumas"),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (/rgb|spalvot|party\s*light|led|apšviet/.test(blob)) {
+    push("RGB / spalvotą apšvietimą");
+  }
+  if (/jungt|bluetooth|usb|aux|hdmi|wi-?fi|nfc/.test(blob)) {
+    push("jungtis");
+  }
+  if (/bater|akumuliator|veikimo\s*laik/.test(blob)) {
+    push("bateriją");
+  }
+  if (/galing|watt|\bw\b|galia/.test(blob)) {
+    push("galingumą");
+  }
+  const condition = attrPick(attrs, "condition", "Būklė", "bukle");
+  if (condition) push(`būklę (${condition})`);
+  const storage = attrPick(attrs, "storageCapacity", "memory", "Atmintis");
+  if (storage) push(`atmintį (${storage})`);
+  const engine = attrPick(attrs, "engine", "powerKw", "fuelType");
+  if (engine) push("techninius parametrus");
+  return hints;
+}
+
 /**
- * Lean Step-2 vision summary — warm welcome + optional enrichment invite + CTA.
- * Full sales draft materializes after „Paruošti skelbimą“.
+ * Warm Step-2 vision summary — OCR fact transparency + proactive guidance + CTA.
+ * Full sales draft materializes after „Paruošti skelbimą“ (PrePublish only).
  */
 export function buildPostVisionHeroMessage(draft: {
   title?: string;
@@ -758,14 +793,32 @@ export function buildPostVisionHeroMessage(draft: {
   const isVehicle =
     category === "vehicles" ||
     Boolean(attrPick(draft.attributes, "vin", "plate", "licensePlate"));
+  const facts = collectVisionFactHints(draft.attributes);
+  const factAck = facts.length
+    ? ` Nuotraukoje sėkmingai atpažinau modelį ir pagrindines specifikacijas (${facts.join(", ")}).`
+    : " Nuotraukoje sėkmingai atpažinau modelį ir pagrindines specifikacijas.";
 
-  if (isVehicle) {
-    return `Matau ${short}! Jei turite techninio paso ar kitų kampų nuotraukų — atsiųskite, papildysiu specifikacijas. Arba spauskite „Paruošti skelbimą“.`;
+  const hasPrice =
+    (draft.price != null && Number(draft.price) > 0) ||
+    Boolean(String(draft.priceLabel ?? "").trim());
+  const guidance: string[] = [];
+  if (!hasPrice) {
+    guidance.push(
+      isVehicle
+        ? "Kokią kainą norėtumėte matyti skelbime?"
+        : "Kokia būtų šios prekės kaina?"
+    );
   }
+  if (isVehicle) {
+    guidance.push(
+      "Jei turite techninio paso ar kitų kampų nuotraukų — atsiųskite, papildysiu specifikacijas."
+    );
+  } else {
+    guidance.push(
+      "Jei turite, galite įkelti ir pakuotės, etiketės ar priedų nuotrauką — aprašymas bus dar tikslesnis!"
+    );
+  }
+  guidance.push("Ar paruošti skelbimo juodraštį patikrinimui?");
 
-  return (
-    `Matau puikią ${short}! Jei norite dar tikslesnio aprašymo, galite atsiųsti galinės etiketės ` +
-    `nuotrauką arba brūkštelėti modelį — iškart įtrauksiu visas specifikacijas. ` +
-    `Galime ir iš karto paruošti juodraštį.`
-  );
+  return `Matau ${short}!${factAck} ${guidance.join(" ")}`.replace(/\s+/g, " ").trim();
 }

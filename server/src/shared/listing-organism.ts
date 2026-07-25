@@ -68,7 +68,7 @@ export const AWAITING_PHOTOS_NUDGE =
 
 /** Step 2 CTA after vision summary — prepare full listing draft. */
 export const POST_VISION_PUBLISH_GATE =
-  "Ar paruošti pilną skelbimo juodraštį?";
+  "Ar paruošti skelbimo juodraštį patikrinimui?";
 
 /**
  * Short conversational ack after draft synthesis (chat only).
@@ -81,14 +81,17 @@ export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
 /** Step 2 chips — generate full marketplace draft. */
-export const POST_VISION_PUBLISH_CHIPS = ["✨ Paruošti skelbimą"] as const;
+export const POST_VISION_PUBLISH_CHIPS = [
+  "✨ Paruošti skelbimą",
+  "Įkelti nuotraukas",
+] as const;
 
 /** Step 3 chips — open PrePublish or edit. */
 export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as const;
 
 /** Lean Step-1 sell greeting (universal). */
 export const LEAN_SELL_GREETING =
-  "Puiku! Įkelkite nuotraukas ir parašykite kainą.";
+  "Puiku — esu jūsų pardavimo partneris! Įkelkite iki 6 nuotraukų (prekė, etiketė, komplektacija) ir parašykite kainą — aš sudėliosiu turtingą skelbimą.";
 
 /** True when user taps / types Step-2 prepare CTA. */
 export function isPrepareListingIntent(text: string): boolean {
@@ -523,12 +526,14 @@ export function buildDraftReadyChatReply(draft: {
 }
 
 /**
- * Drop stale vision/CTA tails so older „Matau… Ar paruošti…“ prompts
- * never stick onto a newer draft-ready chat bubble.
+ * When a draft-ready ack is concatenated with an older vision CTA, keep only
+ * the draft-ready sentence. Never strip standalone warm OCR / guidance messages.
  */
 export function stripStaleChatPromptTails(text: string): string {
-  let t = String(text ?? "").trim();
+  const t = String(text ?? "").trim();
   if (!t) return "";
+  const hasReady = /Paruošiau pilną|Paruošiau juodraštį/i.test(t);
+  if (!hasReady) return t;
   const ready =
     t.match(
       /Paruošiau pilną\s+[„"][^„"]+[“"]\s+skelbimo juodraštį![^.!\n]*[.!]?/i
@@ -538,13 +543,6 @@ export function stripStaleChatPromptTails(text: string): string {
   if (ready && /Matau\b|Ar paruošti/i.test(t)) {
     return ready.trim();
   }
-  t = t
-    .replace(/\n*\s*Ar paruošti pilną skelbimo juodraštį\??\s*$/gi, "")
-    .replace(
-      /\n*\s*Matau[\s\S]{0,220}?\bAr paruošti[\s\S]{0,120}?\??\s*$/gi,
-      ""
-    )
-    .trim();
   return t;
 }
 
@@ -730,8 +728,50 @@ export function buildVehicleSpecReportMarkdown(draft: {
   return lines.join("\n");
 }
 
+/** Collect short human-readable OCR/vision facts for chat acknowledgment. */
+function collectVisionFactHints(
+  attrs: Record<string, string | string[] | undefined> | undefined
+): string[] {
+  const hints: string[] = [];
+  const push = (label: string) => {
+    const t = label.trim();
+    if (t && !hints.includes(t) && hints.length < 5) hints.push(t);
+  };
+  const blob = [
+    attrPick(attrs, "factNotes", "ocrText", "sceneContext", "specs"),
+    attrPick(attrs, "exteriorFeatures", "interiorCondition", "contents"),
+    attrPick(attrs, "Apšvietimas", "apšvietimas", "lighting", "features"),
+    attrPick(attrs, "Jungtys", "jungtys", "ports", "connectors"),
+    attrPick(attrs, "battery", "Baterija", "power", "Galingumas"),
+  ]
+    .filter(Boolean)
+    .join(" ")
+    .toLowerCase();
+
+  if (/rgb|spalvot|party\s*light|led|apšviet/.test(blob)) {
+    push("RGB / spalvotą apšvietimą");
+  }
+  if (/jungt|bluetooth|usb|aux|hdmi|wi-?fi|nfc/.test(blob)) {
+    push("jungtis");
+  }
+  if (/bater|akumuliator|veikimo\s*laik/.test(blob)) {
+    push("bateriją");
+  }
+  if (/galing|watt|\bw\b|galia/.test(blob)) {
+    push("galingumą");
+  }
+  const condition = attrPick(attrs, "condition", "Būklė", "bukle");
+  if (condition) push(`būklę (${condition})`);
+  const storage = attrPick(attrs, "storageCapacity", "memory", "Atmintis");
+  if (storage) push(`atmintį (${storage})`);
+  const engine = attrPick(attrs, "engine", "powerKw", "fuelType");
+  if (engine) push("techninius parametrus");
+  return hints;
+}
+
 /**
- * Lean Step-2 vision summary — one sentence + CTA (full draft comes after „Paruošti skelbimą“).
+ * Warm Step-2 vision summary — OCR fact transparency + proactive guidance + CTA.
+ * Full sales draft materializes after „Paruošti skelbimą“ (PrePublish only).
  */
 export function buildPostVisionHeroMessage(draft: {
   title?: string;
@@ -742,12 +782,43 @@ export function buildPostVisionHeroMessage(draft: {
   category?: string;
   attributes?: Record<string, string | string[] | undefined>;
 }): string {
-  const make = attrPick(draft.attributes, "make", "brand");
-  const model = attrPick(draft.attributes, "model");
+  const make = attrPick(draft.attributes, "make", "brand", "manufacturer");
+  const model = attrPick(draft.attributes, "model", "deviceModel");
   const year = attrPick(draft.attributes, "year");
   const vehicleLabel = [make, model, year].filter(Boolean).join(" ");
   const title = draft.title?.trim() || "";
   const label = (vehicleLabel || title || "prekę").replace(/\s+/g, " ").trim();
   const short = label.length > 72 ? `${label.slice(0, 69)}…` : label;
-  return `Matau ${short}. Ar paruošti pilną skelbimo juodraštį?`;
+  const category = String(draft.category ?? "").toLowerCase();
+  const isVehicle =
+    category === "vehicles" ||
+    Boolean(attrPick(draft.attributes, "vin", "plate", "licensePlate"));
+  const facts = collectVisionFactHints(draft.attributes);
+  const factAck = facts.length
+    ? ` Nuotraukoje sėkmingai atpažinau modelį ir pagrindines specifikacijas (${facts.join(", ")}).`
+    : " Nuotraukoje sėkmingai atpažinau modelį ir pagrindines specifikacijas.";
+
+  const hasPrice =
+    (draft.price != null && Number(draft.price) > 0) ||
+    Boolean(String(draft.priceLabel ?? "").trim());
+  const guidance: string[] = [];
+  if (!hasPrice) {
+    guidance.push(
+      isVehicle
+        ? "Kokią kainą norėtumėte matyti skelbime?"
+        : "Kokia būtų šios prekės kaina?"
+    );
+  }
+  if (isVehicle) {
+    guidance.push(
+      "Jei turite techninio paso ar kitų kampų nuotraukų — atsiųskite, papildysiu specifikacijas."
+    );
+  } else {
+    guidance.push(
+      "Jei turite, galite įkelti ir pakuotės, etiketės ar priedų nuotrauką — aprašymas bus dar tikslesnis!"
+    );
+  }
+  guidance.push("Ar paruošti skelbimo juodraštį patikrinimui?");
+
+  return `Matau ${short}!${factAck} ${guidance.join(" ")}`.replace(/\s+/g, " ").trim();
 }

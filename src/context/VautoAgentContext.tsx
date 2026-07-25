@@ -187,11 +187,6 @@ import {
   runPublishSuccessCelebration,
 } from "@/lib/publish-success-celebration";
 import { usePublishCelebrationOptional } from "@/context/PublishCelebrationContext";
-import {
-  formatListingDescriptionChatMessage,
-  isDescriptionGateOnlyReply,
-} from "@/lib/listing-description-chat";
-import { resolvePublishListingDescription } from "@/lib/listing-text-sanitize";
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import {
   beginAbsoluteFreshSellerListingSession,
@@ -2784,7 +2779,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
 
         setLastError(undefined);
-        let assistantText = resolveAgentChatReply({
+        const assistantText = resolveAgentChatReply({
           serverReply: res.reply,
           actions: res.actions,
           userQuery: trimmed,
@@ -2792,35 +2787,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           toolCalls: res.toolCalls,
         });
 
-        // FOOLPROOF: whenever AI updates the listing description, force it into chat.
-        if (res.actions.type === "listing_draft") {
-          const rawDesc = String(res.actions.listingDraft?.description ?? "").trim();
-          const desc =
-            rawDesc ||
-            (aiDraft
-              ? resolvePublishListingDescription({
-                  ...aiDraft,
-                  ...mapAgentDraftToListing(res.actions.listingDraft),
-                }).trim()
-              : "");
-          const forced = formatListingDescriptionChatMessage(desc);
-          if (forced) {
-            assistantText =
-              !assistantText.trim() || isDescriptionGateOnlyReply(assistantText)
-                ? forced
-                : `${forced}\n\n${assistantText.trim()}`;
-          }
-        } else if (
-          isDescriptionGateOnlyReply(assistantText) &&
-          (draftForTurn?.description || aiDraft?.description)
-        ) {
-          // Server/UI sent only the photos gate — never hide an existing draft description.
-          const desc = resolvePublishListingDescription(
-            draftForTurn ?? aiDraft!
-          ).trim();
-          const forced = formatListingDescriptionChatMessage(desc);
-          if (forced) assistantText = forced;
-        }
+        // Full sales description lives in PrePublish only — never dump it into chat.
+        // Keep warm OCR fact ack / proactive guidance / draft-ready server replies as-is.
 
         let aiTwinNudge: string | null = null;
         if (

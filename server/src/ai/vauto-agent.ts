@@ -475,8 +475,8 @@ async function runVautoAgentInner(
     hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
   });
 
-  // Step 3 — „Paruošti skelbimą“ after vision summary → full draft + Publikuoti/Papildyti.
-  // P0-2: materialize Pass-2 / vehicle benchmark onto the draft (never leave Vision stub).
+  // Step 3 — „Paruošti skelbimą“ → synthesize rich copy + OPEN PrePublish review.
+  // NEVER call postNewListing / DB publish here — user confirms in the modal.
   if (
     listingDraft &&
     lastUserText &&
@@ -485,21 +485,34 @@ async function runVautoAgentInner(
     String(listingDraft.attributes?.salesCopyGenerated ?? "") !== "true"
   ) {
     const rich = ensureRichSalesCopyBeforePublish(listingDraft);
+    const gateway = resolvePrePublishGatewayResponse({
+      isAuthenticated: req.context.isAuthenticated,
+      profilePhone: req.context.profilePhone,
+      profileEmail: req.context.profileEmail,
+      userCity: req.context.userCity,
+      contact: req.context.contact,
+      listingDraft: rich,
+      pendingImageUrls: req.context.pendingImageUrls,
+      geoCityHint: req.context.geoCityHint,
+    });
+    const nextFlowState = gateway.prePublishCard
+      ? "AWAITING_CONFIRMATION"
+      : "DRAFT_READY";
     const nextDraft = normalizeListingDraftForAction(rich, {
       contact: req.context.contact,
       userCity: req.context.userCity,
-      listingFlowState:
-        transitionListingFlow(
-          listingDraft.listingFlowState ?? flowState ?? "DRAFTING_TEXT",
-          "DRAFT_SAVED"
-        ) ?? "DRAFT_READY",
+      listingFlowState: nextFlowState,
     });
-    // Chat ≠ draft: rich title/description stay on listingDraft (PrePublish).
-    // Chat gets a short warm ack only — chips for Publikuoti / Papildyti.
+    const warmAck = buildDraftReadyChatReply(nextDraft);
+    const reply = gateway.prePublishCard
+      ? warmAck
+      : [warmAck, gateway.reply].filter(Boolean).join(" ");
     return {
       ok: true,
-      reply: buildDraftReadyChatReply(nextDraft),
-      quickReplies: [...TEXT_DRAFT_READY_CHIPS],
+      reply,
+      ...(gateway.prePublishCard
+        ? { prePublishCard: gateway.prePublishCard }
+        : { quickReplies: [...TEXT_DRAFT_READY_CHIPS] }),
       toolCalls: [],
       actions: {
         type: "listing_draft",
@@ -1700,19 +1713,25 @@ async function runVautoAgentInner(
       : resolvedAction.type === "listing_draft" && "listingDraft" in resolvedAction
         ? resolvedAction.listingDraft
         : null;
-  // Chat ≠ draft: once listingDraft is synthesized, chat gets one warm sentence.
-  // Never re-append full description or stale „Matau… Ar paruošti…“ tails.
+  // Preserve warm OCR / guidance replies after photo scan.
+  // Only replace with draft-ready when Pass-2 sales copy was explicitly materialized.
   if (listingDraftForReply) {
-    const descLen = String(listingDraftForReply.description ?? "").trim().length;
     const salesReady =
       String(listingDraftForReply.attributes?.salesCopyGenerated ?? "").toLowerCase() ===
-        "true" || descLen >= 40;
+      "true";
     if (salesReady) {
-      finalText = buildDraftReadyChatReply(listingDraftForReply);
+      // Keep an existing warm draft-ready / PrePublish ack; otherwise synthesize one.
+      if (!finalText?.trim() || !/Paruošiau pilną|PrePublish/i.test(finalText)) {
+        finalText = buildDraftReadyChatReply(listingDraftForReply);
+      } else {
+        finalText = stripStaleChatPromptTails(finalText);
+      }
     } else if (finalText) {
+      // Vision Step-2: keep Matau + fact ack + guidance intact.
       finalText = stripStaleChatPromptTails(finalText);
     } else {
-      finalText = buildDraftReadyChatReply(listingDraftForReply);
+      // Fallback when model returned empty but vision draft exists without sales copy.
+      finalText = buildPostVisionHeroMessage(listingDraftForReply);
     }
   } else if (finalText) {
     finalText = stripStaleChatPromptTails(finalText);

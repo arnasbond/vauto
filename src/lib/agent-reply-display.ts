@@ -51,18 +51,17 @@ export function sanitizeAgentReplyForDisplay(text: string): string {
     .replace(TRAILING_PUNCT_RE, "")
     .trim();
 
-  // Prefer draft-ready ack when a stale vision CTA was concatenated.
-  const ready =
-    cleaned.match(
-      /Paruošiau pilną\s+[„"][^„"]+[“"]\s+skelbimo juodraštį![^.!\n]*[.!]?/i
-    )?.[0] ||
-    cleaned.match(/Paruošiau pilną skelbimo juodraštį![^.!\n]*[.!]?/i)?.[0];
-  if (ready && /Matau\b|Ar paruošti/i.test(cleaned)) {
-    cleaned = ready.trim();
-  } else {
-    cleaned = cleaned
-      .replace(/\n*\s*Ar paruošti pilną skelbimo juodraštį\??\s*$/gi, "")
-      .trim();
+  // Only collapse when draft-ready was concatenated onto an older vision CTA.
+  // Never strip standalone warm OCR / proactive guidance replies.
+  if (/Paruošiau pilną|Paruošiau juodraštį/i.test(cleaned)) {
+    const ready =
+      cleaned.match(
+        /Paruošiau pilną\s+[„"][^„"]+[“"]\s+skelbimo juodraštį![^.!\n]*[.!]?/i
+      )?.[0] ||
+      cleaned.match(/Paruošiau pilną skelbimo juodraštį![^.!\n]*[.!]?/i)?.[0];
+    if (ready && /Matau\b|Ar paruošti/i.test(cleaned)) {
+      cleaned = ready.trim();
+    }
   }
 
   if (!cleaned) return "";
