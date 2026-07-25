@@ -45,11 +45,25 @@ export function stripRawMarkdownHeadingMarkers(text: string): string {
 }
 
 export function sanitizeAgentReplyForDisplay(text: string): string {
-  const cleaned = stripRawMarkdownHeadingMarkers(text)
+  let cleaned = stripRawMarkdownHeadingMarkers(text)
     .replace(INTERNAL_TOOL_RE, "")
     .replace(/\s{2,}/g, " ")
     .replace(TRAILING_PUNCT_RE, "")
     .trim();
+
+  // Prefer draft-ready ack when a stale vision CTA was concatenated.
+  const ready =
+    cleaned.match(
+      /Paruošiau pilną\s+[„"][^„"]+[“"]\s+skelbimo juodraštį![^.!\n]*[.!]?/i
+    )?.[0] ||
+    cleaned.match(/Paruošiau pilną skelbimo juodraštį![^.!\n]*[.!]?/i)?.[0];
+  if (ready && /Matau\b|Ar paruošti/i.test(cleaned)) {
+    cleaned = ready.trim();
+  } else {
+    cleaned = cleaned
+      .replace(/\n*\s*Ar paruošti pilną skelbimo juodraštį\??\s*$/gi, "")
+      .trim();
+  }
 
   if (!cleaned) return "";
   if (/^rezultat[uų]\s+nerasta\.?$/i.test(cleaned)) {

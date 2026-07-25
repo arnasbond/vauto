@@ -39,10 +39,6 @@ import {
   parsePriceFromChatInput,
 } from "./listing-chat-input.js";
 import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
-import {
-  buildListingDraftUpdateReply,
-  ensureRichListingDraftReply,
-} from "./listing-draft-preview.js";
 import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
 import { evaluateServerPrePublishReadiness } from "./pre-publish-validation.js";
 import {
@@ -57,6 +53,7 @@ import {
   buildDraftReadyChatReply,
   buildDraftingCompletePhotosPrompt,
   buildPostVisionHeroMessage,
+  stripStaleChatPromptTails,
   dispatchListingFlowTurn,
   inferListingFlowState,
   isHeroFlowLocked,
@@ -436,9 +433,20 @@ async function runVautoAgentInner(
         "../shared/pastomatas-agent.js"
       );
       if (!existing || (wantsPastomatas && existing.step === "label_ready")) {
-        const started = startPastomatasGuide(
-          req.context.userCity || req.context.geoCityHint || "Vilnius"
-        );
+        const pastomatasCity = (
+          req.context.userCity ||
+          req.context.geoCityHint ||
+          ""
+        ).trim();
+        if (!pastomatasCity) {
+          return {
+            ok: true,
+            reply: "Kuriame mieste ieškoti Omniva paštomato?",
+            toolCalls: [{ name: "pastomatasGuide", result: { step: "ask_city" } }],
+            actions: { type: "none" },
+          };
+        }
+        const started = startPastomatasGuide(pastomatasCity);
         setPastomatasSession(sessionKey, started.state);
         return {
           ok: true,
@@ -1669,15 +1677,7 @@ async function runVautoAgentInner(
   const quickReplies = resolveAgentQuickReplies(toolCalls, resolvedAction);
 
   if (!finalText && sideEffect?.type === "listing_draft") {
-    const ld = sideEffect.listingDraft;
-    finalText = buildListingDraftUpdateReply({
-      category: ld.category ?? "other",
-      title: ld.title?.trim() || "Naujas skelbimas",
-      description: ld.description,
-      price: ld.price,
-      location: ld.location,
-      attributes: (ld.attributes as Record<string, string> | undefined) ?? {},
-    });
+    finalText = buildDraftReadyChatReply(sideEffect.listingDraft);
   }
 
   if (!finalText && sideEffect?.type === "wardrobe_bulk") {
@@ -1691,15 +1691,7 @@ async function runVautoAgentInner(
     resolvedAction.type === "listing_draft" &&
     "listingDraft" in resolvedAction
   ) {
-    const ld = resolvedAction.listingDraft;
-    finalText = buildListingDraftUpdateReply({
-      category: ld.category ?? "other",
-      title: ld.title?.trim() || "Naujas skelbimas",
-      description: ld.description,
-      price: ld.price,
-      location: ld.location,
-      attributes: (ld.attributes as Record<string, string> | undefined) ?? {},
-    });
+    finalText = buildDraftReadyChatReply(resolvedAction.listingDraft);
   }
 
   const listingDraftForReply =
@@ -1708,17 +1700,22 @@ async function runVautoAgentInner(
       : resolvedAction.type === "listing_draft" && "listingDraft" in resolvedAction
         ? resolvedAction.listingDraft
         : null;
-  if (finalText && listingDraftForReply) {
-    finalText = ensureRichListingDraftReply(finalText, {
-      category: listingDraftForReply.category ?? "other",
-      title: listingDraftForReply.title?.trim() || "Naujas skelbimas",
-      description: listingDraftForReply.description,
-      price: listingDraftForReply.price,
-      location: listingDraftForReply.location,
-      attributes:
-        (listingDraftForReply.attributes as Record<string, string> | undefined) ??
-        {},
-    });
+  // Chat ≠ draft: once listingDraft is synthesized, chat gets one warm sentence.
+  // Never re-append full description or stale „Matau… Ar paruošti…“ tails.
+  if (listingDraftForReply) {
+    const descLen = String(listingDraftForReply.description ?? "").trim().length;
+    const salesReady =
+      String(listingDraftForReply.attributes?.salesCopyGenerated ?? "").toLowerCase() ===
+        "true" || descLen >= 40;
+    if (salesReady) {
+      finalText = buildDraftReadyChatReply(listingDraftForReply);
+    } else if (finalText) {
+      finalText = stripStaleChatPromptTails(finalText);
+    } else {
+      finalText = buildDraftReadyChatReply(listingDraftForReply);
+    }
+  } else if (finalText) {
+    finalText = stripStaleChatPromptTails(finalText);
   }
 
   // Photos present + empty model reply → Vision scan (never echo raw sell text).
@@ -1846,24 +1843,29 @@ async function runVautoAgentInner(
     proactivePricingMessage?: string | null;
     marketAnalysisDeferred?: boolean;
   } | undefined;
-  if (listingResult?.marketAnalysisDeferred && listingResult.voiceFollowUp) {
-    finalText = listingResult.voiceFollowUp;
-  } else if (
-    listingResult?.proactivePricingMessage &&
-    !finalText.includes(listingResult.proactivePricingMessage.slice(0, 24))
-  ) {
-    finalText = listingResult.proactivePricingMessage;
-  } else if (
-    listingResult?.voiceFollowUp &&
-    listingResult.missingFields?.length &&
-    !finalText.includes(listingResult.voiceFollowUp.slice(0, 24))
-  ) {
-    finalText = listingResult.voiceFollowUp;
+  // Never overwrite a draft-ready one-liner with longer tool follow-ups / stale CTAs.
+  const draftReadyChat =
+    typeof finalText === "string" && /Paruošiau pilną/i.test(finalText);
+  if (!draftReadyChat) {
+    if (listingResult?.marketAnalysisDeferred && listingResult.voiceFollowUp) {
+      finalText = listingResult.voiceFollowUp;
+    } else if (
+      listingResult?.proactivePricingMessage &&
+      !finalText.includes(listingResult.proactivePricingMessage.slice(0, 24))
+    ) {
+      finalText = listingResult.proactivePricingMessage;
+    } else if (
+      listingResult?.voiceFollowUp &&
+      listingResult.missingFields?.length &&
+      !finalText.includes(listingResult.voiceFollowUp.slice(0, 24))
+    ) {
+      finalText = listingResult.voiceFollowUp;
+    }
   }
 
   return {
     ok: true,
-    reply: finalText,
+    reply: finalText ? stripStaleChatPromptTails(finalText) : finalText,
     quickReplies,
     toolCalls,
     actions: resolvedAction,

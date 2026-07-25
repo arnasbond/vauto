@@ -183,7 +183,8 @@ export function normalizeListingDraftForAction(
     title: draft.title?.trim() || "Naujas skelbimas",
     description: draft.description,
     price: opts?.price ?? draft.price ?? 0,
-    location: draft.location?.trim() || opts?.userCity?.trim() || "Lietuva",
+    // Bind profile/user city when present; never invent Vilnius / Lietuva.
+    location: draft.location?.trim() || opts?.userCity?.trim() || "",
     contact: opts?.contact?.trim() || "",
     category: draft.category?.trim() || "other",
     confidence: opts?.confidence ?? 0.9,

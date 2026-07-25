@@ -16,6 +16,7 @@ export {
   buildDraftReadyChatReply,
   buildDraftingCompletePhotosPrompt,
   buildPostVisionHeroMessage,
+  stripStaleChatPromptTails,
   buildVehicleSpecReportMarkdown,
   dispatchListingFlowTurn,
   inferListingFlowState,

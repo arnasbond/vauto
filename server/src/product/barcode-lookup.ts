@@ -26,7 +26,7 @@ function buildTechnicalDescription(parts: {
   const lines: string[] = [];
   if (parts.brand) lines.push(`Prekės ženklas: ${parts.brand}`);
   if (parts.author) lines.push(`Autorius: ${parts.author}`);
-  if (parts.title) lines.push(`Pavadinimas: ${parts.title}`);
+  if (parts.title) lines.push(parts.title);
   if (parts.publishYear) lines.push(`Leidimo metai: ${parts.publishYear}`);
   if (parts.category) lines.push(`Kategorija: ${parts.category}`);
   if (parts.quantity) lines.push(`Kiekis / talpa / dydis: ${parts.quantity}`);

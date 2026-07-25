@@ -75,7 +75,7 @@ export const POST_VISION_PUBLISH_GATE =
  * Full title/description live on listingDraft / PrePublish — never paste them here.
  */
 export const TEXT_DRAFT_READY_GATE =
-  "Paruošiau juodraštį PrePublish lange — galime publikuoti arba papildyti.";
+  "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.";
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
@@ -504,9 +504,8 @@ export function dispatchListingFlowTurn(input: {
 }
 
 /**
- * Conversational chat ack after draft synthesis (1–2 sentences).
- * Rich title/description belong only on listingDraft → PrePublish — never dump
- * the full sales copy into the chat bubble.
+ * Single warm chat sentence after draft synthesis.
+ * Rich title/description belong only on listingDraft → PrePublish.
  */
 export function buildDraftReadyChatReply(draft: {
   title?: string;
@@ -518,9 +517,35 @@ export function buildDraftReadyChatReply(draft: {
   if (title) {
     const short =
       title.length > 72 ? `${title.slice(0, 69).trim()}…` : title;
-    return `Paruošiau juodraštį „${short}“. Peržiūrėkite PrePublish lange — galime publikuoti arba papildyti.`;
+    return `Paruošiau pilną „${short}“ skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.`;
   }
   return TEXT_DRAFT_READY_GATE;
+}
+
+/**
+ * Drop stale vision/CTA tails so older „Matau… Ar paruošti…“ prompts
+ * never stick onto a newer draft-ready chat bubble.
+ */
+export function stripStaleChatPromptTails(text: string): string {
+  let t = String(text ?? "").trim();
+  if (!t) return "";
+  const ready =
+    t.match(
+      /Paruošiau pilną\s+[„"][^„"]+[“"]\s+skelbimo juodraštį![^.!\n]*[.!]?/i
+    )?.[0] ||
+    t.match(/Paruošiau pilną skelbimo juodraštį![^.!\n]*[.!]?/i)?.[0] ||
+    t.match(/Paruošiau juodraštį[^.!\n]*[.!]/i)?.[0];
+  if (ready && /Matau\b|Ar paruošti/i.test(t)) {
+    return ready.trim();
+  }
+  t = t
+    .replace(/\n*\s*Ar paruošti pilną skelbimo juodraštį\??\s*$/gi, "")
+    .replace(
+      /\n*\s*Matau[\s\S]{0,220}?\bAr paruošti[\s\S]{0,120}?\??\s*$/gi,
+      ""
+    )
+    .trim();
+  return t;
 }
 
 /**

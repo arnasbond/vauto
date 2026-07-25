@@ -36,13 +36,16 @@ function stringifyAttrs(
   );
 }
 
-/** Strip markdown/emoji chrome from benchmark copy for marketplace storage. */
+/** Strip markdown/emoji chrome and prompt-label artifacts from sales copy. */
 export function scrubSalesCopyMarkdown(text: string): string {
   return text
     .replace(/\*\*/g, "")
     .replace(/^🚗\s*/gm, "")
     .replace(/^🌟\s*/gm, "")
     .replace(/^💡\s*/gm, "")
+    // Never keep prompt label literals at the start of description.
+    .replace(/^(Pavadinimas|Title|Antraštė|Aprašymas)\s*:\s*/i, "")
+    .replace(/^(Pavadinimas|Title|Antraštė)\s*:\s*.+\n+/i, "")
     .trim();
 }
 

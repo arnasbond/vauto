@@ -190,19 +190,25 @@ export function buildListingDraftUpdateReply(
   draft: ListingDraftPreviewInput,
   opts?: { intro?: string; outro?: string }
 ): string {
-  // Lean listing confirmation — no Patarimas / market filler / greetings.
-  const parts = [
-    opts?.intro?.trim(),
-    buildDraftPreviewBlock(draft),
-    opts?.outro?.trim(),
-  ].filter(Boolean);
-  return parts.join("\n\n");
+  // Chat stays one warm sentence — full copy lives on PrePublish only.
+  const title = draft.title?.trim();
+  const ack = title
+    ? `Paruošiau pilną „${title.length > 72 ? `${title.slice(0, 69).trim()}…` : title}“ skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.`
+    : "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.";
+  const parts = [opts?.intro?.trim(), ack, opts?.outro?.trim()].filter(Boolean);
+  return parts.join(" ");
 }
 
 export function isLazyListingDraftReply(text: string): boolean {
   const t = text.trim();
   if (!t) return true;
-  if (t.includes("Paruošiau juodraštį") || t.includes("Paruošiau skelbimo")) return false;
+  if (
+    t.includes("Paruošiau pilną") ||
+    t.includes("Paruošiau juodraštį") ||
+    t.includes("Paruošiau skelbimo")
+  ) {
+    return false;
+  }
   if (/✨/.test(t) && t.length > 80) return false;
   if (/trūksta\s+(miesto|kainos|telefono)/i.test(t)) return true;
   if (t.length < 160) return true;
@@ -213,6 +219,14 @@ export function ensureRichListingDraftReply(
   reply: string,
   draft: ListingDraftPreviewInput
 ): string {
-  if (!isLazyListingDraftReply(reply)) return reply;
+  if (!isLazyListingDraftReply(reply)) {
+    return reply
+      .replace(/\n*\s*Ar paruošti pilną skelbimo juodraštį\??\s*$/gi, "")
+      .replace(
+        /\n*\s*Matau[\s\S]{0,220}?\bAr paruošti[\s\S]{0,120}?\??\s*$/gi,
+        ""
+      )
+      .trim();
+  }
   return buildListingDraftUpdateReply(draft);
 }

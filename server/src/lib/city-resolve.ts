@@ -20,20 +20,25 @@ export function isPlaceholderCity(value: string | undefined | null): boolean {
   return v.toLowerCase() === "miestas";
 }
 
-export function resolveListingCity(
-  raw: string | undefined | null,
-  fallback = "Vilnius"
-): string {
-  const fb = resolveListingCityFallback(fallback);
+function normalizeCityCandidate(raw: string): string {
   const val = String(raw ?? "").trim();
-  if (isPlaceholderCity(val)) return fb;
-  return val;
+  if (!val || isPlaceholderCity(val)) return "";
+  if (val.toLowerCase() === "lietuva" || val.toLowerCase() === "visa lietuva") {
+    return "";
+  }
+  const match = LT_CITIES.find((c) => c.toLowerCase() === val.toLowerCase());
+  return match ?? val;
 }
 
-function resolveListingCityFallback(fallback: string): string {
-  const fb = String(fallback ?? "").trim();
-  if (!fb || isPlaceholderCity(fb)) return "Vilnius";
-  if (fb === "Lietuva") return "Vilnius";
-  const match = LT_CITIES.find((c) => c.toLowerCase() === fb.toLowerCase());
-  return match ?? fb;
+/**
+ * Resolve listing/user city from raw input with optional verified fallback.
+ * Never invents Vilnius — returns "" when unknown so chat/PrePublish can ask.
+ */
+export function resolveListingCity(
+  raw: string | undefined | null,
+  fallback = ""
+): string {
+  const fromRaw = normalizeCityCandidate(String(raw ?? ""));
+  if (fromRaw) return fromRaw;
+  return normalizeCityCandidate(String(fallback ?? ""));
 }

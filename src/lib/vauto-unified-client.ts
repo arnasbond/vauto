@@ -88,7 +88,7 @@ const VALID_CATEGORIES: ListingCategory[] = [
 /** Map unified server listing → existing AiExtractedListing for confirmation UI */
 export function mapVautoServerListing(
   listing: VautoServerListingPayload,
-  fallbackCity = "Vilnius",
+  fallbackCity = "",
   visualPipeline?: VisualPipelinePayload | null
 ): AiExtractedListing {
   const category = VALID_CATEGORIES.includes(listing.category as ListingCategory)

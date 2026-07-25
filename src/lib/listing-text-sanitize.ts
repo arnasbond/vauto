@@ -110,6 +110,10 @@ export function sanitizeListingTitle(raw: string | undefined | null): string {
 export function sanitizeListingDescription(raw: string | undefined | null): string {
   let t = String(raw ?? "").trim();
   if (!t) return "";
+  // Strip prompt-label artifacts (never show „Pavadinimas:“ as description prefix).
+  t = t
+    .replace(/^(Pavadinimas|Title|Antraštė|Aprašymas)\s*:\s*/i, "")
+    .replace(/^(Pavadinimas|Title|Antraštė)\s*:\s*.+\n+/i, "");
   for (const re of SYSTEM_PHRASE_PATTERNS) {
     t = t.replace(re, " ");
   }

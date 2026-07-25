@@ -302,7 +302,7 @@ function toListingPayload(
         buildMultiObjectClarificationPrompt(sceneContext, detectedObjects, "sell")
       : "";
 
-  const userCityResolved = resolveListingCity(userCity, "Vilnius");
+  const userCityResolved = resolveListingCity(userCity);
   const publicCategoryTag =
     remapped.vautoCategory === "MUZIKA"
       ? "Muzika / Instrumentai"
@@ -386,7 +386,7 @@ function buildExtractionTextPrompt(
 PASS 1 — STRICT EXTRACTION (šalti faktai → JSON).
 Sek Employee Handbook few-shot etalonus (PEIKO pakuotė, Regitra, Hohner, NT, paslaugos, darbas).
 Vartotojo tekstas: """${text}"""${extra}
-Numatytas miestas jei nepaminėtas: ${userCity}
+Numatytas miestas jei nepaminėtas: ${userCity || "(nežinomas — NErašyk miesto / palik null; neinventuok Vilniaus)"}
 Pavyzdžiai:
 - „Parduodu citroena" → intent sell, category AUTOMOBILIAI, technicalFields.make Citroën.
 - „Parduodu gitarą Hohner" → intent sell, category MUZIKA, technicalFields.brand Hohner.
@@ -420,7 +420,7 @@ Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Document / specs nuo
 5) VISUAL EXTRAS (tik AUTOMOBILIAI gallery): interiorCondition, exteriorFeatures, transmission, bodyType.
 6) NIEKADA neklausti markės/modelio/variklio/kuro/VIN/brand, jei jau ištraukti — forma užpildoma iš karto.
 7) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.${textNote}${extra}
-Numatytas miestas: ${userCity}
+Numatytas miestas: ${userCity || "(nežinomas — NErašyk / null; neinventuok Vilniaus)"}
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
 
@@ -434,7 +434,7 @@ function buildCreativeWritePrompt(
     intent: extracted.intent ?? "sell",
     category,
     price: extracted.price ?? null,
-    city: extracted.city || userCity,
+    city: extracted.city || userCity || null,
     technicalFields: extracted.technicalFields ?? {},
     sceneContext: extracted.sceneContext ?? "",
     factNotes: extracted.factNotes ?? "",
@@ -444,6 +444,7 @@ function buildCreativeWritePrompt(
   return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE (FACT-GROUNDED).
 Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALIA lietuvių kalba.
 Title: švarus ir tikslus (brand + model + tipas) — be triukšmo ir be perteklinio emoji.
+DRAUDŽIAMA description pradžioje rašyti etiketes „Pavadinimas:“ / „Title:“ — pradėk tiesiai nuo pardavimo teksto.
 PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
 Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / etiketė / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos** bullet'us
 (galingumas, jungtys, komplektacija, būklė, apšvietimas, matmenys — kas matoma).
@@ -461,7 +462,7 @@ ${categoryPrompt}
 IŠTRAUKTI FAKTAI (ground-truth JSON — VIENINTELIS šaltinis):
 ${JSON.stringify(facts, null, 2)}
 
-Numatytas miestas: ${userCity}
+Numatytas miestas: ${userCity || "(nežinomas — NErašyk miesto į copy; neinventuok Vilniaus)"}
 Grąžink TIK JSON: ${CREATIVE_SCHEMA}`;
 }
 
@@ -683,7 +684,7 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
   if (action === "analyze") {
     action = imagesEarly.length ? "analyze_image" : "parse_text";
   }
-  const city = resolveListingCity(body.userCity?.trim(), "Vilnius");
+  const city = resolveListingCity(body.userCity?.trim());
   const contact = body.contact?.trim() || "";
 
   if (action === "upload_media") {
@@ -901,7 +902,7 @@ export async function parseListingImagesForAgent(params: {
     console.error("[vision] parseListingImagesForAgent: no images after normalize");
     throw new Error("imageDataUrls are required");
   }
-  const city = resolveListingCity(params.userCity?.trim(), "Vilnius");
+  const city = resolveListingCity(params.userCity?.trim());
   const contact = params.contact?.trim() || "";
   const combinedText = params.text?.trim() ?? "";
   const extractionPrompt = buildExtractionImagePrompt(
