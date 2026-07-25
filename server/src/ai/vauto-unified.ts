@@ -451,7 +451,8 @@ LED / apšvietimas: jei matomas RGB / spalvotas light — „integruotas RGB / s
 ne hardcodink vienos statiškos spalvos, nebent OCR aiškiai sako tik vieną fiksuotą spalvą.
 Jei vėlesnėse nuotraukose atsiranda NAUJŲ faktų — jie PRIVALO papildyti description (ne perrašyti tuščiai).
 Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
-Grąžink VIENĄ vientisą description bloką — be pakartotų faktų / bullet'ų ir be hardcoded „Skelbimas paruoštas…“ gate.
+Grąžink VIENĄ vientisą description JSON lauką (PrePublish draft) — be pakartotų faktų / bullet'ų.
+Šis tekstas NĖRA chat atsakymas — chat lieka trumpas atskirame sluoksnyje.
 Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
 Sek Employee Handbook gold-standard few-shot struktūrą (žemiau + prompteryje).
 

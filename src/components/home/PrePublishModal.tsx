@@ -227,7 +227,9 @@ export function PrePublishModal({
     }
   }, [flying, gallery.length, onPublish, publishing, visibilityId]);
 
-  // Schema-less: only render key-value specs that AI/OCR actually populated.
+  // Schema-less public specs only — vision/debug keys (Detected Objects,
+  // Document Image URLs/Count, Scene Context, factNotes, preferredSizes,
+  // deferredSalesDescription, …) are filtered in getDynamicAttributeEntries.
   const visibleSpecs = getDynamicAttributeEntries(
     attributes as Record<string, unknown> | undefined,
     card.category as ListingCategory | undefined

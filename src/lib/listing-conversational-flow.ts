@@ -21,6 +21,7 @@ export {
   TEXT_DRAFT_READY_CHIPS,
   TEXT_DRAFT_READY_GATE,
   VEHICLE_SPEC_COPY_OFFER,
+  buildDraftReadyChatReply,
   buildDraftingCompletePhotosPrompt,
   buildPostVisionHeroMessage,
   buildVehicleSpecReportMarkdown,

@@ -110,8 +110,9 @@ export function isPublicDynamicAttributeKey(key: string): boolean {
   }
   if (/^conductor/i.test(k) || /^socialPublish/i.test(k)) return false;
   const folded = normalizeAttrDebugToken(k);
+  // Match camelCase, spaced, and ALL-CAPS labels from vision dumps.
   if (
-    /detected objects|document image|scene context|fact notes|preferred sizes|deferred sales|ocr text|choice chips|clarification prompt/.test(
+    /detected objects|document image(?: urls| count)?|document image|scene context|fact notes|preferred sizes|deferred sales(?: description)?|ocr text|choice chips|clarification prompt/.test(
       folded
     )
   ) {

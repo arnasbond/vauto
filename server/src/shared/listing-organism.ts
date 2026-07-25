@@ -70,9 +70,12 @@ export const AWAITING_PHOTOS_NUDGE =
 export const POST_VISION_PUBLISH_GATE =
   "Ar paruošti pilną skelbimo juodraštį?";
 
-/** Step 3 gate after sales draft is ready. */
+/**
+ * Short conversational ack after draft synthesis (chat only).
+ * Full title/description live on listingDraft / PrePublish — never paste them here.
+ */
 export const TEXT_DRAFT_READY_GATE =
-  "Skelbimas paruoštas! Ar publikuojame, ar norite ką nors papildyti?";
+  "Paruošiau juodraštį PrePublish lange — galime publikuoti arba papildyti.";
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
@@ -501,9 +504,28 @@ export function dispatchListingFlowTurn(input: {
 }
 
 /**
- * After text/vision draft: return a single unified sales block.
- * Never append hardcoded gates like „Skelbimas paruoštas! Ar publikuojame?“ —
- * CTA lives on chips, not in concatenated reply text.
+ * Conversational chat ack after draft synthesis (1–2 sentences).
+ * Rich title/description belong only on listingDraft → PrePublish — never dump
+ * the full sales copy into the chat bubble.
+ */
+export function buildDraftReadyChatReply(draft: {
+  title?: string;
+  description?: string;
+  price?: number;
+  location?: string;
+}): string {
+  const title = draft.title?.trim();
+  if (title) {
+    const short =
+      title.length > 72 ? `${title.slice(0, 69).trim()}…` : title;
+    return `Paruošiau juodraštį „${short}“. Peržiūrėkite PrePublish lange — galime publikuoti arba papildyti.`;
+  }
+  return TEXT_DRAFT_READY_GATE;
+}
+
+/**
+ * @deprecated Prefer buildDraftReadyChatReply — kept as alias for call sites.
+ * Never returns the full listing description (chat ≠ draft synthesis).
  */
 export function buildDraftingCompletePhotosPrompt(draft: {
   title?: string;
@@ -511,26 +533,17 @@ export function buildDraftingCompletePhotosPrompt(draft: {
   price?: number;
   location?: string;
 }): string {
-  const desc = draft.description?.trim();
-  if (desc && desc.length >= 40) {
-    return desc;
-  }
-  const title = draft.title?.trim() || "prekę";
-  const price =
-    draft.price != null && draft.price > 0 ? `${draft.price} €` : "";
-  const loc = draft.location?.trim() || "";
-  const bits = [title, price, loc].filter(Boolean).join(" · ");
-  return `Paruošiau skelbimą: ${bits}.`;
+  return buildDraftReadyChatReply(draft);
 }
 
-/** Alias for text-first complete draft bubble. */
+/** Alias for text-first complete draft chat bubble. */
 export function buildTextDraftReadyMessage(draft: {
   title?: string;
   description?: string;
   price?: number;
   location?: string;
 }): string {
-  return buildDraftingCompletePhotosPrompt(draft);
+  return buildDraftReadyChatReply(draft);
 }
 
 function attrPick(

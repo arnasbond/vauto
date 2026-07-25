@@ -54,6 +54,7 @@ import { resolveChatMediaAttachmentResponse } from "./chat-media-upload.js";
 import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
+  buildDraftReadyChatReply,
   buildDraftingCompletePhotosPrompt,
   buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
@@ -62,7 +63,6 @@ import {
   isPublishReadyIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
-  POST_VISION_PUBLISH_CHIPS,
   PRE_PUBLISH_CARD_INTRO,
   TEXT_DRAFT_READY_CHIPS,
   shouldBypassPhotosNudge,
@@ -486,19 +486,11 @@ async function runVautoAgentInner(
           "DRAFT_SAVED"
         ) ?? "DRAFT_READY",
     });
-    // Step-3: one unified LLM sales block (no hardcoded gate concatenation).
-    // CTA chips handle Publikuoti / Papildyti — never append
-    // „Skelbimas paruoštas! Ar publikuojame?“ or repeat title/facts.
-    const salesBody = String(nextDraft.description ?? "").trim();
-    const titleHint = String(nextDraft.title ?? "").trim();
-    const leanReply = salesBody
-      ? salesBody
-      : titleHint
-        ? `Paruošiau: ${titleHint}`
-        : "Skelbimo juodraštis paruoštas.";
+    // Chat ≠ draft: rich title/description stay on listingDraft (PrePublish).
+    // Chat gets a short warm ack only — chips for Publikuoti / Papildyti.
     return {
       ok: true,
-      reply: leanReply,
+      reply: buildDraftReadyChatReply(nextDraft),
       quickReplies: [...TEXT_DRAFT_READY_CHIPS],
       toolCalls: [],
       actions: {
@@ -797,8 +789,8 @@ async function runVautoAgentInner(
           : "Puiku — atnaujinau kainą!";
       return {
         ok: true,
-        reply: `${intro}\n\n${buildDraftingCompletePhotosPrompt(nextDraft)}`,
-        quickReplies: [...POST_VISION_PUBLISH_CHIPS],
+        reply: `${intro} ${buildDraftReadyChatReply(nextDraft)}`,
+        quickReplies: [...TEXT_DRAFT_READY_CHIPS],
         toolCalls: [],
         actions: {
           type: "listing_draft",
@@ -1816,7 +1808,7 @@ async function runVautoAgentInner(
       });
       return {
         ok: true,
-        reply: `Tęsiame jūsų juodraštį.\n\n${recovery}`,
+        reply: `Tęsiame jūsų juodraštį. ${recovery}`,
         quickReplies,
         toolCalls,
         actions: {
