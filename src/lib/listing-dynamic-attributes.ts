@@ -61,10 +61,45 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "socialPublishFacebook",
   "socialPublishInstagram",
   "socialPublish",
+  // Vision / OCR pipeline dumps — never show in PrePublish specs UI.
+  "detectedObjects",
+  "documentImageUrls",
+  "documentImageCount",
+  "documentUrls",
+  "documentReadable",
+  "documentOcrConfidence",
+  "documentOcrSoftNote",
+  "documentOcrUnclear",
+  "sceneContext",
+  "factNotes",
+  "ocrText",
+  "choiceChips",
+  "clarificationPrompt",
+  "selectedObject",
+  "preferredSizes",
+  "deferredSalesDescription",
+  "salesCopyGenerated",
+  "salesCopySource",
+  "visionQuotaFallback",
+  "sparseSell",
+  "fitsOmnivaLocker",
+  "estimatedSize",
+  "omnivaLockerBlockReason",
+  "omnivaBoxSize",
 ]);
 
 const INTERNAL_LABEL_RE =
-  /conductor|social\s*publish|seller\s*display|anonser|ai\s*adaptation|facebook\s*groups|merged\s*at/i;
+  /conductor|social\s*publish|seller\s*display|anonser|ai\s*adaptation|facebook\s*groups|merged\s*at|detected\s*objects|document\s*image|scene\s*context|fact\s*notes|preferred\s*sizes|deferred\s*sales|ocr\s*text|choice\s*chips|clarification/i;
+
+/** Fold key/label for debug-key matching (spaces, camelCase, underscores). */
+function normalizeAttrDebugToken(raw: string): string {
+  return raw
+    .trim()
+    .toLowerCase()
+    .replace(/([a-z])([A-Z])/g, "$1 $2")
+    .replace(/[_-]+/g, " ")
+    .replace(/\s+/g, " ");
+}
 
 export function isPublicDynamicAttributeKey(key: string): boolean {
   const k = key.trim();
@@ -74,6 +109,14 @@ export function isPublicDynamicAttributeKey(key: string): boolean {
     return false;
   }
   if (/^conductor/i.test(k) || /^socialPublish/i.test(k)) return false;
+  const folded = normalizeAttrDebugToken(k);
+  if (
+    /detected objects|document image|scene context|fact notes|preferred sizes|deferred sales|ocr text|choice chips|clarification prompt/.test(
+      folded
+    )
+  ) {
+    return false;
+  }
   return true;
 }
 

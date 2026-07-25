@@ -503,24 +503,27 @@ export function dispatchListingFlowTurn(input: {
   return { kind: "allow_drafting" };
 }
 
-/** After text draft: show description + Arnold gate (photos optional). */
+/**
+ * After text/vision draft: return a single unified sales block.
+ * Never append hardcoded gates like „Skelbimas paruoštas! Ar publikuojame?“ —
+ * CTA lives on chips, not in concatenated reply text.
+ */
 export function buildDraftingCompletePhotosPrompt(draft: {
   title?: string;
   description?: string;
   price?: number;
   location?: string;
 }): string {
+  const desc = draft.description?.trim();
+  if (desc && desc.length >= 40) {
+    return desc;
+  }
   const title = draft.title?.trim() || "prekę";
   const price =
     draft.price != null && draft.price > 0 ? `${draft.price} €` : "";
   const loc = draft.location?.trim() || "";
-  const desc = draft.description?.trim();
   const bits = [title, price, loc].filter(Boolean).join(" · ");
-  const preview =
-    desc && desc.length >= 40
-      ? `\n\n${desc.length > 320 ? `${desc.slice(0, 320).trim()}…` : desc}`
-      : "";
-  return `Paruošiau skelbimą: ${bits}.${preview}\n\n${POST_VISION_PUBLISH_GATE}`;
+  return `Paruošiau skelbimą: ${bits}.`;
 }
 
 /** Alias for text-first complete draft bubble. */

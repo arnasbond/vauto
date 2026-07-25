@@ -63,10 +63,8 @@ import {
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   POST_VISION_PUBLISH_CHIPS,
-  POST_VISION_PUBLISH_GATE,
   PRE_PUBLISH_CARD_INTRO,
   TEXT_DRAFT_READY_CHIPS,
-  TEXT_DRAFT_READY_GATE,
   shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "./listing-conversational-flow.js";
@@ -488,13 +486,16 @@ async function runVautoAgentInner(
           "DRAFT_SAVED"
         ) ?? "DRAFT_READY",
     });
-    // Lean Step-3: gate + chips only. Full sales copy lives on listingDraft —
-    // never concatenate title/description into the chat bubble (avoids
-    // "Condorwood… Skelbimas paruoštas… Condorwood…" duplication).
+    // Step-3: one unified LLM sales block (no hardcoded gate concatenation).
+    // CTA chips handle Publikuoti / Papildyti — never append
+    // „Skelbimas paruoštas! Ar publikuojame?“ or repeat title/facts.
+    const salesBody = String(nextDraft.description ?? "").trim();
     const titleHint = String(nextDraft.title ?? "").trim();
-    const leanReply = titleHint
-      ? `${TEXT_DRAFT_READY_GATE}\n\nParuošiau: ${titleHint}`
-      : TEXT_DRAFT_READY_GATE;
+    const leanReply = salesBody
+      ? salesBody
+      : titleHint
+        ? `Paruošiau: ${titleHint}`
+        : "Skelbimo juodraštis paruoštas.";
     return {
       ok: true,
       reply: leanReply,

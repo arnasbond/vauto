@@ -45,6 +45,23 @@ export const INTERNAL_LISTING_ATTR_KEYS = new Set([
   "deferredSalesDescription",
   "salesCopyGenerated",
   "salesCopySource",
+  "detectedObjects",
+  "documentImageUrls",
+  "documentImageCount",
+  "documentUrls",
+  "documentReadable",
+  "documentOcrConfidence",
+  "documentOcrSoftNote",
+  "documentOcrUnclear",
+  "sceneContext",
+  "factNotes",
+  "ocrText",
+  "choiceChips",
+  "clarificationPrompt",
+  "selectedObject",
+  "preferredSizes",
+  "visionQuotaFallback",
+  "sparseSell",
 ]);
 
 /** Keys whose `key:value` tags may surface as the bare value only. */

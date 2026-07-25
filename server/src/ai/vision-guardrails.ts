@@ -51,6 +51,8 @@ CATEGORY-MATCHING COPY (PRIVALOMA):
 
 ATTRIBUTES:
 - Užpildyk 2–6 naudingus raktus (pvz. Atlikimas, Paskirtis, Spalvos, Būklė, make/model/year…).
+- LED / RGB: jei matomas spalvotas apšvietimas — „integruotas RGB / spalvotas apšvietimas“,
+  ne hardcodinta viena statiška spalva.
 - Kainą rašyk į price TIK jei vartotojas aiškiai nurodė; NIEKADA neišgalvok.
 
 PAVYZDYS (struktūra — ne kopijuoti turinį):
@@ -72,6 +74,12 @@ PRODUKTO PAKUOTĖS / DĖŽUTĖS / ETIKETĖS / GALINIS DANGTELIS (pvz. PEIKO vert
 - Komplektacija / contents, įspėjimai, serijos / partijos numeriai jei matomi
 - VISĄ įskaitomą tekstą sudėk į technicalFields (brand, model, condition, specs…) IR factNotes / ocrText
 - NEPRAILSK smulkių spec eilučių — jos = ground-truth skelbimui
+
+LED / APŠVIETIMAS (kai matomas):
+- Jei yra LED juostos, party light, RGB / spalvotas apšvietimas — rašyk bendrai:
+  „integruotas RGB / spalvotas apšvietimas“ (arba „integracija su RGB apšvietimu“).
+- NErašyk vienos statiškos spalvos (pvz. tik „mėlynas LED“ / „raudonas LED“),
+  nebent OCR aiškiai nurodo tik vieną fiksuotą spalvą be RGB.
 
 TAISYKLĖS:
 - OCR prioritetas prieš vizualines spekuliacijas.

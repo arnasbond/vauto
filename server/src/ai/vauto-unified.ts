@@ -447,8 +447,11 @@ Title: švarus ir tikslus (brand + model + tipas) — be triukšmo ir be pertekl
 PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
 Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / etiketė / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos** bullet'us
 (galingumas, jungtys, komplektacija, būklė, apšvietimas, matmenys — kas matoma).
+LED / apšvietimas: jei matomas RGB / spalvotas light — „integruotas RGB / spalvotas apšvietimas“;
+ne hardcodink vienos statiškos spalvos, nebent OCR aiškiai sako tik vieną fiksuotą spalvą.
 Jei vėlesnėse nuotraukose atsiranda NAUJŲ faktų — jie PRIVALO papildyti description (ne perrašyti tuščiai).
 Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
+Grąžink VIENĄ vientisą description bloką — be pakartotų faktų / bullet'ų ir be hardcoded „Skelbimas paruoštas…“ gate.
 Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
 Sek Employee Handbook gold-standard few-shot struktūrą (žemiau + prompteryje).
 
