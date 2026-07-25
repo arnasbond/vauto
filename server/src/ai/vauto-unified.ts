@@ -90,8 +90,8 @@ const EXTRACTION_SCHEMA = `{
 
 /** Pass 2 — creative LT sales copy from extracted JSON. */
 const CREATIVE_SCHEMA = `{
-  "title": "string — įtraukiantis LT marketplace pavadinimas pagal kategorijos prompterį (su brand/model iš OCR)",
-  "description": "string — FACT-GROUNDED LT sales tekstas su Markdown. Sekcijos: **Pavadinimas** hook + **Privalumai** + **Būklė** + **Specifikacijos ir Savybės** (bullet'ai VISIEMS OCR specs) + **Pristatymas / Apžiūra**. PALIK \\n ir **. Draudžiama bendrybės be JSON fakto / sausas caption / išgalvoti specs."
+  "title": "string — švarus, tikslus LT marketplace pavadinimas (brand + model + tipas, pvz. JBL Partybox Encore nešiojamas garsiakalbis)",
+  "description": "string — turtingas FACT-GROUNDED LT sales tekstas su Markdown. Sekcijos: hook + **Privalumai** + **Būklė** + **Specifikacijos** (bullet'ai: galingumas, jungtys, komplektacija, apšvietimas, matmenys — VISI OCR/faktai) + **Pristatymas**. PALIK \\n ir **. Draudžiama bendrybės be JSON fakto / sausas caption / išgalvoti specs."
 }`;
 
 /** Lightweight Pass-1 system rules — category routing happens in Pass 2. */
@@ -443,8 +443,11 @@ function buildCreativeWritePrompt(
   };
   return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE (FACT-GROUNDED).
 Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALIA lietuvių kalba.
+Title: švarus ir tikslus (brand + model + tipas) — be triukšmo ir be perteklinio emoji.
 PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
-Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos ir Savybės** bullet'us.
+Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / etiketė / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos** bullet'us
+(galingumas, jungtys, komplektacija, būklė, apšvietimas, matmenys — kas matoma).
+Jei vėlesnėse nuotraukose atsiranda NAUJŲ faktų — jie PRIVALO papildyti description (ne perrašyti tuščiai).
 Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
 Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
 Sek Employee Handbook gold-standard few-shot struktūrą (žemiau + prompteryje).

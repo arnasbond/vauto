@@ -132,7 +132,10 @@ export function buildMultiObjectClarificationPrompt(
     const joined = labels.slice(0, 3).join(", ");
     const primary = labels[0];
     if (mode === "sell") {
-      return `Nuotraukoje matau kelis objektus: ${joined}. Ar teisingai suprantu, kad ruošiame skelbimą „${primary}"? Pasirinkite objektą žemiau.`;
+      return (
+        `Matau kelis objektus: ${joined}. Jei parduodame „${primary}" — pasirinkite žemiau. ` +
+        `Galite ir atsiųsti aiškesnę etiketės / kampo nuotrauką, kad įtraukčiau visas specifikacijas.`
+      );
     }
     return `Nuotraukoje matau kelis objektus: ${joined}. Ką norite ieškoti?`;
   }

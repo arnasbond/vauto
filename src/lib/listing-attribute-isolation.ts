@@ -20,6 +20,51 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
   "skelbiuCategory",
 ]);
 
+/**
+ * Vision / OCR / PrePublish pipeline keys — must survive sanitizeAttributesForCategory
+ * so multi-photo enrichment and deferred Pass-2 sales copy stay intact.
+ */
+const VISION_PIPELINE_ATTRIBUTE_KEYS = new Set([
+  "deferredSalesDescription",
+  "salesCopyGenerated",
+  "factNotes",
+  "ocrText",
+  "documentImageUrls",
+  "documentImageCount",
+  "documentReadable",
+  "documentOcrConfidence",
+  "documentOcrSoftNote",
+  "documentOcrUnclear",
+  "detectedObjects",
+  "choiceChips",
+  "clarificationPrompt",
+  "sceneContext",
+  "selectedObject",
+  "visionQuotaFallback",
+  "brand",
+  "make",
+  "model",
+  "deviceModel",
+  "manufacturer",
+  "specs",
+  "power",
+  "powerKw",
+  "battery",
+  "contents",
+  "languages",
+  "condition",
+  "colors",
+  "fitsOmnivaLocker",
+  "estimatedSize",
+  "omnivaBoxSize",
+  "year",
+  "engine",
+  "fuelType",
+  "vin",
+  "plate",
+  "licensePlate",
+]);
+
 /** Alias keys used by resolveFieldValue — keep when parent exists. */
 const ATTRIBUTE_ALIASES: Record<string, string[]> = {
   furnishing: ["condition", "irengimas"],
@@ -89,6 +134,7 @@ export function allowedAttributeKeysForCategory(category: ListingCategory): Set<
   const adaptiveKey = listingToAdaptiveKey(category);
   const allowed = schemaKeysForAdaptiveKey(adaptiveKey);
   for (const key of GLOBAL_ATTRIBUTE_KEYS) allowed.add(key);
+  for (const key of VISION_PIPELINE_ATTRIBUTE_KEYS) allowed.add(key);
   for (const [canonical, aliases] of Object.entries(ATTRIBUTE_ALIASES)) {
     if (allowed.has(canonical)) {
       for (const alias of aliases) allowed.add(alias);
@@ -125,6 +171,7 @@ export function activeAttributeKeysForListing(
       : schemaKeysForAdaptiveKey(adaptiveKey);
 
   for (const key of GLOBAL_ATTRIBUTE_KEYS) allowed.add(key);
+  for (const key of VISION_PIPELINE_ATTRIBUTE_KEYS) allowed.add(key);
   allowed.add("_geoLat");
   allowed.add("_geoLng");
 

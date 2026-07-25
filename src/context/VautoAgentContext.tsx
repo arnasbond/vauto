@@ -409,8 +409,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         attributes: profileSyncedDraft.attributes as Record<string, string> | undefined,
         allowPastomatas: profileSyncedDraft.allowPastomatas,
         listingFlowState: profileSyncedDraft.listingFlowState,
-        // Never ship gallery data URLs in every agent turn — vision uses pendingImageUrls.
-        orderedImageUrls: undefined,
+        // Ship durable https gallery URLs so multi-photo enrichment can union on the server.
+        // Never send data: URLs in every agent turn — those stay in pendingImageUrls.
+        orderedImageUrls: (profileSyncedDraft.orderedImageUrls ?? [])
+          .map((u) => String(u ?? "").trim())
+          .filter((u) => /^https?:\/\//i.test(u))
+          .filter((u, i, arr) => arr.indexOf(u) === i)
+          .slice(0, 6),
       },
       profileContacts: {
         userId: user.id,
@@ -690,18 +695,19 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           showToast(sessionCheck.message, "error");
           return;
         }
-        // Prefer action gallery; only fall back to prior draft when action has no media.
+        // Deep sync: union action gallery with prior PrePublish photos (never replace).
         const actionPhotos = [
           ...(actions.imageUrls ?? []),
           ...(actions.imageUrl ? [actions.imageUrl] : []),
+          ...((actions.listingDraft as { orderedImageUrls?: string[] } | undefined)
+            ?.orderedImageUrls ?? []),
         ]
           .map((u) => String(u ?? "").trim())
           .filter(Boolean);
-        const photoUrls = (
-          actionPhotos.length
-            ? actionPhotos
-            : (aiDraft?.orderedImageUrls ?? []).map((u) => String(u ?? "").trim())
-        )
+        const priorPhotos = (aiDraft?.orderedImageUrls ?? [])
+          .map((u) => String(u ?? "").trim())
+          .filter(Boolean);
+        const photoUrls = [...priorPhotos, ...actionPhotos]
           .filter(Boolean)
           .filter((u, i, arr) => arr.indexOf(u) === i)
           .slice(0, 6);
@@ -3515,20 +3521,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         if (isGapActionChip(trimmed) && !/^įkelti nuotrauk/i.test(trimmed)) {
           return false;
         }
-        // Multi-select gallery → Vision OCR (same path as composer / +Įdėti).
+        // Mid-flow enrichment: keep current draft so new angles/labels merge into PrePublish.
+        const enrichExisting = Boolean(aiDraft?.title?.trim() || aiDraft?.orderedImageUrls?.length);
         pickAndSendChatPhotos({
           requestMediaConsent,
           sendAgentMessage: (text, opts) =>
             sendAgentMessageRef.current(text, {
               ...opts,
               skipUserBubble: true,
-              omitPriorListingDraft: true,
-              freshListingSession: true,
+              omitPriorListingDraft: enrichExisting ? false : true,
+              freshListingSession: enrichExisting ? false : true,
             }),
           setOpen,
           source: "gallery",
           skipUserBubble: true,
-          freshListingSession: true,
+          freshListingSession: enrichExisting ? false : true,
           onErrorMessage: (message) => showToast(message, "error"),
         });
         return true;

@@ -78,14 +78,17 @@ export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
 /** Step 2 chips — generate full marketplace draft. */
-export const POST_VISION_PUBLISH_CHIPS = ["✨ Paruošti skelbimą"] as const;
+export const POST_VISION_PUBLISH_CHIPS = [
+  "✨ Paruošti skelbimą",
+  "Įkelti nuotraukas",
+] as const;
 
 /** Step 3 chips — open PrePublish or edit. */
 export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as const;
 
 /** Lean Step-1 sell greeting (universal). */
 export const LEAN_SELL_GREETING =
-  "Puiku! Įkelkite nuotraukas ir parašykite kainą.";
+  "Puiku — esu jūsų pardavimo partneris! Įkelkite iki 6 nuotraukų (prekė, etiketė, komplektacija) ir parašykite kainą — aš sudėliosiu turtingą skelbimą.";
 
 /** True when user taps / types Step-2 prepare CTA. */
 export function isPrepareListingIntent(text: string): boolean {
@@ -690,7 +693,8 @@ export function buildVehicleSpecReportMarkdown(draft: {
 }
 
 /**
- * Lean Step-2 vision summary — one sentence + CTA (full draft comes after „Paruošti skelbimą“).
+ * Lean Step-2 vision summary — warm welcome + optional enrichment invite + CTA.
+ * Full sales draft materializes after „Paruošti skelbimą“.
  */
 export function buildPostVisionHeroMessage(draft: {
   title?: string;
@@ -701,12 +705,25 @@ export function buildPostVisionHeroMessage(draft: {
   category?: string;
   attributes?: Record<string, string | string[] | undefined>;
 }): string {
-  const make = attrPick(draft.attributes, "make", "brand");
-  const model = attrPick(draft.attributes, "model");
+  const make = attrPick(draft.attributes, "make", "brand", "manufacturer");
+  const model = attrPick(draft.attributes, "model", "deviceModel");
   const year = attrPick(draft.attributes, "year");
   const vehicleLabel = [make, model, year].filter(Boolean).join(" ");
   const title = draft.title?.trim() || "";
   const label = (vehicleLabel || title || "prekę").replace(/\s+/g, " ").trim();
   const short = label.length > 72 ? `${label.slice(0, 69)}…` : label;
-  return `Matau ${short}. Ar paruošti pilną skelbimo juodraštį?`;
+  const category = String(draft.category ?? "").toLowerCase();
+  const isVehicle =
+    category === "vehicles" ||
+    Boolean(attrPick(draft.attributes, "vin", "plate", "licensePlate"));
+
+  if (isVehicle) {
+    return `Matau ${short}! Jei turite techninio paso ar kitų kampų nuotraukų — atsiųskite, papildysiu specifikacijas. Arba spauskite „Paruošti skelbimą“.`;
+  }
+
+  return (
+    `Matau puikią ${short}! Jei norite dar tikslesnio aprašymo, galite atsiųsti galinės etiketės ` +
+    `nuotrauką arba brūkštelėti modelį — iškart įtrauksiu visas specifikacijas. ` +
+    `Galime ir iš karto paruošti juodraštį.`
+  );
 }

@@ -570,10 +570,18 @@ export function mapAgentDraftToListing(draft: {
   attributes?: Record<string, string | string[]>;
   allowPastomatas?: boolean;
   listingFlowState?: AiExtractedListing["listingFlowState"];
+  orderedImageUrls?: string[];
 }): AiExtractedListing {
   const category = VALID.includes(draft.category as ListingCategory)
     ? (draft.category as ListingCategory)
     : "other";
+  const orderedImageUrls = Array.isArray(draft.orderedImageUrls)
+    ? draft.orderedImageUrls
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean)
+        .filter((u, i, arr) => arr.indexOf(u) === i)
+        .slice(0, 6)
+    : undefined;
 
   return {
     title: draft.title,
@@ -586,6 +594,7 @@ export function mapAgentDraftToListing(draft: {
     attributes: safeDraftAttributes(draft.attributes),
     allowPastomatas: typeof draft.allowPastomatas === "boolean" ? draft.allowPastomatas : true,
     ...(draft.listingFlowState ? { listingFlowState: draft.listingFlowState } : {}),
+    ...(orderedImageUrls?.length ? { orderedImageUrls } : {}),
   };
 }
 

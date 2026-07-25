@@ -228,30 +228,6 @@ async function resolveListingPhotoScan(input: {
     confidence: parsed.listing.confidence,
   });
 
-  if (parsed.needsClarification) {
-    const message =
-      parsed.clarificationPrompt ||
-      "Matau kelis objektus nuotraukoje — kurį norite parduoti? Pasirinkite žemiau.";
-    return {
-      ok: true,
-      reply: message,
-      quickReplies: parsed.choiceChips.slice(0, 4),
-      toolCalls: [
-        {
-          name: "scanListingPhotos",
-          result: {
-            ok: true,
-            needsClarification: true,
-            message,
-            documentUrls: parsed.documentUrls,
-            galleryUrls: parsed.galleryUrls,
-          },
-        },
-      ],
-      actions: { type: "none" },
-    };
-  }
-
   const listingAttrs = Object.fromEntries(
     Object.entries(parsed.listing.attributes).map(([k, v]) => [
       k,
@@ -265,6 +241,13 @@ async function resolveListingPhotoScan(input: {
     evidenceDocs,
     listingAttrs
   );
+  // Deep sync: append new angles/labels to prior PrePublish gallery (deduped).
+  const priorGallery = uniqueImageUrls(
+    Array.isArray(input.listingDraft?.orderedImageUrls)
+      ? input.listingDraft!.orderedImageUrls!
+      : []
+  );
+  const mergedGallery = uniqueImageUrls([...priorGallery, ...publicGallery]);
 
   const visionDraft = {
     title: parsed.listing.title,
@@ -283,8 +266,14 @@ async function resolveListingPhotoScan(input: {
             documentImageCount: String(evidenceDocs.length),
           }
         : {}),
+      ...(parsed.choiceChips?.length
+        ? { choiceChips: parsed.choiceChips.slice(0, 6).join("|") }
+        : {}),
+      ...(parsed.clarificationPrompt
+        ? { clarificationPrompt: parsed.clarificationPrompt }
+        : {}),
     },
-    orderedImageUrls: publicGallery,
+    orderedImageUrls: mergedGallery,
   };
 
   const nextState =
@@ -306,10 +295,13 @@ async function resolveListingPhotoScan(input: {
       )
     : priorAttrs;
 
-  // Step 2 — stash Vision sales copy for Step 3; never expose it in chat/draft yet.
+  // Merge deferred sales copy: prefer newest Pass-2, keep prior if vision returned empty.
+  const priorDeferred = String(
+    (priorAttrs as Record<string, unknown>).deferredSalesDescription ?? ""
+  ).trim();
   const deferredSalesDescription = String(visionDraft.description ?? "")
     .trim()
-    .slice(0, 4000);
+    .slice(0, 4000) || priorDeferred.slice(0, 4000);
   const leanVisionDraft = {
     ...visionDraft,
     description: "",
@@ -322,14 +314,26 @@ async function resolveListingPhotoScan(input: {
     },
   };
 
+  const preferTitle = (a?: string, b?: string) => {
+    const left = String(a ?? "").trim();
+    const right = String(b ?? "").trim();
+    if (!left) return right;
+    if (!right) return left;
+    // Prefer the more specific (longer non-generic) title from the latest scan when richer.
+    const generic = /^(naujas skelbimas|skelbimas|prekė|preke)$/i;
+    if (generic.test(left) && !generic.test(right)) return right;
+    if (generic.test(right) && !generic.test(left)) return left;
+    return right.length >= left.length ? right : left;
+  };
+
   const mergedDraftRaw = normalizeListingDraftForAction(
     input.listingDraft
       ? {
           ...input.listingDraft,
           ...leanVisionDraft,
-          title: leanVisionDraft.title,
+          title: preferTitle(input.listingDraft.title, leanVisionDraft.title),
           description: "",
-          orderedImageUrls: publicGallery,
+          orderedImageUrls: mergedGallery,
           attributes: {
             ...safePriorAttrs,
             ...leanVisionDraft.attributes,
@@ -355,9 +359,46 @@ async function resolveListingPhotoScan(input: {
   // P0 Omniva — stamp fitsOmnivaLocker / estimatedSize / allowPastomatas after Vision.
   const mergedDraft = applyOmnivaEligibilityToDraft(mergedDraftRaw);
 
+  // Multi-object: still sync partial OCR into PrePublish, then ask which to sell.
+  if (parsed.needsClarification) {
+    const message =
+      parsed.clarificationPrompt ||
+      `Matau kelis objektus nuotraukoje — kurį norite parduoti? ` +
+        `Pasirinkite žemiau, arba atsiųskite aiškesnę etiketės / kampo nuotrauką.`;
+    return {
+      ok: true,
+      reply: message,
+      quickReplies: [
+        ...parsed.choiceChips.slice(0, 4),
+        ...POST_VISION_PUBLISH_CHIPS.filter(
+          (c) => !parsed.choiceChips.some((chip) => chip === c)
+        ),
+      ].slice(0, 6),
+      toolCalls: [
+        {
+          name: "scanListingPhotos",
+          result: {
+            ok: true,
+            needsClarification: true,
+            message,
+            documentUrls: evidenceDocs,
+            galleryUrls: mergedGallery,
+            draft: mergedDraft,
+          },
+        },
+      ],
+      actions: {
+        type: "listing_draft",
+        listingDraft: mergedDraft,
+        imageUrl: mergedGallery[0],
+        imageUrls: mergedGallery,
+      },
+    };
+  }
+
   const quotaFallback =
     String(mergedDraft.attributes?.visionQuotaFallback ?? "") === "true";
-  const hasFusion = evidenceDocs.length > 0 && publicGallery.length > 0;
+  const hasFusion = evidenceDocs.length > 0 && mergedGallery.length > 0;
   const hasHardSpecs = Boolean(
     mergedDraft.attributes?.year ||
       mergedDraft.attributes?.engine ||
@@ -373,7 +414,7 @@ async function resolveListingPhotoScan(input: {
         : ""));
   const softOcrNote =
     typeof softOcrNoteRaw === "string" ? softOcrNoteRaw.trim() : "";
-  // Lean Step-2: one-line vision summary + prepare chip (skip verbose ack chatter).
+  // Lean Step-2: warm proactive summary + prepare / more-photos chips.
   const summary = buildPostVisionHeroMessage(mergedDraft);
   const reply = softOcrNote
     ? `${softOcrNote}\n\n${summary}`
@@ -393,7 +434,7 @@ async function resolveListingPhotoScan(input: {
           ok: true,
           message: reply,
           draft: mergedDraft,
-          imageUrls: publicGallery,
+          imageUrls: mergedGallery,
           documentUrls: evidenceDocs,
           listingFlowState: nextState,
           lazyUpload: true,
@@ -404,8 +445,8 @@ async function resolveListingPhotoScan(input: {
     actions: {
       type: "listing_draft",
       listingDraft: mergedDraft,
-      imageUrl: publicGallery[0],
-      imageUrls: publicGallery,
+      imageUrl: mergedGallery[0],
+      imageUrls: mergedGallery,
     },
   };
 }

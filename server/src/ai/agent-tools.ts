@@ -1729,16 +1729,35 @@ export async function executeAgentTool(
             ...listingAttrs,
           }),
         ];
-        // Fresh Vision gallery is source of truth — do not re-merge prior (2 photos → 4).
-        const publicGallery = hardFilterPublicGalleryUrls(
+        // Union new Vision angles with prior PrePublish gallery (dedupe by URL).
+        const scannedGallery = hardFilterPublicGalleryUrls(
           parsed.galleryUrls.length
             ? parsed.galleryUrls
             : [...(prior?.orderedImageUrls ?? [])],
           evidenceDocs,
           { ...(prior?.attributes ?? {}), ...listingAttrs }
         );
+        const publicGallery = Array.from(
+          new Map(
+            [...(prior?.orderedImageUrls ?? []), ...scannedGallery]
+              .map((u) => String(u ?? "").trim())
+              .filter(Boolean)
+              .map((u) => {
+                try {
+                  const parsedUrl = new URL(u);
+                  return [`${parsedUrl.origin}${parsedUrl.pathname}`, u] as const;
+                } catch {
+                  return [u, u] as const;
+                }
+              })
+          ).values()
+        ).slice(0, 6);
 
-        const deferredSalesDescription = mergedDescription.slice(0, 4000);
+        const priorDeferred = String(
+          prior?.attributes?.deferredSalesDescription ?? ""
+        ).trim();
+        const deferredSalesDescription =
+          mergedDescription.slice(0, 4000) || priorDeferred.slice(0, 4000);
         const draftAttrs: Record<string, string> = {
           ...(prior?.attributes ?? {}),
           ...listingAttrs,
