@@ -14,6 +14,14 @@ const TIER_RANK: Record<FeedVisibilityTier, number> = {
 };
 
 export function resolveFeedVisibilityTier(listing: Listing): FeedVisibilityTier {
+  // Expired paid boosts must never keep TOP/PLUS badges or rank.
+  if (!isVisibilityActive(listing)) {
+    if (listing.visibilityTier === "free") return "free";
+    // Demo/catalog rows set visibilityTier without expiry attrs — still honor them
+    // only when isVisibilityActive says yes (explicit tier string without expiry).
+    return "free";
+  }
+
   if (
     listing.visibilityTier === "top" ||
     listing.visibilityTier === "plus" ||
@@ -22,13 +30,9 @@ export function resolveFeedVisibilityTier(listing: Listing): FeedVisibilityTier 
     return listing.visibilityTier;
   }
 
-  if (isVisibilityActive(listing)) {
-    const plan = effectiveVisibilityTier(listing);
-    if (plan >= 2) return "top";
-    if (plan === 1) return "plus";
-  }
-
-  if (listing.promoted) return "top";
+  const plan = effectiveVisibilityTier(listing);
+  if (plan >= 2) return "top";
+  if (plan === 1) return "plus";
   return "free";
 }
 

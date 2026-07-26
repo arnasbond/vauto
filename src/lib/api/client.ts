@@ -777,13 +777,38 @@ export async function apiConfirmBillingSession(sessionId: string): Promise<
     ok: boolean;
     mode: string;
     message: string;
-    planId: string;
-    user: UserProfile;
+    planId?: string;
+    kind?: string;
+    tier?: number;
+    productId?: string;
+    listing?: Listing;
+    user?: UserProfile;
   }>
 > {
   return dataFetch("/api/billing/confirm", {
     method: "POST",
     body: JSON.stringify({ sessionId }),
+  });
+}
+
+export async function apiCreatePromoteCheckout(body: {
+  listingId: string;
+  tier: number;
+  productId?: string;
+}): Promise<
+  ApiResult<{
+    ok: boolean;
+    mode: string;
+    checkoutUrl?: string;
+    sessionId?: string;
+    amountEur?: number;
+    tier?: number;
+    error?: string;
+  }>
+> {
+  return dataFetch("/api/billing/promote-checkout", {
+    method: "POST",
+    body: JSON.stringify(body),
   });
 }
 

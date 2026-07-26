@@ -145,11 +145,17 @@ export function readVisibilityExpiresAt(listing: Listing): string | undefined {
 }
 
 export function isVisibilityActive(listing: Listing, now = Date.now()): boolean {
-  const tier = readVisibilityTier(listing);
-  if (!tier) return false;
   const expires = readVisibilityExpiresAt(listing);
-  if (!expires) return !!listing.promoted;
-  return new Date(expires).getTime() > now;
+  if (expires) return new Date(expires).getTime() > now;
+
+  // Explicit catalog/demo feed tier without expiry timestamp — keep active.
+  if (listing.visibilityTier === "top" || listing.visibilityTier === "plus") {
+    return true;
+  }
+
+  // Bare `promoted: true` without expiry must NOT grant eternal TOP badges.
+  // Paid pathways always write `_visibilityExpiresAt`.
+  return false;
 }
 
 export function effectiveVisibilityTier(listing: Listing): VisibilityTierId | 0 {

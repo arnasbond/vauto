@@ -127,7 +127,7 @@ function ChatThreadContent({
     <div
       className={
         embedded
-          ? "mx-auto flex h-full min-h-[28rem] max-h-[calc(100dvh-14rem)] w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-white px-4 py-3 md:px-6"
+          ? "mx-auto flex h-full min-h-[28rem] max-h-[calc(100dvh-14rem)] w-full min-w-0 flex-col overflow-hidden rounded-2xl bg-[var(--vauto-surface)] px-4 py-3 text-[var(--vauto-text)] md:px-6"
           : "mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6"
       }
     >
@@ -299,7 +299,7 @@ function ChatThreadContent({
           onKeyDown={(e) => e.key === "Enter" && handleSend()}
           placeholder='Parašykite... (bandykite "perku" arba "tinka")'
           autoComplete="off"
-          className="flex-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] px-4 py-3 text-sm text-gray-900 outline-none placeholder:text-[#4b5563] focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
+          className="flex-1 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-bg)] px-4 py-3 text-sm text-[var(--vauto-text)] outline-none placeholder:text-[var(--vauto-text-muted)] focus:ring-2 focus:ring-[var(--vauto-teal)]/30"
         />
         <button
           type="button"

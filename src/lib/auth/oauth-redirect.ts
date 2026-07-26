@@ -59,14 +59,32 @@ export function isNativeAuthEnvironment(): boolean {
   return typeof window !== "undefined" && Capacitor.isNativePlatform();
 }
 
-/** iOS (and iPadOS) WebKit — popups are unreliable; prefer full-page OAuth redirect. */
+/**
+ * Prefer full-page OAuth redirect when popups / One Tap are unreliable:
+ * iOS WebKit, and Chromium Incognito (partitioned storage / 3P cookies).
+ * Note: One Tap failure still falls back to redirect in startGoogleSignIn.
+ */
 export function prefersOAuthRedirectFlow(): boolean {
   if (typeof navigator === "undefined") return false;
   const ua = navigator.userAgent || "";
   const iOS =
     /iPad|iPhone|iPod/.test(ua) ||
     (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
-  return iOS;
+  if (iOS) return true;
+  // Chromium private mode often reports deviceMemory === 0.5.
+  try {
+    const nav = navigator as Navigator & { deviceMemory?: number };
+    if (
+      typeof nav.deviceMemory === "number" &&
+      nav.deviceMemory > 0 &&
+      nav.deviceMemory <= 0.5
+    ) {
+      return true;
+    }
+  } catch {
+    /* ignore */
+  }
+  return false;
 }
 
 export interface OAuthPendingPayload {

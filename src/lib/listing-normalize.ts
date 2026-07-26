@@ -17,12 +17,35 @@ export function normalizeListing(listing: LegacyListingInput): Listing {
     images: sellerImages,
   } as Listing);
   const isDemo = Boolean((listing as Listing).isDemo) || isDemoListingId(String(listing.id ?? ""));
+  const attrs = ((listing as Listing).attributes ?? {}) as Record<string, unknown>;
+  const expiresRaw = attrs["_visibilityExpiresAt"];
+  const visibilityExpiresAt =
+    (listing as Listing).visibilityExpiresAt ??
+    (typeof expiresRaw === "string" ? expiresRaw : undefined);
+  const tierRaw = attrs["_visibilityTier"];
+  const tierNum =
+    typeof tierRaw === "number"
+      ? tierRaw
+      : typeof tierRaw === "string"
+        ? parseInt(tierRaw, 10)
+        : NaN;
+  const visibilityPlanTier =
+    (listing as Listing).visibilityPlanTier ??
+    (tierNum >= 1 && tierNum <= 5
+      ? (tierNum as Listing["visibilityPlanTier"])
+      : undefined);
+  let visibilityTier = (listing as Listing).visibilityTier;
+  if (!visibilityTier && visibilityPlanTier) {
+    visibilityTier = visibilityPlanTier >= 2 ? "top" : "plus";
+  }
   return {
     ...base,
     slug,
+    visibilityExpiresAt,
+    visibilityPlanTier,
+    visibilityTier,
     isAiTwinActive:
-      String((listing as Listing).attributes?.["isAiTwinActive"] ?? "").trim().toLowerCase() ===
-      "true",
+      String(attrs["isAiTwinActive"] ?? "").trim().toLowerCase() === "true",
     allowPastomatas:
       typeof (listing as Listing).allowPastomatas === "boolean"
         ? (listing as Listing).allowPastomatas

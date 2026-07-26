@@ -7,7 +7,9 @@ import {
   resolveEscrowPaymentIntentId,
 } from "../billing/stripe-b2b.js";
 import {
+  applyListingPromotePaid,
   cancelUserBillingByStripeCustomer,
+  getListingForEmbedding,
   getUser,
   getUserStripeCustomerId,
   markEscrowPaidFromStripe,
@@ -16,12 +18,17 @@ import {
 import {
   createBillingPortalSession,
   createPlanCheckoutSession,
+  createPromoteCheckoutSession,
   getStripe,
   resolveStripeCustomerId,
 } from "../billing/stripe-client.js";
 import type { StripePlanId } from "../billing/stripe-plans.js";
 import { STRIPE_PLANS } from "../billing/stripe-plans.js";
 import { claimStripeWebhookEvent } from "../billing/webhook-idempotency.js";
+import {
+  normalizePromoteTier,
+  resolvePromotePriceEur,
+} from "../billing/promote-pricing.js";
 
 export const billingRouter = Router();
 
@@ -47,10 +54,37 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
     }
 
     const userId = session.metadata?.userId;
-    const planId = session.metadata?.planId;
     if (!userId || userId !== req.authUserId) {
       return res.status(403).json({ error: "Session does not belong to user" });
     }
+
+    if (session.metadata?.kind === "b2c_promote") {
+      const listingId = session.metadata.listingId;
+      const tier = normalizePromoteTier(session.metadata.tier);
+      if (!listingId) {
+        return res.status(400).json({ error: "Missing listingId in session" });
+      }
+      const listing = await applyListingPromotePaid({
+        userId,
+        listingId,
+        tier,
+        stripeSessionId: session.id,
+      });
+      if (!listing) {
+        return res.status(404).json({ error: "Listing not found" });
+      }
+      return res.json({
+        ok: true,
+        mode: "stripe_promote",
+        kind: "b2c_promote",
+        listing,
+        tier,
+        productId: session.metadata.productId || undefined,
+        message: "Skelbimo iškėlimas aktyvuotas!",
+      });
+    }
+
+    const planId = session.metadata?.planId;
     if (!planId || !VALID_PLANS.has(planId)) {
       return res.status(400).json({ error: "Invalid plan in session" });
     }
@@ -73,6 +107,66 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
         planId === "pro"
           ? "Pro planas aktyvuotas!"
           : "Starto planas aktyvuotas!",
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+/** Stripe Checkout for B2C listing promote (card payment → webhook/confirm → DB). */
+billingRouter.post("/promote-checkout", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const body = req.body as {
+      listingId?: string;
+      tier?: number;
+      productId?: string;
+    };
+    const listingId = String(body?.listingId ?? "").trim();
+    if (!listingId) {
+      return res.status(400).json({ error: "listingId is required" });
+    }
+
+    const listing = await getListingForEmbedding(listingId);
+    if (!listing || listing.sellerId !== req.authUserId) {
+      return res.status(404).json({ error: "Listing not found" });
+    }
+
+    const tier = normalizePromoteTier(body?.tier);
+    const amountEur = resolvePromotePriceEur({
+      tier,
+      category: listing.category,
+    });
+
+    const stripe = getStripe();
+    if (!stripe) {
+      return res.status(503).json({
+        error: "Stripe not configured",
+        mode: "unavailable",
+      });
+    }
+
+    const user = await getUser(req.authUserId!);
+    const existingCustomerId = await getUserStripeCustomerId(req.authUserId!);
+    const session = await createPromoteCheckoutSession({
+      userId: req.authUserId!,
+      listingId,
+      listingTitle: listing.title,
+      tier,
+      amountEur,
+      productId: body?.productId,
+      email: user?.email,
+      customerId: existingCustomerId ?? undefined,
+    });
+    if (!session.url) {
+      return res.status(500).json({ error: "Stripe checkout URL missing" });
+    }
+    return res.json({
+      ok: true,
+      mode: "stripe",
+      checkoutUrl: session.url,
+      sessionId: session.id,
+      amountEur,
+      tier,
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -223,6 +317,28 @@ export async function handleStripeWebhook(
         });
       } catch (e) {
         console.error("Escrow webhook mark paid failed:", e);
+      }
+    } else if (
+      session.metadata?.kind === "b2c_promote" &&
+      session.metadata.listingId &&
+      session.metadata.userId
+    ) {
+      try {
+        const tier = normalizePromoteTier(session.metadata.tier);
+        const listing = await applyListingPromotePaid({
+          userId: session.metadata.userId,
+          listingId: session.metadata.listingId,
+          tier,
+          stripeSessionId: session.id,
+        });
+        if (!listing) {
+          console.error(
+            "Promote webhook: listing not found",
+            session.metadata.listingId
+          );
+        }
+      } catch (e) {
+        console.error("Promote webhook apply failed:", e);
       }
     } else {
       const userId = session.metadata?.userId;

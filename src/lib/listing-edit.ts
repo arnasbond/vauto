@@ -19,6 +19,11 @@ export type ListingEditPatch = Partial<
     | "requiresReview"
     | "minNegotiationPrice"
     | "isAiTwinActive"
+    | "promoted"
+    | "visibilityTier"
+    | "visibilityExpiresAt"
+    | "visibilityPlanTier"
+    | "createdAt"
   >
 >;
 

@@ -55,7 +55,7 @@ export function NegotiationTwinPanel({
   return (
     <div className="mb-3 rounded-2xl border border-emerald-200 bg-emerald-50/80 p-3 dark:border-emerald-800 dark:bg-emerald-950/30">
       <div className="flex items-start gap-2">
-        <Bot className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700" />
+        <Bot className="mt-0.5 h-4 w-4 shrink-0 text-emerald-700 dark:text-emerald-300" />
         <div className="flex-1">
           <p className="text-xs font-semibold text-emerald-900 dark:text-emerald-100">
             AI dvynys (šablonai)
@@ -65,7 +65,7 @@ export function NegotiationTwinPanel({
             žmogui. Jokio pilno derybininko.
           </p>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <label className="flex items-center gap-1.5 text-xs text-emerald-900">
+            <label className="flex items-center gap-1.5 text-xs text-emerald-900 dark:text-emerald-100">
               <input
                 type="checkbox"
                 checked={enabled}
@@ -75,16 +75,20 @@ export function NegotiationTwinPanel({
               Aktyvuoti
             </label>
             <div className="flex items-center gap-1">
-              <span className="text-[11px] text-emerald-700">Min.</span>
+              <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                Min.
+              </span>
               <input
                 type="number"
                 min={1}
                 max={listingPrice}
                 value={minPrice}
                 onChange={(e) => setMinPrice(Number(e.target.value) || 1)}
-                className="w-16 rounded-lg border border-emerald-200 bg-white px-2 py-1 text-xs"
+                className="w-16 rounded-lg border border-emerald-200 bg-[var(--vauto-surface)] px-2 py-1 text-xs text-[var(--vauto-text)] dark:border-emerald-700"
               />
-              <span className="text-[11px] text-emerald-700">€</span>
+              <span className="text-[11px] text-emerald-700 dark:text-emerald-300">
+                €
+              </span>
             </div>
           </div>
           <label className="mt-2 flex items-start gap-1.5 text-[11px] text-emerald-900 dark:text-emerald-100">
@@ -123,7 +127,7 @@ export function NegotiationTwinPanel({
                   onClick={() =>
                     onSendTemplate(chip.id, twinTemplateText(chip.id, minPrice))
                   }
-                  className="rounded-full border border-emerald-300 bg-white px-2.5 py-1 text-[11px] font-medium text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100"
+                  className="rounded-full border border-emerald-300 bg-[var(--vauto-surface)] px-2.5 py-1 text-[11px] font-medium text-emerald-900 dark:border-emerald-700 dark:bg-emerald-950/50 dark:text-emerald-100"
                 >
                   {chip.label}
                 </button>

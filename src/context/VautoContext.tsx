@@ -28,7 +28,14 @@ import {
 import { buildDisplayListings } from "@/lib/display-listings-pipeline";
 import { defaultExpiresAt, isListingActive, withDefaultExpiry } from "@/lib/listing-expiry";
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
-import { apiVisualRank, apiSemanticSearch, apiImageSearch, apiSubscribeB2BPlan, apiBillingPortal } from "@/lib/api/client";
+import {
+  apiVisualRank,
+  apiSemanticSearch,
+  apiImageSearch,
+  apiSubscribeB2BPlan,
+  apiBillingPortal,
+  apiCreatePromoteCheckout,
+} from "@/lib/api/client";
 import {
   type VisualSearchProfile,
   mergeRankScores,
@@ -1878,9 +1885,41 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     []
   );
 
-  const openCheckout = useCallback((session: CheckoutSession) => {
-    setCheckoutSession(session);
-  }, []);
+  const openCheckout = useCallback(
+    (session: CheckoutSession) => {
+      // Real card payments for promote: Stripe Checkout → webhook → DB promote.
+      if (
+        session.kind === "b2c_promote" &&
+        session.listingId &&
+        isDataApiEnabled()
+      ) {
+        const product = getB2CPromoteProduct(
+          session.productId as B2CPromoteProductId
+        );
+        const tierId: VisibilityTierId =
+          product.visibilityTier === "top"
+            ? 5
+            : product.visibilityTier === "plus"
+              ? 2
+              : 1;
+        void apiCreatePromoteCheckout({
+          listingId: session.listingId,
+          tier: tierId,
+          productId: session.productId,
+        }).then((r) => {
+          if (r.ok && r.data.checkoutUrl) {
+            window.location.assign(r.data.checkoutUrl);
+            return;
+          }
+          // Stripe unavailable — fall back to local checkout modal (demo/dev).
+          setCheckoutSession(session);
+        });
+        return;
+      }
+      setCheckoutSession(session);
+    },
+    []
+  );
 
   const closeCheckout = useCallback(() => {
     setCheckoutSession(null);

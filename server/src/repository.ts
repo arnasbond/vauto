@@ -1775,6 +1775,57 @@ export async function topUpWallet(
   return { walletBalance: Number(rows[0].wallet_balance) };
 }
 
+/**
+ * Apply paid promote / boost on a listing (Stripe or wallet).
+ * Sets promoted=true, visibility attrs + expiry, bumps created_at for feed rank.
+ */
+export async function applyListingPromotePaid(opts: {
+  userId: string;
+  listingId: string;
+  tier?: number;
+  durationDays?: number;
+  stripeSessionId?: string;
+}): Promise<ApiListing | null> {
+  const tier = Math.min(5, Math.max(1, Math.floor(opts.tier ?? 2)));
+  const { promoteDurationDays } = await import("./billing/promote-pricing.js");
+  const durationDays =
+    opts.durationDays ??
+    promoteDurationDays(tier as 1 | 2 | 3 | 4 | 5);
+  const expires = new Date();
+  expires.setDate(expires.getDate() + durationDays);
+
+  const existing = await query<{ attributes: Record<string, unknown> | null }>(
+    `SELECT attributes FROM listings WHERE id = $1 AND seller_id = $2`,
+    [opts.listingId, opts.userId]
+  );
+  if (!existing[0]) return null;
+
+  const attrs = {
+    ...(existing[0].attributes ?? {}),
+    _visibilityTier: String(tier),
+    _visibilityExpiresAt: expires.toISOString(),
+    ...(opts.stripeSessionId
+      ? { _promoteStripeSessionId: opts.stripeSessionId }
+      : {}),
+  };
+
+  const listRows = await query<ListingRow>(
+    `UPDATE listings
+     SET promoted = true,
+         attributes = $3::jsonb,
+         created_at = now()
+     WHERE id = $1 AND seller_id = $2
+     RETURNING id, seller_id, title, price, price_label, location, distance_km,
+       latitude, longitude, slug, image, category, tags, contact, has_video, created_at,
+       expires_at, description, attributes, status, banned, vin_verified, provider_verified, promoted,
+       min_negotiation_price, appraisal_score,
+       is_verified, requires_review, image_alt, image_title,
+       allow_pastomatas`,
+    [opts.listingId, opts.userId, JSON.stringify(attrs)]
+  );
+  return listRows[0] ? mapListingRow(listRows[0]) : null;
+}
+
 export async function promoteListingWallet(
   userId: string,
   listingId: string,
@@ -1802,20 +1853,28 @@ export async function promoteListingWallet(
       await client.query("ROLLBACK");
       return null;
     }
-    const durationDays = tier <= 1 ? 7 : tier === 2 ? 14 : tier === 3 ? 30 : tier === 4 ? 60 : 90;
+    const { promoteDurationDays } = await import("./billing/promote-pricing.js");
+    const safeTier = Math.min(5, Math.max(1, Math.floor(tier))) as 1 | 2 | 3 | 4 | 5;
+    const durationDays = promoteDurationDays(safeTier);
     const expires = new Date();
     expires.setDate(expires.getDate() + durationDays);
     const attrs = {
       ...(existing.rows[0].attributes ?? {}),
-      _visibilityTier: String(tier),
+      _visibilityTier: String(safeTier),
       _visibilityExpiresAt: expires.toISOString(),
     };
     const listRows = await client.query<ListingRow>(
-      `UPDATE listings SET promoted = true, attributes = $3::jsonb
+      `UPDATE listings
+       SET promoted = true,
+           attributes = $3::jsonb,
+           created_at = now()
        WHERE id = $1 AND seller_id = $2
        RETURNING id, seller_id, title, price, price_label, location, distance_km,
          latitude, longitude, slug, image, category, tags, contact, has_video, created_at,
-         expires_at, description, attributes, status, banned, vin_verified, provider_verified, promoted`,
+         expires_at, description, attributes, status, banned, vin_verified, provider_verified, promoted,
+         min_negotiation_price, appraisal_score,
+         is_verified, requires_review, image_alt, image_title,
+         allow_pastomatas`,
       [listingId, userId, JSON.stringify(attrs)]
     );
     if (!listRows.rows[0]) {

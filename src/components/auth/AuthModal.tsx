@@ -9,7 +9,7 @@ import { apiSendOtp, isAuthApiAvailable } from "@/lib/auth/api";
 import {
   isGoogleAuthConfigured,
   renderGoogleButton,
-  requestGoogleIdToken,
+  startGoogleSignIn,
 } from "@/lib/auth/google-client";
 import {
   isAppleAuthConfigured,
@@ -243,30 +243,50 @@ export function AuthModal({
     }
     setSocialLoading("google");
     try {
-      if (nativeEnv && googleReady) {
-        setNativeGoogleOpen(true);
-        return;
-      }
-      if (googleReady) {
-        const token = await requestGoogleIdToken();
-        if (token) {
-          onComplete({
-            provider: "google",
-            role: "private",
-            idToken: token,
-            signupIntent,
-          });
-          return;
-        }
-        if (isAuthApiAvailable()) {
-          setOtpError("Nepavyko gauti Google patvirtinimo. Bandykite dar kartą.");
-          return;
-        }
-      }
       if (!isAuthApiAvailable()) {
         onComplete({ provider: "google", role: "private", signupIntent });
+        setSocialLoading(null);
+        return;
       }
-    } finally {
+      if (!googleReady) {
+        setSocialLoading(null);
+        return;
+      }
+
+      const returnPath =
+        typeof window !== "undefined"
+          ? `${window.location.pathname}${window.location.search}`
+          : "/";
+      const outcome = await startGoogleSignIn({
+        returnPath,
+        signupIntent,
+      });
+
+      if (outcome.status === "success") {
+        onComplete({
+          provider: "google",
+          role: "private",
+          idToken: outcome.idToken,
+          signupIntent,
+        });
+        setSocialLoading(null);
+        return;
+      }
+      if (outcome.status === "redirecting") {
+        // Full-page OAuth — do not clear spinner; page is navigating away.
+        return;
+      }
+      if (outcome.status === "needs_button") {
+        setNativeGoogleOpen(true);
+        setSocialLoading(null);
+        return;
+      }
+      setOtpError(
+        outcome.message ||
+          "Nepavyko gauti Google patvirtinimo. Bandykite dar kartą arba telefoną."
+      );
+      setSocialLoading(null);
+    } catch {
       setSocialLoading(null);
     }
   };
@@ -534,17 +554,34 @@ export function AuthModal({
                 type="button"
                 onClick={async () => {
                   if (adminEmail.trim().toLowerCase() !== ADMIN_EMAIL) return;
-                  const token = await requestGoogleIdToken();
-                  if (!token && isAuthApiAvailable()) {
-                    setOtpError("Nepavyko gauti Google patvirtinimo.");
-                    return;
+                  setSocialLoading("google");
+                  try {
+                    const outcome = await startGoogleSignIn({
+                      returnPath:
+                        typeof window !== "undefined"
+                          ? `${window.location.pathname}${window.location.search}`
+                          : "/",
+                    });
+                    if (outcome.status === "redirecting") return;
+                    if (outcome.status !== "success") {
+                      setOtpError(
+                        outcome.status === "error"
+                          ? outcome.message
+                          : "Nepavyko gauti Google patvirtinimo."
+                      );
+                      setSocialLoading(null);
+                      return;
+                    }
+                    onComplete({
+                      provider: "google",
+                      role: "admin",
+                      email: ADMIN_EMAIL,
+                      idToken: outcome.idToken,
+                    });
+                    setSocialLoading(null);
+                  } catch {
+                    setSocialLoading(null);
                   }
-                  onComplete({
-                    provider: "google",
-                    role: "admin",
-                    email: ADMIN_EMAIL,
-                    idToken: token ?? undefined,
-                  });
                 }}
                 disabled={adminEmail.trim().toLowerCase() !== ADMIN_EMAIL || loading}
                 className="w-full rounded-xl bg-red-600 py-3.5 text-sm font-semibold text-white disabled:opacity-40"
