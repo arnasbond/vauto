@@ -10,6 +10,7 @@
  *  5) Services — thin prompts, no product few-shot pollution
  *  + Prompt hygiene: warm Pass-2 directive present; Citroën/PEIKO/Kaunas few-shots absent
  *  + Session start: static welcome (no LLM greeting string)
+ *  + Phase B: VAT breakdown labels when vatCode present
  *
  * Requires: npm run server:build
  *   node scripts/test-ai-golden-path.mjs
@@ -58,6 +59,7 @@ async function main() {
     "shared",
     "ensure-rich-sales-copy.js"
   );
+  const { computeVatBreakdown } = await distImport("shared", "vat-pricing.js");
 
   // --- Case 1: Wheels / parts ---
   console.log("1) Wheels / parts (R17)");
@@ -292,6 +294,20 @@ async function main() {
     /STATIC_SELLER_LISTING_WELCOME/.test(agentCtx) &&
       !/sendAgentMessage\(\s*aiSellerListingGreeting/.test(agentCtx),
     "openAiSellerListingChat uses static welcome (no LLM greeting call)"
+  );
+
+  // Phase B — PVM line math (PrePublish / publish / detail share this helper).
+  console.log("\n8) Phase B VAT (computeVatBreakdown)");
+  const noVat = computeVatBreakdown(121, "");
+  check(!noVat.hasVat, "empty vatCode → no VAT breakdown");
+  check(noVat.labelGross === "121 €", "empty vatCode keeps plain gross label");
+  const withVat = computeVatBreakdown(121, "LT123456789");
+  check(withVat.hasVat === true, "vatCode → hasVat");
+  check(withVat.priceNet === 100, "121 € gross → 100 € net at 21%");
+  check(withVat.vatAmount === 21, "121 € gross → 21 € VAT");
+  check(
+    withVat.labelGross === "121 € su PVM" && withVat.labelNet === "100 € be PVM",
+    "VAT labels match PrePublish / detail copy"
   );
 
   console.log(
