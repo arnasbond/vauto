@@ -16,6 +16,8 @@ export interface AgentChatMessage {
   text: string;
   /** Inline chat attachments (data URLs) shown in user bubbles */
   imageUrls?: string[];
+  /** PDF/DOC/TXT badges shown in user bubbles */
+  documentAttachments?: { fileName: string }[];
   toolCalls?: { name: string; result: unknown }[];
   /** Structured quick replies from vision / proactive flows */
   quickReplies?: string[];
@@ -91,6 +93,8 @@ export interface VautoAgentContext {
   pendingImageUrls?: string[];
   /** Session photo count without re-sending base64 payloads each turn. */
   pendingImageCount?: number;
+  /** PDF/DOC/TXT uploads — text extracted client- or server-side into draft facts. */
+  pendingDocuments?: import("@/lib/chat-attachment-types").PendingChatDocument[];
   /** Nearest LT city from client GPS — lightweight server city hint. */
   geoCityHint?: string;
   monetization?: {

@@ -177,12 +177,20 @@ async function resolveListingPhotoScan(input: {
     !priorTitle ||
     /^(naujas skelbimas|drabužių skelbimas|prekė)$/i.test(priorTitle);
 
+  const attachedDocFacts = String(
+    input.listingDraft?.attributes?.attachedDocumentText ??
+      input.listingDraft?.attributes?.documentFacts ??
+      ""
+  ).trim();
   const extraBits = [
     input.listingDraft?.category
       ? `category hint: ${input.listingDraft.category}`
       : "",
     input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
       ? `user note: ${input.userText.trim()}`
+      : "",
+    attachedDocFacts
+      ? `ATTACHED DOCUMENT FACTS (PDF/CV/TXT — use for Pass-1/Pass-2 synthesis, do not invent): ${attachedDocFacts.slice(0, 3500)}`
       : "",
     "Vision MULTIMODAL FUSION (UNIVERSAL OCR + MASTER SALES COPYWRITER): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields. B→firstRegistration YYYY-MM-DD. S.1=7/Grand → Grand C4 Picasso. Mentelės → Automatinė/EGS. DRAUDŽIAMA išgalvoti kainą/TA/ridą. documentImageIndexes = OCR-only.",
     "ANTI-STALE: title/make/model TIK iš dabartinių nuotraukų+OCR. IGNORUOK seną listingDraft.title / myListings antraštes, jei vizualiai nesutampa.",

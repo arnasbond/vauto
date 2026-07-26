@@ -1,6 +1,6 @@
 "use client";
 
-import { Camera, ChevronRight, ImageIcon, X } from "lucide-react";
+import { Camera, ChevronRight, FolderOpen, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { createPortal } from "react-dom";
 
@@ -28,7 +28,7 @@ export function PhotoSourceSheet({
       className="fixed inset-0 z-[10001] flex items-end justify-center bg-black/60 p-0"
       role="dialog"
       aria-modal="true"
-      aria-label="Pridėti nuotraukas"
+      aria-label="Pridėti failą"
       onClick={onClose}
     >
       <div
@@ -37,7 +37,7 @@ export function PhotoSourceSheet({
       >
         <div className="mb-4 flex items-center justify-between">
           <h3 className="text-base font-semibold text-[#111827]">
-            Pridėti nuotraukas
+            Pridėti failą
           </h3>
           <button
             type="button"
@@ -69,10 +69,15 @@ export function PhotoSourceSheet({
           className="flex w-full items-center gap-3 rounded-xl border border-[#e5e7eb] px-4 py-3.5 text-left transition hover:bg-[#f9fafb]"
         >
           <span className="flex h-10 w-10 items-center justify-center rounded-lg bg-[#eef6ff] text-[#1167b1]">
-            <ImageIcon className="h-5 w-5" />
+            <FolderOpen className="h-5 w-5" />
           </span>
-          <span className="flex-1 text-sm font-medium text-[#111827]">
-            Pasirinkti iš galerijos
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-sm font-medium text-[#111827]">
+              Failai ir galerija
+            </span>
+            <span className="text-[11px] text-[#6b7280]">
+              Nuotraukos, PDF, CV, Documents, Downloads
+            </span>
           </span>
           <ChevronRight className="h-5 w-5 text-[#9ca3af]" />
         </button>

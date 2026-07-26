@@ -4,7 +4,7 @@
 import {
   normalizeListingCategoryId,
   type RegistryListingCategory,
-} from "./category-registry";
+} from "./category-registry.js";
 
 const PHOTOLESS_CATEGORIES = new Set<RegistryListingCategory>([
   "jobs",

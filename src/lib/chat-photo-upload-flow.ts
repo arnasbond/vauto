@@ -2,6 +2,7 @@ import {
   pickNativeChatMedia,
   type ChatMediaPickSource,
 } from "@/lib/chat-composer-media";
+import { splitComposerAttachments } from "@/lib/chat-document-extract";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
 import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 
@@ -13,6 +14,8 @@ export interface ChatPhotoUploadFlowDeps {
       pendingImageUrls?: string[];
       sessionImageUrls?: string[];
       documentImageUrls?: string[];
+      pendingDocuments?: import("@/lib/chat-attachment-types").PendingChatDocument[];
+      documentAttachments?: { fileName: string }[];
       fromSearchBar?: boolean;
       omitPriorListingDraft?: boolean;
       freshListingSession?: boolean;
@@ -29,11 +32,11 @@ export interface ChatPhotoUploadFlowDeps {
   onErrorMessage?: (message: string) => void;
   /** Clear stale myListings / prior draft titles for this upload. */
   freshListingSession?: boolean;
-  /** camera = Fotografuoti, gallery = Nuotraukų galerija */
+  /** camera = Fotografuoti, gallery = Failai ir galerija */
   source?: ChatMediaPickSource;
 }
 
-/** Native camera/gallery → compress → agent chat (Kelrodė routing for image-only). */
+/** Native camera/file picker → compress → agent chat (Kelrodė routing for image-only). */
 export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
   deps.requestMediaConsent(() => {
     void (async () => {
@@ -41,23 +44,44 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
       try {
         const picked = await pickNativeChatMedia(0, deps.source ?? "gallery");
         if (!picked.length) return;
-        const { listingImageUrls, agentVisionUrls, suspectedDocumentUrls } =
-          await prepareChatImagesForAgent(picked);
-        if (!listingImageUrls.length && !agentVisionUrls.length) return;
+        const { imageUrls, documents, documentBadges } =
+          splitComposerAttachments(picked);
+        const prepared = imageUrls.length
+          ? await prepareChatImagesForAgent(imageUrls)
+          : {
+              listingImageUrls: [] as string[],
+              agentVisionUrls: [] as string[],
+              suspectedDocumentUrls: [] as string[],
+            };
+        if (
+          !prepared.listingImageUrls.length &&
+          !prepared.agentVisionUrls.length &&
+          !documents.length
+        ) {
+          return;
+        }
         await deps.navigateBeforeSend?.();
         deps.setOpen?.(true);
-        // Zero pre-filter: send ALL attached files (cars + tech passport) to Gemini.
-        // Public gallery strip happens only after Vision on the server.
-        const allWire = agentVisionUrls.length ? agentVisionUrls : listingImageUrls;
+        const allWire = prepared.agentVisionUrls.length
+          ? prepared.agentVisionUrls
+          : prepared.listingImageUrls;
         await deps.sendAgentMessage(deps.text?.trim() ?? "", {
-          sessionImageUrls: allWire,
-          pendingImageUrls: allWire,
+          ...(allWire.length
+            ? {
+                sessionImageUrls: allWire,
+                pendingImageUrls: allWire,
+                ...(prepared.suspectedDocumentUrls.length
+                  ? { documentImageUrls: prepared.suspectedDocumentUrls }
+                  : {}),
+              }
+            : {}),
+          ...(documents.length ? { pendingDocuments: documents } : {}),
+          ...(documentBadges.length
+            ? { documentAttachments: documentBadges }
+            : {}),
           ...(deps.skipUserBubble ? { skipUserBubble: true } : {}),
           ...(deps.freshListingSession
             ? { omitPriorListingDraft: true, freshListingSession: true }
-            : {}),
-          ...(suspectedDocumentUrls.length
-            ? { documentImageUrls: suspectedDocumentUrls }
             : {}),
         });
       } catch (err) {

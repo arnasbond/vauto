@@ -17,7 +17,7 @@ export {
   ensureRichSalesCopyBeforePublish,
   isRichSalesCopyText,
   looksLikeVehicleSalesDraft,
-} from "./ensure-rich-sales-copy";
+} from "./ensure-rich-sales-copy.js";
 
 export const LISTING_FLOW_STATES = {
   DRAFTING_TEXT: "DRAFTING_TEXT",

@@ -237,6 +237,10 @@ export interface AgentSendOptions {
   sessionImageUrls?: string[];
   /** Suspected tech passport / document frames — OCR only, never public gallery. */
   documentImageUrls?: string[];
+  /** PDF/DOC/TXT file uploads for text extraction into draft facts. */
+  pendingDocuments?: import("@/lib/chat-attachment-types").PendingChatDocument[];
+  /** Filenames for user-bubble document badges. */
+  documentAttachments?: { fileName: string }[];
   /** User input came from microphone in agent sheet or search bar */
   fromVoice?: boolean;
   /** Submitted from main SearchBar — Gemini must route via function calling */
@@ -1291,7 +1295,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         options?.pendingImageUrls?.filter(Boolean).length ||
           options?.sessionImageUrls?.filter(Boolean).length
       );
-      if (!trimmed && !hasIncomingImages) {
+      const hasIncomingDocuments = Boolean(
+        options?.pendingDocuments?.length ||
+          options?.documentAttachments?.length
+      );
+      if (!trimmed && !hasIncomingImages && !hasIncomingDocuments) {
         return { ok: false, error: "Tuščia užklausa" };
       }
 
@@ -2172,10 +2180,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply };
       }
 
-      // Photo-only (or photo + short caption) must reach pendingImageUrls handling below.
+      // Photo/document-only (or + short caption) must reach media handling below.
       // Empty text is "too short" by design — do not treat media uploads as noise.
       if (
         !hasIncomingImages &&
+        !hasIncomingDocuments &&
         isTooShortAgentQuery(trimmed, {
           fromVoice: voiceReply,
           listingChat: listingChatContext,
@@ -2338,6 +2347,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         ? nearestLtCityFromCoords(buyerCoords) || undefined
         : undefined;
 
+      const documentAttachments = (options?.documentAttachments ?? [])
+        .map((d) => ({
+          fileName: String(d?.fileName ?? "").trim(),
+        }))
+        .filter((d) => d.fileName);
+      const pendingDocuments = (options?.pendingDocuments ?? [])
+        .map((d) => ({
+          fileName: String(d?.fileName ?? "dokumentas").trim() || "dokumentas",
+          mimeType: String(d?.mimeType ?? ""),
+          ...(d?.text ? { text: String(d.text) } : {}),
+          ...(d?.dataUrl ? { dataUrl: String(d.dataUrl) } : {}),
+        }))
+        .filter((d) => d.fileName);
+      const documentBadgeLine = documentAttachments.length
+        ? documentAttachments
+            .map((d) => `📄 Dokumentas įkeltas: ${d.fileName}`)
+            .join("\n")
+        : "";
+
       const proactiveOnly = Boolean(options?.proactiveTriggerOnly);
       const apiUserText = proactiveOnly
         ? `[Proaktyvi intervencija: ${options?.proactiveOffer?.kind ?? "assist"} — ${
@@ -2345,12 +2373,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             options?.proactiveOffer?.listingTitle?.trim() ||
             "padėk vartotojui proaktyviai"
           }]`
-        : trimmed || (incomingImages?.length ? "[Nuotraukos įkeltos]" : trimmed);
+        : trimmed ||
+          (incomingImages?.length
+            ? "[Nuotraukos įkeltos]"
+            : documentBadgeLine ||
+              (pendingDocuments.length
+                ? `[Dokumentas įkeltas: ${pendingDocuments.map((d) => d.fileName).join(", ")}]`
+                : trimmed));
 
       const userMsg: AgentChatMessage = {
         role: "user",
         text: apiUserText,
         ...(incomingImages?.length ? { imageUrls: incomingImages } : {}),
+        ...(documentAttachments.length
+          ? { documentAttachments }
+          : pendingDocuments.length
+            ? {
+                documentAttachments: pendingDocuments.map((d) => ({
+                  fileName: d.fileName,
+                })),
+              }
+            : {}),
       };
 
       const nextMessages = proactiveOnly
@@ -2622,6 +2665,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             lastSessionTopic,
             pendingImageUrls: wireVisionUrls,
             pendingImageCount: pendingImageCount || undefined,
+            ...(pendingDocuments.length
+              ? { pendingDocuments: pendingDocuments.slice(0, 5) }
+              : {}),
             geoCityHint,
             lastError,
             isAuthenticated,

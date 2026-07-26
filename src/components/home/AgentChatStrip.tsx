@@ -41,10 +41,17 @@ export interface AgentChatStripProps {
   onSeedConsumed?: () => void;
 }
 
-function UserMessageMedia({ urls }: { urls: string[] }) {
-  if (!urls.length) return null;
+function UserMessageMedia({
+  urls,
+  documents,
+}: {
+  urls: string[];
+  documents?: { fileName: string }[];
+}) {
+  const docs = documents?.filter((d) => d.fileName?.trim()) ?? [];
+  if (!urls.length && !docs.length) return null;
   return (
-    <div className="mb-1.5 flex flex-wrap gap-1.5" aria-label="Prisegtos nuotraukos">
+    <div className="mb-1.5 flex flex-wrap gap-1.5" aria-label="Prisegti failai">
       {urls.map((url, imgIdx) => (
         // eslint-disable-next-line @next/next/no-img-element
         <img
@@ -53,6 +60,14 @@ function UserMessageMedia({ urls }: { urls: string[] }) {
           alt={`Nuotrauka ${imgIdx + 1}`}
           className="h-20 w-20 rounded-lg border border-white/25 object-cover shadow-sm sm:h-24 sm:w-24"
         />
+      ))}
+      {docs.map((doc, docIdx) => (
+        <div
+          key={`${doc.fileName}-${docIdx}`}
+          className="flex max-w-full items-center rounded-lg border border-white/30 bg-white/15 px-2.5 py-1.5 text-[12px] font-medium leading-snug shadow-sm"
+        >
+          📄 Dokumentas įkeltas: {doc.fileName}
+        </div>
       ))}
     </div>
   );
@@ -321,6 +336,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
             return null;
           }
           const mediaUrls = m.role === "user" ? m.imageUrls?.filter(Boolean) ?? [] : [];
+          const documentAttachments =
+            m.role === "user" ? m.documentAttachments?.filter((d) => d.fileName) ?? [] : [];
           const isLastAssistant =
             m.role === "assistant" && m === lastAssistantMessage && !busy;
 
@@ -333,7 +350,11 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
 
           return (
             <div
-              key={safeMessageKey(m.role, i, `${display}-${mediaUrls[0] ?? ""}`)}
+              key={safeMessageKey(
+                m.role,
+                i,
+                `${display}-${mediaUrls[0] ?? documentAttachments[0]?.fileName ?? ""}`
+              )}
               className="w-full"
             >
               <AgentChatBubble role={m.role}>
@@ -342,10 +363,15 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
                     <span className="mb-0.5 block text-[10px] font-semibold uppercase tracking-wide opacity-70">
                       Jūs
                     </span>
-                    <UserMessageMedia urls={mediaUrls} />
-                    {display ? (
+                    <UserMessageMedia
+                      urls={mediaUrls}
+                      documents={documentAttachments}
+                    />
+                    {display &&
+                    !/^📄\s*Dokumentas įkeltas:/i.test(display) &&
+                    display !== "[Nuotraukos įkeltos]" ? (
                       <span>{display}</span>
-                    ) : mediaUrls.length ? (
+                    ) : mediaUrls.length && !documentAttachments.length ? (
                       <span className="text-[12px] opacity-80">Nuotrauka įkelta</span>
                     ) : null}
                   </>

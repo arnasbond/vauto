@@ -274,6 +274,23 @@ export async function capturePhotoFromSource(
   return capturePhoto(source);
 }
 
+/**
+ * Open the OS system file picker (Failai / Downloads / File Manager).
+ * Never sets `capture` — required so mobile does not lock to the photo gallery.
+ */
+export async function pickMultipleChatFiles(
+  maxCount: number,
+  accept: string
+): Promise<File[]> {
+  if (maxCount <= 0) return [];
+  const files = await mountTransientMultiFileInput((input) => {
+    input.accept = accept;
+    input.multiple = true;
+    input.removeAttribute("capture");
+  });
+  return files.slice(0, maxCount);
+}
+
 /** Pick multiple images from gallery (web + Capacitor WebView multi-select). */
 export async function pickMultipleFromGallery(
   maxCount: number
@@ -281,10 +298,7 @@ export async function pickMultipleFromGallery(
   if (maxCount <= 0) return [];
 
   if (Capacitor.isNativePlatform()) {
-    const files = await mountTransientMultiFileInput((input) => {
-      input.accept = "image/*";
-      input.multiple = true;
-    });
+    const files = await pickMultipleChatFiles(maxCount, "image/*");
     if (!files.length) return [];
     const picked = (
       await Promise.all(

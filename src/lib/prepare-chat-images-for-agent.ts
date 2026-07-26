@@ -194,7 +194,8 @@ export function selectAgentVisionUrls(urls: string[]): string[] {
   for (const raw of urls) {
     const u = String(raw ?? "").trim();
     if (!u || seen.has(u)) continue;
-    if (!isHttpUrl(u) && !u.startsWith("data:")) continue;
+    // Vision accepts http images + data:image only — never PDF/DOC data URLs.
+    if (!isHttpUrl(u) && !u.startsWith("data:image")) continue;
     seen.add(u);
     out.push(u);
     if (out.length >= AGENT_VISION_MAX_DATA_IMAGES) break;

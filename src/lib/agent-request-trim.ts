@@ -21,7 +21,7 @@ function selectVisionUrlsForAgentPost(urls: string[]): string[] {
     const u = String(raw ?? "").trim();
     if (!u || seen.has(u)) continue;
     const isHttp = u.startsWith("http://") || u.startsWith("https://");
-    if (!isHttp && !u.startsWith("data:")) continue;
+    if (!isHttp && !u.startsWith("data:image")) continue;
     seen.add(u);
     out.push(u);
     if (out.length >= AGENT_VISION_URLS_PER_POST) break;
@@ -109,6 +109,21 @@ export function trimAgentRequestBody<T extends AgentRequestBody>(body: T): T {
             next.listingDraft.orderedImageUrls.filter(Boolean)
           ),
         },
+      };
+    }
+    if (next.pendingDocuments?.length) {
+      next = {
+        ...next,
+        pendingDocuments: next.pendingDocuments.slice(0, 5).map((doc) => ({
+          fileName: String(doc.fileName ?? "dokumentas").slice(0, 180),
+          mimeType: String(doc.mimeType ?? "").slice(0, 120),
+          ...(doc.text
+            ? { text: String(doc.text).slice(0, 50_000) }
+            : {}),
+          ...(doc.dataUrl && String(doc.dataUrl).length <= 8_000_000
+            ? { dataUrl: String(doc.dataUrl) }
+            : {}),
+        })),
       };
     }
     context = next;

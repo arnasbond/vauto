@@ -54,6 +54,10 @@ import {
 } from "./structured-input-pipeline.js";
 import { resolveChatMediaAttachmentResponse } from "./chat-media-upload.js";
 import {
+  extractPendingChatDocuments,
+  mergeDocumentFactsIntoAttributes,
+} from "./document-text-extract.js";
+import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
   buildDraftReadyChatReply,
@@ -183,6 +187,13 @@ export interface VautoAgentRequest {
     lastSessionTopic?: string;
     pendingImageUrls?: string[];
     pendingImageCount?: number;
+    /** PDF/DOC/TXT uploads — extracted into draftListing document facts. */
+    pendingDocuments?: {
+      fileName?: string;
+      mimeType?: string;
+      text?: string;
+      dataUrl?: string;
+    }[];
     geoCityHint?: string;
     monetization?: {
       tier?: "free" | "business_pro";
@@ -400,8 +411,74 @@ async function runVautoAgentInner(
     [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
   );
 
-  const listingDraft = req.context.listingDraft;
+  let listingDraft = req.context.listingDraft;
   const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 10);
+  const extractedDocuments = await extractPendingChatDocuments(
+    req.context.pendingDocuments
+  );
+  if (extractedDocuments.length) {
+    const mergedAttrs = mergeDocumentFactsIntoAttributes(
+      (listingDraft?.attributes as Record<string, string> | undefined) ?? undefined,
+      extractedDocuments
+    );
+    const names = extractedDocuments.map((d) => d.fileName).join(", ");
+    const nextFlow =
+      listingDraft?.listingFlowState ??
+      (pendingChatImages?.length ? "AWAITING_PHOTOS" : "DRAFTING_TEXT");
+    const documentDraft = normalizeListingDraftForAction(
+      {
+        ...(listingDraft ?? {
+          title: "Naujas skelbimas",
+          description: "",
+          price: 0,
+          location: req.context.userCity || "",
+          category: "other",
+        }),
+        attributes: mergedAttrs,
+        listingFlowState: nextFlow,
+      },
+      {
+        contact: req.context.contact,
+        userCity: req.context.userCity,
+        listingFlowState: nextFlow,
+      }
+    );
+    listingDraft = documentDraft;
+    req.context.listingDraft = documentDraft;
+
+    // Document-only turn: sync facts into draft and confirm in chat (no vision scan).
+    if (!pendingChatImages?.length) {
+      const badge = extractedDocuments
+        .map((d) => `📄 Dokumentas įkeltas: ${d.fileName}`)
+        .join("\n");
+      return {
+        ok: true,
+        reply: `${badge}\n\nPerskaičiau turinį ir įrašiau į juodraštį. Parašyk kainą, miestą ar ką skelbi — papildysiu.`,
+        quickReplies: TEXT_DRAFT_READY_CHIPS.slice(0, 4),
+        toolCalls: [
+          {
+            name: "ingestChatDocuments",
+            result: {
+              ok: true,
+              fileNames: extractedDocuments.map((d) => d.fileName),
+              textChars: extractedDocuments.reduce(
+                (n, d) => n + d.text.length,
+                0
+              ),
+            },
+          },
+        ],
+        actions: {
+          type: "listing_draft",
+          listingDraft: documentDraft,
+        },
+      };
+    }
+    console.log("[document-extract] merged into draft before vision", {
+      names,
+      textChars: extractedDocuments.reduce((n, d) => n + d.text.length, 0),
+    });
+  }
   const draftPhotoCount = Array.isArray(
     (listingDraft as { orderedImageUrls?: unknown } | null | undefined)
       ?.orderedImageUrls
@@ -768,7 +845,7 @@ async function runVautoAgentInner(
 
     if (priceToApply != null || negotiable || hasSpecs || hasDescEdit) {
       const negoPatch = negotiable ? negotiablePricePatch() : null;
-      const mergedAttrs = {
+      const mergedAttrs: Record<string, string> = {
         ...(listingDraft.attributes ?? {}),
         ...specPatch,
         ...(negoPatch?.attributes ?? {}),
@@ -1202,6 +1279,21 @@ async function runVautoAgentInner(
     wizardBits.push(`pendingImageCount=${req.context.pendingImageUrls.length}`);
   } else if (req.context.pendingImageCount) {
     wizardBits.push(`pendingImageCount=${req.context.pendingImageCount}`);
+  }
+  if (extractedDocuments.length) {
+    const docFacts = String(
+      listingDraft?.attributes?.attachedDocumentText ??
+        listingDraft?.attributes?.documentFacts ??
+        ""
+    ).trim();
+    wizardBits.push(
+      `attachedDocuments=${extractedDocuments.map((d) => d.fileName).join("|")}`
+    );
+    if (docFacts) {
+      wizardBits.push(
+        `documentFacts=${docFacts.slice(0, 3500).replace(/\s+/g, " ")}`
+      );
+    }
   }
   if (req.context.sellerMetrics) {
     wizardBits.push(`sellerMetrics=${JSON.stringify(req.context.sellerMetrics)}`);

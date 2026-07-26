@@ -1,48 +1,52 @@
-import {
-  capturePhoto,
-  pickMultipleFromGallery,
-  type PhotoPickSource,
-} from "@/lib/native-media";
+import { capturePhoto, type PhotoPickSource } from "@/lib/native-media";
 import { compressForAgentVisionSmart } from "@/lib/prepare-chat-images-for-agent";
+import {
+  MAX_CHAT_COMPOSER_ATTACHMENTS,
+  newAttachmentId,
+  type ChatComposerAttachment,
+} from "@/lib/chat-attachment-types";
+import { pickChatComposerAttachments } from "@/lib/chat-document-extract";
 
-export const MAX_CHAT_COMPOSER_ATTACHMENTS = 10;
+export { MAX_CHAT_COMPOSER_ATTACHMENTS };
+export type { ChatComposerAttachment };
 
 export type ChatMediaPickSource = "camera" | "gallery";
 
 /**
- * Opens native camera or gallery.
- * - camera → capture="environment" / Capacitor Camera (Fotografuoti)
- * - gallery → multi-select image/* without capture (Nuotraukų galerija)
+ * Opens native camera or system file picker.
+ * - camera → capture / Capacitor Camera (Fotografuoti) — images only
+ * - gallery → system file manager (images + PDF/DOC/TXT), no capture
  */
 export async function pickNativeChatMedia(
   currentCount: number,
   source: ChatMediaPickSource = "gallery"
-): Promise<string[]> {
+): Promise<ChatComposerAttachment[]> {
   const remaining = MAX_CHAT_COMPOSER_ATTACHMENTS - currentCount;
   if (remaining <= 0) return [];
 
-  const rawUrls: string[] = [];
-
-  if (source === "camera") {
-    const photo = await capturePhoto("camera" satisfies PhotoPickSource);
-    if (photo?.dataUrl) rawUrls.push(photo.dataUrl);
-  } else {
-    const photos = await pickMultipleFromGallery(remaining);
-    for (const photo of photos) {
-      if (photo.dataUrl) rawUrls.push(photo.dataUrl);
-    }
+  if (source === "gallery") {
+    return pickChatComposerAttachments(
+      currentCount,
+      MAX_CHAT_COMPOSER_ATTACHMENTS
+    );
   }
 
-  if (!rawUrls.length) return [];
+  const photo = await capturePhoto("camera" satisfies PhotoPickSource);
+  if (!photo?.dataUrl) return [];
 
-  // Sequential canvas work — avoids RAM spikes with many large phone photos.
-  const compressed: string[] = [];
-  for (const url of rawUrls) {
-    try {
-      compressed.push(await compressForAgentVisionSmart(url));
-    } catch {
-      compressed.push(url);
-    }
+  let url = photo.dataUrl;
+  try {
+    url = await compressForAgentVisionSmart(photo.dataUrl);
+  } catch {
+    url = photo.dataUrl;
   }
-  return compressed.filter(Boolean);
+
+  return [
+    {
+      id: newAttachmentId(),
+      kind: "image",
+      url,
+      fileName: photo.fileName,
+    },
+  ];
 }

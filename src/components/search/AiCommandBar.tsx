@@ -43,8 +43,10 @@ import { ChatComposerAttachments } from "@/components/home/ChatComposerAttachmen
 import {
   MAX_CHAT_COMPOSER_ATTACHMENTS,
   pickNativeChatMedia,
+  type ChatComposerAttachment,
   type ChatMediaPickSource,
 } from "@/lib/chat-composer-media";
+import { splitComposerAttachments } from "@/lib/chat-document-extract";
 import { pickAndSendChatPhotos } from "@/lib/chat-photo-upload-flow";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
 import { PhotoSourceSheet } from "@/components/photo/PhotoSourceSheet";
@@ -119,7 +121,9 @@ export function AiCommandBar({
   const [isPhotoSearching, setIsPhotoSearching] = useState(false);
   const [wizardExpanded, setWizardExpanded] = useState(!collapsible);
   const [previewPulse, setPreviewPulse] = useState(false);
-  const [composerAttachments, setComposerAttachments] = useState<string[]>([]);
+  const [composerAttachments, setComposerAttachments] = useState<
+    ChatComposerAttachment[]
+  >([]);
   const [isPickingChatMedia, setIsPickingChatMedia] = useState(false);
   const [photoSourceSheetOpen, setPhotoSourceSheetOpen] = useState(false);
   const photoSourceModeRef = useRef<"attach" | "search">("attach");
@@ -315,10 +319,15 @@ export function AiCommandBar({
           return;
         }
         const msg = trimmed;
-        const images = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
+        const selected = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
+        const {
+          imageUrls,
+          documents,
+          documentBadges,
+        } = splitComposerAttachments(selected);
         try {
-          const prepared = images.length
-            ? await prepareChatImagesForAgent(images)
+          const prepared = imageUrls.length
+            ? await prepareChatImagesForAgent(imageUrls)
             : {
                 listingImageUrls: [] as string[],
                 agentVisionUrls: [] as string[],
@@ -332,13 +341,17 @@ export function AiCommandBar({
           const res = await sendAgentMessage(msg, {
             ...(allWire.length
               ? {
-                  // Zero pre-filter: all attachments → Gemini. Gallery strip post-vision.
+                  // Zero pre-filter: all image attachments → Gemini. Gallery strip post-vision.
                   sessionImageUrls: allWire,
                   pendingImageUrls: allWire,
                   ...(prepared.suspectedDocumentUrls?.length
                     ? { documentImageUrls: prepared.suspectedDocumentUrls }
                     : {}),
                 }
+              : {}),
+            ...(documents.length ? { pendingDocuments: documents } : {}),
+            ...(documentBadges.length
+              ? { documentAttachments: documentBadges }
               : {}),
           });
           if (res.ok) {
@@ -349,7 +362,7 @@ export function AiCommandBar({
           const raw = err instanceof Error ? err.message : String(err ?? "");
           showToast(
             /413|payload|failed to fetch|network/i.test(raw)
-              ? "Nuotraukų siuntimas nepavyko — bandykite dar kartą arba įkelkite po 2–3."
+              ? "Failų siuntimas nepavyko — bandykite dar kartą arba įkelkite po 2–3."
               : "Nepavyko išsiųsti žinutės — bandykite dar kartą.",
             "info"
           );
@@ -383,7 +396,7 @@ export function AiCommandBar({
       if (isPickingChatMedia || agentBusy) return;
       if (composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS) {
         showToast(
-          `Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`,
+          `Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} failų.`,
           "info"
         );
         return;
@@ -403,7 +416,7 @@ export function AiCommandBar({
             }
           } catch {
             showToast(
-              "Nepavyko pridėti nuotraukų — bandykite dar kartą.",
+              "Nepavyko pridėti failo — bandykite dar kartą.",
               "info"
             );
           } finally {
@@ -425,7 +438,7 @@ export function AiCommandBar({
     if (isPickingChatMedia || agentBusy) return;
     if (composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS) {
       showToast(
-        `Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} nuotraukų.`,
+        `Galima pridėti iki ${MAX_CHAT_COMPOSER_ATTACHMENTS} failų.`,
         "info"
       );
       return;
@@ -723,7 +736,7 @@ export function AiCommandBar({
       >
         {isChatBar && composerAttachments.length > 0 ? (
           <ChatComposerAttachments
-            urls={composerAttachments}
+            items={composerAttachments}
             onRemove={(index) =>
               setComposerAttachments((prev) => prev.filter((_, i) => i !== index))
             }
@@ -748,8 +761,8 @@ export function AiCommandBar({
               composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS
             }
             className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-primary)]/10 disabled:opacity-40"
-            aria-label="Pridėti nuotrauką"
-            title="Pridėti nuotrauką"
+            aria-label="Pridėti failą"
+            title="Pridėti nuotrauką, PDF ar dokumentą"
           >
             {isPickingChatMedia ? (
               <Loader2 className="h-5 w-5 animate-spin" aria-hidden />
