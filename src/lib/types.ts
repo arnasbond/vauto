@@ -345,6 +345,10 @@ export interface ChatMessage {
   status?: ChatMessageStatus;
   deliveredAt?: string;
   readAt?: string;
+  /** Phase C twin audit — set when message came from S5 templates */
+  source?: "twin" | "faq" | "human";
+  templateId?: "still_available" | "price_floor" | "escalate_human";
+  escalated?: boolean;
 }
 
 export interface ChatThread {

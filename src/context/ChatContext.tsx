@@ -15,7 +15,12 @@ import { useAuth } from "@/context/AuthContext";
 import { useVautoBridge } from "@/context/VautoBridge";
 import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { detectPurchaseIntent } from "@/lib/scoring";
-import { apiFetchChats, apiUpsertChat, apiUpsertEscrow } from "@/lib/api/client";
+import {
+  apiFetchChats,
+  apiUpdateListing,
+  apiUpsertChat,
+  apiUpsertEscrow,
+} from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { loadChats, saveChats } from "@/lib/storage";
 import { CHAT_MESSAGE_SENT_CONFIRMATION } from "@/lib/empathy-copy";
@@ -69,6 +74,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, openAuthModal } = useAuth();
   const {
     listings,
+    setListings,
     bumpListingById,
     apiActive,
     hydrated,
@@ -559,6 +565,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                 text: negotiation.autoReply,
                 timestamp: new Date().toISOString(),
                 status: "sent",
+                source: "twin",
+                templateId: negotiation.templateId,
+                escalated: escalate,
               };
 
               upsertChats((prev) => {
@@ -731,9 +740,51 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           return saved;
         })
       );
-      if (saved) persistChat(saved);
+      if (saved) {
+        const thread = saved as ChatThread;
+        persistChat(thread);
+        // Phase C — sync panel toggle into listing attrs so server twin + audit path fires.
+        const listingId = thread.listingId;
+        const consentAt =
+          config.enabled && config.sellerApproved && config.sellerConsentAt
+            ? config.sellerConsentAt
+            : undefined;
+        setListings((prev) =>
+          prev.map((l) => {
+            if (l.id !== listingId || l.sellerId !== user.id) return l;
+            return {
+              ...l,
+              isAiTwinActive: Boolean(config.enabled && config.sellerApproved),
+              minNegotiationPrice: config.minPrice,
+              attributes: {
+                ...(l.attributes ?? {}),
+                isAiTwinActive:
+                  config.enabled && config.sellerApproved ? "true" : "false",
+                sellerTwinConsent: consentAt ?? "",
+                minNegotiationPrice: String(config.minPrice || ""),
+              },
+            };
+          })
+        );
+        if (isDataApiEnabled() && listingId) {
+          void apiUpdateListing(listingId, user.id, {
+            minNegotiationPrice: config.minPrice,
+            isAiTwinActive: Boolean(config.enabled && config.sellerApproved),
+            attributes: {
+              isAiTwinActive:
+                config.enabled && config.sellerApproved ? "true" : "false",
+              sellerTwinConsent: consentAt ?? "",
+              minNegotiationPrice: String(config.minPrice || ""),
+            },
+          }).then((r) => {
+            if (!r.ok) {
+              setSyncError(`AI dvynio nustatymai neišsaugoti: ${r.error}`);
+            }
+          });
+        }
+      }
     },
-    [persistChat, upsertChats]
+    [persistChat, setListings, setSyncError, upsertChats, user.id]
   );
 
   const value = useMemo<ChatContextValue>(

@@ -99,6 +99,7 @@ export async function runAutoNegotiation(
       escalateReason: guard.reason,
       ruleApplied: "negotiation_guard",
       autoReply: escalated.autoReply,
+      templateId: "escalate_human",
     });
     return escalated;
   }
@@ -157,6 +158,7 @@ export async function runAutoNegotiation(
     escalated: Boolean(result.escalate),
     escalateReason: result.escalate ? "template_escalate_human" : undefined,
     ruleApplied: `template_${picked.templateId}`,
+    templateId: picked.templateId,
   });
 
   return result;

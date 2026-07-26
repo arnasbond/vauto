@@ -1224,6 +1224,7 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
                   senderId: thread.sellerId,
                   text: faqText,
                   timestamp: new Date().toISOString(),
+                  source: "faq",
                 },
               ],
             };
@@ -1287,6 +1288,9 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
                       senderId: thread.sellerId,
                       text: twin.autoReply.trim(),
                       timestamp: new Date().toISOString(),
+                      source: "twin",
+                      templateId: twin.templateId,
+                      escalated: Boolean(twin.escalate),
                     },
                   ],
                 };

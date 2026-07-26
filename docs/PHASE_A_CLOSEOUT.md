@@ -1,7 +1,7 @@
 # VAUTO Phase A — Hero closeout
 
 **Status:** GREEN (2026-07-26)  
-**Finish line:** Constitution **Phase A** (S1–S4). Next: [PHASE_B_LIGHT.md](./PHASE_B_LIGHT.md).
+**Finish line:** Constitution **Phase A** (S1–S4). Next: [PHASE_B_LIGHT.md](./PHASE_B_LIGHT.md) → [PHASE_C_PARTNER.md](./PHASE_C_PARTNER.md).
 
 ## Hero DoD
 

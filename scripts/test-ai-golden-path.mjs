@@ -310,6 +310,45 @@ async function main() {
     "VAT labels match PrePublish / detail copy"
   );
 
+  // Phase C — S5 twin templates (audit stamps templateId on replies).
+  console.log("\n9) Phase C twin templates");
+  const { pickTwinTemplate, twinTemplateText } = await distImport(
+    "ai",
+    "twin-templates.js"
+  );
+  const { canAutoNegotiate } = await distImport("ai", "bargain-twin.js");
+  const avail = pickTwinTemplate("Ar dar aktualu?", 100, "Jonas");
+  check(avail.templateId === "still_available", "availability → still_available");
+  check(
+    avail.autoReply === twinTemplateText("still_available", 100),
+    "still_available copy matches template"
+  );
+  const floor = pickTwinTemplate("Siūlau 80 €", 100, "Jonas");
+  check(floor.templateId === "price_floor", "price offer → price_floor");
+  const escalate = pickTwinTemplate("Galime susitikti rytoj?", 100, "Jonas");
+  check(escalate.templateId === "escalate_human", "unknown → escalate_human");
+  check(escalate.escalate === true, "escalate_human sets escalate flag");
+  check(
+    canAutoNegotiate({
+      minPrice: 100,
+      listingPrice: 150,
+      sellerApproved: true,
+      autoNegotiationEnabled: true,
+      sellerConsent: true,
+    }) === true,
+    "canAutoNegotiate requires consent + floor"
+  );
+  check(
+    canAutoNegotiate({
+      minPrice: 100,
+      listingPrice: 150,
+      sellerApproved: true,
+      autoNegotiationEnabled: true,
+      sellerConsent: false,
+    }) === false,
+    "canAutoNegotiate fails closed without consent"
+  );
+
   console.log(
     failures
       ? `\n✖ ${failures} golden check(s) failed\n`

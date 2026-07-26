@@ -48,4 +48,4 @@ Smoke: save 2 drafts → dashboard resume → PrePublish.
 | Golden | `npm run test:ai-golden` PASS |
 | Hero sentence | Taip — verslui patikimesnis (PVM + tikros valandos); juodraščiai greitesni be antro kelio |
 
-**Next after B green:** Phase C only with partner + audit plan — not before.
+**Next:** [PHASE_C_PARTNER.md](./PHASE_C_PARTNER.md) — twin audit first; live Omniva only with partner.

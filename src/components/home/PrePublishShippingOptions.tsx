@@ -77,6 +77,15 @@ export function PrePublishShippingOptions({
       <p className="text-[11px] text-[var(--vauto-text-muted)]">
         Omniva L max 39×38×64 cm · ≤30 kg
       </p>
+      {showOmniva ? (
+        <p
+          className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-amber-800 dark:text-amber-200"
+          data-omniva-sim="1"
+          role="status"
+        >
+          Simuliacija — lipdukas bus demonstracinis, kol vežėjo partnerystė įjungta.
+        </p>
+      ) : null}
 
       <div className="grid gap-1.5" role="radiogroup" aria-label="Pristatymo būdas">
         {showOmniva ? (
@@ -98,15 +107,18 @@ export function PrePublishShippingOptions({
               className="mt-0.5 h-4 w-4 shrink-0 accent-[var(--vauto-primary)]"
             />
             <span className="min-w-0 flex-1">
-              <span className="flex items-center gap-2 text-[13px] font-semibold text-[var(--vauto-text)]">
+              <span className="flex flex-wrap items-center gap-2 text-[13px] font-semibold text-[var(--vauto-text)]">
                 <Package
                   className="h-3.5 w-3.5 shrink-0 text-[var(--vauto-primary)]"
                   aria-hidden
                 />
                 Omniva paštomatas
+                <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                  Simuliacija
+                </span>
               </span>
               <span className="mt-0.5 block text-[11px] leading-snug text-[var(--vauto-text-muted)]">
-                Prekė telpa (dydis {eligibility.estimatedSize})
+                Prekė telpa (dydis {eligibility.estimatedSize}) — ne live vežėjo API
               </span>
             </span>
           </label>

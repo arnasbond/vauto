@@ -17,6 +17,8 @@ export type ListingEditPatch = Partial<
     | "images"
     | "status"
     | "requiresReview"
+    | "minNegotiationPrice"
+    | "isAiTwinActive"
   >
 >;
 

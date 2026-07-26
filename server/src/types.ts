@@ -105,6 +105,9 @@ export interface ApiChatMessage {
   text: string;
   timestamp: string;
   readAt?: string;
+  source?: "twin" | "faq" | "human";
+  templateId?: "still_available" | "price_floor" | "escalate_human";
+  escalated?: boolean;
 }
 
 export interface ApiChatThread {

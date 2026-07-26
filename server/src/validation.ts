@@ -232,6 +232,13 @@ function validateAttributes(value: unknown): ValidationResult<Record<string, str
   return ok(result);
 }
 
+const CHAT_MESSAGE_SOURCES = new Set(["twin", "faq", "human"]);
+const TWIN_TEMPLATE_IDS = new Set([
+  "still_available",
+  "price_floor",
+  "escalate_human",
+]);
+
 function validateMessage(value: unknown): ValidationResult<ApiChatMessage> {
   if (!isRecord(value)) return fail("message must be an object");
   const id = requiredString(value, "id", 120);
@@ -245,12 +252,21 @@ function validateMessage(value: unknown): ValidationResult<ApiChatMessage> {
   if (timestamp.value === undefined) return fail("timestamp is required");
   const readAt = isoDateString(value, "readAt", false);
   if (!readAt.ok) return readAt;
+  const source = optionalEnumString(value, "source", CHAT_MESSAGE_SOURCES);
+  if (!source.ok) return source;
+  const templateId = optionalEnumString(value, "templateId", TWIN_TEMPLATE_IDS);
+  if (!templateId.ok) return templateId;
+  const escalated = optionalBoolean(value, "escalated");
+  if (!escalated.ok) return escalated;
   return ok({
     id: id.value,
     senderId: senderId.value,
     text: text.value,
     timestamp: timestamp.value,
     readAt: readAt.value,
+    source: source.value as ApiChatMessage["source"],
+    templateId: templateId.value as ApiChatMessage["templateId"],
+    escalated: escalated.value,
   });
 }
 

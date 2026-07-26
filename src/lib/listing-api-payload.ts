@@ -58,12 +58,15 @@ export function listingPatchToApiPayload(
   if (images !== undefined) {
     out.image = images[0]?.trim() ?? "";
   }
-  if ((patch as Listing).isAiTwinActive === true) {
+  if (typeof (patch as Listing).isAiTwinActive === "boolean") {
     const attrs =
       out.attributes && typeof out.attributes === "object"
         ? (out.attributes as Record<string, unknown>)
         : {};
-    out.attributes = { ...attrs, isAiTwinActive: "true" };
+    out.attributes = {
+      ...attrs,
+      isAiTwinActive: (patch as Listing).isAiTwinActive ? "true" : "false",
+    };
   }
   return out;
 }
