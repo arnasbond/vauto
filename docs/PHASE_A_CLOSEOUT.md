@@ -82,8 +82,9 @@ Automated (2026-07-26 closeout implementation):
 7. [x] `/apie` + Escrow `labelMode` show simuliacija  
 8. [x] Code: `requireAuth` on `/api/vauto-agent` + `/api/ai` (health public); conductor OFF  
 
-**A-green date:** pending manual items 4–6  
-**Signed:** code closeout ready — Arnoldas confirms phone soak
+**Code landed:** `c196c13` on master (2026-07-26)  
+**A-green date:** pending manual items 4–6 after Render deploy  
+**Signed:** code closeout ready — Arnoldas confirms phone soak + live Vision
 
 ## PR sequence (implemented)
 
