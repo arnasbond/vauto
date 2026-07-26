@@ -8,6 +8,16 @@ export type VautoAgentStreamEvent =
   | { type: "status"; message: string }
   | { type: "tool_call"; name: string; message: string }
   | { type: "tool_result"; name: string }
+  | {
+      type: "early_ack";
+      reply: string;
+      quickReplies?: string[];
+    }
+  | {
+      type: "draft_update";
+      listingDraft: Record<string, unknown>;
+      reply?: string;
+    }
   | { type: "final"; result: VautoAgentApiResult & { ok: true } }
   | { type: "error"; code: string; message: string };
 

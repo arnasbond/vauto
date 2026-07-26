@@ -2700,10 +2700,63 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         };
 
+        let optimisticAckShown = false;
+        // Client-side optimistic ack (<500ms) before Vision/PDF network wait.
+        if (wireVisionUrls?.length || pendingDocuments.length) {
+          const { VISION_OPTIMISTIC_ACK, DOCUMENT_OPTIMISTIC_ACK } = await import(
+            "@vauto/shared/intents"
+          );
+          const ack = wireVisionUrls?.length
+            ? VISION_OPTIMISTIC_ACK
+            : DOCUMENT_OPTIMISTIC_ACK;
+          optimisticAckShown = true;
+          setStreamThinkingLabelNow(
+            wireVisionUrls?.length ? "Skenuoju…" : "Skaitau dokumentą…"
+          );
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
+              { role: "assistant" as const, text: ack },
+            ].slice(-6);
+          });
+        }
         const res = await apiVautoAgentStream(agentBody, {
           onEvent: (event) => {
             if (event.type === "status" || event.type === "tool_call") {
               pushStreamThinkingLabel(event.message);
+              return;
+            }
+            if (event.type === "early_ack") {
+              const ack = String(event.reply ?? "").trim();
+              if (!ack) return;
+              setStreamThinkingLabelNow("Skenuoju…");
+              if (optimisticAckShown) return;
+              optimisticAckShown = true;
+              setMessages((prev) => {
+                const usersOnly = prev.filter((m) => m.role === "user");
+                return [
+                  ...usersOnly,
+                  {
+                    role: "assistant" as const,
+                    text: ack,
+                    ...(event.quickReplies?.length
+                      ? { quickReplies: event.quickReplies.slice(0, 4) }
+                      : {}),
+                  },
+                ].slice(-6);
+              });
+              return;
+            }
+            if (event.type === "draft_update" && event.listingDraft) {
+              try {
+                applyActions({
+                  type: "listing_draft",
+                  listingDraft: event.listingDraft,
+                } as Parameters<typeof applyActions>[0]);
+              } catch {
+                /* progressive draft best-effort */
+              }
             }
           },
         });

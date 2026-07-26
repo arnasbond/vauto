@@ -255,6 +255,18 @@ export type VautoAgentStreamEvent =
   | { type: "status"; message: string }
   | { type: "tool_call"; name: string; message: string }
   | { type: "tool_result"; name: string }
+  /** Instant chat ack while Vision / PDF workers run (<500ms hot path). */
+  | {
+      type: "early_ack";
+      reply: string;
+      quickReplies?: string[];
+    }
+  /** Progressive PrePublish draft fill from async Vision / OCR. */
+  | {
+      type: "draft_update";
+      listingDraft: NonNullable<VautoAgentRequest["context"]["listingDraft"]>;
+      reply?: string;
+    }
   | { type: "error"; code: string; message: string };
 
 export interface RunVautoAgentOptions {
@@ -445,9 +457,19 @@ async function runVautoAgentInner(
 
   let listingDraft = req.context.listingDraft;
   const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 10);
-  const extractedDocuments = await extractPendingChatDocuments(
-    req.context.pendingDocuments
-  );
+  const pendingDocs = req.context.pendingDocuments?.filter(Boolean) ?? [];
+  if (pendingDocs.length) {
+    const { DOCUMENT_OPTIMISTIC_ACK } = await import("../shared/intents/index.js");
+    emitAgentEvent(onEvent, {
+      type: "early_ack",
+      reply: DOCUMENT_OPTIMISTIC_ACK,
+    });
+    emitAgentEvent(onEvent, {
+      type: "status",
+      message: "Skaitau dokumentą…",
+    });
+  }
+  const extractedDocuments = await extractPendingChatDocuments(pendingDocs);
   if (extractedDocuments.length) {
     const mergedAttrs = mergeDocumentFactsIntoAttributes(
       (listingDraft?.attributes as Record<string, string> | undefined) ?? undefined,
@@ -771,15 +793,71 @@ async function runVautoAgentInner(
         u.startsWith("data:") ? `data(${u.length})` : u.startsWith("http") ? "http" : "other"
       ),
     });
+    // P0 async Vision — ack chat immediately; Pass-1/Pass-2 continue on this stream.
+    const { VISION_OPTIMISTIC_ACK } = await import("../shared/intents/index.js");
+    const optimisticDraft = normalizeListingDraftForAction(
+      {
+        ...(listingDraft ?? {
+          title: "Naujas skelbimas",
+          description: "",
+          price: 0,
+          location: req.context.userCity || "",
+          category: "other",
+        }),
+        orderedImageUrls: pendingChatImages.slice(0, 6),
+        attributes: {
+          ...((listingDraft?.attributes as Record<string, string> | undefined) ??
+            {}),
+          visionScanPending: "true",
+          salesCopyGenerated: "false",
+        },
+        listingFlowState: "AWAITING_PHOTOS",
+      },
+      {
+        contact: req.context.contact,
+        userCity: req.context.userCity,
+        listingFlowState: "AWAITING_PHOTOS",
+      }
+    );
+    emitAgentEvent(onEvent, {
+      type: "early_ack",
+      reply: VISION_OPTIMISTIC_ACK,
+    });
+    emitAgentEvent(onEvent, {
+      type: "draft_update",
+      listingDraft: optimisticDraft,
+      reply: VISION_OPTIMISTIC_ACK,
+    });
+    emitAgentEvent(onEvent, {
+      type: "tool_call",
+      name: "scanListingPhotos",
+      message: toolProgressMessage("scanListingPhotos"),
+    });
     try {
       const mediaResponse = await resolveChatMediaAttachmentResponse({
         imageUrls: pendingChatImages,
-        listingDraft,
+        listingDraft: optimisticDraft,
         userCity: req.context.userCity,
         contact: req.context.contact,
         userText: lastUserText,
       });
+      emitAgentEvent(onEvent, {
+        type: "tool_result",
+        name: "scanListingPhotos",
+      });
       if (mediaResponse) {
+        if (
+          mediaResponse.actions &&
+          mediaResponse.actions.type === "listing_draft" &&
+          "listingDraft" in mediaResponse.actions &&
+          mediaResponse.actions.listingDraft
+        ) {
+          emitAgentEvent(onEvent, {
+            type: "draft_update",
+            listingDraft: mediaResponse.actions.listingDraft,
+            reply: mediaResponse.reply,
+          });
+        }
         console.log("[vision] vauto-agent process_photos ok", {
           replyHead: mediaResponse.reply?.slice(0, 160),
           actionType: mediaResponse.actions?.type,
@@ -789,6 +867,10 @@ async function runVautoAgentInner(
       }
       console.warn("[vision] vauto-agent process_photos: null mediaResponse");
     } catch (err) {
+      emitAgentEvent(onEvent, {
+        type: "tool_result",
+        name: "scanListingPhotos",
+      });
       const errMessage = err instanceof Error ? err.message : String(err);
       console.error(
         `[vision] vauto-agent process_photos EXCEPTION ${JSON.stringify({
@@ -1063,8 +1145,16 @@ async function runVautoAgentInner(
       ? req.messages.filter((m) => m.role === "user").slice(-1)
       : req.messages;
 
+  // Lightweight context: compact rules on intermediate turns (active draft, no new media).
+  const instructionMode =
+    Boolean(listingDraft?.title?.trim() || listingDraft) &&
+    !pendingChatImages?.length &&
+    !extractedDocuments.length &&
+    sessionMessages.length > 2
+      ? ("intermediate" as const)
+      : ("full" as const);
   const systemInstruction = buildAgentSystemInstruction(
-    buildVautoAgentSystemInstruction(),
+    buildVautoAgentSystemInstruction(instructionMode),
     req.adminProjectContext
   );
 
@@ -1299,7 +1389,13 @@ async function runVautoAgentInner(
     wizardBits.push(`missingFields=${req.context.missingFields.join(",")}`);
   }
   if (req.context.listingDraft) {
-    wizardBits.push(`listingDraft=${JSON.stringify(req.context.listingDraft)}`);
+    const { slimListingDraftForLlm } = await import(
+      "../shared/llm-context-slice.js"
+    );
+    const slim = slimListingDraftForLlm(req.context.listingDraft);
+    if (slim) {
+      wizardBits.push(`listingDraft=${JSON.stringify(slim)}`);
+    }
   }
   if (req.context.searchResultCount === 0 && req.context.lastSearchQuery) {
     wizardBits.push(`emptySearchQuery=${req.context.lastSearchQuery}`);
@@ -1308,11 +1404,22 @@ async function runVautoAgentInner(
     wizardBits.push(`currentView=${req.context.currentView}`);
   }
   if (req.context.pendingImageUrls?.length) {
+    const { slimImageHandleList } = await import(
+      "../shared/llm-context-slice.js"
+    );
     wizardBits.push(`pendingImageCount=${req.context.pendingImageUrls.length}`);
+    wizardBits.push(
+      `pendingImageHandles=${JSON.stringify(
+        slimImageHandleList(req.context.pendingImageUrls, 6)
+      )}`
+    );
   } else if (req.context.pendingImageCount) {
     wizardBits.push(`pendingImageCount=${req.context.pendingImageCount}`);
   }
   if (extractedDocuments.length) {
+    const { slimDocumentFactsForLlm } = await import(
+      "../shared/llm-context-slice.js"
+    );
     const docFacts = String(
       listingDraft?.attributes?.attachedDocumentText ??
         listingDraft?.attributes?.documentFacts ??
@@ -1322,9 +1429,7 @@ async function runVautoAgentInner(
       `attachedDocuments=${extractedDocuments.map((d) => d.fileName).join("|")}`
     );
     if (docFacts) {
-      wizardBits.push(
-        `documentFacts=${docFacts.slice(0, 3500).replace(/\s+/g, " ")}`
-      );
+      wizardBits.push(`documentFacts=${slimDocumentFactsForLlm(docFacts, 1200)}`);
     }
   }
   if (req.context.sellerMetrics) {
