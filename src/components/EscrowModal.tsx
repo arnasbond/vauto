@@ -152,7 +152,7 @@ export function EscrowModal({
   const [labelPayload, setLabelPayload] = useState("");
   const [paymentLabel, setPaymentLabel] = useState("Stripe saugus mokėjimas");
   const [shipmentInstructions, setShipmentInstructions] = useState("");
-  const [, setLabelMode] = useState<"live" | "simulated" | null>(null);
+  const [labelMode, setLabelMode] = useState<"live" | "simulated" | null>(null);
   const [claimRemaining, setClaimRemaining] = useState(() =>
     escrow ? expressClaimRemainingMs(escrow) : 0
   );
@@ -603,9 +603,21 @@ export function EscrowModal({
                   <Package className="h-8 w-8" />
                 </div>
                 <div>
-                  <p className="text-sm font-semibold text-slate-900">
-                    Siuntos lipdukas paruoštas
-                  </p>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <p className="text-sm font-semibold text-slate-900">
+                      Siuntos lipdukas paruoštas
+                    </p>
+                    {(labelMode === "simulated" || labelMode === null) && (
+                      <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-900">
+                        Simuliacija
+                      </span>
+                    )}
+                    {labelMode === "live" && (
+                      <span className="rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-green-800">
+                        Gyvas vežėjas
+                      </span>
+                    )}
+                  </div>
                   <p className="text-xs text-slate-600">
                     {trackingCode || escrow?.trackingCode}
                   </p>

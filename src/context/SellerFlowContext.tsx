@@ -1819,6 +1819,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       showToast("Nurodykite miestą prieš publikuojant.", "error");
       if (verifiedProfileCity(user.city)) {
         logHeroContactReask("city", "publish_location_missing_prompt");
+        trackEvent("kpi_contact_reask", {
+          field: "city",
+          source: "publish_location_missing_prompt",
+          profileHad: true,
+        });
       }
       pushAgentGreeting(LOCATION_MISSING_AGENT_PROMPT, {
         replaceThread: false,
@@ -1970,14 +1975,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       });
       // Hero S4: subscribe Web Push from publish gesture so buyer messages reach the seller.
       void registerPushNotifications([]);
-      completeHeroListingFlow({
-        listingId: published.id,
-        pendingReview: Boolean(published.requiresReview),
-      });
-      trackEvent("kpi_listing_published", {
-        listingId: published.id,
-        pendingReview: Boolean(published.requiresReview),
-      });
+      {
+        const hero = completeHeroListingFlow({
+          listingId: published.id,
+          pendingReview: Boolean(published.requiresReview),
+        });
+        trackEvent("kpi_listing_published", {
+          listingId: published.id,
+          pendingReview: Boolean(published.requiresReview),
+          durationMs: hero.time_to_publish_ms,
+          time_to_publish_ms: hero.time_to_publish_ms,
+        });
+      }
       scheduleListingSocialPublish(published, listingSocialPublish, (result) => {
         if (result.facebook === "opened") {
           showToast("Facebook dalijimasis inicijuotas.", "info");
@@ -2011,14 +2020,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     });
     // Hero S4: subscribe Web Push from publish gesture so buyer messages reach the seller.
     void registerPushNotifications([]);
-    completeHeroListingFlow({
-      listingId: newListing.id,
-      pendingReview: Boolean(newListing.requiresReview),
-    });
-    trackEvent("kpi_listing_published", {
-      listingId: newListing.id,
-      pendingReview: Boolean(newListing.requiresReview),
-    });
+    {
+      const hero = completeHeroListingFlow({
+        listingId: newListing.id,
+        pendingReview: Boolean(newListing.requiresReview),
+      });
+      trackEvent("kpi_listing_published", {
+        listingId: newListing.id,
+        pendingReview: Boolean(newListing.requiresReview),
+        durationMs: hero.time_to_publish_ms,
+        time_to_publish_ms: hero.time_to_publish_ms,
+      });
+    }
     scheduleListingSocialPublish(newListing, listingSocialPublish, (result) => {
       if (result.facebook === "opened") {
         showToast("Facebook dalijimasis inicijuotas.", "info");

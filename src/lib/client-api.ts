@@ -3,7 +3,7 @@ import {
   mockExtractFromText,
 } from "@/lib/ai-mocks";
 import { apiVautoServer } from "@/lib/api/client";
-import { isAiProxyAvailable } from "@/lib/api/config";
+import { isAiProxyAvailable, isDataApiEnabled } from "@/lib/api/config";
 import { shouldUseOfflineAiMocks } from "@/lib/ai-pipeline";
 import { compressForAiVision } from "@/lib/native-media";
 import { sanitizeSpeechTranscript } from "@/lib/speech-transcript";
@@ -110,6 +110,14 @@ export async function extractFromImage(
   const unified = await tryUnifiedExtract(enriched, "image");
   if (unified) return unified;
 
+  // Phase A: with data API, seller truth is server Vision only (no browser Gemini key).
+  if (isDataApiEnabled()) {
+    if (!shouldUseOfflineAiMocks()) {
+      throw new Error("Gemini vaizdo atpažinimas nepasiekiamas");
+    }
+    return mockExtractFromImage(ctx.fileName, images[0]);
+  }
+
   if (images[0]) {
     try {
       const { runPhotoVisionSearch, mapVisionResultToListingExtract } =
@@ -178,6 +186,12 @@ export async function extractCombined(
 
   const unified = await tryUnifiedExtract(merged, "combined");
   if (unified) return unified;
+
+  if (isDataApiEnabled()) {
+    if (images.length) return extractFromImage(merged);
+    if (transcript) return extractFromText(merged);
+    throw new Error("Nėra duomenų apdorojimui");
+  }
 
   if (images.length && transcript) {
     try {

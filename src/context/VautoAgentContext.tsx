@@ -225,7 +225,7 @@ import {
   buildListingContactUpdateReply,
   parseListingContactFromText,
 } from "@/lib/listing-contact-parse";
-import { logHeroContactReask } from "@/lib/hero-kpis";
+import { logHeroContactReask, markHeroListingFlowStart } from "@/lib/hero-kpis";
 import {
   STATIC_FASHION_LISTING_WELCOME,
   STATIC_SELLER_LISTING_WELCOME,
@@ -3493,6 +3493,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const navigateHome = options?.navigateHome !== false;
       // FORCE full session wipe — zero LLM / SSE on start (<100ms).
       resetSellerChat();
+      const kpiSource = fashion
+        ? "open_ai_seller_listing_fashion"
+        : "open_ai_seller_listing";
+      markHeroListingFlowStart(kpiSource);
+      trackEvent("kpi_listing_flow_start", { source: kpiSource });
       if (fashion) activateWardrobeSpinta();
       applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }));
       setBusy(false);
@@ -3526,6 +3531,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       resetSellerChat,
       router,
       setStreamThinkingLabelNow,
+      trackEvent,
       user,
     ]
   );
@@ -3659,6 +3665,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               : Boolean(user.city?.trim());
           if (profileHad) {
             logHeroContactReask(field, "gap_chip_while_profile_ready");
+            trackEvent("kpi_contact_reask", {
+              field,
+              source: "gap_chip_while_profile_ready",
+              profileHad: true,
+            });
           }
           setMessages((prev) => [
             ...prev,

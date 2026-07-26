@@ -64,6 +64,6 @@ export function createDemoShipmentLabel(params: {
     parcelSize: params.parcelSize,
     trackingCode,
     qrPayload: `VAUTO-SHIP:${trackingCode}:${params.listingTitle}:${params.amount}`,
-    instructions: `Nueikite prie ${provider.label} ir įdėkite ${params.parcelSize} dydžio siuntą pagal nurodymus telefone.`,
+    instructions: `[SIMULIACIJA] Demo lipdukas — ne tikras vežėjo API. Nueikite prie ${provider.label} ir įdėkite ${params.parcelSize} dydžio siuntą pagal nurodymus telefone (kai gyva partnerystė bus prijungta).`,
   };
 }

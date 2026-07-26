@@ -1,4 +1,5 @@
 import type { Page } from "@playwright/test";
+import crypto from "node:crypto";
 
 export interface SeedAuthProfile {
   id: string;
@@ -15,20 +16,78 @@ export interface SeedAuthProfile {
   billingPlan?: "free" | "starter" | "pro";
 }
 
+/**
+ * Mirror server/src/auth/tokens.ts.
+ * Use only when the target API shares JWT_SECRET (set E2E_MINT_REAL_JWT=1).
+ * Static Playwright against Render must NOT use this — AuthContext clears
+ * non-e2e tokens on /session 401.
+ */
+function mintE2eAccessToken(profile: SeedAuthProfile): {
+  token: string;
+  expiresAt: string;
+} {
+  const secret =
+    process.env.JWT_SECRET?.trim() || "vauto-dev-secret-change-in-production";
+  const ttlMs = Number(process.env.JWT_TTL_MS ?? 7 * 24 * 60 * 60 * 1000);
+  const exp = Date.now() + ttlMs;
+  const b64url = (input: Buffer | string) => {
+    const buf = typeof input === "string" ? Buffer.from(input) : input;
+    return buf.toString("base64url");
+  };
+  const header = b64url(JSON.stringify({ alg: "HS256", typ: "JWT" }));
+  const body = b64url(
+    JSON.stringify({
+      sub: profile.id,
+      role: profile.role ?? "private",
+      provider: "phone",
+      exp,
+    })
+  );
+  const sig = crypto
+    .createHmac("sha256", secret)
+    .update(`${header}.${body}`)
+    .digest("base64url");
+  return {
+    token: `${header}.${body}.${sig}`,
+    expiresAt: new Date(exp).toISOString(),
+  };
+}
+
+function resolveSeedToken(profile: SeedAuthProfile): {
+  token: string;
+  expiresAt: string;
+} {
+  if (process.env.E2E_MINT_REAL_JWT === "1") {
+    return mintE2eAccessToken(profile);
+  }
+  // AuthContext keeps e2e-* tokens on remote /session 401 (static e2e).
+  return {
+    token: `e2e-${profile.id}`,
+    expiresAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+  };
+}
+
 export async function seedAuthSession(page: Page, profile: SeedAuthProfile) {
-  await page.addInitScript((user) => {
-    localStorage.setItem(
-      "vauto_auth_v1",
-      JSON.stringify({
-        isAuthenticated: true,
-        provider: "phone",
-        loggedInAt: new Date().toISOString(),
-      })
-    );
-    localStorage.setItem("vauto_user_v1", JSON.stringify(user));
-    localStorage.setItem("vauto_gdpr_consent_v1", "true");
-    localStorage.setItem("vauto-ai-photo-intro-dismissed", "1");
-  }, profile);
+  const { token, expiresAt } = resolveSeedToken(profile);
+  await page.addInitScript(
+    ({ user, token: accessToken, expiresAt: exp }) => {
+      localStorage.setItem(
+        "vauto_auth_v1",
+        JSON.stringify({
+          isAuthenticated: true,
+          provider: "phone",
+          loggedInAt: new Date().toISOString(),
+          accessToken,
+          expiresAt: exp,
+        })
+      );
+      localStorage.setItem("vauto_user_v1", JSON.stringify(user));
+      localStorage.setItem("vauto_access_token_v1", accessToken);
+      localStorage.setItem("vauto_gdpr_consent_v1", "true");
+      localStorage.setItem("vauto-ai-photo-intro-dismissed", "1");
+    },
+    { user: profile, token, expiresAt }
+  );
 }
 
 /** Skip onboarding carousel when data API is enabled in static e2e builds. */
@@ -65,7 +124,7 @@ export async function dismissTransientOverlays(page: Page) {
   }
 }
 
-/** Seed demo private seller session (no JWT — local demo mode). */
+/** Seed private seller session (e2e-* token by default; real JWT with E2E_MINT_REAL_JWT=1). */
 export async function seedDemoUser(page: Page, opts?: { stubOnboarding?: boolean }) {
   if (opts?.stubOnboarding !== false) {
     await stubOnboardingComplete(page);

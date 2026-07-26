@@ -95,7 +95,7 @@ export function deriveFeatureClaims(
       state: !live ? "demo" : shippingCarrier ? "live" : "beta",
       hint: shippingCarrier
         ? `Carrier: ${infra?.shippingCarrierProvider ?? "live"}`
-        : "Lipdukai per adapterį; live carrier API prijungiamas per OMNIVA/DPD env.",
+        : "Siuntų lipdukai — simuliacija (ne gyvas Omniva/DPD). Partnerystė ruošiama.",
     },
     {
       id: "price_advisor",

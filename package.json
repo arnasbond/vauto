@@ -66,6 +66,8 @@
     "ops:auth-reset": "node scripts/auth-reset.mjs",
     "test:ai-flexibility": "npm run server:build && node scripts/test-ai-flexibility.mjs",
     "test:ai-golden": "npm run server:build && node scripts/test-ai-golden-path.mjs",
+    "test:ai-restore": "npx playwright test e2e/ai-assistant-restore.spec.ts",
+    "release:hero": "node scripts/release-hero-checklist.mjs",
     "test:ai-flexibility:local": "npm run server:build && node scripts/test-ai-flexibility.mjs --local",
     "test:chaotic-inputs": "npm run server:build && node scripts/test-chaotic-inputs.mjs",
     "test:safety-shield": "npm run server:build && node scripts/test-safety-shield.mjs",

@@ -68,6 +68,9 @@ aiRouter.get("/health", (_req, res) => {
   });
 });
 
+/** Phase A: expensive AI routes require JWT. `/health` stays public (registered above). */
+aiRouter.use(requireAuth);
+
 aiRouter.post("/visual-pipeline", async (req, res) => {
   const { imageDataUrl, imageDataUrls, category, listingTitle } = req.body as {
     imageDataUrl?: string;

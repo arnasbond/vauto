@@ -228,7 +228,7 @@ export default function ApiePage() {
             <AudienceCard
               icon={Heart}
               title="Privatiems pardavėjams"
-              description="Nuotrauka — ir skelbimas paruoštas. Deep OCR, Omniva atranka, realaus laiko pokalbiai ir atsiliepimai su TOP dovana."
+              description="Nuotrauka — ir skelbimas paruoštas. Deep OCR, AI gabaritų pasiūlymas, realaus laiko pokalbiai ir atsiliepimai su TOP dovana."
             />
             <AudienceCard
               icon={Users}
@@ -248,8 +248,8 @@ export default function ApiePage() {
               Kodėl VAUTO — daugiau nei skelbimų lenta
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
-              Visa išmanioji grandinė: nuo nuotraukos iki sandorio — AI, logistika,
-              pasitikėjimas ir pranešimai.
+              Visa išmanioji grandinė: nuo nuotraukos iki skelbimo ir pokalbio — AI,
+              pasitikėjimas ir pranešimai. Siuntų partnerystė — ruošiama.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -270,8 +270,8 @@ export default function ApiePage() {
             />
             <FeatureCard
               icon={Package}
-              title="📦 Protinga Omniva logistika"
-              description="AI tikrina matmenis ir siūlo paštomatą tik toms prekėms, kurios realiai telpa (S, M, L dėžėse)."
+              title="📦 AI gabaritai ir paštomatai"
+              description="AI tikrina matmenis (S, M, L) ir siūlo tinkamą paštomatą. Omniva lipdukai kol kas — simuliacija; gyva partnerystė ruošiama."
             />
             <FeatureCard
               icon={Languages}
@@ -326,7 +326,7 @@ export default function ApiePage() {
               step={3}
               icon={UserCheck}
               title="Publikavimas per 10 s"
-              description="Patvirtinate — skelbimas gyvas. Toliau: realaus laiko pokalbiai, Omniva ir atsiliepimai."
+              description="Patvirtinate — skelbimas gyvas. Toliau: realaus laiko pokalbiai, atsiliepimai ir (simuliacijoje) siuntos lipdukas."
             />
           </div>
         </section>

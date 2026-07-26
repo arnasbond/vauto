@@ -13,6 +13,7 @@ import {
 import { INITIAL_CHATS } from "@/data/mockListings";
 import { useAuth } from "@/context/AuthContext";
 import { useVautoBridge } from "@/context/VautoBridge";
+import { useUserBehavior } from "@/context/UserBehaviorContext";
 import { detectPurchaseIntent } from "@/lib/scoring";
 import { apiFetchChats, apiUpsertChat, apiUpsertEscrow } from "@/lib/api/client";
 import { isDataApiEnabled } from "@/lib/api/config";
@@ -74,6 +75,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setSyncError,
     showToast,
   } = useVautoBridge();
+  const { trackEvent } = useUserBehavior();
 
   const [chats, setChats] = useState<ChatThread[]>(INITIAL_CHATS);
   const activeChatIdRef = useRef<string | null>(null);
@@ -207,11 +209,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         if (activeChatIdRef.current === event.chatId) return;
         playChatIncomingSound();
         showToast(`💬 ${event.listingTitle}: ${event.preview}`, "info");
-        logHeroFirstResponseSignal({
-          chatId: event.chatId,
-          messageSentAt: event.messageSentAt,
-          channel: "incoming_alert",
-        });
+        {
+          const signal = logHeroFirstResponseSignal({
+            chatId: event.chatId,
+            messageSentAt: event.messageSentAt,
+            channel: "incoming_alert",
+          });
+          trackEvent("kpi_first_response_signal", {
+            chatId: event.chatId,
+            latencyMs: signal.latencyMs,
+            buyer_message_notified_ms: signal.latencyMs,
+            channel: "incoming_alert",
+          });
+        }
         const thread = chatsRef.current.find((c) => c.id === event.chatId);
         void dispatchChatPushNotification(
           buildChatPushPayload({
@@ -230,7 +240,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         );
       }
     });
-  }, [showToast]);
+  }, [showToast, trackEvent]);
 
   /** Live P2P sync — SSE stream with safety poll fallback. */
   useEffect(() => {

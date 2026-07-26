@@ -77,9 +77,6 @@ test.describe("AI assistant restoration", () => {
   }) => {
     test.setTimeout(60_000);
     await seedDemoUser(page);
-    await page.addInitScript(() => {
-      localStorage.setItem("vauto_access_token_v1", "e2e-demo-token");
-    });
     await page.goto("/");
     await acceptGdprConsentIfPrompted(page).catch(() => undefined);
     await dismissTransientOverlays(page).catch(() => undefined);

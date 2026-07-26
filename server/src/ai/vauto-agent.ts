@@ -636,6 +636,14 @@ async function runVautoAgentInner(
     hasDraft: Boolean(listingDraft?.title?.trim() || listingDraft),
   });
 
+  /** Phase A: active listing SM owns the turn — no secretary/sell-intent hijack. */
+  const listingSmActive =
+    flowState === "DRAFTING_TEXT" ||
+    flowState === "AWAITING_PHOTOS" ||
+    flowState === "DRAFT_READY" ||
+    flowState === "AWAITING_CONFIRMATION" ||
+    flowTurn.kind === "process_photos";
+
   // Step 3 — „Paruošti skelbimą“ → synthesize rich copy + OPEN PrePublish review.
   // NEVER call postNewListing / DB publish here — user confirms in the modal.
   if (
@@ -1098,6 +1106,7 @@ async function runVautoAgentInner(
   }
 
   if (
+    !listingSmActive &&
     isTooShortSecretaryQuery(lastUserText) &&
     !detectServerSellIntent(lastUserText)
   ) {
@@ -1118,6 +1127,7 @@ async function runVautoAgentInner(
 
   // Sparse sell without photos → clarify BEFORE Gemini (never invent placeholder draft).
   if (
+    !listingSmActive &&
     (isSparseSellRequest(lastUserText) || jobSeekerCreate) &&
     !pendingChatImages?.length &&
     !(listingDraft?.orderedImageUrls?.filter(Boolean).length) &&
@@ -2080,6 +2090,7 @@ async function runVautoAgentInner(
   }
 
   if (
+    !listingSmActive &&
     !finalText &&
     detectServerSellIntent(lastUserText) &&
     !pendingChatImages?.length
