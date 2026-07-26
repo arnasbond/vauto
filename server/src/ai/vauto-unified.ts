@@ -82,6 +82,7 @@ const EXTRACTION_SCHEMA = `{
   "unclearDocumentIndexes": "[number] — neaiškių dokumentų indeksai",
   "confidence": "number 0-1",
   "sceneContext": "string — trumpas faktinis kontekstas",
+  "photoStyle": "real_world | studio_stock | mixed | unknown — studio_stock TIK kai ultra-švarus studijos / baltas seamless fonas be realaus konteksto (kataloginė stock nuotrauka). real_world = namai/ranka/laukas/garažas. NIEKADA neatmesk skelbimo dėl photoStyle.",
   "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
   "choiceChips": ["string"],
   "factNotes": "string — VISAS perskaitytas OCR tekstas / trumpi faktai be marketingo (pakuotė, etiketė, Regitra)",
@@ -334,6 +335,20 @@ function toListingPayload(
           ? false
           : null;
 
+  const photoStyleRaw = String(raw.photoStyle ?? technicalFields.photoStyle ?? "")
+    .trim()
+    .toLowerCase();
+  const photoStyle =
+    /studio_stock|stock|studio_white|seamless|catalog/.test(photoStyleRaw)
+      ? "studio_stock"
+      : /real_world|lifestyle|in_hand|outdoor|home|garage/.test(photoStyleRaw)
+        ? "real_world"
+        : /mixed/.test(photoStyleRaw)
+          ? "mixed"
+          : photoStyleRaw
+            ? "unknown"
+            : "";
+
   const draftWithGabarit = applyOmnivaEligibilityToDraft({
     title,
     description,
@@ -344,6 +359,7 @@ function toListingPayload(
       _vautoCategory: remapped.vautoCategory,
       ...(publicCategoryTag ? { skelbiuCategory: publicCategoryTag } : {}),
       ...(sceneContext ? { sceneContext } : {}),
+      ...(photoStyle ? { photoStyle } : {}),
       ...(detectedObjects.length
         ? { detectedObjects: JSON.stringify(detectedObjects) }
         : {}),
@@ -419,7 +435,8 @@ Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Document / specs nuo
 4) PAKUOTĖS OCR (PEIKO ir pan.): brand/model/specs/languages/battery/contents → technicalFields + factNotes + ocrText.
 5) VISUAL EXTRAS (tik AUTOMOBILIAI gallery): interiorCondition, exteriorFeatures, transmission, bodyType.
 6) NIEKADA neklausti markės/modelio/variklio/kuro/VIN/brand, jei jau ištraukti — forma užpildoma iš karto.
-7) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.${textNote}${extra}
+7) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.
+8) photoStyle: studio_stock TIK ultra-švariam studijos / baltam seamless fonui be realaus konteksto; kitaip real_world / mixed / unknown. NIEKADA neatmesk skelbimo dėl photoStyle.${textNote}${extra}
 Numatytas miestas: ${userCity || "(nežinomas — NErašyk / null; neinventuok Vilniaus)"}
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
@@ -912,8 +929,17 @@ export async function parseListingImagesForAgent(params: {
   }
   const city = resolveListingCity(params.userCity?.trim());
   const contact = params.contact?.trim() || "";
-  const { scrubProfanity } = await import("./safety-shield.js");
-  const combinedText = scrubProfanity(params.text?.trim() ?? "");
+  const {
+    scrubProfanity,
+    detectExplicitReplicaClaim,
+    REPLICA_HARD_BLOCK_REPLY,
+  } = await import("./safety-shield.js");
+  const rawUserText = params.text?.trim() ?? "";
+  // Tier-1 authenticity — abort Vision if seller explicitly declares a fake/replica.
+  if (detectExplicitReplicaClaim(rawUserText)) {
+    throw new Error(REPLICA_HARD_BLOCK_REPLY);
+  }
+  const combinedText = scrubProfanity(rawUserText);
   const extractionPrompt = buildExtractionImagePrompt(
     city,
     params.text,

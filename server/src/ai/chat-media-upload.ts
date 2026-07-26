@@ -213,7 +213,22 @@ async function resolveListingPhotoScan(input: {
         actions: { type: "none" },
       };
     }
+    const { REPLICA_HARD_BLOCK_REPLY } = await import("./authenticity-shield.js");
     const errMessage = err instanceof Error ? err.message : String(err);
+    if (errMessage.includes(REPLICA_HARD_BLOCK_REPLY)) {
+      return {
+        ok: true,
+        reply: REPLICA_HARD_BLOCK_REPLY,
+        quickReplies: [],
+        toolCalls: [
+          {
+            name: "authenticityReplicaBlocked",
+            result: { ok: false, reason: "explicit_replica" },
+          },
+        ],
+        actions: { type: "none" },
+      };
+    }
     console.error(
       `[vision] resolveListingPhotoScan FAILED ${JSON.stringify({
         errMessage,
@@ -471,11 +486,29 @@ async function resolveListingPhotoScan(input: {
     typeof softOcrNoteRaw === "string" ? softOcrNoteRaw.trim() : "";
   // Lean Step-2: warm proactive summary + prepare / more-photos chips.
   const summary = buildPostVisionHeroMessage(mergedDraft);
-  const reply = softOcrNote
+  const baseReply = softOcrNote
     ? `${softOcrNote}\n\n${summary}`
     : quotaFallback
       ? `Išsaugojau nuotraukas. ${summary}`
       : summary;
+  // Smart Authenticity tiers 2–3 — soft tips only (never block draft/publish).
+  const {
+    appendAuthenticityAdvisories,
+    buildAuthenticitySoftAdvisories,
+  } = await import("./authenticity-shield.js");
+  const authenticityTips = buildAuthenticitySoftAdvisories({
+    photoStyle: mergedDraft.attributes?.photoStyle,
+    sceneContext: String(mergedDraft.attributes?.sceneContext ?? ""),
+    price:
+      Number(mergedDraft.price) > 0
+        ? Number(mergedDraft.price)
+        : input.listingDraft?.price,
+    title: mergedDraft.title,
+    brand: String(mergedDraft.attributes?.brand ?? ""),
+    make: String(mergedDraft.attributes?.make ?? ""),
+    attributes: mergedDraft.attributes as Record<string, unknown>,
+  });
+  const reply = appendAuthenticityAdvisories(baseReply, authenticityTips);
   const quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
 
   return {

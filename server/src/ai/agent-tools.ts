@@ -1879,9 +1879,25 @@ export async function executeAgentTool(
           location: draft.location,
           attributes: draft.attributes,
         });
-        const message = softOcrNote
+        const baseMessage = softOcrNote
           ? `${softOcrNote}\n\n${summary}`
           : summary;
+        const {
+          appendAuthenticityAdvisories,
+          buildAuthenticitySoftAdvisories,
+        } = await import("./authenticity-shield.js");
+        const message = appendAuthenticityAdvisories(
+          baseMessage,
+          buildAuthenticitySoftAdvisories({
+            photoStyle: draftAttrs.photoStyle,
+            sceneContext: String(draftAttrs.sceneContext ?? ""),
+            price: Number(draft.price) > 0 ? Number(draft.price) : undefined,
+            title: draft.title,
+            brand: String(draftAttrs.brand ?? ""),
+            make: String(draftAttrs.make ?? ""),
+            attributes: draftAttrs as Record<string, unknown>,
+          })
+        );
         const quickReplies: string[] = [...POST_VISION_PUBLISH_CHIPS];
 
         return {
@@ -1914,6 +1930,19 @@ export async function executeAgentTool(
               ok: false,
               message: IMAGE_SAFETY_REJECT_NOTICE,
               voiceAnnouncement: IMAGE_SAFETY_REJECT_NOTICE,
+            },
+          };
+        }
+        const { REPLICA_HARD_BLOCK_REPLY } = await import(
+          "./authenticity-shield.js"
+        );
+        const errMessage = e instanceof Error ? e.message : String(e);
+        if (errMessage.includes(REPLICA_HARD_BLOCK_REPLY)) {
+          return {
+            result: {
+              ok: false,
+              message: REPLICA_HARD_BLOCK_REPLY,
+              voiceAnnouncement: REPLICA_HARD_BLOCK_REPLY,
             },
           };
         }

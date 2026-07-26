@@ -11,3 +11,11 @@ export const SAFETY_DOMAIN_REJECT_REPLY =
 
 export const RATE_LIMIT_BUSY_REPLY =
   "Per daug užklausų, pamėginkite šiek tiek vėliau";
+
+/** Explicit fake/replica hard-block (Smart Authenticity tier 1). */
+export const REPLICA_HARD_BLOCK_REPLY =
+  "VAUTO platformoje klastočių, replikų ir neoriginalių prekių pardavimas yra draudžiamas.";
+
+/** Soft tip — stock / studio photos (never blocks). */
+export const STOCK_PHOTO_ADVISORY =
+  "Patarimas: skelbimai su gyvomis, tikromis prekės nuotraukomis sulaukia 2 kartus daugiau pirkėjų dėmesio!";

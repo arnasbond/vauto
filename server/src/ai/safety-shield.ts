@@ -5,6 +5,12 @@
 
 import { resolveGeminiApiKey } from "../load-env.js";
 import { normalizeImageInputList } from "./image-input.js";
+import {
+  detectExplicitReplicaClaim,
+  REPLICA_HARD_BLOCK_REPLY,
+} from "./authenticity-shield.js";
+
+export { detectExplicitReplicaClaim, REPLICA_HARD_BLOCK_REPLY };
 
 /** Rejected image — never persist / never fuse into draft. */
 export const IMAGE_SAFETY_REJECT_NOTICE =
@@ -78,6 +84,7 @@ const IN_DOMAIN_HINT_RE =
 
 export type TextSafetyGate =
   | { kind: "toxic" }
+  | { kind: "replica" }
   | { kind: "injection" }
   | { kind: "off_domain" };
 
@@ -106,6 +113,8 @@ export function evaluateTextSafetyGate(text: string): TextSafetyGate | null {
   const t = String(text ?? "").trim();
   if (!t) return null;
   if (detectToxicLanguage(t)) return { kind: "toxic" };
+  // Tier-1 authenticity: hard-block only explicit replica/fake claims.
+  if (detectExplicitReplicaClaim(t)) return { kind: "replica" };
   if (detectPromptInjection(t)) return { kind: "injection" };
   if (detectOffDomainPrompt(t)) return { kind: "off_domain" };
   return null;
@@ -113,6 +122,7 @@ export function evaluateTextSafetyGate(text: string): TextSafetyGate | null {
 
 export function replyForTextSafetyGate(gate: TextSafetyGate): string {
   if (gate.kind === "toxic") return TOXIC_DEESCALATION_REPLY;
+  if (gate.kind === "replica") return REPLICA_HARD_BLOCK_REPLY;
   return SAFETY_DOMAIN_REJECT_REPLY;
 }
 

@@ -64,6 +64,45 @@ async function main() {
     shield.RATE_LIMIT_BUSY_REPLY.includes("Per daug"),
     "429 copy present"
   );
+  check(
+    shield.evaluateTextSafetyGate("parduodu nike replica 1:1")?.kind ===
+      "replica",
+    "explicit replica → hard-block gate"
+  );
+  check(
+    shield.evaluateTextSafetyGate("parduodu originalų iPhone 13") == null,
+    "honest brand listing is not replica-blocked"
+  );
+  check(
+    shield.replyForTextSafetyGate({ kind: "replica" }).includes("klastočių"),
+    "replica reply uses authenticity copy"
+  );
+
+  const auth = await import(
+    pathToFileURL(join(dist, "ai", "authenticity-shield.js")).href
+  );
+  check(
+    auth.shouldAdviseStockPhoto({ photoStyle: "studio_stock" }),
+    "studio_stock triggers soft tip"
+  );
+  check(
+    !auth.shouldAdviseStockPhoto({ photoStyle: "real_world" }),
+    "real_world photos skip stock tip"
+  );
+  check(
+    auth.shouldAdviseLuxuryBrand({
+      price: 200,
+      title: "Apple iPhone 14",
+    }) === "Apple",
+    "luxury brand + >150 EUR soft tip"
+  );
+  check(
+    auth.shouldAdviseLuxuryBrand({
+      price: 80,
+      title: "Apple iPhone 8",
+    }) == null,
+    "luxury brand under 150 EUR — no tip"
+  );
 
   console.log(
     failures === 0

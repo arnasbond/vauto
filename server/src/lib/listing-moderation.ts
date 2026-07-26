@@ -1,6 +1,11 @@
 /** Server-side listing safety gate (mirrors client moderateListing). */
 
-import { detectToxicLanguage, scrubProfanity } from "../ai/safety-shield.js";
+import {
+  detectToxicLanguage,
+  scrubProfanity,
+  detectExplicitReplicaClaim,
+  REPLICA_HARD_BLOCK_REPLY,
+} from "../ai/safety-shield.js";
 
 const BLOCKED_PATTERNS = [
   /ginkl/i,
@@ -38,6 +43,17 @@ export function moderateListingInput(input: {
           "Skelbimas neatitinka platformos taisyklių. Prašome pataisyti aprašymą.",
       };
     }
+  }
+
+  // Tier-1 authenticity — hard-block only when seller explicitly declares a fake/replica.
+  if (
+    detectExplicitReplicaClaim(title) ||
+    detectExplicitReplicaClaim(description)
+  ) {
+    return {
+      allowed: false,
+      reason: REPLICA_HARD_BLOCK_REPLY,
+    };
   }
 
   if (detectToxicLanguage(title) || detectToxicLanguage(description)) {
