@@ -1,31 +1,26 @@
 /**
  * Property & Rentals category prompter.
- * Injected ONLY when category = NT.
  */
+
+import { FACTUAL_EXTRACTION_DIRECTIVE } from "./system-handbook.js";
 
 export const REALESTATE_PROMPTER = `
 KATEGORIJA: NT (Nekilnojamas turtas / nuoma)
-Tu rašai turtingą, įtraukiantį pardavimo / nuomos tekstą lietuviškai TIK NT objektui.
-DRAUDŽIAMA pakuotės / etiketės / PEIKO / elektronikos OCR few-shot stilistika.
+Tu rašai natūralų pardavimo / nuomos tekstą lietuviškai NT objektui.
 
-FACT-GROUNDED (PRIVALOMA):
-- Aprašymą KURK TIESIOGIAI iš Pass 1 JSON + OCR / technicalFields faktų.
-- Plotas, kambariai, aukštas, šildymas, patogumai — TIK jei yra JSON; išvardink po **Specifikacijos ir Savybės**.
-- Nenaudok bendrybių be konkretaus fakto.
+${FACTUAL_EXTRACTION_DIRECTIVE}
 
-FOKUSAS (naudok tik faktus iš JSON):
-- Lokacija / miestas / rajonas
-- Plotas (m²), kambarių skaičius, aukštas
-- Šildymas, energijos klasė (jei nurodyta)
-- Įranga / patogumai (balkonas, parkavimas, baldai…)
-- Paskirtis — pardavimas ar nuoma
+FOKUSAS (tik iš JSON):
+- Lokacija / miestas / rajonas — tik jei nurodyta
+- Plotas (m²), kambariai, aukštas, šildymas, patogumai — tik jei yra
+- Pardavimas ar nuoma
 
-STRUKTŪRA (Markdown):
-1) **Pavadinimas** — hook 2–4 sakiniai iš konkrečių faktų
-2) **Privalumai** — • bullet'ai (lokacija, planas, patogumai)
-3) **Būklė** — renovacija / įrengimas
-4) **Specifikacijos ir Savybės** — • bullet'ai (plotas m², kambariai, aukštas, šildymas ir kt. iš JSON)
-5) **Pristatymas / Apžiūra** — CTA apžiūrai
+STRUKTŪRA (Markdown, kai faktų užtenka):
+1) Hook
+2) **Privalumai**
+3) **Būklė / įrengimas**
+4) **Specifikacijos**
+5) **Apžiūra** — CTA
 
-TITLE: aiškus NT marketplace pavadinimas (pvz. „2 kamb. butas Vilniuje, Naujamiestyje“).
+TITLE: aiškus NT pavadinimas (kambariai, tipas, vieta jei žinoma).
 `;

@@ -36,26 +36,15 @@ function stringifyAttrs(
   );
 }
 
-/** Strip markdown/emoji chrome, empty template slots, and invented cities. */
+/** Light chrome strip only — keep natural LLM Lithuanian intact. */
 export function scrubSalesCopyMarkdown(text: string): string {
-  let t = text
+  return String(text ?? "")
     .replace(/\*\*/g, "")
     .replace(/^🚗\s*/gm, "")
     .replace(/^🌟\s*/gm, "")
     .replace(/^💡\s*/gm, "")
-    // Never keep prompt label literals at the start of description.
     .replace(/^(Pavadinimas|Title|Antraštė|Aprašymas)\s*:\s*/i, "")
-    .replace(/^(Pavadinimas|Title|Antraštė)\s*:\s*.+\n+/i, "");
-  // Incomplete fillers: „Atnaujinkite savo .“ / „skirti .“
-  t = t.replace(/\b(savo|skirti|skirta|skirtas|tinka|dėl|su)\s+\./gi, "");
-  t = t.replace(/\b[\p{L}]{2,24}\s+\.\s*(?=[A-ZĄČĘĖĮŠŲŪŽ])/gu, "");
-  t = t.replace(/\s+\.\s+/g, " ");
-  // Invented locative cities (Kaune) — omit unless later grounded by caller.
-  t = t.replace(
-    /\b(Kaune|Vilniuje|Klaipėdoje|Šiauliuose|Panevėžyje)\b/gi,
-    ""
-  );
-  return t
+    .replace(/^(Pavadinimas|Title|Antraštė)\s*:\s*.+\n+/i, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
     .trim();

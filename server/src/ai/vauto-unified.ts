@@ -48,12 +48,14 @@ import {
   normalizeVin,
 } from "../shared/vehicle-vision-enrich.js";
 import {
+  FACTUAL_EXTRACTION_DIRECTIVE,
   buildHandbookExtractionFewShots,
   getCategoryPrompter,
 } from "./prompters/index.js";
 
 export { getCategoryPrompter } from "./prompters/index.js";
 export {
+  FACTUAL_EXTRACTION_DIRECTIVE,
   buildHandbookExtractionFewShots,
   buildHandbookGenerationFewShots,
   VAUTO_SYSTEM_HANDBOOK,
@@ -74,36 +76,38 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
 const EXTRACTION_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
-  "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
-  "city": "string | null — TIK jei vartotojas / profilis / OCR aiškiai nurodo miestą. JEI nežinoma — null / \"\". DRAUDŽIAMA spėti Kaunas/Vilnius.",
-  "technicalFields": "object — exact facts only from OCR/vision: make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight, propertyType, area, rooms, floor, heating, brand, instrumentType, specs, languages, battery, contents, Atlikimas, Paskirtis, Spalvos, Būklė…",
-  "fitsOmnivaLocker": "boolean — true TIK jei prekė tikrai telpa Omniva L paštomate (max 39×38×64 cm, ≤30 kg). Auto/NT/darbas/paslaugos/baldai/stambi technika/dviračiai/auto dalys = false",
-  "estimatedSize": "S | M | L | OVERSIZED — S/M maža elektronika/aksesuarai/apranga; L max locker; OVERSIZED = netelpa",
-  "documentImageIndexes": "[number] — 0-based indeksai tech passport / registracija / pakuotės tekstas (PRIMARY OCR, NE viešai galerijai kai dokumentas)",
-  "galleryImageIndexes": "[number] — 0-based indeksai TIK produkto nuotraukų viešai galerijai",
-  "imageRoles": "[\\"gallery\\"|\\"document\\"] — PRIVALOMAS masyvas: po vieną role KIEKVIENAI nuotraukai",
-  "documentReadable": "boolean — true TIK jei tech passport / etiketės tekstas aiškiai įskaitomas",
-  "documentOcrConfidence": "number 0-1 — OCR patikimumas; <0.55 = neaišku",
-  "unclearDocumentIndexes": "[number] — neaiškių dokumentų indeksai",
+  "price": "number | null — kaina EUR; null jei nenurodyta",
+  "city": "string | null — tik jei aiškiai nurodyta vartotojo / profilio / OCR; kitaip null",
+  "technicalFields": "object — exact facts only from OCR/vision (make, model, year, engine, powerKw, fuelType, mileage, brand, size, condition…)",
+  "fitsOmnivaLocker": "boolean — true tik jei prekė tikrai telpa Omniva L (max 39×38×64 cm, ≤30 kg)",
+  "estimatedSize": "S | M | L | OVERSIZED",
+  "documentImageIndexes": "[number] — 0-based dokumentų / OCR šaltinių indeksai",
+  "galleryImageIndexes": "[number] — 0-based produkto nuotraukų indeksai",
+  "imageRoles": "[\\"gallery\\"|\\"document\\"] — po vieną role kiekvienai nuotraukai",
+  "documentReadable": "boolean",
+  "documentOcrConfidence": "number 0-1",
+  "unclearDocumentIndexes": "[number]",
   "confidence": "number 0-1",
   "sceneContext": "string — trumpas faktinis kontekstas",
-  "photoStyle": "real_world | studio_stock | mixed | unknown — studio_stock TIK kai ultra-švarus studijos / baltas seamless fonas be realaus konteksto (kataloginė stock nuotrauka). real_world = namai/ranka/laukas/garažas. NIEKADA neatmesk skelbimo dėl photoStyle.",
+  "photoStyle": "real_world | studio_stock | mixed | unknown",
   "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
   "choiceChips": ["string"],
-  "factNotes": "string — VISAS perskaitytas OCR tekstas / trumpi faktai be marketingo (pakuotė, etiketė, Regitra)",
-  "ocrText": "string — optional raw OCR transcript of legible packaging/passport text"
+  "factNotes": "string — perskaityti OCR faktai be marketingo",
+  "ocrText": "string — optional raw OCR transcript"
 }`;
 
 /** Pass 2 — creative LT sales copy from extracted JSON. */
 const CREATIVE_SCHEMA = `{
-  "title": "string — švarus, tikslus LT marketplace pavadinimas (brand + model + tipas, pvz. JBL Partybox Encore nešiojamas garsiakalbis)",
-  "description": "string — turtingas FACT-GROUNDED LT sales tekstas su Markdown. Sekcijos: hook + **Privalumai** + **Būklė** + **Specifikacijos** (bullet'ai: galingumas, jungtys, komplektacija, apšvietimas, matmenys — VISI OCR/faktai) + **Pristatymas**. PALIK \\n ir **. Draudžiama bendrybės be JSON fakto / sausas caption / išgalvoti specs."
+  "title": "string — švarus LT marketplace pavadinimas iš faktų",
+  "description": "string — natūralus FACT-GROUNDED LT sales tekstas su Markdown (hook, privalumai, būklė, specifikacijos, CTA). PALIK \\n ir **."
 }`;
 
 /** Lightweight Pass-1 system rules — category routing happens in Pass 2. */
-const EXTRACTION_RULES = `Tu esi VAUTO Smart Assistant — PASS 1 STRICT EXTRACTION. Grąžink TIK vieną JSON faktų objektą (be sales copy).
+const EXTRACTION_RULES = `Tu esi VAUTO Smart Assistant — PASS 1 STRUCTURED EXTRACTION. Grąžink TIK vieną JSON faktų objektą (be sales copy).
 
-PAIEŠKOS IZOLIACIJA (kai intent=search): keyword/kategorija TIK iš dabartinės užklausos — NIEKADA nejunk ankstesnių nesusijusių temų.
+${FACTUAL_EXTRACTION_DIRECTIVE}
+
+PAIEŠKA (kai intent=search): keyword/kategorija tik iš dabartinės užklausos.
 
 ${VAUTO_DOMAIN_AUTONOMY_RULES}
 
@@ -113,33 +117,23 @@ ${VISION_DEEP_OCR_EXTRACTION_RULE}
 
 ${VISION_OMNIVA_GABARIT_RULE}
 
-OCR + FAKTAI → technicalFields (AUTO-FILL PrePublish BE follow-up klausimų):
-- Tech passport / dokumentai / pakuotės tekstas: imageRoles=document kai tai specifikacijų šaltinis; documentImageIndexes = PRIMARY ground-truth.
-- HARD SPECS (Regitra): A→plate/licensePlate, B→firstRegistration YYYY-MM-DD (+ year), D.1→make, D.3→model VERBATIM, S.1→seats, P.1→engine (cm³→litrai), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
-- PAKUOTĖS OCR (PEIKO ir pan.): TIK fizinių prekių (elektronika / pakuotė) — brand, model, specs → technicalFields + factNotes/ocrText. NEtaikoma DARBAS / PASLAUGOS / NT.
-- VISUAL EXTRAS (tik kai category=AUTOMOBILIAI): interiorCondition, exteriorFeatures, transmission.
-- MODEL FIDELITY: model EXACT D.3 iš OCR — NEkopijuok few-shot pavyzdžių.
-- PARTS / WHEELS: jei prekė = ratlankiai / padangos / dalys — category NE full-car; NEpildyk salon/engine/transmission/VIN/seats/bodyType.
-- STRICT TRUTH: NIEKADA neišgalvok odinis salonas / TA / rida / pavarų dėžė be OCR ar vartotojo teksto.
-- Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus.
-- galleryImageIndexes / imageRoles=gallery — TIK produkto nuotraukos. Žalias/mėlynas tech passport VISADA document.
-- Jei faktas nematomas — praleisk. Kainos / ridos / TA / miesto NEGALIMA išgalvoti.
-- Šiame žingsnyje NErašyk title/description sales copy — tik šalti faktai.
+OCR → technicalFields (auto-fill PrePublish):
+- Dokumentai / pakuotės tekstas: imageRoles=document; documentImageIndexes = primary OCR.
+- Regitra laukai kai matomi: A→plate, B→firstRegistration/year, D.1→make, D.3→model verbatim, S.1→seats, P.1→engine, P.2→powerKw, P.3→fuelType, R→color, E→vin, C.1.3→city.
+- Pakuotės OCR (fizinės prekės): brand, model, specs → technicalFields + factNotes/ocrText.
+- Parts/wheels: pildyk dydį / būklę; nepalik pilno auto salon/engine/VIN laukų jei tai ne visas automobilis.
+- galleryImageIndexes / imageRoles=gallery — produkto nuotraukos.
+- Šiame žingsnyje nerašyk title/description sales copy — tik šalti faktai.
 
 ${TEXT_AND_VISION_INPUT_ONLY}
 
 ${STRUCTURED_INPUT_VISION_RULES}
 
-KATEGORIJOS PASIRINKIMAS (tik label — copy rašoma Pass 2):
-- AUTOMOBILIAI: tikras auto/motociklas (VIN, tech passport, markė+modelis).
-- MUZIKA: gitara, pianinas, būgnai, smuikas, ukulelė, sintezatorius…
-- NT: butas/namas/sklypas (NE „NAMAI“).
-- MENAS / LAISVALAIKIS / SPORTAS / ELEKTRONIKA / APRANGA / NAMAI — pagal vizualą.
-- PASLAUGOS / DARBAS — paslaugų ar darbo skelbimai (be pakuotės OCR).
-- Jei keli PARDUODAMI objektai — detectedObjects + choiceChips.
-- Dokumentai NIEKADA nėra detectedObjects / choiceChips.
+KATEGORIJA (tik label — copy rašoma Pass 2):
+- AUTOMOBILIAI / MUZIKA / NT / ELEKTRONIKA / APRANGA / PASLAUGOS / DARBAS / MENAS / … pagal vizualą ir tekstą.
+- Keli parduodami objektai → detectedObjects + choiceChips.
 
-${buildHandbookExtractionFewShots("general")}`;
+${buildHandbookExtractionFewShots()}`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -411,15 +405,9 @@ function buildExtractionTextPrompt(
     : "";
   return `${EXTRACTION_RULES}
 
-PASS 1 — STRICT EXTRACTION (šalti faktai → JSON).
-Sek Employee Handbook few-shot etalonus (PEIKO pakuotė, Regitra, Hohner, NT, paslaugos, darbas).
+PASS 1 — STRUCTURED EXTRACTION (šalti faktai → JSON).
 Vartotojo tekstas: """${text}"""${extra}
-Numatytas miestas jei nepaminėtas: ${userCity || "(nežinomas — NErašyk miesto / palik null; neinventuok Vilniaus)"}
-Pavyzdžiai:
-- „Parduodu ratlankius R17" → intent sell, parts/wheels — BE salono/variklio/pavarų laukų.
-- „Parduodu automobilį" + Regitra OCR → AUTOMOBILIAI, technicalFields TIK iš OCR.
-- „Parduodu gitarą Hohner" → intent sell, category MUZIKA, technicalFields.brand Hohner.
-- „Parduodu PEIKO vertėją" → ELEKTRONIKA + brand/model/specs iš teksto/OCR.
+Miestas iš konteksto (naudok tik jei vartotojas jo nepateikė ir jis žinomas): ${userCity || "(nežinomas — palik city null)"}
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
 
@@ -437,20 +425,13 @@ function buildExtractionImagePrompt(
   return `${EXTRACTION_RULES}
 ${VISION_EXTRACTION_ANTI_HALLUCINATION_RULE}
 
-PASS 1 — STRICT EXTRACTION iš nuotraukų (šalti faktai; BE sales copy).
-DEEP OCR: nuskaityk VISĄ įskaitomą tekstą ant dėžučių, etikečių, galinių dangtelių ir Regitra paso.
-Analizuok VISAS nuotraukas eilės tvarka (indeksai 0..n-1). Document / specs nuotraukos = PRIMARY OCR.
-1) PRIVALOMA imageRoles (gallery|document). Žalias/mėlynas tech passport / registracija / kvitas — VISADA document.
-2) documentImageIndexes + galleryImageIndexes sutampa su imageRoles.
-3) HARD SPECS — Regitra techninis pasas → technicalFields AUTO-FILL PrePublish BE papildomų klausimų:
-   A→plate/licensePlate · B→firstRegistration YYYY-MM-DD + year · D.1→make · D.3→model VERBATIM
-   S.1→seats · E→vin · P.1→engine litrais · P.2→powerKw · P.3→fuelType · R→color · V.9→euroStandard · G→curbWeight · C.1.3→city
-4) PAKUOTĖS OCR (PEIKO ir pan.): brand/model/specs/languages/battery/contents → technicalFields + factNotes + ocrText.
-5) VISUAL EXTRAS (tik AUTOMOBILIAI gallery): interiorCondition, exteriorFeatures, transmission, bodyType.
-6) NIEKADA neklausti markės/modelio/variklio/kuro/VIN/brand, jei jau ištraukti — forma užpildoma iš karto.
-7) Šiame žingsnyje NErašyk turtingo description — tik faktų JSON.
-8) photoStyle: studio_stock TIK ultra-švariam studijos / baltam seamless fonui be realaus konteksto; kitaip real_world / mixed / unknown. NIEKADA neatmesk skelbimo dėl photoStyle.${textNote}${extra}
-Numatytas miestas: ${userCity || "(nežinomas — NErašyk / null; neinventuok Vilniaus)"}
+PASS 1 — STRUCTURED EXTRACTION iš nuotraukų (šalti faktai; be sales copy).
+${FACTUAL_EXTRACTION_DIRECTIVE}
+Nuskaityk įskaitomą tekstą (pakuotė, etiketė, Regitra) ir sudėk į technicalFields / factNotes / ocrText.
+Analizuok visas nuotraukas (0..n-1); document roles = OCR šaltiniai; gallery = produkto vaizdai.
+Regitra laukus mapink kai matomi (D.1/D.3/B/P.*/E…).
+Šiame žingsnyje nerašyk turtingo description — tik faktų JSON.${textNote}${extra}
+Miestas iš konteksto: ${userCity || "(nežinomas — palik city null)"}
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
 }
 
@@ -476,33 +457,22 @@ function buildCreativeWritePrompt(
     confidence: extracted.confidence ?? 0.85,
   };
   const packagingBlock = nonPhysical
-    ? `DRAUDŽIAMA pakuotės / etiketės / PEIKO / dėžutės stilistika — ši kategorija tekstinė.`
-    : `Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / etiketė / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos** bullet'us
-(galingumas, jungtys, komplektacija, būklė, apšvietimas, matmenys — kas matoma).
-LED / apšvietimas: jei matomas RGB / spalvotas light — „integruotas RGB / spalvotas apšvietimas“;
-ne hardcodink vienos statiškos spalvos, nebent OCR aiškiai sako tik vieną fiksuotą spalvą.`;
-  return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE (FACT-GROUNDED).
-Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALIA lietuvių kalba.
-Title: švarus ir tikslus (brand + model + tipas) — be triukšmo ir be perteklinio emoji.
-DRAUDŽIAMA description pradžioje rašyti etiketes „Pavadinimas:“ / „Title:“ — pradėk tiesiai nuo pardavimo teksto.
-PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
-DRAUDŽIAMA tušti šablonai („savo .“, „skirti .“) — jei kintamojo nėra, praleisk sakinį.
-Miestas (Kaune…) — TIK jei city JSON neužpildytas tuščias. Ratlankiai: R17, ne S/M/L.
+    ? `Ši kategorija tekstinė — rašyk iš vartotojo / JSON faktų, be pakuotės OCR stilistikos.`
+    : `Įtrauk specs iš technicalFields / factNotes / ocrText į **Specifikacijos** bullet'us (kas tikrai yra).`;
+  return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE.
+Rašyk turtingą, engaginantį pardavimo tekstą natūralia lietuvių kalba.
+${FACTUAL_EXTRACTION_DIRECTIVE}
+Title: švarus (brand + model + tipas kai žinomi). Description pradėk tiesiai nuo pardavimo teksto (be „Pavadinimas:“ etikečių).
 ${packagingBlock}
-Jei vėlesnėse nuotraukose atsiranda NAUJŲ faktų — jie PRIVALO papildyti description (ne perrašyti tuščiai).
-Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
-Grąžink VIENĄ vientisą description JSON lauką (PrePublish draft) — be pakartotų faktų / bullet'ų.
-Šis tekstas NĖRA chat atsakymas — chat lieka trumpas atskirame sluoksnyje.
-Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
-Sek Employee Handbook gold-standard few-shot struktūrą (žemiau + prompteryje).
-Šis tekstas eina į draftListing.description (PrePublish) — NE į chat bubble.
+Kategorijos prompteris: ${prompterId}.
+Šis tekstas eina į draftListing.description (PrePublish), ne į chat.
 
 ${categoryPrompt}
 
-IŠTRAUKTI FAKTAI (ground-truth JSON — VIENINTELIS šaltinis):
+IŠTRAUKTI FAKTAI (vienintelis šaltinis):
 ${JSON.stringify(facts, null, 2)}
 
-Numatytas miestas: ${userCity || "(nežinomas — NErašyk miesto į copy; neinventuok Vilniaus)"}
+Miestas iš konteksto: ${userCity || "(nežinomas — neminėk miesto, jei city null)"}
 Grąžink TIK JSON: ${CREATIVE_SCHEMA}`;
 }
 

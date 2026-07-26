@@ -108,38 +108,13 @@ export function sanitizeListingTitle(raw: string | undefined | null): string {
  * Strip conversational filler — never flatten rich Vision copy into one line.
  */
 /**
- * Drop incomplete template slots („Atnaujinkite savo .“, „skirti .“)
- * and invented locative cities (Kaune) unless grounded elsewhere.
+ * Light whitespace normalize — fragile slot/city regex post-processing removed.
+ * Natural LLM Lithuanian is preserved; callers rely on prompt grounding.
  */
-export function scrubEmptyTemplateSlots(
-  text: string,
-  opts?: { allowCityLeak?: boolean }
-): string {
-  let t = String(text ?? "");
-  if (!t.trim()) return "";
-  // Incomplete noun slots ending in bare period.
-  t = t.replace(
-    /\b(savo|skirti|skirta|skirtiems|tinka|skirtas|skirta|dėl|su|į|i)\s+\./gi,
-    ""
-  );
-  t = t.replace(/\b(atnaujinkite|papildykite|pasirinkite)\s+\w*\s*\./gi, (m) =>
-    /\.\s*$/.test(m.trim()) && /\s\.\s*$/.test(m) ? "" : m
-  );
-  // „Atnaujinkite savo . Šie…“ / „skirti .“
-  t = t.replace(/\b[\p{L}]{2,24}\s+\.\s*(?=[A-ZĄČĘĖĮŠŲŪŽ])/gu, "");
-  t = t.replace(/\s+\.\s+/g, " ");
-  t = t.replace(/\s+\.$/gm, "");
-  // Invented Kaune/Vilniuje locatives when not allowed.
-  if (!opts?.allowCityLeak) {
-    t = t.replace(
-      /\b(Kaune|Vilniuje|Klaipėdoje|Šiauliuose|Panevėžyje)\b/gi,
-      ""
-    );
-  }
-  return t
+export function scrubEmptyTemplateSlots(text: string): string {
+  return String(text ?? "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
-    .replace(/^\s*[•\-]\s*$/gm, "")
     .trim();
 }
 

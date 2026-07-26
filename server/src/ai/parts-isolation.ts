@@ -154,28 +154,11 @@ export function stripFullVehicleFieldsFromPartsDraft<
     }
   }
 
-  let title = String(draft.title ?? "");
-  let description = String(draft.description ?? "");
-  if (looksLikeLeakedFullCarCopy(`${title}\n${description}`)) {
-    if (/citro|picasso|odinis|pavar|vienatūr/i.test(title)) {
-      title = user.match(/\br17\b/i)
-        ? "Ratlankiai R17"
-        : "Ratlankiai / auto dalys";
-    }
-    description = description
-      .replace(/citro[eë]n[^.!\n]*/gi, "")
-      .replace(/grand\s+c4\s+picasso[^.!\n]*/gi, "")
-      .replace(/odinis\s+salonas[^.!\n]*/gi, "")
-      .replace(/pavarų\s+dėž[^.!\n]*/gi, "")
-      .replace(/vienatūr[^.!\n]*/gi, "")
-      .replace(/\n{3,}/g, "\n\n")
-      .trim();
-  }
+  // Keep LLM title/description intact — attribute isolation is enough.
+  // Fragile sentence-truncating regex post-processing removed.
 
   return {
     ...draft,
-    title: title || draft.title,
-    description,
     category: /vehicles|automobiliai/i.test(String(draft.category ?? ""))
       ? "other"
       : draft.category,

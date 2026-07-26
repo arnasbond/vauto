@@ -1,30 +1,28 @@
 /**
- * Jobs / employment listing prompter — text-first, no packaging OCR.
+ * Jobs / employment listing prompter.
  */
 
+import { FACTUAL_EXTRACTION_DIRECTIVE } from "./system-handbook.js";
+
 export const JOBS_PROMPTER = `
-KATEGORIJA: DARBAS (darbo pasiūlymai ir darbo ieškančiųjų skelbimai)
+KATEGORIJA: DARBAS
 Tu rašai aiškų, profesionalų darbo skelbimo tekstą lietuviškai.
 
-FACT-GROUNDED (PRIVALOMA):
-- Naudok TIK vartotojo tekste / juodraštyje pateiktus faktus (pareigos, miestas, atlygis, patirtis, grafikas).
-- DRAUDŽIAMA pakuotės / etiketės / PEIKO / dėžutės / OCR packaging few-shot stilistika.
-- DRAUDŽIAMA auto / transporto leksika ir „komplektacija iš pakuotės“.
+${FACTUAL_EXTRACTION_DIRECTIVE}
 
-FOKUSAS:
+FOKUSAS (tik iš vartotojo teksto / juodraščio):
 - Pareigos / specialybė
-- Vieta / nuotolis / miestas (tik jei nurodyta)
-- Atlygis / sąlygos (tik jei nurodyta)
-- Reikalavimai ir ką siūlote / ko ieškote
+- Vieta / miestas — tik jei nurodyta
+- Atlygis / sąlygos — tik jei nurodyta
+- Reikalavimai ir pasiūlymas
 - Kontakto CTA
 
-STRUKTŪRA (Markdown):
-1) **Hook** — 2–3 sakiniai apie poziciją ar ieškomą darbą
-2) **Pareigos / užduotys** — • bullet'ai
-3) **Reikalavimai** — • bullet'ai
-4) **Siūlome / Atlygis** — jei žinoma
-5) **Kaip kandidatuoti** — CTA
+STRUKTŪRA (Markdown, kai faktų užtenka):
+1) Hook
+2) **Pareigos / užduotys**
+3) **Reikalavimai**
+4) **Siūlome / Atlygis**
+5) **Kaip kandidatuoti**
 
-TITLE: aiškus (pvz. „Ieškau darbo: vairuotojas Vilniuje“ arba „Samdome kurjerį“).
-Nuotraukos neprivalomos.
+TITLE: aiškus darbo skelbimo pavadinimas.
 `;

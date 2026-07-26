@@ -13,6 +13,7 @@ export { GENERAL_PROMPTER } from "./general-prompter.js";
 export { JOBS_PROMPTER } from "./jobs-prompter.js";
 export { SERVICES_PROMPTER } from "./services-prompter.js";
 export {
+  FACTUAL_EXTRACTION_DIRECTIVE,
   VAUTO_SYSTEM_HANDBOOK,
   BENCHMARK_ELECTRONICS_PEIKO,
   BENCHMARK_AUTO_REGITRA,
@@ -38,7 +39,7 @@ export type CategoryPrompterId =
 
 /**
  * Strict category → prompter router.
- * Packaging / PEIKO few-shots only for physical-goods prompters (auto, music, general).
+ * Injects a short positive factual directive (no product few-shots).
  */
 export function getCategoryPrompter(category: string): {
   id: CategoryPrompterId;
