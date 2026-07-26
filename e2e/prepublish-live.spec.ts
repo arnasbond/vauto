@@ -157,14 +157,41 @@ async function installAuthBypassMocks(page: Page) {
   });
 }
 
+/**
+ * Live seller chat shell.
+ * Messages live in `.agent-chat-strip` (aria-label "VAUTO asistento pokalbis");
+ * the composer is a nested form named "VAUTO asistento atsakymas".
+ */
+function agentShell(page: Page) {
+  return page
+    .locator(".agent-chat-strip")
+    .or(page.getByLabel(/^VAUTO asistento pokalbis$/i))
+    .first();
+}
+
+function agentComposer(page: Page) {
+  return page
+    .getByRole("form", { name: /VAUTO asistento atsakymas/i })
+    .getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
+    .or(
+      agentShell(page).getByRole("textbox", {
+        name: /Parašykite|kainą|PrePublish/i,
+      })
+    )
+    .first();
+}
+
 async function ensureAgentOpen(page: Page) {
-  const agent = page.getByLabel(/VAUTO asistento pokalbis/i);
+  const agent = agentShell(page);
   if (await agent.isVisible().catch(() => false)) return agent;
   const writeBtn = page.getByRole("button", { name: /Rašyti asistentui/i });
   if (await writeBtn.isVisible().catch(() => false)) {
     await writeBtn.click();
   }
-  await expect(agent).toBeVisible({ timeout: 90_000 });
+  // Composer form is visible even if strip aria-label resolution is flaky.
+  const form = page.getByRole("form", { name: /VAUTO asistento atsakymas/i });
+  await expect(agent.or(form).first()).toBeVisible({ timeout: 90_000 });
+  await expect(agent).toBeVisible({ timeout: 30_000 });
   return agent;
 }
 
@@ -250,7 +277,7 @@ async function openSeededSellerShell(page: Page) {
 async function attachPhotos(page: Page) {
   expect(PHOTO_FILES.length).toBeGreaterThanOrEqual(2);
 
-  const agent = await ensureAgentOpen(page);
+  await ensureAgentOpen(page);
   const consentEarly = page.getByRole("button", { name: /^Sutinku$/i });
   if (await consentEarly.isVisible({ timeout: 1_500 }).catch(() => false)) {
     await consentEarly.click();
@@ -280,19 +307,33 @@ async function attachPhotos(page: Page) {
   await expect(sendBtn).toBeEnabled({ timeout: 15_000 });
   await sendBtn.click();
 
-  // skipUserBubble photo send may jump straight to OCR / sales copy (no "Nuotraukos įkeltos").
-  await expect(
-    agent
-      .getByText(
-        /Nuotraukos įkeltos|Nuotrauka 1|Prisegtos nuotraukos|Citro[eë]n|Specifikacijos|Štai tavo aprašymas|LJP\s*935|Pagrindiniai duomenys|Grand C4|analizuoju|Analizuoju/i
-      )
-      .first()
-  ).toBeVisible({ timeout: 240_000 });
+  // Re-resolve shell after send — strip may remount; prefer assistant bubbles.
+  const shell = agentShell(page);
+  const offline = shell.getByText(
+    /nepasiekiamas|serveris atsistato|Bandykite po kelių/i
+  );
+  const visionReply = shell.locator(".agent-chat-bubble-assistant").filter({
+    hasText:
+      /Nuotraukos įkeltos|Prisegtos nuotraukos|Citro[eë]n|Specifikacijos|Štai tavo aprašymas|LJP\s*935|Pagrindiniai duomenys|Grand C4|analizuoju|Analizuoju|Patarimas|Parduodamas/i,
+  });
+
+  await Promise.race([
+    visionReply.first().waitFor({ state: "visible", timeout: 240_000 }),
+    offline.first().waitFor({ state: "visible", timeout: 240_000 }),
+  ]);
+
+  if (await offline.isVisible().catch(() => false)) {
+    throw new Error(
+      `Live Vision API unavailable after photo send: ${(await offline.innerText()).trim()}`
+    );
+  }
+
+  await expect(visionReply.first()).toBeVisible({ timeout: 5_000 });
 }
 
 /** If remote API still emits car+passport chips, pick car without local PrePublish short-circuit. */
 async function resolveMultiObjectIfNeeded(page: Page) {
-  const agent = page.getByLabel(/VAUTO asistento pokalbis/i);
+  const agent = agentShell(page);
   const carChip = agent.getByRole("button", { name: /Parduoti automobil/i });
   const passportChip = agent.getByRole("button", {
     name: /Parduoti techninis|Parduoti.*pasas/i,
@@ -300,9 +341,7 @@ async function resolveMultiObjectIfNeeded(page: Page) {
   const hasPassport = await passportChip.isVisible({ timeout: 8_000 }).catch(() => false);
   const hasCar = await carChip.isVisible({ timeout: 2_000 }).catch(() => false);
   if (hasPassport && hasCar) {
-    const composer = agent
-      .getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
-      .first();
+    const composer = agentComposer(page);
     await expect(composer).toBeEnabled({ timeout: 30_000 });
     await composer.click();
     await composer.fill(
@@ -340,15 +379,11 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
     await visualPause(page); // a) agent chat visible
 
     // Wait until first vision turn finishes (composer unlocks).
-    await expect(
-      agent.getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
-    ).toBeEnabled({ timeout: 240_000 });
+    await expect(agentComposer(page)).toBeEnabled({ timeout: 240_000 });
 
     await resolveMultiObjectIfNeeded(page);
 
-    await expect(
-      agent.getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
-    ).toBeEnabled({ timeout: 240_000 });
+    await expect(agentComposer(page)).toBeEnabled({ timeout: 240_000 });
 
     // Live Render copy varies: markdown specs OR fused sales tip with Publikuojam CTA.
     const step1OrReady = agent
@@ -381,9 +416,7 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
       if (await taipChip.isVisible({ timeout: 5_000 }).catch(() => false)) {
         await taipChip.click();
       } else {
-        const composer = agent
-          .getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
-          .first();
+        const composer = agentComposer(page);
         await expect(composer).toBeEnabled({ timeout: 60_000 });
         await composer.fill("Taip, paruošk skelbimą");
         await visualPause(page); // d) before sending Step 2 confirm
@@ -407,9 +440,7 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
     if (
       !(await tinka.or(publikuojam).or(keliam).first().isVisible().catch(() => false))
     ) {
-      const composer = agent
-        .getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
-        .first();
+      const composer = agentComposer(page);
       await expect(composer).toBeEnabled({ timeout: 30_000 });
       await composer.fill("Publikuojam");
       await composer.press("Enter");
@@ -452,9 +483,7 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
     if (!(await prepublish.first().isVisible().catch(() => false))) {
       if (await pricePrompt.isVisible().catch(() => false)) {
         await visualPause(page);
-        const composer = agent
-          .getByRole("textbox", { name: /Parašykite|kainą|PrePublish/i })
-          .first();
+        const composer = agentComposer(page);
         await expect(composer).toBeEnabled({ timeout: 30_000 });
         await composer.fill("2250");
         await visualPause(page);
