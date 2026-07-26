@@ -65,8 +65,14 @@ if (skipLive) {
     console.error("[release:hero] missing playwright.live.config.ts");
     process.exit(1);
   }
+  // playwright.live.config.ts webServer starts Next on :3000 (or reuses it).
+  // Do not force CI=true locally — that skips system Chrome and needs
+  // `npx playwright install` for bundled chromium_headless_shell.
   run("Live Vision / PrePublish (Gemini)", "npm", ["run", "test:e2e:live"], {
-    env: { CI: process.env.CI ?? "true" },
+    env: {
+      PLAYWRIGHT_BASE_URL:
+        process.env.PLAYWRIGHT_BASE_URL?.trim() || "http://127.0.0.1:3000",
+    },
   });
 }
 

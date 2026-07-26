@@ -1,8 +1,13 @@
 import { defineConfig, devices } from "@playwright/test";
 
+const liveBaseURL =
+  process.env.PLAYWRIGHT_BASE_URL?.trim() || "http://127.0.0.1:3000";
+
 /**
- * Live Next.js E2E (no static serve). Start `npm run dev` first.
- * PLAYWRIGHT_BASE_URL defaults to http://127.0.0.1:3000
+ * Live Next.js E2E (no static serve).
+ * Auto-starts `npm run dev` when nothing is listening; reuses an already-running
+ * server (including when release:hero sets CI=true).
+ * Override with PLAYWRIGHT_BASE_URL if needed.
  */
 export default defineConfig({
   testDir: "./e2e",
@@ -13,7 +18,7 @@ export default defineConfig({
   reporter: [["list"], ["html", { open: "never", outputFolder: "playwright-report-live" }]],
   timeout: 420_000,
   use: {
-    baseURL: process.env.PLAYWRIGHT_BASE_URL ?? "http://127.0.0.1:3000",
+    baseURL: liveBaseURL,
     trace: "retain-on-failure",
     screenshot: "on",
     video: "off",
@@ -32,4 +37,11 @@ export default defineConfig({
       },
     },
   ],
+  webServer: {
+    command: "npm run dev -- --hostname 127.0.0.1 --port 3000",
+    url: liveBaseURL,
+    // release:hero sets CI=true for Chromium channel — still reuse a local :3000.
+    reuseExistingServer: process.env.PLAYWRIGHT_FORCE_WEB_SERVER !== "1",
+    timeout: 300_000,
+  },
 });
