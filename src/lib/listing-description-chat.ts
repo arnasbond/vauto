@@ -1,8 +1,8 @@
-/** Force the generated listing description into a normal chat bubble. */
+/** Short chat confirmation — full sales copy stays in PrePublish draftListing.description only. */
 export function formatListingDescriptionChatMessage(description: string): string {
   const text = String(description ?? "").trim();
   if (!text) return "";
-  return `Štai tavo aprašymas:\n\n${text}`;
+  return "Aprašymas paruoštas juodraštyje. Peržiūrėk PrePublish lange ir patvirtink, kai viskas tinka.";
 }
 
 /** True when assistant text is only the photos/PrePublish gate (no real description body). */

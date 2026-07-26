@@ -2,12 +2,16 @@ import { AUTO_PROMPTER } from "./auto-prompter.js";
 import { MUSIC_PROMPTER } from "./music-prompter.js";
 import { REALESTATE_PROMPTER } from "./realestate-prompter.js";
 import { GENERAL_PROMPTER } from "./general-prompter.js";
+import { JOBS_PROMPTER } from "./jobs-prompter.js";
+import { SERVICES_PROMPTER } from "./services-prompter.js";
 import { getHandbookSliceForPrompter } from "./system-handbook.js";
 
 export { AUTO_PROMPTER } from "./auto-prompter.js";
 export { MUSIC_PROMPTER } from "./music-prompter.js";
 export { REALESTATE_PROMPTER } from "./realestate-prompter.js";
 export { GENERAL_PROMPTER } from "./general-prompter.js";
+export { JOBS_PROMPTER } from "./jobs-prompter.js";
+export { SERVICES_PROMPTER } from "./services-prompter.js";
 export {
   VAUTO_SYSTEM_HANDBOOK,
   BENCHMARK_ELECTRONICS_PEIKO,
@@ -24,11 +28,17 @@ export {
   buildFullSystemHandbook,
 } from "./system-handbook.js";
 
-export type CategoryPrompterId = "auto" | "music" | "realestate" | "general";
+export type CategoryPrompterId =
+  | "auto"
+  | "music"
+  | "realestate"
+  | "general"
+  | "jobs"
+  | "services";
 
 /**
  * Strict category → prompter router.
- * Returns specialized prompt + matching Employee Handbook few-shot slice.
+ * Packaging / PEIKO few-shots only for physical-goods prompters (auto, music, general).
  */
 export function getCategoryPrompter(category: string): {
   id: CategoryPrompterId;
@@ -36,7 +46,8 @@ export function getCategoryPrompter(category: string): {
 } {
   const key = String(category ?? "")
     .toUpperCase()
-    .trim();
+    .trim()
+    .replace(/-/g, "_");
 
   let id: CategoryPrompterId = "general";
   let base = GENERAL_PROMPTER;
@@ -45,7 +56,9 @@ export function getCategoryPrompter(category: string): {
     key === "AUTOMOBILIAI" ||
     key === "VEHICLES" ||
     key === "AUTO" ||
-    key === "VEHICLE"
+    key === "VEHICLE" ||
+    key === "TRANSPORTAS" ||
+    key === "TRANSPORT"
   ) {
     id = "auto";
     base = AUTO_PROMPTER;
@@ -65,6 +78,16 @@ export function getCategoryPrompter(category: string): {
   ) {
     id = "realestate";
     base = REALESTATE_PROMPTER;
+  } else if (key === "DARBAS" || key === "JOBS" || key === "JOB") {
+    id = "jobs";
+    base = JOBS_PROMPTER;
+  } else if (
+    key === "PASLAUGOS" ||
+    key === "SERVICES" ||
+    key === "SERVICE"
+  ) {
+    id = "services";
+    base = SERVICES_PROMPTER;
   }
 
   return {

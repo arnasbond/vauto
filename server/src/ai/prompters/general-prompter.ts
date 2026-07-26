@@ -4,14 +4,15 @@
  */
 
 export const GENERAL_PROMPTER = `
-KATEGORIJA: BENDROS PREKĖS (elektronika, įrankiai, drabužiai, namai, sportas, menas, kita)
+KATEGORIJA: BENDROS FIZINĖS PREKĖS (elektronika, įrankiai, drabužiai, namai, sportas, menas, kita)
 Tu rašai turtingą, įtraukiantį pardavimo tekstą lietuviškai konkrečiai prekei.
+Šis prompteris NEtaikomas DARBUI / PASLAUGOMS / NT — jiems yra atskiri prompteriai be pakuotės few-shotų.
 
 FACT-GROUNDED (PRIVALOMA):
-- Aprašymą KURK TIESIOGIAI iš Pass 1 JSON + OCR faktų (dėžutė / etiketė / galinis dangtelis / factNotes).
-- Pvz. PEIKO vertėjas: brand, modelis, kalbos, baterija, komplektacija — TIK tai, kas perskaityta.
+- Aprašymą KURK TIESIOGIAI iš Pass 1 JSON + OCR faktų (dėžutė / etiketė / galinis dangtelis / factNotes), kai tai fizinė prekė.
+- Pvz. PEIKO vertėjas: brand, modelis, kalbos, baterija, komplektacija — TIK tai, kas perskaityta (TIK elektronikai / pakuotėms).
 - Nenaudok bendrybių („puiki prekė“, „aukšta kokybė“) be konkretaus OCR/vizijos pagrindo.
-- VISAS įskaitomas specs iš pakuotės sudėk į **Specifikacijos ir Savybės** bullet'us.
+- VISAS įskaitomas specs iš pakuotės sudėk į **Specifikacijos ir Savybės** bullet'us (fizinių prekių atvejais).
 
 FOKUSAS (naudok tik faktus iš JSON):
 - Pagrindinė nauda pirkėjui / unikalumas (iš OCR ar vizualo)

@@ -29,6 +29,7 @@ import {
   buildSellListingDraftFallback,
   buildSellClarificationReply,
   detectServerSellIntent,
+  isJobSeekerListingCreateIntent,
   isSparseSellRequest,
 } from "./sell-intent-fallback.js";
 import { extractVehicleSpecsFromChat, buildVehicleDescriptionFromAttributes } from "./vehicle-attribute-extract.js";
@@ -38,7 +39,12 @@ import {
   normalizeListingDraftForAction,
   parsePriceFromChatInput,
 } from "./listing-chat-input.js";
-import { buildBrowseAllReply, isBrowseAllIntent, resolveBrowseAllIntent } from "../lib/browse-all-intent.js";
+import {
+  buildBrowseAllReply,
+  isBrowseAllIntent,
+  isListingConfirmationPhrase,
+  resolveBrowseAllIntent,
+} from "../lib/browse-all-intent.js";
 import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
 import { evaluateServerPrePublishReadiness } from "./pre-publish-validation.js";
 import {
@@ -888,26 +894,56 @@ async function runVautoAgentInner(
     };
   }
 
+  // Job-seeker create (“Ieškau darbo…”) with active draft / sell intent —
+  // always soft jobs draft, NEVER catalog searchListings.
+  const jobSeekerCreate =
+    Boolean(lastUserText) &&
+    isJobSeekerListingCreateIntent(lastUserText) &&
+    (Boolean(listingDraft) || detectServerSellIntent(lastUserText));
+
   // Sparse sell without photos → clarify BEFORE Gemini (never invent placeholder draft).
   if (
-    isSparseSellRequest(lastUserText) &&
+    (isSparseSellRequest(lastUserText) || jobSeekerCreate) &&
     !pendingChatImages?.length &&
     !(listingDraft?.orderedImageUrls?.filter(Boolean).length) &&
     !(req.context.pendingImageUrls?.filter(Boolean).length)
   ) {
     console.warn("[vision] vauto-agent early sparse sell → soft skeleton draft", {
       lastUserTextHead: lastUserText.slice(0, 120),
+      jobSeekerCreate,
     });
     const clarify = buildSellClarificationReply(lastUserText, {
       userCity: req.context.userCity,
       contact: req.context.contact,
     });
+    // Keep existing draft identity when user is refining a job-seeker listing.
+    const action =
+      listingDraft && jobSeekerCreate
+        ? {
+            type: "listing_draft" as const,
+            listingDraft: normalizeListingDraftForAction(
+              {
+                ...listingDraft,
+                ...clarify.action.listingDraft,
+                category: "jobs",
+                listingFlowState:
+                  listingDraft.listingFlowState ?? "DRAFTING_TEXT",
+              },
+              {
+                contact: req.context.contact,
+                userCity: req.context.userCity,
+                listingFlowState:
+                  listingDraft.listingFlowState ?? "DRAFTING_TEXT",
+              }
+            ),
+          }
+        : clarify.action;
     return {
       ok: true,
       reply: clarify.reply,
       quickReplies: clarify.quickReplies,
       toolCalls: [],
-      actions: clarify.action,
+      actions: action,
     };
   }
 
@@ -1050,11 +1086,13 @@ async function runVautoAgentInner(
   }
 
   // Deterministic browse-all — skip Gemini for generic “show everything” queries.
-  // Never steal text-only create intents (“noriu įkelti skelbimą”, “ieškau darbo”).
+  // Never steal create intents or PrePublish confirmations (“Viskas tinka”, “Publikuok”).
   if (
     lastUserText &&
     resolveBrowseAllIntent(lastUserText) &&
-    !detectServerSellIntent(lastUserText)
+    !detectServerSellIntent(lastUserText) &&
+    !isListingConfirmationPhrase(lastUserText) &&
+    !isJobSeekerListingCreateIntent(lastUserText)
   ) {
     emitAgentEvent(onEvent, { type: "tool_call", name: "searchListings", message: "Ruošiu visus skelbimus…" });
     const { result, sideEffect } = await executeAgentTool(

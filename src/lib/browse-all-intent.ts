@@ -20,11 +20,18 @@ const BROWSE_VERB_RE =
 const BROWSE_SCOPE_RE =
   /\b(visus?|viska|viskas|all|everything|catalog|catalogue|katalog|skelbimus?|skelbimus|prekes?|prekės|turgu|turgų|marketplace|market|grid|feed|naujaus)\b/;
 
-/** Seller listing confirmation — must NOT trigger browse-all (e.g. „Viskas tinka“). */
+/**
+ * Seller listing confirmation / publish — must NEVER trigger browse-all
+ * (e.g. „Viskas tinka“, bare „Viskas“, „Publikuok“).
+ */
 const LISTING_CONFIRMATION_RE =
-  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|taip,?\s*viskas|viskas\s+atitinka)\b/;
+  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|taip,?\s*viskas|viskas\s+atitinka|tvirtinu|patvirtinu|publikuok(?:ite|im)?|publikuojam|publikuoti)\b/;
 
-/** High-confidence full-phrase shortcuts (folded ASCII). */
+/** Whole-utterance affirmations — never catalog browse. */
+const BARE_CONFIRMATION_RE =
+  /^(viskas|tinka|tvirtinu|patvirtinu|ok|gerai|taip|publikuok|publikuoti|publikuojam)$/i;
+
+/** High-confidence full-phrase shortcuts (folded ASCII). No bare „viskas“. */
 const BROWSE_PHRASE_RE =
   /\b(show\s+all|browse\s+all|parodyk\s+vis\w*|rodyk\s+vis\w*|atidaryk\s+vis\w*|atverk\s+vis\w*|visi\s+skelbim\w*|visus\s+skelbim\w*|rodyti\s+visus|open\s+all|everything)\b/;
 
@@ -78,7 +85,9 @@ export function resolveBrowseAllIntent(
 
 export function isListingConfirmationPhrase(raw: string): boolean {
   const folded = foldLtForBrowseMatch(raw);
-  return Boolean(folded && LISTING_CONFIRMATION_RE.test(folded));
+  if (!folded) return false;
+  if (BARE_CONFIRMATION_RE.test(folded)) return true;
+  return LISTING_CONFIRMATION_RE.test(folded);
 }
 
 export function isBrowseAllIntent(raw: string): boolean {
@@ -94,7 +103,11 @@ export function isBrowseAllIntent(raw: string): boolean {
 
   const tokens = folded.split(/\s+/).filter(Boolean);
 
-  if (tokens.length === 1 && BROWSE_SCOPE_RE.test(tokens[0]!)) return true;
+  // Bare scope token "viskas" alone is confirmation, not browse (caught above).
+  if (tokens.length === 1 && BROWSE_SCOPE_RE.test(tokens[0]!)) {
+    if (/^(viskas|viska)$/i.test(tokens[0]!)) return false;
+    return true;
+  }
 
   const hasVerb = BROWSE_VERB_RE.test(folded);
   const hasScope = BROWSE_SCOPE_RE.test(folded);
@@ -102,7 +115,10 @@ export function isBrowseAllIntent(raw: string): boolean {
 
   if (hasVerb && hasScope) return true;
 
-  if (hasScope && !hasProduct && tokens.length <= 4) return true;
+  if (hasScope && !hasProduct && tokens.length <= 4) {
+    if (!hasVerb && /^(viskas|tinka)/i.test(folded)) return false;
+    return true;
+  }
 
   if (hasVerb && !hasProduct && tokens.length <= 3 && tokensAreBrowseOnly(tokens)) {
     return true;

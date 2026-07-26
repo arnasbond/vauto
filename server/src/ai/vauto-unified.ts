@@ -110,7 +110,7 @@ ${VISION_OMNIVA_GABARIT_RULE}
 OCR + FAKTAI → technicalFields (AUTO-FILL PrePublish BE follow-up klausimų):
 - Tech passport / dokumentai / pakuotės tekstas: imageRoles=document kai tai specifikacijų šaltinis; documentImageIndexes = PRIMARY ground-truth.
 - HARD SPECS (Regitra): A→plate/licensePlate, B→firstRegistration YYYY-MM-DD (+ year), D.1→make, D.3→model VERBATIM, S.1→seats, P.1→engine (cm³→litrai), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
-- PAKUOTĖS OCR (PEIKO ir pan.): brand, model, specs, languages, battery, contents → technicalFields + factNotes/ocrText (VISAS įskaitomas tekstas).
+- PAKUOTĖS OCR (PEIKO ir pan.): TIK fizinių prekių (elektronika / pakuotė) — brand, model, specs → technicalFields + factNotes/ocrText. NEtaikoma DARBAS / PASLAUGOS / NT.
 - VISUAL EXTRAS (tik kai category=AUTOMOBILIAI): interiorCondition, exteriorFeatures, transmission.
 - MODEL FIDELITY: model EXACT D.3 — „Grand C4 Picasso“ ≠ „C4 Picasso“.
 - Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus.
@@ -127,11 +127,11 @@ KATEGORIJOS PASIRINKIMAS (tik label — copy rašoma Pass 2):
 - MUZIKA: gitara, pianinas, būgnai, smuikas, ukulelė, sintezatorius…
 - NT: butas/namas/sklypas (NE „NAMAI“).
 - MENAS / LAISVALAIKIS / SPORTAS / ELEKTRONIKA / APRANGA / NAMAI — pagal vizualą.
-- PASLAUGOS / DARBAS — paslaugų ar darbo skelbimai.
+- PASLAUGOS / DARBAS — paslaugų ar darbo skelbimai (be pakuotės OCR).
 - Jei keli PARDUODAMI objektai — detectedObjects + choiceChips.
 - Dokumentai NIEKADA nėra detectedObjects / choiceChips.
 
-${buildHandbookExtractionFewShots()}`;
+${buildHandbookExtractionFewShots("general")}`;
 
 const CATEGORY_TO_INTERNAL: Record<string, string> = {
   AUTOMOBILIAI: "vehicles",
@@ -430,6 +430,10 @@ function buildCreativeWritePrompt(
 ): string {
   const category = String(extracted.category ?? "NAMAI");
   const { id: prompterId, prompt: categoryPrompt } = getCategoryPrompter(category);
+  const nonPhysical =
+    prompterId === "jobs" ||
+    prompterId === "services" ||
+    prompterId === "realestate";
   const facts = {
     intent: extracted.intent ?? "sell",
     category,
@@ -441,21 +445,25 @@ function buildCreativeWritePrompt(
     ocrText: extracted.ocrText ?? "",
     confidence: extracted.confidence ?? 0.85,
   };
+  const packagingBlock = nonPhysical
+    ? `DRAUDŽIAMA pakuotės / etiketės / PEIKO / dėžutės stilistika — ši kategorija tekstinė.`
+    : `Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / etiketė / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos** bullet'us
+(galingumas, jungtys, komplektacija, būklė, apšvietimas, matmenys — kas matoma).
+LED / apšvietimas: jei matomas RGB / spalvotas light — „integruotas RGB / spalvotas apšvietimas“;
+ne hardcodink vienos statiškos spalvos, nebent OCR aiškiai sako tik vieną fiksuotą spalvą.`;
   return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE (FACT-GROUNDED).
 Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALIA lietuvių kalba.
 Title: švarus ir tikslus (brand + model + tipas) — be triukšmo ir be perteklinio emoji.
 DRAUDŽIAMA description pradžioje rašyti etiketes „Pavadinimas:“ / „Title:“ — pradėk tiesiai nuo pardavimo teksto.
 PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
-Kiekvieną perskaitytą specs detalę (dėžutė / Regitra / etiketė / technicalFields / factNotes / ocrText) įtrauk į **Specifikacijos** bullet'us
-(galingumas, jungtys, komplektacija, būklė, apšvietimas, matmenys — kas matoma).
-LED / apšvietimas: jei matomas RGB / spalvotas light — „integruotas RGB / spalvotas apšvietimas“;
-ne hardcodink vienos statiškos spalvos, nebent OCR aiškiai sako tik vieną fiksuotą spalvą.
+${packagingBlock}
 Jei vėlesnėse nuotraukose atsiranda NAUJŲ faktų — jie PRIVALO papildyti description (ne perrašyti tuščiai).
 Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
 Grąžink VIENĄ vientisą description JSON lauką (PrePublish draft) — be pakartotų faktų / bullet'ų.
 Šis tekstas NĖRA chat atsakymas — chat lieka trumpas atskirame sluoksnyje.
 Kategorijos izoliacija jau užtikrinta prompteriu (${prompterId}).
 Sek Employee Handbook gold-standard few-shot struktūrą (žemiau + prompteryje).
+Šis tekstas eina į draftListing.description (PrePublish) — NE į chat bubble.
 
 ${categoryPrompt}
 

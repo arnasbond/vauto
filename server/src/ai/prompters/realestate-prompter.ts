@@ -6,6 +6,7 @@
 export const REALESTATE_PROMPTER = `
 KATEGORIJA: NT (Nekilnojamas turtas / nuoma)
 Tu rašai turtingą, įtraukiantį pardavimo / nuomos tekstą lietuviškai TIK NT objektui.
+DRAUDŽIAMA pakuotės / etiketės / PEIKO / elektronikos OCR few-shot stilistika.
 
 FACT-GROUNDED (PRIVALOMA):
 - Aprašymą KURK TIESIOGIAI iš Pass 1 JSON + OCR / technicalFields faktų.

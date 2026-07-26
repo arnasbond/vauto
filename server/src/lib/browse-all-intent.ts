@@ -1,5 +1,6 @@
 /**
  * Server mirror — semantic browse-all intent (LT + EN).
+ * Keep aligned with src/lib/browse-all-intent.ts (confirmation exclusions).
  */
 
 const SEARCH_PREFIX =
@@ -14,8 +15,20 @@ const BROWSE_VERB_RE =
 const BROWSE_SCOPE_RE =
   /\b(visus?|viska|viskas|all|everything|catalog|catalogue|katalog|skelbimus?|skelbimus|prekes?|prekės|turgu|turgų|marketplace|market|grid|feed|naujaus)\b/;
 
+/**
+ * Seller listing confirmation / publish — must NEVER trigger browse-all
+ * (e.g. „Viskas tinka“, bare „Viskas“, „Publikuok“).
+ */
+const LISTING_CONFIRMATION_RE =
+  /\b(viskas\s+tinka|viskas\s+gerai|viskas\s+ok|viskas\s+tikslu|viskas\s+tvarkoje|taip,?\s*viskas|viskas\s+atitinka|tvirtinu|patvirtinu|publikuok(?:ite|im)?|publikuojam|publikuoti)\b/;
+
+/** Whole-utterance affirmations — never catalog browse. */
+const BARE_CONFIRMATION_RE =
+  /^(viskas|tinka|tvirtinu|patvirtinu|ok|gerai|taip|publikuok|publikuoti|publikuojam)$/i;
+
+/** High-confidence full-phrase shortcuts (folded ASCII). No bare „viskas“. */
 const BROWSE_PHRASE_RE =
-  /\b(show\s+all|browse\s+all|parodyk\s+vis\w*|rodyk\s+vis\w*|atidaryk\s+vis\w*|atverk\s+vis\w*|visi\s+skelbim\w*|visus\s+skelbim\w*|rodyti\s+visus|open\s+all|everything|viskas)\b/;
+  /\b(show\s+all|browse\s+all|parodyk\s+vis\w*|rodyk\s+vis\w*|atidaryk\s+vis\w*|atverk\s+vis\w*|visi\s+skelbim\w*|visus\s+skelbim\w*|rodyti\s+visus|open\s+all|everything)\b/;
 
 export function foldLtForBrowseMatch(raw: string): string {
   return raw
@@ -61,6 +74,13 @@ export function resolveBrowseAllIntent(
   return merged.length > 0 && isBrowseAllIntent(merged);
 }
 
+export function isListingConfirmationPhrase(raw: string): boolean {
+  const folded = foldLtForBrowseMatch(raw);
+  if (!folded) return false;
+  if (BARE_CONFIRMATION_RE.test(folded)) return true;
+  return LISTING_CONFIRMATION_RE.test(folded);
+}
+
 export function isBrowseAllIntent(raw: string): boolean {
   const q = raw.trim();
   if (!q) return false;
@@ -68,11 +88,17 @@ export function isBrowseAllIntent(raw: string): boolean {
   const folded = foldLtForBrowseMatch(q);
   if (!folded) return false;
 
+  if (isListingConfirmationPhrase(q)) return false;
+
   if (BROWSE_PHRASE_RE.test(folded)) return true;
 
   const tokens = folded.split(/\s+/).filter(Boolean);
 
-  if (tokens.length === 1 && BROWSE_SCOPE_RE.test(tokens[0]!)) return true;
+  // Bare scope token "viskas" alone is confirmation, not browse (caught above).
+  if (tokens.length === 1 && BROWSE_SCOPE_RE.test(tokens[0]!)) {
+    if (/^(viskas|viska)$/i.test(tokens[0]!)) return false;
+    return true;
+  }
 
   const hasVerb = BROWSE_VERB_RE.test(folded);
   const hasScope = BROWSE_SCOPE_RE.test(folded);
@@ -80,7 +106,12 @@ export function isBrowseAllIntent(raw: string): boolean {
 
   if (hasVerb && hasScope) return true;
 
-  if (hasScope && !hasProduct && tokens.length <= 4) return true;
+  if (hasScope && !hasProduct && tokens.length <= 4) {
+    // „viskas gerai“ / short confirmations with scope word — already excluded above;
+    // still block scope-only affirmations without a browse verb.
+    if (!hasVerb && /^(viskas|tinka)/i.test(folded)) return false;
+    return true;
+  }
 
   if (hasVerb && !hasProduct && tokens.length <= 3 && tokensAreBrowseOnly(tokens)) {
     return true;

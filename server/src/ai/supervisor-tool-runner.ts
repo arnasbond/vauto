@@ -65,6 +65,8 @@ export function shouldForceSupervisorTools(text: string): boolean {
   if (resolveBrowseAllIntent(q)) return false;
   if (isRevealActiveResultsIntent(q)) return false;
   if (detectServerSellIntent(q)) return false;
+  // Never force catalog search for job-seeker listing phrases.
+  if (/\bieškau\s+darbo\b/i.test(q) || /\bieskau\s+darbo\b/i.test(q)) return false;
   if (isConversationalSearchIntent(q)) return false;
   return PRODUCT_SEARCH_RE.test(q) || SEARCH_VERB_RE.test(q);
 }

@@ -86,6 +86,16 @@ export function inferMake(text: string): string {
   return "";
 }
 
+/** Job-seeker listing create (“Ieškau darbo…”) — always text-first soft draft. */
+export function isJobSeekerListingCreateIntent(text: string): boolean {
+  const q = text.trim().toLowerCase();
+  if (!q) return false;
+  if (/\b(darbo\s+kėd|darbo\s+ked|darbo\s+stal|office\s+chair)\b/i.test(q)) {
+    return false;
+  }
+  return /\bieškau\s+darbo\b/i.test(q) || /\bieskau\s+darbo\b/i.test(q);
+}
+
 /**
  * Sparse = sell intent without photos/specs (e.g. "noriu parduoti citroen").
  * Must NOT invent a placeholder listing draft.
@@ -93,10 +103,14 @@ export function inferMake(text: string): string {
 export function isSparseSellRequest(text: string): boolean {
   if (!detectServerSellIntent(text)) return false;
   const t = text.trim();
+  // Job-seeker create is always soft-skeleton (never catalog search).
+  if (isJobSeekerListingCreateIntent(t)) return true;
   if (SPEC_SIGNAL.test(t)) return false;
   // Brand-only or generic sell phrase without model/year/km/engine.
   const withoutSell = t
     .replace(/\b(parduodu|parduosiu|noriu\s+parduoti?|nor[eė]čiau\s+parduoti?|pad[eė]k\s+parduoti?)\b/gi, " ")
+    .replace(/\bieškau\s+darbo\b/gi, " ")
+    .replace(/\bieskau\s+darbo\b/gi, " ")
     .replace(/\s+/g, " ")
     .trim();
   if (withoutSell.length < 3) return true;

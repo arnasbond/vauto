@@ -295,15 +295,65 @@ ${mode === "extraction" ? "Pass-1 extraction pattern" : "Pass-2 gold output stru
 ${body}`;
 }
 
-/** Compact Pass-1 few-shot block (all extraction patterns + publish behavior). */
-export function buildHandbookExtractionFewShots(): string {
-  const blocks = VAUTO_SYSTEM_HANDBOOK.map((b) =>
-    formatBenchmarkBlock(b, "extraction")
-  ).join("\n\n");
+export type HandbookPrompterId =
+  | "auto"
+  | "music"
+  | "realestate"
+  | "general"
+  | "jobs"
+  | "services";
+
+/** Categories that may receive packaging / PEIKO electronics few-shots. */
+const PACKAGING_HANDBOOK_CATEGORIES = new Set<HandbookCategoryId>([
+  "electronics",
+  "auto",
+  "music",
+  "art",
+]);
+
+/**
+ * Compact Pass-1 few-shot block.
+ * Packaging/PEIKO examples are omitted for jobs / services / realestate.
+ */
+export function buildHandbookExtractionFewShots(
+  prompterId?: HandbookPrompterId
+): string {
+  let selected = VAUTO_SYSTEM_HANDBOOK;
+  if (prompterId === "jobs") {
+    selected = VAUTO_SYSTEM_HANDBOOK.filter(
+      (b) => b.categoryId === "jobs" || b.categoryId === "publish"
+    );
+  } else if (prompterId === "services") {
+    selected = VAUTO_SYSTEM_HANDBOOK.filter(
+      (b) => b.categoryId === "services" || b.categoryId === "publish"
+    );
+  } else if (prompterId === "realestate") {
+    selected = VAUTO_SYSTEM_HANDBOOK.filter(
+      (b) => b.categoryId === "realestate" || b.categoryId === "publish"
+    );
+  } else if (prompterId === "auto" || prompterId === "music") {
+    const allow = new Set(
+      prompterId === "auto"
+        ? (["auto", "publish"] as HandbookCategoryId[])
+        : (["music", "publish"] as HandbookCategoryId[])
+    );
+    selected = VAUTO_SYSTEM_HANDBOOK.filter((b) => allow.has(b.categoryId));
+  } else if (prompterId === "general") {
+    selected = VAUTO_SYSTEM_HANDBOOK.filter(
+      (b) =>
+        PACKAGING_HANDBOOK_CATEGORIES.has(b.categoryId) ||
+        b.categoryId === "publish"
+    );
+  }
+
+  const blocks = selected
+    .map((b) => formatBenchmarkBlock(b, "extraction"))
+    .join("\n\n");
   return `
 ═══════════════════════════════════════════════════════════════
 VAUTO AI EMPLOYEE HANDBOOK — PASS 1 FEW-SHOT BENCHMARKS (GOLD)
 Naudok kaip etaloną: ekstrahuok faktus TOKIU pat tikslumu ir struktūra.
+PASTABA: pakuotės / PEIKO / etiketės pavyzdžiai taikomi TIK fizinių prekių kontekstui.
 ═══════════════════════════════════════════════════════════════
 ${blocks}
 `;
@@ -311,13 +361,16 @@ ${blocks}
 
 /** Compact Pass-2 few-shot block; optionally filter by category prompter id. */
 export function buildHandbookGenerationFewShots(
-  prompterId?: "auto" | "music" | "realestate" | "general"
+  prompterId?: HandbookPrompterId
 ): string {
-  const byPrompter: Record<string, HandbookCategoryId[]> = {
+  const byPrompter: Record<HandbookPrompterId, HandbookCategoryId[]> = {
     auto: ["auto"],
     music: ["music"],
     realestate: ["realestate"],
-    general: ["electronics", "art", "services", "jobs"],
+    // Physical goods only — never inject PEIKO into jobs/services via general.
+    general: ["electronics", "art"],
+    jobs: ["jobs"],
+    services: ["services"],
   };
   const allowed = prompterId ? byPrompter[prompterId] : undefined;
   const selected = allowed
@@ -325,11 +378,15 @@ export function buildHandbookGenerationFewShots(
     : VAUTO_SYSTEM_HANDBOOK.filter((b) => b.categoryId !== "publish");
 
   const blocks = selected.map((b) => formatBenchmarkBlock(b, "generation")).join("\n\n");
+  const structureNote =
+    prompterId === "jobs" || prompterId === "services" || prompterId === "realestate"
+      ? "Struktūra: Hook → Pareigos/Paslauga/Objektas → Sąlygos → CTA. Be pakuotės/etiketės."
+      : "Struktūra: Antraštė → Specifikacijos ir Savybės / Privalumai → Būklė → Pristatymas / Apžiūra.";
   return `
 ═══════════════════════════════════════════════════════════════
 VAUTO AI EMPLOYEE HANDBOOK — PASS 2 FEW-SHOT BENCHMARKS (GOLD)
 Naudok kaip etaloną: rašyk FACT-GROUNDED LT copy TOKIU pat stiliumi ir sekcijomis.
-Struktūra: Antraštė → Specifikacijos ir Savybės / Privalumai → Būklė → Pristatymas / Apžiūra.
+${structureNote}
 ═══════════════════════════════════════════════════════════════
 ${blocks}
 `;
@@ -337,7 +394,7 @@ ${blocks}
 
 /** Category-scoped handbook slice for a prompter (generation-focused + matching extraction). */
 export function getHandbookSliceForPrompter(
-  prompterId: "auto" | "music" | "realestate" | "general"
+  prompterId: HandbookPrompterId
 ): string {
   return buildHandbookGenerationFewShots(prompterId);
 }
