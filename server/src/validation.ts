@@ -8,24 +8,31 @@ import type {
   ApiSupportReport,
   ApiUser,
 } from "./types.js";
+import {
+  LISTING_CATEGORY_IDS,
+  coerceListingCategoryForDb,
+} from "./shared/category-registry.js";
 
 export type ValidationResult<T> =
   | { ok: true; value: T }
   | { ok: false; error: string };
 
-const LISTING_CATEGORIES = new Set([
-  "electronics",
-  "vehicles",
-  "transport",
-  "services",
-  "jobs",
-  "home",
-  "clothing",
-  "real_estate",
-  "tools",
-  "rental",
-  "other",
-]);
+const LISTING_CATEGORIES = new Set<string>(LISTING_CATEGORY_IDS);
+
+/** Coerce AI/novel category labels into a valid DB slug — never reject with "category is invalid". */
+function coerceCategoryString(
+  obj: Record<string, unknown>,
+  key: string
+): ValidationResult<string> {
+  const value = requiredString(obj, key, 80);
+  if (!value.ok) return value;
+  const title = typeof obj.title === "string" ? obj.title : undefined;
+  const description =
+    typeof obj.description === "string" ? obj.description : undefined;
+  return ok(
+    coerceListingCategoryForDb(value.value, { title, description, fallback: "other" })
+  );
+}
 
 const LISTING_STATUSES = new Set(["active", "sold"]);
 const REPORT_CATEGORIES = new Set([
@@ -269,7 +276,7 @@ export function validateListing(body: unknown): ValidationResult<ApiListing> {
   if (!slug.ok) return slug;
   const image = requiredString(body, "image", 15_000_000);
   if (!image.ok) return image;
-  const category = enumString(body, "category", LISTING_CATEGORIES);
+  const category = coerceCategoryString(body, "category");
   if (!category.ok) return category;
   const tags = stringArray(body, "tags");
   if (!tags.ok) return tags;
@@ -407,7 +414,7 @@ export function validateListingPatch(body: unknown): ValidationResult<Partial<Ap
     patch.description = description.value;
   }
   if (body.category !== undefined) {
-    const category = enumString(body, "category", LISTING_CATEGORIES);
+    const category = coerceCategoryString(body, "category");
     if (!category.ok) return category;
     patch.category = category.value;
   }

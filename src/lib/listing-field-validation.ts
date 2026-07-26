@@ -11,6 +11,7 @@ import {
   sanitizeAttributesForCategory,
 } from "@/lib/listing-attribute-isolation";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories/types";
+import { draftHasSatisfiedPrice } from "@vauto/shared/negotiable-price";
 
 export const LAND_PROPERTY_TYPES = new Set([
   "sklypas",
@@ -87,7 +88,15 @@ export function getMissingCriticalFields(
   const config = getAdaptiveConfig(adaptiveKey);
   const missing: string[] = [];
 
-  if (extras?.price !== undefined && extras.price <= 0) missing.push("price");
+  if (
+    extras?.price !== undefined &&
+    !draftHasSatisfiedPrice({
+      price: extras.price,
+      attributes: attributes as Record<string, unknown>,
+    })
+  ) {
+    missing.push("price");
+  }
 
   for (const field of config.fields) {
     if (!isCriticalFieldRequired(adaptiveKey, field.key, attributes)) continue;
@@ -117,7 +126,15 @@ export function getMissingCriticalFieldsForListing(
   const activeFields = filterFieldsForListingCategory(validationCategory, attributes, config.fields);
   const missing: string[] = [];
 
-  if (extras?.price !== undefined && extras.price <= 0) missing.push("price");
+  if (
+    extras?.price !== undefined &&
+    !draftHasSatisfiedPrice({
+      price: extras.price,
+      attributes: attributes as Record<string, unknown>,
+    })
+  ) {
+    missing.push("price");
+  }
 
   for (const field of activeFields) {
     if (!isCriticalFieldRequired(adaptiveKey, field.key, attributes)) continue;
@@ -251,6 +268,7 @@ export function evaluateListingPublishValidation(
   draft: {
     title: string;
     price: number;
+    priceLabel?: string;
     description?: string;
     contact?: string;
     location?: string;
@@ -278,7 +296,11 @@ export function evaluateListingPublishValidation(
     label: getFieldLabel(item.sourceVertical, item.key),
   }));
 
-  const needsPrice = draft.price <= 0;
+  const needsPrice = !draftHasSatisfiedPrice({
+    price: draft.price,
+    priceLabel: draft.priceLabel,
+    attributes: draft.attributes as Record<string, unknown> | undefined,
+  });
   const needsPhoto = !opts.hasPhoto;
   const needsSellerType = !String(sanitizedAttributes.sellerType ?? "").trim();
   const needsTitle = draft.title.trim().length < 2;

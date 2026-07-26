@@ -742,11 +742,16 @@ async function runVautoAgentInner(
       flowState === "DRAFT_READY" ||
       flowState === "AWAITING_CONFIRMATION")
   ) {
-    const price = parsePriceFromChatInput(lastUserText);
+    const { isNegotiablePriceChatInput, negotiablePricePatch } = await import(
+      "../shared/negotiable-price.js"
+    );
+    const negotiable = isNegotiablePriceChatInput(lastUserText);
+    const price = negotiable ? 0 : parsePriceFromChatInput(lastUserText);
     const specPatch = extractVehicleSpecsFromChat(lastUserText);
     const hasSpecs = Object.keys(specPatch).length > 0;
-    const priceToApply =
-      price != null && !(specPatch.year && String(price) === String(specPatch.year))
+    const priceToApply = negotiable
+      ? 0
+      : price != null && !(specPatch.year && String(price) === String(specPatch.year))
         ? price
         : null;
     const descEdit = applyNaturalLanguageDescriptionEdits(
@@ -755,10 +760,12 @@ async function runVautoAgentInner(
     );
     const hasDescEdit = descEdit.removed.length > 0;
 
-    if (priceToApply != null || hasSpecs || hasDescEdit) {
+    if (priceToApply != null || negotiable || hasSpecs || hasDescEdit) {
+      const negoPatch = negotiable ? negotiablePricePatch() : null;
       const mergedAttrs = {
         ...(listingDraft.attributes ?? {}),
         ...specPatch,
+        ...(negoPatch?.attributes ?? {}),
       };
       delete mergedAttrs.awaitingSpecs;
       let nextDescription = hasSpecs
@@ -784,6 +791,9 @@ async function runVautoAgentInner(
           title: nextTitle || listingDraft.title,
           description: nextDescription,
           attributes: mergedAttrs,
+          ...(negoPatch
+            ? { priceLabel: negoPatch.priceLabel }
+            : {}),
         },
         {
           price: priceToApply ?? listingDraft.price,
@@ -805,9 +815,11 @@ async function runVautoAgentInner(
         ...descEdit.removed.map((r) => `−${r}`),
       ].filter(Boolean);
       const intro =
-        hasSpecs || hasDescEdit
-          ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
-          : "Puiku — atnaujinau kainą!";
+        negotiable
+          ? "Supratau — kaina sutartinė."
+          : hasSpecs || hasDescEdit
+            ? `Supratau — atnaujinau juodraštį${bits.length ? ` (${bits.join(", ")})` : ""}.`
+            : "Puiku — atnaujinau kainą!";
       return {
         ok: true,
         reply: `${intro} ${buildDraftReadyChatReply(nextDraft)}`,

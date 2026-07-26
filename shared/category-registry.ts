@@ -46,6 +46,112 @@ export function isListingCategoryId(value: unknown): value is RegistryListingCat
   );
 }
 
+const CATEGORY_ALIASES: Record<string, RegistryListingCategory> = {
+  automobiliai: "vehicles",
+  auto: "vehicles",
+  cars: "vehicles",
+  car: "vehicles",
+  transportas: "transport",
+  moto: "transport",
+  motociklai: "transport",
+  priekaba: "transport",
+  priekabos: "transport",
+  trailer: "transport",
+  trailers: "transport",
+  nt: "real_estate",
+  nekilnojamas: "real_estate",
+  nekilnojamas_turtas: "real_estate",
+  realestate: "real_estate",
+  fashion: "clothing",
+  apparel: "clothing",
+  mada: "clothing",
+  apranga: "clothing",
+  drabuziai: "clothing",
+  elektronika: "electronics",
+  phones: "electronics",
+  telefonai: "electronics",
+  appliances: "home",
+  buitis: "home",
+  namai: "home",
+  baldai: "home",
+  furniture: "home",
+  irankiai: "tools",
+  tools: "tools",
+  nuoma: "rental",
+  rental: "rental",
+  paslaugos: "services",
+  service: "services",
+  services: "services",
+  remontas: "services",
+  stogai: "services",
+  stogu_dengimas: "services",
+  roofing: "services",
+  darbas: "jobs",
+  jobs: "jobs",
+  job: "jobs",
+  employment: "jobs",
+  kita: "other",
+  other: "other",
+  general: "other",
+  miscellaneous: "other",
+  kitos_prekes: "other",
+  kitosprekes: "other",
+  // AI / vision non-standard labels
+  automobiliai_lt: "vehicles",
+  hot_tub: "rental",
+  hottub: "rental",
+  spa: "home",
+  jacuzzi: "home",
+  kubilas: "home",
+  baseinas: "home",
+  muzika: "electronics",
+  music: "electronics",
+  menas: "other",
+  art: "other",
+  sportas: "other",
+  laisvalaikis: "other",
+};
+
+/** Infer a safe DB category from free-text title/description when AI label is novel. */
+function inferCategoryFromContext(
+  title?: string,
+  description?: string
+): RegistryListingCategory | null {
+  const blob = `${title ?? ""} ${description ?? ""}`.toLowerCase();
+  if (!blob.trim()) return null;
+  if (/\b(stog|roof|remont|paslaug|meistr|montav|įrengim|irengim)\w*/i.test(blob)) {
+    return "services";
+  }
+  if (/\b(darbas|darbo\s*viet|ieškau\s*darbo|vadybinink|darbuotoj)\w*/i.test(blob)) {
+    return "jobs";
+  }
+  if (/\b(butas|namas|sklypas|nt\b|kambarys|nuomojamas\s*but)\w*/i.test(blob)) {
+    return "real_estate";
+  }
+  if (/\b(automobil|auto\b|bmw|audi|volvo|toyota|citroen|vin\b)\w*/i.test(blob)) {
+    return "vehicles";
+  }
+  if (/\b(priekab|trailer|motocikl|dvirač|dvirat|valtis)\w*/i.test(blob)) {
+    return "transport";
+  }
+  if (/\b(iphone|samsung|telefon|kompiuter|televiz|elektron|jbl|partybox)\w*/i.test(blob)) {
+    return "electronics";
+  }
+  if (/\b(suknel|kelnes|batai|striuk|mada|aprang|drabuž)\w*/i.test(blob)) {
+    return "clothing";
+  }
+  if (/\b(sof|bald|stal|spint|lov|čiuzin|kubil|basein|jacuzzi|hot\s*tub)\w*/i.test(blob)) {
+    return "home";
+  }
+  if (/\b(įrank|irank|grąžt|suktuv|pjūkl)\w*/i.test(blob)) {
+    return "tools";
+  }
+  if (/\b(nuom|rental|išnuom)\w*/i.test(blob)) {
+    return "rental";
+  }
+  return null;
+}
+
 export function normalizeListingCategoryId(
   value: unknown,
   fallback: RegistryListingCategory = "other"
@@ -54,29 +160,42 @@ export function normalizeListingCategoryId(
   const raw = String(value ?? "")
     .trim()
     .toLowerCase()
-    .replace(/\s+/g, "_");
-  const aliases: Record<string, RegistryListingCategory> = {
-    automobiliai: "vehicles",
-    auto: "vehicles",
-    cars: "vehicles",
-    transportas: "transport",
-    nt: "real_estate",
-    nekilnojamas: "real_estate",
-    fashion: "clothing",
-    apparel: "clothing",
-    mada: "clothing",
-    apranga: "clothing",
-    elektronika: "electronics",
-    appliances: "home",
-    buitis: "home",
-    irankiai: "tools",
-    nuoma: "rental",
-    paslaugos: "services",
-    darbas: "jobs",
-    jobs: "jobs",
-  };
+    .replace(/[^a-z0-9ąčęėįšųūž_\s-]/gi, "")
+    .replace(/[\s-]+/g, "_")
+    .replace(/_+/g, "_")
+    .replace(/^_|_$/g, "");
+  if (!raw) return fallback;
   if (isListingCategoryId(raw)) return raw;
-  return aliases[raw] ?? fallback;
+  if (CATEGORY_ALIASES[raw]) return CATEGORY_ALIASES[raw];
+  // Loose contains match against alias keys / labels.
+  for (const [alias, cat] of Object.entries(CATEGORY_ALIASES)) {
+    if (raw.includes(alias) || alias.includes(raw)) return cat;
+  }
+  return fallback;
+}
+
+/**
+ * Coerce ANY AI/vision category string into a valid DB slug.
+ * Never returns an unmapped raw label — always a LISTING_CATEGORY_IDS value.
+ */
+export function coerceListingCategoryForDb(
+  value: unknown,
+  context?: { title?: string; description?: string; fallback?: RegistryListingCategory }
+): RegistryListingCategory {
+  const fallback = context?.fallback ?? "other";
+  if (isListingCategoryId(value)) return value;
+  const normalized = normalizeListingCategoryId(value, fallback);
+  // If AI sent a novel label that only fell through to default, try context.
+  const raw = String(value ?? "").trim();
+  if (
+    raw &&
+    !isListingCategoryId(raw.toLowerCase()) &&
+    normalized === fallback
+  ) {
+    const inferred = inferCategoryFromContext(context?.title, context?.description);
+    if (inferred) return inferred;
+  }
+  return normalized;
 }
 
 export function isVehicleFamilyCategory(category: unknown): boolean {

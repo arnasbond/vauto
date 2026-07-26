@@ -252,7 +252,7 @@ export function resolvePrePublishGatewayResponse(input: {
     imageUrl: input.imageUrl,
   });
 
-  if (card && (draft?.price ?? 0) > 0) {
+  if (card) {
     return {
       reply: PRE_PUBLISH_CARD_INTRO,
       prePublishCard: card,

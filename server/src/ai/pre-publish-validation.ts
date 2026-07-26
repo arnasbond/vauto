@@ -3,6 +3,11 @@ import {
   hardFilterPublicGalleryUrls,
   parseDocumentUrlsFromAttributes,
 } from "./listing-gallery-roles.js";
+import {
+  draftHasSatisfiedPrice,
+  NEGOTIABLE_PRICE_LABEL,
+} from "../shared/negotiable-price.js";
+import { coerceListingCategoryForDb } from "../shared/category-registry.js";
 
 export {
   isPublishConfirmationPhrase,
@@ -71,6 +76,7 @@ export function evaluateServerPrePublishReadiness(input: {
   listingDraft?: {
     location?: string;
     price?: number;
+    priceLabel?: string;
     attributes?: Record<string, string>;
   };
   pendingImageUrls?: string[];
@@ -107,7 +113,11 @@ export function evaluateServerPrePublishReadiness(input: {
   const missingPhoto = !hasPhoto;
   const missingPhone = !isValidListingPhone(resolvedPhone);
   const missingCity = !resolvedCity || isPlaceholderCity(resolvedCity);
-  const missingPrice = (input.listingDraft?.price ?? 0) <= 0;
+  const missingPrice = !draftHasSatisfiedPrice({
+    price: input.listingDraft?.price,
+    priceLabel: input.listingDraft?.priceLabel,
+    attributes: input.listingDraft?.attributes,
+  });
 
   // Photos optional for PrePublish preview (text-first); publish still enforces photo client-side.
   const ok =
@@ -167,6 +177,7 @@ export function buildServerPrePublishCardPayload(input: {
     title?: string;
     description?: string;
     price?: number;
+    priceLabel?: string;
     location?: string;
     category?: string;
     attributes?: Record<string, string>;
@@ -182,7 +193,12 @@ export function buildServerPrePublishCardPayload(input: {
   if (!draft) return null;
   const title = draft.title?.trim() || "Naujas skelbimas";
   const price = draft.price ?? 0;
-  if (price <= 0) return null;
+  const priceOk = draftHasSatisfiedPrice({
+    price,
+    priceLabel: draft.priceLabel,
+    attributes: draft.attributes,
+  });
+  if (!priceOk) return null;
   const documentUrls = parseDocumentUrlsFromAttributes(draft.attributes);
   // Prefer public ordered gallery; only fall back to pending when gallery is empty.
   const gallerySource =
@@ -200,14 +216,21 @@ export function buildServerPrePublishCardPayload(input: {
     draft.attributes
   ).slice(0, 6);
   const imageUrl = imageUrls[0] ?? null;
+  const priceLabel =
+    draft.priceLabel?.trim() ||
+    (price <= 0 ? NEGOTIABLE_PRICE_LABEL : undefined);
   return {
     title,
     description: draft.description?.trim() || "",
     price,
+    ...(priceLabel ? { priceLabel } : {}),
     location: input.resolvedCity.trim() || draft.location?.trim() || "",
     phone: input.resolvedPhone?.trim() || undefined,
     imageUrl,
     ...(imageUrls.length ? { imageUrls } : {}),
-    category: draft.category,
+    category: coerceListingCategoryForDb(draft.category, {
+      title: draft.title,
+      description: draft.description,
+    }),
   };
 }

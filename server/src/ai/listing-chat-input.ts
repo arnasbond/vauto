@@ -4,6 +4,8 @@ import {
   hardFilterPublicGalleryUrls,
   parseDocumentUrlsFromAttributes,
 } from "./listing-gallery-roles.js";
+import { isNegotiablePriceChatInput } from "../shared/negotiable-price.js";
+import { coerceListingCategoryForDb } from "../shared/category-registry.js";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 const PRICE_EXPLICIT_RE =
@@ -19,6 +21,7 @@ export interface ListingDraftContext {
   title?: string;
   description?: string;
   price?: number;
+  priceLabel?: string;
   location?: string;
   category?: string;
   attributes?: Record<string, string>;
@@ -43,6 +46,7 @@ export function isListingConversationInput(
   const t = text.trim();
   if (!t) return false;
   if (isListingWorkflowCommand(t)) return false;
+  if (isNegotiablePriceChatInput(t)) return true;
   if (PRICE_ONLY_RE.test(t)) return true;
   if (parsePriceFromChatInput(t) != null) return true;
   if (DRAFT_EDIT_SIGNAL_RE.test(t)) return true;
@@ -163,6 +167,7 @@ export function normalizeListingDraftForAction(
   title: string;
   description?: string;
   price: number;
+  priceLabel?: string;
   location: string;
   contact: string;
   category: string;
@@ -179,14 +184,22 @@ export function normalizeListingDraftForAction(
     documentUrls,
     draft.attributes
   ).slice(0, 6);
+  const category = coerceListingCategoryForDb(draft.category, {
+    title: draft.title,
+    description: draft.description,
+    fallback: "other",
+  });
   return {
     title: draft.title?.trim() || "Naujas skelbimas",
     description: draft.description,
     price: opts?.price ?? draft.price ?? 0,
+    ...(draft.priceLabel?.trim()
+      ? { priceLabel: draft.priceLabel.trim() }
+      : {}),
     // Bind profile/user city when present; never invent Vilnius / Lietuva.
     location: draft.location?.trim() || opts?.userCity?.trim() || "",
     contact: opts?.contact?.trim() || "",
-    category: draft.category?.trim() || "other",
+    category,
     confidence: opts?.confidence ?? 0.9,
     attributes: draft.attributes,
     allowPastomatas:

@@ -27,6 +27,10 @@ import {
   type AwaitingContactField,
 } from "@/lib/listing-contact-parse";
 import { extractVehicleAttributesFromText, buildVehicleDescriptionFromAttributes } from "@/lib/vehicle-attribute-extract";
+import {
+  isNegotiablePriceChatInput,
+  negotiablePricePatch,
+} from "@vauto/shared/negotiable-price";
 
 const PRICE_ONLY_RE = /^\d{1,7}(?:[.,]\d{1,2})?(?:\s*(?:€|eur|eurų|euro))?$/i;
 /** Require currency OR price keyword — never match bare years like 2007. */
@@ -69,6 +73,7 @@ export function isListingConversationInput(
   if (isListingWorkflowCommand(t)) return false;
   if (textContainsListingContactSignals(t)) return true;
   if (isManualFillIntent(t)) return true;
+  if (isNegotiablePriceChatInput(t)) return true;
   if (parsePriceFromChatInput(t) != null) return true;
   if (PRICE_ONLY_RE.test(t)) return true;
   if (DRAFT_EDIT_SIGNAL_RE.test(t)) return true;
@@ -220,12 +225,40 @@ export function tryApplyListingChatInput(
         vehicleSpecs.mileage ||
         vehicleSpecs.powerKw
     );
-  const priceEarly = parsePriceFromChatInput(text);
+  const negotiable = isNegotiablePriceChatInput(text);
+  const priceEarly = negotiable ? 0 : parsePriceFromChatInput(text);
   const priceToApply =
-    priceEarly != null &&
-    !(vehicleSpecs.year && String(priceEarly) === String(vehicleSpecs.year))
-      ? priceEarly
-      : null;
+    negotiable
+      ? 0
+      : priceEarly != null &&
+          !(vehicleSpecs.year && String(priceEarly) === String(vehicleSpecs.year))
+        ? priceEarly
+        : null;
+
+  if (negotiable) {
+    const patch = negotiablePricePatch();
+    const nextAttrs = {
+      ...(aiDraft.attributes ?? {}),
+      ...patch.attributes,
+    };
+    updateAiDraft({
+      price: patch.price,
+      priceLabel: patch.priceLabel,
+      attributes: nextAttrs,
+    });
+    return buildListingDraftUpdateReply(
+      draftToPreviewInput({
+        ...aiDraft,
+        price: patch.price,
+        priceLabel: patch.priceLabel,
+        attributes: nextAttrs,
+      }),
+      {
+        intro:
+          "Supratau — kaina sutartinė. Galime peržiūrėti skelbimą PrePublish kortelėje.",
+      }
+    );
+  }
 
   if (hasVehicleSpecs) {
     const nextAttrs = {
@@ -311,9 +344,31 @@ export function tryApplyListingChatInput(
 
   const awaitingEdit = readAwaitingListingEditField();
   if (awaitingEdit === "price") {
+    if (isNegotiablePriceChatInput(text)) {
+      const patch = negotiablePricePatch();
+      const nextAttrs = {
+        ...(aiDraft.attributes ?? {}),
+        ...patch.attributes,
+      };
+      updateAiDraft({
+        price: patch.price,
+        priceLabel: patch.priceLabel,
+        attributes: nextAttrs,
+      });
+      setAwaitingListingEditField(null);
+      return buildListingDraftUpdateReply(
+        draftToPreviewInput({
+          ...aiDraft,
+          price: patch.price,
+          priceLabel: patch.priceLabel,
+          attributes: nextAttrs,
+        }),
+        { intro: "✅ Kaina sutartinė — juodraštis atnaujintas!" }
+      );
+    }
     const price = priceToApply ?? parsePriceFromChatInput(text);
     if (price != null) {
-      updateAiDraft({ price });
+      updateAiDraft({ price, priceLabel: undefined });
       setAwaitingListingEditField(null);
       return buildListingDraftUpdateReply(draftToPreviewInput({ ...aiDraft, price }), {
         intro: "✅ Kaina atnaujinta!",

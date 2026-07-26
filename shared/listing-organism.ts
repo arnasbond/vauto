@@ -173,10 +173,32 @@ export function isImmediatePublishCommand(text: string): boolean {
   return false;
 }
 
+/**
+ * „Tiesiog parodyk skelbimą“ / „Parodyk“ / „Atidaryk kortelę“ → open PrePublish preview.
+ * Must NOT reset the active draft session.
+ */
+export function isShowDraftPreviewIntent(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  if (!t || t.length > 100) return false;
+  if (/tiesiog\s+parodyk/i.test(t)) return true;
+  if (/parodyk\s+(skelbim|juodrašt|juodrast|kortel|prepublish|peržiūr|perziur)/i.test(t)) {
+    return true;
+  }
+  if (/^(parodyk|peržiūrėti|perziureti)\b/i.test(t) && t.split(/\s+/).length <= 4) {
+    return true;
+  }
+  if (/atidaryk\s+(skelbim|juodrašt|juodrast|kortel|prepublish|peržiūr)/i.test(t)) {
+    return true;
+  }
+  if (/^peržiūrėti\s+skelbim/i.test(t) || /^perziureti\s+skelbim/i.test(t)) return true;
+  return false;
+}
+
 /** „viskas / publikuok / publikuojam / PrePublish / nenoriu / tinka / keliam“ → lock PrePublish */
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
+  if (isShowDraftPreviewIntent(t)) return true;
   if (isImmediatePublishCommand(t)) return true;
   if (/^nenoriu(\b|$)/i.test(t)) return true;
   if (/^viskas\b/i.test(t)) return true;

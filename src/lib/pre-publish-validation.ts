@@ -9,6 +9,12 @@ import {
 import type { UserCoords } from "@/lib/geolocation";
 import type { AiExtractedListing, UserProfile } from "@/lib/types";
 import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
+import {
+  draftHasSatisfiedPrice,
+  NEGOTIABLE_PRICE_LABEL,
+  isNegotiableListingPrice,
+} from "@vauto/shared/negotiable-price";
+import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   dedupeListingImageUrls,
@@ -70,18 +76,26 @@ export function buildPrePublishCardPayload(
   const vat = computeVatBreakdown(draft.price ?? 0, vatCode);
   const vatLabelNet = vat.hasVat ? vat.labelNet : undefined;
   const vatLabelGross = vat.hasVat ? vat.labelGross : undefined;
+  const price = draft.price ?? 0;
+  const negotiable = isNegotiableListingPrice(draft);
   return {
     title: sanitizeListingTitle(draft.title),
     // Plain text for PrePublish textarea — no raw ** asterisks.
     description: toPlainListingDescription(draft.description),
-    price: draft.price ?? 0,
-    priceLabel: draft.priceLabel ?? vatLabelGross,
+    price,
+    priceLabel:
+      draft.priceLabel ??
+      (negotiable ? NEGOTIABLE_PRICE_LABEL : undefined) ??
+      vatLabelGross,
     location: readiness.resolvedCity,
     phone: readiness.resolvedPhone,
     imageUrl: imageUrls[0] ?? null,
     ...(imageUrls.length ? { imageUrls } : {}),
     ...(documentUrls.length ? { documentCount: documentUrls.length } : {}),
-    category: draft.category,
+    category: coerceListingCategoryForDb(draft.category, {
+      title: draft.title,
+      description: draft.description,
+    }),
     ...(vatLabelNet ? { vatLabelNet, vatLabelGross } : {}),
   };
 }
@@ -246,9 +260,11 @@ export function evaluatePrePublishReadiness(
   const missingPhone = !isValidListingPhone(resolvedPhone);
   const missingCity =
     !resolvedCity.trim() || isPlaceholderCity(resolvedCity);
-  const missingPrice =
-    !Number.isFinite(Number(syncedDraft?.price)) ||
-    Number(syncedDraft?.price) <= 0;
+  const missingPrice = !draftHasSatisfiedPrice({
+    price: syncedDraft?.price,
+    priceLabel: syncedDraft?.priceLabel,
+    attributes: syncedDraft?.attributes as Record<string, unknown> | undefined,
+  });
 
   // Photos are optional for PrePublish *preview* (text-first). Actual publish still
   // enforces a photo in SellerFlowContext.publishListing.

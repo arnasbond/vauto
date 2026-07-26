@@ -25,6 +25,7 @@ export {
   isImmediatePublishCommand,
   isPrepareListingIntent,
   isPublishReadyIntent,
+  isShowDraftPreviewIntent,
   isVisionObjectSellChip,
   listingFlowAllowsPhotoUpload,
   nounFromVisionObjectSellChip,
@@ -51,7 +52,7 @@ export function buildConversationalMissingPrompt(input: {
     return "Norint publikuoti, reikia prisijungti — prisijunkite ir tęsime kaip asmeninis brokeris.";
   }
   if (input.missingPrice) {
-    return "Kokią kainą norėtumėte matyti skelbime — greitam pardavimui ar maksimaliai vertei? Parašykite sumą eurais.";
+    return "Kokią kainą norėtumėte matyti skelbime? Parašykite sumą eurais arba „Kainos sutartinės“.";
   }
   if (input.missingPhone) {
     return PROFILE_PHONE_REQUIRED;

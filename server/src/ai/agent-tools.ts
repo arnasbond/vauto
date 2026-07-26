@@ -1428,29 +1428,50 @@ export async function executeAgentTool(
 
     case "create_listing_draft": {
       const title = String(args.title ?? "Skelbimas").trim();
-      const category = String(args.category ?? "other");
       const description = args.description ? String(args.description) : "";
-      const priceArg =
-        args.price != null && Number(args.price) > 0 ? Number(args.price) : 0;
+      const { coerceListingCategoryForDb } = await import(
+        "../shared/category-registry.js"
+      );
+      const category = coerceListingCategoryForDb(args.category ?? "other", {
+        title,
+        description,
+        fallback: "other",
+      });
+      const { isNegotiablePriceChatInput, negotiablePricePatch } = await import(
+        "../shared/negotiable-price.js"
+      );
+      const priceRaw = args.price != null ? String(args.price) : "";
+      const negotiable =
+        isNegotiablePriceChatInput(priceRaw) ||
+        isNegotiablePriceChatInput(String(args.priceLabel ?? ""));
+      const negoPatch = negotiable ? negotiablePricePatch() : null;
+      const priceArg = negoPatch
+        ? 0
+        : args.price != null && Number(args.price) > 0
+          ? Number(args.price)
+          : 0;
       const locationArg = args.city
         ? String(args.city).trim()
         : args.location
           ? String(args.location).trim()
           : "";
-      const attributes =
-        args.attributes && typeof args.attributes === "object"
+      const attributes = {
+        ...(args.attributes && typeof args.attributes === "object"
           ? Object.fromEntries(
               Object.entries(args.attributes as Record<string, unknown>).map(([k, v]) => [
                 k,
                 String(v),
               ])
             )
-          : {};
+          : {}),
+        ...(negoPatch?.attributes ?? {}),
+      };
 
       const draft = {
         title,
         description,
         price: priceArg,
+        ...(negoPatch ? { priceLabel: negoPatch.priceLabel } : {}),
         location: locationArg || ctx.userCity?.trim() || "",
         contact: ctx.contact,
         category,
@@ -1506,7 +1527,14 @@ export async function executeAgentTool(
         : userCityArg
           ? resolveAgentDefaultCity(userCityArg)
           : "";
-      const category = String(args.category ?? "other");
+      const { coerceListingCategoryForDb } = await import(
+        "../shared/category-registry.js"
+      );
+      const category = coerceListingCategoryForDb(args.category ?? "other", {
+        title,
+        description,
+        fallback: "other",
+      });
       const imageUrls = Array.isArray(args.imageUrls)
         ? args.imageUrls.map(String)
         : [];
@@ -1522,7 +1550,20 @@ export async function executeAgentTool(
       if (!normalizedCity?.trim() || normalizedCity.toLowerCase() === "miestas") {
         missingFields.push("city");
       }
-      if (price <= 0) missingFields.push("price");
+      {
+        const { draftHasSatisfiedPrice } = await import(
+          "../shared/negotiable-price.js"
+        );
+        if (
+          !draftHasSatisfiedPrice({
+            price,
+            priceLabel: args.priceLabel ? String(args.priceLabel) : undefined,
+            attributes: enriched.attributes,
+          })
+        ) {
+          missingFields.push("price");
+        }
+      }
       const attributes = enriched.attributes;
       const sellerType = String(attributes.sellerType ?? "").trim();
       if (!sellerType) missingFields.push("sellerType");

@@ -153,6 +153,10 @@ import {
   parsePriceFromChatInput,
 } from "@/lib/agent-listing-chat-input";
 import {
+  isNegotiablePriceChatInput,
+  negotiablePricePatch,
+} from "@vauto/shared/negotiable-price";
+import {
   buildProfileListingContact,
   hasProfileListingContact,
   injectProfileContactsForPublish,
@@ -173,6 +177,8 @@ import {
   dispatchListingFlowTurn,
   inferListingFlowState,
   isImmediatePublishCommand,
+  isPublishReadyIntent,
+  isShowDraftPreviewIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   POST_VISION_PUBLISH_CHIPS,
@@ -1389,7 +1395,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         return { ok: true, reply, actions: { type: "none" } };
       }
 
-      if (resolveBrowseAllIntent(trimmed)) {
+      // Active seller draft: „Parodyk / Tiesiog parodyk skelbimą“ → PrePublish, never browse-all reset.
+      if (
+        aiDraft &&
+        (isShowDraftPreviewIntent(trimmed) || isPublishReadyIntent(trimmed))
+      ) {
+        // Fall through to show_confirmation / PrePublish paths below.
+      } else if (resolveBrowseAllIntent(trimmed)) {
         dispatchBrowseAllMarketplaceState();
         const activeCount = listings.filter(
           (l) => !l.banned && l.price > 0 && l.status !== "sold"
@@ -1589,9 +1601,27 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           .map((u) => String(u ?? "").trim())
           .filter(Boolean)),
       ]);
-      const priceFromTurn = trimmed ? parsePriceFromChatInput(trimmed) : null;
+      const negotiableFromTurn = trimmed
+        ? isNegotiablePriceChatInput(trimmed)
+        : false;
+      const priceFromTurn = negotiableFromTurn
+        ? 0
+        : trimmed
+          ? parsePriceFromChatInput(trimmed)
+          : null;
       if (priceFromTurn != null && priceFromTurn > 0) {
         sessionLockedPriceRef.current = priceFromTurn;
+      }
+      if (negotiableFromTurn && aiDraft) {
+        const nego = negotiablePricePatch();
+        updateAiDraft({
+          price: nego.price,
+          priceLabel: nego.priceLabel,
+          attributes: {
+            ...(aiDraft.attributes ?? {}),
+            ...nego.attributes,
+          },
+        });
       }
       const priceFromExistingDraft =
         aiDraft && !(aiDraft.price > 0)
