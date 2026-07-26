@@ -17,7 +17,7 @@ async function waitForSellerAgentEntry(page: Page) {
     )
     .catch(() => undefined);
 
-  const photoBtn = page.getByRole("button", { name: /Įkelti nuotraukas/i }).first();
+  const photoBtn = page.getByRole("button", { name: /Pridėti failą/i }).first();
   const opening = page.getByRole("heading", {
     name: /Atidarome VAUTO asistentą|Atidarome AI asistentą/i,
   });
@@ -34,7 +34,7 @@ test.describe("AI conductor flows", () => {
     await page.goto("/add/");
     await waitForSellerAgentEntry(page);
     await expect(
-      page.getByRole("button", { name: /Įkelti nuotraukas/i }).first()
+      page.getByRole("button", { name: /Pridėti failą/i }).first()
     ).toBeVisible({ timeout: 10_000 });
     // Barcode chip is optional on the lean 4-step seller greeting.
     const barcodeBtn = page.getByRole("button", { name: /Skenuoti brūkšninį/i }).first();

@@ -224,7 +224,8 @@ async function openSeededSellerShell(page: Page) {
       .catch(() => undefined);
   }
 
-  const photoBtn = page.getByRole("button", { name: /Įkelti nuotraukas/i }).first();
+  // Composer + control (AiCommandBar) — formerly labeled "Įkelti nuotraukas".
+  const photoBtn = page.getByRole("button", { name: /Pridėti failą/i }).first();
   if (!(await photoBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
     // Prefer aria-label from BottomNav, fall back to header / visible label.
     const addBtn = page
@@ -255,11 +256,15 @@ async function attachPhotos(page: Page) {
     await consentEarly.click();
   }
 
-  const photoBtn = page.getByRole("button", { name: /Įkelti nuotraukas/i }).first();
+  const photoBtn = page.getByRole("button", { name: /Pridėti failą/i }).first();
   await expect(photoBtn).toBeEnabled({ timeout: 15_000 });
 
   const chooserPromise = page.waitForEvent("filechooser", { timeout: 60_000 });
   await photoBtn.click();
+  // PhotoSourceSheet: gallery path opens the OS file chooser (not camera).
+  const galleryBtn = page.getByRole("button", { name: /Failai ir galerija/i });
+  await expect(galleryBtn).toBeVisible({ timeout: 10_000 });
+  await galleryBtn.click();
   const consent = page.getByRole("button", { name: /^Sutinku$/i });
   if (await consent.isVisible({ timeout: 4_000 }).catch(() => false)) {
     await consent.click();
@@ -267,11 +272,19 @@ async function attachPhotos(page: Page) {
   const chooser = await chooserPromise;
   await chooser.setFiles(PHOTO_FILES.slice(0, 3));
 
+  // Composer stages attachments — Vision OCR starts only after Siųsti.
+  await expect(
+    page.getByLabel(/Pasirinkti priedai/i).or(page.getByAltText(/Nuotrauka/i)).first()
+  ).toBeVisible({ timeout: 20_000 });
+  const sendBtn = page.getByRole("button", { name: /^Siųsti$/i }).first();
+  await expect(sendBtn).toBeEnabled({ timeout: 15_000 });
+  await sendBtn.click();
+
   // skipUserBubble photo send may jump straight to OCR / sales copy (no "Nuotraukos įkeltos").
   await expect(
     agent
       .getByText(
-        /Nuotraukos įkeltos|Nuotrauka 1|Prisegtos nuotraukos|Citro[eë]n|Specifikacijos|Štai tavo aprašymas|LJP\s*935|Pagrindiniai duomenys|Grand C4/i
+        /Nuotraukos įkeltos|Nuotrauka 1|Prisegtos nuotraukos|Citro[eë]n|Specifikacijos|Štai tavo aprašymas|LJP\s*935|Pagrindiniai duomenys|Grand C4|analizuoju|Analizuoju/i
       )
       .first()
   ).toBeVisible({ timeout: 240_000 });
