@@ -1,6 +1,10 @@
 import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
 import { resolveListingCity, sanitizeListingCity } from "../lib/city-resolve.js";
-import { stripFullVehicleFieldsFromPartsDraft } from "./parts-isolation.js";
+import {
+  stripFashionAttrsUnlessClothing,
+  stripFullVehicleFieldsFromPartsDraft,
+} from "./parts-isolation.js";
+import { scrubSalesCopyMarkdown } from "../shared/ensure-rich-sales-copy.js";
 import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
@@ -482,6 +486,8 @@ Rašyk turtingą, engaginantį, gerai struktūruotą pardavimo tekstą NATŪRALI
 Title: švarus ir tikslus (brand + model + tipas) — be triukšmo ir be perteklinio emoji.
 DRAUDŽIAMA description pradžioje rašyti etiketes „Pavadinimas:“ / „Title:“ — pradėk tiesiai nuo pardavimo teksto.
 PRIVALOMA: description KURK TIESIOGIAI iš žemiau esančio Pass 1 JSON + OCR faktų — be bendrybių ir be išgalvotų specs.
+DRAUDŽIAMA tušti šablonai („savo .“, „skirti .“) — jei kintamojo nėra, praleisk sakinį.
+Miestas (Kaune…) — TIK jei city JSON neužpildytas tuščias. Ratlankiai: R17, ne S/M/L.
 ${packagingBlock}
 Jei vėlesnėse nuotraukose atsiranda NAUJŲ faktų — jie PRIVALO papildyti description (ne perrašyti tuščiai).
 Pozityvus framing: rašyk ką PASAKYTI (hook, privalumai, būklė, specs, CTA).
@@ -987,10 +993,18 @@ export async function parseListingImagesForAgent(params: {
     throw err;
   }
   const listingRaw = toListingPayload(raw, city, contact, combinedText);
-  const listing = stripFullVehicleFieldsFromPartsDraft(
-    enrichVehicleVisionDraft(listingRaw) as typeof listingRaw,
-    combinedText
+  let listing = stripFashionAttrsUnlessClothing(
+    stripFullVehicleFieldsFromPartsDraft(
+      enrichVehicleVisionDraft(listingRaw) as typeof listingRaw,
+      combinedText
+    )
   );
+  if (listing.description) {
+    listing = {
+      ...listing,
+      description: scrubSalesCopyMarkdown(listing.description),
+    };
+  }
   // Anti-hallucination: never keep a Vision-invented price unless user/hint provided it.
   const userMentionedPrice =
     /\b\d{2,6}\s*(€|eur|eurų|eurai)\b/i.test(combinedText) ||

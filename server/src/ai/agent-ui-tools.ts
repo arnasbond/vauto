@@ -117,12 +117,18 @@ function normKey(s: string): string {
 }
 
 export function resolveSubcategoryAttributes(
-  subcategory?: string
+  subcategory?: string,
+  category?: string
 ): Record<string, string> | undefined {
   if (!subcategory?.trim()) return undefined;
+  // HARD: never invent fashion taxonomy outside clothing / wardrobe.
+  const cat = String(category ?? "").toLowerCase();
+  if (cat && cat !== "clothing" && cat !== "fashion") return undefined;
   const key = normKey(subcategory);
   const hit = SUBCATEGORY_ALIASES[key];
   if (!hit) {
+    // Unknown subcategory — only attach fashion attrs when clothing is explicit.
+    if (cat !== "clothing" && cat !== "fashion") return undefined;
     return {
       clothingType: subcategory.trim(),
       fashionCategory: subcategory.trim(),
@@ -187,10 +193,15 @@ export function normalizeUpdateUIFiltersArgs(
       )
     );
   }
-  const subAttrs = resolveSubcategoryAttributes(subcategory);
+  const subAttrs = resolveSubcategoryAttributes(subcategory, categoryResolved);
   if (subAttrs) Object.assign(categoryAttributes, subAttrs);
-  if (nlHints.categoryAttributes) Object.assign(categoryAttributes, nlHints.categoryAttributes);
-  if (size) categoryAttributes.size = size;
+  if (nlHints.categoryAttributes && categoryResolved === "clothing") {
+    Object.assign(categoryAttributes, nlHints.categoryAttributes);
+  }
+  // Apparel size only for clothing — never S/M/L onto auto/parts.
+  if (size && categoryResolved === "clothing") {
+    categoryAttributes.size = size;
+  }
 
   const refinements: string[] = [];
   if (conditionRaw === "new" || conditionRaw === "naudota" || conditionRaw === "used") {

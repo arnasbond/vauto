@@ -30,4 +30,10 @@ STRUKTŪRA (Markdown):
 
 TITLE: engaginantis marketplace pavadinimas su brand/model iš OCR (pvz. „PEIKO kišeninis vertėjas T8“).
 Rašyk apie pačią prekę — be transporto / auto leksikos.
+
+TUŠTI KINTAMIEJI (PRIVALOMA):
+- DRAUDŽIAMA rašyti neužpildytus šablonus: „Atnaujinkite savo .“, „skirti .“, „tinka .“.
+- Jei trūksta daiktavardžio / miesto — praleisk visą sakinį.
+- Miestą (Kaune / Vilniuje) rašyk TIK jei city laukas JSON yra neužpildytas tuščias.
+- Ratlankiai / dalys: dydis = R17 / colių — NIEKADA drabužių S/M/L/XL.
 `;

@@ -16,7 +16,7 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
   "socialPublish",
   "socialPublishFacebook",
   "socialPublishInstagram",
-  "fashionCategory",
+  // fashionCategory is clothing-only — never survive category switches to auto/parts.
   "skelbiuCategory",
 ]);
 

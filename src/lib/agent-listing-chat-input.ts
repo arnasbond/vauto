@@ -120,13 +120,19 @@ export function applyNaturalLanguageDescriptionEdits(
   return { description: next, removed };
 }
 
-/** Normalize thin spaces / thousand separators so „2 250 €“ and „2.250“ parse reliably. */
+/**
+ * Normalize thin spaces / thousand separators so „2 250 €“ and „2.250“ parse reliably.
+ * HARD: never glue rim/model digits to price („R17 150€“ must stay 150, not 17150).
+ */
 function normalizePriceChatText(text: string): string {
-  return text
+  let t = text
     .trim()
     .replace(/[\u00a0\u202f]/g, " ")
-    .replace(/(\d)[.,\s](\d{3})\b/g, "$1$2")
-    .replace(/\s+/g, " ");
+    .replace(/\b([Rr]\s*\d{2})\b/g, " $1 ")
+    .replace(/\b(\d{2})\s*col(?:i[uų]|ių|iu)?\b/gi, " $1colių ");
+  t = t.replace(/(\d)[.,](\d{3})\b/g, "$1$2");
+  t = t.replace(/(^|[^\dA-Za-z])(\d{1,3})\s(\d{3})\b/g, "$1$2$3");
+  return t.replace(/\s+/g, " ").trim();
 }
 
 function parseFinitePrice(raw: string): number | null {

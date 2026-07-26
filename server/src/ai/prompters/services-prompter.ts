@@ -25,6 +25,6 @@ STRUKTŪRA (Markdown):
 4) **Kaina** — jei žinoma
 5) **Kaip užsisakyti** — CTA
 
-TITLE: aiškus paslaugos pavadinimas (pvz. „Butų remonto paslaugos Kaune“).
+TITLE: aiškus paslaugos pavadinimas (pvz. „Butų remonto paslaugos“ — miestą pridėk TIK jei žinomas).
 Nuotraukos neprivalomos.
 `;

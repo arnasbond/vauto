@@ -10,6 +10,7 @@ import {
   hasChaoticSellIntent,
   normalizeChaoticUserText,
 } from "../shared/chaotic-input.js";
+import { parsePriceFromChatInput } from "./listing-chat-input.js";
 
 const SELL_PATTERNS = [
   /\bparduodu\b/i,
@@ -289,20 +290,11 @@ export interface SellDraftFallback {
   };
 }
 
-/** Pull a EUR price from free-text sell notes (e.g. "už 4500", "4500€"). */
+/** Pull a EUR price from free-text sell notes (e.g. "už 4500", "4500€", "r17 150€"). */
 export function extractPriceFromSellText(text: string): number {
-  const t = String(text ?? "");
-  const patterns = [
-    /(?:uz|už|kaina|price)\s*[:=]?\s*(\d[\d\s]{0,8})\s*(?:€|eur)?/i,
-    /\b(\d[\d\s]{2,8})\s*(?:€|eur)\b/i,
-  ];
-  for (const re of patterns) {
-    const m = re.exec(t);
-    if (!m?.[1]) continue;
-    const n = Number(m[1].replace(/\s+/g, ""));
-    if (Number.isFinite(n) && n > 0 && n < 10_000_000) return Math.round(n);
-  }
-  return 0;
+  // Hardened parser — rim sizes (R17) must never concatenate into price.
+  const n = parsePriceFromChatInput(String(text ?? ""));
+  return n != null && n > 0 ? n : 0;
 }
 
 /**

@@ -149,8 +149,10 @@ function normalizeAttrValue(value: unknown): string | null {
 }
 
 function isFashionOnlyForCategory(key: string, category?: ListingCategory): boolean {
-  if (!category || category === "clothing") return false;
-  return FASHION_ONLY_KEYS.has(key);
+  if (!FASHION_ONLY_KEYS.has(key)) return false;
+  // HARD: hide fashion keys unless category is explicitly clothing
+  // (undefined category must NOT leak S/M/L/XL onto auto/parts).
+  return category !== "clothing";
 }
 
 /** Schema-less: only non-empty public key→value pairs from the attribute map. */
@@ -235,16 +237,15 @@ export function getAiListingTagChips(
       if (isFashionOnlyForCategory(key, category)) return;
       t = val || key;
     }
-    if (category && category !== "clothing" && FASHION_TAG_RE.test(t)) return;
+    // Fashion sizes / #Apranga never appear outside clothing (incl. undefined category).
+    if (category !== "clothing" && FASHION_TAG_RE.test(t)) return;
+    if (category !== "clothing" && /^(xxs|xs|s|m|l|xl|xxl)$/i.test(t)) return;
     // Never show electronics tags on automotive listings.
     if (
       category &&
       (category === "vehicles" || category === "transport") &&
       /^(elektronika|electronics|telefonas|mobil[uū]s)$/i.test(t)
     ) {
-      return;
-    }
-    if (/^(xxs|xs|s|m|l|xl|xxl)$/i.test(t) && category && category !== "clothing") {
       return;
     }
     const norm = t.toLowerCase();

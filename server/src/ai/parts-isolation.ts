@@ -8,6 +8,17 @@ const PARTS_RE =
 const FULL_CAR_LEAK_RE =
   /\b(citro[eë]n|grand\s+c4|c4\s+picasso|odinis\s+salonas|pavarų\s+dėž|pavarų\s+dez|vienatūris|mpv)\b/i;
 
+/** Fashion taxonomy — MUST NOT appear on auto / parts / wheels. */
+export const FASHION_ONLY_ATTR_KEYS = [
+  "fashionCategory",
+  "fashionSubcategory",
+  "clothingType",
+  "preferredSizes",
+  "size",
+  "sizes",
+  "colorSize",
+] as const;
+
 /** Cabin / powertrain fields that MUST NOT appear on wheels/tires/parts. */
 export const FULL_VEHICLE_ONLY_ATTR_KEYS = [
   "interiorCondition",
@@ -68,6 +79,33 @@ export function looksLikeLeakedFullCarCopy(text: string): boolean {
   return FULL_CAR_LEAK_RE.test(String(text ?? ""));
 }
 
+/** Strip apparel taxonomy from any non-clothing draft (auto / parts / electronics…). */
+export function stripFashionAttrsUnlessClothing<
+  T extends {
+    category?: string;
+    attributes?: Record<string, unknown>;
+  },
+>(draft: T): T {
+  const cat = String(draft.category ?? "").toLowerCase();
+  if (cat === "clothing" || cat === "fashion" || cat === "apranga") {
+    return draft;
+  }
+  const attrs = { ...(draft.attributes ?? {}) };
+  let changed = false;
+  for (const key of FASHION_ONLY_ATTR_KEYS) {
+    if (key in attrs) {
+      delete attrs[key];
+      changed = true;
+    }
+  }
+  if (/^(xxs|xs|s|m|l|xl|xxl)$/i.test(String(attrs.size ?? ""))) {
+    delete attrs.size;
+    changed = true;
+  }
+  if (!changed) return draft;
+  return { ...draft, attributes: attrs as T["attributes"] };
+}
+
 /**
  * Strip full-vehicle attributes / leaked car copy from a parts/wheels draft.
  * No-op when context is a real full vehicle.
@@ -91,6 +129,13 @@ export function stripFullVehicleFieldsFromPartsDraft<
   const attrs = { ...(draft.attributes ?? {}) };
   for (const key of FULL_VEHICLE_ONLY_ATTR_KEYS) {
     delete attrs[key];
+  }
+  for (const key of FASHION_ONLY_ATTR_KEYS) {
+    delete attrs[key];
+  }
+  // EstimatedSize S/M/L for Omniva is OK; bare apparel size tags are not.
+  if (/^(xxs|xs|s|m|l|xl|xxl)$/i.test(String(attrs.size ?? ""))) {
+    delete attrs.size;
   }
 
   // Drop hallucinated full-car make/model unless user named that brand for parts.

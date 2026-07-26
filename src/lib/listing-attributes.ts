@@ -117,12 +117,9 @@ function toPublicTagLabel(
   const cleaned = t.replace(/^#{1,6}\s*/, "").trim();
   if (!cleaned) return null;
   if (/^#{1,6}$/.test(cleaned)) return null;
-  // Bare clothing sizes without context look like artifacts on non-fashion.
-  if (
-    category &&
-    category !== "clothing" &&
-    /^(xxs|xs|s|m|l|xl|xxl|\d{2,3})$/i.test(cleaned)
-  ) {
+  // Bare clothing sizes — hide unless category is explicitly clothing
+  // (undefined / auto / parts must never show S/M/L/XL as apparel tags).
+  if (category !== "clothing" && /^(xxs|xs|s|m|l|xl|xxl)$/i.test(cleaned)) {
     return null;
   }
   return cleaned;

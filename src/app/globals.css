@@ -2829,7 +2829,11 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   display: inline-flex;
 }
 
-/* Full PrePublish card → fold → paper-plane fly (publish UX). */
+/*
+ * Full PrePublish card → fold → fly (publish UX).
+ * NO clip-path morph — mobile WebKit leaves diagonal plane ghosts over chat.
+ * Transform + opacity only; hard-hide at end.
+ */
 @keyframes cardFoldToPlane {
   0% {
     transform: perspective(900px) translate3d(0, 0, 0) rotateX(0deg) rotateY(0deg) rotateZ(0deg)
@@ -2837,42 +2841,31 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
     opacity: 1;
     border-radius: 1rem;
     filter: drop-shadow(0 22px 48px rgba(8, 18, 40, 0.32));
-    clip-path: inset(0% 0% 0% 0% round 1rem);
   }
-  18% {
-    transform: perspective(900px) translate3d(0, -1%, 0) rotateX(8deg) rotateY(-12deg) scale(0.96);
+  22% {
+    transform: perspective(900px) translate3d(0, -2%, 0) rotateX(10deg) rotateY(-14deg) scale(0.94);
     opacity: 1;
-    border-radius: 0.9rem;
+    border-radius: 0.85rem;
   }
-  36% {
-    /* Visible 3D wing fold */
-    transform: perspective(900px) translate3d(2%, -4%, 0) rotateX(22deg) rotateY(-38deg)
-      rotateZ(-6deg) scale(0.72);
-    opacity: 0.98;
-    border-radius: 0.55rem;
-    clip-path: polygon(6% 48%, 50% 10%, 94% 48%, 62% 54%, 94% 90%, 50% 68%, 6% 90%, 38% 54%);
-  }
-  52% {
-    /* Morph into paper-plane silhouette */
-    transform: perspective(900px) translate3d(10%, -12%, 0) rotateX(34deg) rotateY(-52deg)
-      rotateZ(-10deg) scale(0.42);
-    opacity: 0.97;
-    border-radius: 0.2rem;
-    clip-path: polygon(8% 44%, 52% 6%, 96% 44%, 60% 50%, 96% 94%, 52% 62%, 8% 94%, 40% 50%);
-    filter: drop-shadow(0 28px 36px rgba(8, 18, 40, 0.38));
-  }
-  72% {
-    transform: perspective(900px) translate3d(28%, -32%, 0) rotateX(28deg) rotateY(-40deg)
-      rotateZ(-14deg) scale(0.22);
+  48% {
+    transform: perspective(900px) translate3d(8%, -14%, 0) rotateX(28deg) rotateY(-42deg)
+      rotateZ(-8deg) scale(0.48);
     opacity: 0.92;
-    clip-path: polygon(10% 40%, 55% 4%, 96% 40%, 62% 48%, 96% 96%, 55% 60%, 10% 96%, 38% 48%);
+    border-radius: 0.35rem;
+    filter: drop-shadow(0 24px 36px rgba(8, 18, 40, 0.34));
+  }
+  78% {
+    transform: perspective(900px) translate3d(36%, -42%, 0) rotateX(18deg) rotateY(-28deg)
+      rotateZ(-12deg) scale(0.18);
+    opacity: 0.45;
   }
   100% {
-    transform: perspective(900px) translate3d(78vw, -82vh, 0) rotateX(12deg) rotateY(-22deg)
-      rotateZ(-18deg) scale(0.08);
+    transform: perspective(900px) translate3d(78vw, -82vh, 0) rotateX(8deg) rotateY(-16deg)
+      rotateZ(-16deg) scale(0.06);
     opacity: 0;
-    clip-path: polygon(12% 38%, 58% 2%, 98% 38%, 64% 46%, 98% 98%, 58% 58%, 12% 98%, 36% 46%);
-    filter: drop-shadow(0 8px 16px rgba(8, 18, 40, 0.2));
+    visibility: hidden;
+    pointer-events: none;
+    filter: none;
   }
 }
 
@@ -2892,7 +2885,7 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   animation: prePublishCardEnter 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
   transform-origin: 50% 55%;
   transform-style: preserve-3d;
-  will-change: transform, opacity, clip-path, filter;
+  will-change: transform, opacity;
 }
 
 .pre-publish-modal.is-card-folding {
@@ -2904,6 +2897,13 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
   animation: cardFoldToPlane 1.2s cubic-bezier(0.2, 0.85, 0.25, 1) forwards;
   overflow: hidden;
   backface-visibility: hidden;
+  /* Prevent leftover compositor masks over chat after unmount. */
+  clip-path: none !important;
+  -webkit-clip-path: none !important;
+}
+
+.pre-publish-modal.is-card-folding .pre-publish-modal-panel.animate-card-fold-plane {
+  contain: paint;
 }
 
 @keyframes bottomNavSpintaPulse {

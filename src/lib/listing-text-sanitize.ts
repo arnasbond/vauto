@@ -107,6 +107,42 @@ export function sanitizeListingTitle(raw: string | undefined | null): string {
  * Preserve marketplace sales formatting: newlines, **bold**, and •/- bullets.
  * Strip conversational filler — never flatten rich Vision copy into one line.
  */
+/**
+ * Drop incomplete template slots („Atnaujinkite savo .“, „skirti .“)
+ * and invented locative cities (Kaune) unless grounded elsewhere.
+ */
+export function scrubEmptyTemplateSlots(
+  text: string,
+  opts?: { allowCityLeak?: boolean }
+): string {
+  let t = String(text ?? "");
+  if (!t.trim()) return "";
+  // Incomplete noun slots ending in bare period.
+  t = t.replace(
+    /\b(savo|skirti|skirta|skirtiems|tinka|skirtas|skirta|dėl|su|į|i)\s+\./gi,
+    ""
+  );
+  t = t.replace(/\b(atnaujinkite|papildykite|pasirinkite)\s+\w*\s*\./gi, (m) =>
+    /\.\s*$/.test(m.trim()) && /\s\.\s*$/.test(m) ? "" : m
+  );
+  // „Atnaujinkite savo . Šie…“ / „skirti .“
+  t = t.replace(/\b[\p{L}]{2,24}\s+\.\s*(?=[A-ZĄČĘĖĮŠŲŪŽ])/gu, "");
+  t = t.replace(/\s+\.\s+/g, " ");
+  t = t.replace(/\s+\.$/gm, "");
+  // Invented Kaune/Vilniuje locatives when not allowed.
+  if (!opts?.allowCityLeak) {
+    t = t.replace(
+      /\b(Kaune|Vilniuje|Klaipėdoje|Šiauliuose|Panevėžyje)\b/gi,
+      ""
+    );
+  }
+  return t
+    .replace(/[ \t]{2,}/g, " ")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/^\s*[•\-]\s*$/gm, "")
+    .trim();
+}
+
 export function sanitizeListingDescription(raw: string | undefined | null): string {
   let t = String(raw ?? "").trim();
   if (!t) return "";
@@ -117,6 +153,7 @@ export function sanitizeListingDescription(raw: string | undefined | null): stri
   for (const re of SYSTEM_PHRASE_PATTERNS) {
     t = t.replace(re, " ");
   }
+  t = scrubEmptyTemplateSlots(t);
   t = t
     .replace(/([^\n#])[ \t]*#{1,6}[ \t]+/g, "$1 ")
     .replace(/^[ \t]*#{1,6}[ \t]+/gm, "");
@@ -128,6 +165,8 @@ export function sanitizeListingDescription(raw: string | undefined | null): stri
       if (!trimmed) return true;
       if (isAgentClarificationText(trimmed)) return false;
       if (CONVERSATIONAL_FILLER_LINE_RE.test(trimmed)) return false;
+      // Drop lines that are only dangling punctuation / empty bullets after scrub.
+      if (/^[•\-\s.]+$/.test(trimmed)) return false;
       return true;
     })
     .join("\n");
