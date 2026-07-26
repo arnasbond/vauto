@@ -12,6 +12,7 @@ import {
 } from "@/lib/listing-publish-visibility";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
 import type { ListingCategory } from "@/lib/types";
+import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 
 export interface PrePublishListingCardProps {
   card: PrePublishCardPayload;
@@ -40,7 +41,9 @@ export function PrePublishListingCard({
     useState<PrePublishVisibilityId>("standard");
   const [descExpanded, setDescExpanded] = useState(false);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
+  const submitLockRef = useRef(false);
   const selected = getPrePublishVisibilityOption(visibilityId);
+  const photosOptional = listingCategoryAllowsPhotoless(card.category);
 
   const gallery = (card.imageUrls?.length ? card.imageUrls : card.imageUrl ? [card.imageUrl] : [])
     .map((u) => String(u ?? "").trim())
@@ -50,7 +53,9 @@ export function PrePublishListingCard({
   const longDesc = description.length > 220;
 
   const submitPublish = () => {
-    if (publishing) return;
+    if (submitLockRef.current || publishing) return;
+    if (!photosOptional && gallery.length === 0) return;
+    submitLockRef.current = true;
     const el = publishButtonRef.current;
     const rect = el?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0);
     onPublish(rect, visibilityId);
@@ -256,7 +261,7 @@ export function PrePublishListingCard({
           <button
             ref={publishButtonRef}
             type="button"
-            disabled={publishing || gallery.length === 0}
+            disabled={publishing || (!photosOptional && gallery.length === 0)}
             data-prepublish-submit="1"
             onClick={(e) => {
               e.preventDefault();

@@ -4,7 +4,7 @@
  * Sparse sell text ("noriu parduoti citroen") → clarify, do NOT invent a draft.
  */
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
-import { LEAN_SELL_GREETING } from "../shared/listing-organism.js";
+import { buildLeanSellGreeting } from "../shared/listing-organism.js";
 
 const SELL_PATTERNS = [
   /\bparduodu\b/i,
@@ -17,8 +17,14 @@ const SELL_PATTERNS = [
   /\bįdėti\s+skelb/i,
   /\bideti\s+skelb/i,
   /\bnoriu\s+parduoti\b/i,
-  /\bnoriu\s+įkelti\s+skelb/i,
-  /\bnoriu\s+ikelti\s+skelb/i,
+  /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i,
+  /\b(tiesiog\s+)?noriu\s+(į|i)?dėti\s+skelb/i,
+  /\b(į|i)kelti\s+skelbim/i,
+  /\bieškau\s+darbo\b/i,
+  /\bieskau\s+darbo\b/i,
+  /\bsiūlau\s+(darb|paslaug)/i,
+  /\bsiulau\s+(darb|paslaug)/i,
+  /\bteikiu\s+paslaug/i,
   /\bsusikaupe\b.*\b(rub|drabuž|drabuz)/i,
   /\bdaug\s+(rub|drabuž|drabuz)/i,
   /\b(atlaisvin|išvalau|isvalau)\s+spint/i,
@@ -60,6 +66,15 @@ const SPEC_SIGNAL =
 export function detectServerSellIntent(text: string): boolean {
   const q = text.trim().toLowerCase();
   if (!q || q.length < 4) return false;
+  // Job/service create phrases must win over bare „ieškau…“ buyer gate.
+  if (
+    /\bieškau\s+darbo\b/i.test(q) ||
+    /\bieskau\s+darbo\b/i.test(q) ||
+    /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(q) ||
+    /\b(į|i)kelti\s+skelbim/i.test(q)
+  ) {
+    return true;
+  }
   if (BUY_PATTERNS.some((re) => re.test(q))) return false;
   return SELL_PATTERNS.some((re) => re.test(q));
 }
@@ -115,14 +130,12 @@ const INTERNAL_TO_VAUTO_CATEGORY: Record<string, string> = {
 
 function buildCategoryAwareSellGreeting(
   _text: string,
-  _category: string,
+  category: string,
   _make: string
 ): string {
-  // Lean Step-1 — exact 4-step greeting (photos + price), no category chatter.
   void _text;
-  void _category;
   void _make;
-  return LEAN_SELL_GREETING;
+  return buildLeanSellGreeting(category);
 }
 
 export function buildSellClarificationReply(

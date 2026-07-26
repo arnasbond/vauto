@@ -89,9 +89,28 @@ export const POST_VISION_PUBLISH_CHIPS = [
 /** Step 3 chips — open PrePublish or edit. */
 export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as const;
 
-/** Lean Step-1 sell greeting (universal). */
+/** Lean Step-1 sell greeting — physical goods (photos / packaging tips). */
 export const LEAN_SELL_GREETING =
   "Puiku — esu jūsų pardavimo partneris! Įkelkite iki 6 nuotraukų (prekė, etiketė, komplektacija) ir parašykite kainą — aš sudėliosiu turtingą skelbimą.";
+
+/** Category-aware Step-1 greeting — no packaging tips for jobs/services/NT. */
+export function buildLeanSellGreeting(category?: string | null): string {
+  const cat = String(category ?? "").toLowerCase();
+  if (
+    cat === "jobs" ||
+    cat === "services" ||
+    cat === "real_estate" ||
+    cat === "darbas" ||
+    cat === "paslaugos" ||
+    cat === "nt"
+  ) {
+    return "Puiku — esu jūsų pardavimo partneris! Aprašykite pasiūlymą (darbas, paslauga ar NT) ir kainą ar atlygį — aš sudėliosiu skelbimą. Nuotraukos neprivalomos.";
+  }
+  if (!cat || cat === "other" || cat === "kita" || cat === "rental" || cat === "nuoma") {
+    return "Puiku — esu jūsų pardavimo partneris! Aprašykite, ką norite skelbti, ir kainą — aš sudėliosiu turtingą skelbimą. Nuotraukas galite įkelti dabar arba vėliau.";
+  }
+  return LEAN_SELL_GREETING;
+}
 
 /** True when user taps / types Step-2 prepare CTA. */
 export function isPrepareListingIntent(text: string): boolean {
@@ -267,8 +286,20 @@ export function isTextFirstListingIntent(text: string): boolean {
   ) {
     return true;
   }
+  // Explicit create / text-listing intents — never fall through to browse/search.
   if (
-    /\b(parduodu|parduoti|pardavim|noriu\s+parduot|norėčiau\s+parduot|noreciau\s+parduot|įkelti\s+skelbim|ikelti\s+skelbim|paskelbk|paskelbti)\b/i.test(
+    /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(t) ||
+    /\b(tiesiog\s+)?noriu\s+(į|i)?dėti\s+skelb/i.test(t) ||
+    /\b(į|i)kelti\s+skelbim/i.test(t) ||
+    /\bieškau\s+darbo\b/i.test(t) ||
+    /\bieskau\s+darbo\b/i.test(t) ||
+    /\bsiūlau\s+(darb|paslaug)/i.test(t) ||
+    /\bsiulau\s+(darb|paslaug)/i.test(t)
+  ) {
+    return true;
+  }
+  if (
+    /\b(parduodu|parduoti|pardavim|noriu\s+parduot|norėčiau\s+parduot|noreciau\s+parduot|paskelbk|paskelbti)\b/i.test(
       t
     )
   ) {
@@ -814,7 +845,24 @@ export function buildPostVisionHeroMessage(draft: {
   const category = String(draft.category ?? "").toLowerCase();
   const isVehicle =
     category === "vehicles" ||
+    category === "transport" ||
     Boolean(attrPick(draft.attributes, "vin", "plate", "licensePlate"));
+  const isTextOnlyCategory =
+    category === "jobs" ||
+    category === "services" ||
+    category === "real_estate" ||
+    category === "darbas" ||
+    category === "paslaugos" ||
+    category === "nt";
+  const wantsPackagingTip =
+    !isTextOnlyCategory &&
+    (category === "electronics" ||
+      category === "tools" ||
+      category === "home" ||
+      category === "clothing" ||
+      category === "vehicles" ||
+      category === "transport" ||
+      Boolean(attrPick(draft.attributes, "vin", "plate", "licensePlate")));
   const facts = collectVisionFactHints(draft.attributes);
   const factAck = facts.length
     ? ` Nuotraukoje sėkmingai atpažinau modelį ir pagrindines specifikacijas (${facts.join(", ")}).`
@@ -828,16 +876,22 @@ export function buildPostVisionHeroMessage(draft: {
     guidance.push(
       isVehicle
         ? "Kokią kainą norėtumėte matyti skelbime?"
-        : "Kokia būtų šios prekės kaina?"
+        : isTextOnlyCategory
+          ? "Kokia būtų kaina ar atlygis skelbime?"
+          : "Kokia būtų šios prekės kaina?"
     );
   }
   if (isVehicle) {
     guidance.push(
       "Jei turite techninio paso ar kitų kampų nuotraukų — atsiųskite, papildysiu specifikacijas."
     );
-  } else {
+  } else if (wantsPackagingTip) {
     guidance.push(
       "Jei turite, galite įkelti ir pakuotės, etiketės ar priedų nuotrauką — aprašymas bus dar tikslesnis!"
+    );
+  } else if (isTextOnlyCategory) {
+    guidance.push(
+      "Nuotraukos neprivalomos — galite publikuoti vien iš teksto."
     );
   }
   guidance.push("Ar paruošti skelbimo juodraštį patikrinimui?");

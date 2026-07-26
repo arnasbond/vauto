@@ -45,8 +45,10 @@ export type GeminiToolMode = "AUTO" | "ANY" | "NONE";
 const PRODUCT_SEARCH_RE =
   /\b(volvo|bmw|audi|mercedes|toyota|vw|ford|opel|iphone|samsung|xiaomi|huawei|butas|namas|batai|kedai|sukn|drabuz|telefon|kompiuter|nešioj|nesioj|dvirat|motocikl|automob|laptop|v70|v60|xc\d|passat|golf|gitar|pianin|paveiksl|sof[aą]|bald)\b/i;
 
+// Bare „noriu“ alone is NOT a search verb — it often starts create intents
+// (“noriu įkelti skelbimą”). Keep concrete search verbs only.
 const SEARCH_VERB_RE =
-  /\b(ieškau|ieskau|rask|surask|parodyk|rodyk|noriu|reikia|find|search|show)\b/i;
+  /\b(ieškau|ieskau|rask|surask|parodyk|rodyk|noriu\s+pirkti|reikia|find|search|show)\b/i;
 
 const SUPERVISOR_UI_TOOL_NAMES = new Set([
   "applyFilter",

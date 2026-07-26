@@ -46,6 +46,10 @@ import {
   verifiedProfileCity,
 } from "@/lib/listing-location-context";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
+import {
+  listingCategoryAllowsPhotoless,
+  PHOTOLESS_LISTING_COVER_DATA_URL,
+} from "@vauto/shared/listing-photo-policy";
 import { registerPushNotifications } from "@/lib/push-registration";
 import {
   completeHeroListingFlow,
@@ -1579,13 +1583,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
     // Match PrePublish readiness: agent photos may live on orderedImageUrls /
     // pending attachments even when sellerPreviewImage was never set.
+    const photosOptional = listingCategoryAllowsPhotoless(profileDraft.category);
     const hasPublishablePhoto =
       prePublish.hasPhoto ||
       hasListingPhoto(sellerPreviewImage) ||
       sellerPreviewImages.some((url) => hasListingPhoto(url)) ||
       (profileDraft.orderedImageUrls?.some((url) => hasListingPhoto(url)) ?? false) ||
       pendingImageUrls.some((url) => hasListingPhoto(url));
-    if (!editingListingId && !hasPublishablePhoto) {
+    if (!editingListingId && !hasPublishablePhoto && !photosOptional) {
       showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
       return { ok: false, error: LISTING_PHOTO_REQUIRED_MESSAGE };
     }
@@ -1784,13 +1789,16 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const dataImages = preparedGallery.filter((u) => u.startsWith("data:image"));
     // If cloud upload worked, keep all http URLs. Otherwise send only the cover data URL
     // so /api/listings stays under the body limit (extras stay local until cloud is ready).
-    const galleryImages = (
+    let galleryImages = (
       httpImages.length
         ? [...httpImages, ...dataImages]
         : dataImages.slice(0, 1)
     )
       .filter(Boolean)
       .slice(0, 6);
+    if (!galleryImages.length && photosOptional) {
+      galleryImages = [PHOTOLESS_LISTING_COVER_DATA_URL];
+    }
     if (!galleryImages.length) {
       const msg = LISTING_PHOTO_REQUIRED_MESSAGE;
       showToast(msg, "error");

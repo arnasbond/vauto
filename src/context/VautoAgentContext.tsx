@@ -179,6 +179,7 @@ import {
   isImmediatePublishCommand,
   isPublishReadyIntent,
   isShowDraftPreviewIntent,
+  isTextFirstListingIntent,
   isVisionObjectSellChip,
   nounFromVisionObjectSellChip,
   POST_VISION_PUBLISH_CHIPS,
@@ -188,11 +189,8 @@ import {
   shouldBypassPhotosNudge,
   transitionListingFlow,
 } from "@/lib/listing-conversational-flow";
-import {
-  centerScreenPublishRect,
-  runPublishSuccessCelebration,
-} from "@/lib/publish-success-celebration";
-import { usePublishCelebrationOptional } from "@/context/PublishCelebrationContext";
+import { detectSellerListingIntent } from "@/lib/scoring";
+import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import {
   beginAbsoluteFreshSellerListingSession,
@@ -370,7 +368,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     clearSearchFilters,
     activeSearchFilters,
   } = useZeroUiMemory();
-  const publishCelebration = usePublishCelebrationOptional();
 
   const myListingsForAgent = useMemo(
     () => compactMyListingsForAgent(listings, user.id),
@@ -1396,11 +1393,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       // Active seller draft: „Parodyk / Tiesiog parodyk skelbimą“ → PrePublish, never browse-all reset.
+      // Text-only create (“Tiesiog noriu įkelti skelbimą”, “Ieškau darbo”) never becomes browse/search.
       if (
-        aiDraft &&
-        (isShowDraftPreviewIntent(trimmed) || isPublishReadyIntent(trimmed))
+        (aiDraft &&
+          (isShowDraftPreviewIntent(trimmed) || isPublishReadyIntent(trimmed))) ||
+        isTextFirstListingIntent(trimmed) ||
+        detectSellerListingIntent(trimmed)
       ) {
-        // Fall through to show_confirmation / PrePublish paths below.
+        // Fall through to sell / PrePublish paths below.
       } else if (resolveBrowseAllIntent(trimmed)) {
         dispatchBrowseAllMarketplaceState();
         const activeCount = listings.filter(
@@ -1871,9 +1871,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             (sessionLockedPriceRef.current != null &&
               sessionLockedPriceRef.current > 0) ||
             (draftWithRichCopy.price > 0);
+          const photosOptional = listingCategoryAllowsPhotoless(
+            draftWithRichCopy.category
+          );
           const reply =
             isImmediatePublishCommand(trimmed) &&
             readiness.missingPhoto &&
+            !photosOptional &&
             !readiness.missingPrice
               ? "Publikavimui reikia bent vienos prekės nuotraukos. Įkelkite nuotrauką ir parašykite „Publikuok“."
               : readiness.missingPrice && priceAlreadyKnown
@@ -1917,51 +1921,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           }
         ).slice(0, 6);
 
-        // „Publikuok“ / „Ne nereikia, publikuok“ → publish immediately (no photo re-prompt loop).
-        if (isImmediatePublishCommand(trimmed) && readiness.hasPhoto) {
-          updateAiDraft({
-            ...patchedDraft,
-            ...(cardPhotos.length ? { orderedImageUrls: cardPhotos } : {}),
-            listingFlowState: "AWAITING_CONFIRMATION",
-          });
-          setMessages((prev) => [
-            ...prev,
-            { role: "user" as const, text: trimmed || "publikuok" },
-          ]);
-          const publishResult = await publishListing({
-            pendingImageUrls: pendingForTurn,
-            skipSuccessNotify: true,
-            ...(resolvedPrice != null && resolvedPrice > 0
-              ? { priceOverride: resolvedPrice }
-              : {}),
-          });
-          if (publishResult.ok) {
-            const play =
-              publishCelebration?.playPublishCelebration ??
-              (async () => undefined);
-            await runPublishSuccessCelebration({
-              result: publishResult,
-              sourceRect: centerScreenPublishRect(),
-              playCelebration: play,
-              finishPublishedFlow,
-              router,
-              resetPublishSession,
-              beginFreshListingChatSession: () =>
-                beginFreshListingChatSessionRef.current(),
-            });
-            touchAgentSessionActivity();
-            return { ok: true, reply: "" };
-          }
-          const err =
-            publishResult.error ||
-            "Nepavyko publikuoti — patikrinkite kainą, miestą ir nuotrauką.";
-          setMessages((prev) => [
-            ...prev,
-            { role: "assistant" as const, text: err, quickReplies: undefined },
-          ]);
-          touchAgentSessionActivity();
-          return { ok: false, error: err };
-        }
+        // Verbal „publikuok“ ONLY opens PrePublish — never auto-publish
+        // (single Publikuoti skelbimą button avoids double submit / 10s lag).
 
         const card = buildPrePublishCardPayload(
           readiness,
@@ -2500,7 +2461,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       try {
         setStreamThinkingLabelNow("Galvoju…");
-        const browseAllTurn = resolveBrowseAllIntent(trimmed);
+        const browseAllTurn =
+          !isTextFirstListingIntent(trimmed) &&
+          !detectSellerListingIntent(trimmed) &&
+          resolveBrowseAllIntent(trimmed);
         if (browseAllTurn) {
           dispatchBrowseAllMarketplaceState();
         }
@@ -2943,7 +2907,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           if (
             res.actions.type === "listing_draft" &&
             resolveBrowseAllIntent(trimmed) &&
-            !isListingConfirmationPhrase(trimmed)
+            !isListingConfirmationPhrase(trimmed) &&
+            !isTextFirstListingIntent(trimmed) &&
+            !detectSellerListingIntent(trimmed)
           ) {
             const activeCount = listings.filter(
               (l) => !l.banned && l.price > 0 && l.status !== "sold"
@@ -3070,7 +3036,6 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pushStreamThinkingLabel,
       setStreamThinkingLabelNow,
       finishPublishedFlow,
-      publishCelebration,
       resetPublishSession,
     ]
   );
@@ -3081,7 +3046,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     registerConductorSearchExecutor(async (query) => {
-      if (resolveBrowseAllIntent(query)) {
+      if (
+        resolveBrowseAllIntent(query) &&
+        !isTextFirstListingIntent(query) &&
+        !detectSellerListingIntent(query)
+      ) {
         const activeCount = listings.filter(
           (l) => !l.banned && l.price > 0 && l.status !== "sold"
         ).length;

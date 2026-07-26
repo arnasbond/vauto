@@ -528,6 +528,22 @@ export function detectSellerListingIntent(text: string): boolean {
   const q = text.toLowerCase().trim();
   if (!q) return false;
   if (resolveBrowseAllIntent(q)) return false;
+
+  // Create / text-listing intents win over buyer “ieškau…” before the buyer gate.
+  const createFirstPatterns = [
+    /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i,
+    /\b(tiesiog\s+)?noriu\s+(į|i)?dėti\s+skelb/i,
+    /\b(į|i)kelti\s+skelbim/i,
+    /\bieškau\s+darbo\b/i,
+    /\bieskau\s+darbo\b/i,
+    /\bsiūlau\s+darb/i,
+    /\bsiulau\s+darb/i,
+    /\bsiūlau\s+paslaug/i,
+    /\bsiulau\s+paslaug/i,
+    /\bteikiu\s+paslaug/i,
+  ];
+  if (createFirstPatterns.some((re) => re.test(q))) return true;
+
   if (isBuyerSearchIntent(q)) return false;
 
   const sellerPatterns = [
@@ -541,13 +557,6 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bįdėti\s+skelb/i,
     /\bideti\s+skelb/i,
     /\bnaujas\s+skelb/i,
-    /\bsiūlau\s+darb/i,
-    /\bsiulau\s+darb/i,
-    /\bieškau\s+darbo\b/i,
-    /\bieskau\s+darbo\b/i,
-    /\bsiūlau\s+paslaug/i,
-    /\bsiulau\s+paslaug/i,
-    /\bteikiu\s+paslaug/i,
     /\bnuomoju\b/,
     /\bišnuomoju\b/,
     /\bisnuomoju\b/,

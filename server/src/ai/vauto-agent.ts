@@ -1050,7 +1050,12 @@ async function runVautoAgentInner(
   }
 
   // Deterministic browse-all — skip Gemini for generic “show everything” queries.
-  if (lastUserText && resolveBrowseAllIntent(lastUserText)) {
+  // Never steal text-only create intents (“noriu įkelti skelbimą”, “ieškau darbo”).
+  if (
+    lastUserText &&
+    resolveBrowseAllIntent(lastUserText) &&
+    !detectServerSellIntent(lastUserText)
+  ) {
     emitAgentEvent(onEvent, { type: "tool_call", name: "searchListings", message: "Ruošiu visus skelbimus…" });
     const { result, sideEffect } = await executeAgentTool(
       "searchListings",

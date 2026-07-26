@@ -34,6 +34,7 @@ export {
   isImmediatePublishCommand,
   isPublishReadyIntent,
   isShowDraftPreviewIntent,
+  isTextFirstListingIntent,
   isVisionObjectSellChip,
   listingFlowAllowsPhotoUpload,
   listingFlowComposerPlaceholder,
@@ -42,6 +43,7 @@ export {
   resolveLockedListingFlowState,
   shouldBypassPhotosNudge,
   transitionListingFlow,
+  buildLeanSellGreeting,
 } from "@vauto/shared/listing-organism";
 
 /** Profile-first, consultant tone — never „Trūksta miesto, kainos…“ dump. */

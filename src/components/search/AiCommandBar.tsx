@@ -33,6 +33,8 @@ import { AI_FIRST_SEARCH_PLACEHOLDER } from "@/lib/ai-first-search-vision";
 import type { AgentFlowPhase } from "@/lib/agent-flow-phase";
 import { useFlowUiSkin } from "@/hooks/useFlowUiSkin";
 import { resolveBrowseAllIntent, createBrowseAllAction } from "@/lib/browse-all-intent";
+import { detectSellerListingIntent } from "@/lib/scoring";
+import { isTextFirstListingIntent } from "@/lib/listing-conversational-flow";
 import { resolveSupervisorChatTurn } from "@/lib/agent-chat-layout";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
@@ -213,7 +215,13 @@ export function AiCommandBar({
         return;
       }
 
-      if (resolveBrowseAllIntent(raw, q)) {
+      if (
+        resolveBrowseAllIntent(raw, q) &&
+        !isTextFirstListingIntent(raw) &&
+        !isTextFirstListingIntent(q) &&
+        !detectSellerListingIntent(raw) &&
+        !detectSellerListingIntent(q)
+      ) {
         const activeCount = listings.filter(
           (l) => !l.banned && l.price > 0 && l.status !== "sold"
         ).length;
@@ -292,7 +300,12 @@ export function AiCommandBar({
         const trimmed = draftQuery.trim();
         const attachments = isChatBar ? composerAttachments : [];
         if ((!trimmed && !attachments.length) || agentBusy) return;
-        if (placement !== "chat" && resolveBrowseAllIntent(trimmed)) {
+        if (
+          placement !== "chat" &&
+          resolveBrowseAllIntent(trimmed) &&
+          !isTextFirstListingIntent(trimmed) &&
+          !detectSellerListingIntent(trimmed)
+        ) {
           setDraftQuery("");
           void commitSearch(trimmed);
           if (collapsible) {

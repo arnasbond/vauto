@@ -15,6 +15,7 @@ import {
   isNegotiableListingPrice,
 } from "@vauto/shared/negotiable-price";
 import { coerceListingCategoryForDb } from "@vauto/shared/category-registry";
+import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   dedupeListingImageUrls,
@@ -211,12 +212,16 @@ export function evaluatePrePublishReadiness(
   }
 
   const hasPhoto = draftHasPhoto(input);
+  const photosOptional = listingCategoryAllowsPhotoless(syncedDraft?.category);
   const photoClaimedInText = draftTextImpliesMissingPhoto({
     title: syncedDraft?.title,
     description: syncedDraft?.description,
     hasPhoto,
   });
-  const missingPhoto = !hasPhoto || photoClaimedInText;
+  // Jobs / services / NT may publish without public photos.
+  const missingPhoto = photosOptional
+    ? false
+    : !hasPhoto || photoClaimedInText;
 
   // Persist public gallery only — never touch price/year/attrs here.
   // Docs stay filtered out; user trims public photos via PrePublish thumbnail „x“.

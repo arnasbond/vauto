@@ -12,6 +12,7 @@ import {
 } from "@/lib/listing-attribute-isolation";
 import { listingToAdaptiveKey } from "@/lib/adaptive-categories/types";
 import { draftHasSatisfiedPrice } from "@vauto/shared/negotiable-price";
+import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 
 export const LAND_PROPERTY_TYPES = new Set([
   "sklypas",
@@ -223,7 +224,8 @@ export function evaluateConversationalPublishValidation(
     category,
     draft.attributes ?? {}
   );
-  const needsPhoto = !opts.hasPhoto;
+  const photosOptional = listingCategoryAllowsPhotoless(validationCategory);
+  const needsPhoto = photosOptional ? false : !opts.hasPhoto;
   const resolvedContact =
     opts.profileContact?.trim() ||
     resolveDraftContact(draft) ||
@@ -301,7 +303,9 @@ export function evaluateListingPublishValidation(
     priceLabel: draft.priceLabel,
     attributes: draft.attributes as Record<string, unknown> | undefined,
   });
-  const needsPhoto = !opts.hasPhoto;
+  const needsPhoto = listingCategoryAllowsPhotoless(validationCategory)
+    ? false
+    : !opts.hasPhoto;
   const needsSellerType = !String(sanitizedAttributes.sellerType ?? "").trim();
   const needsTitle = draft.title.trim().length < 2;
   const canPublish =

@@ -35,6 +35,7 @@ import {
   isLaunchPromoActive,
   LAUNCH_PROMO_BADGE,
 } from "@vauto/shared/launch-promo";
+import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 
 /** Full card → fold → plane flight before API publish. */
 const CARD_FOLD_PLANE_MS = 1200;
@@ -98,6 +99,8 @@ export function PrePublishModal({
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [shippingMode, setShippingMode] =
     useState<PrePublishShippingMode>("pickup_or_courier");
+  const submitLockRef = useRef(false);
+  const photosOptional = listingCategoryAllowsPhotoless(card.category);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const planeIconRef = useRef<HTMLSpanElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
@@ -181,10 +184,12 @@ export function PrePublishModal({
 
   const removeAt = useCallback(
     (idx: number) => {
-      if (!onGalleryChange || gallery.length <= 1) return;
+      if (!onGalleryChange) return;
+      // Physical goods keep at least one photo; text-only categories may clear all.
+      if (!photosOptional && gallery.length <= 1) return;
       onGalleryChange(gallery.filter((_, i) => i !== idx));
     },
-    [gallery, onGalleryChange]
+    [gallery, onGalleryChange, photosOptional]
   );
 
   const setCover = useCallback(
@@ -212,7 +217,16 @@ export function PrePublishModal({
   );
 
   const submitPublish = useCallback(async () => {
-    if (publishing || flying || gallery.length === 0) return;
+    // Single-fire publish — no duplicate plane / chat submit paths.
+    if (
+      submitLockRef.current ||
+      publishing ||
+      flying ||
+      (!photosOptional && gallery.length === 0)
+    ) {
+      return;
+    }
+    submitLockRef.current = true;
     setFlying(true);
     const el = publishButtonRef.current;
     const rect = el?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0);
@@ -224,8 +238,17 @@ export function PrePublishModal({
       await onPublish(rect, visibilityId);
     } finally {
       setFlying(false);
+      // Keep lock while parent `publishing` is true; release if publish aborted.
+      if (!publishing) submitLockRef.current = false;
     }
-  }, [flying, gallery.length, onPublish, publishing, visibilityId]);
+  }, [
+    flying,
+    gallery.length,
+    onPublish,
+    photosOptional,
+    publishing,
+    visibilityId,
+  ]);
 
   // Schema-less public specs only — vision/debug keys (Detected Objects,
   // Document Image URLs/Count, Scene Context, factNotes, preferredSizes,
@@ -346,7 +369,8 @@ export function PrePublishModal({
                         <Star className="h-3 w-3 fill-current" aria-hidden />
                       </span>
                     ) : null}
-                    {onGalleryChange && gallery.length > 1 ? (
+                    {onGalleryChange &&
+                    (photosOptional || gallery.length > 1) ? (
                       <button
                         type="button"
                         disabled={busy}
@@ -359,6 +383,11 @@ export function PrePublishModal({
                     ) : null}
                   </div>
                 ))}
+              </div>
+            ) : photosOptional ? (
+              <div className="rounded-xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]/40 px-3 py-8 text-center text-sm text-[var(--vauto-text-muted)]">
+                Nuotraukos neprivalomos šiai kategorijai — galite publikuoti be
+                jų arba įkelti per (+) pokalbyje.
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]/40 px-3 py-8 text-center text-sm text-[var(--vauto-text-muted)]">
@@ -586,7 +615,7 @@ export function PrePublishModal({
           <button
             ref={publishButtonRef}
             type="button"
-            disabled={busy || gallery.length === 0}
+            disabled={busy || (!photosOptional && gallery.length === 0)}
             data-prepublish-submit="1"
             onClick={(e) => {
               e.preventDefault();
