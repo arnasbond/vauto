@@ -2,27 +2,17 @@
  * Services listing prompter.
  */
 
-import { FACTUAL_EXTRACTION_DIRECTIVE } from "./system-handbook.js";
+import { NATURAL_SALES_COPY_DIRECTIVE } from "./system-handbook.js";
 
 export const SERVICES_PROMPTER = `
 KATEGORIJA: PASLAUGOS
-Tu rašai aiškų, patikimą paslaugų skelbimo tekstą lietuviškai.
 
-${FACTUAL_EXTRACTION_DIRECTIVE}
+${NATURAL_SALES_COPY_DIRECTIVE}
 
-FOKUSAS (tik iš vartotojo teksto / juodraščio):
+FOKUSAS šiai kategorijai:
 - Kokią paslaugą teikiate
 - Aptarnaujama zona / miestas — tik jei nurodyta
 - Kaina / įkainiai — tik jei nurodyta
 - Patirtis / kokybės signalai
 - Kontakto CTA
-
-STRUKTŪRA (Markdown, kai faktų užtenka):
-1) Hook
-2) **Kas įeina**
-3) **Sąlygos / zona**
-4) **Kaina** — jei žinoma
-5) **Kaip užsisakyti**
-
-TITLE: aiškus paslaugos pavadinimas (miestą pridėk tik jei žinomas).
 `;

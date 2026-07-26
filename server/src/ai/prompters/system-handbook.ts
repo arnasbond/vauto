@@ -1,6 +1,6 @@
 /**
- * VAUTO AI system handbook — positive factual directives only.
- * No hardcoded few-shot product examples (brand/model/city pollution).
+ * VAUTO AI system handbook — thin positive directives.
+ * No hardcoded product few-shots (brand/model/city pollution).
  */
 
 export type HandbookCategoryId =
@@ -31,15 +31,32 @@ export interface HandbookBenchmark {
   generationPattern: string;
 }
 
-/** Shared first-principles directive for Pass 1 + Pass 2. */
+/** Pass 1 — facts only. */
 export const FACTUAL_EXTRACTION_DIRECTIVE = `
 Extract and structure ONLY the facts explicitly present in the provided images and user text.
 If an attribute or location is not provided, leave the field null / omit it.
-Do not hallucinate, invent, or default missing values (city, price, specs, condition extras).
-Write natural, complete Lithuanian when generating sales copy — never leave empty template slots.
+Do not invent missing values.
 `.trim();
 
-/** Empty suite — kept for API compatibility; few-shots intentionally removed. */
+/**
+ * Pass 2 — warm marketplace copy (restore conversational sales quality).
+ * Structure without brand/city few-shot pollution.
+ */
+export const NATURAL_SALES_COPY_DIRECTIVE = `
+Rašyk turtingą, šiltą, engaginantį pardavimo tekstą natūralia lietuvių kalba.
+Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto — bet rašyk gyvai, ne sausai.
+Kai faktų užtenka, struktūruok Markdown:
+1) Hook — 2–4 sakiniai, kurie įtraukia pirkėją
+2) **Privalumai** — • bullet'ai
+3) **Būklė** — būklė + komplektacija (jei žinoma)
+4) **Specifikacijos** — • bullet'ai VISIEMS žinomiems specs
+5) **Pristatymas / Apžiūra** — trumpas CTA
+Title: švarus marketplace pavadinimas (brand + model + tipas, kai žinomi).
+Pradėk description tiesiai nuo pardavimo teksto (be „Pavadinimas:“ / „Title:“ etikečių).
+Jei miesto / kainos / detalės nėra — tiesiog neminėk; nepalik tuščių šablonų.
+`.trim();
+
+/** Empty suite — kept for API compatibility; product few-shots intentionally removed. */
 export const VAUTO_SYSTEM_HANDBOOK: HandbookBenchmark[] = [];
 
 /** @deprecated Few-shots removed — stubs retained for import compatibility. */
@@ -131,7 +148,7 @@ export const BENCHMARK_DIRECT_PUBLISH: HandbookBenchmark = {
   generationPattern: "",
 };
 
-/** Pass-1: positive factual directive only (no product few-shots). */
+/** Pass-1: factual directive only. */
 export function buildHandbookExtractionFewShots(
   _prompterId?: HandbookPrompterId
 ): string {
@@ -143,16 +160,14 @@ ${FACTUAL_EXTRACTION_DIRECTIVE}
 `;
 }
 
-/** Pass-2: positive write directive only (no product few-shots). */
+/** Pass-2: warm natural sales copy (no product few-shots). */
 export function buildHandbookGenerationFewShots(
   _prompterId?: HandbookPrompterId
 ): string {
   return `
 ═══════════════════════════════════════════════════════════════
 VAUTO — PASS 2 NATURAL SALES COPY
-${FACTUAL_EXTRACTION_DIRECTIVE}
-Write fluent Lithuanian marketplace copy from the extracted JSON facts only.
-Structure naturally (hook → benefits → condition → specs → CTA) when facts support it.
+${NATURAL_SALES_COPY_DIRECTIVE}
 ═══════════════════════════════════════════════════════════════
 `;
 }

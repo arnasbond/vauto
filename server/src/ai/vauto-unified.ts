@@ -49,6 +49,7 @@ import {
 } from "../shared/vehicle-vision-enrich.js";
 import {
   FACTUAL_EXTRACTION_DIRECTIVE,
+  NATURAL_SALES_COPY_DIRECTIVE,
   buildHandbookExtractionFewShots,
   getCategoryPrompter,
 } from "./prompters/index.js";
@@ -56,6 +57,7 @@ import {
 export { getCategoryPrompter } from "./prompters/index.js";
 export {
   FACTUAL_EXTRACTION_DIRECTIVE,
+  NATURAL_SALES_COPY_DIRECTIVE,
   buildHandbookExtractionFewShots,
   buildHandbookGenerationFewShots,
   VAUTO_SYSTEM_HANDBOOK,
@@ -98,8 +100,8 @@ const EXTRACTION_SCHEMA = `{
 
 /** Pass 2 — creative LT sales copy from extracted JSON. */
 const CREATIVE_SCHEMA = `{
-  "title": "string — švarus LT marketplace pavadinimas iš faktų",
-  "description": "string — natūralus FACT-GROUNDED LT sales tekstas su Markdown (hook, privalumai, būklė, specifikacijos, CTA). PALIK \\n ir **."
+  "title": "string — švarus, engaginantis LT marketplace pavadinimas (brand + model + tipas kai žinomi)",
+  "description": "string — turtingas, šiltas FACT-GROUNDED LT sales tekstas su Markdown (hook + **Privalumai** + **Būklė** + **Specifikacijos** + **Pristatymas**). PALIK \\n ir **."
 }`;
 
 /** Lightweight Pass-1 system rules — category routing happens in Pass 2. */
@@ -457,22 +459,19 @@ function buildCreativeWritePrompt(
     confidence: extracted.confidence ?? 0.85,
   };
   const packagingBlock = nonPhysical
-    ? `Ši kategorija tekstinė — rašyk iš vartotojo / JSON faktų, be pakuotės OCR stilistikos.`
-    : `Įtrauk specs iš technicalFields / factNotes / ocrText į **Specifikacijos** bullet'us (kas tikrai yra).`;
+    ? `Ši kategorija tekstinė — rašyk iš vartotojo / JSON faktų.`
+    : `Įtrauk visus žinomus specs iš technicalFields / factNotes / ocrText į **Specifikacijos** bullet'us.`;
   return `Tu esi VAUTO MASTER SALES COPYWRITER — PASS 2 CREATIVE WRITE.
-Rašyk turtingą, engaginantį pardavimo tekstą natūralia lietuvių kalba.
-${FACTUAL_EXTRACTION_DIRECTIVE}
-Title: švarus (brand + model + tipas kai žinomi). Description pradėk tiesiai nuo pardavimo teksto (be „Pavadinimas:“ etikečių).
+${NATURAL_SALES_COPY_DIRECTIVE}
 ${packagingBlock}
-Kategorijos prompteris: ${prompterId}.
-Šis tekstas eina į draftListing.description (PrePublish), ne į chat.
+Kategorija: ${prompterId}. Šis tekstas eina į draftListing.description (PrePublish), ne į chat.
 
 ${categoryPrompt}
 
 IŠTRAUKTI FAKTAI (vienintelis šaltinis):
 ${JSON.stringify(facts, null, 2)}
 
-Miestas iš konteksto: ${userCity || "(nežinomas — neminėk miesto, jei city null)"}
+Miestas iš konteksto: ${userCity || "(nežinomas — neminėk, jei null)"}
 Grąžink TIK JSON: ${CREATIVE_SCHEMA}`;
 }
 

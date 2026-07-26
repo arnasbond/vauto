@@ -65,6 +65,7 @@
     "test:auth-e2e:live": "npm run server:build && node scripts/test-auth-e2e.mjs --live",
     "ops:auth-reset": "node scripts/auth-reset.mjs",
     "test:ai-flexibility": "npm run server:build && node scripts/test-ai-flexibility.mjs",
+    "test:ai-golden": "npm run server:build && node scripts/test-ai-golden-path.mjs",
     "test:ai-flexibility:local": "npm run server:build && node scripts/test-ai-flexibility.mjs --local",
     "test:chaotic-inputs": "npm run server:build && node scripts/test-chaotic-inputs.mjs",
     "test:safety-shield": "npm run server:build && node scripts/test-safety-shield.mjs",
