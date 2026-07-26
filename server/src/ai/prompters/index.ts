@@ -55,6 +55,15 @@ export function getCategoryPrompter(category: string): {
   let base = GENERAL_PROMPTER;
 
   if (
+    key === "DALYS" ||
+    key === "PARTS" ||
+    key === "TOOLS" ||
+    key === "AUTODALYS"
+  ) {
+    // Wheels/parts — never AUTO_PROMPTER (VIN/rida/TA/gearbox sales voice).
+    id = "general";
+    base = GENERAL_PROMPTER;
+  } else if (
     key === "AUTOMOBILIAI" ||
     key === "VEHICLES" ||
     key === "AUTO" ||

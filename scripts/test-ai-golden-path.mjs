@@ -95,6 +95,67 @@ async function main() {
   check(!wheelsDraft.attributes?.engine, "full-car engine stripped from wheels");
   check(wheelsDraft.attributes?.rimSize === "R17", "rimSize R17 kept");
 
+  const citroenWheelsBleed = stripFullVehicleFieldsFromPartsDraft(
+    {
+      category: "vehicles",
+      title: "Citroën Ratlankiai",
+      description: "Parduodamas erdvus ir praktiškas Citroën Ratlankiai…",
+      attributes: {
+        _vautoCategory: "AUTOMOBILIAI",
+        make: "Citroën",
+        model: "Ratlankiai su padangomis Citro",
+        mileage: "120000",
+        transmission: "automatinė",
+        ta: "galioja",
+        rimSize: "R17",
+      },
+    },
+    "Kaina uz visus keturis ratus 150€"
+  );
+  check(
+    citroenWheelsBleed.category === "other",
+    "Citroën wheels demoted off vehicles category"
+  );
+  check(
+    String(citroenWheelsBleed.attributes?._vautoCategory ?? "").toUpperCase() ===
+      "DALYS",
+    "_vautoCategory sticky AUTOMOBILIAI → DALYS"
+  );
+  check(
+    !citroenWheelsBleed.attributes?.mileage &&
+      !citroenWheelsBleed.attributes?.transmission &&
+      !citroenWheelsBleed.attributes?.ta,
+    "full-car TA/km/gearbox stripped from wheels draft"
+  );
+  check(
+    !citroenWheelsBleed.attributes?.make,
+    "hallucinated Citroën make dropped when user did not name brand"
+  );
+  check(
+    !/citro\s*$/i.test(String(citroenWheelsBleed.attributes?.model ?? "")),
+    "truncated brand stump removed from model"
+  );
+
+  const dalysPrompter = getCategoryPrompter("DALYS");
+  check(dalysPrompter.id === "general", "DALYS routes to general prompter");
+  check(
+    !/\b(VIN|rida|pavarų\s+dėž|tech\.?\s*apžiūr)/i.test(dalysPrompter.prompt),
+    "DALYS Pass-2 is not full-car AUTO_PROMPTER"
+  );
+
+  const { sanitizeListingCity } = await distImport("lib", "city-resolve.js");
+  check(
+    sanitizeListingCity("Kaunas", {
+      userText: "Kaina uz visus keturis ratus 150€",
+    }) === "",
+    'city stem \"kaun\" must not match \"kaina\"'
+  );
+  check(
+    sanitizeListingCity("Kaunas", { userText: "Parduodu Kaune 4 ratlankius" }) ===
+      "Kaunas",
+    "real Kaune locative still accepted"
+  );
+
   // --- Case 2: Full auto ---
   console.log("\n2) Full vehicle");
   check(

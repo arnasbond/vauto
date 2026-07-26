@@ -138,8 +138,10 @@ export function stripFullVehicleFieldsFromPartsDraft<
     delete attrs.size;
   }
 
-  // Drop hallucinated full-car make/model unless user named that brand for parts.
+  // Drop hallucinated full-car make unless user named that brand for parts.
   const make = String(attrs.make ?? attrs.brand ?? "").trim();
+  const modelRaw = String(attrs.model ?? "").trim();
+  const modelLooksParts = /\b(r17|r1[4-9]|rat|padang|wheel|rim)/i.test(modelRaw);
   if (
     make &&
     /citro|bmw|audi|volvo|mercedes|toyota|volkswagen|opel|ford|peugeot|renault/i.test(
@@ -149,9 +151,28 @@ export function stripFullVehicleFieldsFromPartsDraft<
   ) {
     delete attrs.make;
     delete attrs.brand;
-    if (!/\b(r17|r1[4-9]|rat|padang|wheel|rim)/i.test(String(attrs.model ?? ""))) {
+    if (!modelLooksParts) {
       delete attrs.model;
     }
+  }
+  if (attrs.model != null) {
+    // Strip truncated brand stumps ("… Citro") without rewriting sales copy.
+    attrs.model = String(attrs.model)
+      .replace(/\s+citro[eë]?n?\s*$/i, "")
+      .replace(/\s+(bmw|audi|volvo|opel|ford)\s*$/i, "")
+      .trim();
+    if (!attrs.model) delete attrs.model;
+  }
+
+  // Sticky Pass-1 label must not keep the adaptive full-car template.
+  const vautoCat = String(attrs._vautoCategory ?? "").toUpperCase();
+  if (
+    !vautoCat ||
+    vautoCat === "AUTOMOBILIAI" ||
+    vautoCat === "VEHICLES" ||
+    vautoCat === "AUTO"
+  ) {
+    attrs._vautoCategory = "DALYS";
   }
 
   // Keep LLM title/description intact — attribute isolation is enough.
@@ -159,7 +180,7 @@ export function stripFullVehicleFieldsFromPartsDraft<
 
   return {
     ...draft,
-    category: /vehicles|automobiliai/i.test(String(draft.category ?? ""))
+    category: /vehicles|automobiliai|transport/i.test(String(draft.category ?? ""))
       ? "other"
       : draft.category,
     attributes: attrs as T["attributes"],

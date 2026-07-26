@@ -2,6 +2,8 @@
  * Offline enrichment for seller phrases like „Parduodu citroena“ when Gemini JSON is thin.
  */
 
+import { isAutoPartsOrWheelsContext } from "./parts-isolation.js";
+
 const SELLER_PREFIX = /\b(parduodu|parduodama|pardavimas|noriu\s+parduoti)\b/i;
 
 const AUTO_BRANDS: { pattern: RegExp; make: string }[] = [
@@ -48,8 +50,17 @@ export function enrichSellerListingFromText(
 
   const technicalFields = parseTechnicalFields(enriched.technicalFields ?? enriched.attributes);
 
+  // Brand in user text alone must not force a full-car template when selling parts/wheels.
+  const partsIntent = isAutoPartsOrWheelsContext(text, String(enriched.title ?? ""));
+
   for (const { pattern, make } of AUTO_BRANDS) {
     if (!pattern.test(text)) continue;
+    if (partsIntent) {
+      enriched.category = "DALYS";
+      if (!technicalFields.make) technicalFields.make = make;
+      enriched.technicalFields = technicalFields;
+      return enriched;
+    }
     enriched.category = "AUTOMOBILIAI";
     if (!technicalFields.make) technicalFields.make = make;
     if (weakTitle(enriched.title)) {

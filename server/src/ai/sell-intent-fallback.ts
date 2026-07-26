@@ -217,6 +217,14 @@ function inferCategory(text: string): string {
   if (ELECTRONICS_HINT.test(text)) return "electronics";
   if (/\b(butas|namas|nt|kambar|sklyp)/i.test(text)) return "real_estate";
   if (/\b(nuomuoju|nuoma|nuomoti)\b/i.test(text)) return "rental";
+  // Wheels/parts before brand→vehicles (Citroën logo on rims ≠ full car).
+  if (
+    /\b(ratlank|ratai|ratus|padang|dis[kc]ai|dalys|bamper|kapot|žibint|zibint|r1[4-9]|ratud)\b/i.test(
+      text
+    )
+  ) {
+    return "tools";
+  }
   if (/\b(įrank|irank|gręžtuv|generator)/i.test(text)) return "tools";
   if (/\b(paslaug|remont|valym)/i.test(text)) return "services";
   if (/\b(darbas|ieškau\s+darbo|vakans)/i.test(text)) return "jobs";

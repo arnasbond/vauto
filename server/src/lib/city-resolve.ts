@@ -13,6 +13,36 @@ const LT_CITIES = [
   "Palanga",
 ];
 
+/** Inflected forms only — never bare stems (\"kaun\" ⊆ \"kaina\"). */
+const LT_CITY_TEXT_FORMS: Record<string, string[]> = {
+  Vilnius: ["vilnius", "vilniuje", "vilniaus", "vilniui", "vilnių"],
+  Kaunas: ["kaunas", "kaune", "kauno", "kaunui", "kauną"],
+  Klaipėda: ["klaipėda", "klaipeda", "klaipėdoje", "klaipedoje", "klaipėdos", "klaipedos"],
+  Šiauliai: ["šiauliai", "siauliai", "šiauliuose", "siauliuose", "šiaulių", "siauliu"],
+  Panevėžys: ["panevėžys", "panevezys", "panevėžyje", "panevezyje", "panevėžio", "panevezio"],
+  Alytus: ["alytus", "alyte", "alytoje", "alytaus"],
+  Marijampolė: ["marijampolė", "marijampole", "marijampolėje", "marijampoleje", "marijampolės"],
+  Utena: ["utena", "utenoje", "utenos"],
+  Palanga: ["palanga", "palangoje", "palangos"],
+};
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** True only when user text mentions the city as a word (not a substring of \"kaina\"). */
+export function textMentionsLtCity(userText: string, city: string): boolean {
+  const text = String(userText ?? "").toLowerCase();
+  if (!text.trim()) return false;
+  const canonical = normalizeCityCandidate(city);
+  if (!canonical) return false;
+  const forms =
+    LT_CITY_TEXT_FORMS[canonical] ?? [canonical.toLowerCase()];
+  return forms.some((form) =>
+    new RegExp(`\\b${escapeRegExp(form)}\\b`, "i").test(text)
+  );
+}
+
 export function isPlaceholderCity(value: string | undefined | null): boolean {
   const v = String(value ?? "").trim();
   if (!v) return true;
@@ -68,14 +98,9 @@ export function sanitizeListingCity(
     return geo;
   }
 
-  const text = String(opts.userText ?? "").toLowerCase();
-  if (!text.trim()) return "";
-
-  const needle = candidate.toLowerCase();
-  if (text.includes(needle)) return candidate;
-  // Common LT locative/genitive stems (Kaune, Vilniuje, Klaipėdoje…).
-  const stem = needle.replace(/(as|is|ys|ė|a)$/i, "");
-  if (stem.length >= 4 && text.includes(stem)) return candidate;
+  if (textMentionsLtCity(String(opts.userText ?? ""), candidate)) {
+    return candidate;
+  }
 
   return "";
 }

@@ -128,6 +128,13 @@ function inferCategoryFromContext(
   if (/\b(butas|namas|sklypas|nt\b|kambarys|nuomojamas\s*but)\w*/i.test(blob)) {
     return "real_estate";
   }
+  if (
+    /\b(ratlank|ratai|ratus|padang|dis[kc]ai|dalys|bamper|kapot|žibint|zibint|r1[4-9])\w*/i.test(
+      blob
+    )
+  ) {
+    return "tools";
+  }
   if (/\b(automobil|auto\b|bmw|audi|volvo|toyota|citroen|vin\b)\w*/i.test(blob)) {
     return "vehicles";
   }

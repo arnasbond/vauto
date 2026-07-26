@@ -4,7 +4,15 @@ export const VEHICLE_BRAND_PATTERN =
   /\b(bmw|audi|vw|volkswagen|mercedes|benz|toyota|opel|ford|peugeot|citroen|citroën|renault|skoda|škoda|seat|nissan|honda|mazda|volvo|kia|hyundai|mitsubishi|subaru|lexus|porsche|fiat|alfa|jeep|dodge|chevrolet|tesla|suzuki|dacia|lada|saab|mini|land rover|range rover)\b/i;
 
 export const VEHICLE_GENERIC_PATTERN =
-  /\b(auto|automob|automobili|mašin|masin|vairas|rida|dyzel|benzin|varik|sedan|universal|hečbek|hatchback|visureig|suv|coupe|kabrio|ratlank|padang|felg|disk|noriu parduot.*auto|parduod.*auto|parduod.*masin|parduod.*automobil|parduod.*mašin|superku.*auto|perku.*auto|ieškau.*auto|ieskau.*auto)\b/i;
+  /\b(auto|automob|automobili|mašin|masin|vairas|rida|dyzel|benzin|varik|sedan|universal|hečbek|hatchback|visureig|suv|coupe|kabrio|noriu parduot.*auto|parduod.*auto|parduod.*masin|parduod.*automobil|parduod.*mašin|superku.*auto|perku.*auto|ieškau.*auto|ieskau.*auto)\b/i;
+
+/** Wheels/tires/parts — not a full automobile listing. */
+export const PARTS_OR_WHEELS_PATTERN =
+  /\b(ratlank|ratai|ratų|ratus|ratu|dis[kc]ai|padang|tyres?|tires?|wheels?|rims?|felg|lieti\s+ratai|detal[eė]|dalys|parts?|bamper|kapot|žibint|zibint)\b|\br1[4-9]\b|\bratud\b/i;
+
+export function isPartsOrWheelsQuery(query: string): boolean {
+  return PARTS_OR_WHEELS_PATTERN.test(String(query ?? ""));
+}
 
 export const LT_PLATE_PATTERN = /\b[A-Z]{3}\s?\d{3}\b/i;
 
@@ -31,6 +39,8 @@ export function extractVinFromQuery(query: string): string | null {
 export function isVehicleQuery(query: string): boolean {
   const q = query.trim();
   if (!q) return false;
+  // OEM brand on rims/parts must not promote the full-car template.
+  if (isPartsOrWheelsQuery(q)) return false;
   const lower = q.toLowerCase();
   if (/\b(superku|perku|nuperku|ieškau|ieskau)\b.{0,24}\b(auto|automob|mašin|masin)/i.test(lower)) {
     return true;

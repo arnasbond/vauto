@@ -6,6 +6,7 @@ import {
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import { getDynamicAttributeEntries } from "@/lib/listing-dynamic-attributes";
 import {
+  isPartsOrWheelsQuery,
   isVehicleQuery,
   VEHICLE_BRAND_PATTERN,
 } from "@/lib/vehicle-keywords";
@@ -100,14 +101,26 @@ function listingTextBlob(listing: Listing): string {
 }
 
 function looksLikeVehicle(listing: Listing, blob: string): boolean {
-  if (listing.category === "vehicles" || listing.category === "transport") {
-    return true;
-  }
   const attrs = listing.attributes ?? {};
-  if (attrs.make || attrs.mileage || attrs.vin || attrs.bodyType || attrs.fuelType) {
+  const vautoCat = String(attrs._vautoCategory ?? "").toUpperCase();
+  if (vautoCat === "DALYS" || vautoCat === "PARTS" || vautoCat === "TOOLS") {
+    return false;
+  }
+  if (isPartsOrWheelsQuery(blob)) {
+    return false;
+  }
+  if (listing.category === "vehicles" || listing.category === "transport") {
+    // Stale vehicles category with clear parts language → not full car UI.
+    if (isPartsOrWheelsQuery(`${listing.title} ${listing.description}`)) {
+      return false;
+    }
     return true;
   }
-  return isVehicleQuery(blob) || VEHICLE_BRAND_PATTERN.test(blob);
+  if (attrs.mileage || attrs.vin || attrs.bodyType || attrs.fuelType) {
+    return true;
+  }
+  // Make alone (OEM on a rim) is not enough for the full-car template.
+  return isVehicleQuery(blob);
 }
 
 /**
@@ -118,6 +131,16 @@ export function resolveDisplayListingCategory(listing: Listing): ListingCategory
   const attrs = listing.attributes ?? {};
   const category = resolveEffectiveListingCategory(listing.category, attrs);
   const blob = listingTextBlob(listing);
+  const vautoCat = String(attrs._vautoCategory ?? "").toUpperCase();
+
+  // Parts/wheels before any brand→vehicles display promotion.
+  if (
+    vautoCat === "DALYS" ||
+    vautoCat === "PARTS" ||
+    isPartsOrWheelsQuery(blob)
+  ) {
+    return category === "tools" ? "tools" : "other";
+  }
 
   // Automotive first — never allow electronics/clothing overrides on cars.
   if (looksLikeVehicle(listing, blob) && !APPAREL_TEXT_RE.test(blob)) {

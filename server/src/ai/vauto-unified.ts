@@ -1,6 +1,7 @@
 import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
 import { resolveListingCity, sanitizeListingCity } from "../lib/city-resolve.js";
 import {
+  isAutoPartsOrWheelsContext,
   stripFashionAttrsUnlessClothing,
   stripFullVehicleFieldsFromPartsDraft,
 } from "./parts-isolation.js";
@@ -77,7 +78,7 @@ function isSoftUnclearDocument(raw: Record<string, unknown>): boolean {
 /** Pass 1 — cold structured facts only (no creative sales copy). */
 const EXTRACTION_SCHEMA = `{
   "intent": "sell | search | service | general",
-  "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
+  "category": "AUTOMOBILIAI | DALYS | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
   "price": "number | null — kaina EUR; null jei nenurodyta",
   "city": "string | null — tik jei aiškiai nurodyta vartotojo / profilio / OCR; kitaip null",
   "technicalFields": "object — exact facts only from OCR/vision (make, model, year, engine, powerKw, fuelType, mileage, brand, size, condition…)",
@@ -132,7 +133,8 @@ ${TEXT_AND_VISION_INPUT_ONLY}
 ${STRUCTURED_INPUT_VISION_RULES}
 
 KATEGORIJA (tik label — copy rašoma Pass 2):
-- AUTOMOBILIAI / MUZIKA / NT / ELEKTRONIKA / APRANGA / PASLAUGOS / DARBAS / MENAS / … pagal vizualą ir tekstą.
+- AUTOMOBILIAI = visas automobilis (VIN/rida/kėbulas). Ratlankiai, padangos, bamperiai, dalys → DALYS (ne AUTOMOBILIAI), net jei ant dalies matosi markės logotipas.
+- MUZIKA / NT / ELEKTRONIKA / APRANGA / PASLAUGOS / DARBAS / MENAS / … pagal vizualą ir tekstą.
 - Keli parduodami objektai → detectedObjects + choiceChips.
 
 ${buildHandbookExtractionFewShots()}`;
@@ -151,6 +153,9 @@ const CATEGORY_TO_INTERNAL: Record<string, string> = {
   MUZIKA: "other",
   LAISVALAIKIS: "other",
   MENAS: "home",
+  DALYS: "other",
+  PARTS: "other",
+  TOOLS: "other",
 };
 
 const INSTRUMENT_CONTENT_RE =
@@ -161,18 +166,35 @@ function remapCategoryFromContent(
   categoryKey: string,
   title: string,
   description: string,
-  technicalFields: Record<string, string | string[]>
+  technicalFields: Record<string, string | string[]>,
+  userText = ""
 ): { category: string; vautoCategory: string } {
   const blob = [
     title,
     description,
+    userText,
     String(technicalFields.brand ?? ""),
     String(technicalFields.make ?? ""),
     String(technicalFields.model ?? ""),
     String(technicalFields.instrumentType ?? ""),
+    String(technicalFields.rimSize ?? ""),
+    String(technicalFields.partType ?? ""),
   ]
     .join(" ")
     .toLowerCase();
+
+  // Parts/wheels BEFORE brand→AUTOMOBILIAI — OEM logo on a rim is not a full car.
+  if (isAutoPartsOrWheelsContext(blob, userText, title, description)) {
+    const hardFullVehicle =
+      Boolean(technicalFields.vin) ||
+      Boolean(technicalFields.licensePlate) ||
+      Boolean(technicalFields.plate) ||
+      (Boolean(technicalFields.mileage) &&
+        Boolean(technicalFields.fuelType || technicalFields.bodyType));
+    if (!hardFullVehicle) {
+      return { category: "other", vautoCategory: "DALYS" };
+    }
+  }
 
   if (INSTRUMENT_CONTENT_RE.test(blob)) {
     return { category: "other", vautoCategory: "MUZIKA" };
@@ -517,7 +539,8 @@ async function runTwoPassListingGeneration(opts: {
     String(extracted.category ?? "").toUpperCase(),
     String(extracted.title ?? ""),
     String(extracted.factNotes ?? ""),
-    technicalFields
+    technicalFields,
+    opts.text ?? opts.extraContext ?? ""
   );
   extracted.category = remapped.vautoCategory;
   extracted.technicalFields = technicalFields;
