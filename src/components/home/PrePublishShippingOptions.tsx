@@ -77,11 +77,15 @@ export function PrePublishShippingOptions({
     let cancelled = false;
     void apiFetchHealthDetails().then((r) => {
       if (cancelled) return;
+      if (!r.ok) {
+        setOmnivaLive(false);
+        return;
+      }
       const provider = String(
         r.data.infra?.shippingCarrierProvider ?? ""
       ).toLowerCase();
       setOmnivaLive(
-        Boolean(r.ok && r.data.infra?.shippingCarrierLive) &&
+        Boolean(r.data.infra?.shippingCarrierLive) &&
           (provider === "omniva" || provider.includes("omniva"))
       );
     });
