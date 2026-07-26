@@ -393,7 +393,9 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           );
         })}
 
-        {busy && <AgentTypingIndicator label={streamThinkingLabel} />}
+        {(busy || Boolean(streamThinkingLabel?.trim())) && (
+          <AgentTypingIndicator label={streamThinkingLabel} />
+        )}
         <div ref={messagesEndRef} className="h-px shrink-0" aria-hidden />
       </div>
 

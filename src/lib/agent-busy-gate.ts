@@ -17,19 +17,29 @@ const MAX_BACKGROUND = 1;
 /**
  * Synchronous in-flight gate for sendAgentMessage — prevents React busy state races.
  * Foreground turns serialize; skipBusyCheck uses a bounded background lane (max 1).
+ *
+ * After Vision early_ack, `unlockUiForBackgroundAnalysis()` soft-unlocks the composer
+ * while the stream stays in-flight (locked). Follow-ups enqueue without aborting Vision.
  */
 export function createAgentBusyGate(onBusyChange: (busy: boolean) => void) {
   let foregroundInFlight = 0;
   let backgroundInFlight = 0;
+  let uiSoftUnlocked = false;
   const queue: QueuedSend[] = [];
 
   const syncBusy = () => {
-    onBusyChange(foregroundInFlight > 0 || backgroundInFlight > 0);
+    const workInFlight = foregroundInFlight > 0 || backgroundInFlight > 0;
+    onBusyChange(workInFlight && !uiSoftUnlocked);
   };
 
   return {
     get locked(): boolean {
       return foregroundInFlight > 0;
+    },
+
+    /** True after Vision/doc early_ack — composer must stay usable. */
+    get uiSoftUnlocked(): boolean {
+      return uiSoftUnlocked;
     },
 
     tryAcquire(skipBusyCheck?: boolean): boolean {
@@ -41,6 +51,7 @@ export function createAgentBusyGate(onBusyChange: (busy: boolean) => void) {
       }
       if (foregroundInFlight > 0) return false;
       foregroundInFlight = 1;
+      uiSoftUnlocked = false;
       syncBusy();
       return true;
     },
@@ -51,6 +62,19 @@ export function createAgentBusyGate(onBusyChange: (busy: boolean) => void) {
       } else {
         foregroundInFlight = Math.max(0, foregroundInFlight - 1);
       }
+      if (foregroundInFlight === 0 && backgroundInFlight === 0) {
+        uiSoftUnlocked = false;
+      }
+      syncBusy();
+    },
+
+    /**
+     * Vision / document analysis continues in the background, but the chat
+     * input + send button must not stay disabled (matches early_ack copy).
+     */
+    unlockUiForBackgroundAnalysis(): void {
+      if (foregroundInFlight === 0 && backgroundInFlight === 0) return;
+      uiSoftUnlocked = true;
       syncBusy();
     },
 

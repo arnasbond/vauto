@@ -303,7 +303,14 @@ export function AiCommandBar({
       if (placement === "wizard" || placement === "chat" || phase === "listing_processing") {
         const trimmed = draftQuery.trim();
         const attachments = isChatBar ? composerAttachments : [];
-        if ((!trimmed && !attachments.length) || agentBusy) return;
+        // Do NOT block on agentBusy — Vision early_ack soft-unlocks concurrent chat.
+        if (
+          (!trimmed && !attachments.length) ||
+          searchLoading ||
+          isPhotoSearching
+        ) {
+          return;
+        }
         if (
           placement !== "chat" &&
           resolveBrowseAllIntent(trimmed) &&
@@ -380,7 +387,8 @@ export function AiCommandBar({
       placement,
       phase,
       draftQuery,
-      agentBusy,
+      searchLoading,
+      isPhotoSearching,
       sendAgentMessage,
       commitSearch,
       collapsible,
@@ -496,8 +504,22 @@ export function AiCommandBar({
     return resolveSupervisorChatTurn(messages).assistant?.text ?? "";
   }, [messages]);
 
-  const busy = agentBusy || searchLoading || isPhotoSearching;
-  const hasAssistantPing = Boolean(lastAssistant) || busy;
+  const listingFlowState = inferListingFlowState({
+    listingFlowState: aiDraft?.listingFlowState,
+    hasDraft: Boolean(aiDraft?.title?.trim()),
+    photoCount: aiDraft?.orderedImageUrls?.length ?? 0,
+  });
+  const flowPlaceholder = listingFlowComposerPlaceholder(listingFlowState);
+  const confirmationLocked = listingFlowComposerTextLocked(listingFlowState);
+
+  const backgroundAnalyzing = Boolean(streamThinkingLabel?.trim());
+  // Chat/wizard: never hard-lock on agentBusy (Vision early_ack soft-unlocks concurrent chat).
+  // Search bars still respect agentBusy for normal turns.
+  const hardBusy = searchLoading || isPhotoSearching;
+  const busy = agentBusy || hardBusy;
+  const listingComposerLocked = hardBusy || confirmationLocked;
+  const searchComposerLocked = busy;
+  const hasAssistantPing = Boolean(lastAssistant) || busy || backgroundAnalyzing;
 
   const toggleWizardExpanded = useCallback((next: boolean) => {
     void hapticImpactLight();
@@ -527,14 +549,6 @@ export function AiCommandBar({
       toggleWizardExpanded(true);
     }
   }, [sellerVisionRecoveryActive, collapsible, toggleWizardExpanded]);
-
-  const listingFlowState = inferListingFlowState({
-    listingFlowState: aiDraft?.listingFlowState,
-    hasDraft: Boolean(aiDraft?.title?.trim()),
-    photoCount: aiDraft?.orderedImageUrls?.length ?? 0,
-  });
-  const flowPlaceholder = listingFlowComposerPlaceholder(listingFlowState);
-  const confirmationLocked = listingFlowComposerTextLocked(listingFlowState);
 
   const wizardPlaceholder =
     flowPlaceholder ??
@@ -657,12 +671,12 @@ export function AiCommandBar({
                 </button>
               </div>
             )}
-            {busy && isWizard && (
+            {(busy || backgroundAnalyzing) && isWizard && (
               <div className="pointer-events-auto mb-1.5">
                 <AgentTypingIndicator variant="inline" label={streamThinkingLabel} />
               </div>
             )}
-            {lastAssistant && isWizard && !busy && (
+            {lastAssistant && isWizard && !busy && !backgroundAnalyzing && (
               <p
                 className={cn(
                   "pointer-events-auto mb-1.5 line-clamp-3 rounded-xl border px-3 py-2 text-[12px] leading-relaxed shadow-md backdrop-blur-md vauto-body-text",
@@ -686,18 +700,18 @@ export function AiCommandBar({
                 value={draftQuery}
                 onChange={(e) => setDraftQuery(e.target.value)}
                 placeholder={inputPlaceholder}
-                disabled={phase === "listing_processing" && agentBusy}
+                disabled={hardBusy}
                 className={composerInputClass}
                 enterKeyHint={isWizard ? "send" : "search"}
                 aria-label="VAUTO AI komanda"
               />
               <button
                 type="submit"
-                disabled={!draftQuery.trim() || busy}
+                disabled={!draftQuery.trim() || hardBusy}
                 className={composerButtonClass}
                 aria-label={isWizard ? "Siųsti žinutę" : "Ieškoti"}
               >
-                {busy ? (
+                {hardBusy ? (
                   <Loader2 className="h-4 w-4 animate-spin" />
                 ) : isWizard ? (
                   <ArrowUp className="h-4 w-4" />
@@ -755,8 +769,7 @@ export function AiCommandBar({
             type="button"
             onClick={handleChatMediaAttach}
             disabled={
-              busy ||
-              confirmationLocked ||
+              listingComposerLocked ||
               isPickingChatMedia ||
               composerAttachments.length >= MAX_CHAT_COMPOSER_ATTACHMENTS
             }
@@ -797,7 +810,7 @@ export function AiCommandBar({
               ? "truncate text-[15px] text-[var(--vauto-text-main)] placeholder:text-[#4b5563]"
               : "text-sm text-[var(--vauto-text-main)] caret-[var(--vauto-primary)] placeholder:text-[#4b5563]"
           )}
-          disabled={busy || (isChatBar && confirmationLocked)}
+          disabled={isChatBar ? listingComposerLocked : searchComposerLocked}
           readOnly={isChatBar && confirmationLocked}
           autoComplete="off"
         />
@@ -811,8 +824,7 @@ export function AiCommandBar({
         <button
           type="submit"
           disabled={
-            busy ||
-            (isChatBar && confirmationLocked) ||
+            (isChatBar ? listingComposerLocked : searchComposerLocked) ||
             (isChatBar ? !canSendChat : !draftQuery.trim())
           }
           className={cn(
@@ -825,7 +837,7 @@ export function AiCommandBar({
           )}
           aria-label={isChatBar ? "Siųsti" : "Ieškoti"}
         >
-          {busy ? (
+          {(isChatBar ? hardBusy : busy) ? (
             <Loader2 className="h-4 w-4 animate-spin" />
           ) : isChatBar ? (
             <>

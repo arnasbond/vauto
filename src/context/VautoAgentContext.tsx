@@ -1323,13 +1323,42 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       };
 
+      // Vision/doc soft-unlock: accept follow-ups immediately (queue server turn).
+      // Do not hold the composer hostage while background analysis streams.
       if (!options?.skipBusyCheck && busyGate.locked) {
-        return await new Promise<WakeWordAgentResult>((resolve) => {
-          const status = busyGate.enqueue(trimmed, options, resolve);
-          if (status === "full") {
-            resolve({ ok: false, error: AGENT_QUEUE_FULL_MESSAGE });
+        if (!options?.skipUserBubble && trimmed) {
+          setMessages((prev) =>
+            [...prev, { role: "user" as const, text: trimmed }].slice(-6)
+          );
+        }
+        if (
+          aiDraft &&
+          trimmed &&
+          isListingConversationInput(trimmed, {
+            hasListingDraft: true,
+            sellerFlowActive: true,
+          })
+        ) {
+          try {
+            tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
+              updateAiDraft(patch);
+            });
+          } catch {
+            /* best-effort local price/city while Vision continues */
           }
-        });
+        }
+        const status = busyGate.enqueue(
+          trimmed,
+          { ...options, skipUserBubble: true },
+          () => {
+            /* caller already continued — drain result is fire-and-forget */
+          }
+        );
+        if (status === "full") {
+          return { ok: false, error: AGENT_QUEUE_FULL_MESSAGE };
+        }
+        touchAgentSessionActivity();
+        return { ok: true, reply: "" };
       }
 
       const voiceReply = false;
@@ -2748,6 +2777,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           setStreamThinkingLabelNow(
             wireVisionUrls?.length ? "Skenuoju…" : "Skaitau dokumentą…"
           );
+          // Unlock composer immediately — matches „Galite tęsti pokalbį“.
+          busyGate.unlockUiForBackgroundAnalysis();
           setMessages((prev) => {
             const usersOnly = prev.filter((m) => m.role === "user");
             return [
@@ -2770,6 +2801,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
                 const ack = String(event.reply ?? "").trim();
                 if (!ack) return;
                 setStreamThinkingLabelNow("Skenuoju…");
+                // Soft-unlock input for concurrent price/city while Vision runs.
+                busyGate.unlockUiForBackgroundAnalysis();
                 if (optimisticAckShown) return;
                 optimisticAckShown = true;
                 setMessages((prev) => {

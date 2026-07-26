@@ -151,7 +151,7 @@ export function FlowAgentStrip({
           );
         })}
 
-        {busy && (
+        {(busy || Boolean(streamThinkingLabel?.trim())) && (
           <AgentTypingIndicator className="text-slate-300" label={streamThinkingLabel} />
         )}
       </div>
