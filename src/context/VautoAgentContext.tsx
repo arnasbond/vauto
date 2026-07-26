@@ -227,8 +227,10 @@ import {
 } from "@/lib/listing-contact-parse";
 import { logHeroContactReask } from "@/lib/hero-kpis";
 import {
-  aiSellerListingGreeting,
+  STATIC_FASHION_LISTING_WELCOME,
+  STATIC_SELLER_LISTING_WELCOME,
   buildAiSellerListingSeed,
+  requestChatComposerFocus,
 } from "@/lib/start-ai-seller-listing";
 const AI_TWIN_NUDGE_KEY = "vauto_ai_twin_nudge_v1";
 
@@ -3425,7 +3427,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setLastError(undefined);
     setOpen(false);
     setBusy(false);
-    setStreamThinkingLabelNow("Galvoju…");
+    setStreamThinkingLabelNow("");
   }, [setStreamThinkingLabelNow]);
 
   const beginFreshListingChatSession = useCallback(() => {
@@ -3445,7 +3447,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setLastBargainingOffer(null);
     setLastError(undefined);
     setBusy(false);
-    setStreamThinkingLabelNow("Galvoju…");
+    // No spinner / status toast on session start — composer must be idle instantly.
+    setStreamThinkingLabelNow("");
     // FORCE clean slate: wipe sticky buyer search intents, „Rodyk visus" filters,
     // preferredSizes pins, category pins, and visual search so historical context
     // cannot bleed into sell chat.
@@ -3488,10 +3491,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     async (options?: { fashion?: boolean; navigateHome?: boolean }) => {
       const fashion = Boolean(options?.fashion);
       const navigateHome = options?.navigateHome !== false;
-      // FORCE full session wipe before greeting — no leftover search/wish state.
+      // FORCE full session wipe — zero LLM / SSE on start (<100ms).
       resetSellerChat();
       if (fashion) activateWardrobeSpinta();
       applyAgentListingDraft(buildAiSellerListingSeed(user, { fashion }));
+      setBusy(false);
+      setStreamThinkingLabelNow("");
+      setMessages([
+        {
+          role: "assistant",
+          text: fashion
+            ? STATIC_FASHION_LISTING_WELCOME
+            : STATIC_SELLER_LISTING_WELCOME,
+        },
+      ]);
       setOpen(true);
       if (navigateHome) {
         const target = fashion ? "/fashion/" : "/";
@@ -3501,11 +3514,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           router.push(target);
         }
       }
-      await sendAgentMessage(aiSellerListingGreeting(fashion), {
-        skipUserBubble: true,
-        omitPriorListingDraft: true,
-        freshListingSession: true,
-      });
+      // Focus unlocked composer on next frames — no network wait.
+      queueMicrotask(() => requestChatComposerFocus());
+      requestAnimationFrame(() => requestChatComposerFocus());
+      touchAgentSessionActivity();
     },
     [
       activateWardrobeSpinta,
@@ -3513,7 +3525,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       pathname,
       resetSellerChat,
       router,
-      sendAgentMessage,
+      setStreamThinkingLabelNow,
       user,
     ]
   );

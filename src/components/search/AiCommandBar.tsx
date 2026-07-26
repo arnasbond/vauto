@@ -38,6 +38,7 @@ import { isTextFirstListingIntent } from "@/lib/listing-conversational-flow";
 import { resolveSupervisorChatTurn } from "@/lib/agent-chat-layout";
 import { hapticImpactLight } from "@/lib/haptic-feedback";
 import { WIZARD_AGENT_EXPAND_EVENT } from "@/lib/ai-conversational-recovery";
+import { CHAT_COMPOSER_FOCUS_EVENT } from "@/lib/start-ai-seller-listing";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { ChatComposerAttachments } from "@/components/home/ChatComposerAttachments";
 import {
@@ -543,6 +544,20 @@ export function AiCommandBar({
     window.addEventListener(WIZARD_AGENT_EXPAND_EVENT, onExpand);
     return () => window.removeEventListener(WIZARD_AGENT_EXPAND_EVENT, onExpand);
   }, [toggleWizardExpanded]);
+
+  useEffect(() => {
+    const onFocusComposer = () => {
+      if (isWizard && collapsible) {
+        setWizardExpanded(true);
+      }
+      requestAnimationFrame(() => {
+        inputRef.current?.focus({ preventScroll: true });
+      });
+    };
+    window.addEventListener(CHAT_COMPOSER_FOCUS_EVENT, onFocusComposer);
+    return () =>
+      window.removeEventListener(CHAT_COMPOSER_FOCUS_EVENT, onFocusComposer);
+  }, [isWizard, collapsible]);
 
   useEffect(() => {
     if (sellerVisionRecoveryActive && collapsible) {

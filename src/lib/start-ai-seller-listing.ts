@@ -41,8 +41,24 @@ export function buildAiSellerListingSeed(
   };
 }
 
+/**
+ * Instant client-side welcome — NEVER send this through the LLM / SSE loop.
+ * First API call must wait for real user text or photo upload.
+ */
+export const STATIC_SELLER_LISTING_WELCOME =
+  "Jūsų kontaktai iš profilio jau paruošti skelbimui. Įkelkite nuotraukas arba parašykite, ką parduodate!";
+
+export const STATIC_FASHION_LISTING_WELCOME =
+  "Jūsų kontaktai iš profilio jau paruošti skelbimui. Įkelkite drabužių nuotraukas arba parašykite, ką parduodate!";
+
+/** @deprecated Use STATIC_*_WELCOME for client render — do not sendAgentMessage this. */
 export function aiSellerListingGreeting(fashion = false): string {
-  return fashion
-    ? "Noriu kelti drabužių skelbimą Spintoje — naudoju profilio kontaktus. Prašau paprašyti nuotraukų."
-    : "Noriu kelti skelbimą — naudoju profilio kontaktus. Prašau paprašyti nuotraukų.";
+  return fashion ? STATIC_FASHION_LISTING_WELCOME : STATIC_SELLER_LISTING_WELCOME;
+}
+
+export const CHAT_COMPOSER_FOCUS_EVENT = "vauto-chat-composer-focus";
+
+export function requestChatComposerFocus(): void {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(new CustomEvent(CHAT_COMPOSER_FOCUS_EVENT));
 }
