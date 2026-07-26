@@ -18,6 +18,11 @@ import {
   LAZY_UPLOAD_VISION,
 } from "../shared/lazy-upload.js";
 import { applyOmnivaEligibilityToDraft } from "../shared/omniva-locker-eligibility.js";
+import {
+  buildVisionTextConflictPrompt,
+  hasVisionTextCategoryConflict,
+  inferChaoticCategoryFamily,
+} from "../shared/chaotic-input.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
   "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
@@ -366,6 +371,58 @@ async function resolveListingPhotoScan(input: {
   );
   // P0 Omniva — stamp fitsOmnivaLocker / estimatedSize / allowPastomatas after Vision.
   const mergedDraft = applyOmnivaEligibilityToDraft(mergedDraftRaw);
+
+  // Photo vs text category conflict — acknowledge, do not silently merge.
+  const visionHint = [
+    parsed.listing.title,
+    parsed.listing.category,
+    Object.values(listingAttrs).join(" "),
+  ]
+    .filter(Boolean)
+    .join(" ");
+  if (
+    input.userText?.trim() &&
+    !isImageOnlyChatUpload(input.userText) &&
+    hasVisionTextCategoryConflict(visionHint, input.userText)
+  ) {
+    const vFam = inferChaoticCategoryFamily(visionHint) ?? "other";
+    const tFam = inferChaoticCategoryFamily(input.userText) ?? "other";
+    const message = buildVisionTextConflictPrompt(vFam, tFam);
+    return {
+      ok: true,
+      reply: message,
+      quickReplies: [
+        `Parduoti pagal nuotrauką`,
+        `Parduoti pagal tekstą`,
+        ...POST_VISION_PUBLISH_CHIPS.slice(0, 2),
+      ].slice(0, 4),
+      toolCalls: [
+        {
+          name: "visionTextConflict",
+          result: {
+            ok: true,
+            needsClarification: true,
+            visionFamily: vFam,
+            textFamily: tFam,
+            draft: mergedDraft,
+          },
+        },
+      ],
+      actions: {
+        type: "listing_draft",
+        listingDraft: {
+          ...mergedDraft,
+          attributes: {
+            ...(mergedDraft.attributes ?? {}),
+            visionTextConflict: "true",
+            clarificationPrompt: message,
+          },
+        },
+        imageUrl: mergedGallery[0],
+        imageUrls: mergedGallery,
+      },
+    };
+  }
 
   // Multi-object: still sync partial OCR into PrePublish, then ask which to sell.
   if (parsed.needsClarification) {

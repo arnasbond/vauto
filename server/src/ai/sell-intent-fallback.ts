@@ -5,6 +5,11 @@
  */
 import { buildListingDraftUpdateReply } from "./listing-draft-preview.js";
 import { buildLeanSellGreeting } from "../shared/listing-organism.js";
+import {
+  hasChaoticJobSeekerCreateIntent,
+  hasChaoticSellIntent,
+  normalizeChaoticUserText,
+} from "../shared/chaotic-input.js";
 
 const SELL_PATTERNS = [
   /\bparduodu\b/i,
@@ -64,10 +69,12 @@ const SPEC_SIGNAL =
   /\b(c[1-5]\b|berlingo|cactus|picasso|jumpy|spacetourer|xsara|saxo|ds[3-7]|\d{4}\s*m\.?|\b(19|20)\d{2}\b|\b\d{1,3}[\s.]?\d{3}\s*km\b|\b\d{2,4}\s*k[wv]\b|\b\d[.,]\d\s*(?:l|ltr|litrai?)\b|benzinas|dyzel|dizel|elektr|hibrid|automat|mechanin)/i;
 
 export function detectServerSellIntent(text: string): boolean {
-  const q = text.trim().toLowerCase();
-  if (!q || q.length < 4) return false;
+  const raw = text.trim();
+  if (!raw || raw.length < 4) return false;
+  const q = normalizeChaoticUserText(raw) || raw.toLowerCase();
   // Job/service create phrases must win over bare „ieškau…“ buyer gate.
   if (
+    hasChaoticJobSeekerCreateIntent(raw) ||
     /\bieškau\s+darbo\b/i.test(q) ||
     /\bieskau\s+darbo\b/i.test(q) ||
     /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i.test(q) ||
@@ -75,6 +82,7 @@ export function detectServerSellIntent(text: string): boolean {
   ) {
     return true;
   }
+  if (hasChaoticSellIntent(raw)) return true;
   if (BUY_PATTERNS.some((re) => re.test(q))) return false;
   return SELL_PATTERNS.some((re) => re.test(q));
 }
@@ -93,6 +101,7 @@ export function isJobSeekerListingCreateIntent(text: string): boolean {
   if (/\b(darbo\s+kėd|darbo\s+ked|darbo\s+stal|office\s+chair)\b/i.test(q)) {
     return false;
   }
+  if (hasChaoticJobSeekerCreateIntent(text)) return true;
   return /\bieškau\s+darbo\b/i.test(q) || /\bieskau\s+darbo\b/i.test(q);
 }
 

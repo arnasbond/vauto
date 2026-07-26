@@ -56,7 +56,8 @@ export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta 
 - Vienas aiškus objektas → užpildyk juodraščio JSON su MASTER SALES COPYWRITER title+description (hook + bullet ypatybės + CTA).
 - Automobiliai + techninis pasas: OCR faktai → technicalFields; pokalbyje gali parodyti Markdown specifikacijų santrauką, BET description laukas VISADA turi būti turtingas marketplace sales copy (ne sausas caption).
 - DRAUDŽIAMA klausti kainos jei vartotojas jos nenurodė; DRAUDŽIAMA išgalvoti kainą / ridą / TA.
-- Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą be fono aprašymų.`;
+- Jei objektas neaiškus — nekurk pilno skelbimo; užduok patikslinimo klausimą be fono aprašymų.
+- FOTO↔TEKSTAS KONFLIKTAS (PRIVALOMA): jei vartotojo tekstas (pvz. „stogo remontas“) aiškiai prieštarauja vizualiai kategorijai (pvz. batai) — SUSTOK, neperrašyk title/category iš teksto ant vizualaus objekto. Paklausk: „Nuotraukoje matau X, o tekste Y — kurį skelbimą ruošiame?“ su 2 choiceChips.`;
 
 export const LISTING_WORKFLOW_COMMAND_RULES = `SISTEMINIAI DARBO EIGOS ĮSAKYMAI (PRIVALOMA — ne skelbimo laukai):
 - Frazės, atitinkančios patvirtinimo ar publikavimo komandas, yra SISTEMINIAI ĮSAKYMAI, ne skelbimo atributai.

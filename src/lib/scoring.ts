@@ -16,6 +16,11 @@ import { inferStrictCategory } from "@/lib/portal-listing-filter";
 import { isJobSearchQuery } from "@/lib/universal-search-intent";
 import { resolveBrowseAllIntent } from "@/lib/browse-all-intent";
 import {
+  hasChaoticJobSeekerCreateIntent,
+  hasChaoticSellIntent,
+  normalizeChaoticUserText,
+} from "@vauto/shared/chaotic-input";
+import {
   computeVisualRelevance,
   type VisualSearchProfile,
 } from "@/lib/visual-search";
@@ -529,6 +534,12 @@ export function detectSellerListingIntent(text: string): boolean {
   if (!q) return false;
   if (resolveBrowseAllIntent(q)) return false;
 
+  // Typo / RU / EN chaotic sell + job-seeker create (deterministic).
+  if (hasChaoticJobSeekerCreateIntent(text) || hasChaoticSellIntent(text)) {
+    return true;
+  }
+  const normalized = normalizeChaoticUserText(text) || q;
+
   // Create / text-listing intents win over buyer “ieškau…” before the buyer gate.
   const createFirstPatterns = [
     /\b(tiesiog\s+)?noriu\s+(į|i)?kelti\s+skelb/i,
@@ -542,9 +553,11 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bsiulau\s+paslaug/i,
     /\bteikiu\s+paslaug/i,
   ];
-  if (createFirstPatterns.some((re) => re.test(q))) return true;
+  if (createFirstPatterns.some((re) => re.test(normalized) || re.test(q))) {
+    return true;
+  }
 
-  if (isBuyerSearchIntent(q)) return false;
+  if (isBuyerSearchIntent(q) && !hasChaoticSellIntent(text)) return false;
 
   const sellerPatterns = [
     /\bparduodu\b/,
@@ -576,7 +589,7 @@ export function detectSellerListingIntent(text: string): boolean {
     /\bparuos(u|k)\s+skelb/i,
   ];
 
-  return sellerPatterns.some((re) => re.test(q));
+  return sellerPatterns.some((re) => re.test(normalized) || re.test(q));
 }
 
 export function resolveSortMode(

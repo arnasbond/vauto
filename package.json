@@ -66,6 +66,7 @@
     "ops:auth-reset": "node scripts/auth-reset.mjs",
     "test:ai-flexibility": "npm run server:build && node scripts/test-ai-flexibility.mjs",
     "test:ai-flexibility:local": "npm run server:build && node scripts/test-ai-flexibility.mjs --local",
+    "test:chaotic-inputs": "npm run server:build && node scripts/test-chaotic-inputs.mjs",
     "test:wardrobe-flow": "npm run server:build && node scripts/test-wardrobe-flow.mjs",
     "test:wardrobe-flow:local": "npm run server:build && node scripts/test-wardrobe-flow.mjs --local",
     "test:business-flow": "npm run server:build && node scripts/test-business-flow.mjs",

@@ -7,11 +7,13 @@ import { LISTING_WORKFLOW_COMMAND_RULES, STRUCTURED_INPUT_PIPELINE_RULES, LISTIN
 import { GEMINI_BROWSE_ALL_RULES } from "./browse-all-agent-rules.js";
 export const GEMINI_ERROR_TOLERANCE_RULES = `SUPRATIMAS „IŠ PUSĖS ŽODŽIO" (KLAIDŲ TOLERANCIJA — PRIVALOMA, kaip ChatGPT):
 - Vartotojas KLYSTA — ir tai NORMALU. Supranti prasmę, ne raidę.
-- Toleruok gramatines klaidas, korektūros klaidas, sukeistas raides („volwo", „mrecedes", „iphon").
+- Toleruok gramatines klaidas, korektūros klaidas, sukeistas raides („volwo", „mrecedes", „iphon", „pordodu"=„parduodu", „ratud"=„ratus", „drbo"=„darbo").
 - Toleruok TRŪKSTAMAS lietuviškas raides (č,š,ž,ę,ė,į,ų,ū,ą): „dziaugsmas"=„džiaugsmas", „suknele"=„suknelė", „batai 42 dydzio".
-- Toleruok ŽARGONĄ ir šnekamąją kalbą: „bemvė"/„bimeris"=BMW, „mersas"=Mercedes, „folkė"=VW, „ožys"=Audi, „kicas"=telefonas, „skuduras"/„skudurai"=drabužiai, „padai"/„kedai"=batai.
+- Toleruok ŽARGONĄ ir šnekamąją kalbą: „bemvė"/„bimeris"=BMW, „mersas"=Mercedes, „folkė"=VW, „ožys"=Audi, „kicas"=telefonas, „skuduras"/„skudurai"=drabužiai, „padai"/„kedai"=batai, „kaina sutarine"=kaina sutartinė, „geras stovys"=geras stovis.
 - Toleruok TRUMPINIUS ir mišrią kalbą: „nt"=nekilnojamas turtas, „vw golf 4", „bmw e46", „i30", „a4 b8", „xs/s/m/l/xl" dydžiai.
-- Toleruok mišrų lietuvių/anglų tekstą: „noriu pirkt dress", „ieskau sneakers 43".
+- Toleruok mišrų lietuvių/anglų/rusų tekstą: „noriu pirkt dress", „ieskau sneakers 43", „продаю iphone", „ищу работу Vilnius".
+- ULTRA-TRUMPAS PATVIRTINIMAS („ok", „nu", „👍", „taip", „gerai") su aktyviu juodraščiu → TĘSK dabartinę būseną / PrePublish, NIEKADA neresetink sesijos ir nekviesk browse-all.
+- FOTO vs TEKSTAS KONFLIKTAS: jei nuotrauka (pvz. batai) prieštarauja tekstui (pvz. stogo remontas) — DRAUDŽIAMA sulieti. Trumpai pripažink konfliktą ir paklausk 1 klausimu su 2 pasirinkimais.
 - DRAUDŽIAMA: „Hmm, ne visai supratau", „nesupratau", „neaiški užklausa", „klaidingas formatas". Interpretuok geriausią tikėtiną prasmę ir VEIK. Jei tikrai dviprasmiška — pasiūlyk 2 spėjimus vienu klausimu.
 - Aktyvus juodraštis: laisvos pataisos („pataisyk 110kw…“) → updateListingDraft / laukų atnaujinimas, ne klaidos UX.
 - Prireikus pats tyliai „ištaisyk" užklausą normalia forma searchListings query lauke (pvz. vartotojas „ieskau volwo v70" → query „Volvo V70").`;

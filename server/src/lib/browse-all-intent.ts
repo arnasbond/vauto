@@ -3,6 +3,8 @@
  * Keep aligned with src/lib/browse-all-intent.ts (confirmation exclusions).
  */
 
+import { isUltraShortConfirmation } from "../shared/chaotic-input.js";
+
 const SEARCH_PREFIX =
   /^(?:ieškau|ieskau|i\s*eškau|i\s*eskau|rask|surask|parodyk(?:\s+man)?|rodyk(?:\s+man)?|atidaryk(?:\s+man)?|atverk(?:\s+man)?|norėčiau|noreciau|ieškoti|ieskoti|find|search|show|browse|open|go)\s+/i;
 
@@ -24,7 +26,7 @@ const LISTING_CONFIRMATION_RE =
 
 /** Whole-utterance affirmations — never catalog browse. */
 const BARE_CONFIRMATION_RE =
-  /^(viskas|tinka|tvirtinu|patvirtinu|ok|gerai|taip|publikuok|publikuoti|publikuojam)$/i;
+  /^(viskas|tinka|tvirtinu|patvirtinu|ok|okay|okej|gerai|taip|nu|jo|yep|yes|да|ок|publikuok|publikuoti|publikuojam)$/i;
 
 /** High-confidence full-phrase shortcuts (folded ASCII). No bare „viskas“. */
 const BROWSE_PHRASE_RE =
@@ -75,6 +77,7 @@ export function resolveBrowseAllIntent(
 }
 
 export function isListingConfirmationPhrase(raw: string): boolean {
+  if (isUltraShortConfirmation(raw)) return true;
   const folded = foldLtForBrowseMatch(raw);
   if (!folded) return false;
   if (BARE_CONFIRMATION_RE.test(folded)) return true;

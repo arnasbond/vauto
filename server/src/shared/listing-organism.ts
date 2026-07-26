@@ -217,6 +217,13 @@ export function isShowDraftPreviewIntent(text: string): boolean {
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
+  // Ultra-short affirmations (“ok”, “nu”, “👍”) confirm current draft — never reset.
+  if (
+    /^(ok|okay|okej|nu|taip|gerai|tinka|jo|yep|yes|да|ок)[.!…]*$/i.test(t) ||
+    /^(👍|👌|✅)([\uFE0F\uFE0E]|[\u{1F3FB}-\u{1F3FF}])?$/u.test(text.trim())
+  ) {
+    return true;
+  }
   if (isShowDraftPreviewIntent(t)) return true;
   if (isImmediatePublishCommand(t)) return true;
   if (/^nenoriu(\b|$)/i.test(t)) return true;

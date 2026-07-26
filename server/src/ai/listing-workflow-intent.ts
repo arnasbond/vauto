@@ -29,6 +29,16 @@ const EXACT_PUBLISH_COMMANDS = new Set([
   "gerai",
   "ok",
   "okay",
+  "okej",
+  "nu",
+  "jo",
+  "yep",
+  "yes",
+  "да",
+  "ок",
+  "👍",
+  "👌",
+  "✅",
   "tinka",
   "patvirtinu",
   "taip tinka",
@@ -65,6 +75,9 @@ const WORKFLOW_CHIP_RE =
 export function isListingWorkflowCommand(text: string): boolean {
   const raw = text.trim();
   if (!raw) return false;
+  if (/^(👍|👌|✅)([\uFE0F\uFE0E]|[\u{1F3FB}-\u{1F3FF}])?$/u.test(raw)) {
+    return true;
+  }
   const folded = foldLt(raw);
   if (EXACT_PUBLISH_COMMANDS.has(folded)) return true;
   if (PUBLISH_WORKFLOW_RE.test(folded)) return true;
@@ -86,11 +99,19 @@ export function isPublishWorkflowCommand(text: string): boolean {
     folded === "gerai" ||
     folded === "ok" ||
     folded === "okay" ||
+    folded === "okej" ||
+    folded === "nu" ||
+    folded === "jo" ||
+    folded === "yep" ||
+    folded === "yes" ||
+    folded === "да" ||
+    folded === "ок" ||
     folded === "tinka" ||
     folded === "patvirtinu"
   ) {
     return true;
   }
+  if (/^(👍|👌|✅)/u.test(raw.trim())) return true;
   if (folded === "publikuok" || folded === "publikuoti" || folded === "publikuojam") {
     return true;
   }
