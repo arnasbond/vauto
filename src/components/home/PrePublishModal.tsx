@@ -449,6 +449,14 @@ export function PrePublishModal({
                 }}
                 className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] px-3 py-2.5 text-sm font-bold text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
               />
+              {card.vatLabelNet && card.vatLabelGross ? (
+                <p
+                  className="text-[11px] font-medium text-[var(--vauto-text-muted)]"
+                  data-vat-line="1"
+                >
+                  {card.vatLabelGross} · {card.vatLabelNet}
+                </p>
+              ) : null}
             </label>
 
             <label className="block space-y-1">

@@ -66,7 +66,6 @@ import {
   POST_VISION_PUBLISH_CHIPS,
   resolveLockedListingFlowState,
 } from "@/lib/listing-conversational-flow";
-import { clearAllListingDrafts } from "@/lib/listing-draft-storage";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
 import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
 import { isDataApiEnabled } from "@/lib/api/config";
@@ -271,10 +270,20 @@ import {
 } from "@/lib/listing-text-sanitize";
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import { applyOmnivaEligibilityToDraft } from "@vauto/shared/omniva-locker-eligibility";
+import {
+  isNegotiableListingPrice,
+  NEGOTIABLE_PRICE_LABEL,
+} from "@vauto/shared/negotiable-price";
+import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
 import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import type { CheckoutSession } from "@/lib/monetization-catalog";
+import {
+  clearAllListingDrafts,
+  removeMultiListingDraft,
+  upsertMultiListingDraft,
+} from "@/lib/listing-draft-storage";
 
 export type PublishListingResult =
   | { ok: true; listing: Listing; visibilityCheckout?: CheckoutSession | null }
@@ -1190,13 +1199,17 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const finalized = ensureClientDraftId(
         finalizeListingDraft(enriched, previousCategory, previousAttributes)
       );
-      setAiDraft(
-        syncDraftWithProfile({
-          ...finalized,
-          ...(galleryPhotos.length ? { orderedImageUrls: galleryPhotos } : {}),
-          ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
-        })
-      );
+      const syncedForAgent = syncDraftWithProfile({
+        ...finalized,
+        ...(galleryPhotos.length ? { orderedImageUrls: galleryPhotos } : {}),
+        ...(lockedFlowState ? { listingFlowState: lockedFlowState } : {}),
+      });
+      setAiDraft(syncedForAgent);
+      const coverForMulti =
+        galleryPhotos[0] ?? imageUrl ?? sellerPreviewImageRef.current ?? null;
+      if (syncedForAgent.title?.trim()) {
+        upsertMultiListingDraft(syncedForAgent, coverForMulti);
+      }
       setSellerInputMode("text");
       setSellerUserPrompt(enriched.description ?? enriched.title);
       if (galleryPhotos.length) {
@@ -1858,15 +1871,38 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       title: publishTitle,
     });
     const finalContact = resolveDraftContact(draftWithClientId, user);
+    const vatCodeForPublish = String(
+      user.vatCode ??
+        draftWithClientId.attributes?.vatCode ??
+        draftWithClientId.attributes?.vat_code ??
+        ""
+    ).trim();
+    const vatForPublish = computeVatBreakdown(
+      profileDraft.price ?? 0,
+      vatCodeForPublish
+    );
+    const publishPriceLabel =
+      profileDraft.priceLabel ??
+      (isNegotiableListingPrice(profileDraft)
+        ? NEGOTIABLE_PRICE_LABEL
+        : undefined) ??
+      (vatForPublish.hasVat ? vatForPublish.labelGross : undefined);
     const publishDraft = {
       ...draftWithClientId,
       category: publishCategory,
       title: publishTitle,
       description: publishDescription,
       contact: finalContact,
+      priceLabel: publishPriceLabel,
     };
     const publishAttributes = withSellerDisplayNameAttribute(
-      mergeSocialPublishAttributes(draftWithClientId.attributes, listingSocialPublish),
+      mergeSocialPublishAttributes(
+        {
+          ...(draftWithClientId.attributes ?? {}),
+          ...(vatCodeForPublish ? { vatCode: vatCodeForPublish } : {}),
+        },
+        listingSocialPublish
+      ),
       user
     );
 
@@ -1875,7 +1911,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       id: listingId,
       title: publishTitle,
       price: profileDraft.price,
-      priceLabel: profileDraft.priceLabel,
+      priceLabel: publishPriceLabel,
       location: listingCity,
       distanceKm: distKm,
       slug: generateListingSlug(publishTitle, listingCity),
@@ -1998,6 +2034,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (!opts?.skipSuccessNotify) {
         notifyListingPublishComplete(publishCategory, 1);
       }
+      removeMultiListingDraft(clientDraftId);
       const visibilityCheckout = buildPrePublishVisibilityCheckout(
         published.id,
         published.title,
@@ -2009,6 +2046,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setListings((prev) => [newListing, ...prev]);
     setLastPublishedListing(newListing);
     setSellerStep("published");
+    removeMultiListingDraft(clientDraftId);
     if (newListing.requiresReview) {
       showToast(
         "Skelbimas išsaugotas — moderatorius peržiūrės per 24 val. Kol kas jis nerodomas viešai.",

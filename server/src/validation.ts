@@ -566,6 +566,45 @@ export function validateIdArray(body: unknown, key = "ids"): ValidationResult<st
   return stringArray(body, key, 1000, 120);
 }
 
+const WEEKDAY_KEYS = [
+  "mon",
+  "tue",
+  "wed",
+  "thu",
+  "fri",
+  "sat",
+  "sun",
+] as const;
+
+function optionalBusinessHours(
+  body: Record<string, unknown>
+): ValidationResult<ApiUser["businessHours"] | undefined> {
+  if (!("businessHours" in body) || body.businessHours == null) {
+    return ok(undefined);
+  }
+  if (!isRecord(body.businessHours)) {
+    return fail("businessHours must be an object");
+  }
+  const out: NonNullable<ApiUser["businessHours"]> = {};
+  for (const key of WEEKDAY_KEYS) {
+    const day = body.businessHours[key];
+    if (day == null) continue;
+    if (!isRecord(day)) return fail(`businessHours.${key} is invalid`);
+    const open = typeof day.open === "string" ? day.open.trim().slice(0, 8) : "09:00";
+    const close =
+      typeof day.close === "string" ? day.close.trim().slice(0, 8) : "18:00";
+    if (!/^\d{1,2}:\d{2}$/.test(open) || !/^\d{1,2}:\d{2}$/.test(close)) {
+      return fail(`businessHours.${key} time is invalid`);
+    }
+    out[key] = {
+      open,
+      close,
+      ...(day.closed === true ? { closed: true } : {}),
+    };
+  }
+  return ok(Object.keys(out).length ? out : undefined);
+}
+
 export function validateUser(body: unknown): ValidationResult<ApiUser> {
   if (!isRecord(body)) return fail("Body must be an object");
   const id = requiredString(body, "id", 120);
@@ -618,6 +657,8 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
   if (!gender.ok) return gender;
   const hobbies = optionalStringArray(body, "hobbies", 40, 80);
   if (!hobbies.ok) return hobbies;
+  const businessHours = optionalBusinessHours(body);
+  if (!businessHours.ok) return businessHours;
   return ok({
     id: id.value,
     name: name.value,
@@ -644,6 +685,7 @@ export function validateUser(body: unknown): ValidationResult<ApiUser> {
     ageGroup: ageGroup.value as ApiUser["ageGroup"],
     gender: gender.value as ApiUser["gender"],
     hobbies: hobbies.value,
+    businessHours: businessHours.value,
   });
 }
 

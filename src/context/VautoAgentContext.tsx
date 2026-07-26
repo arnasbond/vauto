@@ -309,6 +309,8 @@ interface VautoAgentContextValue {
   sessionPendingImageUrls: string[];
   /** Reset publish card state after successful listing publish. */
   resetPublishSession: () => void;
+  /** Resume a saved draft into PrePublish (Phase B multi-draft). */
+  revealPrePublishCard: () => void;
 }
 
 const VautoAgentContext = createContext<VautoAgentContextValue | null>(null);
@@ -1118,6 +1120,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const resetPublishSessionRef = useRef<() => void>(() => {});
   const beginFreshListingChatSessionRef = useRef<() => void>(() => {});
 
+  const revealPrePublishCard = useCallback(() => {
+    setListingPublishConfirmed(true);
+    setHidePrePublishCard(false);
+    setOpen(true);
+  }, []);
+
   const resetPublishSession = useCallback(() => {
     setListingPublishConfirmed(false);
     setHidePrePublishCard(false);
@@ -1579,7 +1587,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
         // Verbal „tinka/gerai/publikuoti/keliam“ ONLY opens PrePublish preview modal.
         // NEVER call publishListing here — wait for „Publikuoti skelbimą“ button.
-        const card = buildPrePublishCardPayload(readiness, sellerPreviewImage);
+        const card = buildPrePublishCardPayload(readiness, sellerPreviewImage, {
+          vatCode: user.vatCode,
+        });
         if (card) {
           setListingPublishConfirmed(true);
           setHidePrePublishCard(false);
@@ -3833,6 +3843,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       listingPublishConfirmed,
       sessionPendingImageUrls,
       resetPublishSession,
+      revealPrePublishCard,
       applyAgentActions: applyActions,
       reportAgentError,
       resetHomeAgentSession,
@@ -3853,6 +3864,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       listingPublishConfirmed,
       sessionPendingImageUrls,
       resetPublishSession,
+      revealPrePublishCard,
       applyActions,
       reportAgentError,
       resetHomeAgentSession,

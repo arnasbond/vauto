@@ -33,6 +33,7 @@ export interface AuthApiSession {
     freeProtectionCredits?: number;
     freeTopBoostCredits?: number;
     profileType?: "private" | "business";
+    businessHours?: import("@vauto/shared/business-hours").BusinessHours | null;
   };
   role: UserRole;
   provider: AuthProvider;
@@ -201,6 +202,7 @@ export function mapApiUserToProfile(
     companyName: apiUser.companyName,
     companyCode: apiUser.companyCode,
     vatCode: apiUser.vatCode,
+    businessHours: apiUser.businessHours ?? undefined,
     billingPlan: apiUser.billingPlan,
     billingModel: apiUser.billingModel,
     serviceBaseCity: apiUser.serviceBaseCity,

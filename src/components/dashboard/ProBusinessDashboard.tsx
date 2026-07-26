@@ -8,6 +8,7 @@ import { B2BPlanCreditsCard } from "@/components/dashboard/B2BPlanCreditsCard";
 import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
 import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { BusinessMarketInsights } from "@/components/dashboard/BusinessMarketInsights";
+import { SellerDraftsStrip } from "@/components/dashboard/SellerDraftsStrip";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { ProListingCard } from "@/components/dashboard/ProListingCard";
 import { ServiceCalendar } from "@/components/dashboard/ServiceCalendar";
@@ -94,6 +95,7 @@ export function ProBusinessDashboard({
   return (
     <div>
       <BusinessIdentityCard user={user} />
+      <SellerDraftsStrip />
 
       {user.role === "pro" && (
         <B2BPlanCreditsCard

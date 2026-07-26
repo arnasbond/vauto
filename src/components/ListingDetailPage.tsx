@@ -54,6 +54,7 @@ import {
   sanitizeListingDescription,
 } from "@/lib/listing-text-sanitize";
 import { cn } from "@/lib/cn";
+import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
 
 interface ListingDetailPageProps {
   slug?: string;
@@ -273,6 +274,11 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const messageButtonClass =
     "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1e40af] text-white shadow-md transition hover:bg-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-70 md:h-auto md:min-h-11 md:w-full md:gap-2 md:px-4 md:text-sm md:font-bold";
 
+  const vatCode = String(
+    listing.attributes?.vatCode ?? listing.attributes?.vat_code ?? ""
+  ).trim();
+  const vatBreakdown = computeVatBreakdown(listing.price, vatCode);
+
   const titlePriceBlock = (
     <div>
       {categoryLabel ? (
@@ -286,6 +292,14 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       <p className="vauto-flux-price mt-1 text-2xl font-black text-slate-900">
         {formatPrice(listing.price, listing.priceLabel)}
       </p>
+      {vatBreakdown.hasVat ? (
+        <p
+          className="mt-1 text-xs font-medium text-slate-500"
+          data-vat-line="1"
+        >
+          {vatBreakdown.labelGross} · {vatBreakdown.labelNet}
+        </p>
+      ) : null}
     </div>
   );
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { Award, Building2, MapPin, ReceiptText } from "lucide-react";
+import { BusinessHoursEditor } from "@/components/dashboard/BusinessHoursEditor";
 import type { UserProfile } from "@/lib/types";
 
 export function BusinessIdentityCard({ user }: { user: UserProfile }) {
@@ -64,6 +65,7 @@ export function BusinessIdentityCard({ user }: { user: UserProfile }) {
               </p>
             </div>
           )}
+          <BusinessHoursEditor />
           <p className="mt-3 flex items-center gap-1.5 text-xs text-slate-400">
             <ReceiptText className="h-3.5 w-3.5 text-[var(--vauto-teal)]" />
             Sąskaitos-faktūros bus generuojamos automatiškai pagal šiuos duomenis.

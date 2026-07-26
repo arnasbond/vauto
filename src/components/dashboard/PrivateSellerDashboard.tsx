@@ -5,6 +5,7 @@ import { ProUpsellCard } from "@/components/dashboard/ProUpsellCard";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { SoldPromptBanner } from "@/components/dashboard/SoldPromptBanner";
 import { PrivateListingCard } from "@/components/dashboard/PrivateListingCard";
+import { SellerDraftsStrip } from "@/components/dashboard/SellerDraftsStrip";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
 
@@ -36,6 +37,7 @@ export function PrivateSellerDashboard({
   return (
     <div>
       <ProUpsellCard />
+      <SellerDraftsStrip />
 
       {listings.length > 0 && (
         <CallAndSellWidget
