@@ -94,8 +94,8 @@ export function deriveFeatureClaims(
       label: "Siuntų sekimas",
       state: !live ? "demo" : shippingCarrier ? "live" : "beta",
       hint: shippingCarrier
-        ? `Carrier: ${infra?.shippingCarrierProvider ?? "live"}`
-        : "Siuntų lipdukai — simuliacija (ne gyvas Omniva/DPD). Partnerystė ruošiama.",
+        ? `Live vežėjas: ${infra?.shippingCarrierProvider ?? "omniva"} (OMX).`
+        : "Siuntų lipdukai — simuliacija (Omniva/DPD raktai neaktyvūs).",
     },
     {
       id: "price_advisor",

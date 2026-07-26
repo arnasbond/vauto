@@ -1,7 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { Package, Truck } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { apiFetchHealthDetails } from "@/lib/api/client";
+import { isDataApiEnabled } from "@/lib/api/config";
 import {
   OMNIVA_LOCKER_OVERSIZE_NOTE,
   resolveOmnivaLockerEligibility,
@@ -41,7 +44,7 @@ export function resolvePrePublishShippingEligibility(input: {
 
 /**
  * PrePublish shipping fence — show Omniva lockers only when fitsOmnivaLocker.
- * Otherwise hide lockers and default to pickup / courier with the Omniva note.
+ * Live vs sim badge follows /api/health shippingCarrierLive (Omniva keys on API).
  */
 export function PrePublishShippingOptions({
   title,
@@ -64,11 +67,37 @@ export function PrePublishShippingOptions({
   const active: PrePublishShippingMode = showOmniva
     ? value
     : "pickup_or_courier";
+  const [omnivaLive, setOmnivaLive] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    if (!isDataApiEnabled()) {
+      setOmnivaLive(false);
+      return;
+    }
+    let cancelled = false;
+    void apiFetchHealthDetails().then((r) => {
+      if (cancelled) return;
+      const provider = String(
+        r.data.infra?.shippingCarrierProvider ?? ""
+      ).toLowerCase();
+      setOmnivaLive(
+        Boolean(r.ok && r.data.infra?.shippingCarrierLive) &&
+          (provider === "omniva" || provider.includes("omniva"))
+      );
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const showLive = omnivaLive === true;
+  const showSim = omnivaLive === false;
 
   return (
     <section
       className="space-y-2 rounded-xl border border-[var(--vauto-border)]/70 bg-[var(--vauto-surface-muted)]/25 p-3"
       data-omniva-eligible={showOmniva ? "true" : "false"}
+      data-omniva-live={showLive ? "true" : showSim ? "false" : "unknown"}
       data-estimated-size={eligibility.estimatedSize}
     >
       <p className="text-sm font-semibold text-[var(--vauto-text)]">
@@ -77,13 +106,22 @@ export function PrePublishShippingOptions({
       <p className="text-[11px] text-[var(--vauto-text-muted)]">
         Omniva L max 39×38×64 cm · ≤30 kg
       </p>
-      {showOmniva ? (
+      {showOmniva && showLive ? (
+        <p
+          className="rounded-lg border border-emerald-500/30 bg-emerald-500/10 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-emerald-800 dark:text-emerald-200"
+          data-omniva-live-banner="1"
+          role="status"
+        >
+          Omniva live — lipdukai generuojami per oficialų OMX API.
+        </p>
+      ) : null}
+      {showOmniva && showSim ? (
         <p
           className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-2.5 py-1.5 text-[11px] font-semibold leading-snug text-amber-800 dark:text-amber-200"
           data-omniva-sim="1"
           role="status"
         >
-          Simuliacija — lipdukas bus demonstracinis, kol vežėjo partnerystė įjungta.
+          Simuliacija — Omniva raktai serveryje neaktyvūs.
         </p>
       ) : null}
 
@@ -113,12 +151,21 @@ export function PrePublishShippingOptions({
                   aria-hidden
                 />
                 Omniva paštomatas
-                <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
-                  Simuliacija
-                </span>
+                {showLive ? (
+                  <span className="rounded-md bg-emerald-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-emerald-800 dark:text-emerald-200">
+                    Live
+                  </span>
+                ) : null}
+                {showSim ? (
+                  <span className="rounded-md bg-amber-500/15 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800 dark:text-amber-200">
+                    Simuliacija
+                  </span>
+                ) : null}
               </span>
               <span className="mt-0.5 block text-[11px] leading-snug text-[var(--vauto-text-muted)]">
-                Prekė telpa (dydis {eligibility.estimatedSize}) — ne live vežėjo API
+                {showLive
+                  ? `Prekė telpa (dydis ${eligibility.estimatedSize}) — oficialus Omniva paštomatas`
+                  : `Prekė telpa (dydis ${eligibility.estimatedSize})`}
               </span>
             </span>
           </label>

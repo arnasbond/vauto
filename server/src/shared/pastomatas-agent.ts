@@ -1,4 +1,8 @@
 import {
+  isOmnivaLiveConfigured,
+  searchOmnivaParcelLockers,
+} from "../services/omniva.js";
+import {
   buildLockerPrompt,
   buildParcelLabelBubble,
   buildRecipientPrompt,
@@ -9,7 +13,7 @@ import {
   type PastomatasLockerOption,
 } from "./pastomatas-chat-flow.js";
 
-/** Synthetic lockers per city — same contract as client shipping-routing. */
+/** Fallback synthetic lockers when public Omniva registry is unreachable. */
 export function lockersForCity(city: string): PastomatasLockerOption[] {
   const c = city.trim() || "Vilnius";
   return [1, 2, 3, 4, 5].map((i) => ({
@@ -20,23 +24,43 @@ export function lockersForCity(city: string): PastomatasLockerOption[] {
   }));
 }
 
-export function startPastomatasGuide(city: string): {
+async function resolveLockersForCity(
+  city: string
+): Promise<PastomatasLockerOption[]> {
+  try {
+    const rows = await searchOmnivaParcelLockers({ city, limit: 5 });
+    if (rows.length > 0) {
+      return rows.map((r) => ({
+        id: r.id,
+        name: r.name,
+        address: r.address,
+        city: r.city,
+      }));
+    }
+  } catch {
+    /* public registry / network — fall back */
+  }
+  return lockersForCity(city);
+}
+
+export async function startPastomatasGuide(city: string): Promise<{
   state: PastomatasFlowState;
   reply: string;
-} {
-  const state = createPastomatasFlow(city, "simulated");
-  const lockers = lockersForCity(state.city);
+}> {
+  const live = isOmnivaLiveConfigured();
+  const state = createPastomatasFlow(city, live ? "live" : "simulated");
+  const lockers = await resolveLockersForCity(state.city);
   return {
     state,
     reply: buildLockerPrompt(state.city, lockers),
   };
 }
 
-export function advancePastomatasGuide(
+export async function advancePastomatasGuide(
   state: PastomatasFlowState,
   userText: string
-): { state: PastomatasFlowState; reply: string; done?: boolean } {
-  const lockers = lockersForCity(state.city);
+): Promise<{ state: PastomatasFlowState; reply: string; done?: boolean }> {
+  const lockers = await resolveLockersForCity(state.city);
 
   if (state.step === "choose_locker") {
     const n = Number.parseInt(userText.trim(), 10);
@@ -88,6 +112,7 @@ export function advancePastomatasGuide(
 
   return {
     state,
-    reply: "Siuntos vedimas jau baigtas. Jei reikia naujo lipduko — parašykite „paštomatas“.",
+    reply:
+      "Siuntos vedimas jau baigtas. Jei reikia naujo lipduko — parašykite „paštomatas“.",
   };
 }

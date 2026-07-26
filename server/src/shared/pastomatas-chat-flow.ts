@@ -53,8 +53,8 @@ export function buildParcelLabelBubble(input: {
 }): string {
   const modeNote =
     input.shippingMode === "live"
-      ? "Lipdukas paruoštas vežėjui."
-      : "Simuliacinis siuntos kodas (demo režimas) — gyvam Omniva reikia live kredencialų.";
+      ? "Omniva live aktyvus — galutinį OMX lipduką generuokite Escrow → Siuntos lipdukas."
+      : "Simuliacinis siuntos kodas (demo režimas) — Omniva raktai serveryje neaktyvūs.";
   return [
     "📦 Siuntos duomenys paruošti:",
     `Paštomatas: ${input.lockerName}`,

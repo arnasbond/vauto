@@ -35,7 +35,7 @@ Po įkėlimo — gyvas pokalbis su pirkėju; jei pardavėjas nepasiekiamas — r
 
 - Antras publish kelias (forma, wizard, Zero-UI confirmation kaip tiesa, „įkelti ranka“ be agento).
 - Naujas didelis refaktorius / monorepo / „išvalyti visą SellerFlow“ be hero metriku.
-- Live Omniva / pastomatas kaip „veikia“ (leidžiama tik aiškiai pažymėta **simuliacija**).
+- Omniva / pastomatas kaip „live“, kai serveryje nėra OMX kredencialų (tada — tik aiškiai pažymėta **simuliacija**). Su `OMNIVA_USERNAME`+`OMNIVA_PASSWORD` — oficialus live.
 - WebSocket religija, kol SSE + push dengia chatą.
 - Pilnas verslo ERP: sandėlis, masinis admin agentas, sudėtingas B2B dashboardas.
 - Neribotas AI derybose (kainų išradinėjimas, teisiniai pažadai, „parduodu už tave“).

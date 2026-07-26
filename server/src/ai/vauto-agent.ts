@@ -607,7 +607,7 @@ async function runVautoAgentInner(
             actions: { type: "none" },
           };
         }
-        const started = startPastomatasGuide(pastomatasCity);
+        const started = await startPastomatasGuide(pastomatasCity);
         setPastomatasSession(sessionKey, started.state);
         return {
           ok: true,
@@ -616,7 +616,7 @@ async function runVautoAgentInner(
           actions: { type: "none" },
         };
       }
-      const advanced = advancePastomatasGuide(existing, lastUserText);
+      const advanced = await advancePastomatasGuide(existing, lastUserText);
       if (advanced.done) clearPastomatasSession(sessionKey);
       else setPastomatasSession(sessionKey, advanced.state);
       return {

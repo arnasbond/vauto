@@ -249,7 +249,7 @@ export default function ApiePage() {
             </h2>
             <p className="mt-1.5 text-sm text-[var(--vauto-text-muted)]">
               Visa išmanioji grandinė: nuo nuotraukos iki skelbimo ir pokalbio — AI,
-              pasitikėjimas ir pranešimai. Siuntų partnerystė — ruošiama.
+              pasitikėjimas, pranešimai ir gyvas Omniva paštomatų lipdukų API.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -271,7 +271,7 @@ export default function ApiePage() {
             <FeatureCard
               icon={Package}
               title="📦 AI gabaritai ir paštomatai"
-              description="AI tikrina matmenis (S, M, L) ir siūlo tinkamą paštomatą. Omniva lipdukai kol kas — simuliacija; gyva partnerystė ruošiama."
+              description="AI tikrina matmenis (S, M, L) ir siūlo tinkamą paštomatą. Omniva lipdukai — oficialus OMX live API (Escrow → Siuntos lipdukas)."
             />
             <FeatureCard
               icon={Languages}
@@ -326,7 +326,7 @@ export default function ApiePage() {
               step={3}
               icon={UserCheck}
               title="Publikavimas per 10 s"
-              description="Patvirtinate — skelbimas gyvas. Toliau: realaus laiko pokalbiai, atsiliepimai ir (simuliacijoje) siuntos lipdukas."
+              description="Patvirtinate — skelbimas gyvas. Toliau: realaus laiko pokalbiai, atsiliepimai ir Omniva siuntos lipdukas."
             />
           </div>
         </section>
