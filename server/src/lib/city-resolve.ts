@@ -32,7 +32,7 @@ function normalizeCityCandidate(raw: string): string {
 
 /**
  * Resolve listing/user city from raw input with optional verified fallback.
- * Never invents Vilnius — returns "" when unknown so chat/PrePublish can ask.
+ * Never invents Vilnius/Kaunas — returns "" when unknown so chat/PrePublish can ask.
  */
 export function resolveListingCity(
   raw: string | undefined | null,
@@ -41,4 +41,41 @@ export function resolveListingCity(
   const fromRaw = normalizeCityCandidate(String(raw ?? ""));
   if (fromRaw) return fromRaw;
   return normalizeCityCandidate(String(fallback ?? ""));
+}
+
+/**
+ * Keep LLM city ONLY when grounded in profile, geo, or user text.
+ * Prevents schema-example leaks (e.g. inventing "Kaunas" from "Vilnius, Kaunas, …").
+ */
+export function sanitizeListingCity(
+  llmCity: string | undefined | null,
+  opts: {
+    profileCity?: string | null;
+    geoCityHint?: string | null;
+    userText?: string | null;
+  } = {}
+): string {
+  const candidate = resolveListingCity(llmCity);
+  if (!candidate) return "";
+
+  const profile = resolveListingCity(opts.profileCity);
+  if (profile && profile.toLowerCase() === candidate.toLowerCase()) {
+    return profile;
+  }
+
+  const geo = resolveListingCity(opts.geoCityHint);
+  if (geo && geo.toLowerCase() === candidate.toLowerCase()) {
+    return geo;
+  }
+
+  const text = String(opts.userText ?? "").toLowerCase();
+  if (!text.trim()) return "";
+
+  const needle = candidate.toLowerCase();
+  if (text.includes(needle)) return candidate;
+  // Common LT locative/genitive stems (Kaune, Vilniuje, Klaipėdoje…).
+  const stem = needle.replace(/(as|is|ys|ė|a)$/i, "");
+  if (stem.length >= 4 && text.includes(stem)) return candidate;
+
+  return "";
 }

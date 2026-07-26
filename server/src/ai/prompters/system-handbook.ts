@@ -63,42 +63,46 @@ export const BENCHMARK_ELECTRONICS_PEIKO: HandbookBenchmark = {
 **Pristatymas / Apžiūra:** Vilnius / pristatymas paštomatu.`,
 };
 
-/** EXAMPLE B — Automotive Regitra passport */
+/**
+ * EXAMPLE B — Automotive Regitra passport.
+ * GENERIC placeholders only (no hardcoded Citroën / Picasso / leather).
+ * Injected ONLY when Pass-2 prompterId === "auto" (full vehicle), never for parts/wheels.
+ */
 export const BENCHMARK_AUTO_REGITRA: HandbookBenchmark = {
   id: "B",
   categoryId: "auto",
   title: "Automotive Registration Certificate — Regitra Passport",
   inputContext:
-    "Green Regitra registration certificate image + car photos.",
+    "Green Regitra registration certificate image + car photos of a FULL vehicle (not wheels/parts alone).",
   expectedAction:
-    "Extract D.1/D.3/E/P.1/P.2/P.3/B and AUTO-FILL PrePublish without asking follow-up questions for certificate-visible data.",
+    "Extract D.1/D.3/E/P.1/P.2/P.3/B from THIS certificate only. NEVER invent salon/TA/mileage. NEVER use this template for ratlankiai/padangos/dalys.",
   extractionPattern: `{
   "intent": "sell",
   "category": "AUTOMOBILIAI",
   "technicalFields": {
-    "make": "Citroën",
-    "model": "Grand C4 Picasso",
-    "year": "2007",
-    "firstRegistration": "2007-XX-XX",
-    "fuelType": "Dyzelinas",
-    "powerKw": "80",
-    "seats": "7",
-    "bodyType": "vienatūris / MPV"
+    "make": "<D.1 iš OCR — NEkopijuok pavyzdžio markės>",
+    "model": "<D.3 VERBATIM iš OCR>",
+    "year": "<iš B datos>",
+    "firstRegistration": "<YYYY-MM-DD iš B>",
+    "fuelType": "<P.3>",
+    "powerKw": "<P.2>",
+    "seats": "<S.1>",
+    "bodyType": "<tik jei matoma>"
   },
-  "factNotes": "Regitra OCR: D.1 Citroën, D.3 Grand C4 Picasso, B 2007, P.3 Dyzelinas, P.2 80 kW, S.1 7"
+  "factNotes": "Regitra OCR: tik perskaityti laukai — be išgalvotų salono/TA/ridos faktų"
 }`,
-  generationPattern: `**Antraštė:** Citroën Grand C4 Picasso 2007
+  generationPattern: `**Antraštė:** <make> <model VERBATIM> <metai — TIK iš OCR>
 
 **Specifikacijos ir Savybės:**
-• Markė / Modelis (D.1 / D.3): Citroën Grand C4 Picasso
-• Pirmos registracijos metai (B): 2007
-• Kuro tipas (P.3): Dyzelinas
-• Galia (P.2): 80 kW
-• Sėdimos vietos: 7 sėdimos vietos (vienatūris)
+• Markė / Modelis (D.1 / D.3): <tik iš OCR>
+• Pirmos registracijos metai (B): <tik iš OCR>
+• Kuro tipas / galia / sėdynės — TIK jei OCR matoma
 
-**Būklė:** Aprašyk tik matomas / nurodytas salono ir išorės ypatybes.
+**Būklė:** Aprašyk TIK matomas / vartotojo nurodytas ypatybes. DRAUDŽIAMA „odinis salonas", jei nematyti.
 
-**Pristatymas / Apžiūra:** Galima apžiūrėti vietoje.`,
+**Pristatymas / Apžiūra:** Galima apžiūrėti vietoje.
+
+HARD: jei prekė = ratlankiai / padangos / dalys — NENAUDOK šio auto šablono; rašyk apie ratus/dalį, be salono/variklio/pavarų.`,
 };
 
 /** EXAMPLE C — Musical instrument */
@@ -303,10 +307,13 @@ export type HandbookPrompterId =
   | "jobs"
   | "services";
 
-/** Categories that may receive packaging / PEIKO electronics few-shots. */
+/**
+ * Categories allowed in Pass-1 "general" few-shots.
+ * HARD: never inject AUTO Regitra / Citroën benchmarks into general extraction —
+ * that leaks full-car templates into wheels/parts/electronics.
+ */
 const PACKAGING_HANDBOOK_CATEGORIES = new Set<HandbookCategoryId>([
   "electronics",
-  "auto",
   "music",
   "art",
 ]);

@@ -428,29 +428,53 @@ async function runVautoAgentInner(
     [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
   );
 
-  // Safety Shield — toxic / jailbreak / off-domain (before Vision or tools).
-  // Skip placeholders used for photo-only turns.
-  const skipTextSafety =
-    !lastUserTextRaw ||
-    /^\[?(nuotraukos?\s+įkeltos?|dokumentas\s+įkeltas)\]?$/i.test(
-      lastUserTextRaw
-    );
-  const textSafety = skipTextSafety
-    ? null
-    : evaluateTextSafetyGate(lastUserTextRaw);
-  if (textSafety) {
-    return {
-      ok: true,
-      reply: replyForTextSafetyGate(textSafety),
-      quickReplies: [],
-      toolCalls: [
-        {
-          name: "safetyShield",
-          result: { ok: false, gate: textSafety.kind },
-        },
-      ],
-      actions: { type: "none" },
-    };
+  /**
+   * SYNC Safety Shield — run BEFORE any early_ack / draft_update / Vision.
+   * Scan recent user messages so photo-only placeholders cannot bypass a prior
+   * "replika" / toxic claim in the same session.
+   */
+  const isMediaPlaceholder = (t: string) =>
+    !t ||
+    /^\[?(nuotraukos?\s+įkeltos?|dokumentas\s+įkeltas)[^\]]*\]?$/i.test(t.trim());
+
+  const recentUserTexts = (req.messages ?? [])
+    .filter((m) => m.role === "user")
+    .map((m) => normalizeSecretaryQuery(m.text))
+    .filter((t) => t && !isMediaPlaceholder(t))
+    .slice(-8);
+
+  const draftHayForSafety = [
+    req.context.listingDraft?.title,
+    req.context.listingDraft?.description,
+  ]
+    .map((s) => String(s ?? "").trim())
+    .filter(Boolean)
+    .join(" ");
+
+  const safetyCandidates = [
+    ...recentUserTexts,
+    ...(draftHayForSafety ? [draftHayForSafety] : []),
+    ...(lastUserTextRaw && !isMediaPlaceholder(lastUserTextRaw)
+      ? [lastUserTextRaw]
+      : []),
+  ];
+
+  for (const candidate of safetyCandidates) {
+    const textSafety = evaluateTextSafetyGate(candidate);
+    if (textSafety) {
+      return {
+        ok: true,
+        reply: replyForTextSafetyGate(textSafety),
+        quickReplies: [],
+        toolCalls: [
+          {
+            name: "safetyShield",
+            result: { ok: false, gate: textSafety.kind, sync: true },
+          },
+        ],
+        actions: { type: "none" },
+      };
+    }
   }
 
   const lastUserText = scrubProfanity(lastUserTextRaw);

@@ -172,7 +172,7 @@ async function resolveListingPhotoScan(input: {
     attachedDocFacts
       ? `ATTACHED DOCUMENT FACTS (PDF/CV/TXT — use for Pass-1/Pass-2 synthesis, do not invent): ${attachedDocFacts.slice(0, 3500)}`
       : "",
-    "Vision MULTIMODAL FUSION (UNIVERSAL OCR + MASTER SALES COPYWRITER): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields. B→firstRegistration YYYY-MM-DD. S.1=7/Grand → Grand C4 Picasso. Mentelės → Automatinė/EGS. DRAUDŽIAMA išgalvoti kainą/TA/ridą. documentImageIndexes = OCR-only.",
+    "Vision MULTIMODAL FUSION (UNIVERSAL OCR + MASTER SALES COPYWRITER): passport PRIMARY OCR across ALL attached photos. HARD SPECS A/B/D.1/D.3/S.1/P.1–P.3/R/V.9/G/C.1.3/E → technicalFields TIK iš OCR. PARTS/WHEELS: ratlankiai/padangos — BE salono/variklio/pavarų. DRAUDŽIAMA išgalvoti kainą/TA/ridą/odinį saloną. documentImageIndexes = OCR-only.",
     "ANTI-STALE: title/make/model TIK iš dabartinių nuotraukų+OCR. IGNORUOK seną listingDraft.title / myListings antraštes, jei vizualiai nesutampa.",
     "MASTER SALES COPYWRITER: title engaginantis; description = hook + • **Ypatybės** bullet'ai + CTA su Markdown ** ir \\n. DRAUDŽIAMA sausas caption („pavaizduoti rudi taškeliai…“).",
   ].filter(Boolean);

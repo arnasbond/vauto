@@ -105,6 +105,20 @@ export function PrePublishModal({
   const planeIconRef = useRef<HTMLSpanElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
 
+  // Instant idle icon after publish wipe / unmount — no stale airplane flash.
+  useEffect(() => {
+    if (!publishing) {
+      setFlying(false);
+      submitLockRef.current = false;
+    }
+  }, [publishing]);
+  useEffect(() => {
+    return () => {
+      setFlying(false);
+      submitLockRef.current = false;
+    };
+  }, []);
+
   const gallery = useMemo(
     () =>
       (card.imageUrls?.length

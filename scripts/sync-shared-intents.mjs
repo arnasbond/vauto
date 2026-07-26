@@ -32,8 +32,12 @@ for (const name of readdirSync(srcDir)) {
   console.log(`synced intents/${name}`);
 }
 
-const sliceSrc = join(root, "shared", "llm-context-slice.ts");
-const sliceDest = join(root, "server", "src", "shared", "llm-context-slice.ts");
-copyFileSync(sliceSrc, sliceDest);
-console.log("synced llm-context-slice.ts");
+for (const name of [
+  "llm-context-slice.ts",
+  "authenticity-text.ts",
+  "vehicle-vision-enrich.ts",
+]) {
+  copyFileSync(join(root, "shared", name), join(root, "server", "src", "shared", name));
+  console.log(`synced ${name}`);
+}
 console.log("OK");

@@ -188,6 +188,16 @@ export type VehicleDraftLike = {
 export function enrichVehicleVisionDraft<T extends VehicleDraftLike>(draft: T): T {
   const cat = String(draft.category ?? "").toLowerCase();
   const attrs = { ...(draft.attributes ?? {}) };
+  const corpus = `${draft.title ?? ""} ${draft.description ?? ""}`;
+  // HARD: never apply full-car Picasso/salon enrichment to wheels/tires/parts.
+  if (
+    /\b(ratlank|ratai|ratų|ratud|padang|tyres?|tires?|wheels?|rims?|dalys|parts?)\b/i.test(
+      corpus
+    ) ||
+    /\bratud\b|\br17\b|\br1[4-9]\b/i.test(corpus)
+  ) {
+    return draft;
+  }
   const looksVehicle =
     cat === "vehicles" ||
     cat === "transport" ||

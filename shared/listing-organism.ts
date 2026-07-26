@@ -769,18 +769,14 @@ export function buildVehicleSpecReportMarkdown(draft: {
       ? interiorLines
       : salonFallback.length
         ? salonFallback
-        : [
-          "- Odinis/kombinuotas salonas, porankiai, mentelės prie vairo, bagažinės kilimėlis — jei matosi nuotraukose.",
-        ]),
+        : ["- (salono detalės — tik jei matosi nuotraukose; neišgalvok)"]),
     "",
     "**Išorė ir komplektacija (iš nuotraukų)**",
     ...(exteriorLines.length
       ? exteriorLines
       : (!interiorLines.length && salonFallback.length)
         ? []
-        : [
-          "- Ratlankiai, stogo bėgeliai, langų deflektoriai, vilkimo kablys — jei matosi nuotraukose.",
-        ]),
+        : ["- (išorės detalės — tik jei matosi nuotraukose; neišgalvok)"]),
     "",
     VEHICLE_SPEC_COPY_OFFER,
   ];

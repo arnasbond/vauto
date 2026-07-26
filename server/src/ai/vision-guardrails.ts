@@ -27,7 +27,7 @@ DRAUDŽIAMA sausas caption stilius:
 TITLE (title):
 - Įtraukiantis, pilnas, marketplace lygio (pvz. „Originalus abstraktus paveikslas ant drobės (Rankų darbas)“).
 - NE sausas („Abstraktus paveikslas su rudais motyvais“).
-- Auto: make + VERBATIM modelis + metai (pvz. „Citroën Grand C4 Picasso 2007“).
+- Auto: make + VERBATIM modelis + metai — TIK iš OCR / vartotojo (be hardcoded few-shot markių).
 
 DESCRIPTION (description) — JSON string su Markdown (** ir • / - bullet).
 PRIVALOMA TURTINGAS tekstas (NE 1 eilutė / NE antraštės pakartojimas). Minimaliai 4–8 sakiniai + bullet sekcijos:

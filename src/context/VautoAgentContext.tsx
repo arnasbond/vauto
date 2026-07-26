@@ -194,9 +194,14 @@ import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-poli
 import { ensureRichSalesCopyBeforePublish } from "@vauto/shared/ensure-rich-sales-copy";
 import {
   beginAbsoluteFreshSellerListingSession,
+  getSellerListingSessionEpoch,
   markSellerListingChatActive,
   shouldIsolateSellerListingFromSearch,
 } from "@/lib/seller-chat-session";
+import {
+  detectExplicitReplicaClaim,
+  REPLICA_HARD_BLOCK_REPLY,
+} from "@vauto/shared/authenticity-text";
 import {
   parseDetectedObjectsFromAttributes,
   resolveDocumentAmbiguityRetry,
@@ -476,6 +481,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const [sessionPendingImageUrls, setSessionPendingImageUrls] = useState<string[]>([]);
   /** Persist seller-typed price across turns — never re-ask „Kokią kainą?“ once locked. */
   const sessionLockedPriceRef = useRef<number | null>(null);
+  /** Abort in-flight agent SSE when session is wiped (prevents stale draft flash). */
+  const agentStreamAbortRef = useRef<AbortController | null>(null);
+  const listingSessionEpochRef = useRef(getSellerListingSessionEpoch());
   /** After +Įdėti / fresh upload — omit myListings + prior draft from agent context. */
   const freshListingSessionRef = useRef(false);
   const backgroundScanSeenRef = useRef<Set<string>>(new Set());
@@ -2700,6 +2708,33 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           ...(includeAdminContext ? { includeAdminContext: true } : {}),
         };
 
+        // SYNC client authenticity gate — before optimistic ack / draft SSE apply.
+        const safetyScanText = [
+          trimmed,
+          ...messages
+            .filter((m) => m.role === "user")
+            .map((m) => m.text)
+            .slice(-6),
+        ].join("\n");
+        if (detectExplicitReplicaClaim(safetyScanText)) {
+          setStreamThinkingLabelNow("Galvoju…");
+          setMessages((prev) => {
+            const usersOnly = prev.filter((m) => m.role === "user");
+            return [
+              ...usersOnly,
+              { role: "assistant" as const, text: REPLICA_HARD_BLOCK_REPLY },
+            ].slice(-6);
+          });
+          speakReply(REPLICA_HARD_BLOCK_REPLY);
+          return { ok: true, reply: REPLICA_HARD_BLOCK_REPLY };
+        }
+
+        const epochAtSend = getSellerListingSessionEpoch();
+        listingSessionEpochRef.current = epochAtSend;
+        agentStreamAbortRef.current?.abort();
+        const streamAbort = new AbortController();
+        agentStreamAbortRef.current = streamAbort;
+
         let optimisticAckShown = false;
         // Client-side optimistic ack (<500ms) before Vision/PDF network wait.
         if (wireVisionUrls?.length || pendingDocuments.length) {
@@ -2721,45 +2756,56 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             ].slice(-6);
           });
         }
-        const res = await apiVautoAgentStream(agentBody, {
-          onEvent: (event) => {
-            if (event.type === "status" || event.type === "tool_call") {
-              pushStreamThinkingLabel(event.message);
-              return;
-            }
-            if (event.type === "early_ack") {
-              const ack = String(event.reply ?? "").trim();
-              if (!ack) return;
-              setStreamThinkingLabelNow("Skenuoju…");
-              if (optimisticAckShown) return;
-              optimisticAckShown = true;
-              setMessages((prev) => {
-                const usersOnly = prev.filter((m) => m.role === "user");
-                return [
-                  ...usersOnly,
-                  {
-                    role: "assistant" as const,
-                    text: ack,
-                    ...(event.quickReplies?.length
-                      ? { quickReplies: event.quickReplies.slice(0, 4) }
-                      : {}),
-                  },
-                ].slice(-6);
-              });
-              return;
-            }
-            if (event.type === "draft_update" && event.listingDraft) {
-              try {
-                applyActions({
-                  type: "listing_draft",
-                  listingDraft: event.listingDraft,
-                } as Parameters<typeof applyActions>[0]);
-              } catch {
-                /* progressive draft best-effort */
+        const res = await apiVautoAgentStream(
+          agentBody,
+          {
+            onEvent: (event) => {
+              // Drop stale SSE after FLOW_RESET / publish wipe.
+              if (getSellerListingSessionEpoch() !== epochAtSend) return;
+              if (event.type === "status" || event.type === "tool_call") {
+                pushStreamThinkingLabel(event.message);
+                return;
               }
-            }
+              if (event.type === "early_ack") {
+                const ack = String(event.reply ?? "").trim();
+                if (!ack) return;
+                setStreamThinkingLabelNow("Skenuoju…");
+                if (optimisticAckShown) return;
+                optimisticAckShown = true;
+                setMessages((prev) => {
+                  const usersOnly = prev.filter((m) => m.role === "user");
+                  return [
+                    ...usersOnly,
+                    {
+                      role: "assistant" as const,
+                      text: ack,
+                      ...(event.quickReplies?.length
+                        ? { quickReplies: event.quickReplies.slice(0, 4) }
+                        : {}),
+                    },
+                  ].slice(-6);
+                });
+                return;
+              }
+              if (event.type === "draft_update" && event.listingDraft) {
+                if (getSellerListingSessionEpoch() !== epochAtSend) return;
+                try {
+                  applyActions({
+                    type: "listing_draft",
+                    listingDraft: event.listingDraft,
+                  } as Parameters<typeof applyActions>[0]);
+                } catch {
+                  /* progressive draft best-effort */
+                }
+              }
+            },
           },
-        });
+          streamAbort.signal
+        );
+        if (getSellerListingSessionEpoch() !== epochAtSend) {
+          setStreamThinkingLabelNow("Galvoju…");
+          return { ok: true, reply: "" };
+        }
 
         setStreamThinkingLabelNow("Galvoju…");
 
@@ -3350,12 +3396,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   }, [setStreamThinkingLabelNow]);
 
   const beginFreshListingChatSession = useCallback(() => {
+    // Atomic wipe FIRST — abort SSE so stale draft_update / plane icon cannot flash.
+    agentStreamAbortRef.current?.abort();
+    agentStreamAbortRef.current = null;
     sessionLockedPriceRef.current = null;
     freshListingSessionRef.current = true;
     // P0-3 — Absolute fresh session isolation (epoch + buyer-nudge suppress).
-    beginAbsoluteFreshSellerListingSession();
+    listingSessionEpochRef.current = beginAbsoluteFreshSellerListingSession();
     cancelSellerFlow();
-    setHidePrePublishCard(false);
+    setHidePrePublishCard(true);
     setListingPublishConfirmed(false);
     setAwaitingListingEditField(null);
     setMessages([]);
@@ -3379,6 +3428,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     });
     setSearchLoading(false);
     clearPhotoSearchSession();
+    // Re-enable PrePublish for the next draft after paint (avoids one-frame flash).
+    queueMicrotask(() => setHidePrePublishCard(false));
   }, [
     cancelSellerFlow,
     clearSearchFilters,

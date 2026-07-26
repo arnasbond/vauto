@@ -178,14 +178,13 @@ POKALBIO PIRMAS SKELBIMO REŽIMAS (PRIVALOMA — be formų)
   ir pokalbyje trumpai patvirtink (1 sakinys); pilnas tekstas lieka PrePublish.
 
 VISION / OCR ATASKAITA (PRIVALOMA — po scanListingPhotos / dokumentų)
-- Automobiliams PRIVALOMA Markdown struktūra su antraštėmis ir bullet'ais:
-  ## Pagrindiniai duomenys — Markė ir modelis (Grand jei S.1=7), Valstybinis numeris, Pirmosios registracijos data PILNA (YYYY-MM-DD), Kėbulo tipas ir spalva, VIN, Sėdimos vietos, Pavarų dėžė (mentelės → Automatinė / EGS)
-  ## Variklis ir techniniai parametrai — tūris, kuras, galia kW, Euro, masės
-  ## Salonas (iš nuotraukų) — odinis salonas, porankiai, mentelės, bagažinės kilimėlis
-  ## Išorė ir komplektacija — ratlankiai, stogo bėgeliai, deflektoriai, vilkimo kablys (tik jei matosi)
-- Formos laukus pildyk užkulisiuose; pokalbyje RODYK pilną ataskaitą.
+- TIK PILNAM automobiliui (ne ratlankiams / dalims) — Markdown struktūra su antraštėmis:
+  ## Pagrindiniai duomenys — Markė/modelis VERBATIM iš OCR, numeris, registracija YYYY-MM-DD, VIN, sėdynės, pavaros — TIK jei matoma
+  ## Variklis — tūris/kuras/kW — TIK jei OCR/vizija matoma
+  ## Salonas / Išorė — TIK matomos ypatybės (DRAUDŽIAMA „odinis salonas" be vizualaus pagrindo)
+- PARTS/WHEELS: rašyk apie ratus/dalį; NEpildyk salono/variklio/pavarų.
 - DRAUDŽIAMA 1 žingsnyje: trumpas sales copy, „Kokią kainą…“, PrePublish raginimas.
-- DRAUDŽIAMA išgalvoti kainą, TA ar ridą be vartotojo teksto.
+- DRAUDŽIAMA išgalvoti kainą, TA, ridą ar saloną be vartotojo teksto / OCR.
 - Baik TIKŠLIAI: „Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?“
 
 JUODRAŠČIO SINTEZĖ vs POKALBIS (kai jau generuoji skelbimo TEKSTĄ — ne po pirmo Vision)

@@ -1,5 +1,6 @@
 import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js";
-import { resolveListingCity } from "../lib/city-resolve.js";
+import { resolveListingCity, sanitizeListingCity } from "../lib/city-resolve.js";
+import { stripFullVehicleFieldsFromPartsDraft } from "./parts-isolation.js";
 import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
@@ -70,7 +71,7 @@ const EXTRACTION_SCHEMA = `{
   "intent": "sell | search | service | general",
   "category": "AUTOMOBILIAI | NT | ELEKTRONIKA | DARBAS | NAMAI | SPORTAS | APRANGA | PASLAUGOS | VAIKAMS | GYVUNAI | MUZIKA | LAISVALAIKIS | MENAS",
   "price": "number | null — kaina EUR; null jei nenurodyta / neišgalvota",
-  "city": "string — tikras Lietuvos miestas (Vilnius, Kaunas, …). NIEKADA žodis Miestas ar placeholder",
+  "city": "string | null — TIK jei vartotojas / profilis / OCR aiškiai nurodo miestą. JEI nežinoma — null / \"\". DRAUDŽIAMA spėti Kaunas/Vilnius.",
   "technicalFields": "object — exact facts only from OCR/vision: make, model, year, firstRegistration (YYYY-MM-DD), trim, engine, powerKw, fuelType, mileage, bodyType, transmission, color, seats, vin, plate, licensePlate, interiorCondition, exteriorFeatures, condition, euroStandard, curbWeight, propertyType, area, rooms, floor, heating, brand, instrumentType, specs, languages, battery, contents, Atlikimas, Paskirtis, Spalvos, Būklė…",
   "fitsOmnivaLocker": "boolean — true TIK jei prekė tikrai telpa Omniva L paštomate (max 39×38×64 cm, ≤30 kg). Auto/NT/darbas/paslaugos/baldai/stambi technika/dviračiai/auto dalys = false",
   "estimatedSize": "S | M | L | OVERSIZED — S/M maža elektronika/aksesuarai/apranga; L max locker; OVERSIZED = netelpa",
@@ -113,7 +114,9 @@ OCR + FAKTAI → technicalFields (AUTO-FILL PrePublish BE follow-up klausimų):
 - HARD SPECS (Regitra): A→plate/licensePlate, B→firstRegistration YYYY-MM-DD (+ year), D.1→make, D.3→model VERBATIM, S.1→seats, P.1→engine (cm³→litrai), P.2→powerKw, P.3→fuelType, R→color, V.9→euroStandard, G→curbWeight, C.1.3→city, E→vin.
 - PAKUOTĖS OCR (PEIKO ir pan.): TIK fizinių prekių (elektronika / pakuotė) — brand, model, specs → technicalFields + factNotes/ocrText. NEtaikoma DARBAS / PASLAUGOS / NT.
 - VISUAL EXTRAS (tik kai category=AUTOMOBILIAI): interiorCondition, exteriorFeatures, transmission.
-- MODEL FIDELITY: model EXACT D.3 — „Grand C4 Picasso“ ≠ „C4 Picasso“.
+- MODEL FIDELITY: model EXACT D.3 iš OCR — NEkopijuok few-shot pavyzdžių.
+- PARTS / WHEELS: jei prekė = ratlankiai / padangos / dalys — category NE full-car; NEpildyk salon/engine/transmission/VIN/seats/bodyType.
+- STRICT TRUTH: NIEKADA neišgalvok odinis salonas / TA / rida / pavarų dėžė be OCR ar vartotojo teksto.
 - Jei dalinai neryšku: documentReadable=false + documentOcrConfidence, BET VIS TIEK grąžink matomus laukus.
 - galleryImageIndexes / imageRoles=gallery — TIK produkto nuotraukos. Žalias/mėlynas tech passport VISADA document.
 - Jei faktas nematomas — praleisk. Kainos / ridos / TA / miesto NEGALIMA išgalvoti.
@@ -269,7 +272,8 @@ export interface VautoListingPayload {
 function toListingPayload(
   raw: Record<string, unknown>,
   userCity: string,
-  contact: string
+  contact: string,
+  userTextForCity?: string
 ): VautoListingPayload {
   const categoryKey = String(raw.category ?? "").toUpperCase().trim();
   const mappedInternal = CATEGORY_TO_INTERNAL[categoryKey];
@@ -372,13 +376,17 @@ function toListingPayload(
     },
   });
 
+  // Never invent Kaunas/Vilnius from schema examples — only profile or user text.
+  const groundedLocation =
+    sanitizeListingCity(String(raw.city ?? raw.location ?? ""), {
+      profileCity: userCityResolved,
+      userText: userTextForCity,
+    }) || (userCityResolved ? userCityResolved : "");
+
   return {
     title,
     price,
-    location: resolveListingCity(
-      String(raw.city ?? raw.location ?? ""),
-      userCityResolved
-    ),
+    location: groundedLocation,
     contact,
     category: remapped.category,
     description: description || undefined,
@@ -404,7 +412,8 @@ Sek Employee Handbook few-shot etalonus (PEIKO pakuotė, Regitra, Hohner, NT, pa
 Vartotojo tekstas: """${text}"""${extra}
 Numatytas miestas jei nepaminėtas: ${userCity || "(nežinomas — NErašyk miesto / palik null; neinventuok Vilniaus)"}
 Pavyzdžiai:
-- „Parduodu citroena" → intent sell, category AUTOMOBILIAI, technicalFields.make Citroën.
+- „Parduodu ratlankius R17" → intent sell, parts/wheels — BE salono/variklio/pavarų laukų.
+- „Parduodu automobilį" + Regitra OCR → AUTOMOBILIAI, technicalFields TIK iš OCR.
 - „Parduodu gitarą Hohner" → intent sell, category MUZIKA, technicalFields.brand Hohner.
 - „Parduodu PEIKO vertėją" → ELEKTRONIKA + brand/model/specs iš teksto/OCR.
 Grąžink JSON: ${EXTRACTION_SCHEMA}`;
@@ -808,7 +817,10 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       userCity: city,
       extraContext: body.extraContext,
     });
-    const listing = toListingPayload(raw, city, contact);
+    const listing = stripFullVehicleFieldsFromPartsDraft(
+      toListingPayload(raw, city, contact, text),
+      text
+    );
     return { ok: true, action, parsed: raw, listing };
   }
 
@@ -828,9 +840,12 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       extraContext: body.extraContext,
       imageDataUrls: visionImages,
     });
-    const listing = enrichVehicleVisionDraft(
-      toListingPayload(raw, city, contact)
-    ) as VautoListingPayload;
+    const listing = stripFullVehicleFieldsFromPartsDraft(
+      enrichVehicleVisionDraft(
+        toListingPayload(raw, city, contact, combinedText)
+      ) as VautoListingPayload,
+      combinedText
+    );
     mergePipelineIntoListingFields(listing, pipeline);
 
     // Anti-hallucination: drop Vision-invented price/TA without user evidence.
@@ -971,8 +986,11 @@ export async function parseListingImagesForAgent(params: {
     );
     throw err;
   }
-  const listingRaw = toListingPayload(raw, city, contact);
-  const listing = enrichVehicleVisionDraft(listingRaw) as typeof listingRaw;
+  const listingRaw = toListingPayload(raw, city, contact, combinedText);
+  const listing = stripFullVehicleFieldsFromPartsDraft(
+    enrichVehicleVisionDraft(listingRaw) as typeof listingRaw,
+    combinedText
+  );
   // Anti-hallucination: never keep a Vision-invented price unless user/hint provided it.
   const userMentionedPrice =
     /\b\d{2,6}\s*(€|eur|eurų|eurai)\b/i.test(combinedText) ||
