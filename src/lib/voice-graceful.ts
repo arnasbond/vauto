@@ -57,12 +57,12 @@ export function buddyMessageForAgentFailure(error?: string, code?: string): stri
   if (
     normalizedCode === "ai_rate_limit_exceeded" ||
     normalizedCode === "rate_limited" ||
-    /rate.?limit|429|limitas pasiektas|per daug.*užklaus|bandykite po minutės/i.test(err)
+    normalizedCode === "listing_publish_rate_limit_exceeded" ||
+    /rate.?limit|429|limitas pasiektas|per daug.*užklaus|pamėginkite šiek tiek vėliau|bandykite po minutės/i.test(
+      err
+    )
   ) {
-    return (
-      err ||
-      "Dabar daug užklausų — bandau dar kartą po minutės. Kol kas galite parašyti kitą klausimą dėl skelbimo ar paieškos."
-    );
+    return err || "Per daug užklausų, pamėginkite šiek tiek vėliau";
   }
 
   if (normalizedCode === "timeout" || /timeout|laiko limit|aborted/i.test(err)) {

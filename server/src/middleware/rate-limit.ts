@@ -1,16 +1,21 @@
 import rateLimit from "express-rate-limit";
 import type { AuthedRequest } from "./auth.js";
+import { RATE_LIMIT_BUSY_REPLY } from "../ai/safety-shield.js";
 
 const WINDOW_MS = 60 * 1000;
+const HOUR_MS = 60 * 60 * 1000;
 // Beta-friendly defaults. General browsing is read-heavy (listings, chats,
 // notifications, preferences, nudges) so a single active user + polling can
 // fire well over 100 cheap GETs/min. Keep AI/auth tighter (cost/abuse), let
 // general reads breathe. Overridable per-tier via *_RATE_LIMIT_PER_MIN env.
 const DEFAULT_API_LIMIT = 300;
 const DEFAULT_AUTH_LIMIT = 60;
-const DEFAULT_AI_LIMIT = 30;
+/** Chat / AI turns — Safety Shield: max 20 / min per IP (or user). */
+const DEFAULT_AI_LIMIT = 20;
 const DEFAULT_ACTION_LIMIT = 120;
 const DEFAULT_SEARCH_LIMIT = 40;
+/** Unverified IP: max 5 listing publishes (draft→live) per hour. */
+const DEFAULT_LISTING_PUBLISH_PER_HOUR = 5;
 
 const MAX_REQUESTS_PER_WINDOW = Number(
   process.env.API_RATE_LIMIT_PER_MIN ?? DEFAULT_API_LIMIT
@@ -26,6 +31,10 @@ const ACTION_REQUESTS_PER_WINDOW = Number(
 );
 const SEARCH_REQUESTS_PER_WINDOW = Number(
   process.env.SEARCH_RATE_LIMIT_PER_MIN ?? DEFAULT_SEARCH_LIMIT
+);
+const LISTING_PUBLISH_PER_HOUR = Number(
+  process.env.LISTING_PUBLISH_RATE_LIMIT_PER_HOUR ??
+    DEFAULT_LISTING_PUBLISH_PER_HOUR
 );
 
 function rateLimitKey(req: AuthedRequest): string {
@@ -61,7 +70,7 @@ function rateLimitHandler(code: string, message: string) {
   };
 }
 
-/** Normal browsing: listings, profile, chats — 30/min default. */
+/** Normal browsing: listings, profile, chats — generous default. */
 export const apiRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: MAX_REQUESTS_PER_WINDOW,
@@ -69,10 +78,7 @@ export const apiRateLimiter = rateLimit({
   legacyHeaders: false,
   keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
   skip: (req) => shouldSkipGeneralRateLimit(req.path, req.method),
-  handler: rateLimitHandler(
-    "rate_limit_exceeded",
-    "Per daug užklausų per minutę. Palaukite ir bandykite dar kartą."
-  ),
+  handler: rateLimitHandler("rate_limit_exceeded", RATE_LIMIT_BUSY_REPLY),
 });
 
 /** Login, OTP, social auth — generous cap so startup burst does not block sign-in. */
@@ -88,41 +94,55 @@ export const authRateLimiter = rateLimit({
   ),
 });
 
-/** Gemini-heavy routes only — strict cap (8/min default). */
+/** Gemini-heavy chat / agent routes — max 20 turns/min (Safety Shield). */
 export const aiRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: AI_REQUESTS_PER_WINDOW,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
-  handler: rateLimitHandler(
-    "ai_rate_limit_exceeded",
-    "AI užklausų limitas pasiektas. Bandykite po minutės."
-  ),
+  handler: rateLimitHandler("ai_rate_limit_exceeded", RATE_LIMIT_BUSY_REPLY),
 });
 
-/** Authenticated user actions — avatar upload, spinta import (50/min). */
+/** Authenticated user actions — avatar upload, spinta import. */
 export const actionRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: ACTION_REQUESTS_PER_WINDOW,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
-  handler: rateLimitHandler(
-    "action_rate_limit_exceeded",
-    "Per daug veiksmų per minutę. Palaukite ir bandykite dar kartą."
-  ),
+  handler: rateLimitHandler("action_rate_limit_exceeded", RATE_LIMIT_BUSY_REPLY),
 });
 
-/** AI search GET routes only — strict cap (10/min). */
+/** AI search GET routes only. */
 export const searchRateLimiter = rateLimit({
   windowMs: WINDOW_MS,
   max: SEARCH_REQUESTS_PER_WINDOW,
   standardHeaders: true,
   legacyHeaders: false,
   keyGenerator: (req) => rateLimitKey(req as AuthedRequest),
+  handler: rateLimitHandler("search_rate_limit_exceeded", RATE_LIMIT_BUSY_REPLY),
+});
+
+/**
+ * Listing publish / create — max 5 per hour for unverified IPs.
+ * Authenticated sessions use a higher soft ceiling (still abuse-capped).
+ */
+export const listingPublishRateLimiter = rateLimit({
+  windowMs: HOUR_MS,
+  max: (req) => {
+    const authed = Boolean((req as AuthedRequest).authUserId);
+    return authed ? Math.max(LISTING_PUBLISH_PER_HOUR * 6, 30) : LISTING_PUBLISH_PER_HOUR;
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
+  keyGenerator: (req) => {
+    const r = req as AuthedRequest;
+    if (r.authUserId) return `publish-user:${r.authUserId}`;
+    return `publish-${rateLimitKey(r)}`;
+  },
   handler: rateLimitHandler(
-    "search_rate_limit_exceeded",
-    "Paieškos limitas pasiektas. Bandykite po minutės."
+    "listing_publish_rate_limit_exceeded",
+    RATE_LIMIT_BUSY_REPLY
   ),
 });

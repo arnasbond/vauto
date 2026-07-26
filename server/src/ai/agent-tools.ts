@@ -1906,6 +1906,17 @@ export async function executeAgentTool(
           },
         };
       } catch (e) {
+        const { isImageSafetyBlockedError, IMAGE_SAFETY_REJECT_NOTICE } =
+          await import("./safety-shield.js");
+        if (isImageSafetyBlockedError(e)) {
+          return {
+            result: {
+              ok: false,
+              message: IMAGE_SAFETY_REJECT_NOTICE,
+              voiceAnnouncement: IMAGE_SAFETY_REJECT_NOTICE,
+            },
+          };
+        }
         return {
           result: {
             ok: false,

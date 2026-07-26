@@ -23,6 +23,11 @@ import {
   hasVisionTextCategoryConflict,
   inferChaoticCategoryFamily,
 } from "../shared/chaotic-input.js";
+import {
+  IMAGE_SAFETY_REJECT_NOTICE,
+  isImageSafetyBlockedError,
+  scrubProfanity,
+} from "./safety-shield.js";
 
 export const PHOTO_INTENT_ROUTING_REPLY =
   "Matau nuotrauką! Ką norėtumėte daryti – ieškome šio daikto pirkti, o gal norite jį parduoti ir sukurti naują skelbimą?";
@@ -204,15 +209,16 @@ async function resolveListingPhotoScan(input: {
 
   let parsed: Awaited<ReturnType<typeof parseListingImagesForAgent>>;
   try {
+    const safeUserText =
+      input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
+        ? scrubProfanity(input.userText.trim())
+        : input.userText?.trim() ||
+          (!priorTitleIsGeneric ? priorTitle : undefined);
     parsed = await parseListingImagesForAgent({
       imageDataUrls: imageUrls,
       userCity: input.userCity ?? "",
       contact: input.contact,
-      text:
-        input.userText?.trim() && !isImageOnlyChatUpload(input.userText)
-          ? input.userText.trim()
-          : input.userText?.trim() ||
-            (!priorTitleIsGeneric ? priorTitle : undefined),
+      text: safeUserText,
       priceHint:
         input.listingDraft?.price && input.listingDraft.price > 0
           ? input.listingDraft.price
@@ -223,6 +229,20 @@ async function resolveListingPhotoScan(input: {
       ].join("; "),
     });
   } catch (err) {
+    if (isImageSafetyBlockedError(err)) {
+      return {
+        ok: true,
+        reply: IMAGE_SAFETY_REJECT_NOTICE,
+        quickReplies: [],
+        toolCalls: [
+          {
+            name: "imageSafetyRejected",
+            result: { ok: false, reason: "nsfw_or_unsafe" },
+          },
+        ],
+        actions: { type: "none" },
+      };
+    }
     const errMessage = err instanceof Error ? err.message : String(err);
     console.error(
       `[vision] resolveListingPhotoScan FAILED ${JSON.stringify({

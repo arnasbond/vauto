@@ -912,7 +912,8 @@ export async function parseListingImagesForAgent(params: {
   }
   const city = resolveListingCity(params.userCity?.trim());
   const contact = params.contact?.trim() || "";
-  const combinedText = params.text?.trim() ?? "";
+  const { scrubProfanity } = await import("./safety-shield.js");
+  const combinedText = scrubProfanity(params.text?.trim() ?? "");
   const extractionPrompt = buildExtractionImagePrompt(
     city,
     params.text,

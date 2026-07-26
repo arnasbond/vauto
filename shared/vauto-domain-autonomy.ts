@@ -5,7 +5,7 @@
 
 /** Polite redirect when the user asks something outside VAUTO / classifieds. */
 export const VAUTO_DOMAIN_SCOPE_REDIRECT =
-  "Aš esu VAUTO portalo asistentas ir padedu su skelbimais bei prekėmis/paslaugomis mūsų platformoje. Kuo galiu padėti dėl jūsų skelbimo ar paieškos VAUTO?";
+  "Aš esu VAUTO asistentas ir padedu tik pirkimo, pardavimo bei paslaugų klausimais.";
 
 /**
  * Soft in-domain recovery when the model/tool path fails —

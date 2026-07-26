@@ -1,5 +1,7 @@
 /** Server-side listing safety gate (mirrors client moderateListing). */
 
+import { detectToxicLanguage, scrubProfanity } from "../ai/safety-shield.js";
+
 const BLOCKED_PATTERNS = [
   /ginkl/i,
   /pistolet/i,
@@ -14,6 +16,9 @@ const BLOCKED_PATTERNS = [
 export interface ListingModerationResult {
   allowed: boolean;
   reason?: string;
+  /** Scrubbed title/description when toxic tokens were removed but listing still allowed. */
+  title?: string;
+  description?: string;
 }
 
 export function moderateListingInput(input: {
@@ -21,7 +26,9 @@ export function moderateListingInput(input: {
   description?: string | null;
   location?: string | null;
 }): ListingModerationResult {
-  const haystack = `${input.title} ${input.location ?? ""} ${input.description ?? ""}`.toLowerCase();
+  const title = String(input.title ?? "");
+  const description = String(input.description ?? "");
+  const haystack = `${title} ${input.location ?? ""} ${description}`.toLowerCase();
 
   for (const pattern of BLOCKED_PATTERNS) {
     if (pattern.test(haystack)) {
@@ -33,9 +40,24 @@ export function moderateListingInput(input: {
     }
   }
 
-  if (!input.title.trim() || input.title.trim().length < 3) {
+  if (detectToxicLanguage(title) || detectToxicLanguage(description)) {
+    return {
+      allowed: false,
+      reason:
+        "Skelbime aptikta netinkama kalba. Prašome pataisyti pavadinimą ar aprašymą.",
+    };
+  }
+
+  const cleanTitle = scrubProfanity(title);
+  const cleanDescription = scrubProfanity(description);
+
+  if (!cleanTitle.trim() || cleanTitle.trim().length < 3) {
     return { allowed: false, reason: "Įveskite aiškesnį pavadinimą." };
   }
 
-  return { allowed: true };
+  return {
+    allowed: true,
+    title: cleanTitle,
+    description: cleanDescription || description,
+  };
 }

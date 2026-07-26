@@ -94,6 +94,7 @@ import { buildProactiveNudgesForUser } from "../ai/proactive-nudges.js";
 import { enrichReportWithAi } from "../reports/enrich-report.js";
 import { moderateListingInput } from "../lib/listing-moderation.js";
 import { scheduleListingAiModeration } from "../lib/listing-ai-moderation.js";
+import { listingPublishRateLimiter } from "../middleware/rate-limit.js";
 import {
   logConductorPublishLineage,
   resolveConductorRequiresReviewForListing,
@@ -516,7 +517,11 @@ apiRouter.get("/listings", async (req, res) => {
   }
 });
 
-apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
+apiRouter.post(
+  "/listings",
+  requireAuth,
+  listingPublishRateLimiter,
+  async (req: AuthedRequest, res) => {
   try {
     const body = sanitizeListingCreateBody(req.body);
     const imageLen =
@@ -554,6 +559,13 @@ apiRouter.post("/listings", requireAuth, async (req: AuthedRequest, res) => {
     if (!moderation.allowed) {
       res.status(422).json({ error: moderation.reason ?? "Skelbimas atmestas moderacijos." });
       return;
+    }
+    if (moderation.title) {
+      listing = {
+        ...listing,
+        title: moderation.title,
+        description: moderation.description ?? listing.description,
+      };
     }
     if (resolveConductorRequiresReviewForListing(listing)) {
       listing = { ...listing, requiresReview: true };

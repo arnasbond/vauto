@@ -46,6 +46,11 @@ import {
   resolveBrowseAllIntent,
 } from "../lib/browse-all-intent.js";
 import { VAUTO_IN_DOMAIN_RECOVERY } from "../shared/vauto-domain-autonomy.js";
+import {
+  evaluateTextSafetyGate,
+  replyForTextSafetyGate,
+  scrubProfanity,
+} from "./safety-shield.js";
 import { evaluateServerPrePublishReadiness } from "./pre-publish-validation.js";
 import {
   resolveContactCaptureResponse,
@@ -407,9 +412,36 @@ async function runVautoAgentInner(
     }
   }
 
-  const lastUserText = normalizeSecretaryQuery(
+  const lastUserTextRaw = normalizeSecretaryQuery(
     [...(req.messages ?? [])].reverse().find((m) => m.role === "user")?.text
   );
+
+  // Safety Shield — toxic / jailbreak / off-domain (before Vision or tools).
+  // Skip placeholders used for photo-only turns.
+  const skipTextSafety =
+    !lastUserTextRaw ||
+    /^\[?(nuotraukos?\s+įkeltos?|dokumentas\s+įkeltas)\]?$/i.test(
+      lastUserTextRaw
+    );
+  const textSafety = skipTextSafety
+    ? null
+    : evaluateTextSafetyGate(lastUserTextRaw);
+  if (textSafety) {
+    return {
+      ok: true,
+      reply: replyForTextSafetyGate(textSafety),
+      quickReplies: [],
+      toolCalls: [
+        {
+          name: "safetyShield",
+          result: { ok: false, gate: textSafety.kind },
+        },
+      ],
+      actions: { type: "none" },
+    };
+  }
+
+  const lastUserText = scrubProfanity(lastUserTextRaw);
 
   let listingDraft = req.context.listingDraft;
   const pendingChatImages = req.context.pendingImageUrls?.filter(Boolean).slice(0, 10);

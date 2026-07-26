@@ -6,6 +6,11 @@ import { resolveGeminiApiKey } from "../load-env.js";
 import { buildVisionQuotaTextFallbackJson } from "./sell-intent-fallback.js";
 import { prepareImageForGeminiVision } from "./image-processor.js";
 import { GEMINI_VISION_FETCH_TIMEOUT_MS } from "../lib/ai-timeout-policy.js";
+import {
+  GEMINI_SAFETY_SETTINGS,
+  ImageSafetyBlockedError,
+  geminiResponseLooksSafetyBlocked,
+} from "./safety-shield.js";
 
 /** Multi-photo Vision OCR needs ≥120s; SSE keep-alive covers proxy idle limits. */
 const GEMINI_FETCH_TIMEOUT_MS = GEMINI_VISION_FETCH_TIMEOUT_MS;
@@ -261,6 +266,10 @@ async function geminiChatJson(
           temperature: Math.min(1, Math.max(0, temperature)),
           responseMimeType: "application/json",
         },
+        // Vision / multimodal: enforce NSFW / violence / dangerous blocks.
+        ...(imageDataUrls.length
+          ? { safetySettings: GEMINI_SAFETY_SETTINGS }
+          : {}),
       }),
       signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
     });
@@ -328,7 +337,7 @@ async function geminiChatJson(
       content?: { parts?: { text?: string }[] };
       finishReason?: string;
     }[];
-    promptFeedback?: unknown;
+    promptFeedback?: { blockReason?: string } | null;
   };
   try {
     data = JSON.parse(responseText) as typeof data;
@@ -341,6 +350,16 @@ async function geminiChatJson(
       bodyHead: responseText.slice(0, 1000),
     });
     throw new Error(`Gemini ${model}: invalid JSON response body`);
+  }
+
+  if (geminiResponseLooksSafetyBlocked(data)) {
+    visionLogError("geminiChatJson SAFETY blocked", {
+      model,
+      elapsedMs,
+      finishReason: data.candidates?.[0]?.finishReason ?? null,
+      promptFeedback: data.promptFeedback ?? null,
+    });
+    throw new ImageSafetyBlockedError();
   }
 
   const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
@@ -787,6 +806,9 @@ async function geminiGeneratePlainText(
         body: JSON.stringify({
           contents: [{ parts }],
           generationConfig: { temperature: 0.1 },
+          ...(imageDataUrls.length
+            ? { safetySettings: GEMINI_SAFETY_SETTINGS }
+            : {}),
         }),
         signal: AbortSignal.timeout(GEMINI_FETCH_TIMEOUT_MS),
       }
@@ -808,8 +830,15 @@ async function geminiGeneratePlainText(
       );
     }
     const data = (await res.json()) as {
-      candidates?: { content?: { parts?: { text?: string }[] } }[];
+      candidates?: {
+        content?: { parts?: { text?: string }[] };
+        finishReason?: string;
+      }[];
+      promptFeedback?: { blockReason?: string } | null;
     };
+    if (geminiResponseLooksSafetyBlocked(data)) {
+      throw new ImageSafetyBlockedError();
+    }
     const text = data.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
     if (!text) throw new Error("Empty Gemini response");
     return text;
