@@ -70,7 +70,7 @@ test.describe("VAUTO smoke", () => {
   test("add page opens agent listing shell for signed-in user", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
-    // /add redirects into home AI seller chat (4-step flow).
+    // /add redirects into home AI seller chat (instant static welcome).
     await page
       .waitForURL(
         (url) => {
@@ -80,17 +80,17 @@ test.describe("VAUTO smoke", () => {
         { timeout: 20_000 }
       )
       .catch(() => undefined);
-    const photoBtn = page.getByRole("button", { name: /Įkelti nuotraukas/i }).first();
-    const opening = page.getByRole("heading", {
-      name: /Atidarome VAUTO asistentą|Atidarome AI asistentą/i,
-    });
-    await expect(photoBtn.or(opening)).toBeVisible({ timeout: 20_000 });
-    if (await photoBtn.isVisible().catch(() => false)) {
-      await expect(photoBtn).toBeVisible();
-    }
+    await expect(
+      page.getByText(/kontaktai iš profilio jau paruošti skelbimui/i).first()
+    ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page.getByRole("button", { name: /Pridėti failą/i }).first()
+    ).toBeVisible({ timeout: 10_000 });
   });
 
-  test("add listing page loads agent photo CTA", async ({ page }) => {
+  test("add listing page loads agent composer after static welcome", async ({
+    page,
+  }) => {
     await seedDemoUser(page);
     await page.goto("/add/");
     await page
@@ -103,8 +103,15 @@ test.describe("VAUTO smoke", () => {
       )
       .catch(() => undefined);
     await expect(
-      page.getByRole("button", { name: /Įkelti nuotraukas/i }).first()
+      page.getByText(/kontaktai iš profilio jau paruošti skelbimui/i).first()
     ).toBeVisible({ timeout: 20_000 });
+    await expect(
+      page
+        .locator(
+          ".agent-chat-composer input, form[aria-label*='asistent'] input, input[enterkeyhint='send']"
+        )
+        .first()
+    ).toBeEnabled({ timeout: 10_000 });
   });
 
   test("home search accepts input", async ({ page }) => {
