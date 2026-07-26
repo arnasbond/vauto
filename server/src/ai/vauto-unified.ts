@@ -398,10 +398,11 @@ function toListingPayload(
     },
   });
 
-  // Never invent Kaunas/Vilnius from schema examples — only profile or user text.
+  // Ground city: user text > GPS/client hint (geoCityHint) > never bare LLM hub invent.
+  // Client userCity is GPS-preferred municipality (Kaišiadorys), not regional hub alone.
   const groundedLocation =
     sanitizeListingCity(String(raw.city ?? raw.location ?? ""), {
-      profileCity: userCityResolved,
+      geoCityHint: userCityResolved,
       userText: userTextForCity,
     }) || (userCityResolved ? userCityResolved : "");
 

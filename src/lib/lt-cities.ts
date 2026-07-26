@@ -105,6 +105,10 @@ export const LT_CITY_PATTERNS: Array<[RegExp, string]> = [
   [/plung[eė]je|plung[eė]/i, "Plungė"],
   [/druskininkuose|druskininkai/i, "Druskininkai"],
   [/visagine|visagino|visaginas/i, "Visaginas"],
+  [/kai[šs]iadory(?:se|s|je)?|kai[šs]iadori[uų]/i, "Kaišiadorys"],
+  [/elektr[eė]nuose|elektr[eė]nai/i, "Elektrėnai"],
+  [/trakuose|trakai/i, "Trakai"],
+  [/prienuose|prienai/i, "Prienai"],
 ];
 
 /** Fuzzy stem length for declension-tolerant city match (e.g. „panevežy“ → Panevėžys) */

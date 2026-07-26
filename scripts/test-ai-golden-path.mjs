@@ -143,7 +143,10 @@ async function main() {
     "DALYS Pass-2 is not full-car AUTO_PROMPTER"
   );
 
-  const { sanitizeListingCity } = await distImport("lib", "city-resolve.js");
+  const { sanitizeListingCity, listKnownLtCities } = await distImport(
+    "lib",
+    "city-resolve.js"
+  );
   check(
     sanitizeListingCity("Kaunas", {
       userText: "Kaina uz visus keturis ratus 150€",
@@ -154,6 +157,24 @@ async function main() {
     sanitizeListingCity("Kaunas", { userText: "Parduodu Kaune 4 ratlankius" }) ===
       "Kaunas",
     "real Kaune locative still accepted"
+  );
+  check(
+    listKnownLtCities().includes("Kaišiadorys"),
+    "server city catalog includes Kaišiadorys (not 9 hubs only)"
+  );
+  check(
+    sanitizeListingCity("Kaunas", {
+      geoCityHint: "Kaišiadorys",
+      userText: "Kaina uz visus keturis ratus 150€",
+    }) === "Kaišiadorys",
+    "GPS municipality beats ungrounded LLM Kaunas hub"
+  );
+  check(
+    sanitizeListingCity("Kaunas", {
+      geoCityHint: "Kaišiadorys",
+      userText: "Parduodu Kaune",
+    }) === "Kaunas",
+    "explicit Kaune in user text still wins over geo"
   );
 
   // --- Case 2: Full auto ---
