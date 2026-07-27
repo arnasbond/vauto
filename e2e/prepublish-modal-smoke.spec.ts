@@ -1,6 +1,6 @@
 /**
- * Deterministic PrePublish modal + paper-plane UI smoke (no live Vision/OTP).
- * Mocks agent/listing APIs and seeds a ready vehicle draft.
+ * Deterministic PrePublish modal UI smoke (no live Vision/OTP).
+ * Mocks agent/listing APIs and seeds a ready vehicle draft harness.
  */
 import { test, expect } from "@playwright/test";
 import path from "node:path";
@@ -10,7 +10,7 @@ test.describe("PrePublish modal UI smoke", () => {
   test.setTimeout(90_000);
   test.use({ viewport: { width: 420, height: 920 } });
 
-  test("opens modal, edits price, flies plane class on publish click", async ({
+  test("opens modal, edits price, publishes without legacy CSS plane", async ({
     page,
   }, testInfo) => {
     await seedDemoUser(page);
@@ -58,32 +58,19 @@ test.describe("PrePublish modal UI smoke", () => {
     await page.goto("/");
     await acceptGdprConsentIfPrompted(page);
 
-    // Mount modal harness first — CSS keyframe probe on the live app is optional.
+    // Harness: publish click marks success — no legacy CSS paper-plane class.
     await page.setContent(`
-      <html><head>
-        <style>
-          @keyframes paperPlaneFly {
-            0% { transform: translate3d(0,0,0) rotate(-12deg) scale(1); opacity: 1; }
-            100% { transform: translate3d(40vw,-30vh,0) rotate(-8deg) scale(0.35); opacity: 0; }
-          }
-          .animate-paper-plane-fly { animation: paperPlaneFly 0.6s forwards; display: inline-flex; }
-        </style>
-      </head><body>
+      <html><head></head><body>
         <div data-prepublish-modal="1">
           <h2>Peržiūra ir redagavimas</h2>
           <label>Kaina (€)<input type="number" value="0" /></label>
           <div>Free Boost Premium — Pirmas mėnuo NEMOKAMAI 0 €</div>
           <div data-omniva-eligible="false">Omniva L netinka — kurjeris / atsiėmimas</div>
-          <button data-prepublish-submit="1">
-            <span class="plane">✈</span>
-            Publikuoti skelbimą
-          </button>
+          <button data-prepublish-submit="1">Publikuoti skelbimą</button>
         </div>
         <script>
           const btn = document.querySelector('[data-prepublish-submit="1"]');
-          const plane = document.querySelector('.plane');
           btn.addEventListener('click', () => {
-            plane.classList.add('animate-paper-plane-fly');
             document.body.setAttribute('data-e2e-published', '1');
           });
         </script>
@@ -100,9 +87,7 @@ test.describe("PrePublish modal UI smoke", () => {
       fullPage: true,
     });
     await modal.locator('[data-prepublish-submit="1"]').click();
-    await expect(page.locator(".animate-paper-plane-fly")).toBeVisible({
-      timeout: 2_000,
-    });
+    await expect(page.locator(".animate-paper-plane-fly")).toHaveCount(0);
     await expect(page.locator("[data-e2e-published='1']")).toHaveCount(1);
   });
 });

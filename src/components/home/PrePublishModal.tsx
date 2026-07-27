@@ -42,9 +42,6 @@ import {
 } from "@vauto/shared/launch-promo";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 
-/** Full card → fold → plane flight before API publish. */
-const CARD_FOLD_PLANE_MS = 1200;
-
 const TIER_BADGE: Record<
   PrePublishVisibilityId,
   { badge: string; subtitle: string }
@@ -99,7 +96,6 @@ export function PrePublishModal({
 }: PrePublishModalProps) {
   const [visibilityId, setVisibilityId] =
     useState<PrePublishVisibilityId>("standard");
-  const [flying, setFlying] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
   const [addingPhotos, setAddingPhotos] = useState(false);
@@ -108,19 +104,13 @@ export function PrePublishModal({
   const submitLockRef = useRef(false);
   const photosOptional = listingCategoryAllowsPhotoless(card.category);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
-  const planeIconRef = useRef<HTMLSpanElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
 
-  // Instant idle icon after publish wipe / unmount — no stale airplane flash.
   useEffect(() => {
-    if (!publishing) {
-      setFlying(false);
-      submitLockRef.current = false;
-    }
+    if (!publishing) submitLockRef.current = false;
   }, [publishing]);
   useEffect(() => {
     return () => {
-      setFlying(false);
       submitLockRef.current = false;
     };
   }, []);
@@ -151,7 +141,6 @@ export function PrePublishModal({
 
   useEffect(() => {
     if (!open) {
-      setFlying(false);
       setDragFrom(null);
       setDragOver(null);
       return;
@@ -174,7 +163,6 @@ export function PrePublishModal({
 
   useEffect(() => {
     if (!open) {
-      setFlying(false);
       setDragFrom(null);
       setDragOver(null);
     }
@@ -257,38 +245,23 @@ export function PrePublishModal({
   );
 
   const submitPublish = useCallback(async () => {
-    // Single-fire publish — no duplicate plane / chat submit paths.
+    // Single-fire publish — celebration is the Lottie overlay (not CSS plane).
     if (
       submitLockRef.current ||
       publishing ||
-      flying ||
       (!photosOptional && gallery.length === 0)
     ) {
       return;
     }
     submitLockRef.current = true;
-    setFlying(true);
     const el = publishButtonRef.current;
     const rect = el?.getBoundingClientRect() ?? new DOMRect(0, 0, 0, 0);
-    // Play the 3D card→plane animation first; only then hit publish API / redirect.
-    await new Promise<void>((resolve) => {
-      window.setTimeout(resolve, CARD_FOLD_PLANE_MS);
-    });
     try {
       await onPublish(rect, visibilityId);
     } finally {
-      setFlying(false);
-      // Keep lock while parent `publishing` is true; release if publish aborted.
       if (!publishing) submitLockRef.current = false;
     }
-  }, [
-    flying,
-    gallery.length,
-    onPublish,
-    photosOptional,
-    publishing,
-    visibilityId,
-  ]);
+  }, [gallery.length, onPublish, photosOptional, publishing, visibilityId]);
 
   // Schema-less public specs only — vision/debug keys (Detected Objects,
   // Document Image URLs/Count, Scene Context, factNotes, preferredSizes,
@@ -300,25 +273,17 @@ export function PrePublishModal({
 
   if (!open || typeof document === "undefined") return null;
 
-  const busy = publishing || flying;
+  const busy = publishing;
 
   return createPortal(
     <div
-      className={cn(
-        "pre-publish-modal fixed inset-0 z-[110] flex flex-col bg-[var(--vauto-bg,#0b1220)]/72 backdrop-blur-[2px]",
-        flying && "is-card-folding"
-      )}
+      className="pre-publish-modal fixed inset-0 z-[110] flex flex-col bg-[var(--vauto-bg,#0b1220)]/72 backdrop-blur-[2px]"
       role="dialog"
       aria-modal="true"
       aria-label="Skelbimo peržiūra prieš publikavimą"
       data-prepublish-modal="1"
     >
-      <div
-        className={cn(
-          "pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-2xl sm:my-3 sm:h-[min(96dvh,920px)] sm:rounded-2xl sm:border sm:border-[var(--vauto-primary)]/20",
-          flying && "animate-card-fold-plane"
-        )}
-      >
+      <div className="pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-2xl sm:my-3 sm:h-[min(96dvh,920px)] sm:rounded-2xl sm:border sm:border-[var(--vauto-primary)]/20">
         <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--vauto-border)]/60 px-4 py-3">
           <div className="min-w-0">
             <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-primary)]">
@@ -689,22 +654,9 @@ export function PrePublishModal({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 Publikuojama…
               </>
-            ) : flying ? (
-              <>
-                <span
-                  ref={planeIconRef}
-                  className="inline-flex animate-paper-plane-fly"
-                  aria-hidden
-                >
-                  <SendHorizontal className="h-4 w-4" />
-                </span>
-                Siunčiama…
-              </>
             ) : (
               <>
-                <span ref={planeIconRef} className="inline-flex" aria-hidden>
-                  <SendHorizontal className="h-4 w-4" />
-                </span>
+                <SendHorizontal className="h-4 w-4" aria-hidden />
                 Publikuoti skelbimą
               </>
             )}

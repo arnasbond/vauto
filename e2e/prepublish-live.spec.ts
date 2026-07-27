@@ -568,10 +568,13 @@ test.describe("Live PrePublish flow (OCR → sales copy → publish)", () => {
     await publishBtn.scrollIntoViewIfNeeded();
     await visualPause(page); // f) before publish click
     await publishBtn.click();
+    // Success UX is Lottie overlay (PublishCelebration), not CSS paper-plane.
     await page
-      .waitForSelector(".animate-paper-plane-fly", { timeout: 3_000 })
-      .catch(() => null);
-    await visualPause(page, Math.max(VISUAL_MS, 2000)); // g) watch paper plane
+      .getByText(/Skelbimas publikuotas/i)
+      .first()
+      .waitFor({ state: "visible", timeout: 15_000 })
+      .catch(() => undefined);
+    await visualPause(page, Math.max(VISUAL_MS, 1500));
     await page.screenshot({
       path: testInfo.outputPath("06-after-publish-click.png"),
       fullPage: true,
