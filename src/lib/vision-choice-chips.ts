@@ -1,4 +1,5 @@
 import type { AiExtractedListing } from "@/lib/types";
+import { localizeVisionObjectLabel } from "@vauto/shared/vision-object-labels";
 
 export interface DetectedVisionObject {
   label: string;
@@ -36,14 +37,19 @@ export function filterSellableChoiceChips(chips: string[]): string[] {
 }
 
 function normalizeChipLabel(raw: string, mode: "sell" | "search"): string {
-  const trimmed = raw.trim().replace(/^[\[\]«»"']+|[\[\]«»"']+$/g, "");
-  if (!trimmed) return "";
-  const lower = trimmed.toLowerCase();
-  if (lower.startsWith("parduoti ") || lower.startsWith("ieškoti ") || lower.startsWith("ieskoti ")) {
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  const localized = localizeVisionObjectLabel(raw);
+  if (!localized) return "";
+  const lower = localized.toLowerCase();
+  if (
+    lower.startsWith("parduoti ") ||
+    lower.startsWith("ieškoti ") ||
+    lower.startsWith("ieskoti ")
+  ) {
+    return localized.charAt(0).toUpperCase() + localized.slice(1);
   }
   const prefix = mode === "sell" ? SELL_CHIP_PREFIX : SEARCH_CHIP_PREFIX;
-  const noun = trimmed.replace(/^(parduoti|ieškoti|ieskoti)\s+/i, "").trim();
+  const noun = localized.replace(/^(parduoti|ieškoti|ieskoti)\s+/i, "").trim();
+  if (!noun) return "";
   return `${prefix}${noun.charAt(0).toLowerCase()}${noun.slice(1)}`;
 }
 
@@ -74,7 +80,7 @@ export function parseDetectedObjectsFromAttributes(
         .map((item) => {
           if (!item || typeof item !== "object") return null;
           const r = item as Record<string, unknown>;
-          const label = String(r.label ?? "").trim();
+          const label = localizeVisionObjectLabel(String(r.label ?? ""));
           if (!label) return null;
           return {
             label,
@@ -96,7 +102,9 @@ export function extractVisionChoiceChips(
   mode: "sell" | "search" = "sell"
 ): string[] {
   if (extracted.choiceChips?.length) {
-    return filterSellableChoiceChips(extracted.choiceChips).slice(0, 4);
+    return filterSellableChoiceChips(
+      extracted.choiceChips.map((c) => normalizeChipLabel(c, mode)).filter(Boolean)
+    ).slice(0, 4);
   }
   const fromAttrs = parseChoiceChipsFromAttributes(extracted.attributes, mode);
   if (fromAttrs.length) return fromAttrs;

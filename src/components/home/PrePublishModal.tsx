@@ -7,12 +7,17 @@ import {
   Loader2,
   MapPin,
   Phone,
+  Plus,
   SendHorizontal,
   Sparkles,
   Star,
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import {
+  ListingGalleryFileInput,
+  readGalleryFilesAsDataUrls,
+} from "@/components/listing/ListingGalleryFileInput";
 import {
   getDynamicAttributeEntries,
   humanizeAttributeKey,
@@ -97,6 +102,7 @@ export function PrePublishModal({
   const [flying, setFlying] = useState(false);
   const [dragFrom, setDragFrom] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<number | null>(null);
+  const [addingPhotos, setAddingPhotos] = useState(false);
   const [shippingMode, setShippingMode] =
     useState<PrePublishShippingMode>("pickup_or_courier");
   const submitLockRef = useRef(false);
@@ -214,6 +220,26 @@ export function PrePublishModal({
     [onGalleryChange, reorder]
   );
 
+  const addPhotos = useCallback(
+    async (files: File[]) => {
+      if (!onGalleryChange || busy || addingPhotos || !files.length) return;
+      const slots = Math.max(0, 6 - gallery.length);
+      if (!slots) return;
+      setAddingPhotos(true);
+      try {
+        const urls = await readGalleryFilesAsDataUrls(files, slots);
+        const merged = [...gallery];
+        for (const url of urls) {
+          if (url && !merged.includes(url)) merged.push(url);
+        }
+        onGalleryChange(merged.slice(0, 6));
+      } finally {
+        setAddingPhotos(false);
+      }
+    },
+    [addingPhotos, busy, gallery, onGalleryChange]
+  );
+
   const patchField = useCallback(
     (patch: PrePublishFieldPatch) => {
       onFieldsChange?.(patch);
@@ -323,11 +349,11 @@ export function PrePublishModal({
               </p>
               {onGalleryChange ? (
                 <p className="text-[10px] text-[var(--vauto-text-muted)]">
-                  Tempkite eilei · bakstelėkite viršeliui · × pašalinti
+                  + pridėti · tempkite · × pašalinti · bakstelėkite viršeliui
                 </p>
               ) : null}
             </div>
-            {gallery.length ? (
+            {gallery.length || onGalleryChange ? (
               <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                 {gallery.map((url, idx) => (
                   <div
@@ -387,9 +413,9 @@ export function PrePublishModal({
                     (photosOptional || gallery.length > 1) ? (
                       <button
                         type="button"
-                        disabled={busy}
+                        disabled={busy || addingPhotos}
                         onClick={() => removeAt(idx)}
-                        className="absolute right-1 top-1 flex h-6 w-6 items-center justify-center rounded-full bg-slate-900/85 text-white shadow"
+                        className="absolute right-1 top-1 flex h-7 w-7 items-center justify-center rounded-full bg-black/80 text-white shadow ring-1 ring-white/30"
                         aria-label="Pašalinti nuotrauką"
                       >
                         <X className="h-3.5 w-3.5" aria-hidden />
@@ -397,15 +423,27 @@ export function PrePublishModal({
                     ) : null}
                   </div>
                 ))}
+                {onGalleryChange && gallery.length < 6 ? (
+                  <ListingGalleryFileInput
+                    label={addingPhotos ? "Kraunama…" : "Pridėti"}
+                    hint={`${gallery.length}/6`}
+                    icon={Plus}
+                    disabled={busy || addingPhotos}
+                    multiple
+                    maxFiles={6 - gallery.length}
+                    onFilesSelected={(files) => void addPhotos(files)}
+                    className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]/50 px-2 text-[var(--vauto-text-muted)] transition hover:border-[var(--vauto-primary)]/50 hover:bg-[var(--vauto-primary)]/5 hover:text-[var(--vauto-primary)] disabled:opacity-50 [&_svg]:h-6 [&_svg]:w-6"
+                  />
+                ) : null}
               </div>
             ) : photosOptional ? (
               <div className="rounded-xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]/40 px-3 py-8 text-center text-sm text-[var(--vauto-text-muted)]">
                 Nuotraukos neprivalomos šiai kategorijai — galite publikuoti be
-                jų arba įkelti per (+) pokalbyje.
+                jų.
               </div>
             ) : (
               <div className="rounded-xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]/40 px-3 py-8 text-center text-sm text-[var(--vauto-text-muted)]">
-                Nėra viešų nuotraukų — įkelkite per (+) pokalbyje.
+                Nėra viešų nuotraukų — pridėkite bent vieną.
               </div>
             )}
             {card.documentCount && card.documentCount > 0 ? (

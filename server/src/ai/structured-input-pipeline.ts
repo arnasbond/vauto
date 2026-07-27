@@ -51,8 +51,9 @@ export const STRUCTURED_INPUT_PIPELINE_RULES = `STRUKTŪRIZUOTOS ĮVESTIES SRAUT
 
 export const STRUCTURED_INPUT_VISION_RULES = `VAIZDO ĮVESTIS (nuotrauka — ta pati pipeline logika):
 - Identifikuok parduodamus objektus (detectedObjects). DRAUDŽIAMA poetizuoti foną (trinkelės, namas, medžiai, dangus) vietoj prekės.
+- LOKALIZACIJA (PRIVALOMA): detectedObjects[].label ir choiceChips daiktavardžiai TIK lietuvių kalba (pvz. „statomas namas“, „stogo karkasas“). DRAUDŽIAMA angliškų etikėčių („house under construction“, „roof frame“).
 - DRAUDŽIAMA į detectedObjects dėti tech passport / registracijos liudijimą / kvitą — jie tik OCR dokumentai.
-- Keli parduodami objektai → trumpi choiceChips „Parduoti {objektas}“; confidence < 0.55 → disambiguation.
+- Keli parduodami objektai → trumpi choiceChips „Parduoti {lietuviškas objektas}“; confidence < 0.55 → disambiguation.
 - Vienas aiškus objektas → užpildyk juodraščio JSON su MASTER SALES COPYWRITER title+description (hook + bullet ypatybės + CTA).
 - Automobiliai + techninis pasas: OCR faktai → technicalFields; pokalbyje gali parodyti Markdown specifikacijų santrauką, BET description laukas VISADA turi būti turtingas marketplace sales copy (ne sausas caption).
 - DRAUDŽIAMA klausti kainos jei vartotojas jos nenurodė; DRAUDŽIAMA išgalvoti kainą / ridą / TA.

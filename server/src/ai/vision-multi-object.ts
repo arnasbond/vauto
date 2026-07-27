@@ -1,5 +1,7 @@
 /** Shared helpers for multi-object vision parsing (seller upload + buyer photo search). */
 
+import { localizeVisionObjectLabel } from "../shared/vision-object-labels.js";
+
 export interface DetectedVisionObject {
   label: string;
   category?: string;
@@ -34,14 +36,19 @@ export function filterSellableChoiceChips(chips: string[]): string[] {
 }
 
 function normalizeChipLabel(raw: string, mode: "sell" | "search"): string {
-  const trimmed = raw.trim().replace(/^[\[\]«»"']+|[\[\]«»"']+$/g, "");
-  if (!trimmed) return "";
-  const lower = trimmed.toLowerCase();
-  if (lower.startsWith("parduoti ") || lower.startsWith("ieškoti ") || lower.startsWith("ieskoti ")) {
-    return trimmed.charAt(0).toUpperCase() + trimmed.slice(1);
+  const localized = localizeVisionObjectLabel(raw);
+  if (!localized) return "";
+  const lower = localized.toLowerCase();
+  if (
+    lower.startsWith("parduoti ") ||
+    lower.startsWith("ieškoti ") ||
+    lower.startsWith("ieskoti ")
+  ) {
+    return localized.charAt(0).toUpperCase() + localized.slice(1);
   }
   const prefix = mode === "sell" ? SELL_CHIP_PREFIX : SEARCH_CHIP_PREFIX;
-  const noun = trimmed.replace(/^(parduoti|ieškoti|ieskoti)\s+/i, "").trim();
+  const noun = localized.replace(/^(parduoti|ieškoti|ieskoti)\s+/i, "").trim();
+  if (!noun) return "";
   return `${prefix}${noun.charAt(0).toLowerCase()}${noun.slice(1)}`;
 }
 
@@ -51,7 +58,7 @@ export function parseDetectedObjects(raw: unknown): DetectedVisionObject[] {
   for (const item of raw) {
     if (!item || typeof item !== "object") continue;
     const r = item as Record<string, unknown>;
-    const label = String(r.label ?? r.name ?? "").trim();
+    const label = localizeVisionObjectLabel(String(r.label ?? r.name ?? ""));
     if (!label || label.length < 2) continue;
     if (isDocumentLikeVisionLabel(label)) continue;
     const confidenceRaw = Number(r.confidence);

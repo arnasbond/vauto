@@ -33,7 +33,10 @@ import { isDirectAgentActionChip } from "@/lib/direct-agent-actions";
 import { isVisionObjectSellChip } from "@/lib/vision-choice-chips";
 import type { PrePublishVisibilityId } from "@/lib/listing-publish-visibility";
 import { runPublishSuccessCelebration } from "@/lib/publish-success-celebration";
-import type { AgentChatMessage } from "@/lib/vauto-agent-client";
+import {
+  notifyAgentPendingImages,
+  type AgentChatMessage,
+} from "@/lib/vauto-agent-client";
 import type { ListingCategory } from "@/lib/types";
 
 export interface AgentChatStripProps {
@@ -265,10 +268,10 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
       }
     ).slice(0, 6);
+    // Modal gallery is canonical — sync pending/preview so removes stick at publish.
     updateAiDraft({ orderedImageUrls: next });
-    if (next[0]) {
-      updateSellerMedia({ imageDataUrl: next[0] });
-    }
+    notifyAgentPendingImages(next);
+    updateSellerMedia({ imageDataUrl: next[0] ?? null });
   };
 
   const handleFieldsChange = (patch: PrePublishFieldPatch) => {

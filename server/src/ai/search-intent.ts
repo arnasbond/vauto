@@ -45,8 +45,8 @@ const VISUAL_SEARCH_INTENT_SCHEMA = `{
   "sceneContext": "string — aplinkos kontekstas",
   "imageQuality": "clear | blurry | partial | dark | too_far — nuotraukos kokybė paieškai",
   "qualityHint": "string — jei kokybė prasta, DRAUGIŠKAS lietuviškas prašymas ką pafotografuoti papildomai (pvz. „Matau, kad tai Volvo V70 detalė, bet ar galėtumėte nufotografuoti kodą kitoje pusėje, kad rasčiau tiksliai?"). Jei clear — tuščia eilutė.",
-  "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
-  "choiceChips": ["string — pvz. Ieškoti televizoriaus, Ieškoti sofos"],
+  "detectedObjects": [{ "label": "string — trumpas LIETUVIŠKAS objekto pavadinimas (NE anglų kalba)", "category": "string", "confidence": "number 0-1" }],
+  "choiceChips": ["string — pvz. Ieškoti televizorių, Ieškoti sofą (TIK lietuvių kalba)"],
   "semanticAlternatives": ["string — artimos semantinės paieškos pagal spalvą/tipą/formą"],
   "searchFilters": {
     "make": "string | null — auto markė jei matoma",
@@ -297,6 +297,7 @@ export async function analyzeVisualSearchIntent(
   const systemInstruction = `Esi VAUTO pirkėjo VISUAL paieškos intent analizatorius su Gemini Vision.
 Vartotojas IEŠKO panašių skelbimų pagal nuotrauką — NEKELIA skelbimo.
 Identifikuok VISUS matomus objektus (detectedObjects), aplinkos kontekstą (sceneContext) ir pasiūlyk choiceChips jei objektų >1.
+LOKALIZACIJA: detectedObjects.label ir choiceChips daiktavardžiai PRIVALO būti lietuvių kalba (DRAUDŽIAMA angliškų etikėčių).
 Jei tikslaus daikto/modelio nėra — sugeneruok semanticAlternatives pagal vizualinius atributus (spalva, tipas, forma).
 Konvertuok tai į searchFilters ir cleanQuery lietuviškai.
 NEAIŠKI / IŠSILIEJUSI / PRASTA NUOTRAUKA (blurry, partial, dark, too_far): NEBLOKUOK užklausos. Nustatyk imageQuality ir parašyk draugišką qualityHint su KONKREČIU prašymu (pvz. pafotografuoti kodą/etiketę kitoje pusėje, prisiartinti, geresnį apšvietimą). Vis tiek pateik geriausią spėjimą per searchFilters/semanticAlternatives, kad vartotojas gautų kelią į priekį, ne tuščią ekraną.

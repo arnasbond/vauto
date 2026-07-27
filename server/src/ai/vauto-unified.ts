@@ -93,8 +93,8 @@ const EXTRACTION_SCHEMA = `{
   "confidence": "number 0-1",
   "sceneContext": "string — trumpas faktinis kontekstas",
   "photoStyle": "real_world | studio_stock | mixed | unknown",
-  "detectedObjects": [{ "label": "string", "category": "string", "confidence": "number 0-1" }],
-  "choiceChips": ["string"],
+  "detectedObjects": [{ "label": "string — trumpas LIETUVIŠKAS objekto pavadinimas (NE anglų kalba)", "category": "string", "confidence": "number 0-1" }],
+  "choiceChips": ["string — „Parduoti {lietuviškas objektas}“"],
   "factNotes": "string — perskaityti OCR faktai be marketingo",
   "ocrText": "string — optional raw OCR transcript"
 }`;

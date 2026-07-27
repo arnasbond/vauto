@@ -708,7 +708,7 @@ export function registerAgentPendingImagesHost(fn: ((urls: string[]) => void) | 
 }
 
 export function notifyAgentPendingImages(urls: string[]): void {
+  // Empty list clears staged photos (PrePublish remove-all / replace).
   const clean = urls.filter(Boolean).slice(0, 6);
-  if (!clean.length) return;
   agentPendingImagesHost?.(clean);
 }
