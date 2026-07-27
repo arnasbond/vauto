@@ -55,10 +55,11 @@ async function main() {
   await client.connect();
   try {
     const preview = await client.query(
-      `SELECT id, name, nickname, email, role
+      `SELECT id, name, nickname, first_name, email, role
        FROM users
        WHERE lower(coalesce(nickname, '')) = $1
           OR lower(coalesce(name, '')) = $1
+          OR lower(coalesce(first_name, '')) = $1
        ORDER BY updated_at DESC NULLS LAST
        LIMIT 20`,
       [nickname]
@@ -66,7 +67,7 @@ async function main() {
     console.log(`Matched ${preview.rowCount} user(s) for "${nickname}":`);
     for (const row of preview.rows) {
       console.log(
-        `  ${row.id} | name=${row.name ?? ""} | nick=${row.nickname ?? ""} | email=${row.email ?? ""} | role=${row.role}`
+        `  ${row.id} | name=${row.name ?? ""} | nick=${row.nickname ?? ""} | first=${row.first_name ?? ""} | email=${row.email ?? ""} | role=${row.role}`
       );
     }
     if (!apply) {
@@ -83,7 +84,8 @@ async function main() {
        SET role = 'super_admin', updated_at = now()
        WHERE lower(coalesce(nickname, '')) = $1
           OR lower(coalesce(name, '')) = $1
-       RETURNING id, name, nickname, email, role`,
+          OR lower(coalesce(first_name, '')) = $1
+       RETURNING id, name, nickname, first_name, email, role`,
       [nickname]
     );
     console.log(`Updated ${updated.rowCount} user(s):`);

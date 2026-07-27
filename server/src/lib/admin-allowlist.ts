@@ -51,11 +51,14 @@ export function shouldElevateToSuperAdmin(opts: {
   phone?: string | null;
   name?: string | null;
   nickname?: string | null;
+  firstName?: string | null;
   metaRole?: string;
 }): boolean {
   if (isAllowlistedAdminEmail(opts.email)) return true;
   if (isAllowlistedAdminName(opts.name)) return true;
   if (isAllowlistedAdminName(opts.nickname)) return true;
+  if (isAllowlistedAdminName(opts.firstName)) return true;
+  if (isAllowlistedAdminName(opts.name?.split(/\s+/)[0])) return true;
   if (
     opts.metaRole === "admin" &&
     normalizePhoneDigits(opts.phone) === resolveAdminPhone()

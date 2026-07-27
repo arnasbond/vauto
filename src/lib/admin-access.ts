@@ -5,12 +5,15 @@ import type { UserProfile } from "@/lib/types";
 export const SUPER_ADMIN_ID = "admin-1";
 
 /**
- * Extra operators identified by public nickname (and display name).
+ * Extra operators identified by public handles.
  * Keep in sync with server `ADMIN_NAMES` default (server/src/lib/admin-allowlist.ts).
  */
 export const SUPER_ADMIN_NICKNAMES = ["arnas"] as const;
 
-type AdminUserLike = Pick<UserProfile, "id" | "role" | "email" | "name" | "nickname">;
+type AdminUserLike = Pick<
+  UserProfile,
+  "id" | "role" | "email" | "name" | "nickname" | "firstName" | "lastName"
+>;
 
 export function isAdminEmail(email: string | null | undefined): boolean {
   return Boolean(email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
@@ -20,13 +23,26 @@ function normalizeHandle(value: string | null | undefined): string {
   return (value ?? "").trim().toLowerCase();
 }
 
+/** Match allowlisted operator against nickname, firstName, or display name. */
 export function isAllowlistedAdminHandle(
-  user: Pick<UserProfile, "name" | "nickname"> | null | undefined
+  user:
+    | Pick<UserProfile, "name" | "nickname" | "firstName" | "lastName">
+    | null
+    | undefined
 ): boolean {
   if (!user) return false;
-  const nick = normalizeHandle(user.nickname);
-  const name = normalizeHandle(user.name);
-  return SUPER_ADMIN_NICKNAMES.some((allowed) => allowed === nick || allowed === name);
+  const candidates = [
+    normalizeHandle(user.nickname),
+    normalizeHandle(user.firstName),
+    normalizeHandle(user.name),
+    normalizeHandle(user.name?.split(/\s+/)[0]),
+    normalizeHandle(
+      [user.firstName, user.lastName].filter(Boolean).join(" ")
+    ),
+  ].filter(Boolean);
+  return SUPER_ADMIN_NICKNAMES.some((allowed) =>
+    candidates.includes(allowed)
+  );
 }
 
 function isAdminRole(role: string | null | undefined): boolean {
@@ -35,7 +51,7 @@ function isAdminRole(role: string | null | undefined): boolean {
 
 /**
  * True for Control Center operators.
- * - Allowlisted nickname (arnas) — unlocks UI immediately
+ * - Allowlisted handle (arnas in firstName/nickname/name) — unlocks UI immediately
  * - `role === "super_admin"` / admin (elevated in API/DB)
  * - Canonical admin-1 / ADMIN_EMAIL
  */

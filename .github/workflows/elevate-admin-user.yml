@@ -1,0 +1,36 @@
+name: Elevate admin user
+
+on:
+  workflow_dispatch:
+    inputs:
+      nickname:
+        description: "Nickname / firstName / name to elevate"
+        required: true
+        default: "arnas"
+      apply:
+        description: "Apply update (true) or dry-run (false)"
+        required: true
+        default: "true"
+
+jobs:
+  elevate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install server pg dependency
+        run: npm ci --prefix server
+
+      - name: Elevate user
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+        run: |
+          ARGS="--nickname=${{ inputs.nickname }}"
+          if [ "${{ inputs.apply }}" = "true" ]; then
+            ARGS="$ARGS --apply"
+          fi
+          node scripts/elevate-admin-user.mjs $ARGS

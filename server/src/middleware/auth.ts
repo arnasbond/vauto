@@ -76,6 +76,7 @@ export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
       phone: user.phone,
       name: user.name,
       nickname: user.nickname,
+      firstName: user.firstName,
     })
   ) {
     return true;

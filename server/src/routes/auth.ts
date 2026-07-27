@@ -151,9 +151,19 @@ function resolveRole(
   email?: string | null,
   phone?: string | null,
   name?: string | null,
-  nickname?: string | null
+  nickname?: string | null,
+  firstName?: string | null
 ): string {
-  if (shouldElevateToSuperAdmin({ email, phone, name, nickname, metaRole })) {
+  if (
+    shouldElevateToSuperAdmin({
+      email,
+      phone,
+      name,
+      nickname,
+      firstName,
+      metaRole,
+    })
+  ) {
     return "super_admin";
   }
   return metaRole;
@@ -184,14 +194,16 @@ function resolveLoginRole(
   email?: string | null,
   phone?: string | null,
   name?: string | null,
-  nickname?: string | null
+  nickname?: string | null,
+  firstName?: string | null
 ): string {
   const adminRole = resolveRole(
     metaRole,
     email,
     phone,
     name ?? existing?.name,
-    nickname ?? existing?.nickname
+    nickname ?? existing?.nickname,
+    firstName ?? existing?.firstName
   );
   if (adminRole === "super_admin") return "super_admin";
   if (existing?.role === "pro" || existing?.role === "super_admin") {
@@ -226,13 +238,15 @@ async function buildSession(
     existing?.name ||
     null;
   const nicknameHint = profile.nickname?.trim() || existing?.nickname || null;
+  const firstNameHint = profile.firstName?.trim() || existing?.firstName || null;
   const role = resolveLoginRole(
     meta.role,
     existing,
     email,
     phone,
     displayNameHint,
-    nicknameHint
+    nicknameHint,
+    firstNameHint
   );
   const isCanonicalAdmin = role === "super_admin" && userId === CANONICAL_ADMIN_ID;
   const adminEmail = resolveAdminEmail();
@@ -674,6 +688,7 @@ authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
         phone: user.phone,
         name: user.name,
         nickname: user.nickname,
+        firstName: user.firstName,
       })
     ) {
       role = "super_admin";
@@ -707,6 +722,7 @@ authRouter.post("/refresh", requireAuth, async (req: AuthedRequest, res) => {
         phone: user.phone,
         name: user.name,
         nickname: user.nickname,
+        firstName: user.firstName,
       })
     ) {
       role = "super_admin";

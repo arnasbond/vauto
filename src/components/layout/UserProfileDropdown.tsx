@@ -10,6 +10,7 @@ import {
   LogOut,
   MessageCircle,
   Settings,
+  Shield,
   User,
 } from "lucide-react";
 import { GuestAvatar } from "@/components/auth/GuestAvatar";
@@ -17,6 +18,7 @@ import { useVauto } from "@/context/VautoContext";
 import { useChat } from "@/context/ChatContext";
 import { countUnreadChats } from "@/lib/chat-helpers";
 import { cn } from "@/lib/cn";
+import { isSuperAdminUser } from "@/lib/admin-access";
 
 interface UserProfileDropdownProps {
   variant?: "desktop" | "mobile";
@@ -64,6 +66,7 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
   const unread = countUnreadChats(chats, user?.id ?? "");
   const [open, setOpen] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
+  const showControlCenter = isAuthenticated && isSuperAdminUser(user);
 
   const close = useCallback(() => setOpen(false), []);
 
@@ -153,6 +156,15 @@ export function UserProfileDropdown({ variant = "desktop" }: UserProfileDropdown
           </div>
 
           <div className="py-1">
+            {showControlCenter ? (
+              <MenuLink
+                href="/profile/?tab=ops"
+                icon={<Shield className="h-4 w-4" />}
+                label="VAUTO Control Center"
+                hint="Administratoriaus skydelis"
+                onNavigate={close}
+              />
+            ) : null}
             <MenuLink
               href="/mano-skelbimai/"
               icon={<LayoutGrid className="h-4 w-4" />}
