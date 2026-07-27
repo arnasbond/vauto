@@ -201,9 +201,8 @@ export function VautoCheckoutModal({
               <div className="mb-4 flex items-start gap-2 rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-bg)]/50 p-3 text-xs text-[var(--vauto-text-muted)]">
                 <Building2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--vauto-teal)]" />
                 <p>
-                  Paspaudę „Apmokėti“ būsite nukreipti į {paymentLabel} BankLink
-                  simuliatorių. Tai demonstracinis mokėjimas — tikros lėšos nėra
-                  nuskaitomos.
+                  Šis langas naudojamas tik kai Stripe nepasiekiamas. Live aplinkoje
+                  bankas, Apple Pay ir Google Pay veikia Stripe Checkout lange.
                 </p>
               </div>
             )}
@@ -211,7 +210,7 @@ export function VautoCheckoutModal({
             <p className="mb-4 flex items-center gap-1.5 text-[10px] text-[var(--vauto-text-muted)]">
               <Shield className="h-3.5 w-3.5 text-[var(--vauto-teal)]" />
               <Lock className="h-3 w-3" />
-              SSL šifruotas demonstracinis atsiskaitymas
+              Atsarginis / demo atsiskaitymas (ne Stripe)
             </p>
 
             <button

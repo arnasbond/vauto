@@ -3,6 +3,7 @@ import { applyLaunchPromoPrice } from "../shared/launch-promo.js";
 const STRIPE_PLANS_CATALOG = {
   starter: { amount: 2900, label: "VAUTO Starto paketas" },
   pro: { amount: 9900, label: "VAUTO Pro paketas" },
+  enterprise: { amount: 24900, label: "VAUTO Enterprise paketas" },
 } as const;
 
 export type StripePlanId = keyof typeof STRIPE_PLANS_CATALOG;
@@ -25,5 +26,12 @@ export const STRIPE_PLANS: Record<
       applyLaunchPromoPrice(STRIPE_PLANS_CATALOG.pro.amount / 100) * 100
     ),
     label: STRIPE_PLANS_CATALOG.pro.label,
+  },
+  enterprise: {
+    listAmount: STRIPE_PLANS_CATALOG.enterprise.amount,
+    amount: Math.round(
+      applyLaunchPromoPrice(STRIPE_PLANS_CATALOG.enterprise.amount / 100) * 100
+    ),
+    label: STRIPE_PLANS_CATALOG.enterprise.label,
   },
 };

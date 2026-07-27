@@ -1632,25 +1632,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
   );
 
   const prevAuthenticatedRef = useRef(isAuthenticated);
-  useEffect(() => {
-    if (!authHydrated) return;
-    const justLoggedIn = isAuthenticated && !prevAuthenticatedRef.current;
-    prevAuthenticatedRef.current = isAuthenticated;
-    if (!justLoggedIn) return;
-    const intent = consumePendingAuthIntent();
-    if (intent === "wardrobe") {
-      activateWardrobeSpinta();
-      showToast("Asortimentas aktyvuotas — sveiki atvykę į skelbimų kabinetą!", "success");
-    } else if (intent === "pro") {
-      showToast("Prisijungta! Pro verslą galite aktyvuoti profilio skydelyje.", "info");
-    }
-  }, [
-    isAuthenticated,
-    authHydrated,
-    consumePendingAuthIntent,
-    activateWardrobeSpinta,
-    showToast,
-  ]);
+  // Intent handling (wardrobe/pro billing) runs after subscribeB2BPlan is defined.
 
   const clearToast = useCallback(() => setToast(null), []);
 
@@ -1732,9 +1714,14 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const subscribeB2BPlan = useCallback(
     async (planId: B2BBillingPlanId) => {
-      const legacyId = planId === "start" ? "starter" : planId === "growth" ? "pro" : "pro";
+      const stripePlanId =
+        planId === "start"
+          ? "starter"
+          : planId === "growth"
+            ? "pro"
+            : "enterprise";
       if (apiActive) {
-        const r = await apiSubscribeB2BPlan(legacyId);
+        const r = await apiSubscribeB2BPlan(stripePlanId);
         if (r.ok) {
           if (r.data.checkoutUrl) {
             window.location.href = r.data.checkoutUrl;
@@ -1781,6 +1768,28 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     showToast(r.ok ? "Portalas nepasiekiamas" : r.error, "error");
     return false;
   }, [apiActive, showToast]);
+
+  useEffect(() => {
+    if (!authHydrated) return;
+    const justLoggedIn = isAuthenticated && !prevAuthenticatedRef.current;
+    prevAuthenticatedRef.current = isAuthenticated;
+    if (!justLoggedIn) return;
+    const intent = consumePendingAuthIntent();
+    if (intent === "wardrobe") {
+      activateWardrobeSpinta();
+      showToast("Asortimentas aktyvuotas — sveiki atvykę į skelbimų kabinetą!", "success");
+    } else if (intent === "pro") {
+      showToast("Nukreipiame į START plano apmokėjimą…", "info");
+      void subscribeB2BPlan("start");
+    }
+  }, [
+    isAuthenticated,
+    authHydrated,
+    consumePendingAuthIntent,
+    activateWardrobeSpinta,
+    showToast,
+    subscribeB2BPlan,
+  ]);
 
   const updateListing = useCallback(
     (id: string, patch: ListingEditPatch) => {
@@ -1887,6 +1896,15 @@ export function VautoProvider({ children }: { children: ReactNode }) {
 
   const openCheckout = useCallback(
     (session: CheckoutSession) => {
+      // B2B plans → real Stripe Checkout (Apple/Google Pay + card on hosted page).
+      if (session.kind === "b2b_subscription" && isDataApiEnabled()) {
+        void subscribeB2BPlan(session.productId as B2BBillingPlanId).then(
+          (ok) => {
+            if (!ok) setCheckoutSession(session);
+          }
+        );
+        return;
+      }
       // Real card payments for promote: Stripe Checkout → webhook → DB promote.
       if (
         session.kind === "b2c_promote" &&
@@ -1918,7 +1936,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       }
       setCheckoutSession(session);
     },
-    []
+    [subscribeB2BPlan]
   );
 
   const closeCheckout = useCallback(() => {

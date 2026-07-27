@@ -821,6 +821,35 @@ export async function apiBillingPortal(): Promise<
   });
 }
 
+export async function apiListBillingInvoices(): Promise<
+  ApiResult<{
+    ok: boolean;
+    invoices: Array<{
+      id: string;
+      number: string;
+      userId: string;
+      kind: string;
+      productId?: string;
+      listingId?: string;
+      serviceTitle: string;
+      serviceDescription?: string;
+      amountNet: number;
+      vatRate: number;
+      vatAmount: number;
+      amountGross: number;
+      buyerName?: string;
+      buyerEmail?: string;
+      buyerCompanyName?: string;
+      buyerCompanyCode?: string;
+      buyerVatCode?: string;
+      paymentMethod?: string;
+      createdAt: string;
+    }>;
+  }>
+> {
+  return dataFetch("/api/billing/invoices", { method: "GET" });
+}
+
 export async function apiAnalyzeSearchIntent(body: {
   query: string;
   userCity?: string;

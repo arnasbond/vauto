@@ -74,9 +74,11 @@ export function BillingReturnToast() {
     const showSuccess = (message?: string) => {
       showToast(
         message ??
-          (plan === "pro"
-            ? "Pro planas aktyvuotas! Ačiū už prenumeratą."
-            : "Starto planas aktyvuotas! Ačiū už prenumeratą."),
+          (plan === "enterprise"
+            ? "Enterprise planas aktyvuotas! Ačiū už prenumeratą."
+            : plan === "pro"
+              ? "Pro planas aktyvuotas! Ačiū už prenumeratą."
+              : "Starto planas aktyvuotas! Ačiū už prenumeratą."),
         "success"
       );
     };

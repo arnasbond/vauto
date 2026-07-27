@@ -4,6 +4,7 @@ import { Suspense } from "react";
 import { LogIn, MessageCircle } from "lucide-react";
 import { VautoAdaptiveLayout } from "@/components/layout/VautoAdaptiveLayout";
 import { ChatThreadFromQuery } from "@/components/ChatThreadView";
+import { EscrowReturnToast } from "@/components/dashboard/EscrowReturnToast";
 import { useAuth } from "@/context/AuthContext";
 
 export default function PokalbiaiPage() {
@@ -41,6 +42,9 @@ export default function PokalbiaiPage() {
 
   return (
     <VautoAdaptiveLayout variant="plain">
+      <Suspense fallback={null}>
+        <EscrowReturnToast />
+      </Suspense>
       <Suspense
         fallback={
           <p className="py-12 text-center text-sm text-[var(--vauto-text-muted)]">

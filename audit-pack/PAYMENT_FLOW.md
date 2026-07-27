@@ -2,19 +2,25 @@
 Source: `server/src/routes/billing.ts`, `escrow-billing.ts`, `billing/stripe-*.ts`, `src/lib/payments/*`.
 
 ## Stripe flow — B2B subscription
-1. Client `apiSubscribeB2BPlan` → `POST /api/billing/subscribe` (`requireAuth`).
-2. Server creates Stripe Checkout Session (`billing/stripe-plans.ts`: starter €29/mo, pro €99/mo).
-3. User completes checkout on Stripe hosted page.
-4. `POST /api/billing/confirm` — client confirms session after redirect.
-5. Webhook `checkout.session.completed` (non-escrow metadata) → updates `billing_subscriptions` + user `billing_plan`.
+1. Client `openCheckout(b2b)` / `subscribeB2BPlan` → `POST /api/billing/subscribe` (`requireAuth`).
+2. Server creates Stripe Checkout Session (`billing/stripe-plans.ts`: starter €29/mo, pro €99/mo, enterprise €249/mo) with tax ID + billing address collection.
+3. User completes checkout on Stripe hosted page (card / Link / Apple Pay / Google Pay when Dashboard+domain ready).
+4. `POST /api/billing/confirm` — client confirms session after redirect; also persists PVM invoice.
+5. Webhook `checkout.session.completed` → updates `billing_subscriptions` + user `billing_plan` + `billing_invoices`.
 
 ## Stripe flow — Escrow (buyer protection)
 1. `POST /api/escrow-billing/checkout` — Checkout Session with **`capture_method: manual`** (`stripe-b2b.ts`).
 2. Buyer protection fee = **5%** of item price (`BUYER_PROTECTION_FEE_PERCENT` in escrow route + `src/lib/payments/buyer-protection.ts`).
 3. `application_fee_amount` + `transfer_data.destination` → seller **Stripe Connect** account if present.
-4. `POST /api/escrow-billing/confirm-session` → `markEscrowPaidFromStripe`, consumes `free_protection_credits` if any.
+4. Return URL `/pokalbiai/?escrow=success` → `EscrowReturnToast` → `POST /api/escrow-billing/confirm-session`.
 5. Seller ships → `POST /api/escrow-billing/shipping-label` (**MOCK** label).
 6. Buyer `POST /api/escrow-billing/confirm-delivery` → **captures** PaymentIntent, releases funds, applies referral rewards.
+
+## Invoices (PVM)
+- Table `billing_invoices` (migration `028_billing_invoices.sql`).
+- Created on webhook/confirm from Checkout session (gross → 21% VAT split).
+- Escrow invoices bill **platform fee only** (buyer protection), not full item price.
+- Client: `GET /api/billing/invoices` + print view with `NEXT_PUBLIC_VAUTO_*` legal issuer.
 
 ## Webhook validation
 - Route: `POST /api/billing/webhook` mounted **before** `express.json` with `express.raw` (`index.ts`).

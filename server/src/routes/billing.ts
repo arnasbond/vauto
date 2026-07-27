@@ -12,6 +12,7 @@ import {
   getListingForEmbedding,
   getUser,
   getUserStripeCustomerId,
+  listBillingInvoicesForUser,
   markEscrowPaidFromStripe,
   subscribeUserPlan,
 } from "../repository.js";
@@ -29,10 +30,11 @@ import {
   normalizePromoteTier,
   resolvePromotePriceEur,
 } from "../billing/promote-pricing.js";
+import { persistInvoiceFromCheckoutSession } from "../billing/persist-invoice.js";
 
 export const billingRouter = Router();
 
-const VALID_PLANS = new Set<string>(["starter", "pro"]);
+const VALID_PLANS = new Set<string>(["starter", "pro", "enterprise"]);
 
 billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
   try {
@@ -51,6 +53,12 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
     const session = await stripe.checkout.sessions.retrieve(sessionId);
     if (session.payment_status !== "paid") {
       return res.status(402).json({ error: "Payment not completed" });
+    }
+
+    try {
+      await persistInvoiceFromCheckoutSession(session);
+    } catch (e) {
+      console.error("Invoice persist on confirm failed:", e);
     }
 
     const userId = session.metadata?.userId;
@@ -104,9 +112,11 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
       user,
       planId,
       message:
-        planId === "pro"
-          ? "Pro planas aktyvuotas!"
-          : "Starto planas aktyvuotas!",
+        planId === "enterprise"
+          ? "Enterprise planas aktyvuotas!"
+          : planId === "pro"
+            ? "Pro planas aktyvuotas!"
+            : "Starto planas aktyvuotas!",
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -198,6 +208,15 @@ billingRouter.post("/portal", requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+billingRouter.get("/invoices", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const invoices = await listBillingInvoicesForUser(req.authUserId!);
+    res.json({ ok: true, invoices });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const planId = String((req.body as { planId?: string })?.planId ?? "");
@@ -248,9 +267,11 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
       mode: "local",
       user,
       message:
-        planId === "pro"
-          ? "Pro planas aktyvuotas."
-          : "Starto planas užregistruotas.",
+        planId === "enterprise"
+          ? "Enterprise planas aktyvuotas."
+          : planId === "pro"
+            ? "Pro planas aktyvuotas."
+            : "Starto planas užregistruotas.",
     });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -297,6 +318,11 @@ export async function handleStripeWebhook(
 
   if (event.type === "checkout.session.completed") {
     const session = event.data.object as Stripe.Checkout.Session;
+    try {
+      await persistInvoiceFromCheckoutSession(session);
+    } catch (e) {
+      console.error("Invoice persist failed:", e);
+    }
     if (session.metadata?.kind === "escrow" && session.metadata.escrowId) {
       try {
         const { paymentIntentId } = await resolveEscrowPaymentIntentId(session.id);

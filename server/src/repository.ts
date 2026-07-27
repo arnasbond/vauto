@@ -2383,7 +2383,7 @@ export async function subscribeUserPlan(
      VALUES ($1, $2, $3, 'active', $4)`,
     [subId, userId, planId, stripeSessionId ?? null]
   );
-  if (planId === "pro") {
+  if (planId === "pro" || planId === "enterprise" || planId === "starter") {
     await query(
       `UPDATE users SET billing_plan = $2, role = 'pro' WHERE id = $1`,
       [userId, planId]
@@ -2434,6 +2434,222 @@ export async function cancelUserBillingByStripeCustomer(
      WHERE stripe_customer_id = $1`,
     [customerId]
   );
+}
+
+export interface BillingInvoiceRow {
+  id: string;
+  number: string;
+  userId: string;
+  stripeSessionId?: string;
+  stripeInvoiceId?: string;
+  kind: string;
+  productId?: string;
+  listingId?: string;
+  serviceTitle: string;
+  serviceDescription?: string;
+  amountNet: number;
+  vatRate: number;
+  vatAmount: number;
+  amountGross: number;
+  buyerName?: string;
+  buyerEmail?: string;
+  buyerCompanyName?: string;
+  buyerCompanyCode?: string;
+  buyerVatCode?: string;
+  paymentMethod?: string;
+  createdAt: string;
+}
+
+async function nextBillingInvoiceNumber(): Promise<string> {
+  const year = new Date().getFullYear();
+  const rows = await query<{ c: string }>(
+    `SELECT COUNT(*)::text AS c FROM billing_invoices
+     WHERE EXTRACT(YEAR FROM created_at) = $1`,
+    [year]
+  );
+  const seq = Number(rows[0]?.c ?? 0) + 1;
+  return `VAUTO-${year}-${String(seq).padStart(4, "0")}`;
+}
+
+export async function insertBillingInvoice(input: {
+  userId: string;
+  stripeSessionId?: string;
+  stripeInvoiceId?: string;
+  kind: string;
+  productId?: string;
+  listingId?: string;
+  serviceTitle: string;
+  serviceDescription?: string;
+  amountNet: number;
+  vatRate: number;
+  vatAmount: number;
+  amountGross: number;
+  buyerName?: string;
+  buyerEmail?: string;
+  buyerCompanyName?: string;
+  buyerCompanyCode?: string;
+  buyerVatCode?: string;
+  paymentMethod?: string;
+}): Promise<BillingInvoiceRow | null> {
+  if (input.stripeSessionId) {
+    const existing = await query<{ id: string }>(
+      `SELECT id FROM billing_invoices WHERE stripe_session_id = $1 LIMIT 1`,
+      [input.stripeSessionId]
+    );
+    if (existing[0]) {
+      return getBillingInvoiceById(existing[0].id);
+    }
+  }
+
+  const id = `inv_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+  const number = await nextBillingInvoiceNumber();
+  await ensureUser(input.userId);
+  await query(
+    `INSERT INTO billing_invoices (
+      id, number, user_id, stripe_session_id, stripe_invoice_id, kind,
+      product_id, listing_id, service_title, service_description,
+      amount_net, vat_rate, vat_amount, amount_gross,
+      buyer_name, buyer_email, buyer_company_name, buyer_company_code,
+      buyer_vat_code, payment_method
+    ) VALUES (
+      $1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,$13,$14,$15,$16,$17,$18,$19,$20
+    )`,
+    [
+      id,
+      number,
+      input.userId,
+      input.stripeSessionId ?? null,
+      input.stripeInvoiceId ?? null,
+      input.kind,
+      input.productId ?? null,
+      input.listingId ?? null,
+      input.serviceTitle,
+      input.serviceDescription ?? null,
+      input.amountNet,
+      input.vatRate,
+      input.vatAmount,
+      input.amountGross,
+      input.buyerName ?? null,
+      input.buyerEmail ?? null,
+      input.buyerCompanyName ?? null,
+      input.buyerCompanyCode ?? null,
+      input.buyerVatCode ?? null,
+      input.paymentMethod ?? null,
+    ]
+  );
+  return getBillingInvoiceById(id);
+}
+
+function mapBillingInvoiceRow(r: {
+  id: string;
+  number: string;
+  user_id: string;
+  stripe_session_id: string | null;
+  stripe_invoice_id: string | null;
+  kind: string;
+  product_id: string | null;
+  listing_id: string | null;
+  service_title: string;
+  service_description: string | null;
+  amount_net: string | number;
+  vat_rate: string | number;
+  vat_amount: string | number;
+  amount_gross: string | number;
+  buyer_name: string | null;
+  buyer_email: string | null;
+  buyer_company_name: string | null;
+  buyer_company_code: string | null;
+  buyer_vat_code: string | null;
+  payment_method: string | null;
+  created_at: Date | string;
+}): BillingInvoiceRow {
+  return {
+    id: r.id,
+    number: r.number,
+    userId: r.user_id,
+    stripeSessionId: r.stripe_session_id ?? undefined,
+    stripeInvoiceId: r.stripe_invoice_id ?? undefined,
+    kind: r.kind,
+    productId: r.product_id ?? undefined,
+    listingId: r.listing_id ?? undefined,
+    serviceTitle: r.service_title,
+    serviceDescription: r.service_description ?? undefined,
+    amountNet: Number(r.amount_net),
+    vatRate: Number(r.vat_rate),
+    vatAmount: Number(r.vat_amount),
+    amountGross: Number(r.amount_gross),
+    buyerName: r.buyer_name ?? undefined,
+    buyerEmail: r.buyer_email ?? undefined,
+    buyerCompanyName: r.buyer_company_name ?? undefined,
+    buyerCompanyCode: r.buyer_company_code ?? undefined,
+    buyerVatCode: r.buyer_vat_code ?? undefined,
+    paymentMethod: r.payment_method ?? undefined,
+    createdAt:
+      typeof r.created_at === "string"
+        ? r.created_at
+        : r.created_at.toISOString(),
+  };
+}
+
+export async function getBillingInvoiceById(
+  id: string
+): Promise<BillingInvoiceRow | null> {
+  const rows = await query<{
+    id: string;
+    number: string;
+    user_id: string;
+    stripe_session_id: string | null;
+    stripe_invoice_id: string | null;
+    kind: string;
+    product_id: string | null;
+    listing_id: string | null;
+    service_title: string;
+    service_description: string | null;
+    amount_net: string | number;
+    vat_rate: string | number;
+    vat_amount: string | number;
+    amount_gross: string | number;
+    buyer_name: string | null;
+    buyer_email: string | null;
+    buyer_company_name: string | null;
+    buyer_company_code: string | null;
+    buyer_vat_code: string | null;
+    payment_method: string | null;
+    created_at: Date | string;
+  }>(`SELECT * FROM billing_invoices WHERE id = $1 LIMIT 1`, [id]);
+  return rows[0] ? mapBillingInvoiceRow(rows[0]) : null;
+}
+
+export async function listBillingInvoicesForUser(
+  userId: string
+): Promise<BillingInvoiceRow[]> {
+  const rows = await query<{
+    id: string;
+    number: string;
+    user_id: string;
+    stripe_session_id: string | null;
+    stripe_invoice_id: string | null;
+    kind: string;
+    product_id: string | null;
+    listing_id: string | null;
+    service_title: string;
+    service_description: string | null;
+    amount_net: string | number;
+    vat_rate: string | number;
+    vat_amount: string | number;
+    amount_gross: string | number;
+    buyer_name: string | null;
+    buyer_email: string | null;
+    buyer_company_name: string | null;
+    buyer_company_code: string | null;
+    buyer_vat_code: string | null;
+    payment_method: string | null;
+    created_at: Date | string;
+  }>(
+    `SELECT * FROM billing_invoices WHERE user_id = $1 ORDER BY created_at DESC LIMIT 100`,
+    [userId]
+  );
+  return rows.map(mapBillingInvoiceRow);
 }
 
 export async function getEmbeddingIndexStats(): Promise<{

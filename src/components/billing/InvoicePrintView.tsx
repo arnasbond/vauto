@@ -1,14 +1,10 @@
 "use client";
 
 import { formatInvoiceDate, type VautoInvoice } from "@/lib/invoices";
-
-const SELLER = {
-  name: "UAB VAUTO Marketplace",
-  code: "305987654",
-  vatCode: "LT100098765432",
-  address: "Konstitucijos pr. 12, LT-09308 Vilnius",
-  email: "saskaitos@vauto.lt",
-};
+import {
+  getVautoLegalIssuer,
+  hasRealLegalIssuer,
+} from "@/lib/legal-issuer";
 
 interface InvoicePrintViewProps {
   invoice: VautoInvoice;
@@ -16,6 +12,9 @@ interface InvoicePrintViewProps {
 }
 
 export function InvoicePrintView({ invoice, onClose }: InvoicePrintViewProps) {
+  const seller = getVautoLegalIssuer();
+  const realIssuer = hasRealLegalIssuer(seller);
+
   const handlePrint = () => {
     window.print();
   };
@@ -47,10 +46,17 @@ export function InvoicePrintView({ invoice, onClose }: InvoicePrintViewProps) {
           <header className="mb-8 flex flex-wrap items-start justify-between gap-4 border-b border-slate-200 pb-6">
             <div>
               <p className="text-2xl font-black tracking-tight text-[#0d9488]">VAUTO</p>
-              <p className="mt-1 text-sm text-slate-600">{SELLER.name}</p>
-              <p className="text-xs text-slate-500">Įm. kodas: {SELLER.code}</p>
-              <p className="text-xs text-slate-500">PVM kodas: {SELLER.vatCode}</p>
-              <p className="text-xs text-slate-500">{SELLER.address}</p>
+              <p className="mt-1 text-sm text-slate-600">{seller.name}</p>
+              {seller.companyCode ? (
+                <p className="text-xs text-slate-500">Įm. kodas: {seller.companyCode}</p>
+              ) : null}
+              {seller.vatCode ? (
+                <p className="text-xs text-slate-500">PVM kodas: {seller.vatCode}</p>
+              ) : null}
+              {seller.address ? (
+                <p className="text-xs text-slate-500">{seller.address}</p>
+              ) : null}
+              <p className="text-xs text-slate-500">{seller.email}</p>
             </div>
             <div className="text-right">
               <h1 className="text-xl font-bold uppercase tracking-wide">Sąskaita-faktūra</h1>
@@ -130,7 +136,9 @@ export function InvoicePrintView({ invoice, onClose }: InvoicePrintViewProps) {
           </footer>
 
           <p className="mt-8 text-center text-[10px] text-slate-400 print:mt-12">
-            Dokumentas sugeneruotas automatiškai VAUTO platformoje. Demonstracinis mokėjimas.
+            {realIssuer
+              ? "Dokumentas sugeneruotas automatiškai VAUTO platformoje po apmokėjimo."
+              : "Dokumentas sugeneruotas VAUTO. Įrašykite NEXT_PUBLIC_VAUTO_COMPANY_CODE / VAT_CODE production aplinkoje."}
           </p>
         </article>
       </div>

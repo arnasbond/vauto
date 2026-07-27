@@ -1,5 +1,6 @@
 import type Stripe from "stripe";
 import { appOrigin, getStripe } from "./stripe-client.js";
+import { checkoutBuyerCollectionParams } from "./checkout-payment-methods.js";
 
 /** Platform buyer protection fee — 5% of negotiated item price. */
 export const BUYER_PROTECTION_FEE_PERCENT = 5;
@@ -70,6 +71,7 @@ export async function createEscrowCheckoutSession(opts: {
 
   return stripe.checkout.sessions.create({
     mode: "payment",
+    ...checkoutBuyerCollectionParams("payment"),
     payment_intent_data: paymentIntentData,
     line_items: [
       {

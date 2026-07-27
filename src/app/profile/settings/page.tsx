@@ -71,6 +71,8 @@ export default function ProfileSettingsPage() {
     listings,
     renewListing,
     paymentHistoryVersion,
+    openBillingPortal,
+    apiActive,
   } = useVauto();
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
@@ -122,6 +124,31 @@ export default function ProfileSettingsPage() {
           <AppVersionStatusCard />
         </div>
 
+        <section className="vauto-dashboard-card mt-4 rounded-2xl p-4">
+          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
+            Mokėjimai
+          </p>
+          <h2 className="mb-2 text-base font-bold text-[var(--vauto-text)]">
+            Prenumerata ir kortelės
+          </h2>
+          <p className="mb-3 text-sm text-[var(--vauto-text-muted)]">
+            Tvarkykite Stripe prenumeratą, mokėjimo būdus ir sąskaitas neišeidami iš VAUTO.
+          </p>
+          <div className="flex flex-wrap gap-2">
+            <button
+              type="button"
+              disabled={!apiActive}
+              onClick={() => void openBillingPortal()}
+              className="rounded-xl bg-[var(--vauto-teal)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+            >
+              Tvarkyti prenumeratą
+            </button>
+          </div>
+          <div className="mt-4">
+            <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
+          </div>
+        </section>
+
         {(user.role === "pro" || isSuperAdminUser(user)) && (
           <ProfileAccordion
             title="Verslo kabinetas"
@@ -136,7 +163,6 @@ export default function ProfileSettingsPage() {
               allListings={listings}
               onRenew={(id) => void renewListing(id)}
             />
-            <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
             <SavedListingsSection />
             <WishlistSection />
             <Suspense

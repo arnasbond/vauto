@@ -103,7 +103,7 @@ export function B2BBillingCard({
                   : isLoading
                     ? "Atidaroma…"
                     : stripeEnabled
-                      ? "Apmokėti (demo checkout)"
+                      ? "Apmokėti per Stripe"
                       : "Užsisakyti planą"}
               </button>
             </div>

@@ -1,5 +1,6 @@
 import Stripe from "stripe";
 import { STRIPE_PLANS, type StripePlanId } from "./stripe-plans.js";
+import { checkoutBuyerCollectionParams } from "./checkout-payment-methods.js";
 
 let stripeClient: Stripe | null = null;
 
@@ -27,8 +28,12 @@ export async function createPlanCheckoutSession(opts: {
 
   return stripe.checkout.sessions.create({
     mode: "subscription",
+    ...checkoutBuyerCollectionParams("subscription"),
     ...(opts.customerId
-      ? { customer: opts.customerId }
+      ? {
+          customer: opts.customerId,
+          customer_update: { name: "auto", address: "auto" },
+        }
       : { customer_email: opts.email }),
     line_items: [
       {
@@ -42,6 +47,7 @@ export async function createPlanCheckoutSession(opts: {
       },
     ],
     metadata: {
+      kind: "b2b_subscription",
       userId: opts.userId,
       planId: opts.planId,
     },
@@ -58,7 +64,7 @@ export async function createBillingPortalSession(
 
   return stripe.billingPortal.sessions.create({
     customer: customerId,
-    return_url: `${appOrigin()}/profile`,
+    return_url: `${appOrigin()}/profile/settings`,
   });
 }
 
@@ -81,8 +87,12 @@ export async function createPromoteCheckoutSession(opts: {
 
   return stripe.checkout.sessions.create({
     mode: "payment",
+    ...checkoutBuyerCollectionParams("payment"),
     ...(opts.customerId
-      ? { customer: opts.customerId }
+      ? {
+          customer: opts.customerId,
+          customer_update: { name: "auto", address: "auto" },
+        }
       : opts.email
         ? { customer_email: opts.email }
         : {}),
@@ -116,7 +126,7 @@ export async function createPromoteCheckoutSession(opts: {
 export function resolveStripeCustomerId(
   customer: string | Stripe.Customer | Stripe.DeletedCustomer | null
 ): string | undefined {
-  if (!customer || typeof customer === "object" && "deleted" in customer) {
+  if (!customer || (typeof customer === "object" && "deleted" in customer)) {
     return undefined;
   }
   return typeof customer === "string" ? customer : customer.id;
