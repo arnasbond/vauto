@@ -36,7 +36,7 @@ export const B2B_PLANS: B2BPlan[] = [
     features: [
       "Iki 5 aktyvių darbo skelbimų",
       "Logotipo rodymas pagrindiniame puslapyje",
-      "Išplėstinė analitika ir TOP prioritetas",
+      "Prioritetinė analitika ir matomumo paketai",
     ],
     homepageLogo: true,
     aiCvFilter: false,

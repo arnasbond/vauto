@@ -17,8 +17,6 @@ export function resolveFeedVisibilityTier(listing: Listing): FeedVisibilityTier 
   // Expired paid boosts must never keep TOP/PLUS badges or rank.
   if (!isVisibilityActive(listing)) {
     if (listing.visibilityTier === "free") return "free";
-    // Demo/catalog rows set visibilityTier without expiry attrs — still honor them
-    // only when isVisibilityActive says yes (explicit tier string without expiry).
     return "free";
   }
 
@@ -44,18 +42,44 @@ export function isPlusFeedListing(listing: Listing): boolean {
   return resolveFeedVisibilityTier(listing) === "plus";
 }
 
-/** TOP first, then PLUS, then FREE — stable within each group. */
+/**
+ * Soft interleave instead of hard TOP wall.
+ * Pattern: 1 TOP, then up to 2 organics (plus/free), repeat.
+ * Preserves relative order within each bucket (already score-sorted).
+ */
 export function prioritizeFeedTiers<T extends Listing>(listings: T[]): T[] {
-  return [...listings].sort((a, b) => {
-    const ra = TIER_RANK[resolveFeedVisibilityTier(a)];
-    const rb = TIER_RANK[resolveFeedVisibilityTier(b)];
-    if (ra !== rb) return ra - rb;
-    return 0;
-  });
+  const tops: T[] = [];
+  const rest: T[] = [];
+  for (const listing of listings) {
+    if (resolveFeedVisibilityTier(listing) === "top") tops.push(listing);
+    else rest.push(listing);
+  }
+
+  if (tops.length === 0) return listings;
+
+  const out: T[] = [];
+  let ti = 0;
+  let ri = 0;
+  while (ti < tops.length || ri < rest.length) {
+    if (ti < tops.length) out.push(tops[ti++]);
+    for (let k = 0; k < 2 && ri < rest.length; k++) {
+      out.push(rest[ri++]);
+    }
+    if (ti >= tops.length && ri < rest.length) {
+      while (ri < rest.length) out.push(rest[ri++]);
+      break;
+    }
+  }
+  return out;
 }
 
 export function feedTierBadgeLabel(tier: FeedVisibilityTier): string | null {
   if (tier === "top") return "TOP";
   if (tier === "plus") return "Remiamas";
   return null;
+}
+
+/** Exported for tests / diagnostics */
+export function feedTierSortRank(tier: FeedVisibilityTier): number {
+  return TIER_RANK[tier];
 }

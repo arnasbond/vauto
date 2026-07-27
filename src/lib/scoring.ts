@@ -2,6 +2,7 @@ import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
+import { trustBoostScore } from "@vauto/shared/promote-catalog";
 import {
   extractPlateFromQuery,
   extractVinFromQuery,
@@ -304,11 +305,14 @@ export function rankListings(
   options?: {
     visualProfile?: VisualSearchProfile | null;
     visualRankScores?: Record<string, number>;
+    /** sellerId → { avg, count } for trust boost */
+    sellerRatings?: Record<string, { avg: number; count: number }>;
   }
 ): ScoredListing[] {
   const active = listings.filter(isListingPublicInFeed);
   const visualProfile = options?.visualProfile ?? null;
   const visualRankScores = options?.visualRankScores ?? {};
+  const sellerRatings = options?.sellerRatings ?? {};
   const useVisual = Boolean(visualProfile);
   const baseWeights = getScoringWeights(query);
   const w = useVisual
@@ -329,13 +333,18 @@ export function rankListings(
           })()
         : 0;
 
+      const rating = sellerRatings[listing.sellerId];
+      const trust =
+        rating != null ? trustBoostScore(rating.avg, rating.count) : 0;
+
       const score =
         semanticRelevance * w.semantic +
         proximityScore * w.proximity +
         priceAttractiveness * w.price +
         recencyScore * w.recency +
         visualRelevance * (w.visual ?? 0) +
-        visibilityBoostScore(listing);
+        visibilityBoostScore(listing) +
+        trust;
 
       return {
         ...listing,

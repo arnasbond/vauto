@@ -29,6 +29,7 @@ import { claimStripeWebhookEvent } from "../billing/webhook-idempotency.js";
 import {
   normalizePromoteTier,
   resolvePromotePriceEur,
+  b2cProductToPromoteTier,
 } from "../billing/promote-pricing.js";
 import { persistInvoiceFromCheckoutSession } from "../billing/persist-invoice.js";
 
@@ -141,7 +142,10 @@ billingRouter.post("/promote-checkout", requireAuth, async (req: AuthedRequest, 
       return res.status(404).json({ error: "Listing not found" });
     }
 
-    const tier = normalizePromoteTier(body?.tier);
+    const tier =
+      body?.productId != null && String(body.productId).trim()
+        ? b2cProductToPromoteTier({ productId: String(body.productId) })
+        : normalizePromoteTier(body?.tier);
     const amountEur = resolvePromotePriceEur({
       tier,
       category: listing.category,

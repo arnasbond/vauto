@@ -31,7 +31,7 @@ export function ZeroUiPaymentGate({
   onCancel,
   embedded = false,
 }: ZeroUiPaymentGateProps) {
-  const { user, updateUser, showToast } = useVauto();
+  const { user, updateUser, showToast, promoteListing } = useVauto();
   const [step, setStep] = useState<GateStep>("confirm");
   const resolvedIntent = normalizeMicroPaymentIntent(intent, user);
   const walletBalance = user.walletBalance ?? 0;
@@ -44,6 +44,11 @@ export function ZeroUiPaymentGate({
     setStep("paying");
     window.setTimeout(() => {
       const balance = user.walletBalance ?? 0;
+      const listingId =
+        resolvedIntent.metadata?.listingId ?? intent.metadata?.listingId;
+      if (isSmartBoost && listingId) {
+        promoteListing(listingId, resolvedIntent.price, isB2bBoost ? 3 : 2);
+      }
       if (canUseWallet) {
         updateUser({ walletBalance: balance - resolvedIntent.price });
       }
@@ -53,7 +58,20 @@ export function ZeroUiPaymentGate({
         onSuccess();
       }, 1200);
     }, 900);
-  }, [canUseWallet, resolvedIntent.price, resolvedIntent.product, onSuccess, showToast, updateUser, user.walletBalance]);
+  }, [
+    canUseWallet,
+    intent.metadata?.listingId,
+    isB2bBoost,
+    isSmartBoost,
+    promoteListing,
+    resolvedIntent.metadata?.listingId,
+    resolvedIntent.price,
+    resolvedIntent.product,
+    onSuccess,
+    showToast,
+    updateUser,
+    user.walletBalance,
+  ]);
 
   const shellClass = embedded
     ? "rounded-2xl border border-[#bfdbfe] bg-gradient-to-br from-[#eef6ff] to-white p-5 shadow-sm"

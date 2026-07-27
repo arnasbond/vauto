@@ -4,6 +4,7 @@ import {
   mergeDbListingsWithDemoCatalog,
 } from "./demo-catalog-api.js";
 import { isServerDemoCatalogEnabled } from "./demo-catalog-env.js";
+import { stripExpiredVisibilityAttributes } from "./shared/promote-catalog.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -50,6 +51,10 @@ type ListingRow = {
 };
 
 function mapListingRow(r: ListingRow): ApiListing {
+  const stripped = stripExpiredVisibilityAttributes(
+    (r.attributes as Record<string, unknown> | null) ?? undefined,
+    Boolean(r.promoted)
+  );
   return {
     id: r.id,
     sellerId: r.seller_id,
@@ -69,12 +74,12 @@ function mapListingRow(r: ListingRow): ApiListing {
     createdAt: r.created_at.toISOString(),
     expiresAt: r.expires_at?.toISOString(),
     description: r.description ?? undefined,
-    attributes: (r.attributes as ApiListing["attributes"]) ?? undefined,
+    attributes: (stripped.attributes as ApiListing["attributes"]) ?? undefined,
     status: r.status ?? undefined,
     banned: r.banned,
     vinVerified: r.vin_verified,
     providerVerified: r.provider_verified,
-    promoted: r.promoted,
+    promoted: stripped.promoted,
     minNegotiationPrice:
       r.min_negotiation_price != null ? Number(r.min_negotiation_price) : undefined,
     appraisalScore: r.appraisal_score ?? undefined,

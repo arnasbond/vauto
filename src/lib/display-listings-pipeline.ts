@@ -73,6 +73,8 @@ export interface DisplayListingsInput {
 
   buyerCoords: UserCoords | null;
 
+  sellerRatings?: Record<string, { avg: number; count: number }>;
+
 }
 
 
@@ -134,6 +136,8 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
     visualProfile: input.visualSearchProfile,
 
     visualRankScores: input.visualRankScores,
+
+    sellerRatings: input.sellerRatings,
 
   };
 

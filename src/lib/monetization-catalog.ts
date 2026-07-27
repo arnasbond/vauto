@@ -32,20 +32,20 @@ const B2C_PROMOTE_CATALOG: Omit<B2CPromoteProduct, "priceEur">[] = [
   {
     id: "plus",
     title: "PLUS Ženklelis",
-    description: "Uždedamas išskirtinis vizualinis rėmelis",
-    listPriceEur: 4.99,
+    description: "Uždedamas išskirtinis vizualinis rėmelis (7 d.)",
+    listPriceEur: 3.99,
     visibilityTier: "plus",
     bumpOnly: false,
-    durationDays: 30,
+    durationDays: 7,
   },
   {
     id: "top",
     title: "TOP Pozicija",
-    description: "Skelbimas užfiksuojamas kategorijos viršuje 7 dienoms",
+    description: "Skelbimas iškeliamas kategorijos viršuje 14 dienoms",
     listPriceEur: 9.99,
     visibilityTier: "top",
     bumpOnly: false,
-    durationDays: 7,
+    durationDays: 14,
   },
 ];
 

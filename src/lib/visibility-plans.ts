@@ -1,8 +1,17 @@
 import type { Listing, ListingCategory, UserProfile } from "@/lib/types";
 import type { MarketInsights } from "@/lib/market-insights";
+import {
+  PROMOTE_TIER_BASE_PRICE_EUR,
+  PROMOTE_TIER_DURATION_DAYS,
+  PROMOTE_CATEGORY_PRICE_MULTIPLIER,
+  visibilityBoostFromTier,
+  styleBoostScore,
+  STYLE_BOOST_ATTR,
+  type PromoteTierId,
+} from "@vauto/shared/promote-catalog";
 
 /** Matomumo pakopos: 1–5. Fiksuotos kainos — be aukciono ir kainų lenktynių. */
-export type VisibilityTierId = 1 | 2 | 3 | 4 | 5;
+export type VisibilityTierId = PromoteTierId;
 
 export interface VisibilityPlan {
   id: VisibilityTierId;
@@ -27,19 +36,10 @@ export interface VisibilityPlan {
   recommended?: boolean;
 }
 
-const CATEGORY_PRICE_MULTIPLIER: Record<ListingCategory, number> = {
-  electronics: 1,
-  clothing: 1,
-  home: 1.1,
-  other: 1,
-  services: 1.15,
-  vehicles: 1.35,
-  transport: 1.25,
-  real_estate: 2,
-  jobs: 1.05,
-  tools: 1.1,
-  rental: 1.2,
-};
+const CATEGORY_PRICE_MULTIPLIER = PROMOTE_CATEGORY_PRICE_MULTIPLIER as Record<
+  ListingCategory,
+  number
+>;
 
 const TIER_DEFINITIONS: Array<{
   id: VisibilityTierId;
@@ -60,8 +60,8 @@ const TIER_DEFINITIONS: Array<{
     label: "Paryškintas",
     shortLabel: "★",
     description: "Švelnus paryškinimas ir ženklelis — tinka testui ar sezoniniam matomumui.",
-    durationDays: 7,
-    basePrice: 3.99,
+    durationDays: PROMOTE_TIER_DURATION_DAYS[1],
+    basePrice: PROMOTE_TIER_BASE_PRICE_EUR[1],
     maxSlotsPerRegion: "unlimited",
     expectedLift: "+35% matomumo",
     feedPosition: "Virš standartinių skelbimų",
@@ -71,8 +71,8 @@ const TIER_DEFINITIONS: Array<{
     label: "Iškeltas",
     shortLabel: "TOP",
     description: "Iškėlimas paieškoje 2 savaitėms — geras balansas kainai ir rezultatui.",
-    durationDays: 14,
-    basePrice: 9.99,
+    durationDays: PROMOTE_TIER_DURATION_DAYS[2],
+    basePrice: PROMOTE_TIER_BASE_PRICE_EUR[2],
     maxSlotsPerRegion: "unlimited",
     expectedLift: "+90% matomumo",
     feedPosition: "Pirmųjų 5–8 rezultatų zonoje",
@@ -82,8 +82,8 @@ const TIER_DEFINITIONS: Array<{
     label: "Premium",
     shortLabel: "VIP",
     description: "Mėnesio matomumas — iki 3 skelbimų vienoje kategorijoje ir regione.",
-    durationDays: 30,
-    basePrice: 24.99,
+    durationDays: PROMOTE_TIER_DURATION_DAYS[3],
+    basePrice: PROMOTE_TIER_BASE_PRICE_EUR[3],
     maxSlotsPerRegion: 3,
     expectedLift: "+160% matomumo",
     feedPosition: "Pirmųjų 3 rezultatų zonoje",
@@ -93,8 +93,8 @@ const TIER_DEFINITIONS: Array<{
     label: "Verslo partneris",
     shortLabel: "PRO",
     description: "Ilgalaikis matomumas 60 d. — ribotas skaičius, kad niekas negalėtų monopolizuoti.",
-    durationDays: 60,
-    basePrice: 59.99,
+    durationDays: PROMOTE_TIER_DURATION_DAYS[4],
+    basePrice: PROMOTE_TIER_BASE_PRICE_EUR[4],
     maxSlotsPerRegion: 2,
     expectedLift: "+220% matomumo",
     feedPosition: "Pirmųjų 2 rezultatų zonoje",
@@ -106,8 +106,8 @@ const TIER_DEFINITIONS: Array<{
     shortLabel: "MAX",
     description:
       "Maksimalus matomumas 90 d. — tik 1 vieta kategorijoje ir regione. Reikalauja apgalvoto sprendimo.",
-    durationDays: 90,
-    basePrice: 129.99,
+    durationDays: PROMOTE_TIER_DURATION_DAYS[5],
+    basePrice: PROMOTE_TIER_BASE_PRICE_EUR[5],
     maxSlotsPerRegion: 1,
     expectedLift: "+280% matomumo",
     feedPosition: "1-oji rekomenduojama pozicija (rotacija su lygiaverte pakopa)",
@@ -164,15 +164,11 @@ export function effectiveVisibilityTier(listing: Listing): VisibilityTierId | 0 
 
 export function visibilityBoostScore(listing: Listing): number {
   const tier = effectiveVisibilityTier(listing);
-  const boosts: Record<number, number> = {
-    0: 0,
-    1: 0.05,
-    2: 0.12,
-    3: 0.2,
-    4: 0.28,
-    5: 0.35,
-  };
-  return boosts[tier] ?? 0;
+  const paid = visibilityBoostFromTier(tier);
+  const styleUntil = listing.attributes?.[STYLE_BOOST_ATTR];
+  const style =
+    typeof styleUntil === "string" ? styleBoostScore(styleUntil) : 0;
+  return paid + style;
 }
 
 export function buildVisibilityAttributes(

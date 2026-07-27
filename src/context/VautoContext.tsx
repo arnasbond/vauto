@@ -161,9 +161,14 @@ import {
   type CheckoutSession,
 } from "@/lib/monetization-catalog";
 import {
+  b2cProductToPromoteTier,
+  promoteDurationDays,
+} from "@vauto/shared/promote-catalog";
+import {
   WARDROBE_STYLE_BOOST_ATTR,
   styleBoostExpiryIso,
 } from "@/lib/monetization-wardrobe";
+import { computeSellerRating } from "@/lib/reviews";
 import {
   jobCreditsForPlan,
   type B2BBillingPlanId,
@@ -618,6 +623,18 @@ function VautoFacade({
     [catalog.listings, moderation.bannedUserIds]
   );
 
+  const { reviews } = catalog;
+
+  const sellerRatingsById = useMemo(() => {
+    const map: Record<string, { avg: number; count: number }> = {};
+    const sellerIds = new Set(visibleListings.map((l) => l.sellerId));
+    for (const sellerId of sellerIds) {
+      const rating = computeSellerRating(reviews, sellerId);
+      if (rating.count > 0) map[sellerId] = rating;
+    }
+    return map;
+  }, [visibleListings, reviews]);
+
   const displayResult = useMemo(
     () =>
       buildDisplayListings({
@@ -630,6 +647,7 @@ function VautoFacade({
         visualSearchProfile: catalog.visualSearchProfile,
         visualRankScores: catalog.visualRankScores,
         buyerCoords: catalog.buyerCoords,
+        sellerRatings: sellerRatingsById,
       }),
     [
       visibleListings,
@@ -641,6 +659,8 @@ function VautoFacade({
       catalog.visualSearchProfile,
       catalog.visualRankScores,
       catalog.buyerCoords,
+      sellerRatingsById,
+      reviews,
     ]
   );
 
@@ -1856,39 +1876,43 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     (listingId: string, productId: B2CPromoteProductId) => {
       const product = getB2CPromoteProduct(productId);
       const now = new Date();
-      const expiresAt = product.durationDays
-        ? new Date(now.getTime() + product.durationDays * 86_400_000).toISOString()
-        : undefined;
+      const tierId = b2cProductToPromoteTier({
+        productId: product.id,
+        visibilityTier: product.visibilityTier,
+        bumpOnly: product.bumpOnly,
+      });
+      const durationDays =
+        product.durationDays ?? promoteDurationDays(tierId);
+      const expiresAt = product.bumpOnly
+        ? undefined
+        : new Date(now.getTime() + durationDays * 86_400_000).toISOString();
 
       setListings((prev) =>
         prev.map((l) => {
           if (l.id !== listingId) return l;
-          const m = mockListingMetrics(l);
           const next: Listing = {
             ...l,
-            promoted: true,
+            promoted: !product.bumpOnly,
             createdAt: now.toISOString(),
-            views: m.views + (product.bumpOnly ? 25 : 50),
-            callClicks: m.callClicks + 3,
-            interestScore: Math.min(99, m.interestScore + 5),
           };
-          if (product.visibilityTier) {
+          if (product.visibilityTier && expiresAt) {
             next.visibilityTier = product.visibilityTier;
             next.visibilityExpiresAt = expiresAt;
-            if (product.visibilityTier === "top") {
-              next.visibilityPlanTier = 5;
-            } else if (product.visibilityTier === "plus") {
-              next.visibilityPlanTier = 2;
-            }
+            next.visibilityPlanTier = tierId;
+            next.attributes = {
+              ...(l.attributes ?? {}),
+              _visibilityTier: String(tierId),
+              _visibilityExpiresAt: expiresAt,
+            };
           }
           return next;
         })
       );
 
-      if (isDataApiEnabled()) {
-        const tierId: VisibilityTierId =
-          product.visibilityTier === "top" ? 5 : product.visibilityTier === "plus" ? 2 : 1;
-        void apiPromoteListing(listingId, product.priceEur, tierId).catch(() => undefined);
+      if (isDataApiEnabled() && !product.bumpOnly) {
+        void apiPromoteListing(listingId, product.priceEur, tierId).catch(
+          () => undefined
+        );
       }
     },
     []
@@ -1914,12 +1938,11 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         const product = getB2CPromoteProduct(
           session.productId as B2CPromoteProductId
         );
-        const tierId: VisibilityTierId =
-          product.visibilityTier === "top"
-            ? 5
-            : product.visibilityTier === "plus"
-              ? 2
-              : 1;
+        const tierId = b2cProductToPromoteTier({
+          productId: product.id,
+          visibilityTier: product.visibilityTier,
+          bumpOnly: product.bumpOnly,
+        });
         void apiCreatePromoteCheckout({
           listingId: session.listingId,
           tier: tierId,
@@ -2079,7 +2102,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             if (listingPatch) {
               return { ...l, ...listingPatch, promoted: true };
             }
-            const m = mockListingMetrics(l);
             return {
               ...l,
               promoted: true,
@@ -2087,9 +2109,6 @@ export function VautoProvider({ children }: { children: ReactNode }) {
               visibilityTier: tierId >= 2 ? "top" : "plus",
               visibilityExpiresAt: expiresAt,
               attributes: attrs,
-              views: m.views + 50 * tierId,
-              callClicks: m.callClicks + 5 * tierId,
-              interestScore: Math.min(99, m.interestScore + 4 * tierId),
             };
           })
         );
