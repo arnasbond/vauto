@@ -313,9 +313,7 @@ export function ModerationProvider({
     if (canUseAdminApi) {
       const reportsRes = await apiFetchReports();
       if (reportsRes.ok) {
-        const next = normalizeReports(
-          reportsRes.data.length ? reportsRes.data : DEMO_REPORTS
-        );
+        const next = normalizeReports(reportsRes.data);
         setReports(next);
         return next;
       }
@@ -341,9 +339,7 @@ export function ModerationProvider({
           apiFetchBannedUsers(),
         ]);
         if (reportsRes.ok) {
-          const next = normalizeReports(
-            reportsRes.data.length ? reportsRes.data : DEMO_REPORTS
-          );
+          const next = normalizeReports(reportsRes.data);
           setReports(next);
           seedAdminToastKeys(next);
         }

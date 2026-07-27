@@ -570,6 +570,62 @@ export async function apiWarnUser(userId: string): Promise<ApiResult<null>> {
   });
 }
 
+export async function apiAdminCreditWallet(opts: {
+  userId: string;
+  amount: number;
+  reason?: string;
+}): Promise<
+  ApiResult<{
+    ok: true;
+    userId: string;
+    amount: number;
+    reason: string | null;
+    walletBalance: number;
+    transactionId: string;
+  }>
+> {
+  return dataFetch("/api/admin/wallet/credit", {
+    method: "POST",
+    body: JSON.stringify(opts),
+  });
+}
+
+export type AdminBillingLookup = {
+  user: {
+    id: string;
+    name: string;
+    email?: string;
+    phone?: string;
+    walletBalance: number;
+    role?: string;
+  };
+  stripeCustomerId: string | null;
+  invoices: Array<{
+    id: string;
+    number: string;
+    kind: string;
+    amountGross: number;
+    amountNet: number;
+    stripeSessionId?: string | null;
+    stripeInvoiceId?: string | null;
+    listingId?: string | null;
+    buyerEmail?: string | null;
+    createdAt: string;
+    paymentMethod?: string | null;
+  }>;
+};
+
+export async function apiAdminBillingLookup(opts: {
+  userId?: string;
+  email?: string;
+}): Promise<ApiResult<AdminBillingLookup>> {
+  const q = new URLSearchParams();
+  if (opts.userId) q.set("userId", opts.userId);
+  if (opts.email) q.set("email", opts.email);
+  return dataFetch<AdminBillingLookup>(`/api/admin/billing/lookup?${q.toString()}`);
+}
+
+
 export async function apiFetchUser(
   id: string
 ): Promise<ApiResult<UserProfile>> {

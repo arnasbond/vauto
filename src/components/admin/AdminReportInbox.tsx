@@ -9,6 +9,9 @@ import {
   Bot,
   CheckCircle,
   ChevronLeft,
+  ClipboardCopy,
+  Download,
+  Eye,
   Mail,
   MessageSquare,
   Phone,
@@ -17,12 +20,16 @@ import {
   Shield,
   Sparkles,
   User,
+  Wallet,
 } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { AiSettingsCard } from "@/components/AiSettingsCard";
 import { useVauto } from "@/context/VautoContext";
 import { analyzeReportText } from "@/lib/admin-report-ai";
-import { apiAnalyzeReport } from "@/lib/api/client";
+import {
+  apiAdminCreditWallet,
+  apiAnalyzeReport,
+} from "@/lib/api/client";
 import { REPORT_CATEGORIES, URGENCY_META } from "@/lib/reports";
 import { listingPath } from "@/lib/seo";
 import type { Listing, ReportCategory, ReportMessage, ReportUrgency, SupportReport } from "@/lib/types";
@@ -35,6 +42,30 @@ const AUDIT_CATEGORIES = new Set<ReportCategory>(["fraud", "chat_abuse"]);
 
 function isAuditReport(report: SupportReport): boolean {
   return AUDIT_CATEGORIES.has(report.category) || report.urgency === "critical";
+}
+
+function isDemoReport(report: SupportReport): boolean {
+  return /^rep-\d+$/i.test(report.id);
+}
+
+function chatHref(chatId: string): string {
+  return `/chats/?id=${encodeURIComponent(chatId)}`;
+}
+
+function downloadReportEvidence(report: SupportReport) {
+  const payload = {
+    exportedAt: new Date().toISOString(),
+    report,
+  };
+  const blob = new Blob([JSON.stringify(payload, null, 2)], {
+    type: "application/json",
+  });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `vauto-report-${report.id}.json`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
 
 function roleStyles(role: ReportMessage["role"]) {
@@ -67,6 +98,8 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
     reportStreamConnected,
     logout,
     findListing,
+    setListingRequiresReview,
+    showToast,
   } = useVauto();
 
   const [filter, setFilter] = useState<ReportUrgency | "all">("all");
@@ -74,6 +107,12 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
   const [replyText, setReplyText] = useState("");
   const [livePulse, setLivePulse] = useState(false);
   const [reanalyzing, setReanalyzing] = useState(false);
+  const [crediting, setCrediting] = useState(false);
+
+  const showingDemos = useMemo(
+    () => reports.length > 0 && reports.every(isDemoReport),
+    [reports]
+  );
 
   useEffect(() => {
     void requestNotificationPermission();
@@ -179,6 +218,51 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
     closeDetail();
   };
 
+  const handleFlagRequiresReview = () => {
+    if (!selected?.listingId) return;
+    setListingRequiresReview(selected.listingId, true);
+    showToast("Skelbimas pažymėtas peržiūrai", "success");
+  };
+
+  const handleCreditWallet = async () => {
+    if (!selected || crediting) return;
+    const targetId = selected.reportedUserId || selected.reporterId;
+    if (!targetId) {
+      showToast("Nėra vartotojo ID kreditui", "error");
+      return;
+    }
+    const raw = window.prompt(
+      `Piniginės kreditas (refund) vartotojui ${targetId}\nĮveskite sumą €:`,
+      "5"
+    );
+    if (raw == null) return;
+    const amount = Number(String(raw).replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      showToast("Neteisinga suma", "error");
+      return;
+    }
+    const reason =
+      window.prompt("Priežastis (nebūtina):", selected.comment.slice(0, 120)) ??
+      undefined;
+    setCrediting(true);
+    try {
+      const res = await apiAdminCreditWallet({
+        userId: targetId,
+        amount,
+        reason: reason?.trim() || `Report ${selected.id}`,
+      });
+      if (!res.ok) {
+        showToast(res.error || "Nepavyko įskaityti", "error");
+        return;
+      }
+      const note = `Įskaityta ${amount.toFixed(2)} € į piniginę (tx ${res.data.transactionId}). Naujas balansas: ${res.data.walletBalance.toFixed(2)} €.`;
+      replyToReport(selected.id, note, { auto: false });
+      showToast(`Kreditas +${amount.toFixed(2)} €`, "success");
+    } finally {
+      setCrediting(false);
+    }
+  };
+
   const body = (
     <>
       {!embedded && (
@@ -220,6 +304,16 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
           </button>
         </div>
       </div>
+      )}
+
+      {showingDemos && (
+        <div className="mb-4 rounded-2xl border border-amber-300 bg-amber-50 px-4 py-3 text-xs text-amber-900">
+          <p className="font-bold uppercase tracking-wide">DEMO režimas</p>
+          <p className="mt-1">
+            Rodomi pavyzdiniai pranešimai (lokaliai / be gyvų reportų). Live API tuščias
+            inboxas nebeužpildomas demo duomenimis.
+          </p>
+        </div>
       )}
 
       {!selected ? (
@@ -317,7 +411,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
 
           <ContactCard report={selected} />
 
-          {(selected.listingTitle || selected.chatPreview) && (
+          {(selected.listingTitle || selected.chatPreview || selected.chatId) && (
             <ContextCard report={selected} findListing={findListing} />
           )}
 
@@ -418,6 +512,51 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
 
           {selected.status === "open" && (
             <div className="flex flex-wrap gap-2">
+              {selected.chatId ? (
+                <Link
+                  href={chatHref(selected.chatId)}
+                  className="flex items-center gap-1 rounded-lg bg-sky-50 px-3 py-2 text-xs font-medium text-sky-800"
+                >
+                  <MessageSquare className="h-3.5 w-3.5" />
+                  Atidaryti pokalbį
+                </Link>
+              ) : null}
+              {selected.listingId ? (
+                <button
+                  type="button"
+                  onClick={handleFlagRequiresReview}
+                  className="flex items-center gap-1 rounded-lg bg-indigo-50 px-3 py-2 text-xs font-medium text-indigo-800"
+                >
+                  <Eye className="h-3.5 w-3.5" />
+                  Peržiūrai
+                </button>
+              ) : null}
+              {selected.listingId && findListing(selected.listingId) ? (
+                <Link
+                  href={listingPath(findListing(selected.listingId)!)}
+                  className="flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
+                >
+                  <ClipboardCopy className="h-3.5 w-3.5" />
+                  Atidaryti skelbimą
+                </Link>
+              ) : null}
+              <button
+                type="button"
+                onClick={() => void handleCreditWallet()}
+                disabled={crediting}
+                className="flex items-center gap-1 rounded-lg bg-emerald-50 px-3 py-2 text-xs font-medium text-emerald-800 disabled:opacity-50"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                {crediting ? "Įskaitoma…" : "Kreditas / refund"}
+              </button>
+              <button
+                type="button"
+                onClick={() => downloadReportEvidence(selected)}
+                className="flex items-center gap-1 rounded-lg bg-slate-100 px-3 py-2 text-xs font-medium text-slate-700"
+              >
+                <Download className="h-3.5 w-3.5" />
+                Evidence
+              </button>
               <button
                 type="button"
                 onClick={() => warnFromReport(selected.id)}
@@ -533,9 +672,20 @@ function ContactCard({ report }: { report: SupportReport }) {
       <div className="mb-2 flex items-center gap-2">
         <User className="h-4 w-4 text-[var(--vauto-teal)]" />
         <h3 className="text-sm font-semibold text-slate-900">Vartotojas ir kontaktai</h3>
+        {isDemoReport(report) ? (
+          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold uppercase text-amber-800">
+            Demo
+          </span>
+        ) : null}
       </div>
       <p className="text-sm font-medium text-slate-900">{report.reporterName}</p>
-      <p className="text-[11px] text-slate-500">ID: {report.reporterId}</p>
+      <p className="text-[11px] text-slate-500">Reporter ID: {report.reporterId}</p>
+      {report.reportedUserId ? (
+        <p className="mt-1 text-[11px] text-slate-500">
+          Praneštas: {report.reportedUserName || report.reportedUserId} (
+          {report.reportedUserId})
+        </p>
+      ) : null}
       <div className="mt-3 space-y-1.5 text-xs">
         {report.reporterPhone && (
           <a
@@ -585,6 +735,17 @@ function ContextCard({
           )}
         </p>
       )}
+      {report.chatId ? (
+        <p className="mt-2">
+          <Link
+            href={chatHref(report.chatId)}
+            className="inline-flex items-center gap-1 font-medium text-sky-700 hover:underline"
+          >
+            <MessageSquare className="h-3.5 w-3.5" />
+            Atidaryti pokalbį ({report.chatId})
+          </Link>
+        </p>
+      ) : null}
       {report.chatPreview && (
         <p className="mt-1 flex items-start gap-1">
           <MessageSquare className="mt-0.5 h-3.5 w-3.5 shrink-0" />

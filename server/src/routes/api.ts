@@ -32,6 +32,7 @@ import {
   getListingsPendingReview,
   getSellerListings,
   getUser,
+  getUserByEmail,
   insertListing,
   findListingByClientDraftId,
   getListingForEmbedding,
@@ -48,6 +49,9 @@ import {
   setBannedUserIds,
   setSavedIds,
   topUpWallet,
+  adminCreditWallet,
+  listBillingInvoicesForUser,
+  getUserStripeCustomerId,
   updateListing,
   updateReportStatus,
   upsertReport,
@@ -900,6 +904,89 @@ apiRouter.post("/users/:id/warn", requireAdmin, async (req, res) => {
   try {
     await warnUser(req.params.id);
     res.json({ ok: true });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+/** Control Center — credit user wallet (refund / goodwill). */
+apiRouter.post("/admin/wallet/credit", requireAdmin, async (req, res) => {
+  try {
+    const userId = String(req.body?.userId ?? "").trim();
+    const amount = Number(req.body?.amount);
+    const reason = req.body?.reason ? String(req.body.reason).trim() : undefined;
+    if (!userId) {
+      res.status(400).json({ error: "userId privalomas" });
+      return;
+    }
+    if (!Number.isFinite(amount) || amount <= 0) {
+      res.status(400).json({ error: "Neteisinga suma" });
+      return;
+    }
+    const user = await getUser(userId);
+    if (!user) {
+      res.status(404).json({ error: "Vartotojas nerastas" });
+      return;
+    }
+    const credited = await adminCreditWallet(userId, amount);
+    if (!credited) {
+      res.status(400).json({ error: "Nepavyko įskaityti lėšų (max 2000 €)" });
+      return;
+    }
+    res.json({
+      ok: true,
+      userId,
+      amount,
+      reason: reason || null,
+      walletBalance: credited.walletBalance,
+      transactionId: credited.transactionId,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+/** Control Center — lookup billing invoices + Stripe customer by email or userId. */
+apiRouter.get("/admin/billing/lookup", requireAdmin, async (req, res) => {
+  try {
+    const userIdRaw = String(req.query.userId ?? "").trim();
+    const emailRaw = String(req.query.email ?? "").trim().toLowerCase();
+    let user = userIdRaw ? await getUser(userIdRaw) : null;
+    if (!user && emailRaw) {
+      user = await getUserByEmail(emailRaw);
+    }
+    if (!user) {
+      res.status(404).json({ error: "Vartotojas nerastas" });
+      return;
+    }
+    const [invoices, stripeCustomerId] = await Promise.all([
+      listBillingInvoicesForUser(user.id),
+      getUserStripeCustomerId(user.id),
+    ]);
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        phone: user.phone,
+        walletBalance: user.walletBalance ?? 0,
+        role: user.role,
+      },
+      stripeCustomerId: stripeCustomerId || null,
+      invoices: invoices.slice(0, 40).map((inv) => ({
+        id: inv.id,
+        number: inv.number,
+        kind: inv.kind,
+        amountGross: inv.amountGross,
+        amountNet: inv.amountNet,
+        stripeSessionId: inv.stripeSessionId,
+        stripeInvoiceId: inv.stripeInvoiceId,
+        listingId: inv.listingId,
+        buyerEmail: inv.buyerEmail,
+        createdAt: inv.createdAt,
+        paymentMethod: inv.paymentMethod,
+      })),
+    });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

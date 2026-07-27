@@ -1866,6 +1866,39 @@ export async function topUpWallet(
   return { walletBalance: Number(rows[0].wallet_balance) };
 }
 
+/** Admin Control Center credit — recorded as refund for audit trail. */
+export async function adminCreditWallet(
+  userId: string,
+  amount: number
+): Promise<{ walletBalance: number; transactionId: string } | null> {
+  if (!Number.isFinite(amount) || amount <= 0 || amount > 2000) return null;
+  const rounded = Math.round(amount * 100) / 100;
+  const txId = `wtx-admin-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+  const rows = await query<{ wallet_balance: string }>(
+    `UPDATE users SET wallet_balance = wallet_balance + $2, updated_at = now()
+     WHERE id = $1 RETURNING wallet_balance`,
+    [userId, rounded]
+  );
+  if (!rows[0]) return null;
+  try {
+    await query(
+      `INSERT INTO wallet_transactions (id, user_id, amount, kind)
+       VALUES ($1, $2, $3, 'refund')`,
+      [txId, userId, rounded]
+    );
+  } catch {
+    await query(
+      `INSERT INTO wallet_transactions (id, user_id, amount, kind)
+       VALUES ($1, $2, $3, 'top_up')`,
+      [txId, userId, rounded]
+    );
+  }
+  return {
+    walletBalance: Number(rows[0].wallet_balance),
+    transactionId: txId,
+  };
+}
+
 /**
  * Apply paid promote / boost on a listing (Stripe or wallet).
  * Sets promoted=true, visibility attrs + expiry, bumps created_at for feed rank.

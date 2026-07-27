@@ -12,11 +12,16 @@ import {
   Sparkles,
   CreditCard,
   Bell,
+  Search,
+  Wallet,
 } from "lucide-react";
 import {
+  apiAdminBillingLookup,
+  apiAdminCreditWallet,
   apiFetchHealthDetails,
   apiFetchPlatformFlags,
   apiUpdatePlatformFlags,
+  type AdminBillingLookup,
   type ApiHealthDetails,
   type ApiPlatformFlags,
 } from "@/lib/api/client";
@@ -124,6 +129,11 @@ export function AdminOpsPanel() {
   const [error, setError] = useState<string | null>(null);
   const [busyKey, setBusyKey] = useState<string | null>(null);
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null);
+  const [lookupQuery, setLookupQuery] = useState("");
+  const [lookupBusy, setLookupBusy] = useState(false);
+  const [lookupError, setLookupError] = useState<string | null>(null);
+  const [lookup, setLookup] = useState<AdminBillingLookup | null>(null);
+  const [creditBusy, setCreditBusy] = useState(false);
 
   const refresh = useCallback(async () => {
     const [healthRes, flagsRes] = await Promise.all([
@@ -189,6 +199,59 @@ export function AdminOpsPanel() {
     } finally {
       setBusyKey(null);
       void refresh();
+    }
+  };
+
+  const runBillingLookup = async () => {
+    const q = lookupQuery.trim();
+    if (!q) return;
+    setLookupBusy(true);
+    setLookupError(null);
+    try {
+      const opts = q.includes("@")
+        ? { email: q }
+        : { userId: q };
+      const res = await apiAdminBillingLookup(opts);
+      if (!res.ok) {
+        setLookup(null);
+        setLookupError(res.error || "Nerasta");
+        return;
+      }
+      setLookup(res.data);
+    } finally {
+      setLookupBusy(false);
+    }
+  };
+
+  const creditFromLookup = async () => {
+    if (!lookup?.user.id || creditBusy) return;
+    const raw = window.prompt(
+      `Kreditas piniginėje ${lookup.user.name} (${lookup.user.id})\nSuma €:`,
+      "5"
+    );
+    if (raw == null) return;
+    const amount = Number(String(raw).replace(",", "."));
+    if (!Number.isFinite(amount) || amount <= 0) {
+      window.alert("Neteisinga suma");
+      return;
+    }
+    setCreditBusy(true);
+    try {
+      const res = await apiAdminCreditWallet({
+        userId: lookup.user.id,
+        amount,
+        reason: "Ops panel credit",
+      });
+      if (!res.ok) {
+        window.alert(res.error || "Nepavyko");
+        return;
+      }
+      window.alert(
+        `Įskaityta +${amount.toFixed(2)} €. Balansas: ${res.data.walletBalance.toFixed(2)} €`
+      );
+      void runBillingLookup();
+    } finally {
+      setCreditBusy(false);
     }
   };
 
@@ -353,6 +416,110 @@ export function AdminOpsPanel() {
             }
           />
         </div>
+      </div>
+
+      <div className="vauto-dashboard-card rounded-2xl p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <Search className="h-4 w-4 text-sky-600" />
+          <h3 className="text-sm font-semibold text-slate-900">Mokėjimų paieška</h3>
+        </div>
+        <p className="mb-3 text-xs text-slate-500">
+          Ieškokite pagal el. paštą arba user id — Stripe session / sąskaitos + piniginės
+          kreditas.
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <input
+            value={lookupQuery}
+            onChange={(e) => setLookupQuery(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") void runBillingLookup();
+            }}
+            placeholder="arnasbond@gmail.com arba user-…"
+            className="vauto-admin-input min-w-[220px] flex-1 rounded-xl border px-3 py-2 text-sm"
+          />
+          <button
+            type="button"
+            onClick={() => void runBillingLookup()}
+            disabled={lookupBusy || !lookupQuery.trim()}
+            className="rounded-xl bg-sky-600 px-4 py-2 text-xs font-semibold text-white disabled:opacity-50"
+          >
+            {lookupBusy ? "Ieškoma…" : "Ieškoti"}
+          </button>
+        </div>
+        {lookupError ? (
+          <p className="mt-2 text-xs text-red-600">{lookupError}</p>
+        ) : null}
+        {lookup ? (
+          <div className="mt-4 space-y-3">
+            <div className="rounded-xl bg-slate-50 px-3 py-2 text-xs text-slate-700">
+              <p className="font-semibold text-slate-900">{lookup.user.name}</p>
+              <p>ID: {lookup.user.id}</p>
+              <p>Email: {lookup.user.email || "—"}</p>
+              <p>
+                Piniginė:{" "}
+                <span className="font-semibold">
+                  {(lookup.user.walletBalance ?? 0).toFixed(2)} €
+                </span>
+              </p>
+              <p>
+                Stripe customer:{" "}
+                {lookup.stripeCustomerId ? (
+                  <a
+                    href={`https://dashboard.stripe.com/customers/${lookup.stripeCustomerId}`}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="text-sky-700 underline"
+                  >
+                    {lookup.stripeCustomerId}
+                  </a>
+                ) : (
+                  "—"
+                )}
+              </p>
+              <button
+                type="button"
+                onClick={() => void creditFromLookup()}
+                disabled={creditBusy}
+                className="mt-2 inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-3 py-1.5 text-[11px] font-semibold text-white disabled:opacity-50"
+              >
+                <Wallet className="h-3.5 w-3.5" />
+                {creditBusy ? "Įskaitoma…" : "Kreditas / refund"}
+              </button>
+            </div>
+            {lookup.invoices.length === 0 ? (
+              <p className="text-xs text-slate-500">Sąskaitų nerasta.</p>
+            ) : (
+              <ul className="max-h-56 space-y-2 overflow-y-auto">
+                {lookup.invoices.map((inv) => (
+                  <li
+                    key={inv.id}
+                    className="rounded-xl border border-slate-200 px-3 py-2 text-[11px] text-slate-600"
+                  >
+                    <p className="font-semibold text-slate-900">
+                      {inv.number || inv.id} · {inv.kind} ·{" "}
+                      {Number(inv.amountGross).toFixed(2)} €
+                    </p>
+                    <p>{new Date(inv.createdAt).toLocaleString("lt-LT")}</p>
+                    {inv.stripeSessionId ? (
+                      <p className="truncate">
+                        Session:{" "}
+                        <a
+                          href={`https://dashboard.stripe.com/payments/${inv.stripeSessionId}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="text-sky-700 underline"
+                        >
+                          {inv.stripeSessionId}
+                        </a>
+                      </p>
+                    ) : null}
+                    {inv.listingId ? <p>Listing: {inv.listingId}</p> : null}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        ) : null}
       </div>
 
       <p className="rounded-xl bg-slate-50 px-3 py-2.5 text-[11px] leading-relaxed text-slate-500">
