@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
+import Link from "next/link";
 import {
   AiBadge,
   BrandButton,
@@ -743,12 +744,12 @@ export default function PreviewShowcasePage() {
             <p className="text-xs font-semibold uppercase tracking-[0.12em] text-white/70">
               Design Kit · reference only · Phases 0–5 shipped to production skins
             </p>
-            <a
+            <Link
               href="/"
               className="text-xs font-medium text-white/60 underline-offset-2 hover:text-white hover:underline"
             >
               ← Grįžti į produkciją
-            </a>
+            </Link>
           </div>
           <div className="flex flex-wrap gap-2">
             {TABS.map((t) => {
