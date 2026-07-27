@@ -29,18 +29,22 @@ export function isAllowlistedAdminHandle(
   return SUPER_ADMIN_NICKNAMES.some((allowed) => allowed === nick || allowed === name);
 }
 
+function isAdminRole(role: string | null | undefined): boolean {
+  return role === "admin" || role === "super_admin";
+}
+
 /**
  * True for Control Center operators.
- * - `role === "super_admin"` (elevated in API/DB)
+ * - Allowlisted nickname (arnas) — unlocks UI immediately
+ * - `role === "super_admin"` / admin (elevated in API/DB)
  * - Canonical admin-1 / ADMIN_EMAIL
- * - Allowlisted nickname (arnas) so owner unlocks CC even before JWT role refresh
  */
 export function isSuperAdminUser(user: AdminUserLike | null | undefined): boolean {
   if (!user?.id) return false;
-  if (user.role === "super_admin") return true;
   if (isAllowlistedAdminHandle(user)) return true;
-  const roleOk = user.role === "admin" || user.role === "super_admin";
-  if (user.id === SUPER_ADMIN_ID && roleOk) return true;
-  if (roleOk && isAdminEmail(user.email)) return true;
+  const role = user.role as string | undefined;
+  if (role === "super_admin") return true;
+  if (user.id === SUPER_ADMIN_ID && isAdminRole(role)) return true;
+  if (isAdminRole(role) && isAdminEmail(user.email)) return true;
   return false;
 }
