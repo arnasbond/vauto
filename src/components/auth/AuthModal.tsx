@@ -533,7 +533,7 @@ export function AuthModal({
               className="flex w-full items-center justify-center gap-1.5 pt-1 text-[11px] text-[var(--vauto-text-muted)] transition hover:text-red-600"
             >
               <Shield className="h-3 w-3" />
-              VAUTO Control Center
+              Administratoriaus įėjimas
             </button>
           </div>
         )}

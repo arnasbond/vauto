@@ -167,6 +167,24 @@ function resolveRole(
   return metaRole;
 }
 
+const CANONICAL_ADMIN_ID = "admin-1";
+const CANONICAL_ADMIN_NAME = "VAUTO Admin";
+const CANONICAL_ADMIN_AVATAR =
+  "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop";
+
+/** Stable Control Center account — always admin-1 when elevated to super_admin. */
+function resolveSessionUserId(
+  candidateId: string,
+  metaRole: string,
+  email?: string | null,
+  phone?: string | null
+): string {
+  if (resolveRole(metaRole, email, phone) === "super_admin") {
+    return CANONICAL_ADMIN_ID;
+  }
+  return candidateId;
+}
+
 /** Login must never downgrade an established account or re-prompt for account type. */
 function resolveLoginRole(
   metaRole: string,
@@ -203,24 +221,31 @@ async function buildSession(
   const email = profile.email ?? existing?.email;
   const phone = profile.phone ?? existing?.phone;
   const role = resolveLoginRole(meta.role, existing, email, phone);
+  const isCanonicalAdmin = role === "super_admin" && userId === CANONICAL_ADMIN_ID;
+  const adminEmail = resolveAdminEmail();
   const firstName =
     profile.firstName?.trim() || existing?.firstName || undefined;
   const lastName = profile.lastName?.trim() || existing?.lastName || undefined;
   const composedFromParts = [firstName, lastName].filter(Boolean).join(" ").trim();
-  const name = resolveDisplayName(
-    profile.name || composedFromParts || undefined,
-    existing?.name,
-    meta.provider
-  );
+  const name = isCanonicalAdmin
+    ? CANONICAL_ADMIN_NAME
+    : resolveDisplayName(
+        profile.name || composedFromParts || undefined,
+        existing?.name,
+        meta.provider
+      );
   const user: ApiUser = {
     id: userId,
     name,
-    firstName,
-    lastName,
+    firstName: isCanonicalAdmin ? undefined : firstName,
+    lastName: isCanonicalAdmin ? undefined : lastName,
     phone: profile.phone ?? existing?.phone ?? "+370",
     city: profile.city ?? existing?.city ?? "Vilnius",
-    avatar: profile.avatar ?? existing?.avatar ?? defaultAvatar(meta.provider),
-    email,
+    avatar:
+      profile.avatar ??
+      existing?.avatar ??
+      (isCanonicalAdmin ? CANONICAL_ADMIN_AVATAR : defaultAvatar(meta.provider)),
+    email: isCanonicalAdmin ? adminEmail : email,
     warned: existing?.warned ?? false,
     role,
     businessType: existing?.businessType ?? meta.businessType,
@@ -354,12 +379,30 @@ authRouter.post("/otp/verify", async (req, res) => {
       return;
     }
 
-    const userId =
+    const candidateId =
       existingByPhone?.id ?? stableUserId(`phone:${phoneDigits}`);
+    const userId = resolveSessionUserId(
+      candidateId,
+      role,
+      existingByPhone?.email,
+      phone
+    );
 
     const session = await buildSession(
       userId,
-      { id: userId, phone, city, name: providerName("phone") },
+      {
+        id: userId,
+        phone,
+        city,
+        name:
+          userId === CANONICAL_ADMIN_ID
+            ? CANONICAL_ADMIN_NAME
+            : providerName("phone"),
+        email:
+          userId === CANONICAL_ADMIN_ID
+            ? resolveAdminEmail()
+            : existingByPhone?.email,
+      },
       {
         role,
         provider: "phone",
@@ -420,17 +463,32 @@ authRouter.post("/social", async (req, res) => {
         res.status(403).json({ error: "Admin access denied" });
         return;
       }
-      const userId = await resolveLinkedUserId(
+      const candidateId = await resolveLinkedUserId(
         `google:${google.sub}`,
         google.email
+      );
+      const userId = resolveSessionUserId(
+        candidateId,
+        role,
+        google.email,
+        undefined
       );
       const session = await buildSession(
         userId,
         {
           id: userId,
-          email: google.email,
-          name: google.name ?? providerName("google"),
-          avatar: google.picture ?? defaultAvatar("google"),
+          email:
+            userId === CANONICAL_ADMIN_ID
+              ? adminEmail
+              : google.email,
+          name:
+            userId === CANONICAL_ADMIN_ID
+              ? CANONICAL_ADMIN_NAME
+              : google.name ?? providerName("google"),
+          avatar:
+            userId === CANONICAL_ADMIN_ID
+              ? CANONICAL_ADMIN_AVATAR
+              : google.picture ?? defaultAvatar("google"),
           city,
         },
         {
@@ -525,15 +583,14 @@ authRouter.post("/social", async (req, res) => {
         return;
       }
       const session = await buildSession(
-        "admin-1",
+        CANONICAL_ADMIN_ID,
         {
-          id: "admin-1",
-          name: "VAUTO Admin",
+          id: CANONICAL_ADMIN_ID,
+          name: CANONICAL_ADMIN_NAME,
           phone: "+370 600 00001",
           city: "Vilnius",
           email: adminEmail,
-          avatar:
-            "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop",
+          avatar: CANONICAL_ADMIN_AVATAR,
         },
         {
           role: "super_admin",
@@ -548,7 +605,9 @@ authRouter.post("/social", async (req, res) => {
           serviceSpecialties,
         }
       );
-      res.json(await finalizeSessionWithReferral("admin-1", session, referralCode));
+      res.json(
+        await finalizeSessionWithReferral(CANONICAL_ADMIN_ID, session, referralCode)
+      );
       return;
     }
 

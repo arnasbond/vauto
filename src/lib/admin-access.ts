@@ -6,12 +6,19 @@ export const SUPER_ADMIN_ID = "admin-1";
 
 type AdminUserLike = Pick<UserProfile, "id" | "role" | "email">;
 
-/** True only for the designated super-admin operator (not generic test users). */
+export function isAdminEmail(email: string | null | undefined): boolean {
+  return Boolean(email && email.toLowerCase() === ADMIN_EMAIL.toLowerCase());
+}
+
+/**
+ * True for the designated Control Center operator.
+ * Canonical id OR (super_admin/admin + ADMIN_EMAIL) — so Google login works.
+ */
 export function isSuperAdminUser(user: AdminUserLike | null | undefined): boolean {
   if (!user?.id) return false;
-  return (
-    user.id === SUPER_ADMIN_ID &&
-    user.role === "super_admin" &&
-    user.email?.toLowerCase() === ADMIN_EMAIL.toLowerCase()
-  );
+  const emailOk = isAdminEmail(user.email);
+  const roleOk = user.role === "super_admin" || user.role === "admin";
+  if (user.id === SUPER_ADMIN_ID && roleOk && emailOk) return true;
+  if (roleOk && emailOk) return true;
+  return false;
 }

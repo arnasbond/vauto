@@ -201,6 +201,7 @@ export interface ApiHealthDetails {
   ok: boolean;
   service: string;
   db?: string;
+  smsMode?: string;
   features?: {
     sms: boolean;
     googleOAuth: boolean;
@@ -235,6 +236,9 @@ export interface ApiHealthDetails {
     pushConfigured: boolean;
     emailConfigured: boolean;
     warnings: string[];
+    maintenanceMode?: boolean;
+    disableNewListings?: boolean;
+    disableCheckout?: boolean;
   };
   readiness?: {
     score: number;
@@ -255,6 +259,32 @@ export async function apiHealthCheck(): Promise<boolean> {
 
 export async function apiFetchHealthDetails(): Promise<ApiResult<ApiHealthDetails>> {
   return dataFetch<ApiHealthDetails>("/api/health");
+}
+
+export interface ApiPlatformFlags {
+  maintenanceMode: boolean;
+  disableNewListings: boolean;
+  disableCheckout: boolean;
+}
+
+export async function apiFetchPlatformFlags(): Promise<
+  ApiResult<ApiPlatformFlags & { ok?: boolean }>
+> {
+  return dataFetch<ApiPlatformFlags & { ok?: boolean }>(
+    "/api/admin/platform-flags"
+  );
+}
+
+export async function apiUpdatePlatformFlags(
+  patch: Partial<ApiPlatformFlags>
+): Promise<ApiResult<ApiPlatformFlags & { ok?: boolean }>> {
+  return dataFetch<ApiPlatformFlags & { ok?: boolean }>(
+    "/api/admin/platform-flags",
+    {
+      method: "PUT",
+      body: JSON.stringify(patch),
+    }
+  );
 }
 
 export async function apiVautoServer(

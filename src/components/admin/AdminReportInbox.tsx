@@ -294,14 +294,14 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                   className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl bg-emerald-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-emerald-700"
                 >
                   <CheckCircle className="h-4 w-4" />
-                  Accept
+                  Priimti
                 </button>
                 <button
                   type="button"
                   onClick={handleDismissAudit}
                   className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl bg-slate-200 px-2 py-2 text-[11px] font-bold text-slate-800 hover:bg-slate-300"
                 >
-                  Dismiss
+                  Atmesti
                 </button>
                 <button
                   type="button"
@@ -309,7 +309,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                   className="flex min-h-[44px] flex-col items-center justify-center gap-1 rounded-xl bg-red-600 px-2 py-2 text-[11px] font-bold text-white hover:bg-red-700"
                 >
                   <Ban className="h-4 w-4" />
-                  Ban
+                  Užblokuoti
                 </button>
               </div>
             </div>
@@ -432,7 +432,7 @@ export function AdminReportInbox({ embedded = false }: { embedded?: boolean } = 
                 className="flex items-center gap-1 rounded-lg bg-red-50 px-3 py-2 text-xs font-medium text-red-700"
               >
                 <Ban className="h-3.5 w-3.5" />
-                Blokuoti
+                Užblokuoti
               </button>
               <button
                 type="button"

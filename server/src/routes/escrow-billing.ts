@@ -25,6 +25,7 @@ import type { ApiEscrowTransaction } from "../types.js";
 import type { Response } from "express";
 import { resolveCarrierAdapter } from "../shipping/providers/carrier-adapters.js";
 import type { ShippingProviderId } from "../shipping/shipping-routing.js";
+import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
 
 export const escrowBillingRouter = Router();
 
@@ -51,6 +52,7 @@ escrowBillingRouter.get("/status", (_req, res) => {
 
 escrowBillingRouter.post("/checkout", requireAuth, async (req: AuthedRequest, res) => {
   try {
+    if (await rejectIfCheckoutDisabled(res)) return;
     if (!isStripeEscrowLive()) {
       return res.status(503).json({ error: "Stripe escrow not configured" });
     }

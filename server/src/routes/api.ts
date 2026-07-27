@@ -130,6 +130,10 @@ import {
 } from "../controllers/user-controller.js";
 import { visualPipelineFeatures } from "../services/visual-pipeline/features.js";
 import { getInfraReadiness } from "../lib/infra-readiness.js";
+import { getPlatformFlags } from "../platform/platform-settings.js";
+import {
+  rejectIfListingsDisabled,
+} from "../platform/platform-guards.js";
 import { runVautoE2eSimulation } from "../test/vauto-e2e-simulation.js";
 import { runAuthFlowSelfTest } from "../test/auth-flow-selftest.js";
 import {
@@ -280,6 +284,7 @@ apiRouter.get("/health", async (_req, res) => {
   const product = productLookupFeatures();
   const visualPipeline = visualPipelineFeatures();
   const infra = getInfraReadiness();
+  const platformFlags = await getPlatformFlags();
   const smsMode = getSmsProvider();
   const features = {
     sms: isSmsLive(),
@@ -312,6 +317,13 @@ apiRouter.get("/health", async (_req, res) => {
   } | undefined;
   let serviceLeads = false;
 
+  const infraWithFlags = {
+    ...infra,
+    maintenanceMode: platformFlags.maintenanceMode,
+    disableNewListings: platformFlags.disableNewListings,
+    disableCheckout: platformFlags.disableCheckout,
+  };
+
   try {
     await pool.query("SELECT 1");
     serviceLeads = await serviceLeadsReady();
@@ -328,7 +340,7 @@ apiRouter.get("/health", async (_req, res) => {
       smsMode,
       features: { ...features, serviceLeads },
       visualPipeline,
-      infra,
+      infra: infraWithFlags,
       embeddings,
       readiness,
     });
@@ -340,7 +352,7 @@ apiRouter.get("/health", async (_req, res) => {
       smsMode,
       features,
       visualPipeline,
-      infra,
+      infra: infraWithFlags,
       error: String(e),
     });
   }
@@ -492,6 +504,44 @@ apiRouter.post("/admin/setup-stripe", requireAdmin, async (_req, res) => {
   }
 });
 
+apiRouter.get("/admin/platform-flags", requireAdmin, async (_req, res) => {
+  try {
+    const flags = await getPlatformFlags();
+    res.json({ ok: true, ...flags });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+apiRouter.put("/admin/platform-flags", requireAdmin, async (req: AuthedRequest, res) => {
+  try {
+    const body = (req.body ?? {}) as {
+      maintenanceMode?: unknown;
+      disableNewListings?: unknown;
+      disableCheckout?: unknown;
+    };
+    const patch: {
+      maintenanceMode?: boolean;
+      disableNewListings?: boolean;
+      disableCheckout?: boolean;
+    } = {};
+    if (typeof body.maintenanceMode === "boolean") {
+      patch.maintenanceMode = body.maintenanceMode;
+    }
+    if (typeof body.disableNewListings === "boolean") {
+      patch.disableNewListings = body.disableNewListings;
+    }
+    if (typeof body.disableCheckout === "boolean") {
+      patch.disableCheckout = body.disableCheckout;
+    }
+    const { setPlatformFlags } = await import("../platform/platform-settings.js");
+    const flags = await setPlatformFlags(patch, req.authUserId ?? null);
+    res.json({ ok: true, ...flags });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.get("/listings/mine", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const sellerId = routeActorId(req);
@@ -523,6 +573,7 @@ apiRouter.post(
   listingPublishRateLimiter,
   async (req: AuthedRequest, res) => {
   try {
+    if (await rejectIfListingsDisabled(res)) return;
     const body = sanitizeListingCreateBody(req.body);
     const imageLen =
       typeof body?.image === "string" ? body.image.length : 0;

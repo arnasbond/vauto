@@ -32,6 +32,7 @@ import {
   b2cProductToPromoteTier,
 } from "../billing/promote-pricing.js";
 import { persistInvoiceFromCheckoutSession } from "../billing/persist-invoice.js";
+import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
 
 export const billingRouter = Router();
 
@@ -127,6 +128,7 @@ billingRouter.post("/confirm", requireAuth, async (req: AuthedRequest, res) => {
 /** Stripe Checkout for B2C listing promote (card payment → webhook/confirm → DB). */
 billingRouter.post("/promote-checkout", requireAuth, async (req: AuthedRequest, res) => {
   try {
+    if (await rejectIfCheckoutDisabled(res)) return;
     const body = req.body as {
       listingId?: string;
       tier?: number;
@@ -223,6 +225,7 @@ billingRouter.get("/invoices", requireAuth, async (req: AuthedRequest, res) => {
 
 billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) => {
   try {
+    if (await rejectIfCheckoutDisabled(res)) return;
     const planId = String((req.body as { planId?: string })?.planId ?? "");
     if (!VALID_PLANS.has(planId)) {
       return res.status(400).json({ error: "Invalid planId" });

@@ -8,6 +8,7 @@ import { AdminReportInbox } from "@/components/admin/AdminReportInbox";
 import { AdminListingModeration } from "@/components/admin/AdminListingModeration";
 import { AdminAccountPanel } from "@/components/admin/AdminAccountPanel";
 import { AdminGeminiContextPanel } from "@/components/admin/AdminGeminiContextPanel";
+import { AdminOpsPanel } from "@/components/admin/AdminOpsPanel";
 import {
   ADMIN_GEMINI_BUILD,
   AdminGeminiUploadPanel,
@@ -16,11 +17,12 @@ import { useVauto } from "@/context/VautoContext";
 import { useAdminProjectContext } from "@/context/AdminProjectContext";
 import { useAuth } from "@/context/AuthContext";
 
-type AdminTab = "moderation" | "listings" | "agent" | "account";
+type AdminTab = "ops" | "moderation" | "listings" | "agent" | "account";
 
 const GEMINI_COLLAPSED_STORAGE_KEY = "vauto_admin_gemini_collapsed_v1";
 
 const ADMIN_TABS: { id: AdminTab; label: string; shortLabel: string }[] = [
+  { id: "ops", label: "Būsena", shortLabel: "Sistema" },
   { id: "moderation", label: "Pranešimai", shortLabel: "Praneš." },
   { id: "listings", label: "Skelbimai", shortLabel: "Skelbimai" },
   { id: "agent", label: "AI kontekstas", shortLabel: "Gemini" },
@@ -28,9 +30,16 @@ const ADMIN_TABS: { id: AdminTab; label: string; shortLabel: string }[] = [
 ];
 
 function parseAdminTab(raw: string | null): AdminTab | null {
-  if (raw === "moderation" || raw === "listings" || raw === "agent" || raw === "account") {
+  if (
+    raw === "ops" ||
+    raw === "moderation" ||
+    raw === "listings" ||
+    raw === "agent" ||
+    raw === "account"
+  ) {
     return raw;
   }
+  if (raw === "sistema" || raw === "health" || raw === "status") return "ops";
   if (raw === "ai" || raw === "gemini" || raw === "context") return "agent";
   return null;
 }
@@ -159,7 +168,9 @@ export function AdminProfileShell() {
         </div>
       </div>
 
-      {tab === "moderation" ? (
+      {tab === "ops" ? (
+        <AdminOpsPanel />
+      ) : tab === "moderation" ? (
         <>
           <button
             type="button"

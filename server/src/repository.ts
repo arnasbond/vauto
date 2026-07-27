@@ -1253,11 +1253,25 @@ export async function updateReportStatus(
 }
 
 export async function getAdminUserIds(): Promise<string[]> {
+  const adminEmail = (process.env.ADMIN_EMAIL ?? "admin@vauto.com").trim();
   const rows = await query<{ id: string }>(
-    `SELECT id FROM users WHERE role = 'admin'`
+    `SELECT id FROM users
+     WHERE role IN ('admin', 'super_admin')
+        OR lower(email) = lower($1)`,
+    [adminEmail]
   );
-  return rows.map((r) => r.id);
+  const ids = new Set(rows.map((r) => r.id));
+  ids.add("admin-1");
+  return [...ids];
 }
+
+export {
+  getPlatformSetting,
+  setPlatformSetting,
+  getPlatformFlags,
+  setPlatformFlags,
+} from "./platform/platform-settings.js";
+export type { PlatformFlags } from "./platform/platform-settings.js";
 
 export async function getAdminNotifyEmails(): Promise<string[]> {
   const rows = await query<{ email: string | null }>(
