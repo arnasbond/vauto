@@ -326,6 +326,7 @@ export function ChatThreadView({
 
 export function ChatThreadFromQuery() {
   const searchParams = useSearchParams();
-  const chatId = searchParams.get("id") ?? "";
+  const chatId =
+    searchParams.get("id") ?? searchParams.get("thread") ?? "";
   return <ChatThreadContent chatId={chatId} />;
 }

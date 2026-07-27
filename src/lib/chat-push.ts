@@ -1,7 +1,7 @@
 import { formatPrice } from "@/data/mockListings";
 import { getListingCoverImage } from "@/lib/listing-image";
 import { logWakeEvent } from "@/lib/wake-word-engine";
-import { isNativePushDisabled } from "@/lib/mobile-install";
+import { isNativeApp, isNativePushDisabled } from "@/lib/mobile-install";
 import type { ChatThread, Listing, UserProfile } from "@/lib/types";
 
 export interface ChatPushPayload {
@@ -48,10 +48,13 @@ export function buildChatPushPayload(params: {
   };
 }
 
+/** Local OS notification when the tab is backgrounded — always allowed on web. */
 export async function dispatchChatPushNotification(
   payload: ChatPushPayload
 ): Promise<void> {
-  if (isNativePushDisabled()) return;
+  // Native FCM path handles system notifications when enabled; skip local dup.
+  if (isNativeApp() && !isNativePushDisabled()) return;
+
   logWakeEvent("chat_push_dispatch", { chatId: payload.chatId });
 
   if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
@@ -94,9 +97,14 @@ export async function dispatchChatPushNotification(
 
 /** Permission + Web Push subscription (server endpoint). Call from a user gesture when possible. */
 export async function requestChatPushPermission(): Promise<boolean> {
-  if (isNativePushDisabled()) return false;
   if (typeof window === "undefined" || !("Notification" in window)) return false;
   if (Notification.permission === "denied") return false;
+
+  // Native FCM when enabled — never block the web PushManager path via this flag.
+  if (isNativeApp() && !isNativePushDisabled()) {
+    const { registerNativePush } = await import("@/lib/native-push");
+    void registerNativePush();
+  }
 
   const { ensureWebPushSubscription } = await import("@/lib/web-push");
   if (Notification.permission === "granted") {

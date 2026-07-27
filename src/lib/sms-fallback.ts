@@ -8,10 +8,14 @@ export interface SmsFallbackPayload {
 }
 
 export function buildSmsFallbackMessage(payload: SmsFallbackPayload): string {
-  const shortId = payload.chatId.replace("chat-", "").slice(-6);
-  return `VAUTO: Gavote naują žinutę dėl skelbimo „${payload.listingTitle}"! Spauskite nuorodą, kad atsakytumėte: vauto.com/chats/${shortId}`;
+  const title = payload.listingTitle.trim() || "skelbimo";
+  return `VAUTO: Nauja žinutė dėl „${title}“. Atsakykite: https://www.vauto.lt/pokalbiai/?id=${encodeURIComponent(payload.chatId)}`;
 }
 
+/**
+ * Demo-only local SMS mock (when API is off). Live delivery is server-side via
+ * scheduleChatSmsFallback after notifyIncomingChatMessage.
+ */
 export function scheduleSmsFallback(
   payload: SmsFallbackPayload,
   isStillUnread: () => boolean,

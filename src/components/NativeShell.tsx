@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { Capacitor } from "@capacitor/core";
 import { speakBuddyMessage, stopBuddySpeech } from "@/lib/buddy-voice";
 import { logWakeEvent } from "@/lib/wake-word-engine";
-import { attachNativePushNavigation } from "@/lib/native-push";
+import { attachNativePushNavigation, registerNativePush } from "@/lib/native-push";
+import { isNativePushDisabled } from "@/lib/mobile-install";
 import { storeOAuthCallbackPayload } from "@/lib/auth/oauth-redirect";
 import { attachNativeInstallLinkBlocker } from "@/lib/native-link-blocker";
 import { ExpressEscrowProcessor } from "@/components/escrow/ExpressEscrowProcessor";
@@ -25,7 +26,12 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
     return attachNativeInstallLinkBlocker();
   }, []);
 
-  // Native FCM disabled until google-services.json is in CI — no auto prompt after login.
+  // Native FCM when NEXT_PUBLIC_NATIVE_PUSH=1 (google-services.json wired).
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    if (isNativePushDisabled()) return;
+    void registerNativePush();
+  }, []);
 
   useEffect(() => {
     if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
@@ -109,7 +115,9 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
         }
         try {
           const parsed = new URL(url);
-          const chatId = parsed.searchParams.get("id");
+          const chatId =
+            parsed.searchParams.get("id") ??
+            parsed.searchParams.get("thread");
           if (parsed.pathname.includes("pokalbiai") && chatId) {
             router.push(`/pokalbiai/?id=${encodeURIComponent(chatId)}`);
           }

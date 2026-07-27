@@ -1616,6 +1616,75 @@ export async function getChatThreadMeta(
   };
 }
 
+/** Mark that SMS fallback was sent for this message (idempotent per messageId). */
+export async function markChatSmsFallbackSent(
+  chatId: string,
+  messageId: string
+): Promise<void> {
+  await query(
+    `UPDATE chat_threads
+     SET sms_fallback_sent_for = $2, updated_at = now()
+     WHERE id = $1`,
+    [chatId, messageId]
+  );
+}
+
+/**
+ * True when SMS fallback should still fire for this message:
+ * - thread exists and recipient is a participant
+ * - sms_fallback_sent_for is not already this messageId
+ * - message exists, was not sent by recipient, and is still unread
+ * - recipient last_read_at is missing or before the message timestamp
+ */
+export async function shouldSendChatSmsFallback(
+  chatId: string,
+  recipientId: string,
+  messageId: string,
+  messageCreatedAt?: string
+): Promise<boolean> {
+  const threads = await query<{
+    sms_fallback_sent_for: string | null;
+    last_read_at: Date | null;
+    buyer_id: string;
+    seller_id: string;
+  }>(
+    `SELECT sms_fallback_sent_for, last_read_at, buyer_id, seller_id
+     FROM chat_threads WHERE id = $1`,
+    [chatId]
+  );
+  const thread = threads[0];
+  if (!thread) return false;
+  if (thread.sms_fallback_sent_for === messageId) return false;
+  if (recipientId !== thread.buyer_id && recipientId !== thread.seller_id) {
+    return false;
+  }
+
+  const messages = await query<{
+    id: string;
+    sender_id: string;
+    created_at: Date;
+    read_at: Date | null;
+  }>(
+    `SELECT id, sender_id, created_at, read_at
+     FROM chat_messages WHERE thread_id = $1 AND id = $2`,
+    [chatId, messageId]
+  );
+  const msg = messages[0];
+  if (!msg) return false;
+  if (msg.sender_id === recipientId) return false;
+  if (msg.read_at) return false;
+
+  const createdAt = messageCreatedAt
+    ? new Date(messageCreatedAt)
+    : msg.created_at;
+  if (Number.isNaN(createdAt.getTime())) return false;
+  if (thread.last_read_at && thread.last_read_at.getTime() >= createdAt.getTime()) {
+    return false;
+  }
+
+  return true;
+}
+
 export async function upsertChat(thread: ApiChatThread): Promise<void> {
   await ensureUser(thread.buyerId);
   await ensureUser(thread.sellerId);
@@ -1627,7 +1696,10 @@ export async function upsertChat(thread: ApiChatThread): Promise<void> {
      ON CONFLICT (id) DO UPDATE SET
        escrow_offered = EXCLUDED.escrow_offered,
        last_read_at = EXCLUDED.last_read_at,
-       sms_fallback_sent_for = EXCLUDED.sms_fallback_sent_for,
+       sms_fallback_sent_for = COALESCE(
+         EXCLUDED.sms_fallback_sent_for,
+         chat_threads.sms_fallback_sent_for
+       ),
        updated_at = now()`,
     [
       thread.id,

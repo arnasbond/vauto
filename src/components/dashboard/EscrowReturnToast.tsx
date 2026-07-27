@@ -19,11 +19,12 @@ export function EscrowReturnToast() {
 
     handledRef.current = true;
     const sessionId = searchParams.get("session_id");
-    const thread = searchParams.get("thread");
+    const thread =
+      searchParams.get("id") ?? searchParams.get("thread");
 
     const clearQuery = () => {
       const next = thread
-        ? `/pokalbiai/?thread=${encodeURIComponent(thread)}`
+        ? `/pokalbiai/?id=${encodeURIComponent(thread)}`
         : "/pokalbiai/";
       window.history.replaceState({}, "", next);
     };

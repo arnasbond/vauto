@@ -1,7 +1,7 @@
 import { apiGetVapidPublicKey, apiSubscribePush, apiSyncAlertQueries } from "@/lib/api/wallet-reviews";
 import { isDataApiEnabled } from "@/lib/api/config";
 import { logWakeEvent } from "@/lib/wake-word-engine";
-import { isNativePushDisabled } from "@/lib/mobile-install";
+import { isNativeApp } from "@/lib/mobile-install";
 
 function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -18,11 +18,16 @@ export async function registerWebPush(
   return ensureWebPushSubscription(savedQueries);
 }
 
+/**
+ * Web PushManager subscription — never gated by isNativePushDisabled().
+ * Native shells use FCM via native-push.ts; skip Web Push only on native platforms.
+ */
 export async function ensureWebPushSubscription(
   savedQueries: string[] = []
 ): Promise<boolean> {
-  if (isNativePushDisabled()) return false;
   if (typeof window === "undefined" || !isDataApiEnabled()) return false;
+  // Capacitor uses FCM; Web Push APIs are for browser / PWA only.
+  if (isNativeApp()) return false;
   if (!("serviceWorker" in navigator) || !("PushManager" in window)) return false;
 
   try {
@@ -64,10 +69,7 @@ export async function ensureWebPushSubscription(
 }
 
 export function isWebPushSupported(): boolean {
-  if (isNativePushDisabled()) return false;
-  return (
-    typeof window !== "undefined" &&
-    "serviceWorker" in navigator &&
-    "PushManager" in window
-  );
+  if (typeof window === "undefined") return false;
+  if (isNativeApp()) return false;
+  return "serviceWorker" in navigator && "PushManager" in window;
 }

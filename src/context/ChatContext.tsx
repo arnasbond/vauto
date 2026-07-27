@@ -10,6 +10,7 @@ import {
   useState,
   type ReactNode,
 } from "react";
+import { usePathname } from "next/navigation";
 import { INITIAL_CHATS } from "@/data/mockListings";
 import { useAuth } from "@/context/AuthContext";
 import { useVautoBridge } from "@/context/VautoBridge";
@@ -51,6 +52,7 @@ import {
   dispatchChatPushNotification,
   requestChatPushPermission,
 } from "@/lib/chat-push";
+import { ensureWebPushSubscription } from "@/lib/web-push";
 import { logHeroFirstResponseSignal } from "@/lib/hero-kpis";
 import type { ChatMessage, ChatThread, EscrowTransaction, Listing, NegotiationTwinConfig } from "@/lib/types";
 
@@ -72,6 +74,7 @@ const READ_SIM_MS = 2400;
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user, isAuthenticated, openAuthModal } = useAuth();
+  const pathname = usePathname();
   const {
     listings,
     setListings,
@@ -160,6 +163,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     void load();
   }, [hydrated, apiActive, user.id, isAuthenticated]);
 
+  /** Best-effort Web Push when opening chats. */
+  useEffect(() => {
+    if (!isAuthenticated || user.id === "guest") return;
+    if (!pathname?.startsWith("/pokalbiai") && !pathname?.startsWith("/chats")) {
+      return;
+    }
+    void ensureWebPushSubscription();
+  }, [pathname, isAuthenticated, user.id]);
+
   useEffect(() => {
     if (!hydrated || apiActive) return;
     saveChats(chats);
@@ -227,6 +239,13 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             buyer_message_notified_ms: signal.latencyMs,
             channel: "incoming_alert",
           });
+        }
+        // Visible tab: toast + sound only. Hidden: local OS notification.
+        if (
+          typeof document !== "undefined" &&
+          document.visibilityState === "visible"
+        ) {
+          return;
         }
         const thread = chatsRef.current.find((c) => c.id === event.chatId);
         void dispatchChatPushNotification(
@@ -346,6 +365,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       recipientId: string,
       listingTitle: string
     ) => {
+      // Live SMS is scheduled server-side after notifyIncomingChatMessage.
+      // Client timer is demo-only when the API is off.
+      if (apiActive) return;
+
       smsCancelRef.current.get(chatId)?.();
       const cancel = scheduleSmsFallback(
         { chatId, messageId, recipientId, listingTitle },
@@ -369,7 +392,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       );
       smsCancelRef.current.set(chatId, cancel);
     },
-    [showToast, upsertChats]
+    [apiActive, showToast, upsertChats]
   );
 
   const advanceMessageStatus = useCallback(
@@ -455,6 +478,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         openAuthModal("/pokalbiai");
         return;
       }
+
+      void ensureWebPushSubscription();
 
       const msg: ChatMessage = {
         id: `m-${Date.now()}`,

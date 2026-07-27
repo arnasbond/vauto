@@ -61,7 +61,7 @@ function otpMessage(code: string): string {
   return `VAUTO patvirtinimo kodas: ${code}. Galioja 5 min.`;
 }
 
-async function sendViaTwilio(phone: string, code: string): Promise<boolean> {
+async function sendViaTwilio(phone: string, body: string): Promise<boolean> {
   const sid = process.env.TWILIO_ACCOUNT_SID!;
   const token = process.env.TWILIO_AUTH_TOKEN!;
   const from = process.env.TWILIO_FROM_NUMBER!;
@@ -76,7 +76,7 @@ async function sendViaTwilio(phone: string, code: string): Promise<boolean> {
           Authorization: `Basic ${auth}`,
           "Content-Type": "application/x-www-form-urlencoded",
         },
-        body: new URLSearchParams({ To: phone, From: from, Body: otpMessage(code) }),
+        body: new URLSearchParams({ To: phone, From: from, Body: body }),
       }
     );
 
@@ -96,7 +96,7 @@ async function sendViaTwilio(phone: string, code: string): Promise<boolean> {
 }
 
 /** BulkGate transactional SMS — ready to wire when credentials are set. */
-async function sendViaBulkGate(phone: string, code: string): Promise<boolean> {
+async function sendViaBulkGate(phone: string, body: string): Promise<boolean> {
   const appId = process.env.BULKGATE_APPLICATION_ID;
   const appToken = process.env.BULKGATE_APPLICATION_TOKEN;
   if (!appId || !appToken) return false;
@@ -109,8 +109,8 @@ async function sendViaBulkGate(phone: string, code: string): Promise<boolean> {
         application_id: appId,
         application_token: appToken,
         number: phone.replace(/\s/g, ""),
-        text: otpMessage(code),
-        unicode: false,
+        text: body,
+        unicode: true,
       }),
     });
 
@@ -129,13 +129,15 @@ async function sendViaBulkGate(phone: string, code: string): Promise<boolean> {
   }
 }
 
-/** Send OTP SMS via configured provider. Mock/log writes to server console. */
-export async function sendOtpSms(phone: string, code: string): Promise<boolean> {
+/**
+ * Send arbitrary SMS body via configured provider.
+ * Mock/log modes write the body to the server console.
+ */
+export async function sendSms(phone: string, body: string): Promise<boolean> {
   const provider = getSmsProvider();
   const mode = process.env.SMS_MODE?.trim().toLowerCase();
 
   if (provider === "mock" || provider === "log") {
-    // Never silently "succeed" when operator asked for live delivery.
     if (mode === "live") {
       logProductionError(
         "sms",
@@ -144,9 +146,9 @@ export async function sendOtpSms(phone: string, code: string): Promise<boolean> 
       );
       return false;
     }
-    console.log(`[VAUTO SMS:${provider}] OTP for ${phone}: ${code}`);
+    console.log(`[VAUTO SMS:${provider}] to ${phone}: ${body}`);
     if (provider === "log" && process.env.NODE_ENV === "production") {
-      logProductionWarn("sms", "OTP logged (SMS_MODE=log) — configure Twilio or BulkGate", {
+      logProductionWarn("sms", "SMS logged (SMS_MODE=log) — configure Twilio or BulkGate", {
         phoneSuffix: phone.slice(-4),
       });
     }
@@ -160,7 +162,7 @@ export async function sendOtpSms(phone: string, code: string): Promise<boolean> 
       });
       return false;
     }
-    return sendViaTwilio(phone, code);
+    return sendViaTwilio(phone, body);
   }
 
   if (!bulkgateConfigured()) {
@@ -169,5 +171,10 @@ export async function sendOtpSms(phone: string, code: string): Promise<boolean> 
     });
     return false;
   }
-  return sendViaBulkGate(phone, code);
+  return sendViaBulkGate(phone, body);
+}
+
+/** Send OTP SMS via configured provider. Mock/log writes to server console. */
+export async function sendOtpSms(phone: string, code: string): Promise<boolean> {
+  return sendSms(phone, otpMessage(code));
 }

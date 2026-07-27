@@ -12,6 +12,7 @@ import {
 import { sendWebPushToUsers } from "../push/web-push.js";
 import { notifyUsersFcm } from "../push/fcm.js";
 import type { ApiListing } from "../types.js";
+import { scheduleChatSmsFallback } from "./chat-sms-fallback.js";
 
 export interface InternalNotification {
   id: string;
@@ -76,6 +77,8 @@ export async function notifyIncomingChatMessage(
     senderLabel: string;
     preview: string;
     isBuyerMessage?: boolean;
+    messageId?: string;
+    messageCreatedAt?: string;
   }
 ): Promise<void> {
   const url = `/pokalbiai/?id=${encodeURIComponent(opts.chatId)}`;
@@ -102,6 +105,16 @@ export async function notifyIncomingChatMessage(
     type: "chat_message",
     chatId: opts.chatId,
   });
+
+  if (opts.messageId) {
+    scheduleChatSmsFallback({
+      recipientId,
+      chatId: opts.chatId,
+      messageId: opts.messageId,
+      listingTitle: opts.listingTitle,
+      messageCreatedAt: opts.messageCreatedAt,
+    });
+  }
 }
 
 /**

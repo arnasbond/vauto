@@ -1329,6 +1329,8 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
                   : "Nauja žinutė nuo pardavėjo",
               preview: latest.text,
               isBuyerMessage: latest.senderId === thread.buyerId,
+              messageId: latest.id,
+              messageCreatedAt: latest.timestamp,
             });
           }
         }
