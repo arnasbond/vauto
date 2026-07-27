@@ -8,7 +8,7 @@ export const SUPER_ADMIN_ID = "admin-1";
  * Extra operators identified by public handles.
  * Keep in sync with server `ADMIN_NAMES` default (server/src/lib/admin-allowlist.ts).
  */
-export const SUPER_ADMIN_NICKNAMES = ["arnas"] as const;
+export const SUPER_ADMIN_NICKNAMES = ["arnas", "arnasbond"] as const;
 
 type AdminUserLike = Pick<
   UserProfile,

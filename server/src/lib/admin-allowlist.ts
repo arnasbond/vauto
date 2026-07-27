@@ -4,7 +4,7 @@
  */
 
 const DEFAULT_ADMIN_EMAIL = "admin@vauto.com";
-const DEFAULT_ADMIN_NAMES = ["arnas"];
+const DEFAULT_ADMIN_NAMES = ["arnas", "arnasbond"];
 
 export function resolveAdminEmail(): string {
   return (process.env.ADMIN_EMAIL ?? DEFAULT_ADMIN_EMAIL).trim().toLowerCase();
