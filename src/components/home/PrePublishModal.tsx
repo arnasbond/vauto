@@ -208,6 +208,8 @@ export function PrePublishModal({
     [onGalleryChange, reorder]
   );
 
+  const busy = publishing;
+
   const addPhotos = useCallback(
     async (files: File[]) => {
       if (!onGalleryChange || busy || addingPhotos || !files.length) return;
@@ -272,8 +274,6 @@ export function PrePublishModal({
   ).slice(0, 16);
 
   if (!open || typeof document === "undefined") return null;
-
-  const busy = publishing;
 
   return createPortal(
     <div

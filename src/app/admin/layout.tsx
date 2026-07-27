@@ -34,10 +34,10 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           <button
             type="button"
             onClick={() => openAuthModal("/admin")}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-teal,#0d9488)] py-3.5 text-sm font-semibold text-white"
+            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-red-600 py-3.5 text-sm font-semibold text-white"
           >
             <LogIn className="h-4 w-4" />
-            Prisijungti
+            Administratoriaus įėjimas
           </button>
           <Link
             href="/"

@@ -52,6 +52,8 @@ interface AuthModalProps {
   onClose: () => void;
   /** Path to restore after OAuth redirect (seller/buyer chat context). */
   returnPath?: string | null;
+  /** Jump straight to admin Google step (e.g. from /admin). */
+  initialStep?: AuthStep;
   onComplete: (data: {
     provider: AuthProvider;
     phone?: string;
@@ -64,6 +66,12 @@ interface AuthModalProps {
     idToken?: string;
     signupIntent?: AuthSignupIntent;
   }) => void;
+}
+
+function isAdminReturnPath(path: string | null | undefined): boolean {
+  if (!path) return false;
+  const normalized = path.split("?")[0].replace(/\/$/, "") || "/";
+  return normalized === "/admin" || normalized.startsWith("/admin/");
 }
 
 function GoogleIcon() {
@@ -99,9 +107,13 @@ export function AuthModal({
   onClearError,
   onClose,
   returnPath,
+  initialStep,
   onComplete,
 }: AuthModalProps) {
-  const [step, setStep] = useState<AuthStep>(AUTH_FORM_INITIAL.step);
+  const resolvedInitialStep: AuthStep =
+    initialStep ??
+    (isAdminReturnPath(returnPath) ? "admin" : AUTH_FORM_INITIAL.step);
+  const [step, setStep] = useState<AuthStep>(resolvedInitialStep);
   const [phone, setPhone] = useState(AUTH_FORM_INITIAL.phone);
   const [otp, setOtp] = useState(AUTH_FORM_INITIAL.otp);
   const [role, setRole] = useState<UserRole>(AUTH_FORM_INITIAL.role);
@@ -147,8 +159,8 @@ export function AuthModal({
     }
   };
 
-  const resetAuthForm = () => {
-    setStep(AUTH_FORM_INITIAL.step);
+  const resetAuthForm = (nextStep: AuthStep = AUTH_FORM_INITIAL.step) => {
+    setStep(nextStep);
     setPhone(AUTH_FORM_INITIAL.phone);
     setOtp(AUTH_FORM_INITIAL.otp);
     setRole(AUTH_FORM_INITIAL.role);
@@ -195,10 +207,13 @@ export function AuthModal({
   useEffect(() => {
     if (!open) {
       setNativeGoogleOpen(false);
-      resetAuthForm();
+      resetAuthForm(AUTH_FORM_INITIAL.step);
       return;
     }
-    setStep(AUTH_FORM_INITIAL.step);
+    const startStep: AuthStep =
+      initialStep ??
+      (isAdminReturnPath(returnPath) ? "admin" : AUTH_FORM_INITIAL.step);
+    setStep(startStep);
     setOtp(AUTH_FORM_INITIAL.otp);
     setRole(AUTH_FORM_INITIAL.role);
     setSignupIntent(AUTH_FORM_INITIAL.signupIntent);
@@ -212,7 +227,7 @@ export function AuthModal({
     } catch {
       setRememberMe(true);
     }
-  }, [open]);
+  }, [open, initialStep, returnPath]);
 
   useEffect(() => {
     if (!open) return;
@@ -383,7 +398,7 @@ export function AuthModal({
       onClick={(e) => e.stopPropagation()}
     >
       <div
-        className="vauto-auth-modal vauto-auth-luxury w-full max-w-[400px] rounded-t-[28px] p-7 shadow-2xl sm:rounded-[28px]"
+        className="vauto-auth-modal vauto-auth-luxury max-h-[min(92dvh,720px)] w-full max-w-[400px] overflow-y-auto rounded-t-[28px] p-7 shadow-2xl sm:rounded-[28px]"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="vauto-auth-luxury-header mb-7">
@@ -527,14 +542,23 @@ export function AuthModal({
                 : "Prisijunkite prie VAUTO API, kad gautumėte gyvą SMS OTP"}
             </p>
 
-            <button
-              type="button"
-              onClick={() => setStep("admin")}
-              className="flex w-full items-center justify-center gap-1.5 pt-1 text-[11px] text-[var(--vauto-text-muted)] transition hover:text-red-600"
-            >
-              <Shield className="h-3 w-3" />
-              Administratoriaus įėjimas
-            </button>
+            <div className="border-t border-[var(--vauto-border)] pt-4">
+              <button
+                type="button"
+                onClick={() => {
+                  setOtpError(null);
+                  onClearError?.();
+                  setStep("admin");
+                }}
+                className="flex w-full items-center justify-center gap-2 rounded-xl border border-dashed border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-surface-muted)_70%,transparent)] px-4 py-3 text-sm font-semibold text-[var(--vauto-text-main)] transition hover:border-red-500/50 hover:bg-red-50 hover:text-red-700"
+              >
+                <Shield className="h-4 w-4 text-red-600" aria-hidden />
+                Administratoriaus įėjimas
+              </button>
+              <p className="mt-2 text-center text-[11px] text-[var(--vauto-text-muted)]">
+                Tik VAUTO komandai · Google · admin@vauto.com
+              </p>
+            </div>
           </div>
         )}
 
@@ -558,9 +582,10 @@ export function AuthModal({
                   try {
                     const outcome = await startGoogleSignIn({
                       returnPath:
-                        typeof window !== "undefined"
+                        returnPath?.trim() ||
+                        (typeof window !== "undefined"
                           ? `${window.location.pathname}${window.location.search}`
-                          : "/",
+                          : "/admin"),
                     });
                     if (outcome.status === "redirecting") return;
                     if (outcome.status !== "success") {

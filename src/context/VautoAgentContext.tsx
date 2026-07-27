@@ -3225,8 +3225,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       commitVisionObjectSellToPrePublish,
       pushStreamThinkingLabel,
       setStreamThinkingLabelNow,
-      finishPublishedFlow,
-      resetPublishSession,
+      goToMarketplace,
     ]
   );
 
@@ -3767,6 +3766,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       enterListingEditMode,
       sessionPendingImageUrls,
       commitVisionObjectSellToPrePublish,
+      trackEvent,
     ]
   );
 

@@ -59,6 +59,11 @@ export function GlobalAuthModal() {
     pathname,
   ]);
 
+  const returnPath = authRedirectPath ?? pathname ?? "/";
+  const adminPath =
+    returnPath.split("?")[0].replace(/\/$/, "") === "/admin" ||
+    returnPath.split("?")[0].replace(/\/$/, "").startsWith("/admin/");
+
   return (
     <AuthModal
       key={modalKey}
@@ -67,7 +72,8 @@ export function GlobalAuthModal() {
       error={authError}
       onClearError={clearAuthError}
       onClose={closeAuthModal}
-      returnPath={authRedirectPath ?? pathname ?? "/"}
+      returnPath={returnPath}
+      initialStep={adminPath ? "admin" : undefined}
       onComplete={(data) => void login(data)}
     />
   );
