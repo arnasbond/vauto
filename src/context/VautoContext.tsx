@@ -60,7 +60,8 @@ import {
   saveServiceLeads,
   saveSoldPromptDismissed,
 } from "@/lib/storage";
-import { distanceToCity, getUserCoords, type UserCoords } from "@/lib/geolocation";
+import { getUserCoords, type UserCoords } from "@/lib/geolocation";
+import { applyBuyerDistances } from "@/lib/buyer-distance";
 import {
   distanceToListing,
   enrichListingCoords,
@@ -540,19 +541,6 @@ function anonymizeTitle(title: string): string {
 }
 
 const VautoContext = createContext<VautoContextValue | null>(null);
-
-function applyBuyerDistances(
-  items: Listing[],
-  buyer: UserCoords | null
-): Listing[] {
-  if (!buyer) return items;
-  return items.map((l) => {
-    const exact = distanceToListing(buyer, l);
-    const fallback = distanceToCity(buyer, l.location);
-    const km = exact ?? fallback;
-    return km !== null ? { ...l, distanceKm: km } : l;
-  });
-}
 
 function VautoFacade({
   catalog,

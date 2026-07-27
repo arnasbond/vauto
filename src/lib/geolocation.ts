@@ -9,6 +9,31 @@ export interface UserCoords {
   lng: number;
 }
 
+/** Approximate Lithuania bounding box — visitors outside get no LT city / distance. */
+const LT_BOUNDS = {
+  minLat: 53.85,
+  maxLat: 56.55,
+  minLng: 20.85,
+  maxLng: 26.95,
+} as const;
+
+/** Marketplace distances beyond this are noise (e.g. NL → Kaišiadorys). */
+export const MAX_MARKETPLACE_DISTANCE_KM = 280;
+
+export function isCoordsInLithuania(coords: UserCoords): boolean {
+  return (
+    coords.lat >= LT_BOUNDS.minLat &&
+    coords.lat <= LT_BOUNDS.maxLat &&
+    coords.lng >= LT_BOUNDS.minLng &&
+    coords.lng <= LT_BOUNDS.maxLng
+  );
+}
+
+/** True when buyer GPS is present and inside Lithuania. */
+export function isMarketplaceBuyerLocal(buyer: UserCoords | null | undefined): boolean {
+  return Boolean(buyer && isCoordsInLithuania(buyer));
+}
+
 /** Get device GPS coordinates — Capacitor on native, geolocation API on web */
 export async function getUserCoords(options?: {
   /** Native only: prompt for location if not yet granted (avoid on cold start). */
@@ -74,4 +99,14 @@ export function distanceToCity(
   const cityCoords = coordsForCity(city);
   if (!cityCoords) return null;
   return distanceKm(user, cityCoords);
+}
+
+/** Whether a computed km value may be shown in UI. */
+export function isDisplayableDistanceKm(km: number | null | undefined): boolean {
+  return (
+    typeof km === "number" &&
+    Number.isFinite(km) &&
+    km >= 0 &&
+    km <= MAX_MARKETPLACE_DISTANCE_KM
+  );
 }

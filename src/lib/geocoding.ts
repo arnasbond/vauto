@@ -66,11 +66,15 @@ export function distanceToListing(
 
 export function enrichListingCoords<T extends { location: string; id?: string }>(
   listing: T
-): T & { latitude: number; longitude: number } {
+): T & { latitude?: number; longitude?: number } {
   const loc = listing.location?.trim();
   if (!loc || isPlaceholderCity(loc)) {
-    throw new Error("Listing location is required for coordinates");
+    return { ...listing };
   }
-  const coords = geocodeLocation(loc, listing.id ?? loc);
-  return { ...listing, latitude: coords.lat, longitude: coords.lng };
+  try {
+    const coords = geocodeLocation(loc, listing.id ?? loc);
+    return { ...listing, latitude: coords.lat, longitude: coords.lng };
+  } catch {
+    return { ...listing };
+  }
 }

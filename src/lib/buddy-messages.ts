@@ -184,12 +184,15 @@ export function buildSearchBuddyMessage(
 
   if (top.category === "services") {
     const providerName = extractProviderName(top.title);
+    const distKm = top.distanceKm;
     const dist =
-      top.distanceKm < 2
-        ? "arti jūsų"
-        : top.distanceKm < 5
-          ? "netoli"
-          : `${top.distanceKm.toFixed(1)} km`;
+      distKm == null
+        ? "mieste"
+        : distKm < 2
+          ? "arti jūsų"
+          : distKm < 5
+            ? "netoli"
+            : `${distKm.toFixed(1)} km`;
 
     return {
       message: `Rastas teikėjas ${providerName} (${dist}). Galite susisiekti tiesiogiai.`,

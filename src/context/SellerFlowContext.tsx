@@ -42,6 +42,7 @@ import { normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
   LOCATION_MISSING_AGENT_PROMPT,
   resolveDynamicListingLocation,
+  resolveEffectiveUserCity,
   resolvePublishListingCity,
   verifiedProfileCity,
 } from "@/lib/listing-location-context";
@@ -589,7 +590,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             imageDataUrls: opts?.previewImages,
             transcript: opts?.transcript,
             extraContext: opts?.extraContext,
-            userCity: user.city,
+            userCity: resolveEffectiveUserCity({
+              profileCity: user.city,
+              geoCoords: buyerCoords,
+            }),
             contact: user.phone,
             recoveryRetry: opts?.recoveryRetry,
           },

@@ -144,7 +144,7 @@ import {
   readListingEditSession,
   type ListingEditSession,
 } from "@/lib/listing-edit-session";
-import { nearestLtCityFromCoords } from "@/lib/listing-location-context";
+import { nearestLtCityFromCoords, resolveEffectiveUserCity } from "@/lib/listing-location-context";
 import {
   buildManualFillChatRedirectReply,
   isListingConversationInput,
@@ -2498,6 +2498,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               : []),
           ]);
       const memoryContext = buildAgentContext(user);
+      const effectiveUserCity = resolveEffectiveUserCity({
+        profileCity: user.city,
+        geoCoords: buyerCoords,
+      });
       const searchSessionReset = shouldResetSearchSession(
         trimmed,
         activeSearchFilters
@@ -2663,6 +2667,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           })),
           context: {
             ...memoryContext,
+            userCity: effectiveUserCity,
+            defaultRegion: effectiveUserCity || "",
             ...sellerWizardContext,
             listingDraft: listingDraftForContext,
             activeSearchFilters: isolateSearchFromSeller
@@ -2875,7 +2881,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           retainPendingImageUrls = true;
           await ensurePendingPhotoIntent({
             photos: activePendingImageUrls,
-            userCity: user.city,
+            userCity: resolveEffectiveUserCity({
+              profileCity: user.city,
+              geoCoords: buyerCoords,
+            }),
             userName: user.name,
             wardrobeOnly: pathname === "/fashion" || pathname === "/fashion/",
           });
@@ -3603,7 +3612,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           bootstrapIntent: async (photos) => {
             const session = await ensurePendingPhotoIntent({
               photos,
-              userCity: user.city,
+              userCity: resolveEffectiveUserCity({
+              profileCity: user.city,
+              geoCoords: buyerCoords,
+            }),
               userName: user.name,
               wardrobeOnly,
             });
@@ -3613,7 +3625,10 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             listings,
             marketplaceFilters,
             userName: user.name,
-            userCity: user.city,
+            userCity: resolveEffectiveUserCity({
+              profileCity: user.city,
+              geoCoords: buyerCoords,
+            }),
             userPhone: user.phone,
             wardrobeOnly,
             applyVisualSearch,

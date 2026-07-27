@@ -246,7 +246,8 @@ export function computeSemanticRelevance(
   return Math.min(1, Math.max(0, score));
 }
 
-export function computeProximityScore(distanceKm: number): number {
+export function computeProximityScore(distanceKm: number | undefined): number {
+  if (distanceKm == null || !Number.isFinite(distanceKm)) return 0.15;
   return 1 / (1 + distanceKm / 10);
 }
 
@@ -366,7 +367,11 @@ export function rankListings(
   } else if (sortMode === "cheapest") {
     results = [...results].sort((a, b) => a.price - b.price);
   } else if (sortMode === "closest") {
-    results = [...results].sort((a, b) => a.distanceKm - b.distanceKm);
+    results = [...results].sort(
+      (a, b) =>
+        (a.distanceKm ?? Number.POSITIVE_INFINITY) -
+        (b.distanceKm ?? Number.POSITIVE_INFINITY)
+    );
   }
 
   const q = query.trim();
@@ -411,7 +416,7 @@ export function generateDynamicFilters(query: string): DynamicFilter[] {
       {
         id: "closest",
         label: "Arčiausiai manęs",
-        apply: (l) => l.distanceKm <= 10,
+        apply: (l) => (l.distanceKm ?? Number.POSITIVE_INFINITY) <= 10,
       }
     );
   }
@@ -438,7 +443,7 @@ export function generateDynamicFilters(query: string): DynamicFilter[] {
       {
         id: "nearby",
         label: "Arčiausiai manęs",
-        apply: (l) => l.distanceKm <= 15,
+        apply: (l) => (l.distanceKm ?? Number.POSITIVE_INFINITY) <= 15,
       },
       {
         id: "cheap-service",
@@ -484,7 +489,14 @@ export function generateDynamicFilters(query: string): DynamicFilter[] {
 
   if (filters.length === 0) {
     filters.push(
-      { id: "nearby", label: "Šalia manęs", apply: (l) => l.distanceKm <= 5 },
+      {
+        id: "nearby",
+        label: "Šalia manęs",
+        apply: (l) => {
+          const km = l.distanceKm;
+          return typeof km === "number" && km <= 5;
+        },
+      },
       { id: "cheapest", label: "Pigiausi", apply: () => true },
       { id: "newest", label: "Naujausi", apply: () => true },
       { id: "with-video", label: "Su video", apply: (l) => !!l.hasVideo }

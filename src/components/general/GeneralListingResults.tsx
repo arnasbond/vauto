@@ -4,7 +4,7 @@ import { getListingCoverImage } from "@/lib/listing-image";
 import Image from "next/image";
 import Link from "next/link";
 import { Heart } from "lucide-react";
-import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
+import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { getPortalUi } from "@/lib/chameleon-portal-ui";
 import { listingPath } from "@/lib/seo";
@@ -43,7 +43,7 @@ function SkelbiuRow({ listing }: { listing: ScoredListing }) {
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
           <p className="mt-0.5 text-[11px]" style={{ color: ui.textMuted }}>
-            {listing.location} · {formatDistanceBadge(listing.distanceKm)}
+            {formatListingPlaceLine(listing.location, listing.distanceKm)}
           </p>
         </Link>
       </div>

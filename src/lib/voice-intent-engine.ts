@@ -196,8 +196,13 @@ export function executeVoiceIntent(
     }
 
     const verified = top.providerVerified ? " Patikrintas meistras." : "";
+    const distKm = top.distanceKm;
     const dist =
-      top.distanceKm < 2 ? "labai arti jūsų" : `už ${top.distanceKm.toFixed(1)} km`;
+      distKm == null
+        ? "jūsų regione"
+        : distKm < 2
+          ? "labai arti jūsų"
+          : `už ${distKm.toFixed(1)} km`;
     return {
       intent,
       matchCount: services.length,

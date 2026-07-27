@@ -1,4 +1,4 @@
-import { distanceKm, getUserCoords, type UserCoords } from "@/lib/geolocation";
+import { distanceKm, getUserCoords, isCoordsInLithuania, type UserCoords } from "@/lib/geolocation";
 import {
   coordsForLtCity,
   LT_CITY_COORDS,
@@ -8,7 +8,7 @@ import { normalizeKnownListingCity } from "@/lib/city-resolve";
 
 /** Agent prompt when listing city is unknown — mirrors unverified price handling. */
 export const LOCATION_MISSING_AGENT_PROMPT =
-  "Matau, kad vieta nenurodyta — patikslinkite savo miestą (pvz. Kaišiadorys, Kaunas), kad skelbimas būtų matomas teisingame regione.";
+  "Matau, kad vieta nenurodyta — patikslinkite miestą Lietuvoje (pvz. Vilnius, Kaunas) arba palikite nenurodytą.";
 
 const MAX_GEO_CITY_DISTANCE_KM = 45;
 
@@ -17,8 +17,31 @@ export function verifiedProfileCity(profileCity?: string | null): string {
   return normalizeKnownListingCity(profileCity);
 }
 
+/**
+ * Effective city for AI / publish context.
+ * Never force a stale LT profile city (e.g. Kaišiadorys) when GPS is abroad or missing.
+ */
+export function resolveEffectiveUserCity(opts: {
+  profileCity?: string | null;
+  geoCoords?: UserCoords | null;
+}): string {
+  const fromProfile = verifiedProfileCity(opts.profileCity);
+  const coords = opts.geoCoords ?? null;
+
+  if (coords) {
+    if (!isCoordsInLithuania(coords)) return "";
+    const fromGeo = nearestLtCityFromCoords(coords);
+    if (fromGeo) return fromGeo;
+    return "";
+  }
+
+  return fromProfile;
+}
+
 /** Nearest known LT city from GPS — only when within a tight radius (no wild guesses). */
 export function nearestLtCityFromCoords(coords: UserCoords): string {
+  if (!isCoordsInLithuania(coords)) return "";
+
   let best: { city: string; d: number } | null = null;
   for (const city of LT_CITY_NAMES) {
     const center = LT_CITY_COORDS[city]!;
@@ -51,14 +74,13 @@ export function preferLocalCityNearCoords(
 
   const da = distanceKm(coords, ca);
   const db = distanceKm(coords, cb);
-  // Prefer clearly closer municipality (2 km slack for GPS noise).
   if (db + 2 < da) return b;
   return a;
 }
 
 /**
  * Resolve listing city for publish: explicit draft → GPS municipality → profile.
- * Never invents Vilnius/Kaunas hubs when GPS points at a closer town.
+ * Never invents a default town. Abroad GPS → only explicit draft city (or empty).
  */
 export function resolvePublishListingCity(
   draftLocation: string | undefined | null,
@@ -67,7 +89,13 @@ export function resolvePublishListingCity(
 ): string {
   const fromDraft = normalizeKnownListingCity(draftLocation);
   const fromProfile = verifiedProfileCity(profileCity);
-  const fromGeo = geoCoords ? nearestLtCityFromCoords(geoCoords) : "";
+  const abroad = Boolean(geoCoords && !isCoordsInLithuania(geoCoords));
+  const fromGeo =
+    geoCoords && !abroad ? nearestLtCityFromCoords(geoCoords) : "";
+
+  if (abroad) {
+    return fromDraft;
+  }
 
   if (geoCoords && fromGeo) {
     if (fromDraft) {
@@ -86,7 +114,7 @@ export function resolvePublishListingCity(
 
 /**
  * Dynamic hint for AI extraction — GPS municipality first, then profile.
- * Fixes regional-hub bias (Kaišiadorys must not become Kaunas · 36 km).
+ * Abroad / unknown GPS → empty (never invent Kaišiadorys).
  */
 export async function resolveDynamicListingLocation(opts: {
   profileCity?: string | null;
@@ -98,9 +126,10 @@ export async function resolveDynamicListingLocation(opts: {
 
   const coords = await getUserCoords({ requestPermission: true });
   if (!coords) return fromProfile;
+  if (!isCoordsInLithuania(coords)) return "";
 
   const fromGeo = nearestLtCityFromCoords(coords);
-  if (!fromGeo) return fromProfile;
+  if (!fromGeo) return "";
 
   if (!fromProfile) return fromGeo;
   return preferLocalCityNearCoords(fromGeo, fromProfile, coords);

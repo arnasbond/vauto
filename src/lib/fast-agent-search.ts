@@ -16,5 +16,7 @@ export function sortListingsFast<T extends Listing>(
         new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
     );
   }
-  return copy.sort((a, b) => a.distanceKm - b.distanceKm);
+  return copy.sort(
+    (a, b) => (a.distanceKm ?? Number.POSITIVE_INFINITY) - (b.distanceKm ?? Number.POSITIVE_INFINITY)
+  );
 }

@@ -90,6 +90,7 @@ function prepareListing(raw: LegacyListingInput): Listing {
       withCoords.providerVerified ?? isVerifiedServiceSeller(withCoords.sellerId),
     visibilityTier: feedTier,
     promoted: withCoords.promoted ?? feedTier === "top",
+    distanceKm: undefined,
   };
 }
 
@@ -238,7 +239,24 @@ export function formatDistance(km: number): string {
   return `${km.toFixed(km < 10 ? 1 : 0)} km`;
 }
 
-export function formatDistanceBadge(km: number): string {
+/** Empty string when distance unknown / not displayable. */
+export function formatDistanceBadge(km: number | null | undefined): string {
+  if (typeof km !== "number" || !Number.isFinite(km) || km < 0 || km > 280) {
+    return "";
+  }
   if (km < 1) return `${Math.round(km * 1000)} m`;
   return `${km.toFixed(km < 10 ? 1 : 0)} km`;
+}
+
+/** Location · distance line — hides distance when absent; never invents a city. */
+export function formatListingPlaceLine(
+  location: string | undefined | null,
+  distanceKm?: number | null
+): string {
+  const raw = String(location ?? "").trim();
+  const loc = raw && raw.toLowerCase() !== "miestas" ? raw : "";
+  const dist = formatDistanceBadge(distanceKm);
+  if (loc && dist) return `${loc} · ${dist}`;
+  if (loc) return loc;
+  return "Nenurodyta";
 }

@@ -65,6 +65,8 @@ export function normalizeListing(listing: LegacyListingInput): Listing {
   return {
     ...base,
     slug,
+    // Distances come only from live buyer GPS — never trust baked catalog km.
+    distanceKm: undefined,
     promoted: stripped.promoted,
     attributes: stripped.attributes as Listing["attributes"],
     visibilityExpiresAt: stripped.promoted ? visibilityExpiresAt : undefined,

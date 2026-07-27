@@ -8,7 +8,8 @@ export interface Listing {
   /** Display override e.g. "30€/val" */
   priceLabel?: string;
   location: string;
-  distanceKm: number;
+  /** Distance from buyer GPS — only set when both sides are known and local. */
+  distanceKm?: number;
   /** Geocoded from location text at publish time */
   latitude?: number;
   longitude?: number;

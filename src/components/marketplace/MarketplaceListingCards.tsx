@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Heart, MapPin } from "lucide-react";
-import { formatDistanceBadge, formatPrice, isAiDiscoverListing } from "@/data/mockListings";
+import { formatListingPlaceLine, formatPrice, isAiDiscoverListing } from "@/data/mockListings";
 import { ListingImage } from "@/components/listing/ListingImage";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { AiBadge } from "@/components/ui/AiBadge";
@@ -63,8 +63,7 @@ export function MarketplaceListRow({
         </p>
         <p className="listing-card-meta mt-1 flex items-center gap-1 text-xs text-[var(--vauto-subtle)]">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
-          {listing.location}
-          <span>· {formatDistanceBadge(listing.distanceKm)}</span>
+          {formatListingPlaceLine(listing.location, listing.distanceKm)}
         </p>
         <div className="mt-1">
           <SellerRatingBadge
@@ -151,7 +150,7 @@ export function MarketplaceGridCard({
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
           <p className="shrink-0 text-right text-xs text-[var(--vauto-subtle)]">
-            {listing.location}
+            {formatListingPlaceLine(listing.location, listing.distanceKm)}
           </p>
         </div>
       </Link>

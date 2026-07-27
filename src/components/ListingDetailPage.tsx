@@ -25,7 +25,7 @@ import { ShareListingPanel } from "@/components/social/ShareListingPanel";
 import { OwnerListingPromote } from "@/components/listing/OwnerListingPromote";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
 import { SimilarListingsSection } from "@/components/listing/SimilarListingsSection";
-import { formatDistanceBadge, formatPrice } from "@/data/mockListings";
+import { formatListingPlaceLine, formatPrice } from "@/data/mockListings";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoBridge } from "@/context/VautoBridge";
 import { useSellerFlow } from "@/context/SellerFlowContext";
@@ -316,7 +316,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--vauto-muted)]">
         <span className="inline-flex items-center gap-1">
           <MapPin className="h-4 w-4 shrink-0" />
-          {listing.location} · {formatDistanceBadge(listing.distanceKm)}
+          {formatListingPlaceLine(listing.location, listing.distanceKm)}
         </span>
         {listing.createdAt && (
           <span className="inline-flex items-center gap-1">
