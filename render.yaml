@@ -59,6 +59,8 @@ services:
         value: "6"
       - key: ADMIN_EMAIL
         value: admin@vauto.com
+      - key: ADMIN_NAMES
+        value: arnas
       - key: ADMIN_NOTIFY_EMAIL
         sync: false
       - key: RESEND_API_KEY

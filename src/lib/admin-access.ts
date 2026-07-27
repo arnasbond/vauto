@@ -11,14 +11,15 @@ export function isAdminEmail(email: string | null | undefined): boolean {
 }
 
 /**
- * True for the designated Control Center operator.
- * Canonical id OR (super_admin/admin + ADMIN_EMAIL) — so Google login works.
+ * True for Control Center operators.
+ * Prefer `role === "super_admin"` (elevated operator accounts keep their own id/name).
+ * Legacy: canonical admin-1 / ADMIN_EMAIL with admin roles.
  */
 export function isSuperAdminUser(user: AdminUserLike | null | undefined): boolean {
   if (!user?.id) return false;
-  const emailOk = isAdminEmail(user.email);
-  const roleOk = user.role === "super_admin" || user.role === "admin";
-  if (user.id === SUPER_ADMIN_ID && roleOk && emailOk) return true;
-  if (roleOk && emailOk) return true;
+  if (user.role === "super_admin") return true;
+  const roleOk = user.role === "admin" || user.role === "super_admin";
+  if (user.id === SUPER_ADMIN_ID && roleOk) return true;
+  if (roleOk && isAdminEmail(user.email)) return true;
   return false;
 }

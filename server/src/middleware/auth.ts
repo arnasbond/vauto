@@ -1,15 +1,15 @@
 import type { Request, Response, NextFunction } from "express";
 import { verifyAccessToken } from "../auth/tokens.js";
 import { getUser } from "../repository.js";
+import {
+  isAllowlistedAdminEmail,
+  shouldElevateToSuperAdmin,
+} from "../lib/admin-allowlist.js";
 
 export interface AuthedRequest extends Request {
   authUserId?: string;
   authRole?: string;
   authSource?: "bearer" | "legacy-header";
-}
-
-function adminEmail(): string {
-  return (process.env.ADMIN_EMAIL ?? "admin@vauto.com").toLowerCase();
 }
 
 function allowLegacyUserHeader(): boolean {
@@ -65,10 +65,21 @@ export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
   if (req.authRole === "super_admin") return true;
   const user = await getUser(req.authUserId);
   if (!user) return false;
-  const emailOk = user.email?.toLowerCase() === adminEmail();
-  const userRoleOk = user.role === "super_admin" || user.role === "admin";
-  if (user.id === "admin-1" && userRoleOk && emailOk) return true;
+  if (user.role === "super_admin") return true;
+  const emailOk = isAllowlistedAdminEmail(user.email);
+  const userRoleOk = user.role === "admin" || user.role === "super_admin";
+  if (user.id === "admin-1" && userRoleOk) return true;
   if (userRoleOk && emailOk) return true;
+  if (
+    shouldElevateToSuperAdmin({
+      email: user.email,
+      phone: user.phone,
+      name: user.name,
+      nickname: user.nickname,
+    })
+  ) {
+    return true;
+  }
   return false;
 }
 

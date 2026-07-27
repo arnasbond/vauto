@@ -31,6 +31,12 @@ import {
   isLaunchPromoActive,
   LAUNCH_PROMO_BADGE,
 } from "../shared/launch-promo.js";
+import {
+  isAllowlistedAdminEmail,
+  resolveAdminEmail,
+  shouldElevateToSuperAdmin,
+  shouldUseCanonicalAdminId,
+} from "../lib/admin-allowlist.js";
 
 export const authRouter = Router();
 
@@ -140,28 +146,14 @@ function resolveDisplayName(
   return cleaned || existing?.trim() || providerName(provider);
 }
 
-function resolveAdminEmail(): string {
-  return (process.env.ADMIN_EMAIL ?? "admin@vauto.com").toLowerCase();
-}
-
-function normalizePhoneDigits(phone?: string | null): string {
-  return (phone ?? "").replace(/\D/g, "");
-}
-
-function resolveAdminPhone(): string {
-  return normalizePhoneDigits(process.env.ADMIN_PHONE ?? "+37060000099");
-}
-
 function resolveRole(
   metaRole: string,
   email?: string | null,
-  phone?: string | null
+  phone?: string | null,
+  name?: string | null,
+  nickname?: string | null
 ): string {
-  if (email?.toLowerCase() === resolveAdminEmail()) return "super_admin";
-  if (
-    metaRole === "admin" &&
-    normalizePhoneDigits(phone) === resolveAdminPhone()
-  ) {
+  if (shouldElevateToSuperAdmin({ email, phone, name, nickname, metaRole })) {
     return "super_admin";
   }
   return metaRole;
@@ -172,14 +164,14 @@ const CANONICAL_ADMIN_NAME = "VAUTO Admin";
 const CANONICAL_ADMIN_AVATAR =
   "https://images.unsplash.com/photo-1560250097-0b93528c311a?w=100&h=100&fit=crop";
 
-/** Stable Control Center account — always admin-1 when elevated to super_admin. */
+/** Stable Control Center account — admin-1 only for primary ADMIN_EMAIL / admin phone. */
 function resolveSessionUserId(
   candidateId: string,
   metaRole: string,
   email?: string | null,
   phone?: string | null
 ): string {
-  if (resolveRole(metaRole, email, phone) === "super_admin") {
+  if (shouldUseCanonicalAdminId({ email, phone, metaRole })) {
     return CANONICAL_ADMIN_ID;
   }
   return candidateId;
@@ -190,9 +182,17 @@ function resolveLoginRole(
   metaRole: string,
   existing: ApiUser | null,
   email?: string | null,
-  phone?: string | null
+  phone?: string | null,
+  name?: string | null,
+  nickname?: string | null
 ): string {
-  const adminRole = resolveRole(metaRole, email, phone);
+  const adminRole = resolveRole(
+    metaRole,
+    email,
+    phone,
+    name ?? existing?.name,
+    nickname ?? existing?.nickname
+  );
   if (adminRole === "super_admin") return "super_admin";
   if (existing?.role === "pro" || existing?.role === "super_admin") {
     return existing.role;
@@ -220,7 +220,20 @@ async function buildSession(
   const existing = await getUser(userId);
   const email = profile.email ?? existing?.email;
   const phone = profile.phone ?? existing?.phone;
-  const role = resolveLoginRole(meta.role, existing, email, phone);
+  const displayNameHint =
+    profile.name?.trim() ||
+    [profile.firstName, profile.lastName].filter(Boolean).join(" ").trim() ||
+    existing?.name ||
+    null;
+  const nicknameHint = profile.nickname?.trim() || existing?.nickname || null;
+  const role = resolveLoginRole(
+    meta.role,
+    existing,
+    email,
+    phone,
+    displayNameHint,
+    nicknameHint
+  );
   const isCanonicalAdmin = role === "super_admin" && userId === CANONICAL_ADMIN_ID;
   const adminEmail = resolveAdminEmail();
   const firstName =
@@ -432,7 +445,7 @@ authRouter.post("/social", async (req, res) => {
       ? String(req.body.businessType)
       : undefined;
     const idToken = req.body?.idToken ? String(req.body.idToken) : undefined;
-    const adminEmail = process.env.ADMIN_EMAIL ?? "admin@vauto.com";
+    const adminEmail = resolveAdminEmail();
     const companyName = req.body?.companyName ? String(req.body.companyName) : undefined;
     const companyCode = req.body?.companyCode ? String(req.body.companyCode) : undefined;
     const vatCode = req.body?.vatCode ? String(req.body.vatCode) : undefined;
@@ -458,7 +471,7 @@ authRouter.post("/social", async (req, res) => {
       }
       if (
         role === "admin" &&
-        google.email?.toLowerCase() !== adminEmail.toLowerCase()
+        !isAllowlistedAdminEmail(google.email)
       ) {
         res.status(403).json({ error: "Admin access denied" });
         return;
@@ -654,9 +667,24 @@ authRouter.get("/session", requireAuth, async (req: AuthedRequest, res) => {
       res.status(404).json({ error: "User not found" });
       return;
     }
+    let role = req.authRole ?? user.role ?? "private";
+    if (
+      shouldElevateToSuperAdmin({
+        email: user.email,
+        phone: user.phone,
+        name: user.name,
+        nickname: user.nickname,
+      })
+    ) {
+      role = "super_admin";
+      if (user.role !== "super_admin") {
+        await upsertUser({ ...user, role: "super_admin" });
+        user.role = "super_admin";
+      }
+    }
     res.json({
       user,
-      role: req.authRole ?? "private",
+      role,
       userId: req.authUserId,
     });
   } catch (e) {
@@ -672,7 +700,20 @@ authRouter.post("/refresh", requireAuth, async (req: AuthedRequest, res) => {
       res.status(404).json({ error: "User not found" });
       return;
     }
-    const role = req.authRole ?? user.role ?? "private";
+    let role = req.authRole ?? user.role ?? "private";
+    if (
+      shouldElevateToSuperAdmin({
+        email: user.email,
+        phone: user.phone,
+        name: user.name,
+        nickname: user.nickname,
+      })
+    ) {
+      role = "super_admin";
+      if (user.role !== "super_admin") {
+        await upsertUser({ ...user, role: "super_admin" });
+      }
+    }
     const token = signAccessToken({
       sub: userId,
       role,

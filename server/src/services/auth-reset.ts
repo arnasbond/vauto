@@ -59,7 +59,7 @@ export async function getAuthHygieneSnapshot(): Promise<{
   );
   const staleRoles = await pool.query<{ count: string }>(
     `SELECT count(*)::text AS count FROM users
-     WHERE role IN ('admin', 'super_admin')
+     WHERE role = 'admin'
        AND id NOT IN ('admin-1')`
   );
   const authCount = await pool.query<{ count: string }>(
