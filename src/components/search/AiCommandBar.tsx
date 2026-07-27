@@ -58,7 +58,7 @@ import {
   listingFlowComposerTextLocked,
 } from "@/lib/listing-conversational-flow";
 
-const GEMINI_BLUE = "#1167b1";
+const GEMINI_BLUE = "var(--vauto-primary)";
 
 export type AiCommandBarPlacement = "hero" | "top" | "inline" | "wizard" | "chat";
 
@@ -847,7 +847,7 @@ export function AiCommandBar({
             isChatBar
               ? "h-10 min-w-[2.75rem] bg-[var(--vauto-primary)] px-3 text-[var(--vauto-primary-contrast)]"
               : isTopBar
-              ? "h-10 w-10 bg-orange-600 hover:bg-orange-700"
+              ? "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)] hover:opacity-90"
               : "h-10 w-10 bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
           )}
           aria-label={isChatBar ? "Siųsti" : "Ieškoti"}

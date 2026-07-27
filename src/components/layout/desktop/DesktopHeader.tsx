@@ -5,6 +5,7 @@ import { useCallback } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { Home, Plus } from "lucide-react";
 import { UserProfileDropdown } from "@/components/layout/UserProfileDropdown";
+import { BrandLogo } from "@/components/ui/BrandLogo";
 import { useVauto } from "@/context/VautoContext";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { cn } from "@/lib/cn";
@@ -33,15 +34,18 @@ export function DesktopHeader() {
   }, [openAiSellerListingChat, requireAuthForListing]);
 
   return (
-    <header className="desktop-header sticky top-0 z-40 border-b border-[var(--anonser-border)] bg-[var(--anonser-header-bg)]/95 shadow-[0_1px_0_rgba(15,23,42,0.05)] backdrop-blur-xl">
+    <header
+      data-desktop-header
+      className="desktop-header sticky top-0 z-40 border-b border-[var(--anonser-border)] bg-[var(--anonser-header-bg)]/95 shadow-[0_1px_0_rgba(15,23,42,0.05)] backdrop-blur-xl"
+    >
       <div className="mx-auto flex h-16 max-w-[var(--anonser-desktop-max)] items-center gap-6 px-6">
         <Link
           href="/"
           onClick={handleHomeNav}
-          className="shrink-0 font-display text-xl font-bold tracking-tight text-[var(--anonser-text)] transition hover:text-[var(--anonser-primary)]"
+          className="shrink-0 transition hover:opacity-90"
           aria-label="VAUTO pradžia"
         >
-          VAUTO
+          <BrandLogo className="text-[1.25rem]" />
         </Link>
 
         <nav className="flex flex-1 justify-center" aria-label="Pagrindinė navigacija">

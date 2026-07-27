@@ -14,6 +14,7 @@ import {
   X,
 } from "lucide-react";
 import { cn } from "@/lib/cn";
+import { AiBadge } from "@/components/ui/AiBadge";
 import {
   ListingGalleryFileInput,
   readGalleryFilesAsDataUrls,
@@ -283,13 +284,16 @@ export function PrePublishModal({
       aria-label="Skelbimo peržiūra prieš publikavimą"
       data-prepublish-modal="1"
     >
-      <div className="pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-2xl sm:my-3 sm:h-[min(96dvh,920px)] sm:rounded-2xl sm:border sm:border-[var(--vauto-primary)]/20">
-        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--vauto-border)]/60 px-4 py-3">
+      <div className="pre-publish-modal-panel mx-auto flex h-full w-full max-w-lg flex-col bg-[var(--vauto-card-bg)] shadow-[0_8px_40px_rgba(11,18,32,0.18)] sm:my-3 sm:h-[min(96dvh,920px)] sm:max-w-2xl sm:rounded-2xl sm:border sm:border-[var(--vauto-border-subtle)]">
+        <header className="flex shrink-0 items-center justify-between gap-3 border-b border-[var(--vauto-border-subtle)] px-4 py-3">
           <div className="min-w-0">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-[var(--vauto-primary)]">
-              PrePublish
-            </p>
-            <h2 className="truncate text-base font-bold text-[var(--vauto-text)]">
+            <div className="mb-1 flex flex-wrap items-center gap-2">
+              <AiBadge>AI paruošė juodraštį</AiBadge>
+              <span className="text-[11px] text-[var(--vauto-subtle)]">
+                Patikrinkite prieš skelbdami
+              </span>
+            </div>
+            <h2 className="truncate font-[family-name:var(--font-outfit)] text-base font-bold text-[var(--vauto-ink)]">
               Peržiūra ir redagavimas
             </h2>
           </div>
@@ -630,7 +634,7 @@ export function PrePublishModal({
 
         <footer className="pre-publish-ai-bar shrink-0 border-t border-[var(--vauto-primary)]/15 bg-[var(--vauto-card-bg)] px-4 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-3">
           <div className="mb-2.5 flex items-start gap-2">
-            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--vauto-primary)]/12 text-[var(--vauto-primary)]">
+            <span className="mt-0.5 flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-[var(--vauto-ai-soft)] text-[var(--vauto-ai)]">
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
             </span>
             <p className="text-[13px] leading-snug text-[var(--vauto-text)]">

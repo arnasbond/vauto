@@ -16,6 +16,7 @@ import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
 import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
 import { VisibilityPricingCard } from "@/components/dashboard/VisibilityPricingCard";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
+import { CabinetStatRow } from "@/components/ui/CabinetStatRow";
 import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
 import { apiFetchHealthDetails } from "@/lib/api/client";
@@ -78,6 +79,10 @@ export function ProBusinessDashboard({
   const showCalendar =
     user.businessType === "services" ||
     listings.some((l) => l.category === "services");
+  const activeListingCount = listings.filter((l) => l.status !== "sold").length;
+  const walletLabel = `${(user.walletBalance ?? 0).toLocaleString("lt-LT", {
+    maximumFractionDigits: 0,
+  })} €`;
 
   const [tab, setTab] = useState<DashboardTab>("overview");
   const [promoteTargetId, setPromoteTargetId] = useState<string | null>(null);
@@ -111,16 +116,25 @@ export function ProBusinessDashboard({
             key={item.id}
             type="button"
             onClick={() => setTab(item.id)}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold ${
+            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
               tab === item.id
-                ? "bg-[var(--vauto-teal)] text-white"
-                : "bg-[var(--vauto-bg)] text-[var(--vauto-text-muted)]"
+                ? "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
+                : "bg-[var(--vauto-surface-page)] text-[var(--vauto-muted)] hover:text-[var(--vauto-ink)]"
             }`}
           >
             {item.label}
           </button>
         ))}
       </div>
+
+      <CabinetStatRow
+        className="mb-4"
+        stats={[
+          { label: "Aktyvūs skelbimai", value: String(activeListingCount) },
+          { label: "Pirkėjų signalai", value: String(buyerIntentCount) },
+          { label: "Balansas", value: walletLabel },
+        ]}
+      />
 
       {tab === "overview" && (
         <>

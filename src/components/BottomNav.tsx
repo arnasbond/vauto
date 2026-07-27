@@ -208,14 +208,14 @@ export function BottomNav() {
           onClick={handlePlaceAd}
           disabled={placeAdBusy}
           className="relative -mt-7 flex min-w-[72px] shrink-0 flex-col items-center gap-0.5 text-[10px] font-bold disabled:opacity-50"
-          style={{ color: "var(--vauto-accent)" }}
+          style={{ color: "var(--vauto-primary)" }}
           aria-label="Įdėti naują skelbimą"
         >
           <span
             className="flex h-14 w-14 items-center justify-center rounded-full border-[4px] border-[var(--vauto-card-bg)] text-[var(--vauto-primary-contrast,#fff)] shadow-lg"
             style={{
-              backgroundColor: "var(--vauto-accent)",
-              boxShadow: "0 10px 28px color-mix(in srgb, var(--vauto-accent) 35%, transparent)",
+              backgroundColor: "var(--vauto-primary)",
+              boxShadow: "0 10px 28px color-mix(in srgb, var(--vauto-primary) 35%, transparent)",
             }}
           >
             <Plus className="h-7 w-7" strokeWidth={2.5} />

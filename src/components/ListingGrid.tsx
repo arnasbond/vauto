@@ -108,7 +108,7 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
               <MarketplaceListRow
                 key={listing.id}
                 listing={listing}
-                priceColor={ui.price}
+                priceColor="var(--vauto-ink)"
               />
             ))}
           </div>
@@ -118,12 +118,12 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
     }
     return (
       <>
-        <div className="mt-3 grid grid-cols-2 gap-3 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <div className="mt-3 grid grid-cols-2 gap-3 sm:gap-4 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-4">
           {visible.map((listing) => (
             <MarketplaceGridCard
               key={listing.id}
               listing={listing}
-              priceColor={ui.price}
+              priceColor="var(--vauto-ink)"
             />
           ))}
         </div>
@@ -191,8 +191,10 @@ export function ListingGrid({ hideEmptyAssistant = false }: { hideEmptyAssistant
         <>
           {searchQuery.trim().length < 3 && (
             <div className="mb-4 flex items-center gap-2.5">
-              <h3 className="vauto-layout-heading text-lg text-gray-900">Naujausi skelbimai</h3>
-              <span className="rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-medium text-gray-700">
+              <h3 className="vauto-layout-heading font-[family-name:var(--font-outfit)] text-lg font-bold text-[var(--vauto-ink)]">
+                Naujausi skelbimai
+              </h3>
+              <span className="rounded-full bg-[var(--vauto-surface-page)] px-2.5 py-0.5 text-xs font-medium text-[var(--vauto-body)]">
                 {displayListings.length} skelbimų
               </span>
             </div>

@@ -270,9 +270,9 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   };
 
   const callButtonClass =
-    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[#ea580c] px-4 text-sm font-bold text-white shadow-md shadow-orange-500/20 transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-70";
+    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 text-sm font-bold text-[var(--vauto-primary-contrast)] shadow-md shadow-[rgba(27,77,255,0.2)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70";
   const messageButtonClass =
-    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-[#1e40af] text-white shadow-md transition hover:bg-[#1e3a8a] disabled:cursor-not-allowed disabled:opacity-70 md:h-auto md:min-h-11 md:w-full md:gap-2 md:px-4 md:text-sm md:font-bold";
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--vauto-border-input)] bg-white text-[var(--vauto-ink)] shadow-sm transition hover:bg-[var(--vauto-surface-page)] disabled:cursor-not-allowed disabled:opacity-70 md:h-auto md:min-h-11 md:w-full md:gap-2 md:px-4 md:text-sm md:font-bold";
 
   const vatCode = String(
     listing.attributes?.vatCode ?? listing.attributes?.vat_code ?? ""
@@ -282,19 +282,19 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const titlePriceBlock = (
     <div>
       {categoryLabel ? (
-        <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-slate-700">
+        <span className="rounded-full bg-[var(--vauto-surface-page)] px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[var(--vauto-body)]">
           {categoryLabel}
         </span>
       ) : null}
-      <h1 className="mt-2 text-xl font-bold leading-snug text-slate-900">
+      <h1 className="mt-2 font-[family-name:var(--font-outfit)] text-xl font-bold leading-snug text-[var(--vauto-ink)]">
         {listing.title}
       </h1>
-      <p className="vauto-flux-price mt-1 text-2xl font-black text-slate-900">
+      <p className="mt-1 text-2xl font-extrabold tracking-tight text-[var(--vauto-ink)]">
         {formatPrice(listing.price, listing.priceLabel)}
       </p>
       {vatBreakdown.hasVat ? (
         <p
-          className="mt-1 text-xs font-medium text-slate-500"
+          className="mt-1 text-xs font-medium text-[var(--vauto-subtle)]"
           data-vat-line="1"
         >
           {vatBreakdown.labelGross} · {vatBreakdown.labelNet}
@@ -309,11 +309,11 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       <SellerRatingBadge sellerId={listing.sellerId} reviews={reviews} />
       <Link
         href={sellerPath(listing.sellerId)}
-        className="inline-flex text-sm font-medium text-[var(--vauto-teal)] hover:underline"
+        className="inline-flex text-sm font-medium text-[var(--vauto-primary)] hover:underline"
       >
         {sellerDisplayName(listing.sellerId, { listing, user })} →
       </Link>
-      <div className="flex flex-wrap items-center gap-3 text-sm text-slate-500">
+      <div className="flex flex-wrap items-center gap-3 text-sm text-[var(--vauto-muted)]">
         <span className="inline-flex items-center gap-1">
           <MapPin className="h-4 w-4 shrink-0" />
           {listing.location} · {formatDistanceBadge(listing.distanceKm)}
@@ -356,7 +356,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             )}
             <span className="hidden md:inline">Rašyti žinutę</span>
           </button>
-          <p className="text-center text-[11px] font-medium text-slate-500">
+          <p className="text-center text-[11px] font-medium text-[var(--vauto-subtle)]">
             Peržiūra — taip pirkėjai matys kontaktų mygtukus
           </p>
         </>
@@ -404,7 +404,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       <nav className="mb-3 md:hidden" aria-label="Navigacija">
         <Link
           href="/"
-          className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 transition hover:text-slate-900"
+          className="inline-flex items-center gap-1.5 text-sm font-semibold text-[var(--vauto-muted)] transition hover:text-[var(--vauto-ink)]"
         >
           <ArrowLeft className="h-4 w-4" aria-hidden />
           Skelbimai
@@ -448,24 +448,24 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             <div className="mt-4 lg:hidden">{titlePriceBlock}</div>
 
             {(aboutDescription || detailRows.length > 0) && (
-              <section className="vauto-glass-card mt-6 rounded-2xl p-4">
-                <h2 className="text-sm font-semibold text-slate-900">Apie skelbimą</h2>
+              <section className="mt-6 rounded-2xl border border-[var(--vauto-border-subtle)] bg-white p-4 sm:p-5">
+                <h2 className="text-sm font-semibold text-[var(--vauto-ink)]">Apie skelbimą</h2>
                 {aboutDescription ? (
                   <ListingSalesDescription text={aboutDescription} />
                 ) : null}
                 {detailRows.length > 0 && (
                   <dl
                     className={`mt-3 grid gap-2 ${
-                      aboutDescription ? "border-t border-slate-100 pt-3" : ""
+                      aboutDescription ? "border-t border-[var(--vauto-border-subtle)] pt-3" : ""
                     }`}
                   >
                     {detailRows.map((row) => (
                       <div
                         key={row.label}
-                        className="flex justify-between gap-4 text-sm"
+                        className="flex justify-between gap-4 rounded-xl border border-[var(--vauto-border-subtle)] bg-[var(--vauto-surface-page)] px-3 py-2.5 text-sm"
                       >
-                        <dt className="text-slate-500">{row.label}</dt>
-                        <dd className="text-right font-medium text-slate-900">
+                        <dt className="text-[var(--vauto-subtle)]">{row.label}</dt>
+                        <dd className="text-right font-semibold text-[var(--vauto-ink)]">
                           {row.value}
                         </dd>
                       </div>
@@ -497,7 +497,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
 
           {/* Right: price, seller, desktop CTAs */}
           <aside className="mt-5 min-w-0 lg:col-span-5 lg:mt-0">
-            <div className="lg:sticky lg:top-20 lg:rounded-2xl lg:border lg:border-slate-200 lg:bg-white lg:p-5 lg:shadow-sm">
+            <div className="lg:sticky lg:top-20 lg:rounded-2xl lg:border lg:border-[var(--vauto-border-subtle)] lg:bg-white lg:p-5 lg:shadow-[0_8px_30px_rgba(11,18,32,0.06)]">
               <div className="hidden lg:block">{titlePriceBlock}</div>
               {desktopCtas}
               <div className="mt-4">{metaBlock}</div>
@@ -506,24 +506,24 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         </div>
 
         {isOwner && listing.status !== "sold" && (
-          <section className="mt-6 space-y-3 rounded-2xl border border-slate-200 bg-slate-50/80 p-4">
-            <h2 className="text-sm font-bold tracking-wide text-slate-900">
+          <section className="mt-6 space-y-3 rounded-2xl border border-[var(--vauto-border-subtle)] bg-[var(--vauto-surface-page)] p-4">
+            <h2 className="text-sm font-bold tracking-wide text-[var(--vauto-ink)]">
               Savininko Valdymas
             </h2>
-            <p className="text-xs text-slate-500">
+            <p className="text-xs text-[var(--vauto-muted)]">
               Šie mygtukai matomi tik jums — pirkėjai jų nemato.
             </p>
             <button
               type="button"
               onClick={handleEdit}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[#1e40af] py-3 text-sm font-bold text-white shadow-md transition hover:bg-[#1e3a8a]"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3 text-sm font-bold text-[var(--vauto-primary-contrast)] shadow-md transition hover:opacity-90"
             >
               <Pencil className="h-4 w-4" />
               Redaguoti
             </button>
             <OwnerListingPromote listing={listing} />
-            <div className="rounded-2xl border border-slate-200 bg-white p-4">
-              <h3 className="mb-2 text-sm font-semibold text-slate-900">
+            <div className="rounded-2xl border border-[var(--vauto-border-subtle)] bg-white p-4">
+              <h3 className="mb-2 text-sm font-semibold text-[var(--vauto-ink)]">
                 Papildoma reklama socialiniuose tinkluose
               </h3>
               <ShareListingPanel listing={listing} compact />
@@ -555,7 +555,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
       </div>
 
       {/* Sticky mobile contact bar — skelbiu.lt-style */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex gap-2 border-t border-slate-200 bg-white/95 p-3 shadow-lg backdrop-blur-md md:hidden">
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex gap-2 border-t border-[var(--vauto-border-subtle)] bg-white/95 p-3 shadow-lg backdrop-blur-md md:hidden">
         {isOwner ? (
           <>
             <button

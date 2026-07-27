@@ -72,7 +72,7 @@ export function ListingImageGallery({
 
   return (
     <div className={cn("w-full", className)}>
-      <div className="relative overflow-hidden rounded-2xl bg-slate-900/5">
+      <div className="relative overflow-hidden rounded-2xl border border-[var(--vauto-border-subtle)] bg-[var(--vauto-surface-tint)]">
         <button
           type="button"
           onClick={() => setZoomOpen(true)}
@@ -140,7 +140,7 @@ export function ListingImageGallery({
               className={cn(
                 "relative h-16 w-20 shrink-0 overflow-hidden rounded-xl border-2 transition",
                 index === activeIndex
-                  ? "border-[var(--vauto-primary,#1e40af)] ring-2 ring-[var(--vauto-primary,#1e40af)]/25"
+                  ? "border-[var(--vauto-primary)] ring-2 ring-[var(--vauto-primary)]/25"
                   : "border-transparent opacity-80 hover:opacity-100"
               )}
             >

@@ -5,29 +5,29 @@
    Premium, restrained palette. Map components to semantic tokens first.
    ═══════════════════════════════════════════════════════════════════════════ */
 :root {
-  /* ── Semantic (shadcn-compatible) ── */
-  --background: #f6f7f9;
-  --foreground: #0c0e12;
+  /* ── Semantic (shadcn-compatible) — Brand Blue redesign 2026 ── */
+  --background: #f7f8fb;
+  --foreground: #0b1220;
   --card: #ffffff;
   --popover: #ffffff;
-  --muted-foreground: #4b5563;
-  --border: rgba(12, 14, 18, 0.1);
-  --accent: #eef2ff;
-  --accent-foreground: #0c0e12;
-  --primary: #0891b2;
+  --muted-foreground: #5b6578;
+  --border: rgba(11, 18, 32, 0.1);
+  --accent: #e8edff;
+  --accent-foreground: #0b1220;
+  --primary: #1b4dff;
   --primary-foreground: #ffffff;
-  --ring: #00d4ff;
+  --ring: #1b4dff;
   --radius: 0.75rem;
 
-  /* ── Legacy Flux mesh (neon cyan family) ── */
+  /* ── Legacy Flux mesh (aligned toward brand blue; cyan kept as soft glow) ── */
   --flux-bg: var(--background);
-  --flux-teal: #06b6d4;
-  --flux-cyan: #00d4ff;
-  --flux-indigo: #0284c7;
+  --flux-teal: #1b4dff;
+  --flux-cyan: #4d7cff;
+  --flux-indigo: #1539cc;
   --flux-coral: #c2410c;
-  --flux-coral-light: #ea580c;
-  --flux-price-start: #00d4ff;
-  --flux-price-end: #0369a1;
+  --flux-coral-light: #ff7a1a;
+  --flux-price-start: #1b4dff;
+  --flux-price-end: #1539cc;
 
   /* ── Canonical VAUTO tokens (alias semantic) ── */
   --vauto-bg: var(--background);
@@ -37,10 +37,10 @@
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #00d4ff;
-  --vauto-neon: #00d4ff;
-  --vauto-neon-soft: rgba(0, 212, 255, 0.14);
-  --vauto-navy: #0a0f18;
+  --vauto-accent: #4d7cff;
+  --vauto-neon: #4d7cff;
+  --vauto-neon-soft: rgba(27, 77, 255, 0.14);
+  --vauto-navy: #0b1220;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
   --vauto-leading: 1.55;
@@ -51,21 +51,35 @@
   --vauto-surface: var(--vauto-card-bg);
   --vauto-teal: var(--vauto-primary);
   --vauto-blue: var(--vauto-primary);
-  --vauto-orange: #ea580c;
-  --vauto-orange-light: var(--flux-coral-light);
+  /* AI accent only — never use for prices/body text */
+  --vauto-orange: #ff7a1a;
+  --vauto-orange-light: #fff4eb;
   --vauto-premium-bg: #f8fafc;
   --vauto-premium-border: rgba(15, 23, 42, 0.06);
   --vauto-red: #dc2626;
 
-  /* anonser.lt desktop portal (md+, >=768px) */
+  /* ── Redesign kit tokens (src/components/ui) ── */
+  --vauto-ink: #0b1220;
+  --vauto-ai: #ff7a1a;
+  --vauto-ai-soft: #fff4eb;
+  --vauto-primary-soft: rgba(27, 77, 255, 0.1);
+  --vauto-border-subtle: #e6e9f0;
+  --vauto-border-input: #d8deea;
+  --vauto-surface-page: #f7f8fb;
+  --vauto-surface-tint: #eef1f7;
+  --vauto-muted: #5b6578;
+  --vauto-subtle: #8b93a7;
+  --vauto-body: #3a4558;
+
+  /* anonser.lt desktop portal (md+, >=768px) — same brand blue */
   --anonser-bg: #eef1f6;
   --anonser-card: #ffffff;
-  --anonser-text: #0f172a;
-  --anonser-text-muted: #4b5563;
-  --anonser-primary: #1e40af;
-  --anonser-primary-soft: #dbeafe;
-  --anonser-accent: #0d9488;
-  --anonser-border: rgba(15, 23, 42, 0.1);
+  --anonser-text: #0b1220;
+  --anonser-text-muted: #5b6578;
+  --anonser-primary: #1b4dff;
+  --anonser-primary-soft: #e8edff;
+  --anonser-accent: #ff7a1a;
+  --anonser-border: rgba(11, 18, 32, 0.1);
   --anonser-surface-muted: #e2e8f0;
   --anonser-header-bg: #ffffff;
   --anonser-header-utility-height: 0rem;
@@ -355,14 +369,24 @@ body {
   background: var(--accent);
 }
 
-/* Ambient mesh — Flux signature background */
+/* Ambient mesh — Flux signature background (brand blue) */
 .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 255, 0.12), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(2, 132, 199, 0.08), transparent 50%),
-    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(0, 212, 255, 0.06), transparent 55%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(27, 77, 255, 0.12), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(21, 57, 204, 0.08), transparent 50%),
+    radial-gradient(ellipse 60% 40% at 50% 100%, rgba(27, 77, 255, 0.06), transparent 55%),
     var(--flux-bg);
 }
+
+/* Redesign UI kit helpers — prefer these over hardcoded hex in new surfaces */
+.text-vauto-ink { color: var(--vauto-ink); }
+.text-vauto-muted { color: var(--vauto-muted); }
+.text-vauto-subtle { color: var(--vauto-subtle); }
+.text-vauto-body { color: var(--vauto-body); }
+.bg-vauto-page { background-color: var(--vauto-surface-page); }
+.bg-vauto-primary-soft { background-color: var(--vauto-primary-soft); }
+.border-vauto-subtle { border-color: var(--vauto-border-subtle); }
+.border-vauto-input { border-color: var(--vauto-border-input); }
 
 .vauto-hero {
   background: transparent;
@@ -1710,33 +1734,37 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 /* ── Global app themes (Profilis → Programėlės tema) ── */
 [data-app-theme="vauto-original"] {
-  --background: #f4f7fb;
-  --foreground: #0a0f18;
+  --background: #f7f8fb;
+  --foreground: #0b1220;
   --card: #ffffff;
   --popover: #ffffff;
-  --muted-foreground: #4b5563;
-  --border: rgba(10, 15, 24, 0.1);
-  --accent: #e0f7ff;
-  --accent-foreground: #0a0f18;
-  --primary: #0891b2;
+  --muted-foreground: #5b6578;
+  --border: rgba(11, 18, 32, 0.1);
+  --accent: #e8edff;
+  --accent-foreground: #0b1220;
+  --primary: #1b4dff;
   --primary-foreground: #ffffff;
-  --ring: #00d4ff;
+  --ring: #1b4dff;
   --flux-bg: var(--background);
-  --flux-teal: #06b6d4;
-  --flux-cyan: #00d4ff;
-  --flux-indigo: #0284c7;
+  --flux-teal: #1b4dff;
+  --flux-cyan: #4d7cff;
+  --flux-indigo: #1539cc;
   --flux-coral: #c2410c;
   --vauto-bg: var(--background);
   --vauto-card-bg: var(--card);
-  --vauto-surface-muted: #eef4f8;
+  --vauto-surface-muted: #f1f3f6;
   --vauto-text-main: var(--foreground);
   --vauto-text-heading: var(--foreground);
   --vauto-text-muted: var(--muted-foreground);
   --vauto-primary: var(--primary);
-  --vauto-accent: #00d4ff;
-  --vauto-neon: #00d4ff;
-  --vauto-neon-soft: rgba(0, 212, 255, 0.12);
-  --vauto-navy: #0a0f18;
+  --vauto-accent: #4d7cff;
+  --vauto-neon: #4d7cff;
+  --vauto-neon-soft: rgba(27, 77, 255, 0.12);
+  --vauto-navy: #0b1220;
+  --vauto-ink: #0b1220;
+  --vauto-ai: #ff7a1a;
+  --vauto-ai-soft: #fff4eb;
+  --vauto-orange: #ff7a1a;
   --vauto-primary-contrast: var(--primary-foreground);
   --vauto-border: var(--border);
 }
@@ -1749,14 +1777,14 @@ body.chameleon-autoplius .chameleon-wizard-shell button[type="button"].border-\[
 
 [data-app-theme="vauto-original"] .vauto-flux-bg {
   background:
-    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(0, 212, 255, 0.1), transparent 55%),
-    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(2, 132, 199, 0.07), transparent 50%),
+    radial-gradient(ellipse 80% 60% at 20% 10%, rgba(27, 77, 255, 0.1), transparent 55%),
+    radial-gradient(ellipse 70% 50% at 85% 20%, rgba(21, 57, 204, 0.07), transparent 50%),
     var(--background);
 }
 
 [data-app-theme="vauto-original"] .vauto-flux-fab {
-  background: linear-gradient(135deg, #06b6d4, #00d4ff);
-  box-shadow: 0 12px 32px -8px rgba(0, 212, 255, 0.38);
+  background: linear-gradient(135deg, #1b4dff, #4d7cff);
+  box-shadow: 0 12px 32px -8px rgba(27, 77, 255, 0.38);
   border-color: var(--card);
 }
 

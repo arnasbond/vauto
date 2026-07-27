@@ -5,6 +5,7 @@ import { Heart, MapPin } from "lucide-react";
 import { formatDistanceBadge, formatPrice, isAiDiscoverListing } from "@/data/mockListings";
 import { ListingImage } from "@/components/listing/ListingImage";
 import { SellerRatingBadge } from "@/components/listing/SellerRatingBadge";
+import { AiBadge } from "@/components/ui/AiBadge";
 import { listingPath } from "@/lib/seo";
 import { useVauto } from "@/context/VautoContext";
 import type { Listing } from "@/lib/types";
@@ -18,6 +19,8 @@ function formatDate(iso: string): string {
   }
 }
 
+const INK = "var(--vauto-ink)";
+
 export function MarketplaceListRow({
   listing,
   priceColor,
@@ -28,12 +31,16 @@ export function MarketplaceListRow({
   const { savedIds, toggleSave, reviews } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
+  const resolvedPrice = priceColor || INK;
 
   return (
     <article
-      className={`listing-card-row flex gap-3 border-b py-3 last:border-0 ${feedTierCardClass(listing)} px-2 -mx-2 rounded-xl`}
+      className={`listing-card-row -mx-2 flex gap-3 rounded-xl border-b border-[var(--vauto-border-subtle)] px-2 py-3 last:border-0 ${feedTierCardClass(listing)}`}
     >
-      <Link href={href} className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl bg-[#e5e7eb]">
+      <Link
+        href={href}
+        className="relative h-24 w-28 shrink-0 overflow-hidden rounded-xl bg-[var(--vauto-surface-tint)]"
+      >
         <ListingImage
           listing={listing}
           alt={listing.title}
@@ -47,14 +54,14 @@ export function MarketplaceListRow({
       </Link>
       <div className="min-w-0 flex-1">
         <Link href={href}>
-          <h3 className="listing-card-title line-clamp-2 text-sm font-semibold hover:text-[var(--vauto-primary)]">
+          <h3 className="listing-card-title line-clamp-2 text-sm font-semibold text-[var(--vauto-ink)] hover:text-[var(--vauto-primary)]">
             {listing.title}
           </h3>
         </Link>
-        <p className="mt-1 text-lg font-extrabold" style={{ color: priceColor }}>
+        <p className="mt-1 text-lg font-extrabold" style={{ color: resolvedPrice }}>
           {formatPrice(listing.price, listing.priceLabel)}
         </p>
-        <p className="listing-card-meta mt-1 flex items-center gap-1 text-xs">
+        <p className="listing-card-meta mt-1 flex items-center gap-1 text-xs text-[var(--vauto-subtle)]">
           <MapPin className="h-3.5 w-3.5 shrink-0" />
           {listing.location}
           <span>· {formatDistanceBadge(listing.distanceKm)}</span>
@@ -67,7 +74,9 @@ export function MarketplaceListRow({
             showVerified={false}
           />
         </div>
-        <p className="listing-card-meta mt-0.5 text-[11px]">{formatDate(listing.createdAt)}</p>
+        <p className="listing-card-meta mt-0.5 text-[11px] text-[var(--vauto-subtle)]">
+          {formatDate(listing.createdAt)}
+        </p>
       </div>
       <button
         type="button"
@@ -76,7 +85,7 @@ export function MarketplaceListRow({
         aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
       >
         <Heart
-          className={`h-5 w-5 ${isSaved ? "fill-[#ef4444] text-[#ef4444]" : "text-[#94a3b8]"}`}
+          className={`h-5 w-5 ${isSaved ? "fill-[#ef4444] text-[#ef4444]" : "text-[var(--vauto-subtle)]"}`}
         />
       </button>
     </article>
@@ -85,6 +94,7 @@ export function MarketplaceListRow({
 
 export function MarketplaceGridCard({
   listing,
+  priceColor,
 }: {
   listing: Listing;
   priceColor?: string;
@@ -92,43 +102,40 @@ export function MarketplaceGridCard({
   const { savedIds, toggleSave, reviews } = useVauto();
   const isSaved = savedIds.has(listing.id);
   const href = listingPath(listing);
+  const resolvedPrice = priceColor || INK;
 
   return (
     <article
-      className={`listing-card group overflow-hidden rounded-2xl bg-white shadow-sm transition hover:shadow-md ${feedTierCardClass(listing)}`}
+      className={`listing-card group overflow-hidden rounded-2xl border border-[var(--vauto-border-subtle)] bg-white transition hover:border-[#C9D2E5] ${feedTierCardClass(listing)}`}
     >
-      <div className="relative aspect-[4/3] overflow-hidden rounded-2xl bg-slate-100">
+      <div className="relative aspect-[4/3] overflow-hidden bg-[var(--vauto-surface-tint)]">
         <Link href={href} className="block h-full w-full">
           <ListingImage
             listing={listing}
             alt={listing.title}
             fill
             sizes="(max-width: 512px) 50vw, 33vw"
-            className="object-cover transition duration-300 group-hover:scale-[1.02]"
+            className="object-cover transition duration-300 group-hover:scale-[1.03]"
           />
         </Link>
-        <div className="absolute left-2 top-2">
+        <div className="absolute left-2.5 top-2.5 z-[1] flex flex-col gap-1.5">
           <FeedTierBadge listing={listing} />
+          {isAiDiscoverListing(listing) ? <AiBadge>AI atranda</AiBadge> : null}
         </div>
-        {isAiDiscoverListing(listing) && (
-          <span className="absolute bottom-2 left-2 rounded-full bg-gradient-to-r from-amber-100 to-orange-100 px-2.5 py-1 text-[10px] font-bold text-orange-700 shadow-sm">
-            ✨ AI ATRANDA
-          </span>
-        )}
         <button
           type="button"
           onClick={() => toggleSave(listing.id)}
-          className="absolute right-2 top-2 rounded-full bg-white/95 p-1.5 shadow-sm backdrop-blur-sm"
+          className="absolute right-2 top-2 z-[1] rounded-full bg-white/95 p-1.5 shadow-sm backdrop-blur-sm"
           aria-label={isSaved ? "Pašalinti iš mėgstamų" : "Išsaugoti"}
         >
           <Heart
             size={16}
-            className={isSaved ? "fill-[#ef4444] text-[#ef4444]" : "text-slate-600"}
+            className={isSaved ? "fill-[#ef4444] text-[#ef4444]" : "text-[var(--vauto-body)]"}
           />
         </button>
       </div>
-      <Link href={href} className="block p-3">
-        <h3 className="listing-card-title line-clamp-2 min-h-[2.5rem] text-sm font-semibold text-slate-900">
+      <Link href={href} className="block p-3.5">
+        <h3 className="listing-card-title line-clamp-2 min-h-[2.5rem] text-sm font-semibold leading-snug text-[var(--vauto-ink)]">
           {listing.title}
         </h3>
         <div className="mt-1.5">
@@ -139,11 +146,11 @@ export function MarketplaceGridCard({
             showVerified={false}
           />
         </div>
-        <div className="mt-2 flex items-end justify-between gap-2">
-          <p className="text-base font-bold text-orange-600">
+        <div className="mt-2 flex items-baseline justify-between gap-2">
+          <p className="text-base font-bold" style={{ color: resolvedPrice }}>
             {formatPrice(listing.price, listing.priceLabel)}
           </p>
-          <p className="shrink-0 text-right text-xs text-slate-500">
+          <p className="shrink-0 text-right text-xs text-[var(--vauto-subtle)]">
             {listing.location}
           </p>
         </div>

@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { Plus, Wallet } from "lucide-react";
+import { BrandButton } from "@/components/ui/BrandButton";
 
 interface VautoWalletProps {
   balance: number;
@@ -29,24 +30,26 @@ export function VautoWallet({
   };
 
   return (
-    <div className="vauto-dashboard-card mb-4 overflow-hidden rounded-2xl p-4">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-[var(--vauto-teal)]/20">
-            <Wallet className="h-5 w-5 text-[var(--vauto-teal)]" />
+    <div className="vauto-dashboard-card mb-4 overflow-hidden rounded-2xl border border-[var(--vauto-border-subtle)] bg-white p-5">
+      <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center gap-3">
+          <div className="flex h-11 w-11 items-center justify-center rounded-xl bg-[var(--vauto-primary-soft)]">
+            <Wallet className="h-5 w-5 text-[var(--vauto-primary)]" />
           </div>
           <div>
-            <p className="text-xs text-slate-400">VAUTO Pro balansas</p>
-            <p className="text-2xl font-bold text-slate-900">
-              {balance.toFixed(2)} <span className="text-sm font-normal text-slate-400">€</span>
+            <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-subtle)]">
+              Piniginė
+            </p>
+            <p className="text-3xl font-extrabold tracking-tight text-[var(--vauto-ink)]">
+              {balance.toFixed(2)}{" "}
+              <span className="text-sm font-normal text-[var(--vauto-subtle)]">€</span>
             </p>
           </div>
         </div>
-        <button
-          type="button"
+        <BrandButton
           onClick={handleTopUp}
           disabled={topping || topUpDisabled}
-          className="flex items-center gap-1.5 rounded-xl bg-[var(--vauto-teal)] px-4 py-2.5 text-xs font-semibold text-white disabled:opacity-60"
+          className="gap-1.5 px-4 py-2.5 text-xs"
         >
           {topping ? (
             <span className="h-4 w-4 animate-spin rounded-full border-2 border-white/30 border-t-white" />
@@ -54,14 +57,14 @@ export function VautoWallet({
             <Plus className="h-4 w-4" />
           )}
           Papildyti
-        </button>
+        </BrandButton>
       </div>
-      <p className="mt-3 text-[10px] text-slate-500">
+      <p className="mt-3 text-[11px] leading-relaxed text-[var(--vauto-muted)]">
         {topUpDisabled
           ? "PPC balansas — papildymas per Stripe bus prieinamas netrukus."
           : demoTopUp
             ? "Demo papildymas — kreditas be kortelės (staging). Tikram mokėjimui bus Stripe."
-            : "Naudokite PPC paspaudimams, skambučiams ir išmaniesiems reklamavimams."}
+            : "Galima naudoti iškėlimams ir PRO funkcijoms."}
       </p>
     </div>
   );

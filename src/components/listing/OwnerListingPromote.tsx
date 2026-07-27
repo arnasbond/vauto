@@ -23,8 +23,8 @@ export function OwnerListingPromote({ listing }: OwnerListingPromoteProps) {
   return (
     <section className="vauto-glass-card rounded-2xl p-4">
       <div className="mb-2 flex items-center gap-2">
-        <TrendingUp className="h-4 w-4 text-[var(--vauto-teal)]" />
-        <h2 className="text-sm font-semibold text-[var(--vauto-text)]">Padidinti matomumą</h2>
+        <TrendingUp className="h-4 w-4 text-[var(--vauto-primary)]" />
+        <h2 className="text-sm font-semibold text-[var(--vauto-ink)]">Padidinti matomumą</h2>
       </div>
       <ListingMarketStats
         listing={listing}
@@ -38,7 +38,7 @@ export function OwnerListingPromote({ listing }: OwnerListingPromoteProps) {
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-teal)] py-3 text-sm font-semibold text-white"
+        className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3 text-sm font-semibold text-[var(--vauto-primary-contrast)] hover:opacity-90"
       >
         <Sparkles className="h-4 w-4" />
         Iškelti skelbimą

@@ -18,6 +18,25 @@ import type { ZeroUiScreen } from "@/lib/zero-ui-screens";
 import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssistantBanner";
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { subscribeHomeReset } from "@/lib/home-reset";
+import { HowItWorksSection, type HowItWorksStep } from "@/components/ui";
+
+const HOME_HOW_STEPS: HowItWorksStep[] = [
+  {
+    n: "1",
+    title: "Parašyk viena eilute",
+    text: "Apibūdink, ką parduodi ar ieškai — be formų ir kategorijų.",
+  },
+  {
+    n: "2",
+    title: "AI viską sutvarko",
+    text: "Sugeneruoja pavadinimą, kainos intervalą ir struktūrą už tave.",
+  },
+  {
+    n: "3",
+    title: "Patvirtink ir skelbk",
+    text: "Peržiūrėk, patikslink jei reikia — ir skelbimas gyvas per minutes.",
+  },
+];
 
 function MarketplaceView() {
   const { rankedListings } = useVauto();
@@ -32,6 +51,7 @@ function MarketplaceView() {
     agentBusy ||
     messages.some((m) => m.role === "user" || m.role === "assistant");
   const compactHero = hasSearch || hasAgentTurn;
+  const showHowItWorks = !compactHero;
 
   const emptySearchMode = hasSearch && rankedListings.length === 0 && !searchLoading;
 
@@ -61,6 +81,12 @@ function MarketplaceView() {
           <span className="sr-only">VAUTO pagrindinis puslapis</span>
         </PortalPageChrome>
       </HeroSection>
+      {showHowItWorks ? (
+        <HowItWorksSection
+          steps={HOME_HOW_STEPS}
+          className="border-b border-[var(--vauto-border-subtle)] py-10 sm:py-12"
+        />
+      ) : null}
       <ContentSection>
         <ListingGrid hideEmptyAssistant={emptySearchMode} />
       </ContentSection>

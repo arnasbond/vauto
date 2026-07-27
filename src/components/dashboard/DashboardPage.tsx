@@ -227,7 +227,7 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
           className={`flex h-11 w-11 items-center justify-center rounded-xl ${
 
-            isEmployer ? "bg-[var(--vauto-orange)]/15" : "bg-[var(--vauto-teal)]/15"
+            isEmployer ? "bg-[var(--vauto-ai-soft)]" : "bg-[var(--vauto-primary-soft)]"
 
           }`}
 
@@ -235,11 +235,11 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
           {isEmployer ? (
 
-            <Briefcase className="h-5 w-5 text-[var(--vauto-orange)]" />
+            <Briefcase className="h-5 w-5 text-[var(--vauto-ai)]" />
 
           ) : (
 
-            <UserRound className="h-5 w-5 text-[var(--vauto-teal)]" />
+            <UserRound className="h-5 w-5 text-[var(--vauto-primary)]" />
 
           )}
 

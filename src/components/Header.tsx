@@ -52,8 +52,8 @@ export function Header() {
         className={cn(
           "justify-self-center rounded-full px-3 py-1.5 text-xs font-semibold tracking-wide transition",
           skelbimaiActive
-            ? "bg-[var(--vauto-primary-soft,#e0f2fe)] text-[var(--vauto-primary,#0891b2)]"
-            : "text-[var(--vauto-text-muted,#6b7280)] hover:text-[var(--vauto-primary,#0891b2)]"
+            ? "bg-[var(--vauto-primary-soft,#e8edff)] text-[var(--vauto-primary,#1b4dff)]"
+            : "text-[var(--vauto-text-muted,#5b6578)] hover:text-[var(--vauto-primary,#1b4dff)]"
         )}
       >
         Skelbimai
@@ -63,7 +63,7 @@ export function Header() {
         <button
           type="button"
           onClick={handleAddListing}
-          className="inline-flex items-center gap-1 rounded-full bg-[var(--vauto-primary,#0891b2)] px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition hover:opacity-95"
+          className="inline-flex items-center gap-1 rounded-full bg-[var(--vauto-primary,#1b4dff)] px-3 py-1.5 text-xs font-semibold text-[var(--vauto-primary-contrast,#fff)] shadow-sm transition hover:opacity-95"
         >
           <Plus className="h-3.5 w-3.5" aria-hidden />
           Įdėti
