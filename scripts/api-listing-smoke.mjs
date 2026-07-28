@@ -15,7 +15,7 @@ const base =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/$/, "") ||
   "https://vauto-api.onrender.com";
 
-const PHONE = process.env.VAUTO_SMOKE_PHONE ?? "+37060000001";
+const PHONE = process.env.VAUTO_SMOKE_PHONE ?? "+37060000002";
 const OTP = process.env.VAUTO_DEMO_OTP ?? "123456";
 
 const CATEGORY_SAMPLES = [
