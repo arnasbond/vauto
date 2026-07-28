@@ -5,7 +5,10 @@ import { useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 
-/** Guests stay on /admin (layout opens admin login). Super-admins go to Control Center. */
+/**
+ * /admin index — admins are redirected to Control Center (/profile).
+ * Guests / non-admins are masked as 404 by admin/layout.tsx.
+ */
 export default function AdminIndexPage() {
   const router = useRouter();
   const { user, authHydrated, isAuthenticated } = useAuth();
@@ -28,7 +31,7 @@ export default function AdminIndexPage() {
   if (isAuthenticated && isSuperAdminUser(user)) {
     return (
       <div className="flex min-h-dvh items-center justify-center text-sm text-slate-500">
-        Nukreipiama į VAUTO Control Center…
+        Kraunama…
       </div>
     );
   }

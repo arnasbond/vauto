@@ -50,10 +50,12 @@ function isAdminRole(role: string | null | undefined): boolean {
 }
 
 /**
- * True for Control Center operators.
- * - Allowlisted handle (arnas in firstName/nickname/name) — unlocks UI immediately
- * - `role === "super_admin"` / admin (elevated in API/DB)
+ * True for Control Center operators (client UI gate — zero-footprint for others).
+ * - Allowlisted handle (arnas / arnasbond) — matches server elevation
+ * - `role === "super_admin"` or `"admin"` (server RBAC)
  * - Canonical admin-1 / ADMIN_EMAIL
+ *
+ * Non-admins must never see /admin links; /admin itself is 404-masked in layout.
  */
 export function isSuperAdminUser(user: AdminUserLike | null | undefined): boolean {
   if (!user?.id) return false;
@@ -64,3 +66,5 @@ export function isSuperAdminUser(user: AdminUserLike | null | undefined): boolea
   if (isAdminRole(role) && isAdminEmail(user.email)) return true;
   return false;
 }
+
+export { isAdminRole };

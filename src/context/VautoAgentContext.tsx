@@ -334,6 +334,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const {
     listings,
     user,
+    isAdmin,
     setListingBanned,
     markListingSold,
     showToast,
@@ -502,6 +503,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
   const routeZeroUiScreen = useCallback(
     (screen: ZeroUiScreen) => {
+      // Zero-footprint: never open admin_panel for non-admins (404 mask in UI).
+      if (screen === "admin_panel" && !isAdmin) {
+        goToMarketplace("agent");
+        return;
+      }
       if (typeof window !== "undefined") {
         persistPendingZeroUiScreen(screen);
         const path = window.location.pathname.replace(/\/$/, "") || "/";
@@ -511,7 +517,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
       setScreen(screen, "agent");
     },
-    [setScreen, router]
+    [setScreen, router, isAdmin, goToMarketplace]
   );
 
   const navigateToAdd = useCallback(
@@ -1045,7 +1051,11 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         } else if (view === "profile") {
           routeZeroUiScreen("business_dashboard");
         } else if (view === "admin_ai") {
-          routeZeroUiScreen("admin_panel");
+          if (isAdmin) {
+            routeZeroUiScreen("admin_panel");
+          } else {
+            goToMarketplace("agent");
+          }
         } else if (view === "search_results" || view === "home" || view === "discover") {
           goToMarketplace("agent");
         } else {
@@ -1073,6 +1083,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       applyAgentWardrobeBulk,
       goToMarketplace,
       isAuthenticated,
+      isAdmin,
       user,
       navigateTo,
       openAuthModal,

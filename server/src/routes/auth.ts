@@ -22,7 +22,7 @@ import {
 } from "../referral/referral-service.js";
 import type { ApiUser } from "../types.js";
 import { exposeOtpDevHint } from "../demo-guards.js";
-import { requireAuth, type AuthedRequest } from "../middleware/auth.js";
+import { requireAuth, sendAdminNotFound, type AuthedRequest } from "../middleware/auth.js";
 import {
   isValidLtMobilePhone,
   normalizeLtMobileE164,
@@ -487,7 +487,7 @@ authRouter.post("/social", async (req, res) => {
         role === "admin" &&
         !isAllowlistedAdminEmail(google.email)
       ) {
-        res.status(403).json({ error: "Admin access denied" });
+        sendAdminNotFound(res);
         return;
       }
       const candidateId = await resolveLinkedUserId(
@@ -602,11 +602,11 @@ authRouter.post("/social", async (req, res) => {
 
     if (role === "admin") {
       if (process.env.NODE_ENV === "production") {
-        res.status(401).json({ error: "Admin Google verification required" });
+        sendAdminNotFound(res);
         return;
       }
       if (email?.toLowerCase() !== adminEmail.toLowerCase()) {
-        res.status(403).json({ error: "Admin access denied" });
+        sendAdminNotFound(res);
         return;
       }
       const session = await buildSession(

@@ -43,6 +43,14 @@ export function optionalAuth(
 export const AUTH_SESSION_EXPIRED_MESSAGE =
   "Prisijungimas nebegalioja. Prašome prisijungti iš naujo.";
 
+/** Opaque body — same shape as ops 404 mask (do not reveal admin routes). */
+export const ADMIN_ROUTE_NOT_FOUND = { error: "Not found" } as const;
+
+/** 404 mask for /api/admin/* and other admin-gated routes. */
+export function sendAdminNotFound(res: Response): void {
+  res.status(404).json(ADMIN_ROUTE_NOT_FOUND);
+}
+
 export function requireAuth(
   req: AuthedRequest,
   res: Response,
@@ -57,19 +65,28 @@ export function requireAuth(
   });
 }
 
+/** Canonical admin roles (VAUTO uses admin | super_admin, not ROLE_ADMIN). */
+export function isAdminRole(role: string | null | undefined): boolean {
+  return role === "admin" || role === "super_admin";
+}
+
+/**
+ * Server RBAC: admin / super_admin role, or allowlisted operator
+ * (elevated to super_admin on session — same Control Center owners).
+ */
 export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
   if (!req.authUserId) return false;
-  const roleOk =
-    req.authRole === "super_admin" || req.authRole === "admin";
-  if (req.authUserId === "admin-1" && roleOk) return true;
-  if (req.authRole === "super_admin") return true;
+  if (isAdminRole(req.authRole)) {
+    if (req.authRole === "super_admin") return true;
+    if (req.authUserId === "admin-1") return true;
+  }
   const user = await getUser(req.authUserId);
   if (!user) return false;
-  if (user.role === "super_admin") return true;
-  const emailOk = isAllowlistedAdminEmail(user.email);
-  const userRoleOk = user.role === "admin" || user.role === "super_admin";
-  if (user.id === "admin-1" && userRoleOk) return true;
-  if (userRoleOk && emailOk) return true;
+  if (isAdminRole(user.role)) {
+    if (user.role === "super_admin") return true;
+    if (user.id === "admin-1") return true;
+    if (isAllowlistedAdminEmail(user.email)) return true;
+  }
   if (
     shouldElevateToSuperAdmin({
       email: user.email,
@@ -84,20 +101,31 @@ export async function userIsAdmin(req: AuthedRequest): Promise<boolean> {
   return false;
 }
 
+/**
+ * Admin gate with 404 masking.
+ * Unauthenticated and non-admin callers get the same opaque 404 —
+ * never 401/403 that would confirm the route exists.
+ */
 export function requireAdmin(
   req: AuthedRequest,
   res: Response,
   next: NextFunction
 ): void {
-  requireAuth(req, res, () => {
+  optionalAuth(req, res, () => {
     void (async () => {
-      if (await userIsAdmin(req)) {
-        req.authRole = "super_admin";
-        next();
+      if (!req.authUserId) {
+        sendAdminNotFound(res);
         return;
       }
-      res.status(403).json({ error: "Admin access required" });
-    })();
+      if (!(await userIsAdmin(req))) {
+        sendAdminNotFound(res);
+        return;
+      }
+      req.authRole = "super_admin";
+      next();
+    })().catch(() => {
+      sendAdminNotFound(res);
+    });
   });
 }
 

@@ -53,11 +53,10 @@ async function buildAgentRequest(req: AuthedRequest) {
     if (!isAdmin) {
       return {
         error: {
-          status: 403,
+          status: 404,
           body: {
             ok: false,
-            code: "admin_required",
-            error: "Admin access required",
+            error: "Not found",
           },
         },
       } as const;
@@ -65,11 +64,10 @@ async function buildAgentRequest(req: AuthedRequest) {
     if (!req.authUserId) {
       return {
         error: {
-          status: 401,
+          status: 404,
           body: {
             ok: false,
-            code: "auth_required",
-            error: "Authentication required",
+            error: "Not found",
           },
         },
       } as const;
@@ -93,11 +91,10 @@ async function buildAgentRequest(req: AuthedRequest) {
     if (!isAdmin) {
       return {
         error: {
-          status: 403,
+          status: 404,
           body: {
             ok: false,
-            code: "admin_required",
-            error: "Admin access required",
+            error: "Not found",
           },
         },
       } as const;

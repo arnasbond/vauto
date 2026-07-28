@@ -1,22 +1,24 @@
 "use client";
 
-import { Shield } from "lucide-react";
 import { useVauto } from "@/context/VautoContext";
 import { useZeroUiScreen } from "@/context/ZeroUiScreenContext";
 import { ZeroUiScreenChrome } from "@/components/zero-ui/ZeroUiScreenChrome";
 import { AdminListingModeration } from "@/components/admin/AdminListingModeration";
 
+/**
+ * Zero-UI admin panel — masked for non-admins (no “admin” / forbidden copy).
+ */
 export function ZeroUiAdminPanel() {
   const { isAdmin } = useVauto();
   const { goToMarketplace } = useZeroUiScreen();
 
   if (!isAdmin) {
     return (
-      <ZeroUiScreenChrome subtitle="Prieiga uždrausta" onBack={goToMarketplace}>
+      <ZeroUiScreenChrome subtitle="Puslapis nerastas" onBack={goToMarketplace}>
         <div className="flex flex-col items-center px-4 py-12 text-center">
-          <Shield className="mb-3 h-10 w-10 text-[#1167b1]" />
-          <p className="text-sm text-slate-600">
-            Moderavimo skydelis prieinamas tik administratoriui.
+          <p className="text-4xl font-bold text-slate-900">404</p>
+          <p className="mt-3 text-sm text-slate-600">
+            Šio adreso nėra arba jis buvo perkeltas.
           </p>
         </div>
       </ZeroUiScreenChrome>

@@ -52,7 +52,7 @@ interface AuthModalProps {
   onClose: () => void;
   /** Path to restore after OAuth redirect (seller/buyer chat context). */
   returnPath?: string | null;
-  /** Jump straight to admin Google step (e.g. from /admin). */
+  /** Optional override for auth wizard step (never auto-derived from /admin — 404-masked). */
   initialStep?: AuthStep;
   onComplete: (data: {
     provider: AuthProvider;
@@ -66,12 +66,6 @@ interface AuthModalProps {
     idToken?: string;
     signupIntent?: AuthSignupIntent;
   }) => void;
-}
-
-function isAdminReturnPath(path: string | null | undefined): boolean {
-  if (!path) return false;
-  const normalized = path.split("?")[0].replace(/\/$/, "") || "/";
-  return normalized === "/admin" || normalized.startsWith("/admin/");
 }
 
 function GoogleIcon() {
@@ -111,8 +105,7 @@ export function AuthModal({
   onComplete,
 }: AuthModalProps) {
   const resolvedInitialStep: AuthStep =
-    initialStep ??
-    (isAdminReturnPath(returnPath) ? "admin" : AUTH_FORM_INITIAL.step);
+    initialStep ?? AUTH_FORM_INITIAL.step;
   const [step, setStep] = useState<AuthStep>(resolvedInitialStep);
   const [phone, setPhone] = useState(AUTH_FORM_INITIAL.phone);
   const [otp, setOtp] = useState(AUTH_FORM_INITIAL.otp);
@@ -210,9 +203,7 @@ export function AuthModal({
       resetAuthForm(AUTH_FORM_INITIAL.step);
       return;
     }
-    const startStep: AuthStep =
-      initialStep ??
-      (isAdminReturnPath(returnPath) ? "admin" : AUTH_FORM_INITIAL.step);
+    const startStep: AuthStep = initialStep ?? AUTH_FORM_INITIAL.step;
     setStep(startStep);
     setOtp(AUTH_FORM_INITIAL.otp);
     setRole(AUTH_FORM_INITIAL.role);
@@ -585,7 +576,7 @@ export function AuthModal({
                         returnPath?.trim() ||
                         (typeof window !== "undefined"
                           ? `${window.location.pathname}${window.location.search}`
-                          : "/admin"),
+                          : "/profile/"),
                     });
                     if (outcome.status === "redirecting") return;
                     if (outcome.status !== "success") {

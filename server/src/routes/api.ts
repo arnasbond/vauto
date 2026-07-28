@@ -106,7 +106,7 @@ import {
 import {
   notifyNegotiationDealClosed,
 } from "../services/push-service.js";
-import { AUTH_SESSION_EXPIRED_MESSAGE, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
+import { AUTH_SESSION_EXPIRED_MESSAGE, isAdminRole, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -213,7 +213,7 @@ function actorId(req: AuthedRequest): string {
 }
 
 function isAdmin(req: AuthedRequest): boolean {
-  return req.authRole === "admin";
+  return isAdminRole(req.authRole);
 }
 
 function requestedUserId(req: AuthedRequest): string {
