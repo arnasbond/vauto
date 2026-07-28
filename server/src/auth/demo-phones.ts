@@ -3,6 +3,7 @@ import { isE2eTestPhone, verifyE2eTestOtp } from "./e2e-mock-auth.js";
 /** Demo / QA phone numbers — bypass strict OTP when using VAUTO_DEMO_OTP code. */
 
 export const DEMO_BYPASS_PHONES = new Set([
+  "37060000001", // API listing smoke (scripts/api-listing-smoke.mjs)
   "37060000002", // Pro business smoke test (PRO_DEMO_PHONE)
   "37060000099", // Admin demo phone
 ]);

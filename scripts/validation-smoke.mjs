@@ -54,9 +54,11 @@ const lineage = readConductorLineage({
 });
 assert(lineage.sources.join(",") === "barcode,seller", "readConductorLineage parses sources");
 
+// Conductor policy: agent/seller publishes go live immediately — lineage alone
+// does not force requiresReview (only explicit anti-fraud flags do).
 assert(
-  resolveConductorRequiresReviewFromLineage(lineage),
-  "automated sources without manual require review"
+  !resolveConductorRequiresReviewFromLineage(lineage),
+  "automated sources do not force review"
 );
 assert(
   !resolveConductorRequiresReviewFromLineage({ sources: ["manual"], mergedAt: null }),
@@ -64,15 +66,15 @@ assert(
 );
 assert(
   !resolveConductorRequiresReviewFromLineage({ sources: ["agent", "manual"], mergedAt: null }),
-  "manual override skips review"
+  "agent+manual skips review"
 );
 
 assert(
-  resolveConductorRequiresReviewForListing({
+  !resolveConductorRequiresReviewForListing({
     requiresReview: false,
     attributes: { conductorSources: "vehicle,seller" },
   }),
-  "listing helper flags automated lineage for review"
+  "listing helper does not force review from automated lineage"
 );
 assert(
   resolveConductorRequiresReviewForListing({
