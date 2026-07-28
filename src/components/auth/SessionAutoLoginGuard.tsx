@@ -3,6 +3,7 @@
 import { useEffect } from "react";
 import { usePathname, useRouter } from "next/navigation";
 import { useAuth } from "@/context/AuthContext";
+import { needsProfileIdentity } from "@/lib/profile-identity";
 import {
   defaultCabinetPath,
   needsProfileTypeSelection,
@@ -21,7 +22,7 @@ function isAuthOnlyPath(pathname: string | null): boolean {
   return AUTH_ONLY_PATHS.some((p) => normalized === p);
 }
 
-/** Redirects authenticated users; profile type selection stays on /auth-gate. */
+/** Redirects authenticated users; profile type + identity stay on /auth-gate. */
 export function SessionAutoLoginGuard() {
   const router = useRouter();
   const pathname = usePathname();
@@ -35,7 +36,7 @@ export function SessionAutoLoginGuard() {
       closeAuthModal();
     }
 
-    if (needsProfileTypeSelection(user)) {
+    if (needsProfileTypeSelection(user) || needsProfileIdentity(user)) {
       if (normalizePath(pathname ?? "") !== "/auth-gate") {
         router.replace("/auth-gate/");
       }

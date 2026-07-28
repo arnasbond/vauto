@@ -278,9 +278,19 @@ export function buildWelcomeBackAgentGreeting(
   _myListings: MyListingForAgent[],
   lastTopic: string
 ): string {
-  const firstName = userName.split(/\s+/)[0] || userName;
+  const raw = String(userName ?? "").trim();
+  const firstToken = raw.split(/\s+/)[0] || raw;
+  const isGuest =
+    !raw ||
+    raw === "Svečias" ||
+    /^(mobilus|google|apple)\s+vartotojas$/i.test(raw) ||
+    /^vartotojas$/i.test(raw) ||
+    /^mobilus$/i.test(firstToken);
   const topic = lastTopic.trim() || "skelbimus ar paiešką";
-  return `Sveiki sugrįžę, ${firstName}! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame ar pradedame naują skelbimą?`;
+  if (isGuest) {
+    return `Sveiki sugrįžę! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame ar pradedame naują skelbimą?`;
+  }
+  return `Sveiki sugrįžę, ${firstToken}! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame ar pradedame naują skelbimą?`;
 }
 
 export type VautoAgentAction =
@@ -527,10 +537,18 @@ export function buildPersonalizedAgentGreeting(
   userName: string,
   myListings: MyListingForAgent[]
 ): string {
-  const firstName = userName.split(/\s+/)[0] || userName;
-  if (userName === "Svečias" || !userName.trim()) {
+  const raw = String(userName ?? "").trim();
+  const firstToken = raw.split(/\s+/)[0] || raw;
+  const isGuest =
+    !raw ||
+    raw === "Svečias" ||
+    /^(mobilus|google|apple)\s+vartotojas$/i.test(raw) ||
+    /^vartotojas$/i.test(raw) ||
+    /^mobilus$/i.test(firstToken);
+  if (isGuest) {
     return "Labas! Aš tavo VAUTO sekretorius — galiu padėti rasti prekę ar paruošti skelbimą. Nuo ko pradedam?";
   }
+  const firstName = firstToken;
   const tail = summarizeMyListingsForGreeting(myListings, firstName);
   return `Labas, ${firstName}! ${tail}`;
 }

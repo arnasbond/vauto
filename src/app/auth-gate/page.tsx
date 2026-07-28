@@ -5,9 +5,11 @@ import { useCallback, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { LogIn, Sparkles } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
+import { ProfileIdentityPicker } from "@/components/auth/ProfileIdentityPicker";
 import { ProfileTypePicker } from "@/components/auth/ProfileTypePicker";
 import { SmartOnboardingCarousel } from "@/components/auth/SmartOnboardingCarousel";
 import { useAuth } from "@/context/AuthContext";
+import { needsProfileIdentity } from "@/lib/profile-identity";
 import {
   defaultCabinetPath,
   needsProfileTypeSelection,
@@ -19,16 +21,17 @@ export default function AuthGatePage() {
   const { authHydrated, isAuthenticated, user, openAuthModal } = useAuth();
 
   const redirectForProfile = useCallback(
-    (profileType: ProfileType) => {
-      router.replace(defaultCabinetPath(profileType));
+    (profileType?: ProfileType | null) => {
+      router.replace(defaultCabinetPath(profileType ?? user.profileType));
     },
-    [router]
+    [router, user.profileType]
   );
 
   useEffect(() => {
     if (!authHydrated || !isAuthenticated) return;
     if (needsProfileTypeSelection(user)) return;
-    redirectForProfile(user.profileType!);
+    if (needsProfileIdentity(user)) return;
+    redirectForProfile(user.profileType);
   }, [authHydrated, isAuthenticated, user, redirectForProfile]);
 
   if (!authHydrated) {
@@ -39,7 +42,11 @@ export default function AuthGatePage() {
     );
   }
 
-  if (isAuthenticated && !needsProfileTypeSelection(user)) {
+  if (
+    isAuthenticated &&
+    !needsProfileTypeSelection(user) &&
+    !needsProfileIdentity(user)
+  ) {
     return (
       <div className="flex min-h-[70vh] items-center justify-center px-6 text-center text-sm text-[var(--vauto-text-muted)]">
         Nukreipiama…
@@ -51,7 +58,17 @@ export default function AuthGatePage() {
     return (
       <AppShell variant="plain">
         <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-8">
-          <ProfileTypePicker onComplete={redirectForProfile} />
+          <ProfileTypePicker />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (isAuthenticated && needsProfileIdentity(user)) {
+    return (
+      <AppShell variant="plain">
+        <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-6 py-8">
+          <ProfileIdentityPicker onComplete={() => redirectForProfile()} />
         </div>
       </AppShell>
     );

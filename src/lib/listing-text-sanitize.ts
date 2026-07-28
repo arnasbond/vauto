@@ -5,6 +5,7 @@ import type {
   CategoryAttributes,
   ListingCategory,
 } from "@/lib/types";
+import { sanitizeAttributeKeyLabelsInText } from "@vauto/shared/attr-labels";
 
 /**
  * Car sales boilerplate that must never land on non-automotive listings.
@@ -125,6 +126,7 @@ export function sanitizeListingDescription(raw: string | undefined | null): stri
   t = t
     .replace(/^(Pavadinimas|Title|Antraštė|Aprašymas)\s*:\s*/i, "")
     .replace(/^(Pavadinimas|Title|Antraštė)\s*:\s*.+\n+/i, "");
+  t = sanitizeAttributeKeyLabelsInText(t);
   for (const re of SYSTEM_PHRASE_PATTERNS) {
     t = t.replace(re, " ");
   }

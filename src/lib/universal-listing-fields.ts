@@ -1,6 +1,7 @@
 import type { CategoryFieldDef } from "@/lib/adaptive-categories";
 import { getAdaptiveConfig, listingToAdaptiveKey } from "@/lib/adaptive-categories";
 import { allForeignSchemaKeys } from "@/lib/listing-attribute-isolation";
+import { humanizeAttributeKey } from "@/lib/listing-dynamic-attributes";
 import type { ListingCategory } from "@/lib/types";
 
 const HIDDEN_ATTR_KEYS = new Set([
@@ -30,27 +31,7 @@ const HIDDEN_ATTR_KEYS = new Set([
 ]);
 
 function humanizeAttrKey(key: string): string {
-  const known: Record<string, string> = {
-    mileage: "Rida (km)",
-    make: "Markė",
-    model: "Modelis",
-    year: "Metai",
-    weight: "Svoris",
-    warranty: "Garantija",
-    condition: "Būklė",
-    brand: "Prekės ženklas",
-    size: "Dydis",
-    color: "Spalva",
-    rooms: "Kambariai",
-    area: "Plotas",
-    vin: "VIN",
-  };
-  if (known[key]) return known[key];
-  return key
-    .replace(/([A-Z])/g, " $1")
-    .replace(/[_-]/g, " ")
-    .replace(/^\w/, (c) => c.toUpperCase())
-    .trim();
+  return humanizeAttributeKey(key);
 }
 
 /** Merge static adaptive schema with AI-extracted attributes into one universal basket. */

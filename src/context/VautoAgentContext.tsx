@@ -29,6 +29,7 @@ import {
 import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
 import { requestWizardAgentExpand } from "@/lib/ai-conversational-recovery";
+import { resolveFriendlyGreetingName } from "@/lib/profile-identity";
 import {
   buildCurrentPageContext,
   buildWelcomeBackAgentGreeting,
@@ -2360,7 +2361,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           {
             role: "assistant",
             text: buildWelcomeBackAgentGreeting(
-              user.name,
+              resolveFriendlyGreetingName(user) || "Svečias",
               myListingsForAgent,
               lastSessionTopic ?? "skelbimus ar paiešką"
             ),
@@ -2702,12 +2703,15 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             profileEmail: profileUser.email?.trim() || undefined,
             profileContactsVerified: hasProfileListingContact(profileUser),
             listings: omitPriorListingDraft ? [] : compactListingsForAgent(listings),
-            userName: user.name,
+            userName: resolveFriendlyGreetingName(user) || user.name,
             accountType: resolveAccountTypeLabel(user),
             myListings: omitPriorListingDraft ? [] : myListingsForAgent,
             myListingsSummary: omitPriorListingDraft
               ? ""
-              : summarizeMyListingsSummary(myListingsForAgent, user.name),
+              : summarizeMyListingsSummary(
+                  myListingsForAgent,
+                  resolveFriendlyGreetingName(user) || "Svečias"
+                ),
             omitPriorListingDraft: omitPriorListingDraft || undefined,
             freshListingSession:
               freshListingSessionRef.current ||

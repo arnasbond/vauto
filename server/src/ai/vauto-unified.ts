@@ -6,6 +6,10 @@ import {
   stripFullVehicleFieldsFromPartsDraft,
 } from "./parts-isolation.js";
 import { scrubSalesCopyMarkdown } from "../shared/ensure-rich-sales-copy.js";
+import {
+  humanizeAttributeKeyLt,
+  sanitizeAttributeKeyLabelsInText,
+} from "../shared/attr-labels.js";
 import { unifiedLlmJson } from "./llm-provider.js";
 import { generateImageMetadata } from "./image-metadata-generator.js";
 import { applyVautoWatermark, optimizeListingImage } from "./image-processor.js";
@@ -627,7 +631,7 @@ function buildFactGroundedFallbackDescription(input: {
     const val = Array.isArray(raw) ? raw.map(String).join(", ") : String(raw ?? "").trim();
     if (!val || val.length < 2) continue;
     if (/^(choiceChips|clarificationPrompt|selectedObject)$/i.test(key)) continue;
-    lines.push(`- **${key}:** ${val}`);
+    lines.push(`- **${humanizeAttributeKeyLt(key)}:** ${val}`);
     specCount += 1;
     if (specCount >= 16) break;
   }
@@ -995,7 +999,9 @@ export async function parseListingImagesForAgent(params: {
   if (listing.description) {
     listing = {
       ...listing,
-      description: scrubSalesCopyMarkdown(listing.description),
+      description: sanitizeAttributeKeyLabelsInText(
+        scrubSalesCopyMarkdown(listing.description)
+      ),
     };
   }
   // Anti-hallucination: never keep a Vision-invented price unless user/hint provided it.

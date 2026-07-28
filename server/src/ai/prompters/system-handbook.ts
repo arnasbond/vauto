@@ -47,6 +47,9 @@ Do not invent missing values.
 export const NATURAL_SALES_COPY_DIRECTIVE = `
 Rašyk engaginantį marketplace tekstą natūralia lietuvių kalba — tonas pagal kategorijos FOKUSAS (ne vienodas šablonas visiems).
 Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto.
+Siekis — visas aprašymo tekstas ir specifikacijų etiketės TIK švaria, taisyklinga lietuvių kalba.
+Techninius JSON raktus (bodyType, powerKw, fuelType, mileageKm ir pan.) versk į lietuviškas etiketes (Kėbulas, Galia, Kuras, Rida).
+Prekių ženklus ir modelius (pvz. Lucid Air, iPhone) palik kaip yra — jie yra pavadinimai, ne neišversti parametrai.
 Kai faktų užtenka, struktūruok Markdown pagal kategoriją:
 - Elektronika/technika: trumpas hook + • Specifikacijos + būklė/komplektacija (mažiau poezijos)
 - Paslaugos: įtaigus hook + • spektras + patirtis/garantijos + terminai/zona

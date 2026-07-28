@@ -1,5 +1,9 @@
 import { INTERNAL_LISTING_ATTR_KEYS } from "@/lib/listing-attributes";
 import type { Listing, ListingCategory } from "@/lib/types";
+import {
+  ATTR_LABEL_LT,
+  humanizeAttributeKeyLt,
+} from "@vauto/shared/attr-labels";
 
 export interface DynamicAttributeEntry {
   key: string;
@@ -7,32 +11,8 @@ export interface DynamicAttributeEntry {
   value: string;
 }
 
-/** Friendly LT labels for common AI/OCR keys — never a fixed form schema. */
-const ATTR_LABEL_HINTS: Record<string, string> = {
-  make: "Markė",
-  model: "Modelis",
-  year: "Metai",
-  mileage: "Rida",
-  engine: "Variklis",
-  engineCc: "Variklio tūris",
-  powerKw: "Galia (kW)",
-  fuelType: "Kuras",
-  transmission: "Pavarų dėžė",
-  gearbox: "Pavarų dėžė",
-  bodyType: "Kėbulas",
-  color: "Spalva",
-  colors: "Spalva",
-  brand: "Prekės ženklas",
-  manufacturer: "Gamintojas",
-  deviceModel: "Modelis",
-  storageCapacity: "Atmintis",
-  condition: "Būklė",
-  warranty: "Garantija",
-  size: "Dydis",
-  battery: "Baterija",
-  weight: "Svoris",
-  material: "Medžiaga",
-};
+/** @deprecated Use ATTR_LABEL_LT from @vauto/shared/attr-labels — kept for local re-exports. */
+const ATTR_LABEL_HINTS: Record<string, string> = ATTR_LABEL_LT;
 
 /** Fashion-only attribute keys — hide on guitars/electronics/etc. */
 const FASHION_ONLY_KEYS = new Set([
@@ -122,19 +102,8 @@ export function isPublicDynamicAttributeKey(key: string): boolean {
 }
 
 export function humanizeAttributeKey(key: string): string {
-  const hint = ATTR_LABEL_HINTS[key];
-  if (hint) return hint;
-  const trimmed = key.trim();
-  if (!trimmed) return key;
-  // Already human / LT label from Vision OCR (e.g. "Baterija", "Gaminintojas").
-  if (/[\sĄČĘĖĮŠŲŪŽąčęėįšųūž]/.test(trimmed) || /^[A-ZĄČĘĖĮŠŲŪŽ]/.test(trimmed)) {
-    return trimmed;
-  }
-  return trimmed
-    .replace(/_/g, " ")
-    .replace(/([a-z])([A-Z])/g, "$1 $2")
-    .replace(/^./, (c) => c.toUpperCase())
-    .trim();
+  void ATTR_LABEL_HINTS;
+  return humanizeAttributeKeyLt(key);
 }
 
 function normalizeAttrValue(value: unknown): string | null {

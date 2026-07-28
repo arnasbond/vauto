@@ -9,6 +9,7 @@ import {
   toLithuanianDative,
   toLithuanianVocative,
 } from "@/lib/lithuanian-name-case";
+import { resolveFriendlyGreetingName } from "@/lib/profile-identity";
 
 const AUTH_USER_KEY = "vauto_user_v1";
 const AUTH_SESSION_KEY = "vauto_auth_v1";
@@ -56,14 +57,11 @@ function readPersistedSessionAuthenticated(): boolean {
 }
 
 function resolveFirstName(
-  user?: Pick<UserProfile, "firstName" | "name">,
+  user?: Pick<UserProfile, "firstName" | "name" | "nickname">,
   fallbackName?: string
 ): string {
-  const fromField = user?.firstName?.trim();
-  if (fromField) return fromField;
-  const full = user?.name?.trim() || fallbackName?.trim() || "";
-  if (full) return full.split(/\s+/)[0] || full;
-  return "Svečias";
+  const friendly = resolveFriendlyGreetingName(user, fallbackName);
+  return friendly || "Svečias";
 }
 
 /**
@@ -72,7 +70,17 @@ function resolveFirstName(
 export function buildSupervisorCurrentUser(params: {
   user?: Pick<
     UserProfile,
-    "id" | "name" | "firstName" | "city" | "role" | "phone" | "email" | "ageGroup" | "gender" | "hobbies"
+    | "id"
+    | "name"
+    | "firstName"
+    | "nickname"
+    | "city"
+    | "role"
+    | "phone"
+    | "email"
+    | "ageGroup"
+    | "gender"
+    | "hobbies"
   >;
   isAuthenticated?: boolean;
   accountType?: string;
