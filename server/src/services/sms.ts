@@ -1,4 +1,6 @@
 import { logProductionError, logProductionWarn } from "../lib/production-log.js";
+import { isE2eTestPhone } from "../auth/e2e-mock-auth.js";
+import { isDemoBypassPhone } from "../auth/demo-phones.js";
 
 export type SmsProvider = "mock" | "log" | "twilio" | "bulkgate";
 
@@ -16,44 +18,69 @@ function bulkgateConfigured(): boolean {
   );
 }
 
+function isNodeProduction(): boolean {
+  return process.env.NODE_ENV === "production";
+}
+
+/**
+ * Live carrier delivery is allowed only in production.
+ * Dev / E2E / browser probes / local always use mock (console OTP), even if
+ * BulkGate or Twilio credentials are present in the environment.
+ */
+export function allowLiveSmsCarrier(): boolean {
+  return isNodeProduction();
+}
+
 /**
  * Active SMS provider.
- * SMS_MODE=live → Twilio or BulkGate (production delivery). Never falls back to log in live mode.
+ *
+ * - Non-production → always `mock` (never calls BulkGate/Twilio).
+ * - Production + SMS_MODE=live|twilio|bulkgate (or auto with creds) → carrier.
+ * - Production misconfig → `log` (no silent fake success as "live").
  */
 export function getSmsProvider(): SmsProvider {
+  if (!allowLiveSmsCarrier()) {
+    return "mock";
+  }
+
   const mode = process.env.SMS_MODE?.trim().toLowerCase();
+
+  if (mode === "mock" || mode === "log") {
+    return mode;
+  }
 
   if (mode === "live") {
     if (twilioConfigured()) return "twilio";
     if (bulkgateConfigured()) return "bulkgate";
-    // Live requested but credentials missing — keep twilio so sends fail closed (not silent log).
+    // Live requested but credentials missing — fail closed (not silent mock).
     return "twilio";
   }
 
-  if (mode === "mock" || mode === "log" || mode === "twilio" || mode === "bulkgate") {
-    return mode;
-  }
+  if (mode === "twilio") return "twilio";
+  if (mode === "bulkgate") return "bulkgate";
 
-  // Production default: prefer live carriers when configured.
-  if (process.env.NODE_ENV === "production") {
-    if (twilioConfigured()) return "twilio";
-    if (bulkgateConfigured()) return "bulkgate";
-  }
-
+  // Production auto: prefer configured carriers.
   if (twilioConfigured()) return "twilio";
   if (bulkgateConfigured()) return "bulkgate";
-  return process.env.NODE_ENV === "production" ? "log" : "mock";
+  return "log";
 }
 
 /** True when OTP will be delivered via a real SMS carrier (not mock/log). */
 export function isSmsLive(): boolean {
-  const mode = process.env.SMS_MODE?.trim().toLowerCase();
-  if (mode === "live") {
-    return twilioConfigured() || bulkgateConfigured();
-  }
+  if (!allowLiveSmsCarrier()) return false;
   const provider = getSmsProvider();
   if (provider === "twilio") return twilioConfigured();
   if (provider === "bulkgate") return bulkgateConfigured();
+  return false;
+}
+
+/**
+ * Test / QA numbers must never burn BulkGate credits — even against production API.
+ */
+export function shouldMockSmsForPhone(phone?: string | null): boolean {
+  if (!allowLiveSmsCarrier()) return true;
+  if (isE2eTestPhone(phone)) return true;
+  if (isDemoBypassPhone(phone)) return true;
   return false;
 }
 
@@ -95,7 +122,7 @@ async function sendViaTwilio(phone: string, body: string): Promise<boolean> {
   }
 }
 
-/** BulkGate transactional SMS — ready to wire when credentials are set. */
+/** BulkGate transactional SMS — production only (see allowLiveSmsCarrier). */
 async function sendViaBulkGate(phone: string, body: string): Promise<boolean> {
   const appId = process.env.BULKGATE_APPLICATION_ID;
   const appToken = process.env.BULKGATE_APPLICATION_TOKEN;
@@ -129,26 +156,31 @@ async function sendViaBulkGate(phone: string, body: string): Promise<boolean> {
   }
 }
 
+function logMockSms(phone: string, body: string, reason: string): void {
+  console.log(`[VAUTO SMS:mock] (${reason}) to ${phone}: ${body}`);
+}
+
 /**
  * Send arbitrary SMS body via configured provider.
- * Mock/log modes write the body to the server console.
+ * Mock/log modes write the body to the server console (includes OTP).
  */
 export async function sendSms(phone: string, body: string): Promise<boolean> {
+  if (shouldMockSmsForPhone(phone)) {
+    const reason = !allowLiveSmsCarrier()
+      ? "non-production"
+      : isE2eTestPhone(phone)
+        ? "e2e-phone"
+        : "demo-phone";
+    logMockSms(phone, body, reason);
+    return true;
+  }
+
   const provider = getSmsProvider();
-  const mode = process.env.SMS_MODE?.trim().toLowerCase();
 
   if (provider === "mock" || provider === "log") {
-    if (mode === "live") {
-      logProductionError(
-        "sms",
-        new Error("SMS_MODE=live but no Twilio/BulkGate credentials configured"),
-        { phoneSuffix: phone.slice(-4) }
-      );
-      return false;
-    }
     console.log(`[VAUTO SMS:${provider}] to ${phone}: ${body}`);
-    if (provider === "log" && process.env.NODE_ENV === "production") {
-      logProductionWarn("sms", "SMS logged (SMS_MODE=log) — configure Twilio or BulkGate", {
+    if (provider === "log" && isNodeProduction()) {
+      logProductionWarn("sms", "SMS logged (no live carrier) — set SMS_MODE=live + BulkGate/Twilio", {
         phoneSuffix: phone.slice(-4),
       });
     }
@@ -157,7 +189,7 @@ export async function sendSms(phone: string, body: string): Promise<boolean> {
 
   if (provider === "twilio") {
     if (!twilioConfigured()) {
-      logProductionWarn("sms", "SMS_MODE=live/twilio but Twilio env vars missing", {
+      logProductionWarn("sms", "Twilio selected but env vars missing", {
         phoneSuffix: phone.slice(-4),
       });
       return false;
@@ -166,7 +198,7 @@ export async function sendSms(phone: string, body: string): Promise<boolean> {
   }
 
   if (!bulkgateConfigured()) {
-    logProductionWarn("sms", "SMS_MODE=live/bulkgate but BulkGate env vars missing", {
+    logProductionWarn("sms", "BulkGate selected but env vars missing", {
       phoneSuffix: phone.slice(-4),
     });
     return false;

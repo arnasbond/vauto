@@ -1,6 +1,6 @@
 import crypto from "node:crypto";
 import { E2E_TEST_OTP, isE2eTestPhone } from "../auth/e2e-mock-auth.js";
-import { verifyDemoBypassOtp } from "../auth/demo-phones.js";
+import { isDemoBypassPhone, verifyDemoBypassOtp } from "../auth/demo-phones.js";
 import { getSmsProvider } from "./sms.js";
 
 interface OtpEntry {
@@ -29,10 +29,14 @@ function generateOtpCode(): string {
   return String(crypto.randomInt(min, max + 1));
 }
 
-/** Demo OTP when SMS provider is mock/log — enables auth testing without Twilio. */
+/** Demo OTP when SMS is mocked — enables auth testing without burning BulkGate credits. */
 export function usesDemoOtp(): boolean {
+  // Non-production always uses fixed demo OTP (123456 / VAUTO_DEMO_OTP).
+  if (process.env.NODE_ENV !== "production") {
+    return true;
+  }
   const mode = process.env.SMS_MODE?.trim().toLowerCase();
-  // Live launch must never accept fixed demo codes.
+  // Explicit live carriers in production — real random OTP only.
   if (mode === "live" || mode === "twilio" || mode === "bulkgate") {
     return false;
   }
@@ -41,7 +45,6 @@ export function usesDemoOtp(): boolean {
     return false;
   }
   return (
-    process.env.NODE_ENV !== "production" ||
     provider === "mock" ||
     provider === "log" ||
     Boolean(process.env.VAUTO_DEMO_OTP)
@@ -57,9 +60,10 @@ export function getOtpCodeLength(): number {
 
 export function issueOtp(phone: string): { code: string; expiresAt: number } {
   const key = normalizePhone(phone);
+  // E2E / demo / non-prod → fixed OTP (logged to console; never burns BulkGate).
   const code = isE2eTestPhone(phone)
     ? E2E_TEST_OTP
-    : usesDemoOtp()
+    : isDemoBypassPhone(phone) || usesDemoOtp()
       ? process.env.VAUTO_DEMO_OTP ?? "123456"
       : generateOtpCode();
   const expiresAt = Date.now() + OTP_TTL_MS;
