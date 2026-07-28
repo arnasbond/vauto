@@ -177,7 +177,7 @@ export default function ApiePage() {
           <div className="absolute -right-8 -top-8 h-32 w-32 rounded-full bg-[var(--vauto-teal)]/10 blur-2xl" />
           <div className="absolute -bottom-10 -left-6 h-28 w-28 rounded-full bg-[var(--vauto-orange)]/10 blur-2xl" />
           <p className="inline-flex items-center gap-1.5 rounded-full bg-[var(--vauto-orange)]/15 px-3 py-1 text-[11px] font-bold text-[var(--vauto-orange)] ring-1 ring-[var(--vauto-orange)]/25">
-            🎉 Starto akcija: Pirmas mėnuo NEMOKAMAI (0 €)!
+            🎉 Starto akcija: 0 € (3 mėnesius nemokamai)!
           </p>
           <h1 className="mt-4 text-2xl font-extrabold leading-tight text-[var(--vauto-text)] sm:text-3xl lg:text-[2rem]">
             VAUTO — Pirmoji Lietuvoje išmanioji skelbimų ekosistema
@@ -291,7 +291,7 @@ export default function ApiePage() {
             <FeatureCard
               icon={Wallet}
               title="🎉 Starto akcija — 0 €"
-              description="Pirmas mėnuo nemokamai. Augant — matomumo paketai, escrow apsauga ir TOP iškėlimai."
+              description="3 mėnesius nemokamai (0 €), be kortelės. Augant — matomumo paketai, escrow apsauga ir TOP iškėlimai."
             />
           </div>
         </section>

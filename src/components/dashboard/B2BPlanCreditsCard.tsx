@@ -10,6 +10,10 @@ import {
   type B2BBillingPlanId,
 } from "@/lib/b2b-plans";
 import { buildB2BCheckout } from "@/lib/b2b-plans";
+import {
+  LAUNCH_PROMO_BADGE,
+  isLaunchPromoActive,
+} from "@vauto/shared/launch-promo";
 import type { UserProfile } from "@/lib/types";
 import { cn } from "@/lib/cn";
 
@@ -32,6 +36,7 @@ export function B2BPlanCreditsCard({
 }: B2BPlanCreditsCardProps) {
   const [loading, setLoading] = useState<B2BBillingPlanId | null>(null);
   const current = normalizeBillingPlan(user.billingPlan);
+  const promo = isLaunchPromoActive();
   const credits =
     user.jobListingCredits ??
     (current !== "free" ? jobCreditsForPlan(current as B2BBillingPlanId) : 0);
@@ -101,10 +106,25 @@ export function B2BPlanCreditsCard({
                 <Icon className="h-4 w-4 text-[var(--vauto-orange)]" />
                 <span className="font-bold text-[var(--vauto-text)]">{plan.label}</span>
               </div>
-              <p className="text-2xl font-black text-[var(--vauto-orange)]">
-                {plan.monthlyPrice} €
-                <span className="text-sm font-normal text-[var(--vauto-text-muted)]"> / mėn.</span>
-              </p>
+              {promo ? (
+                <div className="space-y-1">
+                  <p className="text-sm text-[var(--vauto-text-muted)] line-through">
+                    {plan.monthlyPrice} €
+                    <span className="text-xs font-normal"> / mėn.</span>
+                  </p>
+                  <p className="text-lg font-black text-[var(--vauto-orange)]">
+                    {LAUNCH_PROMO_BADGE}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-2xl font-black text-[var(--vauto-orange)]">
+                  {plan.monthlyPrice} €
+                  <span className="text-sm font-normal text-[var(--vauto-text-muted)]">
+                    {" "}
+                    / mėn.
+                  </span>
+                </p>
+              )}
               <ul className="mt-3 flex-1 space-y-1.5 text-xs text-[var(--vauto-text-muted)]">
                 {plan.features.map((f) => (
                   <li key={f}>• {f}</li>
@@ -125,9 +145,11 @@ export function B2BPlanCreditsCard({
                   ? "Aktyvus planas"
                   : isLoading
                     ? "Atidaroma…"
-                    : isUpgrade || current === "free"
-                      ? "Pasirinkti ir apmokėti"
-                      : "Keisti planą"}
+                    : promo
+                      ? "Aktyvuoti nemokamai"
+                      : isUpgrade || current === "free"
+                        ? "Pasirinkti ir apmokėti"
+                        : "Keisti planą"}
               </button>
             </div>
           );

@@ -9,6 +9,10 @@ import {
   buildB2BCheckout,
   type B2BBillingPlanId,
 } from "@/lib/b2b-plans";
+import {
+  LAUNCH_PROMO_BADGE,
+  isLaunchPromoActive,
+} from "@vauto/shared/launch-promo";
 import type { CheckoutSession } from "@/lib/monetization-catalog";
 import type { UserProfile } from "@/lib/types";
 
@@ -32,6 +36,7 @@ export function B2BBillingCard({
   stripeEnabled = false,
 }: B2BBillingCardProps) {
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null);
+  const promo = isLaunchPromoActive();
   const estimatedSpend = estimatePpcSpend({
     clicks,
     callClicks,
@@ -80,11 +85,22 @@ export function B2BBillingCard({
               key={plan.id}
               className="rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-bg)]/40 p-3"
             >
-              <div className="flex items-center justify-between">
+              <div className="flex items-center justify-between gap-2">
                 <p className="font-semibold text-[var(--vauto-text)]">{plan.label}</p>
-                <span className="text-sm font-bold text-[var(--vauto-orange)]">
-                  {plan.monthlyPrice} €/mėn.
-                </span>
+                {promo ? (
+                  <div className="text-right">
+                    <span className="mr-2 text-xs text-[var(--vauto-text-muted)] line-through">
+                      {plan.monthlyPrice} €/mėn.
+                    </span>
+                    <span className="text-sm font-bold text-[var(--vauto-orange)]">
+                      {LAUNCH_PROMO_BADGE}
+                    </span>
+                  </div>
+                ) : (
+                  <span className="text-sm font-bold text-[var(--vauto-orange)]">
+                    {plan.monthlyPrice} €/mėn.
+                  </span>
+                )}
               </div>
               <p className="mt-1 text-xs text-[var(--vauto-text-muted)]">
                 {plan.jobListingLimit === "unlimited"
@@ -102,9 +118,11 @@ export function B2BBillingCard({
                   ? "Aktyvus planas"
                   : isLoading
                     ? "Atidaroma…"
-                    : stripeEnabled
-                      ? "Apmokėti per Stripe"
-                      : "Užsisakyti planą"}
+                    : promo
+                      ? "Aktyvuoti nemokamai"
+                      : stripeEnabled
+                        ? "Apmokėti per Stripe"
+                        : "Užsisakyti planą"}
               </button>
             </div>
           );
@@ -113,9 +131,11 @@ export function B2BBillingCard({
 
       <p className="mt-3 flex items-center gap-1.5 text-xs text-[var(--vauto-text-muted)]">
         <BarChart3 className="h-3.5 w-3.5" />
-        {hasPaidPlan
-          ? "Aktyvi prenumerata — sąskaitos generuojamos automatiškai po apmokėjimo."
-          : "Verslas moka už rezultatą arba renkasi fiksuotą mėnesinį paketą."}
+        {promo
+          ? "Starto akcija: 3 mėn. nemokamai be kortelės. Planų limitai galioja iškart."
+          : hasPaidPlan
+            ? "Aktyvi prenumerata — sąskaitos generuojamos automatiškai po apmokėjimo."
+            : "Verslas moka už rezultatą arba renkasi fiksuotą mėnesinį paketą."}
       </p>
     </section>
   );

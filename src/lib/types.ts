@@ -199,6 +199,8 @@ export interface UserProfile {
     | "starter"
     | "pro";
   billingModel?: "ppc" | "subscription";
+  /** ISO end of personal Starto akcijos trial (3 mėn. nuo aktyvavimo). */
+  billingExpiresAt?: string;
   /** Likę aktyvūs darbo skelbimų kreditai šį mėnesį (B2B) */
   jobListingCredits?: number | "unlimited";
   serviceBaseCity?: string;

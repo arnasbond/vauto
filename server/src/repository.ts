@@ -5,6 +5,11 @@ import {
 } from "./demo-catalog-api.js";
 import { isServerDemoCatalogEnabled } from "./demo-catalog-env.js";
 import { stripExpiredVisibilityAttributes } from "./shared/promote-catalog.js";
+import {
+  computeLaunchPromoExpiresAt,
+  isLaunchPromoActive,
+  isLaunchPromoExpired,
+} from "./shared/launch-promo.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -182,6 +187,50 @@ export async function getUser(id: string): Promise<ApiUser | null> {
       "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop",
   });
 
+  async function attachBillingTrial(user: ApiUser): Promise<ApiUser> {
+    try {
+      const subs = await query<{
+        expires_at: Date | string | null;
+        plan_id: string;
+        id: string;
+      }>(
+        `SELECT id, plan_id, expires_at FROM billing_subscriptions
+         WHERE user_id = $1 AND status = 'active'
+         ORDER BY created_at DESC
+         LIMIT 1`,
+        [user.id]
+      );
+      const sub = subs[0];
+      if (!sub) return user;
+      const expiresAt =
+        sub.expires_at == null
+          ? undefined
+          : typeof sub.expires_at === "string"
+            ? sub.expires_at
+            : new Date(sub.expires_at).toISOString();
+      if (!expiresAt) {
+        return { ...user, billingExpiresAt: undefined };
+      }
+      if (isLaunchPromoExpired(expiresAt)) {
+        await query(
+          `UPDATE billing_subscriptions SET status = 'expired' WHERE id = $1`,
+          [sub.id]
+        );
+        await query(`UPDATE users SET billing_plan = 'free' WHERE id = $1`, [
+          user.id,
+        ]);
+        return {
+          ...user,
+          billingPlan: "free",
+          billingExpiresAt: expiresAt,
+        };
+      }
+      return { ...user, billingExpiresAt: expiresAt };
+    } catch {
+      return user;
+    }
+  }
+
   try {
     const rows = await query<UserRow>(
       `SELECT id, name, first_name, last_name, nickname, phone, city, avatar_url, email, warned,
@@ -197,7 +246,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     );
     const r = rows[0];
     if (!r) return null;
-    return mapRow(r);
+    return attachBillingTrial(mapRow(r));
   } catch {
     // Pre-migration fallback if newer columns are missing.
     const rows = await query<UserRow>(
@@ -211,7 +260,7 @@ export async function getUser(id: string): Promise<ApiUser | null> {
     );
     const r = rows[0];
     if (!r) return null;
-    return mapRow(r);
+    return attachBillingTrial(mapRow(r));
   }
 }
 
@@ -2501,11 +2550,17 @@ export async function subscribeUserPlan(
   }
 
   const subId = `sub_${Date.now()}_${userId.slice(0, 8)}`;
+  // Personal Starto akcija trial — only when promo is ON and this is a cardless/0€ activate
+  // (no Stripe session). Paid Stripe checkouts keep expires_at null (ongoing).
+  const expiresAt =
+    !stripeSessionId && isLaunchPromoActive()
+      ? computeLaunchPromoExpiresAt()
+      : null;
   await ensureUser(userId);
   await query(
-    `INSERT INTO billing_subscriptions (id, user_id, plan_id, status, stripe_session_id)
-     VALUES ($1, $2, $3, 'active', $4)`,
-    [subId, userId, planId, stripeSessionId ?? null]
+    `INSERT INTO billing_subscriptions (id, user_id, plan_id, status, stripe_session_id, expires_at)
+     VALUES ($1, $2, $3, 'active', $4, $5)`,
+    [subId, userId, planId, stripeSessionId ?? null, expiresAt]
   );
   if (planId === "pro" || planId === "enterprise" || planId === "starter") {
     await query(

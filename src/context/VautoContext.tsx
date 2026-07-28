@@ -174,6 +174,10 @@ import {
   jobCreditsForPlan,
   type B2BBillingPlanId,
 } from "@/lib/b2b-plans";
+import {
+  computeLaunchPromoExpiresAt,
+  isLaunchPromoActive,
+} from "@vauto/shared/launch-promo";
 import { createInvoiceFromCheckout } from "@/lib/invoices";
 import { buildInvestorDemoBundle } from "@/lib/investor-demo";
 import { saveJobApplications } from "@/lib/job-applications";
@@ -1740,6 +1744,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
             patchAuthUser({
               billingPlan:
                 (u.billingPlan as UserProfile["billingPlan"]) ?? planId,
+              billingExpiresAt: u.billingExpiresAt,
               role: u.role === "pro" || planId !== "start" ? "pro" : user.role,
               jobListingCredits: jobCreditsForPlan(planId),
               billingModel: "subscription",
@@ -1756,8 +1761,16 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         role: "pro",
         billingModel: "subscription",
         jobListingCredits: jobCreditsForPlan(planId),
+        billingExpiresAt: isLaunchPromoActive()
+          ? computeLaunchPromoExpiresAt()
+          : undefined,
       });
-      showToast(`${planId.toUpperCase()} planas aktyvuotas (demo)`, "success");
+      showToast(
+        isLaunchPromoActive()
+          ? `${planId.toUpperCase()} — 3 mėn. nemokamai (demo)`
+          : `${planId.toUpperCase()} planas aktyvuotas (demo)`,
+        "success"
+      );
       return true;
     },
     [apiActive, patchAuthUser, showToast, user.role]

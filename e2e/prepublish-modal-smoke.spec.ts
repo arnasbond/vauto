@@ -64,7 +64,7 @@ test.describe("PrePublish modal UI smoke", () => {
         <div data-prepublish-modal="1">
           <h2>Peržiūra ir redagavimas</h2>
           <label>Kaina (€)<input type="number" value="0" /></label>
-          <div>Free Boost Premium — Pirmas mėnuo NEMOKAMAI 0 €</div>
+          <div>Free Boost Premium — 0 € (3 mėnesius nemokamai)</div>
           <div data-omniva-eligible="false">Omniva L netinka — kurjeris / atsiėmimas</div>
           <button data-prepublish-submit="1">Publikuoti skelbimą</button>
         </div>

@@ -5,6 +5,7 @@ import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
 import { B2BPlanCreditsCard } from "@/components/dashboard/B2BPlanCreditsCard";
+import { LaunchTrialBanner } from "@/components/dashboard/LaunchTrialBanner";
 import { BulkUploadCard } from "@/components/dashboard/BulkUploadCard";
 import { BusinessIdentityCard } from "@/components/dashboard/BusinessIdentityCard";
 import { BusinessMarketInsights } from "@/components/dashboard/BusinessMarketInsights";
@@ -101,6 +102,8 @@ export function ProBusinessDashboard({
     <div>
       <BusinessIdentityCard user={user} />
       <SellerDraftsStrip />
+
+      <LaunchTrialBanner user={user} />
 
       {user.role === "pro" && (
         <B2BPlanCreditsCard

@@ -22,8 +22,15 @@ export interface AuthApiSession {
     companyName?: string;
     companyCode?: string;
     vatCode?: string;
-    billingPlan?: "free" | "starter" | "pro";
+    billingPlan?:
+      | "free"
+      | "start"
+      | "growth"
+      | "enterprise"
+      | "starter"
+      | "pro";
     billingModel?: "ppc" | "subscription";
+    billingExpiresAt?: string;
     serviceBaseCity?: string;
     serviceRadiusKm?: number;
     serviceNationwide?: boolean;
@@ -205,6 +212,7 @@ export function mapApiUserToProfile(
     businessHours: apiUser.businessHours ?? undefined,
     billingPlan: apiUser.billingPlan,
     billingModel: apiUser.billingModel,
+    billingExpiresAt: apiUser.billingExpiresAt,
     serviceBaseCity: apiUser.serviceBaseCity,
     serviceRadiusKm: apiUser.serviceRadiusKm,
     serviceNationwide: apiUser.serviceNationwide,

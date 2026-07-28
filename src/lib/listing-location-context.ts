@@ -4,13 +4,22 @@ import {
   LT_CITY_COORDS,
   LT_CITY_NAMES,
 } from "@/lib/lt-cities";
-import { normalizeKnownListingCity } from "@/lib/city-resolve";
+import { isPlaceholderCity, normalizeKnownListingCity } from "@/lib/city-resolve";
 
 /** Agent prompt when listing city is unknown — mirrors unverified price handling. */
 export const LOCATION_MISSING_AGENT_PROMPT =
   "Matau, kad vieta nenurodyta — patikslinkite miestą Lietuvoje (pvz. Vilnius, Kaunas) arba palikite nenurodytą.";
 
 const MAX_GEO_CITY_DISTANCE_KM = 45;
+
+/** Explicit draft city: known LT name, or any non-placeholder free-text the user typed. */
+function explicitDraftCity(draftLocation: string | undefined | null): string {
+  const known = normalizeKnownListingCity(draftLocation);
+  if (known) return known;
+  const raw = String(draftLocation ?? "").trim();
+  if (!raw || isPlaceholderCity(raw)) return "";
+  return raw;
+}
 
 /** Profile city only when it maps to a known Lithuanian city. */
 export function verifiedProfileCity(profileCity?: string | null): string {
@@ -81,13 +90,14 @@ export function preferLocalCityNearCoords(
 /**
  * Resolve listing city for publish: explicit draft → GPS municipality → profile.
  * Never invents a default town. Abroad GPS → only explicit draft city (or empty).
+ * Free-text draft (incl. foreign cities) is preserved when the user typed it.
  */
 export function resolvePublishListingCity(
   draftLocation: string | undefined | null,
   profileCity: string | undefined | null,
   geoCoords?: UserCoords | null
 ): string {
-  const fromDraft = normalizeKnownListingCity(draftLocation);
+  const fromDraft = explicitDraftCity(draftLocation);
   const fromProfile = verifiedProfileCity(profileCity);
   const abroad = Boolean(geoCoords && !isCoordsInLithuania(geoCoords));
   const fromGeo =
@@ -98,6 +108,10 @@ export function resolvePublishListingCity(
   }
 
   if (geoCoords && fromGeo) {
+    // Explicit free-text (incl. unknown/foreign) always wins over GPS guess.
+    if (fromDraft && !normalizeKnownListingCity(draftLocation)) {
+      return fromDraft;
+    }
     if (fromDraft) {
       return preferLocalCityNearCoords(fromDraft, fromGeo, geoCoords);
     }

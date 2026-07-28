@@ -21,6 +21,8 @@ export interface ApiUser {
   businessHours?: import("./shared/business-hours.js").BusinessHours | null;
   billingPlan?: string;
   billingModel?: string;
+  /** ISO end of personal launch trial (billing_subscriptions.expires_at). */
+  billingExpiresAt?: string;
   referralCode?: string;
   freeProtectionCredits?: number;
   /** Nemokami TOP skelbimo iškėlimai (pvz. už atsiliepimą) */

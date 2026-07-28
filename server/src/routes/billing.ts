@@ -232,7 +232,7 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
     }
 
     const plan = STRIPE_PLANS[planId as StripePlanId];
-    // First Month Free launch — activate immediately at 0 € (Stripe rejects 0 unit_amount).
+    // Starto akcija — activate immediately at 0 € without Stripe/card.
     if (plan.amount <= 0) {
       const user = await subscribeUserPlan(req.authUserId!, planId);
       if (!user) return res.status(404).json({ error: "User not found" });
@@ -241,7 +241,8 @@ billingRouter.post("/subscribe", requireAuth, async (req: AuthedRequest, res) =>
         mode: "launch_promo",
         user,
         amountEur: 0,
-        message: "Starto akcija: Pirmas mėnuo NEMOKAMAI! Planas aktyvuotas.",
+        message:
+          "Starto akcija: 3 mėnesius nemokamai (0 €)! Planas aktyvuotas be kortelės.",
       });
     }
 

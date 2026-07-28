@@ -1,3 +1,8 @@
+import {
+  applyLaunchPromoPrice,
+  isLaunchPromoActive,
+} from "@vauto/shared/launch-promo";
+
 export type B2BBillingPlanId = "start" | "growth" | "enterprise";
 export type B2BBillingModel = "ppc" | "subscription";
 
@@ -18,7 +23,7 @@ export const B2B_PLANS: B2BPlan[] = [
   {
     id: "start",
     label: "START",
-    monthlyPrice: 29,
+    monthlyPrice: 9,
     jobListingLimit: 1,
     features: [
       "1 aktyvus darbo skelbimas per mėnesį",
@@ -31,7 +36,7 @@ export const B2B_PLANS: B2BPlan[] = [
   {
     id: "growth",
     label: "GROWTH",
-    monthlyPrice: 99,
+    monthlyPrice: 29,
     jobListingLimit: 5,
     features: [
       "Iki 5 aktyvių darbo skelbimų",
@@ -44,7 +49,7 @@ export const B2B_PLANS: B2BPlan[] = [
   {
     id: "enterprise",
     label: "ENTERPRISE",
-    monthlyPrice: 249,
+    monthlyPrice: 69,
     jobListingLimit: "unlimited",
     features: [
       "Neriboti darbo skelbimai",
@@ -86,14 +91,17 @@ export function jobCreditsForPlan(planId: B2BBillingPlanId): number | "unlimited
 
 export function buildB2BCheckout(planId: B2BBillingPlanId) {
   const plan = getB2BPlan(planId);
+  const amountEur = applyLaunchPromoPrice(plan.monthlyPrice);
   return {
     id: `chk_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
     kind: "b2b_subscription" as const,
     productId: planId,
     lineTitle: `${plan.label} prenumerata`,
     lineDescription: plan.features[0] ?? plan.label,
-    amountEur: plan.monthlyPrice,
+    amountEur,
+    listAmountEur: plan.monthlyPrice,
     vatRate: 0.21,
+    launchPromo: isLaunchPromoActive() && amountEur <= 0,
   };
 }
 

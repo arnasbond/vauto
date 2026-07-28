@@ -83,6 +83,9 @@ export interface CheckoutSession {
   lineTitle: string;
   lineDescription: string;
   amountEur: number;
+  /** List price before Starto akcijos nuolaidos (UI strikethrough). */
+  listAmountEur?: number;
+  launchPromo?: boolean;
   vatRate: number;
 }
 
