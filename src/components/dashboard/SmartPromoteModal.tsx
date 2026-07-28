@@ -11,10 +11,7 @@ import {
 import type { Listing } from "@/lib/types";
 import { categoryToTheme, getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
-import {
-  isLaunchPromoActive,
-  LAUNCH_PROMO_BADGE,
-} from "@vauto/shared/launch-promo";
+import { LAUNCH_PROMO_LISTING_NOTE, isLaunchPromoActive } from "@vauto/shared/launch-promo";
 
 const PRODUCT_ICONS: Record<B2CPromoteProductId, typeof Sparkles> = {
   refresh: TrendingUp,
@@ -79,7 +76,8 @@ export function SmartPromoteModal({
 
         <p className={cn("mb-1 text-sm font-medium", titleColor)}>{listing.title}</p>
         <p className={cn("mb-4 text-xs", mutedColor)}>
-          Pasirinkite matomumo paketą — apmokėjimas per saugų VAUTO Checkout.
+          Papildomos paslaugos mokamos pagal standartinį tarifą — apmokėjimas per VAUTO Checkout
+          (Stripe / kreditai).
         </p>
         {isLaunchPromoActive() ? (
           <p
@@ -87,7 +85,7 @@ export function SmartPromoteModal({
             role="status"
             data-launch-promo="1"
           >
-            {LAUNCH_PROMO_BADGE}
+            {LAUNCH_PROMO_LISTING_NOTE}
           </p>
         ) : null}
 
@@ -134,7 +132,7 @@ export function SmartPromoteModal({
                     </div>
                   </div>
                   <p className={cn("shrink-0 text-sm font-bold", titleColor)}>
-                    {product.priceEur <= 0 ? "0 €" : `${product.priceEur.toFixed(2)} €`}
+                    {product.priceEur.toFixed(2)} €
                   </p>
                 </div>
               </button>
@@ -143,9 +141,7 @@ export function SmartPromoteModal({
         </div>
 
         <p className={cn("mb-4 text-center text-3xl font-bold", titleColor)}>
-          {selectedProduct.priceEur <= 0
-            ? "0 €"
-            : `${selectedProduct.priceEur.toFixed(2)} €`}
+          {selectedProduct.priceEur.toFixed(2)} €
         </p>
 
         <button
@@ -153,9 +149,7 @@ export function SmartPromoteModal({
           onClick={handleContinue}
           className="w-full min-h-[52px] rounded-2xl bg-[var(--vauto-teal)] py-3.5 text-sm font-semibold text-white transition hover:opacity-90"
         >
-          {selectedProduct.priceEur <= 0
-            ? `Aktyvuoti nemokamai — ${selectedProduct.title}`
-            : `Tęsti į apmokėjimą — ${selectedProduct.title}`}
+          Tęsti į apmokėjimą — {selectedProduct.title}
         </button>
       </div>
     </div>

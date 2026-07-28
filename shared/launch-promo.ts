@@ -1,6 +1,13 @@
 /**
- * Launch promo — Starto akcija: 3 mėnesiai nemokamai (0 €), be kortelės.
- * Active by default for the vauto.lt live opening; disable with LAUNCH_PROMO=0.
+ * Launch promo — Starto akcija.
+ *
+ * Scope:
+ * - Base listing publish: always 0 € (no fee in catalog / publish path).
+ * - B2B subscription plans: 0 € for LAUNCH_PROMO_TRIAL_MONTHS (cardless trial).
+ * - B2C extras (bump / highlight / VIP / TOP / PLUS): NEVER discounted —
+ *   use full catalog rates + Stripe / wallet checkout.
+ *
+ * Disable with LAUNCH_PROMO=0 / NEXT_PUBLIC_LAUNCH_PROMO=0.
  * Personal trial: expires_at = activation + LAUNCH_PROMO_TRIAL_MONTHS.
  */
 
@@ -11,6 +18,10 @@ export const LAUNCH_PROMO_BADGE = "0 € (3 mėnesius nemokamai)";
 export const LAUNCH_PROMO_SHORT = "3 mėnesius nemokamai";
 
 export const LAUNCH_PROMO_TITLE = "Starto akcija";
+
+/** UI note: free base listing; paid visibility extras. */
+export const LAUNCH_PROMO_LISTING_NOTE =
+  "Bazinis skelbimas — 0 €. VIP / iškėlimai / paryškinimai mokami.";
 
 function readEnvFlag(
   ...keys: Array<string | undefined>
@@ -25,7 +36,7 @@ function readEnvFlag(
 }
 
 /**
- * Launch promo gate. Defaults to ON (0 € checkout) unless explicitly disabled.
+ * Launch promo gate. Defaults to ON unless explicitly disabled.
  * Client: NEXT_PUBLIC_LAUNCH_PROMO · Server: LAUNCH_PROMO
  */
 export function isLaunchPromoActive(): boolean {
@@ -42,7 +53,11 @@ export function isLaunchPromoActive(): boolean {
   return true;
 }
 
-/** Apply launch discount — returns 0 € while promo is active. */
+/**
+ * Apply launch discount — returns 0 € while promo is active.
+ * Use ONLY for B2B subscription plan prices.
+ * Do NOT apply to B2C bump / highlight / VIP / TOP / PLUS products.
+ */
 export function applyLaunchPromoPrice(priceEur: number): number {
   if (!Number.isFinite(priceEur) || priceEur <= 0) return 0;
   return isLaunchPromoActive() ? 0 : priceEur;

@@ -25,6 +25,7 @@ import {
 } from "@/lib/listing-dynamic-attributes";
 import {
   getPrePublishVisibilityOption,
+  PRE_PUBLISH_PROMO_NOTE,
   PRE_PUBLISH_VISIBILITY_OPTIONS,
   type PrePublishVisibilityId,
 } from "@/lib/listing-publish-visibility";
@@ -40,6 +41,7 @@ import {
 import {
   isLaunchPromoActive,
   LAUNCH_PROMO_BADGE,
+  LAUNCH_PROMO_LISTING_NOTE,
 } from "@vauto/shared/launch-promo";
 import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
 
@@ -569,12 +571,13 @@ export function PrePublishModal({
                 role="status"
                 data-launch-promo="1"
               >
-                {LAUNCH_PROMO_BADGE}
+                {LAUNCH_PROMO_BADGE} — {LAUNCH_PROMO_LISTING_NOTE}
               </p>
             ) : null}
             <p className="mt-0.5 text-[11px] leading-snug text-[var(--vauto-text-muted)]">
-              Pasirinkite matomumo planą prieš publikavimą
-              {isLaunchPromoActive() ? " — starto akcijos metu 0 €." : " (serverio kainos)."}
+              {isLaunchPromoActive()
+                ? PRE_PUBLISH_PROMO_NOTE
+                : "Pasirinkite matomumo planą — bazinis įkėlimas nemokamas, papildomos paslaugos mokamos."}
             </p>
             <div
               className="mt-2 space-y-1.5"
@@ -638,7 +641,9 @@ export function PrePublishModal({
               <Sparkles className="h-3.5 w-3.5" aria-hidden />
             </span>
             <p className="text-[13px] leading-snug text-[var(--vauto-text)]">
-              Viskas paruošta! Patvirtinkite ir skelbimas bus publikuotas.
+              {selected.priceEur > 0
+                ? `Bazinis skelbimas — 0 €. Po publikavimo — apmokėjimas už ${TIER_BADGE[selected.id].badge} (${selected.priceEur.toFixed(2)} €).`
+                : "Viskas paruošta! Patvirtinkite — bazinis skelbimas publikuojamas nemokamai."}
             </p>
           </div>
           <button
@@ -658,10 +663,15 @@ export function PrePublishModal({
                 <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
                 Publikuojama…
               </>
+            ) : selected.priceEur > 0 ? (
+              <>
+                <SendHorizontal className="h-4 w-4" aria-hidden />
+                Publikuoti ir mokėti {selected.priceEur.toFixed(2)} €
+              </>
             ) : (
               <>
                 <SendHorizontal className="h-4 w-4" aria-hidden />
-                Publikuoti skelbimą
+                Publikuoti nemokamai
               </>
             )}
           </button>

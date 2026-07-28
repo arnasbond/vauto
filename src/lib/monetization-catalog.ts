@@ -1,9 +1,4 @@
 import type { B2BBillingPlanId } from "@/lib/b2b-plans";
-import {
-  applyLaunchPromoPrice,
-  isLaunchPromoActive,
-  LAUNCH_PROMO_BADGE,
-} from "@vauto/shared/launch-promo";
 
 export const VAT_RATE_LT = 0.21;
 
@@ -20,6 +15,10 @@ export interface B2CPromoteProduct {
   durationDays?: number;
 }
 
+/**
+ * B2C promote catalog — always full rates.
+ * Starto akcija does NOT discount bump / highlight / VIP / TOP.
+ */
 const B2C_PROMOTE_CATALOG: Omit<B2CPromoteProduct, "priceEur">[] = [
   {
     id: "refresh",
@@ -49,20 +48,17 @@ const B2C_PROMOTE_CATALOG: Omit<B2CPromoteProduct, "priceEur">[] = [
   },
 ];
 
-function withPromo(product: Omit<B2CPromoteProduct, "priceEur">): B2CPromoteProduct {
-  const priceEur = applyLaunchPromoPrice(product.listPriceEur);
+function withCatalogPrice(
+  product: Omit<B2CPromoteProduct, "priceEur">
+): B2CPromoteProduct {
   return {
     ...product,
-    priceEur,
-    description:
-      isLaunchPromoActive() && product.listPriceEur > 0
-        ? `${LAUNCH_PROMO_BADGE}`
-        : product.description,
+    priceEur: product.listPriceEur,
   };
 }
 
 export const B2C_PROMOTE_PRODUCTS: B2CPromoteProduct[] =
-  B2C_PROMOTE_CATALOG.map(withPromo);
+  B2C_PROMOTE_CATALOG.map(withCatalogPrice);
 
 export type CheckoutProductKind =
   | "b2c_promote"
@@ -83,7 +79,7 @@ export interface CheckoutSession {
   lineTitle: string;
   lineDescription: string;
   amountEur: number;
-  /** List price before Starto akcijos nuolaidos (UI strikethrough). */
+  /** List price before any discount (UI strikethrough when different). */
   listAmountEur?: number;
   launchPromo?: boolean;
   vatRate: number;
@@ -110,6 +106,7 @@ export function buildB2CPromoteCheckout(
     lineTitle: product.title,
     lineDescription: product.description,
     amountEur: product.priceEur,
+    listAmountEur: product.listPriceEur,
     vatRate: VAT_RATE_LT,
   };
 }

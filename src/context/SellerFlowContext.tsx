@@ -1859,11 +1859,11 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       if (exact !== null) distKm = exact;
     }
 
-    const visibilityOption = getPrePublishVisibilityOption(opts?.visibilityId ?? "standard");
-    const visibilityExpiresAt =
-      visibilityOption.durationDays && visibilityOption.promoted
-        ? new Date(Date.now() + visibilityOption.durationDays * 86_400_000).toISOString()
-        : undefined;
+    // Selected extras (Boost/Premium) are paid after publish via checkout.
+    // Base listing is always created as free — never grant promote on create.
+    const selectedVisibility = getPrePublishVisibilityOption(
+      opts?.visibilityId ?? "standard"
+    );
 
     const publishCategory = resolveEffectiveListingCategory(
       profileDraft.category,
@@ -1942,11 +1942,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       allowPastomatas: profileDraft.allowPastomatas ?? true,
       isAiTwinActive:
         String(profileDraft.attributes?.isAiTwinActive ?? "").trim().toLowerCase() === "true",
-      visibilityTier: visibilityOption.visibilityTier,
-      promoted: visibilityOption.promoted,
-      visibilityExpiresAt,
-      visibilityPlanTier:
-        visibilityOption.id === "maximum" ? 5 : visibilityOption.id === "popular" ? 3 : undefined,
+      visibilityTier: "free",
+      promoted: false,
     }),
       conductorPublish
     );
@@ -2042,7 +2039,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       const visibilityCheckout = buildPrePublishVisibilityCheckout(
         published.id,
         published.title,
-        visibilityOption
+        selectedVisibility
       );
       return { ok: true, listing: published, visibilityCheckout };
     }
@@ -2088,7 +2085,7 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const visibilityCheckout = buildPrePublishVisibilityCheckout(
       newListing.id,
       newListing.title,
-      visibilityOption
+      selectedVisibility
     );
     return { ok: true, listing: newListing, visibilityCheckout };
     } catch (e) {

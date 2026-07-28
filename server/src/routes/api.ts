@@ -625,6 +625,21 @@ apiRouter.post(
     if (resolveConductorRequiresReviewForListing(listing)) {
       listing = { ...listing, requiresReview: true };
     }
+    // Monetization: base publish is always free. Paid VIP / bump / highlight
+    // is granted only via Stripe promote-checkout or wallet promote — never on create.
+    {
+      const attrs =
+        listing.attributes && typeof listing.attributes === "object"
+          ? { ...listing.attributes }
+          : {};
+      delete attrs._visibilityTier;
+      delete attrs._visibilityExpiresAt;
+      listing = {
+        ...listing,
+        promoted: false,
+        attributes: attrs,
+      };
+    }
     const clientDraftId =
       typeof listing.attributes?.clientDraftId === "string"
         ? listing.attributes.clientDraftId.trim()
