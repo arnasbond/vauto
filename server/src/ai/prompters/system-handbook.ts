@@ -18,6 +18,8 @@ export type HandbookPrompterId =
   | "music"
   | "realestate"
   | "general"
+  | "electronics"
+  | "clothing"
   | "jobs"
   | "services";
 
@@ -43,14 +45,13 @@ Do not invent missing values.
  * Structure without brand/city few-shot pollution.
  */
 export const NATURAL_SALES_COPY_DIRECTIVE = `
-Rašyk turtingą, šiltą, engaginantį pardavimo tekstą natūralia lietuvių kalba.
-Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto — bet rašyk gyvai, ne sausai.
-Kai faktų užtenka, struktūruok Markdown:
-1) Hook — 2–4 sakiniai, kurie įtraukia pirkėją
-2) **Privalumai** — • bullet'ai
-3) **Būklė** — būklė + komplektacija (jei žinoma)
-4) **Specifikacijos** — • bullet'ai VISIEMS žinomiems specs
-5) **Pristatymas / Apžiūra** — trumpas CTA
+Rašyk engaginantį marketplace tekstą natūralia lietuvių kalba — tonas pagal kategorijos FOKUSAS (ne vienodas šablonas visiems).
+Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto.
+Kai faktų užtenka, struktūruok Markdown pagal kategoriją:
+- Elektronika/technika: trumpas hook + • Specifikacijos + būklė/komplektacija (mažiau poezijos)
+- Paslaugos: įtaigus hook + • spektras + patirtis/garantijos + terminai/zona
+- Mada: vaizdingas hook + dydis/audinys/prigludimas
+- Transportas: šiltas pristatymas + • techniniai faktai (rida, būklė, aptarnavimai)
 Title: švarus marketplace pavadinimas (brand + model + tipas, kai žinomi).
 Pradėk description tiesiai nuo pardavimo teksto (be „Pavadinimas:“ / „Title:“ etikečių).
 Jei miesto / kainos / detalės nėra — tiesiog neminėk; nepalik tuščių šablonų.

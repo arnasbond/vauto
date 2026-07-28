@@ -128,10 +128,12 @@ Jei abejoji — OVERSIZED + fitsOmnivaLocker false (saugiau nei klaidingas locke
 
 /** Pass-1 extraction only — facts/OCR/category, no creative sales copy. */
 export const VISION_EXTRACTION_ANTI_HALLUCINATION_RULE = `
-VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (PRIVALOMA — autonomija, ne blokas):
-- Ištrauk STRUKTŪRUOTUS FAKTUS: produktą, auto, NT, elektroniką, drabužį ar paslaugos kontekstą.
+VIZUALUS SUPRATIMAS — PASS 1 EXTRACTION (kreipiantis, ne blokas):
+- Ištrauk MAKSIMALIAI daug STRUKTŪRUOTŲ FAKTŲ, kuriuos MATAI su dideliu patikimumu:
+  modelis, komplektacija, ratlankiai, salonas, būklės ženklai, etiketės, OCR tekstas.
+- Jei parametro nuotraukoje NĖRA arba neaišku — PALIK null / praleisk. Nespėliok (rida, kW, TA, kaina, „odinis salonas“ be pagrindo).
 - Jei keli objektai — detectedObjects + choiceChips; confidence gali būti žemesnis, BET VIS TIEK grąžink geriausią faktų JSON.
-- DRAUDŽIAMA: visiškai tuščias atsakymas, „prekė neatpažinta“ kaip stop, automatinis PASLAUGOS priskyrimas be pagrindo.
+- Venk visiškai tuščio atsakymo ir „prekė neatpažinta“ kaip stop; automatinio PASLAUGOS priskyrimo be pagrindo.
 - Jei vaizdas silpnas — documentReadable/confidence atspindėk, bet NESTABDYK ekstrakcijos.
 - NIEKADA neatmesk vartotojo nuotraukų kaip „stock“ / „neadekvatu“ — tai ne tavo sprendimas.
 - NIEKADA nesiūlyk ankstesnių skelbimų pavadinimų ar katalogo prekių jei jų NĖRA nuotraukoje.

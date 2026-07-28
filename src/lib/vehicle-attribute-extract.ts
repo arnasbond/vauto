@@ -330,8 +330,7 @@ export function enrichVehicleListingDraft<T extends VehicleDraftLike>(
     if (normalizedYear) attrs.year = normalizedYear;
   }
 
-  if (!attrs.defects) attrs.defects = "Be defektų";
-  if (!attrs.steering) attrs.steering = "Kairėje";
+  // Do not invent "Be defektų" / "Kairėje" — only keep values from text/OCR/vision.
 
   const make = attrs.make;
   const model = attrs.model;

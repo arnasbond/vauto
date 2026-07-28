@@ -1,8 +1,5 @@
 import type { AiExtractedListing } from "@/lib/types";
-import {
-  buildDraftConfirmationBubble,
-  buildConversationalMissingPrompt,
-} from "@/lib/listing-conversational-flow";
+import { buildConversationalMissingPrompt } from "@/lib/listing-conversational-flow";
 import type { PrePublishReadiness } from "@/lib/pre-publish-validation";
 
 export interface ListingDraftPreviewInput {
@@ -33,12 +30,17 @@ function formatLocation(location?: string): string | null {
   return t;
 }
 
-function truncateDescription(text: string, max = 420): string {
-  const t = text.trim().replace(/\s+/g, " ");
+function truncateDescription(text: string, max = 1200): string {
+  const t = text.trim();
   if (t.length <= max) return t;
   const cut = t.slice(0, max);
-  const lastStop = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("!"), cut.lastIndexOf("?"));
-  if (lastStop > 120) return cut.slice(0, lastStop + 1);
+  const lastStop = Math.max(
+    cut.lastIndexOf("\n"),
+    cut.lastIndexOf("."),
+    cut.lastIndexOf("!"),
+    cut.lastIndexOf("?")
+  );
+  if (lastStop > 200) return cut.slice(0, lastStop + 1).trimEnd();
   return `${cut.trimEnd()}…`;
 }
 
@@ -100,6 +102,9 @@ export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string 
     city ? ` · ${city}` : ""
   }. Dabar sudėliosiu patrauklų aprašymą — patikslinkite unikalias detales.`;
 }
+
+const DRAFT_REFINE_INVITE =
+  "Galite čia patikslinti (pvz. „pataisyk kainą“, „pridėk faktą“) — kai bus gerai, atidarysime PrePublish ir publikuosite mygtuku.";
 
 export function buildConsultantFollowUpQuestion(
   draft: ListingDraftPreviewInput
@@ -213,14 +218,9 @@ export function buildListingDraftUpdateReply(
     return intro ? `${intro}\n\n${ask}` : ask;
   }
 
-  const confirmation = buildDraftConfirmationBubble({
-    title: draft.title,
-    description: draft.description,
-    price: draft.price,
-    location: draft.location,
-  });
-  // Single clean confirmation — strip conversational tip clutter from listing flow.
-  return [intro, confirmation].filter(Boolean).join("\n\n");
+  // Chat-first: show the draft description in the bubble for refinement.
+  const preview = buildDraftPreviewBlock(draft);
+  return [intro, preview, DRAFT_REFINE_INVITE].filter(Boolean).join("\n\n");
 }
 
 export function draftToPreviewInput(draft: AiExtractedListing): ListingDraftPreviewInput {

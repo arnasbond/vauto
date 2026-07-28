@@ -471,7 +471,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
   {
     name: "create_listing_draft",
     description:
-      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI. PRIVALOMA pateikti turtingą description (4–8 sakiniai): akcentai, būklė, nauda pirkėjui ir CTA — ne tuščią anketą ar 1 sakinio santrauką. Po to klausk 1 kontekstinį klausimą (ne „Trūksta miesto, kainos“).",
+      "Pradeda NAUJĄ skelbimo juodraštį kai vartotojas nori PARDUOTI. Rekomenduojama turtinga description pagal kategoriją (elektronika — specs bullet'ai; paslaugos — spektras/pasitikėjimas; mada — estetika; auto — faktai + pristatymas). Po to pokalbyje parodyk juodraščio peržiūrą ir klausk 1 kontekstinį klausimą (ne „Trūksta miesto, kainos“).",
     parameters: {
       type: "OBJECT",
       properties: {
@@ -488,7 +488,7 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         description: {
           type: "STRING",
           description:
-            "PRIVALOMAS turtingas marketplace aprašymas lietuviškai su struktūra: Antraštės hook + Pagrindiniai privalumai/savybės + Būklė ir komplektacija + Paskirtis pirkėjui + Apžiūros/pristatymo CTA (4–8+ sakiniai, Markdown bullet'ai OK). Instrumentams — skambesys, korpusas, grifas/stygos, pradedantiesiems/pro. DRAUDŽIAMA 1 eilutės santrauka ar antraštės pakartojimas. Auto raktai (rida/servisas/automobilis) TIK category=vehicles.",
+            "Marketplace aprašymas LT pagal kategoriją: electronics/tools — • specs (modelis, parametrai, būklė, komplektacija), mažiau poezijos; services — spektras + patirtis/garantijos + terminai/zona; clothing — dydis/audinys/prigludimas; vehicles — rida/būklė/aptarnavimai + šiltas hook. Markdown bullet'ai OK. Venk 1 eilutės santraukos. Auto raktai (rida/servisas) TIK category=vehicles.",
         },
         attributes: {
           type: "OBJECT",

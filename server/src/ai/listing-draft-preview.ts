@@ -26,12 +26,17 @@ function formatLocation(location?: string): string | null {
   return t;
 }
 
-function truncateDescription(text: string, max = 420): string {
-  const t = text.trim().replace(/\s+/g, " ");
+function truncateDescription(text: string, max = 1200): string {
+  const t = text.trim();
   if (t.length <= max) return t;
   const cut = t.slice(0, max);
-  const lastStop = Math.max(cut.lastIndexOf("."), cut.lastIndexOf("!"), cut.lastIndexOf("?"));
-  if (lastStop > 120) return cut.slice(0, lastStop + 1);
+  const lastStop = Math.max(
+    cut.lastIndexOf("\n"),
+    cut.lastIndexOf("."),
+    cut.lastIndexOf("!"),
+    cut.lastIndexOf("?")
+  );
+  if (lastStop > 200) return cut.slice(0, lastStop + 1).trimEnd();
   return `${cut.trimEnd()}…`;
 }
 
@@ -75,7 +80,7 @@ export function analyzeMissingDraftFields(
   return missing;
 }
 
-/** Beautiful draft card for chat — title + rich description, never a field checklist. */
+/** Chat-first draft card — title + full description for in-chat refinement. */
 export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string {
   const title = draft.title?.trim() || "naujas skelbimas";
   const price = formatPrice(draft.price);
@@ -93,6 +98,22 @@ export function buildDraftPreviewBlock(draft: ListingDraftPreviewInput): string 
   return `Paruošiau skelbimo pagrindą: «${title}»${price ? ` · ${price}` : ""}${
     city ? ` · ${city}` : ""
   }. Dabar sudėliosiu patrauklų aprašymą pagal modelį — patikslinkite unikalias detales žemiau.`;
+}
+
+const DRAFT_REFINE_INVITE =
+  "Galite čia patikslinti (pvz. „pataisyk kainą“, „pridėk faktą“) — kai bus gerai, atidarysime PrePublish ir publikuosite mygtuku.";
+
+export function buildListingDraftUpdateReply(
+  draft: ListingDraftPreviewInput,
+  opts?: { intro?: string; outro?: string }
+): string {
+  const preview = buildDraftPreviewBlock(draft);
+  const parts = [
+    opts?.intro?.trim(),
+    preview,
+    opts?.outro?.trim() || DRAFT_REFINE_INVITE,
+  ].filter(Boolean);
+  return parts.join("\n\n");
 }
 
 /**
@@ -184,19 +205,6 @@ export function buildDraftSalesTip(draft: ListingDraftPreviewInput): string | nu
     return "Patarimas: šio tipo drabužiams svarbiausia gera nuotrauka ir tikslus dydis — kitaip skelbimas „skęsta“.";
   }
   return "Patarimas: skelbimai su konkrečiu aprašymu ir bent 2–3 nuotraukomis parduoda pastebimai greičiau.";
-}
-
-export function buildListingDraftUpdateReply(
-  draft: ListingDraftPreviewInput,
-  opts?: { intro?: string; outro?: string }
-): string {
-  // Chat stays one warm sentence — full copy lives on PrePublish only.
-  const title = draft.title?.trim();
-  const ack = title
-    ? `Paruošiau pilną „${title.length > 72 ? `${title.slice(0, 69).trim()}…` : title}“ skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.`
-    : "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.";
-  const parts = [opts?.intro?.trim(), ack, opts?.outro?.trim()].filter(Boolean);
-  return parts.join(" ");
 }
 
 export function isLazyListingDraftReply(text: string): boolean {

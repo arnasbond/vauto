@@ -340,8 +340,7 @@ export function enrichVehicleListingDraftFromArgs(
     if (y) attrs.year = y;
   }
 
-  if (!attrs.defects) attrs.defects = "Be defektų";
-  if (!attrs.steering) attrs.steering = "Kairėje";
+  // Do not invent "Be defektų" / "Kairėje" — only keep values from text/OCR/vision.
 
   let nextTitle = title.trim();
   const make = attrs.make;

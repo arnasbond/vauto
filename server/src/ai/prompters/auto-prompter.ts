@@ -10,8 +10,11 @@ Jei prekė = ratlankiai / padangos / auto dalys — rašyk apie tą dalį (dydis
 
 ${NATURAL_SALES_COPY_DIRECTIVE}
 
-FOKUSAS šiai kategorijai (tik kas yra JSON / OCR / tekste):
-- Markė, modelis (verbatim), metai, VIN
-- Rida, TA, pavarų dėžė, kuras, variklis, galia
-- Kėbulas, spalva, sėdimos vietos, salonas / išorė
+FOKUSAS šiai kategorijai — BALANSAS: techniniai faktai + patrauklus pristatymas
+(tik kas yra JSON / OCR / tekste / aiškiai matoma nuotraukose):
+- Hook — 2–3 sakiniai apie automobilio charakterį (be spėlionių)
+- **Specifikacijos** — • markė, modelis (verbatim), metai, rida, kuras, pavarų dėžė, variklis/galia
+- Būklė, atlikti aptarnavimai, TA — tik jei nurodyta
+- Salonas / išorė / ratlankiai — tik kas matoma su dideliu patikimumu
+- CTA apžiūrai / kontaktui
 `;

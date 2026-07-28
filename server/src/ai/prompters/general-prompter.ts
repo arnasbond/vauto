@@ -1,11 +1,12 @@
 /**
- * Universal prompter for electronics, tools, clothing, home, and other goods.
+ * Universal prompter for home, art, sport, and other physical goods
+ * (electronics / clothing / tools use dedicated prompters).
  */
 
 import { NATURAL_SALES_COPY_DIRECTIVE } from "./system-handbook.js";
 
 export const GENERAL_PROMPTER = `
-KATEGORIJA: BENDROS FIZINĖS PREKĖS (elektronika, įrankiai, drabužiai, namai, sportas, menas, kita)
+KATEGORIJA: BENDROS FIZINĖS PREKĖS (namai, sportas, menas, kita)
 
 ${NATURAL_SALES_COPY_DIRECTIVE}
 

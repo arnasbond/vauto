@@ -2,6 +2,8 @@ import { AUTO_PROMPTER } from "./auto-prompter.js";
 import { MUSIC_PROMPTER } from "./music-prompter.js";
 import { REALESTATE_PROMPTER } from "./realestate-prompter.js";
 import { GENERAL_PROMPTER } from "./general-prompter.js";
+import { ELECTRONICS_PROMPTER } from "./electronics-prompter.js";
+import { CLOTHING_PROMPTER } from "./clothing-prompter.js";
 import { JOBS_PROMPTER } from "./jobs-prompter.js";
 import { SERVICES_PROMPTER } from "./services-prompter.js";
 import { getHandbookSliceForPrompter } from "./system-handbook.js";
@@ -10,6 +12,8 @@ export { AUTO_PROMPTER } from "./auto-prompter.js";
 export { MUSIC_PROMPTER } from "./music-prompter.js";
 export { REALESTATE_PROMPTER } from "./realestate-prompter.js";
 export { GENERAL_PROMPTER } from "./general-prompter.js";
+export { ELECTRONICS_PROMPTER } from "./electronics-prompter.js";
+export { CLOTHING_PROMPTER } from "./clothing-prompter.js";
 export { JOBS_PROMPTER } from "./jobs-prompter.js";
 export { SERVICES_PROMPTER } from "./services-prompter.js";
 export {
@@ -35,11 +39,13 @@ export type CategoryPrompterId =
   | "music"
   | "realestate"
   | "general"
+  | "electronics"
+  | "clothing"
   | "jobs"
   | "services";
 
 /**
- * Strict category → prompter router.
+ * Category → prompter router.
  * Injects a short positive factual directive (no product few-shots).
  */
 export function getCategoryPrompter(category: string): {
@@ -55,14 +61,26 @@ export function getCategoryPrompter(category: string): {
   let base = GENERAL_PROMPTER;
 
   if (
+    key === "ELEKTRONIKA" ||
+    key === "ELECTRONICS" ||
+    key === "ELECTRONIC" ||
+    key === "TOOLS" ||
+    key === "TOOL" ||
     key === "DALYS" ||
     key === "PARTS" ||
-    key === "TOOLS" ||
     key === "AUTODALYS"
   ) {
-    // Wheels/parts — never AUTO_PROMPTER (VIN/rida/TA/gearbox sales voice).
-    id = "general";
-    base = GENERAL_PROMPTER;
+    // Tech / parts / tools — specs-first (never AUTO_PROMPTER VIN/rida voice).
+    id = "electronics";
+    base = ELECTRONICS_PROMPTER;
+  } else if (
+    key === "APRANGA" ||
+    key === "CLOTHING" ||
+    key === "FASHION" ||
+    key === "MADA"
+  ) {
+    id = "clothing";
+    base = CLOTHING_PROMPTER;
   } else if (
     key === "AUTOMOBILIAI" ||
     key === "VEHICLES" ||
