@@ -13,11 +13,13 @@ import {
   canUseNativeShare,
   copyListingLink,
   openPlatformShare,
+  PRIMARY_SHARE_PLATFORMS,
   shareCaptionForPlatform,
   shareListingNative,
   SOCIAL_PLATFORMS,
   type SocialPlatformId,
 } from "@/lib/social-share";
+import { ShareListingModal } from "@/components/social/ShareListingModal";
 import { cn } from "@/lib/cn";
 
 interface ShareListingPanelProps {
@@ -26,6 +28,8 @@ interface ShareListingPanelProps {
   className?: string;
   onShared?: (platform: SocialPlatformId | "native" | "copy") => void;
   showVautoPromo?: boolean;
+  /** Use full modal with AI tones (recommended for post-publish). */
+  preferModal?: boolean;
 }
 
 const NEUTRAL_SHARE_BTN =
@@ -37,11 +41,17 @@ export function ShareListingPanel({
   className,
   onShared,
   showVautoPromo = true,
+  preferModal = false,
 }: ShareListingPanelProps) {
   const [copied, setCopied] = useState(false);
   const [captionPlatform, setCaptionPlatform] = useState<SocialPlatformId | null>(null);
+  const [modalOpen, setModalOpen] = useState(preferModal);
   const payload = buildListingSharePayload(listing);
   const nativeAvailable = canUseNativeShare();
+
+  const primaryPlatforms = SOCIAL_PLATFORMS.filter((p) =>
+    PRIMARY_SHARE_PLATFORMS.includes(p.id)
+  );
 
   const handleCopy = useCallback(async () => {
     const ok = await copyListingLink(listing);
@@ -69,6 +79,33 @@ export function ShareListingPanel({
     },
     [listing, onShared]
   );
+
+  if (preferModal) {
+    return (
+      <div className={cn(className)}>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className={cn(
+            "flex w-full items-center justify-center gap-2 px-3 py-3 text-sm",
+            NEUTRAL_SHARE_BTN
+          )}
+        >
+          <Share2 className="h-4 w-4" />
+          Dalintis socialiniuose tinkluose
+        </button>
+        <ShareListingModal
+          listing={listing}
+          open={modalOpen}
+          onClose={() => setModalOpen(false)}
+          onShared={(p) => {
+            if (p === "ai-copy") onShared?.("copy");
+            else onShared?.(p);
+          }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className={cn("space-y-3", className)}>
@@ -113,10 +150,20 @@ export function ShareListingPanel({
             </>
           )}
         </button>
+        <button
+          type="button"
+          onClick={() => setModalOpen(true)}
+          className={cn(
+            "flex items-center gap-1.5 px-3 py-2 text-xs",
+            NEUTRAL_SHARE_BTN
+          )}
+        >
+          AI tekstas
+        </button>
       </div>
 
-      <div className={cn("grid gap-2", compact ? "grid-cols-3" : "grid-cols-2 sm:grid-cols-3")}>
-        {SOCIAL_PLATFORMS.map((platform) => (
+      <div className={cn("grid gap-2", compact ? "grid-cols-2" : "grid-cols-2 sm:grid-cols-4")}>
+        {primaryPlatforms.map((platform) => (
           <button
             key={platform.id}
             type="button"
@@ -144,6 +191,16 @@ export function ShareListingPanel({
           {shareCaptionForPlatform("instagram", listing)}
         </p>
       )}
+
+      <ShareListingModal
+        listing={listing}
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onShared={(p) => {
+          if (p === "ai-copy") onShared?.("copy");
+          else onShared?.(p);
+        }}
+      />
     </div>
   );
 }

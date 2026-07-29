@@ -141,24 +141,6 @@ export async function notifyNegotiationDealClosed(
   });
 }
 
-/** C. Fono portalų sinchronizacija rado naujų prekių. */
-export async function notifyPortalSyncNewItems(
-  userId: string,
-  opts: { portalLabel: string; newCount: number; totalCount: number }
-): Promise<void> {
-  const countLabel =
-    opts.newCount === 1
-      ? "1 nauja prekė"
-      : `${opts.newCount} naujos prekės`;
-
-  await sendPushToUsers([userId], {
-    title: "VAUTO: asortimentas atnaujintas",
-    body: `${opts.portalLabel}: ${countLabel} (iš viso ${opts.totalCount}).`,
-    url: "/profile/?tab=asortimentas",
-    type: "portal_sync",
-  });
-}
-
 export async function notifyUsersFcm(
   userIds: string[],
   payload: { title: string; body: string; url: string }

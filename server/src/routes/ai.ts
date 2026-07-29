@@ -19,17 +19,22 @@ import {
   confirmDeliveryForEscrow,
   shouldAutoConfirmExpress,
 } from "../ai/order-agent.js";
-import { importWardrobeProfile } from "../ai/wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "../ai/magic-mirror.js";
 import { runAutoNegotiation } from "../ai/bargain-twin.js";
 import { calculateAppraisal } from "../ai/price-appraisal.js";
 import { generateListingShareCopy } from "../ai/listing-share-generator.js";
-import { getListings, getListingForEmbedding, getUser } from "../repository.js";
+import {
+  getListings,
+  getListingForEmbedding,
+  getUser,
+  updateListing,
+} from "../repository.js";
 import { toAgentListingSummary } from "../demo-catalog-api.js";
 import { parseMultipartImageRequest } from "../lib/multipart-image.js";
 import { normalizeImageInputList } from "../ai/image-input.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { requireAuth } from "../middleware/auth.js";
+import type { ApiListing } from "../types.js";
 import {
   buildUserContextInjectionBlock,
   resolveAuthenticatedAgentContext,
@@ -574,27 +579,6 @@ aiRouter.post("/process-express-escrow", async (req, res) => {
   }
 });
 
-aiRouter.post("/import-wardrobe-profile", async (req, res) => {
-  const body = req.body as {
-    profileUrl?: string;
-    userName?: string;
-    defaultLocation?: string;
-  };
-  if (!body.profileUrl?.trim()) {
-    return res.status(400).json({ error: "profileUrl is required" });
-  }
-  try {
-    const result = await importWardrobeProfile({
-      profileUrl: body.profileUrl.trim(),
-      userName: body.userName,
-      defaultLocation: body.defaultLocation,
-    });
-    res.json(result);
-  } catch (e) {
-    res.status(422).json({ error: String(e) });
-  }
-});
-
 aiRouter.post("/magic-mirror-fit", async (req, res) => {
   const body = req.body as {
     buyerName?: string;
@@ -895,96 +879,6 @@ aiRouter.post("/extract-combined", async (req, res) => {
   }
 });
 
-aiRouter.post("/import-url", async (req, res) => {
-  if (!hasAiKey()) return res.status(503).json({ ...AI_UNAVAILABLE, code: "unavailable" });
-
-  const { url, userCity, contact } = req.body as {
-    url: string;
-    userCity?: string;
-    contact?: string;
-  };
-
-  if (!url?.trim()) {
-    return res.status(400).json({ error: "url is required", code: "missing_url" });
-  }
-
-  const city = userCity || "Lietuva";
-  const phone = contact || "+370 612 34567";
-
-  function stripHtml(html: string): string {
-    return html
-      .replace(/<script[\s\S]*?<\/script>/gi, " ")
-      .replace(/<style[\s\S]*?<\/style>/gi, " ")
-      .replace(/<[^>]+>/g, " ")
-      .replace(/\s+/g, " ")
-      .trim();
-  }
-
-  try {
-    let pageRes: Response;
-    try {
-      pageRes = await fetch(url.trim(), {
-        headers: {
-          "User-Agent":
-            "Mozilla/5.0 (compatible; VautoBot/1.0; +https://www.vauto.lt)",
-          Accept: "text/html,application/xhtml+xml",
-        },
-        signal: AbortSignal.timeout(12_000),
-      });
-    } catch (fetchErr) {
-      const isTimeout =
-        fetchErr instanceof Error &&
-        (fetchErr.name === "AbortError" || fetchErr.name === "TimeoutError");
-      return res.status(502).json({
-        error: isTimeout
-          ? "Portalo puslapis neatsakė laiku — bandykite vėliau arba užpildykite ranka."
-          : "Nepavyko pasiekti portalo — patikrinkite nuorodą arba užpildykite ranka.",
-        code: isTimeout ? "timeout" : "fetch_failed",
-      });
-    }
-
-    if (!pageRes.ok) {
-      return res.status(502).json({
-        error: "Portalo puslapis neprieinamas — užpildykite skelbimą ranka.",
-        code: "fetch_failed",
-      });
-    }
-
-    const html = await pageRes.text();
-    const text = stripHtml(html).slice(0, 14_000);
-
-    if (text.length < 80) {
-      return res.status(422).json({
-        error: "Puslapio turinys per trumpas — užpildykite laukus ranka.",
-        code: "empty_content",
-      });
-    }
-
-    const raw = await chatJson([
-      {
-        role: "system",
-        content:
-          "Ištrauk skelbimo duomenis iš lietuviško portalo HTML. VAUTO veikia visoje Lietuvoje. Grąžink attributes su giliais laukais (auto: year, mileage, bodyType; NT: propertyType, area, heating; drabužiai: size, condition; darbas: jobTitle, salaryGross).",
-      },
-      {
-        role: "user",
-        content: `URL: ${url}\nTekstas:\n"""${text}"""\nJSON: ${EXTRACTION_SCHEMA}\nMiestas: ${city}`,
-      },
-    ]);
-    const listing = toListing(raw, city, phone);
-    listing.attributes = {
-      ...listing.attributes,
-      _importUrl: url.trim(),
-    };
-    res.json(listing);
-  } catch (e) {
-    res.status(500).json({
-      error: "Nepavyko apdoroti importo — užpildykite skelbimą ranka.",
-      code: "parse_failed",
-    });
-  }
-});
-
 aiRouter.post("/extract-text", async (req, res) => {
   if (!hasAiKey()) return res.status(503).json(AI_UNAVAILABLE);
 
@@ -1150,27 +1044,82 @@ aiRouter.post("/listing-share", async (req, res) => {
     description?: string;
     attributes?: Record<string, unknown>;
     imageAlt?: string;
+    tone?: string;
+    persist?: boolean;
   };
 
   const listingId = String(body.listingId ?? "").trim();
-  const title = String(body.title ?? "").trim();
-  if (!listingId || !title) {
-    return res.status(400).json({ error: "listingId and title are required" });
+  let title = String(body.title ?? "").trim();
+  if (!listingId) {
+    return res.status(400).json({ error: "listingId is required" });
   }
 
+  const toneRaw = String(body.tone ?? "casual").trim();
+  const tone =
+    toneRaw === "neutral" || toneRaw === "business" ? toneRaw : "casual";
+
   try {
+    const existing = await getListingForEmbedding(listingId);
+    const authed = req as AuthedRequest;
+    const attrsFromBody =
+      body.attributes && typeof body.attributes === "object"
+        ? body.attributes
+        : undefined;
+    const attributes =
+      attrsFromBody ??
+      ((existing?.attributes as Record<string, unknown> | undefined) ?? undefined);
+
+    if (!title && existing) title = existing.title;
+    if (!title) {
+      return res.status(400).json({ error: "listingId and title are required" });
+    }
+
     const copy = await generateListingShareCopy({
       listingId,
-      slug: body.slug ? String(body.slug) : undefined,
+      slug: body.slug
+        ? String(body.slug)
+        : existing?.slug
+          ? String(existing.slug)
+          : undefined,
       title,
-      price: Number(body.price) || 0,
-      city: String(body.city ?? "Lietuva"),
-      category: String(body.category ?? "other"),
-      description: body.description ? String(body.description) : undefined,
-      attributes: body.attributes,
-      imageAlt: body.imageAlt ? String(body.imageAlt) : undefined,
+      price: Number(body.price ?? existing?.price) || 0,
+      city: String(body.city ?? existing?.location ?? "Lietuva"),
+      category: String(body.category ?? existing?.category ?? "other"),
+      description: body.description
+        ? String(body.description)
+        : existing?.description
+          ? String(existing.description)
+          : undefined,
+      attributes,
+      imageAlt: body.imageAlt
+        ? String(body.imageAlt)
+        : existing?.imageAlt
+          ? String(existing.imageAlt)
+          : undefined,
+      tone,
     });
-    res.json({ ok: true, ...copy });
+
+    let persisted = false;
+    if (
+      body.persist &&
+      existing &&
+      authed.authUserId &&
+      existing.sellerId === authed.authUserId
+    ) {
+      const { toStoredSocialShare, mergeSocialShareAttributes } = await import(
+        "../ai/listing-share-generator.js"
+      );
+      const nextAttrs = mergeSocialShareAttributes(
+        (existing.attributes as Record<string, unknown> | undefined) ?? {},
+        toStoredSocialShare(copy)
+      );
+      const updated = await updateListing(listingId, authed.authUserId, {
+        attributes: nextAttrs as ApiListing["attributes"],
+      });
+      persisted = Boolean(updated);
+    }
+
+    res.json({ ok: true, persisted, ...copy });
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

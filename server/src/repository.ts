@@ -807,50 +807,6 @@ export async function searchListingsFiltered(
   return rows.slice(0, limit);
 }
 
-export async function findPortalListingByExternalId(
-  sellerId: string,
-  portalKey: string,
-  portalItemId: string
-): Promise<string | null> {
-  const rows = await query<{ id: string }>(
-    `SELECT id FROM listings
-     WHERE seller_id = $1
-       AND category = 'clothing'
-       AND attributes->>'_portalSync' = $2
-       AND attributes->>'_portalItemId' = $3
-     LIMIT 1`,
-    [sellerId, portalKey, portalItemId]
-  );
-  return rows[0]?.id ?? null;
-}
-
-/** Strict upsert for portal wardrobe imports — dedupe by external portal item ID. */
-export async function upsertPortalListing(
-  listing: ApiListing
-): Promise<"inserted" | "updated"> {
-  const attrs = listing.attributes as Record<string, unknown> | undefined;
-  const portalKey = String(attrs?._portalSync ?? "");
-  const portalItemId = String(attrs?._portalItemId ?? "");
-
-  let resolved = listing;
-  let wasUpdate = false;
-
-  if (portalKey && portalItemId) {
-    const existingId = await findPortalListingByExternalId(
-      listing.sellerId,
-      portalKey,
-      portalItemId
-    );
-    if (existingId) {
-      resolved = { ...listing, id: existingId };
-      wasUpdate = true;
-    }
-  }
-
-  await insertListing(resolved);
-  return wasUpdate ? "updated" : "inserted";
-}
-
 export async function insertListing(listing: ApiListing): Promise<void> {
   await ensureUser(listing.sellerId);
   await query(
@@ -926,6 +882,9 @@ export async function insertListing(listing: ApiListing): Promise<void> {
     .catch(() => {});
   void import("./ai/image-embedding.js")
     .then((m) => m.refreshListingImageEmbedding(listing.id))
+    .catch(() => {});
+  void import("./routes/og.js")
+    .then((m) => m.bustListingOgCache(listing))
     .catch(() => {});
 }
 
@@ -1028,7 +987,13 @@ export async function updateListing(
   }
 
   // Return by id (not public feed filter) so review-flag patches still resolve.
-  return getListingForEmbedding(id);
+  const updated = await getListingForEmbedding(id);
+  if (updated) {
+    void import("./routes/og.js")
+      .then((m) => m.bustListingOgCache(updated))
+      .catch(() => {});
+  }
+  return updated;
 }
 
 /** Admin-only patch — does not require seller_id match. */
@@ -2426,6 +2391,33 @@ export async function getListingForEmbedding(
 ): Promise<ApiListing | null> {
   const rows = await query<ListingRow>(`${LISTING_SELECT} WHERE id = $1`, [id]);
   return rows[0] ? mapListingRow(rows[0]) : null;
+}
+
+/** Public catalog lookup by id or slug — for OG edge / social crawlers. */
+export async function getPublicListingByIdOrSlug(
+  idOrSlug: string
+): Promise<ApiListing | null> {
+  const key = idOrSlug.trim();
+  if (!key) return null;
+  try {
+    const rows = await query<ListingRow>(
+      `${LISTING_SELECT}
+       WHERE ${PUBLIC_LISTING_VISIBILITY_SQL}
+         AND (id::text = $1 OR slug = $1)
+       LIMIT 1`,
+      [key]
+    );
+    if (rows[0]) return mapListingRow(rows[0]);
+  } catch {
+    /* fall through to demo catalog */
+  }
+  if (isServerDemoCatalogEnabled()) {
+    const demos = getDemoApiListings();
+    return (
+      demos.find((l) => l.id === key || l.slug === key) ?? null
+    );
+  }
+  return null;
 }
 
 export async function updateListingEmbedding(

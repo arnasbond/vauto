@@ -1049,76 +1049,6 @@ export async function apiProcessExpressEscrow(body: {
   });
 }
 
-export async function apiImportWardrobeProfile(body: {
-  profileUrl: string;
-  userName?: string;
-  defaultLocation?: string;
-  portalKey?: string;
-  persistLink?: boolean;
-}): Promise<import("@/lib/wardrobe-profile-importer").WardrobeProfileImport | null> {
-  const fromSpinta = await dataFetch<
-    import("@/lib/wardrobe-profile-importer").WardrobeProfileImport
-  >("/api/spinta/import", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  if (fromSpinta.ok && fromSpinta.data) return fromSpinta.data;
-
-  return aiFetch("/api/ai/import-wardrobe-profile", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-}
-
-export async function apiSpintaSync(body: {
-  profileUrl: string;
-  portalKey?: string;
-  userName?: string;
-  defaultLocation?: string;
-  force?: boolean;
-}): Promise<{
-  ok: boolean;
-  status: string;
-  itemCount?: number;
-  profileUrl?: string;
-  error?: string;
-} | null> {
-  const result = await dataFetch<{
-    ok: boolean;
-    status: string;
-    itemCount?: number;
-    profileUrl?: string;
-    error?: string;
-  }>("/api/spinta/sync", {
-    method: "POST",
-    body: JSON.stringify(body),
-  });
-  if (!result.ok) return { ok: false, status: "error", error: result.error };
-  return result.data;
-}
-
-export async function apiGetPortalLinks(): Promise<
-  ApiResult<{ links: import("@/lib/spinta-portal").UserPortalLinkDto[]; syncCycleDays: number }>
-> {
-  return dataFetch("/api/spinta/portals");
-}
-
-export async function apiLinkPortalProfile(body: {
-  portalKey: string;
-  profileUrl: string;
-}): Promise<ApiResult<{ link: import("@/lib/spinta-portal").UserPortalLinkDto }>> {
-  return dataFetch("/api/spinta/portals", {
-    method: "PUT",
-    body: JSON.stringify(body),
-  });
-}
-
-export async function apiUnlinkPortal(portalKey: string): Promise<ApiResult<{ ok: boolean }>> {
-  return dataFetch(`/api/spinta/portals/${encodeURIComponent(portalKey)}`, {
-    method: "DELETE",
-  });
-}
-
 export async function apiMagicMirrorFit(body: {
   buyerName: string;
   listingTitle: string;
@@ -1201,29 +1131,6 @@ export async function apiReferenceImages(body: {
     body: JSON.stringify(body),
   });
   return data?.images ?? null;
-}
-
-export async function apiImportListingFromUrl(body: {
-  url: string;
-  userCity: string;
-  contact: string;
-}): Promise<
-  | { ok: true; data: import("@/lib/types").AiExtractedListing }
-  | { ok: false; error: string; code?: string }
-> {
-  for (const base of getAiBaseUrls()) {
-    const result = await aiFetchOnce<import("@/lib/types").AiExtractedListing>(
-      base,
-      "/api/ai/import-url",
-      { method: "POST", body: JSON.stringify(body) },
-      AI_FETCH_TIMEOUT_MS
-    );
-    if (result.data) return { ok: true, data: result.data };
-    if (result.error) {
-      return { ok: false, error: result.error, code: result.code };
-    }
-  }
-  return { ok: false, error: "AI serveris nepasiekiamas.", code: "unavailable" };
 }
 
 export interface ApiServiceLead {

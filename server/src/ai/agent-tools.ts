@@ -70,7 +70,6 @@ import {
   POST_VISION_PUBLISH_CHIPS,
 } from "../shared/listing-organism.js";
 import { analyzeWardrobePhoto } from "./wardrobe-vision.js";
-import { importWardrobeProfile } from "./wardrobe-profile-importer.js";
 import { analyzeMagicMirrorFit } from "./magic-mirror.js";
 import { runAutoNegotiation } from "./bargain-twin.js";
 import { buildSellerTrustSummary } from "./seller-trust-score.js";
@@ -885,18 +884,6 @@ export const AGENT_FUNCTION_DECLARATIONS = [
         imageUrl: { type: "STRING", description: "Nuotraukos URL arba data: URL" },
       },
       required: ["imageUrl"],
-    },
-  },
-  {
-    name: "importWardrobeProfile",
-    description:
-      "Spintos perkėlimas — importuoja prekes iš portalo profilio URL (Vinted ir kt.) į VAUTO skelbimus vienu žingsniu.",
-    parameters: {
-      type: "OBJECT",
-      properties: {
-        profileUrl: { type: "STRING", description: "Portalo profilio nuoroda" },
-      },
-      required: ["profileUrl"],
     },
   },
   {
@@ -2615,60 +2602,6 @@ export async function executeAgentTool(
           result: {
             ok: false,
             message: e instanceof Error ? e.message : "Nepavyko analizuoti drabužių nuotraukos.",
-          },
-        };
-      }
-    }
-
-    case "importWardrobeProfile": {
-      const profileUrl = String(args.profileUrl ?? "").trim();
-      if (!profileUrl) {
-        return { result: { ok: false, message: "Įveskite portalo profilio nuorodą." } };
-      }
-      try {
-        const result = await importWardrobeProfile({
-          profileUrl,
-          userName: ctx.userName,
-          defaultLocation: ctx.userCity,
-        });
-        const importItems = result.items.map((item, idx) => ({
-          id: item.id || `import-${idx + 1}`,
-          title: item.title,
-          categoryGroup: "Moterims",
-          categorySub: item.category,
-          size: item.size,
-          color: item.color,
-          brand: item.brand,
-          condition: item.condition,
-          suggestedPrice: item.price,
-          description: item.description,
-        }));
-        return {
-          result: {
-            ok: result.items.length > 0,
-            itemCount: result.itemCount,
-            wardrobeValueTotal: result.wardrobeValueTotal,
-            message: result.voiceAnnouncement,
-            quickReplies:
-              result.items.length > 0
-                ? ["Peržiūrėti importą", "Patvirtinti visus", "Atidaryti Spintą"]
-                : ["Bandyti kitą nuorodą"],
-          },
-          ...(importItems.length > 0
-            ? {
-                sideEffect: {
-                  type: "wardrobe_bulk" as const,
-                  items: importItems,
-                  voiceAnnouncement: result.voiceAnnouncement,
-                },
-              }
-            : {}),
-        };
-      } catch (e) {
-        return {
-          result: {
-            ok: false,
-            message: e instanceof Error ? e.message : "Nepavyko importuoti profilio.",
           },
         };
       }

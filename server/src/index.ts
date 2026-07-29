@@ -16,8 +16,8 @@ import { growthRouter } from "./routes/growth.js";
 import { shippingRouter } from "./routes/shipping.js";
 import { authRouter } from "./routes/auth.js";
 import { pushRouter } from "./routes/push.js";
-import { spintaRouter } from "./routes/spinta.js";
 import { searchRouter } from "./routes/search.js";
+import { ogRouter } from "./routes/og.js";
 import { optionalAuth, requireAuth } from "./middleware/auth.js";
 import { aiRateLimiter, actionRateLimiter, apiRateLimiter, authRateLimiter, searchRateLimiter } from "./middleware/rate-limit.js";
 import { assertProductionEnv } from "./env-check.js";
@@ -35,6 +35,13 @@ app.post(
   express.raw({ type: "application/json" }),
   handleStripeWebhook
 );
+
+/**
+ * OG Edge — bot-facing HTML for social crawlers (FB/TG/WA/Viber).
+ * Mounted outside /api so Vercel can rewrite www.vauto.lt/listing/* UA matches here.
+ * Must be registered before the SPA catch-all redirect below.
+ */
+app.use("/og", ogRouter);
 /**
  * Multi-photo agent uploads (up to 6× Base64 data URLs) need a large JSON body.
  * Client pre-resizes cars to ≤1600px / docs ≤2800px (OCR); keep 50mb headroom for ≤10-image Vision.
@@ -44,7 +51,6 @@ app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ limit: JSON_BODY_LIMIT, extended: true }));
 app.use(optionalAuth);
 app.use("/api/search", searchRateLimiter, searchRouter);
-app.use("/api/spinta", actionRateLimiter, spintaRouter);
 app.use("/api/user/avatar", actionRateLimiter);
 app.use("/api", apiRateLimiter);
 
@@ -76,7 +82,7 @@ const frontendOrigin = (process.env.APP_ORIGIN ?? "").replace(/\/+$/, "");
 if (hasStaticBundle) {
   app.use(express.static(staticDir, { extensions: ["html"] }));
   app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api/")) {
+    if (req.path.startsWith("/api/") || req.path.startsWith("/og/")) {
       next();
       return;
     }
@@ -92,7 +98,7 @@ if (hasStaticBundle) {
     }
   })();
   app.get("*", (req, res, next) => {
-    if (req.path.startsWith("/api/")) {
+    if (req.path.startsWith("/api/") || req.path.startsWith("/og/")) {
       next();
       return;
     }
@@ -160,8 +166,6 @@ app.listen(port, async () => {
     });
     const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");
     void runStripeBootstrap();
-    const { startPortalSyncCron } = await import("./spinta/portal-sync-cron.js");
-    startPortalSyncCron();
     const gemini = Boolean(resolveGeminiApiKey());
     console.log(
       `VAUTO API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`

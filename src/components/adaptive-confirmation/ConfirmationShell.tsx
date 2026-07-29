@@ -1,17 +1,27 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useSellerFlow } from "@/context/SellerFlowContext";
-import { ShareListingPanel } from "@/components/social/ShareListingPanel";
-import { ShareSpintaButton } from "@/components/social/ShareSpintaButton";
+import { ShareListingModal } from "@/components/social/ShareListingModal";
 import { ListingSuccessLottie } from "@/components/listing/ListingSuccessLottie";
 import { getChameleonTheme } from "@/lib/chameleon-themes";
 import { cn } from "@/lib/cn";
 
-/** Post-publish celebration — Lottie success + share + dismiss. */
+/** Post-publish celebration — Lottie success + non-blocking Share Modal. */
 export function PublishedOverlay() {
   const { lastPublishedListing, finishPublishedFlow } = useSellerFlow();
   const theme = getChameleonTheme("flux");
   const p = theme.published;
+  const [shareOpen, setShareOpen] = useState(true);
+
+  useEffect(() => {
+    setShareOpen(true);
+  }, [lastPublishedListing?.id]);
+
+  const dismissAll = () => {
+    setShareOpen(false);
+    finishPublishedFlow();
+  };
 
   return (
     <div
@@ -33,26 +43,38 @@ export function PublishedOverlay() {
               Skelbimas sėkmingai įkeltas!
             </h2>
             <p className={cn("mt-1 text-xs text-[var(--vauto-text-muted)]")}>
-              Pasidalykite socialiniuose tinkluose — papildoma reklama
+              Pasidalykite dabar — arba praleiskite ir grįžkite vėliau.
             </p>
           </div>
 
           {lastPublishedListing && (
-            <>
-              <ShareSpintaButton listing={lastPublishedListing} className="mb-4" />
-              <ShareListingPanel listing={lastPublishedListing} className="mb-4" compact />
-            </>
+            <button
+              type="button"
+              onClick={() => setShareOpen(true)}
+              className="mb-3 w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface)] py-3 text-sm font-semibold text-[var(--vauto-text)]"
+            >
+              Atidaryti dalijimosi langą
+            </button>
           )}
 
           <button
             type="button"
-            onClick={finishPublishedFlow}
+            onClick={dismissAll}
             className="w-full rounded-xl bg-[var(--vauto-teal)] py-3 text-sm font-semibold text-white"
           >
             Baigti
           </button>
         </div>
       </div>
+
+      {lastPublishedListing && (
+        <ShareListingModal
+          listing={lastPublishedListing}
+          open={shareOpen}
+          onClose={() => setShareOpen(false)}
+          skipLabel="Praleisti — vėliau"
+        />
+      )}
     </div>
   );
 }

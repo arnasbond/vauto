@@ -1,17 +1,11 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo } from "react";
 import { LayoutGrid, LogIn, Sparkles } from "lucide-react";
 import { SecretaryWarmGreeting } from "@/components/clothing/SecretaryWarmGreeting";
-import { PortalLinksCenter } from "@/components/clothing/PortalLinksCenter";
 import { WardrobeCabinetGrid } from "@/components/clothing/WardrobeCabinetGrid";
 import { useVauto } from "@/context/VautoContext";
-import {
-  loadGuestWardrobeDrafts,
-  saveGuestWardrobeDrafts,
-} from "@/lib/wardrobe-guest-demo";
-import type { AiExtractedListing, Listing } from "@/lib/types";
-import type { WardrobeProfileImportItem } from "@/lib/wardrobe-profile-importer";
+import type { Listing } from "@/lib/types";
 
 export function GuestFashionCabinet() {
   const {
@@ -20,50 +14,18 @@ export function GuestFashionCabinet() {
     isAuthenticated,
     listings,
     openAuthModal,
-    publishBulkClothingListings,
     showToast,
-    user,
   } = useVauto();
-
-  const [guestDrafts, setGuestDrafts] = useState<AiExtractedListing[]>([]);
 
   useEffect(() => {
     if (authHydrated) activateWardrobeSpinta();
   }, [authHydrated, activateWardrobeSpinta]);
-
-  useEffect(() => {
-    const stored = loadGuestWardrobeDrafts();
-    if (stored.length) setGuestDrafts(stored);
-  }, []);
 
   const demoListings = useMemo((): Listing[] => {
     return listings
       .filter((l) => l.category === "clothing")
       .slice(0, 6);
   }, [listings]);
-
-  const handleGuestPreview = useCallback(
-    (_items: WardrobeProfileImportItem[], drafts: AiExtractedListing[]) => {
-      setGuestDrafts(drafts);
-      saveGuestWardrobeDrafts(drafts);
-    },
-    []
-  );
-
-  const handlePublishAfterAuth = () => {
-    if (guestDrafts.length === 0) return;
-    void publishBulkClothingListings(guestDrafts);
-  };
-
-  const handleSaveAndStart = () => {
-    if (guestDrafts.length === 0) {
-      showToast("Pirmiausia importuok asortimentą — įklijuok profilio URL viršuje.", "info");
-      return;
-    }
-    saveGuestWardrobeDrafts(guestDrafts);
-    openAuthModal("/fashion/");
-    showToast("Užsiregistruok — tavo importuoti skelbimai jau laukia!", "info");
-  };
 
   return (
     <div className="chameleon-wardrobe pb-6">
@@ -86,33 +48,20 @@ export function GuestFashionCabinet() {
         isGuest={!isAuthenticated}
       />
 
-      <PortalLinksCenter
-        guestMode
-        defaultLocation={user.city || "Vilnius"}
-        contact=""
-        onGuestPreview={handleGuestPreview}
-        onToast={showToast}
-      />
-
-      {guestDrafts.length > 0 && !isAuthenticated && (
+      {!isAuthenticated && (
         <button
           type="button"
-          onClick={handleSaveAndStart}
+          onClick={() => {
+            openAuthModal("/fashion/");
+            showToast(
+              "Prisijunkite ir sukurkite skelbimus su AI — nuotrauka ar keliais žodžiais.",
+              "info"
+            );
+          }}
           className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl vauto-btn-primary py-3.5 text-sm shadow-sm"
         >
           <Sparkles className="h-4 w-4" />
-          Išsaugoti ir pradėti prekybą
-        </button>
-      )}
-
-      {guestDrafts.length > 0 && isAuthenticated && (
-        <button
-          type="button"
-          onClick={handlePublishAfterAuth}
-          className="mb-6 flex w-full items-center justify-center gap-2 rounded-2xl vauto-btn-primary py-3.5 text-sm shadow-sm"
-        >
-          <Sparkles className="h-4 w-4" />
-          Publikuoti {guestDrafts.length} importuotus skelbimus
+          Pradėti kurti skelbimus su AI
         </button>
       )}
 

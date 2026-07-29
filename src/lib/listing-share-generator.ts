@@ -1,22 +1,42 @@
 import type { Listing } from "@/lib/types";
 import { isAiProxyAvailable } from "@/lib/api/config";
 import { getDataApiBaseUrl } from "@/lib/api/config";
+import { getAuthHeaders } from "@/lib/auth/session";
 import { SITE_URL } from "@/lib/site-url";
+import {
+  categoryHashtags,
+  listingShareUrl,
+  readStoredSocialShare,
+  type SocialShareTone,
+} from "@vauto/shared/listing-og";
+
+export type { SocialShareTone };
 
 export interface ListingShareCopy {
   facebook: string;
   instagram: string;
+  caption: string;
   hashtags: string[];
   url: string;
+  tone: SocialShareTone;
+  persisted?: boolean;
 }
 
-function fallbackShareCopy(listing: Listing): ListingShareCopy {
-  const origin = SITE_URL;
-  // Pretty URL is fine for external hard-loads (Vercel rewrite → /listing/?slug=).
-  const path = listing.slug
-    ? `/listing/${listing.slug}/`
-    : `/listing/?id=${encodeURIComponent(listing.id)}`;
-  const url = `${origin}${path}`;
+export const SHARE_TONE_OPTIONS: {
+  id: SocialShareTone;
+  label: string;
+  hint: string;
+}[] = [
+  { id: "casual", label: "Laisvas", hint: "Emoji, kabliukai" },
+  { id: "neutral", label: "Neutralus", hint: "Aiškus ir ramus" },
+  { id: "business", label: "Verslui", hint: "Profesionalus tonas" },
+];
+
+function fallbackShareCopy(
+  listing: Listing,
+  tone: SocialShareTone
+): ListingShareCopy {
+  const url = listingShareUrl(listing, SITE_URL);
   const price =
     listing.price > 0 ? `${listing.price.toFixed(0)} €` : "Kaina derinama";
   const city = listing.location?.trim() || "Lietuva";
@@ -25,20 +45,60 @@ function fallbackShareCopy(listing: Listing): ListingShareCopy {
   const size = String(attrs.size ?? attrs.clothingSize ?? "").trim();
   const detail = [brand, size].filter(Boolean).join(" · ");
   const hook = detail ? `${listing.title} (${detail})` : listing.title;
+  const hashtags = categoryHashtags(listing.category, city);
+  const tagLine = hashtags.map((t) => `#${t}`).join(" ");
+
+  let facebook: string;
+  let instagram: string;
+  if (tone === "business") {
+    facebook = `${hook} — ${price}, ${city}. Daugiau: ${url}`;
+    instagram = `${hook}\n${price} · ${city}\n${url}\n${tagLine}`;
+  } else if (tone === "neutral") {
+    facebook = `${hook} · ${price} · ${city}. VAUTO: ${url}`;
+    instagram = `${hook}\n${price} · ${city}\n${url}\n${tagLine}`;
+  } else {
+    facebook = `🔥 ${hook} — ${price}, ${city}! Peržiūrėkite VAUTO: ${url}`;
+    instagram = `✨ ${hook}\n💶 ${price} · 📍 ${city}\n👉 ${url}\n${tagLine}`;
+  }
 
   return {
-    facebook: `🔥 ${hook} — ${price}, ${city}! Peržiūrėkite VAUTO: ${url}`,
-    instagram: `✨ ${hook}\n💶 ${price} · 📍 ${city}\n👉 ${url}\n#vauto #spinta #${listing.category}`,
-    hashtags: ["vauto", "spinta", listing.category],
+    facebook,
+    instagram,
+    caption: facebook,
+    hashtags,
     url,
+    tone,
   };
 }
 
-/** AI Social Share — Gemini pagal Vision atributus (su offline fallback). */
+/** AI Social Share — Gemini pagal toną (su offline / cached fallback). */
 export async function fetchListingShareCopy(
-  listing: Listing
+  listing: Listing,
+  opts?: { tone?: SocialShareTone; persist?: boolean; force?: boolean }
 ): Promise<ListingShareCopy> {
-  const fallback = fallbackShareCopy(listing);
+  const tone: SocialShareTone =
+    opts?.tone === "neutral" || opts?.tone === "business" ? opts.tone : "casual";
+
+  if (!opts?.force) {
+    const stored = readStoredSocialShare(
+      listing.attributes as Record<string, unknown> | undefined
+    );
+    if (stored && stored.tone === tone && stored.caption) {
+      return {
+        facebook: stored.facebook || stored.caption,
+        instagram: stored.instagram || stored.caption,
+        caption: stored.caption,
+        hashtags: stored.hashtags.length
+          ? stored.hashtags
+          : categoryHashtags(listing.category, listing.location),
+        url: listingShareUrl(listing, SITE_URL),
+        tone,
+        persisted: true,
+      };
+    }
+  }
+
+  const fallback = fallbackShareCopy(listing, tone);
   if (!isAiProxyAvailable()) return fallback;
 
   const base = getDataApiBaseUrl();
@@ -47,7 +107,10 @@ export async function fetchListingShareCopy(
   try {
     const res = await fetch(`${base}/api/ai/listing-share`, {
       method: "POST",
-      headers: { "Content-Type": "application/json" },
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
       body: JSON.stringify({
         listingId: listing.id,
         slug: listing.slug,
@@ -58,15 +121,20 @@ export async function fetchListingShareCopy(
         description: listing.description,
         attributes: listing.attributes,
         imageAlt: listing.title,
+        tone,
+        persist: Boolean(opts?.persist),
       }),
     });
     if (!res.ok) return fallback;
-    const data = (await res.json()) as ListingShareCopy;
+    const data = (await res.json()) as ListingShareCopy & { ok?: boolean };
     return {
       facebook: data.facebook || fallback.facebook,
       instagram: data.instagram || fallback.instagram,
+      caption: data.caption || data.facebook || fallback.caption,
       hashtags: data.hashtags?.length ? data.hashtags : fallback.hashtags,
       url: data.url || fallback.url,
+      tone: data.tone || tone,
+      persisted: Boolean(data.persisted),
     };
   } catch {
     return fallback;

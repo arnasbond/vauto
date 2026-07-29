@@ -295,7 +295,6 @@ function toolProgressMessage(name: string): string {
     create_listing_draft: "Ruošiu skelbimo juodraštį…",
     postNewListing: "Kuriu skelbimą…",
     analyzeWardrobePhoto: "Analizuoju nuotrauką…",
-    importWardrobeProfile: "Importuoju spintą…",
     updateUIFilters: "Tikslinu paiešką…",
     navigateToScreen: "Atidarau ekraną…",
     proposeSmartBargaining: "Derinuosi…",
@@ -1865,9 +1864,7 @@ async function runVautoAgentInner(
     finalText = businessToolResult.message;
   }
 
-  const wardrobeToolCall = toolCalls.find(
-    (t) => t.name === "analyzeWardrobePhoto" || t.name === "importWardrobeProfile"
-  );
+  const wardrobeToolCall = toolCalls.find((t) => t.name === "analyzeWardrobePhoto");
   const wardrobeToolResult = wardrobeToolCall?.result as { message?: string } | undefined;
   if (wardrobeToolResult?.message) {
     finalText = wardrobeToolResult.message;
@@ -1963,8 +1960,7 @@ async function runVautoAgentInner(
       (t) =>
         t.name === "create_listing_draft" ||
         t.name === "postNewListing" ||
-        t.name === "analyzeWardrobePhoto" ||
-        t.name === "importWardrobeProfile"
+        t.name === "analyzeWardrobePhoto"
     );
 
   const applyFilterCall = toolCalls.find(

@@ -1,8 +1,14 @@
 import type { Listing } from "@/lib/types";
 import { regionalizeTitle } from "@/lib/local-seo";
 import { SITE_URL } from "@/lib/site-url";
+import {
+  buildListingOgMeta,
+  listingSharePath,
+  listingShareUrl,
+} from "@vauto/shared/listing-og";
 
 export { SITE_URL } from "@/lib/site-url";
+export { listingSharePath, listingShareUrl } from "@vauto/shared/listing-og";
 
 const LT_CHAR_MAP: Record<string, string> = {
   ą: "a",
@@ -64,48 +70,54 @@ export function findListingBySlug(
 }
 
 export function generateListingMetadata(listing: Listing): ListingSeoMetadata {
-  const priceText = listing.priceLabel ?? `${listing.price} €`;
-  const city = listing.location.split(",")[0]?.trim() || "Lietuva";
   const regionalTitle = regionalizeTitle(listing.title, listing.location);
-  const action =
-    listing.category === "jobs" ? "Siūloma" : "Parduodamas";
-  const title = `${action} ${regionalTitle} už ${priceText} | ${city} - VAUTO`;
-  const description =
-    listing.description?.slice(0, 155) ??
-    `${action} ${regionalTitle} ${city} už ${priceText}. Peržiūrėkite skelbimą ir susisiekite per VAUTO.`;
-
-  const ogTitle =
-    listing.imageTitle?.trim() ||
-    `${regionalTitle} — ${priceText}`;
+  const meta = buildListingOgMeta(
+    {
+      id: listing.id,
+      title: regionalTitle,
+      price: listing.price,
+      priceLabel: listing.priceLabel,
+      location: listing.location,
+      slug: listing.slug,
+      category: listing.category,
+      description: listing.description,
+      images: listing.images,
+      imageTitle: listing.imageTitle,
+      attributes: listing.attributes as Record<string, unknown> | undefined,
+    },
+    SITE_URL
+  );
 
   return {
-    title,
-    description,
+    title: meta.title,
+    description: meta.description,
     og: {
-      title: ogTitle,
-      description: `${description} ${city} regionas.`,
-      image: listing.images[0] ?? "",
-      url: `${SITE_URL}${listingPrettyPath(listing)}`,
+      title: meta.ogTitle,
+      description: meta.ogDescription,
+      image: meta.ogImage,
+      url: meta.canonicalUrl,
       type: "website",
-      siteName: "VAUTO",
+      siteName: meta.siteName,
     },
   };
 }
 
+/**
+ * In-app navigation path — query id is safest for client routers.
+ * External share / OG canonical uses listingSharePath (pretty /listing/:id/).
+ */
 export function listingPath(listing: Listing): string {
-  // Prefer stable id — slug-only URLs soft-404 when slug is missing/mismatched
-  // or when static export has no per-slug HTML. Detail page resolves `id` first.
   if (listing.id?.trim()) {
     return `/listing/?id=${encodeURIComponent(listing.id.trim())}`;
   }
-  const slug = listing.slug?.trim() || generateListingSlug(listing.title, listing.location);
+  const slug =
+    listing.slug?.trim() || generateListingSlug(listing.title, listing.location);
   return `/listing/?slug=${encodeURIComponent(slug)}`;
 }
 
-/** Pretty path for legacy/static slugs — requires Vercel rewrite to /listing/?slug= */
+/** Pretty path for share + crawlers — Vercel bot rewrite → OG edge. */
 export function listingPrettyPath(listing: Listing): string {
-  const slug = listing.slug ?? generateListingSlug(listing.title, listing.location);
-  return `/listing/${slug}/`;
+  return listingSharePath(listing);
 }
 
 export function sellerPath(sellerId: string): string {

@@ -320,7 +320,6 @@ interface VautoContextValue {
   ) => void;
   pendingWardrobeBulkItems: import("@/lib/wardrobe-vision").WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
-  importListingFromUrl: (url: string) => Promise<void>;
   /** Voice/text on home search that expresses sell/post intent → listing flow */
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;

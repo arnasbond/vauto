@@ -25,6 +25,96 @@
       "destination": "https://github.com/arnasbond/vauto/releases/download/android-latest/vauto.apk"
     },
     {
+      "source": "/og/:path*",
+      "destination": "https://vauto-api.onrender.com/og/:path*"
+    },
+    {
+      "source": "/listing/:slug",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Viber|Slackbot|Discordbot|LinkedInBot|Pinterest|Googlebot|bingbot|Applebot|Embedly|redditbot|SkypeUriPreview|vkShare|IA_Archiver).*"
+        }
+      ],
+      "destination": "https://vauto-api.onrender.com/og/listing/:slug"
+    },
+    {
+      "source": "/listing/:slug/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Viber|Slackbot|Discordbot|LinkedInBot|Pinterest|Googlebot|bingbot|Applebot|Embedly|redditbot|SkypeUriPreview|vkShare|IA_Archiver).*"
+        }
+      ],
+      "destination": "https://vauto-api.onrender.com/og/listing/:slug"
+    },
+    {
+      "source": "/listing",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Viber|Slackbot|Discordbot|LinkedInBot|Pinterest|Googlebot|bingbot|Applebot|Embedly|redditbot|SkypeUriPreview|vkShare|IA_Archiver).*"
+        },
+        {
+          "type": "query",
+          "key": "id",
+          "value": "(?<lid>.+)"
+        }
+      ],
+      "destination": "https://vauto-api.onrender.com/og/listing/:lid"
+    },
+    {
+      "source": "/listing/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Viber|Slackbot|Discordbot|LinkedInBot|Pinterest|Googlebot|bingbot|Applebot|Embedly|redditbot|SkypeUriPreview|vkShare|IA_Archiver).*"
+        },
+        {
+          "type": "query",
+          "key": "id",
+          "value": "(?<lid>.+)"
+        }
+      ],
+      "destination": "https://vauto-api.onrender.com/og/listing/:lid"
+    },
+    {
+      "source": "/listing",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Viber|Slackbot|Discordbot|LinkedInBot|Pinterest|Googlebot|bingbot|Applebot|Embedly|redditbot|SkypeUriPreview|vkShare|IA_Archiver).*"
+        },
+        {
+          "type": "query",
+          "key": "slug",
+          "value": "(?<slug>.+)"
+        }
+      ],
+      "destination": "https://vauto-api.onrender.com/og/listing/:slug"
+    },
+    {
+      "source": "/listing/",
+      "has": [
+        {
+          "type": "header",
+          "key": "user-agent",
+          "value": "(?i).*(facebookexternalhit|Facebot|Twitterbot|TelegramBot|WhatsApp|Viber|Slackbot|Discordbot|LinkedInBot|Pinterest|Googlebot|bingbot|Applebot|Embedly|redditbot|SkypeUriPreview|vkShare|IA_Archiver).*"
+        },
+        {
+          "type": "query",
+          "key": "slug",
+          "value": "(?<slug>.+)"
+        }
+      ],
+      "destination": "https://vauto-api.onrender.com/og/listing/:slug"
+    },
+    {
       "source": "/api/vauto-agent",
       "destination": "https://vauto-api.onrender.com/api/vauto-agent"
     },

@@ -1,7 +1,7 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Bot, CheckCircle2, Import, PhoneCall, Search, Sparkles } from "lucide-react";
+import { Bot, Camera, CheckCircle2, PhoneCall, Search, Sparkles } from "lucide-react";
 import { cn } from "@/lib/cn";
 
 export type HomeValuePropVariant = "consumer" | "business";
@@ -19,7 +19,7 @@ const CONSUMER_PROPS: ValueProp[] = [
     iconClass: "text-blue-600 bg-blue-50",
     title: "Aprašykite laisvai",
     description:
-      "Rašykite savo žodžiais, pvz. „raudona sofa iki 300€ Vilniuje“",
+      "Rašykite savo žodžiais, pvz. „raudona sofa iki 300 € Vilniuje“",
   },
   {
     icon: Bot,
@@ -38,11 +38,11 @@ const CONSUMER_PROPS: ValueProp[] = [
 
 const BUSINESS_PROPS: ValueProp[] = [
   {
-    icon: Import,
+    icon: Camera,
     iconClass: "text-blue-600 bg-blue-50",
-    title: "Automatinis skelbimų importas",
+    title: "Skelbimas iš nuotraukos",
     description:
-      "Sinchronizuokite asortimentą iš Skelbiu, Autoplius ir kitų portalų",
+      "Įkelkite nuotrauką — AI paruoš antraštę, aprašymą ir kategoriją",
   },
   {
     icon: PhoneCall,
@@ -54,9 +54,9 @@ const BUSINESS_PROPS: ValueProp[] = [
   {
     icon: Sparkles,
     iconClass: "text-emerald-600 bg-emerald-50",
-    title: "AI integracija jūsų sandėliui",
+    title: "AI asistentas sandėliui",
     description:
-      "Išmanus asortimento valdymas ir automatizuotas skelbimų generavimas",
+      "Kurkite ir valdykite asortimentą pokalbiu — greitai ir profesionaliai",
   },
 ];
 

@@ -37,7 +37,6 @@ import { draftToListingPatch } from "@/lib/listing-edit";
 import { writeListingEditSession } from "@/lib/listing-edit-session";
 import { listingToDraft } from "@/lib/listing-edit";
 import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-draft";
-import { importListingFromUrl as fetchListingFromPortal, ListingImportError, createImportFallbackDraft } from "@/lib/listing-url-import";
 import { normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
   LOCATION_MISSING_AGENT_PROMPT,
@@ -354,7 +353,6 @@ export interface SellerFlowContextValue {
   ) => void;
   pendingWardrobeBulkItems: import("@/lib/wardrobe-vision").WardrobeDraftItem[] | null;
   pendingWardrobeVoice: string | null;
-  importListingFromUrl: (url: string) => Promise<void>;
   startListingFromQuery: (text: string) => boolean;
   pendingSellerQuery: string | null;
   consumePendingSellerQuery: () => string | null;
@@ -1306,58 +1304,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
     },
     []
-  );
-
-  const importListingFromUrl = useCallback(
-    async (url: string) => {
-      if (!requireAuthForListing("/add")) return;
-      setSellerStep("processing");
-      setAiManualFallback(false);
-      try {
-        const draft = await fetchListingFromPortal(url, {
-          userCity: verifiedProfileCity(user.city),
-          contact: user.phone,
-        });
-        applyAgentListingDraft(draft);
-        showToast(
-          "Skelbimas importuotas — peržiūrėkite ir publikuokite visoje Lietuvoje",
-          "success"
-        );
-      } catch (e) {
-        const fallback =
-          e instanceof ListingImportError
-            ? e.fallbackDraft
-            : createImportFallbackDraft(url, {
-                userCity: verifiedProfileCity(user.city),
-                contact: user.phone,
-              });
-        const msg = e instanceof Error ? e.message : "Nepavyko importuoti skelbimo";
-        if (fallback) {
-          setAiManualFallback(true);
-          const enriched = enrichVehicleListingDraft(fallback, [
-            fallback.title,
-            fallback.description ?? "",
-          ]);
-          setAiDraft(syncDraftWithProfile(enriched));
-          setSellerInputMode("text");
-          setSellerUserPrompt(enriched.description ?? "");
-          setChameleonTheme(enriched.category === "clothing" ? "wardrobe" : "flux");
-          setSellerStep("idle");
-        } else {
-          setSellerStep("idle");
-        }
-        showToast(`${msg} Užpildykite laukus ranka.`, "error");
-      }
-    },
-    [
-      applyAgentListingDraft,
-      requireAuthForListing,
-      showToast,
-      setChameleonTheme,
-      syncDraftWithProfile,
-      user.city,
-      user.phone,
-    ]
   );
 
   const startListingFromQuery = useCallback(
@@ -2365,7 +2311,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       stageWardrobeBulkPreview,
       pendingWardrobeBulkItems,
       pendingWardrobeVoice,
-      importListingFromUrl,
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,
@@ -2406,7 +2351,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       stageWardrobeBulkPreview,
       pendingWardrobeBulkItems,
       pendingWardrobeVoice,
-      importListingFromUrl,
       startListingFromQuery,
       pendingSellerQuery,
       consumePendingSellerQuery,

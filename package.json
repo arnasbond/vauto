@@ -72,8 +72,6 @@
     "test:chaotic-inputs": "npm run server:build && node scripts/test-chaotic-inputs.mjs",
     "test:safety-shield": "npm run server:build && node scripts/test-safety-shield.mjs",
     "sync:shared-intents": "node scripts/sync-shared-intents.mjs",
-    "test:wardrobe-flow": "npm run server:build && node scripts/test-wardrobe-flow.mjs",
-    "test:wardrobe-flow:local": "npm run server:build && node scripts/test-wardrobe-flow.mjs --local",
     "test:business-flow": "npm run server:build && node scripts/test-business-flow.mjs",
     "test:business-flow:local": "npm run server:build && node scripts/test-business-flow.mjs --local",
     "test:realtime": "npm run server:build && node scripts/test-realtime-notifications.mjs",
