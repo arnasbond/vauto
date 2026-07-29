@@ -429,6 +429,7 @@ export interface WardrobeDraftItem {
   suggestedPrice: number;
   description: string;
   descriptionVariants?: AiExtractedListing["descriptionVariants"];
+  imageUrl?: string;
 }
 
 /** Ranked listing with computed score for buyer feed */

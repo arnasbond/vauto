@@ -57,6 +57,10 @@ import {
   listingFlowComposerPlaceholder,
   listingFlowComposerTextLocked,
 } from "@/lib/listing-conversational-flow";
+import {
+  VISION_UPLOAD_BATCH_SIZE,
+  chunkForVisionUpload,
+} from "@vauto/shared/listing-photo-policy";
 
 const GEMINI_BLUE = "var(--vauto-primary)";
 
@@ -346,23 +350,41 @@ export function AiCommandBar({
           const allWire = prepared.agentVisionUrls.length
             ? prepared.agentVisionUrls
             : prepared.listingImageUrls;
-          const res = await sendAgentMessage(msg, {
-            ...(allWire.length
-              ? {
-                  // Zero pre-filter: all image attachments → Gemini. Gallery strip post-vision.
-                  sessionImageUrls: allWire,
-                  pendingImageUrls: allWire,
-                  ...(prepared.suspectedDocumentUrls?.length
-                    ? { documentImageUrls: prepared.suspectedDocumentUrls }
-                    : {}),
-                }
-              : {}),
-            ...(documents.length ? { pendingDocuments: documents } : {}),
-            ...(documentBadges.length
-              ? { documentAttachments: documentBadges }
-              : {}),
-          });
-          if (res.ok) {
+          const visionBatches = chunkForVisionUpload(
+            allWire,
+            VISION_UPLOAD_BATCH_SIZE
+          );
+          let res: Awaited<ReturnType<typeof sendAgentMessage>> | null = null;
+          for (let i = 0; i < Math.max(visionBatches.length, 1); i++) {
+            const batch = visionBatches[i] ?? [];
+            const isFirst = i === 0;
+            const batchMsg =
+              isFirst
+                ? msg
+                : visionBatches.length > 1
+                  ? `[nuotraukos įkeltos] (${i + 1}/${visionBatches.length})`
+                  : msg;
+            res = await sendAgentMessage(batchMsg, {
+              ...(batch.length
+                ? {
+                    sessionImageUrls: batch,
+                    pendingImageUrls: batch,
+                    ...(isFirst && prepared.suspectedDocumentUrls?.length
+                      ? { documentImageUrls: prepared.suspectedDocumentUrls }
+                      : {}),
+                  }
+                : {}),
+              ...(isFirst && documents.length
+                ? { pendingDocuments: documents }
+                : {}),
+              ...(isFirst && documentBadges.length
+                ? { documentAttachments: documentBadges }
+                : {}),
+              ...(!isFirst ? { skipUserBubble: true } : {}),
+            });
+            if (!res.ok) break;
+          }
+          if (res?.ok) {
             setDraftQuery("");
             if (isChatBar) setComposerAttachments([]);
           }

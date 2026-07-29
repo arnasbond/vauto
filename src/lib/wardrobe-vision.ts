@@ -15,6 +15,8 @@ export interface WardrobeDraftItem {
   suggestedPrice: number;
   description: string;
   descriptionVariants?: AiExtractedListing["descriptionVariants"];
+  /** Source photo for this garment (basket / multi-photo or shared cover). */
+  imageUrl?: string;
 }
 
 export interface WardrobeVisionAnalysis {
@@ -27,6 +29,7 @@ export function wardrobeItemToDraft(
   contact: string,
   location: string
 ): AiExtractedListing {
+  const cover = item.imageUrl?.trim();
   return {
     title: item.title,
     price: item.suggestedPrice,
@@ -37,6 +40,7 @@ export function wardrobeItemToDraft(
     description: item.description,
     descriptionVariants: item.descriptionVariants,
     selectedPersona: "youth",
+    ...(cover ? { orderedImageUrls: [cover] } : {}),
     attributes: {
       [FASHION_CATEGORY_ATTR]: formatFashionCategory(item.categoryGroup, item.categorySub),
       clothingType: item.categoryGroup,

@@ -99,6 +99,7 @@ import { enrichReportWithAi } from "../reports/enrich-report.js";
 import { moderateListingInput } from "../lib/listing-moderation.js";
 import { scheduleListingAiModeration } from "../lib/listing-ai-moderation.js";
 import { listingPublishRateLimiter } from "../middleware/rate-limit.js";
+import { capListingGalleryUrls } from "../shared/listing-photo-policy.js";
 import {
   logConductorPublishLineage,
   resolveConductorRequiresReviewForListing,
@@ -175,10 +176,12 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
   if (!image && imagesRaw.length) image = imagesRaw[0]!;
   body.image = image;
 
-  const httpGallery = [image, ...imagesRaw]
-    .filter((u) => /^https?:\/\//i.test(u))
-    .filter((u, i, arr) => arr.indexOf(u) === i)
-    .slice(0, 6);
+  const httpGallery = capListingGalleryUrls(
+    [image, ...imagesRaw]
+      .filter((u) => /^https?:\/\//i.test(u))
+      .filter((u, i, arr) => arr.indexOf(u) === i),
+    body.category
+  );
 
   const attrs =
     body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes)
@@ -201,7 +204,7 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
   }
 
   if (httpGallery.length > 1) {
-    attrs.galleryUrls = httpGallery.slice(0, 6);
+    attrs.galleryUrls = httpGallery;
   }
   body.attributes = attrs;
   delete body.images;

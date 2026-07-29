@@ -7,6 +7,7 @@ import { AgentChatBubble, AgentQuickReplyChips } from "@/components/home/AgentCh
 import { AgentChatMarkdown } from "@/components/home/AgentChatMarkdown";
 import { AgentTypingIndicator } from "@/components/home/AgentTypingIndicator";
 import { PrePublishModal, type PrePublishFieldPatch } from "@/components/home/PrePublishModal";
+import { WardrobeBulkReviewPanel } from "@/components/home/WardrobeBulkReviewPanel";
 import { AiCommandBar } from "@/components/search/AiCommandBar";
 import { useVautoAgent } from "@/context/VautoAgentContext";
 import { useAuth } from "@/context/AuthContext";
@@ -38,6 +39,7 @@ import {
   type AgentChatMessage,
 } from "@/lib/vauto-agent-client";
 import type { ListingCategory } from "@/lib/types";
+import { capListingGalleryUrls } from "@vauto/shared/listing-photo-policy";
 
 export interface AgentChatStripProps {
   seedQuery?: string | null;
@@ -262,13 +264,16 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
   };
 
   const handleGalleryChange = (imageUrls: string[]) => {
-    const next = filterSessionListingImages(
-      imageUrls.map((u) => u.trim()).filter(Boolean),
-      {
-        attributes: aiDraft?.attributes,
-        documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
-      }
-    ).slice(0, 6);
+    const next = capListingGalleryUrls(
+      filterSessionListingImages(
+        imageUrls.map((u) => u.trim()).filter(Boolean),
+        {
+          attributes: aiDraft?.attributes,
+          documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
+        }
+      ),
+      aiDraft?.category
+    );
     // Modal gallery is canonical — sync pending/preview so removes stick at publish.
     updateAiDraft({ orderedImageUrls: next });
     notifyAgentPendingImages(next);
@@ -415,6 +420,8 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
           onFieldsChange={handleFieldsChange}
         />
       ) : null}
+
+      <WardrobeBulkReviewPanel />
 
       <div className="agent-chat-strip-composer sticky bottom-0 z-30 mt-3 shrink-0 border-t border-[var(--vauto-primary)]/10 bg-[var(--vauto-card-bg)] pt-3 pb-[max(0.25rem,env(safe-area-inset-bottom,0px))]">
         <AiCommandBar

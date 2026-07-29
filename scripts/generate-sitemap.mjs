@@ -53,6 +53,11 @@ const staticPaths = [
   "/taisykles/",
   "/privatumas/",
   "/registracija/",
+  "/verslui/",
+  "/fashion/",
+  "/discover/",
+  "/pro-registration/",
+  "/search/",
 ];
 
 const catalog = loadCatalog();

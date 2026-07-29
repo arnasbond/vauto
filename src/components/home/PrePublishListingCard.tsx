@@ -116,7 +116,7 @@ export function PrePublishListingCard({
             ) : null}
           </div>
           <div className="flex gap-1.5 overflow-x-auto pb-0.5">
-            {gallery.slice(0, 6).map((url, idx) => (
+            {gallery.map((url, idx) => (
               <div
                 key={`${url.slice(0, 32)}-${idx}`}
                 className="relative h-14 w-14 shrink-0"

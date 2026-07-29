@@ -61,10 +61,10 @@ export const PRE_PUBLISH_CARD_INTRO =
 
 /** Soft invite when user chose to attach photos — never a hard block on sell text. */
 export const AWAITING_PHOTOS_PROMPT =
-  "Puiku — įkelkite iki 6 nuotraukų čia pokalbyje. Gera nuotrauka dažnai atneša kelis kartus daugiau dėmesio.";
+  "Puiku — įkelkite nuotraukas čia pokalbyje (iki 12 automobiliui, iki 8 kitoms prekėms). Gera nuotrauka dažnai atneša kelis kartus daugiau dėmesio.";
 
 export const AWAITING_PHOTOS_NUDGE =
-  "Kai būsite pasiruošę — įkelkite nuotraukas per (+) mygtuką pokalbyje (iki 6 vnt.).";
+  "Kai būsite pasiruošę — įkelkite nuotraukas per (+) mygtuką pokalbyje (iki 12 / 8 vnt. pagal kategoriją).";
 
 /** Step 2 CTA after vision summary — prepare full listing draft. */
 export const POST_VISION_PUBLISH_GATE =
@@ -78,7 +78,7 @@ export const TEXT_DRAFT_READY_GATE =
   "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti PrePublish kortelėje arba parašyti, ką norite patikslinti.";
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
-  "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
+  "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 12 automobiliui ar iki 8 kitoms). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
 
 /** Step 2 chips — generate full marketplace draft. */
 export const POST_VISION_PUBLISH_CHIPS = [
@@ -91,7 +91,7 @@ export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as
 
 /** Lean Step-1 sell greeting — physical goods (photos / packaging tips). */
 export const LEAN_SELL_GREETING =
-  "Puiku — esu jūsų pardavimo partneris! Įkelkite iki 6 nuotraukų (prekė, etiketė, komplektacija) ir parašykite kainą — aš sudėliosiu turtingą skelbimą.";
+  "Puiku — esu jūsų pardavimo partneris! Įkelkite nuotraukas (prekė, etiketė, komplektacija — iki 8, automobiliui iki 12) ir parašykite kainą — aš sudėliosiu turtingą skelbimą.";
 
 /** Category-aware Step-1 greeting — no packaging tips for jobs/services/NT. */
 export function buildLeanSellGreeting(category?: string | null): string {

@@ -28,6 +28,10 @@ import {
 } from "@/lib/prepare-chat-images-for-agent";
 import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
 import { VAUTO_IN_DOMAIN_RECOVERY } from "@vauto/shared/vauto-domain-autonomy";
+import {
+  VISION_WIRE_MAX_IMAGES,
+  capListingGalleryUrls,
+} from "@vauto/shared/listing-photo-policy";
 import { requestWizardAgentExpand } from "@/lib/ai-conversational-recovery";
 import { resolveFriendlyGreetingName } from "@/lib/profile-identity";
 import {
@@ -424,11 +428,13 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         listingFlowState: profileSyncedDraft.listingFlowState,
         // Ship durable https gallery URLs so multi-photo enrichment can union on the server.
         // Never send data: URLs in every agent turn — those stay in pendingImageUrls.
-        orderedImageUrls: (profileSyncedDraft.orderedImageUrls ?? [])
-          .map((u) => String(u ?? "").trim())
-          .filter((u) => /^https?:\/\//i.test(u))
-          .filter((u, i, arr) => arr.indexOf(u) === i)
-          .slice(0, 6),
+        orderedImageUrls: capListingGalleryUrls(
+          (profileSyncedDraft.orderedImageUrls ?? [])
+            .map((u) => String(u ?? "").trim())
+            .filter((u) => /^https?:\/\//i.test(u))
+            .filter((u, i, arr) => arr.indexOf(u) === i),
+          profileSyncedDraft.category
+        ),
       },
       profileContacts: {
         userId: user.id,
@@ -728,10 +734,12 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         const priorPhotos = (aiDraft?.orderedImageUrls ?? [])
           .map((u) => String(u ?? "").trim())
           .filter(Boolean);
-        const photoUrls = [...priorPhotos, ...actionPhotos]
-          .filter(Boolean)
-          .filter((u, i, arr) => arr.indexOf(u) === i)
-          .slice(0, 6);
+        const photoUrls = capListingGalleryUrls(
+          [...priorPhotos, ...actionPhotos]
+            .filter(Boolean)
+            .filter((u, i, arr) => arr.indexOf(u) === i),
+          actions.listingDraft.category ?? aiDraft?.category
+        );
         const proposedFlow =
           actions.listingDraft.listingFlowState ??
           (photoUrls.length || actions.listingDraft.title
@@ -775,7 +783,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
       if (actions.type === "wardrobe_bulk") {
-        const items = mapAgentWardrobeItems(actions.items);
+        const items = mapAgentWardrobeItems(actions.items, actions.imageUrl);
         if (items.length) {
           applyAgentWardrobeBulk(items, {
             imageUrl: actions.imageUrl,
@@ -1174,17 +1182,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       const matched = noun
         ? objects.find((o) => o.label.toLowerCase() === noun.toLowerCase())
         : undefined;
-      const photos = filterSessionListingImages(
-        [
-          ...(aiDraft?.orderedImageUrls ?? []),
-          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-          ...sessionPendingImageUrls,
-        ],
-        {
-          attributes: aiDraft?.attributes,
-          documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
-        }
-      ).slice(0, 6);
+      const photos = capListingGalleryUrls(
+        filterSessionListingImages(
+          [
+            ...(aiDraft?.orderedImageUrls ?? []),
+            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+            ...sessionPendingImageUrls,
+          ],
+          {
+            attributes: aiDraft?.attributes,
+            documentUrls: parseDocumentUrlsFromAttributes(aiDraft?.attributes),
+          }
+        ),
+        aiDraft?.category
+      );
 
       const baseDraft = {
         title,
@@ -1654,14 +1665,14 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
 
       /** Merge photos + price from this turn BEFORE SM so PrePublish can open with media+price. */
       const visionIncoming =
-        options?.pendingImageUrls?.filter(Boolean).slice(0, 6) ?? [];
+        options?.pendingImageUrls?.filter(Boolean).slice(0, VISION_WIRE_MAX_IMAGES) ?? [];
       const sessionIncoming = (
         options?.sessionImageUrls?.length
           ? options.sessionImageUrls
           : options?.pendingImageUrls
       )
         ?.filter(Boolean)
-        .slice(0, 6) ?? [];
+        .slice(0, VISION_WIRE_MAX_IMAGES) ?? [];
       // Prefer the fuller vision set — never let a stripped session list drop the passport.
       const incomingImagesEarly = selectAgentVisionUrls([
         ...visionIncoming,
@@ -1751,19 +1762,21 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         pendingForTurn = [...incomingImagesEarly, ...sessionPendingImageUrls]
           .filter(Boolean)
           .filter((u, i, arr) => arr.indexOf(u) === i)
-          .slice(0, 6);
+          .slice(0, VISION_WIRE_MAX_IMAGES);
         setSessionPendingImageUrls(pendingForTurn);
         setListingPublishConfirmed(false);
         const priorDocs = parseDocumentUrlsFromAttributes(draftForTurn?.attributes);
         if (draftForTurn) {
           // Preserve prior server-confirmed docs; do not ban by client heuristic yet.
-          const mergedPhotos = [
-            ...incomingImagesEarly,
-            ...(draftForTurn.orderedImageUrls ?? []),
-          ]
-            .filter(Boolean)
-            .filter((u, i, arr) => arr.indexOf(u) === i)
-            .slice(0, 6);
+          const mergedPhotos = capListingGalleryUrls(
+            [
+              ...incomingImagesEarly,
+              ...(draftForTurn.orderedImageUrls ?? []),
+            ]
+              .filter(Boolean)
+              .filter((u, i, arr) => arr.indexOf(u) === i),
+            draftForTurn.category
+          );
           const nextAttrs = priorDocs.length
             ? {
                 ...(draftForTurn.attributes ?? {}),
@@ -1978,17 +1991,20 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           clarificationPrompt: undefined,
         };
 
-        const cardPhotos = filterSessionListingImages(
-          [
-            ...(patchedDraft.orderedImageUrls ?? []),
-            ...pendingForTurn,
-            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-          ],
-          {
-            attributes: patchedDraft.attributes,
-            documentUrls: parseDocumentUrlsFromAttributes(patchedDraft.attributes),
-          }
-        ).slice(0, 6);
+        const cardPhotos = capListingGalleryUrls(
+          filterSessionListingImages(
+            [
+              ...(patchedDraft.orderedImageUrls ?? []),
+              ...pendingForTurn,
+              ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+            ],
+            {
+              attributes: patchedDraft.attributes,
+              documentUrls: parseDocumentUrlsFromAttributes(patchedDraft.attributes),
+            }
+          ),
+          patchedDraft.category
+        );
 
         // Verbal „publikuok“ ONLY opens PrePublish — never auto-publish
         // (single Publikuoti skelbimą button avoids double submit / 10s lag).
@@ -2085,7 +2101,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               confidence: 0,
               attributes: {},
               listingFlowState: "DRAFT_READY",
-              orderedImageUrls: pendingForTurn.slice(0, 6),
+              orderedImageUrls: pendingForTurn.slice(0, VISION_WIRE_MAX_IMAGES),
             } as import("@/lib/types").AiExtractedListing);
         updateAiDraft({
           ...(!draftForTurn

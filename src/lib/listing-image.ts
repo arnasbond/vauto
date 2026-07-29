@@ -1,6 +1,7 @@
 import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
 import { getSafeImageUrl } from "@/lib/utils";
 import { hardFilterPublicGalleryUrls } from "@/lib/listing-gallery-roles";
+import { capListingGalleryUrls } from "@vauto/shared/listing-photo-policy";
 
 const UNSPLASH = (id: string) =>
   `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
@@ -143,7 +144,9 @@ export function resolveListingImage(listing: ListingImageFields): string {
  */
 export function resolveListingImages(listing: ListingImageFields): string[] {
   const fromListing = filterSessionListingImages(listing.images);
-  if (fromListing.length > 0) return fromListing.slice(0, 6);
+  if (fromListing.length > 0) {
+    return capListingGalleryUrls(fromListing, listing.category);
+  }
 
   // Empty gallery — keep a single category cover for demo/legacy rows only.
   const cover = resolveListingImage({ ...listing, images: [] });

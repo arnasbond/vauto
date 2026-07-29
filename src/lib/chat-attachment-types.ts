@@ -2,7 +2,7 @@
 export const CHAT_FILE_ACCEPT =
   "image/*,application/pdf,.pdf,.doc,.docx,.txt,text/plain,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
-export const MAX_CHAT_COMPOSER_ATTACHMENTS = 10;
+export const MAX_CHAT_COMPOSER_ATTACHMENTS = 15;
 export const MAX_CHAT_DOCUMENTS = 5;
 export const MAX_DOCUMENT_TEXT_CHARS = 50_000;
 export const MAX_DOCUMENT_DATA_URL_CHARS = 8_000_000;

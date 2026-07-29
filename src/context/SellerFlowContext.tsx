@@ -49,6 +49,7 @@ import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-f
 import {
   listingCategoryAllowsPhotoless,
   PHOTOLESS_LISTING_COVER_DATA_URL,
+  capListingGalleryUrls,
 } from "@vauto/shared/listing-photo-policy";
 import { registerPushNotifications } from "@/lib/push-registration";
 import {
@@ -1156,16 +1157,19 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
               ...(imageUrl ? [String(imageUrl).trim()] : []),
               ...(previousDraft?.orderedImageUrls ?? []),
             ];
-      const galleryPhotos = filterSessionListingImages(gallerySource, {
-        attributes: {
-          ...(previousDraft?.attributes ?? {}),
-          ...(draft.attributes ?? {}),
-        },
-        documentUrls: parseDocumentUrlsFromAttributes({
-          ...(previousDraft?.attributes ?? {}),
-          ...(draft.attributes ?? {}),
+      const galleryPhotos = capListingGalleryUrls(
+        filterSessionListingImages(gallerySource, {
+          attributes: {
+            ...(previousDraft?.attributes ?? {}),
+            ...(draft.attributes ?? {}),
+          },
+          documentUrls: parseDocumentUrlsFromAttributes({
+            ...(previousDraft?.attributes ?? {}),
+            ...(draft.attributes ?? {}),
+          }),
         }),
-      }).slice(0, 6);
+        draft.category ?? previousDraft?.category
+      );
       const draftWithPhotos =
         galleryPhotos.length > 0
           ? { ...draft, orderedImageUrls: galleryPhotos }
@@ -1269,10 +1273,18 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         payload: { itemCount: items.length },
       });
       setAiManualFallback(false);
-      setPendingWardrobeBulkItems(items.length > 1 ? items : null);
+      const cover = opts?.imageUrl?.trim();
+      const stamped = items.map((item) =>
+        item.imageUrl?.trim()
+          ? item
+          : cover
+            ? { ...item, imageUrl: cover }
+            : item
+      );
+      setPendingWardrobeBulkItems(stamped.length > 1 ? stamped : null);
       setPendingWardrobeVoice(opts?.voiceAnnouncement?.trim() || null);
       const firstDraft = wardrobeItemToDraft(
-        items[0]!,
+        stamped[0]!,
         user.phone,
         verifiedProfileCity(user.city)
       );
@@ -1281,13 +1293,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       setAiDraft(syncDraftWithProfile(mergedDraft));
       setSellerInputMode("upload");
       setSellerUserPrompt(opts?.voiceAnnouncement ?? mergedDraft.title);
-      if (opts?.imageUrl) setSellerPreviewImage(opts.imageUrl);
+      const firstCover = stamped[0]?.imageUrl ?? cover;
+      if (firstCover) setSellerPreviewImage(firstCover);
       setChameleonTheme("wardrobe");
       setSellerStep("idle");
       showToast(
         opts?.voiceAnnouncement ??
-          (items.length > 1
-            ? `AI aptiko ${items.length} drabužius — tęskime pokalbį.`
+          (stamped.length > 1
+            ? `AI aptiko ${stamped.length} drabužius — tęskime pokalbį.`
             : "AI paruošė drabužio skelbimą — tęskime pokalbį."),
         "success"
       );
@@ -1297,7 +1310,6 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
 
   const stageWardrobeBulkPreview = useCallback(
     (items: WardrobeDraftItem[], voiceAnnouncement?: string) => {
-      if (!items.length) return;
       setPendingWardrobeBulkItems(items.length > 1 ? items : null);
       if (voiceAnnouncement?.trim()) {
         setPendingWardrobeVoice(voiceAnnouncement.trim());
@@ -1613,24 +1625,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         description: editDescription,
         title: sanitizeListingTitle(profileDraft.title),
       });
-      const editGallery = filterSessionListingImages(
-        resolveSellerGalleryImages(
+      const editGallery = capListingGalleryUrls(
+        filterSessionListingImages(
+          resolveSellerGalleryImages(
+            {
+              orderedImageUrls: [
+                ...(profileDraft.orderedImageUrls ?? []),
+                ...pendingImageUrls,
+              ].filter((url, i, arr) => arr.indexOf(url) === i),
+            },
+            [
+              ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+              ...sellerPreviewImages.filter(Boolean),
+            ].filter((url, i, arr) => arr.indexOf(url) === i)
+          ),
           {
-            orderedImageUrls: [
-              ...(profileDraft.orderedImageUrls ?? []),
-              ...pendingImageUrls,
-            ].filter((url, i, arr) => arr.indexOf(url) === i),
-          },
-          [
-            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-            ...sellerPreviewImages.filter(Boolean),
-          ].filter((url, i, arr) => arr.indexOf(url) === i)
+            attributes: profileDraft.attributes,
+            documentUrls: parseDocumentUrlsFromAttributes(profileDraft.attributes),
+          }
         ),
-        {
-          attributes: profileDraft.attributes,
-          documentUrls: parseDocumentUrlsFromAttributes(profileDraft.attributes),
-        }
-      ).slice(0, 6);
+        profileDraft.category
+      );
       const preparedEditImages = editGallery.length
         ? (
             await Promise.all(
@@ -1722,24 +1737,27 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     // Public gallery only — tech passport / registration evidence never becomes a
     // standalone cover or a second Mano skelbimai card image set.
     const documentEvidence = parseDocumentUrlsFromAttributes(profileDraft.attributes);
-    const syncedGallery = filterSessionListingImages(
-      resolveSellerGalleryImages(
+    const syncedGallery = capListingGalleryUrls(
+      filterSessionListingImages(
+        resolveSellerGalleryImages(
+          {
+            orderedImageUrls: [
+              ...(profileDraft.orderedImageUrls ?? []),
+              ...pendingImageUrls,
+            ].filter((url, i, arr) => arr.indexOf(url) === i),
+          },
+          [
+            ...(sellerPreviewImage ? [sellerPreviewImage] : []),
+            ...sellerPreviewImages.filter(Boolean),
+          ].filter((url, i, arr) => arr.indexOf(url) === i)
+        ),
         {
-          orderedImageUrls: [
-            ...(profileDraft.orderedImageUrls ?? []),
-            ...pendingImageUrls,
-          ].filter((url, i, arr) => arr.indexOf(url) === i),
-        },
-        [
-          ...(sellerPreviewImage ? [sellerPreviewImage] : []),
-          ...sellerPreviewImages.filter(Boolean),
-        ].filter((url, i, arr) => arr.indexOf(url) === i)
+          documentUrls: documentEvidence,
+          attributes: profileDraft.attributes,
+        }
       ),
-      {
-        documentUrls: documentEvidence,
-        attributes: profileDraft.attributes,
-      }
-    ).slice(0, 6);
+      profileDraft.category
+    );
 
     // Sequential uploads — parallel 6× sharp/Cloudinary on Render often 503/OOM.
     const coords = await coordsPromise;
@@ -1752,13 +1770,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     const dataImages = preparedGallery.filter((u) => u.startsWith("data:image"));
     // If cloud upload worked, keep all http URLs. Otherwise send only the cover data URL
     // so /api/listings stays under the body limit (extras stay local until cloud is ready).
-    let galleryImages = (
-      httpImages.length
-        ? [...httpImages, ...dataImages]
-        : dataImages.slice(0, 1)
-    )
-      .filter(Boolean)
-      .slice(0, 6);
+    let galleryImages = capListingGalleryUrls(
+      (
+        httpImages.length
+          ? [...httpImages, ...dataImages]
+          : dataImages.slice(0, 1)
+      ).filter(Boolean),
+      profileDraft.category
+    );
     if (!galleryImages.length && photosOptional) {
       galleryImages = [PHOTOLESS_LISTING_COVER_DATA_URL];
     }
@@ -2083,15 +2102,10 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       }
 
       const bulkListingId = `bulk-${Date.now()}`;
-      const listingImage = await prepareListingImageForApi(
+      const fallbackCover = await prepareListingImageForApi(
         sellerPreviewImage,
         bulkListingId
       );
-      if (!listingImage) {
-        showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
-        return;
-      }
-
       const coords = buyerCoords ?? (await getUserCoords({ requestPermission: true }));
       const bulkSnapshot = buildConductorPublishSnapshot(drafts[0]!);
       if (bulkSnapshot.sources.length) {
@@ -2119,6 +2133,20 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
             location: listingCity,
           });
           if (exact !== null) distKm = exact;
+        }
+
+        const draftCoverSrc =
+          draft.orderedImageUrls?.find((u) => hasListingPhoto(u)) ??
+          sellerPreviewImage;
+        const listingImage =
+          (draftCoverSrc
+            ? await prepareListingImageForApi(
+                draftCoverSrc,
+                `bulk-${Date.now()}-${published}`
+              )
+            : null) ?? fallbackCover;
+        if (!listingImage) {
+          continue;
         }
 
         const createdAt = new Date().toISOString();

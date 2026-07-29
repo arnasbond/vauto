@@ -40,12 +40,21 @@ export const metadata: Metadata = {
     title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
     description:
       "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+    images: [
+      {
+        url: "/icon-512.png",
+        width: 512,
+        height: 512,
+        alt: "VAUTO",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
     title: "VAUTO — AI skelbimai ir paslaugos visoje Lietuvoje",
     description:
       "Parduok ir rask prekes bei paslaugas visoje Lietuvoje per sekundes. AI foto paieška, rinkos kainų patarimai ir skambutis tiesiai pardavėjui — VAUTO.",
+    images: ["/icon-512.png"],
   },
   other: {
     google: "notranslate",

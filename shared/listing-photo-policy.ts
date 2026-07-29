@@ -1,5 +1,6 @@
 /**
- * Categories that may publish without public product photos (text-first ads).
+ * Categories that may publish without public product photos (text-first ads),
+ * plus per-category public gallery limits and Vision upload batching.
  */
 import {
   normalizeListingCategoryId,
@@ -21,6 +22,56 @@ const PACKAGING_PHOTO_TIP_CATEGORIES = new Set<RegistryListingCategory>([
   "home",
   "clothing",
 ]);
+
+/** Default public gallery cap for most physical goods. */
+export const DEFAULT_LISTING_PHOTO_LIMIT = 8;
+/** Vehicles / transport — more angles (exterior, interior, docs separate). */
+export const VEHICLE_LISTING_PHOTO_LIMIT = 12;
+/** Real estate interiors / exteriors. */
+export const REAL_ESTATE_LISTING_PHOTO_LIMIT = 12;
+/**
+ * Client Vision upload batch size — keeps Gemini / proxy under timeout when
+ * sellers drop large photo baskets (wardrobe, auto parts, small appliances).
+ */
+export const VISION_UPLOAD_BATCH_SIZE = 6;
+/** Absolute wire cap aligned with server VISION_MAX_IMAGES_PER_REQUEST. */
+export const VISION_WIRE_MAX_IMAGES = 10;
+
+export function listingPhotoLimitForCategory(category: unknown): number {
+  const cat = normalizeListingCategoryId(category);
+  if (cat === "vehicles" || cat === "transport") {
+    return VEHICLE_LISTING_PHOTO_LIMIT;
+  }
+  if (cat === "real_estate") {
+    return REAL_ESTATE_LISTING_PHOTO_LIMIT;
+  }
+  return DEFAULT_LISTING_PHOTO_LIMIT;
+}
+
+export function capListingGalleryUrls(
+  urls: readonly string[],
+  category?: unknown
+): string[] {
+  const limit = listingPhotoLimitForCategory(category);
+  return urls.map((u) => String(u ?? "").trim()).filter(Boolean).slice(0, limit);
+}
+
+export function chunkForVisionUpload<T>(
+  items: readonly T[],
+  batchSize = VISION_UPLOAD_BATCH_SIZE
+): T[][] {
+  const size = Math.max(1, batchSize);
+  const out: T[][] = [];
+  for (let i = 0; i < items.length; i += size) {
+    out.push(items.slice(i, i + size) as T[]);
+  }
+  return out;
+}
+
+/** Short LT hint for chat / PrePublish copy. */
+export function listingPhotoLimitHint(category?: unknown): string {
+  return `iki ${listingPhotoLimitForCategory(category)} nuotraukų`;
+}
 
 /** Neutral cover used when publishing text-only jobs/services/NT ads. */
 export const PHOTOLESS_LISTING_COVER_DATA_URL =

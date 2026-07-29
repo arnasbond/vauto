@@ -5,6 +5,10 @@ import {
 import { splitComposerAttachments } from "@/lib/chat-document-extract";
 import { prepareChatImagesForAgent } from "@/lib/prepare-chat-images-for-agent";
 import { buddyMessageForAgentFailure } from "@/lib/voice-graceful";
+import {
+  VISION_UPLOAD_BATCH_SIZE,
+  chunkForVisionUpload,
+} from "@vauto/shared/listing-photo-policy";
 
 export interface ChatPhotoUploadFlowDeps {
   requestMediaConsent: (run: () => void | Promise<void>) => void;
@@ -65,25 +69,37 @@ export function pickAndSendChatPhotos(deps: ChatPhotoUploadFlowDeps): void {
         const allWire = prepared.agentVisionUrls.length
           ? prepared.agentVisionUrls
           : prepared.listingImageUrls;
-        await deps.sendAgentMessage(deps.text?.trim() ?? "", {
-          ...(allWire.length
-            ? {
-                sessionImageUrls: allWire,
-                pendingImageUrls: allWire,
-                ...(prepared.suspectedDocumentUrls.length
-                  ? { documentImageUrls: prepared.suspectedDocumentUrls }
-                  : {}),
-              }
-            : {}),
-          ...(documents.length ? { pendingDocuments: documents } : {}),
-          ...(documentBadges.length
-            ? { documentAttachments: documentBadges }
-            : {}),
-          ...(deps.skipUserBubble ? { skipUserBubble: true } : {}),
-          ...(deps.freshListingSession
-            ? { omitPriorListingDraft: true, freshListingSession: true }
-            : {}),
-        });
+        const batches = chunkForVisionUpload(allWire, VISION_UPLOAD_BATCH_SIZE);
+        for (let i = 0; i < Math.max(batches.length, 1); i++) {
+          const batch = batches[i] ?? [];
+          const isFirst = i === 0;
+          const batchText = isFirst
+            ? deps.text?.trim() ?? ""
+            : `[nuotraukos įkeltos] (${i + 1}/${batches.length})`;
+          await deps.sendAgentMessage(batchText, {
+            ...(batch.length
+              ? {
+                  sessionImageUrls: batch,
+                  pendingImageUrls: batch,
+                  ...(isFirst && prepared.suspectedDocumentUrls.length
+                    ? { documentImageUrls: prepared.suspectedDocumentUrls }
+                    : {}),
+                }
+              : {}),
+            ...(isFirst && documents.length
+              ? { pendingDocuments: documents }
+              : {}),
+            ...(isFirst && documentBadges.length
+              ? { documentAttachments: documentBadges }
+              : {}),
+            ...(deps.skipUserBubble || !isFirst
+              ? { skipUserBubble: true }
+              : {}),
+            ...(deps.freshListingSession && isFirst
+              ? { omitPriorListingDraft: true, freshListingSession: true }
+              : {}),
+          });
+        }
       } catch (err) {
         const msg = err instanceof Error ? err.message : String(err ?? "");
         const friendly = buddyMessageForAgentFailure(msg, "network_error");

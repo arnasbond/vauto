@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { AppShell } from "@/components/AppShell";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
+import { ListingJsonLd } from "@/components/seo/ListingJsonLd";
 import { ReportButton } from "@/components/support/ReportButton";
 import { TrustBadges } from "@/components/trust/TrustBadges";
 import { ListingImageGallery } from "@/components/listing/ListingImageGallery";
@@ -399,6 +400,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   return (
     <AppShell variant="plain" hideNav>
       <ListingSeoHead listing={listing} />
+      <ListingJsonLd listing={listing} />
 
       {/* Mobile-only back crumb — site DesktopHeader is the sole desktop chrome */}
       <nav className="mb-3 md:hidden" aria-label="Navigacija">

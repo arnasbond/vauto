@@ -2,6 +2,7 @@ import { resolveListingCity } from "@/lib/city-resolve";
 import type { ListingEditPatch } from "@/lib/listing-edit";
 import type { LegacyListingInput, Listing } from "@/lib/types";
 import { hardFilterPublicGalleryUrls } from "@/lib/listing-gallery-roles";
+import { capListingGalleryUrls } from "@vauto/shared/listing-photo-policy";
 
 /** Server API expects singular `image`; client models use `images[]`. */
 export function listingToApiPayload(
@@ -19,7 +20,10 @@ export function listingToApiPayload(
   // Never ship extra base64 blobs in attributes / payload — only http gallery URLs.
   // Hard-exclude tech passport / document evidence from public gallery + cover.
   // Documents stay in attributes.documentImageUrls as verification metadata only.
-  const gallery = hardFilterPublicGalleryUrls(images, undefined, attributes).slice(0, 6);
+  const gallery = capListingGalleryUrls(
+    hardFilterPublicGalleryUrls(images, undefined, attributes),
+    listing.category
+  );
   const cover = gallery[0] ?? "";
   const httpGallery = gallery.filter((u) => /^https?:\/\//i.test(u));
   if (httpGallery.length > 1) {

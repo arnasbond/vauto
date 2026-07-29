@@ -1,0 +1,16 @@
+# VAUTO — https://www.vauto.lt
+User-agent: *
+Allow: /
+
+# App / account surfaces — not for organic indexing
+Disallow: /admin/
+Disallow: /auth/
+Disallow: /auth-gate/
+Disallow: /mano-skelbimai/
+Disallow: /messages/
+Disallow: /pokalbiai/
+Disallow: /chats/
+Disallow: /seller/
+Disallow: /preview-design/
+
+Sitemap: https://www.vauto.lt/sitemap.xml

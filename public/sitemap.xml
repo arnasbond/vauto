@@ -46,6 +46,31 @@
     <priority>0.6</priority>
   </url>
   <url>
+    <loc>https://www.vauto.lt/verslui/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.vauto.lt/fashion/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.vauto.lt/discover/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.vauto.lt/pro-registration/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
+    <loc>https://www.vauto.lt/search/</loc>
+    <changefreq>weekly</changefreq>
+    <priority>0.6</priority>
+  </url>
+  <url>
     <loc>https://www.vauto.lt/listing/bmw-320d-2003-kaunas/</loc>
     <lastmod>2026-06-01</lastmod>
     <changefreq>weekly</changefreq>

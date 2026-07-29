@@ -43,7 +43,7 @@ import {
   LAUNCH_PROMO_BADGE,
   LAUNCH_PROMO_LISTING_NOTE,
 } from "@vauto/shared/launch-promo";
-import { listingCategoryAllowsPhotoless } from "@vauto/shared/listing-photo-policy";
+import { listingCategoryAllowsPhotoless, listingPhotoLimitForCategory } from "@vauto/shared/listing-photo-policy";
 
 const TIER_BADGE: Record<
   PrePublishVisibilityId,
@@ -106,6 +106,7 @@ export function PrePublishModal({
     useState<PrePublishShippingMode>("pickup_or_courier");
   const submitLockRef = useRef(false);
   const photosOptional = listingCategoryAllowsPhotoless(card.category);
+  const photoLimit = listingPhotoLimitForCategory(card.category);
   const publishButtonRef = useRef<HTMLButtonElement>(null);
   const selected = getPrePublishVisibilityOption(visibilityId);
 
@@ -216,7 +217,7 @@ export function PrePublishModal({
   const addPhotos = useCallback(
     async (files: File[]) => {
       if (!onGalleryChange || busy || addingPhotos || !files.length) return;
-      const slots = Math.max(0, 6 - gallery.length);
+      const slots = Math.max(0, photoLimit - gallery.length);
       if (!slots) return;
       setAddingPhotos(true);
       try {
@@ -225,12 +226,12 @@ export function PrePublishModal({
         for (const url of urls) {
           if (url && !merged.includes(url)) merged.push(url);
         }
-        onGalleryChange(merged.slice(0, 6));
+        onGalleryChange(merged.slice(0, photoLimit));
       } finally {
         setAddingPhotos(false);
       }
     },
-    [addingPhotos, busy, gallery, onGalleryChange]
+    [addingPhotos, busy, gallery, onGalleryChange, photoLimit]
   );
 
   const patchField = useCallback(
@@ -394,14 +395,14 @@ export function PrePublishModal({
                     ) : null}
                   </div>
                 ))}
-                {onGalleryChange && gallery.length < 6 ? (
+                {onGalleryChange && gallery.length < photoLimit ? (
                   <ListingGalleryFileInput
                     label={addingPhotos ? "Kraunama…" : "Pridėti"}
-                    hint={`${gallery.length}/6`}
+                    hint={`${gallery.length}/${photoLimit}`}
                     icon={Plus}
                     disabled={busy || addingPhotos}
                     multiple
-                    maxFiles={6 - gallery.length}
+                    maxFiles={photoLimit - gallery.length}
                     onFilesSelected={(files) => void addPhotos(files)}
                     className="flex aspect-square flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-[var(--vauto-border)] bg-[var(--vauto-surface-muted)]/50 px-2 text-[var(--vauto-text-muted)] transition hover:border-[var(--vauto-primary)]/50 hover:bg-[var(--vauto-primary)]/5 hover:text-[var(--vauto-primary)] disabled:opacity-50 [&_svg]:h-6 [&_svg]:w-6"
                   />

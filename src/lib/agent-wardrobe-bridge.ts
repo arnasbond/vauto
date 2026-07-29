@@ -16,14 +16,20 @@ export interface AgentWardrobeBulkItem {
   descriptionVariants?: WardrobeDraftItem["descriptionVariants"];
 }
 
-export function mapAgentWardrobeItems(raw: unknown): WardrobeDraftItem[] {
+export function mapAgentWardrobeItems(
+  raw: unknown,
+  sharedImageUrl?: string
+): WardrobeDraftItem[] {
   if (!Array.isArray(raw)) return [];
+  const cover = sharedImageUrl?.trim() || undefined;
   const out: WardrobeDraftItem[] = [];
   for (const entry of raw) {
     if (!entry || typeof entry !== "object") continue;
     const o = entry as Record<string, unknown>;
     const title = String(o.title ?? "").trim();
     if (!title) continue;
+    const itemImage =
+      String(o.imageUrl ?? o.image ?? "").trim() || cover || undefined;
     out.push({
       id: String(o.id ?? `wardrobe-${out.length + 1}`),
       title,
@@ -36,6 +42,7 @@ export function mapAgentWardrobeItems(raw: unknown): WardrobeDraftItem[] {
       suggestedPrice: Math.max(1, Number(o.suggestedPrice) || 15),
       description: String(o.description ?? title),
       descriptionVariants: o.descriptionVariants as WardrobeDraftItem["descriptionVariants"],
+      ...(itemImage ? { imageUrl: itemImage } : {}),
     });
   }
   return out.slice(0, 8);

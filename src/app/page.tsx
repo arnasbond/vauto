@@ -19,22 +19,23 @@ import { SearchEmptyAssistantBanner } from "@/components/search/SearchEmptyAssis
 import { SearchResultsFocus } from "@/components/search/SearchResultsFocus";
 import { subscribeHomeReset } from "@/lib/home-reset";
 import { HowItWorksSection, type HowItWorksStep } from "@/components/ui";
+import { HomeAiValueBand } from "@/components/home/HomeValuePropCards";
 
 const HOME_HOW_STEPS: HowItWorksStep[] = [
   {
     n: "1",
-    title: "Parašyk viena eilute",
-    text: "Apibūdink, ką parduodi ar ieškai — be formų ir kategorijų.",
+    title: "Parašykite arba įkelkite foto",
+    text: "Viena eilute arba nuotrauka — be formų ir kategorijų pasirinkimo.",
   },
   {
     n: "2",
-    title: "AI viską sutvarko",
-    text: "Sugeneruoja pavadinimą, kainos intervalą ir struktūrą už tave.",
+    title: "AI paruošia skelbimą",
+    text: "Antraštė, kaina, aprašymas ir filtrai — Vision AI fone per minutes.",
   },
   {
     n: "3",
-    title: "Patvirtink ir skelbk",
-    text: "Peržiūrėk, patikslink jei reikia — ir skelbimas gyvas per minutes.",
+    title: "Patvirtinkite ir skelbkite",
+    text: "Peržiūrėkite, pataisykite jei reikia — skelbimas gyvas iškart.",
   },
 ];
 
@@ -82,10 +83,13 @@ function MarketplaceView() {
         </PortalPageChrome>
       </HeroSection>
       {showHowItWorks ? (
-        <HowItWorksSection
-          steps={HOME_HOW_STEPS}
-          className="border-b border-[var(--vauto-border-subtle)] py-10 sm:py-12"
-        />
+        <>
+          <HowItWorksSection
+            steps={HOME_HOW_STEPS}
+            className="border-b border-[var(--vauto-border-subtle)] py-10 sm:py-12"
+          />
+          <HomeAiValueBand />
+        </>
       ) : null}
       <ContentSection>
         <ListingGrid hideEmptyAssistant={emptySearchMode} />

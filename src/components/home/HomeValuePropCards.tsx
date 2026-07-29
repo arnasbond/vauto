@@ -1,7 +1,8 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Bot, Camera, CheckCircle2, PhoneCall, Search, Sparkles } from "lucide-react";
+import { Building2, Camera, CheckCircle2, PhoneCall, Search, Sparkles } from "lucide-react";
+import Link from "next/link";
 import { cn } from "@/lib/cn";
 
 export type HomeValuePropVariant = "consumer" | "business";
@@ -17,22 +18,23 @@ const CONSUMER_PROPS: ValueProp[] = [
   {
     icon: Search,
     iconClass: "text-blue-600 bg-blue-50",
-    title: "Aprašykite laisvai",
+    title: "Ieškokite laisvai",
     description:
-      "Rašykite savo žodžiais, pvz. „raudona sofa iki 300 € Vilniuje“",
+      "Parašykite „raudona sofa iki 300 € Vilniuje“ — AI filtruoja skelbimus be formų.",
   },
   {
-    icon: Bot,
+    icon: Camera,
     iconClass: "text-orange-600 bg-orange-50",
-    title: "DI dirba už jus",
+    title: "Parduokite iš nuotraukos",
     description:
-      "Agentas supranta kontekstą ir pritaiko filtrus automatiškai",
+      "Įkelkite foto — AI parašo antraštę, kainos intervalą ir aprašymą per minutes.",
   },
   {
     icon: CheckCircle2,
     iconClass: "text-emerald-600 bg-emerald-50",
-    title: "Raskite geriausią",
-    description: "Gaukite tikslius rezultatus be ilgų paieškų",
+    title: "Skambutis tiesiai",
+    description:
+      "Be tarpininkų — susisiekite su pardavėju, kai pasiūlymas tinka.",
   },
 ];
 
@@ -40,23 +42,23 @@ const BUSINESS_PROPS: ValueProp[] = [
   {
     icon: Camera,
     iconClass: "text-blue-600 bg-blue-50",
-    title: "Skelbimas iš nuotraukos",
+    title: "Masinis įkėlimas",
     description:
-      "Įkelkite nuotrauką — AI paruoš antraštę, aprašymą ir kategoriją",
+      "Drabužiai, auto detalės, smulki technika — kelios nuotraukos, daug juodraščių.",
   },
   {
     icon: PhoneCall,
     iconClass: "text-orange-600 bg-orange-50",
-    title: "Daugiau skambučių",
+    title: "Daugiau kvalifikuotų kontaktų",
     description:
-      "AI optimizuoja skelbimus ir padeda gauti daugiau kvalifikuotų užklausų",
+      "AI optimizuoja skelbimus, kad pirkėjai rastų jus greičiau visoje Lietuvoje.",
   },
   {
     icon: Sparkles,
     iconClass: "text-emerald-600 bg-emerald-50",
-    title: "AI asistentas sandėliui",
+    title: "Verslo kabinetas",
     description:
-      "Kurkite ir valdykite asortimentą pokalbiu — greitai ir profesionaliai",
+      "Asortimentas, paketinis publikavimas ir AI asistentas — valdomi pokalbiu.",
   },
 ];
 
@@ -93,5 +95,55 @@ export function HomeValuePropCards({
         </div>
       ))}
     </div>
+  );
+}
+
+/** Home band under HowItWorks — consumer AI value + B2B CTA (outside the hero). */
+export function HomeAiValueBand({ className }: { className?: string }) {
+  return (
+    <section
+      className={cn(
+        "border-b border-[var(--vauto-border-subtle)] bg-[var(--vauto-surface-soft,#f8fafc)] py-10 sm:py-12",
+        className
+      )}
+      aria-labelledby="home-ai-value-heading"
+    >
+      <div className="mx-auto max-w-6xl px-4 sm:px-6">
+        <div className="mx-auto max-w-2xl text-center">
+          <h2
+            id="home-ai-value-heading"
+            className="font-[family-name:var(--font-outfit)] text-2xl font-bold tracking-tight text-[var(--vauto-ink)] sm:text-3xl"
+          >
+            Kodėl VAUTO AI
+          </h2>
+          <p className="mt-2 text-sm text-[var(--vauto-muted)] sm:text-base">
+            Viena pokalbio juosta — paieška, pardavimas ir verslo katalogas.
+          </p>
+        </div>
+        <HomeValuePropCards variant="consumer" className="mt-8" />
+        <div className="mt-8 flex flex-col items-center justify-between gap-4 rounded-2xl border border-orange-200/80 bg-orange-50/60 px-5 py-4 text-center sm:flex-row sm:text-left">
+          <div className="flex max-w-xl items-start gap-3">
+            <span className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-orange-100 text-orange-700">
+              <Building2 className="h-4 w-4" aria-hidden />
+            </span>
+            <div>
+              <p className="text-sm font-bold text-slate-900">
+                Verslui: masinis įkėlimas ir AI kabinetas
+              </p>
+              <p className="mt-0.5 text-xs leading-relaxed text-slate-600 sm:text-sm">
+                Auto detalės, mada, smulki technika — keliate krepšelį, AI ruošia
+                juodraščius, jūs patvirtinate paketą.
+              </p>
+            </div>
+          </div>
+          <Link
+            href="/verslui/"
+            className="inline-flex shrink-0 items-center justify-center rounded-2xl bg-orange-600 px-5 py-2.5 text-sm font-bold text-white shadow-sm transition hover:bg-orange-700"
+          >
+            VAUTO verslui
+          </Link>
+        </div>
+      </div>
+    </section>
   );
 }
