@@ -133,7 +133,7 @@ export function ShareListingModal({
   return (
     <div
       className={cn(
-        "fixed inset-0 z-[80] flex items-end justify-center bg-black/45 p-3 sm:items-center",
+        "fixed inset-0 z-[130] flex items-end justify-center bg-black/45 p-3 sm:items-center",
         className
       )}
       role="dialog"

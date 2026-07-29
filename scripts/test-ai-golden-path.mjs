@@ -271,6 +271,17 @@ async function main() {
     scrubbed.includes("Puikūs ratlankiai"),
     "scrubSalesCopyMarkdown keeps natural sentences"
   );
+  const leaked =
+    "Parduodamas Citroën DS5.\n💡 Dar galite papildyti: TA galiojimą. Nerašykite spėjamų skaičių — tik tikrus duomenis.";
+  const scrubbedLeak = scrubSalesCopyMarkdown(leaked);
+  check(
+    !/Dar galite papildyti|Nerašykite spėjamų/i.test(scrubbedLeak),
+    "scrubSalesCopyMarkdown strips seller-coaching prompt leaks"
+  );
+  check(
+    /Citroën DS5/i.test(scrubbedLeak),
+    "scrubSalesCopyMarkdown keeps real listing body after coach strip"
+  );
 
   // Static welcome — first LLM must wait for user content.
   console.log("\n7) Instant session start (static welcome)");

@@ -14,12 +14,16 @@ import {
   ListingSuccessLottie,
   LISTING_SUCCESS_LOTTIE_MS,
 } from "@/components/listing/ListingSuccessLottie";
+import { ShareListingModal } from "@/components/social/ShareListingModal";
+import type { Listing } from "@/lib/types";
 
 const SPINTA_TAB_ID = "bottom-nav-mano-skelbimai";
 
 interface PublishCelebrationContextValue {
   spintaPulse: boolean;
   playPublishCelebration: (fromRect: DOMRect) => Promise<void>;
+  /** After Lottie — open Share Modal; resolves when seller skips/closes. */
+  presentPostPublishShare: (listing: Listing) => Promise<void>;
 }
 
 const PublishCelebrationContext =
@@ -28,7 +32,9 @@ const PublishCelebrationContext =
 export function PublishCelebrationProvider({ children }: { children: ReactNode }) {
   const [spintaPulse, setSpintaPulse] = useState(false);
   const [active, setActive] = useState(false);
+  const [shareListing, setShareListing] = useState<Listing | null>(null);
   const resolveRef = useRef<(() => void) | null>(null);
+  const shareResolveRef = useRef<(() => void) | null>(null);
 
   const completeCelebration = useCallback(() => {
     setActive(false);
@@ -52,9 +58,26 @@ export function PublishCelebrationProvider({ children }: { children: ReactNode }
     });
   }, []);
 
+  const closePostPublishShare = useCallback(() => {
+    setShareListing(null);
+    shareResolveRef.current?.();
+    shareResolveRef.current = null;
+  }, []);
+
+  const presentPostPublishShare = useCallback((listing: Listing) => {
+    return new Promise<void>((resolve) => {
+      shareResolveRef.current = resolve;
+      setShareListing(listing);
+    });
+  }, []);
+
   const value = useMemo(
-    () => ({ spintaPulse, playPublishCelebration }),
-    [spintaPulse, playPublishCelebration]
+    () => ({
+      spintaPulse,
+      playPublishCelebration,
+      presentPostPublishShare,
+    }),
+    [spintaPulse, playPublishCelebration, presentPostPublishShare]
   );
 
   return (
@@ -78,6 +101,14 @@ export function PublishCelebrationProvider({ children }: { children: ReactNode }
           </div>,
           document.body
         )}
+      {typeof document !== "undefined" && shareListing && (
+        <ShareListingModal
+          listing={shareListing}
+          open
+          onClose={closePostPublishShare}
+          skipLabel="Praleisti — vėliau"
+        />
+      )}
     </PublishCelebrationContext.Provider>
   );
 }

@@ -82,7 +82,6 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
       ? Number(enriched.price)
       : 0;
   const ta = attr(attrs, "techInspection", "ta", "inspectionValidUntil", "taValidUntil");
-  const mileage = attr(attrs, "mileage", "odometer", "rida");
 
   const makeModel = [make, model].filter(Boolean).join(" ") || enriched.title?.trim() || "automobilis";
   const yearBit = year ? ` (${year} m.)` : "";
@@ -170,18 +169,28 @@ export function buildVehicleBenchmarkSalesCopy(draft: SalesCopyDraft): string {
   descParts.push("Dėl apžiūros kreipkitės nurodytu telefonu.");
   lines.push(descParts.join(" "));
 
-  const missing: string[] = [];
-  if (!(price > 0)) missing.push("kainą (€)");
-  if (!ta) missing.push("techninės apžiūros (TA) galiojimą");
-  if (!mileage) missing.push("faktinę ridą (km)");
-  if (!transmission) missing.push("pavarų dėžę (jei dar nepatvirtinta)");
-
-  if (missing.length) {
-    lines.push("");
-    lines.push(
-      `💡 Dar galite papildyti: ${missing.join(", ")}. Nerašykite spėjamų skaičių — tik tikrus duomenis.`
-    );
-  }
+  // Never append seller-coaching / prompt tips into public description.
+  // Missing-field nudges belong in chat (listVehicleSalesCopyGaps), not listing body.
 
   return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
+}
+
+/** Chat-only follow-ups — never paste into listing.description. */
+export function listVehicleSalesCopyGaps(draft: SalesCopyDraft): string[] {
+  const enriched = enrichVehicleVisionDraft(draft);
+  const attrs = enriched.attributes ?? {};
+  const ta = attr(attrs, "techInspection", "ta", "inspectionValidUntil", "taValidUntil");
+  const mileage = attr(attrs, "mileage", "odometer", "rida");
+  const transmission = attr(attrs, "transmission", "gearbox");
+  const price =
+    enriched.price != null && Number(enriched.price) > 0
+      ? Number(enriched.price)
+      : 0;
+
+  const missing: string[] = [];
+  if (!(price > 0)) missing.push("kainą (€)");
+  if (!ta) missing.push("TA galiojimą");
+  if (!mileage) missing.push("ridą (km)");
+  if (!transmission) missing.push("pavarų dėžę");
+  return missing;
 }

@@ -103,7 +103,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
     updateAiDraft,
     updateSellerMedia,
   } = useSellerFlow();
-  const { playPublishCelebration } = usePublishCelebration();
+  const { playPublishCelebration, presentPostPublishShare } = usePublishCelebration();
   const { isAuthenticated, authHydrated, user } = useAuth();
   const { showToast, openCheckout, buyerCoords } = useVauto();
   const router = useRouter();
@@ -243,6 +243,7 @@ export function AgentChatStrip({ seedQuery, onSeedConsumed }: AgentChatStripProp
         result,
         sourceRect,
         playCelebration: playPublishCelebration,
+        presentPostPublishShare,
         finishPublishedFlow,
         router,
         resetPublishSession,

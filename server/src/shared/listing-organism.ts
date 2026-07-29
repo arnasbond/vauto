@@ -75,7 +75,7 @@ export const POST_VISION_PUBLISH_GATE =
  * Full title/description live on listingDraft / PrePublish — never paste them here.
  */
 export const TEXT_DRAFT_READY_GATE =
-  "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.";
+  "Paruošiau pilną skelbimo juodraštį! Galite jį peržiūrėti PrePublish kortelėje arba parašyti, ką norite patikslinti.";
 
 export const POST_VISION_MORE_PHOTOS_NUDGE =
   "Gerai — įkelkite nuotraukas per (+) mygtuką (iki 6 vnt.). Kuo daugiau kampų, tuo greičiau atsiranda pasitikėjimas.";
@@ -466,10 +466,10 @@ export function listingFlowComposerPlaceholder(
     return "Įkelkite nuotraukas per (+) arba parašykite kainą…";
   }
   if (state === "DRAFT_READY") {
-    return "Parašykite kainą arba patikrinkite PrePublish kortelę…";
+    return "Parašykite ridą, TA, kainą ar kitą detalę…";
   }
   if (state === "AWAITING_CONFIRMATION") {
-    return "Spauskite „Patvirtinti ir publikuoti“ ant kortelės";
+    return "Patikslinkite čia arba spauskite „Publikuoti“ kortelėje";
   }
   return null;
 }
@@ -569,20 +569,65 @@ export function dispatchListingFlowTurn(input: {
 /**
  * Single warm chat sentence after draft synthesis.
  * Rich title/description belong only on listingDraft → PrePublish.
+ * When facts are missing, invite the seller to continue the dialogue.
  */
 export function buildDraftReadyChatReply(draft: {
   title?: string;
   description?: string;
   price?: number;
   location?: string;
+  category?: string;
+  attributes?: Record<string, string | string[] | undefined>;
 }): string {
   const title = draft.title?.trim();
-  if (title) {
-    const short =
-      title.length > 72 ? `${title.slice(0, 69).trim()}…` : title;
-    return `Paruošiau pilną „${short}“ skelbimo juodraštį! Galite jį peržiūrėti ir patikrinti PrePublish kortelėje.`;
+  const ready = title
+    ? (() => {
+        const short =
+          title.length > 72 ? `${title.slice(0, 69).trim()}…` : title;
+        return `Paruošiau pilną „${short}“ skelbimo juodraštį!`;
+      })()
+    : "Paruošiau pilną skelbimo juodraštį!";
+
+  const gaps = collectDraftFollowUpGaps(draft);
+  if (gaps.length) {
+    return `${ready} Jei turite, parašykite: ${gaps.join(", ")} — arba atidarykite PrePublish kortelę ir patikrinkite.`;
   }
-  return TEXT_DRAFT_READY_GATE;
+  return `${ready} Galite patikrinti PrePublish kortelėje arba parašyti, ką norite pakeisti.`;
+}
+
+function collectDraftFollowUpGaps(draft: {
+  price?: number;
+  category?: string;
+  attributes?: Record<string, string | string[] | undefined>;
+}): string[] {
+  const attrs = draft.attributes ?? {};
+  const pick = (...keys: string[]) => {
+    for (const key of keys) {
+      const raw = attrs[key];
+      const value = Array.isArray(raw)
+        ? raw.map(String).join(", ")
+        : String(raw ?? "");
+      if (value.trim()) return value.trim();
+    }
+    return "";
+  };
+  const cat = String(draft.category ?? "").toLowerCase();
+  const isVehicle =
+    cat === "vehicles" ||
+    cat === "transport" ||
+    cat === "automobiliai" ||
+    Boolean(pick("vin", "plate", "licensePlate", "make"));
+
+  const gaps: string[] = [];
+  if (!(Number(draft.price) > 0)) gaps.push("kainą");
+  if (isVehicle) {
+    if (!pick("mileage", "odometer", "rida")) gaps.push("ridą (km)");
+    if (!pick("techInspection", "ta", "inspectionValidUntil", "taValidUntil")) {
+      gaps.push("TA galiojimą");
+    }
+    if (!pick("transmission", "gearbox")) gaps.push("pavarų dėžę");
+  }
+  return gaps.slice(0, 3);
 }
 
 /**

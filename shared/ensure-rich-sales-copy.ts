@@ -36,14 +36,22 @@ function stringifyAttrs(
   );
 }
 
-/** Light chrome strip only — keep natural LLM Lithuanian intact. */
+/**
+ * Strip markdown chrome + seller-coaching / prompt leaks.
+ * Keep natural Lithuanian sales copy intact.
+ */
 export function scrubSalesCopyMarkdown(text: string): string {
   return String(text ?? "")
     .replace(/\*\*/g, "")
     .replace(/^🚗\s*/gm, "")
     .replace(/^🌟\s*/gm, "")
     .replace(/^💡\s*/gm, "")
-    .replace(/^(Pavadinimas|Title|Antraštė|Aprašymas)\s*:\s*/i, "")
+    // Internal prompt / coach lines must never reach PrePublish or public listing.
+    .replace(/^.*Dar galite papildyti:.*$/gim, "")
+    .replace(/^.*Nerašykite spėjamų skaičių.*$/gim, "")
+    .replace(/^.*tik tikrus duomenis\.?\s*$/gim, "")
+    .replace(/^.*(?:system prompt|as an AI|internal instruction).*$/gim, "")
+    .replace(/^(Pavadinimas|Title|Antraštė|Aprašymas)\s*:\s*/gim, "")
     .replace(/^(Pavadinimas|Title|Antraštė)\s*:\s*.+\n+/i, "")
     .replace(/[ \t]{2,}/g, " ")
     .replace(/\n{3,}/g, "\n\n")
