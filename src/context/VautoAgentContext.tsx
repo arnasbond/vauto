@@ -178,7 +178,6 @@ import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import {
   AWAITING_PHOTOS_NUDGE,
   buildConversationalMissingPrompt,
-  buildPostVisionHeroMessage,
   dispatchListingFlowTurn,
   inferListingFlowState,
   isImmediatePublishCommand,
@@ -2133,27 +2132,25 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       }
 
       // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
-      const listingChatReply =
+      if (
         aiDraft &&
         flowDecision.kind !== "process_photos" &&
         !shouldBypassPhotosNudge(trimmed) &&
         isListingConversationInput(trimmed, listingChatContext)
-          ? tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
-              const nextState =
-                transitionListingFlow(
-                  aiDraft.listingFlowState ?? "DRAFTING_TEXT",
-                  "DRAFT_SAVED"
-                ) ?? "DRAFT_READY";
-              updateAiDraft({
-                ...patch,
-                listingFlowState: nextState,
-              });
-            })
-          : null;
-      if (listingChatReply) {
+      ) {
+        tryApplyListingChatInput(trimmed, aiDraft, (patch) => {
+          const nextState =
+            transitionListingFlow(
+              aiDraft.listingFlowState ?? "DRAFTING_TEXT",
+              "DRAFT_SAVED"
+            ) ?? "DRAFT_READY";
+          updateAiDraft({
+            ...patch,
+            listingFlowState: nextState,
+          });
+        });
         // Specs applied locally — continue to Gemini for a natural follow-up
         // (no forced POST_VISION_PUBLISH_CHIPS / auto-PrePublish).
-        void listingChatReply;
       }
 
       // Photo/document-only (or + short caption) must reach media handling below.
