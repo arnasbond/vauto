@@ -1,7 +1,4 @@
-/**
- * Post-Vision vehicle attribute enrichment — deterministic rules that Gemini
- * prompts alone cannot reliably enforce (Grand logic, paddles, full B date).
- */
+import { applyVehicleCatalogSpecs } from "./vehicle-spec-catalog";
 
 function attrStr(
   attrs: Record<string, string | string[] | undefined>,
@@ -179,11 +176,14 @@ export type VehicleDraftLike = {
   title?: string;
   description?: string;
   category?: string;
+  /** Vision / extract confidence 0–1 — catalog soft-fill requires ≥ 0.70 */
+  confidence?: number;
   attributes?: Record<string, string | string[] | undefined>;
 };
 
 /**
  * Apply all Step-1 strict rules to a listing draft after Vision JSON parse.
+ * When make/model known without tech passport, soft-fill specs from catalog (≥70%).
  */
 export function enrichVehicleVisionDraft<T extends VehicleDraftLike>(draft: T): T {
   const cat = String(draft.category ?? "").toLowerCase();
@@ -280,14 +280,27 @@ export function enrichVehicleVisionDraft<T extends VehicleDraftLike>(draft: T): 
   if (interiorBullets) setAttr(attrs, "interiorCondition", interiorBullets);
   if (exteriorBullets) setAttr(attrs, "exteriorFeatures", exteriorBullets);
 
+  // Catalog soft-fill when make/model known but tech passport missing (threshold 70%).
+  const catalog = applyVehicleCatalogSpecs(attrs, {
+    confidence:
+      typeof draft.confidence === "number"
+        ? draft.confidence
+        : Number(attrStr(attrs, "visionConfidence") || 0.75),
+    title: draft.title,
+    description: draft.description,
+  });
+  Object.assign(attrs, catalog.attributes);
+
   const yearForTitle = attrStr(attrs, "year") || year;
   let title = (draft.title ?? "").trim();
-  if (make && model) {
-    const preferred = `${make} ${model}${yearForTitle ? ` ${yearForTitle}` : ""}`.trim();
+  const makeOut = attrStr(attrs, "make", "brand");
+  const modelOut = attrStr(attrs, "model");
+  if (makeOut && modelOut) {
+    const preferred = `${makeOut} ${modelOut}${yearForTitle ? ` ${yearForTitle}` : ""}`.trim();
     if (
       !title ||
       title === "Skelbimas" ||
-      (/c4\s+picasso/i.test(title) && /grand/i.test(model) && !/grand/i.test(title))
+      (/c4\s+picasso/i.test(title) && /grand/i.test(modelOut) && !/grand/i.test(title))
     ) {
       title = preferred;
     }

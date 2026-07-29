@@ -1,57 +1,15 @@
 /** LT vehicle catalog for step-by-step listing wizard (autoplius-style). */
 
 export { VEHICLE_MAKES, MODELS_BY_MAKE } from "@/data/vehicle-makes-models";
+export {
+  MODIFICATIONS_BY_MODEL,
+  VEHICLE_CATALOG_MIN_CONFIDENCE,
+  applyVehicleCatalogSpecs,
+  modificationsFor,
+  type VehicleModification,
+} from "@vauto/shared/vehicle-spec-catalog";
 
-export interface VehicleModification {
-  id: string;
-  label: string;
-  bodyType: string;
-  fuelType: string;
-  doors: string;
-  engineCc?: string;
-  powerKw?: string;
-}
-
-export const MODIFICATIONS_BY_MODEL: Record<string, VehicleModification[]> = {
-  "Citroën|DS5": [
-    {
-      id: "ds5-thp200",
-      label: "1.6 THP (200 Hp)",
-      bodyType: "Hečbekas",
-      fuelType: "Benzinas",
-      doors: "4/5",
-      engineCc: "1598",
-      powerKw: "147",
-    },
-    {
-      id: "ds5-ehdi115",
-      label: "1.6 e-HDi (115 Hp) Airdream EGS6",
-      bodyType: "Hečbekas",
-      fuelType: "Dyzelinas",
-      doors: "4/5",
-      engineCc: "1560",
-      powerKw: "85",
-    },
-    {
-      id: "ds5-hdi160",
-      label: "2.0 HDi (160 Hp) Automatic",
-      bodyType: "Hečbekas",
-      fuelType: "Dyzelinas",
-      doors: "4/5",
-      engineCc: "1997",
-      powerKw: "120",
-    },
-    {
-      id: "ds5-thp155",
-      label: "1.6 THP (155 Hp) Automatic",
-      bodyType: "Hečbekas",
-      fuelType: "Benzinas",
-      doors: "4/5",
-      engineCc: "1598",
-      powerKw: "114",
-    },
-  ],
-};
+import { modificationsFor } from "@vauto/shared/vehicle-spec-catalog";
 
 export const BODY_TYPES = [
   "Sedanas",
@@ -135,10 +93,6 @@ export const REGISTRATION_MONTHS = [
 
 export { modelsForMake } from "@/data/vehicle-makes-models";
 
-export function modificationsFor(make: string, model: string): VehicleModification[] {
-  return MODIFICATIONS_BY_MODEL[`${make}|${model}`] ?? [];
-}
-
 export function engineCcSuggestions(make: string, model: string): string[] {
   const mods = modificationsFor(make, model);
   const set = new Set(mods.map((m) => m.engineCc).filter(Boolean) as string[]);
@@ -151,7 +105,9 @@ export function powerKwSuggestions(make: string, model: string): string[] {
   return [...set];
 }
 
-export function vehicleSummaryLabel(attrs: Record<string, string | string[] | undefined>): string {
+export function vehicleSummaryLabel(
+  attrs: Record<string, string | string[] | undefined>
+): string {
   const make = String(attrs.make ?? "").trim();
   const model = String(attrs.model ?? "").trim();
   const year = String(attrs.year ?? "").trim();

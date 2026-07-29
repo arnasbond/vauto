@@ -826,7 +826,24 @@ export function buildVehicleSpecReportMarkdown(draft: {
     VEHICLE_SPEC_COPY_OFFER,
   ];
 
-  return lines.join("\n");
+  const catalogNote = attrPick(draft.attributes, "catalogNote");
+  const catalogAlt = attrPick(draft.attributes, "catalogAlternatives");
+  const catalogLabel = attrPick(draft.attributes, "catalogModificationLabel");
+  if (attrPick(draft.attributes, "specSource") === "catalog") {
+    lines.splice(
+      lines.length - 1,
+      0,
+      "**Katalogo pasiūlymas (be tech. paso)**",
+      catalogLabel
+        ? `- Siūloma modifikacija: ${catalogLabel}`
+        : "- Bazinės specifikacijos pagal markę/modelį",
+      catalogAlt ? `- Alternatyvos: ${catalogAlt}` : "",
+      catalogNote ? `- ${catalogNote}` : "- Patikrinkite PrePublish lange prieš publikuojant.",
+      ""
+    );
+  }
+
+  return lines.filter((l, i, arr) => !(l === "" && arr[i - 1] === "")).join("\n");
 }
 
 /** Collect short human-readable OCR/vision facts for chat acknowledgment. */
