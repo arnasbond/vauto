@@ -105,7 +105,7 @@ function seedListingDraft(
     description: "",
     price: 0,
     location: user.city?.trim() || "",
-    contact: user.phone || "+370 612 34567",
+    contact: user.phone || "",
     confidence: 0.5,
     attributes: {},
   };

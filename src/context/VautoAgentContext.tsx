@@ -1405,8 +1405,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       // handleDirectAgentChip — that recurses via sendAgentMessageRef and throws.
       const isHeroSmChip =
         isVisionObjectSellChip(trimmed) ||
-        /^viskas\b/i.test(trimmed) ||
-        /^tinka\b/i.test(trimmed) ||
+        /^viskas\s+(tinka|gerai)\b/i.test(trimmed) ||
+        /^tinka[,!]?\s*(publiku|skelbk|keliam)/i.test(trimmed) ||
         /^keliam\b/i.test(trimmed) ||
         /^keliame\b/i.test(trimmed) ||
         /\bpublikuojam\b/i.test(trimmed) ||
@@ -1420,7 +1420,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         /^papildyk$/i.test(trimmed) ||
         /\bprepublish\b/i.test(trimmed) ||
         /\bjudame\s+prie\b/i.test(trimmed) ||
-        /^nenoriu\b/i.test(trimmed) ||
+        /^nenoriu\s+reklamos\b/i.test(trimmed) ||
         /^prisegti\s+nuotrauk/i.test(trimmed) ||
         /^įkelti\s+dar\s+nuotrauk/i.test(trimmed);
       if (isDirectAgentActionChip(trimmed) && !isHeroSmChip) {
@@ -2082,7 +2082,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
         }
       }
 
-      // Bare price (e.g. „kaina 20€“) → bind instantly + open PrePublish. Never re-ask price.
+      // Bare price / location-style field turns: bind locally, then fall through to Gemini
+      // so dialogue stays natural (no forced Step-2 chips / "Kaina nustatyta" dead-end).
       if (
         priceFromTurn != null &&
         flowDecision.kind !== "process_photos" &&
@@ -2119,58 +2120,16 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
               "DRAFT_SAVED"
             ) ?? "DRAFT_READY",
         });
-        const readinessAfterPrice = evaluatePrePublishReadiness({
-          isAuthenticated,
-          user,
-          draft: pricedDraft,
-          previewImage: sellerPreviewImage,
-          pendingImageUrls: pendingForTurn,
-          orderedImageUrls: pricedDraft.orderedImageUrls,
-          geoCoords: buyerCoords,
-        });
-        // Lean 4-step: bind price only. PrePublish opens on „Publikuoti“ (Step 4),
-        // not automatically after price — unless sales draft was already prepared.
-        const salesReady =
-          String(pricedDraft.attributes?.salesCopyGenerated ?? "") === "true";
-        if (salesReady && readinessAfterPrice.ok) {
-          const confirmed = confirmPublishNow({
-            ...(readinessAfterPrice.syncedDraft ?? pricedDraft),
-            price: priceFromTurn,
-          });
-          setMessages((prev) => {
-            const assistantText =
-              confirmed.reply.trim() ||
-              (confirmed.prePublishCard ? PRE_PUBLISH_CARD_INTRO : "");
-            const next = [
-              ...prev,
-              { role: "user" as const, text: trimmed },
-              ...(assistantText || confirmed.prePublishCard
-                ? [
-                    {
-                      role: "assistant" as const,
-                      text: assistantText,
-                      ...(confirmed.prePublishCard
-                        ? { prePublishCard: confirmed.prePublishCard }
-                        : {}),
-                    },
-                  ]
-                : []),
-            ];
-            return next.slice(-6);
-          });
-          touchAgentSessionActivity();
-          return { ok: true, reply: confirmed.reply };
-        }
-        setMessages((prev) => [
-          ...prev,
-          { role: "user" as const, text: trimmed },
-          {
-            role: "assistant" as const,
-            text: `Kaina nustatyta: ${priceFromTurn} €.`,
-          },
-        ].slice(-6));
-        touchAgentSessionActivity();
-        return { ok: true, reply: `Kaina nustatyta: ${priceFromTurn} €.` };
+        draftForTurn = {
+          ...pricedDraft,
+          price: priceFromTurn,
+          listingFlowState:
+            transitionListingFlow(
+              pricedDraft.listingFlowState ?? "DRAFTING_TEXT",
+              "DRAFT_SAVED"
+            ) ?? "DRAFT_READY",
+        };
+        // Fall through to Gemini — do not short-circuit with chips or a static ack.
       }
 
       // Keep sell_intent memory: apply price/specs whenever a draft exists (not only DRAFTING_TEXT).
@@ -2192,69 +2151,9 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
             })
           : null;
       if (listingChatReply) {
-        // Lean confirmation — no Patarimas / market filler; never hide PrePublish after price lock.
-        const locked = sessionLockedPriceRef.current;
-        if (locked != null && locked > 0) {
-          const priced = { ...aiDraft!, price: locked };
-          const readiness = evaluatePrePublishReadiness({
-            isAuthenticated,
-            user,
-            draft: priced,
-            previewImage: sellerPreviewImage,
-            pendingImageUrls: pendingForTurn,
-            orderedImageUrls: priced.orderedImageUrls,
-            geoCoords: buyerCoords,
-          });
-          if (readiness.ok) {
-            const confirmed = confirmPublishNow({
-              ...(readiness.syncedDraft ?? priced),
-              price: locked,
-            });
-            setMessages((prev) => {
-              const assistantText =
-                confirmed.reply.trim() ||
-                (confirmed.prePublishCard ? PRE_PUBLISH_CARD_INTRO : "");
-              const next = [
-                ...prev,
-                { role: "user" as const, text: trimmed },
-                ...(assistantText || confirmed.prePublishCard
-                  ? [
-                      {
-                        role: "assistant" as const,
-                        text: assistantText,
-                        ...(confirmed.prePublishCard
-                          ? { prePublishCard: confirmed.prePublishCard }
-                          : {}),
-                      },
-                    ]
-                  : []),
-              ];
-              return next.slice(-6);
-            });
-            touchAgentSessionActivity();
-            return { ok: true, reply: confirmed.reply };
-          }
-        }
-        // Step 2 stays lean — never dump deferred/full sales copy after price bind.
-        const reply = buildPostVisionHeroMessage({
-          title: aiDraft?.title,
-          description: "",
-          price: priceFromTurn ?? aiDraft?.price,
-          location: aiDraft?.location,
-          category: aiDraft?.category,
-          attributes: aiDraft?.attributes,
-        });
-        setMessages((prev) => [
-          ...prev,
-          { role: "user" as const, text: trimmed },
-          {
-            role: "assistant" as const,
-            text: reply,
-            quickReplies: [...POST_VISION_PUBLISH_CHIPS],
-          },
-        ]);
-        touchAgentSessionActivity();
-        return { ok: true, reply };
+        // Specs applied locally — continue to Gemini for a natural follow-up
+        // (no forced POST_VISION_PUBLISH_CHIPS / auto-PrePublish).
+        void listingChatReply;
       }
 
       // Photo/document-only (or + short caption) must reach media handling below.
@@ -3616,7 +3515,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
       // from here — that recursed and surfaced „Nepavyko išsiųsti žinutės“.
       if (
         aiDraft &&
-        (/^viskas\b/i.test(trimmed) ||
+        (/^viskas\s+(tinka|gerai)\b/i.test(trimmed) ||
           /\bpublikuojam\b/i.test(trimmed) ||
           /\bpublikuoti\b/i.test(trimmed) ||
           /^🚀?\s*publikuoti$/i.test(trimmed) ||
@@ -3628,7 +3527,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
           /^papildyk$/i.test(trimmed) ||
           /\bprepublish\b/i.test(trimmed) ||
           /\bjudame\s+prie\b/i.test(trimmed) ||
-          /^nenoriu\b/i.test(trimmed) ||
+          /^nenoriu\s+reklamos\b/i.test(trimmed) ||
           /^prisegti\s+nuotrauk/i.test(trimmed) ||
           /^įkelti\s+dar\s+nuotrauk/i.test(trimmed))
       ) {

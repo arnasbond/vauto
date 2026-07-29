@@ -20,6 +20,7 @@ import {
   type SocialPlatformId,
 } from "@/lib/social-share";
 import { ShareListingModal } from "@/components/social/ShareListingModal";
+import { StoryVisualGenerator } from "@/components/social/StoryVisualGenerator";
 import { cn } from "@/lib/cn";
 
 interface ShareListingPanelProps {
@@ -191,6 +192,8 @@ export function ShareListingPanel({
           {shareCaptionForPlatform("instagram", listing)}
         </p>
       )}
+
+      <StoryVisualGenerator listing={listing} />
 
       <ShareListingModal
         listing={listing}

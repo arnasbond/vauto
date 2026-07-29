@@ -132,7 +132,7 @@ export async function executePhotoIntentSearch(
         title: vision.title ?? grid.searchQuery,
         price: 0,
         location: grid.intent.cityNominative || deps.userCity || "Lietuva",
-        contact: deps.userPhone || "+370 612 34567",
+        contact: deps.userPhone || "",
         category: (vision.category as ListingCategory) ?? "other",
         confidence: vision.confidence,
         attributes: grid.intent.searchFilters as Record<string, string>,

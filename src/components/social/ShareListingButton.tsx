@@ -5,10 +5,9 @@ import { Share2 } from "lucide-react";
 import type { Listing } from "@/lib/types";
 import {
   canUseNativeShare,
-  copyListingLink,
   shareListingNative,
 } from "@/lib/social-share";
-import { ShareListingPanel } from "@/components/social/ShareListingPanel";
+import { ShareListingModal } from "@/components/social/ShareListingModal";
 import { cn } from "@/lib/cn";
 
 interface ShareListingButtonProps {
@@ -48,9 +47,11 @@ export function ShareListingButton({
         >
           <Share2 className="h-3.5 w-3.5" />
         </button>
-        {open && (
-          <ShareListingModal listing={listing} onClose={() => setOpen(false)} />
-        )}
+        <ShareListingModal
+          listing={listing}
+          open={open}
+          onClose={() => setOpen(false)}
+        />
       </>
     );
   }
@@ -68,39 +69,11 @@ export function ShareListingButton({
         <Share2 className="h-3.5 w-3.5" />
         {label}
       </button>
-      {open && <ShareListingModal listing={listing} onClose={() => setOpen(false)} />}
+      <ShareListingModal
+        listing={listing}
+        open={open}
+        onClose={() => setOpen(false)}
+      />
     </>
-  );
-}
-
-function ShareListingModal({
-  listing,
-  onClose,
-}: {
-  listing: Listing;
-  onClose: () => void;
-}) {
-  return (
-    <div className="fixed inset-0 z-[220] flex items-end justify-center bg-black/80 p-4 sm:items-center">
-      <div className="vauto-auth-modal w-full max-w-md rounded-3xl p-5">
-        <div className="mb-3 flex items-center justify-between">
-          <h3 className="font-semibold text-white">Dalintis skelbimu</h3>
-          <button type="button" onClick={onClose} className="text-slate-400 text-sm">
-            Uždaryti
-          </button>
-        </div>
-        <ShareListingPanel listing={listing} compact />
-        <button
-          type="button"
-          onClick={async () => {
-            await copyListingLink(listing);
-            onClose();
-          }}
-          className="mt-3 w-full rounded-xl bg-white/10 py-2 text-xs text-white"
-        >
-          Tik kopijuoti nuorodą
-        </button>
-      </div>
-    </div>
   );
 }

@@ -877,7 +877,7 @@ export async function clientExtractListingFromImage(input: {
 
   const city = verifiedProfileCity(input.userCity?.trim());
 
-  const contact = input.contact?.trim() || "+370 612 34567";
+  const contact = input.contact?.trim() || "";
 
   const prompt = buildListingImagePrompt(city, input.transcript, input.extraContext);
 

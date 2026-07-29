@@ -27,6 +27,7 @@ import {
   type ListingShareCopy,
   type SocialShareTone,
 } from "@/lib/listing-share-generator";
+import { StoryVisualGenerator } from "@/components/social/StoryVisualGenerator";
 import { cn } from "@/lib/cn";
 
 interface ShareListingModalProps {
@@ -266,6 +267,13 @@ export function ShareListingModal({
             </>
           )}
         </div>
+
+        <StoryVisualGenerator
+          listing={listing}
+          caption={aiCopy?.instagram || caption}
+          className="mb-4"
+          onShared={() => onShared?.("instagram")}
+        />
 
         <button
           type="button"

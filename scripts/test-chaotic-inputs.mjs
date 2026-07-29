@@ -68,7 +68,7 @@ async function main() {
     `normalize maps ratud→ratus`
   );
 
-  console.log("\n== Ultra-short confirmations (no browse-all) ==");
+  console.log("\n== Ultra-short confirmations (no browse-all, no forced PrePublish) ==");
   for (const phrase of ["ok", "nu", "👍", "taip", "gerai", "да"]) {
     check(
       chaotic.isUltraShortConfirmation(phrase),
@@ -83,11 +83,18 @@ async function main() {
       `"${phrase}" is NOT browse-all`
     );
     check(
-      organism.isPublishReadyIntent(phrase) ||
-        workflow.isPublishWorkflowCommand(phrase),
-      `"${phrase}" advances publish/confirm SM`
+      !organism.isPublishReadyIntent(phrase),
+      `"${phrase}" does NOT force PrePublish (reaches Gemini)`
     );
   }
+  check(
+    organism.isPublishReadyIntent("publikuok"),
+    `"publikuok" still opens PrePublish`
+  );
+  check(
+    organism.isPublishReadyIntent("viskas tinka"),
+    `"viskas tinka" still opens PrePublish`
+  );
 
   console.log("\n== Vision ↔ text conflict ==");
   check(

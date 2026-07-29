@@ -35,13 +35,14 @@ export function isDirectAgentActionChip(text: string): boolean {
   if (/^parduoti\s+\S+/i.test(t) && !/^📦/.test(t) && !/parduoti\s+š[iį]\s+daikt/i.test(t)) {
     return true;
   }
-  // Hero publish gate chips (text-first universe)
+  // Hero publish gate chips — exact chip phrases only (not bare „taip“ / „ok“).
   if (
-    /^viskas\b/i.test(t) ||
+    /^viskas\s+(tinka|gerai)\b/i.test(t) ||
     /\bpublikuojam\b/i.test(t) ||
     /\bprepublish\b/i.test(t) ||
     /\bjudame\s+prie\b/i.test(t) ||
-    /^nenoriu\b/i.test(t)
+    /^nenoriu\s+reklamos\b/i.test(t) ||
+    /^🚀?\s*publikuoti$/i.test(t)
   ) {
     return true;
   }

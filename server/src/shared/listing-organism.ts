@@ -213,22 +213,21 @@ export function isShowDraftPreviewIntent(text: string): boolean {
   return false;
 }
 
-/** „viskas / publikuok / publikuojam / PrePublish / nenoriu / tinka / keliam“ → lock PrePublish */
+/**
+ * Explicit “open PrePublish / publish now” intents only.
+ * Ultra-short affirmations (ok / taip / 👍 / gerai) intentionally do NOT match —
+ * they must reach Gemini so dialogue stays natural. Exact chip labels still
+ * publish via quick-reply / immediate publish verbs below.
+ */
 export function isPublishReadyIntent(text: string): boolean {
   const t = text.trim().toLowerCase();
   if (!t) return false;
-  // Ultra-short affirmations (“ok”, “nu”, “👍”) confirm current draft — never reset.
-  if (
-    /^(ok|okay|okej|nu|taip|gerai|tinka|jo|yep|yes|да|ок)[.!…]*$/i.test(t) ||
-    /^(👍|👌|✅)([\uFE0F\uFE0E]|[\u{1F3FB}-\u{1F3FF}])?$/u.test(text.trim())
-  ) {
-    return true;
-  }
   if (isShowDraftPreviewIntent(t)) return true;
   if (isImmediatePublishCommand(t)) return true;
-  if (/^nenoriu(\b|$)/i.test(t)) return true;
-  if (/^viskas\b/i.test(t)) return true;
-  if (/^(tinka|keliam|keliame)\b/i.test(t)) return true;
+  // Explicit multi-word confirmations (chip-like), not bare "taip"/"ok".
+  if (/^viskas\s+(tinka|gerai|ok|okay)\b/i.test(t)) return true;
+  if (/^tinka[,!]?\s*(publiku|skelbk|keliam)/i.test(t)) return true;
+  if (/^(keliam|keliame)\b/i.test(t)) return true;
   // Imperative + infinitive publish verbs — never fall through to photo re-ask loops.
   if (/\bpublikuok(?:ite|im)?\b|\bpublikuojam\b|\bpublikuoti\b|\bkeliam\b/i.test(t)) {
     return true;
@@ -236,10 +235,10 @@ export function isPublishReadyIntent(text: string): boolean {
   if (/\bprepublish\b|\bpre-publish\b|\bpre\s*publish\b/i.test(t)) return true;
   if (/\bjudame\b.*\b(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/\bprie\s+(prepublish|publik|peržiūr)/i.test(t)) return true;
-  if (/tiesiai\s+prie/i.test(t)) return true;
+  if (/tiesiai\s+prie\s+(prepublish|publik|peržiūr)/i.test(t)) return true;
   if (/^(pakanka|užtenka|uztenka)\b/i.test(t)) return true;
   if (/^taip[,!]?\s*(publiku|tinka|judam|keliam)/i.test(t)) return true;
-  // „Ne nereikia, publikuok“ / „ne, nereikia“ / „daugiau nereikia“
+  // „Ne nereikia, publikuok“ / „daugiau nereikia“ — publish, not bare „nenoriu“.
   if (
     /be\s+daugiau|nebereikia|ne,?\s*nereikia|daugiau\s+nereikia|nereikia,?\s*publiku/i.test(
       t

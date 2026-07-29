@@ -638,7 +638,7 @@ export function mapVisionResultToListingExtract(
 
     location: vision.intent.cityNominative || ctx?.userCity || "Lietuva",
 
-    contact: ctx?.contact ?? "+370 612 34567",
+    contact: ctx?.contact ?? "",
 
     category: (vision.category as import("@/lib/types").ListingCategory) ?? "other",
 

@@ -121,7 +121,7 @@ export function sanitizeAgentAction(raw: unknown): SanitizeAgentActionResult {
               description: description || undefined,
               price: asNumber(d.price, 0),
               location: asString(d.location),
-              contact: asString(d.contact, "+370 612 34567"),
+              contact: asString(d.contact, ""),
               category: asString(d.category, "other"),
               confidence: asNumber(d.confidence, 0.5),
               attributes: safeDraftAttributes(d.attributes),

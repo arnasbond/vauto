@@ -254,7 +254,7 @@ aiRouter.post("/extract-image", async (req, res) => {
     contact?: string;
   };
   const city = userCity || "Lietuva";
-  const phone = contact || "+370 612 34567";
+  const phone = contact || "";
   const images = normalizeImageInputList(
     Array.isArray(imageDataUrls) && imageDataUrls.length
       ? imageDataUrls
@@ -838,7 +838,7 @@ aiRouter.post("/extract-combined", async (req, res) => {
       contact?: string;
     };
   const city = userCity || "Lietuva";
-  const phone = contact || "+370 612 34567";
+  const phone = contact || "";
   const images =
     Array.isArray(imageDataUrls) && imageDataUrls.length
       ? imageDataUrls
@@ -888,7 +888,7 @@ aiRouter.post("/extract-text", async (req, res) => {
     contact?: string;
   };
   const city = userCity || "Lietuva";
-  const phone = contact || "+370 612 34567";
+  const phone = contact || "";
 
   try {
     const raw = await chatJson([

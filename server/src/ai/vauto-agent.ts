@@ -1195,7 +1195,7 @@ async function runVautoAgentInner(
     userName: req.context.userName ?? "Svečias",
     accountType: req.context.accountType ?? "Svečias",
     userCity: resolveAgentDefaultCity(req.context.userCity),
-    contact: req.context.contact?.trim() || "+370 612 34567",
+    contact: req.context.contact?.trim() || "",
     userRole: req.context.userRole ?? "buyer",
     isAuthenticated: Boolean(req.context.isAuthenticated),
     myListings: req.context.myListings ?? [],
@@ -1207,7 +1207,7 @@ async function runVautoAgentInner(
   const ctx: AgentToolContext = {
     userCity: resolveAgentDefaultCity(req.context.userCity),
     userRole: req.context.userRole ?? "buyer",
-    contact: req.context.contact?.trim() || "+370 612 34567",
+    contact: req.context.contact?.trim() || "",
     userName: req.context.userName,
     authUserId: req.authUserId,
     activeListingId: req.context.currentPageContext?.active_listing_id,

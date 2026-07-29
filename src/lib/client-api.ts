@@ -50,7 +50,7 @@ async function tryUnifiedExtract(
 ): Promise<AiExtractedListing | null> {
   if (!isAiProxyAvailable()) return null;
 
-  const contact = ctx.contact ?? "+370 612 34567";
+  const contact = ctx.contact ?? "";
   const city = ctx.userCity ?? "Lietuva";
   const images = await prepareImagesForAi(resolveImages(ctx));
   const text = mergeTranscript(ctx) ?? ctx.transcript?.trim();
