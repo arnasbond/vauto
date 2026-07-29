@@ -43,7 +43,9 @@ async function waitForAddListingPage(page: Page) {
     )
     .catch(() => undefined);
 
-  const photoBtn = page.getByRole("button", { name: /Įkelti nuotraukas/i }).first();
+  const photoBtn = page
+    .getByRole("button", { name: /Pridėti failą|Įkelti nuotraukas/i })
+    .first();
   const opening = page.getByRole("heading", {
     name: /Atidarome VAUTO asistentą|Atidarome AI asistentą|Naujas skelbimas|Kelkite skelbimą/i,
   });
@@ -62,7 +64,7 @@ export async function runUnregisteredBarcodeAgentFlow(page: Page) {
   if (!(await barcodeBtn.isVisible({ timeout: 5_000 }).catch(() => false))) {
     // Legacy /add barcode shell removed — seller chat photo CTA is the gate.
     await expect(
-      page.getByRole("button", { name: /Įkelti nuotraukas/i }).first()
+      page.getByRole("button", { name: /Pridėti failą|Įkelti nuotraukas/i }).first()
     ).toBeVisible({ timeout: 15_000 });
     return;
   }

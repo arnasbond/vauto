@@ -65,14 +65,19 @@ export function getCategoryPrompter(category: string): {
     key === "ELECTRONICS" ||
     key === "ELECTRONIC" ||
     key === "TOOLS" ||
-    key === "TOOL" ||
+    key === "TOOL"
+  ) {
+    // Tech / tools — specs-first (never AUTO_PROMPTER VIN/rida voice).
+    id = "electronics";
+    base = ELECTRONICS_PROMPTER;
+  } else if (
     key === "DALYS" ||
     key === "PARTS" ||
     key === "AUTODALYS"
   ) {
-    // Tech / parts / tools — specs-first (never AUTO_PROMPTER VIN/rida voice).
-    id = "electronics";
-    base = ELECTRONICS_PROMPTER;
+    // Auto parts / wheels — general goods voice (never full-car AUTO_PROMPTER).
+    id = "general";
+    base = GENERAL_PROMPTER;
   } else if (
     key === "APRANGA" ||
     key === "CLOTHING" ||

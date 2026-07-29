@@ -45,16 +45,16 @@ Do not invent missing values.
  * Structure without brand/city few-shot pollution.
  */
 export const NATURAL_SALES_COPY_DIRECTIVE = `
-Rašyk engaginantį marketplace tekstą natūralia lietuvių kalba — tonas pagal kategorijos FOKUSAS (ne vienodas šablonas visiems).
+Rašyk turtingą, šiltą ir engaginantį marketplace tekstą natūralia lietuvių kalba — tonas pagal kategorijos FOKUSAS (ne vienodas šablonas visiems).
 Naudok TIK faktus iš Pass-1 JSON / OCR / vartotojo teksto.
 Siekis — visas aprašymo tekstas ir specifikacijų etiketės TIK švaria, taisyklinga lietuvių kalba.
-Techninius JSON raktus (bodyType, powerKw, fuelType, mileageKm ir pan.) versk į lietuviškas etiketes (Kėbulas, Galia, Kuras, Rida).
+Techninius JSON raktus (bodyType, powerKw, fuelType, mileageKm ir pan.) versk į lietuviškas etiketes (Kėbulas, Galia, Kuras, Kilometražas).
 Prekių ženklus ir modelius (pvz. Lucid Air, iPhone) palik kaip yra — jie yra pavadinimai, ne neišversti parametrai.
 Kai faktų užtenka, struktūruok Markdown pagal kategoriją:
 - Elektronika/technika: trumpas hook + • Specifikacijos + būklė/komplektacija (mažiau poezijos)
 - Paslaugos: įtaigus hook + • spektras + patirtis/garantijos + terminai/zona
 - Mada: vaizdingas hook + dydis/audinys/prigludimas
-- Transportas: šiltas pristatymas + • techniniai faktai (rida, būklė, aptarnavimai)
+- Transportas: šiltas pristatymas + • techniniai faktai (kilometražas, būklė, aptarnavimai) + • Privalumai kai tinka
 Title: švarus marketplace pavadinimas (brand + model + tipas, kai žinomi).
 Pradėk description tiesiai nuo pardavimo teksto (be „Pavadinimas:“ / „Title:“ etikečių).
 Jei miesto / kainos / detalės nėra — tiesiog neminėk; nepalik tuščių šablonų.

@@ -1,9 +1,15 @@
 import type { Page } from "@playwright/test";
 import crypto from "node:crypto";
 
+/** Non-stock avatar so SessionAutoLoginGuard does not trap on /auth-gate identity. */
+const E2E_AVATAR =
+  "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?w=100&h=100&fit=crop";
+
 export interface SeedAuthProfile {
   id: string;
   name: string;
+  nickname?: string;
+  avatar?: string;
   email?: string;
   phone?: string;
   city?: string;
@@ -132,6 +138,8 @@ export async function seedDemoUser(page: Page, opts?: { stubOnboarding?: boolean
   await seedAuthSession(page, {
     id: "user-e2e-test",
     name: "E2E Tester",
+    nickname: "E2E Tester",
+    avatar: E2E_AVATAR,
     phone: "+37060000001",
     city: "Vilnius",
     role: "private",
@@ -148,6 +156,8 @@ export async function seedAdminUser(page: Page, opts?: { stubOnboarding?: boolea
   await seedAuthSession(page, {
     id: "admin-1",
     name: "VAUTO Admin",
+    nickname: "VAUTO Admin",
+    avatar: E2E_AVATAR,
     email: "admin@vauto.com",
     phone: "+37060000099",
     city: "Vilnius",
@@ -164,6 +174,8 @@ export async function seedProUser(page: Page, opts?: { stubOnboarding?: boolean 
   await seedAuthSession(page, {
     id: "user-e2e-pro",
     name: "E2E Pro Verslas",
+    nickname: "E2E Pro",
+    avatar: E2E_AVATAR,
     phone: "+37060000002",
     city: "Vilnius",
     role: "pro",

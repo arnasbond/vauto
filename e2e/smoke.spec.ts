@@ -23,7 +23,7 @@ test.describe("VAUTO smoke", () => {
   test("home page loads with listings", async ({ page }) => {
     await waitForHomeReady(page);
     await expect(
-      page.getByRole("heading", { name: /Nauja karta skelbimų/i })
+      page.getByRole("heading", { name: /Parduok ar rask viską|Nauja karta skelbimų/i })
     ).toBeVisible({ timeout: 10_000 });
     await expect(page.getByText(/Naujausi skelbimai/i).first()).toBeVisible({
       timeout: 10_000,
@@ -183,7 +183,7 @@ test.describe("VAUTO smoke", () => {
     await expect(page.getByTestId("connection-status")).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText(/Demo režimas|Live API/i)).toBeVisible();
+    await expect(page.getByText(/Lokalus režimas|Demo režimas|Live API/i)).toBeVisible();
   });
 
   test("runtime config is served", async ({ request }) => {
@@ -203,7 +203,7 @@ test.describe("VAUTO smoke", () => {
       timeout: 15_000,
     });
     await expect(page.getByText(/E2E Autocentras/i)).toBeVisible();
-    await expect(page.getByText(/VAUTO Pro balansas/i)).toBeVisible();
+    await expect(page.getByText(/Balansas|Piniginė|PPC balansas/i).first()).toBeVisible();
     await page.getByRole("button", { name: "Kainodara" }).click();
     await expect(page.getByText(/PPC \+ planai/i)).toBeVisible();
   });
