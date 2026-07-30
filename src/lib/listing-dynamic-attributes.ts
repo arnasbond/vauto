@@ -73,6 +73,14 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "catalogModificationId",
   "catalogModificationLabel",
   "catalogAlternatives",
+  "appraisalMinPrice",
+  "appraisalMaxPrice",
+  "appraisalOptimalPrice",
+  "appraisalScore",
+  "appraisalSampleSize",
+  "minNegotiationPrice",
+  "marketMedianPrice",
+  "optimalPrice",
 ]);
 
 const INTERNAL_LABEL_RE =

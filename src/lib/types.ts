@@ -440,4 +440,6 @@ export interface ScoredListing extends Listing {
   priceAttractiveness: number;
   recencyScore: number;
   visualRelevance?: number;
+  /** Additive boost when price is near AI/market optimal (M1). */
+  priceFitBoost?: number;
 }

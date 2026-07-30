@@ -23,6 +23,15 @@ import {
   getPrePublishEditableAttributeEntries,
   humanizeAttributeKey,
 } from "@/lib/listing-dynamic-attributes";
+import { PriceRangeBar } from "@/components/listing/PriceRangeBar";
+import {
+  appraisalToPriceAdvice,
+  fetchListingPriceAppraisal,
+} from "@/lib/price-appraisal";
+import type { PriceAdvice } from "@/lib/price-advisor";
+import { appraisalAttrsForDraft } from "@/lib/price-fit";
+import { trackListingEvent } from "@/lib/listing-events";
+import type { AiExtractedListing, ListingCategory } from "@/lib/types";
 import {
   getPrePublishVisibilityOption,
   PRE_PUBLISH_PROMO_NOTE,
@@ -30,7 +39,6 @@ import {
   type PrePublishVisibilityId,
 } from "@/lib/listing-publish-visibility";
 import type { PrePublishCardPayload } from "@/lib/pre-publish-validation";
-import type { ListingCategory } from "@/lib/types";
 import {
   PrePublishShippingOptions,
   type PrePublishShippingMode,
@@ -104,6 +112,12 @@ export function PrePublishModal({
   const [addingPhotos, setAddingPhotos] = useState(false);
   const [shippingMode, setShippingMode] =
     useState<PrePublishShippingMode>("pickup_or_courier");
+  const [priceAdvice, setPriceAdvice] = useState<PriceAdvice | null>(null);
+  const [priceAdviceLoading, setPriceAdviceLoading] = useState(false);
+  const priceAdviceShownKeyRef = useRef("");
+  const lastAppraisalRef = useRef<Awaited<
+    ReturnType<typeof fetchListingPriceAppraisal>
+  >>(null);
   const submitLockRef = useRef(false);
   const photosOptional = listingCategoryAllowsPhotoless(card.category);
   const photoLimit = listingPhotoLimitForCategory(card.category);
@@ -142,6 +156,106 @@ export function PrePublishModal({
       }),
     [attributes, card.category, card.description, card.title]
   );
+
+  const priceQueryKey = useMemo(
+    () =>
+      [
+        card.title?.trim() ?? "",
+        card.category ?? "",
+        card.location?.trim() ?? "",
+        attrValue(attributes, "make"),
+        attrValue(attributes, "model"),
+        attrValue(attributes, "year"),
+        attrValue(attributes, "brand"),
+      ].join("|"),
+    [attributes, card.category, card.location, card.title]
+  );
+
+  const onFieldsChangeRef = useRef(onFieldsChange);
+  onFieldsChangeRef.current = onFieldsChange;
+
+  // Advisory price range — never blocks publish or AI chat.
+  useEffect(() => {
+    if (!open) {
+      setPriceAdvice(null);
+      setPriceAdviceLoading(false);
+      priceAdviceShownKeyRef.current = "";
+      lastAppraisalRef.current = null;
+      return;
+    }
+    const title = card.title?.trim() ?? "";
+    if (title.length < 3) {
+      setPriceAdvice(null);
+      setPriceAdviceLoading(false);
+      lastAppraisalRef.current = null;
+      return;
+    }
+
+    let cancelled = false;
+    setPriceAdviceLoading(true);
+    const timer = window.setTimeout(() => {
+      const draft = {
+        title: card.title,
+        description: card.description,
+        price: card.price,
+        location: card.location,
+        category: card.category,
+        attributes: attributes as AiExtractedListing["attributes"],
+      } as AiExtractedListing;
+
+      void fetchListingPriceAppraisal(draft)
+        .then((appraisal) => {
+          if (cancelled) return;
+          if (
+            !appraisal ||
+            !(appraisal.optimalPrice > 0 || appraisal.sampleSize > 0)
+          ) {
+            lastAppraisalRef.current = null;
+            setPriceAdvice(null);
+            return;
+          }
+          lastAppraisalRef.current = appraisal;
+          const advice = appraisalToPriceAdvice(appraisal, card.price || 0);
+          setPriceAdvice(advice);
+          const shownKey = `${priceQueryKey}|${appraisal.minPrice}|${appraisal.optimalPrice}|${appraisal.maxPrice}|${appraisal.sampleSize}`;
+          if (priceAdviceShownKeyRef.current !== shownKey) {
+            priceAdviceShownKeyRef.current = shownKey;
+            trackListingEvent("price_advice_shown", {
+              category: String(card.category ?? ""),
+              sampleSize: appraisal.sampleSize,
+              optimalPrice: appraisal.optimalPrice,
+              draftPrice: card.price || 0,
+              verdict: advice.verdict,
+            });
+            onFieldsChangeRef.current?.({
+              attributes: appraisalAttrsForDraft(appraisal),
+            });
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            lastAppraisalRef.current = null;
+            setPriceAdvice(null);
+          }
+        })
+        .finally(() => {
+          if (!cancelled) setPriceAdviceLoading(false);
+        });
+    }, 700);
+
+    return () => {
+      cancelled = true;
+      window.clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- identity key only; price remaps locally
+  }, [open, priceQueryKey, card.description]);
+
+  // Remap verdict when seller edits price without re-hitting the API.
+  useEffect(() => {
+    const appraisal = lastAppraisalRef.current;
+    if (!open || !appraisal) return;
+    setPriceAdvice(appraisalToPriceAdvice(appraisal, card.price || 0));
+  }, [open, card.price]);
 
   useEffect(() => {
     if (!open) {
@@ -468,6 +582,48 @@ export function PrePublishModal({
                   {card.vatLabelGross} · {card.vatLabelNet}
                 </p>
               ) : null}
+              <PriceRangeBar
+                advice={priceAdvice}
+                draftPrice={card.price || 0}
+                loading={priceAdviceLoading}
+                disabled={busy || !onFieldsChange}
+                onApplyOptimal={(optimalPrice) => {
+                  patchField({
+                    price: optimalPrice,
+                    attributes: priceAdvice
+                      ? {
+                          appraisalOptimalPrice: String(optimalPrice),
+                          ...(priceAdvice.minPrice != null
+                            ? {
+                                appraisalMinPrice: String(
+                                  Math.round(priceAdvice.minPrice)
+                                ),
+                              }
+                            : {}),
+                          ...(priceAdvice.maxPrice != null
+                            ? {
+                                appraisalMaxPrice: String(
+                                  Math.round(priceAdvice.maxPrice)
+                                ),
+                              }
+                            : {}),
+                          ...(priceAdvice.appraisalScore != null
+                            ? {
+                                appraisalScore: String(
+                                  Math.round(priceAdvice.appraisalScore)
+                                ),
+                              }
+                            : {}),
+                        }
+                      : { appraisalOptimalPrice: String(optimalPrice) },
+                  });
+                  trackListingEvent("price_advice_applied", {
+                    category: String(card.category ?? ""),
+                    optimalPrice,
+                    draftPrice: card.price || 0,
+                  });
+                }}
+              />
             </label>
 
             <label className="block space-y-1">

@@ -19,7 +19,10 @@ export type UserBehaviorActionType =
   | "kpi_listing_published"
   | "kpi_contact_reask"
   | "kpi_first_response_signal"
-  | "twin_escalate";
+  | "twin_escalate"
+  | "price_advice_shown"
+  | "price_advice_applied"
+  | "listing_share_story";
 
 export interface UserBehaviorEvent {
   id: string;

@@ -22,7 +22,11 @@ export type AnalyticsEvent =
   /** Constitution KPI 3 */
   | "kpi_contact_reask"
   /** Constitution KPI 4 */
-  | "kpi_first_response_signal";
+  | "kpi_first_response_signal"
+  /** M1 Price Analytics */
+  | "price_advice_shown"
+  | "price_advice_applied"
+  | "listing_share_story";
 
 export function logAnalytics(
   event: AnalyticsEvent,

@@ -3,7 +3,7 @@
  * Sync root shared/intents + llm-context-slice → server/src/shared (NodeNext .js imports).
  *   node scripts/sync-shared-intents.mjs
  */
-import { copyFileSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdirSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -36,8 +36,11 @@ for (const name of [
   "llm-context-slice.ts",
   "authenticity-text.ts",
   "vehicle-vision-enrich.ts",
+  "vehicle-spec-catalog.ts",
+  "omniva-locker-eligibility.ts",
 ]) {
-  copyFileSync(join(root, "shared", name), join(root, "server", "src", "shared", name));
+  const raw = readFileSync(join(root, "shared", name), "utf8");
+  writeFileSync(join(root, "server", "src", "shared", name), withJsExt(raw), "utf8");
   console.log(`synced ${name}`);
 }
 console.log("OK");

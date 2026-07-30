@@ -3226,6 +3226,51 @@ export async function insertUserBehaviorEvents(
   }
 }
 
+const LISTING_EVENT_TYPES = new Set([
+  "view",
+  "contact",
+  "share_story",
+  "price_advice_shown",
+  "price_advice_applied",
+]);
+
+/** Phase 0 listing telemetry — best-effort; never throws to callers via route wrapper. */
+export async function insertListingEvents(
+  events: {
+    type: string;
+    listingId?: string | null;
+    userId?: string | null;
+    payload?: Record<string, unknown>;
+  }[]
+): Promise<number> {
+  if (!events.length) return 0;
+  let inserted = 0;
+  for (const event of events.slice(0, 40)) {
+    const type = String(event.type ?? "").trim();
+    if (!LISTING_EVENT_TYPES.has(type)) continue;
+    const id = `le-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
+    const listingId = event.listingId ? String(event.listingId).slice(0, 120) : null;
+    const userId = event.userId ? String(event.userId).slice(0, 120) : null;
+    try {
+      await query(
+        `INSERT INTO listing_events (id, listing_id, user_id, type, payload, created_at)
+         VALUES ($1, $2, $3, $4, $5::jsonb, now())`,
+        [
+          id,
+          listingId,
+          userId,
+          type,
+          JSON.stringify(event.payload ?? {}),
+        ]
+      );
+      inserted += 1;
+    } catch {
+      // Table may not be migrated yet — swallow so analytics never breaks UX.
+    }
+  }
+  return inserted;
+}
+
 export async function getRecentUserBehaviorEvents(
   userId: string,
   limit = 20

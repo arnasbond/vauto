@@ -65,6 +65,7 @@ import {
   getUserPreferences,
   upsertUserPreferences,
   insertUserBehaviorEvents,
+  insertListingEvents,
   getUserOnboarding,
   upsertUserOnboarding,
 } from "../repository.js";
@@ -107,7 +108,7 @@ import {
 import {
   notifyNegotiationDealClosed,
 } from "../services/push-service.js";
-import { AUTH_SESSION_EXPIRED_MESSAGE, isAdminRole, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
+import { AUTH_SESSION_EXPIRED_MESSAGE, isAdminRole, optionalAuth, requireAdmin, requireAuth, userIsAdmin } from "../middleware/auth.js";
 import type {
   ApiChatThread,
   ApiEscrowTransaction,
@@ -1151,6 +1152,34 @@ apiRouter.post("/user/behavior-events", requireAuth, async (req: AuthedRequest, 
     res.status(500).json({ error: String(e) });
   }
 });
+
+/** Phase 0 listing telemetry (price advice, shares, …) — optional auth, never blocks UX. */
+apiRouter.post(
+  "/analytics/listing-events",
+  optionalAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const events = Array.isArray(req.body?.events) ? req.body.events : [];
+      const inserted = await insertListingEvents(
+        events.map(
+          (e: {
+            type?: string;
+            listingId?: string;
+            payload?: Record<string, unknown>;
+          }) => ({
+            type: String(e.type ?? ""),
+            listingId: e.listingId,
+            userId: req.authUserId ?? null,
+            payload: e.payload,
+          })
+        )
+      );
+      res.json({ ok: true, inserted });
+    } catch (e) {
+      res.status(200).json({ ok: true, inserted: 0, error: String(e) });
+    }
+  }
+);
 
 apiRouter.get("/user/nudges", requireAuth, async (req: AuthedRequest, res) => {
   try {

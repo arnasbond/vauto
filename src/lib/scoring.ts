@@ -2,6 +2,7 @@ import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolation";
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
+import { computePriceFitBoost } from "@/lib/price-fit";
 import { trustBoostScore } from "@vauto/shared/promote-catalog";
 import {
   extractPlateFromQuery,
@@ -337,6 +338,7 @@ export function rankListings(
       const rating = sellerRatings[listing.sellerId];
       const trust =
         rating != null ? trustBoostScore(rating.avg, rating.count) : 0;
+      const priceFitBoost = computePriceFitBoost(listing);
 
       const score =
         semanticRelevance * w.semantic +
@@ -345,7 +347,8 @@ export function rankListings(
         recencyScore * w.recency +
         visualRelevance * (w.visual ?? 0) +
         visibilityBoostScore(listing) +
-        trust;
+        trust +
+        priceFitBoost;
 
       return {
         ...listing,
@@ -355,6 +358,7 @@ export function rankListings(
         priceAttractiveness,
         recencyScore,
         visualRelevance,
+        priceFitBoost,
       };
     })
     .sort((a, b) => b.score - a.score);
