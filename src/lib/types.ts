@@ -340,6 +340,16 @@ export interface PromoteOffer {
 
 export type ChatMessageStatus = "sent" | "delivered" | "read";
 
+export interface ChatShippingLabelMeta {
+  provider: "omniva";
+  trackingCode: string;
+  qrPayload?: string;
+  trackingUrl?: string;
+  lockerName?: string;
+  parcelSize?: string;
+  mode?: "live" | "simulated";
+}
+
 export interface ChatMessage {
   id: string;
   senderId: string;
@@ -352,6 +362,9 @@ export interface ChatMessage {
   source?: "twin" | "faq" | "human";
   templateId?: "still_available" | "price_floor" | "escalate_human";
   escalated?: boolean;
+  /** Structured UI card — does not go through AI short-circuits */
+  kind?: "shipping_label";
+  shippingLabel?: ChatShippingLabelMeta;
 }
 
 export interface ChatThread {
@@ -442,4 +455,6 @@ export interface ScoredListing extends Listing {
   visualRelevance?: number;
   /** Additive boost when price is near AI/market optimal (M1). */
   priceFitBoost?: number;
+  /** Additive boost when Omniva shipping is enabled (M2). */
+  logisticsReadyBoost?: number;
 }

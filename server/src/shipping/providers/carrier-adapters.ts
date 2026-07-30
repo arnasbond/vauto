@@ -69,49 +69,46 @@ export class OmnivaCarrierAdapter implements CarrierAdapter {
   private fallback = new SimulatedCarrierAdapter("omniva");
 
   async createLabel(req: ShippingLabelRequest): Promise<ShippingLabelResult> {
+    // M2: when Omniva live credentials exist, never silently simulate.
     if (!isOmnivaLiveConfigured()) {
+      if (process.env.NODE_ENV === "production") {
+        throw new Error(
+          "Omniva live credentials missing (OMNIVA_USERNAME/CUSTOMER_CODE + OMNIVA_API_KEY/PASSWORD)"
+        );
+      }
       return this.fallback.createLabel(req);
     }
 
-    try {
-      const lockerZip = String(req.lockerId ?? "").trim();
-      if (!lockerZip) {
-        throw new Error("lockerId (Omniva ZIP) is required for live labels");
-      }
-
-      const live = await createOmnivaShippingLabel({
-        escrowId: req.escrowId,
-        listingId: req.listingId,
-        lockerZip,
-        lockerName: req.lockerName,
-        parcelSize: req.parcelSize,
-      });
-
-      const locker = req.lockerName ?? "pasirinktą Omniva paštomatą";
-      const pdfNote = live.labelPdfBase64
-        ? " Lipduko PDF paruoštas VAUTO sistemoje."
-        : "";
-
-      return {
-        id: live.barcode,
-        trackingCode: live.barcode,
-        qrPayload: live.barcode,
-        instructions:
-          `Omniva siunta ${live.barcode} užregistruota. Nueikite į ${locker}, ` +
-          `atspausdinkite lipduką ir įdėkite ${req.parcelSize ?? "M"} dydžio siuntą.` +
-          pdfNote,
-        provider: "omniva",
-        mode: "live",
-        trackingUrl: live.trackingUrl,
-      };
-    } catch (err) {
-      const simulated = await this.fallback.createLabel(req);
-      const reason = err instanceof Error ? err.message : String(err);
-      return {
-        ...simulated,
-        instructions: `${simulated.instructions} (Omniva API: ${reason} — simuliacija.)`,
-      };
+    const lockerZip = String(req.lockerId ?? "").trim();
+    if (!lockerZip) {
+      throw new Error("lockerId (Omniva ZIP) is required for live labels");
     }
+
+    const live = await createOmnivaShippingLabel({
+      escrowId: req.escrowId,
+      listingId: req.listingId,
+      lockerZip,
+      lockerName: req.lockerName,
+      parcelSize: req.parcelSize,
+    });
+
+    const locker = req.lockerName ?? "pasirinktą Omniva paštomatą";
+    const pdfNote = live.labelPdfBase64
+      ? " Lipduko PDF paruoštas VAUTO sistemoje."
+      : "";
+
+    return {
+      id: live.barcode,
+      trackingCode: live.barcode,
+      qrPayload: live.barcode,
+      instructions:
+        `Omniva siunta ${live.barcode} užregistruota. Nueikite į ${locker}, ` +
+        `atspausdinkite lipduką ir įdėkite ${req.parcelSize ?? "M"} dydžio siuntą.` +
+        pdfNote,
+      provider: "omniva",
+      mode: "live",
+      trackingUrl: live.trackingUrl,
+    };
   }
 
   async getTrackingStatus(trackingCode: string): Promise<{

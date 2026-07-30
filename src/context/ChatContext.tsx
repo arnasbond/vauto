@@ -65,6 +65,9 @@ interface ChatContextValue {
   setActiveChatId: (chatId: string | null) => void;
   markChatRead: (chatId: string) => void;
   findListing: (idOrSlug: string) => Listing | undefined;
+  /** Structured system bubble (shipping label card) — never routes through AI. */
+  postSystemChatMessage: (chatId: string, message: ChatMessage) => void;
+  setEscrowOffered: (chatId: string, offered: boolean) => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -755,6 +758,36 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     [setSyncError, upsertChats]
   );
 
+  const postSystemChatMessage = useCallback(
+    (chatId: string, message: ChatMessage) => {
+      let saved: ChatThread | null = null;
+      upsertChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== chatId) return chat;
+          saved = { ...chat, messages: [...chat.messages, message] };
+          return saved;
+        })
+      );
+      if (saved) persistChat(saved);
+    },
+    [persistChat, upsertChats]
+  );
+
+  const setEscrowOffered = useCallback(
+    (chatId: string, offered: boolean) => {
+      let saved: ChatThread | null = null;
+      upsertChats((prev) =>
+        prev.map((chat) => {
+          if (chat.id !== chatId) return chat;
+          saved = { ...chat, escrowOffered: offered };
+          return saved;
+        })
+      );
+      if (saved) persistChat(saved);
+    },
+    [persistChat, upsertChats]
+  );
+
   const updateNegotiationTwin = useCallback(
     (chatId: string, config: NegotiationTwinConfig) => {
       let saved: ChatThread | null = null;
@@ -822,6 +855,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setActiveChatId,
       markChatRead,
       findListing,
+      postSystemChatMessage,
+      setEscrowOffered,
     }),
     [
       chats,
@@ -832,6 +867,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setActiveChatId,
       markChatRead,
       findListing,
+      postSystemChatMessage,
+      setEscrowOffered,
     ]
   );
 

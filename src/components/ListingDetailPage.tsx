@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useRouter, useSearchParams, usePathname } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowLeft,
   Calendar,
@@ -14,7 +14,10 @@ import {
   Tag,
   Trash2,
   Sparkles,
+  Truck,
 } from "lucide-react";
+import { OrderWithShippingModal } from "@/components/shipping/OrderWithShippingModal";
+import { listingOffersOmnivaShipping } from "@/lib/logistics-ready";
 import { AppShell } from "@/components/AppShell";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
 import { ListingJsonLd } from "@/components/seo/ListingJsonLd";
@@ -127,6 +130,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const { hydrated } = useVautoBridge();
   const { trackEvent } = useUserBehavior();
   const dwellFiredRef = useRef(false);
+  const [orderShippingOpen, setOrderShippingOpen] = useState(false);
 
   // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs.
   const listing =
@@ -258,6 +262,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   };
 
   const handleMessage = wardrobeContext ? handleNegotiate : handleChat;
+  const offersOmnivaShipping = listingOffersOmnivaShipping(listing);
 
   const handleEdit = () => {
     startEditListingFlow(listing);
@@ -392,6 +397,17 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               {wardrobeContext ? "AI Derybininkas" : "Rašyti žinutę"}
             </span>
           </button>
+          {offersOmnivaShipping ? (
+            <button
+              type="button"
+              onClick={() => setOrderShippingOpen(true)}
+              className="inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--vauto-primary)]/40 bg-[var(--vauto-primary)]/8 px-4 text-sm font-bold text-[var(--vauto-primary)] transition hover:bg-[var(--vauto-primary)]/12"
+              data-order-shipping-cta="1"
+            >
+              <Truck className="h-5 w-5" aria-hidden />
+              Užsakyti su siuntimu
+            </button>
+          ) : null}
         </>
       )}
     </div>
@@ -608,9 +624,27 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
                 <MessageCircle className="h-5 w-5" aria-hidden />
               )}
             </button>
+            {offersOmnivaShipping ? (
+              <button
+                type="button"
+                onClick={() => setOrderShippingOpen(true)}
+                className="inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--vauto-primary)]/40 bg-[var(--vauto-primary)]/10 text-[var(--vauto-primary)]"
+                aria-label="Užsakyti su siuntimu"
+                data-order-shipping-cta="1"
+              >
+                <Truck className="h-5 w-5" aria-hidden />
+              </button>
+            ) : null}
           </>
         )}
       </div>
+
+      {orderShippingOpen && listing && !isOwner ? (
+        <OrderWithShippingModal
+          listing={listing}
+          onClose={() => setOrderShippingOpen(false)}
+        />
+      ) : null}
     </AppShell>
   );
 }

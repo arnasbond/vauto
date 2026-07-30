@@ -48,17 +48,31 @@ import {
   type ShippingProviderId,
 } from "@/lib/shipping/shipping-provider";
 import {
+  formatOmnivaParcelPrice,
+  OMNIVA_PARCEL_SIZE_HINTS,
+  resolveDefaultParcelSize,
+} from "@/lib/shipping/omniva-parcel-prices";
+import { buildOmnivaSellerNotifyText } from "@/lib/shipping/omniva-seller-notify";
+import {
   OMNIVA_LOCKER_OVERSIZE_NOTE,
   resolveOmnivaLockerEligibility,
 } from "@vauto/shared/omniva-locker-eligibility";
-import type { ParcelLocker } from "@/lib/shipping/parcel-lockers";
+import type { ParcelLocker } from "@/lib/shipping/shipping-routing";
 import type { ChatThread, EscrowStatus, EscrowTransaction } from "@/lib/types";
 
 type EscrowStep = "offer" | "paying" | "label" | "shipping" | "done";
 
-const CHECKOUT_PROVIDERS = SHIPPING_PROVIDERS.filter((p) =>
-  ["omniva", "lp_express"].includes(p.id)
-);
+/** M2: Omniva-only logistics (DPD / LP Express deferred). */
+const CHECKOUT_PROVIDERS = SHIPPING_PROVIDERS.filter((p) => p.id === "omniva");
+
+export interface EscrowSellerNotifyMeta {
+  trackingCode?: string;
+  qrPayload?: string;
+  trackingUrl?: string;
+  lockerName?: string;
+  parcelSize?: string;
+  mode?: "live" | "simulated";
+}
 
 interface EscrowModalProps {
   chat: ChatThread;
@@ -67,7 +81,7 @@ interface EscrowModalProps {
   sellerName?: string;
   onClose: () => void;
   onUpdate: (escrow: EscrowTransaction) => void;
-  onSellerNotify?: (message: string) => void;
+  onSellerNotify?: (message: string, meta?: EscrowSellerNotifyMeta) => void;
 }
 
 function stepFromEscrow(escrow?: EscrowTransaction | null): EscrowStep {
@@ -161,6 +175,12 @@ export function EscrowModal({
     if (!isDataApiEnabled()) return;
     void apiEscrowBillingStatus().then((s) => setStripeEscrowLive(Boolean(s?.live)));
   }, []);
+
+  useEffect(() => {
+    setParcelSize(
+      resolveDefaultParcelSize(String(listing?.attributes?.estimatedSize ?? ""))
+    );
+  }, [listing?.attributes?.estimatedSize]);
 
   useEffect(() => {
     if (!omnivaEligibility.eligible) {
@@ -285,7 +305,7 @@ export function EscrowModal({
       const res = await apiEscrowCheckout({
         escrow: draft,
         listingTitle: chat.listingTitle,
-        shippingProvider: omnivaEligibility.eligible ? shippingProvider : "lp_express",
+        shippingProvider: omnivaEligibility.eligible ? shippingProvider : "omniva",
         shippingLockerId: selectedLocker?.id ?? "pickup-courier",
         shippingLockerName: selectedLocker?.name ?? "Atsiėmimas vietoje / Kurjeris",
       });
@@ -325,9 +345,36 @@ export function EscrowModal({
         setShipmentInstructions(res.data.label.instructions);
         setLabelMode(res.data.label.mode ?? "simulated");
         onUpdate(res.data.escrow);
+        const notifyText = buildOmnivaSellerNotifyText({
+          trackingCode: res.data.label.trackingCode,
+          qrPayload: res.data.label.qrPayload,
+          trackingUrl: res.data.label.trackingUrl,
+          lockerName: selectedLocker?.name ?? escrow?.shippingLockerName,
+          parcelSize,
+          listingTitle: chat.listingTitle,
+          mode: res.data.label.mode === "live" ? "live" : "simulated",
+        });
+        onSellerNotify?.(notifyText, {
+          trackingCode: res.data.label.trackingCode,
+          qrPayload: res.data.label.qrPayload,
+          trackingUrl: res.data.label.trackingUrl,
+          lockerName: selectedLocker?.name ?? escrow?.shippingLockerName,
+          parcelSize,
+          mode: res.data.label.mode === "live" ? "live" : "simulated",
+        });
         setStep("shipping");
         return;
       }
+      if (shippingProvider === "omniva") {
+        showToast(res.error || "Omniva lipduko nepavyko sugeneruoti.", "error");
+        return;
+      }
+    }
+
+    // Non-Omniva / offline demo path only (M2 keeps Omniva on live API).
+    if (shippingProvider === "omniva" && isDataApiEnabled()) {
+      showToast("Omniva live API nepasiekiamas — bandykite dar kartą.", "error");
+      return;
     }
 
     const label = createDemoShipmentLabel({
@@ -574,13 +621,19 @@ export function EscrowModal({
                     key={size}
                     type="button"
                     onClick={() => setParcelSize(size)}
-                    className={`flex-1 rounded-lg border py-2 text-xs font-bold ${
+                    className={`flex-1 rounded-lg border px-1 py-2 text-left ${
                       parcelSize === size
                         ? "border-[#1167b1] bg-[#eef6ff] text-[#1167b1]"
                         : "border-slate-200 text-slate-500"
                     }`}
                   >
-                    {size}
+                    <span className="block text-xs font-bold">{size}</span>
+                    <span className="mt-0.5 block text-[10px] opacity-80">
+                      {OMNIVA_PARCEL_SIZE_HINTS[size]}
+                    </span>
+                    <span className="mt-0.5 block text-[11px] font-semibold">
+                      {formatOmnivaParcelPrice(size)}
+                    </span>
                   </button>
                 ))}
               </div>

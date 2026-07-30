@@ -3,6 +3,7 @@ import { resolveEffectiveListingCategory } from "@/lib/listing-attribute-isolati
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 import { computePriceFitBoost } from "@/lib/price-fit";
+import { computeLogisticsReadyBoost } from "@/lib/logistics-ready";
 import { trustBoostScore } from "@vauto/shared/promote-catalog";
 import {
   extractPlateFromQuery,
@@ -339,6 +340,7 @@ export function rankListings(
       const trust =
         rating != null ? trustBoostScore(rating.avg, rating.count) : 0;
       const priceFitBoost = computePriceFitBoost(listing);
+      const logisticsReadyBoost = computeLogisticsReadyBoost(listing);
 
       const score =
         semanticRelevance * w.semantic +
@@ -348,7 +350,8 @@ export function rankListings(
         visualRelevance * (w.visual ?? 0) +
         visibilityBoostScore(listing) +
         trust +
-        priceFitBoost;
+        priceFitBoost +
+        logisticsReadyBoost;
 
       return {
         ...listing,
@@ -359,6 +362,7 @@ export function rankListings(
         recencyScore,
         visualRelevance,
         priceFitBoost,
+        logisticsReadyBoost,
       };
     })
     .sort((a, b) => b.score - a.score);

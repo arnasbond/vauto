@@ -81,13 +81,16 @@ function norm(s: string): string {
 
 /** Resolve OMX credentials from env. Returns null when not configured. */
 export function getOmnivaCredentials(): OmnivaCredentials | null {
-  const username =
-    process.env.OMNIVA_USERNAME?.trim() ||
-    process.env.OMNIVA_API_USERNAME?.trim() ||
-    "";
+  // Password: OMNIVA_PASSWORD or production alias OMNIVA_API_KEY.
   const password =
     process.env.OMNIVA_PASSWORD?.trim() ||
     process.env.OMNIVA_API_KEY?.trim() ||
+    "";
+  // Username: dedicated env, or customer code when only API key is provisioned.
+  const username =
+    process.env.OMNIVA_USERNAME?.trim() ||
+    process.env.OMNIVA_API_USERNAME?.trim() ||
+    process.env.OMNIVA_CUSTOMER_CODE?.trim() ||
     "";
   if (!username || !password) return null;
 

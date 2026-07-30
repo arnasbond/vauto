@@ -4,9 +4,12 @@ import { CheckCircle2, Clock, PackageCheck, ShieldCheck, Truck } from "lucide-re
 import { useState } from "react";
 import { EscrowModal } from "@/components/EscrowModal";
 import { useVauto } from "@/context/VautoContext";
+import { useChat } from "@/context/ChatContext";
 import { formatExpressDeadline } from "@/lib/order-agent";
 import { resolveSellerDisplayName } from "@/lib/user-trust-score";
+import { buildOmnivaShippingChatMessage } from "@/lib/shipping/omniva-seller-notify";
 import type { ChatThread } from "@/lib/types";
+import type { ParcelSize } from "@/lib/shipping/shipping-provider";
 
 export function EscrowActionBlock({
   chat,
@@ -16,6 +19,7 @@ export function EscrowActionBlock({
   amount: number;
 }) {
   const { updateEscrow, listings, showToast } = useVauto();
+  const { postSystemChatMessage } = useChat();
   const [open, setOpen] = useState(false);
   const escrow = chat.escrow;
   const sellerName = resolveSellerDisplayName(chat.sellerId, listings);
@@ -119,7 +123,30 @@ export function EscrowActionBlock({
           sellerName={sellerName}
           onClose={() => setOpen(false)}
           onUpdate={(e) => updateEscrow(chat.id, e)}
-          onSellerNotify={(msg) => showToast(msg, "success")}
+          onSellerNotify={(msg, meta) => {
+            showToast(msg.slice(0, 120), "success");
+            if (meta?.trackingCode) {
+              postSystemChatMessage(
+                chat.id,
+                buildOmnivaShippingChatMessage({
+                  trackingCode: meta.trackingCode,
+                  qrPayload: meta.qrPayload,
+                  trackingUrl: meta.trackingUrl,
+                  lockerName: meta.lockerName,
+                  parcelSize: (meta.parcelSize as ParcelSize) || "M",
+                  listingTitle: chat.listingTitle,
+                  mode: meta.mode === "simulated" ? "simulated" : "live",
+                })
+              );
+            } else if (msg.trim()) {
+              postSystemChatMessage(chat.id, {
+                id: `m-sys-${Date.now()}`,
+                senderId: "vauto-system",
+                text: msg,
+                timestamp: new Date().toISOString(),
+              });
+            }
+          }}
         />
       )}
     </>

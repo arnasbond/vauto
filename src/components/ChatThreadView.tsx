@@ -6,6 +6,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { MessageStatusTicks } from "@/components/chat/MessageStatusTicks";
 import { ChatTranslateButton } from "@/components/chat/ChatTranslateButton";
+import { ShippingLabelChatCard } from "@/components/chat/ShippingLabelChatCard";
 import { EscrowActionBlock } from "@/components/EscrowActionBlock";
 import { AiTrustScoreBanner } from "@/components/trust/AiTrustScoreBanner";
 import { ReportButton } from "@/components/support/ReportButton";
@@ -178,6 +179,9 @@ function ChatThreadContent({
                 }`}
               >
                 <span className="whitespace-pre-wrap">{msg.text}</span>
+                {msg.kind === "shipping_label" && msg.shippingLabel ? (
+                  <ShippingLabelChatCard message={msg} />
+                ) : null}
                 {translated && translated !== msg.text ? (
                   <p
                     className={`mt-2 border-t pt-2 text-xs leading-relaxed ${
