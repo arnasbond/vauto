@@ -13,7 +13,7 @@ import type { Listing } from "@/lib/types";
 const ACCENT = "#09b1a8";
 
 export const WARDROBE_SECRETARY_CLICK_GREETING =
-  "Labas! Aš esu tavo AI asistentas. Galiu padėti sinchronizuoti skelbimus iš kelių portalų, derėtis su pirkėjais fone ir valdyti užklausas. Ką išbandome pirmiausia?";
+  "Labas! Aš esu tavo AI asistentas — padėsiu paruošti skelbimą, patarti dėl rinkos kainos, Omniva paštomato ir Stories / Reels vizualų. Ką išbandome pirmiausia?";
 
 function buildSummary(
   firstName: string,

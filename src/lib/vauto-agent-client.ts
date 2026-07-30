@@ -288,9 +288,9 @@ export function buildWelcomeBackAgentGreeting(
     /^mobilus$/i.test(firstToken);
   const topic = lastTopic.trim() || "skelbimus ar paiešką";
   if (isGuest) {
-    return `Sveiki sugrįžę! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame ar pradedame naują skelbimą?`;
+    return `Sveiki sugrįžę! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame, ar padėti su kaina / paštomatu naujam skelbimui?`;
   }
-  return `Sveiki sugrįžę, ${firstToken}! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame ar pradedame naują skelbimą?`;
+  return `Sveiki sugrįžę, ${firstToken}! Matau praeitą kartą kalbėjome apie ${topic} — tęsiame, ar padėti su kaina / paštomatu naujam skelbimui?`;
 }
 
 export type VautoAgentAction =
@@ -521,16 +521,16 @@ function summarizeMyListingsForGreeting(
 ): string {
   const active = myListings.filter((l) => l.status !== "sold");
   if (!myListings.length) {
-    return "Nori naujo skelbimo, ar padėti rasti prekę?";
+    return "Padėsiu paruošti skelbimą, patarti dėl rinkos kainos ar Omniva paštomato — nuo ko pradedam?";
   }
   if (active.length === 1) {
     const l = active[0]!;
-    return `Matau tavo skelbimą „${l.title}" ${l.location} — nori įkelti nuotraukas, pakoreguoti kainą, ar pažiūrim statistiką?`;
+    return `Matau tavo skelbimą „${l.title}" ${l.location} — nori pakoreguoti kainą, įjungti paštomatą, ar pažiūrim statistiką?`;
   }
   if (active.length > 1) {
-    return `Turi ${active.length} aktyvius skelbimus — nori tvarkyti esamus, ar kelti naują?`;
+    return `Turi ${active.length} aktyvius skelbimus — nori tvarkyti kainas/siuntimą, ar kelti naują?`;
   }
-  return `${firstName}, aktyvių skelbimų nebeliko — padėsiu su nauju skelbimu ar paieška?`;
+  return `${firstName}, aktyvių skelbimų nebeliko — padėsiu su nauju skelbimu, kaina ar paštomatu?`;
 }
 
 export function buildPersonalizedAgentGreeting(
@@ -546,7 +546,7 @@ export function buildPersonalizedAgentGreeting(
     /^vartotojas$/i.test(raw) ||
     /^mobilus$/i.test(firstToken);
   if (isGuest) {
-    return "Labas! Aš tavo VAUTO sekretorius — galiu padėti rasti prekę ar paruošti skelbimą. Nuo ko pradedam?";
+    return "Labas! Aš tavo VAUTO asistentas — padėsiu rasti prekę ar paruošti skelbimą, patarti dėl rinkos kainos ir Omniva paštomato siuntimo. Nuo ko pradedam?";
   }
   const firstName = firstToken;
   const tail = summarizeMyListingsForGreeting(myListings, firstName);

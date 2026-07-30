@@ -46,10 +46,10 @@ export function buildAiSellerListingSeed(
  * First API call must wait for real user text or photo upload.
  */
 export const STATIC_SELLER_LISTING_WELCOME =
-  "Jūsų kontaktai iš profilio jau paruošti skelbimui. Įkelkite nuotraukas arba parašykite, ką parduodate!";
+  "Jūsų kontaktai jau paruošti. Įkelkite nuotraukas ar parašykite, ką parduodate — padėsiu su antrašte, rinkos kaina ir Omniva paštomatu!";
 
 export const STATIC_FASHION_LISTING_WELCOME =
-  "Jūsų kontaktai iš profilio jau paruošti skelbimui. Įkelkite drabužių nuotraukas arba parašykite, ką parduodate!";
+  "Jūsų kontaktai jau paruošti. Įkelkite drabužių nuotraukas ar parašykite, ką parduodate — padėsiu su aprašymu, kaina ir paštomato siuntimu!";
 
 /** @deprecated Use STATIC_*_WELCOME for client render — do not sendAgentMessage this. */
 export function aiSellerListingGreeting(fashion = false): string {

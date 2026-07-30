@@ -91,7 +91,7 @@ export const TEXT_DRAFT_READY_CHIPS = ["🚀 Publikuoti", "✏️ Papildyti"] as
 
 /** Lean Step-1 sell greeting — physical goods (photos / packaging tips). */
 export const LEAN_SELL_GREETING =
-  "Puiku — esu jūsų pardavimo partneris! Įkelkite nuotraukas (prekė, etiketė, komplektacija — iki 8, automobiliui iki 12) ir parašykite kainą — aš sudėliosiu turtingą skelbimą.";
+  "Puiku — esu jūsų pardavimo partneris! Įkelkite nuotraukas (prekė, etiketė, komplektacija — iki 8, automobiliui iki 12) ir kainą — padėsiu su aprašymu, rinkos kainos rėžiu ir Omniva paštomatu.";
 
 /** Category-aware Step-1 greeting — no packaging tips for jobs/services/NT. */
 export function buildLeanSellGreeting(category?: string | null): string {
@@ -104,10 +104,10 @@ export function buildLeanSellGreeting(category?: string | null): string {
     cat === "paslaugos" ||
     cat === "nt"
   ) {
-    return "Puiku — esu jūsų pardavimo partneris! Aprašykite pasiūlymą (darbas, paslauga ar NT) ir kainą ar atlygį — aš sudėliosiu skelbimą. Nuotraukos neprivalomos.";
+    return "Puiku — esu jūsų pardavimo partneris! Aprašykite pasiūlymą (darbas, paslauga ar NT) ir kainą ar atlygį — padėsiu sudėlioti skelbimą ir rinkos kainą. Nuotraukos neprivalomos.";
   }
   if (!cat || cat === "other" || cat === "kita" || cat === "rental" || cat === "nuoma") {
-    return "Puiku — esu jūsų pardavimo partneris! Aprašykite, ką norite skelbti, ir kainą — aš sudėliosiu turtingą skelbimą. Nuotraukas galite įkelti dabar arba vėliau.";
+    return "Puiku — esu jūsų pardavimo partneris! Aprašykite, ką norite skelbti, ir kainą — padėsiu su aprašymu, rinkos kaina ir Omniva paštomatu. Nuotraukas galite įkelti dabar arba vėliau.";
   }
   return LEAN_SELL_GREETING;
 }

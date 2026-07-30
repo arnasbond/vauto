@@ -96,18 +96,18 @@ const SEARCH_CHIPS = [
 const HOW_STEPS: HowItWorksStep[] = [
   {
     n: "1",
-    title: "Parašyk viena eilute",
-    text: "Apibūdink, ką parduodi ar ieškai — be formų ir kategorijų.",
+    title: "Parašyk arba įkelk foto",
+    text: "Vision AI + pokalbio asistentas — be formų ir kategorijų.",
   },
   {
     n: "2",
-    title: "AI viską sutvarko",
-    text: "Sugeneruoja pavadinimą, kainos intervalą ir struktūrą už tave.",
+    title: "AI paruošia skelbimą ir kainą",
+    text: "Antraštė, aprašymas ir AI kainos vertintojas — rinkos rėžis už tave.",
   },
   {
     n: "3",
-    title: "Patvirtink ir skelbk",
-    text: "Peržiūrėk, patikslink jei reikia — ir skelbimas gyvas per minutes.",
+    title: "Skelbk ir siųsk per Omniva",
+    text: "Patvirtink — skelbimas gyvas; pirkėjui paštomatas vienu paspaudimu.",
   },
 ];
 
@@ -262,10 +262,11 @@ function HomeTab() {
         />
         <div className="relative mx-auto max-w-3xl px-4 pb-14 pt-12 text-center sm:px-6 sm:pb-16 sm:pt-16">
           <h1 className="font-[family-name:var(--font-outfit)] text-[1.85rem] font-extrabold leading-[1.15] tracking-tight text-[var(--vauto-ink)] sm:text-4xl md:text-[2.75rem]">
-            Parduok ar rask viską — be formų ir kategorijų
+            Parduok ar rask viską — su Vision AI ir pokalbiu
           </h1>
           <p className="mx-auto mt-4 max-w-xl text-base leading-relaxed text-[var(--vauto-muted)] sm:text-lg">
-            Viena eilutė vietoj anketų. AI sudėlioja skelbimą — tu tik patvirtini.
+            AI asistentas paruošia skelbimą, kainos vertintojas parenka rinkos kainą,
+            Omniva — siuntimą vienu paspaudimu.
           </p>
           <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-stretch">
             <input

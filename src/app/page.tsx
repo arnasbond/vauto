@@ -25,17 +25,17 @@ const HOME_HOW_STEPS: HowItWorksStep[] = [
   {
     n: "1",
     title: "Parašykite arba įkelkite foto",
-    text: "Viena eilute arba nuotrauka — be formų ir kategorijų pasirinkimo.",
+    text: "Vision AI + pokalbio asistentas — be formų: nuotrauka ar sakinys užtenka.",
   },
   {
     n: "2",
-    title: "AI paruošia skelbimą",
-    text: "Antraštė, kaina, aprašymas ir filtrai — Vision AI fone per minutes.",
+    title: "AI paruošia skelbimą ir kainą",
+    text: "Antraštė, aprašymas ir AI kainos vertintojas (rinkos rėžis) — tu tik patvirtini.",
   },
   {
     n: "3",
-    title: "Patvirtinkite ir skelbkite",
-    text: "Peržiūrėkite, pataisykite jei reikia — skelbimas gyvas iškart.",
+    title: "Skelbkite ir siųskite per Omniva",
+    text: "Publikuokite iškart; pirkėjui — užsakymas su paštomatu vienu paspaudimu.",
   },
 ];
 

@@ -74,7 +74,7 @@ export default function ProRegistrationPage() {
               VAUTO Verslui
             </h1>
             <p className="text-xs text-[var(--vauto-text-muted)]">
-              Pro planai, analitika ir verslo įrankiai visoje Lietuvoje
+              ROI analitika, 9:16 Social Engine ir bulk įkėlimas visoje Lietuvoje
             </p>
           </div>
         </div>

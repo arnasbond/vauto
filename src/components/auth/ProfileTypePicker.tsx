@@ -93,8 +93,8 @@ export function ProfileTypePicker({ onComplete, className }: ProfileTypePickerPr
               Turiu verslą ar teikiu paslaugas
             </span>
             <span className="mt-1 block text-xs leading-relaxed text-muted-foreground">
-              Automobilių, nekilnojamojo turto ar paslaugų skelbimai – verslo
-              kabinetas, analitika ir masinis valdymas visoje Lietuvoje.
+              Verslo kabinetas su ROI analitika, 9:16 Social Engine, bulk įkėlimu ir
+              aukštesniu reitingu paieškoje.
             </span>
           </span>
           {loading === "business" && (

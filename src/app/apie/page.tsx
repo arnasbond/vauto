@@ -183,9 +183,9 @@ export default function ApiePage() {
             VAUTO — Pirmoji Lietuvoje išmanioji skelbimų ekosistema
           </h1>
           <p className="mt-4 max-w-2xl text-sm leading-relaxed text-[var(--vauto-text-muted)] sm:text-[15px]">
-            Pamirškite ilgas formas ir varginantį pildymą. Nufotografuokite daiktą,
-            pakuotę ar dokumentą — mūsų AI asistentas paruoš tobulą skelbimą vos per
-            kelias sekundes.
+            Vision AI + pokalbio asistentas paruošia skelbimą iš nuotraukos, AI kainos
+            vertintojas parenka rinkos kainą, o Omniva paštomatai — siuntimą vienu
+            paspaudimu.
           </p>
           <div className="mt-6 flex flex-wrap gap-3">
             <Link
@@ -228,12 +228,12 @@ export default function ApiePage() {
             <AudienceCard
               icon={Heart}
               title="Privatiems pardavėjams"
-              description="Nuotrauka — ir skelbimas paruoštas. Deep OCR, AI gabaritų pasiūlymas, realaus laiko pokalbiai ir atsiliepimai su TOP dovana."
+              description="Nuotrauka — ir skelbimas paruoštas. AI kainos rėžis, Omniva paštomatas, realaus laiko pokalbiai ir atsiliepimai su TOP dovana."
             />
             <AudienceCard
               icon={Users}
               title="Verslui ir profesionalams"
-              description="Auto, NT, paslaugų ir darbo skelbimai — kabinetas, analitika, AI derybininkas ir greita autorizacija SMS / Apple / Google."
+              description="ROI analitikos skydelis, 9:16 Social Engine, bulk įkėlimas ir aukštesnis reitingas (b2bTrustBoost) su Omniva logistika."
             />
           </div>
         </section>
@@ -280,8 +280,8 @@ export default function ApiePage() {
             />
             <FeatureCard
               icon={LineChart}
-              title="💰 AI Kainų patarėjas"
-              description="Rinkos kainų analizė ir rekomendacijos pardavėjui — greičiau teisinga kaina, mažiau spekuliacijų."
+              title="💰 AI Kainų vertintojas"
+              description="PriceRangeBar prieš publikavimą — rinkos rėžis ir optimali kaina, kad greičiau rastumėte pirkėją."
             />
             <FeatureCard
               icon={KeyRound}

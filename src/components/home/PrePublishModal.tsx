@@ -408,11 +408,11 @@ export function PrePublishModal({
             <div className="mb-1 flex flex-wrap items-center gap-2">
               <AiBadge>AI paruošė juodraštį</AiBadge>
               <span className="text-[11px] text-[var(--vauto-subtle)]">
-                Patikrinkite prieš skelbdami
+                Kaina · Omniva · patvirtinimas
               </span>
             </div>
             <h2 className="truncate font-[family-name:var(--font-outfit)] text-base font-bold text-[var(--vauto-ink)]">
-              Peržiūra ir redagavimas
+              Peržiūra prieš skelbimą
             </h2>
           </div>
           {onClose ? (
@@ -821,7 +821,7 @@ export function PrePublishModal({
             <p className="text-[13px] leading-snug text-[var(--vauto-text)]">
               {selected.priceEur > 0
                 ? `Bazinis skelbimas — 0 €. Po publikavimo — apmokėjimas už ${TIER_BADGE[selected.id].badge} (${selected.priceEur.toFixed(2)} €).`
-                : "Viskas paruošta! Patvirtinkite — bazinis skelbimas publikuojamas nemokamai."}
+                : "Viskas paruošta! Patikrinkite kainos rėžį ir Omniva — bazinis skelbimas publikuojamas nemokamai."}
             </p>
           </div>
           <button

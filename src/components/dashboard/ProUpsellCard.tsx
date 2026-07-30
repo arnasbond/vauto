@@ -11,17 +11,17 @@ export function ProUpsellCard() {
         <h3 className="text-sm font-semibold text-slate-900">Verslo paskyra</h3>
       </div>
       <p className="text-xs leading-relaxed text-slate-400">
-        Gaukite analitiką, matomumo planus, PPC ir masinį įkėlimą. Privatus
-        pardavėjas gali bet kada pereiti į Pro.
+        ROI analitikos skydelis, 9:16 Social Engine, bulk įkėlimas ir aukštesnis
+        reitingas paieškoje. Privatus pardavėjas gali bet kada pereiti į Pro.
       </p>
       <ul className="mt-3 space-y-1 text-xs text-slate-600">
         <li className="flex items-center gap-1.5">
           <Sparkles className="h-3 w-3 text-[var(--vauto-teal)]" />
-          Išmanus reklamavimas ir rinkos įžvalgos
+          Realaus laiko peržiūros, kontaktai ir spend vs. contacts
         </li>
         <li className="flex items-center gap-1.5">
           <Sparkles className="h-3 w-3 text-[var(--vauto-teal)]" />
-          TOP / VIP matomumas pagal kategoriją
+          Stories / Reels vizualai + b2bTrustBoost su Omniva logistika
         </li>
       </ul>
       <Link

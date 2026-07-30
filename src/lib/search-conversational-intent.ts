@@ -52,7 +52,7 @@ export function isConversationalSearchIntent(text: string | null | undefined): b
 export function buildConversationalLiveReply(userName?: string): string {
   const first = userName?.trim().split(/\s+/)[0];
   if (first && first !== "Svečias" && first.length > 1) {
-    return `Labas, ${first}! Kuo galiu padėti — surasti, parduoti ar derėtis?`;
+    return `Labas, ${first}! Kuo galiu padėti — surasti, parduoti, patarti dėl kainos ar paštomato?`;
   }
-  return "Labas! Kuo galiu padėti — surasti, parduoti ar derėtis?";
+  return "Labas! Kuo galiu padėti — surasti, parduoti, patarti dėl kainos ar paštomato?";
 }

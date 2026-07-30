@@ -1,7 +1,14 @@
 "use client";
 
 import type { LucideIcon } from "lucide-react";
-import { Building2, Camera, CheckCircle2, PhoneCall, Search, Sparkles } from "lucide-react";
+import {
+  BarChart3,
+  Building2,
+  Camera,
+  Package,
+  Share2,
+  Sparkles,
+} from "lucide-react";
 import Link from "next/link";
 import { cn } from "@/lib/cn";
 
@@ -16,49 +23,49 @@ interface ValueProp {
 
 const CONSUMER_PROPS: ValueProp[] = [
   {
-    icon: Search,
-    iconClass: "text-blue-600 bg-blue-50",
-    title: "Ieškokite laisvai",
-    description:
-      "Parašykite „raudona sofa iki 300 € Vilniuje“ — AI filtruoja skelbimus be formų.",
-  },
-  {
     icon: Camera,
-    iconClass: "text-orange-600 bg-orange-50",
-    title: "Parduokite iš nuotraukos",
+    iconClass: "text-blue-600 bg-blue-50",
+    title: "Vision AI + pokalbio asistentas",
     description:
-      "Įkelkite foto — AI parašo antraštę, kainos intervalą ir aprašymą per minutes.",
+      "Įkelkite nuotrauką ar parašykite — AI sudėlioja skelbimą pokalbyje, be anketų.",
   },
   {
-    icon: CheckCircle2,
-    iconClass: "text-emerald-600 bg-emerald-50",
-    title: "Skambutis tiesiai",
+    icon: Sparkles,
+    iconClass: "text-orange-600 bg-orange-50",
+    title: "AI kainos vertintojas",
     description:
-      "Be tarpininkų — susisiekite su pardavėju, kai pasiūlymas tinka.",
+      "Prieš skelbiant matote rinkos kainos rėžį — padeda nustatyti teisingą kainą.",
+  },
+  {
+    icon: Package,
+    iconClass: "text-emerald-600 bg-emerald-50",
+    title: "Omniva paštomatai",
+    description:
+      "Pirkimas ir siuntimas vienu paspaudimu — paštomatas, lipdukas ir saugus užsakymas.",
   },
 ];
 
 const BUSINESS_PROPS: ValueProp[] = [
   {
-    icon: Camera,
+    icon: BarChart3,
     iconClass: "text-blue-600 bg-blue-50",
-    title: "Masinis įkėlimas",
+    title: "B2B analitikos skydelis",
     description:
-      "Drabužiai, auto detalės, smulki technika — kelios nuotraukos, daug juodraščių.",
+      "Realaus laiko ROI: peržiūros, kontaktai, spend vs. contacts — visa tai kabinete.",
   },
   {
-    icon: PhoneCall,
+    icon: Share2,
     iconClass: "text-orange-600 bg-orange-50",
-    title: "Daugiau kvalifikuotų kontaktų",
+    title: "9:16 Social Engine",
     description:
-      "AI optimizuoja skelbimus, kad pirkėjai rastų jus greičiau visoje Lietuvoje.",
+      "Automatiniai Stories / Reels vizualai — dalinkitės skelbimais Instagram ir TikTok.",
   },
   {
     icon: Sparkles,
     iconClass: "text-emerald-600 bg-emerald-50",
-    title: "Verslo kabinetas",
+    title: "Bulk įkėlimas + aukštesnis reitingas",
     description:
-      "Asortimentas, paketinis publikavimas ir AI asistentas — valdomi pokalbiu.",
+      "Masinis katalogo įkėlimas ir b2bTrustBoost — Pro su logistika kyla paieškoje.",
   },
 ];
 
@@ -117,7 +124,8 @@ export function HomeAiValueBand({ className }: { className?: string }) {
             Kodėl VAUTO AI
           </h2>
           <p className="mt-2 text-sm text-[var(--vauto-muted)] sm:text-base">
-            Viena pokalbio juosta — paieška, pardavimas ir verslo katalogas.
+            Trys stulpai: lengvas skelbimas pokalbiu, teisinga rinkos kaina ir
+            Omniva siuntimas.
           </p>
         </div>
         <HomeValuePropCards variant="consumer" className="mt-8" />
@@ -128,11 +136,11 @@ export function HomeAiValueBand({ className }: { className?: string }) {
             </span>
             <div>
               <p className="text-sm font-bold text-slate-900">
-                Verslui: masinis įkėlimas ir AI kabinetas
+                Verslui: analitika, Social Engine ir bulk įkėlimas
               </p>
               <p className="mt-0.5 text-xs leading-relaxed text-slate-600 sm:text-sm">
-                Auto detalės, mada, smulki technika — keliate krepšelį, AI ruošia
-                juodraščius, jūs patvirtinate paketą.
+                ROI skydelis, 9:16 Stories vizualai, masinis katalogas ir aukštesnis
+                reitingas paieškoje — viskas Pro kabinete.
               </p>
             </div>
           </div>

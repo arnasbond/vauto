@@ -9,7 +9,7 @@ import {
 } from "@/lib/SpeechEngine";
 
 export const BRUTAL_VOICE_GREETING =
-  "Labas! Aš esu gyvas AI asistentas. Pasakyk, ko ieškai — padėsiu surasti, parduoti ar derėtis.";
+  "Labas! Aš esu gyvas AI asistentas. Pasakyk, ko ieškai — padėsiu surasti, parduoti, patarti dėl kainos ar paštomato.";
 
 export function brutalHtml5Speak(text: string): void {
   if (typeof window === "undefined" || !window.speechSynthesis) return;
