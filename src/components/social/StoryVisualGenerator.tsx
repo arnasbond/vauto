@@ -15,6 +15,7 @@ import {
   shareStoryVisualFile,
   type StoryVisualResult,
 } from "@/lib/story-visual";
+import { trackListingEvent } from "@/lib/listing-events";
 import { cn } from "@/lib/cn";
 
 interface StoryVisualGeneratorProps {
@@ -75,6 +76,14 @@ export function StoryVisualGenerator({
   const handleShare = useCallback(async () => {
     if (!result) return;
     const outcome = await shareStoryVisualFile(result, listing, caption);
+    if (outcome === "shared" || outcome === "downloaded") {
+      trackListingEvent("share_story", {
+        listingId: listing.id,
+        format: "9:16",
+        outcome,
+        sellerId: listing.sellerId,
+      });
+    }
     if (outcome === "shared") {
       setStatus("shared");
       onShared?.();

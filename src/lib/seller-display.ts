@@ -1,4 +1,5 @@
 import type { Listing, UserProfile } from "@/lib/types";
+import { stampB2bSellerAttributes } from "@/lib/b2b-trust";
 import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { displayPublicNickname } from "@/lib/profile-display";
 
@@ -18,16 +19,28 @@ const SELLER_NAMESPACE_LABELS: Record<string, string> = {
 
 const ATTR_SELLER_DISPLAY_NAME = "sellerDisplayName";
 
-/** Persist a clean public seller label on the listing at publish time. */
+/** Persist a clean public seller label + B2B trust flags at publish time. */
 export function withSellerDisplayNameAttribute(
   attributes: Listing["attributes"] | undefined,
-  user: Pick<UserProfile, "nickname" | "name" | "firstName" | "lastName">
+  user: Pick<
+    UserProfile,
+    | "nickname"
+    | "name"
+    | "firstName"
+    | "lastName"
+    | "role"
+    | "profileType"
+    | "companyCode"
+  >
 ): NonNullable<Listing["attributes"]> {
   const label = displayPublicNickname(user);
-  return {
-    ...(attributes ?? {}),
-    [ATTR_SELLER_DISPLAY_NAME]: label,
-  };
+  return stampB2bSellerAttributes(
+    {
+      ...(attributes ?? {}),
+      [ATTR_SELLER_DISPLAY_NAME]: label,
+    },
+    user
+  );
 }
 
 export function readSellerDisplayNameFromListing(

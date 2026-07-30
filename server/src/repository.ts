@@ -807,8 +807,30 @@ export async function searchListingsFiltered(
   return rows.slice(0, limit);
 }
 
+/** Stamp public-safe Pro/B2B flags onto listing attributes for feed ranking. */
+function stampListingB2bAttributes(
+  attributes: Record<string, unknown> | undefined,
+  seller: ApiUser | null
+): Record<string, unknown> {
+  const next: Record<string, unknown> = { ...(attributes ?? {}) };
+  if (!seller) return next;
+  if (seller.role === "pro") next._b2bPro = "true";
+  else delete next._b2bPro;
+  if (seller.profileType === "business") next._b2bBusiness = "true";
+  else delete next._b2bBusiness;
+  if (String(seller.companyCode ?? "").trim().length >= 5) {
+    next._b2bVerified = "true";
+  } else delete next._b2bVerified;
+  return next;
+}
+
 export async function insertListing(listing: ApiListing): Promise<void> {
   await ensureUser(listing.sellerId);
+  const seller = await getUser(listing.sellerId);
+  const stampedAttributes = stampListingB2bAttributes(
+    listing.attributes as Record<string, unknown> | undefined,
+    seller
+  );
   await query(
     `INSERT INTO listings (
       id, seller_id, title, price, price_label, location, distance_km,
@@ -861,7 +883,7 @@ export async function insertListing(listing: ApiListing): Promise<void> {
       listing.createdAt,
       listing.expiresAt ?? null,
       listing.description ?? null,
-      JSON.stringify(listing.attributes ?? {}),
+      JSON.stringify(stampedAttributes),
       listing.status ?? "active",
       listing.banned ?? false,
       listing.vinVerified ?? false,
@@ -3269,6 +3291,108 @@ export async function insertListingEvents(
     }
   }
   return inserted;
+}
+
+export type SellerListingEventAggregate = {
+  views: number;
+  contacts: number;
+  callClicks: number;
+  chatStarts: number;
+  shareStory: number;
+  saves: number;
+  interestScore: number;
+  promoteSpendEur: number;
+  costPerContact: number | null;
+};
+
+/** M3 — aggregate listing_events + promote spend for a seller's listings. */
+export async function aggregateSellerListingAnalytics(
+  sellerId: string,
+  days = 30
+): Promise<SellerListingEventAggregate> {
+  const empty: SellerListingEventAggregate = {
+    views: 0,
+    contacts: 0,
+    callClicks: 0,
+    chatStarts: 0,
+    shareStory: 0,
+    saves: 0,
+    interestScore: 0,
+    promoteSpendEur: 0,
+    costPerContact: null,
+  };
+  const safeDays = Math.min(90, Math.max(1, Math.floor(days)));
+  try {
+    const rows = await query<{
+      type: string;
+      channel: string | null;
+      cnt: string;
+    }>(
+      `SELECT e.type,
+              COALESCE(e.payload->>'channel', '') AS channel,
+              COUNT(*)::text AS cnt
+       FROM listing_events e
+       INNER JOIN listings l ON l.id = e.listing_id
+       WHERE l.seller_id = $1
+         AND e.created_at >= now() - ($2::text || ' days')::interval
+         AND e.type IN ('view', 'contact', 'share_story')
+       GROUP BY e.type, COALESCE(e.payload->>'channel', '')`,
+      [sellerId, String(safeDays)]
+    );
+
+    let views = 0;
+    let callClicks = 0;
+    let chatStarts = 0;
+    let contactsOther = 0;
+    let shareStory = 0;
+    for (const row of rows) {
+      const n = Number(row.cnt) || 0;
+      if (row.type === "view") views += n;
+      else if (row.type === "share_story") shareStory += n;
+      else if (row.type === "contact") {
+        const ch = String(row.channel ?? "").toLowerCase();
+        if (ch === "chat") chatStarts += n;
+        else if (ch === "phone" || ch === "call") callClicks += n;
+        else contactsOther += n;
+      }
+    }
+    // Untagged contacts (e.g. Omniva order) count toward call/contact ROI.
+    callClicks += contactsOther;
+    const contacts = callClicks + chatStarts;
+
+    const spendRows = await query<{ spend: string }>(
+      `SELECT COALESCE(SUM(ABS(amount)), 0)::text AS spend
+       FROM wallet_transactions
+       WHERE user_id = $1
+         AND kind = 'promote'
+         AND created_at >= now() - ($2::text || ' days')::interval`,
+      [sellerId, String(safeDays)]
+    );
+    const promoteSpendEur =
+      Math.round((Number(spendRows[0]?.spend) || 0) * 100) / 100;
+    const interestScore =
+      views > 0
+        ? Math.min(99, Math.round((contacts / views) * 100 * 3))
+        : 0;
+    const costPerContact =
+      contacts > 0 && promoteSpendEur > 0
+        ? Math.round((promoteSpendEur / contacts) * 100) / 100
+        : null;
+
+    return {
+      views,
+      contacts,
+      callClicks,
+      chatStarts,
+      shareStory,
+      saves: 0,
+      interestScore,
+      promoteSpendEur,
+      costPerContact,
+    };
+  } catch {
+    return empty;
+  }
 }
 
 export async function getRecentUserBehaviorEvents(

@@ -457,4 +457,6 @@ export interface ScoredListing extends Listing {
   priceFitBoost?: number;
   /** Additive boost when Omniva shipping is enabled (M2). */
   logisticsReadyBoost?: number;
+  /** Additive boost for verified Pro business sellers with logistics (M3). */
+  b2bTrustBoost?: number;
 }

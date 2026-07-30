@@ -4,6 +4,10 @@ import { isListingPublicInFeed } from "@/lib/listing-visibility";
 import { visibilityBoostScore } from "@/lib/visibility-plans";
 import { computePriceFitBoost } from "@/lib/price-fit";
 import { computeLogisticsReadyBoost } from "@/lib/logistics-ready";
+import {
+  computeB2bTrustBoost,
+  type B2bTrustSeller,
+} from "@/lib/b2b-trust";
 import { trustBoostScore } from "@vauto/shared/promote-catalog";
 import {
   extractPlateFromQuery,
@@ -310,12 +314,15 @@ export function rankListings(
     visualRankScores?: Record<string, number>;
     /** sellerId → { avg, count } for trust boost */
     sellerRatings?: Record<string, { avg: number; count: number }>;
+    /** sellerId → Pro/business profile for b2bTrustBoost */
+    sellerProfiles?: Record<string, B2bTrustSeller>;
   }
 ): ScoredListing[] {
   const active = listings.filter(isListingPublicInFeed);
   const visualProfile = options?.visualProfile ?? null;
   const visualRankScores = options?.visualRankScores ?? {};
   const sellerRatings = options?.sellerRatings ?? {};
+  const sellerProfiles = options?.sellerProfiles ?? {};
   const useVisual = Boolean(visualProfile);
   const baseWeights = getScoringWeights(query);
   const w = useVisual
@@ -341,6 +348,10 @@ export function rankListings(
         rating != null ? trustBoostScore(rating.avg, rating.count) : 0;
       const priceFitBoost = computePriceFitBoost(listing);
       const logisticsReadyBoost = computeLogisticsReadyBoost(listing);
+      const b2bTrustBoost = computeB2bTrustBoost(
+        listing,
+        sellerProfiles[listing.sellerId]
+      );
 
       const score =
         semanticRelevance * w.semantic +
@@ -351,7 +362,8 @@ export function rankListings(
         visibilityBoostScore(listing) +
         trust +
         priceFitBoost +
-        logisticsReadyBoost;
+        logisticsReadyBoost +
+        b2bTrustBoost;
 
       return {
         ...listing,
@@ -363,6 +375,7 @@ export function rankListings(
         visualRelevance,
         priceFitBoost,
         logisticsReadyBoost,
+        b2bTrustBoost,
       };
     })
     .sort((a, b) => b.score - a.score);

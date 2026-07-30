@@ -111,13 +111,13 @@ import type {
   SellerReview,
   UserProfile,
 } from "@/lib/types";
-import { mockListingMetrics } from "@/lib/dashboard-mock";
 import {
   buildVisibilityAttributes,
   getVisibilityPlanById,
   type VisibilityTierId,
 } from "@/lib/visibility-plans";
 import { bumpListingMetric, aggregateSellerMetrics } from "@/lib/listing-analytics";
+import { trackListingEvent } from "@/lib/listing-events";
 import {
   countBuyerIntentForSeller,
   getPopularListingIds,
@@ -639,6 +639,7 @@ function VautoFacade({
         visualRankScores: catalog.visualRankScores,
         buyerCoords: catalog.buyerCoords,
         sellerRatings: sellerRatingsById,
+        // b2bTrustBoost reads _b2b* attrs stamped at publish (Pro + logistics).
       }),
     [
       visibleListings,
@@ -1454,7 +1455,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       viewedListingsRef.current.add(listingId);
       bumpListingById(listingId, "views");
       const listing = listings.find((l) => l.id === listingId);
-      logAnalytics("listing_view", {
+      trackListingEvent("view", {
         listingId,
         title: listing?.title,
         location: listing?.location,
@@ -1467,8 +1468,9 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     (listingId: string) => {
       bumpListingById(listingId, "callClicks");
       const listing = listings.find((l) => l.id === listingId);
-      logAnalytics("listing_call_click", {
+      trackListingEvent("contact", {
         listingId,
+        channel: "phone",
         title: listing?.title,
         sellerId: listing?.sellerId,
         phone: listing?.contact ? "present" : "fallback",

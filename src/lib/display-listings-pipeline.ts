@@ -30,6 +30,8 @@ import {
 
 import type { DynamicFilter, Listing, ScoredListing } from "@/lib/types";
 
+import type { B2bTrustSeller } from "@/lib/b2b-trust";
+
 import { prioritizeFeedTiers } from "@/lib/feed-tier";
 
 import type { VisualSearchProfile } from "@/lib/visual-search";
@@ -74,6 +76,8 @@ export interface DisplayListingsInput {
   buyerCoords: UserCoords | null;
 
   sellerRatings?: Record<string, { avg: number; count: number }>;
+
+  sellerProfiles?: Record<string, B2bTrustSeller>;
 
 }
 
@@ -138,6 +142,8 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
     visualRankScores: input.visualRankScores,
 
     sellerRatings: input.sellerRatings,
+
+    sellerProfiles: input.sellerProfiles,
 
   };
 

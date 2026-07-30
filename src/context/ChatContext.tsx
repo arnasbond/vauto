@@ -36,6 +36,7 @@ import {
 } from "@/lib/bargain-twin";
 import { resolveSellerDisplayName } from "@/lib/user-trust-score";
 import { logAnalytics } from "@/lib/analytics";
+import { trackListingEvent } from "@/lib/listing-events";
 import { generateListingSlug, listingPath } from "@/lib/seo";
 import {
   applyViewerReadState,
@@ -725,8 +726,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChats((prev) => [newChat, ...prev]);
       publishChatEvent({ type: "CHAT_UPSERT", thread: newChat });
       bumpListingById(listingId, "chatStarts");
-      logAnalytics("listing_chat_start", {
+      trackListingEvent("contact", {
         listingId,
+        channel: "chat",
         title: listing.title,
         sellerId: listing.sellerId,
       });

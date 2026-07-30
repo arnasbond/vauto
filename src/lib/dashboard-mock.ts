@@ -1,7 +1,10 @@
 import type { Listing, ServiceBooking } from "@/lib/types";
 import { getListingMetrics } from "@/lib/listing-analytics";
 
-/** Real metrics from listing fields, with light seed fallback */
+/**
+ * Offline / demo seed only — ProBusinessDashboard uses server listing_events when API is live.
+ * Do not wire this into live B2B analytics.
+ */
 export function mockListingMetrics(listing: Listing) {
   const m = getListingMetrics(listing);
   if (m.views > 0) return m;

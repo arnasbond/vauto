@@ -1,6 +1,14 @@
 "use client";
 
-import { BarChart3, Eye, MessageCircle, MousePointerClick, Phone, Heart } from "lucide-react";
+import {
+  BarChart3,
+  Eye,
+  MessageCircle,
+  MousePointerClick,
+  Phone,
+  Heart,
+  Share2,
+} from "lucide-react";
 
 interface MicroAnalyticsProps {
   views: number;
@@ -8,6 +16,7 @@ interface MicroAnalyticsProps {
   chatStarts: number;
   saves: number;
   interestScore: number;
+  shareStory?: number;
 }
 
 export function MicroAnalytics({
@@ -16,11 +25,28 @@ export function MicroAnalytics({
   chatStarts,
   saves,
   interestScore,
+  shareStory = 0,
 }: MicroAnalyticsProps) {
   const stats = [
     { label: "Peržiūros", value: views, icon: Eye, color: "text-sky-400" },
-    { label: "Skambučiai", value: callClicks, icon: Phone, color: "text-emerald-400" },
-    { label: "Pokalbiai", value: chatStarts, icon: MessageCircle, color: "text-[var(--vauto-teal)]" },
+    {
+      label: "Skambučiai",
+      value: callClicks,
+      icon: Phone,
+      color: "text-emerald-400",
+    },
+    {
+      label: "Pokalbiai",
+      value: chatStarts,
+      icon: MessageCircle,
+      color: "text-[var(--vauto-teal)]",
+    },
+    {
+      label: "9:16",
+      value: shareStory,
+      icon: Share2,
+      color: "text-[var(--vauto-orange)]",
+    },
     { label: "Išsaugota", value: saves, icon: Heart, color: "text-[var(--vauto-red)]" },
   ];
 
@@ -34,12 +60,9 @@ export function MicroAnalytics({
           Domėjimasis {interestScore}%
         </span>
       </div>
-      <div className="grid grid-cols-4 gap-2">
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-5">
         {stats.map((s) => (
-          <div
-            key={s.label}
-            className="rounded-xl bg-slate-50 p-2.5 text-center"
-          >
+          <div key={s.label} className="rounded-xl bg-slate-50 p-2.5 text-center">
             <s.icon className={`mx-auto mb-1 h-3.5 w-3.5 ${s.color}`} />
             <p className="text-base font-bold text-slate-900">{s.value}</p>
             <p className="text-[9px] text-slate-500">{s.label}</p>

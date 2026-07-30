@@ -81,7 +81,8 @@
     "generate:sitemap": "node scripts/generate-sitemap.mjs",
     "audit:catalog": "node scripts/audit-catalog.mjs",
     "audit:images": "node scripts/check-unsplash-urls.mjs",
-    "validate:fast-search": "node scripts/validate-fast-search.mjs"
+    "validate:fast-search": "node scripts/validate-fast-search.mjs",
+    "test:m3-b2b": "node scripts/test-m3-b2b-analytics.mjs"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

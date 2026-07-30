@@ -193,7 +193,10 @@ export function ShareListingPanel({
         </p>
       )}
 
-      <StoryVisualGenerator listing={listing} />
+      <StoryVisualGenerator
+        listing={listing}
+        onShared={() => onShared?.("instagram")}
+      />
 
       <ShareListingModal
         listing={listing}

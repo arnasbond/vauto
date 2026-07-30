@@ -8,21 +8,33 @@ export type ListingEventType =
   | "price_advice_shown"
   | "price_advice_applied";
 
-/** Fire-and-forget listing telemetry (Phase 0). Never blocks UI or AI chat. */
+function resolveClientAnalyticsEvent(
+  type: ListingEventType,
+  payload: Record<string, string | number | boolean | undefined>
+): AnalyticsEvent | undefined {
+  if (type === "view") return "listing_view";
+  if (type === "share_story") return "listing_share_story";
+  if (type === "price_advice_shown") return "price_advice_shown";
+  if (type === "price_advice_applied") return "price_advice_applied";
+  if (type === "contact") {
+    return String(payload.channel ?? "").toLowerCase() === "chat"
+      ? "listing_chat_start"
+      : "listing_call_click";
+  }
+  return undefined;
+}
+
+/** Fire-and-forget listing telemetry (Phase 0 / M3). Never blocks UI or AI chat. */
 export function trackListingEvent(
   type: ListingEventType,
-  payload: Record<string, string | number | boolean | undefined> = {}
+  payload: Record<string, string | number | boolean | undefined> = {},
+  opts?: { skipClientAnalytics?: boolean }
 ): void {
-  const analyticsMap: Partial<Record<ListingEventType, AnalyticsEvent>> = {
-    price_advice_shown: "price_advice_shown",
-    price_advice_applied: "price_advice_applied",
-    view: "listing_view",
-    contact: "listing_call_click",
-    share_story: "listing_share_story",
-  };
-  const analyticsEvent = analyticsMap[type];
-  if (analyticsEvent) {
-    logAnalytics(analyticsEvent, { ...payload, listingEvent: type });
+  if (!opts?.skipClientAnalytics) {
+    const analyticsEvent = resolveClientAnalyticsEvent(type, payload);
+    if (analyticsEvent) {
+      logAnalytics(analyticsEvent, { ...payload, listingEvent: type });
+    }
   }
 
   void apiPostListingEvents([
@@ -34,5 +46,5 @@ export function trackListingEvent(
         Object.entries(payload).filter(([, v]) => v !== undefined)
       ),
     },
-  ]).catch(() => undefined);
+  ]);
 }

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
+import { B2BAnalyticsPanel } from "@/components/dashboard/B2BAnalyticsPanel";
 import { B2BBillingCard } from "@/components/dashboard/B2BBillingCard";
 import { B2BPlanCreditsCard } from "@/components/dashboard/B2BPlanCreditsCard";
 import { LaunchTrialBanner } from "@/components/dashboard/LaunchTrialBanner";
@@ -20,6 +21,7 @@ import { VautoWallet } from "@/components/dashboard/VautoWallet";
 import { CabinetStatRow } from "@/components/ui/CabinetStatRow";
 import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
+import { useSellerListingAnalytics } from "@/hooks/useSellerListingAnalytics";
 import { apiFetchHealthDetails } from "@/lib/api/client";
 import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
@@ -84,6 +86,7 @@ export function ProBusinessDashboard({
   const walletLabel = `${(user.walletBalance ?? 0).toLocaleString("lt-LT", {
     maximumFractionDigits: 0,
   })} €`;
+  const liveAnalytics = useSellerListingAnalytics(apiActive, sellerAnalytics);
 
   const [tab, setTab] = useState<DashboardTab>("overview");
   const [promoteTargetId, setPromoteTargetId] = useState<string | null>(null);
@@ -147,18 +150,20 @@ export function ProBusinessDashboard({
             buyerIntentCount={buyerIntentCount}
             onPromoteListing={handlePromoteFromInsights}
           />
+          <B2BAnalyticsPanel analytics={liveAnalytics} />
           <MicroAnalytics
-            views={sellerAnalytics.views}
-            callClicks={sellerAnalytics.callClicks}
-            saves={sellerAnalytics.saves}
-            chatStarts={sellerAnalytics.chatStarts}
-            interestScore={sellerAnalytics.interestScore}
+            views={liveAnalytics.views}
+            callClicks={liveAnalytics.callClicks}
+            saves={liveAnalytics.saves}
+            chatStarts={liveAnalytics.chatStarts}
+            interestScore={liveAnalytics.interestScore}
+            shareStory={liveAnalytics.shareStory}
           />
           <CallAndSellWidget
-            views={sellerAnalytics.views}
-            callClicks={sellerAnalytics.callClicks}
-            saves={sellerAnalytics.saves}
-            chatStarts={sellerAnalytics.chatStarts}
+            views={liveAnalytics.views}
+            callClicks={liveAnalytics.callClicks}
+            saves={liveAnalytics.saves}
+            chatStarts={liveAnalytics.chatStarts}
           />
           <BuyerIntentBanner intentCount={buyerIntentCount} />
           <SoldPromptBanner
@@ -191,8 +196,8 @@ export function ProBusinessDashboard({
         <>
           <B2BBillingCard
             balance={user.walletBalance ?? 0}
-            clicks={sellerAnalytics.views}
-            callClicks={sellerAnalytics.callClicks}
+            clicks={liveAnalytics.views}
+            callClicks={liveAnalytics.callClicks}
             activeListings={listings.length}
             currentPlan={user.billingPlan}
             onOpenCheckout={openCheckout}

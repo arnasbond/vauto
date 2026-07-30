@@ -66,6 +66,7 @@ import {
   upsertUserPreferences,
   insertUserBehaviorEvents,
   insertListingEvents,
+  aggregateSellerListingAnalytics,
   getUserOnboarding,
   upsertUserOnboarding,
 } from "../repository.js";
@@ -1177,6 +1178,25 @@ apiRouter.post(
       res.json({ ok: true, inserted });
     } catch (e) {
       res.status(200).json({ ok: true, inserted: 0, error: String(e) });
+    }
+  }
+);
+
+/** M3 — seller B2B dashboard aggregates (views / contacts / 9:16 shares / spend). */
+apiRouter.get(
+  "/analytics/listing-events/aggregate",
+  requireAuth,
+  async (req: AuthedRequest, res) => {
+    try {
+      const daysRaw = Number(req.query.days ?? 30);
+      const days = Number.isFinite(daysRaw) ? daysRaw : 30;
+      const metrics = await aggregateSellerListingAnalytics(
+        req.authUserId!,
+        days
+      );
+      res.json({ ok: true, metrics });
+    } catch (e) {
+      res.status(500).json({ error: String(e) });
     }
   }
 );
