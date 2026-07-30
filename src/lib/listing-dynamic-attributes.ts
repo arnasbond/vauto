@@ -66,6 +66,13 @@ const EXTRA_INTERNAL_KEYS = new Set([
   "estimatedSize",
   "omnivaLockerBlockReason",
   "omnivaBoxSize",
+  "locationEditedByUser",
+  "specSource",
+  "specConfidence",
+  "catalogNote",
+  "catalogModificationId",
+  "catalogModificationLabel",
+  "catalogAlternatives",
 ]);
 
 const INTERNAL_LABEL_RE =
@@ -147,6 +154,69 @@ export function getDynamicAttributeEntries(
   }
 
   return out;
+}
+
+/** Core vehicle tech fields — always editable in PrePublish (even when empty). */
+export const PREPUBLISH_VEHICLE_ALWAYS_ATTRS: ReadonlyArray<{
+  key: string;
+  label: string;
+  placeholder: string;
+}> = [
+  { key: "powerKw", label: "Galia (kW)", placeholder: "pvz. 77" },
+  { key: "fuelType", label: "Kuras", placeholder: "Benzinas / Dyzelinas…" },
+  { key: "mileage", label: "Rida (km)", placeholder: "pvz. 185 000" },
+  { key: "engine", label: "Variklis", placeholder: "pvz. 1.6" },
+];
+
+/**
+ * PrePublish editor list: for vehicles/transport, always keep core tech inputs
+ * (empty strings stay visible with placeholders). Public listing detail still
+ * uses getDynamicAttributeEntries (filled-only).
+ */
+export function getPrePublishEditableAttributeEntries(
+  attributes: Record<string, unknown> | null | undefined,
+  category?: ListingCategory
+): Array<DynamicAttributeEntry & { placeholder?: string }> {
+  const filled = getDynamicAttributeEntries(attributes, category);
+  const isVehicle = category === "vehicles" || category === "transport";
+  if (!isVehicle) return filled.slice(0, 16);
+
+  const seenKeys = new Set<string>();
+  const seenLabels = new Set<string>();
+  const out: Array<DynamicAttributeEntry & { placeholder?: string }> = [];
+
+  for (const always of PREPUBLISH_VEHICLE_ALWAYS_ATTRS) {
+    const raw = attributes?.[always.key];
+    const value = normalizeAttrValue(raw) ?? "";
+    // Prefer mileage over mileageKm when both exist.
+    const alt =
+      always.key === "mileage"
+        ? normalizeAttrValue(attributes?.mileageKm) ?? ""
+        : always.key === "fuelType"
+          ? normalizeAttrValue(attributes?.fuel) ?? ""
+          : "";
+    out.push({
+      key: always.key,
+      label: always.label,
+      value: value || alt,
+      placeholder: always.placeholder,
+    });
+    seenKeys.add(always.key);
+    if (always.key === "mileage") seenKeys.add("mileageKm");
+    if (always.key === "fuelType") seenKeys.add("fuel");
+    seenLabels.add(always.label.toLowerCase());
+  }
+
+  for (const entry of filled) {
+    if (seenKeys.has(entry.key)) continue;
+    const dedupe = entry.label.toLowerCase();
+    if (seenLabels.has(dedupe)) continue;
+    seenKeys.add(entry.key);
+    seenLabels.add(dedupe);
+    out.push(entry);
+  }
+
+  return out.slice(0, 16);
 }
 
 export function getDynamicListingDetailRows(

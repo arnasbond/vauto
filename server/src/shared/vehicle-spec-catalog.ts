@@ -305,7 +305,7 @@ export function applyVehicleCatalogSpecs(
   attrs.catalogModificationId = picked.id;
   attrs.catalogModificationLabel = picked.label;
   attrs.catalogNote =
-    "Techniniai duomenys pasiūlyti iš katalogo pagal markę/modelį (~70%+). Patikrinkite PrePublish lange.";
+    "Apytiksliai nustačiau šiuos techninius duomenis pagal markę/modelį (~70%+). Jei pastebėsite netikslumų — drąsiai pataisykite PrePublish kortelėje arba pokalbyje!";
   if (mods.length > 1) {
     attrs.catalogAlternatives = mods.map((m) => m.label).join(" | ");
   }

@@ -128,8 +128,10 @@ export function normalizeVisualFeatureBullets(input: {
     .toLowerCase();
 
   const interiorBits: string[] = [];
-  if (/od(a|os|inė|ines|inis)|leather|kamel|ruda\s+od/i.test(corpus)) {
-    interiorBits.push("Odinis / kamelio spalvos salonas");
+  // Only surface leather when OCR/vision text clearly says so — never invent
+  // Picasso-era "kamelio spalvos" salon colour templates.
+  if (/\b(odinis|odinė|odines|odinio|leather|nappa)\b/i.test(corpus)) {
+    interiorBits.push("Odinis salonas");
   }
   if (/porank/i.test(corpus)) interiorBits.push("Porankiai prie sėdynių");
   if (PADDLE_RE.test(corpus) || /mentel/i.test(corpus)) {
@@ -155,7 +157,8 @@ export function normalizeVisualFeatureBullets(input: {
   if (/kabl|tow|vilkim/i.test(corpus)) {
     exteriorBits.push("Vilkimo kablys");
   }
-  if (/vienatūr|mpv|minivan|grand\s+c4/i.test(corpus)) {
+  // Body-style only when the corpus itself names an MPV / vienatūris — no Picasso few-shot.
+  if (/\b(vienatūr|mpv|minivan|šeimos\s+automobil)\b/i.test(corpus)) {
     exteriorBits.push("Vienatūris (šeimos) kėbulas");
   }
 

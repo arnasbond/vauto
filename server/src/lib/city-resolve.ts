@@ -177,7 +177,8 @@ export function resolveListingCity(
 
 /**
  * Keep LLM city ONLY when grounded in profile, geo, or user text.
- * Prefers GPS municipality (geoCityHint) over ungrounded hub invent.
+ * Prefers GPS municipality (geoCityHint) over ungrounded hub invent —
+ * but never overwrites an explicit draft city the seller already set.
  */
 export function sanitizeListingCity(
   llmCity: string | undefined | null,
@@ -185,16 +186,24 @@ export function sanitizeListingCity(
     profileCity?: string | null;
     geoCityHint?: string | null;
     userText?: string | null;
+    /** Existing draft.location — manual/AI value already on the card. */
+    draftCity?: string | null;
   } = {}
 ): string {
   const candidate = resolveListingCity(llmCity);
   const profile = resolveListingCity(opts.profileCity);
   const geo = resolveListingCity(opts.geoCityHint);
+  const draft = resolveListingCity(opts.draftCity);
   const userText = String(opts.userText ?? "");
 
   // Explicit user mention always wins.
   if (candidate && textMentionsLtCity(userText, candidate)) {
     return candidate;
+  }
+
+  // Seller already set a draft city (PrePublish / prior turn) — keep it.
+  if (draft) {
+    return draft;
   }
 
   // GPS municipality before LLM/schema hub invent (Kaišiadorys ≠ Kaunas).

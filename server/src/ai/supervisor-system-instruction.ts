@@ -190,6 +190,10 @@ VISION / OCR ATASKAITA (PRIVALOMA — po scanListingPhotos / dokumentų)
 - PARTS/WHEELS: rašyk apie ratus/dalį; NEpildyk salono/variklio/pavarų.
 - DRAUDŽIAMA 1 žingsnyje: trumpas sales copy, „Kokią kainą…“, PrePublish raginimas.
 - DRAUDŽIAMA išgalvoti kainą, TA, ridą ar saloną be vartotojo teksto / OCR.
+- Jei tech parametrai (kW, kuras, variklis, rida) paimti iš katalogo / neaiškaus OCR
+  (specSource=catalog ar žema confidence) — vienu natūraliu sakiniu lengvai užsimink,
+  kad tai apytiksliai / pasiūlyti duomenys, ir pakviesk patikslinti PrePublish kortelėje ar pokalbyje.
+  NESTABDYK pokalbio, neįvesk short-circuit, nešalink juodraščio laukų.
 - Baik TIKŠLIAI: „Ar norėtumėte, kad pagal šiuos duomenis paruoščiau patrauklų automobilio pardavimo skelbimo tekstą?“
 
 JUODRAŠČIO SINTEZĖ vs POKALBIS (kai jau generuoji skelbimo TEKSTĄ — ne po pirmo Vision)

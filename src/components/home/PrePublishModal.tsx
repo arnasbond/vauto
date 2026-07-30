@@ -20,7 +20,7 @@ import {
   readGalleryFilesAsDataUrls,
 } from "@/components/listing/ListingGalleryFileInput";
 import {
-  getDynamicAttributeEntries,
+  getPrePublishEditableAttributeEntries,
   humanizeAttributeKey,
 } from "@/lib/listing-dynamic-attributes";
 import {
@@ -269,13 +269,14 @@ export function PrePublishModal({
     }
   }, [gallery.length, onPublish, photosOptional, publishing, visibilityId]);
 
-  // Schema-less public specs only — vision/debug keys (Detected Objects,
-  // Document Image URLs/Count, Scene Context, factNotes, preferredSizes,
-  // deferredSalesDescription, …) are filtered in getDynamicAttributeEntries.
-  const visibleSpecs = getDynamicAttributeEntries(
+  // Vehicles keep core tech inputs even when empty so clearing a value
+  // does not remove the field. Vision/debug keys stay filtered out.
+  const visibleSpecs = getPrePublishEditableAttributeEntries(
     attributes as Record<string, unknown> | undefined,
     card.category as ListingCategory | undefined
-  ).slice(0, 16);
+  );
+  const isVehicleCategory =
+    card.category === "vehicles" || card.category === "transport";
 
   if (!open || typeof document === "undefined") return null;
 
@@ -482,7 +483,12 @@ export function PrePublishModal({
                   type="text"
                   value={card.location}
                   disabled={busy || !onFieldsChange}
-                  onChange={(e) => patchField({ location: e.target.value })}
+                  onChange={(e) =>
+                    patchField({
+                      location: e.target.value,
+                      attributes: { locationEditedByUser: "true" },
+                    })
+                  }
                   className="w-full rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-surface,#fff)] py-2.5 pl-9 pr-3 text-sm font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] focus:ring-2 focus:ring-[var(--vauto-primary)]/20 disabled:opacity-70"
                 />
               </div>
@@ -512,13 +518,15 @@ export function PrePublishModal({
             ) : null}
           </section>
 
-          {visibleSpecs.length > 0 ? (
+          {visibleSpecs.length > 0 || isVehicleCategory ? (
             <section className="space-y-2 rounded-xl border border-[var(--vauto-border)]/70 bg-[var(--vauto-surface-muted)]/25 p-3">
               <p className="text-sm font-semibold text-[var(--vauto-text)]">
                 Specifikacijos
               </p>
               <p className="text-[11px] text-[var(--vauto-text-muted)]">
-                Dinaminiai AI atributai — rodomi tik užpildyti laukai.
+                {isVehicleCategory
+                  ? "Galite bet ką pataisyti ranka — tušti laukai lieka redaguojami."
+                  : "Dinaminiai AI atributai — redaguojami šiame lange."}
               </p>
               <div className="grid grid-cols-2 gap-2">
                 {visibleSpecs.map((spec) => (
@@ -528,10 +536,23 @@ export function PrePublishModal({
                     </span>
                     <input
                       type="text"
-                      value={attrValue(attributes, spec.key)}
+                      value={
+                        spec.key === "mileage"
+                          ? attrValue(attributes, "mileage") ||
+                            attrValue(attributes, "mileageKm")
+                          : spec.key === "fuelType"
+                            ? attrValue(attributes, "fuelType") ||
+                              attrValue(attributes, "fuel")
+                            : attrValue(attributes, spec.key)
+                      }
+                      placeholder={
+                        "placeholder" in spec && typeof spec.placeholder === "string"
+                          ? spec.placeholder
+                          : undefined
+                      }
                       disabled={busy || !onFieldsChange}
                       onChange={(e) => patchSpec(spec.key, e.target.value)}
-                      className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2.5 py-2 text-xs font-medium text-[var(--vauto-text)] outline-none focus:border-[var(--vauto-primary)] disabled:opacity-70"
+                      className="w-full rounded-lg border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] px-2.5 py-2 text-xs font-medium text-[var(--vauto-text)] outline-none placeholder:text-[var(--vauto-text-muted)]/70 focus:border-[var(--vauto-primary)] disabled:opacity-70"
                     />
                   </label>
                 ))}

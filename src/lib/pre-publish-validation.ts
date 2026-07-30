@@ -88,7 +88,11 @@ export function buildPrePublishCardPayload(
       draft.priceLabel ??
       (negotiable ? NEGOTIABLE_PRICE_LABEL : undefined) ??
       vatLabelGross,
-    location: readiness.resolvedCity,
+    location: (() => {
+      const draftLoc = String(draft.location ?? "").trim();
+      if (draftLoc && !isPlaceholderCity(draftLoc)) return draftLoc;
+      return readiness.resolvedCity;
+    })(),
     phone: readiness.resolvedPhone,
     imageUrl: imageUrls[0] ?? null,
     ...(imageUrls.length ? { imageUrls } : {}),

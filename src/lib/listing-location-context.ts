@@ -91,6 +91,9 @@ export function preferLocalCityNearCoords(
  * Resolve listing city for publish: explicit draft → GPS municipality → profile.
  * Never invents a default town. Abroad GPS → only explicit draft city (or empty).
  * Free-text draft (incl. foreign cities) is preserved when the user typed it.
+ *
+ * HARD: any non-empty draft/location the seller set (AI or manual) wins over GPS.
+ * Background geo must never overwrite a value already on the draft card.
  */
 export function resolvePublishListingCity(
   draftLocation: string | undefined | null,
@@ -98,30 +101,23 @@ export function resolvePublishListingCity(
   geoCoords?: UserCoords | null
 ): string {
   const fromDraft = explicitDraftCity(draftLocation);
+  // Seller / AI draft city is highest priority — never snap back to GPS.
+  if (fromDraft) return fromDraft;
+
   const fromProfile = verifiedProfileCity(profileCity);
   const abroad = Boolean(geoCoords && !isCoordsInLithuania(geoCoords));
+  if (abroad) return "";
+
   const fromGeo =
     geoCoords && !abroad ? nearestLtCityFromCoords(geoCoords) : "";
 
-  if (abroad) {
-    return fromDraft;
-  }
-
   if (geoCoords && fromGeo) {
-    // Explicit free-text (incl. unknown/foreign) always wins over GPS guess.
-    if (fromDraft && !normalizeKnownListingCity(draftLocation)) {
-      return fromDraft;
-    }
-    if (fromDraft) {
-      return preferLocalCityNearCoords(fromDraft, fromGeo, geoCoords);
-    }
     if (fromProfile) {
       return preferLocalCityNearCoords(fromGeo, fromProfile, geoCoords);
     }
     return fromGeo;
   }
 
-  if (fromDraft) return fromDraft;
   if (fromProfile) return fromProfile;
   return "";
 }
