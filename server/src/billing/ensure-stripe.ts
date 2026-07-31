@@ -19,6 +19,7 @@ const PORTAL_FEATURES: Stripe.BillingPortal.ConfigurationCreateParams["features"
 const WEBHOOK_EVENTS: Stripe.WebhookEndpointCreateParams.EnabledEvent[] = [
   "checkout.session.completed",
   "customer.subscription.deleted",
+  "account.updated",
 ];
 
 function webhookApiUrl(): string {

@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Activity, BarChart3, CreditCard } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
+import { PaymentMethodsCard } from "@/components/billing/PaymentMethodsCard";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
 import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
@@ -62,21 +63,31 @@ function ListingContactFocusBanner() {
           : "Įrašykite miestą — be jo skelbimo publikuoti negalima.",
         "info"
       );
+    } else if (focus === "payments") {
+      const timer = window.setTimeout(() => {
+        document
+          .getElementById("payment-methods")
+          ?.scrollIntoView({ behavior: "smooth", block: "center" });
+      }, 400);
+      return () => window.clearTimeout(timer);
     }
   }, [focus, showToast, user.city, user.phone]);
 
-  if (focus !== "phone" && focus !== "city") return null;
+  if (focus !== "phone" && focus !== "city" && focus !== "payments") return null;
+
+  const description =
+    focus === "phone"
+      ? "Skelbimui reikia telefono iš profilio. Atnaujinkite numerį žemiau ir grįžkite į asistentą."
+      : focus === "city"
+        ? "Skelbimui reikia miesto iš profilio. Atnaujinkite miestą ir grįžkite į asistentą."
+        : "Reikia mokėjimo duomenų. Pridėkite juos skiltyje „Mokėjimai“ ir grįžkite prie veiksmo.";
 
   return (
     <Panel
-      id={focus === "phone" ? "profile-focus-phone" : "profile-focus-city"}
+      id={`profile-focus-${focus}`}
       tone="accent"
       className="mb-4"
-      description={
-        focus === "phone"
-          ? "Skelbimui reikia telefono iš profilio. Atnaujinkite numerį žemiau ir grįžkite į asistentą."
-          : "Skelbimui reikia miesto iš profilio. Atnaujinkite miestą ir grįžkite į asistentą."
-      }
+      description={description}
     />
   );
 }
@@ -144,6 +155,13 @@ export default function ProfileSettingsPage() {
           </SettingsSection>
 
           <SettingsSection label="Mokėjimai">
+            <Suspense
+              fallback={
+                <Panel description="Kraunami mokėjimo metodai…" />
+              }
+            >
+              <PaymentMethodsCard />
+            </Suspense>
             <Panel
               icon={<CreditCard className="h-4 w-4 text-[var(--vauto-primary)]" />}
               title="Prenumerata ir kortelės"

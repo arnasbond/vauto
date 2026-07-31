@@ -226,6 +226,11 @@ function resolvePublishApiFailure(
     };
   }
   const detail = parseApiErrorMessage(raw);
+  // 402 is the payout gate: the server message already names the exact fix, so
+  // wrapping it in a generic save error would only hide the instruction.
+  if (status === 402) {
+    return { message: detail, detail, sessionExpired: false };
+  }
   return {
     message: formatPublishSaveError(raw),
     detail,

@@ -26,6 +26,11 @@ import type { Response } from "express";
 import { resolveCarrierAdapter } from "../shipping/providers/carrier-adapters.js";
 import type { ShippingProviderId } from "../shipping/shipping-routing.js";
 import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
+import { rejectIfBuyerHasNoCard } from "../billing/payment-gates.js";
+import {
+  notifyEscrowPaid,
+  notifyShippingLabelReady,
+} from "../services/sale-notifications.js";
 
 export const escrowBillingRouter = Router();
 
@@ -63,6 +68,7 @@ escrowBillingRouter.post("/checkout", requireAuth, async (req: AuthedRequest, re
     if (escrow.buyerId !== req.authUserId) {
       return res.status(403).json({ error: "Only buyer can initiate payment" });
     }
+    if (await rejectIfBuyerHasNoCard(res, escrow.buyerId)) return;
 
     const locker = req.body as {
       shippingProvider?: string;
@@ -146,6 +152,9 @@ escrowBillingRouter.post("/confirm-session", requireAuth, async (req: AuthedRequ
       buyerProtectionFee: fee,
       buyerTotal: total,
     });
+    void notifyEscrowPaid(updated ?? existing).catch((e) =>
+      console.error("Sale email (escrow paid) failed:", e)
+    );
     res.json({ ok: true, escrow: updated });
   } catch (e) {
     res.status(500).json({ error: String(e) });
@@ -194,6 +203,9 @@ escrowBillingRouter.post("/shipping-label", requireAuth, async (req: AuthedReque
       updatedAt: now,
     };
     await upsertEscrow(next);
+    void notifyShippingLabelReady(next, label.trackingUrl).catch((e) =>
+      console.error("Sale email (label) failed:", e)
+    );
     res.json({
       ok: true,
       escrow: next,

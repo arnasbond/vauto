@@ -14,6 +14,11 @@ import { pool } from "../db.js";
 import type { AuthedRequest } from "../middleware/auth.js";
 import { fetchListingsFeed } from "../controllers/listing-controller.js";
 import {
+  listingNeedsPayoutMethod,
+  rejectIfSellerHasNoPayout,
+} from "../billing/payment-gates.js";
+import { notifyListingSoldManually } from "../services/sale-notifications.js";
+import {
   adminPatchListing,
   deleteListing,
   getAdminAgentContext,
@@ -627,6 +632,12 @@ apiRouter.post(
         description: moderation.description ?? listing.description,
       };
     }
+    if (
+      listingNeedsPayoutMethod(listing) &&
+      (await rejectIfSellerHasNoPayout(res, listing.sellerId))
+    ) {
+      return;
+    }
     if (resolveConductorRequiresReviewForListing(listing)) {
       listing = { ...listing, requiresReview: true };
     }
@@ -723,6 +734,12 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
     }
 
     let patchValue = parsed.value;
+    if (
+      patchValue.allowPastomatas === true &&
+      (await rejectIfSellerHasNoPayout(res, sellerId))
+    ) {
+      return;
+    }
     let existingForReview: Awaited<ReturnType<typeof getListingForEmbedding>> = null;
     if (patchValue.attributes !== undefined) {
       existingForReview = await getListingForEmbedding(req.params.id);
@@ -752,6 +769,14 @@ apiRouter.patch("/listings/:id", requireAuth, async (req: AuthedRequest, res) =>
     }
     if (listing.requiresReview && existingForReview && !existingForReview.requiresReview) {
       void notifySellerListingPendingReview(listing).catch(() => {});
+    }
+    if (patchValue.status === "sold") {
+      void notifyListingSoldManually({
+        id: listing.id,
+        sellerId: listing.sellerId,
+        title: listing.title,
+        price: listing.price,
+      }).catch((e) => console.error("Sale email (listing sold) failed:", e));
     }
     res.json(listing);
   } catch (e) {

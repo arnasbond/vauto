@@ -907,6 +907,82 @@ export async function apiBillingPortal(): Promise<
   });
 }
 
+export interface PaymentMethodsSummary {
+  ok: boolean;
+  stripeConfigured: boolean;
+  card: {
+    label: string;
+    masked: string;
+    expiry: string | null;
+    updatedAt: string | null;
+  } | null;
+  payout: {
+    masked: string | null;
+    holderName: string | null;
+    status: string;
+    statusLabel: string;
+    updatedAt: string | null;
+  } | null;
+  canBuy: boolean;
+  canSellWithShipping: boolean;
+}
+
+export async function apiFetchPaymentMethods(): Promise<
+  ApiResult<PaymentMethodsSummary>
+> {
+  return dataFetch("/api/payment-methods");
+}
+
+export async function apiCreatePaymentMethodSetup(): Promise<
+  ApiResult<{ ok: boolean; checkoutUrl: string; sessionId: string }>
+> {
+  return dataFetch("/api/payment-methods/setup-session", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function apiConfirmPaymentMethodSetup(
+  sessionId: string
+): Promise<ApiResult<{ ok: boolean; card: { label: string; masked: string } }>> {
+  return dataFetch("/api/payment-methods/confirm", {
+    method: "POST",
+    body: JSON.stringify({ sessionId }),
+  });
+}
+
+export async function apiRemovePaymentMethod(): Promise<
+  ApiResult<{ ok: boolean }>
+> {
+  return dataFetch("/api/payment-methods", { method: "DELETE" });
+}
+
+export async function apiCreatePayoutOnboarding(): Promise<
+  ApiResult<{ ok: boolean; onboardingUrl: string }>
+> {
+  return dataFetch("/api/payment-methods/payout/onboarding", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
+export async function apiSyncPayoutStatus(): Promise<
+  ApiResult<{
+    ok: boolean;
+    payout: {
+      masked: string | null;
+      holderName: string | null;
+      status: string;
+      statusLabel: string;
+    };
+  }>
+> {
+  return dataFetch("/api/payment-methods/payout/sync", {
+    method: "POST",
+    body: JSON.stringify({}),
+  });
+}
+
 export async function apiListBillingInvoices(): Promise<
   ApiResult<{
     ok: boolean;

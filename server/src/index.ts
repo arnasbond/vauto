@@ -12,6 +12,7 @@ import { vautoServerRouter } from "./routes/vauto-server.js";
 import { vautoAgentRouter } from "./routes/vauto-agent.js";
 import { billingRouter, handleStripeWebhook } from "./routes/billing.js";
 import { escrowBillingRouter } from "./routes/escrow-billing.js";
+import { paymentMethodsRouter } from "./routes/payment-methods.js";
 import { growthRouter } from "./routes/growth.js";
 import { shippingRouter } from "./routes/shipping.js";
 import { authRouter } from "./routes/auth.js";
@@ -62,6 +63,7 @@ app.use("/api/vauto-server", aiRateLimiter, requireAuth, vautoServerRouter);
 app.use("/api/vauto-agent", aiRateLimiter, requireAuth, vautoAgentRouter);
 app.use("/api/billing", billingRouter);
 app.use("/api/escrow-billing", escrowBillingRouter);
+app.use("/api/payment-methods", paymentMethodsRouter);
 app.use("/api/growth", growthRouter);
 app.use("/api/shipping", shippingRouter);
 

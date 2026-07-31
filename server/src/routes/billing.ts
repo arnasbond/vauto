@@ -33,6 +33,15 @@ import {
 } from "../billing/promote-pricing.js";
 import { persistInvoiceFromCheckoutSession } from "../billing/persist-invoice.js";
 import { rejectIfCheckoutDisabled } from "../platform/platform-guards.js";
+import {
+  readPayoutAccount,
+  resolveSetupSessionCard,
+} from "../billing/payment-methods-stripe.js";
+import {
+  saveCardDetails,
+  savePayoutAccount,
+} from "../billing/payment-methods-repo.js";
+import { notifyEscrowPaid } from "../services/sale-notifications.js";
 
 export const billingRouter = Router();
 
@@ -343,14 +352,28 @@ export async function handleStripeWebhook(
           session.amount_total != null
             ? session.amount_total / 100
             : calculateBuyerTotal(itemAmount);
-        await markEscrowPaidFromStripe({
+        const updated = await markEscrowPaidFromStripe({
           escrowId,
           paymentIntentId,
           buyerProtectionFee,
           buyerTotal,
         });
+        if (updated) {
+          await notifyEscrowPaid(updated).catch((e) =>
+            console.error("Sale email (escrow webhook) failed:", e)
+          );
+        }
       } catch (e) {
         console.error("Escrow webhook mark paid failed:", e);
+      }
+    } else if (session.metadata?.kind === "payment_method_setup") {
+      try {
+        const { userId, card } = await resolveSetupSessionCard(session.id);
+        if (userId && card) {
+          await saveCardDetails(userId, card);
+        }
+      } catch (e) {
+        console.error("Payment method setup webhook failed:", e);
       }
     } else if (
       session.metadata?.kind === "b2c_promote" &&
@@ -389,6 +412,21 @@ export async function handleStripeWebhook(
     const customerId = resolveStripeCustomerId(subscription.customer);
     if (customerId) {
       await cancelUserBillingByStripeCustomer(customerId);
+    }
+  }
+
+  // Connect onboarding finishes asynchronously — mirror the verified state so the
+  // seller's payout gate opens without them having to reload the settings page.
+  if (event.type === "account.updated") {
+    const account = event.data.object as Stripe.Account;
+    const userId = account.metadata?.userId;
+    if (userId) {
+      try {
+        const payout = await readPayoutAccount(account.id);
+        if (payout) await savePayoutAccount(userId, payout);
+      } catch (e) {
+        console.error("Connect account.updated sync failed:", e);
+      }
     }
   }
 

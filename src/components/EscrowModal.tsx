@@ -2,6 +2,7 @@
 
 import { Check, Clock, CreditCard, Package, ShieldCheck, Sparkles, Truck, X } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { ParcelLockerPicker } from "@/components/escrow/ParcelLockerPicker";
 import { useVauto } from "@/context/VautoContext";
 import {
@@ -156,6 +157,7 @@ export function EscrowModal({
     [amount, twinFee, freeCredits]
   );
 
+  const router = useRouter();
   const [step, setStep] = useState<EscrowStep>(() => stepFromEscrow(escrow));
   const [stripeEscrowLive, setStripeEscrowLive] = useState(false);
   const [paymentProvider, setPaymentProvider] = useState<PaymentProviderId>("montonio");
@@ -314,6 +316,14 @@ export function EscrowModal({
         return;
       }
       showToast(res.ok ? "Nepavyko pradėti mokėjimo." : res.error, "error");
+      // A missing payment method is a hard stop — never fall through to the
+      // demo intent, or the fraud gate would be trivially bypassable.
+      if (!res.ok && res.status === 402) {
+        setStep("offer");
+        onUpdate(patchEscrow(draft, { status: "offered" }));
+        router.push("/profile/settings/?focus=payments");
+        return;
+      }
     }
 
     setTimeout(() => {
