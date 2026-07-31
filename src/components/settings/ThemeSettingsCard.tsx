@@ -16,21 +16,16 @@ export function ThemeSettingsCard({ embedded = false }: { embedded?: boolean }) 
 
   const content = (
     <>
-      {!embedded && (
-        <div className="mb-3 flex items-center gap-2">
-          <Palette className="h-4 w-4 text-[var(--vauto-primary)]" />
-          <h3 className="text-sm font-semibold text-[var(--vauto-text-main)]">Programėlės tema</h3>
-        </div>
-      )}
-      {embedded ? (
-        <p className="mb-3 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-          Pasirinkite vizualinį stilių — pakeitimas pritaikomas visoje programėlėje akimirksniu.
-        </p>
-      ) : (
-        <p className="mb-4 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
-          Pasirinkite vizualinį stilių — pakeitimas pritaikomas visoje programėlėje akimirksniu.
-        </p>
-      )}
+      <div className="mb-3 flex items-center gap-2">
+        <Palette className="h-4 w-4 text-[var(--vauto-primary)]" />
+        <h3 className="text-sm font-semibold text-[var(--vauto-text-main)]">
+          Programėlės tema
+        </h3>
+      </div>
+      <p className="mb-3 text-xs leading-relaxed text-[var(--vauto-text-muted)]">
+        Pasirinkite vizualinį stilių — pakeitimas pritaikomas visoje programėlėje
+        akimirksniu.
+      </p>
       <div className="grid gap-2 sm:grid-cols-3">
         {themes.map((item) => {
           const active = theme === item.id;
@@ -52,7 +47,9 @@ export function ThemeSettingsCard({ embedded = false }: { embedded?: boolean }) 
                   SWATCH[item.id]
                 )}
               />
-              <p className="text-xs font-semibold text-[var(--vauto-text-main)]">{item.label}</p>
+              <p className="text-xs font-semibold text-[var(--vauto-text-main)]">
+                {item.label}
+              </p>
               <p className="mt-0.5 text-[10px] leading-snug text-[var(--vauto-text-muted)]">
                 {item.description}
               </p>
@@ -63,7 +60,16 @@ export function ThemeSettingsCard({ embedded = false }: { embedded?: boolean }) 
     </>
   );
 
-  if (embedded) return <div>{content}</div>;
-
-  return <div className="vauto-dashboard-card rounded-2xl p-4">{content}</div>;
+  // Always keep card chrome + title so theme picker never "vanishes" under other settings.
+  return (
+    <div
+      className={cn(
+        "vauto-dashboard-card rounded-2xl p-4",
+        embedded && "border border-[var(--vauto-border)]"
+      )}
+      data-theme-settings="1"
+    >
+      {content}
+    </div>
+  );
 }

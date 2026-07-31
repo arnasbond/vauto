@@ -116,9 +116,9 @@ export default function ProfileSettingsPage() {
         </Suspense>
 
         <div className="space-y-3">
+          <ThemeSettingsCard />
           <AiPreferenceCenter embedded />
           <AiPersonalizationSurveyCard embedded />
-          <ThemeSettingsCard embedded />
           <PrivacySettingsCard />
           <SocialSyncSettingsCard />
           <PushAlertsSettingsCard />

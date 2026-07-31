@@ -16,6 +16,7 @@ import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSand
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { AiPersonalizationSurveyCard } from "@/components/profile/AiPersonalizationSurveyCard";
 import { AiPreferenceCenter } from "@/components/profile/AiPreferenceCenter";
+import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
@@ -221,7 +222,8 @@ function ProfilePageContent() {
               </div>
             )}
 
-            <div className="mt-4">
+            <div className="mt-4 space-y-4">
+              <ThemeSettingsCard />
               <ProfileSettingsMenu user={user} />
             </div>
           </>
