@@ -14,8 +14,8 @@ ALTER TABLE users
   ADD COLUMN IF NOT EXISTS payout_updated_at TIMESTAMPTZ;
 
 COMMENT ON COLUMN users.payment_method_id IS 'Stripe PaymentMethod id (pm_...) attached to the customer';
-COMMENT ON COLUMN users.payment_method_last4 IS 'Masked card tail for display only — never the full PAN';
-COMMENT ON COLUMN users.payout_iban_last4 IS 'Masked IBAN tail from Stripe Connect external account — never the full IBAN';
+COMMENT ON COLUMN users.payment_method_last4 IS 'Masked card tail for display only - never the full PAN';
+COMMENT ON COLUMN users.payout_iban_last4 IS 'Masked IBAN tail from Stripe Connect external account - never the full IBAN';
 COMMENT ON COLUMN users.payout_status IS 'none | pending | verified | restricted (mirrors Connect payouts_enabled)';
 
 CREATE INDEX IF NOT EXISTS idx_users_payment_method

@@ -150,10 +150,36 @@ app.use(
 );
 
 app.listen(port, async () => {
+  // Bind first — Render health checks the open port. DB work must never
+  // process.exit(1) here: a lagging migrate would crash-loop the deploy.
+  console.log(`VAUTO API http://localhost:${port} — starting DB bootstrap…`);
+
   try {
     await pool.query("SELECT 1");
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.warn(
+      `PostgreSQL nepasiekiamas (${detail}). API klausosi be DB — paleiskite: docker compose up -d`
+    );
+    return;
+  }
+
+  try {
     await runMigrations();
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error(
+      `[migrate] Failed — server stays up; payment gates fail-open until schema catches up: ${detail}`
+    );
+  }
+
+  try {
     await seedIfEmpty();
+  } catch (e) {
+    console.error("[seed] Failed:", e instanceof Error ? e.message : String(e));
+  }
+
+  try {
     const { backfillListingEmbeddings } = await import(
       "./ai/listing-embedding.js"
     );
@@ -168,24 +194,15 @@ app.listen(port, async () => {
     });
     const { runStripeBootstrap } = await import("./billing/ensure-stripe.js");
     void runStripeBootstrap();
-    const gemini = Boolean(resolveGeminiApiKey());
-    console.log(
-      `VAUTO API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
-    );
   } catch (e) {
-    const detail = e instanceof Error ? e.message : String(e);
     console.error(
-      `VAUTO API http://localhost:${port} — startup DB/migrate failed:`,
-      detail
-    );
-    // Production must not serve code against a lagging schema (e.g. gates
-    // querying columns from migration 032 that were never applied). Crash so
-    // Render restarts and surface the migrate error in deploy logs.
-    if (process.env.NODE_ENV === "production") {
-      process.exit(1);
-    }
-    console.warn(
-      "PostgreSQL nepasiekiamas arba migracija nepavyko. Paleiskite: docker compose up -d"
+      "[bootstrap] Optional startup tasks failed:",
+      e instanceof Error ? e.message : String(e)
     );
   }
+
+  const gemini = Boolean(resolveGeminiApiKey());
+  console.log(
+    `VAUTO API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
+  );
 });

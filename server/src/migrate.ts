@@ -14,13 +14,20 @@ async function ensureMigrationsTable(): Promise<void> {
   `);
 }
 
-export async function runMigrations(): Promise<void> {
+/**
+ * Apply pending SQL files under server/migrations/.
+ * Callers must catch errors — Render startup must keep the HTTP server up
+ * even when a migrate fails (see index.ts).
+ */
+export async function runMigrations(): Promise<{ applied: string[] }> {
   await ensureMigrationsTable();
 
   const dir = join(__dirname, "../migrations");
   const files = readdirSync(dir)
     .filter((f) => f.endsWith(".sql"))
     .sort();
+
+  const applied: string[] = [];
 
   for (const file of files) {
     const { rows } = await pool.query<{ filename: string }>(
@@ -39,6 +46,7 @@ export async function runMigrations(): Promise<void> {
         [file]
       );
       await client.query("COMMIT");
+      applied.push(file);
       console.log(`Migration applied: ${file}`);
     } catch (e) {
       await client.query("ROLLBACK");
@@ -49,4 +57,14 @@ export async function runMigrations(): Promise<void> {
       client.release();
     }
   }
+
+  if (applied.length === 0) {
+    console.log("[migrate] Schema up to date");
+  } else {
+    console.log(
+      `[migrate] Applied ${applied.length} file(s): ${applied.join(", ")}`
+    );
+  }
+
+  return { applied };
 }
