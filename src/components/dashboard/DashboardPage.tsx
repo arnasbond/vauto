@@ -4,7 +4,7 @@
 
 import { useMemo, useState } from "react";
 
-import { Briefcase, LayoutGrid, UserRound } from "lucide-react";
+import { LayoutGrid } from "lucide-react";
 
 import { AiListingAdvisorModal } from "@/components/dashboard/AiListingAdvisorModal";
 
@@ -220,54 +220,6 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
 
     <div className="dashboard-page">
 
-      {!listingsOnly && !wardrobeMode && (
-      <div className="mb-4 flex items-center gap-3 rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)] p-4">
-
-        <span
-
-          className={`flex h-11 w-11 items-center justify-center rounded-xl ${
-
-            isEmployer ? "bg-[var(--vauto-ai-soft)]" : "bg-[var(--vauto-primary-soft)]"
-
-          }`}
-
-        >
-
-          {isEmployer ? (
-
-            <Briefcase className="h-5 w-5 text-[var(--vauto-ai)]" />
-
-          ) : (
-
-            <UserRound className="h-5 w-5 text-[var(--vauto-primary)]" />
-
-          )}
-
-        </span>
-
-        <div>
-
-          <p className="text-sm font-bold text-[var(--vauto-text)]">
-
-            {isEmployer ? "Verslo kabinetas" : "Pardavėjo kabinetas"}
-
-          </p>
-
-          <p className="text-xs text-[var(--vauto-text-muted)]">
-
-            {isEmployer
-
-              ? "Valdykite skelbimus, CV paraiškas ir matomumą"
-
-              : "Valdykite skelbimus, būsenas ir AI patarimus"}
-
-          </p>
-
-        </div>
-
-      </div>
-      )}
-
       {listingsOnly ? (
         listingGrid
       ) : businessCabinet || isEmployer ? (
@@ -299,9 +251,6 @@ export function DashboardPage({ user, listings, allListings, onRenew, listingsOn
             onRenew={onRenew}
 
           />
-
-          {listingGrid}
-
         </>
 
       ) : wardrobeMode ? (

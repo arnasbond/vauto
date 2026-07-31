@@ -10,63 +10,32 @@ import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
 import { DashboardPage } from "@/components/dashboard/DashboardPage";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { ProUpgradeNotice } from "@/components/dashboard/ProUpgradeNotice";
-import { ProfileProCTA } from "@/components/profile/ProfileProCTA";
-import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle";
 import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSandboxTrigger";
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { AiPersonalizationSurveyCard } from "@/components/profile/AiPersonalizationSurveyCard";
 import { AiPreferenceCenter } from "@/components/profile/AiPreferenceCenter";
-import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
+import { SegmentedTabs, type SegmentedTabItem } from "@/components/ui/surface";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { isBusinessProfile, isPrivateProfile } from "@/lib/profile-type";
 import { isNativeApp } from "@/lib/mobile-install";
 import { useVauto } from "@/context/VautoContext";
-import { cn } from "@/lib/cn";
 
 type ProfileTab = "cabinet" | "ai";
 
+const PROFILE_TABS: readonly SegmentedTabItem<ProfileTab>[] = [
+  { id: "cabinet", label: "Kabinetas" },
+  {
+    id: "ai",
+    label: "AI asistentas",
+    shortLabel: "AI",
+    icon: <Sparkles className="h-3.5 w-3.5" />,
+  },
+];
+
 function parseProfileTab(raw: string | null): ProfileTab {
   return raw === "ai" ? "ai" : "cabinet";
-}
-
-function ProfileTabs({
-  tab,
-  onChange,
-}: {
-  tab: ProfileTab;
-  onChange: (next: ProfileTab) => void;
-}) {
-  return (
-    <div className="mb-4 flex gap-2 overflow-x-auto px-1">
-      <button
-        type="button"
-        onClick={() => onChange("cabinet")}
-        className={cn(
-          "shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition",
-          tab === "cabinet"
-            ? "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast,#fff)]"
-            : "bg-[var(--vauto-surface-page,#f8fafc)] text-[var(--vauto-muted)] hover:text-[var(--vauto-ink)]"
-        )}
-      >
-        Kabinetas
-      </button>
-      <button
-        type="button"
-        onClick={() => onChange("ai")}
-        className={cn(
-          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition",
-          tab === "ai"
-            ? "bg-[var(--vauto-teal)] text-white"
-            : "bg-[var(--vauto-surface-page,#f8fafc)] text-[var(--vauto-muted)] hover:text-[var(--vauto-ink)]"
-        )}
-      >
-        <Sparkles className="h-3.5 w-3.5" aria-hidden />
-        AI Asistento nustatymai
-      </button>
-    </div>
-  );
 }
 
 function ProfilePageContent() {
@@ -126,32 +95,32 @@ function ProfilePageContent() {
   if (!isAuthenticated) {
     return (
       <div className="flex min-h-dvh flex-col items-center justify-center bg-[var(--vauto-bg)] px-6 pb-24">
-        <div className="vauto-dashboard-card max-w-sm rounded-3xl p-8 text-center">
-          <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--vauto-primary)_15%,transparent)]">
-            <LayoutDashboard className="h-8 w-8 text-[var(--vauto-primary)]" />
+        <div className="vauto-panel max-w-sm p-6 text-center">
+          <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-[color-mix(in_srgb,var(--vauto-primary)_12%,transparent)]">
+            <LayoutDashboard className="h-7 w-7 text-[var(--vauto-primary)]" />
           </div>
-          <h1 className="text-xl font-bold text-[var(--vauto-text-main)]">Profilis</h1>
+          <h1 className="vauto-page-title">Profilis</h1>
           <p className="mt-2 text-sm text-[var(--vauto-text-muted)]">
             Prisijunkite, kad valdytumėte skelbimus ir nustatymus.
           </p>
           <button
             type="button"
             onClick={() => openAuthModal("/profile")}
-            className="mt-6 flex w-full items-center justify-center gap-2 rounded-2xl bg-[var(--vauto-primary)] py-3.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)]"
+            className="mt-5 flex w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] py-3 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)]"
           >
             <LogIn className="h-4 w-4" />
             Prisijungti / Registruotis
           </button>
           <Link
             href="/mano-skelbimai/"
-            className="mt-3 flex w-full items-center justify-center gap-2 rounded-2xl border border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-primary)_10%,transparent)] py-3 text-sm font-semibold text-[var(--vauto-primary)]"
+            className="vauto-btn-quiet mt-2 flex w-full items-center justify-center gap-2 py-3 text-sm"
           >
             Atidaryti Mano skelbimus
           </Link>
           {!nativeApp && (
             <Link
               href="/install/"
-              className="mt-3 flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)] hover:text-[var(--vauto-primary)]"
+              className="mt-3 inline-flex items-center justify-center gap-2 text-xs text-[var(--vauto-text-muted)] hover:text-[var(--vauto-primary)]"
             >
               <Smartphone className="h-3.5 w-3.5" />
               Įdiegti programėlę
@@ -188,18 +157,22 @@ function ProfilePageContent() {
 
         <DashboardHeader user={user} onLogout={logout} />
 
-        <ProfileTabs tab={tab} onChange={handleTabChange} />
+        <SegmentedTabs
+          items={PROFILE_TABS}
+          value={tab}
+          onChange={handleTabChange}
+          ariaLabel="Profilio skirtukai"
+          className="mb-4"
+        />
 
         {tab === "ai" ? (
-          <div className="space-y-4">
+          <div className="space-y-3">
             <AiPreferenceCenter />
             <AiPersonalizationSurveyCard embedded />
           </div>
         ) : (
-          <>
+          <div className="space-y-4">
             <AiPersonalizationSurveyCard />
-
-            {isPro ? <ProfileProViewToggle /> : <ProfileProCTA />}
 
             <DashboardPage
               user={user}
@@ -211,22 +184,17 @@ function ProfilePageContent() {
             />
 
             {isBusinessCabinet && (
-              <div className="mt-4 px-1">
-                <NegotiationSandboxTrigger
-                  listings={myListings}
-                  sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
-                  sellerUserId={user.id}
-                  profileType={user.profileType}
-                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
-                />
-              </div>
+              <NegotiationSandboxTrigger
+                listings={myListings}
+                sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+                sellerUserId={user.id}
+                profileType={user.profileType}
+                className="vauto-btn-quiet flex w-full items-center justify-center gap-2 py-3 text-sm"
+              />
             )}
 
-            <div className="mt-4 space-y-4">
-              <ThemeSettingsCard />
-              <ProfileSettingsMenu user={user} />
-            </div>
-          </>
+            <ProfileSettingsMenu user={user} showBusinessEntry={!isPro} />
+          </div>
         )}
       </DashboardShell>
     </ProfileViewProvider>

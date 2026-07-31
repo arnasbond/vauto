@@ -1,6 +1,7 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
+import { LineChart } from "lucide-react";
 import { CallAndSellWidget } from "@/components/dashboard/CallAndSellWidget";
 import { BuyerIntentBanner } from "@/components/dashboard/BuyerIntentBanner";
 import { B2BAnalyticsPanel } from "@/components/dashboard/B2BAnalyticsPanel";
@@ -18,7 +19,12 @@ import { ServiceLeadInbox } from "@/components/dashboard/ServiceLeadInbox";
 import { MicroAnalytics } from "@/components/dashboard/MicroAnalytics";
 import { VisibilityPricingCard } from "@/components/dashboard/VisibilityPricingCard";
 import { VautoWallet } from "@/components/dashboard/VautoWallet";
-import { CabinetStatRow } from "@/components/ui/CabinetStatRow";
+import {
+  Disclosure,
+  SegmentedTabs,
+  StatGrid,
+  type SegmentedTabItem,
+} from "@/components/ui/surface";
 import { mockServiceBookings } from "@/lib/dashboard-mock";
 import { useVauto } from "@/context/VautoContext";
 import { useSellerListingAnalytics } from "@/hooks/useSellerListingAnalytics";
@@ -26,7 +32,7 @@ import { apiFetchHealthDetails } from "@/lib/api/client";
 import { computeSellerRating } from "@/lib/reviews";
 import type { Listing, UserProfile } from "@/lib/types";
 
-type DashboardTab = "overview" | "listings" | "pricing";
+type DashboardTab = "overview" | "listings" | "pricing" | "services";
 
 interface ProBusinessDashboardProps {
   user: UserProfile;
@@ -39,12 +45,6 @@ interface ProBusinessDashboardProps {
   onTopUp: (amount: number) => void;
   onRenew: (id: string) => void;
 }
-
-const TABS: { id: DashboardTab; label: string }[] = [
-  { id: "overview", label: "Apžvalga" },
-  { id: "listings", label: "Skelbimai" },
-  { id: "pricing", label: "Kainodara" },
-];
 
 export function ProBusinessDashboard({
   user,
@@ -77,19 +77,27 @@ export function ProBusinessDashboard({
       if (r.ok) setStripeEnabled(Boolean(r.data.features?.stripe));
     });
   }, [apiActive]);
+
   const rating = computeSellerRating(reviews, user.id);
   const serviceRating = rating.count > 0 ? rating.avg : 4.9;
-  const showCalendar =
+  const showServices =
     user.businessType === "services" ||
     listings.some((l) => l.category === "services");
   const activeListingCount = listings.filter((l) => l.status !== "sold").length;
-  const walletLabel = `${(user.walletBalance ?? 0).toLocaleString("lt-LT", {
-    maximumFractionDigits: 0,
-  })} €`;
   const liveAnalytics = useSellerListingAnalytics(apiActive, sellerAnalytics);
 
   const [tab, setTab] = useState<DashboardTab>("overview");
   const [promoteTargetId, setPromoteTargetId] = useState<string | null>(null);
+
+  const tabs = useMemo<SegmentedTabItem<DashboardTab>[]>(() => {
+    const base: SegmentedTabItem<DashboardTab>[] = [
+      { id: "overview", label: "Apžvalga" },
+      { id: "listings", label: "Skelbimai", badge: activeListingCount },
+      { id: "pricing", label: "Kainodara" },
+    ];
+    if (showServices) base.push({ id: "services", label: "Paslaugos" });
+    return base;
+  }, [activeListingCount, showServices]);
 
   const handlePromoteFromInsights = useCallback((listingId: string) => {
     setTab("listings");
@@ -105,66 +113,27 @@ export function ProBusinessDashboard({
     <div>
       <BusinessIdentityCard user={user} />
       <SellerDraftsStrip />
-
       <LaunchTrialBanner user={user} />
 
-      {user.role === "pro" && (
-        <B2BPlanCreditsCard
-          user={user}
-          activeJobListings={activeJobListings}
-          onOpenCheckout={openCheckout}
-        />
-      )}
-
-      <div className="mb-4 flex gap-2 overflow-x-auto">
-        {TABS.map((item) => (
-          <button
-            key={item.id}
-            type="button"
-            onClick={() => setTab(item.id)}
-            className={`shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition ${
-              tab === item.id
-                ? "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast)]"
-                : "bg-[var(--vauto-surface-page)] text-[var(--vauto-muted)] hover:text-[var(--vauto-ink)]"
-            }`}
-          >
-            {item.label}
-          </button>
-        ))}
-      </div>
-
-      <CabinetStatRow
+      <StatGrid
         className="mb-4"
         stats={[
           { label: "Aktyvūs skelbimai", value: String(activeListingCount) },
           { label: "Pirkėjų signalai", value: String(buyerIntentCount) },
-          { label: "Balansas", value: walletLabel },
+          { label: "Peržiūros", value: String(liveAnalytics.views) },
         ]}
+      />
+
+      <SegmentedTabs
+        items={tabs}
+        value={tab}
+        onChange={setTab}
+        ariaLabel="Verslo kabineto skirtukai"
+        className="mb-4"
       />
 
       {tab === "overview" && (
         <>
-          <BusinessMarketInsights
-            listings={listings}
-            allListings={allListings}
-            buyerIntentCount={buyerIntentCount}
-            onPromoteListing={handlePromoteFromInsights}
-          />
-          <B2BAnalyticsPanel analytics={liveAnalytics} />
-          <MicroAnalytics
-            views={liveAnalytics.views}
-            callClicks={liveAnalytics.callClicks}
-            saves={liveAnalytics.saves}
-            chatStarts={liveAnalytics.chatStarts}
-            interestScore={liveAnalytics.interestScore}
-            shareStory={liveAnalytics.shareStory}
-          />
-          <CallAndSellWidget
-            views={liveAnalytics.views}
-            callClicks={liveAnalytics.callClicks}
-            saves={liveAnalytics.saves}
-            chatStarts={liveAnalytics.chatStarts}
-          />
           <BuyerIntentBanner intentCount={buyerIntentCount} />
           <SoldPromptBanner
             listings={listings}
@@ -173,53 +142,42 @@ export function ProBusinessDashboard({
             onRenew={onRenew}
             onDismiss={dismissSoldPrompt}
           />
-          <VautoWallet
-            balance={user.walletBalance ?? 0}
-            onTopUp={onTopUp}
-            demoTopUp={apiActive && !stripeEnabled}
-            topUpDisabled={apiActive && stripeEnabled}
-          />
-          {showCalendar && (
-            <>
-              <ServiceLeadInbox
-                balance={user.walletBalance ?? 0}
-                user={user}
-                rating={serviceRating}
-              />
-              <ServiceCalendar bookings={mockServiceBookings()} />
-            </>
-          )}
-        </>
-      )}
-
-      {tab === "pricing" && (
-        <>
-          <B2BBillingCard
-            balance={user.walletBalance ?? 0}
-            clicks={liveAnalytics.views}
-            callClicks={liveAnalytics.callClicks}
-            activeListings={listings.length}
-            currentPlan={user.billingPlan}
-            onOpenCheckout={openCheckout}
-            stripeEnabled={stripeEnabled}
-          />
-          <VisibilityPricingCard
+          <B2BAnalyticsPanel analytics={liveAnalytics} />
+          <BusinessMarketInsights
             listings={listings}
             allListings={allListings}
-            user={user}
+            buyerIntentCount={buyerIntentCount}
+            onPromoteListing={handlePromoteFromInsights}
           />
-          <BulkUploadCard />
+          <Disclosure
+            className="mb-4"
+            title="Detali skelbimų statistika"
+            subtitle="Peržiūros, skambučiai, išsaugojimai, 9:16 dalinimai"
+            icon={<LineChart className="h-4 w-4 text-[var(--vauto-primary)]" />}
+          >
+            <MicroAnalytics
+              views={liveAnalytics.views}
+              callClicks={liveAnalytics.callClicks}
+              saves={liveAnalytics.saves}
+              chatStarts={liveAnalytics.chatStarts}
+              interestScore={liveAnalytics.interestScore}
+              shareStory={liveAnalytics.shareStory}
+            />
+            <CallAndSellWidget
+              views={liveAnalytics.views}
+              callClicks={liveAnalytics.callClicks}
+              saves={liveAnalytics.saves}
+              chatStarts={liveAnalytics.chatStarts}
+            />
+          </Disclosure>
         </>
       )}
 
       {tab === "listings" && (
-        <section className="mt-2">
-          <h2 className="mb-3 text-sm font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
-            Mano skelbimai
-          </h2>
+        <section>
           <div className="space-y-3">
             {listings.length === 0 ? (
-              <p className="vauto-dashboard-card rounded-2xl py-8 text-center text-sm text-[var(--vauto-text-muted)]">
+              <p className="vauto-panel p-8 text-center text-sm text-[var(--vauto-text-muted)]">
                 Pridėkite skelbimus ir stebėkite analitiką realiu laiku.
               </p>
             ) : (
@@ -241,6 +199,50 @@ export function ProBusinessDashboard({
             )}
           </div>
         </section>
+      )}
+
+      {tab === "pricing" && (
+        <>
+          <VautoWallet
+            balance={user.walletBalance ?? 0}
+            onTopUp={onTopUp}
+            demoTopUp={apiActive && !stripeEnabled}
+            topUpDisabled={apiActive && stripeEnabled}
+          />
+          {user.role === "pro" && (
+            <B2BPlanCreditsCard
+              user={user}
+              activeJobListings={activeJobListings}
+              onOpenCheckout={openCheckout}
+            />
+          )}
+          <B2BBillingCard
+            balance={user.walletBalance ?? 0}
+            clicks={liveAnalytics.views}
+            callClicks={liveAnalytics.callClicks}
+            activeListings={listings.length}
+            currentPlan={user.billingPlan}
+            onOpenCheckout={openCheckout}
+            stripeEnabled={stripeEnabled}
+          />
+          <VisibilityPricingCard
+            listings={listings}
+            allListings={allListings}
+            user={user}
+          />
+          <BulkUploadCard />
+        </>
+      )}
+
+      {tab === "services" && showServices && (
+        <>
+          <ServiceLeadInbox
+            balance={user.walletBalance ?? 0}
+            user={user}
+            rating={serviceRating}
+          />
+          <ServiceCalendar bookings={mockServiceBookings()} />
+        </>
       )}
     </div>
   );

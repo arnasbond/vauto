@@ -1,14 +1,14 @@
 "use client";
 
-import Link from "next/link";
 import {
-  ChevronRight,
+  Building2,
   Gift,
+  Palette,
   Settings2,
   Smartphone,
   Sparkles,
 } from "lucide-react";
-import { useMemo, type ReactNode } from "react";
+import { useMemo } from "react";
 import { useVauto } from "@/context/VautoContext";
 import {
   buildReferralUrl,
@@ -16,59 +16,24 @@ import {
   shareReferralInvite,
 } from "@/lib/referral";
 import { isNativeApp } from "@/lib/mobile-install";
+import { ThemeSwatchStrip } from "@/components/settings/ThemeSettingsCard";
+import {
+  SettingsControlRow,
+  SettingsGroup,
+  SettingsRow,
+} from "@/components/ui/surface";
 import type { UserProfile } from "@/lib/types";
 
 interface ProfileSettingsMenuProps {
   user: UserProfile;
+  /** Non-Pro users get a single quiet business entry instead of a rival CTA card. */
+  showBusinessEntry?: boolean;
 }
 
-interface SettingsRowProps {
-  icon: ReactNode;
-  label: string;
-  hint?: string;
-  onClick?: () => void;
-  href?: string;
-}
-
-function SettingsRow({ icon, label, hint, onClick, href }: SettingsRowProps) {
-  const inner = (
-    <>
-      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)]">
-        {icon}
-      </span>
-      <span className="min-w-0 flex-1 text-left">
-        <span className="block text-sm font-medium text-[var(--vauto-text-main)]">
-          {label}
-        </span>
-        {hint ? (
-          <span className="block truncate text-xs text-[var(--vauto-text-muted)]">
-            {hint}
-          </span>
-        ) : null}
-      </span>
-      <ChevronRight className="h-4 w-4 shrink-0 text-[var(--vauto-text-muted)]" />
-    </>
-  );
-
-  const className =
-    "flex w-full items-center gap-3 px-4 py-3 transition hover:bg-[color-mix(in_srgb,var(--vauto-primary)_4%,transparent)]";
-
-  if (href) {
-    return (
-      <Link href={href} className={className}>
-        {inner}
-      </Link>
-    );
-  }
-
-  return (
-    <button type="button" onClick={onClick} className={className}>
-      {inner}
-    </button>
-  );
-}
-
-export function ProfileSettingsMenu({ user }: ProfileSettingsMenuProps) {
+export function ProfileSettingsMenu({
+  user,
+  showBusinessEntry = false,
+}: ProfileSettingsMenuProps) {
   const { showToast } = useVauto();
   const nativeApp = isNativeApp();
   const credits = getReferralCredits(user);
@@ -87,45 +52,57 @@ export function ProfileSettingsMenu({ user }: ProfileSettingsMenuProps) {
   };
 
   return (
-    <nav
-      className="overflow-hidden rounded-2xl border border-[var(--vauto-border)] bg-[var(--vauto-card-bg)]"
-      aria-label="Profilio nustatymai"
-    >
-      <SettingsRow
-        icon={<Gift className="h-4 w-4 text-[var(--vauto-orange)]" />}
-        label="Pakviesk draugą"
-        hint={
-          credits > 0
-            ? `Turite ${credits} apsaugos kreditą · dalintis`
-            : "Gauk nemokamą pirkėjo apsaugą"
-        }
-        onClick={() => void handleReferral()}
-      />
-      <div className="h-px bg-[var(--vauto-border)]" />
-      <SettingsRow
-        icon={<Sparkles className="h-4 w-4 text-[var(--vauto-teal)]" />}
-        label="AI Asistento nustatymai"
-        hint="Dydžiai, automobilis, Magic Mirror"
-        href="/profile/?tab=ai"
-      />
-      <div className="h-px bg-[var(--vauto-border)]" />
-      <SettingsRow
-        icon={<Settings2 className="h-4 w-4 text-[var(--vauto-primary)]" />}
-        label="Programėlės nustatymai"
-        hint="Tema, privatumas, pranešimai"
-        href="/profile/settings/"
-      />
-      {!nativeApp && (
-        <>
-          <div className="h-px bg-[var(--vauto-border)]" />
+    <div className="space-y-4">
+      <SettingsGroup label="Nustatymai" ariaLabel="Profilio nustatymai">
+        <SettingsControlRow
+          icon={<Palette className="h-4 w-4 text-[var(--vauto-primary)]" />}
+          label="Tema"
+          hint="Originali · Tamsi · Minimali"
+        >
+          <ThemeSwatchStrip />
+        </SettingsControlRow>
+        <SettingsRow
+          icon={<Sparkles className="h-4 w-4 text-[var(--vauto-primary)]" />}
+          label="AI asistentas"
+          hint="Dydžiai, automobilis, pomėgiai"
+          href="/profile/?tab=ai"
+        />
+        <SettingsRow
+          icon={<Settings2 className="h-4 w-4 text-[var(--vauto-primary)]" />}
+          label="Paskyra ir privatumas"
+          hint="Privatumas, pranešimai, mokėjimai"
+          href="/profile/settings/"
+        />
+      </SettingsGroup>
+
+      <SettingsGroup label="Daugiau" ariaLabel="Papildomos nuorodos">
+        <SettingsRow
+          icon={<Gift className="h-4 w-4 text-[var(--vauto-orange)]" />}
+          label="Pakviesk draugą"
+          hint={
+            credits > 0
+              ? `Turite ${credits} apsaugos kreditą`
+              : "Gauk nemokamą pirkėjo apsaugą"
+          }
+          onClick={() => void handleReferral()}
+        />
+        {showBusinessEntry ? (
+          <SettingsRow
+            icon={<Building2 className="h-4 w-4 text-[var(--vauto-primary)]" />}
+            label="VAUTO Verslui"
+            hint="Analitika, Social Engine, bulk įkėlimas"
+            href="/verslui/"
+          />
+        ) : null}
+        {!nativeApp ? (
           <SettingsRow
             icon={<Smartphone className="h-4 w-4 text-[var(--vauto-primary)]" />}
             label="Atsisiųsti programėlę"
             hint="Android APK · iPhone PWA"
             href="/install/"
           />
-        </>
-      )}
-    </nav>
+        ) : null}
+      </SettingsGroup>
+    </div>
   );
 }

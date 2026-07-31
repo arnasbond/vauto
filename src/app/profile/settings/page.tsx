@@ -1,9 +1,8 @@
 "use client";
 
-import Link from "next/link";
-import { Suspense, useEffect } from "react";
+import { Suspense, useEffect, type ReactNode } from "react";
 import { useSearchParams } from "next/navigation";
-import { ArrowLeft, BarChart3 } from "lucide-react";
+import { Activity, BarChart3, CreditCard } from "lucide-react";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { PaymentHistorySection } from "@/components/billing/PaymentHistorySection";
 import { SavedListingsSection } from "@/components/dashboard/SavedListingsSection";
@@ -11,7 +10,6 @@ import { WishlistSection } from "@/components/wishlist/WishlistSection";
 import { UserSupportInbox } from "@/components/support/UserSupportInbox";
 import { SellerTrustCard } from "@/components/trust/SellerTrustCard";
 import { ProfileBusinessPanel } from "@/components/profile/ProfileBusinessPanel";
-import { ProfileAccordion } from "@/components/profile/ProfileAccordion";
 import {
   PrivacySettingsCard,
   PushAlertsSettingsCard,
@@ -23,10 +21,26 @@ import { AiPreferenceCenter } from "@/components/profile/AiPreferenceCenter";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { AppVersionStatusCard } from "@/components/version/AppVersionStatusCard";
 import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
+import { Disclosure, PageHeader, Panel } from "@/components/ui/surface";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { useVauto } from "@/context/VautoContext";
+
+function SettingsSection({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <section>
+      <p className="vauto-group-label">{label}</p>
+      <div className="space-y-3">{children}</div>
+    </section>
+  );
+}
 
 function ListingContactFocusBanner() {
   const searchParams = useSearchParams();
@@ -54,14 +68,16 @@ function ListingContactFocusBanner() {
   if (focus !== "phone" && focus !== "city") return null;
 
   return (
-    <div
+    <Panel
       id={focus === "phone" ? "profile-focus-phone" : "profile-focus-city"}
-      className="mb-4 rounded-2xl border border-[var(--vauto-primary)]/30 bg-[color-mix(in_srgb,var(--vauto-primary)_10%,transparent)] px-4 py-3 text-sm text-[var(--vauto-text-main)]"
-    >
-      {focus === "phone"
-        ? "Skelbimui reikia telefono iš profilio. Atnaujinkite numerį žemiau (privatumo / paskyros nustatymuose) ir grįžkite į asistentą."
-        : "Skelbimui reikia miesto iš profilio. Atnaujinkite miestą ir grįžkite į asistentą."}
-    </div>
+      tone="accent"
+      className="mb-4"
+      description={
+        focus === "phone"
+          ? "Skelbimui reikia telefono iš profilio. Atnaujinkite numerį žemiau ir grįžkite į asistentą."
+          : "Skelbimui reikia miesto iš profilio. Atnaujinkite miestą ir grįžkite į asistentą."
+      }
+    />
   );
 }
 
@@ -77,6 +93,7 @@ export default function ProfileSettingsPage() {
   } = useVauto();
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
+  const showBusinessBlock = user.role === "pro" || isSuperAdminUser(user);
 
   if (!authHydrated) {
     return (
@@ -99,86 +116,92 @@ export default function ProfileSettingsPage() {
   return (
     <ProfileViewProvider>
       <DashboardShell>
-        <Link
-          href="/profile/"
-          className="mb-4 inline-flex items-center gap-1 text-sm text-[var(--vauto-text-muted)] hover:text-[var(--vauto-text-main)]"
-        >
-          <ArrowLeft className="h-4 w-4" />
-          Profilis
-        </Link>
-
-        <h1 className="mb-4 text-lg font-bold text-[var(--vauto-text-main)]">
-          Nustatymai
-        </h1>
+        <PageHeader
+          title="Nustatymai"
+          subtitle="Išvaizda, AI asistentas, privatumas ir mokėjimai"
+          backHref="/profile/"
+          backLabel="Profilis"
+        />
 
         <Suspense fallback={null}>
           <ListingContactFocusBanner />
         </Suspense>
 
-        <div className="space-y-3">
-          <ThemeSettingsCard />
-          <AiPreferenceCenter embedded />
-          <AiPersonalizationSurveyCard embedded />
-          <PrivacySettingsCard />
-          <SocialSyncSettingsCard />
-          <PushAlertsSettingsCard />
-          <ConnectionStatusCard />
-          <AppVersionStatusCard />
-        </div>
+        <div className="space-y-6">
+          <SettingsSection label="Išvaizda">
+            <ThemeSettingsCard />
+          </SettingsSection>
 
-        <section className="vauto-dashboard-card mt-4 rounded-2xl p-4">
-          <p className="text-xs font-semibold uppercase tracking-wide text-[var(--vauto-text-muted)]">
-            Mokėjimai
-          </p>
-          <h2 className="mb-2 text-base font-bold text-[var(--vauto-text)]">
-            Prenumerata ir kortelės
-          </h2>
-          <p className="mb-3 text-sm text-[var(--vauto-text-muted)]">
-            Tvarkykite Stripe prenumeratą, mokėjimo būdus ir sąskaitas neišeidami iš VAUTO.
-          </p>
-          <div className="flex flex-wrap gap-2">
-            <button
-              type="button"
-              disabled={!apiActive}
-              onClick={() => void openBillingPortal()}
-              className="rounded-xl bg-[var(--vauto-teal)] px-4 py-2.5 text-sm font-semibold text-white disabled:opacity-50"
+          <SettingsSection label="AI asistentas">
+            <AiPreferenceCenter embedded />
+            <AiPersonalizationSurveyCard embedded />
+          </SettingsSection>
+
+          <SettingsSection label="Privatumas ir pranešimai">
+            <PrivacySettingsCard />
+            <SocialSyncSettingsCard />
+            <PushAlertsSettingsCard />
+          </SettingsSection>
+
+          <SettingsSection label="Mokėjimai">
+            <Panel
+              icon={<CreditCard className="h-4 w-4 text-[var(--vauto-primary)]" />}
+              title="Prenumerata ir kortelės"
+              description="Tvarkykite Stripe prenumeratą, mokėjimo būdus ir sąskaitas neišeidami iš VAUTO."
             >
-              Tvarkyti prenumeratą
-            </button>
-          </div>
-          <div className="mt-4">
+              <button
+                type="button"
+                disabled={!apiActive}
+                onClick={() => void openBillingPortal()}
+                className="rounded-xl bg-[var(--vauto-primary)] px-4 py-2.5 text-sm font-semibold text-[var(--vauto-primary-contrast,#fff)] disabled:opacity-50"
+              >
+                Tvarkyti prenumeratą
+              </button>
+            </Panel>
             <PaymentHistorySection user={user} refreshKey={paymentHistoryVersion} />
-          </div>
-        </section>
+          </SettingsSection>
 
-        {(user.role === "pro" || isSuperAdminUser(user)) && (
-          <ProfileAccordion
-            title="Verslo kabinetas"
-            subtitle="Analitika, mokėjimai, palaikymas"
-            icon={<BarChart3 className="h-5 w-5 text-[var(--vauto-primary)]" />}
-            defaultOpen={false}
-          >
-            <SellerTrustCard user={user} listings={listings} />
-            <ProfileBusinessPanel
-              user={user}
-              listings={myListings}
-              allListings={listings}
-              onRenew={(id) => void renewListing(id)}
-            />
-            <SavedListingsSection />
-            <WishlistSection />
-            <Suspense
-              fallback={
-                <div className="vauto-dashboard-card rounded-2xl p-4 text-xs text-[var(--vauto-text-muted)]">
-                  Kraunami pranešimai…
-                </div>
-              }
+          <SettingsSection label="Sistema">
+            <Disclosure
+              title="Ryšys ir versija"
+              subtitle="API būsena, programėlės versija, diagnostika"
+              icon={<Activity className="h-4 w-4 text-[var(--vauto-primary)]" />}
             >
-              <UserSupportInbox />
-            </Suspense>
-            <SystemDiagnosticsCard />
-          </ProfileAccordion>
-        )}
+              <ConnectionStatusCard />
+              <AppVersionStatusCard />
+              {showBusinessBlock ? <SystemDiagnosticsCard /> : null}
+            </Disclosure>
+          </SettingsSection>
+
+          {showBusinessBlock && (
+            <SettingsSection label="Verslas">
+              <Disclosure
+                title="Verslo kabinetas"
+                subtitle="Analitika, pasitikėjimas, išsaugoti skelbimai, pranešimai"
+                icon={<BarChart3 className="h-4 w-4 text-[var(--vauto-primary)]" />}
+              >
+                <SellerTrustCard user={user} listings={listings} />
+                <ProfileBusinessPanel
+                  user={user}
+                  listings={myListings}
+                  allListings={listings}
+                  onRenew={(id) => void renewListing(id)}
+                />
+                <SavedListingsSection />
+                <WishlistSection />
+                <Suspense
+                  fallback={
+                    <p className="vauto-panel vauto-panel--nested p-4 text-xs text-[var(--vauto-text-muted)]">
+                      Kraunami pranešimai…
+                    </p>
+                  }
+                >
+                  <UserSupportInbox />
+                </Suspense>
+              </Disclosure>
+            </SettingsSection>
+          )}
+        </div>
       </DashboardShell>
     </ProfileViewProvider>
   );

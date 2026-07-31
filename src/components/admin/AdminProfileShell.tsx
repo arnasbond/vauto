@@ -1,33 +1,19 @@
 "use client";
 
-import { Suspense, useEffect, useMemo, useState } from "react";
+import { Suspense, useCallback, useEffect, useMemo, useState } from "react";
 import Link from "next/link";
-import { useSearchParams } from "next/navigation";
-import { ChevronDown, Pencil, Sparkles } from "lucide-react";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AdminReportInbox } from "@/components/admin/AdminReportInbox";
 import { AdminListingModeration } from "@/components/admin/AdminListingModeration";
 import { AdminAccountPanel } from "@/components/admin/AdminAccountPanel";
 import { AdminGeminiContextPanel } from "@/components/admin/AdminGeminiContextPanel";
 import { AdminOpsPanel } from "@/components/admin/AdminOpsPanel";
-import {
-  ADMIN_GEMINI_BUILD,
-  AdminGeminiUploadPanel,
-} from "@/components/admin/AdminGeminiUploadPanel";
+import { SegmentedTabs, type SegmentedTabItem } from "@/components/ui/surface";
 import { useVauto } from "@/context/VautoContext";
 import { useAdminProjectContext } from "@/context/AdminProjectContext";
 import { useAuth } from "@/context/AuthContext";
 
 type AdminTab = "ops" | "moderation" | "listings" | "agent" | "account";
-
-const GEMINI_COLLAPSED_STORAGE_KEY = "vauto_admin_gemini_collapsed_v1";
-
-const ADMIN_TABS: { id: AdminTab; label: string; shortLabel: string }[] = [
-  { id: "ops", label: "Būsena", shortLabel: "Sistema" },
-  { id: "moderation", label: "Pranešimai", shortLabel: "Praneš." },
-  { id: "listings", label: "Skelbimai", shortLabel: "Skelbimai" },
-  { id: "agent", label: "AI kontekstas", shortLabel: "Gemini" },
-  { id: "account", label: "Mano paskyra", shortLabel: "Paskyra" },
-];
 
 function parseAdminTab(raw: string | null): AdminTab | null {
   if (
@@ -45,10 +31,12 @@ function parseAdminTab(raw: string | null): AdminTab | null {
 }
 
 export function AdminProfileShell() {
+  const router = useRouter();
+  const pathname = usePathname();
   const searchParams = useSearchParams();
-  const initialTab = parseAdminTab(searchParams.get("tab")) ?? "moderation";
-  const [tab, setTab] = useState<AdminTab>(initialTab);
-  const [geminiCollapsed, setGeminiCollapsed] = useState(false);
+  const [tab, setTab] = useState<AdminTab>(
+    () => parseAdminTab(searchParams.get("tab")) ?? "moderation"
+  );
   const { logout } = useAuth();
   const { listings } = useVauto();
   const geminiCtx = useAdminProjectContext();
@@ -63,146 +51,80 @@ export function AdminProfileShell() {
     if (fromUrl) setTab(fromUrl);
   }, [searchParams]);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    setGeminiCollapsed(sessionStorage.getItem(GEMINI_COLLAPSED_STORAGE_KEY) === "1");
-  }, []);
+  // Tabs stay bookmarkable / shareable — admins swap context via URL.
+  const handleTabChange = useCallback(
+    (next: AdminTab) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      params.set("tab", next);
+      params.delete("report");
+      router.replace(`${pathname || "/profile/"}?${params.toString()}`);
+    },
+    [pathname, router, searchParams]
+  );
 
-  const collapseGemini = () => {
-    setGeminiCollapsed(true);
-    if (typeof window !== "undefined") {
-      sessionStorage.setItem(GEMINI_COLLAPSED_STORAGE_KEY, "1");
-    }
-  };
-
-  const expandGemini = () => {
-    setGeminiCollapsed(false);
-    if (typeof window !== "undefined") {
-      sessionStorage.removeItem(GEMINI_COLLAPSED_STORAGE_KEY);
-    }
-  };
+  const tabs = useMemo<SegmentedTabItem<AdminTab>[]>(
+    () => [
+      { id: "moderation", label: "Pranešimai", shortLabel: "Praneš." },
+      {
+        id: "listings",
+        label: "Skelbimai",
+        shortLabel: "Skelb.",
+        badge: pendingReviewCount,
+      },
+      { id: "ops", label: "Sistemos būsena", shortLabel: "Sistema" },
+      { id: "agent", label: "AI kontekstas", shortLabel: "AI" },
+      { id: "account", label: "Mano paskyra", shortLabel: "Paskyra" },
+    ],
+    [pendingReviewCount]
+  );
 
   const geminiChars = geminiCtx?.contextText.length ?? 0;
 
   return (
     <div className="vauto-dashboard min-h-dvh pb-24">
-      <div className="border-b border-indigo-100 bg-indigo-50/80 px-4 py-2">
-        {geminiCollapsed ? (
-          <div className="flex items-center justify-between gap-3 py-1">
-            <div className="min-w-0 flex-1">
-              <p className="truncate text-xs font-semibold text-indigo-800">
-                Gemini AI kontekstas
-                {geminiChars > 0
-                  ? ` · ${geminiChars.toLocaleString("lt-LT")} simb.`
-                  : " · tuščias"}
-              </p>
-            </div>
-            <button
-              type="button"
-              onClick={expandGemini}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-indigo-700"
-            >
-              <Pencil className="h-3.5 w-3.5" />
-              Redaguoti AI kontekstą
-            </button>
-          </div>
-        ) : (
-          <>
-            <div className="mb-2 flex items-center justify-between gap-2">
-              <p className="text-xs font-semibold uppercase tracking-wide text-indigo-700">
-                Gemini AI kontekstas
-              </p>
-              <div className="flex items-center gap-2">
-                <span className="rounded-full bg-indigo-100 px-2 py-0.5 font-mono text-[10px] text-indigo-700">
-                  {ADMIN_GEMINI_BUILD}
-                </span>
-                <button
-                  type="button"
-                  onClick={collapseGemini}
-                  className="rounded-lg p-1 text-indigo-600 hover:bg-indigo-100"
-                  aria-label="Suskleisti Gemini kontekstą"
-                >
-                  <ChevronDown className="h-4 w-4" />
-                </button>
-              </div>
-            </div>
-            <AdminGeminiUploadPanel compact onSaved={collapseGemini} />
-            <Link
-              href="/admin/ai/"
-              className="mt-2 block text-center text-xs font-semibold text-indigo-700 underline"
-            >
-              Atidaryti pilną Gemini puslapį →
-            </Link>
-          </>
-        )}
-      </div>
-
-      <div className="sticky top-0 z-10 border-b border-slate-200 bg-white/95 px-4 py-3 backdrop-blur">
-        <h1 className="text-lg font-bold text-slate-900">Administratorius</h1>
-        <p className="mt-0.5 text-xs text-slate-500">
-          VAUTO Control Center — slinkite skirtukus į šoną, jei nematote visų.
-        </p>
-        <div className="mt-3 -mx-1 overflow-x-auto px-1 pb-1 scrollbar-hide">
-          <div className="flex w-max min-w-full gap-2">
-            {ADMIN_TABS.map((item) => (
-              <button
-                key={item.id}
-                type="button"
-                onClick={() => setTab(item.id)}
-                className={`shrink-0 rounded-full px-4 py-2 text-xs font-semibold whitespace-nowrap ${
-                  tab === item.id
-                    ? "bg-[var(--vauto-teal)] text-white shadow-sm"
-                    : "bg-slate-100 text-slate-600"
-                }`}
-              >
-                <span className="sm:hidden">{item.shortLabel}</span>
-                <span className="hidden sm:inline">{item.label}</span>
-                {item.id === "listings" && pendingReviewCount > 0 ? (
-                  <span className="ml-1.5 inline-flex min-w-[1.1rem] items-center justify-center rounded-full bg-amber-500 px-1.5 py-0.5 text-[10px] font-bold text-white">
-                    {pendingReviewCount}
-                  </span>
-                ) : null}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+      <header className="sticky top-0 z-10 border-b border-[var(--vauto-border)] bg-[color-mix(in_srgb,var(--vauto-card-bg)_92%,transparent)] px-4 py-3 backdrop-blur">
+        <h1 className="vauto-page-title">Control Center</h1>
+        <p className="vauto-page-subtitle">VAUTO administratoriaus valdymas</p>
+        <SegmentedTabs
+          items={tabs}
+          value={tab}
+          onChange={handleTabChange}
+          ariaLabel="Administratoriaus skirtukai"
+          className="mt-3"
+        />
+      </header>
 
       {tab === "ops" ? (
         <AdminOpsPanel />
       ) : tab === "moderation" ? (
-        <>
-          <button
-            type="button"
-            onClick={() => setTab("agent")}
-            className="mx-4 mt-4 flex w-[calc(100%-2rem)] items-center gap-3 rounded-2xl border border-indigo-200 bg-gradient-to-r from-indigo-50 to-violet-50 px-4 py-3 text-left shadow-sm transition hover:border-indigo-300"
-          >
-            <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-indigo-600 text-white">
-              <Sparkles className="h-4 w-4" />
-            </span>
-            <span>
-              <span className="block text-sm font-semibold text-slate-900">
-                Gemini pokalbių istorija
-              </span>
-              <span className="block text-xs text-slate-600">
-                Atidaryti AI konteksto įkėlimą →
-              </span>
-            </span>
-          </button>
-          <Suspense
-            fallback={
-              <div className="flex min-h-[40vh] items-center justify-center text-slate-500">
-                Kraunama moderacija…
-              </div>
-            }
-          >
-            <AdminReportInbox embedded />
-          </Suspense>
-        </>
+        <Suspense
+          fallback={
+            <p className="py-16 text-center text-sm text-[var(--vauto-text-muted)]">
+              Kraunama moderacija…
+            </p>
+          }
+        >
+          <AdminReportInbox embedded />
+        </Suspense>
       ) : tab === "listings" ? (
         <AdminListingModeration />
       ) : tab === "agent" ? (
-        <div className="pb-8">
+        <div className="space-y-3 px-4 pt-4 pb-8">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="vauto-panel-eyebrow">
+              Gemini kontekstas
+              {geminiChars > 0
+                ? ` · ${geminiChars.toLocaleString("lt-LT")} simb.`
+                : " · tuščias"}
+            </p>
+            <Link
+              href="/admin/ai/"
+              className="text-xs font-semibold text-[var(--vauto-primary)] underline-offset-4 hover:underline"
+            >
+              Pilnas puslapis →
+            </Link>
+          </div>
           <AdminGeminiContextPanel />
         </div>
       ) : (

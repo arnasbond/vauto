@@ -2959,3 +2959,270 @@ body.chameleon-wardrobe .listing-wizard-overlay [data-form-appearance="light"] s
 .listing-card-btn--span2 {
   grid-column: span 2;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   VAUTO Clean UI — spacing / radius / elevation scale + surface primitives
+   Used by src/components/ui/surface/*. Prefer these over ad-hoc borders,
+   shadows and paddings so Profilis / Verslas / Control Center look identical.
+   ═══════════════════════════════════════════════════════════════════════════ */
+:root {
+  --vauto-space-1: 0.25rem;
+  --vauto-space-2: 0.5rem;
+  --vauto-space-3: 0.75rem;
+  --vauto-space-4: 1rem;
+  --vauto-space-5: 1.25rem;
+  --vauto-space-6: 1.5rem;
+  --vauto-space-8: 2rem;
+
+  --vauto-radius-chip: 999px;
+  --vauto-radius-control: 0.75rem;
+  --vauto-radius-panel: 1rem;
+  --vauto-radius-panel-lg: 1.25rem;
+
+  --vauto-elev-0: none;
+  --vauto-elev-1: 0 1px 2px rgba(11, 18, 32, 0.05);
+  --vauto-elev-2: 0 10px 30px -18px rgba(11, 18, 32, 0.22);
+}
+
+/* ── Panel: the single card shell for every dashboard surface ── */
+.vauto-panel {
+  position: relative;
+  border-radius: var(--vauto-radius-panel);
+  border: 1px solid var(--vauto-border);
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-main);
+  box-shadow: var(--vauto-elev-1);
+  transition:
+    background-color var(--vauto-motion),
+    border-color var(--vauto-motion),
+    box-shadow var(--vauto-motion);
+}
+
+/* Nested inside another panel — never stack shadows */
+.vauto-panel--nested {
+  border-color: var(--vauto-border);
+  background: var(--vauto-surface-muted);
+  box-shadow: var(--vauto-elev-0);
+}
+
+/* Structural container with no chrome at all */
+.vauto-panel--quiet {
+  border-color: transparent;
+  background: transparent;
+  box-shadow: var(--vauto-elev-0);
+}
+
+.vauto-panel--accent {
+  border-color: color-mix(in srgb, var(--vauto-primary) 28%, var(--vauto-border));
+  background: color-mix(in srgb, var(--vauto-primary) 5%, var(--vauto-card-bg));
+}
+
+.vauto-panel--danger {
+  border-color: color-mix(in srgb, var(--vauto-red) 32%, var(--vauto-border));
+  background: color-mix(in srgb, var(--vauto-red) 5%, var(--vauto-card-bg));
+}
+
+[data-app-theme="light-minimal"] .vauto-panel {
+  border-color: transparent;
+  box-shadow: 0 4px 24px -10px rgba(15, 23, 42, 0.1);
+}
+
+[data-app-theme="light-minimal"] .vauto-panel--nested,
+[data-app-theme="light-minimal"] .vauto-panel--quiet {
+  box-shadow: var(--vauto-elev-0);
+}
+
+.vauto-panel-eyebrow {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vauto-text-muted);
+}
+
+.vauto-panel-title {
+  font-size: 0.9375rem;
+  font-weight: 650;
+  letter-spacing: -0.012em;
+  color: var(--vauto-text-heading);
+}
+
+.vauto-panel-desc {
+  font-size: 0.75rem;
+  line-height: 1.55;
+  color: var(--vauto-text-muted);
+}
+
+/* ── Grouped list (Apple Settings style) ── */
+.vauto-group {
+  overflow: hidden;
+  border-radius: var(--vauto-radius-panel);
+  border: 1px solid var(--vauto-border);
+  background: var(--vauto-card-bg);
+  box-shadow: var(--vauto-elev-1);
+}
+
+[data-app-theme="light-minimal"] .vauto-group {
+  border-color: transparent;
+  box-shadow: 0 4px 24px -10px rgba(15, 23, 42, 0.1);
+}
+
+.vauto-group-label {
+  padding: 0 var(--vauto-space-1) var(--vauto-space-2);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--vauto-text-muted);
+}
+
+.vauto-group-row {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: var(--vauto-space-3);
+  padding: var(--vauto-space-3) var(--vauto-space-4);
+  text-align: left;
+  transition: background-color 0.15s ease;
+}
+
+.vauto-group-row + .vauto-group-row {
+  border-top: 1px solid var(--vauto-border);
+}
+
+.vauto-group-row--interactive:hover {
+  background: color-mix(in srgb, var(--vauto-primary) 5%, transparent);
+}
+
+.vauto-group-row-icon {
+  display: flex;
+  height: 2rem;
+  width: 2rem;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.625rem;
+  background: color-mix(in srgb, var(--vauto-primary) 9%, transparent);
+}
+
+/* ── Segmented control (one tab style app-wide) ── */
+.vauto-segmented {
+  display: flex;
+  gap: 0.25rem;
+  width: max-content;
+  min-width: 100%;
+  padding: 0.25rem;
+  border-radius: var(--vauto-radius-chip);
+  background: var(--vauto-surface-muted);
+}
+
+.vauto-segmented-btn {
+  display: inline-flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  gap: 0.375rem;
+  border-radius: var(--vauto-radius-chip);
+  padding: 0.4375rem 0.875rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  white-space: nowrap;
+  color: var(--vauto-text-muted);
+  transition:
+    background-color 0.18s ease,
+    color 0.18s ease,
+    box-shadow 0.18s ease;
+}
+
+.vauto-segmented-btn:hover:not(.vauto-segmented-btn--active) {
+  color: var(--vauto-text-main);
+}
+
+.vauto-segmented-btn--active {
+  background: var(--vauto-card-bg);
+  color: var(--vauto-text-heading);
+  box-shadow: var(--vauto-elev-1);
+}
+
+.vauto-segmented-badge {
+  display: inline-flex;
+  min-width: 1.125rem;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--vauto-radius-chip);
+  padding: 0 0.3125rem;
+  font-size: 0.625rem;
+  font-weight: 700;
+  background: var(--vauto-primary);
+  color: var(--vauto-primary-contrast, #fff);
+}
+
+/* ── KPI tile ── */
+.vauto-stat {
+  border-radius: var(--vauto-radius-control);
+  border: 1px solid var(--vauto-border);
+  background: var(--vauto-surface-muted);
+  padding: var(--vauto-space-3);
+}
+
+.vauto-stat-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  color: var(--vauto-text-muted);
+}
+
+.vauto-stat-value {
+  margin-top: 0.125rem;
+  font-size: 1.125rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--vauto-text-heading);
+  font-variant-numeric: tabular-nums;
+}
+
+.vauto-stat-hint {
+  margin-top: 0.125rem;
+  font-size: 0.625rem;
+  color: var(--vauto-text-muted);
+}
+
+/* ── Page header ── */
+.vauto-page-title {
+  font-size: 1.25rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+  color: var(--vauto-text-heading);
+}
+
+.vauto-page-subtitle {
+  margin-top: 0.125rem;
+  font-size: 0.8125rem;
+  color: var(--vauto-text-muted);
+}
+
+/* ── Buttons: one destructive treatment everywhere ── */
+.vauto-btn-danger {
+  border-radius: var(--vauto-radius-control);
+  border: 1px solid var(--vauto-red);
+  background: var(--vauto-red);
+  color: #fff;
+  font-weight: 600;
+  transition: filter 0.15s ease;
+}
+
+.vauto-btn-danger:hover:not(:disabled) {
+  filter: brightness(0.92);
+}
+
+.vauto-btn-quiet {
+  border-radius: var(--vauto-radius-control);
+  border: 1px solid var(--vauto-border);
+  background: transparent;
+  color: var(--vauto-text-main);
+  font-weight: 600;
+  transition: background-color 0.15s ease;
+}
+
+.vauto-btn-quiet:hover:not(:disabled) {
+  background: color-mix(in srgb, var(--vauto-text-main) 6%, transparent);
+}
