@@ -60,6 +60,11 @@ import {
 } from "@/lib/chat-push";
 import { ensureWebPushSubscription } from "@/lib/web-push";
 import { logHeroFirstResponseSignal } from "@/lib/hero-kpis";
+import {
+  buildListingBoundChatId,
+  dedupeListingBoundChats,
+  findListingBoundChat,
+} from "@/lib/chat-thread-id";
 import type { ChatMessage, ChatThread, EscrowTransaction, Listing, NegotiationTwinConfig } from "@/lib/types";
 
 interface ChatContextValue {
@@ -123,12 +128,26 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
           return;
         }
-        // Server may append FAQ / twin replies — fold them in immediately so
-        // the sender sees them without waiting for SSE/poll.
-        if (r.data && remoteThreadHasUpdates(thread, r.data)) {
-          const merged = mergeChatThreads(thread, r.data);
-          setChats((prev) => mergeThreadUpdate(prev, merged));
-          publishChatEvent({ type: "CHAT_UPSERT", thread: merged });
+        if (!r.data) return;
+        const serverThread = r.data;
+        const idChanged = serverThread.id !== thread.id;
+        const hasUpdates = remoteThreadHasUpdates(thread, serverThread);
+        if (!idChanged && !hasUpdates) return;
+
+        const merged = mergeChatThreads(thread, {
+          ...serverThread,
+          id: serverThread.id,
+        });
+        setChats((prev) => {
+          let next = prev;
+          if (idChanged) {
+            next = prev.filter((c) => c.id !== thread.id);
+          }
+          return dedupeListingBoundChats(mergeThreadUpdate(next, merged));
+        });
+        publishChatEvent({ type: "CHAT_UPSERT", thread: merged });
+        if (idChanged && activeChatIdRef.current === thread.id) {
+          activeChatIdRef.current = serverThread.id;
         }
       });
     },
@@ -161,7 +180,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     async function load() {
       if (apiActive && user.id && user.id !== "guest") {
         const res = await apiFetchChats(user.id);
-        if (res.ok) setChats(res.data);
+        if (res.ok) setChats(dedupeListingBoundChats(res.data));
       } else {
         const stored = loadChats();
         if (stored?.length) {
@@ -171,7 +190,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
                   (c) => c.buyerId === user.id || c.sellerId === user.id
                 )
               : stored;
-          if (mine.length) setChats(mine);
+          if (mine.length) setChats(dedupeListingBoundChats(mine));
         }
       }
       if (isAuthenticated && user.id !== "guest") {
@@ -337,7 +356,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           byId.set(remote.id, merged);
           publishChatEvent({ type: "CHAT_UPSERT", thread: merged });
         }
-        return Array.from(byId.values());
+        return dedupeListingBoundChats(Array.from(byId.values()));
       });
 
       for (const alert of alerts) {
@@ -724,12 +743,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         openAuthModal(listingPath(listing));
         return null;
       }
-      const existing = chats.find(
-        (c) => c.listingId === listingId && c.buyerId === user.id
+      const existing = findListingBoundChat(
+        chats,
+        user.id,
+        listing.sellerId,
+        listingId
       );
       if (existing) return existing.id;
 
-      const chatId = `chat-${Date.now()}`;
+      const chatId = buildListingBoundChatId(
+        user.id,
+        listing.sellerId,
+        listingId
+      );
       const newChat: ChatThread = {
         id: chatId,
         listingId,
@@ -747,7 +773,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         ],
         escrowOffered: false,
       };
-      setChats((prev) => [newChat, ...prev]);
+      setChats((prev) =>
+        dedupeListingBoundChats([newChat, ...prev.filter((c) => c.id !== chatId)])
+      );
       publishChatEvent({ type: "CHAT_UPSERT", thread: newChat });
       bumpListingById(listingId, "chatStarts");
       trackListingEvent("contact", {

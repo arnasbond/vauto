@@ -23,6 +23,7 @@ import {
   type MagicMirrorFit,
 } from "@/lib/magic-mirror";
 import { getQuickQuestions } from "@/lib/chat-helpers";
+import { formatChatPrice, buildListingBoundChatId } from "@/lib/chat-thread-id";
 import { canReviewListing } from "@/lib/reviews";
 import {
   buildUserTrustScore,
@@ -63,7 +64,14 @@ function ChatThreadContent({
   const [peer, setPeer] = useState<ChatPeerCard | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const chat = chats.find((c) => c.id === chatId);
+  const chat =
+    chats.find((c) => c.id === chatId) ??
+    chats.find(
+      (c) =>
+        Boolean(c.listingId) &&
+        buildListingBoundChatId(c.buyerId, c.sellerId, c.listingId) === chatId
+    );
+  const resolvedChatId = chat?.id ?? chatId;
   const listing = listings.find((l) => l.id === chat?.listingId);
   const quickQuestions = getQuickQuestions(listing);
   const chatPreview = chat?.messages[chat.messages.length - 1]?.text;
@@ -77,6 +85,10 @@ function ChatThreadContent({
     listing &&
     chat.messages.length >= 3 &&
     canReviewListing(reviews, chat.listingId, user.id);
+
+  const listingPriceLabel = listing
+    ? formatChatPrice(listing.price)
+    : "";
 
   const peerName = useMemo(() => {
     if (!chat || !peerId) return isBuyer ? "Pardavėjas" : "Pirkėjas";
@@ -116,14 +128,14 @@ function ChatThreadContent({
   }, [isBuyer, chat, reviews, chats, listings]);
 
   useEffect(() => {
-    if (!chatId) return;
-    setActiveChatId(chatId);
+    if (!resolvedChatId) return;
+    setActiveChatId(resolvedChatId);
     const t = window.setTimeout(() => inputRef.current?.focus(), 80);
     return () => {
       window.clearTimeout(t);
       setActiveChatId(null);
     };
-  }, [chatId, setActiveChatId]);
+  }, [resolvedChatId, setActiveChatId]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -180,11 +192,12 @@ function ChatThreadContent({
 
   const handleSend = () => {
     if (!draft.trim()) return;
-    sendMessage(chatId, draft.trim());
+    sendMessage(resolvedChatId, draft.trim());
     setDraft("");
   };
 
   const roleLabel = isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis";
+  const listingTitle = listing?.title || chat.listingTitle;
 
   return (
     <div
@@ -194,62 +207,84 @@ function ChatThreadContent({
           : "mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6"
       }
     >
-      <div className="mb-3 flex shrink-0 items-center gap-2 border-b border-slate-200/80 pb-3">
+      <div className="mb-3 flex shrink-0 items-start gap-2 border-b border-slate-200/80 pb-3">
         {!embedded && (
           <Link
             href="/chats/"
-            className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
+            className="mt-1 rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
             aria-label="Atgal į pokalbius"
           >
             <ArrowLeft className="h-5 w-5" />
           </Link>
         )}
-        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[var(--vauto-border)]">
-          {peerAvatar ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              src={peerAvatar}
-              alt=""
-              className="h-full w-full object-cover"
-              width={40}
-              height={40}
-            />
-          ) : (
-            <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-[var(--vauto-text-muted)]">
-              {peerName.slice(0, 1).toUpperCase()}
-            </span>
-          )}
-        </div>
-        <div className="min-w-0 flex-1">
-          <h1 className="truncate text-sm font-semibold text-[var(--vauto-text)]">
-            {peerName}
-          </h1>
-          <p className="truncate text-[11px] text-[var(--vauto-text-muted)]">
-            {roleLabel}
-            {chat.listingTitle ? ` · ${chat.listingTitle}` : ""}
-          </p>
-        </div>
-        {listingThumb && listing ? (
+        {listing ? (
           <Link
             href={listingPath(listing as Listing)}
-            className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-[var(--vauto-border)]"
+            className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[var(--vauto-border)] bg-[var(--vauto-border)]"
             aria-label="Atidaryti skelbimą"
           >
+            {listingThumb ? (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={listingThumb}
+                alt=""
+                className="h-full w-full object-cover"
+                width={48}
+                height={48}
+              />
+            ) : (
+              <span className="flex h-full w-full items-center justify-center text-[10px] text-[var(--vauto-text-muted)]">
+                —
+              </span>
+            )}
+          </Link>
+        ) : listingThumb ? (
+          <div className="relative h-12 w-12 shrink-0 overflow-hidden rounded-xl border border-[var(--vauto-border)]">
             {/* eslint-disable-next-line @next/next/no-img-element */}
             <img
               src={listingThumb}
               alt=""
               className="h-full w-full object-cover"
-              width={40}
-              height={40}
+              width={48}
+              height={48}
             />
-          </Link>
+          </div>
         ) : null}
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-sm font-semibold text-[var(--vauto-text)]">
+            {listingTitle}
+          </h1>
+          <p className="truncate text-[11px] font-medium text-[var(--vauto-text)]">
+            {listingPriceLabel || "Kaina nenurodyta"}
+          </p>
+          <div className="mt-1 flex min-w-0 items-center gap-1.5">
+            <div className="relative h-5 w-5 shrink-0 overflow-hidden rounded-full bg-[var(--vauto-border)]">
+              {peerAvatar ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={peerAvatar}
+                  alt=""
+                  className="h-full w-full object-cover"
+                  width={20}
+                  height={20}
+                />
+              ) : (
+                <span className="flex h-full w-full items-center justify-center text-[9px] font-semibold text-[var(--vauto-text-muted)]">
+                  {peerName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+            </div>
+            <p className="truncate text-[11px] text-[var(--vauto-text-muted)]">
+              {peerName}
+              <span className="text-[var(--vauto-text-muted)]/80"> · {roleLabel}</span>
+            </p>
+          </div>
+        </div>
         <ReportButton
           variant="icon"
           listingId={chat.listingId}
           listingTitle={chat.listingTitle}
-          chatId={chat.id}
+          chatId={resolvedChatId}
           reportedUserId={reportedUserId}
           chatPreview={chatPreview}
         />
@@ -334,7 +369,7 @@ function ChatThreadContent({
             <button
               key={q}
               type="button"
-              onClick={() => sendMessage(chatId, q)}
+              onClick={() => sendMessage(resolvedChatId, q)}
               className="rounded-full border border-[var(--vauto-teal)]/30 bg-[var(--vauto-teal)]/10 px-3 py-1.5 text-xs font-medium text-[var(--vauto-teal)]"
             >
               {q}
@@ -348,17 +383,17 @@ function ChatThreadContent({
           chat={chat}
           listingPrice={listing.price}
           listingMinNegotiationPrice={listing.minNegotiationPrice}
-          onUpdate={(config) => updateNegotiationTwin(chatId, config)}
+          onUpdate={(config) => updateNegotiationTwin(resolvedChatId, config)}
           onSendTemplate={(templateId: TwinTemplateId, text: string) => {
-            sendMessage(chatId, text);
+            sendMessage(resolvedChatId, text);
             if (templateId === "escalate_human") {
               logAnalytics("twin_escalate", {
-                chatId,
+                chatId: resolvedChatId,
                 listingId: listing.id,
                 reason: "manual_chip",
               });
               const prev = chat.negotiationTwin;
-              updateNegotiationTwin(chatId, {
+              updateNegotiationTwin(resolvedChatId, {
                 enabled: false,
                 minPrice:
                   prev?.minPrice ?? listing.minNegotiationPrice ?? listing.price,

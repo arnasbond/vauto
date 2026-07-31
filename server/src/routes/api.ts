@@ -61,6 +61,7 @@ import {
   updateReportStatus,
   upsertReport,
   upsertChat,
+  findChatIdByListingParticipants,
   upsertEscrow,
   upsertUser,
   upsertUserPushToken,
@@ -1442,11 +1443,17 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
       return;
     }
 
-    const prev = await getChatThreadMeta(thread.id);
+    const canonicalId =
+      (await findChatIdByListingParticipants(
+        thread.buyerId,
+        thread.sellerId,
+        thread.listingId
+      )) ?? thread.id;
+    const prev = await getChatThreadMeta(canonicalId);
     const prevMsgCount = prev?.messageCount ?? 0;
     const nextMsgCount = thread.messages.length;
 
-    let outbound = thread;
+    let outbound = { ...thread, id: canonicalId };
 
     // Constitution L3: business after-hours FAQ auto-reply on buyer messages.
     if (nextMsgCount > prevMsgCount) {
@@ -1572,7 +1579,9 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
       }
     }
 
-    await upsertChat(outbound);
+    const saved = await upsertChat(outbound);
+    // Prefer DB-canonical id (listing-bound) over the client-proposed one.
+    outbound = { ...outbound, id: saved.id };
     res.json(outbound);
 
     publishChatStreamEvent([outbound.buyerId, outbound.sellerId], {
@@ -1590,14 +1599,14 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
               : thread.buyerId;
           if (recipientId) {
             await notifyIncomingChatMessage(recipientId, {
-              chatId: thread.id,
-              listingTitle: thread.listingTitle,
+              chatId: outbound.id,
+              listingTitle: outbound.listingTitle,
               senderLabel:
-                latest.senderId === thread.buyerId
+                latest.senderId === outbound.buyerId
                   ? "Nauja žinutė nuo pirkėjo"
                   : "Nauja žinutė nuo pardavėjo",
               preview: latest.text,
-              isBuyerMessage: latest.senderId === thread.buyerId,
+              isBuyerMessage: latest.senderId === outbound.buyerId,
               messageId: latest.id,
               messageCreatedAt: latest.timestamp,
             });
@@ -1605,12 +1614,12 @@ apiRouter.put("/chats", requireAuth, async (req: AuthedRequest, res) => {
         }
       }
 
-      if (thread.escrowOffered && prev && !prev.escrowOffered) {
+      if (outbound.escrowOffered && prev && !prev.escrowOffered) {
         await notifyNegotiationDealClosed(
-          [thread.buyerId, thread.sellerId],
+          [outbound.buyerId, outbound.sellerId],
           {
-            chatId: thread.id,
-            listingTitle: thread.listingTitle,
+            chatId: outbound.id,
+            listingTitle: outbound.listingTitle,
           }
         );
       }

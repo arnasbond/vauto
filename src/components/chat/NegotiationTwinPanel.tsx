@@ -35,8 +35,8 @@ function readCollapsedPreference(): boolean {
   } catch {
     /* ignore */
   }
-  // Mobile-first: start collapsed so the message list keeps the viewport.
-  return window.matchMedia("(max-width: 767px)").matches;
+  // Always start collapsed — expanded twin settings steal the mobile viewport.
+  return true;
 }
 
 export function NegotiationTwinPanel({

@@ -5,6 +5,7 @@ import {
 } from "./demo-catalog-api.js";
 import { isServerDemoCatalogEnabled } from "./demo-catalog-env.js";
 import { stripExpiredVisibilityAttributes } from "./shared/promote-catalog.js";
+import { buildListingBoundChatId } from "./shared/chat-thread-id.js";
 import {
   computeLaunchPromoExpiresAt,
   isLaunchPromoActive,
@@ -1744,7 +1745,22 @@ export async function shouldSendChatSmsFallback(
   return true;
 }
 
-export async function upsertChat(thread: ApiChatThread): Promise<void> {
+/** Resolve canonical thread id for buyer+seller+listing (listing-bound chats). */
+export async function findChatIdByListingParticipants(
+  buyerId: string,
+  sellerId: string,
+  listingId: string
+): Promise<string | null> {
+  const rows = await query<{ id: string }>(
+    `SELECT id FROM chat_threads
+     WHERE buyer_id = $1 AND seller_id = $2 AND listing_id = $3
+     LIMIT 1`,
+    [buyerId, sellerId, listingId]
+  );
+  return rows[0]?.id ?? null;
+}
+
+export async function upsertChat(thread: ApiChatThread): Promise<ApiChatThread> {
   await ensureUser(thread.buyerId);
   await ensureUser(thread.sellerId);
 
@@ -1765,21 +1781,55 @@ export async function upsertChat(thread: ApiChatThread): Promise<void> {
     await ensureUser(senderId);
   }
 
-  await query(
+  // Prefer existing listing-bound thread; never reuse another listing's id.
+  let preferredId =
+    (await findChatIdByListingParticipants(
+      thread.buyerId,
+      thread.sellerId,
+      thread.listingId
+    )) ?? thread.id;
+
+  if (preferredId === thread.id) {
+    const existingById = await query<{
+      listing_id: string;
+      buyer_id: string;
+      seller_id: string;
+    }>(
+      `SELECT listing_id, buyer_id, seller_id FROM chat_threads WHERE id = $1`,
+      [thread.id]
+    );
+    const row = existingById[0];
+    if (
+      row &&
+      (row.listing_id !== thread.listingId ||
+        row.buyer_id !== thread.buyerId ||
+        row.seller_id !== thread.sellerId)
+    ) {
+      preferredId = buildListingBoundChatId(
+        thread.buyerId,
+        thread.sellerId,
+        thread.listingId
+      );
+    }
+  }
+
+  const inserted = await query<{ id: string }>(
     `INSERT INTO chat_threads (
       id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
       last_read_at, sms_fallback_sent_for, updated_at
     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
-     ON CONFLICT (id) DO UPDATE SET
+     ON CONFLICT (buyer_id, seller_id, listing_id) DO UPDATE SET
+       listing_title = EXCLUDED.listing_title,
        escrow_offered = EXCLUDED.escrow_offered,
        last_read_at = EXCLUDED.last_read_at,
        sms_fallback_sent_for = COALESCE(
          EXCLUDED.sms_fallback_sent_for,
          chat_threads.sms_fallback_sent_for
        ),
-       updated_at = now()`,
+       updated_at = now()
+     RETURNING id`,
     [
-      thread.id,
+      preferredId,
       thread.listingId,
       thread.listingTitle,
       thread.buyerId,
@@ -1788,16 +1838,55 @@ export async function upsertChat(thread: ApiChatThread): Promise<void> {
       thread.lastReadAt ?? null,
       thread.smsFallbackSentFor ?? null,
     ]
-  );
+  ).catch(async () => {
+    // Fail-open before migration 034 unique index is applied.
+    return query<{ id: string }>(
+      `INSERT INTO chat_threads (
+        id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
+        last_read_at, sms_fallback_sent_for, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
+       ON CONFLICT (id) DO UPDATE SET
+         listing_title = EXCLUDED.listing_title,
+         escrow_offered = EXCLUDED.escrow_offered,
+         last_read_at = EXCLUDED.last_read_at,
+         sms_fallback_sent_for = COALESCE(
+           EXCLUDED.sms_fallback_sent_for,
+           chat_threads.sms_fallback_sent_for
+         ),
+         updated_at = now()
+       RETURNING id`,
+      [
+        preferredId,
+        thread.listingId,
+        thread.listingTitle,
+        thread.buyerId,
+        thread.sellerId,
+        thread.escrowOffered,
+        thread.lastReadAt ?? null,
+        thread.smsFallbackSentFor ?? null,
+      ]
+    );
+  });
 
-  await pool.query("DELETE FROM chat_messages WHERE thread_id = $1", [thread.id]);
+  const canonicalId = inserted[0]?.id ?? preferredId;
+  const outbound: ApiChatThread = { ...thread, id: canonicalId };
+
+  await pool.query("DELETE FROM chat_messages WHERE thread_id = $1", [
+    outbound.id,
+  ]);
   for (const m of messages) {
     await query(
       `INSERT INTO chat_messages (id, thread_id, sender_id, body, created_at, read_at)
-       VALUES ($1,$2,$3,$4,$5,$6)`,
+       VALUES ($1,$2,$3,$4,$5,$6)
+       ON CONFLICT (id) DO UPDATE SET
+         thread_id = EXCLUDED.thread_id,
+         sender_id = EXCLUDED.sender_id,
+         body = EXCLUDED.body,
+         created_at = EXCLUDED.created_at,
+         read_at = EXCLUDED.read_at`,
       [
         m.id,
-        thread.id,
+        outbound.id,
         m.senderId,
         m.text,
         m.timestamp,
@@ -1805,6 +1894,8 @@ export async function upsertChat(thread: ApiChatThread): Promise<void> {
       ]
     );
   }
+
+  return outbound;
 }
 
 export async function getReviews(): Promise<ApiReview[]> {
