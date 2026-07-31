@@ -1,8 +1,9 @@
 "use client";
 
-import { Suspense } from "react";
-import { LayoutDashboard, LogIn, Smartphone } from "lucide-react";
+import { Suspense, useCallback, useEffect, useState } from "react";
+import { LayoutDashboard, LogIn, Smartphone, Sparkles } from "lucide-react";
 import Link from "next/link";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { AdminProfileShell } from "@/components/admin/AdminProfileShell";
 import { BillingReturnToast } from "@/components/dashboard/BillingReturnToast";
 import { DashboardHeader } from "@/components/dashboard/DashboardHeader";
@@ -14,16 +15,65 @@ import { ProfileProViewToggle } from "@/components/profile/ProfileProViewToggle"
 import { NegotiationSandboxTrigger } from "@/components/clothing/NegotiationSandboxTrigger";
 import { ProfileSettingsMenu } from "@/components/profile/ProfileSettingsMenu";
 import { AiPersonalizationSurveyCard } from "@/components/profile/AiPersonalizationSurveyCard";
+import { AiPreferenceCenter } from "@/components/profile/AiPreferenceCenter";
 import { ProfileViewProvider } from "@/lib/profile-view";
 import { useAuth } from "@/context/AuthContext";
 import { isSuperAdminUser } from "@/lib/admin-access";
 import { isBusinessProfile, isPrivateProfile } from "@/lib/profile-type";
 import { isNativeApp } from "@/lib/mobile-install";
 import { useVauto } from "@/context/VautoContext";
+import { cn } from "@/lib/cn";
 
-export default function ProfilePage() {
+type ProfileTab = "cabinet" | "ai";
+
+function parseProfileTab(raw: string | null): ProfileTab {
+  return raw === "ai" ? "ai" : "cabinet";
+}
+
+function ProfileTabs({
+  tab,
+  onChange,
+}: {
+  tab: ProfileTab;
+  onChange: (next: ProfileTab) => void;
+}) {
+  return (
+    <div className="mb-4 flex gap-2 overflow-x-auto px-1">
+      <button
+        type="button"
+        onClick={() => onChange("cabinet")}
+        className={cn(
+          "shrink-0 rounded-full px-4 py-1.5 text-xs font-semibold transition",
+          tab === "cabinet"
+            ? "bg-[var(--vauto-primary)] text-[var(--vauto-primary-contrast,#fff)]"
+            : "bg-[var(--vauto-surface-page,#f8fafc)] text-[var(--vauto-muted)] hover:text-[var(--vauto-ink)]"
+        )}
+      >
+        Kabinetas
+      </button>
+      <button
+        type="button"
+        onClick={() => onChange("ai")}
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-4 py-1.5 text-xs font-semibold transition",
+          tab === "ai"
+            ? "bg-[var(--vauto-teal)] text-white"
+            : "bg-[var(--vauto-surface-page,#f8fafc)] text-[var(--vauto-muted)] hover:text-[var(--vauto-ink)]"
+        )}
+      >
+        <Sparkles className="h-3.5 w-3.5" aria-hidden />
+        AI Asistento nustatymai
+      </button>
+    </div>
+  );
+}
+
+function ProfilePageContent() {
   const { openAuthModal } = useAuth();
   const nativeApp = isNativeApp();
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
   const {
     user,
     listings,
@@ -33,6 +83,26 @@ export default function ProfilePage() {
     renewListing,
     showToast,
   } = useVauto();
+
+  const [tab, setTab] = useState<ProfileTab>(() =>
+    parseProfileTab(searchParams.get("tab"))
+  );
+
+  useEffect(() => {
+    setTab(parseProfileTab(searchParams.get("tab")));
+  }, [searchParams]);
+
+  const handleTabChange = useCallback(
+    (next: ProfileTab) => {
+      setTab(next);
+      const params = new URLSearchParams(searchParams.toString());
+      if (next === "ai") params.set("tab", "ai");
+      else params.delete("tab");
+      const q = params.toString();
+      router.replace(q ? `${pathname}?${q}` : pathname || "/profile/");
+    },
+    [pathname, router, searchParams]
+  );
 
   const myListings = listings.filter((l) => l.sellerId === user.id);
   const isPro = user.role === "pro";
@@ -117,35 +187,60 @@ export default function ProfilePage() {
 
         <DashboardHeader user={user} onLogout={logout} />
 
-        <AiPersonalizationSurveyCard />
+        <ProfileTabs tab={tab} onChange={handleTabChange} />
 
-        {isPro ? <ProfileProViewToggle /> : <ProfileProCTA />}
-
-        <DashboardPage
-          user={user}
-          listings={myListings}
-          allListings={listings}
-          onRenew={handleRenew}
-          listingsOnly={isPrivateCabinet}
-          disableWardrobeMode
-        />
-
-        {isBusinessCabinet && (
-          <div className="mt-4 px-1">
-            <NegotiationSandboxTrigger
-              listings={myListings}
-              sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
-              sellerUserId={user.id}
-              profileType={user.profileType}
-              className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
-            />
+        {tab === "ai" ? (
+          <div className="space-y-4">
+            <AiPreferenceCenter />
+            <AiPersonalizationSurveyCard embedded />
           </div>
-        )}
+        ) : (
+          <>
+            <AiPersonalizationSurveyCard />
 
-        <div className="mt-4">
-          <ProfileSettingsMenu user={user} />
-        </div>
+            {isPro ? <ProfileProViewToggle /> : <ProfileProCTA />}
+
+            <DashboardPage
+              user={user}
+              listings={myListings}
+              allListings={listings}
+              onRenew={handleRenew}
+              listingsOnly={isPrivateCabinet}
+              disableWardrobeMode
+            />
+
+            {isBusinessCabinet && (
+              <div className="mt-4 px-1">
+                <NegotiationSandboxTrigger
+                  listings={myListings}
+                  sellerName={user.nickname?.trim() || user.name || "Pardavėja"}
+                  sellerUserId={user.id}
+                  profileType={user.profileType}
+                  className="flex w-full items-center justify-center gap-2 rounded-2xl border border-[color-mix(in_srgb,var(--vauto-primary)_25%,transparent)] bg-[color-mix(in_srgb,var(--vauto-primary)_8%,transparent)] py-3.5 text-sm font-semibold text-[var(--vauto-primary)] transition hover:brightness-110"
+                />
+              </div>
+            )}
+
+            <div className="mt-4">
+              <ProfileSettingsMenu user={user} />
+            </div>
+          </>
+        )}
       </DashboardShell>
     </ProfileViewProvider>
+  );
+}
+
+export default function ProfilePage() {
+  return (
+    <Suspense
+      fallback={
+        <div className="flex min-h-dvh items-center justify-center bg-[var(--vauto-bg)] text-sm text-[var(--vauto-text-muted)]">
+          Kraunama…
+        </div>
+      }
+    >
+      <ProfilePageContent />
+    </Suspense>
   );
 }

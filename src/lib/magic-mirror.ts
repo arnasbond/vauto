@@ -1,5 +1,6 @@
 import { apiMagicMirrorFit } from "@/lib/api/client";
 import { isAiProxyAvailable } from "@/lib/api/config";
+import { hasAiTwinFitData } from "@/lib/ai-preference-profile";
 import type { AiExtractedListing, BodyMeasurements, Listing, UserProfile } from "@/lib/types";
 
 export interface MagicMirrorFit {
@@ -37,18 +38,15 @@ export function garmentMeasurementsFromDraft(
   };
 }
 
-/** Real buyer measurements only — no invented default size. */
+/**
+ * Real buyer measurements from AI Twin Preference Center only —
+ * no invented default size (silent null → Magic Mirror hidden).
+ */
 export function buyerMeasurementsFromProfile(
   user: UserProfile
 ): BodyMeasurements | null {
-  const m = user.bodyMeasurements;
-  if (!m) return null;
-  const hasSize = Boolean(String(m.usualSize ?? "").trim());
-  const hasCm = [m.bustCm, m.waistCm, m.hipsCm, m.heightCm].some(
-    (n) => typeof n === "number" && n > 0
-  );
-  if (!hasSize && !hasCm) return null;
-  return m;
+  if (!hasAiTwinFitData(user)) return null;
+  return user.bodyMeasurements ?? null;
 }
 
 export function hasGarmentFitData(

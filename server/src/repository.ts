@@ -3169,41 +3169,76 @@ export interface UserPreferencesRow {
   defaultRegion?: string;
   preferredCategories: string[];
   preferredSizes: string[];
-  primaryVehicle?: Record<string, unknown>;
+  primaryVehicle?: Record<string, unknown> | null;
   wardrobeMode: boolean;
   notificationPrefs: Record<string, unknown>;
   usageIntent?: string;
+  shoeSizeEu?: string;
+  clothingSize?: string;
+  bodyMeasurements?: Record<string, unknown>;
+  purchasePrefs?: string[];
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value.map(String).filter(Boolean);
+}
+
+function asObject(value: unknown): Record<string, unknown> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {};
+  return value as Record<string, unknown>;
 }
 
 export async function getUserPreferences(
   userId: string
 ): Promise<UserPreferencesRow | null> {
-  const rows = await query<{
+  type PrefRow = {
     user_id: string;
     default_region: string | null;
-    preferred_categories: string[] | null;
-    preferred_sizes: string[] | null;
+    preferred_categories: unknown;
+    preferred_sizes: unknown;
     primary_vehicle: Record<string, unknown> | null;
     wardrobe_mode: boolean;
     notification_prefs: Record<string, unknown> | null;
     usage_intent: string | null;
-  }>(
-    `SELECT user_id, default_region, preferred_categories, preferred_sizes,
-            primary_vehicle, wardrobe_mode, notification_prefs, usage_intent
-     FROM user_preferences WHERE user_id = $1`,
-    [userId]
-  );
+    shoe_size_eu?: string | null;
+    clothing_size?: string | null;
+    body_measurements?: unknown;
+    purchase_prefs?: unknown;
+  };
+
+  let rows: PrefRow[] = [];
+  try {
+    rows = await query<PrefRow>(
+      `SELECT user_id, default_region, preferred_categories, preferred_sizes,
+              primary_vehicle, wardrobe_mode, notification_prefs, usage_intent,
+              shoe_size_eu, clothing_size, body_measurements, purchase_prefs
+       FROM user_preferences WHERE user_id = $1`,
+      [userId]
+    );
+  } catch {
+    rows = await query<PrefRow>(
+      `SELECT user_id, default_region, preferred_categories, preferred_sizes,
+              primary_vehicle, wardrobe_mode, notification_prefs, usage_intent
+       FROM user_preferences WHERE user_id = $1`,
+      [userId]
+    );
+  }
   const row = rows[0];
   if (!row) return null;
   return {
     userId: row.user_id,
     defaultRegion: row.default_region ?? undefined,
-    preferredCategories: row.preferred_categories ?? [],
-    preferredSizes: row.preferred_sizes ?? [],
+    preferredCategories: asStringArray(row.preferred_categories),
+    preferredSizes: asStringArray(row.preferred_sizes),
     primaryVehicle: row.primary_vehicle ?? undefined,
     wardrobeMode: row.wardrobe_mode,
     notificationPrefs: row.notification_prefs ?? {},
     usageIntent: row.usage_intent ?? undefined,
+    shoeSizeEu: row.shoe_size_eu ?? undefined,
+    clothingSize: row.clothing_size ?? undefined,
+    bodyMeasurements: asObject(row.body_measurements),
+    purchasePrefs: asStringArray(row.purchase_prefs),
   };
 }
 
@@ -3213,43 +3248,100 @@ export async function upsertUserPreferences(
 ): Promise<UserPreferencesRow> {
   await ensureUser(userId);
   const existing = await getUserPreferences(userId);
+  const clearVehicle = prefs.primaryVehicle === null;
   const merged: UserPreferencesRow = {
     userId,
     defaultRegion: prefs.defaultRegion ?? existing?.defaultRegion,
     preferredCategories:
       prefs.preferredCategories ?? existing?.preferredCategories ?? [],
     preferredSizes: prefs.preferredSizes ?? existing?.preferredSizes ?? [],
-    primaryVehicle: prefs.primaryVehicle ?? existing?.primaryVehicle,
+    primaryVehicle: clearVehicle
+      ? null
+      : (prefs.primaryVehicle ?? existing?.primaryVehicle ?? null),
     wardrobeMode: prefs.wardrobeMode ?? existing?.wardrobeMode ?? false,
     notificationPrefs:
       prefs.notificationPrefs ?? existing?.notificationPrefs ?? {},
     usageIntent: prefs.usageIntent ?? existing?.usageIntent,
+    shoeSizeEu:
+      prefs.shoeSizeEu !== undefined
+        ? String(prefs.shoeSizeEu || "").trim() || undefined
+        : existing?.shoeSizeEu,
+    clothingSize:
+      prefs.clothingSize !== undefined
+        ? String(prefs.clothingSize || "").trim() || undefined
+        : existing?.clothingSize,
+    bodyMeasurements:
+      prefs.bodyMeasurements !== undefined
+        ? asObject(prefs.bodyMeasurements)
+        : (existing?.bodyMeasurements ?? {}),
+    purchasePrefs:
+      prefs.purchasePrefs !== undefined
+        ? asStringArray(prefs.purchasePrefs)
+        : (existing?.purchasePrefs ?? []),
   };
-  await query(
-    `INSERT INTO user_preferences (
-       user_id, default_region, preferred_categories, preferred_sizes,
-       primary_vehicle, wardrobe_mode, notification_prefs, usage_intent, updated_at
-     ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
-     ON CONFLICT (user_id) DO UPDATE SET
-       default_region = COALESCE(EXCLUDED.default_region, user_preferences.default_region),
-       preferred_categories = EXCLUDED.preferred_categories,
-       preferred_sizes = EXCLUDED.preferred_sizes,
-       primary_vehicle = COALESCE(EXCLUDED.primary_vehicle, user_preferences.primary_vehicle),
-       wardrobe_mode = EXCLUDED.wardrobe_mode,
-       notification_prefs = EXCLUDED.notification_prefs,
-       usage_intent = COALESCE(EXCLUDED.usage_intent, user_preferences.usage_intent),
-       updated_at = NOW()`,
-    [
-      userId,
-      merged.defaultRegion ?? null,
-      JSON.stringify(merged.preferredCategories),
-      JSON.stringify(merged.preferredSizes),
-      merged.primaryVehicle ? JSON.stringify(merged.primaryVehicle) : null,
-      merged.wardrobeMode,
-      JSON.stringify(merged.notificationPrefs),
-      merged.usageIntent ?? null,
-    ]
-  );
+  try {
+    await query(
+      `INSERT INTO user_preferences (
+         user_id, default_region, preferred_categories, preferred_sizes,
+         primary_vehicle, wardrobe_mode, notification_prefs, usage_intent,
+         shoe_size_eu, clothing_size, body_measurements, purchase_prefs, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,$9,$10,$11,$12,NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         default_region = COALESCE(EXCLUDED.default_region, user_preferences.default_region),
+         preferred_categories = EXCLUDED.preferred_categories,
+         preferred_sizes = EXCLUDED.preferred_sizes,
+         primary_vehicle = EXCLUDED.primary_vehicle,
+         wardrobe_mode = EXCLUDED.wardrobe_mode,
+         notification_prefs = EXCLUDED.notification_prefs,
+         usage_intent = COALESCE(EXCLUDED.usage_intent, user_preferences.usage_intent),
+         shoe_size_eu = EXCLUDED.shoe_size_eu,
+         clothing_size = EXCLUDED.clothing_size,
+         body_measurements = EXCLUDED.body_measurements,
+         purchase_prefs = EXCLUDED.purchase_prefs,
+         updated_at = NOW()`,
+      [
+        userId,
+        merged.defaultRegion ?? null,
+        JSON.stringify(merged.preferredCategories),
+        JSON.stringify(merged.preferredSizes),
+        merged.primaryVehicle ? JSON.stringify(merged.primaryVehicle) : null,
+        merged.wardrobeMode,
+        JSON.stringify(merged.notificationPrefs),
+        merged.usageIntent ?? null,
+        merged.shoeSizeEu ?? null,
+        merged.clothingSize ?? null,
+        JSON.stringify(merged.bodyMeasurements ?? {}),
+        JSON.stringify(merged.purchasePrefs ?? []),
+      ]
+    );
+  } catch {
+    // Pre-migration fallback — keep core prefs writable if 031 not applied yet.
+    await query(
+      `INSERT INTO user_preferences (
+         user_id, default_region, preferred_categories, preferred_sizes,
+         primary_vehicle, wardrobe_mode, notification_prefs, usage_intent, updated_at
+       ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,NOW())
+       ON CONFLICT (user_id) DO UPDATE SET
+         default_region = COALESCE(EXCLUDED.default_region, user_preferences.default_region),
+         preferred_categories = EXCLUDED.preferred_categories,
+         preferred_sizes = EXCLUDED.preferred_sizes,
+         primary_vehicle = EXCLUDED.primary_vehicle,
+         wardrobe_mode = EXCLUDED.wardrobe_mode,
+         notification_prefs = EXCLUDED.notification_prefs,
+         usage_intent = COALESCE(EXCLUDED.usage_intent, user_preferences.usage_intent),
+         updated_at = NOW()`,
+      [
+        userId,
+        merged.defaultRegion ?? null,
+        JSON.stringify(merged.preferredCategories),
+        JSON.stringify(merged.preferredSizes),
+        merged.primaryVehicle ? JSON.stringify(merged.primaryVehicle) : null,
+        merged.wardrobeMode,
+        JSON.stringify(merged.notificationPrefs),
+        merged.usageIntent ?? null,
+      ]
+    );
+  }
   return merged;
 }
 

@@ -1,13 +1,22 @@
 import { dataFetch } from "@/lib/api/client";
+import type { BodyMeasurements } from "@/lib/types";
 
 export interface UserPreferencesPayload {
   defaultRegion?: string;
   preferredCategories?: string[];
   preferredSizes?: string[];
-  primaryVehicle?: Record<string, unknown>;
+  primaryVehicle?: Record<string, unknown> | null;
   wardrobeMode?: boolean;
   notificationPrefs?: Record<string, unknown>;
   usageIntent?: string;
+  /** AI Twin — EU shoe size */
+  shoeSizeEu?: string;
+  /** AI Twin — clothing size S/M/L/XL or free text */
+  clothingSize?: string;
+  /** AI Twin — optional body cm + usualSize/shoeSizeEu */
+  bodyMeasurements?: BodyMeasurements;
+  /** AI Twin — purchase preferences / interests */
+  purchasePrefs?: string[];
 }
 
 export interface ProactiveNudgePayload {

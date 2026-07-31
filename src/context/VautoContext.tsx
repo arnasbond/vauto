@@ -133,6 +133,7 @@ import {
 } from "@/lib/service-leads";
 import { GdprConsentModal } from "@/components/privacy/GdprConsentModal";
 import { useAuth, type LoginPayload } from "@/context/AuthContext";
+import { useAiProfileHydration } from "@/hooks/useAiProfileHydration";
 import { useReviews } from "@/context/ReviewsContext";
 import { ChatProvider, useChat } from "@/context/ChatContext";
 import { NotificationBellProvider } from "@/context/NotificationBellContext";
@@ -760,6 +761,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
     authRedirectPath,
     consumePendingAuthIntent,
   } = useAuth();
+  useAiProfileHydration(user?.id, isAuthenticated);
   const { reviews, submitReview } = useReviews();
   const { setSearchInputMode } = useVautoSearchDispatch();
 

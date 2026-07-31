@@ -237,7 +237,10 @@ export interface BodyMeasurements {
   bustCm?: number;
   waistCm?: number;
   hipsCm?: number;
+  /** Clothing size from AI Twin profile (S/M/L/XL or free text). */
   usualSize?: string;
+  /** EU shoe size from AI Twin profile. */
+  shoeSizeEu?: string;
 }
 
 export interface NegotiationTwinConfig {

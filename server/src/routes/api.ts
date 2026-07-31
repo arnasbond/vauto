@@ -1126,10 +1126,30 @@ apiRouter.put("/user/preferences", requireAuth, async (req: AuthedRequest, res) 
       preferredSizes: Array.isArray(body.preferredSizes)
         ? body.preferredSizes.map(String)
         : undefined,
-      primaryVehicle: body.primaryVehicle,
+      primaryVehicle:
+        body.primaryVehicle === null
+          ? null
+          : body.primaryVehicle && typeof body.primaryVehicle === "object"
+            ? body.primaryVehicle
+            : undefined,
       wardrobeMode: body.wardrobeMode,
       notificationPrefs: body.notificationPrefs,
       usageIntent: body.usageIntent,
+      shoeSizeEu:
+        body.shoeSizeEu !== undefined ? String(body.shoeSizeEu ?? "") : undefined,
+      clothingSize:
+        body.clothingSize !== undefined
+          ? String(body.clothingSize ?? "")
+          : undefined,
+      bodyMeasurements:
+        body.bodyMeasurements && typeof body.bodyMeasurements === "object"
+          ? body.bodyMeasurements
+          : body.bodyMeasurements === null
+            ? {}
+            : undefined,
+      purchasePrefs: Array.isArray(body.purchasePrefs)
+        ? body.purchasePrefs.map(String)
+        : undefined,
     });
     res.json({ preferences: prefs });
   } catch (e) {

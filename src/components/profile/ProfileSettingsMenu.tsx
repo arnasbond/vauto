@@ -6,6 +6,7 @@ import {
   Gift,
   Settings2,
   Smartphone,
+  Sparkles,
 } from "lucide-react";
 import { useMemo, type ReactNode } from "react";
 import { useVauto } from "@/context/VautoContext";
@@ -99,6 +100,13 @@ export function ProfileSettingsMenu({ user }: ProfileSettingsMenuProps) {
             : "Gauk nemokamą pirkėjo apsaugą"
         }
         onClick={() => void handleReferral()}
+      />
+      <div className="h-px bg-[var(--vauto-border)]" />
+      <SettingsRow
+        icon={<Sparkles className="h-4 w-4 text-[var(--vauto-teal)]" />}
+        label="AI Asistento nustatymai"
+        hint="Dydžiai, automobilis, Magic Mirror"
+        href="/profile/?tab=ai"
       />
       <div className="h-px bg-[var(--vauto-border)]" />
       <SettingsRow

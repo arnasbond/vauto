@@ -19,6 +19,7 @@ import {
 import { SocialSyncSettingsCard } from "@/components/social/SocialSyncSettingsCard";
 import { ThemeSettingsCard } from "@/components/settings/ThemeSettingsCard";
 import { AiPersonalizationSurveyCard } from "@/components/profile/AiPersonalizationSurveyCard";
+import { AiPreferenceCenter } from "@/components/profile/AiPreferenceCenter";
 import { ConnectionStatusCard } from "@/components/status/ConnectionStatusCard";
 import { AppVersionStatusCard } from "@/components/version/AppVersionStatusCard";
 import { SystemDiagnosticsCard } from "@/components/settings/SystemDiagnosticsCard";
@@ -115,6 +116,7 @@ export default function ProfileSettingsPage() {
         </Suspense>
 
         <div className="space-y-3">
+          <AiPreferenceCenter embedded />
           <AiPersonalizationSurveyCard embedded />
           <ThemeSettingsCard embedded />
           <PrivacySettingsCard />
