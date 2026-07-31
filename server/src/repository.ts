@@ -294,12 +294,21 @@ export async function getUserByEmail(email: string): Promise<ApiUser | null> {
   return id ? getUser(id) : null;
 }
 
+/** Stub user row so chat_messages.sender_id FK never fails (incl. system senders). */
 export async function ensureUser(id: string): Promise<void> {
+  const safeId = String(id ?? "").trim();
+  if (!safeId || safeId === "guest") return;
+  const name =
+    safeId === "vauto-system"
+      ? "VAUTO Sistema"
+      : safeId === "vauto-admin-ai"
+        ? "VAUTO Admin AI"
+        : "Vartotojas";
   await query(
     `INSERT INTO users (id, name, phone, city)
-     VALUES ($1, 'Vartotojas', '+370', 'Lietuva')
+     VALUES ($1, $2, '+370', 'Lietuva')
      ON CONFLICT (id) DO NOTHING`,
-    [id]
+    [safeId, name]
   );
 }
 
@@ -1738,6 +1747,24 @@ export async function shouldSendChatSmsFallback(
 export async function upsertChat(thread: ApiChatThread): Promise<void> {
   await ensureUser(thread.buyerId);
   await ensureUser(thread.sellerId);
+
+  const messages = (thread.messages ?? [])
+    .map((m) => {
+      let senderId = String(m.senderId ?? "").trim();
+      // Never persist guest / empty sender — map to buyer (authenticated path).
+      if (!senderId || senderId === "guest") {
+        senderId = String(thread.buyerId ?? "").trim();
+      }
+      return { ...m, senderId };
+    })
+    .filter((m) => Boolean(m.senderId) && m.senderId !== "guest");
+
+  const senderIds = new Set<string>();
+  for (const m of messages) senderIds.add(m.senderId);
+  for (const senderId of senderIds) {
+    await ensureUser(senderId);
+  }
+
   await query(
     `INSERT INTO chat_threads (
       id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
@@ -1764,7 +1791,7 @@ export async function upsertChat(thread: ApiChatThread): Promise<void> {
   );
 
   await pool.query("DELETE FROM chat_messages WHERE thread_id = $1", [thread.id]);
-  for (const m of thread.messages) {
+  for (const m of messages) {
     await query(
       `INSERT INTO chat_messages (id, thread_id, sender_id, body, created_at, read_at)
        VALUES ($1,$2,$3,$4,$5,$6)`,

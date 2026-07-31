@@ -696,7 +696,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const listing = listings.find((l) => l.id === listingId);
       if (!listing) return null;
       if (listing.sellerId === user.id) return null;
-      if (!isAuthenticated) {
+      if (!isAuthenticated || user.id === "guest") {
         openAuthModal(listingPath(listing));
         return null;
       }

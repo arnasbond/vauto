@@ -32,12 +32,35 @@ export function garmentMeasurementsFromDraft(
     hipsCm: parseNum(attrs.hipsCm),
     lengthCm: parseNum(attrs.lengthCm),
     sizeLabel:
-      (Array.isArray(attrs.size) ? attrs.size[0] : attrs.size)?.toString() || undefined,
+      (Array.isArray(attrs.size) ? attrs.size[0] : attrs.size)?.toString() ||
+      undefined,
   };
 }
 
-export function buyerMeasurementsFromProfile(user: UserProfile): BodyMeasurements {
-  return user.bodyMeasurements ?? { usualSize: "M" };
+/** Real buyer measurements only — no invented default size. */
+export function buyerMeasurementsFromProfile(
+  user: UserProfile
+): BodyMeasurements | null {
+  const m = user.bodyMeasurements;
+  if (!m) return null;
+  const hasSize = Boolean(String(m.usualSize ?? "").trim());
+  const hasCm = [m.bustCm, m.waistCm, m.hipsCm, m.heightCm].some(
+    (n) => typeof n === "number" && n > 0
+  );
+  if (!hasSize && !hasCm) return null;
+  return m;
+}
+
+export function hasGarmentFitData(
+  garment: ReturnType<typeof garmentMeasurementsFromDraft>
+): boolean {
+  return Boolean(
+    garment.sizeLabel ||
+      garment.chestCm ||
+      garment.waistCm ||
+      garment.hipsCm ||
+      garment.lengthCm
+  );
 }
 
 function localFit(
@@ -45,36 +68,56 @@ function localFit(
   listingTitle: string,
   buyer: BodyMeasurements,
   sizeLabel?: string
-): MagicMirrorFit {
+): MagicMirrorFit | null {
+  const buyerSize = String(buyer.usualSize ?? "")
+    .trim()
+    .toUpperCase();
+  const garmentSize = String(sizeLabel ?? "")
+    .trim()
+    .toUpperCase();
+  if (!buyerSize || !garmentSize) return null;
+
   const first = buyerName.trim().split(/\s+/)[0] || "drauge";
-  const item = listingTitle.trim() || "švarkelis";
-  const buyerSize = (buyer.usualSize ?? "M").toUpperCase();
-  const garmentSize = (sizeLabel ?? "M").toUpperCase();
+  const item = listingTitle.trim() || "drabužis";
   if (buyerSize === garmentSize) {
     return {
       fitScore: 96,
       verdict: "ideal",
-      recommendation: `${first}, pagal tavo figūrą šis ${item} tiks idealiai.`,
+      recommendation: `${first}, pagal tavo dydį ${buyerSize} šis ${item} turėtų tikti.`,
     };
   }
   return {
     fitScore: 78,
     verdict: "good",
-    recommendation: `${first}, dydis ${garmentSize} gali tikti — rekomenduoju pasitikrinti matmenis pokalbyje.`,
+    recommendation: `${first}, dydis ${garmentSize} (tavo: ${buyerSize}) — patikrink matmenis pokalbyje su pardavėju.`,
   };
 }
 
+/**
+ * Returns null when buyer or garment data is insufficient — callers must silent-hide.
+ */
 export async function analyzeMagicMirrorFit(params: {
   buyerName: string;
   listingTitle: string;
-  buyerMeasurements: BodyMeasurements;
+  buyerMeasurements: BodyMeasurements | null;
   garmentMeasurements: ReturnType<typeof garmentMeasurementsFromDraft>;
   listingDescription?: string;
-}): Promise<MagicMirrorFit> {
-  if (isAiProxyAvailable()) {
-    const remote = await apiMagicMirrorFit(params);
-    if (remote) return remote;
+}): Promise<MagicMirrorFit | null> {
+  if (!params.buyerMeasurements || !hasGarmentFitData(params.garmentMeasurements)) {
+    return null;
   }
+
+  if (isAiProxyAvailable()) {
+    const remote = await apiMagicMirrorFit({
+      ...params,
+      buyerMeasurements: params.buyerMeasurements,
+    });
+    if (remote) {
+      if (remote.verdict === "unknown" || !(remote.fitScore > 0)) return null;
+      return remote;
+    }
+  }
+
   return localFit(
     params.buyerName,
     params.listingTitle,

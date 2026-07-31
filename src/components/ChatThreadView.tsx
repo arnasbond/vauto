@@ -95,12 +95,19 @@ function ChatThreadContent({
       setMagicMirror(null);
       return;
     }
+    const buyerMeasurements = buyerMeasurementsFromProfile(user);
+    const garmentMeasurements = garmentMeasurementsFromDraft(listing);
+    // Silent hide without real buyer + garment size data (no invented "M").
+    if (!buyerMeasurements) {
+      setMagicMirror(null);
+      return;
+    }
     let cancelled = false;
     void analyzeMagicMirrorFit({
       buyerName: user.name,
       listingTitle: listing.title,
-      buyerMeasurements: buyerMeasurementsFromProfile(user),
-      garmentMeasurements: garmentMeasurementsFromDraft(listing),
+      buyerMeasurements,
+      garmentMeasurements,
       listingDescription: listing.description,
     }).then((fit) => {
       if (!cancelled) setMagicMirror(fit);
@@ -215,11 +222,16 @@ function ChatThreadContent({
           );
         })}
 
-        {isBuyer && sellerTrust && <AiTrustScoreBanner profile={sellerTrust} />}
+        {isBuyer && sellerTrust ? (
+          <AiTrustScoreBanner profile={sellerTrust} />
+        ) : null}
 
-        {isBuyer && magicMirror && listing?.category === "clothing" && (
+        {isBuyer &&
+        magicMirror &&
+        magicMirror.verdict !== "unknown" &&
+        listing?.category === "clothing" ? (
           <MagicMirrorChatBanner fit={magicMirror} />
-        )}
+        ) : null}
 
         {chat.escrowOffered && (
           <EscrowActionBlock chat={chat} amount={listing?.price ?? 150} />

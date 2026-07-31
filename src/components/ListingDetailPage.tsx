@@ -17,6 +17,7 @@ import {
   Truck,
 } from "lucide-react";
 import { OrderWithShippingModal } from "@/components/shipping/OrderWithShippingModal";
+import { ListingBuyerTipsModal } from "@/components/listing/ListingBuyerTipsModal";
 import { listingOffersOmnivaShipping } from "@/lib/logistics-ready";
 import { AppShell } from "@/components/AppShell";
 import { ListingSeoHead } from "@/components/seo/ListingSeoHead";
@@ -57,7 +58,6 @@ import {
   resolvePublishListingDescription,
   sanitizeListingDescription,
 } from "@/lib/listing-text-sanitize";
-import { cn } from "@/lib/cn";
 import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
 
 interface ListingDetailPageProps {
@@ -118,6 +118,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     savedIds,
     toggleSave,
     startChat,
+    sendMessage,
     deleteListing,
     showToast,
     trackListingView,
@@ -131,6 +132,7 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
   const { trackEvent } = useUserBehavior();
   const dwellFiredRef = useRef(false);
   const [orderShippingOpen, setOrderShippingOpen] = useState(false);
+  const [buyerTipsOpen, setBuyerTipsOpen] = useState(false);
 
   // Prefer stable id (dashboard links); fall back to slug for SEO/pretty URLs.
   const listing =
@@ -261,8 +263,21 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     window.location.href = phoneTel || `tel:${phone}`;
   };
 
-  const handleMessage = wardrobeContext ? handleNegotiate : handleChat;
+  const handleMessage = handleChat;
   const offersOmnivaShipping = listingOffersOmnivaShipping(listing);
+
+  const handleAskTip = (question: string) => {
+    setBuyerTipsOpen(false);
+    if (isOwner) {
+      showToast("Tai jūsų skelbimas.", "info");
+      return;
+    }
+    const chatId = startChat(listing.id);
+    if (!chatId) return;
+    // Seed greeting already sent by startChat; send the FAQ tip as follow-up.
+    window.setTimeout(() => sendMessage(chatId, question), 40);
+    router.push(chatThreadPath(chatId));
+  };
 
   const handleEdit = () => {
     startEditListingFlow(listing);
@@ -275,10 +290,17 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
     }
   };
 
+  const messagePrimaryClass =
+    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-3 text-sm font-bold text-[var(--vauto-primary-contrast)] shadow-md shadow-[rgba(27,77,255,0.2)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70";
+  const callSecondaryClass =
+    "inline-flex min-h-11 shrink-0 items-center justify-center gap-1.5 rounded-xl border border-[var(--vauto-border-input)] bg-white px-3 text-sm font-bold text-[var(--vauto-ink)] shadow-sm transition hover:bg-[var(--vauto-surface-page)] disabled:cursor-not-allowed disabled:opacity-70";
+  const iconActionClass =
+    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--vauto-border-input)] bg-white text-[var(--vauto-ink)] shadow-sm transition hover:bg-[var(--vauto-surface-page)] disabled:cursor-not-allowed disabled:opacity-70";
+  // Desktop column CTAs (full width)
   const callButtonClass =
-    "inline-flex min-h-11 flex-1 items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 text-sm font-bold text-[var(--vauto-primary-contrast)] shadow-md shadow-[rgba(27,77,255,0.2)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70";
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-[var(--vauto-border-input)] bg-white px-4 text-sm font-bold text-[var(--vauto-ink)] shadow-sm transition hover:bg-[var(--vauto-surface-page)] disabled:cursor-not-allowed disabled:opacity-70";
   const messageButtonClass =
-    "inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-[var(--vauto-border-input)] bg-white text-[var(--vauto-ink)] shadow-sm transition hover:bg-[var(--vauto-surface-page)] disabled:cursor-not-allowed disabled:opacity-70 md:h-auto md:min-h-11 md:w-full md:gap-2 md:px-4 md:text-sm md:font-bold";
+    "inline-flex min-h-11 w-full items-center justify-center gap-2 rounded-xl bg-[var(--vauto-primary)] px-4 text-sm font-bold text-[var(--vauto-primary-contrast)] shadow-md shadow-[rgba(27,77,255,0.2)] transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-70";
 
   const vatCode = String(
     listing.attributes?.vatCode ?? listing.attributes?.vat_code ?? ""
@@ -342,25 +364,21 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             type="button"
             disabled
             aria-disabled="true"
-            title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
-            className={callButtonClass}
+            title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
+            className={messageButtonClass}
           >
-            <Phone className="h-5 w-5" aria-hidden />
-            Skambinti ({phoneDisplay})
+            <MessageCircle className="h-5 w-5" aria-hidden />
+            Rašyti žinutę
           </button>
           <button
             type="button"
             disabled
             aria-disabled="true"
-            title="Taip matys pirkėjai — žinutės sau nesiunčiamos"
-            className={cn(messageButtonClass, "md:inline-flex")}
+            title="Taip matys pirkėjai — jūsų skelbime skambutis neaktyvus"
+            className={callButtonClass}
           >
-            {wardrobeContext ? (
-              <Sparkles className="h-5 w-5" aria-hidden />
-            ) : (
-              <MessageCircle className="h-5 w-5" aria-hidden />
-            )}
-            <span className="hidden md:inline">Rašyti žinutę</span>
+            <Phone className="h-5 w-5" aria-hidden />
+            Skambinti ({phoneDisplay})
           </button>
           <p className="text-center text-[11px] font-medium text-[var(--vauto-subtle)]">
             Peržiūra — taip pirkėjai matys kontaktų mygtukus
@@ -368,6 +386,15 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         </>
       ) : (
         <>
+          <button
+            type="button"
+            onClick={handleMessage}
+            className={messageButtonClass}
+            data-listing-message-cta="1"
+          >
+            <MessageCircle className="h-5 w-5" aria-hidden />
+            Rašyti žinutę
+          </button>
           {!demoPhone && phoneTel ? (
             <a
               href={phoneTel}
@@ -383,20 +410,6 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               Skambinti
             </button>
           )}
-          <button
-            type="button"
-            onClick={handleMessage}
-            className={cn(messageButtonClass, "md:inline-flex")}
-          >
-            {wardrobeContext ? (
-              <Sparkles className="h-5 w-5" aria-hidden />
-            ) : (
-              <MessageCircle className="h-5 w-5" aria-hidden />
-            )}
-            <span className="hidden md:inline">
-              {wardrobeContext ? "AI Derybininkas" : "Rašyti žinutę"}
-            </span>
-          </button>
           {offersOmnivaShipping ? (
             <button
               type="button"
@@ -406,6 +419,24 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
             >
               <Truck className="h-5 w-5" aria-hidden />
               Užsakyti su siuntimu
+            </button>
+          ) : null}
+          <button
+            type="button"
+            onClick={() => setBuyerTipsOpen(true)}
+            className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-semibold text-[var(--vauto-teal)] hover:bg-[var(--vauto-teal)]/8"
+            data-listing-ai-tips="1"
+          >
+            <Sparkles className="h-4 w-4" aria-hidden />
+            AI klausimai pardavėjui
+          </button>
+          {wardrobeContext ? (
+            <button
+              type="button"
+              onClick={handleNegotiate}
+              className="inline-flex min-h-10 w-full items-center justify-center gap-2 rounded-xl text-xs font-semibold text-[var(--vauto-text-muted)] hover:bg-slate-50"
+            >
+              AI Derybininkas
             </button>
           ) : null}
         </>
@@ -572,57 +603,69 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         )}
       </div>
 
-      {/* Sticky mobile contact bar — skelbiu.lt-style */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 flex gap-2 border-t border-[var(--vauto-border-subtle)] bg-white/95 p-3 shadow-lg backdrop-blur-md md:hidden">
+      {/* Sticky mobile contact bar — primary CTA = Rašyti žinutę */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 flex items-center gap-2 border-t border-[var(--vauto-border-subtle)] bg-white/95 p-3 shadow-lg backdrop-blur-md md:hidden">
         {isOwner ? (
           <>
             <button
               type="button"
               disabled
               aria-disabled="true"
-              className={callButtonClass}
+              className={messagePrimaryClass}
             >
-              <Phone className="h-5 w-5" aria-hidden />
-              Skambinti
+              <MessageCircle className="h-5 w-5" aria-hidden />
+              Rašyti žinutę
             </button>
             <button
               type="button"
               disabled
               aria-disabled="true"
-              className={messageButtonClass}
-              aria-label="Žinutė"
+              className={callSecondaryClass}
             >
-              <MessageCircle className="h-5 w-5" aria-hidden />
+              <Phone className="h-5 w-5" aria-hidden />
+              Skambinti
             </button>
           </>
         ) : (
           <>
+            <button
+              type="button"
+              onClick={handleMessage}
+              className={messagePrimaryClass}
+              data-listing-message-cta="1"
+            >
+              <MessageCircle className="h-5 w-5 shrink-0" aria-hidden />
+              Rašyti žinutę
+            </button>
             {!demoPhone && phoneTel ? (
               <a
                 href={phoneTel}
                 onClick={() => trackListingCall(listing.id)}
-                className={callButtonClass}
+                className={callSecondaryClass}
+                aria-label="Skambinti"
               >
                 <Phone className="h-5 w-5" aria-hidden />
-                Skambinti
+                <span className="hidden xs:inline sm:inline">Skambinti</span>
               </a>
             ) : (
-              <button type="button" onClick={handleCall} className={callButtonClass}>
+              <button
+                type="button"
+                onClick={handleCall}
+                className={callSecondaryClass}
+                aria-label="Skambinti"
+              >
                 <Phone className="h-5 w-5" aria-hidden />
-                Skambinti
               </button>
             )}
             <button
               type="button"
-              onClick={handleMessage}
-              className={messageButtonClass}
-              aria-label={wardrobeContext ? "AI Derybininkas" : "Žinutė"}
+              onClick={() => setBuyerTipsOpen(true)}
+              className={iconActionClass}
+              aria-label="AI klausimai pardavėjui"
+              title="AI klausimai pardavėjui"
+              data-listing-ai-tips="1"
             >
-              {wardrobeContext ? (
-                <Sparkles className="h-5 w-5" aria-hidden />
-              ) : (
-                <MessageCircle className="h-5 w-5" aria-hidden />
-              )}
+              <Sparkles className="h-5 w-5 text-[var(--vauto-teal)]" aria-hidden />
             </button>
             {offersOmnivaShipping ? (
               <button
@@ -643,6 +686,14 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
         <OrderWithShippingModal
           listing={listing}
           onClose={() => setOrderShippingOpen(false)}
+        />
+      ) : null}
+
+      {buyerTipsOpen && listing && !isOwner ? (
+        <ListingBuyerTipsModal
+          listing={listing}
+          onClose={() => setBuyerTipsOpen(false)}
+          onAsk={handleAskTip}
         />
       ) : null}
     </AppShell>
