@@ -7,7 +7,10 @@
  *   - publishing a listing that offers shipping requires Connect payouts on the seller
  */
 import type { Response } from "express";
-import { getPaymentMethodRecord } from "./payment-methods-repo.js";
+import {
+  getPaymentMethodRecord,
+  isPaymentMethodSchemaReady,
+} from "./payment-methods-repo.js";
 
 export const PAYMENT_GATE_CODE = "payment_method_required";
 export const PAYOUT_GATE_CODE = "payout_method_required";
@@ -34,6 +37,8 @@ export async function rejectIfBuyerHasNoCard(
   res: Response,
   userId: string
 ): Promise<boolean> {
+  // Schema lag must not 500 the checkout path — fail-open until migrate 032.
+  if (!(await isPaymentMethodSchemaReady())) return false;
   if (await hasSavedCard(userId)) return false;
   res.status(402).json({
     error: PAYMENT_GATE_MESSAGE,
@@ -48,6 +53,7 @@ export async function rejectIfSellerHasNoPayout(
   res: Response,
   userId: string
 ): Promise<boolean> {
+  if (!(await isPaymentMethodSchemaReady())) return false;
   if (await hasVerifiedPayout(userId)) return false;
   res.status(402).json({
     error: PAYOUT_GATE_MESSAGE,

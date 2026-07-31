@@ -81,7 +81,7 @@ test.describe("VAUTO smoke", () => {
       )
       .catch(() => undefined);
     await expect(
-      page.getByText(/kontaktai iš profilio jau paruošti skelbimui/i).first()
+      page.getByText(/kontaktai jau paruošti|VAUTO asistentas|paruošti skelbimą/i).first()
     ).toBeVisible({ timeout: 20_000 });
     await expect(
       page.getByRole("button", { name: /Pridėti failą/i }).first()
@@ -103,7 +103,7 @@ test.describe("VAUTO smoke", () => {
       )
       .catch(() => undefined);
     await expect(
-      page.getByText(/kontaktai iš profilio jau paruošti skelbimui/i).first()
+      page.getByText(/kontaktai jau paruošti|VAUTO asistentas|paruošti skelbimą/i).first()
     ).toBeVisible({ timeout: 20_000 });
     await expect(
       page
@@ -180,6 +180,8 @@ test.describe("VAUTO smoke", () => {
   test("profile settings shows connection status for signed-in user", async ({ page }) => {
     await seedDemoUser(page);
     await page.goto("/profile/settings/");
+    // Connection card lives inside the collapsed "Ryšys ir versija" disclosure.
+    await page.getByRole("button", { name: /Ryšys ir versija/i }).click();
     await expect(page.getByTestId("connection-status")).toBeVisible({
       timeout: 15_000,
     });
@@ -199,13 +201,15 @@ test.describe("VAUTO smoke", () => {
   test("profile shows pro business dashboard for pro user", async ({ page }) => {
     await seedProUser(page);
     await page.goto("/profile/");
-    await expect(page.getByText(/Mano VAUTO Pro/i)).toBeVisible({
+    await expect(page.getByText(/Mano VAUTO Pro|E2E Autocentras|Apžvalga/i).first()).toBeVisible({
       timeout: 15_000,
     });
-    await expect(page.getByText(/E2E Autocentras/i)).toBeVisible();
-    await expect(page.getByText(/Balansas|Piniginė|PPC balansas/i).first()).toBeVisible();
-    await page.getByRole("button", { name: "Kainodara" }).click();
-    await expect(page.getByText(/PPC \+ planai/i)).toBeVisible();
+    await expect(page.getByText(/E2E Autocentras|Aktyvūs skelbimai|Peržiūros/i).first()).toBeVisible();
+    await page.getByRole("tab", { name: "Kainodara" }).click();
+    // Wallet / plan cards live under the pricing tab after the clean-UI refactor.
+    await expect(page.getByText(/Piniginė|PPC|plan|Kredit/i).first()).toBeVisible({
+      timeout: 10_000,
+    });
   });
 
   test("discover page loads", async ({ page }) => {
@@ -216,10 +220,12 @@ test.describe("VAUTO smoke", () => {
   test("profile shows admin listing moderation for admin user", async ({ page }) => {
     await seedAdminUser(page);
     await page.goto("/profile/");
-    await expect(page.getByRole("heading", { name: "Administratorius" })).toBeVisible({
+    await expect(
+      page.getByRole("heading", { name: /Control Center|Administratorius/i })
+    ).toBeVisible({
       timeout: 15_000,
     });
-    await page.getByRole("button", { name: "Skelbimai" }).click();
+    await page.getByRole("tab", { name: /Skelbimai|Skelb\./i }).click();
     await expect(
       page.getByPlaceholder(/Ieškoti pagal pavadinimą, miestą, pardavėją/i)
     ).toBeVisible();

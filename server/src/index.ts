@@ -172,9 +172,20 @@ app.listen(port, async () => {
     console.log(
       `VAUTO API http://localhost:${port} (PostgreSQL OK) — Gemini agent: ${gemini}`
     );
-  } catch {
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    console.error(
+      `VAUTO API http://localhost:${port} — startup DB/migrate failed:`,
+      detail
+    );
+    // Production must not serve code against a lagging schema (e.g. gates
+    // querying columns from migration 032 that were never applied). Crash so
+    // Render restarts and surface the migrate error in deploy logs.
+    if (process.env.NODE_ENV === "production") {
+      process.exit(1);
+    }
     console.warn(
-      `VAUTO API http://localhost:${port} — PostgreSQL nepasiekiamas. Paleiskite: docker compose up -d`
+      "PostgreSQL nepasiekiamas arba migracija nepavyko. Paleiskite: docker compose up -d"
     );
   }
 });

@@ -5,6 +5,41 @@
 import { query } from "../db.js";
 import type { PayoutAccountDetails, SavedCardDetails } from "./payment-methods-stripe.js";
 
+/** Cached probe — null until first check. False means migration 032 is missing. */
+let paymentSchemaReady: boolean | null = null;
+
+function isMissingColumnError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err);
+  return /payment_method_id|payout_status|payout_iban_last4|does not exist/i.test(msg);
+}
+
+/**
+ * True when migration 032 columns exist. Gates fail-open while this is false so a
+ * lagging deploy cannot brick every listing create.
+ */
+export async function isPaymentMethodSchemaReady(): Promise<boolean> {
+  if (paymentSchemaReady !== null) return paymentSchemaReady;
+  try {
+    await query(`SELECT payment_method_id FROM users LIMIT 0`);
+    paymentSchemaReady = true;
+  } catch (e) {
+    if (isMissingColumnError(e)) {
+      paymentSchemaReady = false;
+      console.error(
+        "[payment-methods] Migration 032 columns missing — payment/payout gates fail-open until migrate runs"
+      );
+    } else {
+      throw e;
+    }
+  }
+  return paymentSchemaReady;
+}
+
+/** Test helper / post-migrate reset. */
+export function resetPaymentSchemaReadyCache(): void {
+  paymentSchemaReady = null;
+}
+
 export interface PaymentMethodRecord {
   stripeCustomerId: string | null;
   stripeConnectAccountId: string | null;
@@ -46,23 +81,34 @@ function iso(value: Date | null): string | null {
 export async function getPaymentMethodRecord(
   userId: string
 ): Promise<PaymentMethodRecord | null> {
-  const rows = await query<PaymentMethodRow>(
-    `SELECT stripe_customer_id,
-            stripe_connect_account_id,
-            payment_method_id,
-            payment_method_brand,
-            payment_method_last4,
-            payment_method_exp_month,
-            payment_method_exp_year,
-            payment_method_updated_at,
-            payout_iban_last4,
-            payout_holder_name,
-            payout_status,
-            payout_updated_at
-       FROM users
-      WHERE id = $1`,
-    [userId]
-  );
+  if (!(await isPaymentMethodSchemaReady())) return null;
+
+  let rows: PaymentMethodRow[];
+  try {
+    rows = await query<PaymentMethodRow>(
+      `SELECT stripe_customer_id,
+              stripe_connect_account_id,
+              payment_method_id,
+              payment_method_brand,
+              payment_method_last4,
+              payment_method_exp_month,
+              payment_method_exp_year,
+              payment_method_updated_at,
+              payout_iban_last4,
+              payout_holder_name,
+              payout_status,
+              payout_updated_at
+         FROM users
+        WHERE id = $1`,
+      [userId]
+    );
+  } catch (e) {
+    if (isMissingColumnError(e)) {
+      paymentSchemaReady = false;
+      return null;
+    }
+    throw e;
+  }
 
   const row = rows[0];
   if (!row) return null;

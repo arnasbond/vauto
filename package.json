@@ -82,7 +82,9 @@
     "audit:catalog": "node scripts/audit-catalog.mjs",
     "audit:images": "node scripts/check-unsplash-urls.mjs",
     "validate:fast-search": "node scripts/validate-fast-search.mjs",
-    "test:m3-b2b": "node scripts/test-m3-b2b-analytics.mjs"
+    "test:m3-b2b": "node scripts/test-m3-b2b-analytics.mjs",
+    "test:payment-sale": "npm run server:build && node scripts/test-payment-sale-e2e.mjs",
+    "test:payment-sale:local": "npm run server:build && node scripts/test-payment-sale-e2e.mjs --local"
   },
   "dependencies": {
     "@capacitor/android": "^6.2.1",

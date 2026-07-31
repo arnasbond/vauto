@@ -99,6 +99,8 @@ function buildListing(userId, category, title) {
     description: `API smoke listing (${category})`,
     status: "active",
     contact: PHONE,
+    // Pickup-only — shipping listings require a verified Stripe Connect payout.
+    allowPastomatas: false,
   };
 }
 
