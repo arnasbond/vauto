@@ -13,6 +13,7 @@ import { ReportButton } from "@/components/support/ReportButton";
 import { MagicMirrorChatBanner } from "@/components/chat/MagicMirrorChatBanner";
 import { NegotiationTwinPanel } from "@/components/chat/NegotiationTwinPanel";
 import { useVauto } from "@/context/VautoContext";
+import { apiFetchPublicUser } from "@/lib/api/client";
 import { logAnalytics } from "@/lib/analytics";
 import type { TwinTemplateId } from "@/lib/twin-templates";
 import {
@@ -27,7 +28,18 @@ import {
   buildUserTrustScore,
   resolveSellerDisplayName,
 } from "@/lib/user-trust-score";
+import { displayPublicNickname } from "@/lib/profile-display";
+import { sellerAvatarUrl, sellerDisplayName } from "@/lib/seller-display";
+import { listingPath } from "@/lib/seo";
+import type { Listing } from "@/lib/types";
 
+interface ChatPeerCard {
+  id: string;
+  nickname: string | null;
+  name: string | null;
+  avatar: string | null;
+  companyName: string | null;
+}
 function ChatThreadContent({
   chatId,
   embedded = false,
@@ -48,6 +60,7 @@ function ChatThreadContent({
   const [draft, setDraft] = useState("");
   const [magicMirror, setMagicMirror] = useState<MagicMirrorFit | null>(null);
   const [translations, setTranslations] = useState<Record<string, string>>({});
+  const [peer, setPeer] = useState<ChatPeerCard | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const chat = chats.find((c) => c.id === chatId);
@@ -56,13 +69,39 @@ function ChatThreadContent({
   const chatPreview = chat?.messages[chat.messages.length - 1]?.text;
   const isBuyer = chat?.buyerId === user.id;
   const isSeller = chat?.sellerId === user.id;
-  const reportedUserId = isBuyer ? chat?.sellerId : chat?.buyerId;
+  const peerId = isBuyer ? chat?.sellerId : chat?.buyerId;
+  const reportedUserId = peerId;
   const showReviewPrompt =
     isBuyer &&
     chat &&
     listing &&
     chat.messages.length >= 3 &&
     canReviewListing(reviews, chat.listingId, user.id);
+
+  const peerName = useMemo(() => {
+    if (!chat || !peerId) return isBuyer ? "Pardavėjas" : "Pirkėjas";
+    if (peer && peer.id === peerId) {
+      return displayPublicNickname({
+        nickname: peer.nickname ?? undefined,
+        name: peer.companyName || peer.name || "Vartotojas",
+      });
+    }
+    if (isBuyer) {
+      return (
+        sellerDisplayName(peerId, { listing }) ||
+        resolveSellerDisplayName(peerId, listings)
+      );
+    }
+    return "Pirkėjas";
+  }, [chat, peerId, peer, isBuyer, listing, listings]);
+
+  const peerAvatar = useMemo(() => {
+    if (peer?.avatar?.trim()) return peer.avatar.trim();
+    if (peerId) return sellerAvatarUrl(peerId);
+    return "";
+  }, [peer, peerId]);
+
+  const listingThumb = listing?.images?.[0]?.trim() || "";
 
   const sellerTrust = useMemo(() => {
     if (!isBuyer || !chat) return null;
@@ -91,13 +130,27 @@ function ChatThreadContent({
   }, [chat?.messages.length]);
 
   useEffect(() => {
+    if (!peerId) {
+      setPeer(null);
+      return;
+    }
+    let cancelled = false;
+    void apiFetchPublicUser(peerId).then((res) => {
+      if (cancelled) return;
+      if (res.ok && res.data) setPeer(res.data);
+      else setPeer(null);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [peerId]);
+  useEffect(() => {
     if (!isBuyer || !listing || listing.category !== "clothing") {
       setMagicMirror(null);
       return;
     }
     const buyerMeasurements = buyerMeasurementsFromProfile(user);
     const garmentMeasurements = garmentMeasurementsFromDraft(listing);
-    // Silent hide without real buyer + garment size data (no invented "M").
     if (!buyerMeasurements) {
       setMagicMirror(null);
       return;
@@ -131,6 +184,8 @@ function ChatThreadContent({
     setDraft("");
   };
 
+  const roleLabel = isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis";
+
   return (
     <div
       className={
@@ -139,23 +194,57 @@ function ChatThreadContent({
           : "mx-auto flex h-[calc(100dvh-2rem)] w-full max-w-lg flex-col px-4 md:max-w-7xl md:px-6"
       }
     >
-      <div className="mb-4 flex items-center gap-3 border-b border-slate-200/80 pb-3">
+      <div className="mb-3 flex shrink-0 items-center gap-2 border-b border-slate-200/80 pb-3">
         {!embedded && (
-        <Link
-          href="/chats/"
-          className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
-        >
-          <ArrowLeft className="h-5 w-5" />
-        </Link>
+          <Link
+            href="/chats/"
+            className="rounded-full p-2 text-[var(--vauto-text-muted)] hover:bg-[var(--vauto-border)]/40"
+            aria-label="Atgal į pokalbius"
+          >
+            <ArrowLeft className="h-5 w-5" />
+          </Link>
         )}
-        <div className="flex-1 min-w-0">
-          <h1 className="truncate font-semibold text-[var(--vauto-text)]">
-            {chat.listingTitle}
+        <div className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[var(--vauto-border)]">
+          {peerAvatar ? (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={peerAvatar}
+              alt=""
+              className="h-full w-full object-cover"
+              width={40}
+              height={40}
+            />
+          ) : (
+            <span className="flex h-full w-full items-center justify-center text-xs font-semibold text-[var(--vauto-text-muted)]">
+              {peerName.slice(0, 1).toUpperCase()}
+            </span>
+          )}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h1 className="truncate text-sm font-semibold text-[var(--vauto-text)]">
+            {peerName}
           </h1>
-          <p className="text-xs text-[var(--vauto-text-muted)]">
-            {isBuyer ? "Pardavėjas" : isSeller ? "Pirkėjas" : "Pokalbis"} · realiu laiku
+          <p className="truncate text-[11px] text-[var(--vauto-text-muted)]">
+            {roleLabel}
+            {chat.listingTitle ? ` · ${chat.listingTitle}` : ""}
           </p>
         </div>
+        {listingThumb && listing ? (
+          <Link
+            href={listingPath(listing as Listing)}
+            className="relative h-10 w-10 shrink-0 overflow-hidden rounded-xl border border-[var(--vauto-border)]"
+            aria-label="Atidaryti skelbimą"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src={listingThumb}
+              alt=""
+              className="h-full w-full object-cover"
+              width={40}
+              height={40}
+            />
+          </Link>
+        ) : null}
         <ReportButton
           variant="icon"
           listingId={chat.listingId}
@@ -182,7 +271,7 @@ function ChatThreadContent({
                     ? "rounded-md border border-[var(--vauto-border)] bg-[var(--vauto-bg)]/60 text-xs italic text-[var(--vauto-text-muted)]"
                     : isMe
                       ? "rounded-br-md bg-[var(--vauto-teal)] text-white"
-                      : "rounded-bl-md bg-[var(--vauto-surface)] text-[var(--vauto-text)] border border-[var(--vauto-border)]"
+                      : "rounded-bl-md border border-[var(--vauto-border)] bg-[var(--vauto-surface)] text-[var(--vauto-text)]"
                 }`}
               >
                 <span className="whitespace-pre-wrap">{msg.text}</span>
@@ -240,7 +329,7 @@ function ChatThreadContent({
       </div>
 
       {isBuyer && chat.messages.length <= 2 && (
-        <div className="mb-2 flex flex-wrap gap-2">
+        <div className="mb-2 flex shrink-0 flex-wrap gap-2">
           {quickQuestions.map((q) => (
             <button
               key={q}
@@ -271,7 +360,8 @@ function ChatThreadContent({
               const prev = chat.negotiationTwin;
               updateNegotiationTwin(chatId, {
                 enabled: false,
-                minPrice: prev?.minPrice ?? listing.minNegotiationPrice ?? listing.price,
+                minPrice:
+                  prev?.minPrice ?? listing.minNegotiationPrice ?? listing.price,
                 sellerApproved: false,
                 sellerConsentAt: prev?.sellerConsentAt,
                 maxDiscountPercent: prev?.maxDiscountPercent,
@@ -282,7 +372,7 @@ function ChatThreadContent({
       )}
 
       {showReviewPrompt && (
-        <div className="mb-2 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
+        <div className="mb-2 shrink-0 rounded-xl border border-amber-200 bg-amber-50 p-3 dark:border-amber-800 dark:bg-amber-950/40">
           <p className="text-xs text-amber-900 dark:text-amber-100">
             Ar pavyko susitarti dėl {chat.listingTitle}? Palikite atsiliepimą ir
             gaukite 1 nemokamą TOP iškėlimą.
@@ -303,7 +393,7 @@ function ChatThreadContent({
         </div>
       )}
 
-      <div className="flex gap-2 border-t border-[var(--vauto-border)] pt-3">
+      <div className="flex shrink-0 gap-2 border-t border-[var(--vauto-border)] pt-3">
         <label htmlFor="chat-message-input" className="sr-only">
           Žinutė
         </label>
@@ -342,7 +432,6 @@ export function ChatThreadView({
 
 export function ChatThreadFromQuery() {
   const searchParams = useSearchParams();
-  const chatId =
-    searchParams.get("id") ?? searchParams.get("thread") ?? "";
+  const chatId = searchParams.get("id") ?? searchParams.get("thread") ?? "";
   return <ChatThreadContent chatId={chatId} />;
 }

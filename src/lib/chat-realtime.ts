@@ -126,3 +126,84 @@ export function markSenderMessagesRead(
     };
   });
 }
+
+const STATUS_RANK: Record<string, number> = {
+  sending: 0,
+  sent: 1,
+  delivered: 2,
+  read: 3,
+};
+
+function preferStatus(
+  a?: ChatMessage["status"],
+  b?: ChatMessage["status"]
+): ChatMessage["status"] | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return (STATUS_RANK[b] ?? 0) >= (STATUS_RANK[a] ?? 0) ? b : a;
+}
+
+function preferIso(a?: string, b?: string): string | undefined {
+  if (!a) return b;
+  if (!b) return a;
+  return Date.parse(b) >= Date.parse(a) ? b : a;
+}
+
+/** Union local optimistic messages with the remote server truth by message id. */
+export function mergeChatThreads(local: ChatThread, remote: ChatThread): ChatThread {
+  const byId = new Map<string, ChatMessage>();
+  for (const m of local.messages) byId.set(m.id, m);
+  for (const m of remote.messages) {
+    const prev = byId.get(m.id);
+    if (!prev) {
+      byId.set(m.id, m);
+      continue;
+    }
+    byId.set(m.id, {
+      ...prev,
+      ...m,
+      status: preferStatus(prev.status, m.status),
+      deliveredAt: preferIso(prev.deliveredAt, m.deliveredAt),
+      readAt: preferIso(prev.readAt, m.readAt),
+    });
+  }
+
+  const messages = Array.from(byId.values()).sort(
+    (a, b) => Date.parse(a.timestamp) - Date.parse(b.timestamp)
+  );
+
+  return {
+    ...local,
+    ...remote,
+    messages,
+    escrowOffered: Boolean(remote.escrowOffered || local.escrowOffered),
+    escrow: remote.escrow ?? local.escrow,
+    negotiationTwin: remote.negotiationTwin ?? local.negotiationTwin,
+    lastReadAt: preferIso(local.lastReadAt, remote.lastReadAt),
+    magicMirrorNote: remote.magicMirrorNote ?? local.magicMirrorNote,
+  };
+}
+
+/** True when remote carries new message ids or newer delivery/read state. */
+export function remoteThreadHasUpdates(
+  local: ChatThread | undefined,
+  remote: ChatThread
+): boolean {
+  if (!local) return true;
+  const localIds = new Set(local.messages.map((m) => m.id));
+  if (remote.messages.some((m) => !localIds.has(m.id))) return true;
+  if (remote.messages.length !== local.messages.length) return true;
+  if (remote.escrowOffered !== local.escrowOffered) return true;
+  if (remote.lastReadAt && remote.lastReadAt !== local.lastReadAt) return true;
+
+  const remoteById = new Map(remote.messages.map((m) => [m.id, m]));
+  for (const m of local.messages) {
+    const r = remoteById.get(m.id);
+    if (!r) continue;
+    if ((STATUS_RANK[r.status ?? ""] ?? 0) > (STATUS_RANK[m.status ?? ""] ?? 0)) {
+      return true;
+    }
+    if (r.readAt && r.readAt !== m.readAt) return true;
+  }
+  return false;
+}

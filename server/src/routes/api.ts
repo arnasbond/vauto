@@ -1317,6 +1317,25 @@ apiRouter.get("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
   }
 });
 
+/** Public card for chat headers / seller chips — no phone, email, or wallet. */
+apiRouter.get("/users/:id/public", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const user = await getUser(req.params.id);
+    if (!user) return res.status(404).json({ error: "Not found" });
+    res.json({
+      id: user.id,
+      nickname: user.nickname ?? null,
+      name: user.name ?? null,
+      avatar: user.avatar ?? null,
+      companyName: user.companyName ?? null,
+      profileType: user.profileType ?? null,
+      city: user.city ?? null,
+    });
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
 apiRouter.put("/users/:id", requireAuth, async (req: AuthedRequest, res) => {
   try {
     if (!canActForUser(req, req.params.id)) {

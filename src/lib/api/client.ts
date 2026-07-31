@@ -632,6 +632,21 @@ export async function apiFetchUser(
   return dataFetch<UserProfile>(`/api/users/${id}`);
 }
 
+/** Lightweight peer card for chat headers (avatar + nickname). */
+export async function apiFetchPublicUser(id: string): Promise<
+  ApiResult<{
+    id: string;
+    nickname: string | null;
+    name: string | null;
+    avatar: string | null;
+    companyName: string | null;
+    profileType: string | null;
+    city: string | null;
+  }>
+> {
+  return dataFetch(`/api/users/${encodeURIComponent(id)}/public`);
+}
+
 export async function apiUpdateUserAvatar(
   userId: string,
   avatar: string
@@ -705,8 +720,8 @@ export async function apiFetchChats(
 export async function apiUpsertChat(
   thread: ChatThread,
   userId: string
-): Promise<ApiResult<null>> {
-  return dataFetch<null>("/api/chats", {
+): Promise<ApiResult<ChatThread>> {
+  return dataFetch<ChatThread>("/api/chats", {
     method: "PUT",
     body: JSON.stringify(thread),
     userId,

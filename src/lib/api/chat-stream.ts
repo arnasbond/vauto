@@ -34,7 +34,7 @@ export function connectChatStream(
 
         if (!res.ok || !res.body) {
           onStatus?.(false);
-          await sleep(5000);
+          await sleep(2500);
           continue;
         }
 
@@ -66,7 +66,7 @@ export function connectChatStream(
       } catch {
         if (aborted) break;
         onStatus?.(false);
-        await sleep(4000);
+        await sleep(2000);
       }
     }
   }

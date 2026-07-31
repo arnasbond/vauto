@@ -26,7 +26,10 @@ import { isDataApiEnabled } from "@/lib/api/config";
 import { loadChats, saveChats } from "@/lib/storage";
 import { CHAT_MESSAGE_SENT_CONFIRMATION } from "@/lib/empathy-copy";
 import { connectChatStream } from "@/lib/api/chat-stream";
-import { CHAT_SAFETY_POLL_MS } from "@/lib/notification-bell-poll";
+import {
+  CHAT_POLL_HIDDEN_MS,
+  CHAT_POLL_VISIBLE_MS,
+} from "@/lib/notification-bell-poll";
 import { scheduleSmsFallback } from "@/lib/sms-fallback";
 import { requestChatShieldAnalysis } from "@/lib/chat-shield-client";
 import { requestNegotiationTwin } from "@/lib/chat-agent-client";
@@ -42,9 +45,11 @@ import {
   applyViewerReadState,
   markIncomingRead,
   markSenderMessagesRead,
+  mergeChatThreads,
   mergeThreadUpdate,
   patchMessageStatus,
   publishChatEvent,
+  remoteThreadHasUpdates,
   subscribeChatEvents,
 } from "@/lib/chat-realtime";
 import { playChatIncomingSound } from "@/lib/chat-incoming-alert";
@@ -112,11 +117,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const persistChat = useCallback(
     (thread: ChatThread) => {
-      if (isDataApiEnabled()) {
-        void apiUpsertChat(thread, user.id).then((r) => {
-          if (!r.ok) setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
-        });
-      }
+      if (!isDataApiEnabled()) return;
+      void apiUpsertChat(thread, user.id).then((r) => {
+        if (!r.ok) {
+          setSyncError(`Pokalbio būsena neišsaugota: ${r.error}`);
+          return;
+        }
+        // Server may append FAQ / twin replies — fold them in immediately so
+        // the sender sees them without waiting for SSE/poll.
+        if (r.data && remoteThreadHasUpdates(thread, r.data)) {
+          const merged = mergeChatThreads(thread, r.data);
+          setChats((prev) => mergeThreadUpdate(prev, merged));
+          publishChatEvent({ type: "CHAT_UPSERT", thread: merged });
+        }
+      });
     },
     [user.id, setSyncError]
   );
@@ -318,10 +332,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         const byId = new Map(prev.map((t) => [t.id, t]));
         for (const remote of remoteThreads) {
           const local = byId.get(remote.id);
-          if (!local || remote.messages.length > local.messages.length) {
-            byId.set(remote.id, remote);
-            publishChatEvent({ type: "CHAT_UPSERT", thread: remote });
-          }
+          if (!remoteThreadHasUpdates(local, remote)) continue;
+          const merged = local ? mergeChatThreads(local, remote) : remote;
+          byId.set(remote.id, merged);
+          publishChatEvent({ type: "CHAT_UPSERT", thread: merged });
         }
         return Array.from(byId.values());
       });
@@ -348,9 +362,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
     void poll();
     const disconnectStream = connectChatStream(handleStreamEvent);
-    safetyTimer = setInterval(() => void poll(), CHAT_SAFETY_POLL_MS);
+    const pollMs = () =>
+      document.visibilityState === "hidden"
+        ? CHAT_POLL_HIDDEN_MS
+        : CHAT_POLL_VISIBLE_MS;
+    safetyTimer = setInterval(() => void poll(), pollMs());
+    // Refresh interval when tab visibility changes so foreground stays snappy.
+    const refreshTimer = () => {
+      if (safetyTimer) clearInterval(safetyTimer);
+      safetyTimer = setInterval(() => void poll(), pollMs());
+      void poll();
+    };
 
-    const onVis = () => void poll();
+    const onVis = () => refreshTimer();
     window.addEventListener("focus", onVis);
     document.addEventListener("visibilitychange", onVis);
 
