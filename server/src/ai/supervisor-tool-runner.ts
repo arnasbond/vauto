@@ -20,7 +20,11 @@ import { detectServerSellIntent } from "./sell-intent-fallback.js";
 import { isConversationalSearchIntent } from "./search-agent.js";
 import { buildBrowseAllReply } from "../lib/browse-all-intent.js";
 import { buildNoMatchLeadPrompt } from "../offer-engine.js";
-import { inferSearchCategory, normalizeProductSearchQuery } from "./product-search-query.js";
+import {
+  extractProductSearchIntent,
+  inferSearchCategory,
+  normalizeProductSearchQuery,
+} from "./product-search-query.js";
 import {
   buildJobSearchConversationalReply,
   isJobSearchQuery,
@@ -43,12 +47,16 @@ export interface GeminiContent {
 export type GeminiToolMode = "AUTO" | "ANY" | "NONE";
 
 const PRODUCT_SEARCH_RE =
-  /\b(volvo|bmw|audi|mercedes|toyota|vw|ford|opel|iphone|samsung|xiaomi|huawei|butas|namas|batai|kedai|sukn|drabuz|telefon|kompiuter|nešioj|nesioj|dvirat|motocikl|automob|laptop|v70|v60|xc\d|passat|golf|gitar|pianin|paveiksl|sof[aą]|bald)\b/i;
+  /\b(volvo|bmw|audi|mercedes|toyota|vw|ford|opel|iphone|samsung|xiaomi|huawei|butas|namas|batai|kedai|k[eė]d|sukn|drabuz|telefon|kompiuter|nešioj|nesioj|dvirat|motocikl|automob|laptop|v70|v60|xc\d|passat|golf|gitar|pianin|paveiksl|sof[aą]|bald|stal|paslaug|spint|lov[aąeę]|lentyn|komod|dvirat|r[uū]b|mar[sš]kin|kelnes|švark|svark)\b/i;
 
 // Bare „noriu“ alone is NOT a search verb — it often starts create intents
 // (“noriu įkelti skelbimą”). Keep concrete search verbs only.
 const SEARCH_VERB_RE =
   /\b(ieškau|ieskau|rask|surask|parodyk|rodyk|noriu\s+pirkti|reikia|find|search|show)\b/i;
+
+/** Chat confirmations / fillers — never treat as catalog search. */
+const NON_PRODUCT_QUERY_RE =
+  /^(taip|ne|ok|okay|okej|gerai|a[cč]i[uū]|labas|sveiki|super|puiku|supratau|tinka|viskas|hmm+|mhm+|jo|nu|aha)$/i;
 
 const SUPERVISOR_UI_TOOL_NAMES = new Set([
   "applyFilter",
@@ -62,13 +70,21 @@ const SUPERVISOR_UI_TOOL_NAMES = new Set([
 export function shouldForceSupervisorTools(text: string): boolean {
   const q = text.trim();
   if (q.length < 3) return false;
+  if (NON_PRODUCT_QUERY_RE.test(q)) return false;
   if (resolveBrowseAllIntent(q)) return false;
   if (isRevealActiveResultsIntent(q)) return false;
   if (detectServerSellIntent(q)) return false;
   // Never force catalog search for job-seeker listing phrases.
   if (/\bieškau\s+darbo\b/i.test(q) || /\bieskau\s+darbo\b/i.test(q)) return false;
   if (isConversationalSearchIntent(q)) return false;
-  return PRODUCT_SEARCH_RE.test(q) || SEARCH_VERB_RE.test(q);
+  if (PRODUCT_SEARCH_RE.test(q) || SEARCH_VERB_RE.test(q)) return true;
+
+  // „stalas“, „paslaugos“, „rūbai“ — product/category nouns must hit SQL,
+  // not Gemini lead-capture (create_user_requirement) when catalog has matches.
+  const intent = extractProductSearchIntent(q);
+  if (intent.categoryBrowse) return true;
+  const kw = intent.keyword.trim();
+  return kw.length >= 3 && !NON_PRODUCT_QUERY_RE.test(kw);
 }
 
 export function extractGeminiFunctionCalls(

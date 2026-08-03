@@ -1344,12 +1344,16 @@ async function runVautoAgentInner(
   }
 
   // Single-pass indexed search — skip multi-turn Gemini tool ping-pong.
+  // Search-bar submits are always catalog queries (never lead-capture fallback).
   // On failure, fall through to Gemini so the SSE stream always gets a final event.
-  if (
-    lastUserText &&
-    shouldForceSupervisorTools(lastUserText) &&
-    !pendingChatImages?.length
-  ) {
+  const forceCatalogSearch =
+    Boolean(lastUserText) &&
+    !pendingChatImages?.length &&
+    (shouldForceSupervisorTools(lastUserText) ||
+      (Boolean(req.context.fromSearchBar) &&
+        !detectServerSellIntent(lastUserText)));
+
+  if (forceCatalogSearch && lastUserText) {
     try {
       emitAgentEvent(onEvent, {
         type: "tool_call",
@@ -1597,7 +1601,11 @@ async function runVautoAgentInner(
   let navigateScreenEffect: AgentSideEffect | undefined;
   let offerEffect: AgentSideEffect | undefined;
   let draftText = "";
-  const forceSupervisorTools = shouldForceSupervisorTools(lastUserText);
+  const forceSupervisorTools =
+    shouldForceSupervisorTools(lastUserText) ||
+    (Boolean(req.context.fromSearchBar) &&
+      Boolean(lastUserText) &&
+      !detectServerSellIntent(lastUserText));
 
   const hasGemini = Boolean(resolveGeminiApiKey());
   let lastGeminiError: AgentRouteError | null = null;

@@ -11,6 +11,7 @@
     "lint": "next lint",
     "test:e2e": "npm run build:e2e && playwright test",
     "test:e2e:live": "playwright test --config=playwright.live.config.ts",
+    "test:e2e:prod-real": "playwright test --config=playwright.prod-real.config.ts",
     "test:e2e:conductor": "node scripts/build-with-conductor.mjs && playwright test e2e/ai-conductor.spec.ts",
     "test:e2e:conductor-runtime": "npm run build:e2e && playwright test e2e/ai-conductor-runtime.spec.ts",
     "test:e2e:conductor-runtime-live": "npm run sync:runtime-config:conductor && npm run build:e2e && playwright test e2e/ai-conductor-runtime-live.spec.ts",
