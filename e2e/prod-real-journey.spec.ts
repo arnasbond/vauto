@@ -135,18 +135,48 @@ async function runPortalSearch(page: Page, session: LiveSession, query: string):
   await search.fill(query);
 
   const started = Date.now();
-  const agentRespPromise = page.waitForResponse(
-    (r) =>
-      /\/api\/vauto-agent/.test(r.url()) &&
-      r.request().method() === "POST" &&
-      r.status() < 500,
-    { timeout: 180_000 }
-  ).catch(() => null);
+  // Prefer a completed search action — ignore early/aborted agent posts with type=none.
+  const agentRespPromise = page
+    .waitForResponse(
+      async (r) => {
+        if (
+          !/\/api\/vauto-agent/.test(r.url()) ||
+          r.request().method() !== "POST" ||
+          r.status() >= 500
+        ) {
+          return false;
+        }
+        try {
+          const raw = await r.text();
+          if (/create_user_requirement|"type"\s*:\s*"none"/.test(raw) && !/"type"\s*:\s*"search"/.test(raw)) {
+            return false;
+          }
+          return (
+            /"type"\s*:\s*"(search|empty_search|browse_all)"/.test(raw) ||
+            /"listingIds"\s*:\s*\[/.test(raw)
+          );
+        } catch {
+          return r.ok();
+        }
+      },
+      { timeout: 180_000 }
+    )
+    .catch(() => null);
 
   await search.press("Enter");
+
+  // Playwright isVisible() does NOT wait — use waitFor so late toasts count.
+  const toastHit = await page
+    .getByText(/Rasta\s+\d+/i)
+    .first()
+    .waitFor({ state: "visible", timeout: 120_000 })
+    .then(() => true)
+    .catch(() => false);
+
   const agentResp = await agentRespPromise;
   const agentMs = Date.now() - started;
   let agentCount: number | null = null;
+  let agentType: string | null = null;
   if (agentResp) {
     try {
       const ct = agentResp.headers()["content-type"] || "";
@@ -167,7 +197,20 @@ async function runPortalSearch(page: Page, session: LiveSession, query: string):
           })
           .filter(Boolean) as Array<Record<string, unknown>>;
         const finalEvt =
-          finals.find((e) => e.type === "final" || e.result || e.actions) ??
+          [...finals]
+            .reverse()
+            .find((e) => {
+              const actions = (e.actions ??
+                (e.result as { actions?: unknown } | undefined)?.actions) as
+                | { type?: string }
+                | undefined;
+              return (
+                e.type === "final" ||
+                actions?.type === "search" ||
+                actions?.type === "browse_all" ||
+                actions?.type === "empty_search"
+              );
+            }) ??
           finals[finals.length - 1] ??
           null;
         body = (finalEvt?.result as Record<string, unknown>) ?? finalEvt;
@@ -177,6 +220,7 @@ async function runPortalSearch(page: Page, session: LiveSession, query: string):
       const actions = (body?.actions ??
         (body as { sideEffect?: unknown })?.sideEffect ??
         body) as { listingIds?: string[]; type?: string } | null;
+      agentType = actions?.type ?? null;
       const listings = (body as { listings?: Array<{ id: string }> })?.listings;
       const ids = actions?.listingIds ?? listings?.map((l) => l.id);
       agentCount = Array.isArray(ids)
@@ -187,14 +231,14 @@ async function runPortalSearch(page: Page, session: LiveSession, query: string):
       markLatency(
         `agent_http:${query}`,
         started,
-        agentResp.ok(),
-        `status=${agentResp.status()} count=${agentCount ?? "?"} type=${actions?.type ?? "?"}`
+        agentResp.ok() && agentType !== "none",
+        `status=${agentResp.status()} count=${agentCount ?? "?"} type=${agentType ?? "?"}`
       );
     } catch {
       markLatency(`agent_http:${query}`, started, agentResp.ok(), `status=${agentResp.status()}`);
     }
   } else {
-    markLatency(`agent_http:${query}`, started, false, "no vauto-agent response");
+    markLatency(`agent_http:${query}`, started, false, "no vauto-agent search response");
   }
 
   const results = listingResults(page);
@@ -202,37 +246,33 @@ async function runPortalSearch(page: Page, session: LiveSession, query: string):
 
   let visibleCount = 0;
   let titles: string[] = [];
-  const toastHit = await page
-    .getByText(/Rasta\s+\d+/i)
-    .isVisible({ timeout: 90_000 })
-    .catch(() => false);
-
-  const deadline = Date.now() + 120_000;
+  const deadline = Date.now() + 90_000;
   while (Date.now() < deadline) {
     const articles = results.locator("article");
     visibleCount = await articles.count();
-    // Also count listing cards / links if article markup differs on prod
     if (visibleCount === 0) {
       visibleCount = await results.locator("a[href*='listing']").count();
     }
-    if (visibleCount > 0) {
+    // Prefer a filtered pin set once toast/agent count is known
+    if (
+      visibleCount > 0 &&
+      (toastHit ||
+        (agentCount != null &&
+          agentCount > 0 &&
+          visibleCount <= agentCount + 3) ||
+        agentCount == null)
+    ) {
       titles = (await articles.allTextContents()).map((t) => t.trim()).filter(Boolean);
-      break;
+      if (toastHit || (agentCount != null && visibleCount <= agentCount + 3)) break;
     }
-    // Fallback: any marketplace card showing the query token
-    const bodyHit = await page.locator("body").innerText();
-    if (new RegExp(query, "i").test(bodyHit) && /€/.test(bodyHit)) {
-      visibleCount = await page.locator("text=/€/").count();
-      if (visibleCount > 0) break;
-    }
-    await page.waitForTimeout(2_000);
+    await page.waitForTimeout(1_000);
   }
 
   const ms = markLatency(
     `ui_search:${query}`,
     started,
-    visibleCount > 0 || toastHit || (agentCount != null && agentCount > 0),
-    `dom=${visibleCount} toast=${toastHit} agentCount=${agentCount ?? "?"} agentMs=${agentMs}`
+    Boolean(toastHit || (agentCount != null && agentCount > 0)),
+    `dom=${visibleCount} toast=${toastHit} agentCount=${agentCount ?? "?"} type=${agentType ?? "?"} agentMs=${agentMs}`
   );
   return { ms, visibleCount, titles, toastHit, agentCount };
 }
@@ -360,16 +400,18 @@ test.describe("Prod REAL journey A→Z (no mocks)", () => {
       ).toBeGreaterThanOrEqual(Math.min(baseline[c.kind], 3));
       expect(agent.ms, `Agent search "${c.q}" too slow: ${agent.ms}ms`).toBeLessThan(180_000);
 
-      // UI path — must surface results (toast and/or filtered DOM)
+      // UI path — must pin results (toast) and shrink DOM; bare feed count is NOT success
       const result = await runPortalSearch(page, buyer, c.q);
-      const uiOk = result.toastHit || result.visibleCount > 0;
       expect(
-        uiOk,
-        `UI search "${c.q}" showed no results (toast/DOM). agentCount=${agent.count}`
+        result.toastHit,
+        `UI search "${c.q}" missing "Rasta N" toast (agent API count=${agent.count}, uiAgent=${result.agentCount}, dom=${result.visibleCount})`
       ).toBeTruthy();
+      expect(
+        result.visibleCount,
+        `UI search "${c.q}" DOM empty after pin toast`
+      ).toBeGreaterThan(0);
 
-      // If toast announces N, DOM should not remain a full unfiltered 29-item feed
-      if (result.toastHit && agent.count > 0 && agent.count <= 10) {
+      if (agent.count > 0 && agent.count <= 10) {
         expect(
           result.visibleCount,
           `UI still shows unfiltered catalog (${result.visibleCount}) after pin of ${agent.count}`
