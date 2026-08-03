@@ -91,7 +91,10 @@ export function buildPrePublishCardPayload(
     location: (() => {
       const draftLoc = String(draft.location ?? "").trim();
       if (draftLoc && !isPlaceholderCity(draftLoc)) return draftLoc;
-      return readiness.resolvedCity;
+      const city = String(readiness.resolvedCity ?? "").trim();
+      if (city && !isPlaceholderCity(city)) return city;
+      // GPS-only / unresolved — soft editable label, never invent a town.
+      return "Nežinoma lokacija";
     })(),
     phone: readiness.resolvedPhone,
     imageUrl: imageUrls[0] ?? null,
@@ -265,10 +268,15 @@ export function evaluatePrePublishReadiness(
     input.user.city,
     input.geoCoords
   );
+  const hasGps =
+    Boolean(input.geoCoords) &&
+    Number.isFinite(input.geoCoords?.lat) &&
+    Number.isFinite(input.geoCoords?.lng);
 
   const missingPhone = !isValidListingPhone(resolvedPhone);
+  // GPS permission satisfies location — never invent a city; typed city also OK.
   const missingCity =
-    !resolvedCity.trim() || isPlaceholderCity(resolvedCity);
+    !hasGps && (!resolvedCity.trim() || isPlaceholderCity(resolvedCity));
   const missingPrice = !draftHasSatisfiedPrice({
     price: syncedDraft?.price,
     priceLabel: syncedDraft?.priceLabel,
@@ -337,7 +345,7 @@ export function buildPrePublishMissingGuide(
     hints.push("atnaujinkite telefono numerį profilyje");
   }
   if (readiness.missingCity) {
-    hints.push("atnaujinkite miestą profilyje");
+    hints.push("įrašykite miestą ranka arba leiskite GPS lokaciją");
   }
   if (readiness.missingPrice) {
     hints.push("nurodykite kainą eurais, pvz. 1200 €");

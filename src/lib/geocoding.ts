@@ -6,14 +6,12 @@ import {
   LT_CITY_COORDS,
 } from "@/lib/lt-cities";
 
-/** Soft-launch default when geocode gets only a country / unknown place. */
-export const DEFAULT_LISTING_GEO_CITY = "Vilnius";
-
-const DEFAULT_LISTING_COORDS: UserCoords = LT_CITY_COORDS[DEFAULT_LISTING_GEO_CITY]!;
+/** Soft label when city is unknown — never invent Vilnius/Kaunas. */
+export const UNKNOWN_LISTING_LOCATION_LABEL = "Nežinoma lokacija";
 
 /**
- * Country-only / nationwide labels that must never hard-fail publish.
- * Foreign IP users often land with "Lietuva" instead of a city.
+ * Country-only / nationwide / unknown labels — not a precise city.
+ * Foreign IP users often land with "Lietuva" instead of a municipality.
  */
 export function isCountryOnlyOrVagueLtLocation(
   locationText: string | undefined | null
@@ -28,63 +26,55 @@ export function isCountryOnlyOrVagueLtLocation(
     .replace(/\s+/g, " ")
     .trim();
   if (
-    /^(lietuva|lithuania|republic of lithuania|lietuvos Respublika|lt|ltu|lt-lt)$/i.test(
+    /^(nezinoma lokacija|nežinoma lokacija|unknown location|unknown)$/i.test(n)
+  ) {
+    return true;
+  }
+  if (
+    /^(lietuva|lithuania|republic of lithuania|lietuvos respublika|lt|ltu|lt-lt)$/i.test(
       n
     )
   ) {
     return true;
   }
-  if (/^(visa lietuva|visa lithuania|all lithuania|nationwide|visoje lietuvoje)$/i.test(n)) {
+  if (
+    /^(visa lietuva|visa lithuania|all lithuania|nationwide|visoje lietuvoje)$/i.test(
+      n
+    )
+  ) {
     return true;
   }
-  // "Lietuva" / "Lithuania" alone with optional country suffix noise
   if (/^(lietuva|lithuania)(\s*,?\s*(eu|europe))?$/i.test(n)) return true;
   return false;
 }
 
-/**
- * City label safe for publish + geocode. Country-only / unknown → Vilnius.
- * Never invents a city for buyer search — only listing publish soft-fallback.
- */
-export function resolveGeocodeableListingCity(
+/** True when the location field should not be treated as a resolved city. */
+export function isUnresolvedListingLocation(
   locationText: string | undefined | null
-): string {
-  const raw = String(locationText ?? "").trim();
-  if (!raw || isPlaceholderCity(raw) || isCountryOnlyOrVagueLtLocation(raw)) {
-    return DEFAULT_LISTING_GEO_CITY;
-  }
-  const matchedCity = detectCityInText(raw);
-  if (matchedCity) return matchedCity;
-  if (coordsForLtCity(raw)) {
-    return raw;
-  }
-  // Unknown free-text (incl. foreign city) — still publishable with Vilnius pin.
-  return DEFAULT_LISTING_GEO_CITY;
+): boolean {
+  return isCountryOnlyOrVagueLtLocation(locationText);
 }
 
-/** Mock geocoding — resolves Lithuanian city/neighborhood text to coordinates */
-export function geocodeLocation(
-  locationText: string,
+/**
+ * Soft geocode — returns coords only for a known Lithuanian city.
+ * Never invents a default town and never throws a blocking error.
+ */
+export function tryGeocodeLocation(
+  locationText: string | undefined | null,
   uniqueSeed = ""
-): UserCoords {
-  const normalized = locationText.trim();
-  const matchedCity = detectCityInText(normalized);
+): UserCoords | null {
+  const normalized = String(locationText ?? "").trim();
+  if (!normalized || isUnresolvedListingLocation(normalized)) {
+    return null;
+  }
 
-  let base: UserCoords;
-  if (matchedCity) {
-    base = LT_CITY_COORDS[matchedCity]!;
-  } else {
-    const direct = coordsForLtCity(normalized);
-    if (direct) {
-      base = direct;
-    } else {
-      // Soft fallback — never throw a blocking red error for Lietuva / abroad / unknown.
-      console.warn(
-        `[geocode] unknown/country-only location → ${DEFAULT_LISTING_GEO_CITY}:`,
-        locationText
-      );
-      base = DEFAULT_LISTING_COORDS;
-    }
+  const matchedCity = detectCityInText(normalized);
+  const base = matchedCity
+    ? LT_CITY_COORDS[matchedCity]
+    : coordsForLtCity(normalized);
+  if (!base) {
+    console.warn("[geocode] unresolved location (no artificial fallback):", locationText);
+    return null;
   }
 
   const neighborhoodJitter = hashJitter(
@@ -94,6 +84,17 @@ export function geocodeLocation(
     lat: roundCoord(base.lat + neighborhoodJitter.lat),
     lng: roundCoord(base.lng + neighborhoodJitter.lng),
   };
+}
+
+/**
+ * @deprecated Prefer tryGeocodeLocation — kept for call sites that expect a soft result.
+ * Returns null when unknown (never throws, never invents Vilnius).
+ */
+export function geocodeLocation(
+  locationText: string,
+  uniqueSeed = ""
+): UserCoords | null {
+  return tryGeocodeLocation(locationText, uniqueSeed);
 }
 
 function hashJitter(seed: string): { lat: number; lng: number } {
@@ -126,21 +127,43 @@ export function distanceToListing(
   return null;
 }
 
-export function enrichListingCoords<T extends { location: string; id?: string }>(
+export function enrichListingCoords<T extends { location: string; id?: string; latitude?: number; longitude?: number; attributes?: Record<string, unknown> }>(
   listing: T
 ): T & { latitude?: number; longitude?: number } {
+  // Preserve explicit coords (e.g. GPS) already on the listing.
+  if (listing.latitude != null && listing.longitude != null) {
+    return listing;
+  }
+
+  const fromAttrs = coordsFromListingAttributes(listing.attributes);
+  if (fromAttrs) {
+    return { ...listing, latitude: fromAttrs.lat, longitude: fromAttrs.lng };
+  }
+
   const loc = listing.location?.trim();
-  if (!loc || isPlaceholderCity(loc)) {
+  if (!loc || isUnresolvedListingLocation(loc)) {
     return { ...listing };
   }
-  const coords = geocodeLocation(loc, listing.id ?? loc);
-  const nextLocation = isCountryOnlyOrVagueLtLocation(loc)
-    ? DEFAULT_LISTING_GEO_CITY
-    : listing.location;
+
+  const coords = tryGeocodeLocation(loc, listing.id ?? loc);
+  if (!coords) {
+    return { ...listing };
+  }
   return {
     ...listing,
-    location: nextLocation,
     latitude: coords.lat,
     longitude: coords.lng,
   };
+}
+
+/** Read soft-attached _geoLat/_geoLng from draft attributes. */
+export function coordsFromListingAttributes(
+  attributes: Record<string, unknown> | null | undefined
+): UserCoords | null {
+  if (!attributes) return null;
+  const lat = Number(attributes._geoLat ?? attributes.geoLat);
+  const lng = Number(attributes._geoLng ?? attributes.geoLng);
+  if (!Number.isFinite(lat) || !Number.isFinite(lng)) return null;
+  if (Math.abs(lat) > 90 || Math.abs(lng) > 180) return null;
+  return { lat, lng };
 }

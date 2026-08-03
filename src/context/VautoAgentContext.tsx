@@ -106,6 +106,7 @@ import { resolveBrowseAllIntent, createBrowseAllAction, isListingConfirmationPhr
 import { applyBrowseAllMarketplaceState } from "@/lib/browse-all-marketplace-state";
 import { dispatchHomeReset, subscribeHomeReset } from "@/lib/home-reset";
 import { clearPhotoSearchSession } from "@/lib/photo-search-session";
+import { clearPendingPhotoIntent } from "@/lib/photo-intent-session";
 import { tryHandleAgentQuickReply, type AgentBargainingOffer } from "@/lib/agent-quick-reply-router";
 import {
   isPhotoIntentListingChip,
@@ -1148,7 +1149,8 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
   const resetPublishSession = useCallback(() => {
     setListingPublishConfirmed(false);
     setHidePrePublishCard(false);
-    // Strip PrePublish card only — success copy comes from notifyListingPublishComplete (one message).
+    // Hard purge pending photos + PrePublish card artifacts after successful publish.
+    setSessionPendingImageUrls([]);
     setMessages((prev) =>
       prev
         .map((m) => {
@@ -3435,6 +3437,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     setHidePrePublishCard(true);
     setListingPublishConfirmed(false);
     setAwaitingListingEditField(null);
+    // Hard purge chat + pending media — no leftover attrs/photos from prior attempts.
     setMessages([]);
     setSessionPendingImageUrls([]);
     setLastBargainingOffer(null);
@@ -3457,6 +3460,7 @@ export function VautoAgentProvider({ children }: { children: ReactNode }) {
     });
     setSearchLoading(false);
     clearPhotoSearchSession();
+    clearPendingPhotoIntent();
     // Re-enable PrePublish for the next draft after paint (avoids one-frame flash).
     queueMicrotask(() => setHidePrePublishCard(false));
   }, [

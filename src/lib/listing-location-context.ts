@@ -1,7 +1,7 @@
 import { distanceKm, getUserCoords, isCoordsInLithuania, type UserCoords } from "@/lib/geolocation";
 import {
-  DEFAULT_LISTING_GEO_CITY,
-  isCountryOnlyOrVagueLtLocation,
+  isUnresolvedListingLocation,
+  UNKNOWN_LISTING_LOCATION_LABEL,
 } from "@/lib/geocoding";
 import {
   coordsForLtCity,
@@ -10,20 +10,22 @@ import {
 } from "@/lib/lt-cities";
 import { isPlaceholderCity, normalizeKnownListingCity } from "@/lib/city-resolve";
 
-/** Agent prompt when listing city is unknown — mirrors unverified price handling. */
+/** Agent prompt when listing city is unknown — soft guide, never a hard geocode error. */
 export const LOCATION_MISSING_AGENT_PROMPT =
-  "Matau, kad vieta nenurodyta — patikslinkite miestą Lietuvoje (pvz. Vilnius, Kaunas) arba palikite nenurodytą.";
+  "Matau, kad vieta nenurodyta — įrašykite miestą ranka arba leiskite GPS lokaciją. Jokio automatinio miesto nepriskiriame.";
+
+export { UNKNOWN_LISTING_LOCATION_LABEL };
 
 const MAX_GEO_CITY_DISTANCE_KM = 45;
 
-/** Explicit draft city: known LT name, or any non-placeholder free-text the user typed. */
+/** Explicit draft city: known LT name, or free-text the user typed (not country-only). */
 function explicitDraftCity(draftLocation: string | undefined | null): string {
   const known = normalizeKnownListingCity(draftLocation);
   if (known) return known;
   const raw = String(draftLocation ?? "").trim();
-  if (!raw || isPlaceholderCity(raw)) return "";
-  // Country-only ("Lietuva") is not a publishable city — soft-fallback to Vilnius.
-  if (isCountryOnlyOrVagueLtLocation(raw)) return DEFAULT_LISTING_GEO_CITY;
+  if (!raw || isPlaceholderCity(raw) || isUnresolvedListingLocation(raw)) {
+    return "";
+  }
   return raw;
 }
 
@@ -34,7 +36,7 @@ export function verifiedProfileCity(profileCity?: string | null): string {
 
 /**
  * Effective city for AI / publish context.
- * Never force a stale LT profile city (e.g. Kaišiadorys) when GPS is abroad or missing.
+ * Never force a stale LT profile city when GPS is abroad or missing.
  */
 export function resolveEffectiveUserCity(opts: {
   profileCity?: string | null;
@@ -69,7 +71,7 @@ export function nearestLtCityFromCoords(coords: UserCoords): string {
 
 /**
  * Prefer the locality closer to GPS when draft/profile picked a regional hub
- * (e.g. Kaunas) while the device is in a municipality town (Kaišiadorys).
+ * (e.g. Kaunas) while the device is in a municipality town.
  */
 export function preferLocalCityNearCoords(
   primary: string,
@@ -95,11 +97,10 @@ export function preferLocalCityNearCoords(
 
 /**
  * Resolve listing city for publish: explicit draft → GPS municipality → profile.
- * Never invents a default town. Abroad GPS → only explicit draft city (or empty).
- * Free-text draft (incl. foreign cities) is preserved when the user typed it.
+ * Never invents a default town (no Vilnius/Kaunas fallback).
+ * Abroad GPS → only explicit draft city (or empty).
  *
  * HARD: any non-empty draft/location the seller set (AI or manual) wins over GPS.
- * Background geo must never overwrite a value already on the draft card.
  */
 export function resolvePublishListingCity(
   draftLocation: string | undefined | null,
@@ -107,7 +108,6 @@ export function resolvePublishListingCity(
   geoCoords?: UserCoords | null
 ): string {
   const fromDraft = explicitDraftCity(draftLocation);
-  // Seller / AI draft city is highest priority — never snap back to GPS.
   if (fromDraft) return fromDraft;
 
   const fromProfile = verifiedProfileCity(profileCity);
@@ -129,8 +129,30 @@ export function resolvePublishListingCity(
 }
 
 /**
+ * Display / publish location label — city when known, else soft unknown (editable).
+ * Never invents a municipality.
+ */
+export function resolveListingLocationLabel(opts: {
+  draftLocation?: string | null;
+  profileCity?: string | null;
+  geoCoords?: UserCoords | null;
+}): string {
+  const city = resolvePublishListingCity(
+    opts.draftLocation,
+    opts.profileCity,
+    opts.geoCoords
+  );
+  if (city) return city;
+  if (opts.geoCoords) {
+    const near = nearestLtCityFromCoords(opts.geoCoords);
+    if (near) return near;
+  }
+  return UNKNOWN_LISTING_LOCATION_LABEL;
+}
+
+/**
  * Dynamic hint for AI extraction — GPS municipality first, then profile.
- * Abroad / unknown GPS → empty (never invent Kaišiadorys).
+ * Abroad / unknown GPS → empty (never invent a town).
  */
 export async function resolveDynamicListingLocation(opts: {
   profileCity?: string | null;

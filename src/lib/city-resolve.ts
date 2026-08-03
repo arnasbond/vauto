@@ -5,7 +5,7 @@ import {
 } from "@/lib/lt-cities";
 
 const PLACEHOLDER_CITY =
-  /^(miestas|city|unknown|n\/?a|—|-+|\.*|xxx|placeholder|location|vieta)$/i;
+  /^(miestas|city|unknown|n\/?a|—|-+|\.*|xxx|placeholder|location|vieta|nežinoma lokacija|nezinoma lokacija|unknown location)$/i;
 
 /** Reject AI/UI placeholders — never send "Miestas" to the API. */
 export function isPlaceholderCity(value: string | undefined | null): boolean {

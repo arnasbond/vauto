@@ -12,10 +12,10 @@ import {
 } from "../shared/chaotic-input.js";
 import { parsePriceFromChatInput } from "./listing-chat-input.js";
 
-/** Country-only / empty city → Vilnius so publish geocode never hard-fails. */
+/** Country-only / empty city → leave empty (user or GPS fills later). Never invent Vilnius. */
 function sanitizeFallbackListingCity(raw?: string | null): string {
   const v = String(raw ?? "").trim();
-  if (!v) return "Vilnius";
+  if (!v) return "";
   const n = v
     .toLowerCase()
     .normalize("NFD")
@@ -23,9 +23,11 @@ function sanitizeFallbackListingCity(raw?: string | null): string {
     .replace(/\s+/g, " ")
     .trim();
   if (
-    /^(lietuva|lithuania|lt|ltu|visa lietuva|all lithuania|nationwide)$/i.test(n)
+    /^(lietuva|lithuania|lt|ltu|visa lietuva|all lithuania|nationwide|nezinoma lokacija|nežinoma lokacija)$/i.test(
+      n
+    )
   ) {
-    return "Vilnius";
+    return "";
   }
   return v;
 }

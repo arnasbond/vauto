@@ -219,10 +219,11 @@ export function clearServiceListingDraft(): void {
   localStorage.removeItem(SERVICE_DRAFT_KEY);
 }
 
-/** Wipe legacy single-key drafts only — multi drafts persist across flow resets. */
+/** Wipe all local listing draft caches — hard session purge (publish / new listing). */
 export function clearAllListingDrafts(): void {
   clearClothingListingDraft();
   clearGeneralListingDraft();
   clearJobListingDraft();
   clearServiceListingDraft();
+  clearMultiListingDrafts();
 }

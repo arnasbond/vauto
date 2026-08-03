@@ -25,12 +25,13 @@ export async function runPublishSuccessCelebration(opts: {
 
   const listing = opts.result.listing;
 
-  // Close PrePublish + wipe AI chat/draft as soon as publish succeeds.
+  // Hard purge: PrePublish + AI chat/draft/photos immediately on success.
   opts.resetPublishSession?.();
   opts.beginFreshListingChatSession?.();
+  opts.finishPublishedFlow();
   await opts.playCelebration(opts.sourceRect);
 
-  // Share Modal BEFORE navigation / flow reset — otherwise PublishedOverlay never mounts.
+  // Share Modal BEFORE navigation — otherwise PublishedOverlay never mounts.
   if (opts.presentPostPublishShare && listing) {
     try {
       await opts.presentPostPublishShare(listing);
@@ -39,7 +40,6 @@ export async function runPublishSuccessCelebration(opts: {
     }
   }
 
-  opts.finishPublishedFlow();
   opts.router.push("/mano-skelbimai/");
 
   if (opts.result.visibilityCheckout && opts.openCheckout) {

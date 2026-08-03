@@ -2,10 +2,20 @@ import type { AiExtractedListing, UserProfile } from "@/lib/types";
 import { createManualFallbackDraft } from "@/lib/ai-safeguards";
 import { applyProfileToListingDraft } from "@/lib/profile-listing-sync";
 import { transitionListingFlow } from "@/lib/listing-conversational-flow";
+import { isUnresolvedListingLocation } from "@/lib/geocoding";
+import { normalizeKnownListingCity } from "@/lib/city-resolve";
 
 export type StartAiSellerListingOptions = {
   fashion?: boolean;
 };
+
+function seedLocationFromProfile(city?: string | null): string {
+  const known = normalizeKnownListingCity(city);
+  if (known) return known;
+  const raw = String(city ?? "").trim();
+  if (!raw || isUnresolvedListingLocation(raw)) return "";
+  return raw;
+}
 
 /** Seed a lean listing draft for the 4-step AI seller chat (no /add shell). */
 export function buildAiSellerListingSeed(
@@ -13,8 +23,9 @@ export function buildAiSellerListingSeed(
   options: StartAiSellerListingOptions = {}
 ): AiExtractedListing {
   const fashion = Boolean(options.fashion);
+  const location = seedLocationFromProfile(user.city);
   const base = createManualFallbackDraft({
-    location: user.city || "",
+    location,
     contact: user.phone || "",
   });
   const seeded = applyProfileToListingDraft(
@@ -26,6 +37,7 @@ export function buildAiSellerListingSeed(
       listingFlowState: "DRAFTING_TEXT",
       orderedImageUrls: [],
       attributes: {},
+      location,
     },
     user,
     true,
@@ -33,11 +45,15 @@ export function buildAiSellerListingSeed(
   );
   const nextState =
     transitionListingFlow("DRAFTING_TEXT", "DRAFT_SAVED") ?? "AWAITING_PHOTOS";
+  const seededLoc = String(seeded.location ?? "").trim();
   return {
     ...seeded,
+    location:
+      !seededLoc || isUnresolvedListingLocation(seededLoc) ? location : seededLoc,
     category: fashion ? "clothing" : seeded.category,
     listingFlowState: nextState,
     orderedImageUrls: [],
+    attributes: {},
   };
 }
 

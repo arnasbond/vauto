@@ -26,13 +26,13 @@ import {
 } from "@/lib/listing-draft-id";
 import { moderateListing } from "@/lib/moderation";
 import { compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
-import { getUserCoords } from "@/lib/geolocation";
+import { getUserCoords, isCoordsInLithuania } from "@/lib/geolocation";
 import {
-  DEFAULT_LISTING_GEO_CITY,
+  coordsFromListingAttributes,
   distanceToListing,
   enrichListingCoords,
-  geocodeLocation,
-  isCountryOnlyOrVagueLtLocation,
+  isUnresolvedListingLocation,
+  tryGeocodeLocation,
 } from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
@@ -46,9 +46,12 @@ import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-dra
 import { normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
   LOCATION_MISSING_AGENT_PROMPT,
+  nearestLtCityFromCoords,
   resolveDynamicListingLocation,
   resolveEffectiveUserCity,
+  resolveListingLocationLabel,
   resolvePublishListingCity,
+  UNKNOWN_LISTING_LOCATION_LABEL,
   verifiedProfileCity,
 } from "@/lib/listing-location-context";
 import { hasListingPhoto, LISTING_PHOTO_REQUIRED_MESSAGE } from "@/lib/listing-form-validation";
@@ -858,19 +861,22 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           }
         }
 
-        // Soft geocode — country-only ("Lietuva") / unknown never blocks the draft.
-        const geoLoc = isCountryOnlyOrVagueLtLocation(next.location)
-          ? DEFAULT_LISTING_GEO_CITY
-          : next.location?.trim() || DEFAULT_LISTING_GEO_CITY;
-        const geo = geocodeLocation(geoLoc);
+        // Soft geocode only — never invent Vilnius/Kaunas. Country-only → empty for manual edit.
+        const rawLoc = String(next.location ?? "").trim();
+        const resolvedLoc = isUnresolvedListingLocation(rawLoc) ? "" : rawLoc;
+        const geo = resolvedLoc ? tryGeocodeLocation(resolvedLoc) : null;
+        const nextAttrs = { ...(next.attributes ?? {}) };
+        if (geo) {
+          nextAttrs._geoLat = String(geo.lat);
+          nextAttrs._geoLng = String(geo.lng);
+        } else {
+          delete nextAttrs._geoLat;
+          delete nextAttrs._geoLng;
+        }
         next = {
           ...next,
-          location: geoLoc,
-          attributes: {
-            ...(next.attributes ?? {}),
-            _geoLat: String(geo.lat),
-            _geoLng: String(geo.lng),
-          },
+          location: resolvedLoc,
+          attributes: nextAttrs,
         };
 
         if (opts?.videoUrl) {
@@ -1812,9 +1818,29 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       return { ok: false, error: msg };
     }
 
-    const listingCity = resolvePublishListingCity(profileDraft.location, user.city, coords);
-    if (!listingCity) {
-      showToast("Nurodykite miestą prieš publikuojant.", "error");
+    const listingCityRaw = resolvePublishListingCity(
+      profileDraft.location,
+      user.city,
+      coords
+    );
+    const gpsCoords =
+      coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)
+        ? coords
+        : null;
+    const cityCoords = listingCityRaw
+      ? tryGeocodeLocation(listingCityRaw)
+      : null;
+    const attrCoords = coordsFromListingAttributes(profileDraft.attributes);
+    // Prefer precise GPS when granted; otherwise city geocode / soft draft attrs.
+    const listingCoords =
+      gpsCoords ?? cityCoords ?? attrCoords ?? null;
+
+    // Allow publish with GPS and/or a typed city — never invent a municipality.
+    if (!listingCityRaw && !listingCoords) {
+      showToast(
+        "Nurodykite miestą arba leiskite GPS lokaciją — automatiškai miesto nepriskiriame.",
+        "info"
+      );
       if (verifiedProfileCity(user.city)) {
         logHeroContactReask("city", "publish_location_missing_prompt");
         trackEvent("kpi_contact_reask", {
@@ -1828,11 +1854,23 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
         openSheet: true,
       });
       setSellerStep("idle");
-      return { ok: false, error: "Nenurodytas miestas." };
+      return { ok: false, error: "Nenurodyta lokacija.", prePublishBlocked: true };
     }
-    const listingCoords = geocodeLocation(listingCity);
-    if (coords) {
-      const exact = distanceToListing(coords, {
+
+    const listingCity =
+      listingCityRaw ||
+      (gpsCoords && isCoordsInLithuania(gpsCoords)
+        ? nearestLtCityFromCoords(gpsCoords)
+        : "") ||
+      resolveListingLocationLabel({
+        draftLocation: profileDraft.location,
+        profileCity: user.city,
+        geoCoords: gpsCoords,
+      }) ||
+      UNKNOWN_LISTING_LOCATION_LABEL;
+
+    if (gpsCoords && listingCoords) {
+      const exact = distanceToListing(gpsCoords, {
         latitude: listingCoords.lat,
         longitude: listingCoords.lng,
         location: listingCity,
@@ -1898,6 +1936,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       price: profileDraft.price,
       priceLabel: publishPriceLabel,
       location: listingCity,
+      ...(listingCoords
+        ? { latitude: listingCoords.lat, longitude: listingCoords.lng }
+        : {}),
       distanceKm: distKm,
       slug: generateListingSlug(publishTitle, listingCity),
       images: galleryImages,
@@ -2138,12 +2179,30 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
       for (const draft of drafts) {
         if (!draft.title.trim() || draft.price <= 0) continue;
         const snapshot = buildConductorPublishSnapshot(draft);
-        const listingCity = resolvePublishListingCity(draft.location, user.city, coords);
-        if (!listingCity) continue;
-        const listingCoords = geocodeLocation(listingCity);
+        const listingCityRaw = resolvePublishListingCity(
+          draft.location,
+          user.city,
+          coords
+        );
+        const gpsCoords =
+          coords && Number.isFinite(coords.lat) && Number.isFinite(coords.lng)
+            ? coords
+            : null;
+        const cityCoords = listingCityRaw
+          ? tryGeocodeLocation(listingCityRaw)
+          : null;
+        const attrCoords = coordsFromListingAttributes(draft.attributes);
+        const listingCoords = gpsCoords ?? cityCoords ?? attrCoords ?? null;
+        if (!listingCityRaw && !listingCoords) continue;
+        const listingCity =
+          listingCityRaw ||
+          (gpsCoords && isCoordsInLithuania(gpsCoords)
+            ? nearestLtCityFromCoords(gpsCoords)
+            : "") ||
+          UNKNOWN_LISTING_LOCATION_LABEL;
         let distKm = 0.5;
-        if (coords) {
-          const exact = distanceToListing(coords, {
+        if (gpsCoords && listingCoords) {
+          const exact = distanceToListing(gpsCoords, {
             latitude: listingCoords.lat,
             longitude: listingCoords.lng,
             location: listingCity,
@@ -2173,6 +2232,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           price: draft.price,
           priceLabel: draft.priceLabel,
           location: listingCity,
+          ...(listingCoords
+            ? { latitude: listingCoords.lat, longitude: listingCoords.lng }
+            : {}),
           distanceKm: distKm,
           slug: generateListingSlug(draft.title, listingCity),
           images: [listingImage],
