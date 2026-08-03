@@ -21,6 +21,7 @@ import { notifyListingSoldManually } from "../services/sale-notifications.js";
 import {
   adminPatchListing,
   deleteListing,
+  permanentlyDeleteListing,
   getAdminAgentContext,
   getBannedUserIds,
   getChats,
@@ -752,11 +753,23 @@ apiRouter.post(
   }
 });
 
-apiRouter.delete("/listings/:id", requireAuth, async (req: AuthedRequest, res) => {
+apiRouter.post("/listings/:id/hide", requireAuth, async (req: AuthedRequest, res) => {
   try {
     const sellerId = routeActorId(req);
     const ok = await deleteListing(req.params.id, sellerId);
     res.status(ok ? 204 : 404).end();
+  } catch (e) {
+    res.status(500).json({ error: String(e) });
+  }
+});
+
+/** Permanent delete — removes DB row + dependents and best-effort Cloudinary media. */
+apiRouter.delete("/listings/:id", requireAuth, async (req: AuthedRequest, res) => {
+  try {
+    const sellerId = routeActorId(req);
+    const result = await permanentlyDeleteListing(req.params.id, sellerId);
+    if (!result.ok) return res.status(404).end();
+    res.status(204).end();
   } catch (e) {
     res.status(500).json({ error: String(e) });
   }

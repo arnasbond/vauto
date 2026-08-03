@@ -458,6 +458,14 @@ export async function apiCreateListing(
   return { ok: true, data: normalizeListing(res.data) };
 }
 
+export async function apiHideListing(
+  id: string,
+  userId: string
+): Promise<ApiResult<null>> {
+  return dataFetch<null>(`/api/listings/${id}/hide`, { method: "POST", userId });
+}
+
+/** Permanent delete — removes listing from DB (and storage media on server). */
 export async function apiDeleteListing(
   id: string,
   userId: string

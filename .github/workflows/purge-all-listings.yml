@@ -1,0 +1,90 @@
+name: Purge ALL listings
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run only (no deletes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+      confirm_all:
+        description: "Type YES to wipe every listing on live DB"
+        required: true
+        default: ""
+        type: string
+
+jobs:
+  purge:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
+      - name: Resolve DATABASE_URL and purge ALL listings
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_DB_NAME: vauto-db
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          CONFIRM_ALL: ${{ github.event.inputs.confirm_all }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "RENDER_API_KEY not set"
+            exit 1
+          fi
+          if [ "$DRY_RUN" != "true" ] && [ "$CONFIRM_ALL" != "YES" ]; then
+            echo "Refusing wipe — set confirm_all=YES (got: '$CONFIRM_ALL')"
+            exit 2
+          fi
+          URL=$(node scripts/resolve-render-database-url.mjs --print)
+          if [ -z "$URL" ]; then
+            echo "Failed to resolve DATABASE_URL"
+            exit 1
+          fi
+          case "$URL" in
+            *sslmode=*) ;;
+            *\?*) URL="${URL}&sslmode=require" ;;
+            *) URL="${URL}?sslmode=require" ;;
+          esac
+          export DATABASE_URL="$URL"
+          export NODE_TLS_REJECT_UNAUTHORIZED="${NODE_TLS_REJECT_UNAUTHORIZED:-0}"
+          export PURGE_ALL_LISTINGS=1
+          ARGS="--confirm-all"
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          echo "::group::purge-all-listings"
+          node server/scripts/purge-all-listings.mjs $ARGS
+          echo "::endgroup::"
+
+      - name: Verify public API returns zero listings
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        run: |
+          set -euo pipefail
+          # Give API a moment if it caches counts
+          sleep 2
+          BODY=$(curl -sf "https://vauto-api.onrender.com/api/listings?limit=50")
+          echo "${BODY:0:800}"
+          COUNT=$(node -e "const d=JSON.parse(process.argv[1]); const items=Array.isArray(d)?d:(d.items||d.listings||[]); console.log(items.length)" "$BODY")
+          TOTAL=$(node -e "const d=JSON.parse(process.argv[1]); console.log(d.total ?? d.count ?? '')" "$BODY")
+          echo "items_in_page=$COUNT total_field=$TOTAL"
+          if [ -n "$TOTAL" ] && [ "$TOTAL" != "null" ] && [ "$TOTAL" != "0" ]; then
+            echo "FAIL: API total=$TOTAL (expected 0)"
+            exit 1
+          fi
+          if [ "$COUNT" != "0" ]; then
+            echo "FAIL: API still returns $COUNT listing(s)"
+            exit 1
+          fi
+          echo "OK: public catalog empty"

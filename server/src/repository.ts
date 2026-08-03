@@ -1187,6 +1187,131 @@ export async function deleteListing(id: string, sellerId: string): Promise<boole
   return (res.rowCount ?? 0) > 0;
 }
 
+/** Alias — soft-hide from catalog (same as deleteListing). */
+export async function hideListing(id: string, sellerId: string): Promise<boolean> {
+  return deleteListing(id, sellerId);
+}
+
+function collectListingMediaUrls(listing: ApiListing): string[] {
+  const urls: string[] = [];
+  if (listing.image?.trim()) urls.push(listing.image.trim());
+  const attrs = listing.attributes ?? {};
+  for (const key of ["galleryUrls", "images", "imageUrls", "orderedImageUrls"] as const) {
+    const raw = attrs[key];
+    if (Array.isArray(raw)) {
+      for (const u of raw) {
+        if (typeof u === "string" && u.trim()) urls.push(u.trim());
+      }
+    } else if (typeof raw === "string" && raw.trim()) {
+      urls.push(raw.trim());
+    }
+  }
+  return [...new Set(urls)];
+}
+
+async function tableExists(table: string): Promise<boolean> {
+  const rows = await query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.tables
+       WHERE table_schema = 'public' AND table_name = $1
+     ) AS exists`,
+    [table]
+  );
+  return Boolean(rows[0]?.exists);
+}
+
+async function columnExists(table: string, column: string): Promise<boolean> {
+  const rows = await query<{ exists: boolean }>(
+    `SELECT EXISTS (
+       SELECT 1 FROM information_schema.columns
+       WHERE table_schema = 'public' AND table_name = $1 AND column_name = $2
+     ) AS exists`,
+    [table, column]
+  );
+  return Boolean(rows[0]?.exists);
+}
+
+/**
+ * Permanent seller delete — removes DB row + dependents and best-effort Cloudinary media.
+ * Soft-hidden (`status=deleted`) listings can also be purged.
+ */
+export async function permanentlyDeleteListing(
+  id: string,
+  sellerId: string
+): Promise<{ ok: boolean; media?: { attempted: number; destroyed: number; skipped: number } }> {
+  const listing = await getListingForEmbedding(id);
+  if (!listing || listing.sellerId !== sellerId) {
+    return { ok: false };
+  }
+
+  const mediaUrls = collectListingMediaUrls(listing);
+  let mediaResult = { attempted: 0, destroyed: 0, skipped: 0 };
+  try {
+    const { destroyCloudinaryByUrls } = await import("./ai/cloudinary.js");
+    mediaResult = await destroyCloudinaryByUrls(mediaUrls);
+  } catch (e) {
+    console.warn(
+      "[listings] Cloudinary cleanup failed (continuing hard delete):",
+      e instanceof Error ? e.message : e
+    );
+  }
+
+  const client = await pool.connect();
+  try {
+    await client.query("BEGIN");
+
+    const ownerCheck = await client.query(
+      `SELECT id FROM listings WHERE id = $1 AND seller_id = $2 FOR UPDATE`,
+      [id, sellerId]
+    );
+    if ((ownerCheck.rowCount ?? 0) === 0) {
+      await client.query("ROLLBACK");
+      return { ok: false };
+    }
+
+    const dependents = [
+      "saved_listings",
+      "listing_views",
+      "listing_analytics",
+      "chat_threads",
+      "chats",
+      "offers",
+      "reports",
+      "support_reports",
+      "wishlist_matches",
+      "listing_embeddings",
+      "image_embeddings",
+    ];
+
+    for (const table of dependents) {
+      if (!(await tableExists(table))) continue;
+      if (!(await columnExists(table, "listing_id"))) continue;
+      await client.query(`DELETE FROM ${table} WHERE listing_id = $1`, [id]);
+    }
+
+    const del = await client.query(
+      `DELETE FROM listings WHERE id = $1 AND seller_id = $2`,
+      [id, sellerId]
+    );
+    if ((del.rowCount ?? 0) === 0) {
+      await client.query("ROLLBACK");
+      return { ok: false };
+    }
+
+    await client.query("COMMIT");
+    return { ok: true, media: mediaResult };
+  } catch (e) {
+    try {
+      await client.query("ROLLBACK");
+    } catch {
+      /* ignore */
+    }
+    throw e;
+  } finally {
+    client.release();
+  }
+}
+
 export async function restoreListing(
   id: string,
   sellerId: string

@@ -6,6 +6,7 @@ import Link from "next/link";
 import {
   BarChart3,
   ExternalLink,
+  EyeOff,
   LayoutGrid,
   Pause,
   Pencil,
@@ -36,8 +37,9 @@ interface ManoSkelbimaiDashboardProps {
 function ManoSkelbimaiCard({
   listing,
   onPause,
-  onDelete,
+  onHide,
   onRestore,
+  onPermanentDelete,
   onStats,
   onEdit,
   onActivateAiTwin,
@@ -45,8 +47,9 @@ function ManoSkelbimaiCard({
 }: {
   listing: Listing;
   onPause: () => void;
-  onDelete: () => void;
+  onHide: () => void;
   onRestore: () => void;
+  onPermanentDelete: () => void;
   onStats: () => void;
   onEdit: () => void;
   onActivateAiTwin: () => void;
@@ -98,82 +101,92 @@ function ManoSkelbimaiCard({
 
         <div className="listing-card-actions mt-3">
           {isDeleted ? (
-            <button
-              type="button"
-              onClick={onRestore}
-              className="listing-card-btn listing-card-btn--primary listing-card-btn--span2"
-            >
-              Atkurti skelbimą
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={onRestore}
+                className="listing-card-btn listing-card-btn--primary listing-card-btn--span2"
+              >
+                Atkurti skelbimą
+              </button>
+              <button
+                type="button"
+                onClick={onPermanentDelete}
+                className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
+              >
+                <Trash2 className="h-3.5 w-3.5" aria-hidden />
+                Ištrinti visam laikui
+              </button>
+            </>
           ) : (
             <>
-          <Link
-            href={publicHref}
-            className="listing-card-btn listing-card-btn--secondary listing-card-btn--span2"
-          >
-            <ExternalLink className="h-3.5 w-3.5" aria-hidden />
-            Peržiūrėti skelbimą
-          </Link>
+              <Link
+                href={publicHref}
+                className="listing-card-btn listing-card-btn--secondary listing-card-btn--span2"
+              >
+                <ExternalLink className="h-3.5 w-3.5" aria-hidden />
+                Peržiūrėti skelbimą
+              </Link>
 
-          {!listing.isAiTwinActive ? (
-            <button
-              type="button"
-              onClick={onActivateAiTwin}
-              className="listing-card-btn listing-card-btn--ai listing-card-btn--span2"
-            >
-              <Sparkles className="h-3.5 w-3.5" aria-hidden />
-              Aktyvuoti AI derybininką
-            </button>
-          ) : (
-            <div className="listing-card-btn listing-card-btn--ai listing-card-btn--span2 cursor-default">
-              AI derybininkas aktyvus
-            </div>
-          )}
+              {!listing.isAiTwinActive ? (
+                <button
+                  type="button"
+                  onClick={onActivateAiTwin}
+                  className="listing-card-btn listing-card-btn--ai listing-card-btn--span2"
+                >
+                  <Sparkles className="h-3.5 w-3.5" aria-hidden />
+                  Aktyvuoti AI derybininką
+                </button>
+              ) : (
+                <div className="listing-card-btn listing-card-btn--ai listing-card-btn--span2 cursor-default">
+                  AI derybininkas aktyvus
+                </div>
+              )}
 
-          <button
-            type="button"
-            onClick={onEdit}
-            className="listing-card-btn listing-card-btn--primary"
-          >
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-            Redaguoti
-          </button>
-          <button
-            type="button"
-            onClick={onBoost}
-            disabled={state === "sold"}
-            className="listing-card-btn listing-card-btn--accent"
-          >
-            <TrendingUp className="h-3.5 w-3.5" aria-hidden />
-            Iškelti
-          </button>
+              <button
+                type="button"
+                onClick={onEdit}
+                className="listing-card-btn listing-card-btn--primary"
+              >
+                <Pencil className="h-3.5 w-3.5" aria-hidden />
+                Redaguoti
+              </button>
+              <button
+                type="button"
+                onClick={onBoost}
+                disabled={state === "sold"}
+                className="listing-card-btn listing-card-btn--accent"
+              >
+                <TrendingUp className="h-3.5 w-3.5" aria-hidden />
+                Iškelti
+              </button>
 
-          <button
-            type="button"
-            onClick={onStats}
-            className="listing-card-btn listing-card-btn--secondary"
-          >
-            <BarChart3 className="h-3.5 w-3.5" aria-hidden />
-            Statistika
-          </button>
-          <button
-            type="button"
-            onClick={onPause}
-            disabled={state === "sold"}
-            className="listing-card-btn listing-card-btn--secondary"
-          >
-            <Pause className="h-3.5 w-3.5" aria-hidden />
-            {isPaused ? "Aktyvuoti" : "Stabdyti"}
-          </button>
+              <button
+                type="button"
+                onClick={onStats}
+                className="listing-card-btn listing-card-btn--secondary"
+              >
+                <BarChart3 className="h-3.5 w-3.5" aria-hidden />
+                Statistika
+              </button>
+              <button
+                type="button"
+                onClick={onPause}
+                disabled={state === "sold"}
+                className="listing-card-btn listing-card-btn--secondary"
+              >
+                <Pause className="h-3.5 w-3.5" aria-hidden />
+                {isPaused ? "Aktyvuoti" : "Stabdyti"}
+              </button>
 
-          <button
-            type="button"
-            onClick={onDelete}
-            className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-            Paslėpti
-          </button>
+              <button
+                type="button"
+                onClick={onHide}
+                className="listing-card-btn listing-card-btn--danger listing-card-btn--span2"
+              >
+                <EyeOff className="h-3.5 w-3.5" aria-hidden />
+                Paslėpti
+              </button>
             </>
           )}
         </div>
@@ -187,6 +200,7 @@ export function ManoSkelbimaiDashboard({
 }: ManoSkelbimaiDashboardProps) {
   const {
     deleteListing,
+    permanentlyDeleteListing,
     restoreListing,
     updateListing,
     startEditListingFlow,
@@ -224,7 +238,7 @@ export function ManoSkelbimaiDashboard({
     (l) => l.status !== "sold" && l.status !== "deleted"
   ).length;
 
-  const handleDelete = async (listing: Listing) => {
+  const handleHide = async (listing: Listing) => {
     const ok = await showConfirm({
       title: "Paslėpti skelbimą?",
       message: `„${listing.title}" bus paslėptas iš viešo katalogo. Galėsite jį atkurti vėliau.`,
@@ -234,6 +248,24 @@ export function ManoSkelbimaiDashboard({
     if (!ok) return;
     deleteListing(listing.id);
     showToast("Skelbimas paslėptas — galite atkurti iš šio sąrašo", "success");
+  };
+
+  const handlePermanentDelete = async (listing: Listing) => {
+    const ok = await showConfirm({
+      title: "Ištrinti skelbimą visam laikui?",
+      message:
+        "Ar tikrai norite ištrinti skelbimą visam laikui? Šio veiksmo atšaukti negalėsite.",
+      confirmLabel: "Ištrinti",
+      cancelLabel: "Atšaukti",
+      variant: "danger",
+    });
+    if (!ok) return;
+    const deleted = await permanentlyDeleteListing(listing.id);
+    if (deleted) {
+      showToast("Skelbimas ištrintas visam laikui", "success");
+    } else {
+      showToast("Nepavyko ištrinti skelbimo", "error");
+    }
   };
 
   const handleRestore = async (listing: Listing) => {
@@ -325,8 +357,9 @@ export function ManoSkelbimaiDashboard({
               key={listing.id}
               listing={listing}
               onPause={() => handlePause(listing)}
-              onDelete={() => void handleDelete(listing)}
+              onHide={() => void handleHide(listing)}
               onRestore={() => void handleRestore(listing)}
+              onPermanentDelete={() => void handlePermanentDelete(listing)}
               onStats={() => handleStats(listing)}
               onEdit={() => startEditListingFlow(listing, { stayOnPage: true })}
               onActivateAiTwin={() => void handleActivateAiTwin(listing)}

@@ -39,6 +39,8 @@
     "db:purge-ai-test:dry": "node server/scripts/purge-ai-test-listings.mjs --dry-run",
     "db:purge-demo-catalog": "node server/scripts/purge-demo-catalog-listings.mjs",
     "db:purge-demo-catalog:dry": "node server/scripts/purge-demo-catalog-listings.mjs --dry-run",
+    "db:purge-all-listings": "node server/scripts/purge-all-listings.mjs --confirm-all",
+    "db:purge-all-listings:dry": "node server/scripts/purge-all-listings.mjs --dry-run",
     "db:restore-covers": "node server/scripts/restore-real-listing-covers.mjs",
     "db:restore-covers:dry": "node server/scripts/restore-real-listing-covers.mjs --dry-run",
     "db:restore-covers:cloudinary": "node server/scripts/restore-covers-from-cloudinary.mjs",

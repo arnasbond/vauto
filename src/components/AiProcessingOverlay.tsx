@@ -57,7 +57,7 @@ export function AiProcessingOverlay() {
   if (isTextMode) {
     return (
       <div
-        className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-[#0b0f17]/85 px-6 backdrop-blur-sm"
+        className="fixed inset-0 z-[220] flex flex-col items-center justify-center bg-[color-mix(in_srgb,var(--vauto-bg)_88%,transparent)] px-6 backdrop-blur-sm"
         role="status"
         aria-live="polite"
         aria-label="AI analizuoja tekstą"
@@ -65,16 +65,19 @@ export function AiProcessingOverlay() {
         <div className="absolute left-1/2 top-6 z-[230] -translate-x-1/2">
           <AiModeBadge />
         </div>
-        <Loader2 className="h-10 w-10 animate-spin text-sky-400" aria-hidden />
-        <p className="mt-5 max-w-sm text-center text-sm font-medium text-white">
+        <Loader2
+          className="h-10 w-10 animate-spin text-[var(--vauto-primary)]"
+          aria-hidden
+        />
+        <p className="mt-5 max-w-sm text-center text-sm font-medium text-[var(--vauto-text-heading)]">
           {milestoneLabel ?? aiLabel}
         </p>
         {sellerUserPrompt?.trim() && (
-          <p className="mt-2 max-w-md text-center text-xs text-slate-400 line-clamp-3">
+          <p className="mt-2 max-w-md text-center text-xs text-[var(--vauto-text-muted)] line-clamp-3">
             „{sellerUserPrompt.trim()}“
           </p>
         )}
-        <p className="mt-4 text-center text-[11px] text-slate-500">
+        <p className="mt-4 text-center text-[11px] text-[var(--vauto-text-muted)]">
           Tekstinis režimas — ruošiu skelbimo juodraštį
         </p>
       </div>

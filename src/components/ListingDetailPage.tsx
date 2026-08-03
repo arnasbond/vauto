@@ -12,7 +12,7 @@ import {
   Pencil,
   Phone,
   Tag,
-  Trash2,
+  EyeOff,
   Sparkles,
   Truck,
 } from "lucide-react";
@@ -586,8 +586,8 @@ export function ListingDetailPage({ slug: slugProp }: ListingDetailPageProps = {
               onClick={handleDelete}
               className="flex w-full items-center justify-center gap-2 rounded-xl border border-red-200 bg-red-50 py-3 text-sm font-medium text-red-700 hover:bg-red-100"
             >
-              <Trash2 className="h-4 w-4" />
-              Ištrinti skelbimą
+              <EyeOff className="h-4 w-4" />
+              Paslėpti skelbimą
             </button>
           </section>
         )}

@@ -76,6 +76,7 @@ import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import { generateListingSlug, listingPath } from "@/lib/seo";
 import {
   apiDeleteListing,
+  apiHideListing,
   apiRestoreListing,
   apiCreateServiceLead,
   apiFetchListings,
@@ -227,6 +228,8 @@ export interface ConfirmDialogState {
   message: string;
   confirmLabel?: string;
   cancelLabel?: string;
+  /** Destructive confirm (permanent delete) — red primary button */
+  variant?: "default" | "danger";
 }
 
 interface VautoContextValue {
@@ -258,6 +261,8 @@ interface VautoContextValue {
   dynamicFilters: ReturnType<typeof generateDynamicFilters>;
   toggleSave: (id: string) => void;
   deleteListing: (id: string) => void;
+  /** Permanent remove from DB + storage (cannot restore). */
+  permanentlyDeleteListing: (id: string) => Promise<boolean>;
   restoreListing: (id: string) => Promise<void>;
   renewListing: (id: string) => Promise<void>;
   /** Reload listings feed from API after portal sync / import */
@@ -1590,10 +1595,37 @@ export function VautoProvider({ children }: { children: ReactNode }) {
         return next;
       });
       if (isDataApiEnabled()) {
-        void apiDeleteListing(id, user.id).then((r) => {
+        void apiHideListing(id, user.id).then((r) => {
           if (!r.ok) setSyncError(`Nepavyko paslėpti: ${r.error}`);
         });
       }
+    },
+    [user.id]
+  );
+
+  const permanentlyDeleteListing = useCallback(
+    async (id: string) => {
+      if (isDataApiEnabled()) {
+        const r = await apiDeleteListing(id, user.id);
+        if (!r.ok) {
+          setSyncError(`Nepavyko ištrinti: ${r.error}`);
+          return false;
+        }
+      }
+      setListings((prev) =>
+        prev.filter((l) => !(l.id === id && l.sellerId === user.id))
+      );
+      setSavedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        if (isDataApiEnabled()) {
+          void apiUpdateSaved(user.id, Array.from(next)).then((res) => {
+            if (!res.ok) setSyncError(`Išsaugota nepavyko: ${res.error}`);
+          });
+        }
+        return next;
+      });
+      return true;
     },
     [user.id]
   );
@@ -2232,6 +2264,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       toggleFilter,
       toggleSave,
       deleteListing,
+      permanentlyDeleteListing,
       restoreListing,
       renewListing,
       refreshListingsCatalog,
@@ -2310,6 +2343,7 @@ export function VautoProvider({ children }: { children: ReactNode }) {
       toggleFilter,
       toggleSave,
       deleteListing,
+      permanentlyDeleteListing,
       restoreListing,
       renewListing,
       refreshListingsCatalog,
