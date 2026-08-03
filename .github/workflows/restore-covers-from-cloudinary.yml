@@ -63,9 +63,26 @@ jobs:
                 # shellcheck disable=SC1091
                 . /tmp/vauto-cloudinary.env
                 set +a
-                rm -f /tmp/vauto-cloudinary.env
               fi
             fi
+          fi
+
+          # Mirror Cloudinary onto Render so future publishes persist real URLs.
+          if [ -n "${CLOUDINARY_CLOUD_NAME:-}" ] && [ -n "${CLOUDINARY_API_KEY:-}" ] && [ -n "${CLOUDINARY_API_SECRET:-}" ]; then
+            echo "Syncing CLOUDINARY_* to Render API service…"
+            for KEY_NAME in CLOUDINARY_CLOUD_NAME CLOUDINARY_API_KEY CLOUDINARY_API_SECRET CLOUDINARY_UPLOAD_PRESET; do
+              VAL="${!KEY_NAME:-}"
+              if [ -n "$VAL" ]; then
+                curl -sS -X PUT \
+                  -H "Authorization: Bearer $RENDER_API_KEY" \
+                  -H "Content-Type: application/json" \
+                  -H "Accept: application/json" \
+                  "https://api.render.com/v1/services/${RENDER_SERVICE_ID}/env-vars/${KEY_NAME}" \
+                  -d "{\"value\":$(node -e 'process.stdout.write(JSON.stringify(process.env.V))' V="$VAL")}" \
+                  >/dev/null || true
+                echo "  synced $KEY_NAME"
+              fi
+            done
           fi
 
           ARGS=""
@@ -73,6 +90,7 @@ jobs:
             ARGS="--dry-run"
           fi
           node server/scripts/restore-covers-from-cloudinary.mjs $ARGS
+          rm -f /tmp/vauto-cloudinary.env
 
       - name: Verify public covers are non-empty and not Unsplash
         run: |
@@ -86,6 +104,7 @@ jobs:
           soft=[x for x in items if str(x.get("id","")).startswith(("l-soft-","lt-"))]
           unsplash=[x for x in items if "unsplash" in str(x.get("image") or "").lower()]
           empty=[x for x in items if not str(x.get("image") or "").strip()]
+          # Also accept system placeholder as a valid non-empty cover.
           cloud=[x for x in items if "cloudinary" in str(x.get("image") or "").lower() or "listing-placeholder" in str(x.get("image") or "").lower() or str(x.get("image") or "").startswith("http")]
           print(f"total={len(items)} soft={len(soft)} unsplash={len(unsplash)} empty={len(empty)} withHttpCover={len(cloud)}")
           if soft or unsplash or empty:

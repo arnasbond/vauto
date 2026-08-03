@@ -458,8 +458,15 @@ async function main() {
   );
 
   const folderAssets = await listFolderAssets(cloud, key, secret, "vauto/");
-  console.log(`[cloudinary-restore] folder:vauto assets=${folderAssets.length}`);
-  for (const a of folderAssets.slice(0, 8)) {
+  const allAssets = await listFolderAssets(cloud, key, secret, "");
+  console.log(
+    `[cloudinary-restore] folder:vauto assets=${folderAssets.length} allUploadAssets=${allAssets.length}`
+  );
+  const poolAssets =
+    folderAssets.length > 0
+      ? folderAssets
+      : allAssets.filter((a) => !String(a.public_id || "").startsWith("vauto/system/"));
+  for (const a of poolAssets.slice(0, 12)) {
     console.log(`  sample ${a.public_id} ${a.created_at || ""}`);
   }
 
@@ -511,13 +518,13 @@ async function main() {
           cloud,
           key,
           secret,
-          `(public_id:*${token}* OR tags=${token} OR context.custom.listingId=${token} OR context.custom.listing_id=${token})`,
+          `public_id="${token}" OR tags="${token}" OR context.custom.listingId="${token}" OR context.custom.listing_id="${token}" OR filename="${token}"`,
           10
         );
         matched = found.find((a) => isUsableAsset(a) && !usedPublicIds.has(a.public_id));
         if (matched) break;
 
-        matched = folderAssets.find(
+        matched = poolAssets.find(
           (a) =>
             isUsableAsset(a) &&
             !usedPublicIds.has(a.public_id) &&
@@ -529,7 +536,7 @@ async function main() {
       if (!matched && row.created_at) {
         const created = new Date(row.created_at).getTime();
         const windowMs = 72 * 60 * 60 * 1000;
-        const candidates = folderAssets
+        const candidates = poolAssets
           .filter((a) => isUsableAsset(a) && !usedPublicIds.has(a.public_id))
           .map((a) => ({
             a,

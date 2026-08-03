@@ -784,7 +784,9 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       );
     }
     try {
-      const uploaded = await uploadImageToCloudinary(processed);
+      const uploaded = await uploadImageToCloudinary(processed, "vauto", {
+        listingId,
+      });
       console.log(`${LAZY_UPLOAD_LOG_TAG} publish persist ok`, {
         listingId,
         publicId: uploaded.publicId,
