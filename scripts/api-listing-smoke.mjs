@@ -72,12 +72,22 @@ async function authSession() {
       city: "Vilnius",
     }),
   });
-  if (!verify.res.ok) fail("OTP verify", verify.body);
+  if (!verify.res.ok) {
+    const msg = String(verify.body?.error || JSON.stringify(verify.body) || "");
+    // Open LT production: demo OTP is off — fixed 123456 must not work.
+    if (
+      verify.res.status === 401 ||
+      /neteisingas|pasibaig|invalid|expired/i.test(msg)
+    ) {
+      return { skipped: true, reason: msg };
+    }
+    fail("OTP verify", verify.body);
+  }
 
   const token = verify.body?.token;
   const userId = verify.body?.user?.id;
   if (!token || !userId) fail("OTP session missing token/user", verify.body);
-  return { token, userId };
+  return { token, userId, skipped: false };
 }
 
 function buildListing(userId, category, title) {
@@ -111,7 +121,21 @@ async function main() {
   if (!health.res.ok || !health.body?.ok) fail("health", health.body);
   console.log("Health OK — readiness", health.body.readiness?.score ?? "?");
 
-  const { token, userId } = await authSession();
+  const feed = await jsonFetch("/api/listings?limit=20");
+  if (!feed.res.ok) fail("public listings feed", feed.body);
+  const items = Array.isArray(feed.body) ? feed.body : feed.body?.items ?? [];
+  console.log(`Public feed OK — ${items.length} listings`);
+
+  const session = await authSession();
+  if (session.skipped) {
+    console.log(
+      "SKIP authenticated create/delete — demo OTP off (open LT). Public health+feed OK."
+    );
+    console.log("Reason:", session.reason);
+    return;
+  }
+
+  const { token, userId } = session;
   console.log("Auth OK — user", userId);
 
   const createdIds = [];
@@ -141,7 +165,7 @@ async function main() {
     if (del.res.status !== 204 && !del.res.ok) {
       fail(`delete ${id}`, del.body);
     }
-    console.log(`  ✓ deleted ${id}`);
+    console.log(`  ✓ soft-deleted ${id}`);
   }
 
   console.log(
