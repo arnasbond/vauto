@@ -99,18 +99,58 @@ function resolveDatabaseUrl() {
   return url;
 }
 
+async function listVercelEnvMap() {
+  const token = process.env.VERCEL_TOKEN?.trim();
+  const org = process.env.VERCEL_ORG_ID?.trim();
+  const project = process.env.VERCEL_PROJECT_ID?.trim();
+  if (!token || !org || !project) return new Map();
+
+  const listRes = await fetch(
+    `https://api.vercel.com/v9/projects/${project}/env?teamId=${encodeURIComponent(org)}`,
+    { headers: { Authorization: `Bearer ${token}` } }
+  );
+  const listBody = await listRes.json();
+  if (!listRes.ok) {
+    throw new Error(
+      `Vercel env list → ${listRes.status}: ${JSON.stringify(listBody).slice(0, 200)}`
+    );
+  }
+  const envs = Array.isArray(listBody?.envs) ? listBody.envs : [];
+  const map = new Map();
+
+  for (const ev of envs) {
+    const key = ev?.key;
+    if (!key) continue;
+    // Prefer Production target values.
+    const targets = Array.isArray(ev.target) ? ev.target : [];
+    if (targets.length && !targets.includes("production") && !targets.includes("preview")) {
+      continue;
+    }
+    let value = typeof ev.value === "string" ? ev.value : "";
+    if ((!value || value.includes("••••") || ev.type === "encrypted") && ev.id) {
+      const one = await fetch(
+        `https://api.vercel.com/v1/env/${ev.id}?teamId=${encodeURIComponent(org)}&decrypt=true`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const oneBody = await one.json();
+      if (one.ok && typeof oneBody?.value === "string") value = oneBody.value;
+      else if (one.ok && typeof oneBody?.env?.value === "string")
+        value = oneBody.env.value;
+    }
+    if (value && !map.has(key)) map.set(key, value);
+  }
+  return map;
+}
+
 async function resolveCloudinaryCreds() {
   let cloud = process.env.CLOUDINARY_CLOUD_NAME?.trim() || "";
   let key = process.env.CLOUDINARY_API_KEY?.trim() || "";
   let secret = process.env.CLOUDINARY_API_SECRET?.trim() || "";
 
-  if ((!cloud || !key || !secret) && process.env.RENDER_API_KEY?.trim()) {
-    console.log("[cloudinary-restore] Loading CLOUDINARY_* from Render env…");
-    const env = await listRenderEnv(process.env.RENDER_API_KEY.trim());
+  const applyMap = (env, label) => {
     cloud = cloud || env.get("CLOUDINARY_CLOUD_NAME")?.trim() || "";
     key = key || env.get("CLOUDINARY_API_KEY")?.trim() || "";
     secret = secret || env.get("CLOUDINARY_API_SECRET")?.trim() || "";
-    // Some setups only have CLOUDINARY_URL=cloudinary://KEY:SECRET@CLOUD
     const url = env.get("CLOUDINARY_URL")?.trim() || "";
     if (url && (!cloud || !key || !secret)) {
       const m = url.match(
@@ -123,13 +163,23 @@ async function resolveCloudinaryCreds() {
       }
     }
     console.log(
-      `[cloudinary-restore] Render has keys: cloud=${Boolean(cloud)} key=${Boolean(key)} secret=${Boolean(secret)} url=${Boolean(url)}`
+      `[cloudinary-restore] ${label}: cloud=${Boolean(cloud)} key=${Boolean(key)} secret=${Boolean(secret)}`
     );
+  };
+
+  if ((!cloud || !key || !secret) && process.env.VERCEL_TOKEN?.trim()) {
+    console.log("[cloudinary-restore] Loading CLOUDINARY_* from Vercel env…");
+    applyMap(await listVercelEnvMap(), "Vercel");
+  }
+
+  if ((!cloud || !key || !secret) && process.env.RENDER_API_KEY?.trim()) {
+    console.log("[cloudinary-restore] Loading CLOUDINARY_* from Render env…");
+    applyMap(await listRenderEnv(process.env.RENDER_API_KEY.trim()), "Render");
   }
 
   if (!cloud || !key || !secret) {
     throw new Error(
-      "Missing CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET"
+      "Missing CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET (checked env, Vercel, Render)"
     );
   }
   return { cloud, key, secret };

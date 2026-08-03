@@ -32,6 +32,9 @@ jobs:
           RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
           RENDER_DB_NAME: vauto-db
           DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          VERCEL_ORG_ID: ${{ secrets.VERCEL_ORG_ID }}
+          VERCEL_PROJECT_ID: ${{ secrets.VERCEL_PROJECT_ID }}
           CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
           CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
           CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
