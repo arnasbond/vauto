@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="800" height="600" viewBox="0 0 800 600" role="img" aria-label="Nra nuotraukos">
+  <rect width="800" height="600" fill="#EEF1F4"/>
+  <rect x="280" y="210" width="240" height="180" rx="16" fill="#D5DCE3"/>
+  <circle cx="360" cy="275" r="28" fill="#B7C2CC"/>
+  <path d="M310 360 L370 300 L420 340 L470 290 L510 360 Z" fill="#B7C2CC"/>
+  <text x="400" y="440" text-anchor="middle" font-family="Segoe UI, Arial, sans-serif" font-size="22" fill="#6B7785">Nuotrauka nepasiekiama</text>
+</svg>

@@ -1,0 +1,75 @@
+name: Restore covers from Cloudinary
+
+on:
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: "Dry run only (no DB writes)"
+        required: false
+        default: "false"
+        type: choice
+        options:
+          - "false"
+          - "true"
+
+jobs:
+  restore:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Install server deps
+        working-directory: server
+        run: npm ci
+
+      - name: Restore covers via Cloudinary Admin API
+        env:
+          RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
+          RENDER_SERVICE_ID: srv-d8q3fk6q1p3s739fd9h0
+          RENDER_DB_NAME: vauto-db
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+          CLOUDINARY_CLOUD_NAME: ${{ secrets.CLOUDINARY_CLOUD_NAME }}
+          CLOUDINARY_API_KEY: ${{ secrets.CLOUDINARY_API_KEY }}
+          CLOUDINARY_API_SECRET: ${{ secrets.CLOUDINARY_API_SECRET }}
+        run: |
+          set -euo pipefail
+          if [ -z "${RENDER_API_KEY:-}" ]; then
+            echo "RENDER_API_KEY not set"
+            exit 1
+          fi
+          URL=$(node scripts/resolve-render-database-url.mjs --print)
+          case "$URL" in
+            *sslmode=*) ;;
+            *\?*) URL="${URL}&sslmode=require" ;;
+            *) URL="${URL}?sslmode=require" ;;
+          esac
+          export DATABASE_URL="$URL"
+          export NODE_TLS_REJECT_UNAUTHORIZED="${NODE_TLS_REJECT_UNAUTHORIZED:-0}"
+          ARGS=""
+          if [ "$DRY_RUN" = "true" ]; then
+            ARGS="--dry-run"
+          fi
+          node server/scripts/restore-covers-from-cloudinary.mjs $ARGS
+
+      - name: Verify public covers are non-empty and not Unsplash
+        run: |
+          set -euo pipefail
+          BODY=$(curl -sf "https://vauto-api.onrender.com/api/listings?limit=200")
+          python3 - <<'PY'
+          import json,os,sys,urllib.request
+          raw=urllib.request.urlopen("https://vauto-api.onrender.com/api/listings?limit=200", timeout=60).read()
+          data=json.loads(raw)
+          items=data if isinstance(data,list) else data.get("items") or data.get("listings") or []
+          soft=[x for x in items if str(x.get("id","")).startswith(("l-soft-","lt-"))]
+          unsplash=[x for x in items if "unsplash" in str(x.get("image") or "").lower()]
+          empty=[x for x in items if not str(x.get("image") or "").strip()]
+          cloud=[x for x in items if "cloudinary" in str(x.get("image") or "").lower() or "listing-placeholder" in str(x.get("image") or "").lower() or str(x.get("image") or "").startswith("http")]
+          print(f"total={len(items)} soft={len(soft)} unsplash={len(unsplash)} empty={len(empty)} withHttpCover={len(cloud)}")
+          if soft or unsplash or empty:
+            sys.exit(1)
+          print("OK: covers present, no soft-launch, no Unsplash")
+          PY
