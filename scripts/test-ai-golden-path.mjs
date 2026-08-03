@@ -294,7 +294,7 @@ async function main() {
     "static seller welcome constant exists"
   );
   check(
-    /kontaktai iš profilio jau paruošti/i.test(startSrc),
+    /Jūsų kontaktai jau paruošti/i.test(startSrc),
     "welcome copy matches instant client greeting"
   );
   const agentCtx = readFileSync(
