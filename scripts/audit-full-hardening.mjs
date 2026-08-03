@@ -182,7 +182,8 @@ async function layerChatUnique(buyer, seller) {
   const baseId = `chat_${enc(buyer.userId)}__${enc(seller.userId)}__${enc(listingId)}`;
 
   const mkThread = (suffix, text) => ({
-    id: `${baseId}_${suffix}`,
+    // Same canonical id for all parallel writers — UNIQUE must collapse.
+    id: baseId,
     listingId,
     listingTitle,
     buyerId: buyer.userId,
@@ -190,7 +191,7 @@ async function layerChatUnique(buyer, seller) {
     escrowOffered: false,
     messages: [
       {
-        id: `m-audit-${suffix}-${Date.now()}`,
+        id: `m-audit-${suffix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
         senderId: buyer.userId,
         text,
         timestamp: new Date().toISOString(),

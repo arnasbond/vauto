@@ -1864,21 +1864,28 @@ export async function upsertChat(thread: ApiChatThread): Promise<ApiChatThread> 
   }
 
   // Prefer existing listing-bound thread; never reuse another listing's id.
+  // Always fall back to the canonical id — never client-suffixed variants —
+  // so parallel PUTs collide on the same primary key + unique triple.
+  const canonicalListingId = buildListingBoundChatId(
+    thread.buyerId,
+    thread.sellerId,
+    thread.listingId
+  );
   let preferredId =
     (await findChatIdByListingParticipants(
       thread.buyerId,
       thread.sellerId,
       thread.listingId
-    )) ?? thread.id;
+    )) ?? canonicalListingId;
 
-  if (preferredId === thread.id) {
+  if (preferredId === thread.id || preferredId === canonicalListingId) {
     const existingById = await query<{
       listing_id: string;
       buyer_id: string;
       seller_id: string;
     }>(
       `SELECT listing_id, buyer_id, seller_id FROM chat_threads WHERE id = $1`,
-      [thread.id]
+      [preferredId]
     );
     const row = existingById[0];
     if (
@@ -1887,12 +1894,10 @@ export async function upsertChat(thread: ApiChatThread): Promise<ApiChatThread> 
         row.buyer_id !== thread.buyerId ||
         row.seller_id !== thread.sellerId)
     ) {
-      preferredId = buildListingBoundChatId(
-        thread.buyerId,
-        thread.sellerId,
-        thread.listingId
-      );
+      preferredId = canonicalListingId;
     }
+  } else {
+    preferredId = preferredId || canonicalListingId;
   }
 
   const threadParams = [
@@ -1909,64 +1914,74 @@ export async function upsertChat(thread: ApiChatThread): Promise<ApiChatThread> 
   const isMissingListingUnique = (err: unknown): boolean => {
     const e = err as { code?: string; message?: string };
     const msg = String(e?.message ?? err ?? "");
-    // 42P10 = invalid_column_reference for ON CONFLICT target; 42703 = undefined column
+    // Never fail-open on real unique violations — that creates duplicate threads.
+    if (e?.code === "23505") return false;
+    // Only when the 034 unique index is absent (ON CONFLICT target invalid).
     return (
       e?.code === "42P10" ||
-      /idx_chat_threads_buyer_seller_listing/i.test(msg) ||
-      /there is no unique or exclusion constraint/i.test(msg) ||
-      /ON CONFLICT/i.test(msg)
+      /there is no unique or exclusion constraint matching the ON CONFLICT specification/i.test(
+        msg
+      )
     );
   };
 
-  let inserted: { id: string }[];
-  try {
-    inserted = await query<{ id: string }>(
-      `INSERT INTO chat_threads (
-        id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
-        last_read_at, sms_fallback_sent_for, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
-       ON CONFLICT (buyer_id, seller_id, listing_id) DO UPDATE SET
-         listing_title = EXCLUDED.listing_title,
-         escrow_offered = EXCLUDED.escrow_offered,
-         last_read_at = EXCLUDED.last_read_at,
-         sms_fallback_sent_for = COALESCE(
-           EXCLUDED.sms_fallback_sent_for,
-           chat_threads.sms_fallback_sent_for
-         ),
-         updated_at = now()
-       RETURNING id`,
-      threadParams
-    );
-  } catch (err) {
-    if (!isMissingListingUnique(err)) throw err;
-    // Fail-open only when migration 034 unique index is not applied yet.
-    inserted = await query<{ id: string }>(
-      `INSERT INTO chat_threads (
-        id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
-        last_read_at, sms_fallback_sent_for, updated_at
-      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
-       ON CONFLICT (id) DO UPDATE SET
-         listing_title = EXCLUDED.listing_title,
-         escrow_offered = EXCLUDED.escrow_offered,
-         last_read_at = EXCLUDED.last_read_at,
-         sms_fallback_sent_for = COALESCE(
-           EXCLUDED.sms_fallback_sent_for,
-           chat_threads.sms_fallback_sent_for
-         ),
-         updated_at = now()
-       RETURNING id`,
-      threadParams
-    );
-  }
-
-  const canonicalId = inserted[0]?.id ?? preferredId;
-  const outbound: ApiChatThread = { ...thread, id: canonicalId };
-
-  // Serialize concurrent PUT /api/chats for the same listing-bound triple so
-  // delete+reinsert cannot interleave and drop the other writer's messages.
+  // Serialize the whole upsert (thread row + messages) per listing-bound triple.
   const lockKey = `chat:${thread.buyerId}:${thread.sellerId}:${thread.listingId}`;
   await pool.query("SELECT pg_advisory_lock(hashtext($1::text))", [lockKey]);
   try {
+    // Re-resolve under lock to collapse races that found null before insert.
+    preferredId =
+      (await findChatIdByListingParticipants(
+        thread.buyerId,
+        thread.sellerId,
+        thread.listingId
+      )) ?? canonicalListingId;
+    threadParams[0] = preferredId;
+
+    let inserted: { id: string }[];
+    try {
+      inserted = await query<{ id: string }>(
+        `INSERT INTO chat_threads (
+          id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
+          last_read_at, sms_fallback_sent_for, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
+         ON CONFLICT (buyer_id, seller_id, listing_id) DO UPDATE SET
+           listing_title = EXCLUDED.listing_title,
+           escrow_offered = EXCLUDED.escrow_offered,
+           last_read_at = EXCLUDED.last_read_at,
+           sms_fallback_sent_for = COALESCE(
+             EXCLUDED.sms_fallback_sent_for,
+             chat_threads.sms_fallback_sent_for
+           ),
+           updated_at = now()
+         RETURNING id`,
+        threadParams
+      );
+    } catch (err) {
+      if (!isMissingListingUnique(err)) throw err;
+      // Fail-open only when migration 034 unique index is not applied yet.
+      inserted = await query<{ id: string }>(
+        `INSERT INTO chat_threads (
+          id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
+          last_read_at, sms_fallback_sent_for, updated_at
+        ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
+         ON CONFLICT (id) DO UPDATE SET
+           listing_title = EXCLUDED.listing_title,
+           escrow_offered = EXCLUDED.escrow_offered,
+           last_read_at = EXCLUDED.last_read_at,
+           sms_fallback_sent_for = COALESCE(
+             EXCLUDED.sms_fallback_sent_for,
+             chat_threads.sms_fallback_sent_for
+           ),
+           updated_at = now()
+         RETURNING id`,
+        threadParams
+      );
+    }
+
+    const canonicalId = inserted[0]?.id ?? preferredId;
+    const outbound: ApiChatThread = { ...thread, id: canonicalId };
+
     await pool.query("DELETE FROM chat_messages WHERE thread_id = $1", [
       outbound.id,
     ]);
