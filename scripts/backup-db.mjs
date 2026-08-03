@@ -182,46 +182,125 @@ function safeHost(url) {
 
 async function runDump(connectionString, sqlGzPath) {
   const pgDump = findPgDump();
-  if (!pgDump) {
-    throw new Error(
-      "pg_dump not found on PATH. Install PostgreSQL client tools or set PG_DUMP_PATH."
-    );
-  }
-
   mkdirSync(path.dirname(sqlGzPath), { recursive: true });
 
-  const child = spawnSync(
-    pgDump,
-    [
-      "--no-owner",
-      "--no-acl",
-      "--clean",
-      "--if-exists",
-      "--format=plain",
-      `--dbname=${connectionString}`,
-    ],
-    {
-      encoding: "buffer",
-      maxBuffer: 512 * 1024 * 1024,
-      env: {
-        ...process.env,
-        // Prefer explicit SSL for Render
-        PGSSLMODE: process.env.PGSSLMODE || "require",
-      },
-    }
-  );
+  if (pgDump) {
+    const child = spawnSync(
+      pgDump,
+      [
+        "--no-owner",
+        "--no-acl",
+        "--clean",
+        "--if-exists",
+        "--format=plain",
+        `--dbname=${connectionString}`,
+      ],
+      {
+        encoding: "buffer",
+        maxBuffer: 512 * 1024 * 1024,
+        env: {
+          ...process.env,
+          PGSSLMODE: process.env.PGSSLMODE || "require",
+        },
+      }
+    );
 
-  if (child.status !== 0) {
+    if (child.status === 0) {
+      const { Readable } = await import("node:stream");
+      const gzip = createGzip({ level: 9 });
+      const out = createWriteStream(sqlGzPath);
+      await pipeline(Readable.from(child.stdout), gzip, out);
+      return { method: "pg_dump", binary: pgDump };
+    }
+
     const err = (child.stderr || child.stdout || Buffer.from("")).toString(
       "utf8"
     );
-    throw new Error(`pg_dump failed (${child.status}): ${err.slice(0, 800)}`);
+    if (!/version mismatch/i.test(err)) {
+      throw new Error(`pg_dump failed (${child.status}): ${err.slice(0, 800)}`);
+    }
+    console.warn(
+      `[backup-db] pg_dump version mismatch — falling back to node SQL export:\n${err.slice(0, 200)}`
+    );
+  } else {
+    console.warn(
+      "[backup-db] pg_dump not found — using node SQL export fallback"
+    );
   }
 
-  const { Readable } = await import("node:stream");
-  const gzip = createGzip({ level: 9 });
-  const out = createWriteStream(sqlGzPath);
-  await pipeline(Readable.from(child.stdout), gzip, out);
+  await runNodeSqlDump(connectionString, sqlGzPath);
+  return { method: "node-sql", binary: null };
+}
+
+async function runNodeSqlDump(connectionString, sqlGzPath) {
+  const require = createRequire(path.join(root, "server", "package.json"));
+  const { Client } = require("pg");
+  const isLocal =
+    /localhost|127\.0\.0\.1/i.test(connectionString) ||
+    connectionString.includes("@postgres:");
+  let cs = connectionString;
+  if (!isLocal && !/[?&]sslmode=/i.test(cs)) {
+    cs += cs.includes("?") ? "&sslmode=require" : "?sslmode=require";
+  }
+  const client = new Client({
+    connectionString: cs,
+    ssl: isLocal ? undefined : { rejectUnauthorized: false },
+  });
+  await client.connect();
+  try {
+    const tables = (
+      await client.query(
+        `SELECT table_name
+         FROM information_schema.tables
+         WHERE table_schema = 'public' AND table_type = 'BASE TABLE'
+         ORDER BY table_name`
+      )
+    ).rows.map((r) => r.table_name);
+
+    const chunks = [
+      "-- VAUTO logical backup (node SQL fallback)\n",
+      `-- createdAt ${new Date().toISOString()}\n`,
+      "BEGIN;\n",
+    ];
+
+    for (const table of tables) {
+      const ident = quoteIdent(table);
+      chunks.push(`\n-- TABLE ${table}\n`);
+      chunks.push(`DELETE FROM ${ident};\n`);
+      const { rows } = await client.query(`SELECT * FROM ${ident}`);
+      if (!rows.length) continue;
+      const cols = Object.keys(rows[0]);
+      const colList = cols.map(quoteIdent).join(", ");
+      for (const row of rows) {
+        const vals = cols
+          .map((c) => sqlLiteral(row[c]))
+          .join(", ");
+        chunks.push(
+          `INSERT INTO ${ident} (${colList}) VALUES (${vals});\n`
+        );
+      }
+    }
+    chunks.push("COMMIT;\n");
+
+    const { Readable } = await import("node:stream");
+    const gzip = createGzip({ level: 9 });
+    const out = createWriteStream(sqlGzPath);
+    await pipeline(Readable.from(Buffer.from(chunks.join(""), "utf8")), gzip, out);
+  } finally {
+    await client.end();
+  }
+}
+
+function sqlLiteral(value) {
+  if (value === null || value === undefined) return "NULL";
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  if (typeof value === "boolean") return value ? "TRUE" : "FALSE";
+  if (value instanceof Date) return `'${value.toISOString().replace(/'/g, "''")}'`;
+  if (Buffer.isBuffer(value)) return `'\\x${value.toString("hex")}'`;
+  if (typeof value === "object") {
+    return `'${JSON.stringify(value).replace(/\\/g, "\\\\").replace(/'/g, "''")}'::jsonb`;
+  }
+  return `'${String(value).replace(/\\/g, "\\\\").replace(/'/g, "''")}'`;
 }
 
 async function main() {
@@ -262,10 +341,13 @@ async function main() {
   }
 
   mkdirSync(outDir, { recursive: true });
-  await runDump(connectionString, sqlGz);
-  writeFileSync(metaPath, JSON.stringify(meta, null, 2));
+  const dumpInfo = await runDump(connectionString, sqlGz);
+  writeFileSync(
+    metaPath,
+    JSON.stringify({ ...meta, dump: dumpInfo }, null, 2)
+  );
 
-  console.log(`[backup-db] wrote ${sqlGz}`);
+  console.log(`[backup-db] method=${dumpInfo.method} wrote ${sqlGz}`);
   console.log(`[backup-db] wrote ${metaPath}`);
   console.log("[backup-db] done");
 }
