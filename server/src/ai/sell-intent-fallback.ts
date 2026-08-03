@@ -12,6 +12,24 @@ import {
 } from "../shared/chaotic-input.js";
 import { parsePriceFromChatInput } from "./listing-chat-input.js";
 
+/** Country-only / empty city → Vilnius so publish geocode never hard-fails. */
+function sanitizeFallbackListingCity(raw?: string | null): string {
+  const v = String(raw ?? "").trim();
+  if (!v) return "Vilnius";
+  const n = v
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (
+    /^(lietuva|lithuania|lt|ltu|visa lietuva|all lithuania|nationwide)$/i.test(n)
+  ) {
+    return "Vilnius";
+  }
+  return v;
+}
+
 const SELL_PATTERNS = [
   /\bparduodu\b/i,
   /\bparduosiu\b/i,
@@ -191,7 +209,7 @@ export function buildSellClarificationReply(
     title,
     description: "",
     price: 0,
-    location: opts?.userCity?.trim() || "Lietuva",
+    location: sanitizeFallbackListingCity(opts?.userCity),
     contact: opts?.contact?.trim() || "",
     category,
     confidence: 0.45,
@@ -421,7 +439,7 @@ export function buildSellListingDraftFallback(
     title,
     description: buildFallbackDescription({ title, category, make, location }),
     price: 0,
-    location: location || "Lietuva",
+    location: sanitizeFallbackListingCity(location),
     contact: ctx.contact?.trim() || "",
     category,
     confidence: 0.72,

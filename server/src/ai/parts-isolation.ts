@@ -8,7 +8,7 @@ const PARTS_RE =
 const FULL_CAR_LEAK_RE =
   /\b(citro[eë]n|grand\s+c4|c4\s+picasso|odinis\s+salonas|pavarų\s+dėž|pavarų\s+dez|vienatūris|mpv)\b/i;
 
-/** Fashion taxonomy — MUST NOT appear on auto / parts / wheels. */
+/** Fashion taxonomy — MUST NOT appear on auto / parts / electronics. */
 export const FASHION_ONLY_ATTR_KEYS = [
   "fashionCategory",
   "fashionSubcategory",
@@ -18,6 +18,30 @@ export const FASHION_ONLY_ATTR_KEYS = [
   "sizes",
   "colorSize",
 ] as const;
+
+/** Electronics / tech identity — MUST NOT appear on clothing / fashion. */
+export const ELECTRONICS_ONLY_ATTR_KEYS = [
+  "deviceModel",
+  "manufacturer",
+  "storageCapacity",
+  "deviceOs",
+  "warranty",
+  "battery",
+  "power",
+  "powerKw",
+  "specs",
+  "contents",
+  "vin",
+  "plate",
+  "licensePlate",
+  "engine",
+  "fuelType",
+  "mileage",
+  "mileageKm",
+] as const;
+
+const ELECTRONICS_PRODUCT_VALUE_RE =
+  /\b(macbook|imac|iphone|ipad|airpods|thinkpad|surface\s*pro|playstation|xbox|galaxy\s*(s|z|tab|note|watch)|pixel\s*\d|kindle|nintendo\s*switch)\b/i;
 
 /** Cabin / powertrain fields that MUST NOT appear on wheels/tires/parts. */
 export const FULL_VEHICLE_ONLY_ATTR_KEYS = [
@@ -101,6 +125,45 @@ export function stripFashionAttrsUnlessClothing<
   if (/^(xxs|xs|s|m|l|xl|xxl)$/i.test(String(attrs.size ?? ""))) {
     delete attrs.size;
     changed = true;
+  }
+  if (!changed) return draft;
+  return { ...draft, attributes: attrs as T["attributes"] };
+}
+
+/**
+ * Strip electronics / auto tech identity from clothing drafts.
+ * Prevents dress listings picking up MacBook Air / VIN / kW from sticky context.
+ */
+export function stripElectronicsAttrsUnlessElectronics<
+  T extends {
+    category?: string;
+    attributes?: Record<string, unknown>;
+  },
+>(draft: T): T {
+  const cat = String(draft.category ?? "").toLowerCase();
+  const isClothing = cat === "clothing" || cat === "fashion" || cat === "apranga";
+  if (!isClothing) return draft;
+
+  const attrs = { ...(draft.attributes ?? {}) };
+  let changed = false;
+  for (const key of ELECTRONICS_ONLY_ATTR_KEYS) {
+    if (key in attrs) {
+      delete attrs[key];
+      changed = true;
+    }
+  }
+  for (const key of ["make", "model", "year", "transmission", "bodyType", "driveType"] as const) {
+    if (key in attrs) {
+      delete attrs[key];
+      changed = true;
+    }
+  }
+  for (const [key, value] of Object.entries(attrs)) {
+    const text = Array.isArray(value) ? value.join(" ") : String(value ?? "");
+    if (ELECTRONICS_PRODUCT_VALUE_RE.test(text)) {
+      delete attrs[key];
+      changed = true;
+    }
   }
   if (!changed) return draft;
   return { ...draft, attributes: attrs as T["attributes"] };

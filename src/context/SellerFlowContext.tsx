@@ -27,7 +27,13 @@ import {
 import { moderateListing } from "@/lib/moderation";
 import { compressDataUrl, resolveImageForUpload } from "@/lib/native-media";
 import { getUserCoords } from "@/lib/geolocation";
-import { distanceToListing, enrichListingCoords, geocodeLocation } from "@/lib/geocoding";
+import {
+  DEFAULT_LISTING_GEO_CITY,
+  distanceToListing,
+  enrichListingCoords,
+  geocodeLocation,
+  isCountryOnlyOrVagueLtLocation,
+} from "@/lib/geocoding";
 import { generateListingSlug } from "@/lib/seo";
 import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
@@ -852,9 +858,14 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
           }
         }
 
-        const geo = geocodeLocation(next.location);
+        // Soft geocode — country-only ("Lietuva") / unknown never blocks the draft.
+        const geoLoc = isCountryOnlyOrVagueLtLocation(next.location)
+          ? DEFAULT_LISTING_GEO_CITY
+          : next.location?.trim() || DEFAULT_LISTING_GEO_CITY;
+        const geo = geocodeLocation(geoLoc);
         next = {
           ...next,
+          location: geoLoc,
           attributes: {
             ...(next.attributes ?? {}),
             _geoLat: String(geo.lat),

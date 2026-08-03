@@ -176,43 +176,103 @@ export const PREPUBLISH_VEHICLE_ALWAYS_ATTRS: ReadonlyArray<{
   { key: "engine", label: "Variklis", placeholder: "pvz. 1.6" },
 ];
 
+/** Clothing / fashion — keep core inputs visible while editing (empty ≠ gone). */
+export const PREPUBLISH_CLOTHING_ALWAYS_ATTRS: ReadonlyArray<{
+  key: string;
+  label: string;
+  placeholder: string;
+}> = [
+  { key: "brand", label: "Prekės ženklas", placeholder: "Zara, Nike…" },
+  { key: "size", label: "Dydis", placeholder: "S / 40 / 104 cm" },
+  { key: "condition", label: "Būklė", placeholder: "Labai gera…" },
+  { key: "clothingType", label: "Tipas", placeholder: "Suknelės, Striukės…" },
+  { key: "colors", label: "Spalva", placeholder: "Juoda, Balta…" },
+];
+
+/** Electronics — core tech inputs stay editable when cleared. */
+export const PREPUBLISH_ELECTRONICS_ALWAYS_ATTRS: ReadonlyArray<{
+  key: string;
+  label: string;
+  placeholder: string;
+}> = [
+  { key: "manufacturer", label: "Gamintojas", placeholder: "Apple, Samsung…" },
+  { key: "deviceModel", label: "Modelis", placeholder: "iPhone 14 Pro…" },
+  { key: "condition", label: "Būklė", placeholder: "Kaip naujas…" },
+  { key: "storageCapacity", label: "Talpa", placeholder: "128 GB…" },
+];
+
+function alwaysAttrsForCategory(
+  category?: ListingCategory
+): ReadonlyArray<{ key: string; label: string; placeholder: string }> {
+  if (category === "vehicles" || category === "transport") {
+    return PREPUBLISH_VEHICLE_ALWAYS_ATTRS;
+  }
+  if (category === "clothing") return PREPUBLISH_CLOTHING_ALWAYS_ATTRS;
+  if (category === "electronics") return PREPUBLISH_ELECTRONICS_ALWAYS_ATTRS;
+  return [];
+}
+
 /**
- * PrePublish editor list: for vehicles/transport, always keep core tech inputs
- * (empty strings stay visible with placeholders). Public listing detail still
- * uses getDynamicAttributeEntries (filled-only).
+ * PrePublish editor list: keep core category inputs even when empty so clearing
+ * a value does not remove the field / collapse the form. Public listing detail
+ * still uses getDynamicAttributeEntries (filled-only).
  */
 export function getPrePublishEditableAttributeEntries(
   attributes: Record<string, unknown> | null | undefined,
   category?: ListingCategory
 ): Array<DynamicAttributeEntry & { placeholder?: string }> {
   const filled = getDynamicAttributeEntries(attributes, category);
-  const isVehicle = category === "vehicles" || category === "transport";
-  if (!isVehicle) return filled.slice(0, 16);
+  const always = alwaysAttrsForCategory(category);
+
+  if (always.length === 0) {
+    // Non-schema verticals: keep keys that exist on the map even when cleared to "".
+    const sticky: Array<DynamicAttributeEntry & { placeholder?: string }> = [];
+    const seenLabels = new Set<string>();
+    if (attributes) {
+      for (const [key, raw] of Object.entries(attributes)) {
+        if (!isPublicDynamicAttributeKey(key)) continue;
+        if (isFashionOnlyForCategory(key, category)) continue;
+        if (raw === undefined || raw === null) continue;
+        const value = normalizeAttrValue(raw) ?? "";
+        const label = humanizeAttributeKey(key);
+        if (INTERNAL_LABEL_RE.test(label) || INTERNAL_LABEL_RE.test(key)) continue;
+        const dedupe = label.toLowerCase();
+        if (seenLabels.has(dedupe)) continue;
+        seenLabels.add(dedupe);
+        sticky.push({ key, label, value });
+      }
+    }
+    const base = sticky.length ? sticky : filled;
+    return base.slice(0, 16);
+  }
 
   const seenKeys = new Set<string>();
   const seenLabels = new Set<string>();
   const out: Array<DynamicAttributeEntry & { placeholder?: string }> = [];
 
-  for (const always of PREPUBLISH_VEHICLE_ALWAYS_ATTRS) {
-    const raw = attributes?.[always.key];
+  for (const alwaysField of always) {
+    const raw = attributes?.[alwaysField.key];
     const value = normalizeAttrValue(raw) ?? "";
     // Prefer mileage over mileageKm when both exist.
     const alt =
-      always.key === "mileage"
+      alwaysField.key === "mileage"
         ? normalizeAttrValue(attributes?.mileageKm) ?? ""
-        : always.key === "fuelType"
+        : alwaysField.key === "fuelType"
           ? normalizeAttrValue(attributes?.fuel) ?? ""
-          : "";
+          : alwaysField.key === "colors"
+            ? normalizeAttrValue(attributes?.color) ?? ""
+            : "";
     out.push({
-      key: always.key,
-      label: always.label,
+      key: alwaysField.key,
+      label: alwaysField.label,
       value: value || alt,
-      placeholder: always.placeholder,
+      placeholder: alwaysField.placeholder,
     });
-    seenKeys.add(always.key);
-    if (always.key === "mileage") seenKeys.add("mileageKm");
-    if (always.key === "fuelType") seenKeys.add("fuel");
-    seenLabels.add(always.label.toLowerCase());
+    seenKeys.add(alwaysField.key);
+    if (alwaysField.key === "mileage") seenKeys.add("mileageKm");
+    if (alwaysField.key === "fuelType") seenKeys.add("fuel");
+    if (alwaysField.key === "colors") seenKeys.add("color");
+    seenLabels.add(alwaysField.label.toLowerCase());
   }
 
   for (const entry of filled) {

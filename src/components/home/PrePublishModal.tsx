@@ -112,6 +112,10 @@ export function PrePublishModal({
   const [addingPhotos, setAddingPhotos] = useState(false);
   const [shippingMode, setShippingMode] =
     useState<PrePublishShippingMode>("pickup_or_courier");
+  /** Local attribute mirror — keeps controlled inputs stable while parent sanitizes. */
+  const [localAttrs, setLocalAttrs] = useState<
+    Record<string, string | string[] | undefined>
+  >({});
   const [priceAdvice, setPriceAdvice] = useState<PriceAdvice | null>(null);
   const [priceAdviceLoading, setPriceAdviceLoading] = useState(false);
   const priceAdviceShownKeyRef = useRef("");
@@ -132,6 +136,33 @@ export function PrePublishModal({
       submitLockRef.current = false;
     };
   }, []);
+
+  // Sync local attribute mirror when modal opens / card identity changes.
+  // Do not clobber in-progress keystrokes with slower parent echoes.
+  useEffect(() => {
+    if (!open) {
+      setLocalAttrs({});
+      return;
+    }
+    setLocalAttrs(attributes ?? {});
+    // Reset when the draft card identity changes (new title/category).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- intentional: open + identity only
+  }, [open, card.title, card.category]);
+
+  useEffect(() => {
+    if (!open || !attributes) return;
+    setLocalAttrs((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const [k, v] of Object.entries(attributes)) {
+        if (!(k in next)) {
+          next[k] = v;
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [open, attributes]);
 
   const gallery = useMemo(
     () =>
@@ -357,6 +388,7 @@ export function PrePublishModal({
 
   const patchSpec = useCallback(
     (key: string, value: string) => {
+      setLocalAttrs((prev) => ({ ...prev, [key]: value }));
       onFieldsChange?.({
         attributes: { [key]: value },
       });
@@ -383,14 +415,35 @@ export function PrePublishModal({
     }
   }, [gallery.length, onPublish, photosOptional, publishing, visibilityId]);
 
-  // Vehicles keep core tech inputs even when empty so clearing a value
-  // does not remove the field. Vision/debug keys stay filtered out.
+  // Vehicles / clothing / electronics keep core inputs even when empty so clearing
+  // a value does not remove the field. Vision/debug keys stay filtered out.
   const visibleSpecs = getPrePublishEditableAttributeEntries(
-    attributes as Record<string, unknown> | undefined,
+    localAttrs as Record<string, unknown>,
     card.category as ListingCategory | undefined
   );
   const isVehicleCategory =
     card.category === "vehicles" || card.category === "transport";
+
+  const readSpecValue = (key: string): string => {
+    if (key === "mileage") {
+      return (
+        attrValue(localAttrs, "mileage") ||
+        attrValue(localAttrs, "mileageKm") ||
+        ""
+      );
+    }
+    if (key === "fuelType") {
+      return (
+        attrValue(localAttrs, "fuelType") || attrValue(localAttrs, "fuel") || ""
+      );
+    }
+    if (key === "colors") {
+      return (
+        attrValue(localAttrs, "colors") || attrValue(localAttrs, "color") || ""
+      );
+    }
+    return attrValue(localAttrs, key) || "";
+  };
 
   if (!open || typeof document === "undefined") return null;
 
@@ -692,15 +745,7 @@ export function PrePublishModal({
                     </span>
                     <input
                       type="text"
-                      value={
-                        spec.key === "mileage"
-                          ? attrValue(attributes, "mileage") ||
-                            attrValue(attributes, "mileageKm")
-                          : spec.key === "fuelType"
-                            ? attrValue(attributes, "fuelType") ||
-                              attrValue(attributes, "fuel")
-                            : attrValue(attributes, spec.key)
-                      }
+                      value={readSpecValue(spec.key)}
                       placeholder={
                         "placeholder" in spec && typeof spec.placeholder === "string"
                           ? spec.placeholder

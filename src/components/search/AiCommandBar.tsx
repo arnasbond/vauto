@@ -332,6 +332,10 @@ export function AiCommandBar({
         }
         const msg = trimmed;
         const selected = attachments.slice(0, MAX_CHAT_COMPOSER_ATTACHMENTS);
+        // Immediate clean slate — never leave text/photos stuck while Vision/network runs.
+        setDraftQuery("");
+        if (isChatBar) setComposerAttachments([]);
+        if (inputRef.current) inputRef.current.value = "";
         const {
           imageUrls,
           documents,
@@ -345,8 +349,6 @@ export function AiCommandBar({
                 agentVisionUrls: [] as string[],
                 suspectedDocumentUrls: [] as string[],
               };
-          // Clear composer only after a successful handoff — otherwise a short-circuit
-          // (or transport failure) would wipe photos and draft text with nothing sent.
           const allWire = prepared.agentVisionUrls.length
             ? prepared.agentVisionUrls
             : prepared.listingImageUrls;
@@ -384,11 +386,18 @@ export function AiCommandBar({
             });
             if (!res.ok) break;
           }
-          if (res?.ok) {
-            setDraftQuery("");
-            if (isChatBar) setComposerAttachments([]);
+          if (res && res.ok === false) {
+            // Hard failure only — restore composer so the user can retry.
+            setDraftQuery(msg);
+            if (isChatBar && selected.length) {
+              setComposerAttachments(selected);
+            }
           }
         } catch (err) {
+          setDraftQuery(msg);
+          if (isChatBar && selected.length) {
+            setComposerAttachments(selected);
+          }
           const raw = err instanceof Error ? err.message : String(err ?? "");
           showToast(
             /413|payload|failed to fetch|network/i.test(raw)

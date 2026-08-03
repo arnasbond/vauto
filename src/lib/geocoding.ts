@@ -6,6 +6,62 @@ import {
   LT_CITY_COORDS,
 } from "@/lib/lt-cities";
 
+/** Soft-launch default when geocode gets only a country / unknown place. */
+export const DEFAULT_LISTING_GEO_CITY = "Vilnius";
+
+const DEFAULT_LISTING_COORDS: UserCoords = LT_CITY_COORDS[DEFAULT_LISTING_GEO_CITY]!;
+
+/**
+ * Country-only / nationwide labels that must never hard-fail publish.
+ * Foreign IP users often land with "Lietuva" instead of a city.
+ */
+export function isCountryOnlyOrVagueLtLocation(
+  locationText: string | undefined | null
+): boolean {
+  const raw = String(locationText ?? "").trim();
+  if (!raw || isPlaceholderCity(raw)) return true;
+  const n = raw
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/\p{M}/gu, "")
+    .replace(/[.,;:!?'"«»]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (
+    /^(lietuva|lithuania|republic of lithuania|lietuvos Respublika|lt|ltu|lt-lt)$/i.test(
+      n
+    )
+  ) {
+    return true;
+  }
+  if (/^(visa lietuva|visa lithuania|all lithuania|nationwide|visoje lietuvoje)$/i.test(n)) {
+    return true;
+  }
+  // "Lietuva" / "Lithuania" alone with optional country suffix noise
+  if (/^(lietuva|lithuania)(\s*,?\s*(eu|europe))?$/i.test(n)) return true;
+  return false;
+}
+
+/**
+ * City label safe for publish + geocode. Country-only / unknown → Vilnius.
+ * Never invents a city for buyer search — only listing publish soft-fallback.
+ */
+export function resolveGeocodeableListingCity(
+  locationText: string | undefined | null
+): string {
+  const raw = String(locationText ?? "").trim();
+  if (!raw || isPlaceholderCity(raw) || isCountryOnlyOrVagueLtLocation(raw)) {
+    return DEFAULT_LISTING_GEO_CITY;
+  }
+  const matchedCity = detectCityInText(raw);
+  if (matchedCity) return matchedCity;
+  if (coordsForLtCity(raw)) {
+    return raw;
+  }
+  // Unknown free-text (incl. foreign city) — still publishable with Vilnius pin.
+  return DEFAULT_LISTING_GEO_CITY;
+}
+
 /** Mock geocoding — resolves Lithuanian city/neighborhood text to coordinates */
 export function geocodeLocation(
   locationText: string,
@@ -19,10 +75,16 @@ export function geocodeLocation(
     base = LT_CITY_COORDS[matchedCity]!;
   } else {
     const direct = coordsForLtCity(normalized);
-    if (!direct) {
-      throw new Error(`Cannot geocode unknown location: ${locationText}`);
+    if (direct) {
+      base = direct;
+    } else {
+      // Soft fallback — never throw a blocking red error for Lietuva / abroad / unknown.
+      console.warn(
+        `[geocode] unknown/country-only location → ${DEFAULT_LISTING_GEO_CITY}:`,
+        locationText
+      );
+      base = DEFAULT_LISTING_COORDS;
     }
-    base = direct;
   }
 
   const neighborhoodJitter = hashJitter(
@@ -71,10 +133,14 @@ export function enrichListingCoords<T extends { location: string; id?: string }>
   if (!loc || isPlaceholderCity(loc)) {
     return { ...listing };
   }
-  try {
-    const coords = geocodeLocation(loc, listing.id ?? loc);
-    return { ...listing, latitude: coords.lat, longitude: coords.lng };
-  } catch {
-    return { ...listing };
-  }
+  const coords = geocodeLocation(loc, listing.id ?? loc);
+  const nextLocation = isCountryOnlyOrVagueLtLocation(loc)
+    ? DEFAULT_LISTING_GEO_CITY
+    : listing.location;
+  return {
+    ...listing,
+    location: nextLocation,
+    latitude: coords.lat,
+    longitude: coords.lng,
+  };
 }

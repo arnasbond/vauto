@@ -23,10 +23,13 @@ const GLOBAL_ATTRIBUTE_KEYS = new Set([
 /**
  * Vision / OCR / PrePublish pipeline keys — must survive sanitizeAttributesForCategory
  * so multi-photo enrichment and deferred Pass-2 sales copy stay intact.
+ * Product identity keys (brand/make/model/deviceModel/…) are NOT here — they must
+ * come from the active category schema, otherwise electronics leak into clothing.
  */
 const VISION_PIPELINE_ATTRIBUTE_KEYS = new Set([
   "deferredSalesDescription",
   "salesCopyGenerated",
+  "salesCopySource",
   "factNotes",
   "ocrText",
   "documentImageUrls",
@@ -41,29 +44,42 @@ const VISION_PIPELINE_ATTRIBUTE_KEYS = new Set([
   "sceneContext",
   "selectedObject",
   "visionQuotaFallback",
-  "brand",
-  "make",
-  "model",
-  "deviceModel",
-  "manufacturer",
-  "specs",
-  "power",
-  "powerKw",
-  "battery",
-  "contents",
-  "languages",
-  "condition",
-  "colors",
+  "sparseSell",
   "fitsOmnivaLocker",
   "estimatedSize",
   "omnivaBoxSize",
-  "year",
-  "engine",
-  "fuelType",
+  "omnivaLockerBlockReason",
+  "specSource",
+  "specConfidence",
+  "catalogNote",
+  "catalogModificationId",
+  "catalogModificationLabel",
+  "catalogAlternatives",
+]);
+
+/** Electronics / tech keys that must never stick on clothing / fashion drafts. */
+const ELECTRONICS_ONLY_ATTR_KEYS = new Set([
+  "deviceModel",
+  "manufacturer",
+  "storageCapacity",
+  "deviceOs",
+  "warranty",
+  "battery",
+  "power",
+  "powerKw",
+  "specs",
+  "contents",
   "vin",
   "plate",
   "licensePlate",
+  "engine",
+  "fuelType",
+  "mileage",
+  "mileageKm",
 ]);
+
+const ELECTRONICS_PRODUCT_VALUE_RE =
+  /\b(macbook|imac|iphone|ipad|airpods|thinkpad|surface\s*pro|playstation|xbox|galaxy\s*(s|z|tab|note|watch)|pixel\s*\d|kindle|nintendo\s*switch)\b/i;
 
 /** Alias keys used by resolveFieldValue — keep when parent exists. */
 const ATTRIBUTE_ALIASES: Record<string, string[]> = {
@@ -240,9 +256,63 @@ export function sanitizeAttributesForCategory(
     if (!allowed.has(key)) continue;
     if (value === undefined || value === null) continue;
     if (Array.isArray(value) && value.length === 0) continue;
-    if (!Array.isArray(value) && String(value).trim() === "") continue;
+    if (!Array.isArray(value) && String(value).trim() === "") {
+      // Preserve explicit empty edits so PrePublish controlled inputs stay mounted.
+      if (incoming && Object.prototype.hasOwnProperty.call(incoming, key)) {
+        out[key] = "";
+      }
+      continue;
+    }
     out[key] = value;
   }
+
+  return stripCrossCategoryProductAttrs(category, out);
+}
+
+/**
+ * Clothing must not keep electronics/auto product identity (MacBook, VIN, kW…).
+ * Electronics must not keep apparel size taxonomy.
+ */
+export function stripCrossCategoryProductAttrs(
+  category: ListingCategory,
+  attributes: CategoryAttributes
+): CategoryAttributes {
+  const cat = String(category ?? "").toLowerCase();
+  const isClothing = cat === "clothing" || cat === "fashion" || cat === "apranga";
+  const isElectronics =
+    cat === "electronics" ||
+    /elektron|telefon|kompiuter|planšet|planset/i.test(
+      String(attributes.skelbiuCategory ?? "")
+    );
+  const out: CategoryAttributes = { ...attributes };
+
+  if (isClothing) {
+    for (const key of ELECTRONICS_ONLY_ATTR_KEYS) {
+      delete out[key];
+    }
+    // Vehicles keys that sometimes appear via free-form vision dumps.
+    delete out.make;
+    delete out.model;
+    delete out.year;
+    delete out.transmission;
+    delete out.bodyType;
+    delete out.driveType;
+    for (const [key, value] of Object.entries(out)) {
+      const text = Array.isArray(value) ? value.join(" ") : String(value ?? "");
+      if (ELECTRONICS_PRODUCT_VALUE_RE.test(text)) {
+        delete out[key];
+      }
+    }
+  } else if (isElectronics) {
+    delete out.size;
+    delete out.sizes;
+    delete out.clothingType;
+    delete out.fashionCategory;
+    delete out.fashionSubcategory;
+    delete out.preferredSizes;
+    delete out.colorSize;
+  }
+
   return out;
 }
 

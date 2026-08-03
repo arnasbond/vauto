@@ -1,5 +1,9 @@
 import { distanceKm, getUserCoords, isCoordsInLithuania, type UserCoords } from "@/lib/geolocation";
 import {
+  DEFAULT_LISTING_GEO_CITY,
+  isCountryOnlyOrVagueLtLocation,
+} from "@/lib/geocoding";
+import {
   coordsForLtCity,
   LT_CITY_COORDS,
   LT_CITY_NAMES,
@@ -18,6 +22,8 @@ function explicitDraftCity(draftLocation: string | undefined | null): string {
   if (known) return known;
   const raw = String(draftLocation ?? "").trim();
   if (!raw || isPlaceholderCity(raw)) return "";
+  // Country-only ("Lietuva") is not a publishable city — soft-fallback to Vilnius.
+  if (isCountryOnlyOrVagueLtLocation(raw)) return DEFAULT_LISTING_GEO_CITY;
   return raw;
 }
 

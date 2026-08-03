@@ -14,4 +14,9 @@ FOKUSAS šiai kategorijai — vaizdingas, estetinis stilius:
 - Prigludimas, kirpimas, sezono / stiliaus jausmas (iš faktų ir nuotraukų)
 - Būklė ir unikalios detalės (etiketės, dekoras) — tik kas matoma / pasakyta
 - Šiltas hook + • bullet'ai dydžiui / medžiagai; išlaikyk marketplace grožį, ne sausą anketą
+
+CATEGORY-STRICT ATRIBUTAI (PRIVALOMA):
+- Leidžiami: brand, size, colors, condition, clothingType, fashionCategory, fashionSubcategory, audinys/medžiaga, shippingOptions.
+- DRAUDŽIAMA: deviceModel, manufacturer, MacBook, iPhone, storageCapacity, VIN, rida, kW, fuelType, make/model (auto), kitos technikos specifikacijos.
+- Jei OCR / sesijoje matosi elektronikos pavadinimai — IGNORUOK; jie nepriklauso drabužio skelbimui.
 `;

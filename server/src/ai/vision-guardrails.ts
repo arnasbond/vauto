@@ -49,8 +49,13 @@ CATEGORY-MATCHING COPY (PRIVALOMA):
 - Auto šablonai / rida / kW / variklis leidžiami TIK kai category=AUTOMOBILIAI.
 - VISIEMS non-auto: laikyk copy turtingą ir kūrybingą — filtruoji TIK auto raktinius žodžius, ne trumpini visą tekstą.
 
-ATTRIBUTES:
-- Užpildyk 2–6 naudingus raktus (pvz. Atlikimas, Paskirtis, Spalvos, Būklė, make/model/year…).
+ATTRIBUTES (CATEGORY-STRICT — PRIVALOMA):
+- Užpildyk 2–6 naudingus raktus, BET TIK tos kategorijos atributus:
+  • clothing / mada: brand, size, colors, condition, clothingType, fashionSubcategory, audinys — NIEKADA deviceModel / MacBook / iPhone / VIN / kW / rida.
+  • electronics: manufacturer, deviceModel, storageCapacity, condition, battery/specs — NIEKADA size XS–XXL / clothingType.
+  • vehicles: make, model, year, mileage, fuelType, powerKw — NIEKADA drabužių dydžių.
+  • home / menas / kita: Atlikimas, Paskirtis, Spalvos, Būklė — be svetimos kategorijos prekės ženklų.
+- DRAUDŽIAMA maišyti kategorijas (pvz. suknelei „Jimmy Choo“ + „MacBook Air“). Jei abejoji — palik tuščią, ne spėliok iš senos sesijos.
 - LED / RGB: jei matomas spalvotas apšvietimas — „integruotas RGB / spalvotas apšvietimas“,
   ne hardcodinta viena statiška spalva.
 - Kainą rašyk į price TIK jei vartotojas aiškiai nurodė; NIEKADA neišgalvok.

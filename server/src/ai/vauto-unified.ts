@@ -2,6 +2,7 @@ import { uploadImageToCloudinary, isCloudinaryConfigured } from "./cloudinary.js
 import { resolveListingCity, sanitizeListingCity } from "../lib/city-resolve.js";
 import {
   isAutoPartsOrWheelsContext,
+  stripElectronicsAttrsUnlessElectronics,
   stripFashionAttrsUnlessClothing,
   stripFullVehicleFieldsFromPartsDraft,
 } from "./parts-isolation.js";
@@ -820,9 +821,13 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       userCity: city,
       extraContext: body.extraContext,
     });
-    const listing = stripFullVehicleFieldsFromPartsDraft(
-      toListingPayload(raw, city, contact, text),
-      text
+    const listing = stripElectronicsAttrsUnlessElectronics(
+      stripFashionAttrsUnlessClothing(
+        stripFullVehicleFieldsFromPartsDraft(
+          toListingPayload(raw, city, contact, text),
+          text
+        )
+      )
     );
     return { ok: true, action, parsed: raw, listing };
   }
@@ -843,11 +848,15 @@ export async function handleVautoServerAction(body: VautoServerRequest) {
       extraContext: body.extraContext,
       imageDataUrls: visionImages,
     });
-    const listing = stripFullVehicleFieldsFromPartsDraft(
-      enrichVehicleVisionDraft(
-        toListingPayload(raw, city, contact, combinedText)
-      ) as VautoListingPayload,
-      combinedText
+    const listing = stripElectronicsAttrsUnlessElectronics(
+      stripFashionAttrsUnlessClothing(
+        stripFullVehicleFieldsFromPartsDraft(
+          enrichVehicleVisionDraft(
+            toListingPayload(raw, city, contact, combinedText)
+          ) as VautoListingPayload,
+          combinedText
+        )
+      )
     );
     mergePipelineIntoListingFields(listing, pipeline);
 
@@ -990,10 +999,12 @@ export async function parseListingImagesForAgent(params: {
     throw err;
   }
   const listingRaw = toListingPayload(raw, city, contact, combinedText);
-  let listing = stripFashionAttrsUnlessClothing(
-    stripFullVehicleFieldsFromPartsDraft(
-      enrichVehicleVisionDraft(listingRaw) as typeof listingRaw,
-      combinedText
+  let listing = stripElectronicsAttrsUnlessElectronics(
+    stripFashionAttrsUnlessClothing(
+      stripFullVehicleFieldsFromPartsDraft(
+        enrichVehicleVisionDraft(listingRaw) as typeof listingRaw,
+        combinedText
+      )
     )
   );
   if (listing.description) {
