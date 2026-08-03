@@ -193,13 +193,14 @@ async function main() {
           `CLEAR  ${row.id} ${String(row.title).slice(0, 48)} (no real upload found)`
         );
         if (!dryRun) {
+          // `image` is NOT NULL in production — empty string, never Unsplash.
           if (hasImages) {
             await client.query(
-              `UPDATE listings SET image = NULL, images = '[]'::jsonb WHERE id = $1`,
+              `UPDATE listings SET image = '', images = '[]'::jsonb WHERE id = $1`,
               [row.id]
             );
           } else {
-            await client.query(`UPDATE listings SET image = NULL WHERE id = $1`, [
+            await client.query(`UPDATE listings SET image = '' WHERE id = $1`, [
               row.id,
             ]);
           }
