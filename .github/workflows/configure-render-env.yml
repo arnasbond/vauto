@@ -60,7 +60,9 @@ jobs:
       - name: Backfill empty listing covers (DB)
         env:
           RENDER_API_KEY: ${{ secrets.RENDER_API_KEY }}
-        run: node scripts/backfill-listing-covers-db.mjs
+        run: |
+          npm install --prefix server --omit=dev
+          node scripts/backfill-listing-covers-db.mjs
 
       - name: Smoke test AI health
         run: |
