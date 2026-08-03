@@ -35,6 +35,8 @@
     "db:purge-ai-test:dry": "node server/scripts/purge-ai-test-listings.mjs --dry-run",
     "db:purge-demo-catalog": "node server/scripts/purge-demo-catalog-listings.mjs",
     "db:purge-demo-catalog:dry": "node server/scripts/purge-demo-catalog-listings.mjs --dry-run",
+    "db:restore-covers": "node server/scripts/restore-real-listing-covers.mjs",
+    "db:restore-covers:dry": "node server/scripts/restore-real-listing-covers.mjs --dry-run",
     "pitch:pdf": "node scripts/generate-pitch-pdf.mjs",
     "report:launch-pdf": "node scripts/generate-launch-readiness-pdf.mjs",
     "report:emotional-pdf": "node scripts/generate-emotional-experience-pdf.mjs",

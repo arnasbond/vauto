@@ -428,74 +428,62 @@ apiRouter.post("/ops/purge-ai-test-listings", requireOpsSecret, async (req, res)
 });
 
 /**
- * Backfill empty / data: listing covers with category http(s) Unsplash URLs.
- * Open LT ops — no demo OTP required. Body: { dryRun?: boolean, limit?: number }
+ * DISABLED: Unsplash/category stock cover backfill permanently refused.
+ * Use DB scripts: purge-demo-catalog-listings + restore-real-listing-covers.
  */
-apiRouter.post("/ops/backfill-listing-covers", requireOpsSecret, async (req, res) => {
+apiRouter.post("/ops/backfill-listing-covers", requireOpsSecret, async (_req, res) => {
+  res.status(410).json({
+    ok: false,
+    error:
+      "Unsplash cover backfill is permanently disabled. Use purge-demo-catalog + restore-real-listing-covers.",
+  });
+});
+
+/**
+ * Strip Unsplash/stock covers from real listings (never invent replacements).
+ * Body: { dryRun?: boolean, limit?: number }
+ */
+apiRouter.post("/ops/strip-stock-covers", requireOpsSecret, async (req, res) => {
   try {
     const dryRun = req.body?.dryRun === true;
     const limit = Math.min(
       500,
       Math.max(1, Number(req.body?.limit) || 200)
     );
-    const FALLBACK: Record<string, string> = {
-      vehicles:
-        "https://images.unsplash.com/photo-1555215695-3004980ad54e?w=800&h=600&fit=crop&auto=format&q=80",
-      transport:
-        "https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&h=600&fit=crop&auto=format&q=80",
-      electronics:
-        "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=800&h=600&fit=crop&auto=format&q=80",
-      services:
-        "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format&q=80",
-      jobs:
-        "https://images.unsplash.com/photo-1497366811353-6870744d04b2?w=800&h=600&fit=crop&auto=format&q=80",
-      home:
-        "https://images.unsplash.com/photo-1617806118233-18e1de247200?w=800&h=600&fit=crop&auto=format&q=80",
-      clothing:
-        "https://images.unsplash.com/photo-1551028719-00167b16eac5?w=800&h=600&fit=crop&auto=format&q=80",
-      real_estate:
-        "https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=800&h=600&fit=crop&auto=format&q=80",
-      tools:
-        "https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=800&h=600&fit=crop&auto=format&q=80",
-      rental:
-        "https://images.unsplash.com/photo-1486262715619-67b85e0b08d3?w=800&h=600&fit=crop&auto=format&q=80",
-      other:
-        "https://images.unsplash.com/photo-1571068316344-75bc76f77890?w=800&h=600&fit=crop&auto=format&q=80",
-    };
     const rows = await pool.query<{
       id: string;
       title: string;
-      category: string | null;
       image: string | null;
     }>(
-      `SELECT id, title, category, image
+      `SELECT id, title, image
        FROM listings
        WHERE COALESCE(status, 'active') NOT IN ('deleted', 'archived')
+         AND id !~* '^(lt-|demo-|seller-|l-soft-)'
+         AND image IS NOT NULL
          AND (
-           image IS NULL
-           OR TRIM(image) = ''
-           OR image LIKE 'data:%'
+           image ILIKE '%unsplash.com%'
+           OR image ILIKE '%picsum.photos%'
+           OR image ILIKE 'data:%'
          )
        ORDER BY created_at DESC
        LIMIT $1`,
       [limit]
     );
-    let fixed = 0;
-    const samples: Array<{ id: string; title: string; cover: string }> = [];
+    let cleared = 0;
+    const samples: Array<{ id: string; title: string }> = [];
     for (const row of rows.rows) {
-      const cover = FALLBACK[row.category || ""] || FALLBACK.other;
-      samples.push({ id: row.id, title: row.title, cover });
+      samples.push({ id: row.id, title: row.title });
       if (!dryRun) {
-        await adminPatchListing(row.id, { image: cover });
+        await adminPatchListing(row.id, { image: "" });
       }
-      fixed += 1;
+      cleared += 1;
     }
     res.json({
       ok: true,
       dryRun,
-      needCover: rows.rows.length,
-      fixed,
-      samples: samples.slice(0, 20),
+      matched: rows.rows.length,
+      cleared,
+      samples: samples.slice(0, 30),
     });
   } catch (e) {
     res.status(500).json({ ok: false, error: String(e) });

@@ -64,3 +64,6 @@ server/node_modules
 server/dist
 
 .vercel
+
+# local agent temp secrets / helpers
+scripts/_tmp_*
