@@ -107,9 +107,10 @@ const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, locatio
   FROM listings`;
 
 /**
- * Search SELECT — strips inline data-URL blobs so keyword SQL stays under the
- * search timeout on Render. Agent summaries only need text fields; the feed
- * hydrates full images from the already-loaded catalog via pin IDs.
+ * Light SELECT for feeds + keyword search — strips inline data-URL blobs so
+ * list JSON stays small and search SQL stays under Render timeouts. Detail
+ * views keep full LISTING_SELECT (by id). Agent pins hydrate http(s) covers
+ * from the catalog; empty cover falls back to placeholder in UI.
  */
 const LISTING_SEARCH_SELECT = `SELECT id, seller_id, title, price, price_label, location, distance_km,
   latitude, longitude, slug,
@@ -120,6 +121,9 @@ const LISTING_SEARCH_SELECT = `SELECT id, seller_id, title, price, price_label, 
   is_verified, requires_review, image_alt, image_title,
   allow_pastomatas
   FROM listings`;
+
+/** Public feed / page queries — same light projection as search. */
+const LISTING_FEED_SELECT = LISTING_SEARCH_SELECT;
 
 /** Public catalog — excludes banned and pending moderation review. */
 export const PUBLIC_LISTING_VISIBILITY_SQL = `NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')`;
@@ -524,7 +528,7 @@ export async function getListingsPage(options: {
     const total = Number(countRows[0]?.count ?? 0);
 
     const rows = await query<ListingRow>(
-      `${LISTING_SELECT}
+      `${LISTING_FEED_SELECT}
        WHERE ${PUBLIC_LISTING_VISIBILITY_SQL}
        ORDER BY created_at DESC
        LIMIT $1 OFFSET $2`,
@@ -560,7 +564,7 @@ export async function getListingsPage(options: {
 export async function getListingsLegacyFull(): Promise<ApiListing[]> {
   try {
     const rows = await query<ListingRow>(
-      `${LISTING_SELECT} ORDER BY created_at DESC`
+      `${LISTING_FEED_SELECT} ORDER BY created_at DESC`
     );
     const fromDb = rows.map(mapListingRow);
     if (!isServerDemoCatalogEnabled()) {
@@ -1891,34 +1895,52 @@ export async function upsertChat(thread: ApiChatThread): Promise<ApiChatThread> 
     }
   }
 
-  const inserted = await query<{ id: string }>(
-    `INSERT INTO chat_threads (
-      id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
-      last_read_at, sms_fallback_sent_for, updated_at
-    ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
-     ON CONFLICT (buyer_id, seller_id, listing_id) DO UPDATE SET
-       listing_title = EXCLUDED.listing_title,
-       escrow_offered = EXCLUDED.escrow_offered,
-       last_read_at = EXCLUDED.last_read_at,
-       sms_fallback_sent_for = COALESCE(
-         EXCLUDED.sms_fallback_sent_for,
-         chat_threads.sms_fallback_sent_for
-       ),
-       updated_at = now()
-     RETURNING id`,
-    [
-      preferredId,
-      thread.listingId,
-      thread.listingTitle,
-      thread.buyerId,
-      thread.sellerId,
-      thread.escrowOffered,
-      thread.lastReadAt ?? null,
-      thread.smsFallbackSentFor ?? null,
-    ]
-  ).catch(async () => {
-    // Fail-open before migration 034 unique index is applied.
-    return query<{ id: string }>(
+  const threadParams = [
+    preferredId,
+    thread.listingId,
+    thread.listingTitle,
+    thread.buyerId,
+    thread.sellerId,
+    thread.escrowOffered,
+    thread.lastReadAt ?? null,
+    thread.smsFallbackSentFor ?? null,
+  ];
+
+  const isMissingListingUnique = (err: unknown): boolean => {
+    const e = err as { code?: string; message?: string };
+    const msg = String(e?.message ?? err ?? "");
+    // 42P10 = invalid_column_reference for ON CONFLICT target; 42703 = undefined column
+    return (
+      e?.code === "42P10" ||
+      /idx_chat_threads_buyer_seller_listing/i.test(msg) ||
+      /there is no unique or exclusion constraint/i.test(msg) ||
+      /ON CONFLICT/i.test(msg)
+    );
+  };
+
+  let inserted: { id: string }[];
+  try {
+    inserted = await query<{ id: string }>(
+      `INSERT INTO chat_threads (
+        id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
+        last_read_at, sms_fallback_sent_for, updated_at
+      ) VALUES ($1,$2,$3,$4,$5,$6,$7,$8,now())
+       ON CONFLICT (buyer_id, seller_id, listing_id) DO UPDATE SET
+         listing_title = EXCLUDED.listing_title,
+         escrow_offered = EXCLUDED.escrow_offered,
+         last_read_at = EXCLUDED.last_read_at,
+         sms_fallback_sent_for = COALESCE(
+           EXCLUDED.sms_fallback_sent_for,
+           chat_threads.sms_fallback_sent_for
+         ),
+         updated_at = now()
+       RETURNING id`,
+      threadParams
+    );
+  } catch (err) {
+    if (!isMissingListingUnique(err)) throw err;
+    // Fail-open only when migration 034 unique index is not applied yet.
+    inserted = await query<{ id: string }>(
       `INSERT INTO chat_threads (
         id, listing_id, listing_title, buyer_id, seller_id, escrow_offered,
         last_read_at, sms_fallback_sent_for, updated_at
@@ -1933,47 +1955,45 @@ export async function upsertChat(thread: ApiChatThread): Promise<ApiChatThread> 
          ),
          updated_at = now()
        RETURNING id`,
-      [
-        preferredId,
-        thread.listingId,
-        thread.listingTitle,
-        thread.buyerId,
-        thread.sellerId,
-        thread.escrowOffered,
-        thread.lastReadAt ?? null,
-        thread.smsFallbackSentFor ?? null,
-      ]
+      threadParams
     );
-  });
+  }
 
   const canonicalId = inserted[0]?.id ?? preferredId;
   const outbound: ApiChatThread = { ...thread, id: canonicalId };
 
-  await pool.query("DELETE FROM chat_messages WHERE thread_id = $1", [
-    outbound.id,
-  ]);
-  for (const m of messages) {
-    await query(
-      `INSERT INTO chat_messages (id, thread_id, sender_id, body, created_at, read_at)
-       VALUES ($1,$2,$3,$4,$5,$6)
-       ON CONFLICT (id) DO UPDATE SET
-         thread_id = EXCLUDED.thread_id,
-         sender_id = EXCLUDED.sender_id,
-         body = EXCLUDED.body,
-         created_at = EXCLUDED.created_at,
-         read_at = EXCLUDED.read_at`,
-      [
-        m.id,
-        outbound.id,
-        m.senderId,
-        m.text,
-        m.timestamp,
-        m.readAt ?? null,
-      ]
-    );
+  // Serialize concurrent PUT /api/chats for the same listing-bound triple so
+  // delete+reinsert cannot interleave and drop the other writer's messages.
+  const lockKey = `chat:${thread.buyerId}:${thread.sellerId}:${thread.listingId}`;
+  await pool.query("SELECT pg_advisory_lock(hashtext($1::text))", [lockKey]);
+  try {
+    await pool.query("DELETE FROM chat_messages WHERE thread_id = $1", [
+      outbound.id,
+    ]);
+    for (const m of messages) {
+      await query(
+        `INSERT INTO chat_messages (id, thread_id, sender_id, body, created_at, read_at)
+         VALUES ($1,$2,$3,$4,$5,$6)
+         ON CONFLICT (id) DO UPDATE SET
+           thread_id = EXCLUDED.thread_id,
+           sender_id = EXCLUDED.sender_id,
+           body = EXCLUDED.body,
+           created_at = EXCLUDED.created_at,
+           read_at = EXCLUDED.read_at`,
+        [
+          m.id,
+          outbound.id,
+          m.senderId,
+          m.text,
+          m.timestamp,
+          m.readAt ?? null,
+        ]
+      );
+    }
+    return outbound;
+  } finally {
+    await pool.query("SELECT pg_advisory_unlock(hashtext($1::text))", [lockKey]);
   }
-
-  return outbound;
 }
 
 export async function getReviews(): Promise<ApiReview[]> {

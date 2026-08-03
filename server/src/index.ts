@@ -52,6 +52,8 @@ app.use(express.json({ limit: JSON_BODY_LIMIT }));
 app.use(express.urlencoded({ limit: JSON_BODY_LIMIT, extended: true }));
 app.use(optionalAuth);
 app.use("/api/search", searchRateLimiter, searchRouter);
+/** Legacy vision search is Gemini-heavy — apply AI tier before general API limiter. */
+app.use("/api/search/vision", aiRateLimiter);
 app.use("/api/user/avatar", actionRateLimiter);
 app.use("/api", apiRateLimiter);
 
