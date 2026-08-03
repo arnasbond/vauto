@@ -39,9 +39,14 @@ import { isVerifiedServiceProvider, verifyVin } from "@/lib/trust";
 import { apiCreateListing, apiUpdateListing, apiUpdateUser, apiUploadMedia, parseApiErrorMessage, SESSION_EXPIRED_MESSAGE } from "@/lib/api/client";
 import { loadAccessToken } from "@/lib/auth/session";
 import { sanitizeAvatarForApi } from "@/lib/avatar-url";
-import { draftToListingPatch } from "@/lib/listing-edit";
-import { writeListingEditSession } from "@/lib/listing-edit-session";
-import { listingToDraft } from "@/lib/listing-edit";
+import { draftToListingPatch, type ListingEditPatch } from "@/lib/listing-edit";
+import { clearListingEditSession } from "@/lib/listing-edit-session";
+import { EditListingModal } from "@/components/dashboard/EditListingModal";
+import {
+  collectListingGalleryCandidates,
+  filterSessionListingImages,
+  isListingPlaceholderUrl,
+} from "@/lib/listing-image";
 import { stripHallucinatedListingDefaults } from "@/lib/conversation-listing-draft";
 import { normalizeKnownListingCity } from "@/lib/city-resolve";
 import {
@@ -290,7 +295,6 @@ import {
   NEGOTIABLE_PRICE_LABEL,
 } from "@vauto/shared/negotiable-price";
 import { computeVatBreakdown } from "@vauto/shared/vat-pricing";
-import { filterSessionListingImages } from "@/lib/listing-image";
 import { parseDocumentUrlsFromAttributes } from "@/lib/listing-gallery-roles";
 import { withSellerDisplayNameAttribute } from "@/lib/seller-display";
 import type { CheckoutSession } from "@/lib/monetization-catalog";
@@ -416,6 +420,9 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   const [pendingSellerQuery, setPendingSellerQuery] = useState<string | null>(null);
   const [lastPublishedListing, setLastPublishedListing] = useState<Listing | null>(null);
   const [editingListingId, setEditingListingId] = useState<string | null>(null);
+  /** Dedicated form modal — never redirects to `/` for catalog/detail "Redaguoti". */
+  const [editModalListing, setEditModalListing] = useState<Listing | null>(null);
+  const [editModalSaving, setEditModalSaving] = useState(false);
   const [listingSocialPublish, setListingSocialPublish] =
     useState<ListingSocialPublishOptions>(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
   const [pendingWardrobeBulkItems, setPendingWardrobeBulkItems] = useState<
@@ -490,6 +497,8 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     setPendingSellerQuery(null);
     setLastPublishedListing(null);
     setEditingListingId(null);
+    setEditModalListing(null);
+    setEditModalSaving(false);
     setListingSocialPublish(DEFAULT_LISTING_SOCIAL_PUBLISH_OPTIONS);
     setPendingWardrobeBulkItems(null);
     setPendingWardrobeVoice(null);
@@ -2307,29 +2316,132 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
     ]
   );
 
+  const closeEditListingModal = useCallback(() => {
+    if (editModalSaving) return;
+    setEditModalListing(null);
+  }, [editModalSaving]);
+
+  const saveEditListingFromModal = useCallback(
+    async (id: string, patch: ListingEditPatch) => {
+      const existing = listings.find((l) => l.id === id) ?? editModalListing;
+      if (!existing || existing.sellerId !== user.id) {
+        showToast("Skelbimas nerastas arba neturite teisių.", "error");
+        throw new Error("Skelbimas nerastas arba neturite teisių.");
+      }
+      setEditModalSaving(true);
+      try {
+        const photosOptional = listingCategoryAllowsPhotoless(
+          patch.category ?? existing.category
+        );
+        const rawGallery = filterSessionListingImages(
+          patch.images ??
+            collectListingGalleryCandidates({
+              ...existing,
+              ...patch,
+            }),
+          {
+            attributes: {
+              ...(existing.attributes ?? {}),
+              ...(patch.attributes ?? {}),
+            },
+          }
+        ).filter((url) => !isListingPlaceholderUrl(url));
+        const cappedGallery = capListingGalleryUrls(
+          rawGallery,
+          patch.category ?? existing.category
+        );
+        if (!cappedGallery.length && !photosOptional) {
+          showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+          throw new Error(LISTING_PHOTO_REQUIRED_MESSAGE);
+        }
+        const preparedImages = cappedGallery.length
+          ? (
+              await Promise.all(
+                cappedGallery.map((src) => prepareListingImageForApi(src, id))
+              )
+            ).filter((img): img is string => Boolean(img))
+          : [];
+        if (!preparedImages.length && !photosOptional) {
+          showToast(LISTING_PHOTO_REQUIRED_MESSAGE, "error");
+          throw new Error(LISTING_PHOTO_REQUIRED_MESSAGE);
+        }
+        const nextAttributes = {
+          ...(existing.attributes ?? {}),
+          ...(patch.attributes ?? {}),
+          ...(preparedImages.length ? { galleryUrls: preparedImages } : {}),
+        };
+        const updated: Listing = enrichListingCoords({
+          ...existing,
+          ...patch,
+          attributes: nextAttributes,
+          images: preparedImages,
+          slug: generateListingSlug(
+            patch.title ?? existing.title,
+            patch.location ?? existing.location
+          ),
+        });
+        setListings((prev) => prev.map((l) => (l.id === id ? updated : l)));
+        if (isDataApiEnabled()) {
+          const res = await apiUpdateListing(id, user.id, {
+            ...patch,
+            images: preparedImages,
+            attributes: nextAttributes,
+          });
+          if (!res.ok) {
+            const msg = formatPublishSaveError(res.error);
+            setSyncError(msg);
+            showToast(msg, "error");
+            throw new Error(parseApiErrorMessage(res.error) || msg);
+          }
+          if (res.data) {
+            const fromApi = res.data;
+            setListings((prev) =>
+              prev.map((l) =>
+                l.id === id
+                  ? {
+                      ...updated,
+                      ...fromApi,
+                      images:
+                        fromApi.images?.length > 0
+                          ? fromApi.images
+                          : updated.images,
+                    }
+                  : l
+              )
+            );
+          }
+        }
+        showToast("Skelbimas atnaujintas!", "success");
+        setEditModalListing(null);
+        void refreshListingsCatalog();
+      } finally {
+        setEditModalSaving(false);
+      }
+    },
+    [
+      listings,
+      editModalListing,
+      user.id,
+      showToast,
+      setListings,
+      setSyncError,
+      refreshListingsCatalog,
+    ]
+  );
+
   const startEditListingFlow = useCallback(
     (listing: Listing, options?: { stayOnPage?: boolean }) => {
+      void options;
       if (listing.sellerId !== user.id) {
         showToast("Neturite teisių redaguoti šio skelbimo.", "error");
         return;
       }
-      resetSellerFlow();
-      writeListingEditSession({
-        listingId: listing.id,
-        title: listing.title,
-        price: listing.price,
-        description: listing.description ?? "",
-        location: listing.location,
-        category: listing.category,
-        attributes: listing.attributes ?? {},
-      });
-      const draft = listingToDraft(listing);
-      setEditingListingId(listing.id);
-      applyAgentListingDraft(draft, listing.images[0] ?? undefined);
-      if (options?.stayOnPage) return;
-      router.push("/");
+      // Prefer catalog copy so gallery/attrs are current; stay on current page.
+      const fresh = listings.find((l) => l.id === listing.id) ?? listing;
+      clearListingEditSession();
+      setEditModalListing(fresh);
     },
-    [user.id, showToast, resetSellerFlow, router, applyAgentListingDraft]
+    [user.id, showToast, listings]
   );
 
   const updateSellerMedia = useCallback(
@@ -2474,6 +2586,12 @@ export function SellerFlowContextProvider({ children }: { children: ReactNode })
   return (
     <SellerFlowContext.Provider value={value}>
       {children}
+      <EditListingModal
+        listing={editModalListing}
+        saving={editModalSaving}
+        onClose={closeEditListingModal}
+        onSave={saveEditListingFromModal}
+      />
     </SellerFlowContext.Provider>
   );
 }

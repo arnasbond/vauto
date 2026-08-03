@@ -339,7 +339,8 @@ export function ManoSkelbimaiDashboard({
 
       <p className="mb-6 text-sm text-slate-600">
         Valdykite visus skelbimus vienoje vietoje — privatūs ir verslo klientai
-        naudoja tą pačią sistemą. Redaguokite pokalbiu su DI, be formų.
+        naudoja tą pačią sistemą. Spauskite „Redaguoti“, kad atnaujintumėte
+        duomenis ir nuotraukas.
       </p>
 
       {sorted.length === 0 ? (

@@ -211,7 +211,7 @@ export function listingImagesFromLegacy(raw: LegacyListingInput): string[] {
       title: raw.title,
       category: raw.category,
       description: raw.description,
-      images: raw.images,
+      images: Array.isArray(raw.images) ? raw.images : [],
       image: raw.image,
       attributes: attrs,
     }),
