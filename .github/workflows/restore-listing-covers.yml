@@ -40,21 +40,26 @@ jobs:
           export NODE_TLS_REJECT_UNAUTHORIZED=0
           ARGS=""
           if [ "$DRY_RUN" = "true" ]; then ARGS="--dry-run"; fi
+          echo "::group::restore-real-listing-covers"
           node server/scripts/restore-real-listing-covers.mjs $ARGS
-          node -e "
-            const {Client}=require('pg');
-            (async()=>{
-              const c=new Client({connectionString:process.env.DATABASE_URL,ssl:{rejectUnauthorized:false}});
-              await c.connect();
-              const {rows}=await c.query(\`SELECT id, title, left(image,120) AS image,
-                attributes->>'galleryUrls' AS gallery
-                FROM listings
-                WHERE title ILIKE '%HOHNER%' OR title ILIKE '%gitar%'
-                ORDER BY created_at DESC LIMIT 5\`);
-              console.log(JSON.stringify(rows,null,2));
-              const stock=await c.query(\`SELECT COUNT(*)::int AS c FROM listings
-                WHERE image ILIKE '%unsplash.com%' OR image ILIKE '%picsum.photos%'\`);
-              console.log('unsplash_covers_remaining', stock.rows[0].c);
-              await c.end();
-            })().catch(e=>{console.error(e);process.exit(1);});
+          echo "::endgroup::"
+          echo "::group::fix-listing-cover HOHNER/gitara"
+          node server/scripts/fix-listing-cover.mjs --title HOHNER $ARGS
+          echo "::endgroup::"
+          echo "::group::verify"
+          node --input-type=module -e "
+            import pg from './server/node_modules/pg/lib/index.js';
+            const c = new pg.Client({ connectionString: process.env.DATABASE_URL, ssl: { rejectUnauthorized: false } });
+            await c.connect();
+            const { rows } = await c.query(\`SELECT id, title, left(image,160) AS image,
+              attributes->'galleryUrls' AS gallery
+              FROM listings
+              WHERE title ILIKE '%HOHNER%' OR title ILIKE '%gitar%'
+              ORDER BY created_at DESC LIMIT 5\`);
+            console.log(JSON.stringify(rows, null, 2));
+            const stock = await c.query(\`SELECT COUNT(*)::int AS c FROM listings
+              WHERE image ILIKE '%unsplash.com%' OR image ILIKE '%picsum.photos%'\`);
+            console.log('unsplash_covers_remaining', stock.rows[0].c);
+            await c.end();
           "
+          echo "::endgroup::"
