@@ -3,10 +3,8 @@ import { enrichListingCoords } from "@/lib/geocoding";
 import {
   filterSessionListingImages,
   listingImagesFromLegacy,
-  resolveListingImages,
 } from "@/lib/listing-image";
 import { generateListingSlug } from "@/lib/seo";
-import { isDemoListingId } from "@/lib/demo-catalog";
 import {
   feedBadgeForPlanTier,
   stripExpiredVisibilityAttributes,
@@ -22,7 +20,6 @@ export function normalizeListing(listing: LegacyListingInput): Listing {
     ...listing,
     images: sellerImages,
   } as Listing);
-  const isDemo = Boolean((listing as Listing).isDemo) || isDemoListingId(String(listing.id ?? ""));
   const rawAttrs = ((listing as Listing).attributes ?? {}) as Record<string, unknown>;
   const stripped = stripExpiredVisibilityAttributes(
     rawAttrs,
@@ -79,12 +76,7 @@ export function normalizeListing(listing: LegacyListingInput): Listing {
         ? (listing as Listing).allowPastomatas
         : true,
     // Real seller listings keep only their uploads — never inject Unsplash fillers.
-    images:
-      sellerImages.length > 0
-        ? sellerImages
-        : isDemo
-          ? resolveListingImages({ ...base, images: [] })
-          : [],
+    images: sellerImages,
   };
 }
 

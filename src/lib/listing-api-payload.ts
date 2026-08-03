@@ -23,10 +23,10 @@ export function listingToApiPayload(
   const gallery = capListingGalleryUrls(
     hardFilterPublicGalleryUrls(images, undefined, attributes),
     listing.category
-  );
+  ).filter((u) => !/unsplash\.com|picsum\.photos/i.test(u));
   const cover = gallery[0] ?? "";
   const httpGallery = gallery.filter((u) => /^https?:\/\//i.test(u));
-  if (httpGallery.length > 1) {
+  if (httpGallery.length >= 1) {
     attributes.galleryUrls = httpGallery;
   }
   // Never mirror a document URL into the public galleryUrls attribute.

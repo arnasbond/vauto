@@ -308,16 +308,14 @@ const VOICE_INTENT_SCHEMA = `{
   "confidence": "number 0-1"
 }`;
 
+const REFERENCE_PLACEHOLDER =
+  "https://res.cloudinary.com/dhbrljo8v/image/upload/v1785776907/vauto/system/listing-placeholder.png";
+
+/** Never Unsplash — inspiration API falls back to neutral placeholder only. */
 const REFERENCE_FALLBACK: Record<string, string[]> = {
-  electronics: [
-    "https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=400&h=300&fit=crop",
-  ],
-  vehicles: [
-    "https://images.unsplash.com/photo-1552519507-da3b142c6e3d?w=400&h=300&fit=crop",
-  ],
-  other: [
-    "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=300&fit=crop",
-  ],
+  electronics: [REFERENCE_PLACEHOLDER],
+  vehicles: [REFERENCE_PLACEHOLDER],
+  other: [REFERENCE_PLACEHOLDER],
 };
 
 aiRouter.post("/analyze-voice", async (req: AuthedRequest, res) => {

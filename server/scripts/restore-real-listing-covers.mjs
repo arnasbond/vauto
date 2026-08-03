@@ -80,12 +80,14 @@ function collectCandidateUrls(row, mediaRows) {
   const attrs = parseJson(row.attributes, {});
   if (attrs && typeof attrs === "object") {
     for (const key of [
-      "originalImage",
-      "originalImages",
-      "documentImageUrls",
+      "galleryUrls",
+      "orderedImageUrls",
+      "imageUrls",
       "photoUrls",
       "uploadedImages",
       "sourceImages",
+      "originalImage",
+      "originalImages",
       "gallery",
     ]) {
       const v = attrs[key];
@@ -172,7 +174,28 @@ async function main() {
           `RESTORE ${row.id} ${String(row.title).slice(0, 48)} → ${cover.slice(0, 72)}`
         );
         if (!dryRun) {
-          if (hasImages) {
+          const attrs = parseJson(row.attributes, {}) || {};
+          const nextAttrs = {
+            ...(typeof attrs === "object" && attrs && !Array.isArray(attrs)
+              ? attrs
+              : {}),
+            galleryUrls: gallery,
+          };
+          if (hasImages && hasAttrs) {
+            await client.query(
+              `UPDATE listings
+               SET image = $1,
+                   images = $2::jsonb,
+                   attributes = $3::jsonb
+               WHERE id = $4`,
+              [cover, JSON.stringify(gallery), JSON.stringify(nextAttrs), row.id]
+            );
+          } else if (hasAttrs) {
+            await client.query(
+              `UPDATE listings SET image = $1, attributes = $2::jsonb WHERE id = $3`,
+              [cover, JSON.stringify(nextAttrs), row.id]
+            );
+          } else if (hasImages) {
             await client.query(
               `UPDATE listings SET image = $1, images = $2::jsonb WHERE id = $3`,
               [cover, JSON.stringify(gallery), row.id]

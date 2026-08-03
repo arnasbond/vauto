@@ -179,19 +179,37 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
   const body =
     raw && typeof raw === "object" ? ({ ...(raw as Record<string, unknown>) } as Record<string, unknown>) : {};
 
+  const isStockUrl = (u: string) =>
+    /unsplash\.com|picsum\.photos|loremflickr|placehold\.co|via\.placeholder/i.test(
+      u
+    );
+
   const imagesRaw = Array.isArray(body.images)
-    ? body.images.map((u) => String(u ?? "").trim()).filter(Boolean)
+    ? body.images
+        .map((u) => String(u ?? "").trim())
+        .filter(Boolean)
+        .filter((u) => !isStockUrl(u))
     : [];
   let image = typeof body.image === "string" ? body.image.trim() : "";
+  if (image && isStockUrl(image)) image = "";
   if (!image && imagesRaw.length) image = imagesRaw[0]!;
   body.image = image;
 
   const httpGallery = capListingGalleryUrls(
     [image, ...imagesRaw]
       .filter((u) => /^https?:\/\//i.test(u))
+      .filter((u) => !isStockUrl(u))
       .filter((u, i, arr) => arr.indexOf(u) === i),
     body.category
   );
+
+  // Cover must be first real upload — never leave a stock URL in image.
+  if (httpGallery.length) {
+    body.image = httpGallery[0]!;
+  } else if (!image || isStockUrl(image) || image.startsWith("data:")) {
+    // Empty cover is OK — UI uses neutral placeholder; never invent Unsplash.
+    body.image = /^https?:\/\//i.test(image) && !isStockUrl(image) ? image : "";
+  }
 
   const attrs =
     body.attributes && typeof body.attributes === "object" && !Array.isArray(body.attributes)
@@ -207,13 +225,17 @@ function sanitizeListingCreateBody(raw: unknown): Record<string, unknown> {
     if (Array.isArray(val)) {
       attrs[key] = val
         .filter((item) => typeof item === "string" && !item.startsWith("data:image"))
-        .map((item) => String(item).slice(0, 400));
+        .map((item) => String(item).slice(0, 400))
+        .filter((item) => !isStockUrl(item));
     } else if (typeof val === "string" && val.length > 500) {
       attrs[key] = val.slice(0, 500);
     }
   }
 
   if (httpGallery.length > 1) {
+    attrs.galleryUrls = httpGallery;
+  } else if (httpGallery.length === 1) {
+    // Keep single cover discoverable for restore scripts / clients.
     attrs.galleryUrls = httpGallery;
   }
   body.attributes = attrs;

@@ -3,7 +3,7 @@
 import Image from "next/image";
 import { useState } from "react";
 import { isNativeApp } from "@/lib/mobile-install";
-import { resolveListingImage } from "@/lib/listing-image";
+import { resolveListingImage, LISTING_PLACEHOLDER_IMAGE } from "@/lib/listing-image";
 import type { Listing } from "@/lib/types";
 
 type ListingImageProps = {
@@ -29,8 +29,7 @@ export function ListingImage({
   const [src, setSrc] = useState(primary);
 
   const handleError = () => {
-    const fallback = resolveListingImage({ ...listing, images: [] });
-    if (src !== fallback) setSrc(fallback);
+    if (src !== LISTING_PLACEHOLDER_IMAGE) setSrc(LISTING_PLACEHOLDER_IMAGE);
   };
 
   if (isNativeApp()) {

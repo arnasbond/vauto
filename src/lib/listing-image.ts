@@ -1,58 +1,16 @@
-import type { LegacyListingInput, Listing, ListingCategory } from "@/lib/types";
+import type { LegacyListingInput, Listing } from "@/lib/types";
 import { getSafeImageUrl } from "@/lib/utils";
 import { hardFilterPublicGalleryUrls } from "@/lib/listing-gallery-roles";
 import { capListingGalleryUrls } from "@vauto/shared/listing-photo-policy";
 
-const UNSPLASH = (id: string) =>
-  `https://images.unsplash.com/${id}?w=800&h=600&fit=crop&auto=format`;
+/**
+ * Neutral system placeholder only — never Unsplash / stock / category photos.
+ * Prefer Cloudinary CDN (stable for Next/Image); SVG is same-origin fallback.
+ */
+export const LISTING_PLACEHOLDER_IMAGE =
+  "https://res.cloudinary.com/dhbrljo8v/image/upload/v1785776907/vauto/system/listing-placeholder.png";
 
-/** Verified live Unsplash photo IDs (HTTP 200 as of 2026-06). */
-const CATEGORY_FALLBACK: Record<ListingCategory, string> = {
-  vehicles: UNSPLASH("photo-1555215695-3004980ad54e"),
-  transport: UNSPLASH("photo-1558618666-fcd25c85cd64"),
-  electronics: UNSPLASH("photo-1511707171634-5f897ff02aa9"),
-  services: UNSPLASH("photo-1486262715619-67b85e0b08d3"),
-  jobs: UNSPLASH("photo-1497366811353-6870744d04b2"),
-  home: UNSPLASH("photo-1617806118233-18e1de247200"),
-  clothing: UNSPLASH("photo-1551028719-00167b16eac5"),
-  real_estate: UNSPLASH("photo-1560518883-ce09059eeffa"),
-  tools: UNSPLASH("photo-1581092918056-0c4c3acd3789"),
-  rental: UNSPLASH("photo-1486262715619-67b85e0b08d3"),
-  other: UNSPLASH("photo-1571068316344-75bc76f77890"),
-};
-
-/** Keyword → Unsplash photo matched to listing content */
-const CONTENT_IMAGES: Array<[RegExp, string]> = [
-  [/\bbmw\b/i, UNSPLASH("photo-1555215695-3004980ad54e")],
-  [/\baudi\b/i, UNSPLASH("photo-1606664515524-ed2f786a0bd6")],
-  [/\bmercedes|benz\b/i, UNSPLASH("photo-1617531653332-bd46c24f2068")],
-  [/\bvolvo\b/i, UNSPLASH("photo-1617531653332-bd46c24f2068")],
-  [/\btoyota\b/i, UNSPLASH("photo-1542362567-b07e54358753")],
-  [/\bvolkswagen|\bvw\b/i, UNSPLASH("photo-1542362567-b07e54358753")],
-  [/\bskoda\b/i, UNSPLASH("photo-1606664515524-ed2f786a0bd6")],
-  [/\bford\b/i, UNSPLASH("photo-1552519507-da3b142c6e3d")],
-  [/\bopel\b/i, UNSPLASH("photo-1617531653332-bd46c24f2068")],
-  [/\bx5|xc90|xc60|tiguan|q5|glc|rav4|visureig|suv\b/i, UNSPLASH("photo-1606664515524-ed2f786a0bd6")],
-  [/\btouring|universal|avantis|passat|octavia|v70\b/i, UNSPLASH("photo-1617531653332-bd46c24f2068")],
-  [/\biphone\b/i, UNSPLASH("photo-1592899677977-9c10ca588bbd")],
-  [/\bsamsung|galaxy\b/i, UNSPLASH("photo-1511707171634-5f897ff02aa9")],
-  [/\bmacbook|mac book\b/i, UNSPLASH("photo-1496181133206-80ce9b88a853")],
-  [/\bipad\b/i, UNSPLASH("photo-1544244015-0df4b3ffc6b0")],
-  [/\bplaystation|ps5\b/i, UNSPLASH("photo-1585060544812-6b45742d762f")],
-  [/\bdyson\b/i, UNSPLASH("photo-1558618666-fcd25c85cd64")],
-  [/\bsony\b|ausinės|ausines/i, UNSPLASH("photo-1585060544812-6b45742d762f")],
-  [/\bdetailing|plovimas\b/i, UNSPLASH("photo-1486262715619-67b85e0b08d3")],
-  [/\bpadang|montavim\b/i, UNSPLASH("photo-1504148455328-c376907d081c")],
-  [/\bdiagnostik|obd\b/i, UNSPLASH("photo-1486262715619-67b85e0b08d3")],
-  [/\bsupirkim\b/i, UNSPLASH("photo-1487754180451-c456f719a1fc")],
-  [/\bdažym|dazym|kėbul|kebul\b/i, UNSPLASH("photo-1492144534655-ae79c964c9d7")],
-  [/\bevakuator|kelyje\b/i, UNSPLASH("photo-1487754180451-c456f719a1fc")],
-  [/\bbutas|kambar|nt\b|nekilnojam|nuomoju|sklyp|namas\b/i, UNSPLASH("photo-1502672260266-1c1ef2d93688")],
-  [/\bdarbas|etat|atlyginim|vairuotoj|programuotoj|buhalter/i, UNSPLASH("photo-1497366811353-6870744d04b2")],
-  [/\bdrabu|batai|striuk|suknel|džins|nike|zara|adidas\b/i, UNSPLASH("photo-1551028719-00167b16eac5")],
-  [/\bsofa|bald|virtuv|lova|spinta\b/i, UNSPLASH("photo-1617806118233-18e1de247200")],
-  [/\bdvirat|vežimėl|įrank|sodas|knyg\b/i, UNSPLASH("photo-1571068316344-75bc76f77890")],
-];
+export const LISTING_PLACEHOLDER_SVG = "/listing-placeholder.svg";
 
 export function isValidListingImageUrl(url: unknown): url is string {
   if (typeof url !== "string") return false;
@@ -63,57 +21,110 @@ export function isValidListingImageUrl(url: unknown): url is string {
   return /^https?:\/\/.+/i.test(trimmed);
 }
 
-/** Stock Unsplash demos used as catalog placeholders — never attach to real seller publishes. */
+/** Stock Unsplash / picsum demos — never attach to real seller publishes or covers. */
 export function isDemoStockImageUrl(url: string): boolean {
   const u = url.trim().toLowerCase();
   if (!u) return false;
-  return u.includes("images.unsplash.com/") || u.includes("unsplash.com/");
+  return (
+    u.includes("images.unsplash.com/") ||
+    u.includes("unsplash.com/") ||
+    u.includes("picsum.photos") ||
+    u.includes("loremflickr") ||
+    u.includes("placehold.co") ||
+    u.includes("via.placeholder")
+  );
+}
+
+export function isListingPlaceholderUrl(url: string): boolean {
+  return /listing-placeholder/i.test(url.trim());
 }
 
 /** Keep only real session/seller uploads (drop stock Unsplash fillers + document evidence). */
 export function filterSessionListingImages(
   urls: readonly string[] | undefined,
-  opts?: { documentUrls?: readonly string[]; attributes?: Record<string, string | string[] | undefined> }
+  opts?: {
+    documentUrls?: readonly string[];
+    attributes?: Record<string, string | string[] | undefined>;
+  }
 ): string[] {
   return hardFilterPublicGalleryUrls(
     uniqueUrls(
-      (urls ?? []).filter((url) => isValidListingImageUrl(url) && !isDemoStockImageUrl(url))
+      (urls ?? []).filter(
+        (url) => isValidListingImageUrl(url) && !isDemoStockImageUrl(url)
+      )
     ),
     opts?.documentUrls,
     opts?.attributes
   );
 }
 
-type ListingImageFields = Pick<Listing, "title" | "category" | "description" | "images"> & {
+type ListingImageFields = Pick<
+  Listing,
+  "title" | "category" | "description" | "images"
+> & {
   image?: string;
+  attributes?: Record<string, string | string[] | undefined>;
 };
 
-/** Prefer http(s) covers; treat empty / stripped data: blobs as missing. */
+/** Prefer http(s) covers; treat empty / stripped data: blobs as missing for feed cards. */
 function usableCoverUrl(url: unknown): string | null {
   if (typeof url !== "string") return null;
   const trimmed = url.trim();
   if (!trimmed) return null;
   if (trimmed.startsWith("data:")) return null;
+  if (isDemoStockImageUrl(trimmed)) return null;
   if (!isValidListingImageUrl(trimmed)) return null;
   return trimmed;
 }
 
-export function resolveListingImage(listing: ListingImageFields): string {
-  const fromImages = (listing.images ?? [])
-    .map(usableCoverUrl)
-    .filter((u): u is string => Boolean(u));
-  if (fromImages.length) return fromImages[0]!;
-
-  const fromCover = usableCoverUrl(listing.image);
-  if (fromCover) return fromCover;
-
-  const haystack = `${listing.title} ${listing.description ?? ""}`;
-  for (const [pattern, url] of CONTENT_IMAGES) {
-    if (pattern.test(haystack)) return url;
+function attrUrlList(
+  attributes: ListingImageFields["attributes"] | undefined,
+  key: string
+): string[] {
+  const raw = attributes?.[key];
+  if (Array.isArray(raw)) {
+    return raw.filter((u): u is string => typeof u === "string" && Boolean(u.trim()));
   }
-
-  return CATEGORY_FALLBACK[listing.category] ?? CATEGORY_FALLBACK.other;
+  if (typeof raw === "string" && raw.trim()) return [raw.trim()];
+  return [];
 }
+
+/** Build ordered gallery candidates: images[] → gallery attrs → singular image. */
+export function collectListingGalleryCandidates(
+  listing: ListingImageFields
+): string[] {
+  const fromImages = listing.images ?? [];
+  const fromAttrs = [
+    ...attrUrlList(listing.attributes, "galleryUrls"),
+    ...attrUrlList(listing.attributes, "orderedImageUrls"),
+    ...attrUrlList(listing.attributes, "imageUrls"),
+    ...attrUrlList(listing.attributes, "photoUrls"),
+  ];
+  const fromCover = listing.image ? [listing.image] : [];
+  return uniqueUrls([...fromImages, ...fromAttrs, ...fromCover]);
+}
+
+/**
+ * Cover = first real user upload (images[0] / gallery), else neutral placeholder.
+ * Never invents Unsplash / category stock photos.
+ */
+export function resolveListingImage(listing: ListingImageFields): string {
+  const gallery = filterSessionListingImages(
+    collectListingGalleryCandidates(listing),
+    { attributes: listing.attributes }
+  );
+  const httpFirst = gallery.map(usableCoverUrl).find(Boolean);
+  if (httpFirst) return httpFirst;
+
+  // Draft / in-memory may still have data: as images[0] — allow for previews only.
+  const dataFirst = gallery.find(
+    (u) => typeof u === "string" && u.trim().startsWith("data:image/")
+  );
+  if (dataFirst) return dataFirst.trim();
+
+  return LISTING_PLACEHOLDER_IMAGE;
+}
+
 function imageDedupeKey(url: string): string {
   const u = url.trim();
   if (u.startsWith("data:")) {
@@ -154,18 +165,17 @@ export function dedupeListingImageUrls(
 
 /**
  * Full gallery for detail swipe.
- * Real seller photos are never padded with Unsplash stock cars (Audi/BMW extras).
- * Demo fillers only apply when the listing has zero images (legacy catalog).
+ * Real seller photos only — never padded with Unsplash stock.
  */
 export function resolveListingImages(listing: ListingImageFields): string[] {
-  const fromListing = filterSessionListingImages(listing.images);
+  const fromListing = filterSessionListingImages(
+    collectListingGalleryCandidates(listing),
+    { attributes: listing.attributes }
+  );
   if (fromListing.length > 0) {
     return capListingGalleryUrls(fromListing, listing.category);
   }
-
-  // Empty gallery — keep a single category cover for demo/legacy rows only.
-  const cover = resolveListingImage({ ...listing, images: [] });
-  return uniqueUrls([cover]).slice(0, 1);
+  return [LISTING_PLACEHOLDER_IMAGE];
 }
 
 export function getListingCoverImage(listing: ListingImageFields): string {
@@ -179,28 +189,48 @@ export function getListingGalleryImages(listing: ListingImageFields): string[] {
 export function coalesceListingImages(
   incoming: string[] | undefined,
   fallback: string[] | undefined,
-  listing: Pick<Listing, "title" | "category" | "description">
+  listing: Pick<Listing, "title" | "category" | "description"> & {
+    attributes?: ListingImageFields["attributes"];
+  }
 ): string[] {
-  const inc = uniqueUrls(incoming ?? []);
+  const inc = filterSessionListingImages(incoming, {
+    attributes: listing.attributes,
+  });
   if (inc.length) return inc;
-  const fb = uniqueUrls(fallback ?? []);
+  const fb = filterSessionListingImages(fallback, {
+    attributes: listing.attributes,
+  });
   if (fb.length) return fb;
-  return resolveListingImages({ ...listing, images: [] });
+  return [];
 }
 
 export function listingImagesFromLegacy(raw: LegacyListingInput): string[] {
-  const fromArray = uniqueUrls(raw.images ?? []);
-  if (fromArray.length) return fromArray;
-  if (isValidListingImageUrl(raw.image)) return [raw.image.trim()];
-  return [];
+  const attrs = (raw as Listing).attributes;
+  return filterSessionListingImages(
+    collectListingGalleryCandidates({
+      title: raw.title,
+      category: raw.category,
+      description: raw.description,
+      images: raw.images,
+      image: raw.image,
+      attributes: attrs,
+    }),
+    { attributes: attrs }
+  );
 }
 
 export function coalesceListingImage(
   incoming: string | undefined,
   fallback: string | undefined,
-  listing: Pick<Listing, "title" | "category" | "description">
+  listing: Pick<Listing, "title" | "category" | "description"> & {
+    attributes?: ListingImageFields["attributes"];
+  }
 ): string {
-  if (isValidListingImageUrl(incoming)) return incoming.trim();
-  if (isValidListingImageUrl(fallback)) return fallback.trim();
+  if (isValidListingImageUrl(incoming) && !isDemoStockImageUrl(incoming)) {
+    return incoming.trim();
+  }
+  if (isValidListingImageUrl(fallback) && !isDemoStockImageUrl(fallback)) {
+    return fallback.trim();
+  }
   return resolveListingImage({ ...listing, images: [] });
 }
