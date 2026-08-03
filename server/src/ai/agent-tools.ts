@@ -1248,16 +1248,22 @@ export async function executeAgentTool(
         const limitRaw = Number(args.limit);
         const limit =
           Number.isFinite(limitRaw) && limitRaw > 0 ? limitRaw : 500;
-        let filteredRows: Awaited<ReturnType<typeof searchListingsFiltered>> = [];
+      let filteredRows: Awaited<ReturnType<typeof searchListingsFiltered>> = [];
+      try {
+        filteredRows = await withSearchSqlTimeout(
+          searchListingsFiltered({ limit }),
+          SEARCH_SQL_TIMEOUT_MS
+        );
+      } catch (err) {
+        console.warn("[searchListings] browse_all SQL failed:", err);
         try {
-          filteredRows = await withSearchSqlTimeout(
-            searchListingsFiltered({ limit }),
-            SEARCH_SQL_TIMEOUT_MS
-          );
-        } catch (err) {
-          console.warn("[searchListings] browse_all SQL failed:", err);
+          // One untimed retry — cold Render DB / pool wake often exceeds the budget once.
+          filteredRows = await searchListingsFiltered({ limit });
+        } catch (retryErr) {
+          console.warn("[searchListings] browse_all SQL retry failed:", retryErr);
           filteredRows = [];
         }
+      }
         const results = filteredRows.map((l) => toAgentListingSummary(l));
         const replyMessage = buildBrowseAllReply(results.length);
 
@@ -1323,7 +1329,19 @@ export async function executeAgentTool(
         );
       } catch (err) {
         console.warn("[searchListings] filtered SQL failed:", err);
-        filteredRows = [];
+        try {
+          filteredRows = await searchListingsFiltered({
+            query: query || undefined,
+            category,
+            city: city || undefined,
+            minPrice,
+            maxPrice,
+            limit,
+          });
+        } catch (retryErr) {
+          console.warn("[searchListings] filtered SQL retry failed:", retryErr);
+          filteredRows = [];
+        }
       }
 
       const bounded = applyStrictSearchBoundaries(filteredRows, query || rawForIntent);
@@ -1360,9 +1378,13 @@ export async function executeAgentTool(
       /** UI search bar — raw user/Gemini query only; category lives in filters, never appended. */
       const searchQuery = query.trim();
 
+      // Soft category: server ranks by category but does not hard-filter. Sending
+      // category to the marketplace UI would wipe cross-category title matches.
+      const softCategoryForUi = Boolean(query && category);
+
       const searchFilters: AgentSearchFilters = {
         query: query || undefined,
-        category,
+        category: softCategoryForUi ? undefined : category,
         city: cityNominative || undefined,
         maxPrice: maxPrice != null && !Number.isNaN(maxPrice) ? maxPrice : undefined,
         minPrice: minPrice != null && !Number.isNaN(minPrice) ? minPrice : undefined,

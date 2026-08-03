@@ -1,9 +1,10 @@
 /**
  * Search fast-path + strict NLP intent isolation (shared client/server).
- * Selection opens recent results in <1s; SQL search budget stays ≤1.5s.
+ * Selection opens recent results in <1s; SQL search must survive Render cold DB
+ * and large listing rows (keep in sync with AI_TIMEOUT_POLICY.searchSqlMs).
  */
 
-export const SEARCH_SQL_TIMEOUT_MS = 1_500;
+export const SEARCH_SQL_TIMEOUT_MS = 8_000;
 
 const SELECTION_RE =
   /\b(šit[aą]|sita|šit[aą]s|sitas|an[aą]|anas|pirm[aą]|antra|trečia|trečia|šį|si|tą|ta)\b|\b(tinka|parodyk|rodyk|atidaryk|atverk|atverk|open|show)\b/i;

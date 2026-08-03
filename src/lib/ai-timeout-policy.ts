@@ -27,8 +27,8 @@ export const AI_TIMEOUT_POLICY = {
   agentAdminMs: 150_000,
   /** Text-only search stream — allows cold start + single-pass SQL without hard-freeze */
   searchStreamMs: 90_000,
-  /** Hard budget for indexed keyword/SQL searchListings */
-  searchSqlMs: 1_500,
+  /** Hard budget for indexed keyword/SQL searchListings (Render cold DB + image rows) */
+  searchSqlMs: 8_000,
 } satisfies {
   processingMs: number;
   fetchMs: number;

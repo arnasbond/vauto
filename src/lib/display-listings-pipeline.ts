@@ -226,7 +226,14 @@ function runDisplayPipeline(input: DisplayListingsInput): ScoredListing[] {
 
 
 
-  results = applyMarketplaceFilters(results, filters, input.buyerCoords);
+  // Agent pin IDs are authoritative — do not wipe them with a soft category filter
+  // (server already ranked by category; hard UI category was emptying the grid).
+  const pinSafeFilters =
+    input.agentPinnedListingIds !== null && input.agentPinnedListingIds.length > 0
+      ? { ...filters, category: "all" as const }
+      : filters;
+
+  results = applyMarketplaceFilters(results, pinSafeFilters, input.buyerCoords);
 
 
 

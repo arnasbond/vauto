@@ -106,6 +106,21 @@ const LISTING_SELECT = `SELECT id, seller_id, title, price, price_label, locatio
   allow_pastomatas
   FROM listings`;
 
+/**
+ * Search SELECT — strips inline data-URL blobs so keyword SQL stays under the
+ * search timeout on Render. Agent summaries only need text fields; the feed
+ * hydrates full images from the already-loaded catalog via pin IDs.
+ */
+const LISTING_SEARCH_SELECT = `SELECT id, seller_id, title, price, price_label, location, distance_km,
+  latitude, longitude, slug,
+  CASE WHEN image LIKE 'data:%' THEN '' ELSE COALESCE(image, '') END AS image,
+  category, tags, contact, has_video, created_at, expires_at,
+  description, attributes, status, banned, vin_verified, provider_verified, promoted,
+  min_negotiation_price, appraisal_score,
+  is_verified, requires_review, image_alt, image_title,
+  allow_pastomatas
+  FROM listings`;
+
 /** Public catalog — excludes banned and pending moderation review. */
 export const PUBLIC_LISTING_VISIBILITY_SQL = `NOT banned AND COALESCE(requires_review, false) = false AND COALESCE(status, 'active') NOT IN ('deleted', 'sold', 'archived')`;
 
@@ -607,6 +622,7 @@ function sqlSearchTokens(query: string): string[] {
     ...new Set(
       query
         .toLowerCase()
+        .normalize("NFC")
         .split(/[\s,.;:!?—–-]+/)
         .map((t) => t.trim())
         .filter((t) => t.length >= 2)
@@ -660,6 +676,41 @@ function splitSearchTokens(tokens: string[]): {
   return { primary, secondary };
 }
 
+/**
+ * LT declension-tolerant variants: batų/batus → batai, gitarą → gitara, haskio → haskis.
+ * Kept small and deterministic (no full morphological DB).
+ */
+function expandLtSearchToken(token: string): string[] {
+  const t = token.toLowerCase().normalize("NFC");
+  const variants = new Set<string>([t]);
+  if (t.length < 3) return [...variants];
+
+  const stem = t.replace(
+    /(omis|uose|yse|ams|ais|ių|ų|us|as|ės|ei|ę|ą|į|io|is|ė)$/u,
+    ""
+  );
+  if (stem.length >= 3 && stem !== t) {
+    variants.add(stem);
+    for (const suf of ["ai", "as", "a", "ė", "is", "ys"]) {
+      variants.add(stem + suf);
+    }
+  }
+  // Common noun shortcuts
+  if (/^bat/.test(t)) {
+    variants.add("batai");
+    variants.add("batas");
+  }
+  if (/^hask[iy]?/.test(t) || /^hasik/.test(t)) {
+    variants.add("haskis");
+    variants.add("haski");
+  }
+  return [...variants].filter((v) => v.length >= 2).slice(0, 6);
+}
+
+function tokenMatchesHaystack(haystack: string, token: string): boolean {
+  return expandLtSearchToken(token).some((v) => haystack.includes(v));
+}
+
 function listingHaystack(listing: ApiListing): string {
   return [
     listing.title,
@@ -669,7 +720,8 @@ function listingHaystack(listing: ApiListing): string {
     JSON.stringify(listing.attributes ?? {}),
   ]
     .join(" ")
-    .toLowerCase();
+    .toLowerCase()
+    .normalize("NFC");
 }
 
 function listingSecondaryHaystack(listing: ApiListing): string {
@@ -680,21 +732,27 @@ function listingSecondaryHaystack(listing: ApiListing): string {
     JSON.stringify(listing.attributes ?? {}),
   ]
     .join(" ")
-    .toLowerCase();
+    .toLowerCase()
+    .normalize("NFC");
 }
 
 function listingMatchesSqlTokens(listing: ApiListing, tokens: string[]): boolean {
   if (!tokens.length) return false;
   const { primary, secondary } = splitSearchTokens(tokens);
-  const titleLower = listing.title.toLowerCase();
-  const haystack = listingSecondaryHaystack(listing);
+  const titleLower = listing.title.toLowerCase().normalize("NFC");
+  const fullHaystack = listingHaystack(listing);
+  const secondaryHay = listingSecondaryHaystack(listing);
 
   if (primary.length) {
-    if (!primary.every((t) => titleLower.includes(t))) return false;
-    return secondary.every((t) => haystack.includes(t));
+    // Prefer title, but accept description/tags/attributes (LT case forms).
+    const primaryOk = primary.every(
+      (t) => tokenMatchesHaystack(titleLower, t) || tokenMatchesHaystack(fullHaystack, t)
+    );
+    if (!primaryOk) return false;
+    return secondary.every((t) => tokenMatchesHaystack(secondaryHay, t));
   }
 
-  return tokens.every((t) => listingHaystack(listing).includes(t));
+  return tokens.every((t) => tokenMatchesHaystack(fullHaystack, t));
 }
 
 function rankByCategoryPreference(
@@ -706,6 +764,28 @@ function rankByCategoryPreference(
   const inCat = rows.filter((l) => l.category === cat);
   const rest = rows.filter((l) => l.category !== cat);
   return inCat.length ? [...inCat, ...rest] : rows;
+}
+
+function pushTokenFieldMatch(
+  conditions: string[],
+  values: unknown[],
+  idx: number,
+  token: string
+): number {
+  const variants = expandLtSearchToken(token);
+  const parts: string[] = [];
+  for (const v of variants) {
+    parts.push(`(
+      LOWER(title) LIKE $${idx} OR
+      LOWER(COALESCE(description, '')) LIKE $${idx} OR
+      COALESCE(tags::text, '[]') LIKE $${idx} OR
+      LOWER(COALESCE(attributes::text, '')) LIKE $${idx}
+    )`);
+    values.push(`%${v}%`);
+    idx++;
+  }
+  conditions.push(`(${parts.join(" OR ")})`);
+  return idx;
 }
 
 /** SQL ILIKE pagal Gemini query — niekada negrąžina viso katalogo su query. */
@@ -720,7 +800,8 @@ export async function searchListingsFiltered(
     "(status IS NULL OR status IS DISTINCT FROM 'sold')",
     "banned = false",
     "COALESCE(requires_review, false) = false",
-    "price > 0",
+    // Jobs/services are often price=0 (salary/negotiable); still searchable.
+    `(price > 0 OR category IN ('jobs', 'services'))`,
   ];
   const values: unknown[] = [];
   let idx = 1;
@@ -746,24 +827,16 @@ export async function searchListingsFiltered(
   }
 
   for (const token of primary) {
-    conditions.push(`LOWER(title) LIKE $${idx++}`);
-    values.push(`%${token}%`);
+    idx = pushTokenFieldMatch(conditions, values, idx, token);
   }
 
   for (const token of secondary) {
-    conditions.push(`(
-      LOWER(title) LIKE $${idx} OR
-      LOWER(COALESCE(description, '')) LIKE $${idx} OR
-      COALESCE(tags::text, '[]') LIKE $${idx} OR
-      LOWER(COALESCE(attributes::text, '')) LIKE $${idx}
-    )`);
-    values.push(`%${token}%`);
-    idx++;
+    idx = pushTokenFieldMatch(conditions, values, idx, token);
   }
 
   const limit =
     params.limit != null && params.limit > 0 ? Math.min(params.limit, 500) : 500;
-  const sql = `${LISTING_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${idx}`;
+  const sql = `${LISTING_SEARCH_SELECT} WHERE ${conditions.join(" AND ")} ORDER BY created_at DESC LIMIT $${idx}`;
   values.push(limit);
 
   let rows: ApiListing[];
@@ -773,13 +846,18 @@ export async function searchListingsFiltered(
     rows = isServerDemoCatalogEnabled()
       ? mergeDbListingsWithDemoCatalog(fromDb)
       : fromDb;
-  } catch {
+  } catch (err) {
+    console.warn("[searchListingsFiltered] SQL failed:", err);
     if (queryText && !tokens.length) {
       return [];
     }
     rows = await getListings();
     rows = rows.filter(
-      (l) => l.status !== "sold" && !l.banned && !l.requiresReview && l.price > 0
+      (l) =>
+        l.status !== "sold" &&
+        !l.banned &&
+        !l.requiresReview &&
+        (l.price > 0 || l.category === "jobs" || l.category === "services")
     );
     if (params.category && !softCategoryOnly) {
       rows = rows.filter((l) => l.category === params.category);

@@ -13,7 +13,7 @@ export const AI_TIMEOUT_POLICY = {
   agentMs: 120_000,
   agentAdminMs: 150_000,
   searchStreamMs: 90_000,
-  searchSqlMs: 1_500,
+  searchSqlMs: 8_000,
 } as const;
 
 export const BARCODE_LOOKUP_BUDGET_MS = AI_TIMEOUT_POLICY.barcodeLookupMs;
