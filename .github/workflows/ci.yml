@@ -125,3 +125,8 @@ jobs:
         run: npm run test:e2e:conductor
         env:
           CI: "true"
+
+      - name: Run enterprise business E2E pack
+        run: npx playwright test --project=e2e-enterprise
+        env:
+          CI: "true"

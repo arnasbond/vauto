@@ -6,6 +6,11 @@ on:
     types: [completed]
     branches: [master]
   workflow_dispatch:
+    inputs:
+      force:
+        description: "Emergency only — deploy even if latest CI is red"
+        type: boolean
+        default: false
 
 env:
   NEXT_PUBLIC_API_URL: https://vauto-api.onrender.com
@@ -13,10 +18,13 @@ env:
 jobs:
   deploy:
     runs-on: ubuntu-latest
+    # Block production unless CI passed on push. Manual dispatch requires force=true.
     if: >-
-      github.event_name == 'workflow_dispatch' ||
-      (github.event.workflow_run.conclusion == 'success' &&
-       github.event.workflow_run.event == 'push')
+      (github.event_name == 'workflow_run' &&
+       github.event.workflow_run.conclusion == 'success' &&
+       github.event.workflow_run.event == 'push') ||
+      (github.event_name == 'workflow_dispatch' &&
+       inputs.force == true)
     steps:
       - uses: actions/checkout@v4
 

@@ -10,6 +10,7 @@
     "start": "next start",
     "lint": "next lint",
     "test:e2e": "npm run build:e2e && playwright test",
+    "test:e2e:enterprise": "npm run build:e2e && playwright test --project=e2e-enterprise",
     "test:e2e:live": "playwright test --config=playwright.live.config.ts",
     "test:e2e:prod-real": "playwright test --config=playwright.prod-real.config.ts",
     "test:e2e:conductor": "node scripts/build-with-conductor.mjs && playwright test e2e/ai-conductor.spec.ts",

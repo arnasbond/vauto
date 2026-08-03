@@ -1,9 +1,11 @@
 import { defineConfig, devices } from "@playwright/test";
 
+/**
+ * Default Playwright suite:
+ * - e2e/              legacy smoke + conductor
+ * - tests/e2e/        enterprise business-flow pack (CI gate)
+ */
 export default defineConfig({
-  testDir: "./e2e",
-  // Live Vision/OCR seller path requires Next.dev + API — use playwright.live.config.ts.
-  testIgnore: [/prepublish-live\.spec\.ts$/],
   fullyParallel: true,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 1 : 0,
@@ -15,7 +17,18 @@ export default defineConfig({
   },
   projects: [
     {
-      name: "chromium",
+      name: "e2e-legacy",
+      testDir: "./e2e",
+      // Live Vision/OCR seller path requires Next.dev + API — use playwright.live.config.ts.
+      testIgnore: [/prepublish-live\.spec\.ts$/],
+      use: {
+        ...devices["Desktop Chrome"],
+        ...(process.env.CI ? {} : { channel: "chrome" }),
+      },
+    },
+    {
+      name: "e2e-enterprise",
+      testDir: "./tests/e2e",
       use: {
         ...devices["Desktop Chrome"],
         ...(process.env.CI ? {} : { channel: "chrome" }),
