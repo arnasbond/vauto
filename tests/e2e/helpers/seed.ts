@@ -50,10 +50,32 @@ export async function seedOwnedListings(
   );
 }
 
+/** Drop any lingering SW / Cache API so tests always hit the built bundle. */
+export async function purgeServiceWorkerCaches(page: Page) {
+  await page.addInitScript(() => {
+    const wipe = async () => {
+      try {
+        if ("serviceWorker" in navigator) {
+          const regs = await navigator.serviceWorker.getRegistrations();
+          await Promise.all(regs.map((r) => r.unregister()));
+        }
+        if ("caches" in window) {
+          const keys = await caches.keys();
+          await Promise.all(keys.map((k) => caches.delete(k)));
+        }
+      } catch {
+        /* ignore */
+      }
+    };
+    void wipe();
+  });
+}
+
 export async function seedSellerWithOwnedListing(
   page: Page,
   listing: E2EListing = buildOwnedListing()
 ) {
+  await purgeServiceWorkerCaches(page);
   await forceOfflineCatalog(page);
   await seedDemoUser(page);
   await seedOwnedListings(page, [listing], E2E_SELLER_ID);

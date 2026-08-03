@@ -34,6 +34,14 @@ export function NativeShell({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // E2E / demo static builds must not register SW — cache-first /_next/static
+    // otherwise freezes an old EditListingModal across rebuilds.
+    if (
+      process.env.NEXT_PUBLIC_SHOW_DEMO_CATALOG === "true" ||
+      process.env.NEXT_PUBLIC_E2E === "1"
+    ) {
+      return;
+    }
     if (!Capacitor.isNativePlatform() && "serviceWorker" in navigator) {
       navigator.serviceWorker.register("/sw.js").catch(() => {
         /* offline shell optional */
